@@ -19,6 +19,7 @@
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
 #include <LibURL/Forward.h>
+#include <LibWeb/Fetch/Infrastructure/AuthenticationEntry.h>
 
 namespace IPC {
 
@@ -141,6 +142,9 @@ ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::Blob const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::MediaSource const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Web::Fetch::Infrastructure::AuthenticationEntry const&);
 
 template<Concepts::Span T>
 requires(!IsArithmetic<typename T::ElementType>)
