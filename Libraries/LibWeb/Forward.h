@@ -632,6 +632,7 @@ class IncrementalReadLoopReadRequest;
 class Request;
 class Response;
 
+struct AuthenticationEntry;
 struct BodyWithType;
 struct ConnectionTimingInfo;
 
