@@ -8,6 +8,7 @@ target_sources(ladybird PRIVATE
     FindInPageWidget.cpp
     Icon.cpp
     LocationEdit.cpp
+    LoginDialog.cpp
     Menu.cpp
     Settings.cpp
     StringUtils.cpp
