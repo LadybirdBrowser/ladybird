@@ -131,6 +131,7 @@ private:
     virtual void alert_closed(u64 page_id) override;
     virtual void confirm_closed(u64 page_id, bool accepted) override;
     virtual void prompt_closed(u64 page_id, Optional<String> response) override;
+    virtual void sign_in_closed(u64 page_id, Optional<Web::Fetch::Infrastructure::AuthenticationEntry> response) override;
     virtual void color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) override;
     virtual void file_picker_closed(u64 page_id, Vector<Web::HTML::SelectedFile> selected_files) override;
     virtual void select_dropdown_closed(u64 page_id, Optional<u32> selected_item_id) override;

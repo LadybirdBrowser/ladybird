@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/String.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -13,6 +14,9 @@ namespace Web::Fetch::Infrastructure {
 struct AuthenticationEntry {
     String username {};
     String password {};
+    String realm {};
 };
+
+static HashMap<String, AuthenticationEntry> s_authentication_entries {};
 
 }

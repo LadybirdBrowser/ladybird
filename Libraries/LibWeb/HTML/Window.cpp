@@ -1194,6 +1194,11 @@ Optional<String> Window::prompt(Optional<String> const& message, Optional<String
     return page().did_request_prompt(*message, *default_);
 }
 
+Optional<Fetch::Infrastructure::AuthenticationEntry> Window::sign_in_dialog()
+{
+    return page().did_request_sign_in_dialog();
+}
+
 // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
 WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, WindowPostMessageOptions const& options)
 {

@@ -76,6 +76,8 @@ public:
     void alert_closed();
     void confirm_closed(bool accepted);
     void prompt_closed(Optional<String> response);
+    void page_did_request_sign_in();
+    void sign_in_closed(Optional<Web::Fetch::Infrastructure::AuthenticationEntry>);
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
@@ -151,6 +153,7 @@ private:
     virtual void page_did_request_set_prompt_text(String const&) override;
     virtual void page_did_request_accept_dialog() override;
     virtual void page_did_request_dismiss_dialog() override;
+    virtual void page_did_request_sign_in_dialog() override;
     virtual void page_did_change_favicon(Gfx::Bitmap const&) override;
     virtual Optional<Core::SharedVersion> page_did_request_document_cookie_version(Core::SharedVersionIndex document_index) override;
     virtual void page_did_receive_document_cookie_version_buffer(Core::AnonymousBuffer document_cookie_version_buffer) override;

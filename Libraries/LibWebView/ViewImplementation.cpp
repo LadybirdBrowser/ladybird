@@ -495,6 +495,11 @@ void ViewImplementation::prompt_closed(Optional<String> const& response)
     client().async_prompt_closed(page_id(), response);
 }
 
+void ViewImplementation::sign_in_closed(Optional<Web::Fetch::Infrastructure::AuthenticationEntry> const& authentication_entry)
+{
+    client().async_sign_in_closed(page_id(), authentication_entry);
+}
+
 void ViewImplementation::color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
 {
     client().async_color_picker_update(page_id(), picked_color, state);

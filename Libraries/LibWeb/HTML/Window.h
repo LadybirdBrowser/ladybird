@@ -203,6 +203,7 @@ public:
     void alert(String const& message = {});
     bool confirm(Optional<String> const& message);
     Optional<String> prompt(Optional<String> const& message, Optional<String> const& default_);
+    Optional<Fetch::Infrastructure::AuthenticationEntry> sign_in_dialog();
 
     WebIDL::ExceptionOr<void> post_message(JS::Value message, String const&, Vector<GC::Root<JS::Object>> const&);
     WebIDL::ExceptionOr<void> post_message(JS::Value message, WindowPostMessageOptions const&);

@@ -23,6 +23,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NodeList.h>
+#include <LibWeb/Fetch/Infrastructure/AuthenticationEntry.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -467,6 +468,17 @@ void PageClient::prompt_closed(Optional<String> response)
     page().prompt_closed(move(response));
 }
 
+void PageClient::page_did_request_sign_in()
+{
+    client().async_did_request_sign_in_dialog(m_id);
+}
+
+void PageClient::sign_in_closed(Optional<Web::Fetch::Infrastructure::AuthenticationEntry> authentication_entry)
+{
+    dbgln("PageClient::sign_in_closed(Optional<Web::Fetch::Infrastructure::AuthenticationEntry>)");
+    page().sign_in_closed(move(authentication_entry));
+}
+
 void PageClient::color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
 {
     page().color_picker_update(picked_color, state);
@@ -510,6 +522,12 @@ void PageClient::page_did_request_accept_dialog()
 void PageClient::page_did_request_dismiss_dialog()
 {
     client().async_did_request_dismiss_dialog(m_id);
+}
+
+void PageClient::page_did_request_sign_in_dialog()
+{
+    dbgln("PageClient::page_did_request_sign_in_dialog(): {}", m_id);
+    client().async_did_request_sign_in_dialog(m_id);
 }
 
 void PageClient::page_did_change_favicon(Gfx::Bitmap const& favicon)
