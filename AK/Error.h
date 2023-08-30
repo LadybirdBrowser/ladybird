@@ -11,6 +11,9 @@
 #include <AK/Variant.h>
 #include <errno.h>
 #include <string.h>
+#ifdef AK_OS_WINDOWS
+typedef unsigned long DWORD;
+#endif
 
 namespace AK {
 
@@ -24,6 +27,10 @@ public:
         VERIFY(code != 0);
         return Error(code);
     }
+
+#ifdef AK_OS_WINDOWS
+    static Error from_windows_error(DWORD code);
+#endif
 
     // NOTE: For calling this method from within kernel code, we will simply print
     // the error message and return the errno code.
