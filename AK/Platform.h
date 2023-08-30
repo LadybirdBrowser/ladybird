@@ -277,10 +277,10 @@
 #endif
 
 #if defined(AK_OS_WINDOWS)
-#    define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
+#    define MSG_NOSIGNAL 0
 #endif
 
-#if defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_FREEBSD) || defined(AK_OS_HAIKU)
+#if defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_FREEBSD) || defined(AK_OS_HAIKU) || defined(AK_OS_WINDOWS)
 #    define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
 #    define CLOCK_REALTIME_COARSE CLOCK_REALTIME
 #endif
