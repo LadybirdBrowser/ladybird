@@ -9,7 +9,12 @@
 
 #include <AK/ByteString.h>
 #include <LibCore/DirectoryEntry.h>
-#include <dirent.h>
+
+#if !defined(AK_OS_WINDOWS)
+#    include <dirent.h>
+#else
+#    include <windows.h>
+#endif
 #include <string.h>
 
 namespace Core {
@@ -38,7 +43,13 @@ public:
     int fd() const;
 
 private:
+#if defined(AK_OS_WINDOWS)
+    HANDLE m_handle { INVALID_HANDLE_VALUE };
+    WIN32_FIND_DATA m_find_data;
+    bool m_initialized { false };
+#else
     DIR* m_dir = nullptr;
+#endif
     Optional<Error> m_error;
     Optional<DirectoryEntry> m_next;
     ByteString m_path;

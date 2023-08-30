@@ -17,8 +17,12 @@
 #include <LibCore/DirIterator.h>
 #include <LibCore/DirectoryEntry.h>
 #include <LibCore/File.h>
-#include <dirent.h>
 #include <sys/stat.h>
+#if defined(AK_OS_WINDOWS)
+#    include <windows.h>
+#else
+#    include <dirent.h>
+#endif
 
 namespace Core {
 
@@ -38,29 +42,45 @@ public:
 
     static ErrorOr<Directory> create(LexicalPath path, CreateDirectories, mode_t creation_mode = 0755);
     static ErrorOr<Directory> create(ByteString path, CreateDirectories, mode_t creation_mode = 0755);
-    static ErrorOr<Directory> adopt_fd(int fd, LexicalPath path);
 
     ErrorOr<NonnullOwnPtr<File>> open(StringView filename, File::OpenMode mode) const;
     ErrorOr<struct stat> stat(StringView filename, int flags) const;
     ErrorOr<struct stat> stat() const;
-    int fd() const { return m_directory_fd; }
 
     LexicalPath const& path() const { return m_path; }
 
     using ForEachEntryCallback = Function<ErrorOr<IterationDecision>(DirectoryEntry const&, Directory const& parent)>;
     static ErrorOr<void> for_each_entry(StringView path, DirIterator::Flags, ForEachEntryCallback);
     ErrorOr<void> for_each_entry(DirIterator::Flags, ForEachEntryCallback);
-
+#if !defined(AK_OS_WINDOWS)
     ErrorOr<void> chown(uid_t, gid_t);
 
+    int fd() const { return m_directory_fd; }
+    static ErrorOr<Directory> adopt_fd(int fd, LexicalPath);
     static ErrorOr<bool> is_valid_directory(int fd);
+#else
+    HANDLE handle() const
+    {
+        return m_directory_handle;
+    }
+    static ErrorOr<Directory> adopt_handle(HANDLE handle, LexicalPath);
+    static ErrorOr<bool> is_valid_directory(HANDLE handle);
+#endif
 
 private:
+#if !defined(AK_OS_WINDOWS)
     Directory(int directory_fd, LexicalPath path);
+#else
+    Directory(HANDLE directory_handle, LexicalPath path);
+#endif
     static ErrorOr<void> ensure_directory(LexicalPath const& path, mode_t creation_mode = 0755);
 
     LexicalPath m_path;
+#if !defined(AK_OS_WINDOWS)
     int m_directory_fd;
+#else
+    HANDLE m_directory_handle;
+#endif
 };
 
 }
