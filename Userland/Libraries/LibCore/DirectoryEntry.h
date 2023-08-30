@@ -8,7 +8,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/StringView.h>
-#include <dirent.h>
+#include <sys/types.h>
 
 namespace Core {
 
@@ -27,13 +27,12 @@ struct DirectoryEntry {
     Type type;
     // FIXME: Once we have a special Path string class, use that.
     ByteString name;
+#if !defined(AK_OS_WINDOWS)
     ino_t inode_number;
+#endif
 
     static StringView posix_name_from_directory_entry_type(Type);
     static StringView representative_name_from_directory_entry_type(Type);
-    static Type directory_entry_type_from_stat(mode_t st_mode);
-    static DirectoryEntry from_dirent(dirent const&);
-    static DirectoryEntry from_stat(DIR*, dirent const&);
 };
 
 }

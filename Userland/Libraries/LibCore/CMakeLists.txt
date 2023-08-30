@@ -6,13 +6,24 @@ set(SOURCES
     ArgsParser.cpp
     Directory.cpp
     DirectoryEntry.cpp
-    DirIterator.cpp
     Environment.cpp
     File.cpp
     StandardPaths.cpp
     System.cpp
     Version.cpp
 )
+
+if (WIN32)
+    list(APPEND SOURCES
+        DirIteratorWindows.cpp
+    )
+else()
+    list(APPEND SOURCES
+        DirIterator.cpp
+    )
+endif()
+
+add_cxx_compile_options(-Wno-unneeded-internal-declaration)
 
 serenity_lib(LibCoreMinimal coreminimal)
 
