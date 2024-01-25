@@ -377,6 +377,8 @@ private:
 
 template<>
 struct Traits<StringView> : public DefaultTraits<StringView> {
+    using PeekType = StringView;
+    using ConstPeekType = StringView;
     static unsigned hash(StringView s) { return s.hash(); }
 };
 
