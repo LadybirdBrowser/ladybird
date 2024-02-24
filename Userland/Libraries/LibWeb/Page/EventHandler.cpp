@@ -29,12 +29,18 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/UIEvents/EventNames.h>
+#include <LibWeb/UIEvents/InputEvent.h>
+#include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
 
 namespace Web {
+
+#define FIRE(event_result)                      \
+    if (event_result == EventResult::Cancelled) \
+        return event_result;
 
 static JS::GCPtr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paintable)
 {
@@ -872,6 +878,39 @@ static bool produces_character_value(u32 code_point)
         || Unicode::code_point_has_symbol_general_category(code_point);
 }
 
+EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable& navigable, u32 code_point)
+{
+    auto document = navigable.active_document();
+    if (!document)
+        return EventResult::Dropped;
+    if (!document->is_fully_active())
+        return EventResult::Dropped;
+
+    UIEvents::InputEventInit input_event_init;
+    if (!is_unicode_control(code_point)) {
+        input_event_init.data = String::from_code_point(code_point);
+    }
+    input_event_init.input_type = input_type;
+
+    if (auto* focused_element = document->focused_element()) {
+        if (is<HTML::NavigableContainer>(*focused_element)) {
+            auto& navigable_container = verify_cast<HTML::NavigableContainer>(*focused_element);
+            if (navigable_container.content_navigable())
+                return input_event(event_name, input_type, *navigable_container.content_navigable(), code_point);
+        }
+
+        auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init);
+        return focused_element->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
+    }
+
+    auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init);
+
+    if (auto* body = document->body())
+        return body->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
+
+    return document->root().dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
+}
+
 EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point)
 {
     if (!m_navigable->active_document())
@@ -964,6 +1003,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             }
 
             m_edit_event_handler->handle_delete_character_after(document, *document->cursor_position());
+            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::deleteContentBackward, m_navigable, code_point));
             return EventResult::Handled;
         }
 
@@ -974,6 +1014,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             }
 
             m_edit_event_handler->handle_delete_character_after(document, *document->cursor_position());
+            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::deleteContentForward, m_navigable, code_point));
             return EventResult::Handled;
         }
 
@@ -1065,14 +1106,17 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
                 }
 
                 input_element->commit_pending_changes();
+                FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
                 return EventResult::Handled;
             }
+            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
         }
 
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
         if (!should_ignore_keydown_event(code_point, modifiers) && node.is_editable()) {
             m_edit_event_handler->handle_insert(document, JS::NonnullGCPtr { *document->cursor_position() }, code_point);
             document->increment_cursor_position_offset();
+            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertText, m_navigable, code_point));
             return EventResult::Handled;
         }
     }
