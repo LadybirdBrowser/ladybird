@@ -12,6 +12,11 @@ namespace Web::UIEvents {
 
 JS_DEFINE_ALLOCATOR(InputEvent);
 
+JS::NonnullGCPtr<InputEvent> InputEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, InputEventInit const& event_init)
+{
+    return realm.heap().allocate<InputEvent>(realm, realm, event_name, event_init);
+}
+
 WebIDL::ExceptionOr<JS::NonnullGCPtr<InputEvent>> InputEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, InputEventInit const& event_init)
 {
     return realm.heap().allocate<InputEvent>(realm, realm, event_name, event_init);

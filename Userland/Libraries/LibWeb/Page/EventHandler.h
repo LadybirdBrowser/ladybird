@@ -50,6 +50,7 @@ private:
     bool focus_previous_element();
 
     EventResult fire_keyboard_event(FlyString const& event_name, HTML::Navigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point);
+    [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable&, u32 code_point);
     CSSPixelPoint compute_mouse_event_client_offset(CSSPixelPoint event_page_position) const;
     CSSPixelPoint compute_mouse_event_page_offset(CSSPixelPoint event_client_offset) const;
     CSSPixelPoint compute_mouse_event_movement(CSSPixelPoint event_client_offset) const;
