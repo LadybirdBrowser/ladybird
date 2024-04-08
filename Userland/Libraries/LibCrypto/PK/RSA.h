@@ -92,6 +92,14 @@ public:
 
     RSAPrivateKey() = default;
 
+    static RSAPrivateKey from_crt(Integer n, Integer e, Integer p, Integer q, Integer dp, Integer dq, Integer qinv)
+    {
+        auto lambda = NumberTheory::LCM(p.minus(1), q.minus(1));
+        auto d = NumberTheory::ModularInverse(e, lambda);
+
+        return { n, d, e, p, q, dp, dq, qinv };
+    }
+
     Integer const& modulus() const { return m_modulus; }
     Integer const& private_exponent() const { return m_private_exponent; }
     Integer const& public_exponent() const { return m_public_exponent; }
