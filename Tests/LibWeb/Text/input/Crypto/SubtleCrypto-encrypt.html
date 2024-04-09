@@ -1,0 +1,32 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const encoder = new TextEncoder();
+        const message = "Hello friends";
+        const encodedMessage = encoder.encode(message);
+
+        const generated = await window.crypto.subtle.generateKey(
+            {
+                name: "RSA-OAEP",
+                modulusLength: 512,
+                publicExponent: new Uint8Array([1, 0, 1]),
+                hash: "SHA-1",
+            },
+            true,
+            ["encrypt", "decrypt"]
+        );
+
+        const ciphertext = await window.crypto.subtle.encrypt(
+            {
+                name: "RSA-OAEP",
+            },
+            generated.publicKey,
+            encodedMessage
+        );
+
+        const buffer = new Uint8Array(ciphertext);
+        println(`Encrypted OK with ${buffer.byteLength} bytes`);
+
+        done();
+    });
+</script>

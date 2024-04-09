@@ -229,6 +229,8 @@ public:
 
     PrivateKeyType const& private_key() const { return m_private_key; }
     PublicKeyType const& public_key() const { return m_public_key; }
+
+    void set_public_key(PublicKeyType const& key) { m_public_key = key; }
 };
 
 class RSA_PKCS1_EME : public RSA {

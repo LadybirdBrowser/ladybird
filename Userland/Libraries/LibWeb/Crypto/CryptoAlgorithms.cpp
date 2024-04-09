@@ -13,10 +13,12 @@
 #include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/Hash/HKDF.h>
 #include <LibCrypto/Hash/HashManager.h>
+#include <LibCrypto/Hash/MGF.h>
 #include <LibCrypto/Hash/PBKDF2.h>
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/PK/RSA.h>
+#include <LibCrypto/Padding/OAEP.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -494,17 +496,45 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> RSAOAEP::encrypt(Algorith
         return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_string);
 
     // 2. Let label be the contents of the label member of normalizedAlgorithm or the empty octet string if the label member of normalizedAlgorithm is not present.
-    [[maybe_unused]] auto const& label = normalized_algorithm.label;
+    auto const& label = normalized_algorithm.label;
+
+    auto const& handle = key->handle();
+    auto public_key = handle.get<::Crypto::PK::RSAPublicKey<>>();
+    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().visit([](String const& name) -> JS::ThrowCompletionOr<String> { return name; }, [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
+                auto name_property = TRY(obj->get("name"));
+                return name_property.to_string(realm.vm()); }));
 
     // 3. Perform the encryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA public key,
     //    the contents of plaintext as the message to be encrypted, M and label as the label, L, and with the hash function specified by the hash attribute
     //    of the [[algorithm]] internal slot of key as the Hash option and MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option.
 
+    auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
+    ErrorOr<ByteBuffer> maybe_padding = Error::from_string_view(error_message.bytes_as_string_view());
+    if (hash.equals_ignoring_ascii_case("SHA-1"sv)) {
+        maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA1, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
+    } else if (hash.equals_ignoring_ascii_case("SHA-256"sv)) {
+        maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA256, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
+    } else if (hash.equals_ignoring_ascii_case("SHA-384"sv)) {
+        maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA384, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
+    } else if (hash.equals_ignoring_ascii_case("SHA-512"sv)) {
+        maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA512, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
+    }
+
     // 4. If performing the operation results in an error, then throw an OperationError.
+    if (maybe_padding.is_error()) {
+        auto error_message = MUST(String::from_utf8(maybe_padding.error().string_literal()));
+        return WebIDL::OperationError::create(realm, error_message);
+    }
+
+    auto padding = maybe_padding.release_value();
 
     // 5. Let ciphertext be the value C that results from performing the operation.
-    // FIXME: Actually encrypt the data
-    auto ciphertext = TRY_OR_THROW_OOM(vm, ByteBuffer::copy(plaintext));
+    auto ciphertext = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(public_key.length()));
+    auto ciphertext_bytes = ciphertext.bytes();
+
+    auto rsa = ::Crypto::PK::RSA {};
+    rsa.set_public_key(public_key);
+    rsa.encrypt(padding, ciphertext_bytes);
 
     // 6. Return the result of creating an ArrayBuffer containing ciphertext.
     return JS::ArrayBuffer::create(realm, move(ciphertext));
