@@ -20,9 +20,24 @@
 namespace Web::Crypto {
 
 using AlgorithmIdentifier = Variant<JS::Handle<JS::Object>, String>;
-using HashAlgorithmIdentifier = AlgorithmIdentifier;
 using NamedCurve = String;
 using KeyDataType = Variant<JS::Handle<WebIDL::BufferSource>, Bindings::JsonWebKey>;
+
+struct HashAlgorithmIdentifier : public AlgorithmIdentifier {
+    using AlgorithmIdentifier::AlgorithmIdentifier;
+
+    JS::ThrowCompletionOr<String> name(JS::VM& vm) const
+    {
+        auto value = visit(
+            [](String const& name) -> JS::ThrowCompletionOr<String> { return name; },
+            [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
+                auto name_property = TRY(obj->get("name"));
+                return name_property.to_string(vm);
+            });
+
+        return value;
+    }
+};
 
 // https://w3c.github.io/webcrypto/#algorithm-overview
 struct AlgorithmParams {

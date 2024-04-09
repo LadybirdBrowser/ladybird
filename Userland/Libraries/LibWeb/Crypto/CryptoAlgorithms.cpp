@@ -500,9 +500,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> RSAOAEP::encrypt(Algorith
 
     auto const& handle = key->handle();
     auto public_key = handle.get<::Crypto::PK::RSAPublicKey<>>();
-    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().visit([](String const& name) -> JS::ThrowCompletionOr<String> { return name; }, [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
-                auto name_property = TRY(obj->get("name"));
-                return name_property.to_string(realm.vm()); }));
+    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 3. Perform the encryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA public key,
     //    the contents of plaintext as the message to be encrypted, M and label as the label, L, and with the hash function specified by the hash attribute
@@ -809,9 +807,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
             auto normalized_hash = TRY(normalize_an_algorithm(m_realm, AlgorithmIdentifier { *hash }, "digest"_string));
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
-            if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.visit([](String const& name) -> JS::ThrowCompletionOr<String> { return name; }, [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
-                        auto name_property = TRY(obj->get("name"));
-                        return name_property.to_string(m_realm->vm()); })))
+            if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.name(realm.vm())))
                 return WebIDL::DataError::create(m_realm, "Invalid hash"_string);
         }
 
@@ -980,9 +976,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> RSAOAEP::export_key(Bindings::
         jwk.kty = "RSA"_string;
 
         // 4. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
-        auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().visit([](String const& name) -> JS::ThrowCompletionOr<String> { return name; }, [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
-                auto name_property = TRY(obj->get("name"));
-                return name_property.to_string(realm.vm()); }));
+        auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
         // 4. If hash is "SHA-1":
         //      - Set the alg attribute of jwk to the string "RSA-OAEP".
@@ -1634,11 +1628,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, JS::
         return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_string);
 
     // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
-    [[maybe_unused]] auto const& hash_algorithm = TRY(normalized_algorithm.hash.visit(
-        [](String const& name) -> JS::ThrowCompletionOr<String> { return name; },
-        [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
-                        auto name_property = TRY(obj->get("name"));
-                        return name_property.to_string(m_realm->vm()); }));
+    [[maybe_unused]] auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
 
     // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
     ::Crypto::Hash::HashKind hash_kind;
@@ -1873,11 +1863,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> HKDF::derive_bits(Algorit
     // all major browsers instead raise a TypeError, for example:
     //     "Failed to execute 'deriveBits' on 'SubtleCrypto': HkdfParams: salt: Not a BufferSource"
     // Because we are forced by neither peer pressure nor the spec, we don't support it either.
-    auto const& hash_algorithm = TRY(normalized_algorithm.hash.visit(
-        [](String const& name) -> JS::ThrowCompletionOr<String> { return name; },
-        [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
-            auto name_property = TRY(obj->get("name"));
-            return name_property.to_string(m_realm->vm()); }));
+    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
     ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
     if (hash_algorithm.equals_ignoring_ascii_case("SHA-1"sv)) {
         result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA1>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
@@ -1921,11 +1907,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> PBKDF2::derive_bits(Algor
         return WebIDL::OperationError::create(realm, "Iterations must be greater than 0"_string);
 
     // 3. Let prf be the MAC Generation function described in Section 4 of [FIPS-198-1] using the hash function described by the hash member of normalizedAlgorithm.
-    auto const& hash_algorithm = TRY(normalized_algorithm.hash.visit(
-        [](String const& name) -> JS::ThrowCompletionOr<String> { return name; },
-        [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
-                        auto name_property = TRY(obj->get("name"));
-                        return name_property.to_string(m_realm->vm()); }));
+    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
 
     // 4. Let result be the result of performing the PBKDF2 operation defined in Section 5.2 of [RFC8018]
     // using prf as the pseudo-random function, PRF,
