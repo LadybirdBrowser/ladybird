@@ -134,6 +134,68 @@ public:
         // 12. Output EM.
         return em;
     }
+
+    // https://datatracker.ietf.org/doc/html/rfc2437#section-9.1.1.2
+    template<typename HashFunction, typename MaskGenerationFunction>
+    static ErrorOr<ByteBuffer> decode(ReadonlyBytes encoded_message, ReadonlyBytes parameters)
+    {
+        // FIXME: 1. If the length of P is greater than the input limitation for the
+        //           hash function (2^61-1 octets for SHA-1) then output "parameter string
+        //           too long" and stop.
+
+        // 2. If ||EM|| < 2hLen+1, then output "decoding error" and stop.
+        auto h_len = HashFunction::digest_size();
+        auto max_message_size = (2 * h_len) + 1;
+        if (encoded_message.size() < max_message_size)
+            return Error::from_string_view("decoding error"sv);
+
+        // 3. Let maskedSeed be the first hLen octets of EM and let maskedDB be the remaining ||EM|| - hLen octets.
+        auto masked_seed = encoded_message.slice(0, h_len);
+        auto masked_db = encoded_message.slice(h_len, encoded_message.size() - h_len);
+
+        // 4. Let seedMask = MGF(maskedDB, hLen).
+        auto seed_mask = TRY(MaskGenerationFunction::template mgf1<HashFunction>(masked_db, h_len));
+
+        // 5. Let seed = maskedSeed \xor seedMask.
+        auto seed = TRY(ByteBuffer::xor_buffers(masked_seed, seed_mask));
+
+        // 6. Let dbMask = MGF(seed, ||EM|| - hLen).
+        auto db_mask = TRY(MaskGenerationFunction::template mgf1<HashFunction>(seed, encoded_message.size() - h_len));
+
+        // 7. Let DB = maskedDB \xor dbMask.
+        auto db = TRY(ByteBuffer::xor_buffers(masked_db, db_mask));
+
+        // 8. Let pHash = Hash(P), an octet string of length hLen.
+        HashFunction hash;
+        hash.update(parameters);
+        auto digest = hash.digest();
+        auto p_hash = digest.bytes();
+
+        // 9. Separate DB into an octet string pHash' consisting of the first hLen octets of DB,
+        //    a (possibly empty) octet string PS consisting of consecutive zero octets following pHash',
+        //    and a message M as: DB = pHash' || PS || 01 || M
+        auto p_hash_prime = TRY(db.slice(0, h_len));
+
+        size_t i = h_len;
+        for (; i < db.size(); ++i) {
+            if (db[i] == 0x01)
+                break;
+        }
+
+        //    If there is no 01 octet to separate PS from M, output "decoding error" and stop.
+        if (i == db.size())
+            return Error::from_string_view("decoding error"sv);
+
+        auto ps = TRY(db.slice(h_len, i - h_len));
+        auto message = TRY(db.slice(i + 1, db.size() - i - 1));
+
+        // 10. If pHash' does not equal pHash, output "decoding error" and stop.
+        if (p_hash_prime.span() != p_hash)
+            return Error::from_string_view("decoding error"sv);
+
+        // 11. Output M.
+        return message;
+    }
 };
 
 }
