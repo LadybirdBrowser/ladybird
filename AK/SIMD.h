@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/StdLibExtras.h>
 #include <AK/Types.h>
 
 namespace AK::SIMD {
@@ -61,4 +62,55 @@ using f32x8 = float __attribute__((vector_size(32)));
 using f64x2 = double __attribute__((vector_size(16)));
 using f64x4 = double __attribute__((vector_size(32)));
 
+// FIXME: Is this really the best/simplest way?
+//        Ideally we should look for the presence of the vector_size attribute instead
+// FIXME: This cannot just be vector as that would somehow clash with AK::Vector, even without being exported
+template<typename T>
+concept SIMDVector = requires { __builtin_convertvector(declval<T>(), T); };
+
+template<typename T>
+using ElementOf = RemoveReference<decltype(declval<T>()[0])>;
+
+static_assert(IsSame<ElementOf<i8x4>, i8>);
+static_assert(IsSame<ElementOf<f32x4>, float>);
+
+template<SIMDVector V>
+constexpr static size_t vector_length = sizeof(V) / sizeof(ElementOf<V>);
+
+static_assert(vector_length<i8x4> == 4);
+static_assert(vector_length<f32x4> == 4);
+
+namespace Detail {
+template<typename T>
+struct IndexVectorFor;
+
+template<SIMDVector T>
+requires(IsIntegral<ElementOf<T>>)
+struct IndexVectorFor<T> {
+    using Type = T;
+};
+
+template<SIMDVector T>
+requires(IsFloatingPoint<ElementOf<T>>)
+struct IndexVectorFor<T> {
+    using Type = Conditional<
+        IsSame<ElementOf<T>, float>,
+        u32 __attribute__((vector_size(sizeof(T)))),
+        u64 __attribute__((vector_size(sizeof(T))))>;
+};
+
+}
+
+template<SIMDVector T>
+using IndexVectorFor = typename Detail::IndexVectorFor<T>::Type;
+
+static_assert(IsSame<IndexVectorFor<i8x16>, i8x16>);
+static_assert(IsSame<IndexVectorFor<u32x4>, u32x4>);
+static_assert(IsSame<IndexVectorFor<u64x4>, u64x4>);
+#if defined(AK_COMPILER_CLANG)
+// FIXME: GCC silently ignores the dependent vector_size attribute, this seems to be a bug
+//        https://gcc.gnu.org/bugzilla/show_bug.cgi?id=68703
+static_assert(IsSame<IndexVectorFor<f32x4>, u32x4>);
+static_assert(IsSame<IndexVectorFor<f64x4>, u64x4>);
+#endif
 }
