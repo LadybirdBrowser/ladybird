@@ -101,6 +101,21 @@ ALWAYS_INLINE static int maskcount(i32x4 mask)
 
 // Load / Store
 
+template<SIMDVector VectorType>
+ALWAYS_INLINE static VectorType load_unaligned(void const* a)
+{
+    VectorType v;
+    __builtin_memcpy(&v, a, sizeof(VectorType));
+    return v;
+}
+
+template<SIMDVector VectorType>
+ALWAYS_INLINE static void store_unaligned(void* a, VectorType const& v)
+{
+    // FIXME: Does this generate the right instructions?
+    __builtin_memcpy(a, &v, sizeof(VectorType));
+}
+
 ALWAYS_INLINE static f32x4 load4(float const* a, float const* b, float const* c, float const* d)
 {
     return f32x4 { *a, *b, *c, *d };
