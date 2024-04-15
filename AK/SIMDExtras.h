@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/BitCast.h>
 #include <AK/Concepts.h>
 #include <AK/SIMD.h>
 
@@ -183,30 +184,148 @@ ALWAYS_INLINE static void store4_masked(VectorType v, UnderlyingType* a, Underly
 }
 
 // Shuffle
-
-template<OneOf<i8x16, u8x16> T>
-ALWAYS_INLINE static T shuffle(T a, T control)
+namespace Detail {
+template<SIMDVector T, SIMDVector Control, size_t... Idx>
+ALWAYS_INLINE static T shuffle_impl(T a, Control control, IndexSequence<Idx...>)
 {
-    // FIXME: This is probably not the fastest way to do this.
+    // FIXME: Maybe make the VERIFYs optional, eg on SIMD-DEBUG, to avoid the overhead in performance oriented users, like LibWasm::SIMD
+    // Note: - instead of _ to make the linter happy, as SIMD-DEBUG does not (yet) exist
+    constexpr Conditional<IsSigned<ElementOf<Control>>, ssize_t, size_t> N = vector_length<T>;
+    // If you hit this verify and want a 0 in these cases instead, use shuffle_or_0
+    (([control] { VERIFY(control[Idx] < N); })(), ...);
+
+    // __builtin_shuffle is only available with GCC, and has quite good codegen
+    if constexpr (__has_builtin(__builtin_shuffle))
+        return __builtin_shuffle(a, control);
+
     return T {
-        a[control[0] & 0xf],
-        a[control[1] & 0xf],
-        a[control[2] & 0xf],
-        a[control[3] & 0xf],
-        a[control[4] & 0xf],
-        a[control[5] & 0xf],
-        a[control[6] & 0xf],
-        a[control[7] & 0xf],
-        a[control[8] & 0xf],
-        a[control[9] & 0xf],
-        a[control[10] & 0xf],
-        a[control[11] & 0xf],
-        a[control[12] & 0xf],
-        a[control[13] & 0xf],
-        a[control[14] & 0xf],
-        a[control[15] & 0xf],
+        a[control[Idx]]...
     };
 }
+
+// FIXME: AppleClang somehow unconditionally executes the `a[control[Idx]]` path,
+//        even if its in the false branch of the ternary
+//        This leads to a presumably out of bounds access, which is UB
+//        Reenable the sanitizer once this is fixed
+//        As a side note UBsan makes a total mess of the codegen anyway
+template<SIMDVector T, SIMDVector Control, size_t... Idx>
+#ifdef AK_COMPILER_CLANG
+[[clang::no_sanitize("undefined")]]
+#endif
+ALWAYS_INLINE static T shuffle_or_0_impl(T a, Control control, IndexSequence<Idx...>)
+{
+    constexpr Conditional<IsSigned<ElementOf<Control>>, ssize_t, size_t> N = vector_length<T>;
+    using E = ElementOf<T>;
+
+    if constexpr (__has_builtin(__builtin_shuffle)) {
+        // GCC does a very bad job at optimizing the masking, while not recognizing the shuffle idiom
+        // So we jinx its __builtin_shuffle to work with out of bounds indices
+        auto mask = (control >= 0) | (control < N);
+        return __builtin_shuffle(a, control & mask) & ~mask;
+    }
+    // 1. Set all out of bounds values to ~0
+    // Note: This is done so that  the optimization mentioned down below works
+    // Note: Vector compares result in bitmasks, aka all 1s or all 0s per element
+    control |= ~((control > 0) | (control < N));
+    // 2. Selectively set out of bounds values to 0
+    // Note: Clang successfully optimizes this to a few instructions on x86-ssse3, GCC does not
+    //       Vector Optimizations/Instruction-Selection on ArmV8 seem to not be as powerful as of Clang18
+    // FIXME: We could recreate the bit mask Clang uses for the select for u32 and u16
+    //        control = control * explode_byte(sizeof(E)) + 0x03020100;
+    //        return (T)shuffle_unchecked(Bytes(a), Bytes(control));
+    // Note: On x86-ssse3, `pshufb` inserts a zero if the control byte has the highest bit set
+    //       On ArmV8, `tbl` inserts a zero if the control byte is out of bounds in general
+    //       On RiscV `vrgather.vv` inserts a 0 if the control index is out of bounds
+    //       and is more powerful than the other two as it is able to use bigger item widths than a byte
+    // Note: For u64x2 Clang seems to always unroll the compare instead of doing the fancy `phufb`
+
+    return T {
+        ((E)(control[Idx] != ~0 ? a[control[Idx]] : 0))...
+    };
+}
+
+template<SIMDVector T, size_t... Idx>
+ALWAYS_INLINE static T item_reverse_impl(T a, IndexSequence<Idx...>)
+{
+    constexpr size_t N = vector_length<T>;
+    return __builtin_shufflevector(a, a, N - 1 - Idx...);
+}
+
+template<SIMDVector T, size_t... Idx>
+ALWAYS_INLINE static T byte_reverse_impl(T a, IndexSequence<Idx...>)
+{
+    static_assert(sizeof...(Idx) == sizeof(T));
+    constexpr size_t N = sizeof(T);
+    // FIXME: GCC silently ignores the dependent vector_size attribute, this seems to be a bug
+    //        https://gcc.gnu.org/bugzilla/show_bug.cgi?id=68703
+    //        Hence this giant conditional
+    using BytesVector = Conditional<sizeof(T) == 2, u8x2, Conditional<sizeof(T) == 4, u8x4, Conditional<sizeof(T) == 8, u8x8, Conditional<sizeof(T) == 16, u8x16, Conditional<sizeof(T) == 32, u8x32, void>>>>>;
+    static_assert(sizeof(BytesVector) == sizeof(T));
+    // Note: Using __builtin_bit_cast instead of bit_cast to avoid a psabi warning from bit_cast
+    auto tmp = __builtin_shufflevector(
+        __builtin_bit_cast(BytesVector, a),
+        __builtin_bit_cast(BytesVector, a),
+        N - 1 - Idx...);
+    return __builtin_bit_cast(T, tmp);
+}
+
+template<SIMDVector T, size_t... Idx>
+ALWAYS_INLINE static T elementwise_byte_reverse_impl(T a, IndexSequence<Idx...>)
+{
+    static_assert(sizeof...(Idx) == vector_length<T>);
+    using Element = ElementOf<T>;
+    if constexpr (sizeof(Element) == 1) {
+        return a;
+    } else if constexpr (sizeof(Element) == 2) {
+        return T {
+            static_cast<Element>(__builtin_bswap16(static_cast<u16>(a[Idx])))...
+        };
+    } else if constexpr (sizeof(Element) == 4) {
+        return T {
+            static_cast<Element>(__builtin_bswap32(static_cast<u32>(a[Idx])))...
+        };
+    } else if constexpr (sizeof(Element) == 8) {
+        return T {
+            static_cast<Element>(__builtin_bswap64(static_cast<u64>(a[Idx])))...
+        };
+    } else {
+        static_assert(DependentFalse<T>);
+    }
+}
+
+}
+
+// FIXME: Shuffles only work with integral types for now
+template<SIMDVector T>
+ALWAYS_INLINE static T shuffle(T a, IndexVectorFor<T> control)
+{
+    return Detail::shuffle_impl(a, control, MakeIndexSequence<vector_length<T>>());
+}
+
+template<SIMDVector T>
+ALWAYS_INLINE static T shuffle_or_0(T a, IndexVectorFor<T> control)
+{
+    return Detail::shuffle_or_0_impl(a, control, MakeIndexSequence<vector_length<T>>());
+}
+
+template<SIMDVector T>
+ALWAYS_INLINE static T item_reverse(T a)
+{
+    return Detail::item_reverse_impl(a, MakeIndexSequence<vector_length<T>>());
+}
+
+template<SIMDVector T>
+ALWAYS_INLINE static T byte_reverse(T a)
+{
+    return Detail::byte_reverse_impl(a, MakeIndexSequence<sizeof(T)>());
+}
+
+template<SIMDVector T>
+ALWAYS_INLINE static T elementwise_byte_reverse(T a)
+{
+    return Detail::elementwise_byte_reverse_impl(a, MakeIndexSequence<vector_length<T>>());
+}
+
 }
 
 #pragma GCC diagnostic pop
