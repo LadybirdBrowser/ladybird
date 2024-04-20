@@ -619,7 +619,10 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
 
     auto& page = m_navigable->page();
 
-    page.client().page_did_request_cursor_change(hovered_node_cursor);
+    if (page.current_cursor() != hovered_node_cursor) {
+        page.set_current_cursor(hovered_node_cursor);
+        page.client().page_did_request_cursor_change(hovered_node_cursor);
+    }
 
     if (hovered_node_changed) {
         GC::Ptr<HTML::HTMLElement const> hovered_html_element = document.hovered_node() ? document.hovered_node()->enclosing_html_element_with_attribute(HTML::AttributeNames::title) : nullptr;
