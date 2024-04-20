@@ -626,15 +626,22 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
 
     if (hovered_node_changed) {
         GC::Ptr<HTML::HTMLElement const> hovered_html_element = document.hovered_node() ? document.hovered_node()->enclosing_html_element_with_attribute(HTML::AttributeNames::title) : nullptr;
+
         if (hovered_html_element && hovered_html_element->title().has_value()) {
+            page.set_is_in_tooltip_area(true);
             page.client().page_did_enter_tooltip_area(hovered_html_element->title()->to_byte_string());
-        } else {
+        } else if (page.is_in_tooltip_area()) {
+            page.set_is_in_tooltip_area(false);
             page.client().page_did_leave_tooltip_area();
         }
-        if (is_hovering_link)
+
+        if (is_hovering_link) {
+            page.set_is_hovering_link(true);
             page.client().page_did_hover_link(document.parse_url(hovered_link_element->href()));
-        else
+        } else if (page.is_hovering_link()) {
+            page.set_is_hovering_link(false);
             page.client().page_did_unhover_link();
+        }
     }
 
     return EventResult::Handled;
