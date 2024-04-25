@@ -94,8 +94,8 @@ public:
 
     static RSAPrivateKey from_crt(Integer n, Integer e, Integer p, Integer q, Integer dp, Integer dq, Integer qinv)
     {
-        auto lambda = NumberTheory::LCM(p.minus(1), q.minus(1));
-        auto d = NumberTheory::ModularInverse(e, lambda);
+        auto phi = p.minus(1).multiplied_by(q.minus(1));
+        auto d = NumberTheory::ModularInverse(e, phi);
 
         return { n, d, e, p, q, dp, dq, qinv };
     }
@@ -231,6 +231,7 @@ public:
     PublicKeyType const& public_key() const { return m_public_key; }
 
     void set_public_key(PublicKeyType const& key) { m_public_key = key; }
+    void set_private_key(PrivateKeyType const& key) { m_private_key = key; }
 };
 
 class RSA_PKCS1_EME : public RSA {

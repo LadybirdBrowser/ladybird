@@ -550,17 +550,43 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> RSAOAEP::decrypt(Algorith
         return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
 
     // 2. Let label be the contents of the label member of normalizedAlgorithm or the empty octet string if the label member of normalizedAlgorithm is not present.
-    [[maybe_unused]] auto const& label = normalized_algorithm.label;
+    auto const& label = normalized_algorithm.label;
+
+    auto const& handle = key->handle();
+    auto private_key = handle.get<::Crypto::PK::RSAPrivateKey<>>();
+    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 3. Perform the decryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA private key,
     //    the contents of ciphertext as the ciphertext to be decrypted, C, and label as the label, L, and with the hash function specified by the hash attribute
     //    of the [[algorithm]] internal slot of key as the Hash option and MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option.
+    auto rsa = ::Crypto::PK::RSA {};
+    rsa.set_private_key(private_key);
+    u32 private_key_length = private_key.length();
+
+    auto padding = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(private_key_length));
+    auto padding_bytes = padding.bytes();
+    rsa.decrypt(ciphertext, padding_bytes);
+
+    auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
+    ErrorOr<ByteBuffer> maybe_plaintext = Error::from_string_view(error_message.bytes_as_string_view());
+    if (hash.equals_ignoring_ascii_case("SHA-1"sv)) {
+        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA1, ::Crypto::Hash::MGF>(padding, label, private_key_length);
+    } else if (hash.equals_ignoring_ascii_case("SHA-256"sv)) {
+        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA256, ::Crypto::Hash::MGF>(padding, label, private_key_length);
+    } else if (hash.equals_ignoring_ascii_case("SHA-384"sv)) {
+        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA384, ::Crypto::Hash::MGF>(padding, label, private_key_length);
+    } else if (hash.equals_ignoring_ascii_case("SHA-512"sv)) {
+        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA512, ::Crypto::Hash::MGF>(padding, label, private_key_length);
+    }
 
     // 4. If performing the operation results in an error, then throw an OperationError.
+    if (maybe_plaintext.is_error()) {
+        auto error_message = MUST(String::from_utf8(maybe_plaintext.error().string_literal()));
+        return WebIDL::OperationError::create(realm, error_message);
+    }
 
     // 5. Let plaintext the value M that results from performing the operation.
-    // FIXME: Actually decrypt the data
-    auto plaintext = TRY_OR_THROW_OOM(vm, ByteBuffer::copy(ciphertext));
+    auto plaintext = maybe_plaintext.release_value();
 
     // 6. Return the result of creating an ArrayBuffer containing plaintext.
     return JS::ArrayBuffer::create(realm, move(plaintext));
