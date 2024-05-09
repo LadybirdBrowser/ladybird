@@ -13,7 +13,7 @@
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <crt_externs.h>
 #else
-extern char** environ;
+extern "C" char** environ;
 #endif
 
 namespace Core::Environment {
@@ -93,15 +93,16 @@ Optional<StringView> get(StringView name, [[maybe_unused]] SecureOnly secure)
     builder.append('\0');
     // Note the explicit null terminators above.
 
-#if defined(AK_OS_MACOS) || defined(AK_OS_ANDROID)
-    char* result = ::getenv(builder.string_view().characters_without_null_termination());
-#else
+    // FreeBSD < 14, Android, and generic BSDs do not support secure_getenv.
+#if (defined(__FreeBSD__) && __FreeBSD__ >= 14) || (!defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_ANDROID))
     char* result;
     if (secure == SecureOnly::Yes) {
         result = ::secure_getenv(builder.string_view().characters_without_null_termination());
     } else {
         result = ::getenv(builder.string_view().characters_without_null_termination());
     }
+#else
+    char* result = ::getenv(builder.string_view().characters_without_null_termination());
 #endif
     if (result)
         return StringView { result, strlen(result) };
@@ -153,7 +154,9 @@ ErrorOr<void> put(StringView env)
 
 ErrorOr<void> clear()
 {
-#if defined(AK_OS_MACOS)
+#if (defined(__FreeBSD__) && __FreeBSD__ < 14)
+    environ = nullptr;
+#elif defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_FREEBSD)
     auto environment = raw_environ();
     for (size_t environ_size = 0; environment[environ_size]; ++environ_size) {
         environment[environ_size] = NULL;
