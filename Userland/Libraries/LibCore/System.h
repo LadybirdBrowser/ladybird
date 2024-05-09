@@ -264,7 +264,11 @@ private:
     }
 
     struct AddrInfoDeleter {
-        void operator()(struct addrinfo* ptr) { ::freeaddrinfo(ptr); }
+        void operator()(struct addrinfo* ptr)
+        {
+            if (ptr)
+                ::freeaddrinfo(ptr);
+        }
     };
 
     Vector<struct addrinfo> m_addresses {};
