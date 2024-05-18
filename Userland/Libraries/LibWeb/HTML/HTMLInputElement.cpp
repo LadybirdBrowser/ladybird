@@ -840,6 +840,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
         auto up_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
                 MUST(step_up());
+                user_interaction_did_change_input_value();
                 return JS::js_undefined();
             },
             0, "", &realm());
@@ -858,6 +859,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
         auto down_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
                 MUST(step_down());
+                user_interaction_did_change_input_value();
                 return JS::js_undefined();
             },
             0, "", &realm());
