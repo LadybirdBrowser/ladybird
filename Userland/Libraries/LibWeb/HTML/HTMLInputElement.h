@@ -255,6 +255,8 @@ private:
     void handle_readonly_attribute(Optional<String> const& value);
     WebIDL::ExceptionOr<void> handle_src_attribute(String const& value);
 
+    void user_interaction_did_change_input_value();
+
     // https://html.spec.whatwg.org/multipage/input.html#value-sanitization-algorithm
     String value_sanitization_algorithm(String const&) const;
 
