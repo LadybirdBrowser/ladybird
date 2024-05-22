@@ -845,7 +845,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
             },
             0, "", &realm());
         auto up_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*up_callback_function, Bindings::host_defined_environment_settings_object(realm()));
-        up_button->add_event_listener_without_options(UIEvents::EventNames::click, DOM::IDLEventListener::create(realm(), up_callback));
+        up_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), up_callback));
 
         // Down button
         auto down_button = MUST(DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML));
@@ -864,7 +864,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
             },
             0, "", &realm());
         auto down_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*down_callback_function, Bindings::host_defined_environment_settings_object(realm()));
-        down_button->add_event_listener_without_options(UIEvents::EventNames::click, DOM::IDLEventListener::create(realm(), down_callback));
+        down_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), down_callback));
     }
 }
 
