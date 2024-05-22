@@ -837,6 +837,16 @@ void HTMLInputElement::create_text_input_shadow_tree()
         MUST(up_button->set_inner_html("<svg style=\"width: 1em; height: 1em;\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z\" /></svg>"sv));
         MUST(element->append_child(up_button));
 
+        auto mouseup_callback_function = JS::NativeFunction::create(
+            realm(), [this](JS::VM&) {
+                commit_pending_changes();
+                return JS::js_undefined();
+            },
+            0, "", &realm());
+        auto mouseup_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mouseup_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+        DOM::AddEventListenerOptions mouseup_listener_options;
+        mouseup_listener_options.once = true;
+
         auto up_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
                 MUST(step_up());
@@ -844,8 +854,9 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 return JS::js_undefined();
             },
             0, "", &realm());
-        auto up_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*up_callback_function, Bindings::host_defined_environment_settings_object(realm()));
-        up_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), up_callback));
+        auto step_up_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*up_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+        up_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_up_callback));
+        up_button->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
 
         // Down button
         auto down_button = MUST(DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML));
@@ -863,8 +874,9 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 return JS::js_undefined();
             },
             0, "", &realm());
-        auto down_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*down_callback_function, Bindings::host_defined_environment_settings_object(realm()));
-        down_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), down_callback));
+        auto step_down_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*down_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+        down_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_down_callback));
+        down_button->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
     }
 }
 
