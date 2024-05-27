@@ -23,7 +23,7 @@ interface HTMLImageElement : HTMLElement {
     [FIXME, CEReactions] attribute DOMString referrerPolicy;
     [FIXME, CEReactions] attribute DOMString decoding;
     [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute DOMString loading;
-    [FIXME, CEReactions] attribute DOMString fetchPriority;
+    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
 
     [FIXME] Promise<undefined> decode();
 

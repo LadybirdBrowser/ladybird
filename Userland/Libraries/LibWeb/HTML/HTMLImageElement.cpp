@@ -563,7 +563,8 @@ after_step_7:
         // 21. Set request's referrer policy to the current state of the element's referrerpolicy attribute.
         request->set_referrer_policy(ReferrerPolicy::from_string(get_attribute_value(HTML::AttributeNames::referrerpolicy)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString));
 
-        // FIXME: 22. Set request's priority to the current state of the element's fetchpriority attribute.
+        // 22. Set request's priority to the current state of the element's fetchpriority attribute.
+        request->set_priority(Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto));
 
         // 24. If the will lazy load element steps given the img return true, then:
         if (will_lazy_load_element()) {

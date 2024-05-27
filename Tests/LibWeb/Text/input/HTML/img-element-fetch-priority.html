@@ -1,0 +1,18 @@
+<img id="testImg">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const img = document.getElementById('testImg');
+
+        println(`fetchPriority = ${img.fetchPriority}`);
+        println('');
+
+        img.fetchPriority = 'high';
+
+        println(`fetchPriority = ${img.fetchPriority}`);
+        println('');
+
+        img.fetchPriority = 'invalid-value';
+        println(`fetchPriority = ${img.fetchPriority}`);
+    });
+</script>
