@@ -437,4 +437,15 @@ StringView request_mode_to_string(Request::Mode mode)
     VERIFY_NOT_REACHED();
 }
 
+Optional<Request::Priority> request_priority_from_string(StringView string)
+{
+    if (string.equals_ignoring_ascii_case("high"sv))
+        return Request::Priority::High;
+    if (string.equals_ignoring_ascii_case("low"sv))
+        return Request::Priority::Low;
+    if (string.equals_ignoring_ascii_case("auto"sv))
+        return Request::Priority::Auto;
+    return {};
+}
+
 }
