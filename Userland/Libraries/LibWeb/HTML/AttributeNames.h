@@ -67,6 +67,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(enctype)                    \
     __ENUMERATE_HTML_ATTRIBUTE(event)                      \
     __ENUMERATE_HTML_ATTRIBUTE(face)                       \
+    __ENUMERATE_HTML_ATTRIBUTE(fetchpriority)              \
     __ENUMERATE_HTML_ATTRIBUTE(for_)                       \
     __ENUMERATE_HTML_ATTRIBUTE(form)                       \
     __ENUMERATE_HTML_ATTRIBUTE(formaction)                 \
