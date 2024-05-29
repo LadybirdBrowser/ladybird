@@ -473,8 +473,8 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
 
             // 19. If response is not a network error and any of the following returns blocked
             if (!response->is_network_error() && (
-                    // FIXME: - should internalResponse to request be blocked as mixed content
-                    false
+                    // - should internalResponse to request be blocked as mixed content
+                    MixedContent::should_response_to_request_be_blocked_as_mixed_content(request, internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked
                     // FIXME: - should internalResponse to request be blocked by Content Security Policy
                     || false
                     // - should internalResponse to request be blocked due to its MIME type

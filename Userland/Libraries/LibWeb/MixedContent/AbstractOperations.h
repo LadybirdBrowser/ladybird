@@ -23,4 +23,6 @@ ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(JS
 
 Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request&);
 
+Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request&, JS::NonnullGCPtr<Fetch::Infrastructure::Response>&);
+
 }
