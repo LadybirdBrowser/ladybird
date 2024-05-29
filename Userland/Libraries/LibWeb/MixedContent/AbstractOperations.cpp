@@ -10,6 +10,36 @@
 
 namespace Web::MixedContent {
 
+// https://w3c.github.io/webappsec-mixed-content/#upgrade-algorithm
+void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infrastructure::Request& request)
+{
+    // 1. If one or more of the following conditions is met, return without modifying request:
+    if (
+        // 1. request’s URL is a potentially trustworthy URL.
+        SecureContexts::is_url_potentially_trustworthy(request.url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy
+
+        // 2. request’s URL’s host is an IP address.
+        || request.url().host().has<URL::IPv4Address>() || request.url().host().has<URL::IPv6Address>()
+
+        // 3. § 4.3 Does settings prohibit mixed security contexts? returns "Does Not Restrict Mixed Security Contents" when applied to request’s client.
+        || does_settings_prohibit_mixed_security_contexts(request.client()) == ProhibitsMixedSecurityContexts::DoesNotRestrictMixedSecurityContexts
+
+        // 4. request’s destination is not "image", "audio", or "video".
+        || (request.destination() != Fetch::Infrastructure::Request::Destination::Image
+            && request.destination() != Fetch::Infrastructure::Request::Destination::Audio
+            && request.destination() != Fetch::Infrastructure::Request::Destination::Video)
+
+        // 5. request’s destination is "image" and request’s initiator is "imageset".
+        || (request.destination() == Fetch::Infrastructure::Request::Destination::Image
+            && request.initiator() == Fetch::Infrastructure::Request::Initiator::ImageSet)) {
+        return;
+    }
+
+    // 2. If request’s URL’s scheme is http, set request’s URL’s scheme to https, and return.
+    if (request.url().scheme() == "http")
+        request.url().set_scheme("https"_string);
+}
+
 // https://w3c.github.io/webappsec-mixed-content/#categorize-settings-object
 ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(JS::GCPtr<HTML::EnvironmentSettingsObject> settings)
 {

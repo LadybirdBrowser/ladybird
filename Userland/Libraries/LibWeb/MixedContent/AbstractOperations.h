@@ -12,6 +12,8 @@
 
 namespace Web::MixedContent {
 
+void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infrastructure::Request&);
+
 enum class ProhibitsMixedSecurityContexts {
     ProhibitsMixedSecurityContexts,
     DoesNotRestrictMixedSecurityContexts,
