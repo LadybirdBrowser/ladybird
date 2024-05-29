@@ -519,6 +519,7 @@ set(SOURCES
     MathML/TagNames.cpp
     MimeSniff/MimeType.cpp
     MimeSniff/Resource.cpp
+    MixedContent/AbstractOperations.cpp
     Namespace.cpp
     NavigationTiming/EntryNames.cpp
     NavigationTiming/PerformanceTiming.cpp

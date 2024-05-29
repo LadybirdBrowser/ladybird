@@ -334,6 +334,7 @@ shared_library("LibWeb") {
            "Loader",
            "MathML",
            "MimeSniff",
+           "MixedContent",
            "NavigationTiming",
            "Page",
            "Painting",
