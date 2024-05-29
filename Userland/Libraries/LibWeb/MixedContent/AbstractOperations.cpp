@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
@@ -85,6 +86,30 @@ Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_bloc
 
     // 2. Return blocked.
     dbgln("MixedContent: Blocked '{}' (request)", MUST(request.url().to_string()));
+    return Fetch::Infrastructure::RequestOrResponseBlocking::Blocked;
+}
+
+// https://w3c.github.io/webappsec-mixed-content/#should-block-response
+Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request& request, JS::NonnullGCPtr<Fetch::Infrastructure::Response>& response)
+{
+    // 1. Return allowed if one or more of the following conditions are met:
+    if (
+        // 1. § 4.3 Does settings prohibit mixed security contexts? returns Does Not Restrict Mixed Content when applied to request’s client.
+        does_settings_prohibit_mixed_security_contexts(request.client()) == ProhibitsMixedSecurityContexts::DoesNotRestrictMixedSecurityContexts
+
+        // 2. response’s url is a potentially trustworthy URL.
+        || (response->url().has_value() && SecureContexts::is_url_potentially_trustworthy(response->url().value()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy)
+
+        // FIXME: 3. The user agent has been instructed to allow mixed content, as described in § 7.2 User Controls).
+        || false
+
+        // 4. request’s destination is "document", and request’s target browsing context has no parent browsing context.
+        || (request.destination() == Fetch::Infrastructure::Request::Destination::Document && !request.client()->target_browsing_context->parent())) {
+        return Fetch::Infrastructure::RequestOrResponseBlocking::Allowed;
+    }
+
+    // 2. Return blocked.
+    dbgln("MixedContent: Blocked '{}' (response to request)", MUST(request.url().to_string()));
     return Fetch::Infrastructure::RequestOrResponseBlocking::Blocked;
 }
 
