@@ -3083,6 +3083,11 @@ Vector<JS::Handle<HTML::Navigable>> Document::ancestor_navigables()
     return ancestors;
 }
 
+Vector<JS::Handle<HTML::Navigable>> const Document::ancestor_navigables() const
+{
+    return const_cast<Document&>(*this).ancestor_navigables();
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#inclusive-ancestor-navigables
 Vector<JS::Handle<HTML::Navigable>> Document::inclusive_ancestor_navigables()
 {
