@@ -26,3 +26,10 @@ link crossOrigin value after setting to null: null
 link crossOrigin value after setting to "USE-CREDENTIALS": use-credentials
 link crossOrigin value after setting to "": anonymous
 link crossOrigin value after calling removeAttribute: null
+img crossOrigin initial value: null
+img crossOrigin value after setting to "invalid": anonymous
+img crossOrigin value after setting to "use-credentials": use-credentials
+img crossOrigin value after setting to null: null
+img crossOrigin value after setting to "USE-CREDENTIALS": use-credentials
+img crossOrigin value after setting to "": anonymous
+img crossOrigin value after calling removeAttribute: null
