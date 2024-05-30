@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   build:
-    if: github.repository == 'SerenityOS/serenity'
+    if: github.repository == 'LadybirdWebBrowser/ladybird'
     runs-on: ubuntu-latest
     steps:
 
@@ -34,6 +34,6 @@ jobs:
       - name: Build Base Dev Container Image
         uses: devcontainers/ci@v0.3
         with:
-          imageName: ghcr.io/serenityos/serenity-devcontainer
+          imageName: ghcr.io/ladybirdwebbrowser/ladybird-devcontainer
           imageTag: base,latest
           push: always

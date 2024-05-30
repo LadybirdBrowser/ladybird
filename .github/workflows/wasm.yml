@@ -10,7 +10,7 @@ concurrency: wasm
 jobs:
   build:
     runs-on: ubuntu-22.04
-    if: github.repository == 'SerenityOS/serenity'
+    if: false
     strategy:
       fail-fast: false
     steps:

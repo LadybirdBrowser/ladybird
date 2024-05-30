@@ -1,9 +1,7 @@
 /AK/CircularBuffer.* @timschumi
 /AK/MaybeOwned.h @timschumi
 /AK/*Stream.* @timschumi
-/Kernel/Devices/Audio @GMTA
 /Lagom/Tools/CodeGenerators/LibWeb @AtkinsSJ
-/Ports @timschumi
 /Tests/LibCompress @timschumi
 /Toolchain @BertalanD
 /Userland/Applications/Spreadsheet @alimpfard
@@ -34,10 +32,8 @@
 /Userland/Services/RequestServer @alimpfard
 /Userland/Services/SQLServer @trflynn89
 /Userland/Services/WebDriver @trflynn89
-/Userland/Shell @alimpfard
 /Userland/Utilities/gzip.cpp @timschumi
 /Userland/Utilities/lzcat.cpp @timschumi
-/Userland/Utilities/readelf.cpp @BertalanD
 /Userland/Utilities/sql.cpp @trflynn89
 /Userland/Utilities/tar.cpp @timschumi
 /Userland/Utilities/unzip.cpp @timschumi

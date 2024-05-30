@@ -12,7 +12,7 @@ on:
 jobs:
   label_pull_request:
     runs-on: ubuntu-22.04
-    if: always() && github.repository == 'SerenityOS/serenity'
+    if: always() && github.repository == 'LadybirdWebBrowser/ladybird'
     
     steps:
       - uses: actions/checkout@v4
