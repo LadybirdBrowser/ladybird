@@ -1,8 +1,0 @@
-[App]
-Name=&Sound Player
-Executable=/bin/SoundPlayer
-Category=&Media
-
-[Launcher]
-FileTypes=mp3,flac,m3u,m3u8,qoa,wav
-MimeTypes=audio/mpeg,audio/wav,audio/flac,audio/qoa

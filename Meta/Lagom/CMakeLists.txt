@@ -444,10 +444,8 @@ if (BUILD_LAGOM)
         Archive
         Audio
         Compress
-        Crypto
         Cpp
-        DeviceTree
-        DNS
+        Crypto
         Diff
         Gemini
         Gfx
@@ -455,14 +453,12 @@ if (BUILD_LAGOM)
         GLSL
         GPU
         HTTP
-        IMAP
         ImageDecoderClient
         IPC
         JIT
         JS
         Line
         Locale
-        Manual
         Markdown
         PDF
         Protocol
@@ -501,48 +497,18 @@ if (BUILD_LAGOM)
         add_serenity_subdirectory("Userland/Libraries/Lib${lib}")
     endforeach()
 
-    # GUI
-    set(LIBGUI_SOURCES
-        GML/Lexer.cpp
-        GML/Parser.cpp
-        GML/SyntaxHighlighter.cpp
-        Icon.cpp
-        Model.cpp
-        ModelIndex.cpp
-    )
-    list(TRANSFORM LIBGUI_SOURCES PREPEND "${SERENITY_PROJECT_ROOT}/Userland/Libraries/LibGUI/")
-    lagom_lib(LibGUI gui
-        SOURCES ${LIBGUI_SOURCES}
-        LIBS LibCore LibGfx LibSyntax)
-
     # FIXME: How about we don't include Kernel/API from random high-level libraries?
     install(FILES ${SERENITY_PROJECT_ROOT}/Kernel/API/KeyCode.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Kernel/API")
 
     target_link_libraries(LibLocale PRIVATE LibTimeZone)
 
-    add_serenity_subdirectory(Userland/Shell)
-
     if (NOT ENABLE_FUZZERS AND NOT ENABLE_COMPILER_EXPLORER_BUILD AND NOT ANDROID AND NOT IOS)
-        # Lagom Services
-        add_serenity_subdirectory(Userland/Services)
-
         # Lagom Utilities
         lagom_utility(abench SOURCES ../../Userland/Utilities/abench.cpp LIBS LibMain LibFileSystem LibAudio)
         lagom_utility(aconv SOURCES ../../Userland/Utilities/aconv.cpp LIBS LibMain LibFileSystem LibAudio)
 
-        if (NOT EMSCRIPTEN)
-            lagom_utility(adjtime SOURCES ../../Userland/Utilities/adjtime.cpp LIBS LibMain)
-        endif()
-
         lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
-        lagom_utility(base64 SOURCES ../../Userland/Utilities/base64.cpp LIBS LibMain)
 
-        if (NOT EMSCRIPTEN)
-            lagom_utility(disasm SOURCES ../../Userland/Utilities/disasm.cpp LIBS LibELF LibX86 LibMain)
-            lagom_utility(file SOURCES ../../Userland/Utilities/file.cpp LIBS LibAudio LibArchive LibCompress LibELF LibGfx LibIPC LibMain)
-        endif()
-
-        lagom_utility(gml-format SOURCES ../../Userland/Utilities/gml-format.cpp LIBS LibGUI LibMain)
         lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress LibMain)
 
         # Work around bug in JetBrains distributed CMake 3.27.2 where this causes infinite recursion in
@@ -577,12 +543,6 @@ if (BUILD_LAGOM)
         endif()
 
         lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
-        lagom_utility(markdown-check SOURCES ../../Userland/Utilities/markdown-check.cpp LIBS LibFileSystem LibMarkdown LibMain LibManual LibURL)
-        lagom_utility(mkfs.fat SOURCES  ../../Userland/Utilities/mkfs.fat.cpp LIBS LibFileSystem LibMain)
-
-        if (NOT EMSCRIPTEN)
-            lagom_utility(ntpquery SOURCES ../../Userland/Utilities/ntpquery.cpp LIBS LibMain)
-        endif()
 
         lagom_utility(pdf SOURCES ../../Userland/Utilities/pdf.cpp LIBS LibGfx LibPDF LibMain)
         lagom_utility(sql SOURCES ../../Userland/Utilities/sql.cpp LIBS LibFileSystem LibIPC LibLine LibMain LibSQL)
@@ -609,7 +569,6 @@ if (BUILD_LAGOM)
         lagom_utility(wasm SOURCES ../../Userland/Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS)
         lagom_utility(xml SOURCES ../../Userland/Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
         lagom_utility(xzcat SOURCES ../../Userland/Utilities/xzcat.cpp LIBS LibCompress LibMain)
-        lagom_utility(fdtdump SOURCES ../../Userland/Utilities/fdtdump.cpp LIBS LibDeviceTree LibMain)
 
         enable_testing()
         # LibTest
@@ -637,7 +596,6 @@ if (BUILD_LAGOM)
             LibCompress
             LibGL
             LibGfx
-            LibIMAP
             LibLocale
             LibMarkdown
             LibPDF
@@ -653,9 +611,6 @@ if (BUILD_LAGOM)
         if (ENABLE_LAGOM_LIBWEB)
             list(APPEND TEST_DIRECTORIES LibWeb)
             list(APPEND TEST_DIRECTORIES LibWebView)
-        endif()
-        if (LINUX)
-            list(APPEND TEST_DIRECTORIES LibELF)
         endif()
         if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
             list(APPEND TEST_DIRECTORIES ClangPlugins)
@@ -712,17 +667,6 @@ if (BUILD_LAGOM)
         lagom_test(../../Tests/LibJS/test-invalid-unicode-js.cpp LIBS LibJS)
         lagom_test(../../Tests/LibJS/test-value-js.cpp LIBS LibJS)
 
-        # Spreadsheet
-        add_executable(test-spreadsheet
-                ../../Tests/Spreadsheet/test-spreadsheet.cpp
-                ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-        target_link_libraries(test-spreadsheet AK LibCore LibFileSystem LibTest LibJS)
-        add_test(
-                NAME Spreadsheet
-                COMMAND test-spreadsheet --show-progress=false
-        )
-        set_tests_properties(Spreadsheet PROPERTIES ENVIRONMENT SERENITY_SOURCE_DIR=${SERENITY_PROJECT_ROOT})
-
         # test-wasm
         add_executable(test-wasm
             ../../Tests/LibWasm/test-wasm.cpp
@@ -736,23 +680,6 @@ if (BUILD_LAGOM)
             SKIP_RETURN_CODE 1
             ENVIRONMENT SERENITY_SOURCE_DIR=${SERENITY_PROJECT_ROOT}
         )
-
-        # Tests that are not LibTest based
-        # Shell
-        file(GLOB SHELL_TESTS CONFIGURE_DEPENDS "../../Userland/Shell/Tests/*.sh")
-        foreach(TEST_PATH ${SHELL_TESTS})
-            get_filename_component(TEST_NAME ${TEST_PATH} NAME_WE)
-            add_test(
-                NAME "Shell-${TEST_NAME}"
-                COMMAND Shell --skip-shellrc "${TEST_PATH}"
-                WORKING_DIRECTORY ${SERENITY_PROJECT_ROOT}/Userland/Shell/Tests
-            )
-            set_tests_properties("Shell-${TEST_NAME}" PROPERTIES
-                TIMEOUT 10
-                FAIL_REGULAR_EXPRESSION "FAIL"
-                PASS_REGULAR_EXPRESSION "PASS"
-            )
-        endforeach()
 
         # FIXME: When we are using CMake >= 3.21, the library installations can be replaced with RUNTIME_DEPENDENCIES.
         #        https://cmake.org/cmake/help/latest/command/install.html

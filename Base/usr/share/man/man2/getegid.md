@@ -1,1 +1,0 @@
-geteuid.md

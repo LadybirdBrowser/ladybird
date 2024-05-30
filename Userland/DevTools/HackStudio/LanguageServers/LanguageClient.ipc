@@ -1,9 +1,0 @@
-endpoint LanguageClient
-{
-    auto_complete_suggestions(Vector<CodeComprehension::AutocompleteResultEntry> suggestions) =|
-    declaration_location(CodeComprehension::ProjectLocation location) =|
-    declarations_in_document(ByteString filename, Vector<CodeComprehension::Declaration> declarations) =|
-    todo_entries_in_document(ByteString filename, Vector<CodeComprehension::TodoEntry> todo_entries) =|
-    parameters_hint_result(Vector<ByteString> params, int current_index) =|
-    tokens_info_result(Vector<CodeComprehension::TokenInfo> tokens_info) =|
-}

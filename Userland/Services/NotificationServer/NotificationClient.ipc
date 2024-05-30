@@ -1,5 +1,0 @@
-#include <LibGfx/ShareableBitmap.h>
-
-endpoint NotificationClient
-{
-}

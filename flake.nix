@@ -1,5 +1,5 @@
 {
-  description = "Serenity";
+  description = "Ladybird";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -9,7 +9,6 @@
   outputs = { self, nixpkgs, utils, }: utils.lib.eachDefaultSystem (system: let
     pkgs = import nixpkgs { inherit system; };
   in {
-    devShells.default = import ./Toolchain { inherit pkgs; };
-    devShells.ladybird = import ./Ladybird { inherit pkgs; };
+    devShells.default = import ./Ladybird { inherit pkgs; };
   });
 }

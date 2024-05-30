@@ -1,6 +1,0 @@
-[App]
-Name=Display Settings
-Executable=/bin/DisplaySettings
-Category=Settings
-Description=Configure your display hardware, desktop wallpaper, fonts, etc.
-ExcludeFromSystemMenu=true

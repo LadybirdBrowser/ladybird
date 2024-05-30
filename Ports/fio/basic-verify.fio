@@ -1,6 +1,0 @@
-[write-and-verify]
-rw=readwrite
-bs=4k
-iodepth=16
-verify=crc32c
-size=100MB
