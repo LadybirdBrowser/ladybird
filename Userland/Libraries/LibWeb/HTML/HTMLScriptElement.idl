@@ -17,7 +17,7 @@ interface HTMLScriptElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString integrity;
     [CEReactions, Reflect=referrerpolicy] attribute DOMString referrerPolicy;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
-    [FIXME, CEReactions] attribute DOMString fetchPriority;
+    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
 
     static boolean supports(DOMString type);
 

@@ -318,26 +318,31 @@ void HTMLScriptElement::prepare_script()
     // 26. Let referrer policy be the current state of el's referrerpolicy content attribute.
     auto referrer_policy = m_referrer_policy;
 
-    // 27. Let parser metadata be "parser-inserted" if el is parser-inserted, and "not-parser-inserted" otherwise.
+    // 27. Let fetch priority be the current state of el's fetchpriority content attribute.
+    auto fetch_priority = Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto);
+
+    // 28. Let parser metadata be "parser-inserted" if el is parser-inserted, and "not-parser-inserted" otherwise.
     auto parser_metadata = is_parser_inserted()
         ? Fetch::Infrastructure::Request::ParserMetadata::ParserInserted
         : Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted;
 
-    // 28. Let options be a script fetch options whose cryptographic nonce is cryptographic nonce,
+    // 29. Let options be a script fetch options whose cryptographic nonce is cryptographic nonce,
     //     integrity metadata is integrity metadata, parser metadata is parser metadata,
-    //     credentials mode is module script credentials mode, and referrer policy is referrer policy.
+    //     credentials mode is module script credentials mode, referrer policy is referrer policy,
+    //     and fetch priority is fetch priority.
     ScriptFetchOptions options {
         .cryptographic_nonce = {}, // FIXME
         .integrity_metadata = move(integrity_metadata),
         .parser_metadata = parser_metadata,
         .credentials_mode = module_script_credential_mode,
         .referrer_policy = move(referrer_policy),
+        .fetch_priority = move(fetch_priority),
     };
 
-    // 29. Let settings object be el's node document's relevant settings object.
+    // 30. Let settings object be el's node document's relevant settings object.
     auto& settings_object = document().relevant_settings_object();
 
-    // 30. If el has a src content attribute, then:
+    // 31. If el has a src content attribute, then:
     if (has_attribute(HTML::AttributeNames::src)) {
         // 1. If el's type is "importmap",
         if (m_script_type == ScriptType::ImportMap) {
@@ -404,7 +409,7 @@ void HTMLScriptElement::prepare_script()
         }
     }
 
-    // 31. If el does not have a src content attribute:
+    // 32. If el does not have a src content attribute:
     if (!has_attribute(HTML::AttributeNames::src)) {
         // Let base URL be el's node document's document base URL.
         auto base_url = document().base_url();
@@ -461,7 +466,7 @@ void HTMLScriptElement::prepare_script()
         }
     }
 
-    // 32. If el's type is "classic" and el has a src attribute, or el's type is "module":
+    // 33. If el's type is "classic" and el has a src attribute, or el's type is "module":
     if ((m_script_type == ScriptType::Classic && has_attribute(HTML::AttributeNames::src)) || m_script_type == ScriptType::Module) {
         // 1. Assert: el's result is "uninitialized".
         // FIXME: I believe this step to be a spec bug, and it should be removed: https://github.com/whatwg/html/issues/8534
@@ -535,7 +540,7 @@ void HTMLScriptElement::prepare_script()
         }
     }
 
-    // 33. Otherwise:
+    // 34. Otherwise:
     else {
         // 1. Assert: el's result is not "uninitialized".
         VERIFY(!m_result.has<ResultState::Uninitialized>());
