@@ -1,5 +1,0 @@
-[App]
-Name=Gradient
-Executable=/bin/Gradient
-Category=Demos/Screensaver
-ExcludeFromSystemMenu=true

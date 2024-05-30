@@ -1,7 +1,0 @@
-[App]
-Name=He&x Editor
-Executable=/bin/HexEditor
-Category=D&evelopment
-
-[Launcher]
-FileTypes=font

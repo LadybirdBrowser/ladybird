@@ -1,6 +1,0 @@
-[App]
-Name=Keyboard Settings
-Executable=/bin/KeyboardSettings
-Category=Settings
-Description=Customize your keyboard layout and other settings
-ExcludeFromSystemMenu=true

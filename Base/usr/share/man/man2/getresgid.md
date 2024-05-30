@@ -1,1 +1,0 @@
-getresuid.md

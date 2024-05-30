@@ -7,9 +7,9 @@ cd "$script_path/.."
 
 if [ "$(uname -s)" = "Darwin" ]; then
     # MacOS's find does not support '-executable' OR '-perm /mode'.
-    BAD_FILES=$(find Base/etc/ Base/res/ Base/www/ -type f -perm +111)
+    BAD_FILES=$(find Base/res/ -type f -perm +111)
 else
-    BAD_FILES=$(find Base/etc/ Base/res/ Base/www/ -type f -executable)
+    BAD_FILES=$(find Base/res/ -type f -executable)
 fi
 
 if [ -n "${BAD_FILES}" ]
