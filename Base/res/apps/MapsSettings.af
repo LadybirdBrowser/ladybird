@@ -1,6 +1,0 @@
-[App]
-Name=Maps Settings
-Executable=/bin/MapsSettings
-Category=Settings
-Description=Configure the Maps application
-ExcludeFromSystemMenu=true

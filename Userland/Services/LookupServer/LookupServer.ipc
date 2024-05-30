@@ -1,7 +1,0 @@
-// Keep the name synchronized with LibC/netdb.cpp, constant 'lookup_server_endpoint_magic'.
-endpoint LookupServer
-{
-    // Keep these definitions synchronized with gethostbyname and gethostbyaddr in netdb.cpp
-    lookup_name(ByteString name) => (int code, Vector<ByteString> addresses)
-    lookup_address(ByteString address) => (int code, ByteString name)
-}
