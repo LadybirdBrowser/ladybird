@@ -7,36 +7,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  SerenityOS:
-    if: github.repository == 'SerenityOS/serenity'
-
-    strategy:
-      fail-fast: false
-      matrix:
-        toolchain: ['GNU', 'Clang']
-        os: [ubuntu-22.04]
-        arch: ['x86_64']
-        debug_options: ['NORMAL_DEBUG']
-        include:
-          - toolchain: 'GNU'
-            os: ubuntu-22.04
-            arch: 'aarch64'
-            debug_options: 'NORMAL_DEBUG'
-
-          - toolchain: 'GNU'
-            os: ubuntu-22.04
-            arch: 'x86_64'
-            debug_options: 'ALL_DEBUG'
-
-    uses: ./.github/workflows/serenity-template.yml
-    with:
-      toolchain: ${{ matrix.toolchain }}
-      os: ${{ matrix.os }}
-      arch: ${{ matrix.arch }}
-      debug_options: ${{ matrix.debug_options }}
-
   Lagom:
-    if: github.repository == 'SerenityOS/serenity'
+    if: github.repository == 'LadybirdWebBrowser/ladybird'
 
     strategy:
       fail-fast: false
@@ -44,14 +16,20 @@ jobs:
         os_name: ['Linux']
         os: [ubuntu-22.04]
         fuzzer: ['NO_FUZZ', 'FUZZ']
+        toolchain: ['Clang']
         include:
           - os_name: 'macOS'
             os: macos-14
             fuzzer: 'NO_FUZZ'
+            toolchain: 'Clang'
+          - os_name: 'Linux'
+            os: ubuntu-22.04
+            fuzzer: 'NO_FUZZ'
+            toolchain: 'GNU'
 
     uses: ./.github/workflows/lagom-template.yml
     with:
-      toolchain: 'Clang'
+      toolchain: ${{ matrix.toolchain }}
       os_name: ${{ matrix.os_name }}
       os: ${{ matrix.os }}
       fuzzer: ${{ matrix.fuzzer }}

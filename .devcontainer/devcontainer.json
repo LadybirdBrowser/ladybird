@@ -6,10 +6,8 @@
     "features": {
         "ghcr.io/devcontainers/features/github-cli:1": {},
         "ghcr.io/devcontainers-contrib/features/pre-commit:1": {},
-        "./features/serenity": {
+        "./features/ladybird": {
             "llvm_version": 18,
-            "enable_ladybird": true,
-            "enable_serenity": true
         },
         "ghcr.io/devcontainers/features/desktop-lite": {
             "password": "vscode",

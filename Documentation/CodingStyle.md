@@ -4,7 +4,7 @@ For low-level styling (spaces, parentheses, brace placement, etc), all code shou
 
 **Important: Make sure you use `clang-format` version 18 or later!**
 
-This document describes the coding style used for C++ code in the Serenity Operating System project. All new code should conform to this style.
+This document describes the coding style used for C++ code in the Ladybird Browser project. All new code should conform to this style.
 
 We'll definitely be tweaking and amending this over time, so let's consider it a living document. :)
 
