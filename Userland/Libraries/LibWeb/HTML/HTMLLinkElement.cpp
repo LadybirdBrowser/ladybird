@@ -210,6 +210,7 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
     // document                         document
     options.document = &document;
     // FIXME: cryptographic nonce metadata     The current value of el's [[CryptographicNonce]] internal slot
+    // FIXME: fetch priority                   the state of el's fetchpriority content attribute
 
     // 3. If el has an href attribute, then set options's href to the value of el's href attribute.
     if (auto maybe_href = get_attribute(AttributeNames::href); maybe_href.has_value())
@@ -234,33 +235,39 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
 JS::GCPtr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTMLLinkElement::LinkProcessingOptions const& options)
 {
     // 1. Assert: options's href is not the empty string.
+    VERIFY(!options.href.is_empty());
 
-    // FIXME: 2. If options's destination is not a destination, then return null.
+    // FIXME: 2. If options's destination is null, then return null.
 
-    // 3. Parse a URL given options's href, relative to options's base URL. If that fails, then return null. Otherwise, let url be the resulting URL record.
+    // 3. Let url be the result of encoding-parsing a URL given options's href, relative to options's base URL.
     auto url = options.base_url.complete_url(options.href);
+
+    // 4. If url is failure, then return null.
     if (!url.is_valid())
         return nullptr;
 
-    // 4. Let request be the result of creating a potential-CORS request given url, options's destination, and options's crossorigin.
+    // 5. Let request be the result of creating a potential-CORS request given url, options's destination, and options's crossorigin.
     auto request = create_potential_CORS_request(vm(), url, options.destination, options.crossorigin);
 
-    // 5. Set request's policy container to options's policy container.
+    // 6. Set request's policy container to options's policy container.
     request->set_policy_container(options.policy_container);
 
-    // 6. Set request's integrity metadata to options's integrity.
+    // 7. Set request's integrity metadata to options's integrity.
     request->set_integrity_metadata(options.integrity);
 
-    // 7. Set request's cryptographic nonce metadata to options's cryptographic nonce metadata.
+    // 8. Set request's cryptographic nonce metadata to options's cryptographic nonce metadata.
     request->set_cryptographic_nonce_metadata(options.cryptographic_nonce_metadata);
 
-    // 8. Set request's referrer policy to options's referrer policy.
+    // 9. Set request's referrer policy to options's referrer policy.
     request->set_referrer_policy(options.referrer_policy);
 
-    // 9. Set request's client to options's environment.
+    // 10. Set request's client to options's environment.
     request->set_client(options.environment);
 
-    // 10. Return request.
+    // 11. Set request's priority to options's fetch priority.
+    request->set_priority(options.fetch_priority);
+
+    // 12. Return request.
     return request;
 }
 
