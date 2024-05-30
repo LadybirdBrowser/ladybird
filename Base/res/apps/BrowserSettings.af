@@ -1,6 +1,0 @@
-[App]
-Name=Browser Settings
-Executable=/bin/BrowserSettings
-Category=Settings
-Description=Configure Browser
-ExcludeFromSystemMenu=true

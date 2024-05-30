@@ -1,7 +1,0 @@
-[App]
-Name=&Profiler
-Executable=/bin/Profiler
-Category=D&evelopment
-
-[Launcher]
-FileTypes=profile

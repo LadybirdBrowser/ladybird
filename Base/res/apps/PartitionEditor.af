@@ -1,5 +1,0 @@
-[App]
-Name=&Partition Editor
-Executable=/bin/PartitionEditor
-RequiresRoot=true
-Category=&Utilities
