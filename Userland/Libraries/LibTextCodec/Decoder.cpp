@@ -388,8 +388,11 @@ Optional<Decoder&> decoder_for(StringView a_encoding)
 // https://encoding.spec.whatwg.org/#concept-encoding-get
 Optional<StringView> get_standardized_encoding(StringView encoding)
 {
-    encoding = encoding.trim_whitespace();
+    // 1. Remove any leading and trailing ASCII whitespace from label.
+    // https://infra.spec.whatwg.org/#ascii-whitespace: ASCII whitespace is U+0009 TAB, U+000A LF, U+000C FF, U+000D CR, or U+0020 SPACE.
+    encoding = encoding.trim("\t\n\f\r "sv);
 
+    // 2. If label is an ASCII case-insensitive match for any of the labels listed in the table below, then return the corresponding encoding; otherwise return failure.
     if (encoding.is_one_of_ignoring_ascii_case("unicode-1-1-utf-8"sv, "unicode11utf8"sv, "unicode20utf8"sv, "utf-8"sv, "utf8"sv, "x-unicode20utf8"sv))
         return "UTF-8"sv;
     if (encoding.is_one_of_ignoring_ascii_case("866"sv, "cp866"sv, "csibm866"sv, "ibm866"sv))
