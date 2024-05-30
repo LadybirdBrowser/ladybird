@@ -93,6 +93,9 @@ private:
         JS::GCPtr<Web::DOM::Document> document;
         // FIXME: on document ready (default null)
         //          Null or an algorithm accepting a Document
+        // fetch priority (default auto)
+        //      A fetch priority attribute state
+        Fetch::Infrastructure::Request::Priority fetch_priority { Fetch::Infrastructure::Request::Priority::Auto };
     };
 
     // https://html.spec.whatwg.org/multipage/semantics.html#create-link-options-from-element
