@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Ali Mohammad Pur <mpfard@serenityos.org>
+ * Copyright (c) 2024, Simon Wanner <simon@skyrising.xyz>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,15 +17,34 @@ namespace Web::Encoding {
 
 JS_DEFINE_ALLOCATOR(TextDecoder);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<TextDecoder>> TextDecoder::construct_impl(JS::Realm& realm, FlyString encoding, Optional<TextDecoderOptions> const& options)
+// https://encoding.spec.whatwg.org/#dom-textdecoder
+WebIDL::ExceptionOr<JS::NonnullGCPtr<TextDecoder>> TextDecoder::construct_impl(JS::Realm& realm, FlyString label, Optional<TextDecoderOptions> const& options)
 {
     auto& vm = realm.vm();
 
-    auto decoder = TextCodec::decoder_for(encoding);
-    if (!decoder.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, TRY_OR_THROW_OOM(vm, String::formatted("Invalid encoding {}", encoding)) };
+    // 1. Let encoding be the result of getting an encoding from label.
+    auto encoding = TextCodec::get_standardized_encoding(label);
 
-    return realm.heap().allocate<TextDecoder>(realm, realm, *decoder, move(encoding), options.value_or({}).fatal, options.value_or({}).ignore_bom);
+    // 2. If encoding is failure or replacement, then throw a RangeError.
+    if (!encoding.has_value() || encoding->equals_ignoring_ascii_case("replacement"sv))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, TRY_OR_THROW_OOM(vm, String::formatted("Invalid encoding {}", label)) };
+
+    // 3. Set this’s encoding to encoding.
+    // https://encoding.spec.whatwg.org/#dom-textdecoder-encoding
+    // The encoding getter steps are to return this’s encoding’s name, ASCII lowercased.
+    auto lowercase_encoding_name = MUST(String::from_byte_string(encoding.value().to_lowercase_string()));
+
+    // 4. If options["fatal"] is true, then set this’s error mode to "fatal".
+    auto fatal = options.value_or({}).fatal;
+
+    // 5. Set this’s ignore BOM to options["ignoreBOM"].
+    auto ignore_bom = options.value_or({}).ignore_bom;
+
+    // NOTE: This should happen in decode(), but we don't support streaming yet and share decoders across calls.
+    auto decoder = TextCodec::decoder_for(encoding.value());
+    VERIFY(decoder.has_value());
+
+    return realm.heap().allocate<TextDecoder>(realm, realm, *decoder, lowercase_encoding_name, fatal, ignore_bom);
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder
