@@ -27,37 +27,15 @@ inputs:
     description: 'Path to the SerenityOS ccache directory'
     required: false
     default: ''
-  toolchain_ccache_path:
-    description: 'Path to the toolchain ccache directory'
-    required: false
-    default: ''
   download_cache_path:
     description: 'Path to the download cache directory'
     required: false
     default: 'caches'
 
 outputs:
-  qemu_cache_primary_key:
-    description: 'Primary key for the AArch64 QEMU cache'
-    value: ${{ steps.qemu-cache.outputs.cache-primary-key }}
-  qemu_cache_hit:
-    description: 'Whether the AArch64 QEMU cache was hit'
-    value: ${{ steps.qemu-cache.outputs.cache-hit }}
   serenity_ccache_primary_key:
     description: 'Primary key for the Serenity ccache'
     value: ${{ steps.serenity-ccache.outputs.cache-primary-key }}
-  toolchain_ccache_primary_key:
-    description: 'Primary key for the Toolchain ccache'
-    value: ${{ steps.toolchain-ccache.outputs.cache-primary-key }}
-  toolchain_prebuilt_primary_key:
-    description: 'Primary key for the toolchain cache'
-    value: ${{ steps.toolchain-prebuilt.outputs.cache-primary-key }}
-  toolchain_prebuilt_path:
-    description: 'Path to the prebuilt toolchain'
-    value: ${{ steps.toolchain-stamps.outputs.toolchain_path }}
-  toolchain_prebuilt_hit:
-    description: 'Whether the toolchain prebuilt cache was hit'
-    value: ${{ steps.toolchain-prebuilt.outputs.cache-hit }}
 
 runs:
   using: "composite"
@@ -67,64 +45,6 @@ runs:
       id: 'date-stamp'
       run: |
         echo "timestamp=$(date -u "+%Y%m%d%H%M_%S")" >> "$GITHUB_OUTPUT"
-
-    - name: 'Toolchain Stamps'
-      shell: bash
-      id: 'toolchain-stamps'
-      if: ${{ inputs.arch != 'Lagom' }}
-      run: |
-        if ${{ inputs.toolchain == 'Clang' }} ; then
-          echo "toolchain_path=${{ github.workspace }}/Toolchain/Local/clang" >> "$GITHUB_OUTPUT"
-
-          hashed_files='${{ hashFiles('Toolchain/BuildClang.sh', 'Toolchain/Patches/llvm/*.patch', 'Toolchain/CMake/*.cmake', 'Userland/Libraries/LibC/**/*.h') }}'
-          echo "toolchain_stamp=${hashed_files}" >> "$GITHUB_OUTPUT"
-
-          source $GITHUB_WORKSPACE/Ports/llvm/package.sh
-          echo "toolchain_version=$(echo ${version} | cut -d'.' -f1)" >> "$GITHUB_OUTPUT"
-        elif ${{ inputs.toolchain == 'GNU' }} ; then
-          echo "toolchain_path=${{ github.workspace }}/Toolchain/Local/${{ inputs.arch }}" >> $GITHUB_OUTPUT
-
-          hashed_files='${{ hashFiles('Toolchain/BuildGNU.sh', 'Toolchain/Patches/binutils/*.patch', 'Toolchain/Patches/gcc/*.patch', 'Userland/Libraries/LibC/**/*.h') }}'
-          echo "toolchain_stamp=${hashed_files}" >> $GITHUB_OUTPUT
-
-          source $GITHUB_WORKSPACE/Ports/gcc/package.sh
-          echo "toolchain_version=$(echo ${version} | cut -d'.' -f1)" >> $GITHUB_OUTPUT
-        fi
-
-    - name: 'Toolchain Prebuilt Cache'
-      uses: actions/cache/restore@v4
-      id: 'toolchain-prebuilt'
-      if: ${{ inputs.arch != 'Lagom' }}
-      with:
-        path: ${{ steps.toolchain-stamps.outputs.toolchain_path }}
-        key: '"toolchain" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ steps.toolchain-stamps.outputs.toolchain_stamp }}"'
-
-    # FIXME: Remove manually built QEMU when we bump QEMU to >=8.1.x
-    - name: 'AArch64 QEMU Cache'
-      id: 'qemu-cache'
-      uses: actions/cache/restore@v4
-      if: ${{ inputs.arch == 'aarch64' }}
-      with:
-        path: ${{ github.workspace }}/Toolchain/Local/qemu
-        key: ${{ runner.os }}-qemu-${{ hashFiles('Ports/qemu/version.sh', 'Toolchain/BuildQemu.sh') }}
-
-    - name: 'Toolchain Compiler Cache'
-      uses: actions/cache/restore@v4
-      id: 'toolchain-ccache'
-      if: ${{ inputs.toolchain_ccache_path != '' }}
-      with:
-          path: ${{ inputs.toolchain_ccache_path }}
-          key: '"toolchain ccache" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ steps.toolchain-stamps.outputs.toolchain_version }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
-          restore-keys: |
-            "toolchain ccache" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ steps.toolchain-stamps.outputs.toolchain_version }}" | "${{ inputs.ccache_version }}"
-
-    - name: 'Configure Toolchain ccache'
-      if: ${{ inputs.toolchain_ccache_path != '' }}
-      shell: bash
-      run: |
-          CCACHE_DIR=${{ inputs.toolchain_ccache_path }} ccache -M 0
-          CCACHE_DIR=${{ inputs.toolchain_ccache_path }} ccache -s
-          CCACHE_DIR=${{ inputs.toolchain_ccache_path }} ccache -z
 
     - name: 'Serenity Compiler Cache'
       uses: actions/cache/restore@v4

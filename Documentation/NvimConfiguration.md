@@ -181,9 +181,9 @@ nmap <silent>gs :CocCommand clangd.switchSourceHeader vsplit<CR>
 > **Note**: Every time a new source is added or the compilation commands get adjusted
 (through CMake) you need to rerun `./Meta/serenity.sh rebuild`.
 
-Link `ln -s /path/to/serenity/Build/x86_64/compile_commands.json /path/to/serenity/compile_commands.json`.
+Link `ln -s /path/to/ladybird/Build/x86_64/compile_commands.json /path/to/ladybird/compile_commands.json`.
 
-Create `/path/to/serenity/.clangd` (replace `/path/to/serenity`
+Create `/path/to/ladybird/.clangd` (replace `/path/to/ladybird`
 with your SerenityOS directory) with content of the clangd section in the
 [VSCodeConfiguration.md](./VSCodeConfiguration.md).
 

@@ -1,29 +1,26 @@
-# Contributing to SerenityOS
+# Contributing to Ladybird
 
-When contributing to SerenityOS, make sure that the changes you wish to make are in line with the project direction. If you are not sure about this, open an issue first, so we can discuss it.
+When contributing to Ladybird, make sure that the changes you wish to make are in line with the project direction. If you are not sure about this, open an issue first, so we can discuss it.
 
-**For your first couple of PRs, start with something small to get familiar with the project and its development processes. Please do not start by adding a new application, library or other large component.**
+**For your first couple of PRs, start with something small to get familiar with the project and its development processes. Please do not start by adding a large component.**
 
 Everyone is welcome to work on the project, and while we have lots of fun, it's a serious kind of fun. :^)
 
 ## Communication
 
-Join our Discord server: [SerenityOS Discord](https://discord.gg/serenityos)
+Join [our Discord server](https://discord.gg/nvfjVJ4Svh) to participate in development discussion.
 
 ## Issue policy
 
-Unlike many other software projects, SerenityOS is not concerned with gaining the largest possible userbase. Its target audience is its own developers. As such, we have limited interest in feature requests from non-contributors.
-
-That said, please do file any bugs you find, keeping the following in mind:
+Please file any bugs you find, keeping the following in mind:
 
 * One issue per bug. Putting multiple things in the same issue makes both discussion and completion unnecessarily complicated.
 * No build issues (or other support requests). If the GitHub Actions CI build succeeds, the build problem is most likely on your side. Work it out locally, or ask in the `#build-problems` channel on Discord.
 * Don't comment on issues just to add a joke or irrelevant commentary. Hundreds of people get notified about comments so let's keep them relevant.
-* For bare metal issues, please include the complete debug log from the serial console and what you tried to do to solve the issue before opening the issue. Don't forget to add the hardware model of your machine and relevant details about it, to help us diagnose what the problem is.
 
 ## Human language policy
 
-In SerenityOS, we treat human language as seriously as we do programming language.
+In Ladybird, we treat human language as seriously as we do programming language.
 
 The following applies to all user-facing strings, code, comments, and commit messages:
 
@@ -43,14 +40,14 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 
 **Do:**
 
-* Write in idiomatic SerenityOS C++23, using the `AK` containers in all code.
-* Conform to the project coding style found in [CodingStyle.md](https://github.com/SerenityOS/serenity/blob/master/Documentation/CodingStyle.md). Use `clang-format` (version 18 or later) to automatically format C++ files. See [AdvancedBuildInstructions.md](https://github.com/SerenityOS/serenity/blob/master/Documentation/AdvancedBuildInstructions.md#clang-format-updates) for instructions on how to get an up-to-date version if your OS distribution does not ship clang-format-18.
+* Write in idiomatic SerenityOS-style C++23, using the `AK` containers in all code.
+* Conform to the project coding style found in [CodingStyle.md](https://github.com/LadybirdWebBrowser/ladybird/blob/master/Documentation/CodingStyle.md). Use `clang-format` (version 18 or later) to automatically format C++ files. See [AdvancedBuildInstructions.md](https://github.com/LadybirdWebBrowser/ladybird/blob/master/Documentation/AdvancedBuildInstructions.md#clang-format-updates) for instructions on how to get an up-to-date version if your OS distribution does not ship clang-format-18.
 * Choose expressive variable, function and class names. Make it as obvious as possible what the code is doing.
 * Split your changes into separate, atomic commits (i.e. A commit per feature or fix, where the build, tests and the system are all functioning).
 * Make sure your commits are rebased on the master branch.
 * Wrap your commit messages at 72 characters.
 * The first line of the commit message is the subject line, and must have the format "Category: Brief description of what's being changed". The category should be the name of a library, application, service, utility, etc.
-  * Examples: `LibAudio`, `HackStudio`, `Base`, `Kernel`, `ConfigServer`, `cat`
+  * Examples: `LibAudio`, `WebContent`, `CI`, `AK`, `RequestServer`, `js`
   * Don't use a category like "`Userland`" or "`Utilities`", except for generic changes that affect a large portion of code within these directories.
   * Don't use specific component names, e.g. C++ class names, as the category either - mention them in the summary instead. E.g. `LibGUI: Brief description of what's being changed in FooWidget` rather than `FooWidget: Brief description of what's being changed`
   * Several categories may be combined with `+`, e.g. `LibJS+LibWeb+Browser: ...`
@@ -107,7 +104,7 @@ Maintainership is by invitation only and does not correlate with any particular 
 
 Yes, we have a "stalebot" that will mark untouched PRs as "stale" after 21 days, and close them after another 7 days if nothing happens.
 
-### Are there specific people to reach out to for different subsystems (e.g. Kernel, Browser, GUI, etc)?
+### Are there specific people to reach out to for different subsystems (e.g. Networking, GUI, CSS, etc)?
 
 In theory, the best person to speak with is whoever wrote most code adjacent to what you're working on. In practice, asking in one of the development channels on Discord is usually easier/better, since that allows many people to join the discussion.
 

@@ -10,11 +10,11 @@ concurrency: wasm
 jobs:
   build:
     runs-on: ubuntu-22.04
-    if: github.repository == 'SerenityOS/serenity'
+    if: false
     strategy:
       fail-fast: false
     steps:
-      - name: Checkout SerenityOS/serenity
+      - name: Checkout LadybirdWebBrowser/ladybird
         uses: actions/checkout@v4
 
       - name: Checkout SerenityOS/libjs-data libjs-wasm
