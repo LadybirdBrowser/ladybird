@@ -1,5 +1,6 @@
 #import <CSS/LinkStyle.idl>
 #import <HTML/HTMLElement.idl>
+#import <HTML/Scripting/Fetching.idl>
 
 // https://html.spec.whatwg.org/multipage/semantics.html#htmllinkelement
 [Exposed=Window]
@@ -22,7 +23,7 @@ interface HTMLLinkElement : HTMLElement {
     [FIXME, CEReactions] attribute DOMString referrerPolicy;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
     [CEReactions, Reflect] attribute boolean disabled;
-    [FIXME, CEReactions] attribute DOMString fetchPriority;
+    [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
 
     // Obsolete
     [CEReactions, Reflect] attribute DOMString charset;
