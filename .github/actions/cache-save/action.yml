@@ -7,14 +7,6 @@ inputs:
     description: 'Target Architecture to restore caches for'
     required: false
     default: 'x86_64'
-  qemu_cache_primary_key:
-    description: 'Primary key for the AArch64 QEMU cache'
-    required: false
-    default: ''
-  qemu_cache_hit:
-    description: 'Whether the AArch64 QEMU cache was hit'
-    required: false
-    default: false
   serenity_ccache_path:
     description: 'Path to the SerenityOS ccache directory'
     required: false
@@ -23,54 +15,10 @@ inputs:
     description: 'Primary key for the Serenity ccache'
     required: false
     default: ''
-  toolchain_ccache_path:
-    description: 'Path to the toolchain ccache directory'
-    required: false
-    default: ''
-  toolchain_ccache_primary_key:
-    description: 'Primary key for the Toolchain ccache'
-    required: false
-    default: ''
-  toolchain_prebuilt_path:
-    description: 'Path to the prebuilt toolchain'
-    required: false
-    default: ''
-  toolchain_prebuilt_primary_key:
-    description: 'Primary key for the toolchain cache'
-    required: false
-    default: ''
-  toolchain_prebuilt_hit:
-    description: 'Whether the toolchain prebuilt cache was hit'
-    required: false
-    default: false
 
 runs:
   using: "composite"
   steps:
-    - name: 'Toolchain Prebuilt Cache'
-      uses: actions/cache/save@v4
-      # Do not waste time and storage space by updating the toolchain cache from a PR,
-      # as it would be discarded after being merged anyway.
-      if: ${{ github.event_name != 'pull_request' && !inputs.toolchain_prebuilt_hit && inputs.arch != 'Lagom' }}
-      with:
-        path: ${{ inputs.toolchain_prebuilt_path }}
-        key: ${{ inputs.toolchain_prebuilt_primary_key }}
-
-    # FIXME: Remove manually built QEMU when we bump QEMU to >=8.1.x
-    - name: 'AArch64 QEMU Cache'
-      uses: actions/cache/save@v4
-      if: ${{ github.event_name != 'pull_request' && !inputs.qemu_cache_hit && inputs.arch == 'aarch64' }}
-      with:
-        path: ${{ github.workspace }}/Toolchain/Local/qemu
-        key: ${{ inputs.qemu_cache_primary_key }}
-
-    - name: 'Toolchain Compiler Cache'
-      uses: actions/cache/save@v4
-      if: ${{ github.event_name != 'pull_request' && inputs.toolchain_ccache_path != '' }}
-      with:
-        path: ${{ inputs.toolchain_ccache_path }}
-        key: ${{ inputs.toolchain_ccache_primary_key }}
-
     - name: 'Prune obsolete ccache files'
       shell: bash
       if: ${{ inputs.serenity_ccache_path != '' }}

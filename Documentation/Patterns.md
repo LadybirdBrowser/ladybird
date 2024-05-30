@@ -1,4 +1,4 @@
-# SerenityOS Patterns
+# Coding Patterns
 
 ## Introduction
 
@@ -36,26 +36,6 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, Int
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(round_up_to_power_of_two(data_size, PAGE_SIZE)));
     auto bitmap = TRY(Bitmap::create_with_anonymous_buffer(format, buffer, size, scale_factor, {}));
     return bitmap;
-}
-```
-
-Example from the Kernel:
-
-```cpp
-#include <AK/Try.h>
-
-... snip ...
-
-ErrorOr<Region*> AddressSpace::allocate_region(VirtualRange const& range, StringView name, int prot, AllocationStrategy strategy)
-{
-    VERIFY(range.is_valid());
-    OwnPtr<KString> region_name;
-    if (!name.is_null())
-        region_name = TRY(KString::try_create(name));
-    auto vmobject = TRY(AnonymousVMObject::try_create_with_size(range.size(), strategy));
-    auto region = TRY(Region::try_create_user_accessible(range, move(vmobject), 0, move(region_name), prot_to_region_access_flags(prot), Region::Cacheable::Yes, false));
-    TRY(region->map(page_directory()));
-    return add_region(move(region));
 }
 ```
 

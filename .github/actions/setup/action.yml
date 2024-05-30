@@ -42,19 +42,19 @@ runs:
         echo "${{ github.workspace }}/wabt-1.0.23/bin" >> $GITHUB_PATH
 
     - name: 'Install JS dependencies'
-      if: ${{ inputs.os == 'Linux' || inputs.os == 'Serenity' }}
+      if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: sudo npm install -g prettier@2.7.1
 
     - name: 'Install Python dependencies'
-      if: ${{ inputs.os == 'Linux' || inputs.os == 'Serenity' }}
+      if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
         python3 -m pip install --upgrade pip
         pip3 install flake8 requests six
 
     - name: 'Install Dependencies'
-      if: ${{ inputs.os == 'Serenity' }}
+      if: ${{ inputs.os }}
       shell: bash
       run: |
         set -e
@@ -65,20 +65,7 @@ runs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
         sudo apt-get update
-        sudo apt-get install clang-format-18 ccache e2fsprogs gcc-13 g++-13 libstdc++-13-dev libmpfr-dev libmpc-dev ninja-build optipng qemu-utils qemu-system-i386 unzip generate-ninja libegl1-mesa-dev
-
-        if ${{ inputs.arch == 'aarch64' }}; then
-            # FIXME: Remove this when we no longer build our own Qemu binary.
-            sudo apt-get install libgtk-3-dev libpixman-1-dev libsdl2-dev libslirp-dev
-        fi
-
-    - name: Enable KVM group perms
-      if: ${{ inputs.os == 'Serenity' }}
-      shell: bash
-      run: |
-        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-        sudo udevadm control --reload-rules
-        sudo udevadm trigger --name-match=kvm
+        sudo apt-get install clang-format-18 ccache e2fsprogs gcc-13 g++-13 libstdc++-13-dev libmpfr-dev libmpc-dev ninja-build optipng unzip generate-ninja libegl1-mesa-dev
 
     - name: 'Install Dependencies'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}

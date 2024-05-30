@@ -8,14 +8,6 @@ repos:
         stages: [ commit ]
         language: system
 
-      - id: meta-lint-ports
-        name: Running Meta/lint-ports.py to ensure changes will pass linting on CI
-        entry: Meta/lint-ports.py
-        pass_filenames: false
-        files: ^Ports/
-        stages: [ commit ]
-        language: system
-
       - id: meta-lint-commit
         name: Lint commit message to ensure it will pass the commit linting on CI
         entry: Meta/lint-commit.sh

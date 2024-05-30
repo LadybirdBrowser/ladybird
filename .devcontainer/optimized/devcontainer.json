@@ -6,6 +6,6 @@
 // do not need to install all the prerequsite dependencies from scratch,
 // getting you into your development environment faster!
 {
-    "name": "SerenityOS (Pre-Built Image)",
-    "image": "ghcr.io/serenityos/serenity-devcontainer:base"
+    "name": "Ladybird (Pre-Built Image)",
+    "image": "ghcr.io/ladybirdwebbrowser/ladybird-devcontainer:base"
 }
