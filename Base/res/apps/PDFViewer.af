@@ -1,7 +1,0 @@
-[App]
-Name=&PDF Viewer
-Executable=/bin/PDFViewer
-Category=&Office
-
-[Launcher]
-FileTypes=pdf

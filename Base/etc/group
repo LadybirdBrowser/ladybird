@@ -1,9 +1,0 @@
-root:x:0:
-wheel:x:1:anon
-tty:x:2:
-phys:x:3:window,anon
-audio:x:4:anon
-utmp:x:5:
-lookup:x:10:anon
-window:x:13:anon
-users:x:100:anon

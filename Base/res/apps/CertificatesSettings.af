@@ -1,6 +1,0 @@
-[App]
-Name=Certificate Settings
-Executable=/bin/CertificateSettings
-Category=Settings
-Description=Access and change the system's certificates
-ExcludeFromSystemMenu=true

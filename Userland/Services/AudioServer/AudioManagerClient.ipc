@@ -1,6 +1,0 @@
-endpoint AudioManagerClient
-{
-    main_mix_muted_state_changed(bool muted) =|
-    main_mix_volume_changed(double volume) =|
-    device_sample_rate_changed(u32 sample_rate) =|
-}

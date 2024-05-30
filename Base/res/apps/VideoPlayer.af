@@ -1,7 +1,0 @@
-[App]
-Name=&Video Player
-Executable=/bin/VideoPlayer
-Category=&Media
-
-[Launcher]
-FileTypes=webm,mkv
