@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        for (let elementName of ["audio", "script", "video", "link"]) {
+        for (let elementName of ["audio", "script", "video", "link", "img"]) {
           const element = document.createElement(elementName);
           println(`${elementName} crossOrigin initial value: ${element.crossOrigin}`);
           element.crossOrigin = "invalid";
