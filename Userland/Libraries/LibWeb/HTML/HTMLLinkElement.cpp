@@ -210,7 +210,8 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
     // document                         document
     options.document = &document;
     // FIXME: cryptographic nonce metadata     The current value of el's [[CryptographicNonce]] internal slot
-    // FIXME: fetch priority                   the state of el's fetchpriority content attribute
+    // fetch priority                   the state of el's fetchpriority content attribute
+    options.fetch_priority = Fetch::Infrastructure::request_priority_from_string(get_attribute_value(HTML::AttributeNames::fetchpriority)).value_or(Fetch::Infrastructure::Request::Priority::Auto);
 
     // 3. If el has an href attribute, then set options's href to the value of el's href attribute.
     if (auto maybe_href = get_attribute(AttributeNames::href); maybe_href.has_value())
