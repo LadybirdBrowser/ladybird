@@ -9,7 +9,7 @@ env:
 jobs:
   build-and-package:
     runs-on: ${{ matrix.os }}
-    if: always() && github.repository == 'SerenityOS/serenity' && github.ref == 'refs/heads/master'
+    if: always() && github.repository == 'LadybirdWebBrowser/ladybird' && github.ref == 'refs/heads/master'
     strategy:
       fail-fast: false
       matrix:
@@ -26,7 +26,7 @@ jobs:
       cancel-in-progress: true
 
     steps:
-      - name: Checkout SerenityOS/serenity
+      - name: Checkout LadybirdWebBrowser/ladybird
         uses: actions/checkout@v4
 
       - name: "Set up environment"
@@ -88,5 +88,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: serenity-js-${{ matrix.package_type }}
-          path: Build/serenity-js*.tar.gz
+          path: Build/ladybird-js*.tar.gz
           retention-days: 7
