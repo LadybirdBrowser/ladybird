@@ -19,3 +19,10 @@ video crossOrigin value after setting to null: null
 video crossOrigin value after setting to "USE-CREDENTIALS": use-credentials
 video crossOrigin value after setting to "": anonymous
 video crossOrigin value after calling removeAttribute: null
+link crossOrigin initial value: null
+link crossOrigin value after setting to "invalid": anonymous
+link crossOrigin value after setting to "use-credentials": use-credentials
+link crossOrigin value after setting to null: null
+link crossOrigin value after setting to "USE-CREDENTIALS": use-credentials
+link crossOrigin value after setting to "": anonymous
+link crossOrigin value after calling removeAttribute: null

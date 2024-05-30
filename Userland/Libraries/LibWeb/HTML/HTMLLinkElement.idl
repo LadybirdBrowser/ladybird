@@ -9,7 +9,7 @@ interface HTMLLinkElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect] attribute DOMString href;
-    [FIXME, CEReactions] attribute DOMString? crossOrigin;
+    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
     [CEReactions, Reflect] attribute DOMString rel;
     [FIXME, CEReactions] attribute DOMString as;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
