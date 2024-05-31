@@ -7,7 +7,7 @@ First, make sure you have a working toolchain and can build and run SerenityOS. 
 * Install [Qt Creator](https://www.qt.io/offline-installers). You don't need the entire Qt setup, just click 'Qt Creator' on the left side, and install that.
 * Open Qt Creator, select `File -> New File or Project...`
 * Select `Import Existing Project`
-* Give it a name (some tools assume lower-case `serenity`), and navigate to the root of your SerenityOS project checkout. Click Next.
+* Give it a name (some tools assume lower-case `ladybird`), and navigate to the root of your SerenityOS project checkout. Click Next.
 * Wait for the file list to generate. This can take a minute or two!
 * Ignore the file list, we will overwrite it later. Click Next.
 * Set `Add to version control` to `<None>`. Click Finish.

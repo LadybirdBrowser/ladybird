@@ -94,7 +94,7 @@ Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``
 The simplest way to build and run ladybird is via the serenity.sh script:
 
 ```bash
-# From /path/to/serenity
+# From /path/to/ladybird
 ./Meta/serenity.sh run lagom ladybird
 ./Meta/serenity.sh gdb lagom ladybird
 ```
@@ -108,7 +108,7 @@ The Qt chrome is available on platforms where it is not the default as well (exc
 Qt chrome, install the Qt dependencies for your platform, and enable the Qt chrome via CMake:
 
 ```bash
-# From /path/to/serenity
+# From /path/to/ladybird
 cmake -S Meta/Lagom -B Build/lagom -DENABLE_QT=ON
 ```
 
@@ -129,7 +129,7 @@ cmake -S Meta/Lagom -B Build/lagom -DENABLE_LAGOM_LADYBIRD=OFF -DENABLE_LAGOM_LI
 
 ### Resource files
 
-Ladybird requires resource files from the serenity/Base/res directory in order to properly load
+Ladybird requires resource files from the ladybird/Base/res directory in order to properly load
 icons, fonts, and other theming information. The serenity.sh script calls into custom CMake targets
 that set these variables, and ensure that the $PWD is set properly to allow execution from the build
 directory. To run the built binary without using the script, one can either directly invoke the

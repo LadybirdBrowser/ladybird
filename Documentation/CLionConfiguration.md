@@ -2,7 +2,7 @@
 
 CLion can integrate with CMake to provide code comprehension features.
 
-After opening the `serenity` repository in CLion as a new project, the "`Open Project Wizard`" window will open, from here set the following fields:
+After opening the `ladybird` repository in CLion as a new project, the "`Open Project Wizard`" window will open, from here set the following fields:
 
 (Assuming you use `Ninja` as the build system and configured the CMake build directory to `Build/x86_64`)
 
@@ -77,15 +77,15 @@ Finally, to quickly switch between the two different contexts, simply click the 
 
 ### Toolchain
 
-If the serenity directory is on the WSL filesystem you need to configure the CLion toolchain to be WSL.
-To set that up go to `File->Settings->Build, Execution, Deployment->Toolchains` and click on the `+` icon, then select WSL. In `Toolset` select the distribution you have the serenity directory on.
+If the ladybird directory is on the WSL filesystem you need to configure the CLion toolchain to be WSL.
+To set that up go to `File->Settings->Build, Execution, Deployment->Toolchains` and click on the `+` icon, then select WSL. In `Toolset` select the distribution you have the ladybird directory on.
 
 ### Terminal
 
 It is possible to set the embedded terminal in CLion to the one that your WSL distribution provides.
-This way you can build and run serenity without leaving the IDE.
+This way you can build and run ladybird without leaving the IDE.
 Note that following will only help if you don't use an X-window server to access qemu.
-It is possible to install qemu natively on Windows and allow WSL to use it instead of installing qemu first on (wsl) linux and then use X server to launch serenity inside of it.
+It is possible to install qemu natively on Windows and allow WSL to use it instead of installing qemu first on (wsl) linux and then use X server to launch ladybird inside of it.
 Check the updated manual [here](BuildInstructionsWindows.md).
 
 - Locate the terminal emulator for your linux distribution.
@@ -100,4 +100,4 @@ Copy `absolute/path/to/ubuntu2004.exe`.
 - Close CLion and restart.
 
 The default IDE terminal should now be changed to WSL, and now you can run `CLion/run.sh`.
-You may also want to copy `serenity/Meta/CLion/run.sh` to your project directory and run it from there, so that you don't have to fight with git every time you modify the script.
+You may also want to copy `ladybird/Meta/CLion/run.sh` to your project directory and run it from there, so that you don't have to fight with git every time you modify the script.

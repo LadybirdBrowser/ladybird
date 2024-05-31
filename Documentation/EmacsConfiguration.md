@@ -13,15 +13,15 @@ CompileFlags:
   Add:
     - "-D__serenity__"
     - "-UNO_TLS"
-    - "-I/path/to/serenity/Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/13.1.0"
-    - "-I/path/to/serenity/Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/13.1.0/x86_64-pc-serenity"
+    - "-I/path/to/ladybird/Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/13.1.0"
+    - "-I/path/to/ladybird/Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/13.1.0/x86_64-pc-serenity"
 
 Diagnostics:
   UnusedIncludes: None
   MissingIncludes: None
 ```
 
-You will need to change `/path/to/serenity` and change `13.1.0` to
+You will need to change `/path/to/ladybird` and change `13.1.0` to
 whatever your GCC toolchain version at the time is.
 
 Run cmake (`Meta/serenity.sh run` or similar) at least once for this
@@ -48,7 +48,7 @@ There are a few different ways to specify which clangd to use:
 - By default, without configuration `lsp-mode` will try to find and use your system `clangd`. This is the easiest solution, but your system clangd might be out of date.
 - You can manually specify any `clangd` binary with `lsp-clangd-binary-path`, as shown in the use-package example above.
 - You can have `lsp-mode` manage your `clangd` installation with emacs' `lsp-install-server`. This will install a `clangd` binary for you.
-- You can build the LLVM toolchain, including `clangd`, from Serenity's repository. This is an advanced option that is not currently documented.
+- You can build the LLVM toolchain, including `clangd`, from Ladybird's repository. This is an advanced option that is not currently documented.
 
 ### clang-format
 
