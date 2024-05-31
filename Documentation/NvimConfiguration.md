@@ -4,7 +4,7 @@ NVim can be configured to use the [COC-clangd](https://github.com/clangd/coc-cla
 plugin to provide code-completion as well as inline
 [git blame](https://github.com/f-person/git-blame.nvim) using [vim-plug](https://github.com/junegunn/vim-plug).
 
-Make sure you ran `Meta/serenity.sh run` at least once already.
+Make sure you ran `Meta/ladybird.sh run ladybird` at least once already.
 
 # Install vim-plug
 
@@ -46,7 +46,6 @@ system and customize the `inlayHints.sep` based on your preference.
 ```json
 {
     "clangd.fallbackFlags": ["-std=c++23"],
-    "clangd.arguments": ["--query-driver=${workspaceFolder}/Toolchain/Local/**/*"],
     "semanticTokens.enable": true,
     "inlayHint.subSeparator": "︴",
     "inlayHints.enableParameter": true,
@@ -179,12 +178,12 @@ nmap <silent>gs :CocCommand clangd.switchSourceHeader vsplit<CR>
 # Configure .clangd
 
 > **Note**: Every time a new source is added or the compilation commands get adjusted
-(through CMake) you need to rerun `./Meta/serenity.sh rebuild`.
+(through CMake) you need to rerun `./Meta/ladybird.sh rebuild`.
 
-Link `ln -s /path/to/ladybird/Build/x86_64/compile_commands.json /path/to/ladybird/compile_commands.json`.
+Link `ln -s /path/to/ladybird/Build/lagom/compile_commands.json /path/to/ladybird/compile_commands.json`.
 
 Create `/path/to/ladybird/.clangd` (replace `/path/to/ladybird`
-with your SerenityOS directory) with content of the clangd section in the
+with your ladybird directory) with content of the clangd section in the
 [VSCodeConfiguration.md](./VSCodeConfiguration.md).
 
 > **Note**: You can add a `Remove` part, where you can remove unwanted flags
