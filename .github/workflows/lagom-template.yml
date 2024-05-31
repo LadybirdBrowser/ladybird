@@ -178,11 +178,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           set -e
-          ./Meta/check-markdown.sh
-          ./Meta/lint-gml-format.sh
           git ls-files '*.ipc' | xargs ./Meta/Lagom/Build/bin/IPCMagicLinter
         env:
-          MARKDOWN_CHECK_BINARY: ./Meta/Lagom/Build/bin/markdown-check
-          GML_FORMAT: ./Meta/Lagom/Build/bin/gml-format
           ASAN_OPTIONS: 'strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1'
           UBSAN_OPTIONS: 'print_stacktrace=1:print_summary=1:halt_on_error=1'
