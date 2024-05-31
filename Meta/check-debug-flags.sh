@@ -20,8 +20,7 @@ done < <(
         git ls-files -- \
             '*.cpp' \
             '*.h' \
-            '*.in' \
-            ':!:Kernel/FileSystem/Ext2FS/Definitions.h'
+            '*.in'
     else
         # We're in the middle of a pre-commit run, so we should only check the files that have
         # actually changed. The reason is that "git ls-files | grep" on the entire repo takes

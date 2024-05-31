@@ -129,18 +129,12 @@ endif()
 
 if (ENABLE_ALL_DEBUG_FACILITIES)
     set(ENABLE_ALL_THE_DEBUG_MACROS ON)
-    set(ENABLE_EXTRA_KERNEL_DEBUG_SYMBOLS ON)
 
     # Immediately finds violations during boot, shouldn't be discoverable
     # by people who aren't working on fixing issues. Use this check to make
     # sure this code continues to build instead of all_debug_macros to avoid
     # people filing bugs.
     set(KMALLOC_VERIFY_NO_SPINLOCK_HELD ON)
-
-    # Enables KCOV API and injects kernel coverage instrumentation via
-    # -fsanitize-coverage=trace-pc. Mostly here to ensure that the CI catches
-    # commits breaking this flag.
-    set(ENABLE_KERNEL_COVERAGE_COLLECTION ON)
 endif()
 
 if (ENABLE_ALL_THE_DEBUG_MACROS)
@@ -154,7 +148,6 @@ set(CMAKE_INSTALL_INCLUDEDIR usr/include)
 set(CMAKE_INSTALL_LIBDIR usr/lib)
 
 configure_file(AK/Debug.h.in AK/Debug.h @ONLY)
-configure_file(Kernel/Debug.h.in Kernel/Debug.h @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/AK/Debug.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/AK")
 
 # We disable it completely because it makes cmake very spammy.
@@ -215,7 +208,6 @@ if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
 endif()
 
 add_subdirectory(AK)
-add_subdirectory(Kernel)
 
 # FIXME: vptr sanitizing requires.. intense ABI wrangling of std::type_info
 #        And would be better served by porting ubsan_type_hash_itanium.cpp from compiler-rt
