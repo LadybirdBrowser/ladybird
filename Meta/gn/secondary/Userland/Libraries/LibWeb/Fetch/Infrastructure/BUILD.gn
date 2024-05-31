@@ -13,6 +13,7 @@ source_set("Infrastructure") {
     "HTTP.cpp",
     "IncrementalReadLoopReadRequest.cpp",
     "MimeTypeBlocking.cpp",
+    "NetworkPartitionKey.cpp",
     "NoSniffBlocking.cpp",
     "PortBlocking.cpp",
     "Task.cpp",
