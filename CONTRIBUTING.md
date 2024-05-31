@@ -106,11 +106,11 @@ Yes, we have a "stalebot" that will mark untouched PRs as "stale" after 21 days,
 
 ### Are there specific people to reach out to for different subsystems (e.g. Networking, GUI, CSS, etc)?
 
-In theory, the best person to speak with is whoever wrote most code adjacent to what you're working on. In practice, asking in one of the development channels on Discord is usually easier/better, since that allows many people to join the discussion.
+In theory, the best person to speak with is whoever wrote most code adjacent to what you're working on. In practice, asking in one of the development channels on Slack is usually easier/better, since that allows many people to join the discussion.
 
 ### Is Slack the place to ask for review help, or is Github preferred?
 
-It's definitely better to ask on Slack. Due to the volume of GitHub notifications, many of us turn them off and rely on Discord for learning about review requests.
+It's definitely better to ask on Slack. Due to the volume of GitHub notifications, many of us turn them off and rely on Slack for learning about review requests.
 
 ## Commit Hooks
 
