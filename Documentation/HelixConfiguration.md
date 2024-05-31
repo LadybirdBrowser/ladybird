@@ -1,5 +1,5 @@
 # Helix Configuration
-Helix comes with support for `clangd` and `clang-format` out of the box! However, a small bit of configuration is needed for it to work correctly with SerenityOS.
+Helix comes with support for `clangd` and `clang-format` out of the box! However, a small bit of configuration is needed for it to work correctly with Ladybird.
 
 The following `.clangd` should be placed in the project root:
 ```yaml

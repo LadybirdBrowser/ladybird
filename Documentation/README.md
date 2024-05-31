@@ -1,4 +1,4 @@
-# SerenityOS Documentation
+# Ladybird Documentation
 
 Serenity development moves quickly, so some of these might be out of date. Please let us know if something here is wrong, or submit a PR with any additions or corrections! If you have any questions that are not answered here or in the [FAQ](FAQ.md), you are welcome to ask on [Slack](../README.md#get-in-touch-and-participate).
 
