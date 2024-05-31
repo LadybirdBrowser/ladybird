@@ -74,12 +74,6 @@ def should_check_file(filename):
         return False
     if filename.startswith('Base/'):
         return False
-    if filename == 'Kernel/Devices/HID/VirtIO/EvDevDefinitions.h':
-        return False
-    if filename == 'Kernel/FileSystem/Ext2FS/Definitions.h':
-        return False
-    if filename == 'Kernel/FileSystem/FUSE/Definitions.h':
-        return False
     return True
 
 
