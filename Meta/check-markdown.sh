@@ -12,7 +12,7 @@ if [ -z "${MARKDOWN_CHECK_BINARY:-}" ] ; then
     fi
     if ! [ -r Build/lagom/bin/markdown-check ] ; then
         echo "Lagom executable markdown-check was not built. Skipping markdown check."
-        echo "To enable this check, you may need to run './Meta/serenity.sh build lagom' first."
+        echo "To enable this check, you may need to run './Meta/ladybird.sh build' first."
         exit 0
     fi
     MARKDOWN_CHECK_BINARY="Build/lagom/bin/markdown-check"

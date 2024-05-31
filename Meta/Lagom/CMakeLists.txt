@@ -54,7 +54,7 @@ endif()
 # FIXME: BUILD_SHARED_LIBS has a default of OFF, as it's intended to be set by the
 #        user when configuring the project. We should instead change libjs-test262
 #        and oss-fuzz to set this option on their end, and enable it by default in
-#        Meta/serenity.sh. This is #9867.
+#        Meta/ladybird.sh. This is #9867.
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static libraries" ON)
 
 find_package(Threads REQUIRED)

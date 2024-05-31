@@ -146,9 +146,9 @@ is present and code should be placed in `Bindings/`.
 Every feature or bug fix added to LibWeb should have a corresponding test in `Tests/LibWeb`.
 The test should be either a Text, Layout or Ref test depending on the feature.
 
-LibWeb tests can be run in one of two ways. The easiest is to use the `serenity.sh` script. The LibWeb tests are
+LibWeb tests can be run in one of two ways. The easiest is to use the `ladybird.sh` script. The LibWeb tests are
 registered with CMake as a test in `Ladybird/CMakeLists.txt`. Using the builtin test filtering, you can run all tests
-with `Meta/serenity.sh test lagom` or run just the LibWeb tests with `Meta/serenity.sh test lagom LibWeb`. The second
+with `Meta/ladybird.sh test` or run just the LibWeb tests with `Meta/ladybird.sh test LibWeb`. The second
 way is to invoke the headless browser test runner directly. See the invocation in `Ladybird/CMakeLists.txt` for the
 expected command line arguments.
 
