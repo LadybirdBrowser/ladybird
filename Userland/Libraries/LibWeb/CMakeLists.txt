@@ -225,6 +225,7 @@ set(SOURCES
     Fetch/Infrastructure/HTTP/Statuses.cpp
     Fetch/Infrastructure/IncrementalReadLoopReadRequest.cpp
     Fetch/Infrastructure/MimeTypeBlocking.cpp
+    Fetch/Infrastructure/NetworkPartitionKey.cpp
     Fetch/Infrastructure/NoSniffBlocking.cpp
     Fetch/Infrastructure/PortBlocking.cpp
     Fetch/Infrastructure/Task.cpp

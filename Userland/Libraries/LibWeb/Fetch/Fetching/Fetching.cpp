@@ -31,6 +31,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/Fetch/Infrastructure/MimeTypeBlocking.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Fetch/Infrastructure/NoSniffBlocking.h>
 #include <LibWeb/Fetch/Infrastructure/PortBlocking.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
@@ -1250,30 +1251,6 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     return main_fetch(realm, fetch_params, recursive);
 }
 
-// https://fetch.spec.whatwg.org/#network-partition-key
-struct NetworkPartitionKey {
-    HTML::Origin top_level_origin;
-    // FIXME: See https://github.com/whatwg/fetch/issues/1035
-    //     This is the document origin in other browsers
-    void* second_key = nullptr;
-
-    bool operator==(NetworkPartitionKey const&) const = default;
-};
-
-}
-
-// FIXME: Take this with us to the eventual header these structs end up in to avoid closing and re-opening the namespace.
-template<>
-class AK::Traits<Web::Fetch::Fetching::NetworkPartitionKey> : public DefaultTraits<Web::Fetch::Fetching::NetworkPartitionKey> {
-public:
-    static unsigned hash(Web::Fetch::Fetching::NetworkPartitionKey const& partition_key)
-    {
-        return ::AK::Traits<Web::HTML::Origin>::hash(partition_key.top_level_origin);
-    }
-};
-
-namespace Web::Fetch::Fetching {
-
 struct CachedResponse {
     Vector<Infrastructure::Header> headers;
     ByteBuffer body;
@@ -1305,7 +1282,7 @@ private:
 
 class HTTPCache {
 public:
-    CachePartition& get(NetworkPartitionKey const& key)
+    CachePartition& get(Infrastructure::NetworkPartitionKey const& key)
     {
         return *m_cache.ensure(key, [] {
             return make<CachePartition>();
@@ -1319,48 +1296,14 @@ public:
     }
 
 private:
-    HashMap<NetworkPartitionKey, NonnullOwnPtr<CachePartition>> m_cache;
+    HashMap<Infrastructure::NetworkPartitionKey, NonnullOwnPtr<CachePartition>> m_cache;
 };
-
-// https://fetch.spec.whatwg.org/#determine-the-network-partition-key
-static NetworkPartitionKey determine_the_network_partition_key(HTML::Environment const& environment)
-{
-    // 1. Let topLevelOrigin be environment’s top-level origin.
-    auto top_level_origin = environment.top_level_origin;
-
-    // FIXME: 2. If topLevelOrigin is null, then set topLevelOrigin to environment’s top-level creation URL’s origin
-    // This field is supposed to be nullable
-
-    // 3. Assert: topLevelOrigin is an origin.
-
-    // FIXME: 4. Let topLevelSite be the result of obtaining a site, given topLevelOrigin.
-
-    // 5. Let secondKey be null or an implementation-defined value.
-    void* second_key = nullptr;
-
-    // 6. Return (topLevelSite, secondKey).
-    return { top_level_origin, second_key };
-}
-
-// https://fetch.spec.whatwg.org/#request-determine-the-network-partition-key
-static Optional<NetworkPartitionKey> determine_the_network_partition_key(Infrastructure::Request const& request)
-{
-    // 1. If request’s reserved client is non-null, then return the result of determining the network partition key given request’s reserved client.
-    if (auto reserved_client = request.reserved_client())
-        return determine_the_network_partition_key(*reserved_client);
-
-    // 2. If request’s client is non-null, then return the result of determining the network partition key given request’s client.
-    if (auto client = request.client())
-        return determine_the_network_partition_key(*client);
-
-    return {};
-}
 
 // https://fetch.spec.whatwg.org/#determine-the-http-cache-partition
 static Optional<CachePartition> determine_the_http_cache_partition(Infrastructure::Request const& request)
 {
     // 1. Let key be the result of determining the network partition key given request.
-    auto key = determine_the_network_partition_key(request);
+    auto key = Infrastructure::determine_the_network_partition_key(request);
 
     // 2. If key is null, then return null.
     if (!key.has_value())
