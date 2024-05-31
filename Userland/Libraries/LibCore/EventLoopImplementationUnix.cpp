@@ -26,7 +26,7 @@ namespace {
 struct ThreadData;
 class TimeoutSet;
 
-HashMap<pthread_t, ThreadData*> s_thread_data;
+HashMap<pthread_t, OwnPtr<ThreadData>> s_thread_data;
 static pthread_rwlock_t s_thread_data_lock_impl;
 static pthread_rwlock_t* s_thread_data_lock = nullptr;
 thread_local pthread_t s_thread_id;
@@ -228,11 +228,10 @@ struct ThreadData {
         ThreadData* data = nullptr;
         pthread_rwlock_rdlock(&*s_thread_data_lock);
         if (!s_thread_data.contains(s_thread_id)) {
-            // FIXME: Don't leak this.
             data = new ThreadData;
             pthread_rwlock_unlock(&*s_thread_data_lock);
             pthread_rwlock_wrlock(&*s_thread_data_lock);
-            s_thread_data.set(s_thread_id, data);
+            s_thread_data.set(s_thread_id, adopt_own(*data));
         } else {
             data = s_thread_data.get(s_thread_id).value();
         }
