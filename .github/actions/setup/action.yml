@@ -54,20 +54,6 @@ runs:
         pip3 install flake8 requests six
 
     - name: 'Install Dependencies'
-      if: ${{ inputs.os }}
-      shell: bash
-      run: |
-        set -e
-
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main'
-
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-
-        sudo apt-get update
-        sudo apt-get install clang-format-18 ccache e2fsprogs gcc-13 g++-13 libstdc++-13-dev libmpfr-dev libmpc-dev ninja-build optipng unzip generate-ninja libegl1-mesa-dev
-
-    - name: 'Install Dependencies'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       shell: bash
       run: |
