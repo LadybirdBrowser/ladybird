@@ -4,9 +4,6 @@
 /Lagom/Tools/CodeGenerators/LibWeb @AtkinsSJ
 /Tests/LibCompress @timschumi
 /Toolchain @BertalanD
-/Userland/Applications/Spreadsheet @alimpfard
-/Userland/BuggieBox @timschumi
-/Userland/DynamicLoader @BertalanD
 /Userland/Libraries/LibArchive @timschumi
 /Userland/Libraries/LibCompress @timschumi
 /Userland/Libraries/LibCore/File.* @timschumi
