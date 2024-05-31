@@ -5,7 +5,7 @@
  */
 
 #include <AK/Enumerate.h>
-#include <BrowserSettings/Defaults.h>
+#include <Ladybird/DefaultSettings.h>
 #include <Ladybird/MachPortServer.h>
 #include <Ladybird/Types.h>
 #include <Ladybird/Utilities.h>
