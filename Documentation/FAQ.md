@@ -1,4 +1,4 @@
-# Frequently Asked Questions about SerenityOS
+# Frequently Asked Questions about Ladybird
 
 ## Will Ladybird support `$THING`?
 
