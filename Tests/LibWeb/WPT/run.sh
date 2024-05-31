@@ -15,6 +15,8 @@ fi
                          which WebDriver)}"
 update_expectations_metadata=false
 remove_wpt_repository=false
+# Generate name for file with wpt run log
+wpt_run_log_filename="$(mktemp)"
 
 for arg in "$@"; do
   case $arg in
@@ -28,6 +30,10 @@ for arg in "$@"; do
         ;;
     --remove-wpt-repository)
         remove_wpt_repository=true
+        shift
+        ;;
+    --log-file=*)
+        wpt_run_log_filename="$(realpath "${arg#*=}")"
         shift
         ;;
     *)
@@ -65,9 +71,6 @@ fi
 
 # Extract metadata.txt into directory with expectation files expected by WPT runner
 python3 ./concat-extract-metadata.py --extract metadata.txt metadata
-
-# Generate name for file with wpt run log
-wpt_run_log_filename="$(mktemp).txt"
 
 # Run tests.
 python3 ./wpt/wpt run ladybird \
