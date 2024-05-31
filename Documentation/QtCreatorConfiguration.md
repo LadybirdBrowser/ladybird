@@ -31,7 +31,6 @@ First, make sure you have a working toolchain and can build and run SerenityOS. 
     ./
     Userland/
     Userland/Libraries/
-    Userland/Libraries/LibC/
     Userland/Libraries/LibSystem/
     Userland/Services/
     Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/13.1.0
