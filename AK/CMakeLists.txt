@@ -41,7 +41,7 @@ set(AK_SOURCES
     Utf8View.cpp
     kmalloc.cpp
 )
-# AK sources are included from many different places, such as the Kernel, LibC, and Loader
+# AK sources are included from many different places
 list(TRANSFORM AK_SOURCES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 set(AK_SOURCES ${AK_SOURCES} PARENT_SCOPE)
