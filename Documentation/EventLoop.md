@@ -4,7 +4,7 @@ This is not about web event loops, which are a separate LibWeb concept.
 
 For handling application tasks concurrently on one thread, LibCore provides the `EventLoop` system. The event loop is found in many systems, and it can be briefly summarized as an in-process loop, running all the time, which processes incoming events from signals, notifiers, file watchers, timers etc. by running associated callbacks. The event loop relies on the fact that the callbacks will eventually return control to it, so that other events can be processed. In that way, it's like a cooperative multitasking scheduler in userspace.
 
-SerenityOS's event loop system is mainly used with graphical applications, and LibGUI and IPC are deeply integrated into it. If you are working on a command-line application, chances are you don't have to deal with the event loop, though that's not a universal rule.
+LibCore's event loop system is mainly used with graphical applications, and LibGUI and IPC are deeply integrated into it. If you are working on a command-line application, chances are you don't have to deal with the event loop, though that's not a universal rule.
 
 ## How it works
 

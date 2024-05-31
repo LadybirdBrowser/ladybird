@@ -89,14 +89,14 @@ Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``
 
 ## Build steps
 
-### Using serenity.sh
+### Using ladybird.sh
 
-The simplest way to build and run ladybird is via the serenity.sh script:
+The simplest way to build and run ladybird is via the ladybird.sh script:
 
 ```bash
 # From /path/to/ladybird
-./Meta/serenity.sh run lagom ladybird
-./Meta/serenity.sh gdb lagom ladybird
+./Meta/ladybird.sh run ladybird
+./Meta/ladybird.sh gdb ladybird
 ```
 
 The above commands will build Ladybird with one of the following browser chromes, depending on the platform:
@@ -114,15 +114,6 @@ cmake -S Meta/Lagom -B Build/lagom -DENABLE_QT=ON
 
 To re-disable the Qt chrome, run the above command with `-DENABLE_QT=OFF`.
 
-### Disabling Ladybird
-
-Note that running ladybird from the script will change the CMake cache in your Build/lagom build
-directory to always build LibWeb and Ladybird for Lagom when rebuilding SerenityOS using the
-serenity.sh script to run a qemu instance.
-
-To restore the previous behavior that only builds code generators and tools from Lagom when
-rebuilding serenity, you must modify the CMake cache back to the default.
-
 ```bash
 cmake -S Meta/Lagom -B Build/lagom -DENABLE_LAGOM_LADYBIRD=OFF -DENABLE_LAGOM_LIBWEB=OFF -DBUILD_LAGOM=OFF
 ```
@@ -130,7 +121,7 @@ cmake -S Meta/Lagom -B Build/lagom -DENABLE_LAGOM_LADYBIRD=OFF -DENABLE_LAGOM_LI
 ### Resource files
 
 Ladybird requires resource files from the ladybird/Base/res directory in order to properly load
-icons, fonts, and other theming information. The serenity.sh script calls into custom CMake targets
+icons, fonts, and other theming information. The ladybird.sh script calls into custom CMake targets
 that set these variables, and ensure that the $PWD is set properly to allow execution from the build
 directory. To run the built binary without using the script, one can either directly invoke the
 ninja rules or install ladybird  using the provided CMake install rules. See the ``Custom CMake build directory``
@@ -146,7 +137,7 @@ Ladybird as the source directory will give the desired results.
 The install rules in Ladybird/cmake/InstallRules.cmake define which binaries and libraries will be
 installed into the configured CMAKE_PREFIX_PATH or path passed to ``cmake --install``.
 
-Note that when using a custom build directory rather than Meta/serenity.sh, the user may need to provide
+Note that when using a custom build directory rather than Meta/ladybird.sh, the user may need to provide
 a suitable C++ compiler (g++ >= 13, clang >= 14, Apple Clang >= 14.3) via the CMAKE_CXX_COMPILER and
 CMAKE_C_COMPILER cmake options.
 
@@ -188,20 +179,20 @@ cross-compiling to other platforms.
 
 Ladybird should be built with debug symbols first. In `Meta/CMake/lagom_compile_options.cmake` remove the optimizations by changing `-O2` to `-O0`. For macOS also change the debug option from `-g1` to `-g` so that lldb is happy with the emitted symbols. In linux `-g1` can be changed to `-ggdb3` for maximum debug info.
 
-After running Ladybird as suggested above with `./Meta/serenity.sh run lagom ladybird`, you can now in CLion use Run -> Attach to Process to connect. If debugging layouting and rendering issues, filter the listing that opens for `WebContent` and attach to that.
+After running Ladybird as suggested above with `./Meta/ladybird.sh run ladybird`, you can now in CLion use Run -> Attach to Process to connect. If debugging layouting and rendering issues, filter the listing that opens for `WebContent` and attach to that.
 
 Now breakpoints, stepping and variable inspection will work.
 
 ### Debugging with Xcode on macOS
 
-The `serenity.sh` build script does not know how to generate Xcode projects, so creating the project must be done manually.
-To be compatible with the `serenity.sh` script, a few extra options are required. If there is a previous Lagom build directory, CMake will likely complain that the generator has changed.
+The `ladybird.sh` build script does not know how to generate Xcode projects, so creating the project must be done manually.
+To be compatible with the `ladybird.sh` script, a few extra options are required. If there is a previous Lagom build directory, CMake will likely complain that the generator has changed.
 
 ```
 cmake -GXcode -S Meta/Lagom -B Build/lagom -DBUILD_LAGOM=ON -DENABLE_LAGOM_LADYBIRD=ON
 ```
 
-Alternatively, if you don't need your ladybird build to be compatible with `serenity.sh`, you can use Ladybird as the source directory like so:
+Alternatively, if you don't need your ladybird build to be compatible with `ladybird.sh`, you can use Ladybird as the source directory like so:
 
 ```
 cmake -GXcode -S Ladybird -B Build/ladybird

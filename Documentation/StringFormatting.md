@@ -1,6 +1,6 @@
 # String Formatting
 
-Many places in Serenity allow you to format strings, similar to `printf()`, for example `ByteString::formatted()`
+Many places in Ladybird allow you to format strings, similar to `printf()`, for example `ByteString::formatted()`
 , `StringBuilder::appendff()`, or `dbgln()`. These are checked at compile time to ensure the format string matches the
 number of parameters. The syntax is largely based on
 the [C++ `std::formatter` syntax](https://en.cppreference.com/w/cpp/utility/format/formatter#Standard_format_specification)

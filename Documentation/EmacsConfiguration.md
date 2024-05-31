@@ -9,12 +9,7 @@ can use the following `.clangd` file placed in the project root:
 
 ```yaml
 CompileFlags:
-  CompilationDatabase: Build/x86_64
-  Add:
-    - "-D__serenity__"
-    - "-UNO_TLS"
-    - "-I/path/to/ladybird/Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/13.1.0"
-    - "-I/path/to/ladybird/Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/13.1.0/x86_64-pc-serenity"
+  CompilationDatabase: Build/lagom
 
 Diagnostics:
   UnusedIncludes: None
@@ -24,8 +19,8 @@ Diagnostics:
 You will need to change `/path/to/ladybird` and change `13.1.0` to
 whatever your GCC toolchain version at the time is.
 
-Run cmake (`Meta/serenity.sh run` or similar) at least once for this
-to work, as it will generate the `Build/x86_64/compile_commands.json`
+Run cmake (`Meta/ladybird.sh run ladybird` or similar) at least once for this
+to work, as it will generate the `Build/lagom/compile_commands.json`
 that is needed by `clangd`.
 
 ### lsp-mode
