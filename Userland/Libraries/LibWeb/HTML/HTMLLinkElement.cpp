@@ -197,7 +197,8 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
     // FIXME: destination                      the result of translating the state of el's as attribute
     // crossorigin                      the state of el's crossorigin content attribute
     options.crossorigin = cors_setting_attribute_from_keyword(get_attribute(AttributeNames::crossorigin));
-    // FIXME: referrer policy                  the state of el's referrerpolicy content attribute
+    // referrer policy                  the state of el's referrerpolicy content attribute
+    options.referrer_policy = ReferrerPolicy::from_string(get_attribute(AttributeNames::referrerpolicy).value_or(""_string)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
     // FIXME: source set                       el's source set
     // base URL                         document's URL
     options.base_url = document.url();

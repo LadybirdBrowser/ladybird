@@ -1,4 +1,5 @@
 #import <CSS/LinkStyle.idl>
+#import <Fetch/Request.idl>
 #import <HTML/HTMLElement.idl>
 #import <HTML/Scripting/Fetching.idl>
 
@@ -20,7 +21,7 @@ interface HTMLLinkElement : HTMLElement {
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList sizes;
     [CEReactions, Reflect=imagesrcset] attribute DOMString imageSrcset;
     [CEReactions, Reflect=imagesizes] attribute DOMString imageSizes;
-    [FIXME, CEReactions] attribute DOMString referrerPolicy;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
     [CEReactions, Reflect] attribute boolean disabled;
     [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
