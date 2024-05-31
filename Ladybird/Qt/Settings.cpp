@@ -7,7 +7,7 @@
 
 #include "Settings.h"
 #include "StringUtils.h"
-#include <BrowserSettings/Defaults.h>
+#include <Ladybird/DefaultSettings.h>
 
 namespace Ladybird {
 
