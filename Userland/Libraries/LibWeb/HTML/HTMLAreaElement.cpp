@@ -63,6 +63,11 @@ WebIDL::ExceptionOr<void> HTMLAreaElement::set_hyperlink_element_utils_href(Stri
     return set_attribute(HTML::AttributeNames::href, move(href));
 }
 
+Optional<String> HTMLAreaElement::hyperlink_element_utils_referrerpolicy() const
+{
+    return attribute(HTML::AttributeNames::referrerpolicy);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 i32 HTMLAreaElement::default_tab_index_value() const
 {
