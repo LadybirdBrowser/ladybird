@@ -16,7 +16,7 @@ interface HTMLIFrameElement : HTMLElement {
     [CEReactions, Reflect=allowfullscreen] attribute boolean allowFullscreen;
     [CEReactions, Reflect] attribute DOMString width;
     [CEReactions, Reflect] attribute DOMString height;
-    [FIXME, CEReactions] attribute DOMString referrerPolicy;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
     [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute DOMString loading;
     readonly attribute Document? contentDocument;
     readonly attribute WindowProxy? contentWindow;
