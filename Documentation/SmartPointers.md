@@ -3,7 +3,7 @@
 ----
 ## Introduction
 
-There are three main C++ smart pointer types used in SerenityOS. Each type describes the ownership (or lack thereof) of the pointee.
+There are three main C++ smart pointer types used in Ladybird. Each type describes the ownership (or lack thereof) of the pointee.
 
 The reason for using these pointers is to make it explicit through code who owns which resources, and how ownership is transferred. They also serve as a guard against memory leaks and use-after-free bugs.
 
