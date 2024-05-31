@@ -1,6 +1,6 @@
 # SerenityOS Documentation
 
-Serenity development moves quickly, so some of these might be out of date. Please let us know if something here is wrong, or submit a PR with any additions or corrections! If you have any questions that are not answered here or in the [FAQ](FAQ.md), you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
+Serenity development moves quickly, so some of these might be out of date. Please let us know if something here is wrong, or submit a PR with any additions or corrections! If you have any questions that are not answered here or in the [FAQ](FAQ.md), you are welcome to ask on [Slack](../README.md#get-in-touch-and-participate).
 
 A list of useful pages across the web can be found on [the link list](Links.md).
 
