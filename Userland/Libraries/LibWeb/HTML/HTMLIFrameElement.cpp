@@ -133,8 +133,8 @@ void HTMLIFrameElement::process_the_iframe_attributes(bool initial_insertion)
         return;
     }
 
-    // FIXME: 4. Let referrerPolicy be the current state of element's referrerpolicy content attribute.
-    auto referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
+    // 4. Let referrerPolicy be the current state of element's referrerpolicy content attribute.
+    auto referrer_policy = ReferrerPolicy::from_string(get_attribute_value(HTML::AttributeNames::referrerpolicy)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
 
     // 5. Set element's current navigation was lazy loaded boolean to false.
     set_current_navigation_was_lazy_loaded(false);
