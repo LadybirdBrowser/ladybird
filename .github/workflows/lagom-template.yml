@@ -167,11 +167,14 @@ jobs:
           if-no-files-found: ignore
 
       - name: WPT
-        if: ${{ inputs.os_name == 'Linux' && inputs.fuzzer == 'NO_FUZZ' }}
+        # FIXME: #1 Figure out why the WebDriver doesn't start when building with GCC on Linux
+        if: ${{ inputs.os_name == 'Linux' && inputs.fuzzer == 'NO_FUZZ' && inputs.toolchain != 'GNU' }}
         working-directory: ${{ github.workspace }}/Tests/LibWeb/WPT
         run: ./run.sh --remove-wpt-repository
         env:
           QT_QPA_PLATFORM: 'offscreen'
+          ASAN_OPTIONS: 'strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1'
+          UBSAN_OPTIONS: 'print_stacktrace=1:print_summary=1:halt_on_error=1'
 
       - name: Lints
         if: ${{ inputs.os_name == 'Linux' && inputs.fuzzer == 'NO_FUZZ' }}
