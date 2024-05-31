@@ -9,7 +9,7 @@ jobs:
   run_and_update_results:
     runs-on: self-hosted
     if: false
-    #if: always() && github.repository == 'SerenityOS/serenity' && github.ref == 'refs/heads/master'
+    #if: always() && github.repository == 'LadybirdWebBrowser/ladybird' && github.ref == 'refs/heads/master'
 
     concurrency: libjs-test262
 
@@ -19,7 +19,7 @@ jobs:
           echo "Cleaning up previous run"
           rm -rf "${{ github.workspace }}/*"
 
-      - name: Checkout SerenityOS/serenity
+      - name: Checkout LadybirdWebBrowser/ladybird
         uses: actions/checkout@v4
 
       - name: Checkout SerenityOS/libjs-test262

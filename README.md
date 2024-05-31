@@ -1,6 +1,6 @@
 # Ladybird
 
-Ladybird is a cross-platform web browser built on the [LibWeb](https://github.com/SerenityOS/serenity/tree/master/Userland/Libraries/LibWeb) and [LibJS](https://github.com/SerenityOS/serenity/tree/master/Userland/Libraries/LibJS) engines from [SerenityOS](https://github.com/SerenityOS/serenity).
+[Ladybird](https://github.com/LadybirdWebBrowser/ladybird) is a cross-platform web browser built on the [LibWeb](https://github.com/LadybirdWebBrowser/ladybird/tree/master/Userland/Libraries/LibWeb) and [LibJS](https://github.com/LadybirdWebBrowser/ladybird/tree/master/Userland/Libraries/LibJS) engines.
 The Browser UI has a cross-platform GUI in Qt6 and a macOS-specific GUI in AppKit.
 
 [![GitHub Actions Status](https://github.com/LadybirdWebBrowser/ladybird/workflows/Build,%20lint,%20and%20test/badge.svg)](https://github.com/LadybirdWebBrowser/ladybird/actions?query=workflow%3A"Build%2C%20lint%2C%20and%20test")
@@ -54,7 +54,7 @@ Code-related documentation can be found in the [documentation](Documentation/) f
 
 Join our Slack server: !!FIXME: Add slack link !!
 
-Before opening an issue, please see the [issue policy](https://github.com/SerenityOS/serenity/blob/master/CONTRIBUTING.md#issue-policy).
+Before opening an issue, please see the [issue policy](https://github.com/LadybirdWebBrowser/ladybird/blob/master/CONTRIBUTING.md#issue-policy).
 
 A general guide for contributing can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 

@@ -54,7 +54,7 @@ tar xzf ./actions-runner-linux-x64-X.X.X.tar.gz
 ```
 ### Link the runner to the repository
 ```shell
-./config.sh --url https://github.com/SerenityOS/serenity --token INSERT_SECRET_TOKEN_HERE
+./config.sh --url https://github.com/LadybirdWebBrowser/ladybird --token INSERT_SECRET_TOKEN_HERE
 ```
 ### Configure the runner to protect against malicious PRs by adding the following line to .env:
 ```shell

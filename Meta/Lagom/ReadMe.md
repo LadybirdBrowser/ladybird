@@ -91,7 +91,7 @@ on the second stage of the CMake build, or in your environment.
 There are many quirky files that exercise a lot of interesting edge cases.
 We should probably keep track of them, somewhere.
 
-We have a [bmp suite and a jpg suite and several others](https://github.com/SerenityOS/serenity/tree/master/Base/res/html/misc).
+We have a [bmp suite and a jpg suite and several others](https://github.com/LadybirdWebBrowser/ladybird/tree/master/Base/res/html/misc).
 They are GPL'ed, and therefore not quite as compatible with the rest of Serenity.
 That's probably not a problem, but keeping "our" testcases separate from those GPL'ed suits sounds like a good idea.
 
