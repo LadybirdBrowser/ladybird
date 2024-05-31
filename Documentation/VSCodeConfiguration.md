@@ -72,7 +72,6 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
                 "${workspaceFolder}/Build/x86_64/Root/usr/include/**",
                 "${workspaceFolder}/Userland",
                 "${workspaceFolder}/Userland/Libraries",
-                "${workspaceFolder}/Userland/Libraries/LibC",
                 "${workspaceFolder}/Userland/Services",
                 "${workspaceFolder}/Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/**"
             ],
@@ -100,7 +99,6 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
                     "${workspaceFolder}/Build/x86_64/Root/usr/include/**",
                     "${workspaceFolder}/Userland",
                     "${workspaceFolder}/Userland/Libraries",
-                    "${workspaceFolder}/Userland/Libraries/LibC",
                     "${workspaceFolder}/Userland/Services",
                     "${workspaceFolder}/Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/**"
                 ],
