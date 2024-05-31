@@ -15,8 +15,6 @@ First, make sure you have a working toolchain and can build and run SerenityOS. 
 * Edit the `serenity.config` file (In Qt Creator, hit ^K or CMD+K on a Mac to open the search dialog, type the name of the file and hit return to open it)
 * Add the following `#define`s to the file:
     ```
-    //#define KERNEL
-
     #define ENABLE_UNICODE_DATA 1
     //#define ENABLE_COMPILETIME_FORMAT_CHECK
 
@@ -24,7 +22,6 @@ First, make sure you have a working toolchain and can build and run SerenityOS. 
     #define SANITIZE_PTRS 1
     #define __SSE__
     ```
-    If you're working on the Kernel, just uncomment `#define KERNEL`.
 * Edit the `serenity.cxxflags` file to say `-std=c++23 -fsigned-char -fconcepts -fno-exceptions -fno-semantic-interposition -fPIC`
 * Edit the `serenity.includes` file to list the following lines:
     ```
