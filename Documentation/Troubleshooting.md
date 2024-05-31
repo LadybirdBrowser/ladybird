@@ -2,7 +2,7 @@
 
 In case of an error, you might find an answer of how to deal it here.
 
-## Building SerenityOS
+## Building Ladybird
 
 ### CMake fails to configure the build because it's outdated
 

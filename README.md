@@ -1,4 +1,4 @@
-# Ladybird 
+# Ladybird
 
 Ladybird is a cross-platform web browser built on the [LibWeb](https://github.com/SerenityOS/serenity/tree/master/Userland/Libraries/LibWeb) and [LibJS](https://github.com/SerenityOS/serenity/tree/master/Userland/Libraries/LibJS) engines from [SerenityOS](https://github.com/SerenityOS/serenity).
 The Browser UI has a cross-platform GUI in Qt6 and a macOS-specific GUI in AppKit.

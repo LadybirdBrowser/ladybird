@@ -12,7 +12,7 @@ Ensure that your system has the following tools available:
 
 ## Opening the project
 
-After opening the ``serenity`` directory in Android Studio (NOT the Ladybird/Android directory!)
+After opening the ``ladybird`` directory in Android Studio (NOT the Ladybird/Android directory!)
 there should be a pop-up in the bottom left indicating that an Android Gradle project was detected
 in ``Ladybird/Android``.
 

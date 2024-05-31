@@ -111,6 +111,6 @@ Depending on whether you understand the internals of the compiler, this may or m
 
 Clang also supports `-ftime-report`, but I have not tested the output for it.
 
-To add the flag, edit the `CMakeLists.txt` in the serenity root directory, and add `add_compile_options(-ftime-report)` to the list of compile options that start around line 220.
+To add the flag, edit the `CMakeLists.txt` in the ladybird root directory, and add `add_compile_options(-ftime-report)` to the list of compile options that start around line 220.
 
 Additionally, you can add `-ftime-report-details` too, which again I have not tested.
