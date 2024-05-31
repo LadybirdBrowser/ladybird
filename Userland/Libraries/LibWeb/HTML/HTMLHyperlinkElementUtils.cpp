@@ -515,9 +515,10 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
         url_string = MUST(url_builder.to_string());
     }
 
-    // FIXME: 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
+    // 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
+    auto referrer_policy = ReferrerPolicy::from_string(hyperlink_element_utils_referrerpolicy().value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+
     // FIXME: 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
-    auto const referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
 
     // 13. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to referrerPolicy and userInvolvement set to userInvolvement.
     MUST(target_navigable->navigate({ .url = url_string, .source_document = hyperlink_element_utils_document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
