@@ -422,11 +422,11 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         // 3. Let referencingScript be null.
         Optional<HTML::Script&> referencing_script;
 
-        // FIXME: 4. Let fetchOptions be the default classic script fetch options.
-        auto fetch_options = HTML::default_classic_script_fetch_options();
+        // 4. Let originalFetchOptions be the default classic script fetch options.
+        auto original_fetch_options = HTML::default_classic_script_fetch_options();
 
         // 5. Let fetchReferrer be "client".
-        auto fetch_referrer = Fetch::Infrastructure::Request::Referrer::Client;
+        Fetch::Infrastructure::Request::ReferrerType fetch_referrer = Fetch::Infrastructure::Request::Referrer::Client;
 
         // 6. If referrer is a Script Record or a Module Record, then:
         if (referrer.has<JS::NonnullGCPtr<JS::Script>>() || referrer.has<JS::NonnullGCPtr<JS::CyclicModule>>()) {
@@ -436,11 +436,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             // 2. Set settingsObject to referencingScript's settings object.
             settings_object = referencing_script->settings_object();
 
-            // FIXME: 3. Set fetchOptions to the new descendant script fetch options for referencingScript's fetch options.
+            // 3. Set fetchReferrer to referencingScript's base URL.
+            fetch_referrer = referencing_script->base_url();
 
-            // FIXME: 4. Assert: fetchOptions is not null, as referencingScript is a classic script or a JavaScript module script.
-
-            // FIXME: 5. Set fetchReferrer to referrer's base URL.
+            // FIXME: 4. Set originalFetchOptions to referencingScript's fetch options.
         }
 
         // 7. Disallow further import maps given settingsObject.
@@ -463,13 +462,16 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             return;
         }
 
-        // 10. Let destination be "script".
+        // 10. Let fetchOptions be the result of getting the descendant script fetch options given originalFetchOptions, url, and settingsObject.
+        auto fetch_options = MUST(HTML::get_descendant_script_fetch_options(original_fetch_options, url.value(), *settings_object));
+
+        // 11. Let destination be "script".
         auto destination = Fetch::Infrastructure::Request::Destination::Script;
 
-        // 11. Let fetchClient be settingsObject.
+        // 12. Let fetchClient be settingsObject.
         JS::NonnullGCPtr fetch_client { *settings_object };
 
-        // 12. If loadState is not undefined, then:
+        // 13. If loadState is not undefined, then:
         HTML::PerformTheFetchHook perform_fetch;
         if (load_state) {
             auto& fetch_context = static_cast<HTML::FetchContext&>(*load_state);
@@ -537,7 +539,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             vm.pop_execution_context();
         });
 
-        // 13. Fetch a single imported module script given url, fetchClient, destination, fetchOptions, settingsObject, fetchReferrer,
+        // 14. Fetch a single imported module script given url, fetchClient, destination, fetchOptions, settingsObject, fetchReferrer,
         //     moduleRequest, and onSingleFetchComplete as defined below.
         //     If loadState is not undefined and loadState.[[PerformFetch]] is not null, pass loadState.[[PerformFetch]] along as well.
         HTML::fetch_single_imported_module_script(realm, url.release_value(), *fetch_client, destination, fetch_options, *settings_object, fetch_referrer, module_request, perform_fetch, on_single_fetch_complete);
