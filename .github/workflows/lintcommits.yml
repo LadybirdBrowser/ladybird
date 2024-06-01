@@ -89,6 +89,6 @@ jobs:
         if: ${{ failure() && !github.event.pull_request.draft }}
         uses: IdanHo/comment-on-pr@63ea2bf352997c66e524b8b5be7a79163fb3a88a
         env:
-          GITHUB_TOKEN: ${{ secrets.BUGGIEBOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.LADYBIRD_BOT_TOKEN }}
         with:
           msg: "Hello!\n\nOne or more of the commit messages in this PR do not match the SerenityOS [code submission policy](https://github.com/LadybirdWebBrowser/ladybird/blob/master/CONTRIBUTING.md#code-submission-policy), please check the `lint_commits` CI job for more details on which commits were flagged and why.\nPlease do not close this PR and open another, instead modify your commit message(s) with [git commit --amend](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/creating-and-editing-commits/changing-a-commit-message) and force push those changes to update this PR."
