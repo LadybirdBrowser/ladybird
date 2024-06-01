@@ -1026,6 +1026,15 @@ void Document::invalidate_layout()
     schedule_layout_update();
 }
 
+static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout::Viewport& viewport)
+{
+    // https://drafts.csswg.org/css-scrollbars/#scrollbar-width
+    // UAs must apply the scrollbar-color value set on the root element to the viewport.
+    auto& viewport_computed_values = viewport.mutable_computed_values();
+    auto& root_element_computed_values = root_element.layout_node()->computed_values();
+    viewport_computed_values.set_scrollbar_width(root_element_computed_values.scrollbar_width());
+}
+
 static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewport& viewport)
 {
     // https://drafts.csswg.org/css-overflow-3/#overflow-propagation
@@ -1090,6 +1099,7 @@ void Document::update_layout()
 
         if (document_element && document_element->layout_node()) {
             propagate_overflow_to_viewport(*document_element, *m_layout_root);
+            propagate_scrollbar_width_to_viewport(*document_element, *m_layout_root);
         }
     }
 
