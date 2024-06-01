@@ -58,9 +58,24 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
         sorted_and_normalised_scopes = TRY(sort_and_normalise_scopes(realm, scopes.as_object(), base_url));
     }
 
-    // 7. If parsed's keys contains any items besides "imports" or "scopes", then the user agent should report a warning to the console indicating that an invalid top-level key was present in the import map.
+    // 7. Let normalizedIntegrity be an empty ordered map.
+    ModuleIntegrityMap normalised_integrity;
+
+    // 8. If parsed["integrity"] exists, then:
+    if (TRY(parsed_object.has_property("integrity"))) {
+        auto integrity = TRY(parsed_object.get("integrity"));
+
+        // 1. If parsed["integrity"] is not an ordered map, then throw a TypeError indicating that the value for the "integrity" top-level key needs to be a JSON object.
+        if (!integrity.is_object())
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, String::formatted("The 'integrity' top-level value of an importmap needs to be a JSON object.").release_value_but_fixme_should_propagate_errors() };
+
+        // 2. Set normalizedIntegrity to the result of normalizing a module integrity map given parsed["integrity"] and baseURL.
+        normalised_integrity = TRY(normalize_module_integrity_map(realm, integrity.as_object(), base_url));
+    }
+
+    // 9. If parsed's keys contains any items besides "imports", "scopes", or "integrity", then the user agent should report a warning to the console indicating that an invalid top-level key was present in the import map.
     for (auto& key : parsed_object.shape().property_table().keys()) {
-        if (key.as_string().is_one_of("imports", "scopes"))
+        if (key.as_string().is_one_of("imports", "scopes", "integrity"))
             continue;
 
         auto& console = realm.intrinsics().console_object()->console();
@@ -68,10 +83,11 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
             TRY_OR_THROW_OOM(realm.vm(), String::formatted("An invalid top-level key ({}) was present in the import map", key.as_string())));
     }
 
-    // 8. Return an import map whose imports are sortedAndNormalizedImports and whose scopes are sortedAndNormalizedScopes.
+    // 10. Return an import map whose imports are sortedAndNormalizedImports, whose scopes are sortedAndNormalizedScopes, and whose integrity are normalizedIntegrity.
     ImportMap import_map;
     import_map.set_imports(sorted_and_normalised_imports);
     import_map.set_scopes(sorted_and_normalised_scopes);
+    import_map.set_integrity(normalised_integrity);
     return import_map;
 }
 
@@ -206,6 +222,49 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
     }
 
     // 3. Return the result of sorting in descending order normalized, with an entry a being less than an entry b if a's key is code unit less than b's key.
+    return normalised;
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#normalizing-a-module-integrity-map
+WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url)
+{
+    // 1. Let normalized be an empty ordered map.
+    ModuleIntegrityMap normalised;
+
+    // 2. For each key → value of originalMap:
+    for (auto& key : original_map.shape().property_table().keys()) {
+        auto value = TRY(original_map.get(key.as_string()));
+
+        // 1. Let resolvedURL be the result of resolving a URL-like module specifier given key and baseURL.
+        auto resolved_url = resolve_url_like_module_specifier(key.as_string(), base_url);
+
+        // 2. If resolvedURL is null, then:
+        if (!resolved_url.has_value()) {
+            // 1. The user agent may report a warning to the console indicating that the key failed to resolve.
+            auto& console = realm.intrinsics().console_object()->console();
+            console.output_debug_message(JS::Console::LogLevel::Warn,
+                TRY_OR_THROW_OOM(realm.vm(), String::formatted("Failed to resolve key ({})", key.as_string())));
+
+            // 2. Continue.
+            continue;
+        }
+
+        // 3. If value is not a string, then:
+        if (!value.is_string()) {
+            // 1. The user agent may report a warning to the console indicating that integrity metadata values need to be strings.
+            auto& console = realm.intrinsics().console_object()->console();
+            console.output_debug_message(JS::Console::LogLevel::Warn,
+                TRY_OR_THROW_OOM(realm.vm(), String::formatted("Integrity metadata value for '{}' needs to be a string", key.as_string())));
+
+            // 2. Continue.
+            continue;
+        }
+
+        // 4. Set normalized[resolvedURL] to value.
+        normalised.set(resolved_url.release_value(), value.as_string().byte_string());
+    }
+
+    // 3. Return normalized.
     return normalised;
 }
 
