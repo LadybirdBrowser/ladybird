@@ -1906,10 +1906,12 @@ void Document::set_focused_element(Element* element)
 
     // Scroll the viewport if necessary to make the newly focused element visible.
     if (m_focused_element) {
-        ScrollIntoViewOptions scroll_options;
-        scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
-        scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
-        (void)m_focused_element->scroll_into_view(scroll_options);
+        m_focused_element->queue_an_element_task(HTML::Task::Source::UserInteraction, [&]() {
+            ScrollIntoViewOptions scroll_options;
+            scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
+            scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
+            (void)m_focused_element->scroll_into_view(scroll_options);
+        });
     }
 }
 
