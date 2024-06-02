@@ -46,9 +46,10 @@ public:
     virtual ErrorOr<String> to_utf8(StringView) override;
 };
 
+template<Integral ArrayType = u32>
 class SingleByteDecoder final : public Decoder {
 public:
-    SingleByteDecoder(Array<u32, 128> translation_table)
+    SingleByteDecoder(Array<ArrayType, 128> translation_table)
         : m_translation_table(translation_table)
     {
     }
@@ -56,7 +57,7 @@ public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
 
 private:
-    Array<u32, 128> m_translation_table;
+    Array<ArrayType, 128> m_translation_table;
 };
 
 class Latin1Decoder final : public Decoder {
@@ -130,6 +131,10 @@ public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual bool validate(StringView input) override { return input.is_empty(); }
 };
+
+// This will return a decoder for the exact name specified, skipping get_standardized_encoding.
+// Use this when you want ISO-8859-1 instead of windows-1252.
+Optional<Decoder&> decoder_for_exact_name(StringView encoding);
 
 Optional<Decoder&> decoder_for(StringView encoding);
 Optional<StringView> get_standardized_encoding(StringView encoding);
