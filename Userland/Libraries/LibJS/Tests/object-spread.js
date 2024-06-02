@@ -8,7 +8,7 @@ const testObjSpread = obj => {
 };
 
 const testObjStrSpread = obj => {
-    expect(obj).toEqual(["a", "b", "c", "d"]);
+    expect(obj).toEqual({ 0: "a", 1: "b", 2: "c", 3: "d" });
 };
 
 test("spread object literal inside object literal", () => {

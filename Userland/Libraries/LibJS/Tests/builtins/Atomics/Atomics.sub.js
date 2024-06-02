@@ -32,19 +32,19 @@ test("basic functionality (non-BigInt)", () => {
         array[3] = 4;
 
         expect(Atomics.sub(array, 0, 1)).toBe(1);
-        expect(array).toEqual([0, 2, 3, 4]);
+        expect(array).toEqual(new ArrayType([0, 2, 3, 4]));
 
         expect(Atomics.sub(array, 1, 1)).toBe(2);
-        expect(array).toEqual([0, 1, 3, 4]);
+        expect(array).toEqual(new ArrayType([0, 1, 3, 4]));
 
         expect(Atomics.sub(array, 1, 1)).toBe(1);
-        expect(array).toEqual([0, 0, 3, 4]);
+        expect(array).toEqual(new ArrayType([0, 0, 3, 4]));
 
         expect(Atomics.sub(array, 2, 3.14)).toBe(3);
-        expect(array).toEqual([0, 0, 0, 4]);
+        expect(array).toEqual(new ArrayType([0, 0, 0, 4]));
 
         expect(Atomics.sub(array, 3, "1")).toBe(4);
-        expect(array).toEqual([0, 0, 0, 3]);
+        expect(array).toEqual(new ArrayType([0, 0, 0, 3]));
     });
 });
 
@@ -57,18 +57,18 @@ test("basic functionality (BigInt)", () => {
         array[3] = 4n;
 
         expect(Atomics.sub(array, 0, 1n)).toBe(1n);
-        expect(array).toEqual([0n, 2n, 3n, 4n]);
+        expect(array).toEqual(new ArrayType([0n, 2n, 3n, 4n]));
 
         expect(Atomics.sub(array, 1, 1n)).toBe(2n);
-        expect(array).toEqual([0n, 1n, 3n, 4n]);
+        expect(array).toEqual(new ArrayType([0n, 1n, 3n, 4n]));
 
         expect(Atomics.sub(array, 1, 1n)).toBe(1n);
-        expect(array).toEqual([0n, 0n, 3n, 4n]);
+        expect(array).toEqual(new ArrayType([0n, 0n, 3n, 4n]));
 
         expect(Atomics.sub(array, 2, 3n)).toBe(3n);
-        expect(array).toEqual([0n, 0n, 0n, 4n]);
+        expect(array).toEqual(new ArrayType([0n, 0n, 0n, 4n]));
 
         expect(Atomics.sub(array, 3, 1n)).toBe(4n);
-        expect(array).toEqual([0n, 0n, 0n, 3n]);
+        expect(array).toEqual(new ArrayType([0n, 0n, 0n, 3n]));
     });
 });
