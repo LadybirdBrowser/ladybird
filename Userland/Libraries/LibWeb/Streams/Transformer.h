@@ -20,6 +20,8 @@ struct Transformer {
     JS::Handle<WebIDL::CallbackType> transform;
     // https://streams.spec.whatwg.org/#dom-transformer-flush
     JS::Handle<WebIDL::CallbackType> flush;
+    // https://streams.spec.whatwg.org/#dom-transformer-cancel
+    JS::Handle<WebIDL::CallbackType> cancel;
 
     // https://streams.spec.whatwg.org/#dom-transformer-readabletype
     Optional<JS::Value> readable_type;

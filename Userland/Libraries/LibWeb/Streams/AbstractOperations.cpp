@@ -4619,7 +4619,7 @@ void initialize_transform_stream(TransformStream& stream, JS::NonnullGCPtr<JS::P
 }
 
 // https://streams.spec.whatwg.org/#set-up-transform-stream-default-controller
-void set_up_transform_stream_default_controller(TransformStream& stream, TransformStreamDefaultController& controller, JS::NonnullGCPtr<TransformAlgorithm> transform_algorithm, JS::NonnullGCPtr<FlushAlgorithm> flush_algorithm)
+void set_up_transform_stream_default_controller(TransformStream& stream, TransformStreamDefaultController& controller, JS::NonnullGCPtr<TransformAlgorithm> transform_algorithm, JS::NonnullGCPtr<FlushAlgorithm> flush_algorithm, JS::NonnullGCPtr<CancelAlgorithm> cancel_algorithm)
 {
     // 1. Assert: stream implements TransformStream.
     // 2. Assert: stream.[[controller]] is undefined.
@@ -4636,6 +4636,9 @@ void set_up_transform_stream_default_controller(TransformStream& stream, Transfo
 
     // 6. Set controller.[[flushAlgorithm]] to flushAlgorithm.
     controller.set_flush_algorithm(flush_algorithm);
+
+    // 7. Set controller.[[cancelAlgorithm]] to cancelAlgorithm.
+    controller.set_cancel_algorithm(cancel_algorithm);
 }
 
 // https://streams.spec.whatwg.org/#set-up-transform-stream-default-controller-from-transformer
@@ -4667,7 +4670,12 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
-    // 4. If transformerDict["transform"] exists, set transformAlgorithm to an algorithm which takes an argument chunk
+    // 4. Let cancelAlgorithm be an algorithm which returns a promise resolved with undefined.
+    auto cancel_algorithm = JS::create_heap_function(realm.heap(), [&realm](JS::Value) {
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    });
+
+    // 5. If transformerDict["transform"] exists, set transformAlgorithm to an algorithm which takes an argument chunk
     //    and returns the result of invoking transformerDict["transform"] with argument list « chunk, controller » and
     //    callback this value transformer.
     if (transformer_dict.transform) {
@@ -4678,7 +4686,7 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
         });
     }
 
-    // 5. If transformerDict["flush"] exists, set flushAlgorithm to an algorithm which returns the result of invoking
+    // 6. If transformerDict["flush"] exists, set flushAlgorithm to an algorithm which returns the result of invoking
     //    transformerDict["flush"] with argument list « controller » and callback this value transformer.
     if (transformer_dict.flush) {
         flush_algorithm = JS::create_heap_function(realm.heap(), [&realm, transformer, callback = transformer_dict.flush, controller]() {
@@ -4688,8 +4696,18 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
         });
     }
 
-    // 6. Perform ! SetUpTransformStreamDefaultController(stream, controller, transformAlgorithm, flushAlgorithm).
-    set_up_transform_stream_default_controller(stream, *controller, transform_algorithm, flush_algorithm);
+    // 7. If transformerDict["cancel"] exists, set cancelAlgorithm to an algorithm which takes an argument reason and returns
+    // the result of invoking transformerDict["cancel"] with argument list « reason » and callback this value transformer.
+    if (transformer_dict.cancel) {
+        cancel_algorithm = JS::create_heap_function(realm.heap(), [&realm, transformer, callback = transformer_dict.cancel](JS::Value reason) {
+            // Note: callback returns a promise, so invoke_callback will never return an abrupt completion
+            auto result = MUST(WebIDL::invoke_callback(*callback, transformer, reason)).release_value();
+            return WebIDL::create_resolved_promise(realm, result);
+        });
+    }
+
+    // 8. Perform ! SetUpTransformStreamDefaultController(stream, controller, transformAlgorithm, flushAlgorithm).
+    set_up_transform_stream_default_controller(stream, *controller, transform_algorithm, flush_algorithm, cancel_algorithm);
 }
 
 // https://streams.spec.whatwg.org/#transform-stream-default-controller-clear-algorithms
@@ -4701,6 +4719,9 @@ void transform_stream_default_controller_clear_algorithms(TransformStreamDefault
 
     // 2. Set controller.[[flushAlgorithm]] to undefined.
     controller.set_flush_algorithm({});
+
+    // 3. Set controller.[[cancelAlgorithm]] to undefined.
+    controller.set_cancel_algorithm({});
 }
 
 // https://streams.spec.whatwg.org/#transform-stream-default-controller-enqueue
@@ -5073,7 +5094,7 @@ void transform_stream_set_backpressure(TransformStream& stream, bool backpressur
 }
 
 // https://streams.spec.whatwg.org/#transformstream-set-up
-void transform_stream_set_up(TransformStream& stream, JS::NonnullGCPtr<TransformAlgorithm> transform_algorithm, JS::GCPtr<FlushAlgorithm> flush_algorithm, JS::GCPtr<CancelAlgorithm>)
+void transform_stream_set_up(TransformStream& stream, JS::NonnullGCPtr<TransformAlgorithm> transform_algorithm, JS::GCPtr<FlushAlgorithm> flush_algorithm, JS::GCPtr<CancelAlgorithm> cancel_algorithm)
 {
     auto& realm = stream.realm();
 
@@ -5122,7 +5143,20 @@ void transform_stream_set_up(TransformStream& stream, JS::NonnullGCPtr<Transform
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
-    // FIXME 7. Let cancelAlgorithmWrapper be an algorithm that runs these steps given a value reason:
+    // 7. Let cancelAlgorithmWrapper be an algorithm that runs these steps given a value reason:
+    auto cancel_algorithm_wrapper = JS::create_heap_function(realm.heap(), [&realm, cancel_algorithm](JS::Value reason) -> JS::NonnullGCPtr<WebIDL::Promise> {
+        // 1. Let result be the result of running cancelAlgorithm given reason, if cancelAlgorithm was given, or null otherwise. If this throws an exception e, return a promise rejected with e.
+        JS::GCPtr<JS::PromiseCapability> result = nullptr;
+        if (cancel_algorithm)
+            result = cancel_algorithm->function()(reason);
+
+        // 2. If result is a Promise, then return result.
+        if (result)
+            return JS::NonnullGCPtr { *result };
+
+        // 3. Return a promise resolved with undefined.
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    });
 
     // 8. Let startPromise be a promise resolved with undefined.
     auto start_promise = WebIDL::create_resolved_promise(realm, JS::js_undefined());
@@ -5134,7 +5168,7 @@ void transform_stream_set_up(TransformStream& stream, JS::NonnullGCPtr<Transform
     auto controller = realm.heap().allocate<TransformStreamDefaultController>(realm, realm);
 
     // 11. Perform ! SetUpTransformStreamDefaultController(stream, controller, transformAlgorithmWrapper, flushAlgorithmWrapper, cancelAlgorithmWrapper).
-    set_up_transform_stream_default_controller(stream, controller, transform_algorithm_wrapper, flush_algorithm_wrapper);
+    set_up_transform_stream_default_controller(stream, controller, transform_algorithm_wrapper, flush_algorithm_wrapper, cancel_algorithm_wrapper);
 }
 
 // https://streams.spec.whatwg.org/#transform-stream-unblock-write
