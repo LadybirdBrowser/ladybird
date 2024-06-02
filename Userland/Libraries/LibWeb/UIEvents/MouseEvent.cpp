@@ -6,11 +6,11 @@
  */
 
 #include <Kernel/API/KeyCode.h>
-#include <LibGUI/Event.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MouseEventPrototype.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/UIEvents/EventNames.h>
+#include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 
 namespace Web::UIEvents {
@@ -101,15 +101,15 @@ bool MouseEvent::get_modifier_state(String const& key_arg) const
 static i16 determine_button(unsigned mouse_button)
 {
     switch (mouse_button) {
-    case GUI::MouseButton::Primary:
+    case MouseButton::Primary:
         return 0;
-    case GUI::MouseButton::Middle:
+    case MouseButton::Middle:
         return 1;
-    case GUI::MouseButton::Secondary:
+    case MouseButton::Secondary:
         return 2;
-    case GUI::MouseButton::Backward:
+    case MouseButton::Backward:
         return 3;
-    case GUI::MouseButton::Forward:
+    case MouseButton::Forward:
         return 4;
     default:
         VERIFY_NOT_REACHED();

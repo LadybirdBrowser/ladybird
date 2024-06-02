@@ -28,6 +28,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/WebContentClient.h>
 #include <QApplication>
@@ -142,34 +143,34 @@ WebContentView::~WebContentView()
         m_client_state.client->unregister_view(m_client_state.page_index);
 }
 
-static GUI::MouseButton get_button_from_qt_event(QSinglePointEvent const& event)
+static Web::UIEvents::MouseButton get_button_from_qt_event(QSinglePointEvent const& event)
 {
     if (event.button() == Qt::MouseButton::LeftButton)
-        return GUI::MouseButton::Primary;
+        return Web::UIEvents::MouseButton::Primary;
     if (event.button() == Qt::MouseButton::RightButton)
-        return GUI::MouseButton::Secondary;
+        return Web::UIEvents::MouseButton::Secondary;
     if (event.button() == Qt::MouseButton::MiddleButton)
-        return GUI::MouseButton::Middle;
+        return Web::UIEvents::MouseButton::Middle;
     if (event.button() == Qt::MouseButton::BackButton)
-        return GUI::MouseButton::Backward;
+        return Web::UIEvents::MouseButton::Backward;
     if (event.buttons() == Qt::MouseButton::ForwardButton)
-        return GUI::MouseButton::Forward;
-    return GUI::MouseButton::None;
+        return Web::UIEvents::MouseButton::Forward;
+    return Web::UIEvents::MouseButton::None;
 }
 
-static GUI::MouseButton get_buttons_from_qt_event(QSinglePointEvent const& event)
+static Web::UIEvents::MouseButton get_buttons_from_qt_event(QSinglePointEvent const& event)
 {
-    auto buttons = GUI::MouseButton::None;
+    auto buttons = Web::UIEvents::MouseButton::None;
     if (event.buttons().testFlag(Qt::MouseButton::LeftButton))
-        buttons |= GUI::MouseButton::Primary;
+        buttons |= Web::UIEvents::MouseButton::Primary;
     if (event.buttons().testFlag(Qt::MouseButton::RightButton))
-        buttons |= GUI::MouseButton::Secondary;
+        buttons |= Web::UIEvents::MouseButton::Secondary;
     if (event.buttons().testFlag(Qt::MouseButton::MiddleButton))
-        buttons |= GUI::MouseButton::Middle;
+        buttons |= Web::UIEvents::MouseButton::Middle;
     if (event.buttons().testFlag(Qt::MouseButton::BackButton))
-        buttons |= GUI::MouseButton::Backward;
+        buttons |= Web::UIEvents::MouseButton::Backward;
     if (event.buttons().testFlag(Qt::MouseButton::ForwardButton))
-        buttons |= GUI::MouseButton::Forward;
+        buttons |= Web::UIEvents::MouseButton::Forward;
     return buttons;
 }
 

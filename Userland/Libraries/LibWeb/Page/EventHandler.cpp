@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGUI/Event.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -24,6 +23,7 @@
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
+#include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
 
@@ -270,9 +270,9 @@ bool EventHandler::handle_mouseup(CSSPixelPoint position, CSSPixelPoint screen_p
 
             bool run_activation_behavior = false;
             if (node.ptr() == m_mousedown_target) {
-                if (button == GUI::MouseButton::Primary) {
+                if (button == UIEvents::MouseButton::Primary) {
                     run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::click, screen_position, page_offset, client_offset, offset, {}, 1, button, modifiers).release_value_but_fixme_should_propagate_errors());
-                } else if (button == GUI::MouseButton::Secondary) {
+                } else if (button == UIEvents::MouseButton::Secondary) {
                     // Allow the user to bypass custom context menus by holding shift, like Firefox.
                     if ((modifiers & Mod_Shift) == 0)
                         run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::contextmenu, screen_position, page_offset, client_offset, offset, {}, 1, button, modifiers).release_value_but_fixme_should_propagate_errors());
@@ -299,12 +299,12 @@ bool EventHandler::handle_mouseup(CSSPixelPoint position, CSSPixelPoint screen_p
                     auto href = link->href();
                     auto url = document->parse_url(href);
                     dbgln("Web::EventHandler: Clicking on a link to {}", url);
-                    if (button == GUI::MouseButton::Middle) {
+                    if (button == UIEvents::MouseButton::Middle) {
                         m_navigable->page().client().page_did_middle_click_link(url, link->target().to_byte_string(), modifiers);
-                    } else if (button == GUI::MouseButton::Secondary) {
+                    } else if (button == UIEvents::MouseButton::Secondary) {
                         m_navigable->page().client().page_did_request_link_context_menu(top_level_position, url, link->target().to_byte_string(), modifiers);
                     }
-                } else if (button == GUI::MouseButton::Secondary) {
+                } else if (button == UIEvents::MouseButton::Secondary) {
                     if (is<HTML::HTMLImageElement>(*node)) {
                         auto& image_element = verify_cast<HTML::HTMLImageElement>(*node);
                         auto image_url = image_element.document().parse_url(image_element.src());
@@ -331,7 +331,7 @@ bool EventHandler::handle_mouseup(CSSPixelPoint position, CSSPixelPoint screen_p
     }
 
 after_node_use:
-    if (button == GUI::MouseButton::Primary)
+    if (button == UIEvents::MouseButton::Primary)
         m_in_mouse_selection = false;
     return handled_event;
 }
@@ -399,7 +399,7 @@ bool EventHandler::handle_mousedown(CSSPixelPoint position, CSSPixelPoint screen
     if (!paint_root() || paint_root() != node->document().paintable_box())
         return true;
 
-    if (button == GUI::MouseButton::Primary) {
+    if (button == UIEvents::MouseButton::Primary) {
         if (auto result = paint_root()->hit_test(position, Painting::HitTestType::TextCursor); result.has_value()) {
             auto paintable = result->paintable;
             if (paintable->dom_node()) {
@@ -615,7 +615,7 @@ bool EventHandler::handle_doubleclick(CSSPixelPoint position, CSSPixelPoint scre
     if (!paint_root() || paint_root() != node->document().paintable_box())
         return true;
 
-    if (button == GUI::MouseButton::Primary) {
+    if (button == UIEvents::MouseButton::Primary) {
         if (auto result = paint_root()->hit_test(position, Painting::HitTestType::TextCursor); result.has_value()) {
             if (!result->paintable->dom_node())
                 return true;

@@ -10,7 +10,6 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/WeakPtr.h>
 #include <Kernel/API/KeyCode.h>
-#include <LibGUI/Forward.h>
 #include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/GCPtr.h>

@@ -6,7 +6,6 @@
 
 #include <AK/Array.h>
 #include <AK/NumberFormat.h>
-#include <LibGUI/Event.h>
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -16,6 +15,7 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/MediaPaintable.h>
+#include <LibWeb/UIEvents/MouseButton.h>
 
 namespace Web::Painting {
 
@@ -269,7 +269,7 @@ void MediaPaintable::paint_control_bar_volume(PaintContext& context, HTML::HTMLM
 
 MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned button, unsigned)
 {
-    if (button != GUI::MouseButton::Primary)
+    if (button != UIEvents::MouseButton::Primary)
         return DispatchEventOfSameName::Yes;
 
     auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_box().dom_node());
@@ -312,7 +312,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
         return DispatchEventOfSameName::Yes;
     }
 
-    if (button != GUI::MouseButton::Primary)
+    if (button != UIEvents::MouseButton::Primary)
         return DispatchEventOfSameName::Yes;
 
     if (cached_layout_boxes.control_box_rect.has_value() && cached_layout_boxes.control_box_rect->contains(position)) {

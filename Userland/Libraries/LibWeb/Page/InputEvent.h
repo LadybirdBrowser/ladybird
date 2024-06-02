@@ -11,11 +11,11 @@
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWeb/UIEvents/MouseButton.h>
 
-// FIXME: These should not be included outside of Serenity. This FIXME appears in several locations across the Ladybird
-//        chromes. The classes in this file provide a good opportunity to remove LibGUI and Kernel types from LibWeb.
+// FIXME: This should not be included outside of Serenity. This FIXME appears in several locations across the Ladybird
+//        chromes. The classes in this file provide a good opportunity to remove Kernel types from LibWeb.
 #include <Kernel/API/KeyCode.h>
-#include <LibGUI/Event.h>
 
 namespace Web {
 
@@ -55,8 +55,8 @@ public:
     Type type;
     Web::DevicePixelPoint position;
     Web::DevicePixelPoint screen_position;
-    GUI::MouseButton button { GUI::MouseButton::None };
-    GUI::MouseButton buttons { GUI::MouseButton::None };
+    UIEvents::MouseButton button { UIEvents::MouseButton::None };
+    UIEvents::MouseButton buttons { UIEvents::MouseButton::None };
     KeyModifier modifiers { KeyModifier::Mod_None };
     int wheel_delta_x { 0 };
     int wheel_delta_y { 0 };

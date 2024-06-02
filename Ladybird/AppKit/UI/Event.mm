@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/TypeCasts.h>
 #include <AK/Utf8View.h>
 
 #import <System/Carbon.h>
@@ -12,7 +13,7 @@
 
 namespace Ladybird {
 
-static KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags modifier_flags, Optional<GUI::MouseButton&> button = {})
+static KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags modifier_flags, Optional<Web::UIEvents::MouseButton&> button = {})
 {
     unsigned modifiers = KeyModifier::Mod_None;
 
@@ -20,8 +21,8 @@ static KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags modifier_f
         modifiers |= KeyModifier::Mod_Shift;
     }
     if ((modifier_flags & NSEventModifierFlagControl) != 0) {
-        if (button == GUI::MouseButton::Primary) {
-            *button = GUI::MouseButton::Secondary;
+        if (button == Web::UIEvents::MouseButton::Primary) {
+            *button = Web::UIEvents::MouseButton::Secondary;
         } else {
             modifiers |= KeyModifier::Mod_Ctrl;
         }
@@ -36,7 +37,7 @@ static KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags modifier_f
     return static_cast<KeyModifier>(modifiers);
 }
 
-Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* event, NSView* view, NSScrollView* scroll_view, GUI::MouseButton button)
+Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* event, NSView* view, NSScrollView* scroll_view, Web::UIEvents::MouseButton button)
 {
     auto position = [view convertPoint:event.locationInWindow fromView:nil];
     auto device_position = ns_point_to_gfx_point(position).to_type<Web::DevicePixels>();

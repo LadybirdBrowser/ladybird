@@ -63,8 +63,8 @@ ErrorOr<Web::MouseEvent> IPC::decode(Decoder& decoder)
     auto type = TRY(decoder.decode<Web::MouseEvent::Type>());
     auto position = TRY(decoder.decode<Web::DevicePixelPoint>());
     auto screen_position = TRY(decoder.decode<Web::DevicePixelPoint>());
-    auto button = TRY(decoder.decode<GUI::MouseButton>());
-    auto buttons = TRY(decoder.decode<GUI::MouseButton>());
+    auto button = TRY(decoder.decode<Web::UIEvents::MouseButton>());
+    auto buttons = TRY(decoder.decode<Web::UIEvents::MouseButton>());
     auto modifiers = TRY(decoder.decode<KeyModifier>());
     auto wheel_delta_x = TRY(decoder.decode<int>());
     auto wheel_delta_y = TRY(decoder.decode<int>());

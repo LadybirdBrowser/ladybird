@@ -315,7 +315,7 @@ void OutOfProcessWebView::enqueue_native_event(Web::MouseEvent::Type type, GUI::
     auto wheel_delta_x = event.wheel_delta_x() * SCROLL_STEP_SIZE;
     auto wheel_delta_y = event.wheel_delta_y() * SCROLL_STEP_SIZE;
 
-    enqueue_input_event(Web::MouseEvent { type, position, screen_position, event.button(), static_cast<GUI::MouseButton>(event.buttons()), static_cast<KeyModifier>(event.modifiers()), wheel_delta_x, wheel_delta_y, nullptr });
+    enqueue_input_event(Web::MouseEvent { type, position, screen_position, static_cast<Web::UIEvents::MouseButton>(to_underlying(event.button())), static_cast<Web::UIEvents::MouseButton>(event.buttons()), static_cast<KeyModifier>(event.modifiers()), wheel_delta_x, wheel_delta_y, nullptr });
 }
 
 struct KeyData : Web::ChromeInputData {

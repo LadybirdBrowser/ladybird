@@ -6,7 +6,6 @@
 
 #include <AK/Array.h>
 #include <AK/NumberFormat.h>
-#include <LibGUI/Event.h>
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/AudioTrackList.h>

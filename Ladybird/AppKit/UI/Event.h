@@ -12,7 +12,7 @@
 
 namespace Ladybird {
 
-Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type, NSEvent*, NSView*, NSScrollView*, GUI::MouseButton);
+Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type, NSEvent*, NSView*, NSScrollView*, Web::UIEvents::MouseButton);
 Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type, NSEvent*);
 NSEvent* key_event_to_ns_event(Web::KeyEvent const&);
 

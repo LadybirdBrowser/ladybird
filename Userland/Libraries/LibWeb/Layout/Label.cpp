@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGUI/Event.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Label.h>
@@ -12,6 +11,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/LabelablePaintable.h>
+#include <LibWeb/UIEvents/MouseButton.h>
 
 namespace Web::Layout {
 
@@ -26,7 +26,7 @@ Label::~Label() = default;
 
 void Label::handle_mousedown_on_label(Badge<Painting::TextPaintable>, CSSPixelPoint, unsigned button)
 {
-    if (button != GUI::MouseButton::Primary)
+    if (button != UIEvents::MouseButton::Primary)
         return;
 
     if (auto control = dom_node().control(); control && is<Painting::LabelablePaintable>(control->paintable())) {
@@ -39,7 +39,7 @@ void Label::handle_mousedown_on_label(Badge<Painting::TextPaintable>, CSSPixelPo
 
 void Label::handle_mouseup_on_label(Badge<Painting::TextPaintable>, CSSPixelPoint position, unsigned button)
 {
-    if (!m_tracking_mouse || button != GUI::MouseButton::Primary)
+    if (!m_tracking_mouse || button != UIEvents::MouseButton::Primary)
         return;
 
     if (auto control = dom_node().control(); control && is<Painting::LabelablePaintable>(control->paintable())) {
