@@ -1,8 +1,0 @@
-===== AST after reference-resolving =====
-Foo(a):
-TreeList
-  ReturnNode
-    BinaryOperation MemberAccess
-      Var a
-      Slot b
-

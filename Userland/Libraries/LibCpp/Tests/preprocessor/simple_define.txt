@@ -1,6 +1,0 @@
-PreprocessorStatement  0:0-0:18 (#define NUMBER 1337)
-KnownType  1:0-1:2 (int)
-Identifier  1:4-1:4 (x)
-Equals  1:6-1:6 (=)
-Integer  1:8-1:13 (1337)
-Semicolon  1:14-1:14 (;)

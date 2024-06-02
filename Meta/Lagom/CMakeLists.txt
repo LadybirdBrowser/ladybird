@@ -386,17 +386,6 @@ install(TARGETS LibTimeZone EXPORT LagomTargets)
 # This is used by the BindingsGenerator so needs to always be built.
 add_serenity_subdirectory(Userland/Libraries/LibIDL)
 
-# LibGUI - only GML
-# This is used by the GML compiler and therefore always needed.
-set(LIBGUI_GML_SOURCES
-    GML/Lexer.cpp
-    GML/Parser.cpp
-)
-list(TRANSFORM LIBGUI_GML_SOURCES PREPEND "${SERENITY_PROJECT_ROOT}/Userland/Libraries/LibGUI/")
-lagom_lib(LibGUI_GML gui_gml
-    SOURCES ${LIBGUI_GML_SOURCES}
-)
-
 # Manually install AK headers
 install(
     DIRECTORY "${SERENITY_PROJECT_ROOT}/AK"
@@ -444,27 +433,20 @@ if (BUILD_LAGOM)
         Archive
         Audio
         Compress
-        Cpp
         Crypto
         Diff
         Gemini
         Gfx
-        GL
-        GLSL
-        GPU
         HTTP
         ImageDecoderClient
         IPC
-        JIT
         JS
         Line
         Locale
         Markdown
-        PDF
         Protocol
         Regex
         RIFF
-        SoftGPU
         SQL
         Syntax
         TextCodec
@@ -487,10 +469,6 @@ if (BUILD_LAGOM)
         compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentClient.ipc Userland/Services/WebContent/WebContentClientEndpoint.h)
         compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverClient.ipc Userland/Services/WebContent/WebDriverClientEndpoint.h)
         compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverServer.ipc Userland/Services/WebContent/WebDriverServerEndpoint.h)
-    endif()
-
-    if (NOT EMSCRIPTEN)
-        list(APPEND lagom_standard_libraries ELF X86)
     endif()
 
     foreach(lib IN LISTS lagom_standard_libraries)
@@ -518,10 +496,6 @@ if (BUILD_LAGOM)
             add_serenity_subdirectory(Ladybird)
         endif()
 
-        if (APPLE)
-            add_serenity_subdirectory(Meta/Lagom/Contrib/MacPDF)
-        endif()
-
         find_package(SDL2 QUIET)
         if (SDL2_FOUND)
             add_serenity_subdirectory(Meta/Lagom/Contrib/VideoPlayerSDL)
@@ -544,7 +518,6 @@ if (BUILD_LAGOM)
 
         lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
 
-        lagom_utility(pdf SOURCES ../../Userland/Utilities/pdf.cpp LIBS LibGfx LibPDF LibMain)
         lagom_utility(sql SOURCES ../../Userland/Utilities/sql.cpp LIBS LibFileSystem LibIPC LibLine LibMain LibSQL)
         lagom_utility(tar SOURCES ../../Userland/Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
         lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem)
@@ -591,14 +564,11 @@ if (BUILD_LAGOM)
         # LibTest tests from Tests/
         set(TEST_DIRECTORIES
             AK
-            JSSpecCompiler
             LibCrypto
             LibCompress
-            LibGL
             LibGfx
             LibLocale
             LibMarkdown
-            LibPDF
             LibSQL
             LibTest
             LibTextCodec

@@ -1,4 +1,0 @@
-# These are all test files, don't format them, as they maybe
-# intentionally miss-formatted.
-DisableFormat: true
-SortIncludes: Never

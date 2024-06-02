@@ -53,10 +53,6 @@ serenity_lib(LibWebView webview)
 target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibIPC LibProtocol LibJS LibWeb LibSQL LibUnicode LibURL)
 target_compile_definitions(LibWebView PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENABLE_PUBLIC_SUFFIX_DOWNLOAD}>)
 
-if (SERENITYOS)
-    target_link_libraries(LibWebView PRIVATE LibFileSystemAccessClient LibGUI)
-endif()
-
 if (NOT SERENITYOS)
     foreach(header ${GENERATED_SOURCES})
         get_filename_component(extension ${header} EXT)

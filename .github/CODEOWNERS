@@ -3,20 +3,15 @@
 /AK/*Stream.* @timschumi
 /Lagom/Tools/CodeGenerators/LibWeb @AtkinsSJ
 /Tests/LibCompress @timschumi
-/Toolchain @BertalanD
 /Userland/Libraries/LibArchive @timschumi
 /Userland/Libraries/LibCompress @timschumi
 /Userland/Libraries/LibCore/File.* @timschumi
 /Userland/Libraries/LibCore/Socket.* @timschumi
 /Userland/Libraries/LibCrypto @alimpfard
-/Userland/Libraries/LibELF @BertalanD
-/Userland/Libraries/LibGL @GMTA
-/Userland/Libraries/LibGPU @GMTA
 /Userland/Libraries/LibHTTP @alimpfard
 /Userland/Libraries/LibJS/Runtime/Intl @trflynn89
 /Userland/Libraries/LibLocale @trflynn89
 /Userland/Libraries/LibRegex @alimpfard
-/Userland/Libraries/LibSoftGPU @GMTA
 /Userland/Libraries/LibSQL @GMTA @trflynn89
 /Userland/Libraries/LibTLS @alimpfard
 /Userland/Libraries/LibTimeZone @trflynn89
