@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Kenneth Myhra <kennethmyhra@serenityos.org>
+ * Copyright (c) 2023-2024, Kenneth Myhra <kennethmyhra@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -30,6 +30,8 @@ void TransformStreamDefaultController::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_stream);
+    visitor.visit(m_cancel_algorithm);
+    visitor.visit(m_finish_promise);
     visitor.visit(m_flush_algorithm);
     visitor.visit(m_transform_algorithm);
 }
