@@ -5175,6 +5175,14 @@ void transform_stream_set_up(TransformStream& stream, JS::NonnullGCPtr<Transform
     set_up_transform_stream_default_controller(stream, controller, transform_algorithm_wrapper, flush_algorithm_wrapper);
 }
 
+// https://streams.spec.whatwg.org/#transform-stream-unblock-write
+void transform_stream_unblock_write(TransformStream& stream)
+{
+    // 1. If stream.[[backpressure]] is true, perform ! TransformStreamSetBackpressure(stream, false).
+    if (stream.backpressure().has_value() && stream.backpressure().value())
+        transform_stream_set_backpressure(stream, false);
+}
+
 // https://streams.spec.whatwg.org/#is-non-negative-number
 bool is_non_negative_number(JS::Value value)
 {
