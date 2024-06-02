@@ -212,7 +212,7 @@ void Application::set_system_palette(Core::AnonymousBuffer& buffer)
     if (!m_system_palette)
         m_system_palette = Gfx::PaletteImpl::create_with_anonymous_buffer(buffer);
     else
-        m_system_palette->replace_internal_buffer({}, buffer);
+        m_system_palette->replace_internal_buffer(buffer);
 
     if (!m_palette)
         m_palette = m_system_palette;

@@ -87,7 +87,7 @@ void Palette::set_path(PathRole role, ByteString path)
     theme.path[(int)role][sizeof(theme.path[(int)role]) - 1] = '\0';
 }
 
-void PaletteImpl::replace_internal_buffer(Badge<GUI::Application>, Core::AnonymousBuffer buffer)
+void PaletteImpl::replace_internal_buffer(Core::AnonymousBuffer buffer)
 {
     m_theme_buffer = move(buffer);
 }

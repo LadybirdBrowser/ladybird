@@ -12,7 +12,6 @@
 #include <AK/Noncopyable.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
-#include <LibGUI/Forward.h>
 #include <LibGfx/SystemTheme.h>
 
 namespace Gfx {
@@ -48,7 +47,7 @@ public:
     ByteString path(PathRole) const;
     SystemTheme const& theme() const { return *m_theme_buffer.data<SystemTheme>(); }
 
-    void replace_internal_buffer(Badge<GUI::Application>, Core::AnonymousBuffer buffer);
+    void replace_internal_buffer(Core::AnonymousBuffer);
 
 private:
     explicit PaletteImpl(Core::AnonymousBuffer);
