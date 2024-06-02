@@ -181,6 +181,7 @@ void transform_stream_error(TransformStream&, JS::Value error);
 void transform_stream_error_writable_and_unblock_write(TransformStream&, JS::Value error);
 void transform_stream_set_backpressure(TransformStream&, bool backpressure);
 void transform_stream_set_up(TransformStream&, JS::NonnullGCPtr<TransformAlgorithm>, JS::GCPtr<FlushAlgorithm> = {}, JS::GCPtr<CancelAlgorithm> = {});
+void transform_stream_unblock_write(TransformStream&);
 
 bool is_non_negative_number(JS::Value);
 bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer);
