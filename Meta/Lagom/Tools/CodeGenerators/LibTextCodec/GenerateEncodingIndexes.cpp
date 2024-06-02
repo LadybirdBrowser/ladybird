@@ -211,6 +211,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             { "jis0208"sv, prepare_table(data.get("jis0208"sv)->as_array()) },
             { "jis0212"sv, prepare_table(data.get("jis0212"sv)->as_array()) },
             { "euc_kr"sv, prepare_table(data.get("euc-kr"sv)->as_array()) },
+            { "windows_1252"sv, prepare_table(data.get("windows-1252"sv)->as_array()) },
         },
     };
 

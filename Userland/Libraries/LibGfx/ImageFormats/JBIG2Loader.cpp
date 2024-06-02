@@ -2497,8 +2497,8 @@ static ErrorOr<void> decode_extension(JBIG2LoadingContext&, SegmentData const& s
 
             auto second_bytes = TRY(read_string.template operator()<u8>());
 
-            auto first = TRY(TextCodec::decoder_for("ISO-8859-1"sv)->to_utf8(StringView { first_bytes }));
-            auto second = TRY(TextCodec::decoder_for("ISO-8859-1"sv)->to_utf8(StringView { second_bytes }));
+            auto first = TRY(TextCodec::decoder_for_exact_name("ISO-8859-1"sv)->to_utf8(StringView { first_bytes }));
+            auto second = TRY(TextCodec::decoder_for_exact_name("ISO-8859-1"sv)->to_utf8(StringView { second_bytes }));
             dbgln("JBIG2ImageDecoderPlugin: key '{}', value '{}'", first, second);
         }
         if (!stream.is_eof())

@@ -235,6 +235,8 @@ SingleByteDecoder s_windows874_decoder {{
     0x0E40, 0x0E41, 0x0E42, 0x0E43, 0x0E44, 0x0E45, 0x0E46, 0x0E47, 0x0E48, 0x0E49, 0x0E4A, 0x0E4B, 0x0E4C, 0x0E4D, 0x0E4E, 0x0E4F,
     0x0E50, 0x0E51, 0x0E52, 0x0E53, 0x0E54, 0x0E55, 0x0E56, 0x0E57, 0x0E58, 0x0E59, 0x0E5A, 0x0E5B, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD,
 }};
+// https://encoding.spec.whatwg.org/index-windows-1252.txt
+SingleByteDecoder s_windows1252_decoder { s_windows_1252_index };
 // https://encoding.spec.whatwg.org/index-windows-1253.txt
 SingleByteDecoder s_windows1253_decoder {{
     0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x0088, 0x2030, 0x008A, 0x2039, 0x008C, 0x008D, 0x008E, 0x008F,
@@ -294,94 +296,97 @@ SingleByteDecoder s_mac_cyrillic_decoder {{
 
 }
 
-Optional<Decoder&> decoder_for(StringView a_encoding)
+Optional<Decoder&> decoder_for(StringView label)
 {
-    auto encoding = get_standardized_encoding(a_encoding);
-    if (encoding.has_value()) {
-        if (encoding.value().equals_ignoring_ascii_case("windows-1252"sv))
-            return s_latin1_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("utf-8"sv))
-            return s_utf8_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("utf-16be"sv))
-            return s_utf16be_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("utf-16le"sv))
-            return s_utf16le_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("big5"sv))
-            return s_big5_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("euc-jp"sv))
-            return s_euc_jp_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("euc-kr"sv))
-            return s_euc_kr_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("gbk"sv))
-            return s_gb18030_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("gb18030"sv))
-            return s_gb18030_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("ibm866"sv))
-            return s_ibm866_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-2022-jp"sv))
-            return s_iso_2022_jp_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-2"sv))
-            return s_latin2_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-3"sv))
-            return s_latin3_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-4"sv))
-            return s_latin4_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-5"sv))
-            return s_latin_cyrillic_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-6"sv))
-            return s_latin_arabic_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-7"sv))
-            return s_latin_greek_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-8"sv))
-            return s_latin_hebrew_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-8-i"sv))
-            return s_latin_hebrew_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-10"sv))
-            return s_latin6_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-13"sv))
-            return s_latin7_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-14"sv))
-            return s_latin8_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-15"sv))
-            return s_latin9_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("iso-8859-16"sv))
-            return s_latin10_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("koi8-r"sv))
-            return s_koi8r_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("koi8-u"sv))
-            return s_koi8u_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("macintosh"sv))
-            return s_mac_roman_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("PDFDocEncoding"sv))
-            return s_pdf_doc_encoding_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("replacement"sv))
-            return s_replacement_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("shift_jis"sv))
-            return s_shift_jis_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("windows-874"sv))
-            return s_windows874_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("windows-1250"sv))
-            return s_centraleurope_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("windows-1251"sv))
-            return s_cyrillic_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("windows-1253"sv))
-            return s_windows1253_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("windows-1254"sv))
-            return s_turkish_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("windows-1255"sv))
-            return s_hebrew_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("windows-1256"sv))
-            return s_windows1256_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("windows-1257"sv))
-            return s_windows1257_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("windows-1258"sv))
-            return s_windows1258_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("x-mac-cyrillic"sv))
-            return s_mac_cyrillic_decoder;
-        if (encoding.value().equals_ignoring_ascii_case("x-user-defined"sv))
-            return s_x_user_defined_decoder;
-    }
-    dbgln("TextCodec: No decoder implemented for encoding '{}'", a_encoding);
+    auto encoding = get_standardized_encoding(label);
+    return encoding.has_value() ? decoder_for_exact_name(encoding.value()) : Optional<Decoder&> {};
+}
+
+Optional<Decoder&> decoder_for_exact_name(StringView encoding)
+{
+    if (encoding.equals_ignoring_ascii_case("iso-8859-1"sv))
+        return s_latin1_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1252"sv))
+        return s_windows1252_decoder;
+    if (encoding.equals_ignoring_ascii_case("utf-8"sv))
+        return s_utf8_decoder;
+    if (encoding.equals_ignoring_ascii_case("utf-16be"sv))
+        return s_utf16be_decoder;
+    if (encoding.equals_ignoring_ascii_case("utf-16le"sv))
+        return s_utf16le_decoder;
+    if (encoding.equals_ignoring_ascii_case("big5"sv))
+        return s_big5_decoder;
+    if (encoding.equals_ignoring_ascii_case("euc-jp"sv))
+        return s_euc_jp_decoder;
+    if (encoding.equals_ignoring_ascii_case("euc-kr"sv))
+        return s_euc_kr_decoder;
+    if (encoding.equals_ignoring_ascii_case("gbk"sv))
+        return s_gb18030_decoder;
+    if (encoding.equals_ignoring_ascii_case("gb18030"sv))
+        return s_gb18030_decoder;
+    if (encoding.equals_ignoring_ascii_case("ibm866"sv))
+        return s_ibm866_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-2022-jp"sv))
+        return s_iso_2022_jp_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-2"sv))
+        return s_latin2_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-3"sv))
+        return s_latin3_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-4"sv))
+        return s_latin4_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-5"sv))
+        return s_latin_cyrillic_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-6"sv))
+        return s_latin_arabic_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-7"sv))
+        return s_latin_greek_decoder;
+    if (encoding.is_one_of_ignoring_ascii_case("iso-8859-8"sv, "iso-8859-8-i"sv))
+        return s_latin_hebrew_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-10"sv))
+        return s_latin6_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-13"sv))
+        return s_latin7_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-14"sv))
+        return s_latin8_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-15"sv))
+        return s_latin9_decoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-16"sv))
+        return s_latin10_decoder;
+    if (encoding.equals_ignoring_ascii_case("koi8-r"sv))
+        return s_koi8r_decoder;
+    if (encoding.equals_ignoring_ascii_case("koi8-u"sv))
+        return s_koi8u_decoder;
+    if (encoding.equals_ignoring_ascii_case("macintosh"sv))
+        return s_mac_roman_decoder;
+    if (encoding.equals_ignoring_ascii_case("PDFDocEncoding"sv))
+        return s_pdf_doc_encoding_decoder;
+    if (encoding.equals_ignoring_ascii_case("replacement"sv))
+        return s_replacement_decoder;
+    if (encoding.equals_ignoring_ascii_case("shift_jis"sv))
+        return s_shift_jis_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-874"sv))
+        return s_windows874_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1250"sv))
+        return s_centraleurope_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1251"sv))
+        return s_cyrillic_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1253"sv))
+        return s_windows1253_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1254"sv))
+        return s_turkish_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1255"sv))
+        return s_hebrew_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1256"sv))
+        return s_windows1256_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1257"sv))
+        return s_windows1257_decoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1258"sv))
+        return s_windows1258_decoder;
+    if (encoding.equals_ignoring_ascii_case("x-mac-cyrillic"sv))
+        return s_mac_cyrillic_decoder;
+    if (encoding.equals_ignoring_ascii_case("x-user-defined"sv))
+        return s_x_user_defined_decoder;
+    dbgln("TextCodec: No decoder implemented for encoding '{}'", encoding);
     return {};
 }
 
@@ -979,7 +984,8 @@ ErrorOr<void> XUserDefinedDecoder::process(StringView input, Function<ErrorOr<vo
 }
 
 // https://encoding.spec.whatwg.org/#single-byte-decoder
-ErrorOr<void> SingleByteDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+template<Integral ArrayType>
+ErrorOr<void> SingleByteDecoder<ArrayType>::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
     for (u8 const byte : input) {
         if (byte < 0x80) {

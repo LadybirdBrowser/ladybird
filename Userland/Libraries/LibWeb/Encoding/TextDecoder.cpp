@@ -41,7 +41,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<TextDecoder>> TextDecoder::construct_impl(J
     auto ignore_bom = options.value_or({}).ignore_bom;
 
     // NOTE: This should happen in decode(), but we don't support streaming yet and share decoders across calls.
-    auto decoder = TextCodec::decoder_for(encoding.value());
+    auto decoder = TextCodec::decoder_for_exact_name(encoding.value());
     VERIFY(decoder.has_value());
 
     return realm.heap().allocate<TextDecoder>(realm, realm, *decoder, lowercase_encoding_name, fatal, ignore_bom);
