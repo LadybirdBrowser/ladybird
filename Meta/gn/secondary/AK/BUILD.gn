@@ -201,7 +201,6 @@ shared_library("AK") {
     "TypeList.h",
     "TypedTransfer.h",
     "Types.h",
-    "UBSanitizer.h",
     "UFixedBigInt.h",
     "UFixedBigIntDivision.h",
     "UUID.cpp",

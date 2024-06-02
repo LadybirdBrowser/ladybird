@@ -1,5 +1,0 @@
-struct foo
-{
-    int bar;
-};
-

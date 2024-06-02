@@ -7,7 +7,6 @@ set(FUZZER_TARGETS
     DDSLoader
     DeflateCompression
     DeflateDecompression
-    ELF
     FlacLoader
     Gemini
     GIFLoader
@@ -30,7 +29,6 @@ set(FUZZER_TARGETS
     MP3Loader
     PAMLoader
     PBMLoader
-    PDF
     PEM
     PGMLoader
     PNGLoader
@@ -99,7 +97,6 @@ set(FUZZER_DEPENDENCIES_MD5 LibCrypto)
 set(FUZZER_DEPENDENCIES_MP3Loader LibAudio)
 set(FUZZER_DEPENDENCIES_PAMLoader LibGfx)
 set(FUZZER_DEPENDENCIES_PBMLoader LibGfx)
-set(FUZZER_DEPENDENCIES_PDF LibPDF)
 set(FUZZER_DEPENDENCIES_PEM LibCrypto)
 set(FUZZER_DEPENDENCIES_PGMLoader LibGfx)
 set(FUZZER_DEPENDENCIES_PNGLoader LibGfx)

@@ -12,12 +12,6 @@ RE_RELEVANT_FILE_EXTENSION = re.compile('\\.(cpp|h|gml|html|js|css|sh|py|json|tx
 def should_check_file(filename):
     if not RE_RELEVANT_FILE_EXTENSION.search(filename):
         return False
-    if filename.startswith('Userland/Libraries/LibCodeComprehension/Cpp/Tests/'):
-        return False
-    if filename.startswith('Userland/Libraries/LibCpp/Tests/parser/'):
-        return False
-    if filename.startswith('Userland/Libraries/LibCpp/Tests/preprocessor/'):
-        return False
     if filename.startswith('Tests/LibWeb/Layout/'):
         return False
     if filename.endswith('.txt'):

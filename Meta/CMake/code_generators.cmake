@@ -29,22 +29,6 @@ function(stringify_gml source output string_name)
     embed_as_string_view(${output_name} ${source} ${output} ${string_name})
 endfunction()
 
-function(compile_gml source output)
-    set(source ${CMAKE_CURRENT_SOURCE_DIR}/${source})
-    add_custom_command(
-        OUTPUT ${output}
-        COMMAND $<TARGET_FILE:Lagom::GMLCompiler> ${source} > ${output}.tmp
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${output}.tmp ${output}
-        COMMAND "${CMAKE_COMMAND}" -E remove ${output}.tmp
-        VERBATIM
-        DEPENDS Lagom::GMLCompiler
-        MAIN_DEPENDENCY ${source}
-    )
-    get_filename_component(output_name ${output} NAME)
-    add_custom_target(generate_${output_name} DEPENDS ${output})
-    add_dependencies(all_generated generate_${output_name})
-endfunction()
-
 function(compile_ipc source output)
     if (NOT IS_ABSOLUTE ${source})
         set(source ${CMAKE_CURRENT_SOURCE_DIR}/${source})

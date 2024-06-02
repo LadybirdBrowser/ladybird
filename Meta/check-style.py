@@ -23,12 +23,7 @@ GOOD_LICENSE_HEADER_PATTERN = re.compile(
 LICENSE_HEADER_CHECK_EXCLUDES = {
     'AK/Checked.h',
     'AK/Function.h',
-    'Meta/Lagom/Tools/CodeGenerators/JSSpecCompiler/Tests/',
     'Userland/Libraries/LibJS/SafeFunction.h',
-    'Userland/Libraries/LibELF/ELFABI.h',
-    'Userland/Libraries/LibCodeComprehension/Cpp/Tests/',
-    'Userland/Libraries/LibCpp/Tests/parser/',
-    'Userland/Libraries/LibCpp/Tests/preprocessor/'
 }
 
 # We check that "#pragma once" is present
@@ -53,13 +48,9 @@ SYSTEM_INCLUDE_PATTERN = re.compile("^ *# *include *<([^>]+)>(?: /[*/].*)?$")
 LOCAL_INCLUDE_PATTERN = re.compile('^ *# *include *"([^>]+)"(?: /[*/].*)?$')
 
 INCLUDE_CHECK_EXCLUDES = {
-    "Userland/Libraries/LibCodeComprehension/Cpp/Tests/",
-    "Userland/Libraries/LibCpp/Tests/parser/",
-    "Userland/Libraries/LibCpp/Tests/preprocessor/",
 }
 
 LOCAL_INCLUDE_ROOT_OVERRIDES = {
-    "Meta/Lagom/Tools/CodeGenerators/JSSpecCompiler/",
 }
 
 LOCAL_INCLUDE_SUFFIX_EXCLUDES = [

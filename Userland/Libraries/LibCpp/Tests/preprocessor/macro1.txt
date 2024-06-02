@@ -1,5 +1,0 @@
-PreprocessorStatement  0:0-0:19 (#define ADD(x,y) x+y)
-Integer  1:0-1:2 (2)
-Plus  1:0-1:2 (+)
-Integer  1:0-1:2 (5)
-Semicolon  1:8-1:8 (;)

@@ -11,8 +11,6 @@
 #ifdef HAS_ACCELERATED_GRAPHICS
 #    include <LibAccelGfx/Canvas.h>
 #    include <LibAccelGfx/Context.h>
-#elif defined(AK_OS_SERENITY)
-#    include <LibGL/GLContext.h>
 #endif
 
 namespace Web::WebGL {
@@ -174,129 +172,6 @@ private:
 };
 #endif
 
-#ifdef AK_OS_SERENITY
-class LibGLContext : public OpenGLContext {
-public:
-    virtual void present(Gfx::Bitmap&) override
-    {
-        m_context->present();
-    }
-
-    virtual GLenum gl_get_error() override
-    {
-        return m_context->gl_get_error();
-    }
-
-    virtual void gl_get_doublev(GLenum pname, GLdouble* params) override
-    {
-        m_context->gl_get_doublev(pname, params);
-    }
-
-    virtual void gl_get_integerv(GLenum pname, GLint* params) override
-    {
-        m_context->gl_get_integerv(pname, params);
-    }
-
-    virtual void gl_clear(GLbitfield mask) override
-    {
-        m_context->gl_clear(mask);
-    }
-
-    virtual void gl_clear_color(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) override
-    {
-        m_context->gl_clear_color(red, green, blue, alpha);
-    }
-
-    virtual void gl_clear_depth(GLdouble depth) override
-    {
-        m_context->gl_clear_depth(depth);
-    }
-
-    virtual void gl_clear_stencil(GLint s) override
-    {
-        m_context->gl_clear_stencil(s);
-    }
-
-    virtual void gl_active_texture(GLenum texture) override
-    {
-        m_context->gl_active_texture(texture);
-    }
-
-    virtual void gl_viewport(GLint x, GLint y, GLsizei width, GLsizei height) override
-    {
-        m_context->gl_viewport(x, y, width, height);
-    }
-
-    virtual void gl_line_width(GLfloat width) override
-    {
-        m_context->gl_line_width(width);
-    }
-
-    virtual void gl_polygon_offset(GLfloat factor, GLfloat units) override
-    {
-        m_context->gl_polygon_offset(factor, units);
-    }
-
-    virtual void gl_scissor(GLint x, GLint y, GLsizei width, GLsizei height) override
-    {
-        m_context->gl_scissor(x, y, width, height);
-    }
-
-    virtual void gl_depth_mask(GLboolean flag) override
-    {
-        m_context->gl_depth_mask(flag);
-    }
-
-    virtual void gl_depth_func(GLenum func) override
-    {
-        m_context->gl_depth_func(func);
-    }
-
-    virtual void gl_depth_range(GLdouble z_near, GLdouble z_far) override
-    {
-        m_context->gl_depth_range(z_near, z_far);
-    }
-
-    virtual void gl_cull_face(GLenum mode) override
-    {
-        m_context->gl_cull_face(mode);
-    }
-
-    virtual void gl_color_mask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha) override
-    {
-        m_context->gl_color_mask(red, green, blue, alpha);
-    }
-
-    virtual void gl_front_face(GLenum mode) override
-    {
-        m_context->gl_front_face(mode);
-    }
-
-    virtual void gl_finish() override
-    {
-        m_context->gl_finish();
-    }
-
-    virtual void gl_flush() override
-    {
-        m_context->gl_flush();
-    }
-
-    virtual void gl_stencil_op_separate(GLenum face, GLenum sfail, GLenum dpfail, GLenum dppass) override
-    {
-        m_context->gl_stencil_op_separate(face, sfail, dpfail, dppass);
-    }
-
-    LibGLContext(OwnPtr<GL::GLContext> context)
-        : m_context(move(context))
-    {
-    }
-
-private:
-    OwnPtr<GL::GLContext> m_context;
-};
-#endif
-
 #ifdef HAS_ACCELERATED_GRAPHICS
 static OwnPtr<AccelGfxContext> make_accelgfx_context(Gfx::Bitmap& bitmap)
 {
@@ -311,20 +186,10 @@ static OwnPtr<AccelGfxContext> make_accelgfx_context(Gfx::Bitmap& bitmap)
 }
 #endif
 
-#ifdef AK_OS_SERENITY
-static OwnPtr<LibGLContext> make_libgl_context(Gfx::Bitmap& bitmap)
-{
-    auto context_or_error = GL::create_context(bitmap);
-    return make<LibGLContext>(move(context_or_error.value()));
-}
-#endif
-
 OwnPtr<OpenGLContext> OpenGLContext::create(Gfx::Bitmap& bitmap)
 {
 #ifdef HAS_ACCELERATED_GRAPHICS
     return make_accelgfx_context(bitmap);
-#elif defined(AK_OS_SERENITY)
-    return make_libgl_context(bitmap);
 #endif
 
     (void)bitmap;
@@ -333,7 +198,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(Gfx::Bitmap& bitmap)
 
 void OpenGLContext::clear_buffer_to_default_values()
 {
-#if defined(HAS_ACCELERATED_GRAPHICS) || defined(AK_OS_SERENITY)
+#if defined(HAS_ACCELERATED_GRAPHICS)
     Array<GLdouble, 4> current_clear_color;
     gl_get_doublev(GL_COLOR_CLEAR_VALUE, current_clear_color.data());
 

@@ -1,7 +1,0 @@
-TranslationUnit[0:0->3:1]
-  StructDeclaration[0:7->3:1]
-    foo
-    VariableDeclaration[2:4->3:0]
-      Type[2:4->2:6]
-        int
-      bar

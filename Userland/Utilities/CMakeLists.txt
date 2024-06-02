@@ -3,7 +3,7 @@ list(APPEND REQUIRED_TARGETS
     file
 )
 list(APPEND RECOMMENDED_TARGETS
-    aconv adjtime abench gzip lzcat tar unzip xzcat zip
+    aconv abench gzip lzcat tar unzip xzcat zip
 )
 
 # FIXME: Support specifying component dependencies for utilities (e.g. WebSocket for telws)
@@ -72,7 +72,6 @@ install(CODE "file(CREATE_LINK /usr/lib/Loader.so ${CMAKE_INSTALL_PREFIX}/bin/ld
 target_link_libraries(abench PRIVATE LibAudio LibFileSystem)
 target_link_libraries(aconv PRIVATE LibAudio LibFileSystem)
 target_link_libraries(animation PRIVATE LibGfx)
-target_link_libraries(file PRIVATE LibELF LibGfx LibIPC LibArchive LibCompress LibAudio)
 target_link_libraries(gzip PRIVATE LibCompress)
 target_link_libraries(headless-browser PRIVATE LibCrypto LibFileSystem LibGemini LibGfx LibHTTP LibImageDecoderClient LibTLS LibWeb LibWebView LibWebSocket LibIPC LibJS LibDiff LibURL)
 target_link_libraries(icc PRIVATE LibGfx LibVideo LibURL)
@@ -80,7 +79,6 @@ target_link_libraries(image PRIVATE LibGfx)
 target_link_libraries(isobmff PRIVATE LibGfx)
 target_link_libraries(js PRIVATE LibCrypto LibJS LibLine LibLocale LibTextCodec)
 target_link_libraries(lzcat PRIVATE LibCompress)
-target_link_libraries(pdf PRIVATE LibGfx LibPDF)
 target_link_libraries(sql PRIVATE LibFileSystem LibIPC LibLine LibSQL)
 target_link_libraries(tar PRIVATE LibArchive LibCompress LibFileSystem)
 target_link_libraries(test-jpeg-roundtrip PRIVATE LibGfx)
