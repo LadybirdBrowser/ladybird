@@ -1,0 +1,17 @@
+<script src="../include.js"></script>
+<script>
+    function testReadableStreamCancellation() {
+        const readableStream = new ReadableStream({
+            cancel(reason) {
+                println(`ReadableStream cancelled due to: ${reason}`);
+                return Promise.resolve();
+            }
+        });
+
+        readableStream.cancel('Test cancellation');
+    }
+
+    test(() => {
+        testReadableStreamCancellation();
+    });
+</script>
