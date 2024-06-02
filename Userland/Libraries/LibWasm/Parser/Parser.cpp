@@ -388,8 +388,8 @@ ParseResult<Vector<Instruction>> Instruction::parse(Stream& stream, InstructionP
 
             // Proposal "multi-memory", if bit 6 of alignment is set, then a memory index follows the alignment.
             size_t memory_index = 0;
-            if ((align & 0x20) != 0) {
-                align &= ~0x20;
+            if ((align & 0x40) != 0) {
+                align &= ~0x40;
                 auto memory_index_or_error = stream.read_value<LEB128<u32>>();
                 if (memory_index_or_error.is_error())
                     return with_eof_check(stream, ParseError::InvalidInput);
