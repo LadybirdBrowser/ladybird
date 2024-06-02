@@ -309,11 +309,6 @@ Gfx::IntRect PageClient::page_did_request_fullscreen_window()
     return client().did_request_fullscreen_window(m_id);
 }
 
-void PageClient::page_did_request_scroll(i32 x_delta, i32 y_delta)
-{
-    client().async_did_request_scroll(m_id, x_delta, y_delta);
-}
-
 void PageClient::page_did_request_scroll_to(Web::CSSPixelPoint scroll_position)
 {
     // NOTE: The viewport scroll position is updated preemptively, so that subsequent
