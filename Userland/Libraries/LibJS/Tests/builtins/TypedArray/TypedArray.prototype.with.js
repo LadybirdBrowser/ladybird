@@ -83,15 +83,15 @@ describe("normal behavior", () => {
         TYPED_ARRAYS.forEach(T => {
             const a = new T([1, 2, 3, 4, 5]);
             const values = [
-                [0, 10, [10, 2, 3, 4, 5]],
-                [-5, 10, [10, 2, 3, 4, 5]],
-                [4, 10, [1, 2, 3, 4, 10]],
-                [-1, 10, [1, 2, 3, 4, 10]],
+                [0, 10, new T([10, 2, 3, 4, 5])],
+                [-5, 10, new T([10, 2, 3, 4, 5])],
+                [4, 10, new T([1, 2, 3, 4, 10])],
+                [-1, 10, new T([1, 2, 3, 4, 10])],
             ];
             for (const [index, value, expected] of values) {
                 const b = a.with(index, value);
                 expect(a).not.toBe(b);
-                expect(a).toEqual([1, 2, 3, 4, 5]);
+                expect(a).toEqual(new T([1, 2, 3, 4, 5]));
                 expect(b).toEqual(expected);
             }
         });
@@ -99,15 +99,15 @@ describe("normal behavior", () => {
         BIGINT_TYPED_ARRAYS.forEach(T => {
             const a = new T([1n, 2n, 3n, 4n, 5n]);
             const values = [
-                [0, 10n, [10n, 2n, 3n, 4n, 5n]],
-                [-5, 10n, [10n, 2n, 3n, 4n, 5n]],
-                [4, 10n, [1n, 2n, 3n, 4n, 10n]],
-                [-1, 10n, [1n, 2n, 3n, 4n, 10n]],
+                [0, 10n, new T([10n, 2n, 3n, 4n, 5n])],
+                [-5, 10n, new T([10n, 2n, 3n, 4n, 5n])],
+                [4, 10n, new T([1n, 2n, 3n, 4n, 10n])],
+                [-1, 10n, new T([1n, 2n, 3n, 4n, 10n])],
             ];
             for (const [index, value, expected] of values) {
                 const b = a.with(index, value);
                 expect(a).not.toBe(b);
-                expect(a).toEqual([1n, 2n, 3n, 4n, 5n]);
+                expect(a).toEqual(new T([1n, 2n, 3n, 4n, 5n]));
                 expect(b).toEqual(expected);
             }
         });

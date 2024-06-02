@@ -153,7 +153,7 @@ describe("Array.prototype.sort", () => {
 
         obj = { 0: 3, 1: 2, 2: 1, a: "b", hello: "friends!", length: 2 };
         expect(Array.prototype.sort.call(obj)).toBe(obj);
-        expect(obj).toEqual({ 0: 2, 1: 3, 2: 1, 3: 0, a: "b", hello: "friends!", length: 2 });
+        expect(obj).toEqual({ 0: 2, 1: 3, 2: 1, a: "b", hello: "friends!", length: 2 });
 
         obj = { 0: 2, 1: 3, 2: 1, a: "b", hello: "friends!", length: 2 };
         expect(
@@ -163,7 +163,7 @@ describe("Array.prototype.sort", () => {
                 return b - a;
             })
         ).toBe(obj);
-        expect(obj).toEqual({ 0: 3, 1: 2, 2: 1, 3: 0, a: "b", hello: "friends!", length: 2 });
+        expect(obj).toEqual({ 0: 3, 1: 2, 2: 1, a: "b", hello: "friends!", length: 2 });
     });
 
     test("that it handles abrupt completions correctly", () => {

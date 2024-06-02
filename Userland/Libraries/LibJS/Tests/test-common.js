@@ -29,11 +29,11 @@ class ExpectationError extends Error {
 
 // Use an IIFE to avoid polluting the global namespace as much as possible
 (() => {
-    // FIXME: This is a very naive deepEquals algorithm
     const deepEquals = (a, b) => {
+        if (Object.is(a, b)) return true; // Handles identical references and primitives
+        if ((a !== null && b === null) || (a === null && b !== null)) return false;
         if (Array.isArray(a)) return Array.isArray(b) && deepArrayEquals(a, b);
         if (typeof a === "object") return typeof b === "object" && deepObjectEquals(a, b);
-        return Object.is(a, b);
     };
 
     const deepArrayEquals = (a, b) => {
@@ -41,14 +41,19 @@ class ExpectationError extends Error {
         for (let i = 0; i < a.length; ++i) {
             if (!deepEquals(a[i], b[i])) return false;
         }
+
         return true;
     };
 
     const deepObjectEquals = (a, b) => {
-        if (a === null) return b === null;
-        for (let key of Reflect.ownKeys(a)) {
+        const keysA = Reflect.ownKeys(a);
+        const keysB = Reflect.ownKeys(b);
+
+        if (keysA.length !== keysB.length) return false;
+        for (let key of keysA) {
             if (!deepEquals(a[key], b[key])) return false;
         }
+
         return true;
     };
 
