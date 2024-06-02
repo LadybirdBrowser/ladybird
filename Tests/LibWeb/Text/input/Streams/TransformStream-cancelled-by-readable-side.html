@@ -1,0 +1,16 @@
+<script src="../include.js"></script>
+<script>
+    function testTransformStreamReadableStreamCancellation() {
+        const transformStream = new TransformStream({
+            cancel(reason) {
+                println(`TransformStream cancelled due to: ${reason}`);
+                return Promise.resolve();
+            }
+        });
+        transformStream.readable.cancel('cancel called by the readable side.');
+    }
+
+    test(() => {
+        testTransformStreamReadableStreamCancellation();
+    });
+</script>
