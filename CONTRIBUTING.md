@@ -8,7 +8,7 @@ Everyone is welcome to work on the project, and while we have lots of fun, it's 
 
 ## Communication
 
-Join our Slack server: !!FIXME: Add slack link
+Join [our Slack workspace](https://join.slack.com/t/ladybirdbrowser/shared_invite/zt-2jsfmix9x-R44t0YyMPnJk9qzgf~Cvdg) to participate in development discussion.
 
 ## Issue policy
 
