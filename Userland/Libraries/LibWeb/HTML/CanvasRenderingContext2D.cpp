@@ -298,15 +298,11 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
 
 void CanvasRenderingContext2D::fill_text(StringView text, float x, float y, Optional<double> max_width)
 {
-    if (is<Gfx::BitmapFont>(*current_font()))
-        return bitmap_font_fill_text(text, x, y, max_width);
     fill_internal(text_path(text, x, y, max_width), Gfx::Painter::WindingRule::Nonzero);
 }
 
 void CanvasRenderingContext2D::stroke_text(StringView text, float x, float y, Optional<double> max_width)
 {
-    if (is<Gfx::BitmapFont>(*current_font()))
-        return bitmap_font_fill_text(text, x, y, max_width);
     stroke_internal(text_path(text, x, y, max_width));
 }
 

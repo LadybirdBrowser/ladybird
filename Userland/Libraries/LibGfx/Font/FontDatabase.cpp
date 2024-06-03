@@ -42,14 +42,7 @@ void FontDatabase::load_all_fonts_from_uri(StringView uri)
     root->for_each_descendant_file([this](Core::Resource const& resource) -> IterationDecision {
         auto uri = resource.uri();
         auto path = LexicalPath(uri.bytes_as_string_view());
-        if (path.has_extension(".font"sv)) {
-            if (auto font_or_error = Gfx::BitmapFont::try_load_from_resource(resource); !font_or_error.is_error()) {
-                auto font = font_or_error.release_value();
-                m_private->full_name_to_font_map.set(font->qualified_name().to_byte_string(), *font);
-                auto typeface = get_or_create_typeface(font->family(), font->variant());
-                typeface->add_bitmap_font(font);
-            }
-        } else if (path.has_extension(".ttf"sv)) {
+        if (path.has_extension(".ttf"sv)) {
             // FIXME: What about .otf
             if (auto font_or_error = OpenType::Font::try_load_from_resource(resource); !font_or_error.is_error()) {
                 auto font = font_or_error.release_value();
@@ -102,26 +95,26 @@ RefPtr<Gfx::Font> FontDatabase::get_by_name(StringView name)
     return it->value;
 }
 
-RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Font::AllowInexactSizeMatch allow_inexact_size_match)
+RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope)
 {
     auto it = m_private->typefaces.find(family);
     if (it == m_private->typefaces.end())
         return nullptr;
     for (auto const& typeface : it->value) {
         if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope)
-            return typeface->get_font(point_size, allow_inexact_size_match);
+            return typeface->get_font(point_size);
     }
     return nullptr;
 }
 
-RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, FlyString const& variant, float point_size, Font::AllowInexactSizeMatch allow_inexact_size_match)
+RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, FlyString const& variant, float point_size)
 {
     auto it = m_private->typefaces.find(family);
     if (it == m_private->typefaces.end())
         return nullptr;
     for (auto const& typeface : it->value) {
         if (typeface->variant() == variant)
-            return typeface->get_font(point_size, allow_inexact_size_match);
+            return typeface->get_font(point_size);
     }
     return nullptr;
 }

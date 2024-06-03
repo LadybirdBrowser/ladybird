@@ -145,13 +145,6 @@ enum FontWidth {
 
 class Font : public RefCounted<Font> {
 public:
-    enum class AllowInexactSizeMatch {
-        No,
-        Yes,
-        Larger,
-        Smaller,
-    };
-
     virtual NonnullRefPtr<Font> clone() const = 0;
     virtual ErrorOr<NonnullRefPtr<Font>> try_clone() const = 0;
     virtual ~Font() {};

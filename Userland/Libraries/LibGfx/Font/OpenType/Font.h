@@ -11,6 +11,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/StringView.h>
+#include <LibCore/Resource.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/OpenType/Cmap.h>

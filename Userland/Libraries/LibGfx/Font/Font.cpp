@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/FontDatabase.h>
 
 namespace Gfx {
 
@@ -24,6 +25,16 @@ GlyphRasterPosition GlyphRasterPosition::get_nearest_fit_for(FloatPoint position
     fit(position.x(), blit_x, subpixel_x);
     fit(position.y(), blit_y, subpixel_y);
     return GlyphRasterPosition { { blit_x, blit_y }, { subpixel_x, subpixel_y } };
+}
+
+Font const& Font::bold_variant() const
+{
+    if (m_bold_variant)
+        return *m_bold_variant;
+    m_bold_variant = Gfx::FontDatabase::the().get(family(), point_size(), 700, Gfx::FontWidth::Normal, 0);
+    if (!m_bold_variant)
+        m_bold_variant = this;
+    return *m_bold_variant;
 }
 
 }
