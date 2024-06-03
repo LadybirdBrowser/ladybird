@@ -3,7 +3,7 @@ name: Package the js repl as a binary artifact
 on: [push]
 
 env:
-  SERENITY_SOURCE_DIR: ${{ github.workspace }}
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   SERENITY_CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:

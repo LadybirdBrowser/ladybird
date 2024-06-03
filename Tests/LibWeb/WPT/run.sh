@@ -4,14 +4,14 @@ set -eo pipefail
 
 SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
 
-if [ -z "$SERENITY_SOURCE_DIR" ]
+if [ -z "$LADYBIRD_SOURCE_DIR" ]
 then
-    SERENITY_SOURCE_DIR="$(realpath "${SCRIPT_DIR}/../../../")"
-    export SERENITY_SOURCE_DIR
+    LADYBIRD_SOURCE_DIR="$(realpath "${SCRIPT_DIR}/../../../")"
+    export LADYBIRD_SOURCE_DIR
 fi
 
 
-: "${WEBDRIVER_BINARY:=$(env PATH="${SERENITY_SOURCE_DIR}/Build/lagom/bin/Ladybird.app/Contents/MacOS:${SERENITY_SOURCE_DIR}/Build/lagom/bin:${SERENITY_SOURCE_DIR}/Meta/Lagom/Build/bin:${PATH}" \
+: "${WEBDRIVER_BINARY:=$(env PATH="${LADYBIRD_SOURCE_DIR}/Build/lagom/bin/Ladybird.app/Contents/MacOS:${LADYBIRD_SOURCE_DIR}/Build/lagom/bin:${LADYBIRD_SOURCE_DIR}/Meta/Lagom/Build/bin:${PATH}" \
                          which WebDriver)}"
 update_expectations_metadata=false
 remove_wpt_repository=false
@@ -82,7 +82,7 @@ python3 ./wpt/wpt run ladybird \
                   --metadata ./metadata \
                   --manifest ./MANIFEST.json \
                   --webdriver-arg="--certificate=${PWD}/wpt/tools/certs/cacert.pem" \
-                  --webdriver-arg="--certificate=${SERENITY_SOURCE_DIR}/Build/lagom/cacert.pem" \
+                  --webdriver-arg="--certificate=${LADYBIRD_SOURCE_DIR}/Build/lagom/cacert.pem" \
                   --log-raw "${wpt_run_log_filename}"
 
 # Update expectations metadata files if requested

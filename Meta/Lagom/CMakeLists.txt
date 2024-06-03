@@ -631,7 +631,7 @@ if (BUILD_LAGOM)
             NAME JS
             COMMAND test-js --show-progress=false
         )
-        set_tests_properties(JS PROPERTIES ENVIRONMENT SERENITY_SOURCE_DIR=${SERENITY_PROJECT_ROOT})
+        set_tests_properties(JS PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT})
 
         # Extra tests from Tests/LibJS
         lagom_test(../../Tests/LibJS/test-invalid-unicode-js.cpp LIBS LibJS)
@@ -648,7 +648,7 @@ if (BUILD_LAGOM)
         )
         set_tests_properties(WasmParser PROPERTIES
             SKIP_RETURN_CODE 1
-            ENVIRONMENT SERENITY_SOURCE_DIR=${SERENITY_PROJECT_ROOT}
+            ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT}
         )
 
         # FIXME: When we are using CMake >= 3.21, the library installations can be replaced with RUNTIME_DEPENDENCIES.
@@ -687,7 +687,7 @@ endif()
 if (NOT "$ENV{LAGOM_TARGET}" STREQUAL "")
     add_custom_target(run-lagom-target
         COMMAND "${CMAKE_COMMAND}"
-            -E env "SERENITY_SOURCE_DIR=${SERENITY_PROJECT_ROOT}" "$<TARGET_FILE:$ENV{LAGOM_TARGET}>"
+            -E env "LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT}" "$<TARGET_FILE:$ENV{LAGOM_TARGET}>"
             $ENV{LAGOM_ARGS}
 
         WORKING_DIRECTORY "$<TARGET_PROPERTY:$ENV{LAGOM_TARGET},LAGOM_WORKING_DIRECTORY>"

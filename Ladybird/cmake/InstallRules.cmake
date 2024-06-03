@@ -33,7 +33,7 @@ install(TARGETS ${ladybird_helper_processes}
     DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}
 )
 
-include("${SERENITY_SOURCE_DIR}/Meta/Lagom/get_linked_lagom_libraries.cmake")
+include("${LADYBIRD_SOURCE_DIR}/Meta/Lagom/get_linked_lagom_libraries.cmake")
 foreach (application IN LISTS ladybird_applications)
   get_linked_lagom_libraries("${application}" "${application}_lagom_libraries")
   list(APPEND all_required_lagom_libraries "${${application}_lagom_libraries}")

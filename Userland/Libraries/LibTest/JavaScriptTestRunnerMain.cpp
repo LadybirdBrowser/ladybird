@@ -142,13 +142,13 @@ int main(int argc, char** argv)
 #ifdef AK_OS_SERENITY
         test_root = LexicalPath::join("/home/anon/Tests"sv, ByteString::formatted("{}-tests", program_name.split_view('-').last())).string();
 #else
-        char* serenity_source_dir = getenv("SERENITY_SOURCE_DIR");
-        if (!serenity_source_dir) {
-            warnln("No test root given, {} requires the SERENITY_SOURCE_DIR environment variable to be set", g_program_name);
+        char* ladybird_source_dir = getenv("LADYBIRD_SOURCE_DIR");
+        if (!ladybird_source_dir) {
+            warnln("No test root given, {} requires the LADYBIRD_SOURCE_DIR environment variable to be set", g_program_name);
             return 1;
         }
-        test_root = ByteString::formatted("{}/{}", serenity_source_dir, g_test_root_fragment);
-        common_path = ByteString::formatted("{}/Userland/Libraries/LibJS/Tests/test-common.js", serenity_source_dir);
+        test_root = ByteString::formatted("{}/{}", ladybird_source_dir, g_test_root_fragment);
+        common_path = ByteString::formatted("{}/Userland/Libraries/LibJS/Tests/test-common.js", ladybird_source_dir);
 #endif
     }
     if (!FileSystem::is_directory(test_root)) {
@@ -160,12 +160,12 @@ int main(int argc, char** argv)
 #ifdef AK_OS_SERENITY
         common_path = "/home/anon/Tests/js-tests/test-common.js";
 #else
-        char* serenity_source_dir = getenv("SERENITY_SOURCE_DIR");
-        if (!serenity_source_dir) {
-            warnln("No test root given, {} requires the SERENITY_SOURCE_DIR environment variable to be set", g_program_name);
+        char* ladybird_source_dir = getenv("LADYBIRD_SOURCE_DIR");
+        if (!ladybird_source_dir) {
+            warnln("No test root given, {} requires the LADYBIRD_SOURCE_DIR environment variable to be set", g_program_name);
             return 1;
         }
-        common_path = ByteString::formatted("{}/Userland/Libraries/LibJS/Tests/test-common.js", serenity_source_dir);
+        common_path = ByteString::formatted("{}/Userland/Libraries/LibJS/Tests/test-common.js", ladybird_source_dir);
 #endif
     }
 

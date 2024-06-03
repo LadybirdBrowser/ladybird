@@ -1,4 +1,4 @@
-set(IMAGE_DECODER_SOURCE_DIR ${SERENITY_SOURCE_DIR}/Userland/Services/ImageDecoder)
+set(IMAGE_DECODER_SOURCE_DIR ${LADYBIRD_SOURCE_DIR}/Userland/Services/ImageDecoder)
 
 set(CMAKE_AUTOMOC OFF)
 set(CMAKE_AUTORCC OFF)
@@ -22,6 +22,6 @@ endif()
 add_executable(ImageDecoder main.cpp)
 target_link_libraries(ImageDecoder PRIVATE imagedecoder LibCore LibMain)
 
-target_include_directories(imagedecoder PRIVATE ${SERENITY_SOURCE_DIR}/Userland/Services/)
+target_include_directories(imagedecoder PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
 target_include_directories(imagedecoder PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
 target_link_libraries(imagedecoder PRIVATE LibCore LibGfx LibIPC LibImageDecoderClient LibMain LibThreading)

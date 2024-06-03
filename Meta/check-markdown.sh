@@ -18,10 +18,10 @@ if [ -z "${MARKDOWN_CHECK_BINARY:-}" ] ; then
     MARKDOWN_CHECK_BINARY="Build/lagom/bin/markdown-check"
 fi
 
-if [ -z "$SERENITY_SOURCE_DIR" ] ; then
-    SERENITY_SOURCE_DIR=$(pwd -P)
-    export SERENITY_SOURCE_DIR
+if [ -z "$LADYBIRD_SOURCE_DIR" ] ; then
+    LADYBIRD_SOURCE_DIR=$(pwd -P)
+    export LADYBIRD_SOURCE_DIR
 fi
 
 # shellcheck disable=SC2086 # Word splitting is intentional here
-find AK Base Documentation Meta Tests Userland -path Tests/LibWeb/WPT/wpt -prune -o -type f -name '*.md' -print0 | xargs -0 "${MARKDOWN_CHECK_BINARY}" -b "${SERENITY_SOURCE_DIR}/Base" $EXTRA_MARKDOWN_CHECK_ARGS README.md CONTRIBUTING.md
+find AK Base Documentation Meta Tests Userland -path Tests/LibWeb/WPT/wpt -prune -o -type f -name '*.md' -print0 | xargs -0 "${MARKDOWN_CHECK_BINARY}" -b "${LADYBIRD_SOURCE_DIR}/Base" $EXTRA_MARKDOWN_CHECK_ARGS README.md CONTRIBUTING.md

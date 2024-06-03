@@ -76,7 +76,7 @@ is_valid_target() {
 }
 
 create_build_dir() {
-    cmake -GNinja "${CMAKE_ARGS[@]}" -S "$SERENITY_SOURCE_DIR/Meta/Lagom" -B "$BUILD_DIR"
+    cmake -GNinja "${CMAKE_ARGS[@]}" -S "$LADYBIRD_SOURCE_DIR/Meta/Lagom" -B "$BUILD_DIR"
 }
 
 cmd_with_target() {
@@ -86,14 +86,14 @@ cmd_with_target() {
     CMAKE_ARGS+=("-DCMAKE_C_COMPILER=${CC}")
     CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER=${CXX}")
 
-    if [ ! -d "$SERENITY_SOURCE_DIR" ]; then
-        SERENITY_SOURCE_DIR="$(get_top_dir)"
-        export SERENITY_SOURCE_DIR
+    if [ ! -d "$LADYBIRD_SOURCE_DIR" ]; then
+        LADYBIRD_SOURCE_DIR="$(get_top_dir)"
+        export LADYBIRD_SOURCE_DIR
     fi
-    BUILD_DIR="$SERENITY_SOURCE_DIR/Build/lagom"
-    CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$SERENITY_SOURCE_DIR/Build/lagom-install")
-    CMAKE_ARGS+=("-DSERENITY_CACHE_DIR=${SERENITY_SOURCE_DIR}/Build/caches")
-    export PATH="$SERENITY_SOURCE_DIR/Toolchain/Local/cmake/bin":$PATH
+    BUILD_DIR="$LADYBIRD_SOURCE_DIR/Build/lagom"
+    CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/lagom-install")
+    CMAKE_ARGS+=("-DSERENITY_CACHE_DIR=${LADYBIRD_SOURCE_DIR}/Build/caches")
+    export PATH="$LADYBIRD_SOURCE_DIR/Toolchain/Local/cmake/bin":$PATH
 }
 
 ensure_target() {
@@ -117,10 +117,10 @@ build_target() {
     if [ "${CMD_ARGS[0]}" = "ladybird" ]; then
         EXTRA_CMAKE_ARGS=("-DENABLE_LAGOM_LADYBIRD=ON")
     fi
-    cmake -S "$SERENITY_SOURCE_DIR/Meta/Lagom" -B "$BUILD_DIR" -DBUILD_LAGOM=ON "${EXTRA_CMAKE_ARGS[@]}"
+    cmake -S "$LADYBIRD_SOURCE_DIR/Meta/Lagom" -B "$BUILD_DIR" -DBUILD_LAGOM=ON "${EXTRA_CMAKE_ARGS[@]}"
 
     # Get either the environment MAKEJOBS or all processors via CMake
-    [ -z "$MAKEJOBS" ] && MAKEJOBS=$(cmake -P "$SERENITY_SOURCE_DIR/Meta/CMake/processor-count.cmake")
+    [ -z "$MAKEJOBS" ] && MAKEJOBS=$(cmake -P "$LADYBIRD_SOURCE_DIR/Meta/CMake/processor-count.cmake")
 
     # With zero args, we are doing a standard "build"
     # With multiple args, we are doing an install/run
@@ -137,11 +137,11 @@ delete_target() {
 
 build_cmake() {
     echo "CMake version too old: build_cmake"
-    ( cd "$SERENITY_SOURCE_DIR/Toolchain" && ./BuildCMake.sh )
+    ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildCMake.sh )
 }
 
 ensure_toolchain() {
-    if [ "$(cmake -P "$SERENITY_SOURCE_DIR"/Meta/CMake/cmake-version.cmake)" -ne 1 ]; then
+    if [ "$(cmake -P "$LADYBIRD_SOURCE_DIR"/Meta/CMake/cmake-version.cmake)" -ne 1 ]; then
         build_cmake
     fi
 }

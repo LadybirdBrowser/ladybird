@@ -1,5 +1,5 @@
-file(STRINGS "${SERENITY_SOURCE_DIR}/Meta/emoji-file-list.txt" EMOJI)
-list(TRANSFORM EMOJI PREPEND "${SERENITY_SOURCE_DIR}/Base/res/emoji/")
+file(STRINGS "${LADYBIRD_SOURCE_DIR}/Meta/emoji-file-list.txt" EMOJI)
+list(TRANSFORM EMOJI PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/emoji/")
 
 set(FONTS
     CsillaBold10.font
@@ -14,7 +14,7 @@ set(FONTS
     KaticaRegular12.font
     SerenitySans-Regular.ttf
 )
-list(TRANSFORM FONTS PREPEND "${SERENITY_SOURCE_DIR}/Base/res/fonts/")
+list(TRANSFORM FONTS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/fonts/")
 
 set(16x16_ICONS
     app-browser.png
@@ -60,9 +60,9 @@ set(BROWSER_ICONS
     dom-tree.png
     local-storage.png
 )
-list(TRANSFORM 16x16_ICONS PREPEND "${SERENITY_SOURCE_DIR}/Base/res/icons/16x16/")
-list(TRANSFORM 32x32_ICONS PREPEND "${SERENITY_SOURCE_DIR}/Base/res/icons/32x32/")
-list(TRANSFORM BROWSER_ICONS PREPEND "${SERENITY_SOURCE_DIR}/Base/res/icons/browser/")
+list(TRANSFORM 16x16_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/16x16/")
+list(TRANSFORM 32x32_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/32x32/")
+list(TRANSFORM BROWSER_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/browser/")
 
 set(WEB_RESOURCES
     about.html
@@ -75,20 +75,20 @@ set(WEB_TEMPLATES
     error.html
     version.html
 )
-list(TRANSFORM WEB_RESOURCES PREPEND "${SERENITY_SOURCE_DIR}/Base/res/ladybird/")
-list(TRANSFORM WEB_TEMPLATES PREPEND "${SERENITY_SOURCE_DIR}/Base/res/ladybird/templates/")
+list(TRANSFORM WEB_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/")
+list(TRANSFORM WEB_TEMPLATES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/templates/")
 
 set(THEMES
     Default.ini
     Dark.ini
 )
-list(TRANSFORM THEMES PREPEND "${SERENITY_SOURCE_DIR}/Base/res/themes/")
+list(TRANSFORM THEMES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/themes/")
 
 set(CONFIG_RESOURCES
     BrowserAutoplayAllowlist.txt
     BrowserContentFilters.txt
 )
-list(TRANSFORM CONFIG_RESOURCES PREPEND "${SERENITY_SOURCE_DIR}/Base/home/anon/.config/")
+list(TRANSFORM CONFIG_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/home/anon/.config/")
 
 set(DOWNLOADED_RESOURCES
     cacert.pem

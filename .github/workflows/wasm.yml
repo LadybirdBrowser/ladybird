@@ -2,7 +2,7 @@ name: Build Wasm Modules
 on: [ push, pull_request ]
 
 env:
-  SERENITY_SOURCE_DIR: ${{ github.workspace }}
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   SERENITY_CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 concurrency: wasm
