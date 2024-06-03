@@ -149,14 +149,6 @@ void WebContentClient::did_change_url(u64 page_id, URL::URL const& url)
     }
 }
 
-void WebContentClient::did_request_scroll_to(u64 page_id, Gfx::IntPoint scroll_position)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_scroll_to_point)
-            view->on_scroll_to_point(scroll_position);
-    }
-}
-
 void WebContentClient::did_enter_tooltip_area(u64 page_id, Gfx::IntPoint content_position, ByteString const& title)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
