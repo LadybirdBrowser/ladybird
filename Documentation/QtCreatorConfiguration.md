@@ -2,16 +2,16 @@
 
 ## Setup
 
-First, make sure you have a working toolchain and can build and run SerenityOS. Go [here](BuildInstructions.md) for instructions for setting that up.
+First, make sure you have a working toolchain and can build and run Ladybird. Go [here](BuildInstructions.md) for instructions for setting that up.
 
 * Install [Qt Creator](https://www.qt.io/offline-installers). You don't need the entire Qt setup, just click 'Qt Creator' on the left side, and install that.
 * Open Qt Creator, select `File -> New File or Project...`
 * Select `Import Existing Project`
-* Give it a name (some tools assume lower-case `ladybird`), and navigate to the root of your SerenityOS project checkout. Click Next.
+* Give it a name (some tools assume lower-case `ladybird`), and navigate to the root of your Ladybird project checkout. Click Next.
 * Wait for the file list to generate. This can take a minute or two!
 * Ignore the file list, we will overwrite it later. Click Next.
 * Set `Add to version control` to `<None>`. Click Finish.
-* In your shell, go to your SerenityOS project directory, and invoke the `Meta/refresh-ladybird-qtcreator.sh` script to regenerate the `ladybird.files` file. You will also have to do this every time you delete or add a new file to the project.
+* In your shell, go to your Ladybird project directory, and invoke the `Meta/refresh-ladybird-qtcreator.sh` script to regenerate the `ladybird.files` file. You will also have to do this every time you delete or add a new file to the project.
 * Edit the `ladybird.config` file (In Qt Creator, hit ^K or CMD+K on a Mac to open the search dialog, type the name of the file and hit return to open it)
 * Add the following `#define`s to the file:
     ```
@@ -78,7 +78,7 @@ In order to so, create a new file anywhere, for example `license-template.creato
 
 ```
 /*
- * Copyright (c) 2023, the SerenityOS developers.
+ * Copyright (c) 2024, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
