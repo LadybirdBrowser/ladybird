@@ -66,7 +66,6 @@ executable("ladybird_executable") {
     "//AK",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibFileSystem",
-    "//Userland/Libraries/LibGUI",
     "//Userland/Libraries/LibGfx",
     "//Userland/Libraries/LibIPC",
     "//Userland/Libraries/LibImageDecoderClient",
