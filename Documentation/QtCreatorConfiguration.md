@@ -11,8 +11,8 @@ First, make sure you have a working toolchain and can build and run SerenityOS. 
 * Wait for the file list to generate. This can take a minute or two!
 * Ignore the file list, we will overwrite it later. Click Next.
 * Set `Add to version control` to `<None>`. Click Finish.
-* In your shell, go to your SerenityOS project directory, and invoke the `Meta/refresh-serenity-qtcreator.sh` script to regenerate the `serenity.files` file. You will also have to do this every time you delete or add a new file to the project.
-* Edit the `serenity.config` file (In Qt Creator, hit ^K or CMD+K on a Mac to open the search dialog, type the name of the file and hit return to open it)
+* In your shell, go to your SerenityOS project directory, and invoke the `Meta/refresh-ladybird-qtcreator.sh` script to regenerate the `ladybird.files` file. You will also have to do this every time you delete or add a new file to the project.
+* Edit the `ladybird.config` file (In Qt Creator, hit ^K or CMD+K on a Mac to open the search dialog, type the name of the file and hit return to open it)
 * Add the following `#define`s to the file:
     ```
     #define ENABLE_UNICODE_DATA 1
@@ -22,8 +22,8 @@ First, make sure you have a working toolchain and can build and run SerenityOS. 
     #define SANITIZE_PTRS 1
     #define __SSE__
     ```
-* Edit the `serenity.cxxflags` file to say `-std=c++23 -fsigned-char -fconcepts -fno-exceptions -fno-semantic-interposition -fPIC`
-* Edit the `serenity.includes` file to list the following lines:
+* Edit the `ladybird.cxxflags` file to say `-std=c++23 -fsigned-char -fconcepts -fno-exceptions -fno-semantic-interposition -fPIC`
+* Edit the `ladybird.includes` file to list the following lines:
     ```
     ./
     Userland/
