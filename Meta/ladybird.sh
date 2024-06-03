@@ -67,21 +67,11 @@ get_top_dir() {
     git rev-parse --show-toplevel
 }
 
-is_valid_target() {
-    CMAKE_ARGS+=("-DBUILD_LAGOM=ON")
-    if [ "${CMD_ARGS[0]}" = "ladybird" ]; then
-        CMAKE_ARGS+=("-DENABLE_LAGOM_LADYBIRD=ON")
-    fi
-    return 0
-}
-
 create_build_dir() {
-    cmake -GNinja "${CMAKE_ARGS[@]}" -S "$LADYBIRD_SOURCE_DIR/Meta/Lagom" -B "$BUILD_DIR"
+    cmake -GNinja "${CMAKE_ARGS[@]}" -S "$LADYBIRD_SOURCE_DIR" -B "$BUILD_DIR"
 }
 
 cmd_with_target() {
-    is_valid_target || ( >&2 echo "Unknown target: $TARGET"; usage )
-
     pick_host_compiler
     CMAKE_ARGS+=("-DCMAKE_C_COMPILER=${CC}")
     CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER=${CXX}")
@@ -90,7 +80,7 @@ cmd_with_target() {
         LADYBIRD_SOURCE_DIR="$(get_top_dir)"
         export LADYBIRD_SOURCE_DIR
     fi
-    BUILD_DIR="$LADYBIRD_SOURCE_DIR/Build/lagom"
+    BUILD_DIR="$LADYBIRD_SOURCE_DIR/Build/ladybird"
     CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/lagom-install")
     CMAKE_ARGS+=("-DSERENITY_CACHE_DIR=${LADYBIRD_SOURCE_DIR}/Build/caches")
     export PATH="$LADYBIRD_SOURCE_DIR/Toolchain/Local/cmake/bin":$PATH
@@ -113,12 +103,6 @@ run_tests() {
 }
 
 build_target() {
-    local EXTRA_CMAKE_ARGS=()
-    if [ "${CMD_ARGS[0]}" = "ladybird" ]; then
-        EXTRA_CMAKE_ARGS=("-DENABLE_LAGOM_LADYBIRD=ON")
-    fi
-    cmake -S "$LADYBIRD_SOURCE_DIR/Meta/Lagom" -B "$BUILD_DIR" -DBUILD_LAGOM=ON "${EXTRA_CMAKE_ARGS[@]}"
-
     # Get either the environment MAKEJOBS or all processors via CMake
     [ -z "$MAKEJOBS" ] && MAKEJOBS=$(cmake -P "$LADYBIRD_SOURCE_DIR/Meta/CMake/processor-count.cmake")
 
@@ -163,10 +147,6 @@ run_gdb() {
                 die "Lagom executable can't be specified more than once"
             fi
             LAGOM_EXECUTABLE="$arg"
-            if [ "$LAGOM_EXECUTABLE" = "ladybird" ]; then
-                # FIXME: Make ladybird less cwd-dependent while in the build directory
-                cd "$BUILD_DIR/Ladybird"
-            fi
         fi
     done
     if [ "$PASS_ARG_TO_GDB" != "" ]; then

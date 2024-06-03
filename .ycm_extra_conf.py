@@ -32,42 +32,12 @@
 # For more information, please refer to <http://unlicense.org/>
 
 import os
-import subprocess
 import ycm_core
 
 DIR_OF_THIS_SCRIPT = os.path.abspath(os.path.dirname(__file__))
 SOURCE_EXTENSIONS = ['.cpp', '.c']
 
-gcc_path = None
-for serenity_arch in ['x86_64', 'aarch64']:
-    candidate_gcc_path = os.path.join(
-        DIR_OF_THIS_SCRIPT, 'Toolchain',
-        'Local', serenity_arch, 'bin', f'{serenity_arch}-pc-serenity-gcc'
-    )
-    if os.path.isfile(candidate_gcc_path):
-        gcc_path = candidate_gcc_path
-        break
-
-serenity_flags = [
-    '-D__serenity__',
-    '-D__unix__'
-]
-
-if gcc_path:
-    gcc_output = subprocess.check_output(
-      [gcc_path, '-E', '-Wp,-v', '-'],
-      stdin=subprocess.DEVNULL, stderr=subprocess.STDOUT
-    ).rstrip().decode('utf8').split("\n")
-
-    for line in gcc_output:
-        if not line.startswith(' '):
-            continue
-        include_path = line.lstrip()
-        if '/../Build/' in include_path:
-            continue
-        serenity_flags.extend(('-isystem', include_path))
-
-database = ycm_core.CompilationDatabase(os.path.join(DIR_OF_THIS_SCRIPT, f'Build/{serenity_arch}'))
+database = ycm_core.CompilationDatabase(os.path.join(DIR_OF_THIS_SCRIPT, 'Build/ladybird'))
 
 
 def is_header_file(filename):
@@ -85,14 +55,7 @@ def find_corresponding_source_file(filename):
     return filename
 
 
-def startswith_any(string, prefixes):
-    for prefix in prefixes:
-        if string.startswith(prefix):
-            return True
-    return False
-
-
-def Settings(**kwargs):
+def Settings(**kwargs):  # noqa: N802
     if kwargs['language'] != 'cfamily':
         return {}
     # If the file is a header, try to find the corresponding source file and
@@ -107,16 +70,8 @@ def Settings(**kwargs):
     if not compilation_info.compiler_flags_:
         return {}
 
-    ignored_flags = [
-        '--sysroot',
-        '-fzero-call-used-regs=used-gpr',
-    ]
-
-    final_flags = [flag for flag in compilation_info.compiler_flags_ if not startswith_any(flag, ignored_flags)]
-    final_flags.extend(serenity_flags)
-
     return {
-        'flags': final_flags,
+        'flags': compilation_info.compiler_flags_,
         'include_paths_relative_to_dir': DIR_OF_THIS_SCRIPT,
         'override_filename': filename
     }

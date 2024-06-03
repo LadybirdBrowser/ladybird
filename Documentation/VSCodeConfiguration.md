@@ -17,12 +17,12 @@ Clangd has the best support for cross-compiling workflows, especially if configu
 
 The official clangd extension can be used for C++ comprehension. It is recommended in general, as it is most likely to work on all platforms.
 
-clangd uses ``compile_commands.json`` files to understand the project. CMake will generate these in Build/lagom.
+clangd uses ``compile_commands.json`` files to understand the project. CMake will generate these in Build/ladybird.
 Depending on which configuration you use most, set the CompilationDatabase configuration item in the below ``.clangd`` file accordingly. It goes at the root of your checkout (``ladybird/.clangd``):
 
 ```yaml
 CompileFlags:
-  CompilationDatabase: Build/lagom
+  CompilationDatabase: Build/ladybird
   
 Diagnostics:
   UnusedIncludes: None
@@ -60,10 +60,10 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "name": "ladybird-gcc",
             "includePath": [
                 "${workspaceFolder}",
-                "${workspaceFolder}/Build/lagom/",
-                "${workspaceFolder}/Build/lagom/Userland",
-                "${workspaceFolder}/Build/lagom/Userland/Libraries",
-                "${workspaceFolder}/Build/lagom/Userland/Services",
+                "${workspaceFolder}/Build/ladybird/",
+                "${workspaceFolder}/Build/ladybird/Userland",
+                "${workspaceFolder}/Build/ladybird/Userland/Libraries",
+                "${workspaceFolder}/Build/ladybird/Userland/Services",
                 "${workspaceFolder}/Userland",
                 "${workspaceFolder}/Userland/Libraries",
                 "${workspaceFolder}/Userland/Services"
@@ -74,7 +74,7 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "cStandard": "c17",
             "cppStandard": "c++23",
             "intelliSenseMode": "linux-gcc-x86",
-            "compileCommands": "Build/lagom/compile_commands.json",
+            "compileCommands": "Build/ladybird/compile_commands.json",
             "compilerArgs": [
                 "-Wall",
                 "-Wextra",
@@ -83,16 +83,16 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "browse": {
                 "path": [
                     "${workspaceFolder}",
-                    "${workspaceFolder}/Build/lagom/",
-                    "${workspaceFolder}/Build/lagom/Userland",
-                    "${workspaceFolder}/Build/lagom/Userland/Libraries",
-                    "${workspaceFolder}/Build/lagom/Userland/Services",
+                    "${workspaceFolder}/Build/ladybird/",
+                    "${workspaceFolder}/Build/ladybird/Userland",
+                    "${workspaceFolder}/Build/ladybird/Userland/Libraries",
+                    "${workspaceFolder}/Build/ladybird/Userland/Services",
                     "${workspaceFolder}/Userland",
                     "${workspaceFolder}/Userland/Libraries",
                     "${workspaceFolder}/Userland/Services"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
-                "databaseFilename": "${workspaceFolder}/Build/lagom/"
+                "databaseFilename": "${workspaceFolder}/Build/ladybird/"
             }
         }
     ],
@@ -165,7 +165,7 @@ The following three example tasks should suffice in most situations, and allow y
                     "base": "$gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/lagom"
+                        "${workspaceFolder}/Build/ladybird"
                     ]
                 }
             ],
@@ -199,14 +199,14 @@ The following three example tasks should suffice in most situations, and allow y
                     "base": "$gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/lagom"
+                        "${workspaceFolder}/Build/ladybird"
                     ]
                 },
                 {
                     "source": "gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/lagom"
+                        "${workspaceFolder}/Build/ladybird"
                     ],
                     "pattern": [
                         {
@@ -241,14 +241,14 @@ The following three example tasks should suffice in most situations, and allow y
                     "base": "$gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/lagom"
+                        "${workspaceFolder}/Build/ladybird"
                     ]
                 },
                 {
                     "source": "gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/lagom"
+                        "${workspaceFolder}/Build/ladybird"
                     ],
                     "pattern": [
                         {
@@ -275,7 +275,7 @@ The following three example tasks should suffice in most situations, and allow y
                     ],
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/lagom"
+                        "${workspaceFolder}/Build/ladybird"
                     ]
                 }
             ]

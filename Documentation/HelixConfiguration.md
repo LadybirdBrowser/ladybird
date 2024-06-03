@@ -4,7 +4,7 @@ Helix comes with support for `clangd` and `clang-format` out of the box! However
 The following `.clangd` should be placed in the project root:
 ```yaml
 CompileFlags:
-  CompilationDatabase: Build/lagom
+  CompilationDatabase: Build/ladybird
 
 Diagnostics:
   UnusedIncludes: None
@@ -21,5 +21,3 @@ args = ["--header-insertion=never"]
 name = "cpp"
 language-servers = ["ladybird"]
 ```
-
-> Make sure to replace `/path/to/ladybird` with the actual path in the snippet above!

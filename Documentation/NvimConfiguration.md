@@ -180,7 +180,7 @@ nmap <silent>gs :CocCommand clangd.switchSourceHeader vsplit<CR>
 > **Note**: Every time a new source is added or the compilation commands get adjusted
 (through CMake) you need to rerun `./Meta/ladybird.sh rebuild`.
 
-Link `ln -s /path/to/ladybird/Build/lagom/compile_commands.json /path/to/ladybird/compile_commands.json`.
+Link `ln -s /path/to/ladybird/Build/ladybird/compile_commands.json /path/to/ladybird/compile_commands.json`.
 
 Create `/path/to/ladybird/.clangd` (replace `/path/to/ladybird`
 with your ladybird directory) with content of the clangd section in the

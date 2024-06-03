@@ -4,7 +4,7 @@ CLion can integrate with CMake to provide code comprehension features.
 
 After opening the `ladybird` repository in CLion as a new project, the "`Open Project Wizard`" window will open, from here set the following fields:
 
-(Assuming you use `Ninja` as the build system and configured the CMake build directory to `Build/lagom`)
+(Assuming you use `Ninja` as the build system and configured the CMake build directory to `Build/ladybird`)
 
 `CMake Options`:
 ```
@@ -12,7 +12,7 @@ After opening the `ladybird` repository in CLion as a new project, the "`Open Pr
 -GNinja
 ```
 
-`Build Directory`: `Build/lagom`
+`Build Directory`: `Build/ladybird`
 
 If you already have the project open, you can go to `File -> Settings -> Build, Execution, Deployment -> CMake` to find these options.
 

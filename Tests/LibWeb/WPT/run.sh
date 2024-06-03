@@ -11,7 +11,7 @@ then
 fi
 
 
-: "${WEBDRIVER_BINARY:=$(env PATH="${LADYBIRD_SOURCE_DIR}/Build/lagom/bin/Ladybird.app/Contents/MacOS:${LADYBIRD_SOURCE_DIR}/Build/lagom/bin:${LADYBIRD_SOURCE_DIR}/Meta/Lagom/Build/bin:${PATH}" \
+: "${WEBDRIVER_BINARY:=$(env PATH="${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin/Ladybird.app/Contents/MacOS:${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin:${LADYBIRD_SOURCE_DIR}/Build/bin:${PATH}" \
                          which WebDriver)}"
 update_expectations_metadata=false
 remove_wpt_repository=false
