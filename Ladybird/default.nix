@@ -7,6 +7,7 @@ mkShell.override { stdenv = gcc13Stdenv; } {
     libxcrypt
     ninja
     pkg-config
+    python3
     qt6.qtbase
     qt6.qtbase.dev
     qt6.qtmultimedia
