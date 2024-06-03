@@ -13,7 +13,6 @@ jobs:
     steps:
       - name: Lint PR commits
         uses: actions/github-script@v7
-        github-token: ${{ secrets.LADYBIRD_BOT_TOKEN }}
         with:
           script: |
             const excludedBotIds = [
