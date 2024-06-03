@@ -31,6 +31,9 @@ void FontDatabase::load_all_fonts_from_uri(StringView uri)
 {
     auto root_or_error = Core::Resource::load_from_uri(uri);
     if (root_or_error.is_error()) {
+        if (root_or_error.error().is_errno() && root_or_error.error().code() == ENOENT) {
+            return;
+        }
         dbgln("FontDatabase::load_all_fonts_from_uri('{}'): {}", uri, root_or_error.error());
         return;
     }
