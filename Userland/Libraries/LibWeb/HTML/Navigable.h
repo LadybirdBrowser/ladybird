@@ -160,11 +160,10 @@ public:
     CSSPixelRect to_top_level_rect(CSSPixelRect const&);
 
     CSSPixelSize size() const { return m_size; }
-    void set_size(CSSPixelSize);
 
     CSSPixelPoint viewport_scroll_offset() const { return m_viewport_scroll_offset; }
     CSSPixelRect viewport_rect() const { return { m_viewport_scroll_offset, m_size }; }
-    void set_viewport_rect(CSSPixelRect const&);
+    void set_viewport_size(CSSPixelSize);
     void perform_scroll_of_viewport(CSSPixelPoint position);
 
     void set_needs_display();

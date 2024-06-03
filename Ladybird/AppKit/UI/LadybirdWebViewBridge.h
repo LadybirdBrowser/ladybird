@@ -53,18 +53,17 @@ public:
 
     Function<NonnullRefPtr<WebView::WebContentClient>()> on_request_web_content;
     Function<void()> on_zoom_level_changed;
-    Function<void(Gfx::IntPoint)> on_scroll;
 
 private:
     WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const&, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme);
 
     virtual void update_zoom() override;
-    virtual Web::DevicePixelRect viewport_rect() const override;
+    virtual Web::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
 
     Vector<Web::DevicePixelRect> m_screen_rects;
-    Gfx::IntRect m_viewport_rect;
+    Gfx::IntSize m_viewport_size;
 
     WebContentOptions m_web_content_options;
     Optional<StringView> m_webdriver_content_ipc_path;

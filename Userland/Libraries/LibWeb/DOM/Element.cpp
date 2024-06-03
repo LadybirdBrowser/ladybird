@@ -890,7 +890,7 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Element::get_client_rects() const
 
     if (auto const* paintable_box = this->paintable_box()) {
         transform = Gfx::extract_2d_affine_transform(paintable_box->transform());
-        for (auto const* containing_block = paintable->containing_block(); containing_block; containing_block = containing_block->containing_block()) {
+        for (auto const* containing_block = paintable->containing_block(); !containing_block->is_viewport(); containing_block = containing_block->containing_block()) {
             transform = Gfx::extract_2d_affine_transform(containing_block->transform()).multiply(transform);
             scroll_offset.translate_by(containing_block->scroll_offset());
         }

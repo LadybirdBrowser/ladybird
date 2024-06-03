@@ -1146,6 +1146,11 @@ void Document::update_layout()
     paintable()->recompute_selection_states();
 
     m_needs_layout = false;
+
+    // Scrolling by zero offset will clamp scroll offset back to valid range if it was out of bounds
+    // after the viewport size change.
+    if (auto window = this->window())
+        window->scroll_by(0, 0);
 }
 
 [[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(Node& node, CSS::StyleComputer& style_computer)

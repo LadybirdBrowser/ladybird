@@ -203,6 +203,8 @@ public:
 
     Optional<CSSPixelRect> get_clip_rect() const;
 
+    bool is_viewport() const { return layout_box().is_viewport(); }
+
 protected:
     explicit PaintableBox(Layout::Box const&);
 

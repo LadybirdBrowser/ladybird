@@ -58,7 +58,7 @@ private:
     virtual void load_html(u64 page_id, ByteString const&) override;
     virtual void reload(u64 page_id) override;
     virtual void traverse_the_history_by_delta(u64 page_id, i32 delta) override;
-    virtual void set_viewport_rect(u64 page_id, Web::DevicePixelRect const&) override;
+    virtual void set_viewport_size(u64 page_id, Web::DevicePixelSize const) override;
     virtual void key_event(u64 page_id, Web::KeyEvent const&) override;
     virtual void mouse_event(u64 page_id, Web::MouseEvent const&) override;
     virtual void add_backing_store(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap const& front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap const& back_bitmap) override;

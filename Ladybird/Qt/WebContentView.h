@@ -90,11 +90,11 @@ private:
     // ^WebView::ViewImplementation
     virtual void initialize_client(CreateNewClient) override;
     virtual void update_zoom() override;
-    virtual Web::DevicePixelRect viewport_rect() const override;
+    virtual Web::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
 
-    void update_viewport_rect();
+    void update_viewport_size();
     void update_cursor(Gfx::StandardCursor cursor);
 
     void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
@@ -104,7 +104,7 @@ private:
 
     bool m_should_show_line_box_borders { false };
 
-    Gfx::IntRect m_viewport_rect;
+    Gfx::IntSize m_viewport_size;
 
     WebContentOptions m_web_content_options;
     StringView m_webdriver_content_ipc_path;

@@ -233,9 +233,9 @@ void PageClient::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& ta
     }
 }
 
-void PageClient::set_viewport_rect(Web::DevicePixelRect const& rect)
+void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
 {
-    page().top_level_traversable()->set_viewport_rect(page().device_to_css_rect(rect));
+    page().top_level_traversable()->set_viewport_size(page().device_to_css_size(size));
 }
 
 void PageClient::page_did_request_cursor_change(Gfx::StandardCursor cursor)
@@ -321,7 +321,7 @@ void PageClient::page_did_request_scroll_to(Web::CSSPixelPoint scroll_position)
     //       scroll on browser side happens.
     auto viewport = page().top_level_traversable()->viewport_rect();
     viewport.set_location(scroll_position);
-    page().top_level_traversable()->set_viewport_rect(viewport);
+    page().top_level_traversable()->set_viewport_size(viewport.size());
 
     auto device_scroll_position = page().css_to_device_point(scroll_position);
     client().async_did_request_scroll_to(m_id, device_scroll_position.to_type<int>());

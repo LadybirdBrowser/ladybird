@@ -29,7 +29,7 @@ endpoint WebContentServer
     add_backing_store(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) =|
     ready_to_paint(u64 page_id) =|
 
-    set_viewport_rect(u64 page_id, Web::DevicePixelRect rect) =|
+    set_viewport_size(u64 page_id, Web::DevicePixelSize size) =|
 
     key_event(u64 page_id, Web::KeyEvent event) =|
     mouse_event(u64 page_id, Web::MouseEvent event) =|

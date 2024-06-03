@@ -151,12 +151,15 @@ Painting::PaintableBox const* EventHandler::paint_root() const
     return m_navigable->active_document()->paintable_box();
 }
 
-bool EventHandler::handle_mousewheel(CSSPixelPoint position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int wheel_delta_x, int wheel_delta_y)
+bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int wheel_delta_x, int wheel_delta_y)
 {
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
         return false;
+
+    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
+    auto position = viewport_position.translated(scroll_offset);
 
     m_navigable->active_document()->update_layout();
 
@@ -214,12 +217,15 @@ bool EventHandler::handle_mousewheel(CSSPixelPoint position, CSSPixelPoint scree
     return handled_event;
 }
 
-bool EventHandler::handle_mouseup(CSSPixelPoint position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+bool EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
         return false;
+
+    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
+    auto position = viewport_position.translated(scroll_offset);
 
     m_navigable->active_document()->update_layout();
 
@@ -292,8 +298,6 @@ bool EventHandler::handle_mouseup(CSSPixelPoint position, CSSPixelPoint screen_p
                 //
                 //        https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
 
-                auto top_level_position = m_navigable->active_document()->navigable()->to_top_level_position(position);
-
                 if (JS::GCPtr<HTML::HTMLAnchorElement const> link = node->enclosing_link_element()) {
                     JS::NonnullGCPtr<DOM::Document> document = *m_navigable->active_document();
                     auto href = link->href();
@@ -302,13 +306,13 @@ bool EventHandler::handle_mouseup(CSSPixelPoint position, CSSPixelPoint screen_p
                     if (button == UIEvents::MouseButton::Middle) {
                         m_navigable->page().client().page_did_middle_click_link(url, link->target().to_byte_string(), modifiers);
                     } else if (button == UIEvents::MouseButton::Secondary) {
-                        m_navigable->page().client().page_did_request_link_context_menu(top_level_position, url, link->target().to_byte_string(), modifiers);
+                        m_navigable->page().client().page_did_request_link_context_menu(viewport_position, url, link->target().to_byte_string(), modifiers);
                     }
                 } else if (button == UIEvents::MouseButton::Secondary) {
                     if (is<HTML::HTMLImageElement>(*node)) {
                         auto& image_element = verify_cast<HTML::HTMLImageElement>(*node);
                         auto image_url = image_element.document().parse_url(image_element.src());
-                        m_navigable->page().client().page_did_request_image_context_menu(top_level_position, image_url, "", modifiers, image_element.bitmap());
+                        m_navigable->page().client().page_did_request_image_context_menu(viewport_position, image_url, "", modifiers, image_element.bitmap());
                     } else if (is<HTML::HTMLMediaElement>(*node)) {
                         auto& media_element = verify_cast<HTML::HTMLMediaElement>(*node);
 
@@ -321,9 +325,9 @@ bool EventHandler::handle_mouseup(CSSPixelPoint position, CSSPixelPoint screen_p
                             .is_looping = media_element.has_attribute(HTML::AttributeNames::loop),
                         };
 
-                        m_navigable->page().did_request_media_context_menu(media_element.unique_id(), top_level_position, "", modifiers, move(menu));
+                        m_navigable->page().did_request_media_context_menu(media_element.unique_id(), viewport_position, "", modifiers, move(menu));
                     } else {
-                        m_navigable->page().client().page_did_request_context_menu(top_level_position);
+                        m_navigable->page().client().page_did_request_context_menu(viewport_position);
                     }
                 }
             }
@@ -336,12 +340,15 @@ after_node_use:
     return handled_event;
 }
 
-bool EventHandler::handle_mousedown(CSSPixelPoint position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
         return false;
+
+    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
+    auto position = viewport_position.translated(scroll_offset);
 
     m_navigable->active_document()->update_layout();
 
@@ -436,12 +443,15 @@ bool EventHandler::handle_mousedown(CSSPixelPoint position, CSSPixelPoint screen
     return true;
 }
 
-bool EventHandler::handle_mousemove(CSSPixelPoint position, CSSPixelPoint screen_position, u32 buttons, u32 modifiers)
+bool EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 buttons, u32 modifiers)
 {
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
         return false;
+
+    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
+    auto position = viewport_position.translated(scroll_offset);
 
     m_navigable->active_document()->update_layout();
 
@@ -562,12 +572,15 @@ bool EventHandler::handle_mousemove(CSSPixelPoint position, CSSPixelPoint screen
     return true;
 }
 
-bool EventHandler::handle_doubleclick(CSSPixelPoint position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+bool EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
         return false;
+
+    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
+    auto position = viewport_position.translated(scroll_offset);
 
     m_navigable->active_document()->update_layout();
 
