@@ -434,7 +434,6 @@ if (BUILD_LAGOM)
         Audio
         Compress
         Crypto
-        Diff
         Gemini
         Gfx
         HTTP
