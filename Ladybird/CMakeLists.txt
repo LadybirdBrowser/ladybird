@@ -1,101 +1,3 @@
-cmake_minimum_required(VERSION 3.23)
-
-project(ladybird
-    VERSION 0.0.1
-    LANGUAGES CXX
-    DESCRIPTION "Ladybird Web Browser"
-)
-
-include(GNUInstallDirs)
-
-if (ANDROID OR IOS)
-    set(BUILD_SHARED_LIBS OFF)
-endif()
-
-# FIXME: The rpath steps from lagom_install_rules.cmake do not produce a working binary
-#        in the build directory on macOS.
-#        We need to copy the libs into the build directory bundle as the install rules do.
-set(CMAKE_SKIP_BUILD_RPATH FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-# See slide 100 of the following ppt :^)
-# https://crascit.com/wp-content/uploads/2019/09/Deep-CMake-For-Library-Authors-Craig-Scott-CppCon-2019.pdf
-if (NOT APPLE)
-    set(CMAKE_INSTALL_RPATH $ORIGIN;$ORIGIN/../${CMAKE_INSTALL_LIBDIR})
-endif()
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-if (ENABLE_ADDRESS_SANITIZER)
-    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-    add_link_options(-fsanitize=address)
-endif()
-
-if (ENABLE_MEMORY_SANITIZER)
-    add_compile_options(-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer)
-    add_link_options(-fsanitize=memory -fsanitize-memory-track-origins)
-endif()
-
-if (ENABLE_UNDEFINED_SANITIZER)
-    add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
-    if (UNDEFINED_BEHAVIOR_IS_FATAL)
-        add_compile_options(-fno-sanitize-recover=undefined)
-    endif()
-    if (APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "17")
-        add_compile_options(-fno-sanitize=function)
-    endif()
-    add_link_options(-fsanitize=undefined)
-endif()
-
-if (HAIKU)
-    # Haiku needs some extra compile definitions to make important stuff in its headers available.
-    add_compile_definitions(_DEFAULT_SOURCE)
-    add_compile_definitions(_GNU_SOURCE)
-    add_compile_definitions(__USE_GNU)
-endif()
-
-# Lagom
-set(LADYBIRD_CUSTOM_TARGET_SUFFIX "-ladybird")
-if (PROJECT_IS_TOP_LEVEL)
-    set(LADYBIRD_CUSTOM_TARGET_SUFFIX "")
-endif()
-
-if (PROJECT_IS_TOP_LEVEL)
-    get_filename_component(
-        LADYBIRD_SOURCE_DIR "${ladybird_SOURCE_DIR}/.."
-        ABSOLUTE
-    )
-    list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_SOURCE_DIR}/Meta/CMake")
-    include(cmake/EnableLagom.cmake)
-    include(use_linker)
-    include(lagom_compile_options)
-    include(lagom_install_options)
-else()
-    # FIXME: Use LADYBIRD_SOURCE_DIR in Lagom/CMakeLists.txt
-    set(LADYBIRD_SOURCE_DIR "${SERENITY_PROJECT_ROOT}")
-endif()
-
-add_compile_options(-DAK_DONT_REPLACE_STD)
-add_compile_options(-Wno-expansion-to-defined)
-add_compile_options(-Wno-user-defined-literals)
-
-if (ANDROID OR APPLE)
-    serenity_option(ENABLE_QT OFF CACHE BOOL "Build ladybird application using Qt GUI")
-else()
-    serenity_option(ENABLE_QT ON CACHE BOOL "Build ladybird application using Qt GUI")
-endif()
-
-if (ANDROID AND ENABLE_QT)
-    message(STATUS "Disabling Qt for Android")
-    set(ENABLE_QT OFF CACHE BOOL "" FORCE)
-endif()
-
-if (ENABLE_QT)
-    set(CMAKE_AUTOMOC ON)
-    set(CMAKE_AUTORCC ON)
-    set(CMAKE_AUTOUIC ON)
-    find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
-endif()
 
 set(SOURCES
     HelperProcess.cpp
@@ -218,13 +120,13 @@ if (ANDROID)
     include(cmake/AndroidExtras.cmake)
 endif()
 
-add_custom_target(run${LADYBIRD_CUSTOM_TARGET_SUFFIX}
+add_custom_target(run-ladybird
     COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}
     USES_TERMINAL
     VERBATIM
 )
 
-add_custom_target(debug${LADYBIRD_CUSTOM_TARGET_SUFFIX}
+add_custom_target(debug-ladybird
     COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" gdb -ex "set follow-fork-mode child" "$<TARGET_FILE:ladybird>"
     USES_TERMINAL
 )
@@ -260,6 +162,12 @@ function(create_ladybird_bundle target_name)
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${bundle_dir}/Contents/Resources"
             COMMAND "iconutil" --convert icns "${LADYBIRD_SOURCE_DIR}/Ladybird/Icons/macos/app_icon.iconset" --output "${bundle_dir}/Contents/Resources/app_icon.icns"
         )
+
+        # Note: This symlink is removed in the install commands
+        # This makes the bundle in the build directory *NOT* relocatable
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E create_symlink "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" "${bundle_dir}/Contents/lib"
+        )
     endif()
 endfunction()
 
@@ -280,7 +188,6 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
     include(cmake/InstallRules.cmake)
 endif()
 
-include(CTest)
 if (BUILD_TESTING)
     add_test(
         NAME LibWeb
@@ -289,7 +196,7 @@ if (BUILD_TESTING)
     add_test(
         NAME WPT
         CONFIGURATIONS Integration
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../Tests/LibWeb/WPT/run.sh
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../Tests/LibWeb/WPT/run.sh --webdriver-binary=$<TARGET_FILE:WebDriver>
     )
     set_tests_properties(LibWeb WPT PROPERTIES
         DEPENDS ladybird

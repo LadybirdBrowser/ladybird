@@ -15,5 +15,4 @@ include_directories(${LAGOM_BINARY_DIR})
 include_directories(${LAGOM_BINARY_DIR}/Userland/Services)
 include_directories(${LAGOM_BINARY_DIR}/Userland/Libraries)
 
-# We set EXCLUDE_FROM_ALL to make sure that only required Lagom libraries are built
-add_subdirectory("${LAGOM_SOURCE_DIR}" "${LAGOM_BINARY_DIR}" EXCLUDE_FROM_ALL)
+add_subdirectory("${LAGOM_SOURCE_DIR}" "${LAGOM_BINARY_DIR}")

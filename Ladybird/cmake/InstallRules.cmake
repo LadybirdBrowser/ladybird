@@ -56,6 +56,23 @@ foreach(service IN LISTS webcontent requestserver websocket webworker)
     install_service_lib(${service})
 endforeach()
 
+if (APPLE)
+    # Fixup the app bundle and copy:
+    #   - Libraries from lib/ to Ladybird.app/Contents/lib
+    # Remove the symlink we created at build time for the lib directory first
+    install(CODE "
+    file(REMOVE \${CMAKE_INSTALL_PREFIX}/bundle/Ladybird.app/Contents/lib)
+    set(lib_dir \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+    if (IS_ABSOLUTE ${CMAKE_INSTALL_LIBDIR})
+      set(lib_dir ${CMAKE_INSTALL_LIBDIR})
+    endif()
+
+    set(contents_dir \${CMAKE_INSTALL_PREFIX}/bundle/Ladybird.app/Contents)
+    file(COPY \${lib_dir} DESTINATION \${contents_dir})
+  "
+            COMPONENT ladybird_Runtime)
+endif()
+
 install(TARGETS ${all_required_lagom_libraries}
   EXPORT ladybirdTargets
   COMPONENT ladybird_Runtime
@@ -89,7 +106,7 @@ install(
 )
 
 install(
-    FILES "${PROJECT_BINARY_DIR}/${package}ConfigVersion.cmake"
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/${package}ConfigVersion.cmake"
     DESTINATION "${ladybird_INSTALL_CMAKEDIR}"
     COMPONENT ladybird_Development
 )
@@ -104,19 +121,4 @@ install(
 if (NOT APPLE)
     # On macOS the resources are handled via the MACOSX_PACKAGE_LOCATION property on each resource file
     install_ladybird_resources("${CMAKE_INSTALL_DATADIR}/Lagom" ladybird_Runtime)
-endif()
-
-if (APPLE)
-  # Fixup the app bundle and copy:
-  #   - Libraries from lib/ to Ladybird.app/Contents/lib
-  install(CODE "
-    set(lib_dir \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
-    if (IS_ABSOLUTE ${CMAKE_INSTALL_LIBDIR})
-      set(lib_dir ${CMAKE_INSTALL_LIBDIR})
-    endif()
-
-    set(contents_dir \${CMAKE_INSTALL_PREFIX}/bundle/Ladybird.app/Contents)
-    file(COPY \${lib_dir} DESTINATION \${contents_dir})
-  "
-  COMPONENT ladybird_Runtime)
 endif()
