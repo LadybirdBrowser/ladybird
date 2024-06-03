@@ -205,6 +205,8 @@ public:
 
     bool is_viewport() const { return layout_box().is_viewport(); }
 
+    virtual bool wants_mouse_events() const override;
+
 protected:
     explicit PaintableBox(Layout::Box const&);
 
@@ -216,15 +218,21 @@ protected:
     virtual CSSPixelRect compute_absolute_rect() const;
     virtual CSSPixelRect compute_absolute_paint_rect() const;
 
-private:
-    [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
-
     enum class ScrollDirection {
         Horizontal,
         Vertical,
     };
     [[nodiscard]] Optional<CSSPixelRect> scroll_thumb_rect(ScrollDirection) const;
     [[nodiscard]] bool is_scrollable(ScrollDirection) const;
+
+    TraversalDecision hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const;
+
+private:
+    [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
+
+    virtual DispatchEventOfSameName handle_mousedown(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
+    virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
+    virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
 
     Optional<OverflowData> m_overflow_data;
 
@@ -250,6 +258,9 @@ private:
 
     Optional<BordersData> m_outline_data;
     CSSPixels m_outline_offset { 0 };
+
+    Optional<CSSPixelPoint> m_last_mouse_tracking_position;
+    Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
 };
 
 class PaintableWithLines : public PaintableBox {
@@ -282,7 +293,6 @@ public:
     }
 
     virtual void paint(PaintContext&, PaintPhase) const override;
-    virtual bool wants_mouse_events() const override { return false; }
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
 
