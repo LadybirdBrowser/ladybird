@@ -9,18 +9,15 @@ can use the following `.clangd` file placed in the project root:
 
 ```yaml
 CompileFlags:
-  CompilationDatabase: Build/lagom
+  CompilationDatabase: Build/ladybird
 
 Diagnostics:
   UnusedIncludes: None
   MissingIncludes: None
 ```
 
-You will need to change `/path/to/ladybird` and change `13.1.0` to
-whatever your GCC toolchain version at the time is.
-
 Run cmake (`Meta/ladybird.sh run ladybird` or similar) at least once for this
-to work, as it will generate the `Build/lagom/compile_commands.json`
+to work, as it will generate the `Build/ladybird/compile_commands.json`
 that is needed by `clangd`.
 
 ### lsp-mode

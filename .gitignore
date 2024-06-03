@@ -9,8 +9,8 @@
 *.cflags
 *.cxxflags
 *.autosave
-Meta/Lagom/build
-Build
+build*
+Build*
 Toolchain/Tarballs
 Toolchain/Build
 Toolchain/Local
@@ -23,8 +23,6 @@ compile_commands.json
 .idea/
 cmake-build-debug/
 output/
-run-local.sh
-sync-local.sh
 .vim/
 .exrc
 .helix/

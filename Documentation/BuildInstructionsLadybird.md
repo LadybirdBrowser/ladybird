@@ -109,14 +109,10 @@ Qt chrome, install the Qt dependencies for your platform, and enable the Qt chro
 
 ```bash
 # From /path/to/ladybird
-cmake -S Meta/Lagom -B Build/lagom -DENABLE_QT=ON
+cmake -B Build/ladybird -DENABLE_QT=ON
 ```
 
 To re-disable the Qt chrome, run the above command with `-DENABLE_QT=OFF`.
-
-```bash
-cmake -S Meta/Lagom -B Build/lagom -DENABLE_LAGOM_LADYBIRD=OFF -DENABLE_LAGOM_LIBWEB=OFF -DBUILD_LAGOM=OFF
-```
 
 ### Resource files
 
@@ -142,7 +138,7 @@ a suitable C++ compiler (g++ >= 13, clang >= 14, Apple Clang >= 14.3) via the CM
 CMAKE_C_COMPILER cmake options.
 
 ```
-cmake -GNinja -S Ladybird -B Build/ladybird
+cmake -GNinja -B Build/ladybird
 # optionally, add -DCMAKE_CXX_COMPILER=<suitable compiler> -DCMAKE_C_COMPILER=<matching c compiler>
 cmake --build Build/ladybird
 ninja -C Build/ladybird run
@@ -186,16 +182,9 @@ Now breakpoints, stepping and variable inspection will work.
 ### Debugging with Xcode on macOS
 
 The `ladybird.sh` build script does not know how to generate Xcode projects, so creating the project must be done manually.
-To be compatible with the `ladybird.sh` script, a few extra options are required. If there is a previous Lagom build directory, CMake will likely complain that the generator has changed.
 
 ```
-cmake -GXcode -S Meta/Lagom -B Build/lagom -DBUILD_LAGOM=ON -DENABLE_LAGOM_LADYBIRD=ON
-```
-
-Alternatively, if you don't need your ladybird build to be compatible with `ladybird.sh`, you can use Ladybird as the source directory like so:
-
-```
-cmake -GXcode -S Ladybird -B Build/ladybird
+cmake -GXcode -B Build/ladybird
 ```
 
 After generating an Xcode project into the specified build directory, you can open `ladybird.xcodeproj` in Xcode. The project has a ton of targets, many of which are generated code.
@@ -213,7 +202,7 @@ When running Ladybird, make sure that XDG_RUNTIME_DIR is set, or it will immedia
 doesn't find a writable directory for its sockets.
 
 ```
-CMAKE_PREFIX_PATH=/usr/lib/qt/6.2/lib/amd64/cmake cmake -GNinja -S Ladybird -B Build/ladybird -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+CMAKE_PREFIX_PATH=/usr/lib/qt/6.2/lib/amd64/cmake cmake -GNinja -B Build/ladybird -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
 cmake --build Build/ladybird
 XDG_RUNTIME_DIR=/var/tmp ninja -C Build/ladybird run
 ```
@@ -224,7 +213,7 @@ Haiku is supported by Ladybird out of the box. The steps are the same as on Open
 additional environment variables are required.
 
 ```
-cmake -GNinja -S Ladybird -B Build/ladybird
+cmake -GNinja -B Build/ladybird
 cmake --build Build/ladybird
 ninja -C Build/ladybird run
 ```
