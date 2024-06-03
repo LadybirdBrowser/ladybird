@@ -11,7 +11,6 @@ set(SOURCES
     Filters/LumaFilter.cpp
     Filters/StackBlurFilter.cpp
     FontCascadeList.cpp
-    Font/BitmapFont.cpp
     Font/Emoji.cpp
     Font/Font.cpp
     Font/FontDatabase.cpp

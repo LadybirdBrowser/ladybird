@@ -21,8 +21,8 @@ class FontDatabase {
 public:
     static FontDatabase& the();
 
-    RefPtr<Gfx::Font> get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Font::AllowInexactSizeMatch = Font::AllowInexactSizeMatch::No);
-    RefPtr<Gfx::Font> get(FlyString const& family, FlyString const& variant, float point_size, Font::AllowInexactSizeMatch = Font::AllowInexactSizeMatch::No);
+    RefPtr<Gfx::Font> get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope);
+    RefPtr<Gfx::Font> get(FlyString const& family, FlyString const& variant, float point_size);
     RefPtr<Gfx::Font> get_by_name(StringView);
     void for_each_font(Function<void(Gfx::Font const&)>);
 

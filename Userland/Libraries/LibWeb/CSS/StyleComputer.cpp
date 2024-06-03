@@ -2086,7 +2086,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             return found_font;
         }
 
-        if (auto found_font = Gfx::FontDatabase::the().get(family, font_size_in_pt, weight, width, slope, Gfx::Font::AllowInexactSizeMatch::Yes)) {
+        if (auto found_font = Gfx::FontDatabase::the().get(family, font_size_in_pt, weight, width, slope)) {
             result->add(*found_font);
             return result;
         }

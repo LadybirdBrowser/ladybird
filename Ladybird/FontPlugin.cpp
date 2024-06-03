@@ -70,7 +70,7 @@ void FontPlugin::update_generic_fonts()
         RefPtr<Gfx::Font const> gfx_font;
 
         for (auto& fallback : fallbacks) {
-            gfx_font = Gfx::FontDatabase::the().get(fallback, 16, 400, Gfx::FontWidth::Normal, 0, Gfx::Font::AllowInexactSizeMatch::Yes);
+            gfx_font = Gfx::FontDatabase::the().get(fallback, 16, 400, Gfx::FontWidth::Normal, 0);
             if (gfx_font)
                 break;
         }
