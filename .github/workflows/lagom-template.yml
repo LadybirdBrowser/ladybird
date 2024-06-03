@@ -81,7 +81,7 @@ jobs:
 
       - name: Create Build Environment
         if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
-        working-directory: ${{ github.workspace }}/Meta/Lagom
+        working-directory: ${{ github.workspace }}
         run: |
           cmake -GNinja -B Build \
             -DBUILD_LAGOM=ON \
@@ -96,13 +96,13 @@ jobs:
 
       - name: Create Build Environment
         if: ${{ inputs.fuzzer == 'FUZZ' }}
-        working-directory: ${{ github.workspace }}/Meta/Lagom
+        working-directory: ${{ github.workspace }}
         run: |
           set -e
 
-          cmake -GNinja -B tools-build \
+          cmake -GNinja -S Meta/Lagom -B ${{ github.workspace }}/tools-build \
             -DBUILD_LAGOM=OFF \
-            -DCMAKE_INSTALL_PREFIX=tool-install \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/tool-install \
             -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches \
             -DCMAKE_C_COMPILER=gcc-13 \
             -DCMAKE_CXX_COMPILER=g++-13 \
@@ -110,32 +110,32 @@ jobs:
 
           ninja -C tools-build install
 
-          cmake -GNinja -B Build \
+          cmake -GNinja -S Meta/Lagom -B Build \
             -DBUILD_LAGOM=ON \
             -DENABLE_FUZZERS_LIBFUZZER=ON \
             -DENABLE_ADDRESS_SANITIZER=ON \
             -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
-            -DCMAKE_PREFIX_PATH=tool-install
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/tool-install
 
       # === BUILD ===
 
       - name: Build
-        working-directory: ${{ github.workspace }}/Meta/Lagom/Build
+        working-directory: ${{ github.workspace }}/Build
         run: |
           set -e
           cmake --build .
-          cmake --install . --strip --prefix ${{ github.workspace }}/Meta/Lagom/Install
+          cmake --install . --strip --prefix ${{ github.workspace }}/Install
 
       - name: Enable the Ladybird Qt chrome
         if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
-        working-directory: ${{ github.workspace }}/Meta/Lagom
+        working-directory: ${{ github.workspace }}
         run: cmake -B Build -DENABLE_QT=ON
 
       - name: Build the Ladybird Qt chrome
         if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
-        working-directory: ${{ github.workspace }}/Meta/Lagom/Build
+        working-directory: ${{ github.workspace }}/Build
         run: cmake --build .
 
       - name: Save Caches
@@ -149,7 +149,7 @@ jobs:
 
       - name: Test
         if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
-        working-directory: ${{ github.workspace }}/Meta/Lagom/Build
+        working-directory: ${{ github.workspace }}/Build
         run: ninja test
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
@@ -162,7 +162,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: libweb-test-artifacts-${{ inputs.os_name }}
-          path: ${{ github.workspace }}/Meta/Lagom/Build/Ladybird/test-dumps
+          path: ${{ github.workspace }}/Build/Ladybird/test-dumps
           retention-days: 7
           if-no-files-found: ignore
 
@@ -181,7 +181,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           set -e
-          git ls-files '*.ipc' | xargs ./Meta/Lagom/Build/bin/IPCMagicLinter
+          git ls-files '*.ipc' | xargs ./Build/bin/IPCMagicLinter
         env:
           ASAN_OPTIONS: 'strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1'
           UBSAN_OPTIONS: 'print_stacktrace=1:print_summary=1:halt_on_error=1'
