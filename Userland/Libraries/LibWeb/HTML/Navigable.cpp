@@ -1993,60 +1993,36 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
     return position;
 }
 
-void Navigable::set_viewport_rect(CSSPixelRect const& rect)
-{
-    bool did_change = false;
-
-    if (m_size != rect.size()) {
-        m_size = rect.size();
-        if (auto document = active_document()) {
-            // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
-            document->invalidate_style();
-            document->set_needs_layout();
-        }
-        did_change = true;
-        m_needs_repaint = true;
-    }
-
-    if (m_viewport_scroll_offset != rect.location()) {
-        m_viewport_scroll_offset = rect.location();
-        scroll_offset_did_change();
-        did_change = true;
-        m_needs_repaint = true;
-    }
-
-    if (did_change && active_document()) {
-        active_document()->inform_all_viewport_clients_about_the_current_viewport_rect();
-    }
-
-    // Schedule the HTML event loop to ensure that a `resize` event gets fired.
-    HTML::main_thread_event_loop().schedule();
-}
-
-void Navigable::perform_scroll_of_viewport(CSSPixelPoint position)
-{
-    auto viewport_rect = this->viewport_rect();
-    viewport_rect.set_location(position);
-    set_viewport_rect(viewport_rect);
-    set_needs_display();
-
-    if (is_traversable() && active_browsing_context())
-        active_browsing_context()->page().client().page_did_request_scroll_to(position);
-}
-
-void Navigable::set_size(CSSPixelSize size)
+void Navigable::set_viewport_size(CSSPixelSize size)
 {
     if (m_size == size)
         return;
-    m_size = size;
 
+    m_size = size;
     if (auto document = active_document()) {
+        // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style();
         document->set_needs_layout();
     }
+    m_needs_repaint = true;
 
     if (auto document = active_document()) {
         document->inform_all_viewport_clients_about_the_current_viewport_rect();
+
+        // Schedule the HTML event loop to ensure that a `resize` event gets fired.
+        HTML::main_thread_event_loop().schedule();
+    }
+}
+
+void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
+{
+    if (m_viewport_scroll_offset != new_position) {
+        m_viewport_scroll_offset = new_position;
+        scroll_offset_did_change();
+        m_needs_repaint = true;
+
+        if (auto document = active_document())
+            document->inform_all_viewport_clients_about_the_current_viewport_rect();
     }
 
     // Schedule the HTML event loop to ensure that a `resize` event gets fired.

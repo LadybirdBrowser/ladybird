@@ -106,8 +106,8 @@ public:
         view->client().async_update_system_theme(0, move(theme));
         view->client().async_update_system_fonts(0, Gfx::FontDatabase::default_font_query(), Gfx::FontDatabase::fixed_width_font_query(), Gfx::FontDatabase::window_title_font_query());
 
-        view->m_viewport_rect = { { 0, 0 }, window_size };
-        view->client().async_set_viewport_rect(0, view->m_viewport_rect.to_type<Web::DevicePixels>());
+        view->m_viewport_size = window_size;
+        view->client().async_set_viewport_size(0, view->m_viewport_size.to_type<Web::DevicePixels>());
         view->client().async_set_window_size(0, window_size.to_type<Web::DevicePixels>());
 
         if (!web_driver_ipc_path.is_empty())
@@ -169,19 +169,6 @@ private:
         , m_cookie_jar(move(cookie_jar))
         , m_request_client(move(request_client))
     {
-        on_scroll_to_point = [this](auto position) {
-            m_viewport_rect.set_location(position);
-            client().async_set_viewport_rect(0, m_viewport_rect.to_type<Web::DevicePixels>());
-        };
-
-        on_scroll_by_delta = [this](auto x_delta, auto y_delta) {
-            auto position = m_viewport_rect.location();
-            position.set_x(position.x() + x_delta);
-            position.set_y(position.y() + y_delta);
-            if (on_scroll_to_point)
-                on_scroll_to_point(position);
-        };
-
         on_get_cookie = [this](auto const& url, auto source) {
             return m_cookie_jar->get_cookie(url, source);
         };
@@ -204,12 +191,12 @@ private:
     void update_zoom() override { }
     void initialize_client(CreateNewClient) override { }
 
-    virtual Web::DevicePixelRect viewport_rect() const override { return m_viewport_rect.to_type<Web::DevicePixels>(); }
+    virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size.to_type<Web::DevicePixels>(); }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override { return content_position; }
 
 private:
-    Gfx::IntRect m_viewport_rect;
+    Gfx::IntSize m_viewport_size;
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap>>> m_pending_screenshot;
 
     NonnullRefPtr<WebView::Database> m_database;

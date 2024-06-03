@@ -11,7 +11,10 @@
 <script>
     const iframe = document.createElement("iframe");
     iframe.srcdoc = `
-        <style>body { margin: 0 }</style>
+        <style>
+            body { margin: 0 }
+            html { scrollbar-width: none; }
+        </style>
         <div style="width: 200px; height: 200px; background-color: darkblue"></div>
         <div style="width: 200px; height: 200px; background-color: blue"></div>
         <div style="width: 200px; height: 200px; background-color: magenta"></div>

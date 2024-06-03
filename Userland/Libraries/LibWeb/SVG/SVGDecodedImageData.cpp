@@ -89,7 +89,7 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
 {
     auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, size).release_value_but_fixme_should_propagate_errors();
     VERIFY(m_document->navigable());
-    m_document->navigable()->set_viewport_rect({ 0, 0, size.width(), size.height() });
+    m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout();
 
     Painting::CommandList painting_commands;

@@ -245,7 +245,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
             background_positioning_area = get_box(layer.origin).rect;
             if (is<Layout::Box>(layout_node)) {
                 auto* paintable_box = static_cast<Layout::Box const&>(layout_node).paintable_box();
-                if (paintable_box) {
+                if (paintable_box && !paintable_box->is_viewport()) {
                     auto scroll_offset = paintable_box->scroll_offset();
                     background_positioning_area.translate_by(-scroll_offset.x(), -scroll_offset.y());
                 }

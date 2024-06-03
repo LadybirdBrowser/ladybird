@@ -55,6 +55,9 @@ WebContentView::WebContentView(QWidget* window, WebContentOptions const& web_con
     , m_web_content_options(web_content_options)
     , m_webdriver_content_ipc_path(webdriver_content_ipc_path)
 {
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
     m_client_state.client = parent_client;
     m_client_state.page_index = page_index;
 
@@ -68,13 +71,6 @@ WebContentView::WebContentView(QWidget* window, WebContentOptions const& web_con
     verticalScrollBar()->setSingleStep(24);
     horizontalScrollBar()->setSingleStep(24);
 
-    QObject::connect(verticalScrollBar(), &QScrollBar::valueChanged, [this](int) {
-        update_viewport_rect();
-    });
-    QObject::connect(horizontalScrollBar(), &QScrollBar::valueChanged, [this](int) {
-        update_viewport_rect();
-    });
-
     QObject::connect(qGuiApp, &QGuiApplication::screenRemoved, [this](QScreen*) {
         update_screen_rects();
     });
@@ -85,27 +81,8 @@ WebContentView::WebContentView(QWidget* window, WebContentOptions const& web_con
 
     initialize_client((parent_client == nullptr) ? CreateNewClient::Yes : CreateNewClient::No);
 
-    on_did_layout = [this](auto content_size) {
-        verticalScrollBar()->setMinimum(0);
-        verticalScrollBar()->setMaximum(content_size.height() - m_viewport_rect.height());
-        verticalScrollBar()->setPageStep(m_viewport_rect.height());
-        horizontalScrollBar()->setMinimum(0);
-        horizontalScrollBar()->setMaximum(content_size.width() - m_viewport_rect.width());
-        horizontalScrollBar()->setPageStep(m_viewport_rect.width());
-    };
-
     on_ready_to_paint = [this]() {
         viewport()->update();
-    };
-
-    on_scroll_by_delta = [this](auto x_delta, auto y_delta) {
-        horizontalScrollBar()->setValue(max(0, horizontalScrollBar()->value() + x_delta));
-        verticalScrollBar()->setValue(max(0, verticalScrollBar()->value() + y_delta));
-    };
-
-    on_scroll_to_point = [this](auto position) {
-        horizontalScrollBar()->setValue(position.x());
-        verticalScrollBar()->setValue(position.y());
     };
 
     on_cursor_change = [this](auto cursor) {
@@ -445,14 +422,14 @@ void WebContentView::paintEvent(QPaintEvent*)
 void WebContentView::resizeEvent(QResizeEvent* event)
 {
     QAbstractScrollArea::resizeEvent(event);
-    update_viewport_rect();
+    update_viewport_size();
     handle_resize();
 }
 
 void WebContentView::set_viewport_rect(Gfx::IntRect rect)
 {
-    m_viewport_rect = rect;
-    client().async_set_viewport_rect(m_client_state.page_index, rect.to_type<Web::DevicePixels>());
+    m_viewport_size = rect.size();
+    client().async_set_viewport_size(m_client_state.page_index, rect.size().to_type<Web::DevicePixels>());
 }
 
 void WebContentView::set_window_size(Gfx::IntSize size)
@@ -469,15 +446,15 @@ void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 {
     m_device_pixel_ratio = device_pixel_ratio;
     client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio * m_zoom_level);
-    update_viewport_rect();
+    update_viewport_size();
     handle_resize();
 }
 
-void WebContentView::update_viewport_rect()
+void WebContentView::update_viewport_size()
 {
     auto scaled_width = int(viewport()->width() * m_device_pixel_ratio);
     auto scaled_height = int(viewport()->height() * m_device_pixel_ratio);
-    Gfx::IntRect rect(max(0, horizontalScrollBar()->value()), max(0, verticalScrollBar()->value()), scaled_width, scaled_height);
+    Gfx::IntRect rect(0, 0, scaled_width, scaled_height);
 
     set_viewport_rect(rect);
 }
@@ -485,7 +462,7 @@ void WebContentView::update_viewport_rect()
 void WebContentView::update_zoom()
 {
     client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio * m_zoom_level);
-    update_viewport_rect();
+    update_viewport_size();
 }
 
 void WebContentView::showEvent(QShowEvent* event)
@@ -662,9 +639,9 @@ void WebContentView::update_cursor(Gfx::StandardCursor cursor)
     }
 }
 
-Web::DevicePixelRect WebContentView::viewport_rect() const
+Web::DevicePixelSize WebContentView::viewport_size() const
 {
-    return m_viewport_rect.to_type<Web::DevicePixels>();
+    return m_viewport_size.to_type<Web::DevicePixels>();
 }
 
 QPoint WebContentView::map_point_to_global_position(Gfx::IntPoint position) const
@@ -674,12 +651,12 @@ QPoint WebContentView::map_point_to_global_position(Gfx::IntPoint position) cons
 
 Gfx::IntPoint WebContentView::to_content_position(Gfx::IntPoint widget_position) const
 {
-    return widget_position.translated(max(0, horizontalScrollBar()->value()), max(0, verticalScrollBar()->value()));
+    return widget_position;
 }
 
 Gfx::IntPoint WebContentView::to_widget_position(Gfx::IntPoint content_position) const
 {
-    return content_position.translated(-(max(0, horizontalScrollBar()->value())), -(max(0, verticalScrollBar()->value())));
+    return content_position;
 }
 
 bool WebContentView::event(QEvent* event)
@@ -716,7 +693,7 @@ ErrorOr<String> WebContentView::dump_layout_tree()
 
 void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePointEvent const& event)
 {
-    auto position = to_content_position({ event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio });
+    Web::DevicePixelPoint position = { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
     auto screen_position = Gfx::IntPoint { event.globalPosition().x() * m_device_pixel_ratio, event.globalPosition().y() * m_device_pixel_ratio };
 
     auto button = get_button_from_qt_event(event);
@@ -752,7 +729,7 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
         }
     }
 
-    enqueue_input_event(Web::MouseEvent { type, position.to_type<Web::DevicePixels>(), screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, nullptr });
+    enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, nullptr });
 }
 
 struct KeyData : Web::ChromeInputData {

@@ -392,18 +392,18 @@ void ViewImplementation::resize_backing_stores_if_needed(WindowResizeInProgress 
 
     m_client_state.has_usable_bitmap = false;
 
-    auto viewport_rect = this->viewport_rect();
-    if (viewport_rect.is_empty())
+    auto viewport_size = this->viewport_size();
+    if (viewport_size.is_empty())
         return;
 
     Web::DevicePixelSize minimum_needed_size;
 
     if (window_resize_in_progress == WindowResizeInProgress::Yes) {
         // Pad the minimum needed size so that we don't have to keep reallocating backing stores while the window is being resized.
-        minimum_needed_size = { viewport_rect.width() + 256, viewport_rect.height() + 256 };
+        minimum_needed_size = { viewport_size.width() + 256, viewport_size.height() + 256 };
     } else {
         // If we're not in the middle of a resize, we can shrink the backing store size to match the viewport size.
-        minimum_needed_size = viewport_rect.size();
+        minimum_needed_size = viewport_size;
         m_client_state.front_bitmap = {};
         m_client_state.back_bitmap = {};
     }
@@ -417,7 +417,7 @@ void ViewImplementation::resize_backing_stores_if_needed(WindowResizeInProgress 
                 backing_store.bitmap = new_bitmap_or_error.release_value();
                 backing_store.id = m_client_state.next_bitmap_id++;
             }
-            backing_store.last_painted_size = viewport_rect.size();
+            backing_store.last_painted_size = viewport_size;
         }
     };
 
@@ -430,7 +430,7 @@ void ViewImplementation::resize_backing_stores_if_needed(WindowResizeInProgress 
     if (front_bitmap.id != old_front_bitmap_id || back_bitmap.id != old_back_bitmap_id) {
         client().async_add_backing_store(page_id(), front_bitmap.id, front_bitmap.bitmap->to_shareable_bitmap(), back_bitmap.id,
             back_bitmap.bitmap->to_shareable_bitmap());
-        client().async_set_viewport_rect(page_id(), viewport_rect);
+        client().async_set_viewport_size(page_id(), viewport_size);
     }
 }
 

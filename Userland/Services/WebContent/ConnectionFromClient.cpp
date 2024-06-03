@@ -168,10 +168,10 @@ void ConnectionFromClient::traverse_the_history_by_delta(u64 page_id, i32 delta)
         page->page().traverse_the_history_by_delta(delta);
 }
 
-void ConnectionFromClient::set_viewport_rect(u64 page_id, Web::DevicePixelRect const& rect)
+void ConnectionFromClient::set_viewport_size(u64 page_id, Web::DevicePixelSize const size)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->set_viewport_rect(rect);
+        page->set_viewport_size(size);
 }
 
 void ConnectionFromClient::add_backing_store(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap const& front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap const& back_bitmap)

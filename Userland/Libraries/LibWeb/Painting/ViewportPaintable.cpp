@@ -80,7 +80,7 @@ void ViewportPaintable::assign_scroll_frames()
     });
 
     for_each_in_subtree([&](auto const& paintable) {
-        for (auto block = paintable.containing_block(); block; block = block->containing_block()) {
+        for (auto block = paintable.containing_block(); !block->is_viewport(); block = block->containing_block()) {
             if (auto scroll_frame = scroll_state.get(block); scroll_frame.has_value()) {
                 if (paintable.is_paintable_box()) {
                     auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
@@ -110,7 +110,7 @@ void ViewportPaintable::assign_clip_frames()
     });
 
     for_each_in_subtree([&](auto const& paintable) {
-        for (auto block = paintable.containing_block(); block; block = block->containing_block()) {
+        for (auto block = paintable.containing_block(); !block->is_viewport(); block = block->containing_block()) {
             if (auto clip_frame = clip_state.get(block); clip_frame.has_value()) {
                 if (paintable.is_paintable_box()) {
                     auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
@@ -136,7 +136,7 @@ void ViewportPaintable::refresh_scroll_state()
         auto const& paintable_box = *it.key;
         auto& scroll_frame = *it.value;
         CSSPixelPoint offset;
-        for (auto const* block = &paintable_box.layout_box(); block; block = block->containing_block()) {
+        for (auto const* block = &paintable_box.layout_box(); !block->is_viewport(); block = block->containing_block()) {
             auto const& block_paintable_box = *block->paintable_box();
             offset.translate_by(block_paintable_box.scroll_offset());
         }

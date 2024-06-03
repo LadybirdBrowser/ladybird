@@ -35,20 +35,6 @@ WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float de
     , m_preferred_color_scheme(preferred_color_scheme)
 {
     m_device_pixel_ratio = device_pixel_ratio;
-
-    on_scroll_by_delta = [this](auto x_delta, auto y_delta) {
-        auto position = m_viewport_rect.location();
-        position.set_x(position.x() + x_delta);
-        position.set_y(position.y() + y_delta);
-
-        if (on_scroll_to_point)
-            on_scroll_to_point(position);
-    };
-
-    on_scroll_to_point = [this](auto position) {
-        if (on_scroll)
-            on_scroll(to_widget_position(position));
-    };
 }
 
 WebViewBridge::~WebViewBridge() = default;
@@ -67,9 +53,9 @@ void WebViewBridge::set_system_visibility_state(bool is_visible)
 void WebViewBridge::set_viewport_rect(Gfx::IntRect viewport_rect, ForResize for_resize)
 {
     viewport_rect.set_size(scale_for_device(viewport_rect.size(), m_device_pixel_ratio));
-    m_viewport_rect = viewport_rect;
+    m_viewport_size = viewport_rect.size();
 
-    client().async_set_viewport_rect(m_client_state.page_index, m_viewport_rect.to_type<Web::DevicePixels>());
+    client().async_set_viewport_size(m_client_state.page_index, m_viewport_size.to_type<Web::DevicePixels>());
 
     if (for_resize == ForResize::Yes) {
         handle_resize();
@@ -126,9 +112,9 @@ void WebViewBridge::update_zoom()
         on_zoom_level_changed();
 }
 
-Web::DevicePixelRect WebViewBridge::viewport_rect() const
+Web::DevicePixelSize WebViewBridge::viewport_size() const
 {
-    return m_viewport_rect.to_type<Web::DevicePixels>();
+    return m_viewport_size.to_type<Web::DevicePixels>();
 }
 
 Gfx::IntPoint WebViewBridge::to_content_position(Gfx::IntPoint widget_position) const

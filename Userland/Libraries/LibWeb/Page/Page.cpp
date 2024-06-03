@@ -147,6 +147,15 @@ CSSPixelRect Page::device_to_css_rect(DevicePixelRect rect) const
     };
 }
 
+CSSPixelSize Page::device_to_css_size(DevicePixelSize size) const
+{
+    auto scale = client().device_pixels_per_css_pixel();
+    return {
+        CSSPixels::floored_value_for(size.width().value() / scale),
+        CSSPixels::floored_value_for(size.height().value() / scale),
+    };
+}
+
 DevicePixelRect Page::enclosing_device_rect(CSSPixelRect rect) const
 {
     auto scale = client().device_pixels_per_css_pixel();
