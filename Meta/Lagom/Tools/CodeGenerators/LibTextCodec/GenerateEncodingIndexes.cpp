@@ -19,6 +19,7 @@ struct LookupTable {
     u32 first_pointer;
     u32 max_code_point;
     Vector<u32> code_points;
+    bool generate_accessor;
 };
 
 struct LookupTables {
@@ -26,7 +27,12 @@ struct LookupTables {
     OrderedHashMap<StringView, LookupTable> indexes;
 };
 
-LookupTable prepare_table(JsonArray const& data)
+enum class GenerateAccessor {
+    No,
+    Yes,
+};
+
+LookupTable prepare_table(JsonArray const& data, GenerateAccessor generate_accessor = GenerateAccessor::No)
 {
     Vector<u32> code_points;
     code_points.ensure_capacity(data.size());
@@ -45,9 +51,13 @@ LookupTable prepare_table(JsonArray const& data)
             max = AK::max(max, code_points.last());
         }
     }
-    while (code_points.last() == 0xfffd)
-        code_points.take_last();
-    return { first_pointer, max, move(code_points) };
+    if (generate_accessor == GenerateAccessor::Yes) {
+        while (code_points.last() == 0xfffd)
+            code_points.take_last();
+    } else {
+        VERIFY(first_pointer == 0);
+    }
+    return { first_pointer, max, move(code_points), generate_accessor == GenerateAccessor::Yes };
 }
 
 void generate_table(SourceGenerator generator, StringView name, LookupTable& table)
@@ -68,7 +78,8 @@ void generate_table(SourceGenerator generator, StringView name, LookupTable& tab
             generator.append(i % 16 == 15 ? ",\n    "sv : ", "sv);
     }
     generator.appendln("\n};");
-    generator.appendln("Optional<u32> index_@name@_code_point(u32 pointer);");
+    if (table.generate_accessor)
+        generator.appendln("Optional<u32> index_@name@_code_point(u32 pointer);");
 }
 
 ErrorOr<void> generate_header_file(LookupTables& tables, Core::File& file)
@@ -110,7 +121,7 @@ static constexpr Array<Gb18030RangeEntry, @gb18030_ranges_size@> s_gb18030_range
     return {};
 }
 
-void generate_table_implementation(SourceGenerator generator, StringView name, LookupTable& table)
+void generate_table_accessor(SourceGenerator generator, StringView name, LookupTable& table)
 {
     generator.set("name", name);
     generator.set("first_pointer", MUST(String::number(table.first_pointer)));
@@ -154,8 +165,9 @@ ErrorOr<void> generate_implementation_file(LookupTables& tables, Core::File& fil
 namespace TextCodec {
 )~~~");
 
-    for (auto e : tables.indexes) {
-        generate_table_implementation(generator.fork(), e.key, e.value);
+    for (auto& [key, table] : tables.indexes) {
+        if (table.generate_accessor)
+            generate_table_accessor(generator.fork(), key, table);
     }
 
     generator.appendln("\n}");
@@ -180,7 +192,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto json_data = TRY(json_file->read_until_eof());
     auto data = TRY(JsonValue::from_string(json_data)).as_object();
 
-    auto gb18030_table = prepare_table(data.get("gb18030"sv)->as_array());
+    auto gb18030_table = prepare_table(data.get("gb18030"sv)->as_array(), GenerateAccessor::Yes);
 
     // FIXME: Encoding specification is not updated to GB-18030-2022 yet (https://github.com/whatwg/encoding/issues/312)
     // NOTE: See https://commits.webkit.org/264918@main
@@ -207,11 +219,37 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         .gb18030_ranges = data.get("gb18030-ranges"sv)->as_array(),
         .indexes = {
             { "gb18030"sv, move(gb18030_table) },
-            { "big5"sv, prepare_table(data.get("big5"sv)->as_array()) },
-            { "jis0208"sv, prepare_table(data.get("jis0208"sv)->as_array()) },
-            { "jis0212"sv, prepare_table(data.get("jis0212"sv)->as_array()) },
-            { "euc_kr"sv, prepare_table(data.get("euc-kr"sv)->as_array()) },
+            { "big5"sv, prepare_table(data.get("big5"sv)->as_array(), GenerateAccessor::Yes) },
+            { "jis0208"sv, prepare_table(data.get("jis0208"sv)->as_array(), GenerateAccessor::Yes) },
+            { "jis0212"sv, prepare_table(data.get("jis0212"sv)->as_array(), GenerateAccessor::Yes) },
+            { "euc_kr"sv, prepare_table(data.get("euc-kr"sv)->as_array(), GenerateAccessor::Yes) },
+            { "ibm866"sv, prepare_table(data.get("ibm866"sv)->as_array()) },
+            { "iso_8859_2"sv, prepare_table(data.get("iso-8859-2"sv)->as_array()) },
+            { "iso_8859_3"sv, prepare_table(data.get("iso-8859-3"sv)->as_array()) },
+            { "iso_8859_4"sv, prepare_table(data.get("iso-8859-4"sv)->as_array()) },
+            { "iso_8859_5"sv, prepare_table(data.get("iso-8859-5"sv)->as_array()) },
+            { "iso_8859_6"sv, prepare_table(data.get("iso-8859-6"sv)->as_array()) },
+            { "iso_8859_7"sv, prepare_table(data.get("iso-8859-7"sv)->as_array()) },
+            { "iso_8859_8"sv, prepare_table(data.get("iso-8859-8"sv)->as_array()) },
+            { "iso_8859_10"sv, prepare_table(data.get("iso-8859-10"sv)->as_array()) },
+            { "iso_8859_13"sv, prepare_table(data.get("iso-8859-13"sv)->as_array()) },
+            { "iso_8859_14"sv, prepare_table(data.get("iso-8859-14"sv)->as_array()) },
+            { "iso_8859_15"sv, prepare_table(data.get("iso-8859-15"sv)->as_array()) },
+            { "iso_8859_16"sv, prepare_table(data.get("iso-8859-16"sv)->as_array()) },
+            { "koi8_r"sv, prepare_table(data.get("koi8-r"sv)->as_array()) },
+            { "koi8_u"sv, prepare_table(data.get("koi8-u"sv)->as_array()) },
+            { "macintosh"sv, prepare_table(data.get("macintosh"sv)->as_array()) },
+            { "windows_874"sv, prepare_table(data.get("windows-874"sv)->as_array()) },
+            { "windows_1250"sv, prepare_table(data.get("windows-1250"sv)->as_array()) },
+            { "windows_1251"sv, prepare_table(data.get("windows-1251"sv)->as_array()) },
             { "windows_1252"sv, prepare_table(data.get("windows-1252"sv)->as_array()) },
+            { "windows_1253"sv, prepare_table(data.get("windows-1253"sv)->as_array()) },
+            { "windows_1254"sv, prepare_table(data.get("windows-1254"sv)->as_array()) },
+            { "windows_1255"sv, prepare_table(data.get("windows-1255"sv)->as_array()) },
+            { "windows_1256"sv, prepare_table(data.get("windows-1256"sv)->as_array()) },
+            { "windows_1257"sv, prepare_table(data.get("windows-1257"sv)->as_array()) },
+            { "windows_1258"sv, prepare_table(data.get("windows-1258"sv)->as_array()) },
+            { "x_mac_cyrillic"sv, prepare_table(data.get("x-mac-cyrillic"sv)->as_array()) },
         },
     };
 
