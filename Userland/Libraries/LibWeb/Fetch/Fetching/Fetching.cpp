@@ -898,13 +898,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
     // 1. Let request be fetchParams’s request.
     auto request = fetch_params.request();
 
-    // 2. Let response be null.
+    // 2. Let response and internalResponse be null.
     JS::GCPtr<Infrastructure::Response> response;
+    JS::GCPtr<Infrastructure::Response> internal_response;
 
-    // 3. Let actualResponse be null.
-    JS::GCPtr<Infrastructure::Response> actual_response;
-
-    // 4. If request’s service-workers mode is "all", then:
+    // 3. If request’s service-workers mode is "all", then:
     if (request->service_workers_mode() == Infrastructure::Request::ServiceWorkersMode::All) {
         // 1. Let requestForServiceWorker be a clone of request.
         auto request_for_service_worker = request->clone(realm);
@@ -925,7 +923,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
         // FIXME: 4. Set response to the result of invoking handle fetch for requestForServiceWorker, with fetchParams’s
         //           controller and fetchParams’s cross-origin isolated capability.
 
-        // 5. If response is not null, then:
+        // 5. If response is non-null, then:
         if (response) {
             // 1. Set fetchParams’s timing info’s final service worker start time to serviceWorkerStartTime.
             fetch_params.timing_info()->set_final_service_worker_start_time(service_worker_start_time);
@@ -935,9 +933,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
                 // FIXME: Implement cancelling streams
             }
 
-            // 3. Set actualResponse to response, if response is not a filtered response, and to response’s internal
-            //    response otherwise.
-            actual_response = !is<Infrastructure::FilteredResponse>(*response)
+            // 3. Set internalResponse to response, if response is not a filtered response; otherwise to response’s
+            //    internal response.
+            internal_response = !is<Infrastructure::FilteredResponse>(*response)
                 ? JS::NonnullGCPtr { *response }
                 : static_cast<Infrastructure::FilteredResponse const&>(*response).internal_response();
 
@@ -963,7 +961,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
 
     auto returned_pending_response = PendingResponse::create(vm, request);
 
-    // 5. If response is null, then:
+    // 4. If response is null, then:
     if (!response) {
         // 1. If makeCORSPreflight is true and one of these conditions is true:
         // NOTE: This step checks the CORS-preflight cache and if there is no suitable entry it performs a
@@ -993,7 +991,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
             if (request->redirect_mode() == Infrastructure::Request::RedirectMode::Follow)
                 request->set_service_workers_mode(Infrastructure::Request::ServiceWorkersMode::None);
 
-            // 3. Set response and actualResponse to the result of running HTTP-network-or-cache fetch given fetchParams.
+            // 3. Set response and internalResponse to the result of running HTTP-network-or-cache fetch given fetchParams.
             return http_network_or_cache_fetch(*realm, *fetch_params);
         };
 
@@ -1021,10 +1019,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
         pending_actual_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
     }
 
-    pending_actual_response->when_loaded([&realm, &vm, &fetch_params, request, response, actual_response, returned_pending_response, response_was_null = !response](JS::NonnullGCPtr<Infrastructure::Response> resolved_actual_response) mutable {
+    pending_actual_response->when_loaded([&realm, &vm, &fetch_params, request, response, internal_response, returned_pending_response, response_was_null = !response](JS::NonnullGCPtr<Infrastructure::Response> resolved_actual_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' pending_actual_response load callback");
         if (response_was_null) {
-            response = actual_response = resolved_actual_response;
+            response = internal_response = resolved_actual_response;
             // 4. If request’s response tainting is "cors" and a CORS check for request and response returns failure,
             //    then return a network error.
             // NOTE: As the CORS check is not to be applied to responses whose status is 304 or 407, or responses from
@@ -1040,8 +1038,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
                 request->set_timing_allow_failed(true);
         }
 
-        // 6. If either request’s response tainting or response’s type is "opaque", and the cross-origin resource
-        //    policy check with request’s origin, request’s client, request’s destination, and actualResponse returns
+        // 5. If either request’s response tainting or response’s type is "opaque", and the cross-origin resource
+        //    policy check with request’s origin, request’s client, request’s destination, and internalResponse returns
         //    blocked, then return a network error.
         // NOTE: The cross-origin resource policy check runs for responses coming from the network and responses coming
         //       from the service worker. This is different from the CORS check, as request’s client and the service
@@ -1055,9 +1053,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
 
         JS::GCPtr<PendingResponse> inner_pending_response;
 
-        // 7. If actualResponse’s status is a redirect status, then:
-        if (Infrastructure::is_redirect_status(actual_response->status())) {
-            // FIXME: 1. If actualResponse’s status is not 303, request’s body is not null, and the connection uses HTTP/2,
+        // 6. If internalResponse’s status is a redirect status:
+        if (Infrastructure::is_redirect_status(internal_response->status())) {
+            // FIXME: 1. If internalResponse’s status is not 303, request’s body is non-null, and the connection uses HTTP/2,
             //           then user agents may, and are even encouraged to, transmit an RST_STREAM frame.
             // NOTE: 303 is excluded as certain communities ascribe special status to it.
 
@@ -1065,7 +1063,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
             switch (request->redirect_mode()) {
             // -> "error"
             case Infrastructure::Request::RedirectMode::Error:
-                // Set response to a network error.
+                // 1. Set response to a network error.
                 response = Infrastructure::Response::network_error(vm, "Request with 'error' redirect mode received redirect response"_string);
                 break;
             // -> "manual"
@@ -1078,14 +1076,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
                     });
                 }
                 // 2. Otherwise, set response to an opaque-redirect filtered response whose internal response is
-                //    actualResponse.
+                //    internalResponse.
                 else {
-                    response = Infrastructure::OpaqueRedirectFilteredResponse::create(vm, *actual_response);
+                    response = Infrastructure::OpaqueRedirectFilteredResponse::create(vm, *internal_response);
                 }
                 break;
             // -> "follow"
             case Infrastructure::Request::RedirectMode::Follow:
-                // Set response to the result of running HTTP-redirect fetch given fetchParams and response.
+                // 1. Set response to the result of running HTTP-redirect fetch given fetchParams and response.
                 inner_pending_response = TRY_OR_IGNORE(http_redirect_fetch(realm, fetch_params, *response));
                 break;
             default:
@@ -1103,8 +1101,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_fetch(JS::Realm& rea
         }
     });
 
-    // 8. Return response.
-    // NOTE: Typically actualResponse’s body’s stream is still being enqueued to after returning.
+    // 7. Return response.
+    // NOTE: Typically internalResponse’s body’s stream is still being enqueued to after returning.
     return returned_pending_response;
 }
 
