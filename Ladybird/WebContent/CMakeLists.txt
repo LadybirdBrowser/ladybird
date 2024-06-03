@@ -1,5 +1,5 @@
 include(accelerated_graphics)
-set(WEBCONTENT_SOURCE_DIR ${SERENITY_SOURCE_DIR}/Userland/Services/WebContent/)
+set(WEBCONTENT_SOURCE_DIR ${LADYBIRD_SOURCE_DIR}/Userland/Services/WebContent/)
 
 set(WEBCONTENT_SOURCES
     ${WEBCONTENT_SOURCE_DIR}/ConnectionFromClient.cpp
@@ -45,17 +45,17 @@ else()
         set(LIB_TYPE SHARED)
     endif()
     add_library(webcontent ${LIB_TYPE} ${WEBCONTENT_SOURCES})
-    target_include_directories(webcontent PRIVATE ${SERENITY_SOURCE_DIR}/Userland/Services/)
-    target_include_directories(webcontent PRIVATE ${SERENITY_SOURCE_DIR}/Userland/)
+    target_include_directories(webcontent PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
+    target_include_directories(webcontent PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
     target_include_directories(webcontent PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
     target_link_libraries(webcontent PRIVATE LibAudio LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibWeb LibWebSocket LibProtocol LibWebView LibImageDecoderClient)
     target_sources(webcontent PUBLIC FILE_SET ladybird TYPE HEADERS
-        BASE_DIRS ${SERENITY_SOURCE_DIR}
+        BASE_DIRS ${LADYBIRD_SOURCE_DIR}
         FILES ../FontPlugin.h
               ../ImageCodecPlugin.h
     )
     target_sources(webcontent PUBLIC FILE_SET server TYPE HEADERS
-        BASE_DIRS ${SERENITY_SOURCE_DIR}/Userland/Services
+        BASE_DIRS ${LADYBIRD_SOURCE_DIR}/Userland/Services
         FILES ${WEBCONTENT_SOURCE_DIR}/ConnectionFromClient.h
               ${WEBCONTENT_SOURCE_DIR}/ConsoleGlobalEnvironmentExtensions.h
               ${WEBCONTENT_SOURCE_DIR}/Forward.h
@@ -78,8 +78,8 @@ else()
     target_link_libraries(WebContent PRIVATE webcontent)
 endif()
 
-target_include_directories(WebContent PRIVATE ${SERENITY_SOURCE_DIR}/Userland/Services/)
-target_include_directories(WebContent PRIVATE ${SERENITY_SOURCE_DIR}/Userland/)
+target_include_directories(WebContent PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
+target_include_directories(WebContent PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
 target_include_directories(WebContent PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
 target_link_libraries(WebContent PRIVATE LibAudio LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibSQL LibWeb LibWebSocket LibProtocol LibWebView LibURL)
 

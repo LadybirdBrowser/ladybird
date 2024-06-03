@@ -21,12 +21,12 @@ For a Lagom-only build, pass the Lagom directory to CMake. The `BUILD_LAGOM` CMa
 cmake -GNinja -S Meta/Lagom -B Build/lagom -DBUILD_LAGOM=ON
 ```
 
-In both cases, the tests can be run via ninja after doing a build. Note that `test-js` requires the `SERENITY_SOURCE_DIR` environment variable to be set
+In both cases, the tests can be run via ninja after doing a build. Note that `test-js` requires the `LADYBIRD_SOURCE_DIR` environment variable to be set
 to the root of the serenity source tree when running on a non-SerenityOS host.
 
 ```sh
 # /path/to/serenity repository
-export SERENITY_SOURCE_DIR=${PWD}
+export LADYBIRD_SOURCE_DIR=${PWD}
 cd Build/lagom
 ninja
 ninja test
@@ -55,13 +55,13 @@ The sanitizers can be enabled with the `-DENABLE_FOO_SANITIZER` set of flags. Fo
 cmake -GNinja -S Meta/Lagom -B Build/lagom -DBUILD_LAGOM=ON -DENABLE_ADDRESS_SANITIZER=ON -DENABLE_UNDEFINED_SANITIZER=ON
 cd Build/lagom
 ninja
-CTEST_OUTPUT_ON_FAILURE=1 SERENITY_SOURCE_DIR=${PWD}/../.. ninja test
+CTEST_OUTPUT_ON_FAILURE=1 LADYBIRD_SOURCE_DIR=${PWD}/../.. ninja test
 ```
 
 To ensure that Undefined Sanitizer errors fail the test, the `halt_on_error` flag should be set to 1 in the environment variable `UBSAN_OPTIONS`.
 
 ```sh
-UBSAN_OPTIONS=halt_on_error=1 CTEST_OUTPUT_ON_FAILURE=1 SERENITY_SOURCE_DIR=${PWD}/.. ninja test
+UBSAN_OPTIONS=halt_on_error=1 CTEST_OUTPUT_ON_FAILURE=1 LADYBIRD_SOURCE_DIR=${PWD}/.. ninja test
 ```
 
 ## Running Target Tests

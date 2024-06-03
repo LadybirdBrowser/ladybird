@@ -3,7 +3,7 @@ name: Run test262 and test-wasm
 on: [push]
 
 env:
-  SERENITY_SOURCE_DIR: ${{ github.workspace }}
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
 
 jobs:
   run_and_update_results:
@@ -92,7 +92,7 @@ jobs:
               -DCMAKE_CXX_COMPILER=g++-13 \
               -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
               -DINCLUDE_WASM_SPEC_TESTS=ON \
-              -DSERENITY_SOURCE_DIR=${{ env.SERENITY_SOURCE_DIR }} \
+              -DLADYBIRD_SOURCE_DIR=${{ env.LADYBIRD_SOURCE_DIR }} \
               -DSERENITY_CACHE_DIR=Build/caches
           ninja -C Build test262-runner test-js test-wasm
 

@@ -1,4 +1,4 @@
-set(REQUESTSERVER_SOURCE_DIR ${SERENITY_SOURCE_DIR}/Userland/Services/RequestServer)
+set(REQUESTSERVER_SOURCE_DIR ${LADYBIRD_SOURCE_DIR}/Userland/Services/RequestServer)
 
 set(CMAKE_AUTOMOC OFF)
 set(CMAKE_AUTORCC OFF)
@@ -31,7 +31,7 @@ endif()
 add_executable(RequestServer main.cpp)
 target_link_libraries(RequestServer PRIVATE requestserver)
 
-target_include_directories(requestserver PRIVATE ${SERENITY_SOURCE_DIR}/Userland/Services/)
+target_include_directories(requestserver PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
 target_include_directories(requestserver PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
 target_link_libraries(requestserver PUBLIC LibCore LibMain LibCrypto LibFileSystem LibGemini LibHTTP LibIPC LibMain LibTLS LibWebView LibWebSocket LibURL LibThreading)
 if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")

@@ -6,7 +6,7 @@
 #
 # Copy resources into tarball for inclusion in /assets of APK
 #
-set(LADYBIRD_RESOURCE_ROOT "${SERENITY_SOURCE_DIR}/Base/res")
+set(LADYBIRD_RESOURCE_ROOT "${LADYBIRD_SOURCE_DIR}/Base/res")
 macro(copy_res_folder folder)
     add_custom_target(copy-${folder}
         COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -25,12 +25,12 @@ copy_res_folder(color-palettes)
 copy_res_folder(cursor-themes)
 add_custom_target(copy-autoplay-allowlist
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${SERENITY_SOURCE_DIR}/Base/home/anon/.config/BrowserAutoplayAllowlist.txt"
+        "${LADYBIRD_SOURCE_DIR}/Base/home/anon/.config/BrowserAutoplayAllowlist.txt"
         "asset-bundle/res/ladybird/BrowserAutoplayAllowlist.txt"
 )
 add_custom_target(copy-content-filters
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${SERENITY_SOURCE_DIR}/Base/home/anon/.config/BrowserContentFilters.txt"
+        "${LADYBIRD_SOURCE_DIR}/Base/home/anon/.config/BrowserContentFilters.txt"
         "asset-bundle/res/ladybird/BrowserContentFilters.txt"
 )
 add_custom_target(copy-certs

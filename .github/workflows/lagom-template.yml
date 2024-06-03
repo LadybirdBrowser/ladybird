@@ -20,7 +20,7 @@ on:
 env:
   # runner.workspace = /home/runner/work/serenity
   # github.workspace = /home/runner/work/serenity/serenity
-  SERENITY_SOURCE_DIR: ${{ github.workspace }}
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:

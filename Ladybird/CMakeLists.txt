@@ -62,17 +62,17 @@ endif()
 
 if (PROJECT_IS_TOP_LEVEL)
     get_filename_component(
-        SERENITY_SOURCE_DIR "${ladybird_SOURCE_DIR}/.."
+        LADYBIRD_SOURCE_DIR "${ladybird_SOURCE_DIR}/.."
         ABSOLUTE
     )
-    list(APPEND CMAKE_MODULE_PATH "${SERENITY_SOURCE_DIR}/Meta/CMake")
+    list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_SOURCE_DIR}/Meta/CMake")
     include(cmake/EnableLagom.cmake)
     include(use_linker)
     include(lagom_compile_options)
     include(lagom_install_options)
 else()
-    # FIXME: Use SERENITY_SOURCE_DIR in Lagom/CMakeLists.txt
-    set(SERENITY_SOURCE_DIR "${SERENITY_PROJECT_ROOT}")
+    # FIXME: Use LADYBIRD_SOURCE_DIR in Lagom/CMakeLists.txt
+    set(LADYBIRD_SOURCE_DIR "${SERENITY_PROJECT_ROOT}")
 endif()
 
 add_compile_options(-DAK_DONT_REPLACE_STD)
@@ -181,14 +181,14 @@ if (APPLE)
 endif()
 
 target_sources(ladybird PUBLIC FILE_SET ladybird TYPE HEADERS
-    BASE_DIRS ${SERENITY_SOURCE_DIR}
+    BASE_DIRS ${LADYBIRD_SOURCE_DIR}
     FILES ${LADYBIRD_HEADERS}
 )
 target_link_libraries(ladybird PRIVATE AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibSQL LibWeb LibWebView LibProtocol LibURL)
 
 target_include_directories(ladybird PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(ladybird PRIVATE ${SERENITY_SOURCE_DIR}/Userland/)
-target_include_directories(ladybird PRIVATE ${SERENITY_SOURCE_DIR}/Userland/Services/)
+target_include_directories(ladybird PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
+target_include_directories(ladybird PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
 
 function(set_helper_process_properties)
     set(targets ${ARGV})
@@ -206,12 +206,12 @@ function(set_helper_process_properties)
 endfunction()
 
 add_executable(headless-browser
-    ${SERENITY_SOURCE_DIR}/Userland/Utilities/headless-browser.cpp
+    ${LADYBIRD_SOURCE_DIR}/Userland/Utilities/headless-browser.cpp
     HelperProcess.cpp
     Utilities.cpp)
 
 target_include_directories(headless-browser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(headless-browser PRIVATE ${SERENITY_SOURCE_DIR}/Userland/)
+target_include_directories(headless-browser PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
 target_link_libraries(headless-browser PRIVATE AK LibCore LibWeb LibWebView LibWebSocket LibCrypto LibFileSystem LibGemini LibHTTP LibImageDecoderClient LibJS LibGfx LibMain LibSQL LibTLS LibIPC LibDiff LibProtocol LibURL)
 
 if (ANDROID)
@@ -219,13 +219,13 @@ if (ANDROID)
 endif()
 
 add_custom_target(run${LADYBIRD_CUSTOM_TARGET_SUFFIX}
-    COMMAND "${CMAKE_COMMAND}" -E env "SERENITY_SOURCE_DIR=${SERENITY_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}
+    COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}
     USES_TERMINAL
     VERBATIM
 )
 
 add_custom_target(debug${LADYBIRD_CUSTOM_TARGET_SUFFIX}
-    COMMAND "${CMAKE_COMMAND}" -E env "SERENITY_SOURCE_DIR=${SERENITY_SOURCE_DIR}" gdb -ex "set follow-fork-mode child" "$<TARGET_FILE:ladybird>"
+    COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" gdb -ex "set follow-fork-mode child" "$<TARGET_FILE:ladybird>"
     USES_TERMINAL
 )
 
@@ -248,7 +248,7 @@ function(create_ladybird_bundle target_name)
         MACOSX_BUNDLE_GUI_IDENTIFIER org.SerenityOS.Ladybird
         MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-        MACOSX_BUNDLE_INFO_PLIST "${SERENITY_SOURCE_DIR}/Ladybird/Info.plist"
+        MACOSX_BUNDLE_INFO_PLIST "${LADYBIRD_SOURCE_DIR}/Ladybird/Info.plist"
         MACOSX_BUNDLE TRUE
         WIN32_EXECUTABLE TRUE
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER org.SerenityOS.Ladybird
@@ -258,7 +258,7 @@ function(create_ladybird_bundle target_name)
         set(bundle_dir "$<TARGET_BUNDLE_DIR:${target_name}>")
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${bundle_dir}/Contents/Resources"
-            COMMAND "iconutil" --convert icns "${SERENITY_SOURCE_DIR}/Ladybird/Icons/macos/app_icon.iconset" --output "${bundle_dir}/Contents/Resources/app_icon.icns"
+            COMMAND "iconutil" --convert icns "${LADYBIRD_SOURCE_DIR}/Ladybird/Icons/macos/app_icon.iconset" --output "${bundle_dir}/Contents/Resources/app_icon.icns"
         )
     endif()
 endfunction()
@@ -284,7 +284,7 @@ include(CTest)
 if (BUILD_TESTING)
     add_test(
         NAME LibWeb
-        COMMAND $<TARGET_FILE:headless-browser> --resources "${resource_base_dir}" --run-tests ${SERENITY_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests
+        COMMAND $<TARGET_FILE:headless-browser> --resources "${resource_base_dir}" --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests
     )
     add_test(
         NAME WPT
@@ -294,6 +294,6 @@ if (BUILD_TESTING)
     set_tests_properties(LibWeb WPT PROPERTIES
         DEPENDS ladybird
         ENVIRONMENT QT_QPA_PLATFORM=offscreen
-        ENVIRONMENT "SERENITY_SOURCE_DIR=${SERENITY_SOURCE_DIR}"
+        ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}"
     )
 endif()
