@@ -28,8 +28,6 @@
 #include <LibCore/Promise.h>
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibCore/Timer.h>
-#include <LibDiff/Format.h>
-#include <LibDiff/Generator.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/FontDatabase.h>

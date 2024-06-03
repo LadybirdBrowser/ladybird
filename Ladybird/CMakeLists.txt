@@ -212,7 +212,7 @@ add_executable(headless-browser
 
 target_include_directories(headless-browser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(headless-browser PRIVATE ${SERENITY_SOURCE_DIR}/Userland/)
-target_link_libraries(headless-browser PRIVATE AK LibCore LibWeb LibWebView LibWebSocket LibCrypto LibFileSystem LibGemini LibHTTP LibImageDecoderClient LibJS LibGfx LibMain LibSQL LibTLS LibIPC LibDiff LibProtocol LibURL)
+target_link_libraries(headless-browser PRIVATE AK LibCore LibWeb LibWebView LibWebSocket LibCrypto LibFileSystem LibGemini LibHTTP LibImageDecoderClient LibJS LibGfx LibMain LibSQL LibTLS LibIPC LibProtocol LibURL)
 
 if (ANDROID)
     include(cmake/AndroidExtras.cmake)
