@@ -1,0 +1,58 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Config",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/Build/ladybird",
+      "cacheVariables": {
+        "SERENITY_CACHE_DIR": "${sourceDir}/Build/caches"
+      },
+      "environment": {
+        "LADYBIRD_SOURCE_DIR": "${sourceDir}"
+      },
+      "vendor": {
+        "jetbrains.com/clion": {
+          "toolchain": "Default"
+        }
+      }
+    },
+    {
+      "name": "Sanitizer",
+      "inherits": "default",
+      "displayName": "Sanitizer Config",
+      "description": "Debug build using Sanitizers",
+      "binaryDir": "${sourceDir}/Build/ladybird-sanitizers",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_UNDEFINED_SANITIZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON"
+      }
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
+    },
+    {
+      "name": "Sanitizer",
+      "inherits": "default",
+      "configurePreset": "Sanitizer"
+    }
+  ]
+}
