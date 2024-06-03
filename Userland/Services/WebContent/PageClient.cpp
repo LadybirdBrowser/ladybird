@@ -309,19 +309,6 @@ Gfx::IntRect PageClient::page_did_request_fullscreen_window()
     return client().did_request_fullscreen_window(m_id);
 }
 
-void PageClient::page_did_request_scroll_to(Web::CSSPixelPoint scroll_position)
-{
-    // NOTE: The viewport scroll position is updated preemptively, so that subsequent
-    //       viewport offset calculation could use new offset even before actual
-    //       scroll on browser side happens.
-    auto viewport = page().top_level_traversable()->viewport_rect();
-    viewport.set_location(scroll_position);
-    page().top_level_traversable()->set_viewport_size(viewport.size());
-
-    auto device_scroll_position = page().css_to_device_point(scroll_position);
-    client().async_did_request_scroll_to(m_id, device_scroll_position.to_type<int>());
-}
-
 void PageClient::page_did_enter_tooltip_area(Web::CSSPixelPoint content_position, ByteString const& title)
 {
     auto device_position = page().css_to_device_point(content_position);

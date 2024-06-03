@@ -46,7 +46,6 @@ private:
     virtual void did_layout(u64 page_id, Gfx::IntSize) override;
     virtual void did_change_title(u64 page_id, ByteString const&) override;
     virtual void did_change_url(u64 page_id, URL::URL const&) override;
-    virtual void did_request_scroll_to(u64 page_id, Gfx::IntPoint) override;
     virtual void did_enter_tooltip_area(u64 page_id, Gfx::IntPoint, ByteString const&) override;
     virtual void did_leave_tooltip_area(u64 page_id) override;
     virtual void did_hover_link(u64 page_id, URL::URL const&) override;
