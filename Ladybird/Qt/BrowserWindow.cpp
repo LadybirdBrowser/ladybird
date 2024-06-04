@@ -336,12 +336,15 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
 
     debug_menu->addSeparator();
 
-    auto* show_line_box_borders_action = new QAction("Show Line Box Borders", this);
-    show_line_box_borders_action->setCheckable(true);
-    debug_menu->addAction(show_line_box_borders_action);
-    QObject::connect(show_line_box_borders_action, &QAction::triggered, this, [this, show_line_box_borders_action] {
-        bool state = show_line_box_borders_action->isChecked();
-        debug_request("set-line-box-borders", state ? "on" : "off");
+    m_show_line_box_borders_action = new QAction("Show Line Box Borders", this);
+    m_show_line_box_borders_action->setCheckable(true);
+    debug_menu->addAction(m_show_line_box_borders_action);
+    QObject::connect(m_show_line_box_borders_action, &QAction::triggered, this, [this] {
+        bool state = m_show_line_box_borders_action->isChecked();
+        for (auto index = 0; index < m_tabs_container->count(); ++index) {
+            auto tab = verify_cast<Tab>(m_tabs_container->widget(index));
+            tab->set_line_box_borders(state);
+        }
     });
 
     debug_menu->addSeparator();
@@ -677,6 +680,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
     create_close_button_for_tab(tab);
 
     tab->focus_location_editor();
+    tab->set_line_box_borders(m_show_line_box_borders_action->isChecked());
 }
 
 void BrowserWindow::activate_tab(int index)

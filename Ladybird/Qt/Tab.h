@@ -65,6 +65,8 @@ public:
 
     void update_hover_label();
 
+    void set_line_box_borders(bool);
+
 public slots:
     void focus_location_editor();
     void location_edit_return_pressed();
