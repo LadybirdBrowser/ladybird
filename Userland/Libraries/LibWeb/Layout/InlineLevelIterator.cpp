@@ -204,9 +204,6 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             },
             Gfx::IncludeLeftBearing::No, glyph_run_width);
 
-        if (!m_text_node_context->is_last_chunk)
-            glyph_run_width += text_node.first_available_font().glyph_spacing();
-
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run_width);
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.

@@ -41,7 +41,6 @@ int PaintableFragment::text_index_at(CSSPixels x) const
     Utf8View view(string_view());
 
     CSSPixels relative_x = x - absolute_rect().x();
-    CSSPixels glyph_spacing = font.glyph_spacing();
 
     if (relative_x < 0)
         return 0;
@@ -51,10 +50,10 @@ int PaintableFragment::text_index_at(CSSPixels x) const
         auto previous_it = it;
         CSSPixels glyph_width = CSSPixels::nearest_value_for(font.glyph_or_emoji_width(it));
 
-        if ((width_so_far + glyph_width + glyph_spacing / 2) > relative_x)
+        if ((width_so_far + glyph_width) > relative_x)
             return m_start + view.byte_offset_of(previous_it);
 
-        width_so_far += glyph_width + glyph_spacing;
+        width_so_far += glyph_width;
     }
 
     return m_start + m_length;

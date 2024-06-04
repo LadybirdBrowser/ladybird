@@ -1028,7 +1028,7 @@ void draw_text_line(FloatRect const& a_rect, Utf8View const& text, Font const& f
     }
 
     auto point = rect.location();
-    auto space_width = font.glyph_width(' ') + font.glyph_spacing();
+    auto space_width = font.glyph_width(' ');
 
     if (direction == TextDirection::RTL) {
         point.translate_by(rect.width(), 0); // Start drawing from the end
@@ -1049,7 +1049,7 @@ void draw_text_line(FloatRect const& a_rect, Utf8View const& text, Font const& f
             point.translate_by(direction == TextDirection::LTR ? kerning : -kerning, 0);
 
         auto it_copy = it; // The callback function will advance the iterator, so create a copy for this lookup.
-        FloatSize glyph_size(font.glyph_or_emoji_width(it_copy) + font.glyph_spacing(), font.pixel_size());
+        FloatSize glyph_size(font.glyph_or_emoji_width(it_copy), font.pixel_size());
 
         if (direction == TextDirection::RTL)
             point.translate_by(-glyph_size.width(), 0); // If we are drawing right to left, we have to move backwards before drawing the glyph

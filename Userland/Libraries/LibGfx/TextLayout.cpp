@@ -116,14 +116,12 @@ Vector<ByteString, 32> TextLayout::wrap_lines(TextElision elision, TextWrapping 
     Vector<ByteString> lines;
     StringBuilder builder;
     float line_width = 0;
-    size_t current_block = 0;
     for (Block& block : blocks) {
         switch (block.type) {
         case BlockType::Newline: {
             lines.append(builder.to_byte_string());
             builder.clear();
             line_width = 0;
-            current_block++;
             continue;
         }
         case BlockType::Whitespace:
@@ -131,9 +129,6 @@ Vector<ByteString, 32> TextLayout::wrap_lines(TextElision elision, TextWrapping 
             float block_width = m_font.width(block.characters);
             // FIXME: This should look at the specific advance amount of the
             //        last character, but we don't support that yet.
-            if (current_block != blocks.size() - 1) {
-                block_width += m_font.glyph_spacing();
-            }
 
             if (wrapping == TextWrapping::Wrap && line_width + block_width > m_rect.width()) {
                 lines.append(builder.to_byte_string());
@@ -143,7 +138,6 @@ Vector<ByteString, 32> TextLayout::wrap_lines(TextElision elision, TextWrapping 
 
             builder.append(block.characters.as_string());
             line_width += block_width;
-            current_block++;
         }
         }
     }
@@ -170,7 +164,6 @@ ByteString TextLayout::elide_text_from_right(Utf8View text) const
     if (text_width > static_cast<float>(m_rect.width())) {
         float ellipsis_width = m_font.width("..."sv);
         float current_width = ellipsis_width;
-        size_t glyph_spacing = m_font.glyph_spacing();
 
         // FIXME: This code will break when the font has glyphs with advance
         //        amounts different from the actual width of the glyph
@@ -182,10 +175,10 @@ ByteString TextLayout::elide_text_from_right(Utf8View text) const
                 // NOTE: Glyph spacing should not be added after the last glyph on the line,
                 //       but since we are here because the last glyph does not actually fit on the line,
                 //       we don't have to worry about spacing.
-                auto width_with_this_glyph_included = current_width + glyph_width + glyph_spacing;
+                auto width_with_this_glyph_included = current_width + glyph_width;
                 if (width_with_this_glyph_included > m_rect.width())
                     break;
-                current_width += glyph_width + glyph_spacing;
+                current_width += glyph_width;
                 offset = text.iterator_offset(it);
             }
 
