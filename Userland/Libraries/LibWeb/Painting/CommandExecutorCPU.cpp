@@ -48,11 +48,7 @@ CommandResult CommandExecutorCPU::draw_glyph_run(DrawGlyphRun const& command)
 CommandResult CommandExecutorCPU::draw_text(DrawText const& command)
 {
     auto& painter = this->painter();
-    if (command.font.has_value()) {
-        painter.draw_text(command.rect, command.raw_text, *command.font, command.alignment, command.color, command.elision, command.wrapping);
-    } else {
-        painter.draw_text(command.rect, command.raw_text, command.alignment, command.color, command.elision, command.wrapping);
-    }
+    painter.draw_text(command.rect, command.raw_text, command.font, command.alignment, command.color, command.elision, command.wrapping);
     return CommandResult::Continue;
 }
 
