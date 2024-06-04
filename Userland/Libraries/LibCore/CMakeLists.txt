@@ -16,13 +16,6 @@ set(SOURCES
 
 serenity_lib(LibCoreMinimal coreminimal)
 
-if (SERENITYOS)
-    add_library(DynamicLoader_LibCoreArgsParser
-        ArgsParser.cpp
-        Version.cpp)
-    target_link_libraries(DynamicLoader_LibCoreArgsParser PUBLIC DynamicLoader_CompileOptions)
-endif()
-
 set(SOURCES
     AnonymousBuffer.cpp
     Command.cpp
@@ -65,12 +58,7 @@ if (NOT WIN32 AND NOT EMSCRIPTEN)
 endif()
 
 # FIXME: Implement Core::FileWatcher for *BSD and Windows.
-if (SERENITYOS)
-    list(APPEND SOURCES
-        FileWatcherSerenity.cpp
-        Platform/ProcessStatisticsSerenity.cpp
-    )
-elseif (LINUX AND NOT EMSCRIPTEN)
+if (LINUX AND NOT EMSCRIPTEN)
     list(APPEND SOURCES
         FileWatcherLinux.cpp
         Platform/ProcessStatisticsLinux.cpp
