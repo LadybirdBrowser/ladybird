@@ -1,13 +1,3 @@
-executable("base64") {
-  sources = [ "base64.cpp" ]
-  include_dirs = [ "//Userland/Libraries" ]
-  deps = [
-    "//AK",
-    "//Userland/Libraries/LibCore",
-    "//Userland/Libraries/LibMain",
-  ]
-}
-
 executable("js") {
   sources = [ "js.cpp" ]
   include_dirs = [ "//Userland/Libraries" ]
