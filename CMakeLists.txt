@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 
+SET(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+set(VCPKG_INSTALL_OPTIONS --no-print-usage)
+
 project(ladybird
         VERSION 0.1.0
         LANGUAGES C CXX
