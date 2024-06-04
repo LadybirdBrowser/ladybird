@@ -123,7 +123,7 @@ template<typename Callback>
 void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, FontCascadeList const& font_list, Callback callback, IncludeLeftBearing include_left_bearing = IncludeLeftBearing::No, Optional<float&> width = {})
 {
     auto const& space_glyph_font = font_list.font_for_code_point(' ');
-    float space_width = space_glyph_font.glyph_width(' ') + space_glyph_font.glyph_spacing();
+    float space_width = space_glyph_font.glyph_width(' ');
 
     u32 last_code_point = 0;
 
@@ -145,7 +145,7 @@ void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, FontCas
         if (kerning != 0.0f)
             point.translate_by(kerning, 0);
 
-        auto glyph_width = font->glyph_or_emoji_width(it) + font->glyph_spacing();
+        auto glyph_width = font->glyph_or_emoji_width(it);
         auto glyph_or_emoji = prepare_draw_glyph_or_emoji(point, code_point_iterator, *font);
         if (include_left_bearing == IncludeLeftBearing::Yes) {
             if (glyph_or_emoji.has<DrawGlyph>())
@@ -159,7 +159,7 @@ void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, FontCas
     }
 
     if (width.has_value())
-        *width = point.x() - font_list.first().glyph_spacing();
+        *width = point.x();
 }
 
 }

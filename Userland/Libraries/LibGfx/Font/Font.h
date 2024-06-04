@@ -116,7 +116,6 @@ struct FontPixelMetrics {
     float size { 0 };
     float x_height { 0 };
     float advance_of_ascii_zero { 0 };
-    float glyph_spacing { 0 };
 
     // Number of pixels the font extends above the baseline.
     float ascent { 0 };
@@ -194,8 +193,6 @@ public:
     virtual String name() const = 0;
 
     virtual bool is_fixed_width() const = 0;
-
-    virtual u8 glyph_spacing() const = 0;
 
     virtual size_t glyph_count() const = 0;
 

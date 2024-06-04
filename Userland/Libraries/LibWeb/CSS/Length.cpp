@@ -25,7 +25,7 @@ Length::FontMetrics::FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics cons
     // FIXME: This is only approximately the cap height. The spec suggests measuring the "O" glyph:
     //        https://www.w3.org/TR/css-values-4/#cap
     , cap_height(pixel_metrics.ascent)
-    , zero_advance(pixel_metrics.advance_of_ascii_zero + pixel_metrics.glyph_spacing)
+    , zero_advance(pixel_metrics.advance_of_ascii_zero)
     , line_height(round(pixel_metrics.line_spacing()))
 {
 }

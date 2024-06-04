@@ -62,7 +62,6 @@ public:
     virtual int width_rounded_up(StringView) const override;
     virtual String name() const override { return MUST(String::formatted("{} {}", family(), variant())); }
     virtual bool is_fixed_width() const override { return m_font->is_fixed_width(); }
-    virtual u8 glyph_spacing() const override { return 0; }
     virtual size_t glyph_count() const override { return m_font->glyph_count(); }
     virtual String family() const override { return m_font->family(); }
     virtual String variant() const override { return m_font->variant(); }
