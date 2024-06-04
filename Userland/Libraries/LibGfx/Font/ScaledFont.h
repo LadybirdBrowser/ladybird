@@ -56,7 +56,6 @@ public:
     virtual String name() const override { return MUST(String::formatted("{} {}", family(), variant())); }
     virtual String family() const override { return m_font->family(); }
     virtual String variant() const override { return m_font->variant(); }
-    virtual String qualified_name() const override { return MUST(String::formatted("{} {} {} {}", family(), presentation_size(), weight(), slope())); }
 
     virtual NonnullRefPtr<ScaledFont> scaled_with_size(float point_size) const;
     virtual NonnullRefPtr<Font> with_size(float point_size) const override;

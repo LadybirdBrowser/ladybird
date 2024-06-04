@@ -186,8 +186,6 @@ public:
     virtual String family() const = 0;
     virtual String variant() const = 0;
 
-    virtual String qualified_name() const = 0;
-
     virtual NonnullRefPtr<Font> with_size(float point_size) const = 0;
 
     Font const& bold_variant() const;

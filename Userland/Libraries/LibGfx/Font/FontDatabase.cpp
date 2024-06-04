@@ -8,13 +8,10 @@
 #include <AK/FlyString.h>
 #include <AK/LexicalPath.h>
 #include <AK/Queue.h>
-#include <AK/QuickSort.h>
 #include <LibCore/Resource.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/OpenType/Font.h>
-#include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Font.h>
 
 namespace Gfx {
@@ -66,35 +63,6 @@ FontDatabase::FontDatabase()
     load_all_fonts_from_uri("resource://fonts"sv);
 }
 
-void FontDatabase::for_each_font(Function<void(Gfx::Font const&)> callback)
-{
-    Vector<RefPtr<Gfx::Font>> fonts;
-    fonts.ensure_capacity(m_private->full_name_to_font_map.size());
-    for (auto& it : m_private->full_name_to_font_map)
-        fonts.append(it.value);
-    quick_sort(fonts, [](auto& a, auto& b) { return a->qualified_name() < b->qualified_name(); });
-    for (auto& font : fonts)
-        callback(*font);
-}
-
-RefPtr<Gfx::Font> FontDatabase::get_by_name(StringView name)
-{
-    auto it = m_private->full_name_to_font_map.find(name);
-    if (it == m_private->full_name_to_font_map.end()) {
-        auto parts = name.split_view(" "sv);
-        if (parts.size() >= 4) {
-            auto slope = parts.take_last().to_number<int>().value_or(0);
-            auto weight = parts.take_last().to_number<int>().value_or(0);
-            auto size = parts.take_last().to_number<int>().value_or(0);
-            auto family = MUST(String::join(' ', parts));
-            return get(family, size, weight, Gfx::FontWidth::Normal, slope);
-        }
-        dbgln("Font lookup failed: '{}'", name);
-        return nullptr;
-    }
-    return it->value;
-}
-
 RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope)
 {
     auto it = m_private->typefaces.find(family);
@@ -131,15 +99,6 @@ RefPtr<Typeface> FontDatabase::get_or_create_typeface(FlyString const& family, F
     auto typeface = adopt_ref(*new Typeface(family, variant));
     m_private->typefaces.ensure(family).append(typeface);
     return typeface;
-}
-
-void FontDatabase::for_each_typeface(Function<void(Typeface const&)> callback)
-{
-    for (auto const& it : m_private->typefaces) {
-        for (auto const& jt : it.value) {
-            callback(*jt);
-        }
-    }
 }
 
 void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)> callback)
