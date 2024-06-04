@@ -437,7 +437,6 @@ if (BUILD_LAGOM)
         JS
         Line
         Locale
-        Markdown
         Protocol
         Regex
         RIFF
@@ -562,7 +561,6 @@ if (BUILD_LAGOM)
             LibCompress
             LibGfx
             LibLocale
-            LibMarkdown
             LibSQL
             LibTest
             LibTextCodec

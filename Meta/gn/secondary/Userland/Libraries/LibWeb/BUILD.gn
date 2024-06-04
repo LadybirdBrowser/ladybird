@@ -371,7 +371,6 @@ shared_library("LibWeb") {
            "//Userland/Libraries/LibIPC",
            "//Userland/Libraries/LibJS",
            "//Userland/Libraries/LibLocale",
-           "//Userland/Libraries/LibMarkdown",
            "//Userland/Libraries/LibRegex",
            "//Userland/Libraries/LibSyntax",
            "//Userland/Libraries/LibTLS",
