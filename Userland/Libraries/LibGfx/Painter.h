@@ -103,26 +103,20 @@ public:
     void blit_disabled(IntPoint, Gfx::Bitmap const&, IntRect const&, Palette const&);
     void blit_tiled(IntRect const&, Gfx::Bitmap const&, IntRect const& src_rect);
     void draw_text(FloatRect const&, StringView, Font const&, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
-    void draw_text(FloatRect const&, StringView, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_text(FloatRect const&, Utf32View const&, Font const&, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
-    void draw_text(FloatRect const&, Utf32View const&, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)>, FloatRect const&, StringView, Font const&, TextAlignment = TextAlignment::TopLeft, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)>, FloatRect const&, Utf8View const&, Font const&, TextAlignment = TextAlignment::TopLeft, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)>, FloatRect const&, Utf32View const&, Font const&, TextAlignment = TextAlignment::TopLeft, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_text(IntRect const&, StringView, Font const&, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
-    void draw_text(IntRect const&, StringView, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_text(IntRect const&, Utf32View const&, Font const&, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
-    void draw_text(IntRect const&, Utf32View const&, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)>, IntRect const&, StringView, Font const&, TextAlignment = TextAlignment::TopLeft, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)>, IntRect const&, Utf8View const&, Font const&, TextAlignment = TextAlignment::TopLeft, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)>, IntRect const&, Utf32View const&, Font const&, TextAlignment = TextAlignment::TopLeft, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_ui_text(Gfx::IntRect const&, StringView, Gfx::Font const&, TextAlignment, Gfx::Color);
-    void draw_glyph(IntPoint, u32, Color);
     void draw_glyph(IntPoint, u32, Font const&, Color);
     void draw_emoji(IntPoint, Gfx::Bitmap const&, Font const&);
     void draw_glyph_or_emoji(IntPoint, u32, Font const&, Color);
     void draw_glyph_or_emoji(IntPoint, Utf8CodePointIterator&, Font const&, Color);
-    void draw_glyph(FloatPoint, u32, Color);
     void draw_glyph(FloatPoint, u32, Font const&, Color);
     void draw_glyph_or_emoji(FloatPoint, u32, Font const&, Color);
     void draw_glyph_or_emoji(FloatPoint, Utf8CodePointIterator&, Font const&, Color);
@@ -159,14 +153,6 @@ public:
 
     void fill_path(Path const&, Color, WindingRule rule = WindingRule::Nonzero);
     void fill_path(Path const&, PaintStyle const& paint_style, float opacity = 1.0f, WindingRule rule = WindingRule::Nonzero);
-
-    Font const& font() const
-    {
-        if (!state().font)
-            return FontDatabase::default_font();
-        return *state().font;
-    }
-    void set_font(Font const& font) { state().font = &font; }
 
     enum class DrawOp {
         Copy,
@@ -213,7 +199,6 @@ protected:
     void set_physical_pixel(IntPoint, Color color, bool blend);
 
     struct State {
-        Font const* font;
         IntPoint translation;
         int scale = 1;
         IntRect clip_rect;
