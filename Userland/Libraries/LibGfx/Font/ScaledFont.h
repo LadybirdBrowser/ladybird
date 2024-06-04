@@ -47,26 +47,16 @@ public:
     virtual bool contains_glyph(u32 code_point) const override { return m_font->glyph_id_for_code_point(code_point) > 0; }
     virtual float glyph_width(u32 code_point) const override;
     virtual float glyph_or_emoji_width(Utf8CodePointIterator&) const override;
-    virtual float glyph_or_emoji_width(Utf32CodePointIterator&) const override;
     virtual float glyphs_horizontal_kerning(u32 left_code_point, u32 right_code_point) const override;
     virtual float preferred_line_height() const override { return metrics().height() + metrics().line_gap; }
-    virtual int x_height() const override { return m_point_height; }      // FIXME: Read from font
-    virtual u8 min_glyph_width() const override { return 1; }             // FIXME: Read from font
-    virtual u8 max_glyph_width() const override { return m_point_width; } // FIXME: Read from font
-    virtual u8 glyph_fixed_width() const override;
+    virtual int x_height() const override { return m_point_height; } // FIXME: Read from font
     virtual u8 baseline() const override { return m_point_height; }  // FIXME: Read from font
-    virtual u8 mean_line() const override { return m_point_height; } // FIXME: Read from font
     virtual float width(StringView) const override;
     virtual float width(Utf8View const&) const override;
-    virtual float width(Utf32View const&) const override;
-    virtual int width_rounded_up(StringView) const override;
     virtual String name() const override { return MUST(String::formatted("{} {}", family(), variant())); }
-    virtual bool is_fixed_width() const override { return m_font->is_fixed_width(); }
-    virtual size_t glyph_count() const override { return m_font->glyph_count(); }
     virtual String family() const override { return m_font->family(); }
     virtual String variant() const override { return m_font->variant(); }
     virtual String qualified_name() const override { return MUST(String::formatted("{} {} {} {}", family(), presentation_size(), weight(), slope())); }
-    virtual String human_readable_name() const override { return MUST(String::formatted("{} {} {}", family(), variant(), presentation_size())); }
 
     virtual NonnullRefPtr<ScaledFont> scaled_with_size(float point_size) const;
     virtual NonnullRefPtr<Font> with_size(float point_size) const override;

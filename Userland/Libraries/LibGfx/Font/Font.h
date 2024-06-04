@@ -172,35 +172,21 @@ public:
     virtual float glyph_left_bearing(u32 code_point) const = 0;
     virtual float glyph_width(u32 code_point) const = 0;
     virtual float glyph_or_emoji_width(Utf8CodePointIterator&) const = 0;
-    virtual float glyph_or_emoji_width(Utf32CodePointIterator&) const = 0;
     virtual float glyphs_horizontal_kerning(u32 left_code_point, u32 right_code_point) const = 0;
     virtual int x_height() const = 0;
     virtual float preferred_line_height() const = 0;
 
-    virtual u8 min_glyph_width() const = 0;
-    virtual u8 max_glyph_width() const = 0;
-    virtual u8 glyph_fixed_width() const = 0;
-
     virtual u8 baseline() const = 0;
-    virtual u8 mean_line() const = 0;
 
     virtual float width(StringView) const = 0;
     virtual float width(Utf8View const&) const = 0;
-    virtual float width(Utf32View const&) const = 0;
-
-    virtual int width_rounded_up(StringView) const = 0;
 
     virtual String name() const = 0;
-
-    virtual bool is_fixed_width() const = 0;
-
-    virtual size_t glyph_count() const = 0;
 
     virtual String family() const = 0;
     virtual String variant() const = 0;
 
     virtual String qualified_name() const = 0;
-    virtual String human_readable_name() const = 0;
 
     virtual NonnullRefPtr<Font> with_size(float point_size) const = 0;
 
