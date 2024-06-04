@@ -1,8 +1,3 @@
-serenity_component(
-    RequestServer
-    TARGETS RequestServer
-)
-
 compile_ipc(RequestServer.ipc RequestServerEndpoint.h)
 compile_ipc(RequestClient.ipc RequestClientEndpoint.h)
 

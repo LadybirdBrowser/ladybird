@@ -1,5 +1,4 @@
 
-include(${CMAKE_CURRENT_LIST_DIR}/serenity_components.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/code_generators.cmake)
 
 function(serenity_set_implicit_links target_name)
@@ -147,20 +146,6 @@ function(serenity_app target_name)
             message(FATAL_ERROR "Missing medium app icon: ${medium_icon}")
         endif()
     endif()
-endfunction()
-
-function(embed_resource target section file)
-    get_filename_component(asm_file "${file}" NAME)
-    set(asm_file "${CMAKE_CURRENT_BINARY_DIR}/${target}-${section}.s")
-    get_filename_component(input_file "${file}" ABSOLUTE)
-    file(SIZE "${input_file}" file_size)
-    add_custom_command(
-        OUTPUT "${asm_file}"
-        COMMAND "${SerenityOS_SOURCE_DIR}/Meta/generate-embedded-resource-assembly.sh" "${asm_file}" "${section}" "${input_file}" "${file_size}"
-        DEPENDS "${input_file}" "${SerenityOS_SOURCE_DIR}/Meta/generate-embedded-resource-assembly.sh"
-        COMMENT "Generating ${asm_file}"
-    )
-    target_sources("${target}" PRIVATE "${asm_file}")
 endfunction()
 
 function(remove_path_if_version_changed version version_file cache_path)

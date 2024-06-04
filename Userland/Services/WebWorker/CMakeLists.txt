@@ -1,9 +1,3 @@
-serenity_component(
-    WebWorker
-    TARGETS WebWorker
-    DEPENDS WebContent
-)
-
 set(SOURCES
     ConnectionFromClient.cpp
     DedicatedWorkerHost.cpp

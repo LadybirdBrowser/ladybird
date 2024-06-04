@@ -311,9 +311,6 @@ macro(add_serenity_subdirectory path)
     add_subdirectory("${SERENITY_PROJECT_ROOT}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
 endmacro()
 
-add_custom_target(components ALL)
-option(BUILD_EVERYTHING "Build all optional components" ON)
-
 if (NOT TARGET all_generated)
     # Meta target to run all code-gen steps in the build.
     add_custom_target(all_generated)
@@ -670,8 +667,6 @@ endif()
 
 if (ENABLE_FUZZERS)
     add_subdirectory(Fuzzers)
-else()
-    export_components("${CMAKE_BINARY_DIR}/components.ini")
 endif()
 
 include(ca_certificates_data)

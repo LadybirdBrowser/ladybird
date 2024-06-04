@@ -1,9 +1,3 @@
-serenity_component(
-    WebDriver
-    TARGETS WebDriver
-    DEPENDS WebContent
-)
-
 set(SOURCES
     Client.cpp
     Session.cpp
