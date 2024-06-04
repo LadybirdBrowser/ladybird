@@ -14,9 +14,36 @@ set(WEBCONTENT_SOURCES
     ../Utilities.cpp
 )
 
+if (ANDROID)
+    add_library(webcontent SHARED
+        ${WEBCONTENT_SOURCES}
+        ../Android/src/main/cpp/WebContentService.cpp
+        ../Android/src/main/cpp/WebContentServiceJNI.cpp
+        ../Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
+        ../Android/src/main/cpp/JNIHelpers.cpp
+    )
+    target_link_libraries(webcontent PRIVATE android)
+else()
+    add_library(webcontent STATIC ${WEBCONTENT_SOURCES})
+    set_target_properties(webcontent PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
+endif()
+
+target_include_directories(webcontent PUBLIC ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
+target_include_directories(webcontent PUBLIC ${LADYBIRD_SOURCE_DIR}/Userland/)
+target_include_directories(webcontent PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/..)
+target_link_libraries(webcontent PUBLIC LibAudio LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibWeb LibWebSocket LibProtocol LibWebView LibImageDecoderClient)
+
+if (HAVE_PULSEAUDIO)
+    target_compile_definitions(webcontent PUBLIC HAVE_PULSEAUDIO=1)
+endif()
+
+if (HAS_ACCELERATED_GRAPHICS)
+    target_compile_definitions(webcontent PUBLIC HAS_ACCELERATED_GRAPHICS)
+    target_link_libraries(webcontent PUBLIC LibAccelGfx)
+endif()
+
 if (ENABLE_QT)
-    qt_add_executable(WebContent ${WEBCONTENT_SOURCES})
-    target_sources(WebContent PRIVATE
+    qt_add_executable(WebContent
         ../Qt/EventLoopImplementationQt.cpp
         ../Qt/EventLoopImplementationQtEventTarget.cpp
         ../Qt/RequestManagerQt.cpp
@@ -40,61 +67,22 @@ if (ENABLE_QT)
         target_compile_definitions(WebContent PRIVATE HAVE_QT_MULTIMEDIA=1)
     endif()
 else()
-    set(LIB_TYPE STATIC)
-    if (ANDROID OR IOS)
-        set(LIB_TYPE SHARED)
-    endif()
-    add_library(webcontent ${LIB_TYPE} ${WEBCONTENT_SOURCES})
-    target_include_directories(webcontent PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
-    target_include_directories(webcontent PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
-    target_include_directories(webcontent PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
-    target_link_libraries(webcontent PRIVATE LibAudio LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibWeb LibWebSocket LibProtocol LibWebView LibImageDecoderClient)
-    target_sources(webcontent PUBLIC FILE_SET ladybird TYPE HEADERS
-        BASE_DIRS ${LADYBIRD_SOURCE_DIR}
-        FILES ../FontPlugin.h
-              ../ImageCodecPlugin.h
-    )
-    target_sources(webcontent PUBLIC FILE_SET server TYPE HEADERS
-        BASE_DIRS ${LADYBIRD_SOURCE_DIR}/Userland/Services
-        FILES ${WEBCONTENT_SOURCE_DIR}/ConnectionFromClient.h
-              ${WEBCONTENT_SOURCE_DIR}/ConsoleGlobalEnvironmentExtensions.h
-              ${WEBCONTENT_SOURCE_DIR}/Forward.h
-              ${WEBCONTENT_SOURCE_DIR}/PageHost.h
-              ${WEBCONTENT_SOURCE_DIR}/WebContentConsoleClient.h
-              ${WEBCONTENT_SOURCE_DIR}/WebDriverConnection.h
-    )
-
-    if (ANDROID)
-        target_sources(webcontent PRIVATE
-          ../Android/src/main/cpp/WebContentService.cpp
-          ../Android/src/main/cpp/WebContentServiceJNI.cpp
-          ../Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
-          ../Android/src/main/cpp/JNIHelpers.cpp
-        )
-        target_link_libraries(webcontent PRIVATE android)
-    endif()
-
     add_executable(WebContent main.cpp)
-    target_link_libraries(WebContent PRIVATE webcontent)
 endif()
 
-target_include_directories(WebContent PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
-target_include_directories(WebContent PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
-target_include_directories(WebContent PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
-target_link_libraries(WebContent PRIVATE LibAudio LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibSQL LibWeb LibWebSocket LibProtocol LibWebView LibURL)
+target_link_libraries(WebContent PRIVATE webcontent LibSQL LibURL)
 
-if (HAVE_PULSEAUDIO)
-    target_compile_definitions(WebContent PRIVATE HAVE_PULSEAUDIO=1)
-    if (TARGET webcontent)
-        target_compile_definitions(webcontent PRIVATE HAVE_PULSEAUDIO=1)
-    endif()
-endif()
-
-if (HAS_ACCELERATED_GRAPHICS)
-    target_compile_definitions(WebContent PRIVATE HAS_ACCELERATED_GRAPHICS)
-    target_link_libraries(WebContent PRIVATE LibAccelGfx)
-    if (TARGET webcontent)
-        target_compile_definitions(webcontent PRIVATE HAS_ACCELERATED_GRAPHICS)
-        target_link_libraries(webcontent PRIVATE LibAccelGfx)
-    endif()
-endif()
+target_sources(webcontent PUBLIC FILE_SET ladybird TYPE HEADERS
+    BASE_DIRS ${LADYBIRD_SOURCE_DIR}
+    FILES ../FontPlugin.h
+          ../ImageCodecPlugin.h
+)
+target_sources(webcontent PUBLIC FILE_SET server TYPE HEADERS
+    BASE_DIRS ${LADYBIRD_SOURCE_DIR}/Userland/Services
+    FILES ${WEBCONTENT_SOURCE_DIR}/ConnectionFromClient.h
+          ${WEBCONTENT_SOURCE_DIR}/ConsoleGlobalEnvironmentExtensions.h
+          ${WEBCONTENT_SOURCE_DIR}/Forward.h
+          ${WEBCONTENT_SOURCE_DIR}/PageHost.h
+          ${WEBCONTENT_SOURCE_DIR}/WebContentConsoleClient.h
+          ${WEBCONTENT_SOURCE_DIR}/WebDriverConnection.h
+)
