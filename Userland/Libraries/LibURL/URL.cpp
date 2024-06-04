@@ -172,8 +172,6 @@ Optional<u16> default_port_for_scheme(StringView scheme)
         return 443;
 
     // NOTE: not in spec, but we support these too
-    if (scheme == "gemini")
-        return 1965;
     if (scheme == "irc")
         return 6667;
     if (scheme == "ircs")

@@ -9,7 +9,6 @@ executable("RequestServer") {
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibCrypto",
     "//Userland/Libraries/LibFileSystem",
-    "//Userland/Libraries/LibGemini",
     "//Userland/Libraries/LibHTTP",
     "//Userland/Libraries/LibIPC",
     "//Userland/Libraries/LibMain",
@@ -22,8 +21,6 @@ executable("RequestServer") {
   sources = [
     "//Userland/Services/RequestServer/ConnectionCache.cpp",
     "//Userland/Services/RequestServer/ConnectionFromClient.cpp",
-    "//Userland/Services/RequestServer/GeminiProtocol.cpp",
-    "//Userland/Services/RequestServer/GeminiRequest.cpp",
     "//Userland/Services/RequestServer/HttpProtocol.cpp",
     "//Userland/Services/RequestServer/HttpRequest.cpp",
     "//Userland/Services/RequestServer/HttpsProtocol.cpp",

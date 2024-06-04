@@ -20,7 +20,7 @@ This process hosts the main HTML/CSS engine (**LibWeb**.) It also runs JavaScrip
 
 ### Process: RequestServer
 
-This process can use networking protocols (like HTTP, HTTPS, and Gemini) to request files from the outside world. Each **WebContent** process gets its own **RequestServer** to do uploading or downloading on its behalf.
+This process can use networking protocols (like HTTP or HTTPS) to request files from the outside world. Each **WebContent** process gets its own **RequestServer** to do uploading or downloading on its behalf.
 
 For DNS lookups, **RequestServer** asks for help from the system's global **LookupServer** service, which handles all outgoing DNS requests.
 

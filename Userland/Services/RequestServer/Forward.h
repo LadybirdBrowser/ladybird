@@ -10,7 +10,6 @@ namespace RequestServer {
 
 class ConnectionFromClient;
 class Request;
-class GeminiProtocol;
 class HttpRequest;
 class HttpProtocol;
 class HttpsRequest;

@@ -154,7 +154,7 @@ Optional<URLParts> break_url_into_parts(StringView url_string)
 
     if (url.scheme() == "file"sv)
         return break_file_url_into_parts(url, url_string);
-    if (url.scheme().is_one_of("http"sv, "https"sv, "gemini"sv))
+    if (url.scheme().is_one_of("http"sv, "https"sv))
         return break_web_url_into_parts(url, url_string);
 
     return {};

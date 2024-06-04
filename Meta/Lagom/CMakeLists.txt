@@ -429,7 +429,6 @@ if (BUILD_LAGOM)
         Compress
         Crypto
         Diff
-        Gemini
         Gfx
         HTTP
         ImageDecoderClient

@@ -58,7 +58,6 @@
                 <array>
                     <string>http</string>
                     <string>https</string>
-                    <string>gemini</string>
                 </array>
             </dict>
             <dict>

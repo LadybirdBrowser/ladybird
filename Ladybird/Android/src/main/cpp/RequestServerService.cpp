@@ -16,7 +16,6 @@
 #include <LibIPC/SingleServer.h>
 #include <LibTLS/Certificate.h>
 #include <RequestServer/ConnectionFromClient.h>
-#include <RequestServer/GeminiProtocol.h>
 #include <RequestServer/HttpProtocol.h>
 #include <RequestServer/HttpsProtocol.h>
 
@@ -37,7 +36,6 @@ ErrorOr<int> service_main(int ipc_socket)
 
     Core::EventLoop event_loop;
 
-    RequestServer::GeminiProtocol::install();
     RequestServer::HttpProtocol::install();
     RequestServer::HttpsProtocol::install();
 
