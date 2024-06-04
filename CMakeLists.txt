@@ -74,3 +74,13 @@ endif()
 include(CTest) # for BUILD_TESTING option, default ON
 
 add_subdirectory(Ladybird)
+
+add_custom_target(lint-shell-scripts
+        COMMAND "${ladybird_SOURCE_DIR}/Meta/lint-shell-scripts.sh"
+        USES_TERMINAL
+)
+
+add_custom_target(check-style
+        COMMAND "${ladybird_SOURCE_DIR}/Meta/check-style.sh"
+        USES_TERMINAL
+)

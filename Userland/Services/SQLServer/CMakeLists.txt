@@ -1,9 +1,3 @@
-serenity_component(
-    SQLServer
-    REQUIRED
-    TARGETS SQLServer
-)
-
 compile_ipc(SQLServer.ipc SQLServerEndpoint.h)
 compile_ipc(SQLClient.ipc SQLClientEndpoint.h)
 
