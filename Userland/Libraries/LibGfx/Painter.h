@@ -124,14 +124,6 @@ public:
     void fill_path(Path const&, Color, WindingRule rule = WindingRule::Nonzero);
     void fill_path(Path const&, PaintStyle const& paint_style, float opacity = 1.0f, WindingRule rule = WindingRule::Nonzero);
 
-    enum class DrawOp {
-        Copy,
-        Xor,
-        Invert
-    };
-    void set_draw_op(DrawOp op) { state().draw_op = op; }
-    DrawOp draw_op() const { return state().draw_op; }
-
     void add_clip_rect(IntRect const& rect);
     void clear_clip_rect();
 
@@ -161,9 +153,8 @@ protected:
 
     IntRect to_physical(IntRect const& r) const { return r.translated(translation()) * scale(); }
     IntPoint to_physical(IntPoint p) const { return p.translated(translation()) * scale(); }
-    void set_physical_pixel_with_draw_op(u32& pixel, Color);
-    void fill_physical_scanline_with_draw_op(int y, int x, int width, Color color);
-    void fill_rect_with_draw_op(IntRect const&, Color);
+    void set_physical_pixel(u32& pixel, Color);
+    void fill_physical_scanline(int y, int x, int width, Color color);
     void blit_with_opacity(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect, float opacity, bool apply_alpha = true);
     void draw_physical_pixel(IntPoint, Color, int thickness = 1);
     void set_physical_pixel(IntPoint, Color color, bool blend);
@@ -172,7 +163,6 @@ protected:
         IntPoint translation;
         int scale = 1;
         IntRect clip_rect;
-        DrawOp draw_op;
     };
 
     State& state() { return m_state_stack.last(); }

@@ -65,24 +65,6 @@ Painter::Painter(Gfx::Bitmap& bitmap)
     m_clip_origin = state().clip_rect;
 }
 
-void Painter::fill_rect_with_draw_op(IntRect const& a_rect, Color color)
-{
-    VERIFY(scale() == 1); // FIXME: Add scaling support.
-
-    auto rect = a_rect.translated(translation()).intersected(clip_rect());
-    if (rect.is_empty())
-        return;
-
-    ARGB32* dst = m_target->scanline(rect.top()) + rect.left();
-    size_t const dst_skip = m_target->pitch() / sizeof(ARGB32);
-
-    for (int i = rect.height() - 1; i >= 0; --i) {
-        for (int j = 0; j < rect.width(); ++j)
-            set_physical_pixel_with_draw_op(dst[j], color);
-        dst += dst_skip;
-    }
-}
-
 void Painter::clear_rect(IntRect const& a_rect, Color color)
 {
     auto rect = a_rect.translated(translation()).intersected(clip_rect());
@@ -119,11 +101,6 @@ void Painter::fill_rect(IntRect const& a_rect, Color color)
 {
     if (color.alpha() == 0)
         return;
-
-    if (draw_op() != DrawOp::Copy) {
-        fill_rect_with_draw_op(a_rect, color);
-        return;
-    }
 
     if (color.alpha() == 0xff) {
         clear_rect(a_rect, color);
@@ -418,7 +395,7 @@ void Painter::draw_rect(IntRect const& a_rect, Color color, bool rough)
         if (width > 0) {
             int start_x = rough ? max(rect.x() + 1, clipped_rect.x()) : clipped_rect.x();
             for (int i = 0; i < scale; ++i)
-                fill_physical_scanline_with_draw_op(rect.top() * scale + i, start_x * scale, width * scale, color);
+                fill_physical_scanline(rect.top() * scale + i, start_x * scale, width * scale, color);
         }
         ++min_y;
     }
@@ -427,7 +404,7 @@ void Painter::draw_rect(IntRect const& a_rect, Color color, bool rough)
         if (width > 0) {
             int start_x = rough ? max(rect.x() + 1, clipped_rect.x()) : clipped_rect.x();
             for (int i = 0; i < scale; ++i)
-                fill_physical_scanline_with_draw_op(max_y * scale + i, start_x * scale, width * scale, color);
+                fill_physical_scanline(max_y * scale + i, start_x * scale, width * scale, color);
         }
         --max_y;
     }
@@ -440,19 +417,19 @@ void Painter::draw_rect(IntRect const& a_rect, Color color, bool rough)
         for (int y = min_y * scale; y <= max_y * scale; ++y) {
             auto* bits = m_target->scanline(y);
             for (int i = 0; i < scale; ++i)
-                set_physical_pixel_with_draw_op(bits[rect.left() * scale + i], color);
+                set_physical_pixel(bits[rect.left() * scale + i], color);
             for (int i = 0; i < scale; ++i)
-                set_physical_pixel_with_draw_op(bits[(rect.right() - 1) * scale + i], color);
+                set_physical_pixel(bits[(rect.right() - 1) * scale + i], color);
         }
     } else {
         for (int y = min_y * scale; y <= max_y * scale; ++y) {
             auto* bits = m_target->scanline(y);
             if (draw_left_side)
                 for (int i = 0; i < scale; ++i)
-                    set_physical_pixel_with_draw_op(bits[rect.left() * scale + i], color);
+                    set_physical_pixel(bits[rect.left() * scale + i], color);
             if (draw_right_side)
                 for (int i = 0; i < scale; ++i)
-                    set_physical_pixel_with_draw_op(bits[(rect.right() - 1) * scale + i], color);
+                    set_physical_pixel(bits[(rect.right() - 1) * scale + i], color);
         }
     }
 }
@@ -1412,52 +1389,18 @@ ErrorOr<NonnullRefPtr<Bitmap>> Painter::get_region_bitmap(IntRect const& region,
     return m_target->cropped(bitmap_region, format);
 }
 
-ALWAYS_INLINE void Painter::set_physical_pixel_with_draw_op(u32& pixel, Color color)
+ALWAYS_INLINE void Painter::set_physical_pixel(u32& pixel, Color color)
 {
     // This always sets a single physical pixel, independent of scale().
     // This should only be called by routines that already handle scale.
-
-    switch (draw_op()) {
-    case DrawOp::Copy:
-        pixel = color.value();
-        break;
-    case DrawOp::Xor:
-        pixel = color.xored(Color::from_argb(pixel)).value();
-        break;
-    case DrawOp::Invert:
-        pixel = Color::from_argb(pixel).inverted().value();
-        break;
-    }
+    pixel = color.value();
 }
 
-ALWAYS_INLINE void Painter::fill_physical_scanline_with_draw_op(int y, int x, int width, Color color)
+ALWAYS_INLINE void Painter::fill_physical_scanline(int y, int x, int width, Color color)
 {
     // This always draws a single physical scanline, independent of scale().
     // This should only be called by routines that already handle scale.
-    auto dst_format = m_target->format();
-    switch (draw_op()) {
-    case DrawOp::Copy:
-        fast_u32_fill(m_target->scanline(y) + x, color.value(), width);
-        break;
-    case DrawOp::Xor: {
-        auto* pixel = m_target->scanline(y) + x;
-        auto* end = pixel + width;
-        while (pixel < end) {
-            *pixel = color_for_format(dst_format, *pixel).xored(color).value();
-            pixel++;
-        }
-        break;
-    }
-    case DrawOp::Invert: {
-        auto* pixel = m_target->scanline(y) + x;
-        auto* end = pixel + width;
-        while (pixel < end) {
-            *pixel = color_for_format(dst_format, *pixel).inverted().value();
-            pixel++;
-        }
-        break;
-    }
-    }
+    fast_u32_fill(m_target->scanline(y) + x, color.value(), width);
 }
 
 void Painter::draw_physical_pixel(IntPoint physical_position, Color color, int thickness)
@@ -1465,14 +1408,12 @@ void Painter::draw_physical_pixel(IntPoint physical_position, Color color, int t
     // This always draws a single physical pixel, independent of scale().
     // This should only be called by routines that already handle scale
     // (including scaling thickness).
-    VERIFY(draw_op() == DrawOp::Copy);
-
     if (thickness <= 0)
         return;
 
     if (thickness == 1) { // Implies scale() == 1.
         auto& pixel = m_target->scanline(physical_position.y())[physical_position.x()];
-        return set_physical_pixel_with_draw_op(pixel, color_for_format(m_target->format(), pixel).blend(color));
+        return set_physical_pixel(pixel, color_for_format(m_target->format(), pixel).blend(color));
     }
 
     IntRect rect { physical_position, { thickness, thickness } };
