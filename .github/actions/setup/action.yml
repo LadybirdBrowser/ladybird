@@ -60,3 +60,7 @@ runs:
         set -e
         brew update
         brew install coreutils bash ninja wabt ccache unzip qt llvm@18
+
+    - name: 'Install vcpkg'
+      shell: bash
+      run: ./Toolchain/BuildVcpkg.sh
