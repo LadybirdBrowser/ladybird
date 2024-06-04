@@ -10,7 +10,7 @@ interface HTMLLinkElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString href;
     [FIXME, CEReactions] attribute DOMString? crossOrigin;
     [CEReactions, Reflect] attribute DOMString rel;
-    [FIXME, CEReactions] attribute DOMString as;
+    [CEReactions] attribute DOMString as;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
     [CEReactions, Reflect] attribute DOMString media;
     [CEReactions, Reflect] attribute DOMString integrity;
