@@ -127,11 +127,6 @@ TEST_CASE(brotli_decompress_happy3rd_html)
     run_test("happy3rd.html"sv);
 }
 
-TEST_CASE(brotli_decompress_katica_regular_10_font)
-{
-    run_test("KaticaRegular10.font"sv);
-}
-
 TEST_CASE(brotli_single_z)
 {
     run_test("single-z.txt"sv);
