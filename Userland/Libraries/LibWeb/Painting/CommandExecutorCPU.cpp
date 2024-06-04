@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/Filters/StackBlurFilter.h>
-#include <LibGfx/StylePainter.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/CommandExecutorCPU.h>
