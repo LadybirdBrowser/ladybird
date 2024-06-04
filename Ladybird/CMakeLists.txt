@@ -120,7 +120,7 @@ if (ANDROID)
     include(cmake/AndroidExtras.cmake)
 endif()
 
-add_custom_target(run-ladybird
+add_custom_target(run
     COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}
     USES_TERMINAL
     VERBATIM
