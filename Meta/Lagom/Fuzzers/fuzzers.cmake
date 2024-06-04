@@ -23,7 +23,6 @@ set(FUZZER_TARGETS
     JsonParser
     LzmaDecompression
     LzmaRoundtrip
-    Markdown
     MatroskaReader
     MD5
     MP3Loader
@@ -91,7 +90,6 @@ set(FUZZER_DEPENDENCIES_JPEGLoader LibGfx)
 set(FUZZER_DEPENDENCIES_Js LibJS)
 set(FUZZER_DEPENDENCIES_LzmaDecompression LibArchive LibCompress)
 set(FUZZER_DEPENDENCIES_LzmaRoundtrip LibCompress)
-set(FUZZER_DEPENDENCIES_Markdown LibMarkdown)
 set(FUZZER_DEPENDENCIES_MatroskaReader LibVideo)
 set(FUZZER_DEPENDENCIES_MD5 LibCrypto)
 set(FUZZER_DEPENDENCIES_MP3Loader LibAudio)

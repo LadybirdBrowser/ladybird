@@ -10,7 +10,6 @@
 #include <AK/LexicalPath.h>
 #include <LibGemini/Document.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
-#include <LibMarkdown/Document.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -35,74 +34,6 @@ static void convert_to_xml_error_document(DOM::Document& document, String error_
     MUST(body_element->append_child(document.heap().allocate<DOM::Text>(document.realm(), document, error_string)));
     document.remove_all_children();
     MUST(document.append_child(html_element));
-}
-
-static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::Document>> load_markdown_document(HTML::NavigationParams const& navigation_params)
-{
-    auto extra_head_contents = R"~~~(
-<style>
-    .zoomable {
-        cursor: zoom-in;
-        max-width: 100%;
-    }
-    .zoomable.zoomed-in {
-        cursor: zoom-out;
-        max-width: none;
-    }
-</style>
-<script>
-    function imageClickEventListener(event) {
-        let image = event.target;
-        if (image.classList.contains("zoomable")) {
-            image.classList.toggle("zoomed-in");
-        }
-    }
-    function processImages() {
-        let images = document.querySelectorAll("img");
-        let windowWidth = window.innerWidth;
-        images.forEach((image) => {
-            if (image.naturalWidth > windowWidth) {
-                image.classList.add("zoomable");
-            } else {
-                image.classList.remove("zoomable");
-                image.classList.remove("zoomed-in");
-            }
-
-            image.addEventListener("click", imageClickEventListener);
-        });
-    }
-
-    document.addEventListener("load", () => {
-        processImages();
-    });
-
-    window.addEventListener("resize", () => {
-        processImages();
-    });
-</script>
-)~~~"sv;
-
-    return create_document_for_inline_content(navigation_params.navigable.ptr(), navigation_params.id, [&](DOM::Document& document) {
-        auto& realm = document.realm();
-        auto process_body = JS::create_heap_function(realm.heap(), [&document, url = navigation_params.response->url().value(), extra_head_contents](ByteBuffer data) {
-            auto markdown_document = Markdown::Document::parse(data);
-            if (!markdown_document)
-                return;
-
-            auto parser = HTML::HTMLParser::create(document, markdown_document->render_to_html(extra_head_contents), "utf-8"sv);
-            parser->run(url);
-        });
-
-        auto process_body_error = JS::create_heap_function(realm.heap(), [](JS::Value) {
-            dbgln("FIXME: Load html page with an error if read of body failed.");
-        });
-
-        navigation_params.response->body()->fully_read(
-            realm,
-            process_body,
-            process_body_error,
-            JS::NonnullGCPtr { realm.global_object() });
-    });
 }
 
 bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<String> content_encoding)
@@ -533,8 +464,6 @@ JS::GCPtr<DOM::Document> load_document(HTML::NavigationParams const& navigation_
     //    native rendering of the content or an error message because the specified type is not supported, then
     //    return the result of creating a document for inline content that doesn't have a DOM given navigationParams's
     //    navigable, navigationParams's id, and navigationParams's navigation timing type.
-    if (type.essence() == "text/markdown"sv)
-        return load_markdown_document(navigation_params).release_value_but_fixme_should_propagate_errors();
 
     // FIXME: 4. Otherwise, the document's type is such that the resource will not affect navigationParams's navigable,
     //        e.g., because the resource is to be handed to an external application or because it is an unknown type
