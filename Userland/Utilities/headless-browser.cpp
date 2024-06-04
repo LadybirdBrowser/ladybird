@@ -70,18 +70,14 @@ public:
         RefPtr<Protocol::RequestClient> request_client;
 
 #if defined(AK_OS_SERENITY)
-        auto database = TRY(WebView::Database::create());
         (void)resources_folder;
         (void)certificates;
 #else
-        auto sql_server_paths = TRY(get_paths_for_helper_process("SQLServer"sv));
-        auto sql_client = TRY(launch_sql_server_process(sql_server_paths));
-        auto database = TRY(WebView::Database::create(move(sql_client)));
-
         auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
         request_client = TRY(launch_request_server_process(request_server_paths, resources_folder, certificates));
 #endif
 
+        auto database = TRY(WebView::Database::create());
         auto cookie_jar = TRY(WebView::CookieJar::create(*database));
 
         auto view = TRY(adopt_nonnull_own_or_enomem(new (nothrow) HeadlessWebContentView(move(database), move(cookie_jar), request_client)));

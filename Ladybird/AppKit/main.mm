@@ -120,8 +120,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         WebView::ProcessManager::the().add_process(pid, move(port));
     };
 
-    auto sql_client = TRY([application launchSQLServer]);
-    auto database = TRY(WebView::Database::create(move(sql_client)));
+    auto database = TRY(WebView::Database::create());
     auto cookie_jar = TRY(WebView::CookieJar::create(*database));
 
     // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash

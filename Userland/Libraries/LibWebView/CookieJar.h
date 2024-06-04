@@ -14,10 +14,10 @@
 #include <AK/Traits.h>
 #include <LibCore/DateTime.h>
 #include <LibCore/Timer.h>
-#include <LibSQL/Type.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/Database.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
@@ -32,11 +32,9 @@ struct CookieStorageKey {
 
 class CookieJar {
     struct Statements {
-        SQL::StatementID create_table { 0 };
-        SQL::StatementID insert_cookie { 0 };
-        SQL::StatementID update_cookie { 0 };
-        SQL::StatementID expire_cookie { 0 };
-        SQL::StatementID select_all_cookies { 0 };
+        Database::StatementID insert_cookie { 0 };
+        Database::StatementID expire_cookie { 0 };
+        Database::StatementID select_all_cookies { 0 };
     };
 
     class TransientStorage {
@@ -51,8 +49,7 @@ class CookieJar {
 
         UnixDateTime purge_expired_cookies();
 
-        auto take_inserted_cookies() { return move(m_inserted_cookies); }
-        auto take_updated_cookies() { return move(m_updated_cookies); }
+        auto take_dirty_cookies() { return move(m_dirty_cookies); }
 
         template<typename Callback>
         void for_each_cookie(Callback callback)
@@ -63,13 +60,11 @@ class CookieJar {
 
     private:
         Cookies m_cookies;
-        Cookies m_inserted_cookies;
-        Cookies m_updated_cookies;
+        Cookies m_dirty_cookies;
     };
 
     struct PersistedStorage {
         void insert_cookie(Web::Cookie::Cookie const& cookie);
-        void update_cookie(Web::Cookie::Cookie const& cookie);
         TransientStorage::Cookies select_all_cookies();
 
         Database& database;
