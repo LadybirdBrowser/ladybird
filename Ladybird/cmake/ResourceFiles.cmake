@@ -2,16 +2,6 @@ file(STRINGS "${LADYBIRD_SOURCE_DIR}/Meta/emoji-file-list.txt" EMOJI)
 list(TRANSFORM EMOJI PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/emoji/")
 
 set(FONTS
-    CsillaBold10.font
-    CsillaBold12.font
-    CsillaRegular10.font
-    CsillaRegular12.font
-    KaticaBold10.font
-    KaticaBold12.font
-    KaticaBoldOblique10.font
-    KaticaItalic10.font
-    KaticaRegular10.font
-    KaticaRegular12.font
     SerenitySans-Regular.ttf
 )
 list(TRANSFORM FONTS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/fonts/")

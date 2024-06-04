@@ -210,19 +210,7 @@ foreach(file, _emoji) {
   emoji += [ "//Base/res/emoji/" + file ]
 }
 
-fonts = [
-  "//Base/res/fonts/CsillaBold10.font",
-  "//Base/res/fonts/CsillaBold12.font",
-  "//Base/res/fonts/CsillaRegular10.font",
-  "//Base/res/fonts/CsillaRegular12.font",
-  "//Base/res/fonts/KaticaBold10.font",
-  "//Base/res/fonts/KaticaBold12.font",
-  "//Base/res/fonts/KaticaBoldOblique10.font",
-  "//Base/res/fonts/KaticaItalic10.font",
-  "//Base/res/fonts/KaticaRegular10.font",
-  "//Base/res/fonts/KaticaRegular12.font",
-  "//Base/res/fonts/SerenitySans-Regular.ttf",
-]
+fonts = [ "//Base/res/fonts/SerenitySans-Regular.ttf" ]
 
 icons_16x16 = [
   "//Base/res/icons/16x16/app-browser.png",
