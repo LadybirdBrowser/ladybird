@@ -21,10 +21,6 @@ set(SOURCES
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
-if (SERENITYOS)
-    list(APPEND SOURCES OutOfProcessWebView.cpp)
-endif()
-
 embed_as_string_view(
     "NativeStyleSheetSource.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Native.css"
@@ -53,18 +49,16 @@ serenity_lib(LibWebView webview)
 target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibIPC LibProtocol LibJS LibWeb LibSQL LibUnicode LibURL)
 target_compile_definitions(LibWebView PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENABLE_PUBLIC_SUFFIX_DOWNLOAD}>)
 
-if (NOT SERENITYOS)
-    foreach(header ${GENERATED_SOURCES})
-        get_filename_component(extension ${header} EXT)
-        if (NOT "${extension}" STREQUAL ".h")
-            continue()
-        endif()
+foreach(header ${GENERATED_SOURCES})
+    get_filename_component(extension ${header} EXT)
+    if (NOT "${extension}" STREQUAL ".h")
+        continue()
+    endif()
 
-        get_filename_component(subdirectory ${header} DIRECTORY)
-        string(REGEX REPLACE "^\\.\\./\\.\\./" "" subdirectory "${subdirectory}")
+    get_filename_component(subdirectory ${header} DIRECTORY)
+    string(REGEX REPLACE "^\\.\\./\\.\\./" "" subdirectory "${subdirectory}")
 
-        install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${header}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${subdirectory}")
-    endforeach()
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${header}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${subdirectory}")
+endforeach()
 
-    install(FILES "${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/ConnectionCache.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/RequestServer")
-endif()
+install(FILES "${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/ConnectionCache.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/RequestServer")
