@@ -9,7 +9,6 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
-#include <LibSQL/SQLClient.h>
 #include <LibWebView/Forward.h>
 
 namespace Ladybird {
@@ -23,7 +22,6 @@ public:
     ~ApplicationBridge();
 
     ErrorOr<void> launch_request_server(Vector<ByteString> const& certificates);
-    ErrorOr<NonnullRefPtr<SQL::SQLClient>> launch_sql_server();
     ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content(WebViewBridge&);
     ErrorOr<IPC::File> launch_web_worker();
 

@@ -154,13 +154,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #endif
 
     RefPtr<WebView::Database> database;
-
-    if (!disable_sql_database) {
-        auto sql_server_paths = TRY(get_paths_for_helper_process("SQLServer"sv));
-        auto sql_client = TRY(launch_sql_server_process(sql_server_paths));
-
-        database = TRY(WebView::Database::create(sql_client));
-    }
+    if (!disable_sql_database)
+        database = TRY(WebView::Database::create());
 
     auto cookie_jar = database ? TRY(WebView::CookieJar::create(*database)) : WebView::CookieJar::create();
 

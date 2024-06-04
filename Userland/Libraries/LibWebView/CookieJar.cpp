@@ -11,12 +11,9 @@
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
-#include <LibSQL/TupleDescriptor.h>
-#include <LibSQL/Value.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWebView/CookieJar.h>
-#include <LibWebView/Database.h>
 #include <LibWebView/URL.h>
 
 namespace WebView {
@@ -27,11 +24,11 @@ ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database& database)
 {
     Statements statements {};
 
-    statements.create_table = TRY(database.prepare_statement(R"#(
+    auto create_table = TRY(database.prepare_statement(MUST(String::formatted(R"#(
         CREATE TABLE IF NOT EXISTS Cookies (
             name TEXT,
             value TEXT,
-            same_site INTEGER,
+            same_site INTEGER CHECK (same_site >= 0 AND same_site <= {}),
             creation_time INTEGER,
             last_access_time INTEGER,
             expiry_time INTEGER,
@@ -40,23 +37,13 @@ ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database& database)
             secure BOOLEAN,
             http_only BOOLEAN,
             host_only BOOLEAN,
-            persistent BOOLEAN
-        );)#"sv));
+            persistent BOOLEAN,
+            PRIMARY KEY(name, domain, path)
+        );)#",
+        to_underlying(Web::Cookie::SameSite::Lax)))));
+    database.execute_statement(create_table, {});
 
-    statements.update_cookie = TRY(database.prepare_statement(R"#(
-        UPDATE Cookies SET
-            value=?,
-            same_site=?,
-            creation_time=?,
-            last_access_time=?,
-            expiry_time=?,
-            secure=?,
-            http_only=?,
-            host_only=?,
-            persistent=?
-        WHERE ((name = ?) AND (domain = ?) AND (path = ?));)#"sv));
-
-    statements.insert_cookie = TRY(database.prepare_statement("INSERT INTO Cookies VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
+    statements.insert_cookie = TRY(database.prepare_statement("INSERT OR REPLACE INTO Cookies VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
     statements.expire_cookie = TRY(database.prepare_statement("DELETE FROM Cookies WHERE (expiry_time < ?);"sv));
     statements.select_all_cookies = TRY(database.prepare_statement("SELECT * FROM Cookies;"sv));
 
@@ -74,8 +61,6 @@ CookieJar::CookieJar(Optional<PersistedStorage> persisted_storage)
     if (!m_persisted_storage.has_value())
         return;
 
-    m_persisted_storage->database.execute_statement(m_persisted_storage->statements.create_table, {}, {}, {});
-
     // FIXME: Make cookie retrieval lazy so we don't need to retrieve all cookies up front.
     auto cookies = m_persisted_storage->select_all_cookies();
     m_transient_storage.set_cookies(move(cookies));
@@ -84,13 +69,10 @@ CookieJar::CookieJar(Optional<PersistedStorage> persisted_storage)
         static_cast<int>(DATABASE_SYNCHRONIZATION_TIMER.to_milliseconds()),
         [this]() {
             auto now = m_transient_storage.purge_expired_cookies();
-            m_persisted_storage->database.execute_statement(m_persisted_storage->statements.expire_cookie, {}, {}, {}, now);
+            m_persisted_storage->database.execute_statement(m_persisted_storage->statements.expire_cookie, {}, now);
 
-            // FIXME: Implement "INSERT OR REPLACE"
-            for (auto const& it : m_transient_storage.take_inserted_cookies())
+            for (auto const& it : m_transient_storage.take_dirty_cookies())
                 m_persisted_storage->insert_cookie(it.value);
-            for (auto const& it : m_transient_storage.take_updated_cookies())
-                m_persisted_storage->update_cookie(it.value);
         });
     m_persisted_storage->synchronization_timer->start();
 }
@@ -465,70 +447,6 @@ Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(const URL::URL& url,
     return cookie_list;
 }
 
-static ErrorOr<Web::Cookie::Cookie> parse_cookie(ReadonlySpan<SQL::Value> row)
-{
-    if (row.size() != 12)
-        return Error::from_string_view("Incorrect number of columns to parse cookie"sv);
-
-    size_t index = 0;
-
-    auto convert_text = [&](auto& field, StringView name) -> ErrorOr<void> {
-        auto const& value = row[index++];
-        if (value.type() != SQL::SQLType::Text)
-            return Error::from_string_view(name);
-
-        field = MUST(value.to_string());
-        return {};
-    };
-
-    auto convert_bool = [&](auto& field, StringView name) -> ErrorOr<void> {
-        auto const& value = row[index++];
-        if (value.type() != SQL::SQLType::Boolean)
-            return Error::from_string_view(name);
-
-        field = value.to_bool().value();
-        return {};
-    };
-
-    auto convert_time = [&](auto& field, StringView name) -> ErrorOr<void> {
-        auto const& value = row[index++];
-        if (value.type() != SQL::SQLType::Integer)
-            return Error::from_string_view(name);
-
-        field = value.to_unix_date_time().value();
-        return {};
-    };
-
-    auto convert_same_site = [&](auto& field, StringView name) -> ErrorOr<void> {
-        auto const& value = row[index++];
-        if (value.type() != SQL::SQLType::Integer)
-            return Error::from_string_view(name);
-
-        auto same_site = value.to_int<UnderlyingType<Web::Cookie::SameSite>>().value();
-        if (same_site > to_underlying(Web::Cookie::SameSite::Lax))
-            return Error::from_string_view(name);
-
-        field = static_cast<Web::Cookie::SameSite>(same_site);
-        return {};
-    };
-
-    Web::Cookie::Cookie cookie;
-    TRY(convert_text(cookie.name, "name"sv));
-    TRY(convert_text(cookie.value, "value"sv));
-    TRY(convert_same_site(cookie.same_site, "same_site"sv));
-    TRY(convert_time(cookie.creation_time, "creation_time"sv));
-    TRY(convert_time(cookie.last_access_time, "last_access_time"sv));
-    TRY(convert_time(cookie.expiry_time, "expiry_time"sv));
-    TRY(convert_text(cookie.domain, "domain"sv));
-    TRY(convert_text(cookie.path, "path"sv));
-    TRY(convert_bool(cookie.secure, "secure"sv));
-    TRY(convert_bool(cookie.http_only, "http_only"sv));
-    TRY(convert_bool(cookie.host_only, "host_only"sv));
-    TRY(convert_bool(cookie.persistent, "persistent"sv));
-
-    return cookie;
-}
-
 void CookieJar::TransientStorage::set_cookies(Cookies cookies)
 {
     m_cookies = move(cookies);
@@ -537,24 +455,8 @@ void CookieJar::TransientStorage::set_cookies(Cookies cookies)
 
 void CookieJar::TransientStorage::set_cookie(CookieStorageKey key, Web::Cookie::Cookie cookie)
 {
-    auto result = m_cookies.set(key, cookie);
-
-    switch (result) {
-    case HashSetResult::InsertedNewEntry:
-        m_inserted_cookies.set(move(key), move(cookie));
-        break;
-
-    case HashSetResult::ReplacedExistingEntry:
-        if (m_inserted_cookies.contains(key))
-            m_inserted_cookies.set(move(key), move(cookie));
-        else
-            m_updated_cookies.set(move(key), move(cookie));
-        break;
-
-    case HashSetResult::KeptExistingEntry:
-        VERIFY_NOT_REACHED();
-        break;
-    }
+    m_cookies.set(key, cookie);
+    m_dirty_cookies.set(move(key), move(cookie));
 }
 
 Optional<Web::Cookie::Cookie> CookieJar::TransientStorage::get_cookie(CookieStorageKey const& key)
@@ -568,8 +470,7 @@ UnixDateTime CookieJar::TransientStorage::purge_expired_cookies()
     auto is_expired = [&](auto const&, auto const& cookie) { return cookie.expiry_time < now; };
 
     m_cookies.remove_all_matching(is_expired);
-    m_inserted_cookies.remove_all_matching(is_expired);
-    m_updated_cookies.remove_all_matching(is_expired);
+    m_dirty_cookies.remove_all_matching(is_expired);
 
     return now;
 }
@@ -578,7 +479,7 @@ void CookieJar::PersistedStorage::insert_cookie(Web::Cookie::Cookie const& cooki
 {
     database.execute_statement(
         statements.insert_cookie,
-        {}, {}, {},
+        {},
         cookie.name,
         cookie.value,
         to_underlying(cookie.same_site),
@@ -593,44 +494,47 @@ void CookieJar::PersistedStorage::insert_cookie(Web::Cookie::Cookie const& cooki
         cookie.persistent);
 }
 
-void CookieJar::PersistedStorage::update_cookie(Web::Cookie::Cookie const& cookie)
+static Web::Cookie::Cookie parse_cookie(Database& database, Database::StatementID statement_id)
 {
-    database.execute_statement(
-        statements.update_cookie,
-        {}, {}, {},
-        cookie.value,
-        to_underlying(cookie.same_site),
-        cookie.creation_time,
-        cookie.last_access_time,
-        cookie.expiry_time,
-        cookie.secure,
-        cookie.http_only,
-        cookie.host_only,
-        cookie.persistent,
-        cookie.name,
-        cookie.domain,
-        cookie.path);
+    int column = 0;
+    auto convert_text = [&](auto& field) { field = database.result_column<String>(statement_id, column++); };
+    auto convert_bool = [&](auto& field) { field = database.result_column<bool>(statement_id, column++); };
+    auto convert_time = [&](auto& field) { field = database.result_column<UnixDateTime>(statement_id, column++); };
+
+    auto convert_same_site = [&](auto& field) {
+        auto same_site = database.result_column<UnderlyingType<Web::Cookie::SameSite>>(statement_id, column++);
+        field = static_cast<Web::Cookie::SameSite>(same_site);
+    };
+
+    Web::Cookie::Cookie cookie;
+    convert_text(cookie.name);
+    convert_text(cookie.value);
+    convert_same_site(cookie.same_site);
+    convert_time(cookie.creation_time);
+    convert_time(cookie.last_access_time);
+    convert_time(cookie.expiry_time);
+    convert_text(cookie.domain);
+    convert_text(cookie.path);
+    convert_bool(cookie.secure);
+    convert_bool(cookie.http_only);
+    convert_bool(cookie.host_only);
+    convert_bool(cookie.persistent);
+
+    return cookie;
 }
 
 CookieJar::TransientStorage::Cookies CookieJar::PersistedStorage::select_all_cookies()
 {
     HashMap<CookieStorageKey, Web::Cookie::Cookie> cookies;
 
-    auto add_cookie = [&](auto cookie) {
-        CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
-        cookies.set(move(key), move(cookie));
-    };
-
     database.execute_statement(
         statements.select_all_cookies,
-        [&](auto row) {
-            if (auto cookie = parse_cookie(row); cookie.is_error())
-                dbgln("Failed to parse cookie '{}': {}", cookie.error(), row);
-            else
-                add_cookie(cookie.release_value());
-        },
-        {},
-        {});
+        [&](auto statement_id) {
+            auto cookie = parse_cookie(database, statement_id);
+
+            CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
+            cookies.set(move(key), move(cookie));
+        });
 
     return cookies;
 }
