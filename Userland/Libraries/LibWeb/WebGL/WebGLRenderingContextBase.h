@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/RefCountForwarder.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
 #include <LibJS/Heap/GCPtr.h>
