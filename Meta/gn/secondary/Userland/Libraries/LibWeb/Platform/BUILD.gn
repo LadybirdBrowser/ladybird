@@ -7,7 +7,6 @@ source_set("Platform") {
     "EventLoopPlugin.cpp",
     "EventLoopPluginSerenity.cpp",
     "FontPlugin.cpp",
-    "FontPluginSerenity.cpp",
     "ImageCodecPlugin.cpp",
     "Timer.cpp",
     "TimerSerenity.cpp",

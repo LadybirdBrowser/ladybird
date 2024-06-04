@@ -20,7 +20,6 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
-#include <LibWeb/Platform/FontPluginSerenity.h>
 #include <LibWeb/WebSockets/WebSocket.h>
 #include <LibWebView/RequestServerAdapter.h>
 #include <LibWebView/WebSocketClientAdapter.h>
@@ -45,7 +44,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
     Core::EventLoop event_loop;
 
-    Web::Platform::FontPlugin::install(*new Web::Platform::FontPluginSerenity);
+    Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(false));
 
     TRY(initialize_lagom_networking(request_server_socket));
 

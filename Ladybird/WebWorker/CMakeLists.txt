@@ -8,6 +8,7 @@ set(WEBWORKER_SOURCES
     "${WEBWORKER_SOURCE_DIR}/ConnectionFromClient.cpp"
     "${WEBWORKER_SOURCE_DIR}/DedicatedWorkerHost.cpp"
     "${WEBWORKER_SOURCE_DIR}/PageHost.cpp"
+    ../FontPlugin.cpp
     ../HelperProcess.cpp
     ../Utilities.cpp
 )
