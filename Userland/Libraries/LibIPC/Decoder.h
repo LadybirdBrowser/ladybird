@@ -132,7 +132,7 @@ ErrorOr<T> decode(Decoder& decoder)
 
     for (size_t i = 0; i < size; ++i) {
         auto value = TRY(decoder.decode<typename T::ValueType>());
-        vector.template unchecked_append(move(value));
+        vector.unchecked_append(move(value));
     }
 
     return vector;

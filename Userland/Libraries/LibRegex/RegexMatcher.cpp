@@ -326,7 +326,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             matches.resize(m_pattern->parser_result.capture_groups_count + 1);
         if (!input.regex_options.has_flag_set(AllFlags::SkipTrimEmptyMatches)) {
             for (auto& matches : result.capture_group_matches)
-                matches.template remove_all_matching([](auto& match) { return match.view.is_null(); });
+                matches.remove_all_matching([](auto& match) { return match.view.is_null(); });
         }
     } else {
         result.capture_group_matches.clear_with_capacity();

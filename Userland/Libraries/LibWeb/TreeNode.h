@@ -219,7 +219,7 @@ public:
     template<typename Callback>
     void for_each_child(Callback callback) const
     {
-        return const_cast<TreeNode*>(this)->template for_each_child(move(callback));
+        return const_cast<TreeNode*>(this)->for_each_child(move(callback));
     }
 
     template<typename Callback>
