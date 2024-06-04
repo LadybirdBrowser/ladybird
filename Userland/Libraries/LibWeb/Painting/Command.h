@@ -55,7 +55,7 @@ struct DrawText {
     Color color;
     Gfx::TextElision elision;
     Gfx::TextWrapping wrapping;
-    Optional<NonnullRefPtr<Gfx::Font>> font {};
+    NonnullRefPtr<Gfx::Font> font;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
