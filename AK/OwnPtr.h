@@ -200,6 +200,13 @@ struct Traits<OwnPtr<T>> : public DefaultTraits<OwnPtr<T>> {
     static bool equals(OwnPtr<T> const& a, OwnPtr<T> const& b) { return a.ptr() == b.ptr(); }
 };
 
+template<typename T>
+struct Formatter<OwnPtr<T>> : Formatter<T*> {
+    ErrorOr<void> format(FormatBuilder& builder, OwnPtr<T> const& value)
+    {
+        return Formatter<T*>::format(builder, value.ptr());
+    }
+};
 }
 
 #if USING_AK_GLOBALLY
