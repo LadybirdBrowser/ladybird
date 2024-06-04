@@ -70,7 +70,7 @@ else()
     add_executable(WebContent main.cpp)
 endif()
 
-target_link_libraries(WebContent PRIVATE webcontent LibSQL LibURL)
+target_link_libraries(WebContent PRIVATE webcontent LibURL)
 
 target_sources(webcontent PUBLIC FILE_SET ladybird TYPE HEADERS
     BASE_DIRS ${LADYBIRD_SOURCE_DIR}

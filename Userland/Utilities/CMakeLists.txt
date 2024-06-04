@@ -10,7 +10,6 @@ set(CMD_SOURCES
     js.cpp
     lzcat.cpp
     shred.cpp
-    sql.cpp
     tar.cpp
     test-jpeg-roundtrip.cpp
     ttfdisasm.cpp
@@ -44,7 +43,6 @@ target_link_libraries(image PRIVATE LibGfx)
 target_link_libraries(isobmff PRIVATE LibGfx)
 target_link_libraries(js PRIVATE LibCrypto LibJS LibLine LibLocale LibTextCodec)
 target_link_libraries(lzcat PRIVATE LibCompress)
-target_link_libraries(sql PRIVATE LibFileSystem LibIPC LibLine LibSQL)
 target_link_libraries(tar PRIVATE LibArchive LibCompress LibFileSystem)
 target_link_libraries(test-jpeg-roundtrip PRIVATE LibGfx)
 target_link_libraries(ttfdisasm PRIVATE LibGfx)

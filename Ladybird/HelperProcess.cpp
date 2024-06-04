@@ -175,18 +175,6 @@ ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(Re
     return launch_generic_server_process<Protocol::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments), RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
 }
 
-ErrorOr<NonnullRefPtr<SQL::SQLClient>> launch_sql_server_process(ReadonlySpan<ByteString> candidate_sql_server_paths)
-{
-    Vector<ByteString> arguments;
-
-    if (auto server = mach_server_name(); server.has_value()) {
-        arguments.append("--mach-server-name"sv);
-        arguments.append(server.value());
-    }
-
-    return launch_singleton_server_process<SQL::SQLClient>("SQLServer"sv, candidate_sql_server_paths, arguments, RegisterWithProcessManager::Yes);
-}
-
 ErrorOr<IPC::File> connect_new_request_server_client(Protocol::RequestClient& client)
 {
     auto new_socket = client.send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>();

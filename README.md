@@ -11,7 +11,7 @@
 We aim to build a complete, usable browser for the modern web.
 
 Ladybird uses a multi-process architecture with a main UI process, several WebContent renderer processes,
-an ImageDecoder process, a RequestServer process, and a SQLServer process for holding cookies.
+an ImageDecoder process, and a RequestServer process.
 
 Image decoding and network connections are done out of process to be more robust against malicious content.
 Each tab has its own renderer process, which is sandboxed from the rest of the system.

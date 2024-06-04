@@ -21,7 +21,6 @@ enum class ProcessType {
     Chrome,
     WebContent,
     WebWorker,
-    SQLServer,
     RequestServer,
     ImageDecoder,
 };

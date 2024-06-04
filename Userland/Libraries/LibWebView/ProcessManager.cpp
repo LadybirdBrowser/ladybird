@@ -22,8 +22,6 @@ ProcessType process_type_from_name(StringView name)
         return ProcessType::WebContent;
     if (name == "WebWorker"sv)
         return ProcessType::WebWorker;
-    if (name == "SQLServer"sv)
-        return ProcessType::SQLServer;
     if (name == "RequestServer"sv)
         return ProcessType::RequestServer;
     if (name == "ImageDecoder"sv)
@@ -42,8 +40,6 @@ StringView process_name_from_type(ProcessType type)
         return "WebContent"sv;
     case ProcessType::WebWorker:
         return "WebWorker"sv;
-    case ProcessType::SQLServer:
-        return "SQLServer"sv;
     case ProcessType::RequestServer:
         return "RequestServer"sv;
     case ProcessType::ImageDecoder:
