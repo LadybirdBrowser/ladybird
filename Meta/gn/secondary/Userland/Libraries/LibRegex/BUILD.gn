@@ -8,9 +8,6 @@ shared_library("LibRegex") {
     "RegexOptimizer.cpp",
     "RegexParser.cpp",
   ]
-  if (current_os == "serenity") {
-    sources += [ "C/Regex.cpp" ]
-  }
   deps = [
     "//AK",
     "//Userland/Libraries/LibUnicode",

@@ -13,10 +13,10 @@ shared_library("LibTest") {
     "TestSuite.h",
   ]
 
-  deps = [ "//AK" ]
-  if (current_os != "serenity") {
-    deps += [ "//Userland/Libraries/LibCore" ]
-  }
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+  ]
 
   output_name = "test"
 

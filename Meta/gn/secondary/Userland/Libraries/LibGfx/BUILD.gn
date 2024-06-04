@@ -10,8 +10,6 @@ action("generate_tiff_sources") {
     "$target_gen_dir/ImageFormats/TIFFMetadata.h",
     "$target_gen_dir/ImageFormats/TIFFTagHandler.cpp",
   ]
-
-  # FIXME: install header into $prefix/include/LibGfx/ImageFormats on serenity
 }
 
 config("tiff_headers") {

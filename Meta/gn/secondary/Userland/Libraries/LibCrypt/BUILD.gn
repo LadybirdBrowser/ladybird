@@ -1,36 +1,8 @@
 group("LibCrypt") {
   deps = []
   libs = []
-  if (current_os == "serenity") {
-    deps += [
-      ":crypt_shared",
-      ":crypt_static",
-    ]
-  } else if (current_os == "linux") {
+
+  if (current_os == "linux") {
     libs += [ "crypt" ]
-  }
-}
-
-if (current_os == "serenity") {
-  # FIXME: Special handling for LibCrypo/Hash/SHA2.cpp
-  shared_library("crypt_shared") {
-    output_name = "crypt"
-    cflags_cc = [ "-nostdlib" ]
-    ldflags = [
-      "-nostdlib",
-      "-static-libstdc++",
-    ]
-    sources = [
-      "crypt.cpp",
-      "crypt.h",
-    ]
-  }
-
-  static_library("crypt_static") {
-    output_name = "crypt"
-    sources = [
-      "crypt.cpp",
-      "crypt.h",
-    ]
   }
 }

@@ -1,32 +1,3 @@
 group("LibSystem") {
   deps = []
-  if (current_os == "serenity") {
-    deps += [
-      ":system_shared",
-      ":system_static",
-    ]
-  }
-}
-
-if (current_os == "serenity") {
-  shared_library("system_shared") {
-    output_name = "system"
-    cflags_cc = [ "-nostdlib" ]
-    ldflags = [
-      "-nostdlib",
-      "-static-libstdc++",
-    ]
-    sources = [
-      "syscall.cpp",
-      "syscall.h",
-    ]
-  }
-
-  static_library("system_static") {
-    output_name = "system"
-    sources = [
-      "syscall.cpp",
-      "syscall.h",
-    ]
-  }
 }

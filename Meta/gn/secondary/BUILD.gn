@@ -12,16 +12,6 @@ group("default") {
   testonly = true
 }
 
-group("serenity") {
-  deps = [ "//Kernel(//Meta/gn/build/toolchain:serenity)" ]
-}
-
-group("macpdf") {
-  if (current_os == "mac") {
-    deps = [ "//Meta/Lagom/Contrib/MacPDF" ]
-  }
-}
-
 # A pool called "console" in the root BUILD.gn is magic and represents ninja's
 # built-in console pool. (Requires a GN with `gn --version` >= 552353.)
 pool("console") {

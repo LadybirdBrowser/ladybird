@@ -12,17 +12,16 @@ template("unittest") {
       deps = []
     }
 
-    deps += [ "//AK" ]
+    deps += [
+      "//AK",
+      "//Userland/Libraries/LibCore",
+    ]
     if (has_custom_main) {
       deps += [ "//Userland/Libraries/LibTest" ]
     } else if (use_js_main) {
       deps += [ "//Userland/Libraries/LibTest:test_js_main" ]
     } else {
       deps += [ "//Userland/Libraries/LibTest:test_main" ]
-    }
-
-    if (current_os != "serenity") {
-      deps += [ "//Userland/Libraries/LibCore" ]
     }
 
     testonly = true
