@@ -122,9 +122,7 @@ source_set("sources") {
     sources += [ "MachPort.cpp" ]
   }
 
-  if (current_os == "serenity") {
-    sources += [ "Platform/ProcessStatisticsSerenity.cpp" ]
-  } else if (current_os == "linux") {
+  if (current_os == "linux") {
     sources += [ "Platform/ProcessStatisticsLinux.cpp" ]
   } else if (current_os == "mac") {
     sources += [
@@ -150,8 +148,6 @@ source_set("filewatcher") {
       "CoreServices.framework",
       "Foundation.framework",
     ]
-  } else if (current_os == "serenity") {
-    sources += [ "FileWatcherSerenity.cpp" ]
   } else {
     sources += [ "FileWatcherUnimplemented.cpp" ]
   }

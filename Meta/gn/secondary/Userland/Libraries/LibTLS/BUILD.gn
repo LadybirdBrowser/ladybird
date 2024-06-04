@@ -19,7 +19,6 @@ if (enable_cacert_download) {
     version_file = cacert_cache + "version.txt"
     sha256 = "ccbdfc2fe1a0d7bbbb9cc15710271acf1bb1afe4c8f1725fe95c4c7733fcbe5a"
   }
-  # FIXME: Copy file to /etc/cacert.pem on serenity
 }
 
 shared_library("LibTLS") {

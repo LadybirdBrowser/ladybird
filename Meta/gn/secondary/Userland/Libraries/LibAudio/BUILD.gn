@@ -1,7 +1,5 @@
 import("//Meta/gn/build/libs/pulse/enable.gni")
 
-# TODO: AudioClient IPC files for serenity
-
 shared_library("LibAudio") {
   include_dirs = [ "//Userland/Libraries" ]
   sources = [

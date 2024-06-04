@@ -171,8 +171,4 @@ shared_library("LibWebView") {
   } else {
     defines = [ "ENABLE_PUBLIC_SUFFIX=0" ]
   }
-
-  if (current_os == "serenity") {
-    sources += [ "OutOfProcessWebView.cpp" ]
-  }
 }

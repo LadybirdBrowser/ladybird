@@ -138,7 +138,6 @@ if (enable_unicode_database_download) {
     ]
   }
 
-  # FIXME: Add optimization for serenity to use these as a shlib
   source_set("locale_data_sources") {
     include_dirs = [
       "//Userland/Libraries",
