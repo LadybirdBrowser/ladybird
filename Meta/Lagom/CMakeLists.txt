@@ -435,7 +435,6 @@ if (BUILD_LAGOM)
         Protocol
         Regex
         RIFF
-        SQL
         Syntax
         TextCodec
         Threading
@@ -506,7 +505,6 @@ if (BUILD_LAGOM)
 
         lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
 
-        lagom_utility(sql SOURCES ../../Userland/Utilities/sql.cpp LIBS LibFileSystem LibIPC LibLine LibMain LibSQL)
         lagom_utility(tar SOURCES ../../Userland/Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
         lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem)
 
@@ -556,7 +554,6 @@ if (BUILD_LAGOM)
             LibCompress
             LibGfx
             LibLocale
-            LibSQL
             LibTest
             LibTextCodec
             LibTTF

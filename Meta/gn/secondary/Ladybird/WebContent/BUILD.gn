@@ -47,7 +47,6 @@ executable("WebContent") {
     "//Userland/Libraries/LibJS",
     "//Userland/Libraries/LibMain",
     "//Userland/Libraries/LibProtocol",
-    "//Userland/Libraries/LibSQL",
     "//Userland/Libraries/LibURL",
     "//Userland/Libraries/LibWeb",
     "//Userland/Libraries/LibWebSocket",

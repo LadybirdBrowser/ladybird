@@ -10,7 +10,7 @@ get_lagom_executables() {
     # If the Lagom binary directory is missing, this creates an empty list instead of erroring.
     # Known false positives need to be filtered manually; please add new ones.
     find "${LADYBIRD_SOURCE_DIR}/Build/lagom" -mindepth 1 -type f -executable -not -name '*.so*' \
-        -not \( -name 'SQLServer' -o -name 'a.out' -o -name 'CMake*.bin' \) \
+        -not \( -name 'a.out' -o -name 'CMake*.bin' \) \
         -printf '%f\n' 2>/dev/null || true
 }
 
