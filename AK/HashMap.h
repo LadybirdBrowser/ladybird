@@ -88,7 +88,7 @@ public:
     template<typename TUnaryPredicate>
     bool remove_all_matching(TUnaryPredicate const& predicate)
     {
-        return m_table.template remove_all_matching([&](auto& entry) {
+        return m_table.remove_all_matching([&](auto& entry) {
             return predicate(entry.key, entry.value);
         });
     }
