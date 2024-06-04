@@ -696,10 +696,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_positional_argument(raw_url, "URL to open", "url", Core::ArgsParser::Required::No);
     args_parser.parse(arguments);
 
-    Gfx::FontDatabase::set_default_font_query("Katica 10 400 0");
-    Gfx::FontDatabase::set_window_title_font_query("Katica 10 700 0");
-    Gfx::FontDatabase::set_fixed_width_font_query("Csilla 10 400 0");
-
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(resources_folder))));
 
     auto theme_path = LexicalPath::join(resources_folder, "themes"sv, "Default.ini"sv);

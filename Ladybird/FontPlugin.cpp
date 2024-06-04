@@ -22,9 +22,6 @@ FontPlugin::FontPlugin(bool is_layout_test_mode)
     for (auto const& path : Core::StandardPaths::font_directories().release_value_but_fixme_should_propagate_errors())
         Gfx::FontDatabase::the().load_all_fonts_from_uri(MUST(String::formatted("file://{}", path)));
 
-    Gfx::FontDatabase::set_default_font_query("Katica 10 400 0");
-    Gfx::FontDatabase::set_fixed_width_font_query("Csilla 10 400 0");
-
     auto emoji_path = MUST(Core::Resource::load_from_uri("resource://emoji"sv));
     VERIFY(emoji_path->is_directory());
 

@@ -118,11 +118,8 @@ void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffe
     page->set_palette_impl(*impl);
 }
 
-void ConnectionFromClient::update_system_fonts(u64, ByteString const& default_font_query, ByteString const& fixed_width_font_query, ByteString const& window_title_font_query)
+void ConnectionFromClient::update_system_fonts(u64, ByteString const&, ByteString const&, ByteString const&)
 {
-    Gfx::FontDatabase::set_default_font_query(default_font_query);
-    Gfx::FontDatabase::set_fixed_width_font_query(fixed_width_font_query);
-    Gfx::FontDatabase::set_window_title_font_query(window_title_font_query);
 }
 
 void ConnectionFromClient::update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> const& rects, u32 main_screen)
