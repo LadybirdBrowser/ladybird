@@ -33,7 +33,6 @@ public:
     // ^Gfx::Font
     virtual NonnullRefPtr<Font> clone() const override { return MUST(try_clone()); } // FIXME: clone() should not need to be implemented
     virtual ErrorOr<NonnullRefPtr<Font>> try_clone() const override { return const_cast<ScaledFont&>(*this); }
-    virtual u8 presentation_size() const override { return m_point_height; }
     virtual float point_size() const override;
     virtual float pixel_size() const override;
     virtual int pixel_size_rounded_up() const override;
