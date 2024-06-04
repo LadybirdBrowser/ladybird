@@ -2,12 +2,8 @@ set(SOURCES
     AffineTransform.cpp
     AntiAliasingPainter.cpp
     Bitmap.cpp
-    BitmapMixer.cpp
     CMYKBitmap.cpp
-    ClassicStylePainter.cpp
-    ClassicWindowTheme.cpp
     Color.cpp
-    CursorParams.cpp
     DeltaE.cpp
     EdgeFlagPathRasterizer.cpp
     Filters/ColorBlindnessFilter.cpp
@@ -84,13 +80,11 @@ set(SOURCES
     Rect.cpp
     ShareableBitmap.cpp
     Size.cpp
-    StylePainter.cpp
     SystemTheme.cpp
     TextDirection.cpp
     TextLayout.cpp
     Triangle.cpp
     VectorGraphic.cpp
-    WindowTheme.cpp
 )
 
 serenity_lib(LibGfx gfx)

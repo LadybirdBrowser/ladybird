@@ -23,7 +23,6 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
-#include <LibGfx/StylePainter.h>
 #include <LibGfx/TextAlignment.h>
 #include <LibGfx/TextDirection.h>
 #include <LibGfx/TextElision.h>

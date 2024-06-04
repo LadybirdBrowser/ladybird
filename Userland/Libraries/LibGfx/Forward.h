@@ -33,7 +33,6 @@ class Palette;
 class PaletteImpl;
 class Path;
 class ShareableBitmap;
-class StylePainter;
 struct SystemTheme;
 
 template<typename T>
