@@ -19,7 +19,6 @@ endpoint WebContentServer
     connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path) =|
 
     update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer) =|
-    update_system_fonts(u64 page_id, ByteString default_font_query, ByteString fixed_width_font_query, ByteString window_title_font_query) =|
     update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen_index) =|
 
     load_url(u64 page_id, URL::URL url) =|

@@ -591,7 +591,6 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
 
     client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio);
     update_palette();
-    client().async_update_system_fonts(m_client_state.page_index, Gfx::FontDatabase::default_font_query(), Gfx::FontDatabase::fixed_width_font_query(), Gfx::FontDatabase::window_title_font_query());
 
     update_screen_rects();
 

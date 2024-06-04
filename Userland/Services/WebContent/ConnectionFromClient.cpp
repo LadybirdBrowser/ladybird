@@ -118,10 +118,6 @@ void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffe
     page->set_palette_impl(*impl);
 }
 
-void ConnectionFromClient::update_system_fonts(u64, ByteString const&, ByteString const&, ByteString const&)
-{
-}
-
 void ConnectionFromClient::update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> const& rects, u32 main_screen)
 {
     if (auto page = this->page(page_id); page.has_value())
