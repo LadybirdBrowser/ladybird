@@ -11,7 +11,6 @@ set(AK_SOURCES
     FloatingPointStringConversions.cpp
     FlyString.cpp
     Format.cpp
-    FuzzyMatch.cpp
     GenericLexer.cpp
     Hex.cpp
     JsonObject.cpp
@@ -24,7 +23,6 @@ set(AK_SOURCES
     OptionParser.cpp
     Random.cpp
     SipHash.cpp
-    Slugify.cpp
     StackInfo.cpp
     Stream.cpp
     String.cpp

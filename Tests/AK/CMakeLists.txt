@@ -17,7 +17,6 @@ set(AK_TEST_SOURCES
     TestCharacterTypes.cpp
     TestChecked.cpp
     TestCircularBuffer.cpp
-    TestCircularDeque.cpp
     TestCircularQueue.cpp
     TestComplex.cpp
     TestDisjointChunks.cpp
@@ -33,7 +32,6 @@ set(AK_TEST_SOURCES
     TestFloatingPointParsing.cpp
     TestFlyString.cpp
     TestFormat.cpp
-    TestFuzzyMatch.cpp
     TestGenericLexer.cpp
     TestHashFunctions.cpp
     TestHashMap.cpp
@@ -49,7 +47,6 @@ set(AK_TEST_SOURCES
     TestJSON.cpp
     TestLEB128.cpp
     TestLexicalPath.cpp
-    TestMACAddress.cpp
     TestMemory.cpp
     TestMemoryStream.cpp
     TestNeverDestroyed.cpp
@@ -68,7 +65,6 @@ set(AK_TEST_SOURCES
     TestSegmentedVector.cpp
     TestSIMD.cpp
     TestSinglyLinkedList.cpp
-    TestSlugify.cpp
     TestSourceGenerator.cpp
     TestSourceLocation.cpp
     TestSpan.cpp
