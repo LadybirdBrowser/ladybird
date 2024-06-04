@@ -109,7 +109,7 @@ Qt chrome, install the Qt dependencies for your platform, and enable the Qt chro
 
 ```bash
 # From /path/to/ladybird
-cmake -B Build/ladybird -DENABLE_QT=ON
+cmake --preset default -DENABLE_QT=ON
 ```
 
 To re-disable the Qt chrome, run the above command with `-DENABLE_QT=OFF`.
@@ -117,18 +117,16 @@ To re-disable the Qt chrome, run the above command with `-DENABLE_QT=OFF`.
 ### Resource files
 
 Ladybird requires resource files from the ladybird/Base/res directory in order to properly load
-icons, fonts, and other theming information. The ladybird.sh script calls into custom CMake targets
-that set these variables, and ensure that the $PWD is set properly to allow execution from the build
-directory. To run the built binary without using the script, one can either directly invoke the
-ninja rules or install ladybird  using the provided CMake install rules. See the ``Custom CMake build directory``
-section below for details.
+icons, fonts, and other theming information. These files are copied into the build directory by
+special CMake rules. The expected location of resource files can be tweaked by packagers using
+the standard CMAKE_INSTALL_DATADIR variable. CMAKE_INSTALL_DATADIR is expected to be a path relative
+to CMAKE_INSTALL_PREFIX. If it is not, things will break.
 
 ### Custom CMake build directory
 
-If you want to build ladybird on its own, or are interested in packaging ladybird for distribution,
-then a separate CMake build directory may be desired. Note that ladybird can be build via the Lagom
-CMakeLists.txt, or via the CMakeLists.txt found in the Ladybird directory. For distributions, using
-Ladybird as the source directory will give the desired results.
+The script Meta/ladybird.sh and the default preset in CMakePresets.json both define a build directory of
+`Build/ladybird`. For distribution purposes, or when building multiple configurations, it may be useful to create a custom
+CMake build directory.
 
 The install rules in Ladybird/cmake/InstallRules.cmake define which binaries and libraries will be
 installed into the configured CMAKE_PREFIX_PATH or path passed to ``cmake --install``.
@@ -138,15 +136,20 @@ a suitable C++ compiler (g++ >= 13, clang >= 14, Apple Clang >= 14.3) via the CM
 CMAKE_C_COMPILER cmake options.
 
 ```
-cmake -GNinja -B Build/ladybird
+cmake -GNinja -B MyBuildDir
 # optionally, add -DCMAKE_CXX_COMPILER=<suitable compiler> -DCMAKE_C_COMPILER=<matching c compiler>
-cmake --build Build/ladybird
-ninja -C Build/ladybird run
+cmake --build MyBuildDir
+ninja -C MyBuildDir run-ladybird
 ```
+
+### Running manually
+
+The Meta/ladybird.sh script will execute the `run-ladybird` and `debug-ladybird` custom targets.
+If you don't want to use the ladybird.sh script to run the application, you can run the following commands:
 
 To automatically run in gdb:
 ```
-ninja -C Build/ladybird debug
+ninja -C Build/ladybird debug-ladybird
 ```
 
 To run without ninja rule on non-macOS systems:
@@ -173,9 +176,10 @@ cross-compiling to other platforms.
 
 ### Debugging with CLion
 
-Ladybird should be built with debug symbols first. In `Meta/CMake/lagom_compile_options.cmake` remove the optimizations by changing `-O2` to `-O0`. For macOS also change the debug option from `-g1` to `-g` so that lldb is happy with the emitted symbols. In linux `-g1` can be changed to `-ggdb3` for maximum debug info.
+Ladybird should be built with debug symbols first. This can be done by adding `-DCMAKE_BUILD_TYPE=Debug` to the cmake command line,
+or selecting the Build Type Debug in the CLion CMake profile.
 
-After running Ladybird as suggested above with `./Meta/ladybird.sh run ladybird`, you can now in CLion use Run -> Attach to Process to connect. If debugging layouting and rendering issues, filter the listing that opens for `WebContent` and attach to that.
+After running Ladybird as suggested above with `./Meta/ladybird.sh run ladybird`, you can now in CLion use Run -> Attach to Process to connect. If debugging layout or rendering issues, filter the listing that opens for `WebContent` and attach to that.
 
 Now breakpoints, stepping and variable inspection will work.
 
@@ -205,15 +209,4 @@ doesn't find a writable directory for its sockets.
 CMAKE_PREFIX_PATH=/usr/lib/qt/6.2/lib/amd64/cmake cmake -GNinja -B Build/ladybird -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
 cmake --build Build/ladybird
 XDG_RUNTIME_DIR=/var/tmp ninja -C Build/ladybird run
-```
-
-### Building on Haiku
-
-Haiku is supported by Ladybird out of the box. The steps are the same as on OpenIndiana, but no
-additional environment variables are required.
-
-```
-cmake -GNinja -B Build/ladybird
-cmake --build Build/ladybird
-ninja -C Build/ladybird run
 ```
