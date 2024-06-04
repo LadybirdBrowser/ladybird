@@ -31,14 +31,11 @@ public:
     bool append_glyph_path_to(Gfx::Path&, u32 glyph_id) const;
 
     // ^Gfx::Font
-    virtual NonnullRefPtr<Font> clone() const override { return MUST(try_clone()); } // FIXME: clone() should not need to be implemented
-    virtual ErrorOr<NonnullRefPtr<Font>> try_clone() const override { return const_cast<ScaledFont&>(*this); }
     virtual float point_size() const override;
     virtual float pixel_size() const override;
     virtual int pixel_size_rounded_up() const override;
     virtual Gfx::FontPixelMetrics pixel_metrics() const override;
     virtual u8 slope() const override { return m_font->slope(); }
-    virtual u16 width() const override { return m_font->width(); }
     virtual u16 weight() const override { return m_font->weight(); }
     virtual Gfx::Glyph glyph(u32 code_point) const override;
     virtual float glyph_left_bearing(u32 code_point) const override;
@@ -52,7 +49,6 @@ public:
     virtual u8 baseline() const override { return m_point_height; }  // FIXME: Read from font
     virtual float width(StringView) const override;
     virtual float width(Utf8View const&) const override;
-    virtual String name() const override { return MUST(String::formatted("{} {}", family(), variant())); }
     virtual String family() const override { return m_font->family(); }
     virtual String variant() const override { return m_font->variant(); }
 
