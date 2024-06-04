@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf32View.h>
 #include <AK/Utf8View.h>
 #include <LibGfx/Font/Emoji.h>
 #include <LibGfx/Font/ScaledFont.h>
@@ -35,14 +34,8 @@ ScaledFont::ScaledFont(NonnullRefPtr<VectorFont> font, float point_width, float 
     };
 }
 
-int ScaledFont::width_rounded_up(StringView view) const
-{
-    return static_cast<int>(ceilf(width(view)));
-}
-
 float ScaledFont::width(StringView view) const { return unicode_view_width(Utf8View(view)); }
 float ScaledFont::width(Utf8View const& view) const { return unicode_view_width(view); }
-float ScaledFont::width(Utf32View const& view) const { return unicode_view_width(view); }
 
 template<typename T>
 ALWAYS_INLINE float ScaledFont::unicode_view_width(T const& view) const
@@ -128,11 +121,6 @@ float ScaledFont::glyph_or_emoji_width(Utf8CodePointIterator& it) const
     return glyph_or_emoji_width_impl(*this, it);
 }
 
-float ScaledFont::glyph_or_emoji_width(Utf32CodePointIterator& it) const
-{
-    return glyph_or_emoji_width_impl(*this, it);
-}
-
 float ScaledFont::glyphs_horizontal_kerning(u32 left_code_point, u32 right_code_point) const
 {
     if (left_code_point == 0 || right_code_point == 0)
@@ -144,11 +132,6 @@ float ScaledFont::glyphs_horizontal_kerning(u32 left_code_point, u32 right_code_
         return 0.f;
 
     return m_font->glyphs_horizontal_kerning(left_glyph_id, right_glyph_id, m_x_scale);
-}
-
-u8 ScaledFont::glyph_fixed_width() const
-{
-    return glyph_metrics(glyph_id_for_code_point(' ')).advance_width;
 }
 
 NonnullRefPtr<ScaledFont> ScaledFont::scaled_with_size(float point_size) const
