@@ -100,8 +100,6 @@ enum FontWidth {
 
 class Font : public RefCounted<Font> {
 public:
-    virtual NonnullRefPtr<Font> clone() const = 0;
-    virtual ErrorOr<NonnullRefPtr<Font>> try_clone() const = 0;
     virtual ~Font() {};
 
     virtual FontPixelMetrics pixel_metrics() const = 0;
@@ -116,8 +114,6 @@ public:
 
     // Font pixel size, rounded up to the nearest integer.
     virtual int pixel_size_rounded_up() const = 0;
-
-    virtual u16 width() const = 0;
 
     virtual u16 weight() const = 0;
     virtual Glyph glyph(u32 code_point) const = 0;
@@ -135,8 +131,6 @@ public:
 
     virtual float width(StringView) const = 0;
     virtual float width(Utf8View const&) const = 0;
-
-    virtual String name() const = 0;
 
     virtual String family() const = 0;
     virtual String variant() const = 0;
