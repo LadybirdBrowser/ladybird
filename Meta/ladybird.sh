@@ -156,21 +156,24 @@ run_gdb() {
 }
 
 build_and_run_lagom_target() {
-    local run_target="${1}"
     local lagom_target="${CMD_ARGS[0]}"
-    local lagom_args
+    local lagom_args=("${CMD_ARGS[@]:1}")
 
-    # All command arguments must have any existing semicolon escaped, to prevent CMake from
-    # interpreting them as list separators.
-    local cmd_args=()
-    for arg in "${CMD_ARGS[@]:1}"; do
-        cmd_args+=( "${arg//;/\\;}" )
-    done
+    if [ -z "$lagom_target" ]; then
+        lagom_target="ladybird"
+    fi
 
-    # Then existing list separators must be replaced with a semicolon for CMake.
-    lagom_args=$(IFS=';' ; echo -e "${cmd_args[*]}")
+    build_target "${lagom_target}"
 
-    LAGOM_TARGET="${lagom_target}" LAGOM_ARGS="${lagom_args[*]}" build_target "${run_target}"
+    if [ "$lagom_target" = "ladybird" ] && [ "$(uname -s)" = "Darwin" ]; then
+        open --wait-apps --stdout $(tty) --stderr $(tty) "$BUILD_DIR/bin/Ladybird.app" --args "${lagom_args[@]}"
+    else
+        local lagom_bin="$lagom_target"
+        if [ "$lagom_bin" = "ladybird" ]; then
+            lagom_bin="Ladybird"
+        fi
+        "$BUILD_DIR/bin/$lagom_bin" "${lagom_args[@]}"
+    fi
 }
 
 if [[ "$CMD" =~ ^(build|install|run|gdb|test|rebuild|recreate|addr2line)$ ]]; then
@@ -186,11 +189,7 @@ if [[ "$CMD" =~ ^(build|install|run|gdb|test|rebuild|recreate|addr2line)$ ]]; th
             build_target install
             ;;
         run)
-            if [ "${CMD_ARGS[0]}" = "ladybird" ]; then
-                build_and_run_lagom_target "run-ladybird"
-            else
-                build_and_run_lagom_target "run-lagom-target"
-            fi
+            build_and_run_lagom_target
             ;;
         gdb)
           [ $# -ge 1 ] || usage

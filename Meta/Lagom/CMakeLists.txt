@@ -261,7 +261,6 @@ function(lagom_test source)
         COMMAND ${LAGOM_TEST_NAME}
         WORKING_DIRECTORY ${LAGOM_TEST_WORKING_DIRECTORY}
     )
-    set_target_properties(${LAGOM_TEST_NAME} PROPERTIES LAGOM_WORKING_DIRECTORY "${LAGOM_TEST_WORKING_DIRECTORY}")
 endfunction()
 
 function(lagom_utility name)
@@ -673,19 +672,6 @@ if (ENABLE_FUZZERS)
     add_subdirectory(Fuzzers)
 else()
     export_components("${CMAKE_BINARY_DIR}/components.ini")
-endif()
-
-if (NOT "$ENV{LAGOM_TARGET}" STREQUAL "")
-    add_custom_target(run-lagom-target
-        COMMAND "${CMAKE_COMMAND}"
-            -E env "LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT}" "$<TARGET_FILE:$ENV{LAGOM_TARGET}>"
-            $ENV{LAGOM_ARGS}
-
-        WORKING_DIRECTORY "$<TARGET_PROPERTY:$ENV{LAGOM_TARGET},LAGOM_WORKING_DIRECTORY>"
-        DEPENDS "$<TARGET_FILE:$ENV{LAGOM_TARGET}>"
-        USES_TERMINAL
-        VERBATIM
-    )
 endif()
 
 include(ca_certificates_data)
