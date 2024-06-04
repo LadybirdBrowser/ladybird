@@ -142,7 +142,6 @@ private:
     Gfx::Path rect_path(float x, float y, float width, float height);
 
     Gfx::Path text_path(StringView text, float x, float y, Optional<double> max_width);
-    void bitmap_font_fill_text(StringView text, float x, float y, Optional<double> max_width);
 
     void stroke_internal(Gfx::Path const&);
     void fill_internal(Gfx::Path const&, Gfx::Painter::WindingRule);
