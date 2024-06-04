@@ -105,6 +105,9 @@ void FindInPageWidget::focusInEvent(QFocusEvent* event)
 {
     QWidget::focusInEvent(event);
     m_find_text->setFocus();
+    auto selected_text = m_content_view->selected_text();
+    if (!selected_text.is_empty())
+        m_find_text->setText(qstring_from_ak_string(selected_text));
     m_find_text->selectAll();
 }
 
