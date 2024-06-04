@@ -579,7 +579,6 @@ set(SOURCES
     Platform/EventLoopPlugin.cpp
     Platform/EventLoopPluginSerenity.cpp
     Platform/FontPlugin.cpp
-    Platform/FontPluginSerenity.cpp
     Platform/ImageCodecPlugin.cpp
     Platform/Timer.cpp
     Platform/TimerSerenity.cpp
