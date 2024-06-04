@@ -15,10 +15,9 @@ set(SOURCES
 )
 
 serenity_lib(LibCoreMinimal coreminimal)
-target_link_libraries(LibCoreMinimal PRIVATE LibSystem)
 
 if (SERENITYOS)
-    add_library(DynamicLoader_LibCoreArgsParser 
+    add_library(DynamicLoader_LibCoreArgsParser
         ArgsParser.cpp
         Version.cpp)
     target_link_libraries(DynamicLoader_LibCoreArgsParser PUBLIC DynamicLoader_CompileOptions)
@@ -93,7 +92,7 @@ if (APPLE OR CMAKE_SYSTEM_NAME STREQUAL "GNU")
 endif()
 
 serenity_lib(LibCore core)
-target_link_libraries(LibCore PRIVATE LibCrypt LibSystem LibTimeZone LibURL)
+target_link_libraries(LibCore PRIVATE LibCrypt LibTimeZone LibURL)
 target_link_libraries(LibCore PUBLIC LibCoreMinimal)
 
 if (APPLE)

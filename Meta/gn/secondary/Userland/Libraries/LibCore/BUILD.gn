@@ -31,10 +31,7 @@ shared_library("minimal") {
     "Version.h",
   ]
 
-  deps = [
-    "//AK",
-    "//Userland/Libraries/LibSystem",
-  ]
+  deps = [ "//AK" ]
 }
 
 source_set("sources") {
@@ -170,7 +167,6 @@ shared_library("LibCore") {
     ":sources",
     "//Meta/gn/build/libs/crypt",
     "//Meta/gn/build/libs/pthread",
-    "//Userland/Libraries/LibSystem",
     "//Userland/Libraries/LibTimeZone",
     "//Userland/Libraries/LibURL",
   ]

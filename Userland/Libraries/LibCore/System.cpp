@@ -31,7 +31,6 @@
 #ifdef AK_OS_SERENITY
 #    include <Kernel/API/Unveil.h>
 #    include <LibCore/Account.h>
-#    include <LibSystem/syscall.h>
 #    include <serenity.h>
 #    include <sys/ptrace.h>
 #    include <sys/sysmacros.h>
