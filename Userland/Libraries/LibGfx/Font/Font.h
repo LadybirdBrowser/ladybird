@@ -19,50 +19,9 @@
 
 namespace Gfx {
 
-// FIXME: Make a MutableGlyphBitmap buddy class for FontEditor instead?
-class GlyphBitmap {
-public:
-    GlyphBitmap() = default;
-    GlyphBitmap(Bytes rows, IntSize size)
-        : m_rows(rows)
-        , m_size(size)
-    {
-    }
-
-    unsigned row(unsigned index) const { return ByteReader::load32(bitmap(index).data()); }
-
-    bool bit_at(int x, int y) const { return bitmap(y).get(x); }
-    void set_bit_at(int x, int y, bool b) { bitmap(y).set(x, b); }
-
-    IntSize size() const { return m_size; }
-    int width() const { return m_size.width(); }
-    int height() const { return m_size.height(); }
-
-    static constexpr size_t bytes_per_row() { return sizeof(u32); }
-    static constexpr int max_width() { return bytes_per_row() * 8; }
-    static constexpr int max_height() { return max_width() + bytes_per_row(); }
-
-private:
-    AK::Bitmap bitmap(size_t y) const
-    {
-        return { const_cast<u8*>(m_rows.offset_pointer(bytes_per_row() * y)), bytes_per_row() * 8 };
-    }
-
-    Bytes m_rows;
-    IntSize m_size { 0, 0 };
-};
-
 class Glyph {
 public:
-    Glyph(GlyphBitmap const& glyph_bitmap, float left_bearing, float advance, float ascent)
-        : m_glyph_bitmap(glyph_bitmap)
-        , m_left_bearing(left_bearing)
-        , m_advance(advance)
-        , m_ascent(ascent)
-    {
-    }
-
-    Glyph(RefPtr<Bitmap> bitmap, float left_bearing, float advance, float ascent, bool is_color_bitmap)
+    Glyph(NonnullRefPtr<Bitmap> bitmap, float left_bearing, float advance, float ascent, bool is_color_bitmap)
         : m_bitmap(bitmap)
         , m_left_bearing(left_bearing)
         , m_advance(advance)
@@ -73,16 +32,13 @@ public:
 
     bool is_color_bitmap() const { return m_color_bitmap; }
 
-    bool is_glyph_bitmap() const { return !m_bitmap; }
-    GlyphBitmap glyph_bitmap() const { return m_glyph_bitmap; }
     RefPtr<Bitmap> bitmap() const { return m_bitmap; }
     float left_bearing() const { return m_left_bearing; }
     float advance() const { return m_advance; }
     float ascent() const { return m_ascent; }
 
 private:
-    GlyphBitmap m_glyph_bitmap;
-    RefPtr<Bitmap> m_bitmap;
+    NonnullRefPtr<Bitmap> m_bitmap;
     float m_left_bearing;
     float m_advance;
     float m_ascent;

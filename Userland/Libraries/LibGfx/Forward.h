@@ -19,7 +19,6 @@ class DisjointRectSet;
 
 class Emoji;
 class Font;
-class GlyphBitmap;
 class ImageDecoder;
 struct FontPixelMetrics;
 class ScaledFont;
