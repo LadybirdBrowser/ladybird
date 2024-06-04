@@ -750,7 +750,7 @@ set(GENERATED_SOURCES
 
 serenity_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGemini LibGfx LibIPC LibLocale LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibVideo LibWasm LibXML LibIDL LibURL LibTLS)
+target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibLocale LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibVideo LibWasm LibXML LibIDL LibURL LibTLS)
 
 if (HAS_ACCELERATED_GRAPHICS)
     target_link_libraries(LibWeb PRIVATE ${ACCEL_GFX_LIBS})

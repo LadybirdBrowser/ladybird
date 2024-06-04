@@ -16,7 +16,6 @@
 #include <LibMain/Main.h>
 #include <LibTLS/Certificate.h>
 #include <RequestServer/ConnectionFromClient.h>
-#include <RequestServer/GeminiProtocol.h>
 #include <RequestServer/HttpProtocol.h>
 #include <RequestServer/HttpsProtocol.h>
 
@@ -59,7 +58,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         Core::Platform::register_with_mach_server(mach_server_name);
 #endif
 
-    RequestServer::GeminiProtocol::install();
     RequestServer::HttpProtocol::install();
     RequestServer::HttpsProtocol::install();
 

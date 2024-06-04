@@ -12,7 +12,6 @@
 #include <LibMain/Main.h>
 #include <LibTLS/Certificate.h>
 #include <RequestServer/ConnectionFromClient.h>
-#include <RequestServer/GeminiProtocol.h>
 #include <RequestServer/HttpProtocol.h>
 #include <RequestServer/HttpsProtocol.h>
 #include <signal.h>
@@ -46,7 +45,6 @@ ErrorOr<int> serenity_main(Main::Arguments)
         TRY(Core::System::unveil("/home/anon", "rwc"));
     TRY(Core::System::unveil(nullptr, nullptr));
 
-    RequestServer::GeminiProtocol::install();
     RequestServer::HttpProtocol::install();
     RequestServer::HttpsProtocol::install();
 

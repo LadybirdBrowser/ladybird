@@ -411,7 +411,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         return;
     }
 
-    if (url.scheme() == "http" || url.scheme() == "https" || url.scheme() == "gemini") {
+    if (url.scheme() == "http" || url.scheme() == "https") {
         auto protocol_request = start_network_request(request);
         if (!protocol_request) {
             if (error_callback)
@@ -471,7 +471,7 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, OnHeadersReceived on_
         return;
     }
 
-    if (!url.scheme().is_one_of("http"sv, "https"sv, "gemini"sv)) {
+    if (!url.scheme().is_one_of("http"sv, "https"sv)) {
         // FIXME: Non-network requests from fetch should not go through this path.
         on_complete(false, "Cannot establish connection non-network scheme"sv);
         return;
