@@ -21,24 +21,10 @@ class FontDatabase {
 public:
     static FontDatabase& the();
 
-    static Font& default_font();
-    static Font& default_fixed_width_font();
-    static Font& window_title_font();
-
-    static ByteString default_font_query();
-    static ByteString window_title_font_query();
-    static ByteString fixed_width_font_query();
-
-    static ByteString default_fonts_lookup_path();
-    static void set_default_font_query(ByteString);
-    static void set_window_title_font_query(ByteString);
-    static void set_fixed_width_font_query(ByteString);
-
     RefPtr<Gfx::Font> get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Font::AllowInexactSizeMatch = Font::AllowInexactSizeMatch::No);
     RefPtr<Gfx::Font> get(FlyString const& family, FlyString const& variant, float point_size, Font::AllowInexactSizeMatch = Font::AllowInexactSizeMatch::No);
     RefPtr<Gfx::Font> get_by_name(StringView);
     void for_each_font(Function<void(Gfx::Font const&)>);
-    void for_each_fixed_width_font(Function<void(Gfx::Font const&)>);
 
     void for_each_typeface(Function<void(Typeface const&)>);
     void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
