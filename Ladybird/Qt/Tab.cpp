@@ -956,4 +956,9 @@ void Tab::close_sub_widgets()
     close_widget_window(m_inspector_widget);
 }
 
+void Tab::set_line_box_borders(bool enabled)
+{
+    debug_request("set-line-box-borders", enabled ? "on" : "off");
+}
+
 }

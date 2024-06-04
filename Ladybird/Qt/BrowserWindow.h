@@ -184,6 +184,7 @@ private:
     QAction* m_find_in_page_action { nullptr };
     QAction* m_view_source_action { nullptr };
     QAction* m_inspect_dom_node_action { nullptr };
+    QAction* m_show_line_box_borders_action { nullptr };
 
     SettingsDialog* m_settings_dialog { nullptr };
 
