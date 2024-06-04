@@ -96,7 +96,7 @@ static DOM::Element const* element_to_inherit_style_from(DOM::Element const*, Op
 
 StyleComputer::StyleComputer(DOM::Document& document)
     : m_document(document)
-    , m_default_font_metrics(16, Gfx::FontDatabase::default_font().pixel_metrics())
+    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font().pixel_metrics())
     , m_root_element_font_metrics(m_default_font_metrics)
 {
 }

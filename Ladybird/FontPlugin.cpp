@@ -57,7 +57,6 @@ void FontPlugin::update_generic_fonts()
 {
     // How we choose which system font to use for each CSS font:
     // 1. Try a list of known-suitable fonts with their names hard-coded below.
-    // 2. If that didn't work, fall back to Gfx::FontDatabase::default_font() (or default_fixed_width_font())
 
     // This is rather weird, but it's how things work right now.
     // We should eventually have a way to query the system for the default font.
@@ -79,14 +78,7 @@ void FontPlugin::update_generic_fonts()
                 break;
         }
 
-        if (!gfx_font) {
-            if (generic_font == Web::Platform::GenericFont::Monospace || generic_font == Web::Platform::GenericFont::UiMonospace)
-                gfx_font = Gfx::FontDatabase::default_fixed_width_font();
-            else
-                gfx_font = Gfx::FontDatabase::default_font();
-        }
-
-        m_generic_font_names[static_cast<size_t>(generic_font)] = gfx_font->family();
+        m_generic_font_names[static_cast<size_t>(generic_font)] = gfx_font ? gfx_font->family() : String {};
     };
 
     // Fallback fonts to look for if Gfx::Font can't load expected font
