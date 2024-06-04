@@ -104,7 +104,6 @@ public:
 #endif
 
         view->client().async_update_system_theme(0, move(theme));
-        view->client().async_update_system_fonts(0, Gfx::FontDatabase::default_font_query(), Gfx::FontDatabase::fixed_width_font_query(), Gfx::FontDatabase::window_title_font_query());
 
         view->m_viewport_rect = { { 0, 0 }, window_size };
         view->client().async_set_viewport_rect(0, view->m_viewport_rect.to_type<Web::DevicePixels>());

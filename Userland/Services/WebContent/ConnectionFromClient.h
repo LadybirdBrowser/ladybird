@@ -53,7 +53,6 @@ private:
     virtual void set_window_handle(u64 page_id, String const& handle) override;
     virtual void connect_to_webdriver(u64 page_id, ByteString const& webdriver_ipc_path) override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer const&) override;
-    virtual void update_system_fonts(u64 page_id, ByteString const&, ByteString const&, ByteString const&) override;
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> const&, u32) override;
     virtual void load_url(u64 page_id, URL::URL const&) override;
     virtual void load_html(u64 page_id, ByteString const&) override;

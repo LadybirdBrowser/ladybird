@@ -160,7 +160,6 @@ void WebViewBridge::initialize_client(CreateNewClient)
     client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
 
     client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio);
-    client().async_update_system_fonts(m_client_state.page_index, Gfx::FontDatabase::default_font_query(), Gfx::FontDatabase::fixed_width_font_query(), Gfx::FontDatabase::window_title_font_query());
     client().async_set_preferred_color_scheme(m_client_state.page_index, m_preferred_color_scheme);
     update_palette();
 
