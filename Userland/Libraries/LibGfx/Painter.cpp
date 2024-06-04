@@ -433,46 +433,6 @@ void Painter::draw_rect(IntRect const& a_rect, Color color, bool rough)
     }
 }
 
-void Painter::draw_bitmap(IntPoint p, GlyphBitmap const& bitmap, Color color)
-{
-    auto dst_rect = IntRect(p, bitmap.size()).translated(translation());
-    auto clipped_rect = dst_rect.intersected(clip_rect());
-    if (clipped_rect.is_empty())
-        return;
-    int const first_row = clipped_rect.top() - dst_rect.top();
-    int const last_row = clipped_rect.bottom() - dst_rect.top();
-    int const first_column = clipped_rect.left() - dst_rect.left();
-    int const last_column = clipped_rect.right() - dst_rect.left();
-
-    int scale = this->scale();
-    ARGB32* dst = m_target->scanline(clipped_rect.y() * scale) + clipped_rect.x() * scale;
-    auto dst_format = target()->format();
-    size_t const dst_skip = m_target->pitch() / sizeof(ARGB32);
-
-    if (scale == 1) {
-        for (int row = first_row; row < last_row; ++row) {
-            for (int j = 0; j < (last_column - first_column); ++j) {
-                if (bitmap.bit_at(j + first_column, row))
-                    dst[j] = color_for_format(dst_format, dst[j]).blend(color).value();
-            }
-            dst += dst_skip;
-        }
-    } else {
-        for (int row = first_row; row < last_row; ++row) {
-            for (int j = 0; j < (last_column - first_column); ++j) {
-                if (bitmap.bit_at((j + first_column), row)) {
-                    for (int iy = 0; iy < scale; ++iy)
-                        for (int ix = 0; ix < scale; ++ix) {
-                            auto pixel_index = j * scale + ix + iy * dst_skip;
-                            dst[pixel_index] = color_for_format(dst_format, dst[pixel_index]).blend(color).value();
-                        }
-                }
-            }
-            dst += dst_skip * scale;
-        }
-    }
-}
-
 struct BlitState {
     enum AlphaState {
         NoAlpha = 0,
@@ -955,9 +915,7 @@ FLATTEN void Painter::draw_glyph(FloatPoint point, u32 code_point, Font const& f
     auto glyph_position = Gfx::GlyphRasterPosition::get_nearest_fit_for(top_left);
     auto glyph = font.glyph(code_point, glyph_position.subpixel_offset);
 
-    if (glyph.is_glyph_bitmap()) {
-        draw_bitmap(top_left.to_type<int>(), glyph.glyph_bitmap(), color);
-    } else if (glyph.is_color_bitmap()) {
+    if (glyph.is_color_bitmap()) {
         float scaled_width = glyph.advance();
         float ratio = static_cast<float>(glyph.bitmap()->height()) / static_cast<float>(glyph.bitmap()->width());
         float scaled_height = scaled_width * ratio;

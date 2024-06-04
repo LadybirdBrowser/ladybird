@@ -73,7 +73,6 @@ public:
     void fill_rect_with_rounded_corners(IntRect const&, Color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius);
     void fill_ellipse(IntRect const&, Color);
     void draw_rect(IntRect const&, Color, bool rough = false);
-    void draw_bitmap(IntPoint, GlyphBitmap const&, Color = Color());
     void draw_scaled_bitmap(IntRect const& dst_rect, Gfx::Bitmap const&, IntRect const& src_rect, float opacity = 1.0f, ScalingMode = ScalingMode::NearestNeighbor);
     void draw_scaled_bitmap(IntRect const& dst_rect, Gfx::Bitmap const&, FloatRect const& src_rect, float opacity = 1.0f, ScalingMode = ScalingMode::NearestNeighbor);
     void draw_scaled_bitmap_with_transform(IntRect const& dst_rect, Gfx::Bitmap const&, FloatRect const& src_rect, Gfx::AffineTransform const&, float opacity = 1.0f, ScalingMode = ScalingMode::NearestNeighbor);
