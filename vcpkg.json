@@ -1,0 +1,11 @@
+{
+  "dependencies": [
+    "sqlite3"
+  ],
+  "overrides": [
+    {
+      "name": "sqlite3",
+      "version": "3.45.3"
+    }
+  ]
+}
