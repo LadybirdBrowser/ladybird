@@ -164,6 +164,7 @@ Optional<URL::URL> determine_requests_referrer(Fetch::Infrastructure::Request co
     }
 }
 
+// https://w3c.github.io/webappsec-referrer-policy/#strip-url
 Optional<URL::URL> strip_url_for_use_as_referrer(Optional<URL::URL> url, OriginOnly origin_only)
 {
     // 1. If url is null, return no referrer.
