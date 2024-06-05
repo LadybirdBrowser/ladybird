@@ -34,10 +34,6 @@ static Gfx::IntRect rect_where_pixels_are_different(Bitmap const& a, Bitmap cons
 {
     VERIFY(a.size() == b.size());
 
-    // FIXME: This works on physical pixels.
-    VERIFY(a.scale() == 1);
-    VERIFY(b.scale() == 1);
-
     int number_of_equal_pixels_at_top = 0;
     while (number_of_equal_pixels_at_top < a.height() && are_scanlines_equal(a, b, number_of_equal_pixels_at_top))
         ++number_of_equal_pixels_at_top;
