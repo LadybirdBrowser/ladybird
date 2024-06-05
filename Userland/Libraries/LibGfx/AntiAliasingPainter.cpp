@@ -316,10 +316,6 @@ FLATTEN AntiAliasingPainter::Range AntiAliasingPainter::draw_ellipse_part(
     8-way symmetry, or an ellipse in two calls using 4-way symmetry.
     */
 
-    center *= m_underlying_painter.scale();
-    radius_a *= m_underlying_painter.scale();
-    radius_b *= m_underlying_painter.scale();
-
     // If this is a ellipse everything can be drawn in one pass with 8 way symmetry
     bool const is_circle = radius_a == radius_b;
 

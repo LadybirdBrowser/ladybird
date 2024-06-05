@@ -1287,7 +1287,7 @@ ErrorOr<NonnullRefPtr<Bitmap>> decode_webp_chunk_VP8_contents(VP8Header const& v
 
     auto width = static_cast<int>(vp8_header.width);
     auto height = static_cast<int>(vp8_header.height);
-    if (bitmap->physical_size() == IntSize { width, height })
+    if (bitmap->size() == IntSize { width, height })
         return bitmap;
     return bitmap->cropped({ 0, 0, width, height });
 }

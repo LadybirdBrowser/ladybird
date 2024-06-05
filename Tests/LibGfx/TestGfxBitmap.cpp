@@ -126,12 +126,3 @@ TEST_CASE(0008_bitmap_downscaling_height1)
         }
     }
 }
-
-TEST_CASE(0009_serialize_and_deserialize_roundtrip)
-{
-    auto original_bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, Gfx::IntSize { 10, 10 }));
-    original_bitmap->fill(Gfx::Color::Red);
-    auto bytes = MUST(original_bitmap->serialize_to_byte_buffer());
-    auto bitmap = MUST(Gfx::Bitmap::create_from_serialized_bytes(bytes));
-    EXPECT(bitmap->visually_equals(original_bitmap));
-}

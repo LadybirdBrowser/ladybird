@@ -366,7 +366,7 @@ static ErrorOr<NonnullRefPtr<Bitmap>> decode_webp_chunk_VP8L_image(ImageKind ima
             // "The smallest distance codes [1..120] are special, and are reserved for a close neighborhood of the current pixel."
             if (distance <= 120) {
                 auto offset = distance_map[distance - 1];
-                distance = offset.x + offset.y * bitmap->physical_width();
+                distance = offset.x + offset.y * bitmap->width();
                 if (distance < 1)
                     distance = 1;
             } else {

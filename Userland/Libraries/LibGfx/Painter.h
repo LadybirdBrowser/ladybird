@@ -138,16 +138,14 @@ public:
 
     IntRect clip_rect() const { return state().clip_rect; }
 
-    int scale() const { return state().scale; }
-
 protected:
     friend GradientLine;
     friend AntiAliasingPainter;
     template<unsigned SamplesPerPixel>
     friend class EdgeFlagPathRasterizer;
 
-    IntRect to_physical(IntRect const& r) const { return r.translated(translation()) * scale(); }
-    IntPoint to_physical(IntPoint p) const { return p.translated(translation()) * scale(); }
+    IntRect to_physical(IntRect const& r) const { return r.translated(translation()); }
+    IntPoint to_physical(IntPoint p) const { return p.translated(translation()); }
     void set_physical_pixel(u32& pixel, Color);
     void fill_physical_scanline(int y, int x, int width, Color color);
     void blit_with_opacity(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect, float opacity, bool apply_alpha = true);
@@ -156,7 +154,6 @@ protected:
 
     struct State {
         IntPoint translation;
-        int scale = 1;
         IntRect clip_rect;
     };
 

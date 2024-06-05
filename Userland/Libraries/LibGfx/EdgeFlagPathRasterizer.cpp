@@ -124,9 +124,6 @@ void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(Painter& painter, Path const&
 template<unsigned SamplesPerPixel>
 void EdgeFlagPathRasterizer<SamplesPerPixel>::fill_internal(Painter& painter, Path const& path, auto color_or_function, Painter::WindingRule winding_rule, FloatPoint offset)
 {
-    // FIXME: Figure out how painter scaling works here...
-    VERIFY(painter.scale() == 1);
-
     auto bounding_box = enclosing_int_rect(path.bounding_box().translated(offset));
     auto dest_rect = bounding_box.translated(painter.translation());
     auto origin = bounding_box.top_left().to_type<float>() - offset;

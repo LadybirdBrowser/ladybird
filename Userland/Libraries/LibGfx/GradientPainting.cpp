@@ -129,7 +129,7 @@ public:
 
     void paint_into_physical_rect(Painter& painter, IntRect rect, auto location_transform)
     {
-        auto clipped_rect = rect.intersected(painter.clip_rect() * painter.scale());
+        auto clipped_rect = rect.intersected(painter.clip_rect());
         auto start_offset = clipped_rect.location() - rect.location();
         for (int y = 0; y < clipped_rect.height(); y++) {
             for (int x = 0; x < clipped_rect.width(); x++) {
@@ -279,7 +279,7 @@ static auto create_radial_gradient(IntRect const& physical_rect, ReadonlySpan<Co
 void Painter::fill_rect_with_linear_gradient(IntRect const& rect, ReadonlySpan<ColorStop> color_stops, float angle, Optional<float> repeat_length)
 {
     auto a_rect = to_physical(rect);
-    if (a_rect.intersected(clip_rect() * scale()).is_empty())
+    if (a_rect.intersected(clip_rect()).is_empty())
         return;
     auto linear_gradient = create_linear_gradient(a_rect, color_stops, angle, repeat_length);
     linear_gradient.paint(*this, a_rect);
@@ -293,10 +293,10 @@ static FloatPoint pixel_center(IntPoint point)
 void Painter::fill_rect_with_conic_gradient(IntRect const& rect, ReadonlySpan<ColorStop> color_stops, IntPoint center, float start_angle, Optional<float> repeat_length)
 {
     auto a_rect = to_physical(rect);
-    if (a_rect.intersected(clip_rect() * scale()).is_empty())
+    if (a_rect.intersected(clip_rect()).is_empty())
         return;
     // Translate position/center to the center of the pixel (avoids some funky painting)
-    auto center_point = pixel_center(center * scale());
+    auto center_point = pixel_center(center);
     auto conic_gradient = create_conic_gradient(color_stops, center_point, start_angle, repeat_length);
     conic_gradient.paint(*this, a_rect);
 }
@@ -304,10 +304,10 @@ void Painter::fill_rect_with_conic_gradient(IntRect const& rect, ReadonlySpan<Co
 void Painter::fill_rect_with_radial_gradient(IntRect const& rect, ReadonlySpan<ColorStop> color_stops, IntPoint center, IntSize size, Optional<float> repeat_length, Optional<float> rotation_angle)
 {
     auto a_rect = to_physical(rect);
-    if (a_rect.intersected(clip_rect() * scale()).is_empty())
+    if (a_rect.intersected(clip_rect()).is_empty())
         return;
 
-    auto radial_gradient = create_radial_gradient(a_rect, color_stops, center * scale(), size * scale(), repeat_length, rotation_angle);
+    auto radial_gradient = create_radial_gradient(a_rect, color_stops, center, size, repeat_length, rotation_angle);
     radial_gradient.paint(*this, a_rect);
 }
 
