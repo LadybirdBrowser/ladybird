@@ -210,7 +210,7 @@ void RecordingPainter::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect
     });
 }
 
-void RecordingPainter::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color color, int thickness, Gfx::Painter::LineStyle style, Color alternate_color)
+void RecordingPainter::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color color, int thickness, Gfx::LineStyle style, Color alternate_color)
 {
     append(DrawLine {
         .color = color,

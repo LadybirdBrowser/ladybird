@@ -16,6 +16,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Gradients.h>
 #include <LibGfx/GrayscaleBitmap.h>
+#include <LibGfx/LineStyle.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
@@ -48,12 +49,6 @@ public:
 
     explicit Painter(Gfx::Bitmap&);
     ~Painter() = default;
-
-    enum class LineStyle {
-        Solid,
-        Dotted,
-        Dashed,
-    };
 
     void clear_rect(IntRect const&, Color);
     void fill_rect(IntRect const&, Color);

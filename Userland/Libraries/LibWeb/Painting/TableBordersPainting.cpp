@@ -284,9 +284,9 @@ static void paint_collected_edges(PaintContext& context, Vector<BorderEdgePainti
             : border_edge_painting_info.rect.bottom_left();
 
         if (border_style == CSS::LineStyle::Dotted) {
-            context.recording_painter().draw_line(p1.to_type<int>(), p2.to_type<int>(), color, width.value(), Gfx::Painter::LineStyle::Dotted);
+            context.recording_painter().draw_line(p1.to_type<int>(), p2.to_type<int>(), color, width.value(), Gfx::LineStyle::Dotted);
         } else if (border_style == CSS::LineStyle::Dashed) {
-            context.recording_painter().draw_line(p1.to_type<int>(), p2.to_type<int>(), color, width.value(), Gfx::Painter::LineStyle::Dashed);
+            context.recording_painter().draw_line(p1.to_type<int>(), p2.to_type<int>(), color, width.value(), Gfx::LineStyle::Dashed);
         } else {
             // FIXME: Support the remaining line styles instead of rendering them as solid.
             context.recording_painter().fill_rect(Gfx::IntRect(border_edge_painting_info.rect.location(), border_edge_painting_info.rect.size()), color);
