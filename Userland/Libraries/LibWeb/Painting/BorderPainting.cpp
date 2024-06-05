@@ -191,7 +191,7 @@ void paint_border(RecordingPainter& painter, BorderEdge edge, DevicePixelRect co
             path.close_all_subpaths();
             painter.fill_path({ .path = path,
                 .color = color,
-                .winding_rule = Gfx::Painter::WindingRule::EvenOdd });
+                .winding_rule = Gfx::WindingRule::EvenOdd });
             path.clear();
         }
     };

@@ -38,13 +38,13 @@ TraversalDecision SVGPathPaintable::hit_test(CSSPixelPoint position, HitTestType
     return SVGGraphicsPaintable::hit_test(position, type, callback);
 }
 
-static Gfx::Painter::WindingRule to_gfx_winding_rule(SVG::FillRule fill_rule)
+static Gfx::WindingRule to_gfx_winding_rule(SVG::FillRule fill_rule)
 {
     switch (fill_rule) {
     case SVG::FillRule::Nonzero:
-        return Gfx::Painter::WindingRule::Nonzero;
+        return Gfx::WindingRule::Nonzero;
     case SVG::FillRule::Evenodd:
-        return Gfx::Painter::WindingRule::EvenOdd;
+        return Gfx::WindingRule::EvenOdd;
     default:
         VERIFY_NOT_REACHED();
     }
