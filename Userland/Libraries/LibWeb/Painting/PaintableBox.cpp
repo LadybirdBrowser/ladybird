@@ -615,7 +615,7 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
 
         switch (paintable.computed_values().text_decoration_style()) {
         case CSS::TextDecorationStyle::Solid:
-            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::Painter::LineStyle::Solid);
+            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Solid);
             break;
         case CSS::TextDecorationStyle::Double:
             switch (line) {
@@ -637,10 +637,10 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
             painter.draw_line(line_start_point.translated(0, device_line_thickness + 1).to_type<int>(), line_end_point.translated(0, device_line_thickness + 1).to_type<int>(), line_color, device_line_thickness.value());
             break;
         case CSS::TextDecorationStyle::Dashed:
-            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::Painter::LineStyle::Dashed);
+            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Dashed);
             break;
         case CSS::TextDecorationStyle::Dotted:
-            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::Painter::LineStyle::Dotted);
+            painter.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Dotted);
             break;
         case CSS::TextDecorationStyle::Wavy:
             painter.draw_triangle_wave(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value() + 1, device_line_thickness.value());

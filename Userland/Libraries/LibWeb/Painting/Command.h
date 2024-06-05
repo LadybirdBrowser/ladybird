@@ -275,7 +275,7 @@ struct DrawLine {
     Gfx::IntPoint from;
     Gfx::IntPoint to;
     int thickness;
-    Gfx::Painter::LineStyle style;
+    Gfx::LineStyle style;
     Color alternate_color;
 
     void translate_by(Gfx::IntPoint const& offset)

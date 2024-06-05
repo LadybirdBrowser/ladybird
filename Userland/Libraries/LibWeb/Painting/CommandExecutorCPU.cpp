@@ -370,7 +370,7 @@ CommandResult CommandExecutorCPU::fill_ellipse(FillEllipse const& command)
 
 CommandResult CommandExecutorCPU::draw_line(DrawLine const& command)
 {
-    if (command.style == Gfx::Painter::LineStyle::Dotted) {
+    if (command.style == Gfx::LineStyle::Dotted) {
         Gfx::AntiAliasingPainter aa_painter(painter());
         aa_painter.draw_line(command.from, command.to, command.color, command.thickness, command.style, command.alternate_color);
     } else {

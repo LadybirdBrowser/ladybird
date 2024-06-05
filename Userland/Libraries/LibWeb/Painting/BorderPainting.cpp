@@ -100,19 +100,19 @@ void paint_border(RecordingPainter& painter, BorderEdge edge, DevicePixelRect co
         }
     };
 
-    auto gfx_line_style = Gfx::Painter::LineStyle::Solid;
+    auto gfx_line_style = Gfx::LineStyle::Solid;
     switch (border_style) {
     case CSS::LineStyle::None:
     case CSS::LineStyle::Hidden:
         return;
     case CSS::LineStyle::Dotted:
-        gfx_line_style = Gfx::Painter::LineStyle::Dotted;
+        gfx_line_style = Gfx::LineStyle::Dotted;
         break;
     case CSS::LineStyle::Dashed:
-        gfx_line_style = Gfx::Painter::LineStyle::Dashed;
+        gfx_line_style = Gfx::LineStyle::Dashed;
         break;
     case CSS::LineStyle::Solid:
-        gfx_line_style = Gfx::Painter::LineStyle::Solid;
+        gfx_line_style = Gfx::LineStyle::Solid;
         break;
     case CSS::LineStyle::Double:
     case CSS::LineStyle::Groove:
@@ -123,7 +123,7 @@ void paint_border(RecordingPainter& painter, BorderEdge edge, DevicePixelRect co
         break;
     }
 
-    if (gfx_line_style != Gfx::Painter::LineStyle::Solid) {
+    if (gfx_line_style != Gfx::LineStyle::Solid) {
         auto [p1, p2] = points_for_edge(edge, rect);
         switch (edge) {
         case BorderEdge::Top:
