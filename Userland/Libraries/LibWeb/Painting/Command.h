@@ -22,6 +22,7 @@
 #include <LibGfx/Palette.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/TextAlignment.h>
 #include <LibGfx/TextDirection.h>
@@ -74,7 +75,7 @@ struct DrawScaledBitmap {
     Gfx::IntRect dst_rect;
     NonnullRefPtr<Gfx::Bitmap> bitmap;
     Gfx::IntRect src_rect;
-    Gfx::Painter::ScalingMode scaling_mode;
+    Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
@@ -84,7 +85,7 @@ struct DrawScaledImmutableBitmap {
     Gfx::IntRect dst_rect;
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::IntRect src_rect;
-    Gfx::Painter::ScalingMode scaling_mode;
+    Gfx::ScalingMode scaling_mode;
     Vector<Gfx::Path> clip_paths;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }

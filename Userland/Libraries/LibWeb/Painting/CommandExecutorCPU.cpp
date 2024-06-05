@@ -153,7 +153,7 @@ CommandResult CommandExecutorCPU::push_stacking_context(PushStackingContext cons
             .painter = AK::make<Gfx::Painter>(bitmap),
             .opacity = 1,
             .destination = command.source_paintable_rect.translated(command.post_transform_translation),
-            .scaling_mode = Gfx::Painter::ScalingMode::None,
+            .scaling_mode = Gfx::ScalingMode::None,
             .mask = command.mask });
         painter().translate(-command.source_paintable_rect.location());
         return CommandResult::Continue;

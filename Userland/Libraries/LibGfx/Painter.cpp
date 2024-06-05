@@ -675,7 +675,7 @@ ALWAYS_INLINE static void do_draw_box_sampled_scaled_bitmap(Gfx::Bitmap& target,
     }
 }
 
-template<bool has_alpha_channel, Painter::ScalingMode scaling_mode, typename GetPixel>
+template<bool has_alpha_channel, ScalingMode scaling_mode, typename GetPixel>
 ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect const& dst_rect, IntRect const& clipped_rect, Gfx::Bitmap const& source, FloatRect const& src_rect, GetPixel get_pixel, float opacity)
 {
     auto int_src_rect = enclosing_int_rect(src_rect);
@@ -683,7 +683,7 @@ ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect con
     if (clipped_src_rect.is_empty())
         return;
 
-    if constexpr (scaling_mode == Painter::ScalingMode::NearestNeighbor || scaling_mode == Painter::ScalingMode::SmoothPixels) {
+    if constexpr (scaling_mode == ScalingMode::NearestNeighbor || scaling_mode == ScalingMode::SmoothPixels) {
         if (dst_rect == clipped_rect && int_src_rect == src_rect && !(dst_rect.width() % int_src_rect.width()) && !(dst_rect.height() % int_src_rect.height())) {
             int hfactor = dst_rect.width() / int_src_rect.width();
             int vfactor = dst_rect.height() / int_src_rect.height();
@@ -697,7 +697,7 @@ ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect con
         }
     }
 
-    if constexpr (scaling_mode == Painter::ScalingMode::BoxSampling)
+    if constexpr (scaling_mode == ScalingMode::BoxSampling)
         return do_draw_box_sampled_scaled_bitmap<has_alpha_channel>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
 
     bool has_opacity = opacity != 1.f;
@@ -718,7 +718,7 @@ ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect con
             auto desired_x = (x - dst_rect.x()) * hscale + src_left;
 
             Color src_pixel;
-            if constexpr (scaling_mode == Painter::ScalingMode::BilinearBlend) {
+            if constexpr (scaling_mode == ScalingMode::BilinearBlend) {
                 auto shifted_x = desired_x + bilinear_offset_x;
                 auto shifted_y = desired_y + bilinear_offset_y;
 
@@ -739,7 +739,7 @@ ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect con
                 auto bottom = bottom_left.mixed_with(bottom_right, x_ratio);
 
                 src_pixel = top.mixed_with(bottom, y_ratio);
-            } else if constexpr (scaling_mode == Painter::ScalingMode::SmoothPixels) {
+            } else if constexpr (scaling_mode == ScalingMode::SmoothPixels) {
                 auto scaled_x1 = clamp(desired_x >> 32, clipped_src_rect.left(), clipped_src_rect.right() - 1);
                 auto scaled_x0 = clamp(scaled_x1 - 1, clipped_src_rect.left(), clipped_src_rect.right() - 1);
                 auto scaled_y1 = clamp(desired_y >> 32, clipped_src_rect.top(), clipped_src_rect.bottom() - 1);
@@ -778,23 +778,23 @@ ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect con
 }
 
 template<bool has_alpha_channel, typename GetPixel>
-ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect const& dst_rect, IntRect const& clipped_rect, Gfx::Bitmap const& source, FloatRect const& src_rect, GetPixel get_pixel, float opacity, Painter::ScalingMode scaling_mode)
+ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect const& dst_rect, IntRect const& clipped_rect, Gfx::Bitmap const& source, FloatRect const& src_rect, GetPixel get_pixel, float opacity, ScalingMode scaling_mode)
 {
     switch (scaling_mode) {
-    case Painter::ScalingMode::NearestNeighbor:
-        do_draw_scaled_bitmap<has_alpha_channel, Painter::ScalingMode::NearestNeighbor>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
+    case ScalingMode::NearestNeighbor:
+        do_draw_scaled_bitmap<has_alpha_channel, ScalingMode::NearestNeighbor>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
         break;
-    case Painter::ScalingMode::SmoothPixels:
-        do_draw_scaled_bitmap<has_alpha_channel, Painter::ScalingMode::SmoothPixels>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
+    case ScalingMode::SmoothPixels:
+        do_draw_scaled_bitmap<has_alpha_channel, ScalingMode::SmoothPixels>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
         break;
-    case Painter::ScalingMode::BilinearBlend:
-        do_draw_scaled_bitmap<has_alpha_channel, Painter::ScalingMode::BilinearBlend>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
+    case ScalingMode::BilinearBlend:
+        do_draw_scaled_bitmap<has_alpha_channel, ScalingMode::BilinearBlend>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
         break;
-    case Painter::ScalingMode::BoxSampling:
-        do_draw_scaled_bitmap<has_alpha_channel, Painter::ScalingMode::BoxSampling>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
+    case ScalingMode::BoxSampling:
+        do_draw_scaled_bitmap<has_alpha_channel, ScalingMode::BoxSampling>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
         break;
-    case Painter::ScalingMode::None:
-        do_draw_scaled_bitmap<has_alpha_channel, Painter::ScalingMode::None>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
+    case ScalingMode::None:
+        do_draw_scaled_bitmap<has_alpha_channel, ScalingMode::None>(target, dst_rect, clipped_rect, source, src_rect, get_pixel, opacity);
         break;
     }
 }
@@ -1600,7 +1600,7 @@ void Painter::stroke_path(Path const& path, Color color, int thickness)
     fill_path(path.stroke_to_fill(thickness), color);
 }
 
-void Painter::draw_scaled_bitmap_with_transform(IntRect const& dst_rect, Bitmap const& bitmap, FloatRect const& src_rect, AffineTransform const& transform, float opacity, Painter::ScalingMode scaling_mode)
+void Painter::draw_scaled_bitmap_with_transform(IntRect const& dst_rect, Bitmap const& bitmap, FloatRect const& src_rect, AffineTransform const& transform, float opacity, ScalingMode scaling_mode)
 {
     if (transform.is_identity_or_translation_or_scale()) {
         draw_scaled_bitmap(transform.map(dst_rect.to_type<float>()).to_rounded<int>(), bitmap, src_rect, opacity, scaling_mode);

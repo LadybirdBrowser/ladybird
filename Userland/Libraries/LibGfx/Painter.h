@@ -19,6 +19,7 @@
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/TextAlignment.h>
 #include <LibGfx/TextDirection.h>
@@ -51,14 +52,6 @@ public:
         Solid,
         Dotted,
         Dashed,
-    };
-
-    enum class ScalingMode {
-        NearestNeighbor,
-        SmoothPixels,
-        BilinearBlend,
-        BoxSampling,
-        None,
     };
 
     void clear_rect(IntRect const&, Color);

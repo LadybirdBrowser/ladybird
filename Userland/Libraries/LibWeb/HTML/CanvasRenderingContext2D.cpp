@@ -155,10 +155,10 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
 
     // 6. Paint the region of the image argument specified by the source rectangle on the region of the rendering context's output bitmap specified by the destination rectangle, after applying the current transformation matrix to the destination rectangle.
     draw_clipped([&](auto& painter) {
-        auto scaling_mode = Gfx::Painter::ScalingMode::NearestNeighbor;
+        auto scaling_mode = Gfx::ScalingMode::NearestNeighbor;
         if (drawing_state().image_smoothing_enabled) {
             // FIXME: Honor drawing_state().image_smoothing_quality
-            scaling_mode = Gfx::Painter::ScalingMode::BilinearBlend;
+            scaling_mode = Gfx::ScalingMode::BilinearBlend;
         }
 
         painter.underlying_painter().draw_scaled_bitmap_with_transform(destination_rect.to_rounded<int>(), *bitmap, source_rect, drawing_state().transform, drawing_state().global_alpha, scaling_mode);
