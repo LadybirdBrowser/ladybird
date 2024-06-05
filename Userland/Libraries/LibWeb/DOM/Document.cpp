@@ -4062,8 +4062,11 @@ void Document::shared_declarative_refresh_steps(StringView input, JS::GCPtr<HTML
         if (has_meta_element && has_flag(active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedAutomaticFeatures))
             return;
 
-        VERIFY(navigable());
-        MUST(navigable()->navigate({ .url = url_record, .source_document = *this }));
+        auto navigable = this->navigable();
+        if (!navigable || navigable->has_been_destroyed())
+            return;
+
+        MUST(navigable->navigate({ .url = url_record, .source_document = *this, .history_handling = Bindings::NavigationHistoryBehavior::Replace }));
     });
 
     // For the purposes of the previous paragraph, a refresh is said to have come due as soon as the later of the
