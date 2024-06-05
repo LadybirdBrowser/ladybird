@@ -976,4 +976,11 @@ void Tab::set_scripting(bool enabled)
     debug_request("scripting", enabled ? "on" : "off");
 }
 
+void Tab::set_user_agent_string(ByteString const& user_agent)
+{
+    debug_request("spoof-user-agent", user_agent);
+    // Clear the cache to ensure requests are re-done with the new user agent.
+    debug_request("clear-cache");
+}
+
 }

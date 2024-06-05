@@ -164,6 +164,9 @@ private:
 
     void set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height);
 
+    ByteString user_agent_string() const { return m_user_agent_string; }
+    void set_user_agent_string(ByteString const& user_agent_string) { m_user_agent_string = user_agent_string; }
+
     QScreen* m_current_screen;
     double m_device_pixel_ratio { 0 };
 
@@ -188,6 +191,8 @@ private:
     QAction* m_enable_scripting_action { nullptr };
     QAction* m_block_pop_ups_action { nullptr };
     QAction* m_enable_same_origin_policy_action { nullptr };
+
+    ByteString m_user_agent_string {};
 
     SettingsDialog* m_settings_dialog { nullptr };
 
