@@ -8,7 +8,11 @@ if (ENABLE_PUBLIC_SUFFIX_DOWNLOAD)
     set(PUBLIC_SUFFIX_DATA_HEADER PublicSuffixData.h)
     set(PUBLIC_SUFFIX_DATA_IMPLEMENTATION PublicSuffixData.cpp)
 
-    download_file("${PUBLIC_SUFFIX_DATA_URL}" "${PUBLIC_SUFFIX_DATA_PATH}")
+    if (ENABLE_NETWORK_DOWNLOADS)
+        download_file("${PUBLIC_SUFFIX_DATA_URL}" "${PUBLIC_SUFFIX_DATA_PATH}")
+    else()
+        message(STATUS "Skipping download of ${PUBLIC_SUFFIX_DATA_URL}, expecting it to be in ${PUBLIC_SUFFIX_DATA_PATH}")
+    endif()
     invoke_generator(
         "PublicSuffixData"
         Lagom::GeneratePublicSuffixData
