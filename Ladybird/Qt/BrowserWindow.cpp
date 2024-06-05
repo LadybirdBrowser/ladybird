@@ -386,12 +386,15 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
         user_agent_group->addAction(action);
         spoof_user_agent_menu->addAction(action);
         QObject::connect(action, &QAction::triggered, this, [this, user_agent] {
-            debug_request("spoof-user-agent", user_agent);
-            debug_request("clear-cache"); // clear the cache to ensure requests are re-done with the new user agent
+            for_each_tab([user_agent](auto& tab) {
+                tab.set_user_agent_string(user_agent);
+            });
+            set_user_agent_string(user_agent);
         });
         return action;
     };
 
+    set_user_agent_string(Web::default_user_agent);
     auto* disable_spoofing = add_user_agent("Disabled"sv, Web::default_user_agent);
     disable_spoofing->setChecked(true);
     for (auto const& user_agent : WebView::user_agents)
@@ -404,8 +407,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     QObject::connect(custom_user_agent_action, &QAction::triggered, this, [this, disable_spoofing] {
         auto user_agent = QInputDialog::getText(this, "Custom User Agent", "Enter User Agent:");
         if (!user_agent.isEmpty()) {
-            debug_request("spoof-user-agent", ak_byte_string_from_qstring(user_agent));
-            debug_request("clear-cache"); // clear the cache to ensure requests are re-done with the new user agent
+            auto user_agent_byte_string = ak_byte_string_from_qstring(user_agent);
+            for_each_tab([&](auto& tab) {
+                tab.set_user_agent_string(user_agent_byte_string);
+            });
+            set_user_agent_string(user_agent_byte_string);
         } else {
             disable_spoofing->activate(QAction::Trigger);
         }
@@ -690,6 +696,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
     tab->set_scripting(m_enable_scripting_action->isChecked());
     tab->set_block_popups(m_block_pop_ups_action->isChecked());
     tab->set_same_origin_policy(m_enable_same_origin_policy_action->isChecked());
+    tab->set_user_agent_string(user_agent_string());
 }
 
 void BrowserWindow::activate_tab(int index)
