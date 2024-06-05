@@ -1172,34 +1172,9 @@ void Painter::draw_text(FloatRect const& rect, StringView raw_text, Font const& 
     });
 }
 
-void Painter::draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)> draw_one_glyph, FloatRect const& rect, Utf8View const& text, Font const& font, TextAlignment alignment, TextElision elision, TextWrapping wrapping)
-{
-    do_draw_text(rect, text, font, alignment, elision, wrapping, [&](FloatRect const& r, Utf8CodePointIterator& it) {
-        draw_one_glyph(r, it);
-    });
-}
-
-void Painter::draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)> draw_one_glyph, FloatRect const& rect, StringView raw_text, Font const& font, TextAlignment alignment, TextElision elision, TextWrapping wrapping)
-{
-    Utf8View text { raw_text };
-    do_draw_text(rect, text, font, alignment, elision, wrapping, [&](FloatRect const& r, Utf8CodePointIterator& it) {
-        draw_one_glyph(r, it);
-    });
-}
-
 void Painter::draw_text(IntRect const& rect, StringView raw_text, Font const& font, TextAlignment alignment, Color color, TextElision elision, TextWrapping wrapping)
 {
     draw_text(rect.to_type<float>(), raw_text, font, alignment, color, elision, wrapping);
-}
-
-void Painter::draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)> draw_one_glyph, IntRect const& rect, Utf8View const& text, Font const& font, TextAlignment alignment, TextElision elision, TextWrapping wrapping)
-{
-    return draw_text(move(draw_one_glyph), rect.to_type<float>(), text, font, alignment, elision, wrapping);
-}
-
-void Painter::draw_text(Function<void(FloatRect const&, Utf8CodePointIterator&)> draw_one_glyph, IntRect const& rect, StringView raw_text, Font const& font, TextAlignment alignment, TextElision elision, TextWrapping wrapping)
-{
-    return draw_text(move(draw_one_glyph), rect.to_type<float>(), raw_text, font, alignment, elision, wrapping);
 }
 
 void Painter::set_pixel(IntPoint p, Color color, bool blend)
