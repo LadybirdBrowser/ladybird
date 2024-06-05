@@ -45,8 +45,6 @@ ALWAYS_INLINE static Color color_for_format(BitmapFormat format, ARGB32 value)
 
 class Painter {
 public:
-    static constexpr int LINE_SPACING = 4;
-
     explicit Painter(Gfx::Bitmap&);
     ~Painter() = default;
 
@@ -165,7 +163,5 @@ public:
 private:
     Painter& m_painter;
 };
-
-ByteString parse_ampersand_string(StringView, Optional<size_t>* underline_offset = nullptr);
 
 }
