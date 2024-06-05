@@ -37,11 +37,11 @@ TEST_CASE(test_painter_scaling_uses_premultiplied_alpha)
         EXPECT_EQ(bottom_right_pixel, Color::Transparent);
     };
 
-    test_scaling_mode(Gfx::Painter::ScalingMode::BilinearBlend);
+    test_scaling_mode(Gfx::ScalingMode::BilinearBlend);
     // FIXME: Include ScalingMode::SmoothPixels as part of this test
     //        This mode does not currently pass this test, as it  behave according to the spec
     //        defined here: https://drafts.csswg.org/css-images/#valdef-image-rendering-pixelated
-    // test_scaling_mode(Gfx::Painter::ScalingMode::SmoothPixels);
+    // test_scaling_mode(Gfx::ScalingMode::SmoothPixels);
 }
 
 TEST_CASE(test_bitmap_scaling_uses_premultiplied_alpha)

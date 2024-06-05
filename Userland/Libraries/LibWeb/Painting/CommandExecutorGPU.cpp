@@ -61,15 +61,15 @@ CommandResult CommandExecutorGPU::fill_rect(FillRect const& command)
     return CommandResult::Continue;
 }
 
-static AccelGfx::Painter::ScalingMode to_accelgfx_scaling_mode(Gfx::Painter::ScalingMode scaling_mode)
+static AccelGfx::Painter::ScalingMode to_accelgfx_scaling_mode(Gfx::ScalingMode scaling_mode)
 {
     switch (scaling_mode) {
-    case Gfx::Painter::ScalingMode::NearestNeighbor:
-    case Gfx::Painter::ScalingMode::BoxSampling:
-    case Gfx::Painter::ScalingMode::SmoothPixels:
-    case Gfx::Painter::ScalingMode::None:
+    case Gfx::ScalingMode::NearestNeighbor:
+    case Gfx::ScalingMode::BoxSampling:
+    case Gfx::ScalingMode::SmoothPixels:
+    case Gfx::ScalingMode::None:
         return AccelGfx::Painter::ScalingMode::NearestNeighbor;
-    case Gfx::Painter::ScalingMode::BilinearBlend:
+    case Gfx::ScalingMode::BilinearBlend:
         return AccelGfx::Painter::ScalingMode::Bilinear;
     default:
         VERIFY_NOT_REACHED();

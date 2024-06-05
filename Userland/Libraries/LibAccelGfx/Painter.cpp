@@ -642,13 +642,13 @@ void Painter::blit_canvas(Gfx::IntRect const& dst_rect, Canvas const& canvas, fl
 void Painter::blit_canvas(Gfx::FloatRect const& dst_rect, Canvas const& canvas, float opacity, Optional<Gfx::AffineTransform> affine_transform)
 {
     auto texture = GL::Texture(canvas.framebuffer().texture);
-    blit_scaled_texture(dst_rect, texture, { { 0, 0 }, canvas.size() }, Painter::ScalingMode::NearestNeighbor, opacity, move(affine_transform));
+    blit_scaled_texture(dst_rect, texture, { { 0, 0 }, canvas.size() }, ScalingMode::NearestNeighbor, opacity, move(affine_transform));
 }
 
 void Painter::blit_canvas(Gfx::FloatRect const& dst_rect, Canvas const& canvas, Gfx::FloatRect const& src_rect, float opacity, Optional<Gfx::AffineTransform> affine_transform, BlendingMode blending_mode)
 {
     auto texture = GL::Texture(canvas.framebuffer().texture);
-    blit_scaled_texture(dst_rect, texture, src_rect, Painter::ScalingMode::NearestNeighbor, opacity, move(affine_transform), blending_mode);
+    blit_scaled_texture(dst_rect, texture, src_rect, ScalingMode::NearestNeighbor, opacity, move(affine_transform), blending_mode);
 }
 
 void Painter::blit_scaled_texture(Gfx::FloatRect const& dst_rect, GL::Texture const& texture, Gfx::FloatRect const& src_rect, ScalingMode scaling_mode, float opacity, Optional<Gfx::AffineTransform> affine_transform, BlendingMode blending_mode)

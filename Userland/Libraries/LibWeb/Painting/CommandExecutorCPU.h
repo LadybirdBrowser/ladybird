@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/MaybeOwned.h>
+#include <LibGfx/ScalingMode.h>
 #include <LibWeb/Painting/AffineCommandExecutorCPU.h>
 #include <LibWeb/Painting/RecordingPainter.h>
 
@@ -71,7 +72,7 @@ private:
         MaybeOwned<Gfx::Painter> painter;
         float opacity;
         Gfx::IntRect destination;
-        Gfx::Painter::ScalingMode scaling_mode;
+        Gfx::ScalingMode scaling_mode;
         Optional<StackingContextMask> mask = {};
     };
 
