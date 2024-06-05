@@ -13,7 +13,11 @@ set(CACERT_INSTALL_FILE cacert.pem)
 if (ENABLE_CACERT_DOWNLOAD)
     remove_path_if_version_changed("${CACERT_VERSION}" "${CACERT_VERSION_FILE}" "${CACERT_PATH}")
 
-    download_file("${CACERT_URL}" "${CACERT_PATH}/${CACERT_FILE}" SHA256 "${CACERT_SHA256}")
+    if (ENABLE_NETWORK_DOWNLOADS)
+        download_file("${CACERT_URL}" "${CACERT_PATH}/${CACERT_FILE}" SHA256 "${CACERT_SHA256}")
+    else()
+        message(STATUS "Skipping download of ${CACERT_URL}, expecting it to have been downloaded to ${CACERT_PATH}")
+    endif()
 
     if (NOT "${CMAKE_STAGING_PREFIX}" STREQUAL "")
         set(CACERT_INSTALL_PATH ${CMAKE_STAGING_PREFIX}/etc/${CACERT_INSTALL_FILE})
