@@ -44,20 +44,27 @@ TEST_CASE(should_construct_by_move)
     EXPECT_EQ(1, n->num_moves);
 }
 
-NO_SANITIZE_ADDRESS static void should_not_destroy()
-{
-    Counter* c = nullptr;
+struct DestructorChecker {
+    DestructorChecker(bool& destroyed)
+        : m_destroyed(destroyed)
     {
-        AK::NeverDestroyed<Counter> n {};
-        // note: explicit stack-use-after-scope
-        c = &n.get();
     }
-    EXPECT_EQ(0, c->num_destroys);
-}
+
+    ~DestructorChecker()
+    {
+        m_destroyed = true;
+    }
+
+    bool& m_destroyed;
+};
 
 TEST_CASE(should_not_destroy)
 {
-    should_not_destroy();
+    bool destroyed = false;
+    {
+        AK::NeverDestroyed<DestructorChecker> n(destroyed);
+    }
+    EXPECT(!destroyed);
 }
 
 TEST_CASE(should_provide_dereference_operator)
