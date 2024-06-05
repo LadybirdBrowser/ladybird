@@ -1233,7 +1233,8 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     // 18. Append locationURL to request’s URL list.
     request->url_list().append(location_url);
 
-    // FIXME: 19. Invoke set request’s referrer policy on redirect on request and internalResponse.
+    // 19. Invoke set request’s referrer policy on redirect on request and internalResponse.
+    ReferrerPolicy::set_request_referrer_policy_on_redirect(request, internal_response);
 
     // 20. Let recursive be true.
     auto recursive = Recursive::Yes;
