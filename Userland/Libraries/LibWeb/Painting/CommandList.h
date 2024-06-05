@@ -18,7 +18,6 @@
 #include <LibGfx/GrayscaleBitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Painter.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>

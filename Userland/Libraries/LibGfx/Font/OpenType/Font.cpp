@@ -19,6 +19,7 @@
 #include <LibGfx/Font/OpenType/Glyf.h>
 #include <LibGfx/Font/OpenType/Tables.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
+#include <LibGfx/Painter.h>
 #include <math.h>
 #include <sys/mman.h>
 

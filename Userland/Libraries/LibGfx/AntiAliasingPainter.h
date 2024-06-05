@@ -6,7 +6,10 @@
 
 #pragma once
 
-#include <LibGfx/Painter.h>
+#include <LibGfx/Color.h>
+#include <LibGfx/Forward.h>
+#include <LibGfx/LineStyle.h>
+#include <LibGfx/PaintStyle.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/WindingRule.h>

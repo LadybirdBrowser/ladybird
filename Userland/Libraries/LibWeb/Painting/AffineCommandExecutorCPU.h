@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/Painter.h>
 #include <LibGfx/Quad.h>
 #include <LibWeb/Painting/RecordingPainter.h>
 

@@ -10,8 +10,8 @@
 #include <AK/GenericShorthands.h>
 #include <AK/Vector.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 
 namespace Gfx {

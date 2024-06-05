@@ -14,6 +14,7 @@
 #include <AK/NumericLimits.h>
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/Line.h>
+#include <LibGfx/Painter.h>
 
 namespace Gfx {
 
