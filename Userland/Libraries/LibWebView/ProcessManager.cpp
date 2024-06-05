@@ -99,7 +99,6 @@ ProcessInfo* ProcessManager::find_process(pid_t pid)
 void ProcessManager::add_process(ProcessType type, pid_t pid)
 {
     Threading::MutexLocker locker { m_lock };
-    dbgln("ProcessManager::add_process({}, {})", process_name_from_type(type), pid);
     if (auto* existing_process = find_process(pid)) {
         existing_process->type = type;
         return;
@@ -111,7 +110,6 @@ void ProcessManager::add_process(ProcessType type, pid_t pid)
 void ProcessManager::add_process(pid_t pid, Core::MachPort&& port)
 {
     Threading::MutexLocker locker { m_lock };
-    dbgln("ProcessManager::add_process({}, {:p})", pid, port.port());
     if (auto* existing_process = find_process(pid)) {
         existing_process->child_task_port = move(port);
         return;
@@ -125,8 +123,6 @@ void ProcessManager::remove_process(pid_t pid)
     Threading::MutexLocker locker { m_lock };
     m_statistics.processes.remove_first_matching([&](auto const& info) {
         if (info->pid == pid) {
-            auto type = verify_cast<ProcessInfo>(*info).type;
-            dbgln("ProcessManager: Remove process {} ({})", process_name_from_type(type), pid);
             return true;
         }
         return false;
