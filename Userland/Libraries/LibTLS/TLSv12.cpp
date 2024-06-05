@@ -622,7 +622,7 @@ ErrorOr<Vector<Certificate>> DefaultRootCACertificates::parse_pem_root_certifica
         }
     }
 
-    dbgln("Loaded {} of {} ({:.2}%) provided CA Certificates", certificates.size(), certs.size(), (certificates.size() * 100.0) / certs.size());
+    dbgln_if(TLS_DEBUG, "Loaded {} of {} ({:.2}%) provided CA Certificates", certificates.size(), certs.size(), (certificates.size() * 100.0) / certs.size());
 
     return certificates;
 }
