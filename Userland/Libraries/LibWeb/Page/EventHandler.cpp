@@ -433,8 +433,9 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
                     auto& realm = document->realm();
                     m_navigable->set_cursor_position(DOM::Position::create(realm, *paintable->dom_node(), result->index_in_node));
                     if (auto selection = document->get_selection()) {
-                        if (modifiers & KeyModifier::Mod_Shift) {
-                            (void)selection->set_base_and_extent(*selection->anchor_node(), selection->anchor_offset(), *paintable->dom_node(), result->index_in_node);
+                        auto anchor_node = selection->anchor_node();
+                        if (anchor_node && modifiers & KeyModifier::Mod_Shift) {
+                            (void)selection->set_base_and_extent(*anchor_node, selection->anchor_offset(), *paintable->dom_node(), result->index_in_node);
                         } else {
                             (void)selection->set_base_and_extent(*paintable->dom_node(), result->index_in_node, *paintable->dom_node(), result->index_in_node);
                         }
