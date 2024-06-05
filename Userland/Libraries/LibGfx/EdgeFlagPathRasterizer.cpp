@@ -10,6 +10,7 @@
 #include <AK/Types.h>
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/EdgeFlagPathRasterizer.h>
+#include <LibGfx/Painter.h>
 
 #if defined(AK_COMPILER_GCC)
 #    pragma GCC optimize("O3")

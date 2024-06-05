@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/PathClipper.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>

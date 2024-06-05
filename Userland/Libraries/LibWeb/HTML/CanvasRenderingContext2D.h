@@ -13,7 +13,6 @@
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/PathClipper.h>
 #include <LibWeb/Bindings/PlatformObject.h>

@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/AntiAliasingPainter.h>
+#include <LibGfx/Painter.h>
 #include <LibGfx/PathClipper.h>
 
 namespace Gfx {

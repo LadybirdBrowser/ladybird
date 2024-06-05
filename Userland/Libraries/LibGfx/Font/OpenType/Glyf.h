@@ -13,7 +13,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/OpenType/Tables.h>
-#include <LibGfx/Painter.h>
+#include <LibGfx/Path.h>
 #include <LibGfx/Size.h>
 #include <math.h>
 
