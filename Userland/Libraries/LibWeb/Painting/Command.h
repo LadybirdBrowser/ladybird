@@ -183,7 +183,7 @@ struct FillPathUsingColor {
     Gfx::IntRect path_bounding_rect;
     Gfx::Path path;
     Color color;
-    Gfx::Painter::WindingRule winding_rule;
+    Gfx::WindingRule winding_rule;
     Gfx::FloatPoint aa_translation;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
@@ -199,7 +199,7 @@ struct FillPathUsingPaintStyle {
     Gfx::IntRect path_bounding_rect;
     Gfx::Path path;
     NonnullRefPtr<Gfx::PaintStyle> paint_style;
-    Gfx::Painter::WindingRule winding_rule;
+    Gfx::WindingRule winding_rule;
     float opacity;
     Gfx::FloatPoint aa_translation;
 

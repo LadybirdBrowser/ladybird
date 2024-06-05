@@ -25,6 +25,7 @@
 #include <LibGfx/TextDirection.h>
 #include <LibGfx/TextElision.h>
 #include <LibGfx/TextWrapping.h>
+#include <LibGfx/WindingRule.h>
 
 namespace Gfx {
 
@@ -103,11 +104,6 @@ public:
     static void for_each_line_segment_on_cubic_bezier_curve(FloatPoint control_point_0, FloatPoint control_point_1, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>&&);
 
     void stroke_path(Path const&, Color, int thickness);
-
-    enum class WindingRule {
-        Nonzero,
-        EvenOdd,
-    };
 
     void fill_path(Path const&, Color, WindingRule rule = WindingRule::Nonzero);
     void fill_path(Path const&, PaintStyle const& paint_style, float opacity = 1.0f, WindingRule rule = WindingRule::Nonzero);

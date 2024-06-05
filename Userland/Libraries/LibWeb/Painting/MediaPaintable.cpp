@@ -54,7 +54,7 @@ void MediaPaintable::fill_triangle(RecordingPainter& painter, Gfx::IntPoint loca
     painter.fill_path({
         .path = path,
         .color = color,
-        .winding_rule = Gfx::Painter::WindingRule::EvenOdd,
+        .winding_rule = Gfx::WindingRule::EvenOdd,
     });
 }
 
@@ -227,7 +227,7 @@ void MediaPaintable::paint_control_bar_speaker(PaintContext& context, HTML::HTML
     path.line_to(device_point(0, 11));
     path.line_to(device_point(0, 4));
     path.close();
-    context.recording_painter().fill_path({ .path = path, .color = speaker_button_color, .winding_rule = Gfx::Painter::WindingRule::EvenOdd });
+    context.recording_painter().fill_path({ .path = path, .color = speaker_button_color, .winding_rule = Gfx::WindingRule::EvenOdd });
 
     path.clear();
     path.move_to(device_point(13, 3));

@@ -13,7 +13,7 @@ namespace Gfx {
 
 struct ClipPath {
     Path path;
-    Painter::WindingRule winding_rule;
+    WindingRule winding_rule;
 };
 
 class PathClipper {

@@ -483,10 +483,10 @@ void TinyVGDecodedImageData::draw_transformed(Painter& painter, AffineTransform 
             auto fill_path = draw_path;
             fill_path.close_all_subpaths();
             command.fill->visit(
-                [&](Color color) { aa_painter.fill_path(fill_path, color, Painter::WindingRule::EvenOdd); },
+                [&](Color color) { aa_painter.fill_path(fill_path, color, WindingRule::EvenOdd); },
                 [&](NonnullRefPtr<SVGGradientPaintStyle> style) {
                     const_cast<SVGGradientPaintStyle&>(*style).set_gradient_transform(transform);
-                    aa_painter.fill_path(fill_path, style, 1.0f, Painter::WindingRule::EvenOdd);
+                    aa_painter.fill_path(fill_path, style, 1.0f, WindingRule::EvenOdd);
                 });
         }
         if (command.stroke.has_value()) {

@@ -99,13 +99,13 @@ EdgeFlagPathRasterizer<SamplesPerPixel>::EdgeFlagPathRasterizer(IntSize size)
 }
 
 template<unsigned SamplesPerPixel>
-void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(Painter& painter, Path const& path, Color color, Painter::WindingRule winding_rule, FloatPoint offset)
+void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(Painter& painter, Path const& path, Color color, WindingRule winding_rule, FloatPoint offset)
 {
     fill_internal(painter, path, color, winding_rule, offset);
 }
 
 template<unsigned SamplesPerPixel>
-void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(Painter& painter, Path const& path, PaintStyle const& style, float opacity, Painter::WindingRule winding_rule, FloatPoint offset)
+void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(Painter& painter, Path const& path, PaintStyle const& style, float opacity, WindingRule winding_rule, FloatPoint offset)
 {
     style.paint(enclosing_int_rect(path.bounding_box()), [&](PaintStyle::SamplerFunction sampler) {
         if (opacity == 0.0f)
@@ -122,7 +122,7 @@ void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(Painter& painter, Path const&
 }
 
 template<unsigned SamplesPerPixel>
-void EdgeFlagPathRasterizer<SamplesPerPixel>::fill_internal(Painter& painter, Path const& path, auto color_or_function, Painter::WindingRule winding_rule, FloatPoint offset)
+void EdgeFlagPathRasterizer<SamplesPerPixel>::fill_internal(Painter& painter, Path const& path, auto color_or_function, WindingRule winding_rule, FloatPoint offset)
 {
     auto bounding_box = enclosing_int_rect(path.bounding_box().translated(offset));
     auto dest_rect = bounding_box.translated(painter.translation());
@@ -187,7 +187,7 @@ void EdgeFlagPathRasterizer<SamplesPerPixel>::fill_internal(Painter& painter, Pa
 
     Detail::Edge* active_edges = nullptr;
 
-    if (winding_rule == Painter::WindingRule::EvenOdd) {
+    if (winding_rule == WindingRule::EvenOdd) {
         auto plot_edge = [&](Detail::Edge& edge, int start_subpixel_y, int end_subpixel_y, EdgeExtent& edge_extent) {
             for_each_sample(edge, start_subpixel_y, end_subpixel_y, edge_extent, [&](int xi, int, SampleType sample) {
                 m_scanline[xi] ^= sample;
@@ -196,10 +196,10 @@ void EdgeFlagPathRasterizer<SamplesPerPixel>::fill_internal(Painter& painter, Pa
         for (int scanline = min_scanline; scanline <= max_scanline; scanline++) {
             auto edge_extent = empty_edge_extent();
             active_edges = plot_edges_for_scanline(scanline, plot_edge, edge_extent, active_edges);
-            write_scanline<Painter::WindingRule::EvenOdd>(painter, scanline, edge_extent, color_or_function);
+            write_scanline<WindingRule::EvenOdd>(painter, scanline, edge_extent, color_or_function);
         }
     } else {
-        VERIFY(winding_rule == Painter::WindingRule::Nonzero);
+        VERIFY(winding_rule == WindingRule::Nonzero);
         // Only allocate the winding buffer if needed.
         // NOTE: non-zero fills are a fair bit less efficient. So if you can do an even-odd fill do that :^)
         if (m_windings.is_empty())
@@ -214,7 +214,7 @@ void EdgeFlagPathRasterizer<SamplesPerPixel>::fill_internal(Painter& painter, Pa
         for (int scanline = min_scanline; scanline <= max_scanline; scanline++) {
             auto edge_extent = empty_edge_extent();
             active_edges = plot_edges_for_scanline(scanline, plot_edge, edge_extent, active_edges);
-            write_scanline<Painter::WindingRule::Nonzero>(painter, scanline, edge_extent, color_or_function);
+            write_scanline<WindingRule::Nonzero>(painter, scanline, edge_extent, color_or_function);
         }
     }
 }
@@ -345,10 +345,10 @@ auto EdgeFlagPathRasterizer<SamplesPerPixel>::accumulate_non_zero_scanline(EdgeE
 }
 
 template<unsigned SamplesPerPixel>
-template<Painter::WindingRule WindingRule, typename Callback>
+template<WindingRule WindingRule, typename Callback>
 auto EdgeFlagPathRasterizer<SamplesPerPixel>::accumulate_scanline(EdgeExtent edge_extent, auto init, Callback callback)
 {
-    if constexpr (WindingRule == Painter::WindingRule::EvenOdd)
+    if constexpr (WindingRule == WindingRule::EvenOdd)
         return accumulate_even_odd_scanline(edge_extent, init, callback);
     else
         return accumulate_non_zero_scanline(edge_extent, init, callback);
@@ -374,7 +374,7 @@ void EdgeFlagPathRasterizer<SamplesPerPixel>::fast_fill_solid_color_span(ARGB32*
 }
 
 template<unsigned SamplesPerPixel>
-template<Painter::WindingRule WindingRule>
+template<WindingRule WindingRule>
 FLATTEN __attribute__((hot)) void EdgeFlagPathRasterizer<SamplesPerPixel>::write_scanline(Painter& painter, int scanline, EdgeExtent edge_extent, auto& color_or_function)
 {
     // Handle scanline clipping.
@@ -383,7 +383,7 @@ FLATTEN __attribute__((hot)) void EdgeFlagPathRasterizer<SamplesPerPixel>::write
     if (clipped_extent.min_x > clipped_extent.max_x) {
         // Fully clipped. Unfortunately we still need to zero the scanline data.
         edge_extent.memset_extent(m_scanline.data(), 0);
-        if constexpr (WindingRule == Painter::WindingRule::Nonzero)
+        if constexpr (WindingRule == WindingRule::Nonzero)
             edge_extent.memset_extent(m_windings.data(), 0);
         return;
     }
@@ -445,19 +445,19 @@ void Painter::fill_path(Path const& path, Color color, WindingRule winding_rule)
     rasterizer.fill(*this, path, color, winding_rule);
 }
 
-void Painter::fill_path(Path const& path, PaintStyle const& paint_style, float opacity, Painter::WindingRule winding_rule)
+void Painter::fill_path(Path const& path, PaintStyle const& paint_style, float opacity, WindingRule winding_rule)
 {
     EdgeFlagPathRasterizer<8> rasterizer(path_bounds(path));
     rasterizer.fill(*this, path, paint_style, opacity, winding_rule);
 }
 
-void AntiAliasingPainter::fill_path(Path const& path, Color color, Painter::WindingRule winding_rule)
+void AntiAliasingPainter::fill_path(Path const& path, Color color, WindingRule winding_rule)
 {
     EdgeFlagPathRasterizer<32> rasterizer(path_bounds(path));
     rasterizer.fill(m_underlying_painter, path, color, winding_rule, m_transform.translation());
 }
 
-void AntiAliasingPainter::fill_path(Path const& path, PaintStyle const& paint_style, float opacity, Painter::WindingRule winding_rule)
+void AntiAliasingPainter::fill_path(Path const& path, PaintStyle const& paint_style, float opacity, WindingRule winding_rule)
 {
     EdgeFlagPathRasterizer<32> rasterizer(path_bounds(path));
     rasterizer.fill(m_underlying_painter, path, paint_style, opacity, winding_rule, m_transform.translation());

@@ -92,7 +92,7 @@ Gfx::Path CanvasRenderingContext2D::rect_path(float x, float y, float width, flo
 
 void CanvasRenderingContext2D::fill_rect(float x, float y, float width, float height)
 {
-    return fill_internal(rect_path(x, y, width, height), Gfx::Painter::WindingRule::EvenOdd);
+    return fill_internal(rect_path(x, y, width, height), Gfx::WindingRule::EvenOdd);
 }
 
 void CanvasRenderingContext2D::clear_rect(float x, float y, float width, float height)
@@ -255,7 +255,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
 
 void CanvasRenderingContext2D::fill_text(StringView text, float x, float y, Optional<double> max_width)
 {
-    fill_internal(text_path(text, x, y, max_width), Gfx::Painter::WindingRule::Nonzero);
+    fill_internal(text_path(text, x, y, max_width), Gfx::WindingRule::Nonzero);
 }
 
 void CanvasRenderingContext2D::stroke_text(StringView text, float x, float y, Optional<double> max_width)
@@ -292,17 +292,17 @@ void CanvasRenderingContext2D::stroke(Path2D const& path)
     stroke_internal(transformed_path);
 }
 
-static Gfx::Painter::WindingRule parse_fill_rule(StringView fill_rule)
+static Gfx::WindingRule parse_fill_rule(StringView fill_rule)
 {
     if (fill_rule == "evenodd"sv)
-        return Gfx::Painter::WindingRule::EvenOdd;
+        return Gfx::WindingRule::EvenOdd;
     if (fill_rule == "nonzero"sv)
-        return Gfx::Painter::WindingRule::Nonzero;
+        return Gfx::WindingRule::Nonzero;
     dbgln("Unrecognized fillRule for CRC2D.fill() - this problem goes away once we pass an enum instead of a string");
-    return Gfx::Painter::WindingRule::Nonzero;
+    return Gfx::WindingRule::Nonzero;
 }
 
-void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Painter::WindingRule winding_rule)
+void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
 {
     draw_clipped([&, this](auto& painter) mutable {
         auto path_to_fill = path;
@@ -537,7 +537,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     return prepared_text;
 }
 
-void CanvasRenderingContext2D::clip_internal(Gfx::Path& path, Gfx::Painter::WindingRule winding_rule)
+void CanvasRenderingContext2D::clip_internal(Gfx::Path& path, Gfx::WindingRule winding_rule)
 {
     // FIXME: This should calculate the new clip path by intersecting the given path with the current one.
     // See: https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-clip-dev

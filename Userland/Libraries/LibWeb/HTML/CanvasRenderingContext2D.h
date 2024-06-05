@@ -144,8 +144,8 @@ private:
     Gfx::Path text_path(StringView text, float x, float y, Optional<double> max_width);
 
     void stroke_internal(Gfx::Path const&);
-    void fill_internal(Gfx::Path const&, Gfx::Painter::WindingRule);
-    void clip_internal(Gfx::Path&, Gfx::Painter::WindingRule);
+    void fill_internal(Gfx::Path const&, Gfx::WindingRule);
+    void clip_internal(Gfx::Path&, Gfx::WindingRule);
 
     JS::NonnullGCPtr<HTMLCanvasElement> m_element;
     OwnPtr<Gfx::Painter> m_painter;
