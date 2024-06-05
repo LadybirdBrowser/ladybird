@@ -66,10 +66,10 @@ void Painter::clear_rect(IntRect const& a_rect, Color color)
     if (rect.is_empty())
         return;
 
-    VERIFY(m_target->rect().contains(rect));
+    VERIFY(target().rect().contains(rect));
 
-    ARGB32* dst = m_target->scanline(rect.top()) + rect.left();
-    size_t const dst_skip = m_target->pitch() / sizeof(ARGB32);
+    ARGB32* dst = target().scanline(rect.top()) + rect.left();
+    size_t const dst_skip = target().pitch() / sizeof(ARGB32);
 
     for (int i = rect.height() - 1; i >= 0; --i) {
         fast_u32_fill(dst, color.value(), rect.width());
@@ -80,10 +80,10 @@ void Painter::clear_rect(IntRect const& a_rect, Color color)
 void Painter::fill_physical_rect(IntRect const& physical_rect, Color color)
 {
     // Callers must do clipping.
-    ARGB32* dst = m_target->scanline(physical_rect.top()) + physical_rect.left();
-    size_t const dst_skip = m_target->pitch() / sizeof(ARGB32);
+    ARGB32* dst = target().scanline(physical_rect.top()) + physical_rect.left();
+    size_t const dst_skip = target().pitch() / sizeof(ARGB32);
 
-    auto dst_format = target()->format();
+    auto dst_format = target().format();
     for (int i = physical_rect.height() - 1; i >= 0; --i) {
         for (int j = 0; j < physical_rect.width(); ++j)
             dst[j] = color_for_format(dst_format, dst[j]).blend(color).value();
@@ -104,7 +104,7 @@ void Painter::fill_rect(IntRect const& a_rect, Color color)
     auto rect = a_rect.translated(translation()).intersected(clip_rect());
     if (rect.is_empty())
         return;
-    VERIFY(m_target->rect().contains(rect));
+    VERIFY(target().rect().contains(rect));
 
     fill_physical_rect(rect, color);
 }
@@ -237,7 +237,7 @@ void Painter::fill_rounded_corner(IntRect const& a_rect, int radius, Color color
 
     if (rect.is_empty())
         return;
-    VERIFY(m_target->rect().contains(rect));
+    VERIFY(target().rect().contains(rect));
 
     // We got cut on the top!
     // FIXME: Also account for clipping on the x-axis
@@ -245,8 +245,8 @@ void Painter::fill_rounded_corner(IntRect const& a_rect, int radius, Color color
     if (translated_a_rect.y() < rect.y())
         clip_offset = rect.y() - translated_a_rect.y();
 
-    ARGB32* dst = m_target->scanline(rect.top()) + rect.left();
-    size_t const dst_skip = m_target->pitch() / sizeof(ARGB32);
+    ARGB32* dst = target().scanline(rect.top()) + rect.left();
+    size_t const dst_skip = target().pitch() / sizeof(ARGB32);
 
     IntPoint circle_center;
     switch (orientation) {
@@ -274,7 +274,7 @@ void Painter::fill_rounded_corner(IntRect const& a_rect, int radius, Color color
         return distance2 <= (radius2 + radius + 0.25);
     };
 
-    auto dst_format = target()->format();
+    auto dst_format = target().format();
     for (int i = rect.height() - 1; i >= 0; --i) {
         for (int j = 0; j < rect.width(); ++j)
             if (is_in_circle(j, rect.height() - i + clip_offset))
@@ -338,7 +338,7 @@ void Painter::fill_ellipse(IntRect const& a_rect, Color color)
     if (rect.is_empty())
         return;
 
-    VERIFY(m_target->rect().contains(rect));
+    VERIFY(target().rect().contains(rect));
 
     auto const center = a_rect.center();
 
@@ -398,13 +398,13 @@ void Painter::draw_rect(IntRect const& a_rect, Color color, bool rough)
     if (draw_left_side && draw_right_side) {
         // Specialized loop when drawing both sides.
         for (int y = min_y; y <= max_y; ++y) {
-            auto* bits = m_target->scanline(y);
+            auto* bits = target().scanline(y);
             set_physical_pixel(bits[rect.left()], color);
             set_physical_pixel(bits[(rect.right() - 1)], color);
         }
     } else {
         for (int y = min_y; y <= max_y; ++y) {
-            auto* bits = m_target->scanline(y);
+            auto* bits = target().scanline(y);
             if (draw_left_side)
                 set_physical_pixel(bits[rect.left()], color);
             if (draw_right_side)
@@ -488,9 +488,9 @@ void Painter::blit_with_opacity(IntPoint position, Gfx::Bitmap const& source, In
 
     BlitState blit_state {
         .src = source.scanline(src_rect.top() + first_row) + src_rect.left() + first_column,
-        .dst = m_target->scanline(clipped_rect.y()) + clipped_rect.x(),
+        .dst = target().scanline(clipped_rect.y()) + clipped_rect.x(),
         .src_pitch = source.pitch() / sizeof(ARGB32),
-        .dst_pitch = m_target->pitch() / sizeof(ARGB32),
+        .dst_pitch = target().pitch() / sizeof(ARGB32),
         .row_count = last_row - first_row,
         .column_count = last_column - first_column,
         .opacity = opacity,
@@ -498,12 +498,12 @@ void Painter::blit_with_opacity(IntPoint position, Gfx::Bitmap const& source, In
     };
 
     if (source.has_alpha_channel() && apply_alpha) {
-        if (m_target->has_alpha_channel())
+        if (target().has_alpha_channel())
             do_blit_with_opacity<BlitState::BothAlpha>(blit_state);
         else
             do_blit_with_opacity<BlitState::SrcAlpha>(blit_state);
     } else {
-        if (m_target->has_alpha_channel())
+        if (target().has_alpha_channel())
             do_blit_with_opacity<BlitState::DstAlpha>(blit_state);
         else
             do_blit_with_opacity<BlitState::NoAlpha>(blit_state);
@@ -522,9 +522,9 @@ void Painter::blit_filtered(IntPoint position, Gfx::Bitmap const& source, IntRec
     int const last_row = clipped_rect.bottom() - dst_rect.top();
     int const first_column = clipped_rect.left() - dst_rect.left();
     int const last_column = clipped_rect.right() - dst_rect.left();
-    ARGB32* dst = m_target->scanline(clipped_rect.y()) + clipped_rect.x();
-    size_t const dst_skip = m_target->pitch() / sizeof(ARGB32);
-    auto dst_format = target()->format();
+    ARGB32* dst = target().scanline(clipped_rect.y()) + clipped_rect.x();
+    size_t const dst_skip = target().pitch() / sizeof(ARGB32);
+    auto dst_format = target().format();
     auto src_format = source.format();
 
     ARGB32 const* src = source.scanline(safe_src_rect.top() + first_row) + safe_src_rect.left() + first_column;
@@ -563,8 +563,8 @@ void Painter::blit(IntPoint position, Gfx::Bitmap const& source, IntRect const& 
     int const first_row = clipped_rect.top() - dst_rect.top();
     int const last_row = clipped_rect.bottom() - dst_rect.top();
     int const first_column = clipped_rect.left() - dst_rect.left();
-    ARGB32* dst = m_target->scanline(clipped_rect.y()) + clipped_rect.x();
-    size_t const dst_skip = m_target->pitch() / sizeof(ARGB32);
+    ARGB32* dst = target().scanline(clipped_rect.y()) + clipped_rect.x();
+    size_t const dst_skip = target().pitch() / sizeof(ARGB32);
 
     if (source.format() == BitmapFormat::BGRx8888 || source.format() == BitmapFormat::BGRA8888) {
         ARGB32 const* src = source.scanline(src_rect.top() + first_row) + src_rect.left() + first_column;
@@ -1192,11 +1192,11 @@ void Painter::set_physical_pixel(IntPoint physical_point, Color color, bool blen
 {
     // This function should only be called after translation, clipping, etc has been handled elsewhere
     // if not use set_pixel().
-    auto& dst = m_target->scanline(physical_point.y())[physical_point.x()];
+    auto& dst = target().scanline(physical_point.y())[physical_point.x()];
     if (!blend || color.alpha() == 255)
         dst = color.value();
     else if (color.alpha())
-        dst = color_for_format(target()->format(), dst).blend(color).value();
+        dst = color_for_format(target().format(), dst).blend(color).value();
 }
 
 Optional<Color> Painter::get_pixel(IntPoint p)
@@ -1205,15 +1205,15 @@ Optional<Color> Painter::get_pixel(IntPoint p)
     point.translate_by(state().translation);
     if (!clip_rect().contains(point))
         return {};
-    return m_target->get_pixel(point);
+    return target().get_pixel(point);
 }
 
 ErrorOr<NonnullRefPtr<Bitmap>> Painter::get_region_bitmap(IntRect const& region, BitmapFormat format, Optional<IntRect&> actual_region)
 {
-    auto bitmap_region = region.translated(state().translation).intersected(m_target->rect());
+    auto bitmap_region = region.translated(state().translation).intersected(target().rect());
     if (actual_region.has_value())
         actual_region.value() = bitmap_region.translated(-state().translation);
-    return m_target->cropped(bitmap_region, format);
+    return target().cropped(bitmap_region, format);
 }
 
 ALWAYS_INLINE void Painter::set_physical_pixel(u32& pixel, Color color)
@@ -1227,7 +1227,7 @@ ALWAYS_INLINE void Painter::fill_physical_scanline(int y, int x, int width, Colo
 {
     // This always draws a single physical scanline, independent of scale().
     // This should only be called by routines that already handle scale.
-    fast_u32_fill(m_target->scanline(y) + x, color.value(), width);
+    fast_u32_fill(target().scanline(y) + x, color.value(), width);
 }
 
 void Painter::draw_physical_pixel(IntPoint physical_position, Color color, int thickness)
@@ -1239,8 +1239,8 @@ void Painter::draw_physical_pixel(IntPoint physical_position, Color color, int t
         return;
 
     if (thickness == 1) { // Implies scale() == 1.
-        auto& pixel = m_target->scanline(physical_position.y())[physical_position.x()];
-        return set_physical_pixel(pixel, color_for_format(m_target->format(), pixel).blend(color));
+        auto& pixel = target().scanline(physical_position.y())[physical_position.x()];
+        return set_physical_pixel(pixel, color_for_format(target().format(), pixel).blend(color));
     }
 
     IntRect rect { physical_position, { thickness, thickness } };
@@ -1549,7 +1549,7 @@ void Painter::for_each_line_segment_on_cubic_bezier_curve(FloatPoint control_poi
 void Painter::add_clip_rect(IntRect const& rect)
 {
     state().clip_rect.intersect(rect.translated(translation()));
-    state().clip_rect.intersect(m_target->rect()); // FIXME: This shouldn't be necessary?
+    state().clip_rect.intersect(target().rect()); // FIXME: This shouldn't be necessary?
 }
 
 void Painter::clear_clip_rect()

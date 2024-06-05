@@ -227,14 +227,14 @@ CommandResult CommandExecutorCPU::pop_stacking_context(PopStackingContext const&
     auto stacking_context = stacking_contexts.take_last();
     // Stacking contexts that don't own their painter are simple translations, and don't need to blit anything back.
     if (stacking_context.painter.is_owned()) {
-        auto bitmap = stacking_context.painter->target();
+        auto& bitmap = stacking_context.painter->target();
         if (stacking_context.mask.has_value())
-            bitmap->apply_mask(*stacking_context.mask->mask_bitmap, stacking_context.mask->mask_kind);
+            bitmap.apply_mask(*stacking_context.mask->mask_bitmap, stacking_context.mask->mask_kind);
         auto destination_rect = stacking_context.destination;
-        if (destination_rect.size() == bitmap->size()) {
-            painter().blit(destination_rect.location(), *bitmap, bitmap->rect(), stacking_context.opacity);
+        if (destination_rect.size() == bitmap.size()) {
+            painter().blit(destination_rect.location(), bitmap, bitmap.rect(), stacking_context.opacity);
         } else {
-            painter().draw_scaled_bitmap(destination_rect, *bitmap, bitmap->rect(), stacking_context.opacity, stacking_context.scaling_mode);
+            painter().draw_scaled_bitmap(destination_rect, bitmap, bitmap.rect(), stacking_context.opacity, stacking_context.scaling_mode);
         }
     }
     return CommandResult::Continue;

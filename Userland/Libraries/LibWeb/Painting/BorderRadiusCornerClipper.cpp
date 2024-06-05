@@ -78,7 +78,7 @@ void BorderRadiusCornerClipper::sample_under_corners(Gfx::Painter& page_painter)
                     position.translate_by(translation);
                     if (!clip_rect.contains(position))
                         continue;
-                    auto page_pixel = page_painter.target()->get_pixel<Gfx::StorageFormat::BGRA8888>(position.x(), position.y());
+                    auto page_pixel = page_painter.target().get_pixel<Gfx::StorageFormat::BGRA8888>(position.x(), position.y());
                     final_pixel = page_pixel.with_alpha(mask_alpha);
                 }
                 m_corner_bitmap->set_pixel<Gfx::StorageFormat::BGRA8888>(corner_location.x(), corner_location.y(), final_pixel);
