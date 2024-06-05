@@ -25,7 +25,7 @@ interface HTMLImageElement : HTMLElement {
     [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute DOMString loading;
     [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
 
-    [FIXME] Promise<undefined> decode();
+    Promise<undefined> decode();
 
     // Obsolete
     [CEReactions, Reflect] attribute DOMString name;
