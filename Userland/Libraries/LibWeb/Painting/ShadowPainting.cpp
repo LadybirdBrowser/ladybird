@@ -489,7 +489,7 @@ void paint_outer_box_shadow(Gfx::Painter& painter, PaintOuterBoxShadowParams par
     // FIXME: Could reduce the shadow paints from 8 to 4 for shadows with all corner radii 50%.
 
     // FIXME: We use this since we want the clip rect to include everything after a certain x or y.
-    // Note: Using painter.target()->width() or height() does not work, when the painter is a small
+    // Note: Using painter.target().width() or height() does not work, when the painter is a small
     // translated bitmap rather than full screen, as the clip rect may not intersect.
     constexpr auto really_large_number = NumericLimits<int>::max() / 2;
 

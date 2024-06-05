@@ -105,7 +105,7 @@ public:
 
     IntPoint translation() const { return state().translation; }
 
-    Gfx::Bitmap* target() { return m_target.ptr(); }
+    [[nodiscard]] Gfx::Bitmap& target() { return *m_target; }
 
     void save() { m_state_stack.append(m_state_stack.last()); }
     void restore()

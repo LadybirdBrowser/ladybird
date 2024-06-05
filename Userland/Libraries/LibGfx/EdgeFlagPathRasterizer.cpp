@@ -395,8 +395,8 @@ FLATTEN __attribute__((hot)) void EdgeFlagPathRasterizer<SamplesPerPixel>::write
     });
 
     // Get pointer to current scanline pixels.
-    auto dest_format = painter.target()->format();
-    auto dest_ptr = painter.target()->scanline(scanline + m_blit_origin.y());
+    auto dest_format = painter.target().format();
+    auto dest_ptr = painter.target().scanline(scanline + m_blit_origin.y());
 
     // Simple case: Handle each pixel individually.
     // Used for PaintStyle fills and semi-transparent colors.
