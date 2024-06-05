@@ -65,7 +65,10 @@ public:
 
     void update_hover_label();
 
+    void set_block_popups(bool);
     void set_line_box_borders(bool);
+    void set_same_origin_policy(bool);
+    void set_scripting(bool);
 
 public slots:
     void focus_location_editor();
