@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,6 +16,39 @@
 #include <LibWeb/SecureContexts/AbstractOperations.h>
 
 namespace Web::ReferrerPolicy {
+
+// https://w3c.github.io/webappsec-referrer-policy/#parse-referrer-policy-from-header
+ReferrerPolicy parse_a_referrer_policy_from_a_referrer_policy_header(Fetch::Infrastructure::Response const& response)
+{
+    // 1. Let policy-tokens be the result of extracting header list values given `Referrer-Policy` and response’s header list.
+    auto policy_tokens_or_failure = Fetch::Infrastructure::extract_header_list_values("Referrer-Policy"sv.bytes(), response.header_list());
+    auto policy_tokens = policy_tokens_or_failure.has<Vector<ByteBuffer>>() ? policy_tokens_or_failure.get<Vector<ByteBuffer>>() : Vector<ByteBuffer> {};
+
+    // 2. Let policy be the empty string.
+    auto policy = ReferrerPolicy::EmptyString;
+
+    // 3. For each token in policy-tokens, if token is a referrer policy and token is not the empty string, then set policy to token.
+    for (auto token : policy_tokens) {
+        auto referrer_policy = from_string(token);
+        if (referrer_policy.has_value() && referrer_policy.release_value() != ReferrerPolicy::EmptyString)
+            policy = referrer_policy.release_value();
+    }
+
+    // 4. Return policy.
+    return policy;
+}
+
+// https://w3c.github.io/webappsec-referrer-policy/#set-requests-referrer-policy-on-redirect
+void set_request_referrer_policy_on_redirect(Fetch::Infrastructure::Request& request, Fetch::Infrastructure::Response const& response)
+{
+    // 1. Let policy be the result of executing § 8.1 Parse a referrer policy from a Referrer-Policy header on
+    //    actualResponse.
+    auto policy = parse_a_referrer_policy_from_a_referrer_policy_header(response);
+
+    // 2. If policy is not the empty string, then set request’s referrer policy to policy.
+    if (policy != ReferrerPolicy::EmptyString)
+        request.set_referrer_policy(policy);
+}
 
 // https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
 Optional<URL::URL> determine_requests_referrer(Fetch::Infrastructure::Request const& request)
