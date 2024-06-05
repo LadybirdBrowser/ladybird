@@ -341,10 +341,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     debug_menu->addAction(m_show_line_box_borders_action);
     QObject::connect(m_show_line_box_borders_action, &QAction::triggered, this, [this] {
         bool state = m_show_line_box_borders_action->isChecked();
-        for (auto index = 0; index < m_tabs_container->count(); ++index) {
-            auto tab = verify_cast<Tab>(m_tabs_container->widget(index));
-            tab->set_line_box_borders(state);
-        }
+        for_each_tab([state](auto& tab) {
+            tab.set_line_box_borders(state);
+        });
     });
 
     debug_menu->addSeparator();
@@ -414,30 +413,36 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
 
     debug_menu->addSeparator();
 
-    auto* enable_scripting_action = new QAction("Enable Scripting", this);
-    enable_scripting_action->setCheckable(true);
-    enable_scripting_action->setChecked(true);
-    debug_menu->addAction(enable_scripting_action);
-    QObject::connect(enable_scripting_action, &QAction::triggered, this, [this, enable_scripting_action] {
-        bool state = enable_scripting_action->isChecked();
-        debug_request("scripting", state ? "on" : "off");
+    m_enable_scripting_action = new QAction("Enable Scripting", this);
+    m_enable_scripting_action->setCheckable(true);
+    m_enable_scripting_action->setChecked(true);
+    debug_menu->addAction(m_enable_scripting_action);
+    QObject::connect(m_enable_scripting_action, &QAction::triggered, this, [this] {
+        bool state = m_enable_scripting_action->isChecked();
+        for_each_tab([state](auto& tab) {
+            tab.set_scripting(state);
+        });
     });
 
-    auto* block_pop_ups_action = new QAction("Block Pop-ups", this);
-    block_pop_ups_action->setCheckable(true);
-    block_pop_ups_action->setChecked(true);
-    debug_menu->addAction(block_pop_ups_action);
-    QObject::connect(block_pop_ups_action, &QAction::triggered, this, [this, block_pop_ups_action] {
-        bool state = block_pop_ups_action->isChecked();
-        debug_request("block-pop-ups", state ? "on" : "off");
+    m_block_pop_ups_action = new QAction("Block Pop-ups", this);
+    m_block_pop_ups_action->setCheckable(true);
+    m_block_pop_ups_action->setChecked(true);
+    debug_menu->addAction(m_block_pop_ups_action);
+    QObject::connect(m_block_pop_ups_action, &QAction::triggered, this, [this] {
+        bool state = m_block_pop_ups_action->isChecked();
+        for_each_tab([state](auto& tab) {
+            tab.set_block_popups(state);
+        });
     });
 
-    auto* enable_same_origin_policy_action = new QAction("Enable Same-Origin Policy", this);
-    enable_same_origin_policy_action->setCheckable(true);
-    debug_menu->addAction(enable_same_origin_policy_action);
-    QObject::connect(enable_same_origin_policy_action, &QAction::triggered, this, [this, enable_same_origin_policy_action] {
-        bool state = enable_same_origin_policy_action->isChecked();
-        debug_request("same-origin-policy", state ? "on" : "off");
+    m_enable_same_origin_policy_action = new QAction("Enable Same-Origin Policy", this);
+    m_enable_same_origin_policy_action->setCheckable(true);
+    debug_menu->addAction(m_enable_same_origin_policy_action);
+    QObject::connect(m_enable_same_origin_policy_action, &QAction::triggered, this, [this] {
+        bool state = m_enable_same_origin_policy_action->isChecked();
+        for_each_tab([state](auto& tab) {
+            tab.set_same_origin_policy(state);
+        });
     });
 
     auto* help_menu = m_hamburger_menu->addMenu("&Help");
@@ -680,7 +685,11 @@ void BrowserWindow::initialize_tab(Tab* tab)
     create_close_button_for_tab(tab);
 
     tab->focus_location_editor();
+
     tab->set_line_box_borders(m_show_line_box_borders_action->isChecked());
+    tab->set_scripting(m_enable_scripting_action->isChecked());
+    tab->set_block_popups(m_block_pop_ups_action->isChecked());
+    tab->set_same_origin_policy(m_enable_same_origin_policy_action->isChecked());
 }
 
 void BrowserWindow::activate_tab(int index)
