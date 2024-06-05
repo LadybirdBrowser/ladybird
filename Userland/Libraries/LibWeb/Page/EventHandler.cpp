@@ -528,7 +528,7 @@ bool EventHandler::handle_mousemove(CSSPixelPoint position, CSSPixelPoint screen
         }
         if (m_in_mouse_selection) {
             auto hit = paint_root()->hit_test(position, Painting::HitTestType::TextCursor);
-            if (start_index.has_value() && hit.has_value() && hit->dom_node()) {
+            if (start_index.has_value() && hit.has_value() && is<Web::DOM::Text>(hit->dom_node())) {
                 m_navigable->set_cursor_position(DOM::Position::create(realm, *hit->dom_node(), *start_index));
                 if (auto selection = document.get_selection()) {
                     auto anchor_node = selection->anchor_node();

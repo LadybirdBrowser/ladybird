@@ -839,17 +839,11 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
 
         // If we reached this point, the position is not within the fragment. However, the fragment start or end might be the place to place the cursor.
         // This determines whether the fragment is a good candidate for the position. The last such good fragment is chosen.
-        // The best candidate is either the end of the line above, the beginning of the line below, or the beginning or end of the current line.
-        // We arbitrarily choose to consider the end of the line above and ignore the beginning of the line below.
+        // The best candidate is the end of the end of the current line, if the position is to the right of the fragment.
         // If we knew the direction of selection, we could make a better choice.
-        if (fragment_absolute_rect.bottom() - 1 <= position_adjusted_by_scroll_offset.y()) { // fully below the fragment
-            last_good_candidate = HitTestResult { const_cast<Paintable&>(fragment.paintable()), fragment.start() + fragment.length() };
-        } else if (fragment_absolute_rect.top() <= position_adjusted_by_scroll_offset.y()) { // vertically within the fragment
-            if (position_adjusted_by_scroll_offset.x() < fragment_absolute_rect.left()) {    // left of the fragment
-                if (!last_good_candidate.has_value()) {                                      // first fragment of the line
-                    last_good_candidate = HitTestResult { const_cast<Paintable&>(fragment.paintable()), fragment.start() };
-                }
-            } else { // right of the fragment
+        if (fragment_absolute_rect.bottom() > position_adjusted_by_scroll_offset.y() && fragment_absolute_rect.top() <= position_adjusted_by_scroll_offset.y()) { // vertically within the fragment.
+            // FIXME: Selecting to the left of a fragment should select the start of that fragment.
+            if (position_adjusted_by_scroll_offset.x() >= fragment_absolute_rect.right()) { // to the right of the fragment
                 last_good_candidate = HitTestResult { const_cast<Paintable&>(fragment.paintable()), fragment.start() + fragment.length() };
             }
         }
