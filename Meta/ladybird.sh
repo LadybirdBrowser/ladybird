@@ -16,6 +16,7 @@ Usage: $NAME COMMAND [ARGS...]
     gdb:        Same as run, but also starts a gdb remote session.
                 $NAME gdb EXECUTABLE [-ex 'any gdb command']...
                     Passes through '-ex' commands to gdb
+    vcpkg:      Ensure that dependencies are available
     test:       $NAME test [TEST_NAME_PATTERN]
                     Runs the unit tests on the build host, or if TEST_NAME_PATTERN
                     is specified tests matching it.
@@ -68,7 +69,7 @@ get_top_dir() {
 }
 
 create_build_dir() {
-    cmake -GNinja "${CMAKE_ARGS[@]}" -S "$LADYBIRD_SOURCE_DIR" -B "$BUILD_DIR"
+    cmake --preset default "${CMAKE_ARGS[@]}" -S "$LADYBIRD_SOURCE_DIR" -B "$BUILD_DIR"
 }
 
 cmd_with_target() {
@@ -81,8 +82,7 @@ cmd_with_target() {
         export LADYBIRD_SOURCE_DIR
     fi
     BUILD_DIR="$LADYBIRD_SOURCE_DIR/Build/ladybird"
-    CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/lagom-install")
-    CMAKE_ARGS+=("-DSERENITY_CACHE_DIR=${LADYBIRD_SOURCE_DIR}/Build/caches")
+    CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/ladybird-install")
 
     export PATH="$LADYBIRD_SOURCE_DIR/Toolchain/Local/cmake/bin:$LADYBIRD_SOURCE_DIR/Toolchain/Local/vcpkg/bin:$PATH"
     export VCPKG_ROOT="$LADYBIRD_SOURCE_DIR/Toolchain/Tarballs/vcpkg"
@@ -94,7 +94,7 @@ ensure_target() {
 
 run_tests() {
     local TEST_NAME="$1"
-    local CTEST_ARGS=("--output-on-failure" "--test-dir" "$BUILD_DIR")
+    local CTEST_ARGS=("--preset" "default" "--output-on-failure" "--test-dir" "$BUILD_DIR")
     if [ -n "$TEST_NAME" ]; then
         if [ "$TEST_NAME" = "WPT" ]; then
             CTEST_ARGS+=("-C" "Integration")
@@ -149,6 +149,7 @@ run_gdb() {
     for arg in "${CMD_ARGS[@]}"; do
         if [ "$PASS_ARG_TO_GDB" != "" ]; then
             GDB_ARGS+=( "$PASS_ARG_TO_GDB" "$arg" )
+
             PASS_ARG_TO_GDB=""
         elif [ "$arg" = "-ex" ]; then
             PASS_ARG_TO_GDB="$arg"
@@ -178,7 +179,7 @@ build_and_run_lagom_target() {
     build_target "${lagom_target}"
 
     if [ "$lagom_target" = "ladybird" ] && [ "$(uname -s)" = "Darwin" ]; then
-        open --wait-apps --stdout $(tty) --stderr $(tty) "$BUILD_DIR/bin/Ladybird.app" --args "${lagom_args[@]}"
+        open --wait-apps --stdout "$(tty)" --stderr "$(tty)" "$BUILD_DIR/bin/Ladybird.app" --args "${lagom_args[@]}"
     else
         local lagom_bin="$lagom_target"
         if [ "$lagom_bin" = "ladybird" ]; then
@@ -238,6 +239,9 @@ if [[ "$CMD" =~ ^(build|install|run|gdb|test|rebuild|recreate|addr2line)$ ]]; th
 elif [ "$CMD" = "delete" ]; then
     cmd_with_target
     delete_target
+elif [ "$CMD" = "vcpkg" ]; then
+    cmd_with_target
+    ensure_toolchain
 else
     >&2 echo "Unknown command: $CMD"
     usage
