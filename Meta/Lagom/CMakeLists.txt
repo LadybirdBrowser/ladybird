@@ -14,6 +14,12 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_
       "Please re-read the build instructions documentation, and upgrade your host compiler.\n")
 endif()
 
+if (${ENABLE_LAGOM_LADYBIRD} OR $CACHE{ENABLE_LAGOM_LADYBIRD})
+    message(FATAL_ERROR
+        "The ENABLE_LAGOM_LADYBIRD option is no longer supported.\n"
+        "Please use the top-level CMakeLists.txt to enable Ladybird builds.\n")
+endif()
+
 # This is required for CMake (when invoked for a Lagom-only build) to
 # ignore any files downloading during the build, e.g. UnicodeData.txt.
 # https://cmake.org/cmake/help/latest/policy/CMP0058.html
@@ -44,11 +50,6 @@ include(lagom_options NO_POLICY_SCOPE)
 
 if(ENABLE_ALL_THE_DEBUG_MACROS)
     include(all_the_debug_macros)
-endif()
-
-# FIXME: Is it worth inventing `serenity_dependent_option` ?
-if (ENABLE_LAGOM_LADYBIRD)
-    set(ENABLE_LAGOM_LIBWEB ON CACHE BOOL "" FORCE)
 endif()
 
 # FIXME: BUILD_SHARED_LIBS has a default of OFF, as it's intended to be set by the
@@ -124,13 +125,6 @@ endif()
 
 if (ENABLE_FUZZERS)
     add_compile_options(-fno-omit-frame-pointer)
-endif()
-
-if (ENABLE_LAGOM_LADYBIRD AND (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD))
-    message(FATAL_ERROR
-        "Ladybird build not supported for Fuzzers or Compiler Explorer."
-        "Disable ENABLE_LAGOM_LADYBIRD and try again."
-    )
 endif()
 
 CHECK_INCLUDE_FILE(pulse/pulseaudio.h HAVE_PULSEAUDIO)
@@ -442,22 +436,18 @@ if (BUILD_LAGOM)
         TLS
         Video
         Wasm
+        Web
         WebSocket
+        WebView
         XML
     )
 
-    # These are needed for both LibWeb and LibProtocol.
     compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestClient.ipc Userland/Services/RequestServer/RequestClientEndpoint.h)
     compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestServer.ipc Userland/Services/RequestServer/RequestServerEndpoint.h)
-
-    if (ENABLE_LAGOM_LIBWEB)
-        list(APPEND lagom_standard_libraries Web WebView)
-
-        compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentServer.ipc Userland/Services/WebContent/WebContentServerEndpoint.h)
-        compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentClient.ipc Userland/Services/WebContent/WebContentClientEndpoint.h)
-        compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverClient.ipc Userland/Services/WebContent/WebDriverClientEndpoint.h)
-        compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverServer.ipc Userland/Services/WebContent/WebDriverServerEndpoint.h)
-    endif()
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentServer.ipc Userland/Services/WebContent/WebContentServerEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentClient.ipc Userland/Services/WebContent/WebContentClientEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverClient.ipc Userland/Services/WebContent/WebDriverClientEndpoint.h)
+    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverServer.ipc Userland/Services/WebContent/WebDriverServerEndpoint.h)
 
     foreach(lib IN LISTS lagom_standard_libraries)
         add_serenity_subdirectory("Userland/Libraries/Lib${lib}")
@@ -466,6 +456,7 @@ if (BUILD_LAGOM)
     # FIXME: How about we don't include Kernel/API from random high-level libraries?
     install(FILES ${SERENITY_PROJECT_ROOT}/Kernel/API/KeyCode.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Kernel/API")
 
+    # FIXME: Why is this not in LibLocale/CMakeLists.txt?
     target_link_libraries(LibLocale PRIVATE LibTimeZone)
 
     if (NOT ENABLE_FUZZERS AND NOT ENABLE_COMPILER_EXPLORER_BUILD AND NOT ANDROID AND NOT IOS)
@@ -476,13 +467,6 @@ if (BUILD_LAGOM)
         lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
 
         lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress LibMain)
-
-        # Work around bug in JetBrains distributed CMake 3.27.2 where this causes infinite recursion in
-        # export_components() when called from CLion Nova by checking if we already have Ladybird included
-        # This technically breaks people including Lagom as a submodule and wanting Ladybird targets, but... who? why?
-        if (ENABLE_LAGOM_LADYBIRD AND PROJECT_IS_TOP_LEVEL)
-            add_serenity_subdirectory(Ladybird)
-        endif()
 
         find_package(SDL2 QUIET)
         if (SDL2_FOUND)
@@ -563,12 +547,11 @@ if (BUILD_LAGOM)
             LibTimeZone
             LibUnicode
             LibVideo
+            LibWeb
+            LibWebView
             LibXML
         )
-        if (ENABLE_LAGOM_LIBWEB)
-            list(APPEND TEST_DIRECTORIES LibWeb)
-            list(APPEND TEST_DIRECTORIES LibWebView)
-        endif()
+
         if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
             list(APPEND TEST_DIRECTORIES ClangPlugins)
         endif()

@@ -85,7 +85,6 @@ jobs:
         run: |
           cmake -GNinja -B Build \
             -DBUILD_LAGOM=ON \
-            -DENABLE_LAGOM_LADYBIRD=ON \
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
             -DENABLE_UNDEFINED_SANITIZER=ON \
