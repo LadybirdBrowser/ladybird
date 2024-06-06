@@ -81,6 +81,7 @@ if (ENABLE_FUZZERS OR CMAKE_CROSSCOMPILING)
 endif()
 
 include(flac_spec_tests)
+include(ca_certificates_data)
 include(lagom_compile_options)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -629,5 +630,3 @@ endif()
 if (ENABLE_FUZZERS)
     add_subdirectory(Fuzzers)
 endif()
-
-include(ca_certificates_data)
