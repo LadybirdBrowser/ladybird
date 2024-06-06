@@ -389,28 +389,6 @@ if (BUILD_LAGOM_TOOLS)
 endif()
 
 if (BUILD_LAGOM)
-
-    # Create lagom equivalent of Serenity's Build/foo/Root/res (which for Serenity becomes /res in the disk image).
-    # FIXME: Add more files as needed.
-    set(LAGOM_RES "${Lagom_BINARY_DIR}/Root/res")
-    file(MAKE_DIRECTORY "${LAGOM_RES}/fonts")
-    foreach(font
-        LiberationMono-Bold.ttf
-        LiberationMono-BoldItalic.ttf
-        LiberationMono-Italic.ttf
-        LiberationMono-Regular.ttf
-        LiberationSans-Bold.ttf
-        LiberationSans-BoldItalic.ttf
-        LiberationSans-Italic.ttf
-        LiberationSans-Regular.ttf
-        LiberationSerif-Bold.ttf
-        LiberationSerif-BoldItalic.ttf
-        LiberationSerif-Italic.ttf
-        LiberationSerif-Regular.ttf
-        )
-        configure_file("${SERENITY_PROJECT_ROOT}/Base/res/fonts/${font}" "${LAGOM_RES}/fonts/${font}" COPYONLY)
-    endforeach()
-
     # Lagom Libraries
     set(lagom_standard_libraries
         AccelGfx
