@@ -14,7 +14,6 @@
 #include <AK/StdLibExtras.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <Kernel/API/BeepInstruction.h>
 #include <LibCore/Environment.h>
 #include <LibCore/SessionManagement.h>
 #include <LibCore/System.h>
@@ -29,6 +28,7 @@
 #include <unistd.h>
 
 #ifdef AK_OS_SERENITY
+#    include <Kernel/API/BeepInstruction.h>
 #    include <Kernel/API/Unveil.h>
 #    include <LibCore/Account.h>
 #    include <serenity.h>
@@ -623,6 +623,7 @@ ErrorOr<struct stat> stat(StringView path)
 }
 
 ErrorOr<struct stat> lstat(StringView path)
+
 {
     if (!path.characters_without_null_termination())
         return Error::from_syscall("lstat"sv, -EFAULT);
