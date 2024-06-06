@@ -770,6 +770,63 @@ bool EventHandler::handle_keydown(KeyCode key, u32 modifiers, u32 code_point)
     if (!document->layout_node())
         return false;
 
+    auto arrow_key_scroll_distance = 100;
+    auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
+
+    if (key == KeyCode::Key_Up) {
+        if (modifiers & KeyModifier::Mod_Ctrl)
+            document->window()->scroll_by(0, INT64_MIN);
+        else
+            document->window()->scroll_by(0, -arrow_key_scroll_distance);
+        return true;
+    }
+
+    if (key == KeyCode::Key_Down) {
+        if (modifiers & KeyModifier::Mod_Ctrl)
+            document->window()->scroll_by(0, INT64_MAX);
+        else
+            document->window()->scroll_by(0, arrow_key_scroll_distance);
+        return true;
+    }
+
+    if (key == KeyCode::Key_Left) {
+        document->window()->scroll_by(-arrow_key_scroll_distance, 0);
+        return true;
+    }
+
+    if (key == KeyCode::Key_Right) {
+        document->window()->scroll_by(arrow_key_scroll_distance, 0);
+        return true;
+    }
+
+    if (key == KeyCode::Key_Home) {
+        document->window()->scroll_by(0, INT64_MIN);
+        return true;
+    }
+
+    if (key == KeyCode::Key_End) {
+        document->window()->scroll_by(0, INT64_MAX);
+        return true;
+    }
+
+    if (key == KeyCode::Key_PageUp) {
+        document->window()->scroll_by(0, -page_scroll_distance);
+        return true;
+    }
+
+    if (key == KeyCode::Key_PageDown) {
+        document->window()->scroll_by(0, page_scroll_distance);
+        return true;
+    }
+
+    if (key == KeyCode::Key_Space) {
+        if (modifiers & KeyModifier::Mod_Shift)
+            document->window()->scroll_by(0, -page_scroll_distance);
+        else
+            document->window()->scroll_by(0, page_scroll_distance);
+        return true;
+    }
+
     if (key == KeyCode::Key_Tab) {
         if (modifiers & KeyModifier::Mod_Shift)
             return focus_previous_element();
