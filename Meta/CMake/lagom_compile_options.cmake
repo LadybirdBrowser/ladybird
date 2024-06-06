@@ -2,8 +2,17 @@ include(${CMAKE_CURRENT_LIST_DIR}/common_compile_options.cmake)
 
 add_compile_options(-Wno-maybe-uninitialized)
 add_compile_options(-Wno-shorten-64-to-32)
-add_compile_options(-fsigned-char)
-add_compile_options(-ggnu-pubnames)
+
+if(NOT MSVC)
+    add_compile_options(-fsigned-char)
+    add_compile_options(-ggnu-pubnames)
+else()
+    # char is signed
+    add_compile_options(/J)
+    # full symbolic debugginng information
+    add_compile_options(/Z7)
+endif()
+
 if (NOT WIN32)
     add_compile_options(-fPIC)
 endif()
@@ -13,7 +22,9 @@ if (LINUX)
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_compile_options(-ggdb3)
+    if (NOT MSVC)
+        add_compile_options(-ggdb3)
+    endif()
     add_compile_options(-Og)
 else()
     add_compile_options(-O2)
