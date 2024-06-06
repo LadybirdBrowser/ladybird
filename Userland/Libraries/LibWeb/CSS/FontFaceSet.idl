@@ -36,6 +36,7 @@ interface FontFaceSet : EventTarget {
     // return whether all fonts in the fontlist are loaded
     // (does not initiate load if not available)
     // FIXME: boolean check(CSSOMString font, optional CSSOMString text = " ");
+    [FIXME] boolean check(CSSOMString font, optional CSSOMString text = "");
 
     // async notification that font loading and layout operations are done
     readonly attribute Promise<FontFaceSet> ready;
