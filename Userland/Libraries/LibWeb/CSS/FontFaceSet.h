@@ -33,6 +33,8 @@ public:
 
     void set_onloading(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloading();
+    void set_onloadingdone(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onloadingdone();
 
     JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> load(String const& font, String const& text);
 
