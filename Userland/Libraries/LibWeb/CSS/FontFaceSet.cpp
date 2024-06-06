@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Andrew Kaster <akaster@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +12,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CSS {
@@ -81,6 +83,18 @@ void FontFaceSet::clear()
 {
     // FIXME: Do the actual spec steps
     m_set_entries->set_clear();
+}
+
+// https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-onloading
+void FontFaceSet::set_onloading(WebIDL::CallbackType* event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::loading, event_handler);
+}
+
+// https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-onloading
+WebIDL::CallbackType* FontFaceSet::onloading()
+{
+    return event_handler_attribute(HTML::EventNames::loading);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-load

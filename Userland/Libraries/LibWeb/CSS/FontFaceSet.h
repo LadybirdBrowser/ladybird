@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Andrew Kaster <akaster@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -29,6 +30,10 @@ public:
     JS::NonnullGCPtr<FontFaceSet> add(JS::Handle<FontFace>);
     bool delete_(JS::Handle<FontFace>);
     void clear();
+
+    void set_onloading(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onloading();
+
     JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> load(String const& font, String const& text);
 
     JS::NonnullGCPtr<JS::Promise> ready() const;
