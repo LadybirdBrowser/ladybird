@@ -25,7 +25,7 @@ interface FontFaceSet : EventTarget {
     undefined clear();
 
     // events for when loading state changes
-    [FIXME] attribute EventHandler onloading;
+    attribute EventHandler onloading;
     [FIXME] attribute EventHandler onloadingdone;
     [FIXME] attribute EventHandler onloadingerror;
 
