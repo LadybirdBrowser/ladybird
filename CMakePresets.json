@@ -29,6 +29,14 @@
       }
     },
     {
+      "hidden": true,
+      "name": "vcpkg_ci",
+      "description": "Use the GitHub Actions vcpkg cache",
+      "environment": {
+        "VCPKG_BINARY_SOURCES": "clear;x-gha,readwrite"
+      }
+    },
+    {
       "name": "Sanitizer",
       "inherits": "default",
       "displayName": "Sanitizer Config",
@@ -37,6 +45,32 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "ENABLE_UNDEFINED_SANITIZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON"
+      }
+    },
+    {
+      "name": "CI",
+      "inherits": ["vcpkg_ci", "default" ],
+      "displayName": "Non-Sanitizer CI Config"
+    },
+    {
+      "name": "Sanitizer_CI",
+      "inherits": ["vcpkg_ci", "Sanitizer" ],
+      "displayName": "Sanitizer CI Config",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": ""
+      }
+    },
+    {
+      "name": "Fuzzers_CI",
+      "inherits": ["vcpkg_ci", "default" ],
+      "displayName": "Fuzzers Config",
+      "description": "Fuzzers build with GitHub Actions cache",
+      "binaryDir": "${sourceDir}/Build/ladybird-fuzzers",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "",
+        "ENABLE_QT": "OFF",
+        "ENABLE_FUZZERS_LIBFUZZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON"
       }
     }

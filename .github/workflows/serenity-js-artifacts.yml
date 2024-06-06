@@ -6,6 +6,7 @@ env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   SERENITY_CCACHE_DIR: ${{ github.workspace }}/.ccache
   VCPKG_ROOT:  ${{ github.workspace }}/Toolchain/Tarballs/vcpkg
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
 jobs:
   build-and-package:
@@ -48,11 +49,9 @@ jobs:
 
       - name: Create build directory Ubuntu
         run: |
-          cmake -S Meta/Lagom -B Build -G Ninja \
-            -DCMAKE_C_COMPILER=gcc-13 \
-            -DCMAKE_CXX_COMPILER=g++-13 \
-            -DBUILD_LAGOM=ON \
-            -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches
+          cmake --preset CI -B Build \
+            -DCMAKE_C_COMPILER=gcc-13
+            -DCMAKE_CXX_COMPILER=g++-13
         if: ${{ matrix.os == 'ubuntu-22.04' }}
         env:
           CCACHE_DIR: ${{ env.SERENITY_CCACHE_DIR }}
@@ -60,12 +59,10 @@ jobs:
       - name: Create build directory macOS
         run: |
           # Note: We are using Apple Clang to create Universal binary
-          cmake -S Meta/Lagom -B Build -G Ninja \
+          cmake --preset CI -B Build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
-            -DBUILD_LAGOM=ON \
-            -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0"
         if: ${{ matrix.os == 'macos-14' }}
         env:
           CCACHE_DIR: ${{ env.SERENITY_CCACHE_DIR }}
