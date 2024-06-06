@@ -432,9 +432,6 @@ if (BUILD_LAGOM)
         add_serenity_subdirectory("Userland/Libraries/Lib${lib}")
     endforeach()
 
-    # FIXME: How about we don't include Kernel/API from random high-level libraries?
-    install(FILES ${SERENITY_PROJECT_ROOT}/Kernel/API/KeyCode.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Kernel/API")
-
     # FIXME: Why is this not in LibLocale/CMakeLists.txt?
     target_link_libraries(LibLocale PRIVATE LibTimeZone)
 

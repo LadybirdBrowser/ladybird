@@ -36,8 +36,8 @@ template<>
 ErrorOr<Web::KeyEvent> IPC::decode(Decoder& decoder)
 {
     auto type = TRY(decoder.decode<Web::KeyEvent::Type>());
-    auto key = TRY(decoder.decode<KeyCode>());
-    auto modifiers = TRY(decoder.decode<KeyModifier>());
+    auto key = TRY(decoder.decode<Web::UIEvents::KeyCode>());
+    auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());
     auto code_point = TRY(decoder.decode<u32>());
 
     return Web::KeyEvent { type, key, modifiers, code_point, nullptr };
@@ -65,7 +65,7 @@ ErrorOr<Web::MouseEvent> IPC::decode(Decoder& decoder)
     auto screen_position = TRY(decoder.decode<Web::DevicePixelPoint>());
     auto button = TRY(decoder.decode<Web::UIEvents::MouseButton>());
     auto buttons = TRY(decoder.decode<Web::UIEvents::MouseButton>());
-    auto modifiers = TRY(decoder.decode<KeyModifier>());
+    auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());
     auto wheel_delta_x = TRY(decoder.decode<int>());
     auto wheel_delta_y = TRY(decoder.decode<int>());
 

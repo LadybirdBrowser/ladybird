@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2024, Andrew Kaster <akaster@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +9,8 @@
 
 #include <AK/EnumBits.h>
 #include <AK/Types.h>
+
+namespace Web::UIEvents {
 
 #define ENUMERATE_KEY_CODES                                    \
     __ENUMERATE_KEY_CODE(Invalid, "Invalid")                   \
@@ -170,36 +173,6 @@ enum KeyModifier {
 
 AK_ENUM_BITWISE_OPERATORS(KeyModifier);
 
-struct KeyEvent {
-    KeyCode key { Key_Invalid };
-    u8 map_entry_index { 0 };
-    u64 scancode { 0 };
-    u32 code_point { 0 };
-    u8 flags { 0 };
-    bool caps_lock_on { false };
-    bool alt() const { return flags & Mod_Alt; }
-    bool ctrl() const { return flags & Mod_Ctrl; }
-    bool shift() const { return flags & Mod_Shift; }
-    bool super() const { return flags & Mod_Super; }
-    bool altgr() const { return flags & Mod_AltGr; }
-    bool keypad() const { return flags & Mod_Keypad; }
-    unsigned modifiers() const { return flags & Mod_Mask; }
-    bool is_press() const { return flags & Is_Press; }
-};
-
-inline char const* key_code_to_string(KeyCode key)
-{
-    switch (key) {
-#define __ENUMERATE_KEY_CODE(name, ui_name) \
-    case Key_##name:                        \
-        return ui_name;
-        ENUMERATE_KEY_CODES
-#undef __ENUMERATE_KEY_CODE
-    default:
-        return nullptr;
-    }
-}
-
 inline KeyCode code_point_to_key_code(u32 code_point)
 {
     switch (code_point) {
@@ -288,4 +261,6 @@ inline KeyCode code_point_to_key_code(u32 code_point)
     default:
         return KeyCode::Key_Invalid;
     }
+}
+
 }
