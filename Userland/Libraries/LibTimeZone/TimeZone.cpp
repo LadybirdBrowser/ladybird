@@ -129,7 +129,8 @@ StringView current_time_zone()
         dbgln_if(TIME_ZONE_DEBUG, "Could not read the /etc/localtime link: {}", strerror(errno));
     }
 
-    return "UTC"sv;
+    // Read the system timezone file /etc/timezone
+    return system_time_zone();
 #endif
 }
 
