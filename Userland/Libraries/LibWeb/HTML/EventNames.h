@@ -66,6 +66,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(loadeddata)               \
     __ENUMERATE_HTML_EVENT(loadedmetadata)           \
     __ENUMERATE_HTML_EVENT(loading)                  \
+    __ENUMERATE_HTML_EVENT(loadingdone)              \
     __ENUMERATE_HTML_EVENT(loadstart)                \
     __ENUMERATE_HTML_EVENT(message)                  \
     __ENUMERATE_HTML_EVENT(messageerror)             \
