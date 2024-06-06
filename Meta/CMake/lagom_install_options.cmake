@@ -1,11 +1,5 @@
 include_guard()
 
-# Skip trying to setup install rules if no languages are enabled, such as in the Superbuild.
-get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
-if (NONE IN_LIST languages)
-    return()
-endif()
-
 include(GNUInstallDirs) # make sure to include before we mess w/RPATH
 
 # Handle multi-config generators (e.g. MSVC, Xcode, Ninja Multi-Config)
