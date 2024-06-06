@@ -9,7 +9,7 @@ NOTE: In all of the below lists of packages, the Qt6 multimedia package is not n
 On Debian/Ubuntu required packages include, but are not limited to:
 
 ```
-sudo apt install build-essential cmake libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2
+sudo apt install build-essential cmake libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2 zip unzip curl tar
 ```
 
 For Ubuntu 20.04 and above, ensure that the Qt6 Wayland packages are available:
@@ -21,17 +21,17 @@ sudo apt install qt6-wayland
 On Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed base-devel cmake libgl ninja qt6-base qt6-tools qt6-wayland qt6-multimedia ccache ttf-liberation
+sudo pacman -S --needed base-devel cmake libgl ninja qt6-base qt6-tools qt6-wayland qt6-multimedia ccache ttf-liberation curl unzip zip tar
 ```
 
 On Fedora or derivatives:
 ```
-sudo dnf install cmake libglvnd-devel ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts
+sudo dnf install cmake libglvnd-devel ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts curl zip unzip tar
 ```
 
 On openSUSE:
 ```
-sudo zypper install cmake libglvnd-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts
+sudo zypper install cmake libglvnd-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts curl zip unzip tar
 ```
 
 On NixOS or with Nix:
