@@ -5,17 +5,25 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
-add_compile_options(-Wall)
-add_compile_options(-Wextra)
+if (MSVC)
+    add_compile_options(/W4)
+    # do not warn about unused function
+    add_compile_options(/wd4505)
+    # disable exceptions
+    add_compile_options(/EHsc)
+    # disable floating-point expression contraction
+    add_compile_options(/fp:precise)
+else()
+    add_compile_options(-Wall -Wextra)
+    add_compile_options(-fno-exceptions)
+    add_compile_options(-ffp-contract=off)
+endif()
 
 add_compile_options(-Wno-invalid-offsetof)
 
 add_compile_options(-Wno-unknown-warning-option)
 add_compile_options(-Wno-unused-command-line-argument)
 
-add_compile_options(-fno-exceptions)
-
-add_compile_options(-ffp-contract=off)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "18")
     add_compile_options(-Wpadded-bitfield)
@@ -27,7 +35,7 @@ if (NOT CMAKE_HOST_SYSTEM_NAME MATCHES SerenityOS)
     add_compile_options(-Werror)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES "MSVC")
     # Clang's default constexpr-steps limit is 1048576(2^20), GCC doesn't have one
     add_compile_options(-fconstexpr-steps=16777216)
 
@@ -41,6 +49,13 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 
     # FIXME: This warning seems useful but has too many false positives with GCC 13.
     add_compile_options(-Wno-dangling-reference)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
+    add_compile_options(-Wno-reserved-identifier)
+    add_compile_options(-Wno-user-defined-literals)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+
+    # TODO: this seems wrong, but we use this kind of code too much
+    # add_compile_options(-Wno-unsafe-buffer-usage)
 endif()
 
 if (UNIX AND NOT APPLE AND NOT ENABLE_FUZZERS)
