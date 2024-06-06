@@ -16,7 +16,8 @@
         "SERENITY_CACHE_DIR": "${sourceDir}/Build/caches"
       },
       "environment": {
-        "LADYBIRD_SOURCE_DIR": "${sourceDir}"
+        "LADYBIRD_SOURCE_DIR": "${sourceDir}",
+        "VCPKG_ROOT": "${sourceDir}/Toolchain/Tarballs/vcpkg"
       },
       "vendor": {
         "jetbrains.com/clion": {
