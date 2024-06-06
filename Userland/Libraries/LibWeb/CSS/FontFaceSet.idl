@@ -1,4 +1,5 @@
 #import <CSS/FontFace.idl>
+#import <DOM/EventTarget.idl>
 
 dictionary FontFaceSetLoadEventInit : EventInit {
     sequence<FontFace> fontfaces = [];
