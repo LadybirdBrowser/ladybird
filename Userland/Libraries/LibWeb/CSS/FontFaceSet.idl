@@ -27,7 +27,7 @@ interface FontFaceSet : EventTarget {
     // events for when loading state changes
     attribute EventHandler onloading;
     attribute EventHandler onloadingdone;
-    [FIXME] attribute EventHandler onloadingerror;
+    attribute EventHandler onloadingerror;
 
     // check and start loads if appropriate
     // and fulfill promise when all loads complete

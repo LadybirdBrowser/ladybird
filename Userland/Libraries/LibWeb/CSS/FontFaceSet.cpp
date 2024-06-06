@@ -109,6 +109,18 @@ WebIDL::CallbackType* FontFaceSet::onloadingdone()
     return event_handler_attribute(HTML::EventNames::loadingdone);
 }
 
+// https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-onloadingerror
+void FontFaceSet::set_onloadingerror(WebIDL::CallbackType* event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::loadingerror, event_handler);
+}
+
+// https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-onloadingerror
+WebIDL::CallbackType* FontFaceSet::onloadingerror()
+{
+    return event_handler_attribute(HTML::EventNames::loadingerror);
+}
+
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-load
 JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> FontFaceSet::load(String const&, String const&)
 {
