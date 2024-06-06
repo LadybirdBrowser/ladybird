@@ -11,7 +11,6 @@
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Variant.h>
-#include <Kernel/API/KeyCode.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Heap/MarkedVector.h>
 #include <LibJS/SafeFunction.h>
@@ -20,6 +19,7 @@
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <math.h>
 
@@ -106,7 +106,7 @@ public:
     JS::NonnullGCPtr<AudioTrackList> audio_tracks() const { return *m_audio_tracks; }
     JS::NonnullGCPtr<VideoTrackList> video_tracks() const { return *m_video_tracks; }
 
-    WebIDL::ExceptionOr<void> handle_keydown(Badge<Web::EventHandler>, KeyCode);
+    WebIDL::ExceptionOr<void> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode);
 
     enum class MouseTrackingComponent {
         Timeline,

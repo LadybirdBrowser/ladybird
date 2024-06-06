@@ -202,12 +202,12 @@ bool Page::handle_doubleclick(DevicePixelPoint position, DevicePixelPoint screen
     return top_level_traversable()->event_handler().handle_doubleclick(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers);
 }
 
-bool Page::handle_keydown(KeyCode key, unsigned modifiers, u32 code_point)
+bool Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
 {
     return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point);
 }
 
-bool Page::handle_keyup(KeyCode key, unsigned modifiers, u32 code_point)
+bool Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
 {
     return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point);
 }

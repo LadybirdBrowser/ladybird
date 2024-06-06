@@ -468,7 +468,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     };
 
     m_web_view_bridge->on_link_click = [self](auto const& url, auto const& target, unsigned modifiers) {
-        if (modifiers == Mod_Super) {
+        if (modifiers == Web::UIEvents::KeyModifier::Mod_Super) {
             [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::No];
         } else if (target == "_blank"sv) {
             [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::Yes];

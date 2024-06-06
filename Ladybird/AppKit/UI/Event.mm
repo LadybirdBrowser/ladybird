@@ -13,28 +13,28 @@
 
 namespace Ladybird {
 
-static KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags modifier_flags, Optional<Web::UIEvents::MouseButton&> button = {})
+static Web::UIEvents::KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags modifier_flags, Optional<Web::UIEvents::MouseButton&> button = {})
 {
-    unsigned modifiers = KeyModifier::Mod_None;
+    unsigned modifiers = Web::UIEvents::KeyModifier::Mod_None;
 
     if ((modifier_flags & NSEventModifierFlagShift) != 0) {
-        modifiers |= KeyModifier::Mod_Shift;
+        modifiers |= Web::UIEvents::KeyModifier::Mod_Shift;
     }
     if ((modifier_flags & NSEventModifierFlagControl) != 0) {
         if (button == Web::UIEvents::MouseButton::Primary) {
             *button = Web::UIEvents::MouseButton::Secondary;
         } else {
-            modifiers |= KeyModifier::Mod_Ctrl;
+            modifiers |= Web::UIEvents::KeyModifier::Mod_Ctrl;
         }
     }
     if ((modifier_flags & NSEventModifierFlagOption) != 0) {
-        modifiers |= KeyModifier::Mod_Alt;
+        modifiers |= Web::UIEvents::KeyModifier::Mod_Alt;
     }
     if ((modifier_flags & NSEventModifierFlagCommand) != 0) {
-        modifiers |= KeyModifier::Mod_Super;
+        modifiers |= Web::UIEvents::KeyModifier::Mod_Super;
     }
 
-    return static_cast<KeyModifier>(modifiers);
+    return static_cast<Web::UIEvents::KeyModifier>(modifiers);
 }
 
 Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* event, NSView* view, NSScrollView* scroll_view, Web::UIEvents::MouseButton button)
@@ -88,120 +88,120 @@ NSEvent* create_context_menu_mouse_event(NSView* view, NSPoint position)
                               pressure:1.0];
 }
 
-static KeyCode ns_key_code_to_key_code(unsigned short key_code, KeyModifier& modifiers)
+static Web::UIEvents::KeyCode ns_key_code_to_key_code(unsigned short key_code, Web::UIEvents::KeyModifier& modifiers)
 {
     auto augment_modifiers_and_return = [&](auto key, auto modifier) {
-        modifiers = static_cast<KeyModifier>(static_cast<unsigned>(modifiers) | modifier);
+        modifiers = static_cast<Web::UIEvents::KeyModifier>(static_cast<unsigned>(modifiers) | modifier);
         return key;
     };
 
     // clang-format off
     switch (key_code) {
-    case kVK_ANSI_0: return KeyCode::Key_0;
-    case kVK_ANSI_1: return KeyCode::Key_1;
-    case kVK_ANSI_2: return KeyCode::Key_2;
-    case kVK_ANSI_3: return KeyCode::Key_3;
-    case kVK_ANSI_4: return KeyCode::Key_4;
-    case kVK_ANSI_5: return KeyCode::Key_5;
-    case kVK_ANSI_6: return KeyCode::Key_6;
-    case kVK_ANSI_7: return KeyCode::Key_7;
-    case kVK_ANSI_8: return KeyCode::Key_8;
-    case kVK_ANSI_9: return KeyCode::Key_9;
-    case kVK_ANSI_A: return KeyCode::Key_A;
-    case kVK_ANSI_B: return KeyCode::Key_B;
-    case kVK_ANSI_C: return KeyCode::Key_C;
-    case kVK_ANSI_D: return KeyCode::Key_D;
-    case kVK_ANSI_E: return KeyCode::Key_E;
-    case kVK_ANSI_F: return KeyCode::Key_F;
-    case kVK_ANSI_G: return KeyCode::Key_G;
-    case kVK_ANSI_H: return KeyCode::Key_H;
-    case kVK_ANSI_I: return KeyCode::Key_I;
-    case kVK_ANSI_J: return KeyCode::Key_J;
-    case kVK_ANSI_K: return KeyCode::Key_K;
-    case kVK_ANSI_L: return KeyCode::Key_L;
-    case kVK_ANSI_M: return KeyCode::Key_M;
-    case kVK_ANSI_N: return KeyCode::Key_N;
-    case kVK_ANSI_O: return KeyCode::Key_O;
-    case kVK_ANSI_P: return KeyCode::Key_P;
-    case kVK_ANSI_Q: return KeyCode::Key_Q;
-    case kVK_ANSI_R: return KeyCode::Key_R;
-    case kVK_ANSI_S: return KeyCode::Key_S;
-    case kVK_ANSI_T: return KeyCode::Key_T;
-    case kVK_ANSI_U: return KeyCode::Key_U;
-    case kVK_ANSI_V: return KeyCode::Key_V;
-    case kVK_ANSI_W: return KeyCode::Key_W;
-    case kVK_ANSI_X: return KeyCode::Key_X;
-    case kVK_ANSI_Y: return KeyCode::Key_Y;
-    case kVK_ANSI_Z: return KeyCode::Key_Z;
-    case kVK_ANSI_Backslash: return KeyCode::Key_Backslash;
-    case kVK_ANSI_Comma: return KeyCode::Key_Comma;
-    case kVK_ANSI_Equal: return KeyCode::Key_Equal;
-    case kVK_ANSI_Grave: return KeyCode::Key_Backtick;
-    case kVK_ANSI_Keypad0: return augment_modifiers_and_return(KeyCode::Key_0, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad1: return augment_modifiers_and_return(KeyCode::Key_1, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad2: return augment_modifiers_and_return(KeyCode::Key_2, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad3: return augment_modifiers_and_return(KeyCode::Key_3, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad4: return augment_modifiers_and_return(KeyCode::Key_4, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad5: return augment_modifiers_and_return(KeyCode::Key_5, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad6: return augment_modifiers_and_return(KeyCode::Key_6, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad7: return augment_modifiers_and_return(KeyCode::Key_7, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad8: return augment_modifiers_and_return(KeyCode::Key_8, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad9: return augment_modifiers_and_return(KeyCode::Key_9, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadClear: return augment_modifiers_and_return(KeyCode::Key_Delete, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadDecimal: return augment_modifiers_and_return(KeyCode::Key_Period, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadDivide: return augment_modifiers_and_return(KeyCode::Key_Slash, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadEnter: return augment_modifiers_and_return(KeyCode::Key_Return, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadEquals: return augment_modifiers_and_return(KeyCode::Key_Equal, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadMinus: return augment_modifiers_and_return(KeyCode::Key_Minus, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadMultiply: return augment_modifiers_and_return(KeyCode::Key_Asterisk, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadPlus: return augment_modifiers_and_return(KeyCode::Key_Plus, KeyModifier::Mod_Keypad);
-    case kVK_ANSI_LeftBracket: return KeyCode::Key_LeftBracket;
-    case kVK_ANSI_Minus: return KeyCode::Key_Minus;
-    case kVK_ANSI_Period: return KeyCode::Key_Period;
-    case kVK_ANSI_Quote: return KeyCode::Key_Apostrophe;
-    case kVK_ANSI_RightBracket: return KeyCode::Key_RightBracket;
-    case kVK_ANSI_Semicolon: return KeyCode::Key_Semicolon;
-    case kVK_ANSI_Slash: return KeyCode::Key_Slash;
-    case kVK_CapsLock: return KeyCode::Key_CapsLock;
-    case kVK_Command: return KeyCode::Key_Super;
-    case kVK_Control: return KeyCode::Key_Control;
-    case kVK_Delete: return KeyCode::Key_Backspace;
-    case kVK_DownArrow: return KeyCode::Key_Down;
-    case kVK_End: return KeyCode::Key_End;
-    case kVK_Escape: return KeyCode::Key_Escape;
-    case kVK_F1: return KeyCode::Key_F1;
-    case kVK_F2: return KeyCode::Key_F2;
-    case kVK_F3: return KeyCode::Key_F3;
-    case kVK_F4: return KeyCode::Key_F4;
-    case kVK_F5: return KeyCode::Key_F5;
-    case kVK_F6: return KeyCode::Key_F6;
-    case kVK_F7: return KeyCode::Key_F7;
-    case kVK_F8: return KeyCode::Key_F8;
-    case kVK_F9: return KeyCode::Key_F9;
-    case kVK_F10: return KeyCode::Key_F10;
-    case kVK_F11: return KeyCode::Key_F11;
-    case kVK_F12: return KeyCode::Key_F12;
-    case kVK_ForwardDelete: return KeyCode::Key_Delete;
-    case kVK_Home: return KeyCode::Key_Home;
-    case kVK_LeftArrow: return KeyCode::Key_Left;
-    case kVK_Option: return KeyCode::Key_Alt;
-    case kVK_PageDown: return KeyCode::Key_PageDown;
-    case kVK_PageUp: return KeyCode::Key_PageUp;
-    case kVK_Return: return KeyCode::Key_Return;
-    case kVK_RightArrow: return KeyCode::Key_Right;
-    case kVK_RightCommand: return KeyCode::Key_Super; // FIXME: We do not distinguish left-vs-right.
-    case kVK_RightControl: return KeyCode::Key_Control; // FIXME: We do not distinguish left-vs-right.
-    case kVK_RightOption: return KeyCode::Key_Alt; // FIXME: We do not distinguish left-vs-right.
-    case kVK_RightShift: return KeyCode::Key_RightShift;
-    case kVK_Shift: return KeyCode::Key_Shift;
-    case kVK_Space: return KeyCode::Key_Space;
-    case kVK_Tab: return KeyCode::Key_Tab;
-    case kVK_UpArrow: return KeyCode::Key_Up;
+    case kVK_ANSI_0: return Web::UIEvents::KeyCode::Key_0;
+    case kVK_ANSI_1: return Web::UIEvents::KeyCode::Key_1;
+    case kVK_ANSI_2: return Web::UIEvents::KeyCode::Key_2;
+    case kVK_ANSI_3: return Web::UIEvents::KeyCode::Key_3;
+    case kVK_ANSI_4: return Web::UIEvents::KeyCode::Key_4;
+    case kVK_ANSI_5: return Web::UIEvents::KeyCode::Key_5;
+    case kVK_ANSI_6: return Web::UIEvents::KeyCode::Key_6;
+    case kVK_ANSI_7: return Web::UIEvents::KeyCode::Key_7;
+    case kVK_ANSI_8: return Web::UIEvents::KeyCode::Key_8;
+    case kVK_ANSI_9: return Web::UIEvents::KeyCode::Key_9;
+    case kVK_ANSI_A: return Web::UIEvents::KeyCode::Key_A;
+    case kVK_ANSI_B: return Web::UIEvents::KeyCode::Key_B;
+    case kVK_ANSI_C: return Web::UIEvents::KeyCode::Key_C;
+    case kVK_ANSI_D: return Web::UIEvents::KeyCode::Key_D;
+    case kVK_ANSI_E: return Web::UIEvents::KeyCode::Key_E;
+    case kVK_ANSI_F: return Web::UIEvents::KeyCode::Key_F;
+    case kVK_ANSI_G: return Web::UIEvents::KeyCode::Key_G;
+    case kVK_ANSI_H: return Web::UIEvents::KeyCode::Key_H;
+    case kVK_ANSI_I: return Web::UIEvents::KeyCode::Key_I;
+    case kVK_ANSI_J: return Web::UIEvents::KeyCode::Key_J;
+    case kVK_ANSI_K: return Web::UIEvents::KeyCode::Key_K;
+    case kVK_ANSI_L: return Web::UIEvents::KeyCode::Key_L;
+    case kVK_ANSI_M: return Web::UIEvents::KeyCode::Key_M;
+    case kVK_ANSI_N: return Web::UIEvents::KeyCode::Key_N;
+    case kVK_ANSI_O: return Web::UIEvents::KeyCode::Key_O;
+    case kVK_ANSI_P: return Web::UIEvents::KeyCode::Key_P;
+    case kVK_ANSI_Q: return Web::UIEvents::KeyCode::Key_Q;
+    case kVK_ANSI_R: return Web::UIEvents::KeyCode::Key_R;
+    case kVK_ANSI_S: return Web::UIEvents::KeyCode::Key_S;
+    case kVK_ANSI_T: return Web::UIEvents::KeyCode::Key_T;
+    case kVK_ANSI_U: return Web::UIEvents::KeyCode::Key_U;
+    case kVK_ANSI_V: return Web::UIEvents::KeyCode::Key_V;
+    case kVK_ANSI_W: return Web::UIEvents::KeyCode::Key_W;
+    case kVK_ANSI_X: return Web::UIEvents::KeyCode::Key_X;
+    case kVK_ANSI_Y: return Web::UIEvents::KeyCode::Key_Y;
+    case kVK_ANSI_Z: return Web::UIEvents::KeyCode::Key_Z;
+    case kVK_ANSI_Backslash: return Web::UIEvents::KeyCode::Key_Backslash;
+    case kVK_ANSI_Comma: return Web::UIEvents::KeyCode::Key_Comma;
+    case kVK_ANSI_Equal: return Web::UIEvents::KeyCode::Key_Equal;
+    case kVK_ANSI_Grave: return Web::UIEvents::KeyCode::Key_Backtick;
+    case kVK_ANSI_Keypad0: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_0, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad1: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_1, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad2: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_2, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad3: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_3, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad4: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_4, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad5: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_5, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad6: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_6, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad7: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_7, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad8: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_8, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad9: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_9, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadClear: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Delete, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadDecimal: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Period, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadDivide: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Slash, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadEnter: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadEquals: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Equal, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadMinus: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Minus, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadMultiply: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Asterisk, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadPlus: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Plus, Web::UIEvents::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_LeftBracket: return Web::UIEvents::KeyCode::Key_LeftBracket;
+    case kVK_ANSI_Minus: return Web::UIEvents::KeyCode::Key_Minus;
+    case kVK_ANSI_Period: return Web::UIEvents::KeyCode::Key_Period;
+    case kVK_ANSI_Quote: return Web::UIEvents::KeyCode::Key_Apostrophe;
+    case kVK_ANSI_RightBracket: return Web::UIEvents::KeyCode::Key_RightBracket;
+    case kVK_ANSI_Semicolon: return Web::UIEvents::KeyCode::Key_Semicolon;
+    case kVK_ANSI_Slash: return Web::UIEvents::KeyCode::Key_Slash;
+    case kVK_CapsLock: return Web::UIEvents::KeyCode::Key_CapsLock;
+    case kVK_Command: return Web::UIEvents::KeyCode::Key_Super;
+    case kVK_Control: return Web::UIEvents::KeyCode::Key_Control;
+    case kVK_Delete: return Web::UIEvents::KeyCode::Key_Backspace;
+    case kVK_DownArrow: return Web::UIEvents::KeyCode::Key_Down;
+    case kVK_End: return Web::UIEvents::KeyCode::Key_End;
+    case kVK_Escape: return Web::UIEvents::KeyCode::Key_Escape;
+    case kVK_F1: return Web::UIEvents::KeyCode::Key_F1;
+    case kVK_F2: return Web::UIEvents::KeyCode::Key_F2;
+    case kVK_F3: return Web::UIEvents::KeyCode::Key_F3;
+    case kVK_F4: return Web::UIEvents::KeyCode::Key_F4;
+    case kVK_F5: return Web::UIEvents::KeyCode::Key_F5;
+    case kVK_F6: return Web::UIEvents::KeyCode::Key_F6;
+    case kVK_F7: return Web::UIEvents::KeyCode::Key_F7;
+    case kVK_F8: return Web::UIEvents::KeyCode::Key_F8;
+    case kVK_F9: return Web::UIEvents::KeyCode::Key_F9;
+    case kVK_F10: return Web::UIEvents::KeyCode::Key_F10;
+    case kVK_F11: return Web::UIEvents::KeyCode::Key_F11;
+    case kVK_F12: return Web::UIEvents::KeyCode::Key_F12;
+    case kVK_ForwardDelete: return Web::UIEvents::KeyCode::Key_Delete;
+    case kVK_Home: return Web::UIEvents::KeyCode::Key_Home;
+    case kVK_LeftArrow: return Web::UIEvents::KeyCode::Key_Left;
+    case kVK_Option: return Web::UIEvents::KeyCode::Key_Alt;
+    case kVK_PageDown: return Web::UIEvents::KeyCode::Key_PageDown;
+    case kVK_PageUp: return Web::UIEvents::KeyCode::Key_PageUp;
+    case kVK_Return: return Web::UIEvents::KeyCode::Key_Return;
+    case kVK_RightArrow: return Web::UIEvents::KeyCode::Key_Right;
+    case kVK_RightCommand: return Web::UIEvents::KeyCode::Key_Super; // FIXME: We do not distinguish left-vs-right.
+    case kVK_RightControl: return Web::UIEvents::KeyCode::Key_Control; // FIXME: We do not distinguish left-vs-right.
+    case kVK_RightOption: return Web::UIEvents::KeyCode::Key_Alt; // FIXME: We do not distinguish left-vs-right.
+    case kVK_RightShift: return Web::UIEvents::KeyCode::Key_RightShift;
+    case kVK_Shift: return Web::UIEvents::KeyCode::Key_Shift;
+    case kVK_Space: return Web::UIEvents::KeyCode::Key_Space;
+    case kVK_Tab: return Web::UIEvents::KeyCode::Key_Tab;
+    case kVK_UpArrow: return Web::UIEvents::KeyCode::Key_Up;
     default: break;
     }
     // clang-format on
 
-    return KeyCode::Key_Invalid;
+    return Web::UIEvents::KeyCode::Key_Invalid;
 }
 
 class KeyData : public Web::ChromeInputData {

@@ -14,7 +14,6 @@
 #include <AK/RefPtr.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
-#include <Kernel/API/KeyCode.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Point.h>
@@ -38,6 +37,7 @@
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWeb/UIEvents/KeyCode.h>
 
 namespace Web {
 
@@ -92,8 +92,8 @@ public:
     bool handle_mousewheel(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, DevicePixels wheel_delta_x, DevicePixels wheel_delta_y);
     bool handle_doubleclick(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
 
-    bool handle_keydown(KeyCode, unsigned modifiers, u32 code_point);
-    bool handle_keyup(KeyCode, unsigned modifiers, u32 code_point);
+    bool handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point);
+    bool handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point);
 
     Gfx::Palette palette() const;
     CSSPixelRect web_exposed_screen_area() const;
