@@ -27,6 +27,8 @@ public:
 
     bool is_body() const;
 
+    virtual void prepare_for_replaced_layout() { }
+
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
     Optional<CSSPixels> natural_width() const { return m_natural_width; }
     Optional<CSSPixels> natural_height() const { return m_natural_height; }

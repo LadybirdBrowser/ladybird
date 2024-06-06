@@ -1,10 +1,10 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x42 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x26 children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 200x24] baseline: 18
-      BlockContainer <input#foo> at (9,9) content-size 200x24 inline-block [BFC] children: not-inline
-        Box <div> at (11,10) content-size 196x22 flex-container(row) [FFC] children: not-inline
-          BlockContainer <div> at (11,10) content-size 196x22 flex-item [BFC] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [11,10 200x22] baseline: 19
+      BlockContainer <input#foo> at (11,10) content-size 200x22 inline-block [BFC] children: not-inline
+        Box <div> at (11,10) content-size 200x22 flex-container(row) [FFC] children: not-inline
+          BlockContainer <div> at (11,10) content-size 200x22 flex-item [BFC] children: inline
             frag 0 from TextNode start: 0, length: 4, rect: [11,10 62.171875x22] baseline: 17
                 "PASS"
             TextNode <#text>
@@ -14,7 +14,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x42]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x26]
-      PaintableWithLines (BlockContainer<INPUT>#foo) [8,8 202x26]
-        PaintableBox (Box<DIV>) [9,9 200x24]
-          PaintableWithLines (BlockContainer<DIV>) [11,10 196x22]
+      PaintableWithLines (BlockContainer<INPUT>#foo) [8,8 206x26]
+        PaintableBox (Box<DIV>) [11,10 200x22]
+          PaintableWithLines (BlockContainer<DIV>) [11,10 200x22]
             TextPaintable (TextNode<#text>)

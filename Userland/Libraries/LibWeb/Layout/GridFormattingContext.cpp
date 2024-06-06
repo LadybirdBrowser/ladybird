@@ -1783,11 +1783,9 @@ void GridFormattingContext::run(Box const&, LayoutMode, AvailableSpace const& av
         if (!computed_values.height().is_length())
             box_state.set_indefinite_content_height();
 
-        if (item.box->is_replaced_box()) {
-            auto& replaced_box = static_cast<Layout::ReplacedBox const&>(*item.box);
+        if (box_is_sized_as_replaced_element(*item.box))
             // FIXME: This const_cast is gross.
-            const_cast<Layout::ReplacedBox&>(replaced_box).prepare_for_replaced_layout();
-        }
+            const_cast<Layout::Box&>(*item.box).prepare_for_replaced_layout();
     }
 
     // Do the first pass of resolving grid items box metrics to compute values that are independent of a track width

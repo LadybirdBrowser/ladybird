@@ -193,6 +193,10 @@ WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String c
     // 5. Change attribute to value.
     attribute->change_attribute(value);
 
+    if (name == HTML::AttributeNames::size) {
+        document().set_needs_layout();
+    }
+
     return {};
 }
 

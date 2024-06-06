@@ -22,6 +22,8 @@ public:
 
     Painting::PaintableWithLines const* paintable_with_lines() const;
 
+    virtual void prepare_for_replaced_layout() override;
+
     virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
 
 private:

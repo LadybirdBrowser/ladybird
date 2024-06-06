@@ -9,5 +9,5 @@ exportedPrivateKey alg: RSA-OAEP-256
 exportedPrivateKey exponent: AQAB
 exportedPrivateKey key_ops: decrypt,unwrapKey
 exportedPrivateKey ext: true
-FIXME: exportedPublicKey2: 4649584d45
+FIXME: exportedPublicKey2: 305c300d06092a864886f70d0101010500034b00304802410088654c32b4bdf8a29bd85f5c3e1972dc6981183a409a92ebd441b1f2fa208b990ac92545ba5239609b36245d825ee2dfc3eca89f295152a39a88a0bf03f6c60d0203010001
 exportKey spki private key: InvalidAccessError Key is not public

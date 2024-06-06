@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Layout/BreakNode.h>
+#include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineLevelIterator.h>
 #include <LibWeb/Layout/InlineNode.h>
@@ -260,10 +261,11 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         return next_without_lookahead();
     }
 
-    if (is<Layout::ReplacedBox>(*m_current_node)) {
-        auto& replaced_box = static_cast<Layout::ReplacedBox const&>(*m_current_node);
-        // FIXME: This const_cast is gross.
-        const_cast<Layout::ReplacedBox&>(replaced_box).prepare_for_replaced_layout();
+    if (is<Layout::Box>(*m_current_node)) {
+        auto& box = static_cast<Layout::Box const&>(*m_current_node);
+        if (box_is_sized_as_replaced_element(box))
+            // FIXME: This const_cast is gross.
+            const_cast<Layout::Box&>(box).prepare_for_replaced_layout();
     }
 
     auto& box = verify_cast<Layout::Box>(*m_current_node);

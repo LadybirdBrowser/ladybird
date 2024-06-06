@@ -1,38 +1,38 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x68 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x52 children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 200x24] baseline: 18
-      frag 1 from TextNode start: 0, length: 1, rect: [210,9 10x22] baseline: 17
+      frag 0 from BlockContainer start: 0, length: 0, rect: [11,10 200x22] baseline: 19
+      frag 1 from TextNode start: 0, length: 1, rect: [214,10 10x22] baseline: 17
           " "
-      frag 2 from BlockContainer start: 0, length: 0, rect: [221,9 200x24] baseline: 18
-      frag 3 from TextNode start: 0, length: 1, rect: [422,9 10x22] baseline: 17
+      frag 2 from BlockContainer start: 0, length: 0, rect: [227,10 200x22] baseline: 19
+      frag 3 from TextNode start: 0, length: 1, rect: [430,10 10x22] baseline: 17
           " "
-      frag 4 from BlockContainer start: 0, length: 0, rect: [433,9 200x24] baseline: 18
-      frag 5 from BlockContainer start: 0, length: 0, rect: [9,35 200x24] baseline: 18
-      BlockContainer <input> at (9,9) content-size 200x24 inline-block [BFC] children: not-inline
-        Box <div> at (11,10) content-size 196x22 flex-container(row) [FFC] children: not-inline
-          BlockContainer <div> at (11,10) content-size 196x22 flex-item [BFC] children: inline
+      frag 4 from BlockContainer start: 0, length: 0, rect: [443,10 200x22] baseline: 19
+      frag 5 from BlockContainer start: 0, length: 0, rect: [11,36 200x22] baseline: 19
+      BlockContainer <input> at (11,10) content-size 200x22 inline-block [BFC] children: not-inline
+        Box <div> at (11,10) content-size 200x22 flex-container(row) [FFC] children: not-inline
+          BlockContainer <div> at (11,10) content-size 200x22 flex-item [BFC] children: inline
             frag 0 from TextNode start: 0, length: 4, rect: [11,10 40.171875x22] baseline: 17
                 "text"
             TextNode <#text>
       TextNode <#text>
-      BlockContainer <input> at (221,9) content-size 200x24 inline-block [BFC] children: not-inline
-        Box <div> at (223,10) content-size 196x22 flex-container(row) [FFC] children: not-inline
-          BlockContainer <div> at (223,10) content-size 196x22 flex-item [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 34, rect: [223,10 344.4375x22] baseline: 17
+      BlockContainer <input> at (227,10) content-size 200x22 inline-block [BFC] children: not-inline
+        Box <div> at (227,10) content-size 200x22 flex-container(row) [FFC] children: not-inline
+          BlockContainer <div> at (227,10) content-size 200x22 flex-item [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 34, rect: [227,10 344.4375x22] baseline: 17
                 "This placeholder should be visible"
             TextNode <#text>
       TextNode <#text>
-      BlockContainer <input> at (433,9) content-size 200x24 inline-block [BFC] children: not-inline
-        Box <div> at (435,10) content-size 196x22 flex-container(row) [FFC] children: not-inline
-          BlockContainer <div> at (435,10) content-size 196x22 flex-item [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 4, rect: [435,10 40.171875x22] baseline: 17
+      BlockContainer <input> at (443,10) content-size 200x22 inline-block [BFC] children: not-inline
+        Box <div> at (443,10) content-size 200x22 flex-container(row) [FFC] children: not-inline
+          BlockContainer <div> at (443,10) content-size 200x22 flex-item [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 4, rect: [443,10 40.171875x22] baseline: 17
                 "text"
             TextNode <#text>
       TextNode <#text>
-      BlockContainer <input#placeholder> at (9,35) content-size 200x24 inline-block [BFC] children: not-inline
-        Box <div> at (11,36) content-size 196x22 flex-container(row) [FFC] children: not-inline
-          BlockContainer <div> at (11,36) content-size 196x22 flex-item [BFC] children: inline
+      BlockContainer <input#placeholder> at (11,36) content-size 200x22 inline-block [BFC] children: not-inline
+        Box <div> at (11,36) content-size 200x22 flex-container(row) [FFC] children: not-inline
+          BlockContainer <div> at (11,36) content-size 200x22 flex-item [BFC] children: inline
             frag 0 from TextNode start: 0, length: 40, rect: [11,36 407.71875x22] baseline: 17
                 "This placeholder should also be visisble"
             TextNode <#text>
@@ -42,21 +42,21 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x68]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x52]
-      PaintableWithLines (BlockContainer<INPUT>) [8,8 202x26]
-        PaintableBox (Box<DIV>) [9,9 200x24]
-          PaintableWithLines (BlockContainer<DIV>) [11,10 196x22]
+      PaintableWithLines (BlockContainer<INPUT>) [8,8 206x26]
+        PaintableBox (Box<DIV>) [11,10 200x22]
+          PaintableWithLines (BlockContainer<DIV>) [11,10 200x22]
             TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<INPUT>) [220,8 202x26] overflow: [221,9 346.4375x24]
-        PaintableBox (Box<DIV>) [221,9 200x24] overflow: [221,9 346.4375x24]
-          PaintableWithLines (BlockContainer<DIV>) [223,10 196x22] overflow: [223,10 344.4375x22]
+      PaintableWithLines (BlockContainer<INPUT>) [224,8 206x26] overflow: [225,9 346.4375x24]
+        PaintableBox (Box<DIV>) [227,10 200x22] overflow: [227,10 344.4375x22]
+          PaintableWithLines (BlockContainer<DIV>) [227,10 200x22] overflow: [227,10 344.4375x22]
             TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<INPUT>) [432,8 202x26]
-        PaintableBox (Box<DIV>) [433,9 200x24]
-          PaintableWithLines (BlockContainer<DIV>) [435,10 196x22]
+      PaintableWithLines (BlockContainer<INPUT>) [440,8 206x26]
+        PaintableBox (Box<DIV>) [443,10 200x22]
+          PaintableWithLines (BlockContainer<DIV>) [443,10 200x22]
             TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<INPUT>#placeholder) [8,34 202x26] overflow: [9,35 409.71875x24]
-        PaintableBox (Box<DIV>) [9,35 200x24] overflow: [9,35 409.71875x24]
-          PaintableWithLines (BlockContainer<DIV>) [11,36 196x22] overflow: [11,36 407.71875x22]
+      PaintableWithLines (BlockContainer<INPUT>#placeholder) [8,34 206x26] overflow: [9,35 409.71875x24]
+        PaintableBox (Box<DIV>) [11,36 200x22] overflow: [11,36 407.71875x22]
+          PaintableWithLines (BlockContainer<DIV>) [11,36 200x22] overflow: [11,36 407.71875x22]
             TextPaintable (TextNode<#text>)
