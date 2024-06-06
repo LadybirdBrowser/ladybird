@@ -9,7 +9,6 @@ set(CMD_SOURCES
     isobmff.cpp
     js.cpp
     lzcat.cpp
-    shred.cpp
     tar.cpp
     test-jpeg-roundtrip.cpp
     ttfdisasm.cpp
