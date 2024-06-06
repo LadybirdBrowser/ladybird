@@ -23,6 +23,7 @@ env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   VCPKG_ROOT:  ${{ github.workspace }}/Toolchain/Tarballs/vcpkg
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
 jobs:
   CI:
@@ -84,13 +85,9 @@ jobs:
         if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
         working-directory: ${{ github.workspace }}
         run: |
-          cmake -GNinja -B Build \
-            -DBUILD_LAGOM=ON \
+          cmake --preset Sanitizer_CI -B Build \
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
-            -DENABLE_UNDEFINED_SANITIZER=ON \
-            -DENABLE_ADDRESS_SANITIZER=ON \
-            -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
@@ -110,11 +107,7 @@ jobs:
 
           ninja -C tools-build install
 
-          cmake -GNinja -S Meta/Lagom -B Build \
-            -DBUILD_LAGOM=ON \
-            -DENABLE_FUZZERS_LIBFUZZER=ON \
-            -DENABLE_ADDRESS_SANITIZER=ON \
-            -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches \
+          cmake --preset Fuzzers_CI -B Build \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
             -DCMAKE_PREFIX_PATH=${{ github.workspace }}/tool-install
@@ -149,12 +142,9 @@ jobs:
 
       - name: Test
         if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
-        working-directory: ${{ github.workspace }}/Build
-        run: ninja test
+        working-directory: ${{ github.workspace }}
+        run: ctest --preset Sanitizer --output-on-failure --test-dir Build
         env:
-          CTEST_OUTPUT_ON_FAILURE: 1
-          ASAN_OPTIONS: 'strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1'
-          UBSAN_OPTIONS: 'print_stacktrace=1:print_summary=1:halt_on_error=1'
           TESTS_ONLY: 1
 
       - name: Upload LibWeb Test Artifacts
