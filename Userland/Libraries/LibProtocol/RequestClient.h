@@ -36,6 +36,8 @@ public:
     bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
 
 private:
+    virtual void die() override;
+
     virtual void request_started(i32, IPC::File const&) override;
     virtual void request_progress(i32, Optional<u64> const&, u64) override;
     virtual void request_finished(i32, bool, u64) override;
