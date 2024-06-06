@@ -13,11 +13,14 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/Build/ladybird",
       "cacheVariables": {
-        "SERENITY_CACHE_DIR": "${sourceDir}/Build/caches"
+        "SERENITY_CACHE_DIR": "${sourceDir}/Build/caches",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALL_OPTIONS": "--no-print-usage"
       },
       "environment": {
         "LADYBIRD_SOURCE_DIR": "${sourceDir}",
-        "VCPKG_ROOT": "${sourceDir}/Toolchain/Tarballs/vcpkg"
+        "VCPKG_ROOT": "${sourceDir}/Toolchain/Tarballs/vcpkg",
+        "VCPKG_BINARY_SOURCES": "clear;files,${sourceDir}/Toolchain/Build/vcpkg-binary-cache,readwrite"
       },
       "vendor": {
         "jetbrains.com/clion": {
