@@ -103,9 +103,6 @@ StringView current_time_zone()
         return "UTC"sv;
     }
 
-#ifdef AK_OS_SERENITY
-    return system_time_zone();
-#else
     static constexpr auto zoneinfo = "/zoneinfo"sv;
 
     char* real_path = realpath("/etc/localtime", nullptr);
@@ -131,7 +128,6 @@ StringView current_time_zone()
 
     // Read the system timezone file /etc/timezone
     return system_time_zone();
-#endif
 }
 
 ErrorOr<void> change_time_zone([[maybe_unused]] StringView time_zone)
