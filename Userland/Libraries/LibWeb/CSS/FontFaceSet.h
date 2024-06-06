@@ -11,11 +11,12 @@
 #include <LibWeb/Bindings/FontFaceSetPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/DOM/EventTarget.h>
 
 namespace Web::CSS {
 
-class FontFaceSet final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(FontFaceSet, Bindings::PlatformObject);
+class FontFaceSet final : public DOM::EventTarget {
+    WEB_PLATFORM_OBJECT(FontFaceSet, DOM::EventTarget);
     JS_DECLARE_ALLOCATOR(FontFaceSet);
 
 public:

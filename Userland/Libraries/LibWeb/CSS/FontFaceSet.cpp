@@ -39,7 +39,7 @@ JS::NonnullGCPtr<FontFaceSet> FontFaceSet::create(JS::Realm& realm)
 }
 
 FontFaceSet::FontFaceSet(JS::Realm& realm, JS::NonnullGCPtr<WebIDL::Promise> ready_promise, JS::NonnullGCPtr<JS::Set> set_entries)
-    : Bindings::PlatformObject(realm)
+    : DOM::EventTarget(realm)
     , m_set_entries(set_entries)
     , m_ready_promise(ready_promise)
 {
