@@ -28,7 +28,7 @@
             done();
         });
 
-        image.addEventListener("load", () => {
+        window.addEventListener("load", () => {
             const imageRect = image.getBoundingClientRect();
             internals.click(imageRect.x + 10, imageRect.y + 20);
         });
