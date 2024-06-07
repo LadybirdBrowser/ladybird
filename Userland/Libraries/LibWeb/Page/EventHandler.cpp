@@ -938,7 +938,7 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
             document->window()->scroll_by(0, page_scroll_distance);
         return true;
     }
-    
+
     // FIXME: Work out and implement the difference between this and keydown.
     return !fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point);
 }
