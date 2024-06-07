@@ -4947,11 +4947,60 @@ JS::NonnullGCPtr<WebIDL::Promise> transform_stream_default_sink_abort_algorithm(
 {
     auto& realm = stream.realm();
 
-    // 1. Perform ! TransformStreamError(stream, reason).
-    transform_stream_error(stream, reason);
+    // 1. Let controller be stream.[[controller]].
+    auto controller = stream.controller();
+    VERIFY(controller);
 
-    // 2. Return a promise resolved with undefined.
-    return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    // 2. If controller.[[finishPromise]] is not undefined, return controller.[[finishPromise]].
+    if (controller->finish_promise())
+        return JS::NonnullGCPtr { *controller->finish_promise() };
+
+    // 3. Let readable be stream.[[readable]].
+    auto readable = stream.readable();
+
+    // 4. Let controller.[[finishPromise]] be a new promise.
+    controller->set_finish_promise(WebIDL::create_promise(realm));
+
+    // 5. Let cancelPromise be the result of performing controller.[[cancelAlgorithm]], passing reason.
+    auto cancel_promise = controller->cancel_algorithm()->function()(reason);
+
+    // 6. Perform ! TransformStreamDefaultControllerClearAlgorithms(controller).
+    transform_stream_default_controller_clear_algorithms(*controller);
+
+    // 7. React to cancelPromise:
+    WebIDL::react_to_promise(
+        *cancel_promise,
+        // 1. If cancelPromise was fulfilled, then:
+        JS::create_heap_function(realm.heap(), [&realm, readable, controller](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+            // 1. If readable.[[state]] is "errored", reject controller.[[finishPromise]] with readable.[[storedError]].
+            if (readable->state() == ReadableStream::State::Errored) {
+                WebIDL::reject_promise(realm, *controller->finish_promise(), readable->stored_error());
+            }
+            // 2. Otherwise:
+            else {
+                VERIFY(readable->controller().has_value() && readable->controller()->has<JS::NonnullGCPtr<ReadableStreamDefaultController>>());
+                // 1. Perform ! ReadableStreamDefaultControllerError(readable.[[controller]], reason).
+                readable_stream_default_controller_error(readable->controller()->get<JS::NonnullGCPtr<ReadableStreamDefaultController>>(), reason);
+
+                // 2. Resolve controller.[[finishPromise]] with undefined.
+                WebIDL::resolve_promise(realm, *controller->finish_promise(), JS::js_undefined());
+            }
+            return JS::js_undefined();
+        }),
+        // 2. If cancelPromise was rejected with reason r, then:
+        JS::create_heap_function(realm.heap(), [&realm, readable, controller](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+            VERIFY(readable->controller().has_value() && readable->controller()->has<JS::NonnullGCPtr<ReadableStreamDefaultController>>());
+            // 1. Perform ! ReadableStreamDefaultControllerError(readable.[[controller]], r).
+            readable_stream_default_controller_error(readable->controller()->get<JS::NonnullGCPtr<ReadableStreamDefaultController>>(), reason);
+
+            // 2. Reject controller.[[finishPromise]] with r.
+            WebIDL::reject_promise(realm, *controller->finish_promise(), reason);
+
+            return JS::js_undefined();
+        }));
+
+    // 8. Return controller.[[finishPromise]].
+    return JS::NonnullGCPtr { *controller->finish_promise() };
 }
 
 // https://streams.spec.whatwg.org/#transform-stream-default-sink-close-algorithm
