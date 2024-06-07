@@ -32,7 +32,7 @@
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/GradientData.h>
-#include <LibWeb/Painting/PaintOuterBoxShadowParams.h>
+#include <LibWeb/Painting/PaintBoxShadowParams.h>
 
 namespace Web::Painting {
 
@@ -140,14 +140,14 @@ struct PaintLinearGradient {
 };
 
 struct PaintOuterBoxShadow {
-    PaintOuterBoxShadowParams outer_box_shadow_params;
+    PaintBoxShadowParams box_shadow_params;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const;
     void translate_by(Gfx::IntPoint const& offset);
 };
 
 struct PaintInnerBoxShadow {
-    PaintOuterBoxShadowParams outer_box_shadow_params;
+    PaintBoxShadowParams box_shadow_params;
 
     void translate_by(Gfx::IntPoint const& offset);
 };
