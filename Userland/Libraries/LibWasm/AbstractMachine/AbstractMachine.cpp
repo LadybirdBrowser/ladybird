@@ -345,7 +345,9 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                         return;
                     auto address = main_module_instance.memories()[data.index.value()];
                     auto instance = m_store.get(address);
-                    if (data.init.size() + offset > instance->size()) {
+                    Checked<size_t> checked_offset = data.init.size();
+                    checked_offset += offset;
+                    if (checked_offset.has_overflow() || checked_offset > instance->size()) {
                         instantiation_result = InstantiationError {
                             ByteString::formatted("Data segment attempted to write to out-of-bounds memory ({}) in memory of size {}",
                                 offset, instance->size())
