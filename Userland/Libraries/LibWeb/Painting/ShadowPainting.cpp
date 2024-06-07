@@ -57,20 +57,20 @@ void paint_inner_box_shadow(Gfx::Painter& painter, PaintOuterBoxShadowParams par
     auto top_right_corner = params.corner_radii.top_right;
     auto bottom_right_corner = params.corner_radii.bottom_right;
     auto bottom_left_corner = params.corner_radii.bottom_left;
-    shadow_painter.fill_rect(outer_shadow_rect, params.box_shadow_data.color.with_alpha(0xff));
-    if (params.border_radii.has_any_radius()) {
-        shadow_aa_painter.fill_rect_with_rounded_corners(inner_shadow_rect, params.box_shadow_data.color.with_alpha(0xff),
+    shadow_painter.fill_rect(outer_shadow_rect, params.color.with_alpha(0xff));
+    if (params.corner_radii.has_any_radius()) {
+        shadow_aa_painter.fill_rect_with_rounded_corners(inner_shadow_rect, params.color.with_alpha(0xff),
             top_left_corner, top_right_corner, bottom_right_corner, bottom_left_corner,
             Gfx::AntiAliasingPainter::BlendMode::AlphaSubtract);
     } else {
         shadow_painter.clear_rect(inner_shadow_rect, Color::Transparent);
     }
     Gfx::StackBlurFilter filter(*shadow_bitmap);
-    filter.process_rgba(blur_radius.value(), params.box_shadow_data.color);
+    filter.process_rgba(blur_radius.value(), params.color);
     Gfx::PainterStateSaver save { painter };
     painter.add_clip_rect(device_content_rect_int);
     painter.blit({ device_content_rect_int.left() - blur_radius.value(), device_content_rect_int.top() - blur_radius.value() },
-        *shadow_bitmap, shadow_bitmap->rect(), params.box_shadow_data.color.alpha() / 255.);
+        *shadow_bitmap, shadow_bitmap->rect(), params.color.alpha() / 255.);
 }
 
 struct OuterBoxShadowMetrics {
@@ -306,9 +306,7 @@ Gfx::IntRect get_outer_box_shadow_bounding_rect(PaintOuterBoxShadowParams params
 
 void paint_outer_box_shadow(Gfx::Painter& painter, PaintOuterBoxShadowParams params)
 {
-    auto const& box_shadow_data = params.box_shadow_data;
     auto const& device_content_rect = params.device_content_rect;
-    auto const& border_radii = params.border_radii;
 
     auto const& top_left_corner = params.corner_radii.top_left;
     auto const& top_right_corner = params.corner_radii.top_right;
@@ -366,14 +364,14 @@ void paint_outer_box_shadow(Gfx::Painter& painter, PaintOuterBoxShadowParams par
     };
 
     // If there's no blurring, nor rounded corners, we can save a lot of effort.
-    if (blur_radius == 0 && !border_radii.has_any_radius()) {
-        fill_rect_masked(painter, non_blurred_shadow_rect.translated(offset_x, offset_y), device_content_rect, box_shadow_data.color);
+    if (blur_radius == 0 && !params.corner_radii.has_any_radius()) {
+        fill_rect_masked(painter, non_blurred_shadow_rect.translated(offset_x, offset_y), device_content_rect, params.color);
         return;
     }
 
     auto paint_shadow_infill = [&] {
-        if (!params.border_radii.has_any_radius())
-            return painter.fill_rect(inner_bounding_rect.to_type<int>(), box_shadow_data.color);
+        if (!params.corner_radii.has_any_radius())
+            return painter.fill_rect(inner_bounding_rect.to_type<int>(), params.color);
 
         auto top_left_inner_width = top_left_corner_rect.width() - blurred_edge_thickness;
         auto top_left_inner_height = top_left_corner_rect.height() - blurred_edge_thickness;
@@ -415,11 +413,11 @@ void paint_outer_box_shadow(Gfx::Painter& painter, PaintOuterBoxShadowParams par
             inner_bounding_rect.height() - top_rect.height() - bottom_rect.height()
         };
 
-        painter.fill_rect(top_rect.to_type<int>(), box_shadow_data.color);
-        painter.fill_rect(right_rect.to_type<int>(), box_shadow_data.color);
-        painter.fill_rect(bottom_rect.to_type<int>(), box_shadow_data.color);
-        painter.fill_rect(left_rect.to_type<int>(), box_shadow_data.color);
-        painter.fill_rect(inner.to_type<int>(), box_shadow_data.color);
+        painter.fill_rect(top_rect.to_type<int>(), params.color);
+        painter.fill_rect(right_rect.to_type<int>(), params.color);
+        painter.fill_rect(bottom_rect.to_type<int>(), params.color);
+        painter.fill_rect(left_rect.to_type<int>(), params.color);
+        painter.fill_rect(inner.to_type<int>(), params.color);
     };
 
     auto shadows_bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, shadow_bitmap_rect.size().to_type<int>());
@@ -433,9 +431,9 @@ void paint_outer_box_shadow(Gfx::Painter& painter, PaintOuterBoxShadowParams par
 
     aa_corner_painter.fill_rect_with_rounded_corners(
         shadow_bitmap_rect.shrunken(double_radius, double_radius, double_radius, double_radius).to_type<int>(),
-        box_shadow_data.color, top_left_shadow_corner, top_right_shadow_corner, bottom_right_shadow_corner, bottom_left_shadow_corner);
+        params.color, top_left_shadow_corner, top_right_shadow_corner, bottom_right_shadow_corner, bottom_left_shadow_corner);
     Gfx::StackBlurFilter filter(*shadow_bitmap);
-    filter.process_rgba(blur_radius.value(), box_shadow_data.color);
+    filter.process_rgba(blur_radius.value(), params.color);
 
     auto paint_shadow = [&](DevicePixelRect clip_rect) {
         Gfx::PainterStateSaver save { painter };
@@ -552,10 +550,8 @@ void paint_box_shadow(PaintContext& context,
         }
 
         auto params = PaintOuterBoxShadowParams {
-            .painter = context.recording_painter(),
-            .content_rect = bordered_content_rect,
-            .border_radii = border_radii,
-            .box_shadow_data = box_shadow_data,
+            .color = box_shadow_data.color,
+            .placement = box_shadow_data.placement,
             .corner_radii = CornerRadii {
                 .top_left = border_radii.top_left.as_corner(context),
                 .top_right = border_radii.top_right.as_corner(context),
@@ -569,8 +565,9 @@ void paint_box_shadow(PaintContext& context,
         };
 
         if (box_shadow_data.placement == ShadowPlacement::Inner) {
-            params.border_radii.shrink(borders_data.top.width, borders_data.right.width, borders_data.bottom.width, borders_data.left.width);
-            ScopedCornerRadiusClip corner_clipper { context, device_content_rect, params.border_radii, CornerClip::Outside };
+            auto shrinked_border_radii = border_radii;
+            shrinked_border_radii.shrink(borders_data.top.width, borders_data.right.width, borders_data.bottom.width, borders_data.left.width);
+            ScopedCornerRadiusClip corner_clipper { context, device_content_rect, shrinked_border_radii, CornerClip::Outside };
             context.recording_painter().paint_inner_box_shadow_params(params);
         } else {
             ScopedCornerRadiusClip corner_clipper { context, device_content_rect, border_radii, CornerClip::Inside };
