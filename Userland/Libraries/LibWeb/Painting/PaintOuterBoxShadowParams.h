@@ -15,11 +15,11 @@ struct PaintOuterBoxShadowParams {
     Gfx::Color color;
     ShadowPlacement placement;
     CornerRadii corner_radii;
-    DevicePixels offset_x;
-    DevicePixels offset_y;
-    DevicePixels blur_radius;
-    DevicePixels spread_distance;
-    DevicePixelRect device_content_rect;
+    int offset_x;
+    int offset_y;
+    int blur_radius;
+    int spread_distance;
+    Gfx::IntRect device_content_rect;
 };
 
 }

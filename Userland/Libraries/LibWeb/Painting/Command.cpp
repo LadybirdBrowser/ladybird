@@ -22,12 +22,12 @@ Gfx::IntRect PaintOuterBoxShadow::bounding_rect() const
 
 void PaintOuterBoxShadow::translate_by(Gfx::IntPoint const& offset)
 {
-    outer_box_shadow_params.device_content_rect.translate_by(offset.to_type<DevicePixels>());
+    outer_box_shadow_params.device_content_rect.translate_by(offset);
 }
 
 void PaintInnerBoxShadow::translate_by(Gfx::IntPoint const& offset)
 {
-    outer_box_shadow_params.device_content_rect.translate_by(offset.to_type<DevicePixels>());
+    outer_box_shadow_params.device_content_rect.translate_by(offset);
 }
 
 }
