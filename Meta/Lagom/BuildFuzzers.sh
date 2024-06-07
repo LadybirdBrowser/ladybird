@@ -53,7 +53,7 @@ fi
 # FIXME: Replace these CMake invocations with a CMake superbuild?
 echo "Building Lagom Tools..."
 cmake -GNinja -B Build/tools \
-    -DBUILD_LAGOM=OFF \
+    -DLAGOM_TOOLS_ONLY=ON \
     -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
     -DCMAKE_INSTALL_PREFIX=Build/tool-install \
     -Dpackage=LagomTools
@@ -69,7 +69,6 @@ echo "Building Lagom Fuzzers..."
 if [ "$#" -gt "0" ] && [ "--oss-fuzz" = "$1" ] ; then
     echo "Building for oss-fuzz configuration..."
     cmake -GNinja -B Build/fuzzers \
-        -DBUILD_LAGOM=ON \
         -DBUILD_SHARED_LIBS=OFF \
         -DENABLE_FUZZERS_OSSFUZZ=ON \
         -DFUZZER_DICTIONARY_DIRECTORY="$OUT" \
@@ -83,7 +82,6 @@ if [ "$#" -gt "0" ] && [ "--oss-fuzz" = "$1" ] ; then
 elif [ "$#" -gt "0" ] && [ "--standalone" = "$1" ] ; then
     echo "Building for standalone fuzz configuration..."
     cmake -GNinja -B Build/lagom-fuzzers-standalone \
-        -DBUILD_LAGOM=ON \
         -DENABLE_FUZZERS=ON \
         -DCMAKE_PREFIX_PATH=Build/tool-install
     ninja -C Build/lagom-fuzzers-standalone
@@ -91,7 +89,6 @@ else
     echo "Building for local fuzz configuration..."
     pick_clang
     cmake -GNinja -B Build/lagom-fuzzers \
-        -DBUILD_LAGOM=ON \
         -DENABLE_FUZZERS_LIBFUZZER=ON \
         -DENABLE_ADDRESS_SANITIZER=ON \
         -DENABLE_UNDEFINED_SANITIZER=ON \

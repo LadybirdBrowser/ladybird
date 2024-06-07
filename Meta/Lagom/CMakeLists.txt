@@ -390,238 +390,245 @@ if (BUILD_LAGOM_TOOLS)
     add_subdirectory(Tools)
 endif()
 
-if (BUILD_LAGOM)
-    # Lagom Libraries
-    set(lagom_standard_libraries
-        AccelGfx
-        Archive
-        Audio
-        Compress
-        Crypto
-        Diff
-        Gfx
-        HTTP
-        ImageDecoderClient
-        IPC
-        JS
-        Line
-        Locale
-        Protocol
-        Regex
-        RIFF
-        Syntax
-        TextCodec
-        Threading
-        TLS
-        Video
-        Wasm
-        Web
-        WebSocket
-        WebView
-        XML
-    )
-
-    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestClient.ipc Userland/Services/RequestServer/RequestClientEndpoint.h)
-    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestServer.ipc Userland/Services/RequestServer/RequestServerEndpoint.h)
-    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentServer.ipc Userland/Services/WebContent/WebContentServerEndpoint.h)
-    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentClient.ipc Userland/Services/WebContent/WebContentClientEndpoint.h)
-    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverClient.ipc Userland/Services/WebContent/WebDriverClientEndpoint.h)
-    compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverServer.ipc Userland/Services/WebContent/WebDriverServerEndpoint.h)
-
-    foreach(lib IN LISTS lagom_standard_libraries)
-        add_serenity_subdirectory("Userland/Libraries/Lib${lib}")
-    endforeach()
-
-    # FIXME: Why is this not in LibLocale/CMakeLists.txt?
-    target_link_libraries(LibLocale PRIVATE LibTimeZone)
-
-    if (NOT ENABLE_FUZZERS AND NOT ENABLE_COMPILER_EXPLORER_BUILD AND NOT ANDROID AND NOT IOS)
-        # Lagom Utilities
-        lagom_utility(abench SOURCES ../../Userland/Utilities/abench.cpp LIBS LibMain LibFileSystem LibAudio)
-        lagom_utility(aconv SOURCES ../../Userland/Utilities/aconv.cpp LIBS LibMain LibFileSystem LibAudio)
-
-        lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
-
-        lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress LibMain)
-
-        find_package(SDL2 QUIET)
-        if (SDL2_FOUND)
-            add_serenity_subdirectory(Meta/Lagom/Contrib/VideoPlayerSDL)
-        endif()
-
-        lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
-        lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMain)
-        lagom_utility(isobmff SOURCES ../../Userland/Utilities/isobmff.cpp LIBS LibGfx LibMain)
-        lagom_utility(ttfdisasm SOURCES ../../Userland/Utilities/ttfdisasm.cpp LIBS LibGfx LibMain)
-        lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibLocale LibMain LibTextCodec Threads::Threads)
-
-        if (EMSCRIPTEN)
-            lagom_utility(libjs SOURCES Wasm/js_repl.cpp LIBS LibJS LibLocale LibTimeZone LibUnicode)
-            target_link_options(libjs PRIVATE
-                    -sEXPORTED_FUNCTIONS=_initialize_repl,_execute
-                    -sEXPORTED_RUNTIME_METHODS=allocateUTF8
-                    -sERROR_ON_UNDEFINED_SYMBOLS=0
-                    -sENVIRONMENT=web)
-        endif()
-
-        lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
-
-        lagom_utility(tar SOURCES ../../Userland/Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
-        lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem)
-
-        if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            include(CheckCSourceCompiles)
-            # Check for musl's declaration of __assert_fail
-            check_c_source_compiles(
-                "
-                #include <assert.h>
-                __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function) {}
-                int main() {}
-                "
-                ASSERT_FAIL_HAS_INT
-            )
-        endif()
-
-        if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
-            target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
-        endif()
-
-        lagom_utility(wasm SOURCES ../../Userland/Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS)
-        lagom_utility(xml SOURCES ../../Userland/Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
-        lagom_utility(xzcat SOURCES ../../Userland/Utilities/xzcat.cpp LIBS LibCompress LibMain)
-
-        enable_testing()
-        # LibTest
-        file(GLOB LIBTEST_SOURCES CONFIGURE_DEPENDS "../../Userland/Libraries/LibTest/*.cpp")
-        list(FILTER LIBTEST_SOURCES EXCLUDE REGEX ".*Main.cpp$")
-        add_library(
-            LibTest
-            ${LIBTEST_SOURCES}
-        )
-        target_link_libraries(LibTest PRIVATE AK LibCore LibFileSystem)
-        set_target_properties(LibTest PROPERTIES OUTPUT_NAME lagom-test)
-        add_library(
-            LibTestMain
-            OBJECT
-            "${SERENITY_PROJECT_ROOT}/Userland/Libraries/LibTest/TestMain.cpp"
-        )
-        target_link_libraries(LibTest PUBLIC GenericClangPlugin)
-        target_link_libraries(LibTestMain PUBLIC GenericClangPlugin)
-
-        # LibTest tests from Tests/
-        set(TEST_DIRECTORIES
-            AK
-            LibCrypto
-            LibCompress
-            LibGfx
-            LibLocale
-            LibTest
-            LibTextCodec
-            LibTTF
-            LibTimeZone
-            LibUnicode
-            LibVideo
-            LibWeb
-            LibWebView
-            LibXML
-        )
-
-        if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
-            list(APPEND TEST_DIRECTORIES ClangPlugins)
-        endif()
-
-        foreach (dir IN LISTS TEST_DIRECTORIES)
-            add_serenity_subdirectory("Tests/${dir}")
-        endforeach()
-
-        # LibTLS needs a special working directory to find cacert.pem
-        lagom_test(../../Tests/LibTLS/TestTLSHandshake.cpp LibTLS LIBS LibTLS LibCrypto)
-        lagom_test(../../Tests/LibTLS/TestTLSCertificateParser.cpp LibTLS LIBS LibTLS LibCrypto)
-
-        # The FLAC tests need a special working directory to find the test files
-        lagom_test(../../Tests/LibAudio/TestFLACSpec.cpp LIBS LibAudio WORKING_DIRECTORY "${FLAC_TEST_PATH}/..")
-
-        lagom_test(../../Tests/LibAudio/TestPlaybackStream.cpp LIBS LibAudio)
-        if (HAVE_PULSEAUDIO)
-            target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
-        endif()
-
-        # LibCore
-        lagom_test(../../Tests/LibCore/TestLibCoreArgsParser.cpp)
-
-        if ((LINUX OR APPLE) AND NOT EMSCRIPTEN)
-            lagom_test(../../Tests/LibCore/TestLibCoreFileWatcher.cpp)
-            lagom_test(../../Tests/LibCore/TestLibCorePromise.cpp LIBS LibThreading)
-        endif()
-
-        lagom_test(../../Tests/LibCore/TestLibCoreDateTime.cpp LIBS LibTimeZone)
-
-        # RegexLibC test POSIX <regex.h> and contains many Serenity extensions
-        # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
-        lagom_test(../../Tests/LibRegex/Regex.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
-
-        # test-jpeg-roundtrip
-        add_executable(test-jpeg-roundtrip
-            ../../Userland/Utilities/test-jpeg-roundtrip.cpp)
-        target_link_libraries(test-jpeg-roundtrip AK LibGfx LibMain)
-
-        # JavaScriptTestRunner + LibTest tests
-        # test-js
-        add_executable(test-js
-            ../../Tests/LibJS/test-js.cpp
-            ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-        target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS)
-        add_test(
-            NAME JS
-            COMMAND test-js --show-progress=false
-        )
-        set_tests_properties(JS PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT})
-
-        # Extra tests from Tests/LibJS
-        lagom_test(../../Tests/LibJS/test-invalid-unicode-js.cpp LIBS LibJS)
-        lagom_test(../../Tests/LibJS/test-value-js.cpp LIBS LibJS)
-
-        # test-wasm
-        add_executable(test-wasm
-            ../../Tests/LibWasm/test-wasm.cpp
-            ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-        target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto)
-        add_test(
-            NAME WasmParser
-            COMMAND test-wasm --show-progress=false ${CMAKE_CURRENT_BINARY_DIR}/Userland/Libraries/LibWasm/Tests
-        )
-        set_tests_properties(WasmParser PROPERTIES
-            SKIP_RETURN_CODE 1
-            ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT}
-        )
-
-        # FIXME: When we are using CMake >= 3.21, the library installations can be replaced with RUNTIME_DEPENDENCIES.
-        #        https://cmake.org/cmake/help/latest/command/install.html
-        include(get_linked_lagom_libraries.cmake)
-        get_linked_lagom_libraries(js js_libraries)
-
-        install(TARGETS js ${js_libraries} COMPONENT js)
-
-        set(CPACK_GENERATOR "TGZ")
-        set(CPACK_STRIP_FILES TRUE)
-        set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
-        set(CPACK_COMPONENTS_ALL js)
-        if (APPLE)
-            if("arm64" IN_LIST CMAKE_OSX_ARCHITECTURES AND "x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES)
-                set(CPACK_SYSTEM_NAME "macOS-universal2")
-            else()
-                set(CPACK_SYSTEM_NAME "macOS-${CMAKE_SYSTEM_PROCESSOR}")
-            endif()
-        else()
-            set(CPACK_SYSTEM_NAME "${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
-        endif()
-
-        set(CPACK_ARCHIVE_JS_FILE_NAME "serenity-js-${CPACK_SYSTEM_NAME}")
-        set(CPACK_PACKAGE_FILE_NAME "serenity-js-${CPACK_SYSTEM_NAME}")
-        include(CPack)
-    endif()
+if (LAGOM_TOOLS_ONLY)
+    return()
 endif()
+
+# Lagom Libraries
+set(lagom_standard_libraries
+    AccelGfx
+    Archive
+    Audio
+    Compress
+    Crypto
+    Diff
+    Gfx
+    HTTP
+    ImageDecoderClient
+    IPC
+    JS
+    Line
+    Locale
+    Protocol
+    Regex
+    RIFF
+    Syntax
+    TextCodec
+    Threading
+    TLS
+    Video
+    Wasm
+    Web
+    WebSocket
+    WebView
+    XML
+)
+
+compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestClient.ipc Userland/Services/RequestServer/RequestClientEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestServer.ipc Userland/Services/RequestServer/RequestServerEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentServer.ipc Userland/Services/WebContent/WebContentServerEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentClient.ipc Userland/Services/WebContent/WebContentClientEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverClient.ipc Userland/Services/WebContent/WebDriverClientEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverServer.ipc Userland/Services/WebContent/WebDriverServerEndpoint.h)
+
+foreach(lib IN LISTS lagom_standard_libraries)
+    add_serenity_subdirectory("Userland/Libraries/Lib${lib}")
+endforeach()
+
+# FIXME: Why is this not in LibLocale/CMakeLists.txt?
+target_link_libraries(LibLocale PRIVATE LibTimeZone)
 
 if (ENABLE_FUZZERS)
     add_subdirectory(Fuzzers)
 endif()
+
+# No utilities or tests in these configs
+if (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
+    return()
+endif()
+
+# Lagom Utilities
+lagom_utility(abench SOURCES ../../Userland/Utilities/abench.cpp LIBS LibMain LibFileSystem LibAudio)
+lagom_utility(aconv SOURCES ../../Userland/Utilities/aconv.cpp LIBS LibMain LibFileSystem LibAudio)
+
+lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
+
+lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress LibMain)
+
+find_package(SDL2 QUIET)
+if (SDL2_FOUND)
+    add_serenity_subdirectory(Meta/Lagom/Contrib/VideoPlayerSDL)
+endif()
+
+lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
+lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMain)
+lagom_utility(isobmff SOURCES ../../Userland/Utilities/isobmff.cpp LIBS LibGfx LibMain)
+lagom_utility(ttfdisasm SOURCES ../../Userland/Utilities/ttfdisasm.cpp LIBS LibGfx LibMain)
+lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibLocale LibMain LibTextCodec Threads::Threads)
+
+if (EMSCRIPTEN)
+    lagom_utility(libjs SOURCES Wasm/js_repl.cpp LIBS LibJS LibLocale LibTimeZone LibUnicode)
+    target_link_options(libjs PRIVATE
+        -sEXPORTED_FUNCTIONS=_initialize_repl,_execute
+        -sEXPORTED_RUNTIME_METHODS=allocateUTF8
+        -sERROR_ON_UNDEFINED_SYMBOLS=0
+        -sENVIRONMENT=web)
+endif()
+
+lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
+
+lagom_utility(tar SOURCES ../../Userland/Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
+lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem)
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    include(CheckCSourceCompiles)
+    # Check for musl's declaration of __assert_fail
+    check_c_source_compiles(
+        "
+        #include <assert.h>
+        __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function) {}
+        int main() {}
+        "
+        ASSERT_FAIL_HAS_INT
+    )
+endif()
+
+if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
+    target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
+endif()
+
+lagom_utility(wasm SOURCES ../../Userland/Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS)
+lagom_utility(xml SOURCES ../../Userland/Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
+lagom_utility(xzcat SOURCES ../../Userland/Utilities/xzcat.cpp LIBS LibCompress LibMain)
+
+include(CTest)
+if (BUILD_TESTING)
+    # LibTest
+    file(GLOB LIBTEST_SOURCES CONFIGURE_DEPENDS "../../Userland/Libraries/LibTest/*.cpp")
+    list(FILTER LIBTEST_SOURCES EXCLUDE REGEX ".*Main.cpp$")
+    add_library(
+        LibTest
+        ${LIBTEST_SOURCES}
+    )
+    target_link_libraries(LibTest PRIVATE AK LibCore LibFileSystem)
+    set_target_properties(LibTest PROPERTIES OUTPUT_NAME lagom-test)
+    add_library(
+        LibTestMain
+        OBJECT
+        "${SERENITY_PROJECT_ROOT}/Userland/Libraries/LibTest/TestMain.cpp"
+    )
+    target_link_libraries(LibTest PUBLIC GenericClangPlugin)
+    target_link_libraries(LibTestMain PUBLIC GenericClangPlugin)
+
+    # LibTest tests from Tests/
+    set(TEST_DIRECTORIES
+        AK
+        LibCrypto
+        LibCompress
+        LibGfx
+        LibLocale
+        LibTest
+        LibTextCodec
+        LibTTF
+        LibTimeZone
+        LibUnicode
+        LibVideo
+        LibWeb
+        LibWebView
+        LibXML
+    )
+
+    if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
+        list(APPEND TEST_DIRECTORIES ClangPlugins)
+    endif()
+
+    foreach (dir IN LISTS TEST_DIRECTORIES)
+        add_serenity_subdirectory("Tests/${dir}")
+    endforeach()
+
+    # LibTLS needs a special working directory to find cacert.pem
+    lagom_test(../../Tests/LibTLS/TestTLSHandshake.cpp LibTLS LIBS LibTLS LibCrypto)
+    lagom_test(../../Tests/LibTLS/TestTLSCertificateParser.cpp LibTLS LIBS LibTLS LibCrypto)
+
+    # The FLAC tests need a special working directory to find the test files
+    lagom_test(../../Tests/LibAudio/TestFLACSpec.cpp LIBS LibAudio WORKING_DIRECTORY "${FLAC_TEST_PATH}/..")
+
+    lagom_test(../../Tests/LibAudio/TestPlaybackStream.cpp LIBS LibAudio)
+    if (HAVE_PULSEAUDIO)
+        target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
+    endif()
+
+    # LibCore
+    lagom_test(../../Tests/LibCore/TestLibCoreArgsParser.cpp)
+
+    if ((LINUX OR APPLE) AND NOT EMSCRIPTEN)
+        lagom_test(../../Tests/LibCore/TestLibCoreFileWatcher.cpp)
+        lagom_test(../../Tests/LibCore/TestLibCorePromise.cpp LIBS LibThreading)
+    endif()
+
+    lagom_test(../../Tests/LibCore/TestLibCoreDateTime.cpp LIBS LibTimeZone)
+
+    # RegexLibC test POSIX <regex.h> and contains many Serenity extensions
+    # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
+    lagom_test(../../Tests/LibRegex/Regex.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
+
+    # test-jpeg-roundtrip
+    add_executable(test-jpeg-roundtrip
+        ../../Userland/Utilities/test-jpeg-roundtrip.cpp)
+    target_link_libraries(test-jpeg-roundtrip AK LibGfx LibMain)
+
+    # JavaScriptTestRunner + LibTest tests
+    # test-js
+    add_executable(test-js
+        ../../Tests/LibJS/test-js.cpp
+        ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
+    target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS)
+    add_test(
+        NAME JS
+        COMMAND test-js --show-progress=false
+    )
+    set_tests_properties(JS PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT})
+
+    # Extra tests from Tests/LibJS
+    lagom_test(../../Tests/LibJS/test-invalid-unicode-js.cpp LIBS LibJS)
+    lagom_test(../../Tests/LibJS/test-value-js.cpp LIBS LibJS)
+
+    # test-wasm
+    add_executable(test-wasm
+        ../../Tests/LibWasm/test-wasm.cpp
+        ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
+    target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto)
+    add_test(
+        NAME WasmParser
+        COMMAND test-wasm --show-progress=false ${CMAKE_CURRENT_BINARY_DIR}/Userland/Libraries/LibWasm/Tests
+    )
+    set_tests_properties(WasmParser PROPERTIES
+        SKIP_RETURN_CODE 1
+        ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT}
+    )
+endif()
+
+# FIXME: When we are using CMake >= 3.21, the library installations can be replaced with RUNTIME_DEPENDENCIES.
+#        https://cmake.org/cmake/help/latest/command/install.html
+include(get_linked_lagom_libraries.cmake)
+get_linked_lagom_libraries(js js_libraries)
+
+install(TARGETS js ${js_libraries} COMPONENT js)
+
+set(CPACK_GENERATOR "TGZ")
+set(CPACK_STRIP_FILES TRUE)
+set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
+set(CPACK_COMPONENTS_ALL js)
+if (APPLE)
+    if("arm64" IN_LIST CMAKE_OSX_ARCHITECTURES AND "x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES)
+        set(CPACK_SYSTEM_NAME "macOS-universal2")
+    else()
+        set(CPACK_SYSTEM_NAME "macOS-${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+else()
+    set(CPACK_SYSTEM_NAME "${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
+set(CPACK_ARCHIVE_JS_FILE_NAME "serenity-js-${CPACK_SYSTEM_NAME}")
+set(CPACK_PACKAGE_FILE_NAME "serenity-js-${CPACK_SYSTEM_NAME}")
+include(CPack)
