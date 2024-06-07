@@ -50,7 +50,7 @@ jobs:
           cmake -GNinja \
             -B ${{ github.workspace }}/Build/lagom-tools \
             -S ${{ github.workspace }}/Meta/Lagom \
-            -DBUILD_LAGOM=OFF \
+            -DLAGOM_TOOLS_ONLY=ON
             -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches \
             -DCMAKE_C_COMPILER=gcc-13 \
             -DCMAKE_CXX_COMPILER=g++-13 \
@@ -66,7 +66,6 @@ jobs:
             -B ${{ github.workspace }}/Build/wasm \
             -S ${{ github.workspace }}/Meta/Lagom \
             -DLagomTools_DIR=${{ github.workspace }}/Build/lagom-tools/share/LagomTools \
-            -DBUILD_LAGOM=ON \
             -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches \
             -DBUILD_SHARED_LIBS=OFF
         env:

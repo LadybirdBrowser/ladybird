@@ -11,10 +11,9 @@ ctest --preset default
 ```
 
 If you want to avoid building and running LibWeb tests, you can use a Lagom-only build.
-For a Lagom-only build, pass the Lagom source directory to CMake. The `BUILD_LAGOM` CMake option is required.
 
 ```sh
-cmake -GNinja -S Meta/Lagom -B Build/lagom -DBUILD_LAGOM=ON
+cmake -GNinja -S Meta/Lagom -B Build/lagom
 ```
 
 The tests can be run via ninja after doing a build. Note that `test-js` requires the `LADYBIRD_SOURCE_DIR` environment variable to be set
@@ -63,7 +62,7 @@ The Sanitizer test preset already sets these environment variables.
 ```sh
 export ASAN_OPTIONS='strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1'
 export UBSAN_OPTIONS='print_stacktrace=1:print_summary=1:halt_on_error=1'
-cmake -GNinja -S Meta/Lagom -B Build/lagom -DBUILD_LAGOM=ON -DENABLE_ADDRESS_SANITIZER=ON -DENABLE_UNDEFINED_SANITIZER=ON
+cmake -GNinja -S Meta/Lagom -B Build/lagom -DENABLE_ADDRESS_SANITIZER=ON -DENABLE_UNDEFINED_SANITIZER=ON
 cd Build/lagom
 ninja
 CTEST_OUTPUT_ON_FAILURE=1 LADYBIRD_SOURCE_DIR=${PWD}/../.. ninja test

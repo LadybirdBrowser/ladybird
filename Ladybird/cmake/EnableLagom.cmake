@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-set(BUILD_LAGOM ON CACHE INTERNAL "Build all Lagom targets")
-
 set(LAGOM_SOURCE_DIR "${LADYBIRD_SOURCE_DIR}/Meta/Lagom")
 set(LAGOM_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/Lagom")
 
