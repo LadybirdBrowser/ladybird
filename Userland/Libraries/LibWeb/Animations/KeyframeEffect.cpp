@@ -142,7 +142,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
     // 4. Make up a new list animation properties that consists of all of the properties that are in both input
     //    properties and animatable properties, or which are in input properties and conform to the
     //    <custom-property-name> production.
-    auto input_properties = TRY(keyframe_object.internal_own_property_keys());
+    auto input_properties = TRY(keyframe_object.enumerable_own_property_names(JS::Object::PropertyKind::Key));
 
     Vector<String> animation_properties;
     Optional<JS::Value> all_value;
