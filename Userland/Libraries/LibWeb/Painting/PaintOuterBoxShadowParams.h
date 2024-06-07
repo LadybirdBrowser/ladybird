@@ -12,10 +12,8 @@
 namespace Web::Painting {
 
 struct PaintOuterBoxShadowParams {
-    RecordingPainter& painter;
-    CSSPixelRect content_rect;
-    BorderRadiiData border_radii;
-    ShadowData box_shadow_data;
+    Gfx::Color color;
+    ShadowPlacement placement;
     CornerRadii corner_radii;
     DevicePixels offset_x;
     DevicePixels offset_y;
