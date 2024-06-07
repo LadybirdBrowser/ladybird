@@ -1,0 +1,18 @@
+<script id="testScript"></script>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const script = document.getElementById('testScript');
+
+        println(`referrerPolicy = '${script.referrerPolicy}'`);
+        println('');
+
+        script.referrerPolicy = 'no-referrer';
+
+        println(`referrerPolicy = '${script.referrerPolicy}'`);
+        println('');
+
+        script.referrerPolicy = 'invalid-value';
+        println(`referrerPolicy = '${script.referrerPolicy}'`);
+    });
+</script>

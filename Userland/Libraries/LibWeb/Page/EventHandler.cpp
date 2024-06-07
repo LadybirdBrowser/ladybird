@@ -166,7 +166,7 @@ bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPo
     if (!paint_root())
         return false;
 
-    if (modifiers & KeyModifier::Mod_Shift)
+    if (modifiers & UIEvents::KeyModifier::Mod_Shift)
         swap(wheel_delta_x, wheel_delta_y);
 
     bool handled_event = false;
@@ -280,7 +280,7 @@ bool EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint
                     run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::click, screen_position, page_offset, client_offset, offset, {}, 1, button, modifiers).release_value_but_fixme_should_propagate_errors());
                 } else if (button == UIEvents::MouseButton::Secondary) {
                     // Allow the user to bypass custom context menus by holding shift, like Firefox.
-                    if ((modifiers & Mod_Shift) == 0)
+                    if ((modifiers & UIEvents::Mod_Shift) == 0)
                         run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::contextmenu, screen_position, page_offset, client_offset, offset, {}, 1, button, modifiers).release_value_but_fixme_should_propagate_errors());
                     else
                         run_activation_behavior = true;
@@ -434,7 +434,7 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
                     m_navigable->set_cursor_position(DOM::Position::create(realm, *paintable->dom_node(), result->index_in_node));
                     if (auto selection = document->get_selection()) {
                         auto anchor_node = selection->anchor_node();
-                        if (anchor_node && modifiers & KeyModifier::Mod_Shift) {
+                        if (anchor_node && modifiers & UIEvents::KeyModifier::Mod_Shift) {
                             (void)selection->set_base_and_extent(*anchor_node, selection->anchor_offset(), *paintable->dom_node(), result->index_in_node);
                         } else {
                             (void)selection->set_base_and_extent(*paintable->dom_node(), result->index_in_node, *paintable->dom_node(), result->index_in_node);
@@ -724,14 +724,14 @@ bool EventHandler::focus_previous_element()
 
 constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
 {
-    if (modifiers & (KeyModifier::Mod_Ctrl | KeyModifier::Mod_Alt | KeyModifier::Mod_Super))
+    if (modifiers & (UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_Super))
         return true;
 
     // FIXME: There are probably also keys with non-zero code points that should be filtered out.
     return code_point == 0 || code_point == 27;
 }
 
-bool EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Navigable& navigable, KeyCode key, u32 modifiers, u32 code_point)
+bool EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Navigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point)
 {
     JS::GCPtr<DOM::Document> document = navigable.active_document();
     if (!document)
@@ -759,7 +759,7 @@ bool EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Naviga
     return document->root().dispatch_event(event);
 }
 
-bool EventHandler::handle_keydown(KeyCode key, u32 modifiers, u32 code_point)
+bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point)
 {
     if (!m_navigable->active_document())
         return false;
@@ -770,65 +770,8 @@ bool EventHandler::handle_keydown(KeyCode key, u32 modifiers, u32 code_point)
     if (!document->layout_node())
         return false;
 
-    auto arrow_key_scroll_distance = 100;
-    auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
-
-    if (key == KeyCode::Key_Up) {
-        if (modifiers & KeyModifier::Mod_Ctrl)
-            document->window()->scroll_by(0, INT64_MIN);
-        else
-            document->window()->scroll_by(0, -arrow_key_scroll_distance);
-        return true;
-    }
-
-    if (key == KeyCode::Key_Down) {
-        if (modifiers & KeyModifier::Mod_Ctrl)
-            document->window()->scroll_by(0, INT64_MAX);
-        else
-            document->window()->scroll_by(0, arrow_key_scroll_distance);
-        return true;
-    }
-
-    if (key == KeyCode::Key_Left) {
-        document->window()->scroll_by(-arrow_key_scroll_distance, 0);
-        return true;
-    }
-
-    if (key == KeyCode::Key_Right) {
-        document->window()->scroll_by(arrow_key_scroll_distance, 0);
-        return true;
-    }
-
-    if (key == KeyCode::Key_Home) {
-        document->window()->scroll_by(0, INT64_MIN);
-        return true;
-    }
-
-    if (key == KeyCode::Key_End) {
-        document->window()->scroll_by(0, INT64_MAX);
-        return true;
-    }
-
-    if (key == KeyCode::Key_PageUp) {
-        document->window()->scroll_by(0, -page_scroll_distance);
-        return true;
-    }
-
-    if (key == KeyCode::Key_PageDown) {
-        document->window()->scroll_by(0, page_scroll_distance);
-        return true;
-    }
-
-    if (key == KeyCode::Key_Space) {
-        if (modifiers & KeyModifier::Mod_Shift)
-            document->window()->scroll_by(0, -page_scroll_distance);
-        else
-            document->window()->scroll_by(0, page_scroll_distance);
-        return true;
-    }
-
-    if (key == KeyCode::Key_Tab) {
-        if (modifiers & KeyModifier::Mod_Shift)
+    if (key == UIEvents::KeyCode::Key_Tab) {
+        if (modifiers & UIEvents::KeyModifier::Mod_Shift)
             return focus_previous_element();
         return focus_next_element();
     }
@@ -843,7 +786,7 @@ bool EventHandler::handle_keydown(KeyCode key, u32 modifiers, u32 code_point)
             // FIXME: This doesn't work for some reason?
             m_navigable->set_cursor_position(DOM::Position::create(realm, *range->start_container(), range->start_offset()));
 
-            if (key == KeyCode::Key_Backspace || key == KeyCode::Key_Delete) {
+            if (key == UIEvents::KeyCode::Key_Backspace || key == UIEvents::KeyCode::Key_Delete) {
                 m_edit_event_handler->handle_delete(*range);
                 return true;
             }
@@ -867,7 +810,7 @@ bool EventHandler::handle_keydown(KeyCode key, u32 modifiers, u32 code_point)
         return false;
 
     if (m_navigable->cursor_position() && m_navigable->cursor_position()->node()->is_editable()) {
-        if (key == KeyCode::Key_Backspace) {
+        if (key == UIEvents::KeyCode::Key_Backspace) {
             if (!m_navigable->decrement_cursor_position_offset()) {
                 // FIXME: Move to the previous node and delete the last character there.
                 return true;
@@ -876,7 +819,7 @@ bool EventHandler::handle_keydown(KeyCode key, u32 modifiers, u32 code_point)
             m_edit_event_handler->handle_delete_character_after(*m_navigable->cursor_position());
             return true;
         }
-        if (key == KeyCode::Key_Delete) {
+        if (key == UIEvents::KeyCode::Key_Delete) {
             if (m_navigable->cursor_position()->offset_is_at_end_of_node()) {
                 // FIXME: Move to the next node and delete the first character there.
                 return true;
@@ -884,25 +827,25 @@ bool EventHandler::handle_keydown(KeyCode key, u32 modifiers, u32 code_point)
             m_edit_event_handler->handle_delete_character_after(*m_navigable->cursor_position());
             return true;
         }
-        if (key == KeyCode::Key_Right) {
+        if (key == UIEvents::KeyCode::Key_Right) {
             if (!m_navigable->increment_cursor_position_offset()) {
                 // FIXME: Move to the next node.
             }
             return true;
         }
-        if (key == KeyCode::Key_Left) {
+        if (key == UIEvents::KeyCode::Key_Left) {
             if (!m_navigable->decrement_cursor_position_offset()) {
                 // FIXME: Move to the previous node.
             }
             return true;
         }
-        if (key == KeyCode::Key_Home) {
+        if (key == UIEvents::KeyCode::Key_Home) {
             auto& cursor_position_node = *m_navigable->cursor_position()->node();
             if (cursor_position_node.is_text())
                 m_navigable->set_cursor_position(DOM::Position::create(realm, cursor_position_node, 0));
             return true;
         }
-        if (key == KeyCode::Key_End) {
+        if (key == UIEvents::KeyCode::Key_End) {
             auto& cursor_position_node = *m_navigable->cursor_position()->node();
             if (cursor_position_node.is_text()) {
                 auto& text_node = static_cast<DOM::Text&>(cursor_position_node);
@@ -910,7 +853,7 @@ bool EventHandler::handle_keydown(KeyCode key, u32 modifiers, u32 code_point)
             }
             return true;
         }
-        if (key == KeyCode::Key_Return) {
+        if (key == UIEvents::KeyCode::Key_Return) {
             HTML::HTMLInputElement* input_element = nullptr;
             if (auto node = m_navigable->cursor_position()->node()) {
                 if (node->is_text()) {
@@ -939,11 +882,68 @@ bool EventHandler::handle_keydown(KeyCode key, u32 modifiers, u32 code_point)
         }
     }
 
+    auto arrow_key_scroll_distance = 100;
+    auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
+
+    if (key == UIEvents::KeyCode::Key_Up) {
+        if (modifiers & UIEvents::KeyModifier::Mod_Ctrl)
+            document->window()->scroll_by(0, INT64_MIN);
+        else
+            document->window()->scroll_by(0, -arrow_key_scroll_distance);
+        return true;
+    }
+
+    if (key == UIEvents::KeyCode::Key_Down) {
+        if (modifiers & UIEvents::KeyModifier::Mod_Ctrl)
+            document->window()->scroll_by(0, INT64_MAX);
+        else
+            document->window()->scroll_by(0, arrow_key_scroll_distance);
+        return true;
+    }
+
+    if (key == UIEvents::KeyCode::Key_Left) {
+        document->window()->scroll_by(-arrow_key_scroll_distance, 0);
+        return true;
+    }
+
+    if (key == UIEvents::KeyCode::Key_Right) {
+        document->window()->scroll_by(arrow_key_scroll_distance, 0);
+        return true;
+    }
+
+    if (key == UIEvents::KeyCode::Key_Home) {
+        document->window()->scroll_by(0, INT64_MIN);
+        return true;
+    }
+
+    if (key == UIEvents::KeyCode::Key_End) {
+        document->window()->scroll_by(0, INT64_MAX);
+        return true;
+    }
+
+    if (key == UIEvents::KeyCode::Key_PageUp) {
+        document->window()->scroll_by(0, -page_scroll_distance);
+        return true;
+    }
+
+    if (key == UIEvents::KeyCode::Key_PageDown) {
+        document->window()->scroll_by(0, page_scroll_distance);
+        return true;
+    }
+
+    if (key == UIEvents::KeyCode::Key_Space) {
+        if (modifiers & UIEvents::KeyModifier::Mod_Shift)
+            document->window()->scroll_by(0, -page_scroll_distance);
+        else
+            document->window()->scroll_by(0, page_scroll_distance);
+        return true;
+    }
+    
     // FIXME: Work out and implement the difference between this and keydown.
     return !fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point);
 }
 
-bool EventHandler::handle_keyup(KeyCode key, u32 modifiers, u32 code_point)
+bool EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32 code_point)
 {
     return !fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point);
 }

@@ -37,8 +37,6 @@ StringView language_to_string(Language language)
         return "Plain Text"sv;
     case Language::Shell:
         return "Shell"sv;
-    case Language::SQL:
-        return "SQL"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -70,8 +68,6 @@ StringView common_language_extension(Language language)
         return "txt"sv;
     case Language::Shell:
         return "sh"sv;
-    case Language::SQL:
-        return "sql"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -100,8 +96,6 @@ Optional<Language> language_from_name(StringView name)
         return Language::Markdown;
     if (name.equals_ignoring_ascii_case("PlainText"sv))
         return Language::PlainText;
-    if (name.equals_ignoring_ascii_case("SQL"sv))
-        return Language::SQL;
     if (name.equals_ignoring_ascii_case("Shell"sv))
         return Language::Shell;
 
@@ -135,8 +129,6 @@ Optional<Language> language_from_filename(LexicalPath const& file)
         return Language::Markdown;
     if (extension.is_one_of("sh"sv, "bash"sv))
         return Language::Shell;
-    if (extension == "sql"sv)
-        return Language::SQL;
 
     // Check "txt" after the CMake related files that use "txt" as their extension.
     if (extension == "txt"sv)

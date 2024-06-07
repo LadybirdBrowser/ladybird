@@ -9,8 +9,8 @@
 *.cflags
 *.cxxflags
 *.autosave
-build*
-Build*
+build*/
+Build*/
 Toolchain/Tarballs
 Toolchain/Build
 Toolchain/Local

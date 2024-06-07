@@ -327,8 +327,6 @@ write_cmake_config("ak_debug_gen") {
     "SOLITAIRE_DEBUG=",
     "SPAM_DEBUG=",
     "SPICE_AGENT_DEBUG=",
-    "SQLSERVER_DEBUG=",
-    "SQL_DEBUG=",
     "SYNTAX_HIGHLIGHTING_DEBUG=",
     "SYSCALL_1_DEBUG=",
     "SYSTEMSERVER_DEBUG=",

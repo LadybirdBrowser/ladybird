@@ -1,3 +1,4 @@
+#import <Fetch/Request.idl>
 #import <HTML/HTMLElement.idl>
 #import <HTML/HTMLHyperlinkElementUtils.idl>
 
@@ -15,7 +16,7 @@ interface HTMLAreaElement : HTMLElement {
     [CEReactions, Reflect] attribute USVString ping;
     [CEReactions, Reflect] attribute DOMString rel;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
-    [FIXME, CEReactions] attribute DOMString referrerPolicy;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
 
     // Obsolete
     [Reflect=nohref] attribute boolean noHref;

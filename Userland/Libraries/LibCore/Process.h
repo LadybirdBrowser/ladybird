@@ -129,15 +129,6 @@ public:
         return ProcessAndIPCClient<ClientType> { move(process), move(client) };
     }
 
-    template<typename ClientType, typename... ClientArguments>
-    static ErrorOr<ProcessAndIPCClient<ClientType>> spawn_singleton(ProcessSpawnOptions const& options, ClientArguments&&... client_arguments)
-    {
-        auto [process, socket] = TRY(spawn_singleton_and_connect_to_process(options));
-        auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(socket), forward<ClientArguments>(client_arguments)... }));
-
-        return ProcessAndIPCClient<ClientType> { move(process), move(client) };
-    }
-
     struct ProcessPaths {
         ByteString socket_path;
         ByteString pid_path;
@@ -154,7 +145,6 @@ private:
         NonnullOwnPtr<Core::LocalSocket> m_ipc_socket;
     };
     static ErrorOr<ProcessAndIPCSocket> spawn_and_connect_to_process(ProcessSpawnOptions const& options);
-    static ErrorOr<ProcessAndIPCSocket> spawn_singleton_and_connect_to_process(ProcessSpawnOptions const& options);
 
     Process m_process;
 };

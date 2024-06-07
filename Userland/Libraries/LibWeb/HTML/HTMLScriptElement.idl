@@ -1,3 +1,4 @@
+#import <Fetch/Request.idl>
 #import <HTML/HTMLElement.idl>
 #import <HTML/Scripting/Fetching.idl>
 
@@ -15,7 +16,7 @@ interface HTMLScriptElement : HTMLElement {
     [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
     [CEReactions] attribute DOMString text;
     [CEReactions, Reflect] attribute DOMString integrity;
-    [CEReactions, Reflect=referrerpolicy] attribute DOMString referrerPolicy;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
     [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
 

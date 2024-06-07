@@ -341,10 +341,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     debug_menu->addAction(m_show_line_box_borders_action);
     QObject::connect(m_show_line_box_borders_action, &QAction::triggered, this, [this] {
         bool state = m_show_line_box_borders_action->isChecked();
-        for (auto index = 0; index < m_tabs_container->count(); ++index) {
-            auto tab = verify_cast<Tab>(m_tabs_container->widget(index));
-            tab->set_line_box_borders(state);
-        }
+        for_each_tab([state](auto& tab) {
+            tab.set_line_box_borders(state);
+        });
     });
 
     debug_menu->addSeparator();
@@ -387,12 +386,15 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
         user_agent_group->addAction(action);
         spoof_user_agent_menu->addAction(action);
         QObject::connect(action, &QAction::triggered, this, [this, user_agent] {
-            debug_request("spoof-user-agent", user_agent);
-            debug_request("clear-cache"); // clear the cache to ensure requests are re-done with the new user agent
+            for_each_tab([user_agent](auto& tab) {
+                tab.set_user_agent_string(user_agent);
+            });
+            set_user_agent_string(user_agent);
         });
         return action;
     };
 
+    set_user_agent_string(Web::default_user_agent);
     auto* disable_spoofing = add_user_agent("Disabled"sv, Web::default_user_agent);
     disable_spoofing->setChecked(true);
     for (auto const& user_agent : WebView::user_agents)
@@ -405,8 +407,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     QObject::connect(custom_user_agent_action, &QAction::triggered, this, [this, disable_spoofing] {
         auto user_agent = QInputDialog::getText(this, "Custom User Agent", "Enter User Agent:");
         if (!user_agent.isEmpty()) {
-            debug_request("spoof-user-agent", ak_byte_string_from_qstring(user_agent));
-            debug_request("clear-cache"); // clear the cache to ensure requests are re-done with the new user agent
+            auto user_agent_byte_string = ak_byte_string_from_qstring(user_agent);
+            for_each_tab([&](auto& tab) {
+                tab.set_user_agent_string(user_agent_byte_string);
+            });
+            set_user_agent_string(user_agent_byte_string);
         } else {
             disable_spoofing->activate(QAction::Trigger);
         }
@@ -414,30 +419,36 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
 
     debug_menu->addSeparator();
 
-    auto* enable_scripting_action = new QAction("Enable Scripting", this);
-    enable_scripting_action->setCheckable(true);
-    enable_scripting_action->setChecked(true);
-    debug_menu->addAction(enable_scripting_action);
-    QObject::connect(enable_scripting_action, &QAction::triggered, this, [this, enable_scripting_action] {
-        bool state = enable_scripting_action->isChecked();
-        debug_request("scripting", state ? "on" : "off");
+    m_enable_scripting_action = new QAction("Enable Scripting", this);
+    m_enable_scripting_action->setCheckable(true);
+    m_enable_scripting_action->setChecked(true);
+    debug_menu->addAction(m_enable_scripting_action);
+    QObject::connect(m_enable_scripting_action, &QAction::triggered, this, [this] {
+        bool state = m_enable_scripting_action->isChecked();
+        for_each_tab([state](auto& tab) {
+            tab.set_scripting(state);
+        });
     });
 
-    auto* block_pop_ups_action = new QAction("Block Pop-ups", this);
-    block_pop_ups_action->setCheckable(true);
-    block_pop_ups_action->setChecked(true);
-    debug_menu->addAction(block_pop_ups_action);
-    QObject::connect(block_pop_ups_action, &QAction::triggered, this, [this, block_pop_ups_action] {
-        bool state = block_pop_ups_action->isChecked();
-        debug_request("block-pop-ups", state ? "on" : "off");
+    m_block_pop_ups_action = new QAction("Block Pop-ups", this);
+    m_block_pop_ups_action->setCheckable(true);
+    m_block_pop_ups_action->setChecked(true);
+    debug_menu->addAction(m_block_pop_ups_action);
+    QObject::connect(m_block_pop_ups_action, &QAction::triggered, this, [this] {
+        bool state = m_block_pop_ups_action->isChecked();
+        for_each_tab([state](auto& tab) {
+            tab.set_block_popups(state);
+        });
     });
 
-    auto* enable_same_origin_policy_action = new QAction("Enable Same-Origin Policy", this);
-    enable_same_origin_policy_action->setCheckable(true);
-    debug_menu->addAction(enable_same_origin_policy_action);
-    QObject::connect(enable_same_origin_policy_action, &QAction::triggered, this, [this, enable_same_origin_policy_action] {
-        bool state = enable_same_origin_policy_action->isChecked();
-        debug_request("same-origin-policy", state ? "on" : "off");
+    m_enable_same_origin_policy_action = new QAction("Enable Same-Origin Policy", this);
+    m_enable_same_origin_policy_action->setCheckable(true);
+    debug_menu->addAction(m_enable_same_origin_policy_action);
+    QObject::connect(m_enable_same_origin_policy_action, &QAction::triggered, this, [this] {
+        bool state = m_enable_same_origin_policy_action->isChecked();
+        for_each_tab([state](auto& tab) {
+            tab.set_same_origin_policy(state);
+        });
     });
 
     auto* help_menu = m_hamburger_menu->addMenu("&Help");
@@ -642,7 +653,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->view().on_link_click = [this](auto url, auto target, unsigned modifiers) {
         // TODO: maybe activate tabs according to some configuration, this is just normal current browser behavior
-        if (modifiers == Mod_Ctrl) {
+        if (modifiers == Web::UIEvents::Mod_Ctrl) {
             m_current_tab->view().on_tab_open_request(url, Web::HTML::ActivateTab::No);
         } else if (target == "_blank") {
             m_current_tab->view().on_tab_open_request(url, Web::HTML::ActivateTab::Yes);
@@ -652,7 +663,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
     };
 
     tab->view().on_link_middle_click = [this](auto url, auto target, unsigned modifiers) {
-        m_current_tab->view().on_link_click(url, target, Mod_Ctrl);
+        m_current_tab->view().on_link_click(url, target, Web::UIEvents::Mod_Ctrl);
         (void)modifiers;
     };
 
@@ -680,7 +691,12 @@ void BrowserWindow::initialize_tab(Tab* tab)
     create_close_button_for_tab(tab);
 
     tab->focus_location_editor();
+
     tab->set_line_box_borders(m_show_line_box_borders_action->isChecked());
+    tab->set_scripting(m_enable_scripting_action->isChecked());
+    tab->set_block_popups(m_block_pop_ups_action->isChecked());
+    tab->set_same_origin_policy(m_enable_same_origin_policy_action->isChecked());
+    tab->set_user_agent_string(user_agent_string());
 }
 
 void BrowserWindow::activate_tab(int index)

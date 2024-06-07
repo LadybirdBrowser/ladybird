@@ -10,6 +10,8 @@
 #include <AK/Platform.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <AK/StringUtils.h>
+#include <LibCore/Environment.h>
 #include <LibCore/SessionManagement.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
@@ -197,7 +199,7 @@ ErrorOr<Vector<String>> StandardPaths::font_directories()
     }
     return paths_vector;
 #else
-    return Vector { {
+    auto paths = Vector { {
 #    if defined(AK_OS_SERENITY)
         "/res/fonts"_string,
 #    elif defined(AK_OS_MACOS)
@@ -205,11 +207,19 @@ ErrorOr<Vector<String>> StandardPaths::font_directories()
         "/Library/Fonts"_string,
         TRY(String::formatted("{}/Library/Fonts"sv, home_directory())),
 #    else
-        "/usr/share/fonts"_string,
-        "/usr/local/share/fonts"_string,
-        TRY(String::formatted("{}/.local/share/fonts"sv, home_directory())),
+        TRY(String::formatted("{}/fonts"sv, data_directory())),
+        TRY(String::formatted("{}/X11/fonts"sv, data_directory())),
 #    endif
     } };
+#    if !(defined(AK_OS_SERENITY) || defined(AK_OS_MACOS))
+    auto data_directories = Core::Environment::get("XDG_DATA_DIRS"sv).value_or("/usr/local/share:/usr/share"sv);
+    TRY(data_directories.for_each_split_view(':', SplitBehavior::Nothing, [&paths](auto data_directory) -> ErrorOr<void> {
+        paths.append(TRY(String::formatted("{}/fonts"sv, data_directory)));
+        paths.append(TRY(String::formatted("{}/X11/fonts"sv, data_directory)));
+        return {};
+    }));
+#    endif
+    return paths;
 #endif
 }
 

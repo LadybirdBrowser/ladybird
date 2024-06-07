@@ -16,7 +16,8 @@
         "SERENITY_CACHE_DIR": "${sourceDir}/Build/caches"
       },
       "environment": {
-        "LADYBIRD_SOURCE_DIR": "${sourceDir}"
+        "LADYBIRD_SOURCE_DIR": "${sourceDir}",
+        "VCPKG_ROOT": "${sourceDir}/Toolchain/Tarballs/vcpkg"
       },
       "vendor": {
         "jetbrains.com/clion": {
@@ -37,6 +38,26 @@
       }
     }
   ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "displayName": "Build",
+      "description": "Build the project",
+      "targets": [
+        "all"
+      ]
+    },
+    {
+      "name": "Sanitizer",
+      "configurePreset": "Sanitizer",
+      "displayName": "Build with Sanitizers",
+      "description": "Build the project with Sanitizers",
+      "targets": [
+        "all"
+      ]
+    }
+  ],
   "testPresets": [
     {
       "name": "default",
@@ -47,12 +68,19 @@
       "execution": {
         "noTestsAction": "error",
         "stopOnFailure": true
+      },
+      "environment": {
+        "LADYBIRD_SOURCE_DIR": "${sourceDir}"
       }
     },
     {
       "name": "Sanitizer",
       "inherits": "default",
-      "configurePreset": "Sanitizer"
+      "configurePreset": "Sanitizer",
+      "environment": {
+        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1"
+      }
     }
   ]
 }

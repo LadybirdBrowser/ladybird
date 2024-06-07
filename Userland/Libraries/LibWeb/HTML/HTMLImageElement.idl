@@ -1,3 +1,4 @@
+#import <Fetch/Request.idl>
 #import <HTML/HTMLElement.idl>
 #import <HTML/Scripting/Fetching.idl>
 
@@ -20,12 +21,12 @@ interface HTMLImageElement : HTMLElement {
     readonly attribute unsigned long naturalHeight;
     readonly attribute boolean complete;
     readonly attribute USVString currentSrc;
-    [FIXME, CEReactions] attribute DOMString referrerPolicy;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
     [FIXME, CEReactions] attribute DOMString decoding;
     [CEReactions, Enumerated=LazyLoadingAttribute, Reflect] attribute DOMString loading;
     [CEReactions, Enumerated=FetchPriorityAttribute, Reflect=fetchpriority] attribute DOMString fetchPriority;
 
-    [FIXME] Promise<undefined> decode();
+    Promise<undefined> decode();
 
     // Obsolete
     [CEReactions, Reflect] attribute DOMString name;

@@ -83,7 +83,9 @@ cmd_with_target() {
     BUILD_DIR="$LADYBIRD_SOURCE_DIR/Build/ladybird"
     CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/lagom-install")
     CMAKE_ARGS+=("-DSERENITY_CACHE_DIR=${LADYBIRD_SOURCE_DIR}/Build/caches")
-    export PATH="$LADYBIRD_SOURCE_DIR/Toolchain/Local/cmake/bin":$PATH
+
+    export PATH="$LADYBIRD_SOURCE_DIR/Toolchain/Local/cmake/bin:$LADYBIRD_SOURCE_DIR/Toolchain/Local/vcpkg/bin:$PATH"
+    export VCPKG_ROOT="$LADYBIRD_SOURCE_DIR/Toolchain/Tarballs/vcpkg"
 }
 
 ensure_target() {
@@ -124,9 +126,19 @@ build_cmake() {
     ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildCMake.sh )
 }
 
+build_vcpkg() {
+    echo "Building vcpkg"
+    ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildVcpkg.sh )
+}
+
 ensure_toolchain() {
     if [ "$(cmake -P "$LADYBIRD_SOURCE_DIR"/Meta/CMake/cmake-version.cmake)" -ne 1 ]; then
         build_cmake
+    fi
+
+    # FIXME: Add a version check if needed.
+    if [ ! -x "${LADYBIRD_SOURCE_DIR}/Toolchain/Local/vcpkg/bin/vcpkg" ]; then
+        build_vcpkg
     fi
 }
 
@@ -179,6 +191,7 @@ build_and_run_lagom_target() {
 if [[ "$CMD" =~ ^(build|install|run|gdb|test|rebuild|recreate|addr2line)$ ]]; then
     cmd_with_target
     [[ "$CMD" != "recreate" && "$CMD" != "rebuild" ]] || delete_target
+    ensure_toolchain
     ensure_target
     case "$CMD" in
         build)

@@ -6,12 +6,18 @@ The WSL Remote extension allows you to use VS Code in Windows while using the no
 
 The recommended extensions for VS Code include:
 
+- [CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools)
 - [clangd](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd)
 - [GitLens](https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens)
 
+## Configuration
+
+The CMake Tools plugin should automatically detect the `CMakePresets.json` at the root of the repository.
+Selecting and activating the `default` preset should be enough to get started.
+
 ## Code comprehension
 
-Clangd has the best support for cross-compiling workflows, especially if configured as noted below. The Microsoft C/C++ tools can work, but require a lot more configuration and may not understand the sysroot in use.
+Clangd has the best support for modern compilers, especially if configured as noted below. The Microsoft C/C++ tools can work, but may require more configuration.
 
 ### clangd
 
@@ -126,7 +132,7 @@ These belong in the `.vscode/settings.json` of Serenity.
         "Toolchain/Build/**": true,
         "Build/**": true,
     },
-    // Force clang-format to respect Serenity's .clang-format style file. This is not necessary if you're not using the Microsoft C++ extension.
+    // Force clang-format to respect Ladybird's .clang-format style file. This is not necessary if you're not using the Microsoft C++ extension.
     "C_Cpp.clang_format_style": "file",
     // Tab settings
     "editor.tabSize": 4,

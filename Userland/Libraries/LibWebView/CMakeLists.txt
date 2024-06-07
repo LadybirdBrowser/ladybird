@@ -46,8 +46,12 @@ set(GENERATED_SOURCES
 )
 
 serenity_lib(LibWebView webview)
-target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibIPC LibProtocol LibJS LibWeb LibSQL LibUnicode LibURL)
+target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibIPC LibProtocol LibJS LibWeb LibUnicode LibURL)
 target_compile_definitions(LibWebView PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENABLE_PUBLIC_SUFFIX_DOWNLOAD}>)
+
+find_package(SQLite3 REQUIRED)
+target_include_directories(LibWebView PRIVATE ${SQLite3_INCLUDE_DIRS})
+target_link_libraries(LibWebView PRIVATE ${SQLite3_LIBRARIES})
 
 foreach(header ${GENERATED_SOURCES})
     get_filename_component(extension ${header} EXT)

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <Kernel/API/InodeWatcherEvent.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/FileWatcher.h>
 #include <LibCore/Timer.h>

@@ -6,7 +6,6 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <Kernel/API/KeyCode.h>
 #include <LibJS/Parser.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
@@ -33,6 +32,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
+#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
@@ -773,7 +773,7 @@ bool EventTarget::dispatch_event(Event& event)
 
         // keydown, provided the key is neither the Esc key nor a shortcut key reserved by the user agent.
         if (event.type() == UIEvents::EventNames::keydown)
-            return static_cast<UIEvents::KeyboardEvent*>(&event)->key_code() != KeyCode::Key_Escape;
+            return static_cast<UIEvents::KeyboardEvent*>(&event)->key_code() != UIEvents::KeyCode::Key_Escape;
 
         // mousedown.
         if (event.type() == UIEvents::EventNames::mousedown)

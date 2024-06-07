@@ -5,6 +5,7 @@ on: [push]
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   SERENITY_CCACHE_DIR: ${{ github.workspace }}/.ccache
+  VCPKG_ROOT:  ${{ github.workspace }}/Toolchain/Tarballs/vcpkg
 
 jobs:
   build-and-package:

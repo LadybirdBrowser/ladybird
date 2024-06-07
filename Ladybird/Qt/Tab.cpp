@@ -956,9 +956,31 @@ void Tab::close_sub_widgets()
     close_widget_window(m_inspector_widget);
 }
 
+void Tab::set_block_popups(bool enabled)
+{
+    debug_request("block-pop-ups", enabled ? "on" : "off");
+}
+
 void Tab::set_line_box_borders(bool enabled)
 {
     debug_request("set-line-box-borders", enabled ? "on" : "off");
+}
+
+void Tab::set_same_origin_policy(bool enabled)
+{
+    debug_request("same-origin-policy", enabled ? "on" : "off");
+}
+
+void Tab::set_scripting(bool enabled)
+{
+    debug_request("scripting", enabled ? "on" : "off");
+}
+
+void Tab::set_user_agent_string(ByteString const& user_agent)
+{
+    debug_request("spoof-user-agent", user_agent);
+    // Clear the cache to ensure requests are re-done with the new user agent.
+    debug_request("clear-cache");
 }
 
 }

@@ -15,14 +15,14 @@ enum class RegisterWithProcessManager {
     Yes,
 };
 
-template<typename ClientType, typename SpawnFunction>
-static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process_impl(
+template<typename ClientType, typename... ClientArguments>
+static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     StringView server_name,
     ReadonlySpan<ByteString> candidate_server_paths,
     Vector<ByteString> arguments,
     RegisterWithProcessManager register_with_process_manager,
     Ladybird::EnableCallgrindProfiling enable_callgrind_profiling,
-    SpawnFunction&& spawn_function)
+    ClientArguments&&... client_arguments)
 {
     if (enable_callgrind_profiling == Ladybird::EnableCallgrindProfiling::Yes) {
         arguments.prepend({
@@ -43,7 +43,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process_impl(
             options.executable = path;
         }
 
-        auto result = spawn_function(options);
+        auto result = Core::IPCProcess::spawn<ClientType>(move(options), forward<ClientArguments>(client_arguments)...);
 
         if (!result.is_error()) {
             auto process = result.release_value();
@@ -68,33 +68,6 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process_impl(
     }
 
     VERIFY_NOT_REACHED();
-}
-
-template<typename ClientType, typename... ClientArguments>
-static ErrorOr<NonnullRefPtr<ClientType>> launch_generic_server_process(
-    StringView server_name,
-    ReadonlySpan<ByteString> candidate_server_paths,
-    Vector<ByteString> arguments,
-    RegisterWithProcessManager register_with_process_manager,
-    Ladybird::EnableCallgrindProfiling enable_callgrind_profiling,
-    ClientArguments&&... client_arguments)
-{
-    return launch_server_process_impl<ClientType>(server_name, candidate_server_paths, move(arguments), register_with_process_manager, enable_callgrind_profiling, [&](auto options) {
-        return Core::IPCProcess::spawn<ClientType>(move(options), forward<ClientArguments>(client_arguments)...);
-    });
-}
-
-template<typename ClientType, typename... ClientArguments>
-static ErrorOr<NonnullRefPtr<ClientType>> launch_singleton_server_process(
-    StringView server_name,
-    ReadonlySpan<ByteString> candidate_server_paths,
-    Vector<ByteString> arguments,
-    RegisterWithProcessManager register_with_process_manager,
-    ClientArguments&&... client_arguments)
-{
-    return launch_server_process_impl<ClientType>(server_name, candidate_server_paths, move(arguments), register_with_process_manager, Ladybird::EnableCallgrindProfiling::No, [&](auto options) {
-        return Core::IPCProcess::spawn_singleton<ClientType>(move(options), forward<ClientArguments>(client_arguments)...);
-    });
 }
 
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
@@ -135,12 +108,12 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
         arguments.append(ByteString::number(request_server_socket->fd()));
     }
 
-    return launch_generic_server_process<WebView::WebContentClient>("WebContent"sv, candidate_web_content_paths, move(arguments), RegisterWithProcessManager::No, web_content_options.enable_callgrind_profiling, view);
+    return launch_server_process<WebView::WebContentClient>("WebContent"sv, candidate_web_content_paths, move(arguments), RegisterWithProcessManager::No, web_content_options.enable_callgrind_profiling, view);
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(ReadonlySpan<ByteString> candidate_image_decoder_paths)
 {
-    return launch_generic_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, {}, RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
+    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, {}, RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
 }
 
 ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, NonnullRefPtr<Protocol::RequestClient> request_client)
@@ -152,7 +125,7 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Rea
         ByteString::number(socket.fd()),
     };
 
-    return launch_generic_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
+    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
 }
 
 ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(ReadonlySpan<ByteString> candidate_request_server_paths, StringView serenity_resource_root, Vector<ByteString> const& certificates)
@@ -172,19 +145,7 @@ ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(Re
         arguments.append(server.value());
     }
 
-    return launch_generic_server_process<Protocol::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments), RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
-}
-
-ErrorOr<NonnullRefPtr<SQL::SQLClient>> launch_sql_server_process(ReadonlySpan<ByteString> candidate_sql_server_paths)
-{
-    Vector<ByteString> arguments;
-
-    if (auto server = mach_server_name(); server.has_value()) {
-        arguments.append("--mach-server-name"sv);
-        arguments.append(server.value());
-    }
-
-    return launch_singleton_server_process<SQL::SQLClient>("SQLServer"sv, candidate_sql_server_paths, arguments, RegisterWithProcessManager::Yes);
+    return launch_server_process<Protocol::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments), RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
 }
 
 ErrorOr<IPC::File> connect_new_request_server_client(Protocol::RequestClient& client)

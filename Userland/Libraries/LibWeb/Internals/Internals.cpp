@@ -68,12 +68,12 @@ void Internals::send_text(HTML::HTMLElement& target, String const& text)
     target.focus();
 
     for (auto code_point : text.code_points())
-        page.handle_keydown(code_point_to_key_code(code_point), 0, code_point);
+        page.handle_keydown(UIEvents::code_point_to_key_code(code_point), 0, code_point);
 }
 
 void Internals::commit_text()
 {
-    global_object().browsing_context()->page().handle_keydown(Key_Return, 0, 0);
+    global_object().browsing_context()->page().handle_keydown(UIEvents::Key_Return, 0, 0);
 }
 
 void Internals::click(double x, double y)

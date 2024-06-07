@@ -41,7 +41,7 @@ public:
     void forward();
     void reload();
 
-    void debug_request(ByteString const& request, ByteString const& argument);
+    void debug_request(ByteString const& request, ByteString const& argument = "");
 
     void open_file();
     void update_reset_zoom_button();
@@ -65,7 +65,11 @@ public:
 
     void update_hover_label();
 
+    void set_block_popups(bool);
     void set_line_box_borders(bool);
+    void set_same_origin_policy(bool);
+    void set_scripting(bool);
+    void set_user_agent_string(ByteString const&);
 
 public slots:
     void focus_location_editor();

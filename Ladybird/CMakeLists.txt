@@ -71,7 +71,7 @@ target_sources(ladybird PUBLIC FILE_SET ladybird TYPE HEADERS
     BASE_DIRS ${LADYBIRD_SOURCE_DIR}
     FILES ${LADYBIRD_HEADERS}
 )
-target_link_libraries(ladybird PRIVATE AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibSQL LibWeb LibWebView LibProtocol LibURL)
+target_link_libraries(ladybird PRIVATE AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibProtocol LibURL)
 
 target_include_directories(ladybird PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(ladybird PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
@@ -99,7 +99,7 @@ add_executable(headless-browser
 
 target_include_directories(headless-browser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(headless-browser PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
-target_link_libraries(headless-browser PRIVATE AK LibCore LibWeb LibWebView LibWebSocket LibCrypto LibFileSystem LibHTTP LibImageDecoderClient LibJS LibGfx LibMain LibSQL LibTLS LibIPC LibDiff LibProtocol LibURL)
+target_link_libraries(headless-browser PRIVATE AK LibCore LibWeb LibWebView LibWebSocket LibCrypto LibFileSystem LibHTTP LibImageDecoderClient LibJS LibGfx LibMain LibTLS LibIPC LibDiff LibProtocol LibURL)
 
 add_custom_target(run
     COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}
@@ -114,12 +114,11 @@ add_custom_target(debug-ladybird
 
 add_subdirectory(ImageDecoder)
 add_subdirectory(RequestServer)
-add_subdirectory(SQLServer)
 add_subdirectory(WebContent)
 add_subdirectory(WebDriver)
 add_subdirectory(WebWorker)
 
-set(ladybird_helper_processes ImageDecoder RequestServer SQLServer WebContent WebWorker)
+set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
 
 add_dependencies(ladybird ${ladybird_helper_processes})
 add_dependencies(headless-browser ${ladybird_helper_processes})
@@ -137,7 +136,7 @@ endif()
 if (BUILD_TESTING)
     add_test(
         NAME LibWeb
-        COMMAND $<TARGET_FILE:headless-browser> --resources "${resource_base_dir}" --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests
+        COMMAND $<TARGET_FILE:headless-browser> --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests
     )
     add_test(
         NAME WPT

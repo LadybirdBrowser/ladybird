@@ -12,7 +12,6 @@
 /Userland/Libraries/LibJS/Runtime/Intl @trflynn89
 /Userland/Libraries/LibLocale @trflynn89
 /Userland/Libraries/LibRegex @alimpfard
-/Userland/Libraries/LibSQL @GMTA @trflynn89
 /Userland/Libraries/LibTLS @alimpfard
 /Userland/Libraries/LibTimeZone @trflynn89
 /Userland/Libraries/LibUnicode @trflynn89
@@ -22,11 +21,9 @@
 /Userland/Libraries/LibWeb/WebDriver @trflynn89
 /Userland/Libraries/LibXML @alimpfard
 /Userland/Services/RequestServer @alimpfard
-/Userland/Services/SQLServer @trflynn89
 /Userland/Services/WebDriver @trflynn89
 /Userland/Utilities/gzip.cpp @timschumi
 /Userland/Utilities/lzcat.cpp @timschumi
-/Userland/Utilities/sql.cpp @trflynn89
 /Userland/Utilities/tar.cpp @timschumi
 /Userland/Utilities/unzip.cpp @timschumi
 /Userland/Utilities/wasm.cpp @alimpfard

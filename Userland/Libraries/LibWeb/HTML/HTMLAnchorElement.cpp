@@ -61,6 +61,11 @@ WebIDL::ExceptionOr<void> HTMLAnchorElement::set_hyperlink_element_utils_href(St
     return set_attribute(HTML::AttributeNames::href, move(href));
 }
 
+Optional<String> HTMLAnchorElement::hyperlink_element_utils_referrerpolicy() const
+{
+    return attribute(HTML::AttributeNames::referrerpolicy);
+}
+
 bool HTMLAnchorElement::has_activation_behavior() const
 {
     return true;
@@ -154,29 +159,6 @@ void HTMLAnchorElement::set_text(String const& text)
 {
     // The text attribute's setter must string replace all with the given value within this element.
     string_replace_all(text);
-}
-
-// https://html.spec.whatwg.org/multipage/text-level-semantics.html#dom-a-referrerpolicy
-StringView HTMLAnchorElement::referrer_policy() const
-{
-    // FIXME: This should probably be `Reflect` in the IDL.
-    // The IDL attribute referrerPolicy must reflect the referrerpolicy content attribute, limited to only known values.
-    auto maybe_policy_string = attribute(HTML::AttributeNames::referrerpolicy);
-    if (!maybe_policy_string.has_value())
-        return ""sv;
-
-    auto maybe_policy = ReferrerPolicy::from_string(maybe_policy_string.value());
-    if (!maybe_policy.has_value())
-        return ""sv;
-
-    return ReferrerPolicy::to_string(maybe_policy.value());
-}
-
-// https://html.spec.whatwg.org/multipage/text-level-semantics.html#dom-a-referrerpolicy
-WebIDL::ExceptionOr<void> HTMLAnchorElement::set_referrer_policy(String const& referrer_policy)
-{
-    // The IDL attribute referrerPolicy must reflect the referrerpolicy content attribute, limited to only known values.
-    return set_attribute(HTML::AttributeNames::referrerpolicy, referrer_policy);
 }
 
 }

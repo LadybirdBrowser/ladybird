@@ -1,3 +1,4 @@
+#import <Fetch/Request.idl>
 #import <HTML/HTMLElement.idl>
 #import <HTML/HTMLHyperlinkElementUtils.idl>
 
@@ -17,7 +18,7 @@ interface HTMLAnchorElement : HTMLElement {
 
     [CEReactions] attribute DOMString text;
 
-    [CEReactions] attribute DOMString referrerPolicy;
+    [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
 
     // Obsolete
     [CEReactions, Reflect] attribute DOMString coords;

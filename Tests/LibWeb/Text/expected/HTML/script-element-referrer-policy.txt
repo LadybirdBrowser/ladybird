@@ -1,0 +1,5 @@
+referrerPolicy = ''
+
+referrerPolicy = 'no-referrer'
+
+referrerPolicy = ''

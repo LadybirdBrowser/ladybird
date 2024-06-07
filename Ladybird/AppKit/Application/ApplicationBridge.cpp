@@ -37,14 +37,6 @@ ErrorOr<void> ApplicationBridge::launch_request_server(Vector<ByteString> const&
     return {};
 }
 
-ErrorOr<NonnullRefPtr<SQL::SQLClient>> ApplicationBridge::launch_sql_server()
-{
-    auto sql_server_paths = TRY(get_paths_for_helper_process("SQLServer"sv));
-    auto sql_client = TRY(launch_sql_server_process(sql_server_paths));
-
-    return sql_client;
-}
-
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> ApplicationBridge::launch_web_content(WebViewBridge& web_view_bridge)
 {
     // FIXME: Fail to open the tab, rather than crashing the whole application if this fails

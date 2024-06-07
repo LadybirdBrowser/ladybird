@@ -136,7 +136,6 @@ shared_library("LibWebView") {
     "//Userland/Libraries/LibIPC",
     "//Userland/Libraries/LibJS",
     "//Userland/Libraries/LibProtocol",
-    "//Userland/Libraries/LibSQL",
     "//Userland/Libraries/LibURL",
     "//Userland/Libraries/LibWeb",
   ]

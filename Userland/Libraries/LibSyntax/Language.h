@@ -24,7 +24,6 @@ enum class Language {
     Markdown,
     PlainText,
     Shell,
-    SQL,
 };
 
 StringView language_to_string(Language);

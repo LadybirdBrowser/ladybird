@@ -46,6 +46,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/LoadRequest.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <LibWeb/SRI/SRI.h>
@@ -236,12 +237,14 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
 
     // FIXME: 4. Run report Content Security Policy violations for request.
     // FIXME: 5. Upgrade request to a potentially trustworthy URL, if appropriate.
-    // FIXME: 6. Upgrade a mixed content request to a potentially trustworthy URL, if appropriate.
+
+    // 6. Upgrade a mixed content request to a potentially trustworthy URL, if appropriate.
+    MixedContent::upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropriate(request);
 
     // 7. If should request be blocked due to a bad port, should fetching request be blocked as mixed content, or
     //    should request be blocked by Content Security Policy returns blocked, then set response to a network error.
     if (Infrastructure::block_bad_port(request) == Infrastructure::RequestOrResponseBlocking::Blocked
-        || false // FIXME: "should fetching request be blocked as mixed content"
+        || MixedContent::should_fetching_request_be_blocked_as_mixed_content(request) == Infrastructure::RequestOrResponseBlocking::Blocked
         || false // FIXME: "should request be blocked by Content Security Policy returns blocked"
     ) {
         response = Infrastructure::Response::network_error(vm, "Request was blocked"sv);
@@ -471,8 +474,8 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
 
             // 19. If response is not a network error and any of the following returns blocked
             if (!response->is_network_error() && (
-                    // FIXME: - should internalResponse to request be blocked as mixed content
-                    false
+                    // - should internalResponse to request be blocked as mixed content
+                    MixedContent::should_response_to_request_be_blocked_as_mixed_content(request, internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked
                     // FIXME: - should internalResponse to request be blocked by Content Security Policy
                     || false
                     // - should internalResponse to request be blocked due to its MIME type
@@ -1117,14 +1120,14 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     // 1. Let request be fetchParams’s request.
     auto request = fetch_params.request();
 
-    // 2. Let actualResponse be response, if response is not a filtered response, and response’s internal response
-    //    otherwise.
-    auto actual_response = !is<Infrastructure::FilteredResponse>(response)
+    // 2. Let internalResponse be response, if response is not a filtered response; otherwise response’s internal
+    //    response.
+    auto internal_response = !is<Infrastructure::FilteredResponse>(response)
         ? JS::NonnullGCPtr { response }
         : static_cast<Infrastructure::FilteredResponse const&>(response).internal_response();
 
-    // 3. Let locationURL be actualResponse’s location URL given request’s current URL’s fragment.
-    auto location_url_or_error = actual_response->location_url(request->current_url().fragment());
+    // 3. Let locationURL be internalResponse’s location URL given request’s current URL’s fragment.
+    auto location_url_or_error = internal_response->location_url(request->current_url().fragment());
 
     // 4. If locationURL is null, then return response.
     if (!location_url_or_error.is_error() && !location_url_or_error.value().has_value())
@@ -1147,7 +1150,7 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     // 8. Increase request’s redirect count by 1.
     request->set_redirect_count(request->redirect_count() + 1);
 
-    // 8. If request’s mode is "cors", locationURL includes credentials, and request’s origin is not same origin with
+    // 9. If request’s mode is "cors", locationURL includes credentials, and request’s origin is not same origin with
     //    locationURL’s origin, then return a network error.
     if (request->mode() == Infrastructure::Request::Mode::CORS
         && location_url.includes_credentials()
@@ -1161,9 +1164,9 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS && location_url.includes_credentials())
         return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' response tainting must not include credentials in redirect URL"sv));
 
-    // 11. If actualResponse’s status is not 303, request’s body is non-null, and request’s body’s source is null, then
+    // 11. If internalResponse’s status is not 303, request’s body is non-null, and request’s body’s source is null, then
     //     return a network error.
-    if (actual_response->status() != 303
+    if (internal_response->status() != 303
         && !request->body().has<Empty>()
         && request->body().get<JS::NonnullGCPtr<Infrastructure::Body>>()->source().has<Empty>()) {
         return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has body but no body source"sv));
@@ -1171,10 +1174,10 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
 
     // 12. If one of the following is true
     if (
-        // - actualResponse’s status is 301 or 302 and request’s method is `POST`
-        ((actual_response->status() == 301 || actual_response->status() == 302) && request->method() == "POST"sv.bytes())
-        // - actualResponse’s status is 303 and request’s method is not `GET` or `HEAD`
-        || (actual_response->status() == 303 && !(request->method() == "GET"sv.bytes() || request->method() == "HEAD"sv.bytes()))
+        // - internalResponse’s status is 301 or 302 and request’s method is `POST`
+        ((internal_response->status() == 301 || internal_response->status() == 302) && request->method() == "POST"sv.bytes())
+        // - internalResponse’s status is 303 and request’s method is not `GET` or `HEAD`
+        || (internal_response->status() == 303 && !(request->method() == "GET"sv.bytes() || request->method() == "HEAD"sv.bytes()))
         // then:
     ) {
         // 1. Set request’s method to `GET` and request’s body to null.
@@ -1233,7 +1236,8 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     // 18. Append locationURL to request’s URL list.
     request->url_list().append(location_url);
 
-    // FIXME: 19. Invoke set request’s referrer policy on redirect on request and actualResponse.
+    // 19. Invoke set request’s referrer policy on redirect on request and internalResponse.
+    ReferrerPolicy::set_request_referrer_policy_on_redirect(request, internal_response);
 
     // 20. Let recursive be true.
     auto recursive = Recursive::Yes;

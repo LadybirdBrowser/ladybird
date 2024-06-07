@@ -16,11 +16,8 @@ First, make sure you have a working toolchain and can build and run Ladybird. Go
 * Add the following `#define`s to the file:
     ```
     #define ENABLE_UNICODE_DATA 1
-    //#define ENABLE_COMPILETIME_FORMAT_CHECK
-
-    #define __serenity__
+    #define ENABLE_COMPILETIME_FORMAT_CHECK
     #define SANITIZE_PTRS 1
-    #define __SSE__
     ```
 * Edit the `ladybird.cxxflags` file to say `-std=c++23 -fsigned-char -fconcepts -fno-exceptions -fno-semantic-interposition -fPIC`
 * Edit the `ladybird.includes` file to list the following lines:
@@ -29,11 +26,10 @@ First, make sure you have a working toolchain and can build and run Ladybird. Go
     Userland/
     Userland/Libraries/
     Userland/Services/
-    Toolchain/Local/x86_64/x86_64-pc-serenity/include/c++/13.1.0
-    Build/x86_64/
-    Build/x86_64/Userland/
-    Build/x86_64/Userland/Libraries/
-    Build/x86_64/Userland/Services/
+    Build/ladybird/
+    Build/ladybird/Userland/
+    Build/ladybird/Userland/Libraries/
+    Build/ladybird/Userland/Services/
     AK/
     ```
 
@@ -87,8 +83,3 @@ In QtCreator, select the menu "Tools", item "Options", section "C++", tab
 "File Naming" (don't ask me why it's here). At the bottom there should be the
 option "License template:". Click "Browse…", select your file (i.e.,
 `license-template.creator`). Click "OK", and you're done! :)
-
-## Compiler Kits
-
-You can slightly improve how well Qt interprets the code by adding and setting up an appropriate "compiler kit".
-For that you will need to reference the compilers at `Toolchain/Local/x86_64/bin/x86_64-pc-serenity-gcc` and `Toolchain/Local/x86_64/bin/x86_64-pc-serenity-g++`.

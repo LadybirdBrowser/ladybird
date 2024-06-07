@@ -22,6 +22,7 @@ env:
   # github.workspace = /home/runner/work/serenity/serenity
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
+  VCPKG_ROOT:  ${{ github.workspace }}/Toolchain/Tarballs/vcpkg
 
 jobs:
   CI:
@@ -85,7 +86,6 @@ jobs:
         run: |
           cmake -GNinja -B Build \
             -DBUILD_LAGOM=ON \
-            -DENABLE_LAGOM_LADYBIRD=ON \
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
             -DENABLE_UNDEFINED_SANITIZER=ON \

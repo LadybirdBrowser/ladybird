@@ -8,8 +8,8 @@
 
 #include <AK/FlyString.h>
 #include <AK/TypeCasts.h>
-#include <Kernel/API/KeyCode.h>
 #include <LibWeb/UIEvents/EventModifier.h>
+#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 
 namespace Web::UIEvents {
