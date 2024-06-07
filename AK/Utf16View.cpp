@@ -105,10 +105,11 @@ ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_unit
 
             TRY(builder.try_append_code_point(static_cast<u32>(*ptr)));
         }
-    } else {
-        for (auto code_point : *this)
-            TRY(builder.try_append_code_point(code_point));
+        return builder.to_string_without_validation();
     }
+
+    for (auto code_point : *this)
+        TRY(builder.try_append_code_point(code_point));
 
     return builder.to_string();
 }
