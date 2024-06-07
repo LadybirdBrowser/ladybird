@@ -50,7 +50,7 @@ jobs:
       - name: Create build directory Ubuntu
         run: |
           cmake --preset CI -B Build \
-            -DCMAKE_C_COMPILER=gcc-13
+            -DCMAKE_C_COMPILER=gcc-13 \
             -DCMAKE_CXX_COMPILER=g++-13
         if: ${{ matrix.os == 'ubuntu-22.04' }}
         env:
