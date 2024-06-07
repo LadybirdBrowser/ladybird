@@ -342,19 +342,15 @@ void RecordingPainter::apply_backdrop_filter(Gfx::IntRect const& backdrop_region
     });
 }
 
-void RecordingPainter::paint_outer_box_shadow_params(PaintOuterBoxShadowParams params)
+void RecordingPainter::paint_outer_box_shadow_params(PaintBoxShadowParams params)
 {
     params.device_content_rect = state().translation.map(params.device_content_rect);
-    append(PaintOuterBoxShadow {
-        .outer_box_shadow_params = params,
-    });
+    append(PaintOuterBoxShadow { .box_shadow_params = params });
 }
 
-void RecordingPainter::paint_inner_box_shadow_params(PaintOuterBoxShadowParams params)
+void RecordingPainter::paint_inner_box_shadow_params(PaintBoxShadowParams params)
 {
-    append(PaintInnerBoxShadow {
-        .outer_box_shadow_params = params,
-    });
+    append(PaintInnerBoxShadow { .box_shadow_params = params });
 }
 
 void RecordingPainter::paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Span<Gfx::DrawGlyphOrEmoji const> glyph_run, Color color, int fragment_baseline, Gfx::IntPoint draw_location)

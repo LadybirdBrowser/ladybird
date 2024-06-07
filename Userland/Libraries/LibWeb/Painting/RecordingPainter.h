@@ -34,7 +34,7 @@
 #include <LibWeb/Painting/Command.h>
 #include <LibWeb/Painting/CommandList.h>
 #include <LibWeb/Painting/GradientData.h>
-#include <LibWeb/Painting/PaintOuterBoxShadowParams.h>
+#include <LibWeb/Painting/PaintBoxShadowParams.h>
 
 namespace Web::Painting {
 
@@ -130,8 +130,8 @@ public:
 
     void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedBackdropFilter const& backdrop_filter);
 
-    void paint_outer_box_shadow_params(PaintOuterBoxShadowParams params);
-    void paint_inner_box_shadow_params(PaintOuterBoxShadowParams params);
+    void paint_outer_box_shadow_params(PaintBoxShadowParams params);
+    void paint_inner_box_shadow_params(PaintBoxShadowParams params);
     void paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Span<Gfx::DrawGlyphOrEmoji const> glyph_run, Color color, int fragment_baseline, Gfx::IntPoint draw_location);
 
     void fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, Gfx::AntiAliasingPainter::CornerRadius top_left_radius, Gfx::AntiAliasingPainter::CornerRadius top_right_radius, Gfx::AntiAliasingPainter::CornerRadius bottom_right_radius, Gfx::AntiAliasingPainter::CornerRadius bottom_left_radius, Vector<Gfx::Path> const& clip_paths = {});

@@ -15,14 +15,14 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BorderPainting.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/PaintContext.h>
-#include <LibWeb/Painting/PaintOuterBoxShadowParams.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {
 
-void paint_inner_box_shadow(Gfx::Painter& painter, PaintOuterBoxShadowParams params)
+void paint_inner_box_shadow(Gfx::Painter& painter, PaintBoxShadowParams params)
 {
     auto device_content_rect = params.device_content_rect;
 
@@ -112,7 +112,7 @@ struct OuterBoxShadowMetrics {
     CornerRadius bottom_left_shadow_corner;
 };
 
-static OuterBoxShadowMetrics get_outer_box_shadow_configuration(PaintOuterBoxShadowParams params)
+static OuterBoxShadowMetrics get_outer_box_shadow_configuration(PaintBoxShadowParams params)
 {
     auto device_content_rect = params.device_content_rect;
 
@@ -288,7 +288,7 @@ static OuterBoxShadowMetrics get_outer_box_shadow_configuration(PaintOuterBoxSha
     };
 }
 
-Gfx::IntRect get_outer_box_shadow_bounding_rect(PaintOuterBoxShadowParams params)
+Gfx::IntRect get_outer_box_shadow_bounding_rect(PaintBoxShadowParams params)
 {
     auto shadow_config = get_outer_box_shadow_configuration(params);
 
@@ -305,7 +305,7 @@ Gfx::IntRect get_outer_box_shadow_bounding_rect(PaintOuterBoxShadowParams params
     };
 }
 
-void paint_outer_box_shadow(Gfx::Painter& painter, PaintOuterBoxShadowParams params)
+void paint_outer_box_shadow(Gfx::Painter& painter, PaintBoxShadowParams params)
 {
     auto const& device_content_rect = params.device_content_rect;
 
@@ -550,7 +550,7 @@ void paint_box_shadow(PaintContext& context,
             device_content_rect = context.rounded_device_rect(bordered_content_rect);
         }
 
-        auto params = PaintOuterBoxShadowParams {
+        auto params = PaintBoxShadowParams {
             .color = box_shadow_data.color,
             .placement = box_shadow_data.placement,
             .corner_radii = CornerRadii {

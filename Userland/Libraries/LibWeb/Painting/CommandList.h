@@ -32,7 +32,7 @@
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/Command.h>
 #include <LibWeb/Painting/GradientData.h>
-#include <LibWeb/Painting/PaintOuterBoxShadowParams.h>
+#include <LibWeb/Painting/PaintBoxShadowParams.h>
 
 namespace Web::Painting {
 

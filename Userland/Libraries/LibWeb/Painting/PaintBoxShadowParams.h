@@ -11,7 +11,7 @@
 
 namespace Web::Painting {
 
-struct PaintOuterBoxShadowParams {
+struct PaintBoxShadowParams {
     Gfx::Color color;
     ShadowPlacement placement;
     CornerRadii corner_radii;

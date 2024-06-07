@@ -259,14 +259,14 @@ CommandResult CommandExecutorCPU::paint_linear_gradient(PaintLinearGradient cons
 CommandResult CommandExecutorCPU::paint_outer_box_shadow(PaintOuterBoxShadow const& command)
 {
     auto& painter = this->painter();
-    Web::Painting::paint_outer_box_shadow(painter, command.outer_box_shadow_params);
+    Web::Painting::paint_outer_box_shadow(painter, command.box_shadow_params);
     return CommandResult::Continue;
 }
 
 CommandResult CommandExecutorCPU::paint_inner_box_shadow(PaintInnerBoxShadow const& command)
 {
     auto& painter = this->painter();
-    Web::Painting::paint_inner_box_shadow(painter, command.outer_box_shadow_params);
+    Web::Painting::paint_inner_box_shadow(painter, command.box_shadow_params);
     return CommandResult::Continue;
 }
 
