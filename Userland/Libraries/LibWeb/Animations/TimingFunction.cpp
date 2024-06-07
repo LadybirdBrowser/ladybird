@@ -118,7 +118,7 @@ double CubicBezierTimingFunction::operator()(double input_progress, bool) const
     auto& sample1 = m_cached_x_samples[nearby_index];
     auto& sample2 = m_cached_x_samples[nearby_index + 1];
     auto factor = (x - sample1.x) / (sample2.x - sample1.x);
-    return clamp(sample1.y + factor * (sample2.y - sample1.y), 0, 1);
+    return sample1.y + factor * (sample2.y - sample1.y);
 }
 
 // https://www.w3.org/TR/css-easing-1/#step-easing-algo
