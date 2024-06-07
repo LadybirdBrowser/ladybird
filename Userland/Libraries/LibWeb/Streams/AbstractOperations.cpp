@@ -4599,12 +4599,9 @@ void initialize_transform_stream(TransformStream& stream, JS::NonnullGCPtr<JS::P
     });
 
     // 7. Let cancelAlgorithm be the following steps, taking a reason argument:
-    auto cancel_algorithm = JS::create_heap_function(realm.heap(), [&stream, &realm](JS::Value reason) {
-        // 1. Perform ! TransformStreamErrorWritableAndUnblockWrite(stream, reason).
-        transform_stream_error_writable_and_unblock_write(stream, reason);
-
-        // 2. Return a promise resolved with undefined.
-        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    auto cancel_algorithm = JS::create_heap_function(realm.heap(), [&stream](JS::Value reason) {
+        // 1. Return ! TransformStreamDefaultSourceCancelAlgorithm(stream, reason).
+        return transform_stream_default_source_cancel_algorithm(stream, reason);
     });
 
     // 8. Set stream.[[readable]] to ! CreateReadableStream(startAlgorithm, pullAlgorithm, cancelAlgorithm, readableHighWaterMark, readableSizeAlgorithm).
