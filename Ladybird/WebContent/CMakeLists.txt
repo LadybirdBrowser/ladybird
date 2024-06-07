@@ -1,4 +1,6 @@
 include(accelerated_graphics)
+include(fontconfig)
+
 set(WEBCONTENT_SOURCE_DIR ${LADYBIRD_SOURCE_DIR}/Userland/Services/WebContent/)
 
 set(WEBCONTENT_SOURCES
@@ -68,6 +70,10 @@ if (ENABLE_QT)
     endif()
 else()
     add_executable(WebContent main.cpp)
+endif()
+
+if (HAS_FONTCONFIG)
+    target_link_libraries(webcontent PRIVATE Fontconfig::Fontconfig)
 endif()
 
 target_link_libraries(WebContent PRIVATE webcontent LibURL)

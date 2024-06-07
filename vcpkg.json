@@ -2,7 +2,11 @@
   "builtin-baseline": "01f602195983451bc83e72f4214af2cbc495aa94",
   "dependencies": [
     "sqlite3",
-    "woff2"
+    "woff2",
+    {
+      "name": "fontconfig",
+      "platform": "linux | freebsd | openbsd"
+    }
   ],
   "overrides": [
     {
@@ -12,6 +16,10 @@
     {
       "name": "woff2",
       "version": "1.0.2#4"
+    },
+    {
+      "name": "fontconfig",
+      "version": "2.14.2#1"
     }
   ]
 }

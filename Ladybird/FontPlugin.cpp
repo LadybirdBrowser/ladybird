@@ -13,11 +13,22 @@
 #include <LibGfx/Font/Emoji.h>
 #include <LibGfx/Font/FontDatabase.h>
 
+#ifdef USE_FONTCONFIG
+#    include <fontconfig/fontconfig.h>
+#endif
+
 namespace Ladybird {
 
 FontPlugin::FontPlugin(bool is_layout_test_mode)
     : m_is_layout_test_mode(is_layout_test_mode)
 {
+#ifdef USE_FONTCONFIG
+    {
+        auto fontconfig_initialized = FcInit();
+        VERIFY(fontconfig_initialized);
+    }
+#endif
+
     // Load anything we can find in the system's font directories
     for (auto const& path : Core::StandardPaths::font_directories().release_value_but_fixme_should_propagate_errors())
         Gfx::FontDatabase::the().load_all_fonts_from_uri(MUST(String::formatted("file://{}", path)));
@@ -50,6 +61,79 @@ Gfx::Font& FontPlugin::default_fixed_width_font()
     return *m_default_fixed_width_font;
 }
 
+#ifdef USE_FONTCONFIG
+static Optional<String> query_fontconfig_for_generic_family(Web::Platform::GenericFont generic_font)
+{
+    char const* pattern_string = nullptr;
+    switch (generic_font) {
+    case Web::Platform::GenericFont::Cursive:
+        pattern_string = "cursive";
+        break;
+    case Web::Platform::GenericFont::Fantasy:
+        pattern_string = "fantasy";
+        break;
+    case Web::Platform::GenericFont::Monospace:
+        pattern_string = "monospace";
+        break;
+    case Web::Platform::GenericFont::SansSerif:
+        pattern_string = "sans-serif";
+        break;
+    case Web::Platform::GenericFont::Serif:
+        pattern_string = "serif";
+        break;
+    case Web::Platform::GenericFont::UiMonospace:
+        pattern_string = "monospace";
+        break;
+    case Web::Platform::GenericFont::UiRounded:
+        pattern_string = "sans-serif";
+        break;
+    case Web::Platform::GenericFont::UiSansSerif:
+        pattern_string = "sans-serif";
+        break;
+    case Web::Platform::GenericFont::UiSerif:
+        pattern_string = "serif";
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    auto* config = FcConfigGetCurrent();
+    VERIFY(config);
+
+    FcPattern* pattern = FcNameParse(reinterpret_cast<FcChar8 const*>(pattern_string));
+    VERIFY(pattern);
+
+    auto success = FcConfigSubstitute(config, pattern, FcMatchPattern);
+    VERIFY(success);
+
+    FcDefaultSubstitute(pattern);
+
+    // Never select bitmap fonts.
+    success = FcPatternAddBool(pattern, FC_SCALABLE, FcTrue);
+    VERIFY(success);
+
+    // FIXME: Enable this once we can handle OpenType variable fonts.
+    success = FcPatternAddBool(pattern, FC_VARIABLE, FcFalse);
+    VERIFY(success);
+
+    Optional<String> name;
+    FcResult result {};
+
+    if (auto* matched = FcFontMatch(config, pattern, &result)) {
+        FcChar8* family = nullptr;
+        if (FcPatternGetString(matched, FC_FAMILY, 0, &family) == FcResultMatch) {
+            auto const* family_cstring = reinterpret_cast<char const*>(family);
+            if (auto string = String::from_utf8(StringView { family_cstring, strlen(family_cstring) }); !string.is_error()) {
+                name = string.release_value();
+            }
+        }
+        FcPatternDestroy(matched);
+    }
+    FcPatternDestroy(pattern);
+    return name;
+}
+#endif
+
 void FontPlugin::update_generic_fonts()
 {
     // How we choose which system font to use for each CSS font:
@@ -69,10 +153,19 @@ void FontPlugin::update_generic_fonts()
 
         RefPtr<Gfx::Font const> gfx_font;
 
-        for (auto& fallback : fallbacks) {
-            gfx_font = Gfx::FontDatabase::the().get(fallback, 16, 400, Gfx::FontWidth::Normal, 0);
-            if (gfx_font)
-                break;
+#ifdef USE_FONTCONFIG
+        auto name = query_fontconfig_for_generic_family(generic_font);
+        if (name.has_value()) {
+            gfx_font = Gfx::FontDatabase::the().get(name.value(), 16, 400, Gfx::FontWidth::Normal, 0);
+        }
+#endif
+
+        if (!gfx_font) {
+            for (auto const& fallback : fallbacks) {
+                gfx_font = Gfx::FontDatabase::the().get(fallback, 16, 400, Gfx::FontWidth::Normal, 0);
+                if (gfx_font)
+                    break;
+            }
         }
 
         m_generic_font_names[static_cast<size_t>(generic_font)] = gfx_font ? gfx_font->family() : String {};
