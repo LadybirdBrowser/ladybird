@@ -80,6 +80,11 @@ TEST_CASE(validate_invalid_ut8)
     Utf8View utf8_6 { StringView { invalid_utf8_6, 4 } };
     EXPECT(!utf8_6.validate(valid_bytes));
     EXPECT(valid_bytes == 0);
+
+    char invalid_utf8_7[] = { (char)0xed, (char)0xa0, (char)0x80 }; // U+d800
+    Utf8View utf8_7 { StringView { invalid_utf8_7, 3 } };
+    EXPECT(!utf8_7.validate(valid_bytes, Utf8View::AllowSurrogates::No));
+    EXPECT(valid_bytes == 0);
 }
 
 TEST_CASE(validate_overlong_utf8)

@@ -80,6 +80,11 @@ public:
     explicit Utf8View(ByteString&&) = delete;
 #endif
 
+    enum class AllowSurrogates {
+        Yes,
+        No,
+    };
+
     ~Utf8View() = default;
 
     StringView as_string() const { return m_string; }
@@ -121,13 +126,13 @@ public:
         return m_length;
     }
 
-    constexpr bool validate() const
+    constexpr bool validate(AllowSurrogates surrogates = AllowSurrogates::Yes) const
     {
         size_t valid_bytes = 0;
-        return validate(valid_bytes);
+        return validate(valid_bytes, surrogates);
     }
 
-    constexpr bool validate(size_t& valid_bytes) const
+    constexpr bool validate(size_t& valid_bytes, AllowSurrogates surrogates = AllowSurrogates::Yes) const
     {
         valid_bytes = 0;
 
@@ -148,7 +153,7 @@ public:
                 code_point |= code_point_bits;
             }
 
-            if (!is_valid_code_point(code_point, byte_length))
+            if (!is_valid_code_point(code_point, byte_length, surrogates))
                 return false;
 
             valid_bytes += byte_length;
@@ -216,8 +221,10 @@ private:
         return { .is_valid = false };
     }
 
-    static constexpr bool is_valid_code_point(u32 code_point, size_t byte_length)
+    static constexpr bool is_valid_code_point(u32 code_point, size_t byte_length, AllowSurrogates surrogates = AllowSurrogates::Yes)
     {
+        if (surrogates == AllowSurrogates::No && byte_length == 3 && code_point >= 0xD800 && code_point <= 0xDFFF)
+            return false;
         for (auto const& data : utf8_encoded_byte_data) {
             if (code_point >= data.first_code_point && code_point <= data.last_code_point)
                 return byte_length == data.byte_length;
