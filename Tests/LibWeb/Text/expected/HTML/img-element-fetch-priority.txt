@@ -1,5 +1,0 @@
-   fetchPriority = auto
-
-fetchPriority = high
-
-fetchPriority = auto
