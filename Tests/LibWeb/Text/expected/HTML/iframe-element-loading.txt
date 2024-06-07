@@ -1,5 +1,0 @@
-   loading = eager
-
-loading = lazy
-
-loading = eager
