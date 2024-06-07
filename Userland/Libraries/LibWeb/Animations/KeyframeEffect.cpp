@@ -100,16 +100,15 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         return keyframe_output;
 
     auto& keyframe_object = keyframe_input.as_object();
-    auto offset = TRY(keyframe_object.get("offset"));
-    auto easing = TRY(keyframe_object.get("easing"));
-    if (easing.is_undefined())
-        easing = JS::PrimitiveString::create(vm, "linear"_string);
     auto composite = TRY(keyframe_object.get("composite"));
     if (composite.is_undefined())
         composite = JS::PrimitiveString::create(vm, "auto"_string);
+    auto easing = TRY(keyframe_object.get("easing"));
+    if (easing.is_undefined())
+        easing = JS::PrimitiveString::create(vm, "linear"_string);
+    auto offset = TRY(keyframe_object.get("offset"));
 
     if constexpr (AL == AllowLists::Yes) {
-        keyframe_output.offset = TRY(convert_value_to_maybe_list(realm, offset, to_offset));
         keyframe_output.composite = TRY(convert_value_to_maybe_list(realm, composite, to_composite_operation));
 
         auto easing_maybe_list = TRY(convert_value_to_maybe_list(realm, easing, to_string));
@@ -123,10 +122,12 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
                     easing_values.append(easing_value);
                 keyframe_output.easing = move(easing_values);
             });
+
+        keyframe_output.offset = TRY(convert_value_to_maybe_list(realm, offset, to_offset));
     } else {
-        keyframe_output.offset = TRY(to_offset(offset));
-        keyframe_output.easing = TRY(to_string(easing));
         keyframe_output.composite = TRY(to_composite_operation(composite));
+        keyframe_output.easing = TRY(to_string(easing));
+        keyframe_output.offset = TRY(to_offset(offset));
     }
 
     // 2. Build up a list of animatable properties as follows:
