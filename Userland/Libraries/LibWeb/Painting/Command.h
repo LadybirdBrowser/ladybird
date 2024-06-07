@@ -149,6 +149,7 @@ struct PaintOuterBoxShadow {
 struct PaintInnerBoxShadow {
     PaintBoxShadowParams box_shadow_params;
 
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
     void translate_by(Gfx::IntPoint const& offset);
 };
 
