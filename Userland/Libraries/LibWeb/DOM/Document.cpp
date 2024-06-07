@@ -3063,9 +3063,13 @@ Vector<JS::Handle<HTML::Navigable>> Document::inclusive_descendant_navigables()
 // https://html.spec.whatwg.org/multipage/document-sequences.html#ancestor-navigables
 Vector<JS::Handle<HTML::Navigable>> Document::ancestor_navigables()
 {
+    // NOTE: This isn't in the spec, but if we don't have a navigable, we can't have ancestors either.
+    auto document_node_navigable = this->navigable();
+    if (!document_node_navigable)
+        return {};
+
     // 1. Let navigable be document's node navigable's parent.
-    VERIFY(navigable());
-    auto navigable = this->navigable()->parent();
+    auto navigable = document_node_navigable->parent();
 
     // 2. Let ancestors be an empty list.
     Vector<JS::Handle<HTML::Navigable>> ancestors;
