@@ -234,7 +234,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
                     argument = TRY(argument.to_bigint(vm));
             }
 
-            u128 bits;
+            u128 bits = 0;
             (void)argument.as_bigint().big_integer().unsigned_value().export_data({ bit_cast<u8*>(&bits), sizeof(bits) });
             VERIFY(!argument.as_bigint().big_integer().is_negative());
 
