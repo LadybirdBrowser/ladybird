@@ -1392,6 +1392,10 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<4, Operators::LessThanOrEquals>>(configuration);
     case Instructions::f32x4_ge.value():
         return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<4, Operators::GreaterThanOrEquals>>(configuration);
+    case Instructions::f32x4_min.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<4, Operators::Minimum>>(configuration);
+    case Instructions::f32x4_max.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<4, Operators::Maximum>>(configuration);
     case Instructions::f64x2_eq.value():
         return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<2, Operators::Equals>>(configuration);
     case Instructions::f64x2_ne.value():
@@ -1404,6 +1408,62 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<2, Operators::LessThanOrEquals>>(configuration);
     case Instructions::f64x2_ge.value():
         return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<2, Operators::GreaterThanOrEquals>>(configuration);
+    case Instructions::f64x2_min.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<2, Operators::Minimum>>(configuration);
+    case Instructions::f64x2_max.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<2, Operators::Maximum>>(configuration);
+    case Instructions::f32x4_div.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<4, Operators::Divide>>(configuration);
+    case Instructions::f32x4_mul.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<4, Operators::Multiply>>(configuration);
+    case Instructions::f32x4_sub.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<4, Operators::Subtract>>(configuration);
+    case Instructions::f32x4_add.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<4, Operators::Add>>(configuration);
+    case Instructions::f32x4_pmin.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<4, Operators::PseudoMinimum>>(configuration);
+    case Instructions::f32x4_pmax.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<4, Operators::PseudoMaximum>>(configuration);
+    case Instructions::f64x2_div.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<2, Operators::Divide>>(configuration);
+    case Instructions::f64x2_mul.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<2, Operators::Multiply>>(configuration);
+    case Instructions::f64x2_sub.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<2, Operators::Subtract>>(configuration);
+    case Instructions::f64x2_add.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<2, Operators::Add>>(configuration);
+    case Instructions::f64x2_pmin.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<2, Operators::PseudoMinimum>>(configuration);
+    case Instructions::f64x2_pmax.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<2, Operators::PseudoMaximum>>(configuration);
+    case Instructions::f32x4_ceil.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<4, Operators::Ceil>>(configuration);
+    case Instructions::f32x4_floor.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<4, Operators::Floor>>(configuration);
+    case Instructions::f32x4_trunc.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<4, Operators::Truncate>>(configuration);
+    case Instructions::f32x4_nearest.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<4, Operators::NearbyIntegral>>(configuration);
+    case Instructions::f32x4_sqrt.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<4, Operators::SquareRoot>>(configuration);
+    case Instructions::f32x4_neg.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<4, Operators::Negate>>(configuration);
+    case Instructions::f32x4_abs.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<4, Operators::Absolute>>(configuration);
+    case Instructions::f64x2_ceil.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<2, Operators::Ceil>>(configuration);
+    case Instructions::f64x2_floor.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<2, Operators::Floor>>(configuration);
+    case Instructions::f64x2_trunc.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<2, Operators::Truncate>>(configuration);
+    case Instructions::f64x2_nearest.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<2, Operators::NearbyIntegral>>(configuration);
+    case Instructions::f64x2_sqrt.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<2, Operators::SquareRoot>>(configuration);
+    case Instructions::f64x2_neg.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<2, Operators::Negate>>(configuration);
+    case Instructions::f64x2_abs.value():
+        return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<2, Operators::Absolute>>(configuration);
     case Instructions::v128_not.value():
     case Instructions::v128_and.value():
     case Instructions::v128_andnot.value():
@@ -1430,23 +1490,16 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::i8x16_bitmask.value():
     case Instructions::i8x16_narrow_i16x8_s.value():
     case Instructions::i8x16_narrow_i16x8_u.value():
-    case Instructions::f32x4_ceil.value():
-    case Instructions::f32x4_floor.value():
-    case Instructions::f32x4_trunc.value():
-    case Instructions::f32x4_nearest.value():
     case Instructions::i8x16_add.value():
     case Instructions::i8x16_add_sat_s.value():
     case Instructions::i8x16_add_sat_u.value():
     case Instructions::i8x16_sub.value():
     case Instructions::i8x16_sub_sat_s.value():
     case Instructions::i8x16_sub_sat_u.value():
-    case Instructions::f64x2_ceil.value():
-    case Instructions::f64x2_floor.value():
     case Instructions::i8x16_min_s.value():
     case Instructions::i8x16_min_u.value():
     case Instructions::i8x16_max_s.value():
     case Instructions::i8x16_max_u.value():
-    case Instructions::f64x2_trunc.value():
     case Instructions::i8x16_avgr_u.value():
     case Instructions::i16x8_extadd_pairwise_i8x16_s.value():
     case Instructions::i16x8_extadd_pairwise_i8x16_u.value():
@@ -1469,7 +1522,6 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::i16x8_sub.value():
     case Instructions::i16x8_sub_sat_s.value():
     case Instructions::i16x8_sub_sat_u.value():
-    case Instructions::f64x2_nearest.value():
     case Instructions::i16x8_mul.value():
     case Instructions::i16x8_min_s.value():
     case Instructions::i16x8_min_u.value():
@@ -1508,7 +1560,6 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::i64x2_extend_high_i32x4_s.value():
     case Instructions::i64x2_extend_low_i32x4_u.value():
     case Instructions::i64x2_extend_high_i32x4_u.value():
-    case Instructions::i64x2_add.value():
     case Instructions::i64x2_sub.value():
     case Instructions::i64x2_mul.value():
     case Instructions::i64x2_eq.value():
@@ -1521,28 +1572,6 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::i64x2_extmul_high_i32x4_s.value():
     case Instructions::i64x2_extmul_low_i32x4_u.value():
     case Instructions::i64x2_extmul_high_i32x4_u.value():
-    case Instructions::f32x4_abs.value():
-    case Instructions::f32x4_neg.value():
-    case Instructions::f32x4_sqrt.value():
-    case Instructions::f32x4_add.value():
-    case Instructions::f32x4_sub.value():
-    case Instructions::f32x4_mul.value():
-    case Instructions::f32x4_div.value():
-    case Instructions::f32x4_min.value():
-    case Instructions::f32x4_max.value():
-    case Instructions::f32x4_pmin.value():
-    case Instructions::f32x4_pmax.value():
-    case Instructions::f64x2_abs.value():
-    case Instructions::f64x2_neg.value():
-    case Instructions::f64x2_sqrt.value():
-    case Instructions::f64x2_add.value():
-    case Instructions::f64x2_sub.value():
-    case Instructions::f64x2_mul.value():
-    case Instructions::f64x2_div.value():
-    case Instructions::f64x2_min.value():
-    case Instructions::f64x2_max.value():
-    case Instructions::f64x2_pmin.value():
-    case Instructions::f64x2_pmax.value():
     case Instructions::i32x4_trunc_sat_f32x4_s.value():
     case Instructions::i32x4_trunc_sat_f32x4_u.value():
     case Instructions::f32x4_convert_i32x4_s.value():
