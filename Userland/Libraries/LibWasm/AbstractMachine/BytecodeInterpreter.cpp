@@ -254,7 +254,7 @@ static u128 shuffle_vector(VectorType values, VectorType indices)
 {
     auto vector = bit_cast<VectorType>(values);
     auto indices_vector = bit_cast<VectorType>(indices);
-    return bit_cast<u128>(shuffle(vector, indices_vector));
+    return bit_cast<u128>(shuffle_or_0(vector, indices_vector));
 }
 
 void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address)
