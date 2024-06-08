@@ -1,597 +1,402 @@
-#!/usr/bin/env python3
-import struct
-from sys import argv, stderr
-from os import path
-from string import whitespace
-import re
-import math
-from tempfile import NamedTemporaryFile
-from subprocess import call
 import json
-import array
-
-atom_end = set('()"' + whitespace)
-
-
-def parse(sexp):
-    sexp = re.sub(r'(?m)\(;.*;\)', '', re.sub(r'(;;.*)', '', sexp))
-    stack, i, length = [[]], 0, len(sexp)
-    while i < length:
-        c = sexp[i]
-        kind = type(stack[-1])
-        if kind == list:
-            if c == '(':
-                stack.append([])
-            elif c == ')':
-                stack[-2].append(stack.pop())
-            elif c == '"':
-                stack.append('')
-            elif c in whitespace:
-                pass
-            else:
-                stack.append((c,))
-        elif kind == str:
-            if c == '"':
-                stack[-2].append(stack.pop())
-            elif c == '\\':
-                i += 1
-                if sexp[i] != '"':
-                    stack[-1] += '\\'
-                stack[-1] += sexp[i]
-            else:
-                stack[-1] += c
-        elif kind == tuple:
-            if c in atom_end:
-                atom = stack.pop()
-                stack[-1].append(atom)
-                continue
-            else:
-                stack[-1] = ((stack[-1][0] + c),)
-        i += 1
-    return stack.pop()
+import math
+import sys
+import struct
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Union, Literal, Any
 
 
-class TestGenerationError(Exception):
-    def __init__(self, message):
-        self.msg = message
+class ParseException(Exception):
+    pass
 
 
-def parse_typed_value(ast):
-    types = {
-        'i32.const': 'i32',
-        'i64.const': 'i64',
-        'f32.const': 'float',
-        'f64.const': 'double',
-        'ref.null': 'null',
-        'ref.extern': 'i32',
-        'ref.func': 'i32',
-        'v128.const': 'bigint',
-    }
-
-    v128_sizes = {
-        'i8x16': 1,
-        'i16x8': 2,
-        'i32x4': 4,
-        'i64x2': 8,
-        'f32x4': 4,
-        'f64x2': 8,
-    }
-    v128_format_names = {
-        'i8x16': 'b',
-        'i16x8': 'h',
-        'i32x4': 'i',
-        'i64x2': 'q',
-        'f32x4': 'f',
-        'f64x2': 'd',
-    }
-    v128_format_names_unsigned = {
-        'i8x16': 'B',
-        'i16x8': 'H',
-        'i32x4': 'I',
-        'i64x2': 'Q',
-    }
-
-    def parse_v128_chunk(num, type) -> array:
-        negative = 1
-        if num.startswith('-'):
-            negative = -1
-            num = num[1:]
-        elif num.startswith('+'):
-            num = num[1:]
-
-        # wtf spec test, split your wast tests already
-        while num.startswith('0') and not num.startswith('0x'):
-            num = num[1:]
-
-        if num == '':
-            num = '0'
-
-        if type.startswith('f'):
-            def generate():
-                if num == 'nan:canonical':
-                    return float.fromhex('0x7fc00000')
-                if num == 'nan:arithmetic':
-                    return float.fromhex('0x7ff00000')
-                if num == 'nan:signaling':
-                    return float.fromhex('0x7ff80000')
-                if num.startswith('nan:'):
-                    # FIXME: I have no idea if this is actually correct :P
-                    rest = num[4:]
-                    return float.fromhex('0x7ff80000') + int(rest, base=16)
-                if num.lower() == 'infinity':
-                    return float.fromhex('0x7ff00000') * negative
-                try:
-                    return float(num) * negative
-                except ValueError:
-                    return float.fromhex(num) * negative
-
-            value = generate()
-            return struct.pack(f'={v128_format_names[type]}', value)
-        value = negative * int(num.replace('_', ''), base=0)
-        try:
-            return struct.pack(f'={v128_format_names[type]}', value)
-        except struct.error:
-            # The test format uses signed and unsigned values interchangeably, this is probably an unsigned value.
-            return struct.pack(f'={v128_format_names_unsigned[type]}', value)
-
-    if len(ast) >= 2 and ast[0][0] in types:
-        if ast[0][0] == 'v128.const':
-            value = array.array('b')
-            for i, num in enumerate(ast[2:]):
-                size = v128_sizes[ast[1][0]]
-                s = len(value)
-                value.frombytes(parse_v128_chunk(num[0], ast[1][0]))
-                assert len(value) - s == size, f'Expected {size} bytes, got {len(value) - s} bytes'
-
-            assert len(value) == 16, f'Expected 16 bytes, got {len(value)} bytes'
-            return {
-                'type': types[ast[0][0]],
-                'value': value.tobytes().hex()
-            }
-
-        return {"type": types[ast[0][0]], "value": ast[1][0]}
-
-    return {"type": "error"}
+class GenerateException(Exception):
+    pass
 
 
-def generate_module_source_for_compilation(entries):
-    s = '('
-    for entry in entries:
-        if type(entry) is tuple and len(entry) == 1 and type(entry[0]) is str:
-            s += entry[0] + ' '
-        elif type(entry) is str:
-            s += json.dumps(entry).replace('\\\\', '\\') + ' '
-        elif type(entry) is list:
-            s += generate_module_source_for_compilation(entry)
+@dataclass
+class WasmValue:
+    kind: Literal["i32", "i64", "f32", "f64", "externref", "funcref", "v128"]
+    value: str
+
+
+@dataclass
+class ModuleCommand:
+    line: int
+    file_name: Path
+    name: str | None
+
+
+@dataclass
+class Invoke:
+    field: str
+    args: list[WasmValue]
+    module: str | None
+
+
+@dataclass
+class Get:
+    field: str
+    module: str | None
+
+
+Action = Union[Invoke, Get]
+
+
+@dataclass
+class Register:
+    line: int
+    name: str | None
+    as_: str
+
+
+@dataclass
+class AssertReturn:
+    line: int
+    action: Action
+    expected: WasmValue | None
+
+
+@dataclass
+class AssertTrap:
+    line: int
+    messsage: str
+    action: Action
+
+
+@dataclass
+class ActionCommand:
+    line: int
+    action: Action
+
+
+@dataclass
+class AssertInvalid:
+    line: int
+    filename: str
+    message: str
+
+
+Command = Union[
+    ModuleCommand,
+    AssertReturn,
+    AssertTrap,
+    ActionCommand,
+    AssertInvalid,
+    Register,
+]
+
+
+@dataclass
+class WastDescription:
+    source_filename: str
+    commands: list[Command]
+
+
+@dataclass
+class Context:
+    current_module_name: str
+    has_unclosed: bool
+
+
+def parse_value(arg: dict[str, str]) -> WasmValue:
+    type_ = arg["type"]
+    match type_:
+        case "i32" | "i64" | "f32" | "f64" | "externref" | "funcref":
+            payload = arg["value"]
+        case "v128":
+
+            def reverse_endianness(hex_str):
+                if len(hex_str) % 2 != 0:
+                    hex_str = "0" + hex_str
+                bytes_list = [hex_str[i:i + 2] for i in range(0, len(hex_str), 2)]
+                reversed_hex_str = "".join(bytes_list[::-1])
+                return reversed_hex_str
+
+            size = int(arg["lane_type"][1:]) // 4
+            parts = []
+            for raw_val in arg["value"]:
+                match raw_val:
+                    case "nan:canonical":
+                        hex_repr = "7fc".ljust(size, "0")
+                    case "nan:arithmetic":
+                        hex_repr = "7ff".ljust(size, "0")
+                    case "nan:signaling":
+                        hex_repr = "7ff8".ljust(size, "0")
+                    case _:
+                        hex_repr = hex(int(raw_val))[2:].zfill(size)
+                parts.append(hex_repr)
+            payload = "0x" + reverse_endianness("".join(reversed(parts))) + "n"
+        case _:
+            raise ParseException(f"Unknown value type: {type_}")
+    return WasmValue(type_, payload)
+
+
+def parse_args(raw_args: list[dict[str, str]]) -> list[WasmValue]:
+    return [parse_value(arg) for arg in raw_args]
+
+
+def parse_action(action: dict[str, Any]) -> Action:
+    match action["type"]:
+        case "invoke":
+            return Invoke(
+                action["field"], parse_args(action["args"]), action.get("module")
+            )
+        case "get":
+            return Get(action["field"], action.get("module"))
+        case _:
+            raise ParseException(f"Action not implemented: {action['type']}")
+
+
+def parse(raw: dict[str, Any]) -> WastDescription:
+    commands: list[Command] = []
+    for raw_cmd in raw["commands"]:
+        line = raw_cmd["line"]
+        cmd: Command
+        match raw_cmd["type"]:
+            case "module":
+                cmd = ModuleCommand(
+                    line, Path(raw_cmd["filename"]), raw_cmd.get("name")
+                )
+            case "action":
+                cmd = ActionCommand(line, parse_action(raw_cmd["action"]))
+            case "register":
+                cmd = Register(line, raw_cmd.get("name"), raw_cmd["as"])
+            case "assert_return":
+                cmd = AssertReturn(
+                    line,
+                    parse_action(raw_cmd["action"]),
+                    parse_value(raw_cmd["expected"][0])
+                    if len(raw_cmd["expected"]) == 1
+                    else None,
+                )
+            case "assert_trap" | "assert_exhaustion":
+                cmd = AssertTrap(line, raw_cmd["text"], parse_action(raw_cmd["action"]))
+            case "assert_invalid" | "assert_malformed" | "assert_uninstantiable" | "assert_unlinkable":
+                if raw_cmd.get("module_type") == "text":
+                    continue
+                cmd = AssertInvalid(line, raw_cmd["filename"], raw_cmd["text"])
+            case _:
+                raise ParseException(f"Unknown command type: {raw_cmd['type']}")
+        commands.append(cmd)
+
+    return WastDescription(raw["source_filename"], commands)
+
+
+def escape(s: str) -> str:
+    return s.replace('"', '\\"')
+
+
+def make_description(input_path: Path, name: str, out_path: Path) -> WastDescription:
+    out_json_path = out_path / f"{name}.json"
+    result = subprocess.run(
+        ["wast2json", input_path, f"--output={out_json_path}", "--no-check"],
+    )
+    result.check_returncode()
+    with open(out_json_path, "r") as f:
+        description = json.load(f)
+    return parse(description)
+
+
+def gen_value(value: WasmValue) -> str:
+    def unsigned_to_signed(uint: int, bits: int) -> int:
+        max_value = 2**bits
+        if uint >= 2 ** (bits - 1):
+            signed_int = uint - max_value
         else:
-            raise Exception("wat? I dunno how to pretty print " + str(type(entry)))
-    while s.endswith(' '):
-        s = s[:len(s) - 1]
-    return s + ')'
+            signed_int = uint
+
+        return signed_int
+
+    def int_to_float_bitcast(uint: int) -> float:
+        b = struct.pack("I", uint)
+        f = struct.unpack("f", b)[0]
+        return f
+
+    def int_to_float64_bitcast(uint: int) -> float:
+        uint64 = uint & 0xFFFFFFFFFFFFFFFF
+        b = struct.pack("Q", uint64)
+        f = struct.unpack("d", b)[0]
+        return f
+
+    def float_to_str(f: float) -> str:
+        if math.isnan(f) and math.copysign(1.0, f) < 0:
+            return "-NaN"
+        elif math.isnan(f):
+            return "NaN"
+        elif math.isinf(f) and math.copysign(1.0, f) < 0:
+            return "-Infinity"
+        elif math.isinf(f):
+            return "Infinity"
+        return str(f)
+
+    if value.value.startswith("nan"):
+        return "NaN"
+    elif value.value.startswith("-nan"):
+        return "-NaN"
+    elif value.value == "inf":
+        return "Infinity"
+    elif value.value == "-inf":
+        return "-Infinity"
+
+    match value.kind:
+        case "i32":
+            return str(unsigned_to_signed(int(value.value), 32))
+        case "i64":
+            return str(unsigned_to_signed(int(value.value), 64)) + "n"
+        case "f32":
+            return float_to_str(int_to_float_bitcast(int(value.value)))
+        case "f64":
+            return float_to_str(int_to_float64_bitcast(int(value.value)))
+        case "externref" | "funcref" | "v128":
+            return value.value
+        case _:
+            raise GenerateException(f"Not implemented: {value.kind}")
 
 
-def generate_binary_source(chunks):
-    res = b''
-    for chunk in chunks:
-        i = 0
-        while i < len(chunk):
-            c = chunk[i]
-            if c == '\\':
-                res += bytes.fromhex(chunk[i + 1: i + 3])
-                i += 3
-                continue
-            res += c.encode('utf-8')
-            i += 1
-    return res
+def gen_args(args: list[WasmValue]) -> str:
+    return ",".join(gen_value(arg) for arg in args)
 
 
-named_modules = {}
-named_modules_inverse = {}
-registered_modules = {}
-module_output_path: str
+def gen_module_command(command: ModuleCommand, ctx: Context):
+    if ctx.has_unclosed:
+        print("});")
+    print(
+        f"""describe("{command.file_name.stem}", () => {{
+let _test = test;
+let content, module;
+try {{
+content = readBinaryWasmFile("Fixtures/SpecTests/{command.file_name}");
+module = parseWebAssemblyModule(content, globalImportObject);
+}} catch (e) {{
+_test("parse", () => expect().fail(e));
+_test = test.skip;
+_test.skip = test.skip;
+}}
+"""
+    )
+    if command.name is not None:
+        print(f'namedModules["{command.name}"] = module;')
+    ctx.current_module_name = command.file_name.stem
+    ctx.has_unclosed = True
 
 
-def generate_module(ast):
-    # (module ...)
-    name = None
-    mode = 'ast'  # binary, quote
-    start_index = 1
-    if len(ast) > 1:
-        if isinstance(ast[1], tuple) and isinstance(ast[1][0], str) and ast[1][0].startswith('$'):
-            name = ast[1][0]
-            if len(ast) > 2:
-                if isinstance(ast[2], tuple) and ast[2][0] in ('binary', 'quote'):
-                    mode = ast[2][0]
-                    start_index = 3
-                else:
-                    start_index = 2
-        elif isinstance(ast[1][0], str):
-            mode = ast[1][0]
-            start_index = 2
-
-    result = {
-        'ast': lambda: ('parse', generate_module_source_for_compilation(ast)),
-        'binary': lambda: ('literal', generate_binary_source(ast[start_index:])),
-        # FIXME: Make this work when we have a WAT parser
-        'quote': lambda: ('literal', ast[start_index]),
-    }[mode]()
-
-    return {
-        'module': result,
-        'name': name
-    }
+def gen_invalid(invalid: AssertInvalid, ctx: Context):
+    if ctx.has_unclosed:
+        print("});")
+        ctx.has_unclosed = False
+    stem = Path(invalid.filename).stem
+    print(
+        f"""
+describe("{stem}", () => {{
+let _test = test;
+_test("parse of {stem} (line {invalid.line})", () => {{
+content = readBinaryWasmFile("Fixtures/SpecTests/{invalid.filename}");
+expect(() => parseWebAssemblyModule(content, globalImportObject)).toThrow(Error, "{invalid.message}");
+}});
+}});"""
+    )
 
 
-def generate(ast):
-    global named_modules, named_modules_inverse, registered_modules
-
-    if type(ast) is not list:
-        return []
-    tests = []
-    for entry in ast:
-        if len(entry) > 0 and entry[0] == ('module',):
-            gen = generate_module(entry)
-            module, name = gen['module'], gen['name']
-            tests.append({
-                "module": module,
-                "tests": []
-            })
-
-            if name is not None:
-                named_modules[name] = len(tests) - 1
-                named_modules_inverse[len(tests) - 1] = (name, None)
-        elif entry[0] == ('assert_unlinkable',):
-            # (assert_unlinkable module message)
-            if len(entry) < 2 or not isinstance(entry[1], list) or entry[1][0] != ('module',):
-                print(f"Invalid argument to assert_unlinkable: {entry[1]}", file=stderr)
-                continue
-            result = generate_module(entry[1])
-            tests.append({
-                'module': None,
-                'tests': [{
-                    "kind": "unlinkable",
-                    "module": result['module'],
-                }]
-            })
-        elif entry[0] in (('assert_malformed',), ('assert_invalid',)):
-            # (assert_malformed/invalid module message)
-            if len(entry) < 2 or not isinstance(entry[1], list) or entry[1][0] != ('module',):
-                print(f"Invalid argument to assert_malformed: {entry[1]}", file=stderr)
-                continue
-            result = generate_module(entry[1])
-            kind = entry[0][0][len('assert_'):]
-            tests.append({
-                'module': None,
-                'kind': kind,
-                'tests': [{
-                    "kind": kind,
-                    "module": result['module'],
-                }]
-            })
-        elif len(entry) in [2, 3] and entry[0][0].startswith('assert_'):
-            if entry[1][0] == ('invoke',):
-                arg, name, module = 0, None, None
-                if isinstance(entry[1][1], str):
-                    name = entry[1][1]
-                else:
-                    name = entry[1][2]
-                    module = named_modules[entry[1][1][0]]
-                    arg = 1
-                kind = entry[0][0][len('assert_'):]
-                tests[-1]["tests"].append({
-                    "kind": kind,
-                    "function": {
-                        "module": module,
-                        "name": name,
-                        "args": list(parse_typed_value(x) for x in entry[1][arg + 2:])
-                    },
-                    "result": parse_typed_value(entry[2]) if len(entry) == 3 + arg and kind != 'exhaustion' else None
-                })
-            elif entry[1][0] == ('get',):
-                arg, name, module = 0, None, None
-                if isinstance(entry[1][1], str):
-                    name = entry[1][1]
-                else:
-                    name = entry[1][2]
-                    module = named_modules[entry[1][1][0]]
-                    arg = 1
-                tests[-1]["tests"].append({
-                    "kind": entry[0][0][len('assert_'):],
-                    "get": {
-                        "name": name,
-                        "module": module,
-                    },
-                    "result": parse_typed_value(entry[2]) if len(entry) == 3 + arg else None
-                })
-            else:
-                if not len(tests):
-                    tests.append({
-                        "module": ('literal', b""),
-                        "tests": []
-                    })
-                tests[-1]["tests"].append({
-                    "kind": "testgen_fail",
-                    "function": {
-                        "module": None,
-                        "name": "<unknown>",
-                        "args": []
-                    },
-                    "reason": f"Unknown assertion {entry[0][0][len('assert_'):]}"
-                })
-        elif len(entry) >= 2 and entry[0][0] == 'invoke':
-            # toplevel invoke :shrug:
-            arg, name, module = 0, None, None
-            if not isinstance(entry[1], str) and isinstance(entry[1][1], str):
-                name = entry[1][1]
-            elif isinstance(entry[1], str):
-                name = entry[1]
-            else:
-                name = entry[1][2]
-                module = named_modules[entry[1][1][0]]
-                arg = 1
-            tests[-1]["tests"].append({
-                "kind": "ignore",
-                "function": {
-                    "module": module,
-                    "name": name,
-                    "args": [parse_typed_value(entry[2])] if len(entry) == 3 else []
-                },
-                "result": None
-            })
-        elif len(entry) > 1 and entry[0][0] == 'register':
-            if len(entry) == 3:
-                registered_modules[entry[1]] = named_modules[entry[2][0]]
-                x = named_modules_inverse[named_modules[entry[2][0]]]
-                named_modules_inverse[named_modules[entry[2][0]]] = (x[0], entry[1])
-            else:
-                index = len(tests) - 1
-                registered_modules[entry[1]] = index
-                named_modules_inverse[index] = (":" + entry[1], entry[1])
-        else:
-            if not len(tests):
-                tests.append({
-                    "module": ('literal', b""),
-                    "tests": []
-                })
-            tests[-1]["tests"].append({
-                "kind": "testgen_fail",
-                "function": {
-                    "module": None,
-                    "name": "<unknown>",
-                    "args": []
-                },
-                "reason": f"Unknown command {entry[0][0]}"
-            })
-    return tests
-
-
-def genarg(spec):
-    if spec['type'] == 'error':
-        return '0'
-
-    def gen():
-        x = spec['value']
-        if spec['type'] == 'bigint':
-            return f"0x{x}n"
-        if spec['type'] == 'null':
-            return 'null'
-
-        if spec['type'] in ('i32', 'i64'):
-            if x.startswith('0x'):
-                if spec['type'] == 'i32':
-                    # cast back to i32 to get the correct sign
-                    return str(struct.unpack('>i', struct.pack('>Q', int(x, 16))[4:])[0])
-
-                # cast back to i64 to get the correct sign
-                return str(struct.unpack('>q', struct.pack('>Q', int(x, 16)))[0]) + 'n'
-            if spec['type'] == 'i64':
-                # Make a bigint instead, since `double' cannot fit all i64 values.
-                if x.startswith('0'):
-                    x = x.lstrip('0')
-                if x == '':
-                    x = '0'
-                return x + 'n'
-            return x
-
-        if x == 'nan':
-            return 'NaN'
-        if x == '-nan':
-            return '-NaN'
-
-        try:
-            x = float(x)
-            if math.isnan(x):
-                # FIXME: This is going to mess up the different kinds of nan
-                return '-NaN' if math.copysign(1.0, x) < 0 else 'NaN'
-            if math.isinf(x):
-                return 'Infinity' if x > 0 else '-Infinity'
-            return x
-        except ValueError:
-            try:
-                x = float.fromhex(x)
-                if math.isnan(x):
-                    # FIXME: This is going to mess up the different kinds of nan
-                    return '-NaN' if math.copysign(1.0, x) < 0 else 'NaN'
-                if math.isinf(x):
-                    return 'Infinity' if x > 0 else '-Infinity'
-                return x
-            except ValueError:
-                try:
-                    x = int(x, 0)
-                    return x
-                except ValueError:
-                    return x
-
-    x = gen()
-    if isinstance(x, str):
-        if x.startswith('nan'):
-            return 'NaN'
-        if x.startswith('-nan'):
-            return '-NaN'
-        return x
-    return str(x)
-
-
-all_names_in_main = {}
-
-
-def genresult(ident, entry, index):
-    expectation = None
-    if "function" in entry:
-        tmodule = 'module'
-        if entry['function']['module'] is not None:
-            tmodule = f'namedModules[{json.dumps(named_modules_inverse[entry["function"]["module"]][0])}]'
-        expectation = (
-            f'{tmodule}.invoke({ident}, {", ".join(genarg(x) for x in entry["function"]["args"])})'
-        )
-    elif "get" in entry:
-        expectation = f'module.getExport({ident})'
-
-    if entry['kind'] == 'return':
-        return (
-                f'let {ident}_result = {expectation};\n    ' +
-                (f'expect({ident}_result).toBe({genarg(entry["result"])})\n    ' if entry["result"] is not None else '')
-        )
-
-    if entry['kind'] == 'ignore':
-        return expectation
-
-    if entry['kind'] == 'unlinkable':
-        name = f'mod-{ident}-{index}.wasm'
-        outpath = path.join(module_output_path, name)
-        if not compile_wasm_source(entry['module'], outpath):
-            return 'throw new Error("Module compilation failed");'
-        return (
-            f'    expect(() => {{\n'
-            f'        let content = readBinaryWasmFile("Fixtures/SpecTests/{name}");\n'
-            f'        parseWebAssemblyModule(content, globalImportObject);\n'
-            f'    }}).toThrow(TypeError, "Linking failed");'
-        )
-
-    if entry['kind'] in ('exhaustion', 'trap', 'invalid'):
-        return (
-            f'expect(() => {expectation}.toThrow(TypeError, "Execution trapped"));\n    '
-        )
-
-    if entry['kind'] == 'malformed':
-        return ''
-
-    if entry['kind'] == 'testgen_fail':
-        raise TestGenerationError(entry["reason"])
-
-    if not expectation:
-        raise TestGenerationError(f"Unknown test result structure in {json.dumps(entry)}")
-
-    return expectation
-
-
-raw_test_number = 0
-
-
-def gentest(entry, main_name):
-    global raw_test_number
-    isfunction = 'function' in entry
-    name: str
-    isempty = False
-    if isfunction or 'get' in entry:
-        name = json.dumps((entry["function"] if isfunction else entry["get"])["name"])[1:-1]
+def gen_invoke(
+    line: int,
+    invoke: Invoke,
+    result: WasmValue | None,
+    ctx: Context,
+    *,
+    fail_msg: str | None = None,
+):
+    module = "module"
+    if invoke.module is not None:
+        module = f'namedModules["{invoke.module}"]'
+    print(
+        f"""_test("execution of {ctx.current_module_name}: {escape(invoke.field)} (line {line})", () => {{
+let _field = {module}.getExport("{escape(invoke.field)}");
+expect(_field).not.toBeUndefined();"""
+    )
+    if fail_msg is not None:
+        print(f'expect(() => {module}.invoke(_field)).toThrow(Error, "{fail_msg}");')
     else:
-        isempty = True
-        name = str(f"_inline_test_{raw_test_number}")
-        raw_test_number += 1
-    if type(name) is not str:
-        print("Unsupported test case (call to", name, ")", file=stderr)
-        return '\n    '
-    ident = '_' + re.sub("[^a-zA-Z_0-9]", "_", name)
-    count = all_names_in_main.get(name, 0)
-    all_names_in_main[name] = count + 1
-    test_name = f'execution of {main_name}: {name} (instance {count})'
-    tmodule = 'module'
-    if not isempty:
-        key = "function" if "function" in entry else "get"
-        if entry[key]['module'] is not None:
-            tmodule = f'namedModules[{json.dumps(named_modules_inverse[entry[key]["module"]][0])}]'
-    test = "_test"
-    try:
-        result = genresult(ident, entry, count)
-    except TestGenerationError as e:
-        test = f"/* {e.msg} */ _test.skip"
-        result = ""
-    return (
-            f'{test}({json.dumps(test_name)}, () => {{\n' +
-            (
-                f'let {ident} = {tmodule}.getExport({json.dumps(name)});\n        '
-                f'expect({ident}).not.toBeUndefined();\n        '
-                if not isempty else ''
-            ) +
-            f'{result}'
-            '});\n\n    '
+        print(f"let _result = {module}.invoke(_field, {gen_args(invoke.args)});")
+    if result is not None:
+        print(f"expect(_result).toBe({gen_value(result)});")
+    print("});")
+
+
+def gen_get(line: int, get: Get, result: WasmValue | None, ctx: Context):
+    module = "module"
+    if get.module is not None:
+        module = f'namedModules["{get.module}"]'
+    print(
+        f"""_test("execution of {ctx.current_module_name}: get-{get.field} (line {line})", () => {{
+let _field = {module}.getExport("{get.field}");"""
     )
+    if result is not None:
+        print(f"expect(_field).toBe({gen_value(result)});")
+    print("});")
 
 
-def gen_parse_module(name, index):
-    export_string = ''
-    if index in named_modules_inverse:
-        entry = named_modules_inverse[index]
-        export_string += f'namedModules[{json.dumps(entry[0])}] = module;\n    '
-        if entry[1]:
-            export_string += f'globalImportObject[{json.dumps(entry[1])}] = module;\n    '
-
-    return (
-        'let content, module;\n    '
-        'try {\n        '
-        f'content = readBinaryWasmFile("Fixtures/SpecTests/{name}.wasm");\n        '
-        f'module = parseWebAssemblyModule(content, globalImportObject)\n        '
-        '} catch(e) { _test("parse", () => expect().fail(e)); _test = test.skip; _test.skip = test.skip; }\n    '
-        f'{export_string}\n     '
-    )
+def gen_register(register: Register, _: Context):
+    module = "module"
+    if register.name is not None:
+        module = f'namedModules["{module}"]'
+    print(f'globalImportObject["{register.as_}"] = {module};')
 
 
-def nth(a, x, y=None):
-    if y:
-        return a[x:y]
-    return a[x]
+def gen_command(command: Command, ctx: Context):
+    match command:
+        case ModuleCommand():
+            gen_module_command(command, ctx)
+        case ActionCommand():
+            if isinstance(command.action, Invoke):
+                gen_invoke(command.line, command.action, None, ctx)
+            else:
+                raise GenerateException(
+                    f"Not implemented: top-level {type(command.action)}"
+                )
+        case AssertInvalid():
+            gen_invalid(command, ctx)
+        case Register():
+            gen_register(command, ctx)
+        case AssertReturn():
+            match command.action:
+                case Invoke():
+                    gen_invoke(command.line, command.action, command.expected, ctx)
+                case Get():
+                    gen_get(command.line, command.action, command.expected, ctx)
+        case AssertTrap():
+            if not isinstance(command.action, Invoke):
+                raise GenerateException(f"Not implemented: {type(command.action)}")
+            gen_invoke(
+                command.line, command.action, None, ctx, fail_msg=command.messsage
+            )
 
 
-def compile_wasm_source(mod, outpath):
-    if not mod:
-        return True
-    if mod[0] == 'literal':
-        with open(outpath, 'wb+') as f:
-            f.write(mod[1])
-            return True
-    elif mod[0] == 'parse':
-        with NamedTemporaryFile("w+") as temp:
-            temp.write(mod[1])
-            temp.flush()
-            rc = call(["wat2wasm", "--enable-all", "--no-check", temp.name, "-o", outpath])
-            return rc == 0
-    return False
+def generate(description: WastDescription):
+    print("let globalImportObject = {};\nlet namedModules = {};\n")
+    ctx = Context("", False)
+    for command in description.commands:
+        gen_command(command, ctx)
+    if ctx.has_unclosed:
+        print("});")
+
+
+def clean_up(path: Path):
+    for file in path.iterdir():
+        if file.suffix in ("wat", "json"):
+            file.unlink()
 
 
 def main():
-    global module_output_path
-    with open(argv[1]) as f:
-        sexp = f.read()
-    name = argv[2]
-    module_output_path = argv[3]
-    ast = parse(sexp)
-    print('let globalImportObject = {};')
-    print('let namedModules = {};\n')
-    for index, description in enumerate(generate(ast)):
-        testname = f'{name}_{index}'
-        outpath = path.join(module_output_path, f'{testname}.wasm')
-        mod = description["module"]
-        if not compile_wasm_source(mod, outpath) and ('kind' not in description or description["kind"] != "malformed"):
-            print("Failed to compile", name, "module index", index, "skipping that test", file=stderr)
-            continue
-        sep = ""
-        print(f'''describe({json.dumps(testname)}, () => {{
-let _test = test;
-{gen_parse_module(testname, index) if mod else ''}
-{sep.join(gentest(x, testname) for x in description["tests"])}
-}});
-''')
+    input_path = Path(sys.argv[1])
+    name = sys.argv[2]
+    out_path = Path(sys.argv[3])
+
+    description = make_description(input_path, name, out_path)
+    generate(description)
+    clean_up(out_path)
 
 
 if __name__ == "__main__":
