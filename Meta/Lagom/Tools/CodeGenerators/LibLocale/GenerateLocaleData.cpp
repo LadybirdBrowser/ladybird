@@ -123,11 +123,6 @@ struct LocaleData {
     size_t text_layout { 0 };
 };
 
-struct LanguageMapping {
-    CanonicalLanguageID key {};
-    CanonicalLanguageID alias {};
-};
-
 struct CLDR {
     UniqueStringStorage unique_strings;
     UniqueStorage<KeywordList> unique_keyword_lists;
@@ -144,8 +139,6 @@ struct CLDR {
 
     Vector<ByteString> list_pattern_types;
     Vector<ByteString> character_orders;
-    Vector<LanguageMapping> likely_subtags;
-    size_t max_variant_size { 0 };
 };
 
 // Some parsing is expected to fail. For example, the CLDR contains language mappings
@@ -172,32 +165,6 @@ ErrorOr<JsonValue const*> read_json_file_with_cache(ByteString const& path)
     TRY(parsed_json_cache.try_set(path, move(parsed_json)));
 
     return &parsed_json_cache.get(path).value();
-}
-
-static ErrorOr<LanguageMapping> parse_language_mapping(CLDR& cldr, StringView key, StringView alias)
-{
-    auto parsed_key = TRY(CanonicalLanguageID::parse(cldr.unique_strings, key));
-    auto parsed_alias = TRY(CanonicalLanguageID::parse(cldr.unique_strings, alias));
-    return LanguageMapping { move(parsed_key), move(parsed_alias) };
-}
-
-static ErrorOr<void> parse_likely_subtags(ByteString core_supplemental_path, CLDR& cldr)
-{
-    LexicalPath likely_subtags_path(move(core_supplemental_path));
-    likely_subtags_path = likely_subtags_path.append("likelySubtags.json"sv);
-
-    auto likely_subtags = TRY(read_json_file(likely_subtags_path.string()));
-    auto const& supplemental_object = likely_subtags.as_object().get_object("supplemental"sv).value();
-    auto const& likely_subtags_object = supplemental_object.get_object("likelySubtags"sv).value();
-
-    likely_subtags_object.for_each_member([&](auto const& key, JsonValue const& value) {
-        auto mapping = TRY_OR_DISCARD(parse_language_mapping(cldr, key, value.as_string()));
-        cldr.max_variant_size = max(mapping.key.variants.size(), cldr.max_variant_size);
-        cldr.max_variant_size = max(mapping.alias.variants.size(), cldr.max_variant_size);
-        cldr.likely_subtags.append(move(mapping));
-    });
-
-    return {};
 }
 
 static ErrorOr<void> parse_unicode_extension_keywords(ByteString bcp47_path, CLDR& cldr)
@@ -531,8 +498,6 @@ static ErrorOr<void> parse_all_locales(ByteString bcp47_path, ByteString core_pa
     core_supplemental_path = core_supplemental_path.append("supplemental"sv);
     VERIFY(FileSystem::is_directory(core_supplemental_path.string()));
 
-    TRY(parse_likely_subtags(core_supplemental_path.string(), cldr));
-
     auto remove_variants_from_path = [&](ByteString path) -> ErrorOr<ByteString> {
         auto parsed_locale = TRY(CanonicalLanguageID::parse(cldr.unique_strings, LexicalPath::basename(path)));
 
@@ -634,7 +599,6 @@ static ErrorOr<void> generate_unicode_locale_implementation(Core::InputBufferedF
     SourceGenerator generator { builder };
     generator.set("string_index_type"sv, string_index_type);
     generator.set("locales_size"sv, ByteString::number(cldr.locales.size()));
-    generator.set("variants_size", ByteString::number(cldr.max_variant_size));
 
     generator.append(R"~~~(
 #include <AK/Array.h>
@@ -715,26 +679,6 @@ ReadonlySpan<StringView> get_available_keyword_values(StringView key)
     cldr.unique_list_pattern_lists.generate(generator, cldr.unique_list_patterns.type_that_fits(), "s_list_pattern_lists"sv);
     cldr.unique_text_layouts.generate(generator, "TextLayout"sv, "s_text_layouts"sv, 30);
 
-    auto append_index = [&](auto index) {
-        generator.append(ByteString::formatted(", {}", index));
-    };
-
-    auto append_list_and_size = [&](auto const& list) {
-        if (list.is_empty()) {
-            generator.append(", {}, 0");
-            return;
-        }
-
-        bool first = true;
-        generator.append(", {");
-        for (auto const& item : list) {
-            generator.append(first ? " "sv : ", "sv);
-            generator.append(ByteString::number(item));
-            first = false;
-        }
-        generator.append(ByteString::formatted(" }}, {}", list.size()));
-    };
-
     auto append_mapping = [&](auto const& keys, auto const& map, auto type, auto name, auto mapping_getter) {
         generator.set("type", type);
         generator.set("name", name);
@@ -765,156 +709,6 @@ static constexpr Array<@type@, @size@> @name@ { {)~~~");
     append_mapping(locales, cldr.locales, cldr.unique_keyword_lists.type_that_fits(), "s_number_system_keywords"sv, [&](auto const& locale) { return locale.number_system_keywords; });
     append_mapping(locales, cldr.locales, cldr.unique_list_pattern_lists.type_that_fits(), "s_locale_list_patterns"sv, [&](auto const& locale) { return locale.list_patterns; });
     append_mapping(locales, cldr.locales, cldr.unique_text_layouts.type_that_fits(), "s_locale_text_layouts"sv, [&](auto const& locale) { return locale.text_layout; });
-
-    generator.append(R"~~~(
-
-struct CanonicalLanguageID
-{
-    @string_index_type@ language { 0 };
-    @string_index_type@ script { 0 };
-    @string_index_type@ region { 0 };
-    Array<@string_index_type@, @variants_size@> variants {};
-    size_t variants_size { 0 };
-};
-
-struct LanguageMapping {
-    CanonicalLanguageID key;
-    CanonicalLanguageID alias;
-};
-)~~~");
-
-    auto append_complex_mapping = [&](StringView name, auto& mappings) {
-        generator.set("size", ByteString::number(mappings.size()));
-        generator.set("name"sv, name);
-
-        generator.append(R"~~~(
-static constexpr Array<LanguageMapping, @size@> s_@name@ { {
-)~~~");
-
-        quick_sort(mappings, [&](auto const& lhs, auto const& rhs) {
-            auto const& lhs_language = cldr.unique_strings.get(lhs.key.language);
-            auto const& rhs_language = cldr.unique_strings.get(rhs.key.language);
-
-            // Sort the keys such that "und" language tags are at the end, as those are less specific.
-            if (lhs_language.starts_with("und"sv) && !rhs_language.starts_with("und"sv))
-                return false;
-            if (!lhs_language.starts_with("und"sv) && rhs_language.starts_with("und"sv))
-                return true;
-            return lhs_language < rhs_language;
-        });
-
-        for (auto const& mapping : mappings) {
-            generator.set("language"sv, ByteString::number(mapping.key.language));
-            generator.append("    { { @language@");
-
-            append_index(mapping.key.script);
-            append_index(mapping.key.region);
-            append_list_and_size(mapping.key.variants);
-
-            generator.set("language"sv, ByteString::number(mapping.alias.language));
-            generator.append(" }, { @language@");
-
-            append_index(mapping.alias.script);
-            append_index(mapping.alias.region);
-            append_list_and_size(mapping.alias.variants);
-
-            generator.append(" } },\n");
-        }
-
-        generator.append("} };\n");
-    };
-
-    append_complex_mapping("likely_subtags"sv, cldr.likely_subtags);
-
-    generator.append(R"~~~(
-static LanguageMapping const* resolve_likely_subtag(LanguageID const& language_id)
-{
-    // https://unicode.org/reports/tr35/#Likely_Subtags
-    enum class State {
-        LanguageScriptRegion,
-        LanguageRegion,
-        LanguageScript,
-        Language,
-        UndScript,
-        Done,
-    };
-
-    auto state = State::LanguageScriptRegion;
-
-    while (state != State::Done) {
-        LanguageID search_key;
-
-        switch (state) {
-        case State::LanguageScriptRegion:
-            state = State::LanguageRegion;
-            if (!language_id.script.has_value() || !language_id.region.has_value())
-                continue;
-
-            search_key.language = *language_id.language;
-            search_key.script = *language_id.script;
-            search_key.region = *language_id.region;
-            break;
-
-        case State::LanguageRegion:
-            state = State::LanguageScript;
-            if (!language_id.region.has_value())
-                continue;
-
-            search_key.language = *language_id.language;
-            search_key.region = *language_id.region;
-            break;
-
-        case State::LanguageScript:
-            state = State::Language;
-            if (!language_id.script.has_value())
-                continue;
-
-            search_key.language = *language_id.language;
-            search_key.script = *language_id.script;
-            break;
-
-        case State::Language:
-            state = State::UndScript;
-            search_key.language = *language_id.language;
-            break;
-
-        case State::UndScript:
-            state = State::Done;
-            if (!language_id.script.has_value())
-                continue;
-
-            search_key.language = "und"_string;
-            search_key.script = *language_id.script;
-            break;
-
-        default:
-            VERIFY_NOT_REACHED();
-        }
-
-        for (auto const& map : s_likely_subtags) {
-            auto const& key_language = decode_string(map.key.language);
-            auto const& key_script = decode_string(map.key.script);
-            auto const& key_region  = decode_string(map.key.region);
-
-            if (key_language != search_key.language)
-                continue;
-            if (!key_script.is_empty() || search_key.script.has_value()) {
-                if (key_script != search_key.script)
-                    continue;
-            }
-            if (!key_region.is_empty() || search_key.region.has_value()) {
-                if (key_region != search_key.region)
-                    continue;
-            }
-
-            return &map;
-        }
-    }
-
-    return nullptr;
-}
-
-)~~~");
 
     auto append_from_string = [&](StringView enum_title, StringView enum_snake, auto const& values, Vector<Alias> const& aliases = {}) -> ErrorOr<void> {
         HashValueMap<ByteString> hashes;
@@ -1092,33 +886,6 @@ Optional<CharacterOrder> character_order_for_locale(StringView locale)
     if (auto text_layout = text_layout_for_locale(locale); text_layout.has_value())
         return text_layout->character_order;
     return {};
-}
-
-
-Optional<LanguageID> add_likely_subtags(LanguageID const& language_id)
-{
-    // https://www.unicode.org/reports/tr35/#Likely_Subtags
-    auto const* likely_subtag = resolve_likely_subtag(language_id);
-    if (likely_subtag == nullptr)
-        return OptionalNone {};
-
-    auto maximized = language_id;
-
-    auto key_script = decode_string(likely_subtag->key.script);
-    auto key_region = decode_string(likely_subtag->key.region);
-
-    auto alias_language = decode_string(likely_subtag->alias.language);
-    auto alias_script = decode_string(likely_subtag->alias.script);
-    auto alias_region = decode_string(likely_subtag->alias.region);
-
-    if (maximized.language == "und"sv)
-        maximized.language = MUST(String::from_utf8(alias_language));
-    if (!maximized.script.has_value() || (!key_script.is_empty() && !alias_script.is_empty()))
-        maximized.script = MUST(String::from_utf8(alias_script));
-    if (!maximized.region.has_value() || (!key_region.is_empty() && !alias_region.is_empty()))
-        maximized.region = MUST(String::from_utf8(alias_region));
-
-    return maximized;
 }
 
 }

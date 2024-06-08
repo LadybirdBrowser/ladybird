@@ -600,48 +600,74 @@ Optional<ListPatterns> __attribute__((weak)) get_locale_list_patterns(StringView
 Optional<CharacterOrder> __attribute__((weak)) character_order_from_string(StringView) { return {}; }
 StringView __attribute__((weak)) character_order_to_string(CharacterOrder) { return {}; }
 Optional<CharacterOrder> __attribute__((weak)) character_order_for_locale(StringView) { return {}; }
-Optional<LanguageID> __attribute__((weak)) add_likely_subtags(LanguageID const&) { return {}; }
 
-Optional<LanguageID> remove_likely_subtags(LanguageID const& language_id)
+static void apply_extensions_to_locale(icu::Locale& locale, icu::Locale const& locale_with_extensions)
 {
-    // https://www.unicode.org/reports/tr35/#Likely_Subtags
-    auto return_language_and_variants = [](auto language, auto variants) {
-        language.variants = move(variants);
-        return language;
-    };
+    UErrorCode status = U_ZERO_ERROR;
 
-    // 1. First get max = AddLikelySubtags(inputLocale). If an error is signaled, return it.
-    auto maximized = add_likely_subtags(language_id);
-    if (!maximized.has_value())
+    icu::LocaleBuilder builder;
+    builder.setLocale(locale_with_extensions);
+    builder.setLanguage(locale.getLanguage());
+    builder.setRegion(locale.getCountry());
+    builder.setScript(locale.getScript());
+    builder.setVariant(locale.getVariant());
+
+    locale = builder.build(status);
+    VERIFY(icu_success(status));
+}
+
+Optional<String> add_likely_subtags(StringView locale)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto locale_data = LocaleData::for_locale(locale);
+    if (!locale_data.has_value())
         return {};
 
-    // 2. Remove the variants from max.
-    auto variants = move(maximized->variants);
+    // ICU doesn't seem to handle maximizing locales that have keywords. For example, "und-x-private" should become
+    // "en-Latn-US-x-private" (in the same manner that "und" becomes "en-Latn-US"). So here, we maximize the locale
+    // without keywords, then add them back if needed.
+    auto maximized = icu::Locale::createFromName(locale_data->locale().getBaseName());
 
-    // 3. Get the components of the max (languagemax, scriptmax, regionmax).
-    auto language_max = maximized->language;
-    auto script_max = maximized->script;
-    auto region_max = maximized->region;
-
-    // 4. Then for trial in {languagemax, languagemax_regionmax, languagemax_scriptmax}:
-    //    If AddLikelySubtags(trial) = max, then return trial + variants.
-    auto run_trial = [&](Optional<String> language, Optional<String> script, Optional<String> region) -> Optional<LanguageID> {
-        LanguageID trial { .language = move(language), .script = move(script), .region = move(region) };
-
-        if (add_likely_subtags(trial) == maximized)
-            return return_language_and_variants(move(trial), move(variants));
+    maximized.addLikelySubtags(status);
+    if (icu_failure(status))
         return {};
-    };
 
-    if (auto trial = run_trial(language_max, {}, {}); trial.has_value())
-        return trial;
-    if (auto trial = run_trial(language_max, {}, region_max); trial.has_value())
-        return trial;
-    if (auto trial = run_trial(language_max, script_max, {}); trial.has_value())
-        return trial;
+    if (strlen(locale_data->locale().getName()) != strlen(locale_data->locale().getBaseName()))
+        apply_extensions_to_locale(maximized, locale_data->locale());
 
-    // 5. If you do not get a match, return max + variants.
-    return return_language_and_variants(maximized.release_value(), move(variants));
+    auto result = maximized.toLanguageTag<StringBuilder>(status);
+    if (icu_failure(status))
+        return {};
+
+    return MUST(result.to_string());
+}
+
+Optional<String> remove_likely_subtags(StringView locale)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto locale_data = LocaleData::for_locale(locale);
+    if (!locale_data.has_value())
+        return {};
+
+    // ICU doesn't seem to handle minimizing locales that have keywords. For example, "und-x-private" should become
+    // "en-x-private" (in the same manner that "und" becomes "en"). So here, we minimize the locale without keywords,
+    // then add them back if needed.
+    auto minimized = icu::Locale::createFromName(locale_data->locale().getBaseName());
+
+    minimized.minimizeSubtags(status);
+    if (icu_failure(status))
+        return {};
+
+    if (strlen(locale_data->locale().getName()) != strlen(locale_data->locale().getBaseName()))
+        apply_extensions_to_locale(minimized, locale_data->locale());
+
+    auto result = minimized.toLanguageTag<StringBuilder>(status);
+    if (icu_failure(status))
+        return {};
+
+    return MUST(result.to_string());
 }
 
 String LanguageID::to_string() const

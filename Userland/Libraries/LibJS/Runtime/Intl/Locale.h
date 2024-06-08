@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,7 +23,7 @@ class Locale final : public Object {
     JS_DECLARE_ALLOCATOR(Locale);
 
 public:
-    static NonnullGCPtr<Locale> create(Realm&, ::Locale::LocaleID);
+    static NonnullGCPtr<Locale> create(Realm&, NonnullGCPtr<Locale> source_locale, String);
 
     static constexpr auto relevant_extension_keys()
     {
