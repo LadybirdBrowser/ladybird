@@ -1,0 +1,30 @@
+<script src="../include.js"></script>
+<script>
+    async function* asyncGenerator() {
+        yield "Well";
+        yield "Hello";
+        yield "Friends";
+        yield "!";
+        yield "🦬";
+    }
+
+    async function readStream(stream) {
+        const reader = stream.getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done)
+                break;
+            println(value);
+        }
+    }
+
+    test(async () => {
+        const asyncIterable = {
+            [Symbol.asyncIterator]: asyncGenerator,
+        };
+
+        const readableStream = ReadableStream.from(asyncIterable);
+
+        await readStream(readableStream);
+    });
+</script>

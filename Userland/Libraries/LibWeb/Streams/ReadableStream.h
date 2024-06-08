@@ -70,6 +70,8 @@ public:
 
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> construct_impl(JS::Realm&, Optional<JS::Handle<JS::Object>> const& underlying_source, QueuingStrategy const& = {});
 
+    static WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> from(JS::VM& vm, JS::Value async_iterable);
+
     virtual ~ReadableStream() override;
 
     bool locked() const;

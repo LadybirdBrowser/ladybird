@@ -29,7 +29,7 @@ dictionary ReadableStreamGetReaderOptions {
 interface ReadableStream {
     constructor(optional object underlyingSource, optional QueuingStrategy strategy = {});
 
-    [FIXME] static ReadableStream from(any asyncIterable);
+    static ReadableStream from(any asyncIterable);
 
     readonly attribute boolean locked;
 
