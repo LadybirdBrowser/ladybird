@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -81,8 +81,8 @@ struct PatternPartitionWithSource : public PatternPartition {
 
 using StringOrBoolean = Variant<StringView, bool>;
 
-Optional<::Locale::LocaleID> is_structurally_valid_language_tag(StringView locale);
-String canonicalize_unicode_locale_id(::Locale::LocaleID& locale);
+bool is_structurally_valid_language_tag(StringView locale);
+String canonicalize_unicode_locale_id(StringView locale);
 bool is_well_formed_currency_code(StringView currency);
 bool is_well_formed_unit_identifier(StringView unit_identifier);
 ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM&, Value locales);

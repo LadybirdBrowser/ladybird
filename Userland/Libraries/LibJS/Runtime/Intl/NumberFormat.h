@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -268,7 +268,7 @@ private:
     GCPtr<NativeFunction> m_bound_format;                // [[BoundFormat]]
 
     // Non-standard. Stores the resolved currency display string based on [[Locale]], [[Currency]], and [[CurrencyDisplay]].
-    Optional<StringView> m_resolved_currency_display;
+    Optional<String> m_resolved_currency_display;
 
     // Non-standard. Stores the resolved compact number format based on [[Locale]], [[Notation], [[Style]], and [[CompactDisplay]].
     Optional<::Locale::NumberFormat> m_compact_format;

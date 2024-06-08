@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/Intl/NumberFormatFunction.h>
 #include <LibJS/Runtime/Intl/PluralRules.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibLocale/DisplayNames.h>
 #include <LibUnicode/CurrencyCode.h>
 #include <math.h>
 #include <stdlib.h>
@@ -99,13 +100,13 @@ StringView NumberFormat::resolve_currency_display()
         m_resolved_currency_display = currency();
         break;
     case NumberFormat::CurrencyDisplay::Symbol:
-        m_resolved_currency_display = ::Locale::get_locale_short_currency_mapping(data_locale(), currency());
+        m_resolved_currency_display = ::Locale::currency_display_name(data_locale(), currency(), ::Locale::Style::Short);
         break;
     case NumberFormat::CurrencyDisplay::NarrowSymbol:
-        m_resolved_currency_display = ::Locale::get_locale_narrow_currency_mapping(data_locale(), currency());
+        m_resolved_currency_display = ::Locale::currency_display_name(data_locale(), currency(), ::Locale::Style::Narrow);
         break;
     case NumberFormat::CurrencyDisplay::Name:
-        m_resolved_currency_display = ::Locale::get_locale_numeric_currency_mapping(data_locale(), currency());
+        m_resolved_currency_display = ::Locale::currency_numeric_display_name(data_locale(), currency());
         break;
     default:
         VERIFY_NOT_REACHED();

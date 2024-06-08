@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestDateTimeFormat.cpp
+    TestDisplayNames.cpp
     TestLocale.cpp
 )
 

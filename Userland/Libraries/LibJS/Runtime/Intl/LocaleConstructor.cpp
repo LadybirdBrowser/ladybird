@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -49,8 +49,7 @@ static ThrowCompletionOr<String> apply_options_to_tag(VM& vm, StringView tag, Ob
     // 2. Assert: Type(options) is Object.
 
     // 3. If ! IsStructurallyValidLanguageTag(tag) is false, throw a RangeError exception.
-    auto locale_id = is_structurally_valid_language_tag(tag);
-    if (!locale_id.has_value())
+    if (!is_structurally_valid_language_tag(tag))
         return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
 
     // 4. Let language be ? GetOption(options, "language", string, empty, undefined).
@@ -69,10 +68,10 @@ static ThrowCompletionOr<String> apply_options_to_tag(VM& vm, StringView tag, Ob
     auto region = TRY(get_string_option(vm, options, vm.names.region, ::Locale::is_unicode_region_subtag));
 
     // 10. Set tag to ! CanonicalizeUnicodeLocaleId(tag).
-    auto canonicalized_tag = JS::Intl::canonicalize_unicode_locale_id(*locale_id);
+    auto canonicalized_tag = JS::Intl::canonicalize_unicode_locale_id(tag);
 
     // 11. Assert: tag matches the unicode_locale_id production.
-    locale_id = ::Locale::parse_unicode_locale_id(canonicalized_tag);
+    auto locale_id = ::Locale::parse_unicode_locale_id(canonicalized_tag);
     VERIFY(locale_id.has_value());
 
     // 12. Let languageId be the substring of tag corresponding to the unicode_language_id production.
@@ -103,8 +102,10 @@ static ThrowCompletionOr<String> apply_options_to_tag(VM& vm, StringView tag, Ob
     }
 
     // 16. Set tag to tag with the substring corresponding to the unicode_language_id production replaced by the string languageId.
+    canonicalized_tag = locale_id->to_string();
+
     // 17. Return ! CanonicalizeUnicodeLocaleId(tag).
-    return JS::Intl::canonicalize_unicode_locale_id(*locale_id);
+    return JS::Intl::canonicalize_unicode_locale_id(canonicalized_tag);
 }
 
 // 14.1.3 ApplyUnicodeExtensionToTag ( tag, options, relevantExtensionKeys ), https://tc39.es/ecma402/#sec-apply-unicode-extension-to-tag
