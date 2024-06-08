@@ -21,9 +21,6 @@ set(CLDR_DATES_PATH "${CLDR_PATH}/${CLDR_DATES_SOURCE}")
 set(CLDR_LOCALES_SOURCE cldr-localenames-modern)
 set(CLDR_LOCALES_PATH "${CLDR_PATH}/${CLDR_LOCALES_SOURCE}")
 
-set(CLDR_MISC_SOURCE cldr-misc-modern)
-set(CLDR_MISC_PATH "${CLDR_PATH}/${CLDR_MISC_SOURCE}")
-
 set(CLDR_NUMBERS_SOURCE cldr-numbers-modern)
 set(CLDR_NUMBERS_PATH "${CLDR_PATH}/${CLDR_NUMBERS_SOURCE}")
 
@@ -39,7 +36,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_CORE_SOURCE}/**" "${CLDR_CORE_PATH}")
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_DATES_SOURCE}/**" "${CLDR_DATES_PATH}")
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_LOCALES_SOURCE}/**" "${CLDR_LOCALES_PATH}")
-        extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_MISC_SOURCE}/**" "${CLDR_MISC_PATH}")
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_NUMBERS_SOURCE}/**" "${CLDR_NUMBERS_PATH}")
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_UNITS_SOURCE}/**" "${CLDR_UNITS_PATH}")
     else()
@@ -75,7 +71,7 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         "${CLDR_VERSION_FILE}"
         "${LOCALE_DATA_HEADER}"
         "${LOCALE_DATA_IMPLEMENTATION}"
-        arguments -b "${CLDR_BCP47_PATH}" -r "${CLDR_CORE_PATH}" -m "${CLDR_MISC_PATH}" -n "${CLDR_NUMBERS_PATH}" -d "${CLDR_DATES_PATH}"
+        arguments -b "${CLDR_BCP47_PATH}" -r "${CLDR_CORE_PATH}" -n "${CLDR_NUMBERS_PATH}" -d "${CLDR_DATES_PATH}"
     )
     invoke_generator(
         "NumberFormatData"

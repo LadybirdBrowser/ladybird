@@ -61,6 +61,9 @@ static constexpr bool icu_failure(UErrorCode code)
 }
 
 icu::StringPiece icu_string_piece(StringView string);
+
+Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings);
+
 String icu_string_to_string(icu::UnicodeString const& string);
 String icu_string_to_string(UChar const*, i32 length);
 

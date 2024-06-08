@@ -13,6 +13,7 @@ set(SOURCES
     DateTimeFormat.cpp
     DisplayNames.cpp
     ICU.cpp
+    ListFormat.cpp
     Locale.cpp
     NumberFormat.cpp
     PluralRules.cpp

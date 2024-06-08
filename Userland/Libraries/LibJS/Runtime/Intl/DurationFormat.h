@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
+#include <LibLocale/ListFormat.h>
 
 namespace JS::Intl {
 
@@ -226,6 +227,6 @@ ThrowCompletionOr<Temporal::DurationRecord> to_duration_record(VM&, Value input)
 i8 duration_record_sign(Temporal::DurationRecord const&);
 bool is_valid_duration_record(Temporal::DurationRecord const&);
 ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM&, String const& unit, Object const& options, StringView base_style, ReadonlySpan<StringView> styles_list, StringView digital_base, StringView previous_style);
-Vector<PatternPartition> partition_duration_format_pattern(VM&, DurationFormat const&, Temporal::DurationRecord const& duration);
+Vector<::Locale::ListFormatPart> partition_duration_format_pattern(VM&, DurationFormat const&, Temporal::DurationRecord const& duration);
 
 }

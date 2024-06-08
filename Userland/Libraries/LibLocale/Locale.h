@@ -84,18 +84,6 @@ enum class Style : u8 {
     Narrow,
 };
 
-struct DisplayPattern {
-    StringView locale_pattern;
-    StringView locale_separator;
-};
-
-struct ListPatterns {
-    StringView start;
-    StringView middle;
-    StringView end;
-    StringView pair;
-};
-
 // Note: These methods only verify that the provided strings match the EBNF grammar of the
 // Unicode identifier subtag (i.e. no validation is done that the tags actually exist).
 constexpr bool is_unicode_language_subtag(StringView subtag)
@@ -159,8 +147,6 @@ Style style_from_string(StringView style);
 StringView style_to_string(Style style);
 
 Optional<Locale> locale_from_string(StringView locale);
-Optional<ListPatternType> list_pattern_type_from_string(StringView list_pattern_type);
-
 Optional<Key> key_from_string(StringView key);
 Optional<KeywordCalendar> keyword_ca_from_string(StringView ca);
 Optional<KeywordCollation> keyword_co_from_string(StringView co);
@@ -170,8 +156,6 @@ Optional<KeywordColNumeric> keyword_kn_from_string(StringView kn);
 Optional<KeywordNumbers> keyword_nu_from_string(StringView nu);
 Vector<StringView> get_keywords_for_locale(StringView locale, StringView key);
 Optional<StringView> get_preferred_keyword_value_for_locale(StringView locale, StringView key);
-
-Optional<ListPatterns> get_locale_list_patterns(StringView locale, StringView type, Style style);
 
 Optional<String> add_likely_subtags(StringView);
 Optional<String> remove_likely_subtags(StringView);

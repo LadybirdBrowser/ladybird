@@ -90,6 +90,20 @@ icu::StringPiece icu_string_piece(StringView string)
     return { string.characters_without_null_termination(), static_cast<i32>(string.length()) };
 }
 
+Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings)
+{
+    Vector<icu::UnicodeString> result;
+    result.ensure_capacity(strings.size());
+
+    for (auto const& string : strings) {
+        auto view = string.bytes_as_string_view();
+        icu::UnicodeString icu_string(view.characters_without_null_termination(), static_cast<i32>(view.length()));
+        result.unchecked_append(move(icu_string));
+    }
+
+    return result;
+}
+
 String icu_string_to_string(icu::UnicodeString const& string)
 {
     return icu_string_to_string(string.getBuffer(), string.length());
