@@ -1,16 +1,24 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#define AK_DONT_REPLACE_STD
+
 #include <AK/AllOf.h>
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <LibLocale/DateTimeFormat.h>
+#include <LibLocale/ICU.h>
 #include <LibLocale/Locale.h>
 #include <LibUnicode/CharacterTypes.h>
+
+#include <unicode/localebuilder.h>
+#include <unicode/locid.h>
+#include <unicode/ucurr.h>
 
 namespace Locale {
 
@@ -473,266 +481,36 @@ Optional<LocaleID> parse_unicode_locale_id(StringView locale)
     return locale_id;
 }
 
-static void perform_hard_coded_key_value_substitutions(StringView key, String& value)
+String canonicalize_unicode_locale_id(StringView locale)
 {
-    // FIXME: In the XML export of CLDR, there are some aliases defined in the following files:
-    // https://github.com/unicode-org/cldr-staging/blob/master/production/common/bcp47/calendar.xml
-    // https://github.com/unicode-org/cldr-staging/blob/master/production/common/bcp47/collation.xml
-    // https://github.com/unicode-org/cldr-staging/blob/master/production/common/bcp47/measure.xml
-    // https://github.com/unicode-org/cldr-staging/blob/master/production/common/bcp47/timezone.xml
-    // https://github.com/unicode-org/cldr-staging/blob/master/production/common/bcp47/transform.xml
-    //
-    // There isn't yet a counterpart in the JSON export. See: https://unicode-org.atlassian.net/browse/CLDR-14571
-    Optional<StringView> result;
+    UErrorCode status = U_ZERO_ERROR;
 
-    if (key == "ca"sv) {
-        if (value == "islamicc"sv)
-            result = "islamic-civil"sv;
-        else if (value == "ethiopic-amete-alem"sv)
-            result = "ethioaa"sv;
-    } else if (key.is_one_of("kb"sv, "kc"sv, "kh"sv, "kk"sv, "kn"sv) && (value == "yes"sv)) {
-        result = "true"sv;
-    } else if (key == "ks"sv) {
-        if (value == "primary"sv)
-            result = "level1"sv;
-        else if (value == "tertiary"sv)
-            result = "level3"sv;
-        // Note: There are also aliases for "secondary", "quaternary", "quarternary", and "identical",
-        // but those are semantically incorrect values (they are too long), so they can be skipped.
-    } else if ((key == "m0"sv) && (value == "names"sv)) {
-        result = "prprname"sv;
-    } else if ((key == "ms"sv) && (value == "imperial"sv)) {
-        result = "uksystem"sv;
-    } else if (key == "tz"sv) {
-        // Formatter disabled because this block is easier to read / check against timezone.xml as one-liners.
-        // clang-format off
-        if (value == "aqams"sv) result = "nzakl"sv;
-        else if (value == "cnckg"sv) result = "cnsha"sv;
-        else if (value == "cnhrb"sv) result = "cnsha"sv;
-        else if (value == "cnkhg"sv) result = "cnurc"sv;
-        else if (value == "cuba"sv) result = "cuhav"sv;
-        else if (value == "egypt"sv) result = "egcai"sv;
-        else if (value == "eire"sv) result = "iedub"sv;
-        else if (value == "est"sv) result = "utcw05"sv;
-        else if (value == "gmt0"sv) result = "gmt"sv;
-        else if (value == "hongkong"sv) result = "hkhkg"sv;
-        else if (value == "hst"sv) result = "utcw10"sv;
-        else if (value == "iceland"sv) result = "isrey"sv;
-        else if (value == "iran"sv) result = "irthr"sv;
-        else if (value == "israel"sv) result = "jeruslm"sv;
-        else if (value == "jamaica"sv) result = "jmkin"sv;
-        else if (value == "japan"sv) result = "jptyo"sv;
-        else if (value == "kwajalein"sv) result = "mhkwa"sv;
-        else if (value == "libya"sv) result = "lytip"sv;
-        else if (value == "mst"sv) result = "utcw07"sv;
-        else if (value == "navajo"sv) result = "usden"sv;
-        else if (value == "poland"sv) result = "plwaw"sv;
-        else if (value == "portugal"sv) result = "ptlis"sv;
-        else if (value == "prc"sv) result = "cnsha"sv;
-        else if (value == "roc"sv) result = "twtpe"sv;
-        else if (value == "rok"sv) result = "krsel"sv;
-        else if (value == "singapore"sv) result = "sgsin"sv;
-        else if (value == "turkey"sv) result = "trist"sv;
-        else if (value == "uct"sv) result = "utc"sv;
-        else if (value == "usnavajo"sv) result = "usden"sv;
-        else if (value == "zulu"sv) result = "utc"sv;
-        // clang-format on
-    }
+    auto locale_data = LocaleData::for_locale(locale);
+    VERIFY(locale_data.has_value());
 
-    if (result.has_value())
-        value = MUST(String::from_utf8(*result));
+    locale_data->locale().canonicalize(status);
+    VERIFY(icu_success(status));
+
+    return locale_data->to_string();
 }
 
-void canonicalize_unicode_extension_values(StringView key, String& value, bool remove_true)
+void canonicalize_unicode_extension_values(StringView key, String& value, bool)
 {
-    value = MUST(value.to_lowercase());
-    perform_hard_coded_key_value_substitutions(key, value);
+    UErrorCode status = U_ZERO_ERROR;
 
-    // Note: The spec says to remove "true" type and tfield values but that is believed to be a bug in the spec
-    // because, for tvalues, that would result in invalid syntax:
-    //     https://unicode-org.atlassian.net/browse/CLDR-14318
-    // This has also been noted by test262:
-    //     https://github.com/tc39/test262/blob/18bb955771669541c56c28748603f6afdb2e25ff/test/intl402/Intl/getCanonicalLocales/transformed-ext-canonical.js
-    if (remove_true && (value == "true"sv)) {
-        value = {};
-        return;
-    }
+    icu::LocaleBuilder builder;
+    builder.setUnicodeLocaleKeyword(icu_string_piece(key), icu_string_piece(value));
 
-    if (key.is_one_of("sd"sv, "rg"sv)) {
-        if (auto alias = resolve_subdivision_alias(value); alias.has_value()) {
-            auto aliases = alias->split_view(' ');
+    auto locale = builder.build(status);
+    VERIFY(icu_success(status));
 
-            // FIXME: Subdivision subtags do not appear in the CLDR likelySubtags.json file.
-            //        Implement the spec's recommendation of using just the first alias for now,
-            //        but we should determine if there's anything else needed here.
-            value = MUST(String::from_utf8(aliases[0]));
-        }
-    }
-}
+    locale.canonicalize(status);
+    VERIFY(icu_success(status));
 
-static void transform_unicode_locale_id_to_canonical_syntax(LocaleID& locale_id)
-{
-    auto canonicalize_language = [&](LanguageID& language_id, bool force_lowercase) {
-        language_id.language = MUST(language_id.language->to_lowercase());
-        if (language_id.script.has_value())
-            language_id.script = MUST(language_id.script->to_titlecase());
-        if (language_id.region.has_value())
-            language_id.region = MUST(language_id.region->to_uppercase());
-        for (auto& variant : language_id.variants)
-            variant = MUST(variant.to_lowercase());
+    auto result = locale.getUnicodeKeywordValue<StringBuilder>(icu_string_piece(key), status);
+    VERIFY(icu_success(status));
 
-        resolve_complex_language_aliases(language_id);
-
-        if (auto alias = resolve_language_alias(*language_id.language); alias.has_value()) {
-            auto language_alias = parse_unicode_language_id(*alias);
-            VERIFY(language_alias.has_value());
-
-            language_id.language = move(language_alias->language);
-            if (!language_id.script.has_value() && language_alias->script.has_value())
-                language_id.script = move(language_alias->script);
-            if (!language_id.region.has_value() && language_alias->region.has_value())
-                language_id.region = move(language_alias->region);
-            if (language_id.variants.is_empty() && !language_alias->variants.is_empty())
-                language_id.variants = move(language_alias->variants);
-        }
-
-        if (language_id.script.has_value()) {
-            if (auto alias = resolve_script_tag_alias(*language_id.script); alias.has_value())
-                language_id.script = MUST(String::from_utf8(*alias));
-        }
-
-        if (language_id.region.has_value()) {
-            if (auto alias = resolve_territory_alias(*language_id.region); alias.has_value())
-                language_id.region = resolve_most_likely_territory_alias(language_id, *alias);
-        }
-
-        quick_sort(language_id.variants);
-
-        for (auto& variant : language_id.variants) {
-            variant = MUST(variant.to_lowercase());
-            if (auto alias = resolve_variant_alias(variant); alias.has_value())
-                variant = MUST(String::from_utf8(*alias));
-        }
-
-        if (force_lowercase) {
-            if (language_id.script.has_value())
-                language_id.script = MUST(language_id.script->to_lowercase());
-            if (language_id.region.has_value())
-                language_id.region = MUST(language_id.region->to_lowercase());
-        }
-    };
-
-    canonicalize_language(locale_id.language_id, false);
-
-    quick_sort(locale_id.extensions, [](auto const& left, auto const& right) {
-        auto key = [](auto const& extension) {
-            return extension.visit(
-                [](LocaleExtension const&) { return 'u'; },
-                [](TransformedExtension const&) { return 't'; },
-                [](OtherExtension const& ext) { return static_cast<char>(to_ascii_lowercase(ext.key)); });
-        };
-
-        return key(left) < key(right);
-    });
-
-    for (auto& extension : locale_id.extensions) {
-        extension.visit(
-            [&](LocaleExtension& ext) {
-                for (auto& attribute : ext.attributes)
-                    attribute = MUST(attribute.to_lowercase());
-
-                for (auto& keyword : ext.keywords) {
-                    keyword.key = MUST(keyword.key.to_lowercase());
-                    canonicalize_unicode_extension_values(keyword.key, keyword.value, true);
-                }
-
-                quick_sort(ext.attributes);
-                quick_sort(ext.keywords, [](auto const& a, auto const& b) { return a.key < b.key; });
-            },
-            [&](TransformedExtension& ext) {
-                if (ext.language.has_value())
-                    canonicalize_language(*ext.language, true);
-
-                for (auto& field : ext.fields) {
-                    field.key = MUST(field.key.to_lowercase());
-                    canonicalize_unicode_extension_values(field.key, field.value, false);
-                }
-
-                quick_sort(ext.fields, [](auto const& a, auto const& b) { return a.key < b.key; });
-            },
-            [&](OtherExtension& ext) {
-                ext.key = static_cast<char>(to_ascii_lowercase(ext.key));
-                ext.value = MUST(ext.value.to_lowercase());
-            });
-    }
-
-    for (auto& extension : locale_id.private_use_extensions)
-        extension = MUST(extension.to_lowercase());
-}
-
-Optional<String> canonicalize_unicode_locale_id(LocaleID& locale_id)
-{
-    // https://unicode.org/reports/tr35/#Canonical_Unicode_Locale_Identifiers
-    StringBuilder builder;
-
-    auto append_sep_and_string = [&](Optional<String> const& string) {
-        if (!string.has_value() || string->is_empty())
-            return;
-        builder.appendff("-{}", *string);
-    };
-
-    if (!locale_id.language_id.language.has_value())
-        return {};
-
-    transform_unicode_locale_id_to_canonical_syntax(locale_id);
-
-    builder.append(MUST(locale_id.language_id.language->to_lowercase()));
-    append_sep_and_string(locale_id.language_id.script);
-    append_sep_and_string(locale_id.language_id.region);
-    for (auto const& variant : locale_id.language_id.variants)
-        append_sep_and_string(variant);
-
-    for (auto const& extension : locale_id.extensions) {
-        extension.visit(
-            [&](LocaleExtension const& ext) {
-                builder.append("-u"sv);
-
-                for (auto const& attribute : ext.attributes)
-                    append_sep_and_string(attribute);
-                for (auto const& keyword : ext.keywords) {
-                    append_sep_and_string(keyword.key);
-                    append_sep_and_string(keyword.value);
-                }
-            },
-            [&](TransformedExtension const& ext) {
-                builder.append("-t"sv);
-
-                if (ext.language.has_value()) {
-                    append_sep_and_string(ext.language->language);
-                    append_sep_and_string(ext.language->script);
-                    append_sep_and_string(ext.language->region);
-                    for (auto const& variant : ext.language->variants)
-                        append_sep_and_string(variant);
-                }
-
-                for (auto const& field : ext.fields) {
-                    append_sep_and_string(field.key);
-                    append_sep_and_string(field.value);
-                }
-            },
-            [&](OtherExtension const& ext) {
-                builder.appendff("-{:c}", to_ascii_lowercase(ext.key));
-                append_sep_and_string(ext.value);
-            });
-    }
-
-    if (!locale_id.private_use_extensions.is_empty()) {
-        builder.append("-x"sv);
-        for (auto const& extension : locale_id.private_use_extensions)
-            append_sep_and_string(extension);
-    }
-
-    return MUST(builder.to_string());
+    value = MUST(result.to_string());
 }
 
 StringView default_locale()
@@ -775,15 +553,9 @@ ReadonlySpan<StringView> __attribute__((weak)) get_available_calendars() { retur
 ReadonlySpan<StringView> __attribute__((weak)) get_available_collation_case_orderings() { return {}; }
 ReadonlySpan<StringView> __attribute__((weak)) get_available_collation_numeric_orderings() { return {}; }
 ReadonlySpan<StringView> __attribute__((weak)) get_available_collation_types() { return {}; }
-ReadonlySpan<StringView> __attribute__((weak)) get_available_currencies() { return {}; }
 ReadonlySpan<StringView> __attribute__((weak)) get_available_hour_cycles() { return {}; }
 ReadonlySpan<StringView> __attribute__((weak)) get_available_number_systems() { return {}; }
 Optional<Locale> __attribute__((weak)) locale_from_string(StringView) { return {}; }
-Optional<Language> __attribute__((weak)) language_from_string(StringView) { return {}; }
-Optional<Territory> __attribute__((weak)) territory_from_string(StringView) { return {}; }
-Optional<ScriptTag> __attribute__((weak)) script_tag_from_string(StringView) { return {}; }
-Optional<Currency> __attribute__((weak)) currency_from_string(StringView) { return {}; }
-Optional<DateField> __attribute__((weak)) date_field_from_string(StringView) { return {}; }
 Optional<ListPatternType> __attribute__((weak)) list_pattern_type_from_string(StringView) { return {}; }
 Optional<Key> __attribute__((weak)) key_from_string(StringView) { return {}; }
 Optional<KeywordCalendar> __attribute__((weak)) keyword_ca_from_string(StringView) { return {}; }
@@ -794,56 +566,32 @@ Optional<KeywordColNumeric> __attribute__((weak)) keyword_kn_from_string(StringV
 Optional<KeywordNumbers> __attribute__((weak)) keyword_nu_from_string(StringView) { return {}; }
 Vector<StringView> __attribute__((weak)) get_keywords_for_locale(StringView, StringView) { return {}; }
 Optional<StringView> __attribute__((weak)) get_preferred_keyword_value_for_locale(StringView, StringView) { return {}; }
-Optional<DisplayPattern> __attribute__((weak)) get_locale_display_patterns(StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_language_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_territory_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_script_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_long_currency_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_short_currency_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_narrow_currency_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_numeric_currency_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_calendar_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_long_date_field_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_short_date_field_mapping(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_locale_narrow_date_field_mapping(StringView, StringView) { return {}; }
 
-// https://www.unicode.org/reports/tr35/tr35-39/tr35-general.html#Display_Name_Elements
-Optional<String> format_locale_for_display(StringView locale, LocaleID locale_id)
+Vector<String> available_currencies()
 {
-    auto language_id = move(locale_id.language_id);
-    VERIFY(language_id.language.has_value());
+    UErrorCode status = U_ZERO_ERROR;
 
-    auto patterns = get_locale_display_patterns(locale);
-    if (!patterns.has_value())
+    auto* currencies = ucurr_openISOCurrencies(UCURR_ALL, &status);
+    ScopeGuard guard { [&]() { uenum_close(currencies); } };
+
+    if (icu_failure(status))
         return {};
 
-    auto primary_tag = get_locale_language_mapping(locale, *language_id.language).value_or(*language_id.language);
-    Optional<StringView> script;
-    Optional<StringView> region;
+    Vector<String> result;
 
-    if (language_id.script.has_value())
-        script = get_locale_script_mapping(locale, *language_id.script).value_or(*language_id.script);
-    if (language_id.region.has_value())
-        region = get_locale_territory_mapping(locale, *language_id.region).value_or(*language_id.region);
+    while (true) {
+        i32 length = 0;
+        char const* next = uenum_next(currencies, &length, &status);
 
-    Optional<String> secondary_tag;
+        if (icu_failure(status))
+            return {};
+        if (next == nullptr)
+            break;
 
-    if (script.has_value() && region.has_value()) {
-        secondary_tag = MUST(String::from_utf8(patterns->locale_separator));
-        secondary_tag = MUST(secondary_tag->replace("{0}"sv, *script, ReplaceMode::FirstOnly));
-        secondary_tag = MUST(secondary_tag->replace("{1}"sv, *region, ReplaceMode::FirstOnly));
-    } else if (script.has_value()) {
-        secondary_tag = MUST(String::from_utf8(*script));
-    } else if (region.has_value()) {
-        secondary_tag = MUST(String::from_utf8(*region));
+        // https://unicode-org.atlassian.net/browse/ICU-21687
+        if (StringView currency { next, static_cast<size_t>(length) }; currency != "LSM"sv)
+            result.append(MUST(String::from_utf8(currency)));
     }
-
-    if (!secondary_tag.has_value())
-        return MUST(String::from_utf8(primary_tag));
-
-    auto result = MUST(String::from_utf8(patterns->locale_pattern));
-    result = MUST(result.replace("{0}"sv, primary_tag, ReplaceMode::FirstOnly));
-    result = MUST(result.replace("{1}"sv, *secondary_tag, ReplaceMode::FirstOnly));
 
     return result;
 }
@@ -852,12 +600,6 @@ Optional<ListPatterns> __attribute__((weak)) get_locale_list_patterns(StringView
 Optional<CharacterOrder> __attribute__((weak)) character_order_from_string(StringView) { return {}; }
 StringView __attribute__((weak)) character_order_to_string(CharacterOrder) { return {}; }
 Optional<CharacterOrder> __attribute__((weak)) character_order_for_locale(StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) resolve_language_alias(StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) resolve_territory_alias(StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) resolve_script_tag_alias(StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) resolve_variant_alias(StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) resolve_subdivision_alias(StringView) { return {}; }
-void __attribute__((weak)) resolve_complex_language_aliases(LanguageID&) { }
 Optional<LanguageID> __attribute__((weak)) add_likely_subtags(LanguageID const&) { return {}; }
 
 Optional<LanguageID> remove_likely_subtags(LanguageID const& language_id)
@@ -900,21 +642,6 @@ Optional<LanguageID> remove_likely_subtags(LanguageID const& language_id)
 
     // 5. If you do not get a match, return max + variants.
     return return_language_and_variants(maximized.release_value(), move(variants));
-}
-
-Optional<String> __attribute__((weak)) resolve_most_likely_territory(LanguageID const&) { return {}; }
-
-String resolve_most_likely_territory_alias(LanguageID const& language_id, StringView territory_alias)
-{
-    auto aliases = territory_alias.split_view(' ');
-
-    if (aliases.size() > 1) {
-        auto territory = resolve_most_likely_territory(language_id);
-        if (territory.has_value() && aliases.contains_slow(*territory))
-            return territory.release_value();
-    }
-
-    return MUST(String::from_utf8(aliases[0]));
 }
 
 String LanguageID::to_string() const

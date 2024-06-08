@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,7 +21,7 @@
 namespace JS::Intl {
 
 // 6.2.2 IsStructurallyValidLanguageTag ( locale ), https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
-Optional<::Locale::LocaleID> is_structurally_valid_language_tag(StringView locale)
+bool is_structurally_valid_language_tag(StringView locale)
 {
     auto contains_duplicate_variant = [&](auto& variants) {
         if (variants.is_empty())
@@ -37,90 +37,78 @@ Optional<::Locale::LocaleID> is_structurally_valid_language_tag(StringView local
         return false;
     };
 
-    // IsStructurallyValidLanguageTag returns true if all of the following conditions hold, false otherwise:
+    // 1. Let lowerLocale be the ASCII-lowercase of locale.
+    // NOTE: LibLocale's parsing is case-insensitive.
 
-    // locale can be generated from the EBNF grammar for unicode_locale_id in Unicode Technical Standard #35 LDML § 3.2 Unicode Locale Identifier;
+    // 2. If lowerLocale cannot be matched by the unicode_locale_id Unicode locale nonterminal, return false.
     auto locale_id = ::Locale::parse_unicode_locale_id(locale);
     if (!locale_id.has_value())
-        return {};
+        return false;
 
-    // locale does not use any of the backwards compatibility syntax described in Unicode Technical Standard #35 LDML § 3.3 BCP 47 Conformance;
-    // https://unicode.org/reports/tr35/#BCP_47_Conformance
+    // 3. If lowerLocale uses any of the backwards compatibility syntax described in Unicode Technical Standard #35 Part 1 Core,
+    //    Section 3.3 BCP 47 Conformance, return false.
+    //    https://unicode.org/reports/tr35/#BCP_47_Conformance
     if (locale.contains('_') || locale_id->language_id.is_root || !locale_id->language_id.language.has_value())
-        return {};
+        return false;
 
-    // the unicode_language_id within locale contains no duplicate unicode_variant_subtag subtags; and
-    if (contains_duplicate_variant(locale_id->language_id.variants))
-        return {};
+    // 4. Let languageId be the longest prefix of lowerLocale matched by the unicode_language_id Unicode locale nonterminal.
+    auto& language_id = locale_id->language_id;
 
-    // if locale contains an extensions* component, that component
-    Vector<char> unique_keys;
+    // 5. Let variants be GetLocaleVariants(languageId).
+    // 6. If variants is not undefined, then
+    if (auto& variants = language_id.variants; !variants.is_empty()) {
+        // a. If variants contains any duplicate subtags, return false.
+        if (contains_duplicate_variant(variants))
+            return false;
+    }
+
+    HashTable<char> unique_keys;
+
+    // 7. Let allExtensions be the suffix of lowerLocale following languageId.
+    // 8. If allExtensions contains a substring matched by the pu_extensions Unicode locale nonterminal, let extensions be
+    //    the prefix of allExtensions preceding the longest such substring. Otherwise, let extensions be allExtensions.
+    // 9. If extensions is not the empty String, then
     for (auto& extension : locale_id->extensions) {
-        // does not contain any other_extensions components with duplicate [alphanum-[tTuUxX]] subtags,
-        // contains at most one unicode_locale_extensions component,
-        // contains at most one transformed_extensions component, and
         char key = extension.visit(
             [](::Locale::LocaleExtension const&) { return 'u'; },
             [](::Locale::TransformedExtension const&) { return 't'; },
             [](::Locale::OtherExtension const& ext) { return static_cast<char>(to_ascii_lowercase(ext.key)); });
 
-        if (unique_keys.contains_slow(key))
-            return {};
+        // a. If extensions contains any duplicate singleton subtags, return false.
+        if (unique_keys.set(key) != HashSetResult::InsertedNewEntry)
+            return false;
 
-        unique_keys.append(key);
-
-        // if a transformed_extensions component that contains a tlang component is present, then
-        // the tlang component contains no duplicate unicode_variant_subtag subtags.
+        // b. Let transformExtension be the longest substring of extensions matched by the transformed_extensions Unicode
+        //    locale nonterminal. If there is no such substring, return true.
         if (auto* transformed = extension.get_pointer<::Locale::TransformedExtension>()) {
-            auto& language = transformed->language;
-            if (language.has_value() && contains_duplicate_variant(language->variants))
-                return {};
+            // c. Assert: The substring of transformExtension from 0 to 3 is "-t-".
+            // d. Let tPrefix be the substring of transformExtension from 3.
+
+            // e. Let tlang be the longest prefix of tPrefix matched by the tlang Unicode locale nonterminal. If there is
+            //    no such prefix, return true.
+            auto& transformed_language = transformed->language;
+            if (!transformed_language.has_value())
+                continue;
+
+            // f. Let tlangRefinements be the longest suffix of tlang following a non-empty prefix matched by the
+            //    unicode_language_subtag Unicode locale nonterminal.
+            auto& transformed_refinements = transformed_language->variants;
+
+            // g. If tlangRefinements contains any duplicate substrings matched greedily by the unicode_variant_subtag
+            //    Unicode locale nonterminal, return false.
+            if (contains_duplicate_variant(transformed_refinements))
+                return false;
         }
     }
 
-    return locale_id;
+    // 10. Return true.
+    return true;
 }
 
 // 6.2.3 CanonicalizeUnicodeLocaleId ( locale ), https://tc39.es/ecma402/#sec-canonicalizeunicodelocaleid
-String canonicalize_unicode_locale_id(::Locale::LocaleID& locale)
+String canonicalize_unicode_locale_id(StringView locale)
 {
-    // Note: This implementation differs from the spec in how Step 3 is implemented. The spec assumes
-    // the input to this method is a string, and is written such that operations are performed on parts
-    // of that string. LibUnicode gives us the parsed locale in a structure, so we can mutate that
-    // structure directly. From a footnote in the spec:
-    //
-    // The third step of this algorithm ensures that a Unicode locale extension sequence in the
-    // returned language tag contains:
-    //     * only the first instance of any attribute duplicated in the input, and
-    //     * only the first keyword for a given key in the input.
-    for (auto& extension : locale.extensions) {
-        if (!extension.has<::Locale::LocaleExtension>())
-            continue;
-
-        auto& locale_extension = extension.get<::Locale::LocaleExtension>();
-
-        auto attributes = move(locale_extension.attributes);
-        for (auto& attribute : attributes) {
-            if (!locale_extension.attributes.contains_slow(attribute))
-                locale_extension.attributes.append(move(attribute));
-        }
-
-        auto keywords = move(locale_extension.keywords);
-        for (auto& keyword : keywords) {
-            if (!any_of(locale_extension.keywords, [&](auto const& k) { return k.key == keyword.key; }))
-                locale_extension.keywords.append(move(keyword));
-        }
-
-        break;
-    }
-
-    // 1. Let localeId be the string locale after performing the algorithm to transform it to canonical syntax per Unicode Technical Standard #35 LDML § 3.2.1 Canonical Unicode Locale Identifiers.
-    // 2. Let localeId be the string localeId after performing the algorithm to transform it to canonical form.
-    auto locale_id = ::Locale::canonicalize_unicode_locale_id(locale);
-    VERIFY(locale_id.has_value());
-
-    // 4. Return localeId.
-    return locale_id.release_value();
+    return ::Locale::canonicalize_unicode_locale_id(locale);
 }
 
 // 6.3.1 IsWellFormedCurrencyCode ( currency ), https://tc39.es/ecma402/#sec-iswellformedcurrencycode
@@ -246,12 +234,11 @@ ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales
             }
 
             // v. If ! IsStructurallyValidLanguageTag(tag) is false, throw a RangeError exception.
-            auto locale_id = is_structurally_valid_language_tag(tag);
-            if (!locale_id.has_value())
+            if (!is_structurally_valid_language_tag(tag))
                 return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
 
             // vi. Let canonicalizedTag be ! CanonicalizeUnicodeLocaleId(tag).
-            auto canonicalized_tag = JS::Intl::canonicalize_unicode_locale_id(*locale_id);
+            auto canonicalized_tag = canonicalize_unicode_locale_id(tag);
 
             // vii. If canonicalizedTag is not an element of seen, append canonicalizedTag as the last element of seen.
             if (!seen.contains_slow(canonicalized_tag))
@@ -355,7 +342,7 @@ String insert_unicode_extension_and_canonicalize(::Locale::LocaleID locale, ::Lo
     // structure directly.
     locale.extensions.append(move(extension));
 
-    return JS::Intl::canonicalize_unicode_locale_id(locale);
+    return JS::Intl::canonicalize_unicode_locale_id(locale.to_string());
 }
 
 template<typename T>

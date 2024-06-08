@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibLocale/DisplayNames.h>
 #include <LibLocale/Locale.h>
 
 namespace JS::Intl {
@@ -34,11 +35,6 @@ class DisplayNames final : public Object {
         Code,
     };
 
-    enum class LanguageDisplay {
-        Dialect,
-        Standard,
-    };
-
 public:
     virtual ~DisplayNames() override = default;
 
@@ -58,18 +54,18 @@ public:
     StringView fallback_string() const;
 
     bool has_language_display() const { return m_language_display.has_value(); }
-    LanguageDisplay language_display() const { return *m_language_display; }
-    void set_language_display(StringView language_display);
-    StringView language_display_string() const;
+    ::Locale::LanguageDisplay language_display() const { return *m_language_display; }
+    void set_language_display(StringView language_display) { m_language_display = ::Locale::language_display_from_string(language_display); }
+    StringView language_display_string() const { return ::Locale::language_display_to_string(*m_language_display); }
 
 private:
     DisplayNames(Object& prototype);
 
-    String m_locale;                                   // [[Locale]]
-    ::Locale::Style m_style { ::Locale::Style::Long }; // [[Style]]
-    Type m_type { Type::Invalid };                     // [[Type]]
-    Fallback m_fallback { Fallback::Invalid };         // [[Fallback]]
-    Optional<LanguageDisplay> m_language_display {};   // [[LanguageDisplay]]
+    String m_locale;                                        // [[Locale]]
+    ::Locale::Style m_style { ::Locale::Style::Long };      // [[Style]]
+    Type m_type { Type::Invalid };                          // [[Type]]
+    Fallback m_fallback { Fallback::Invalid };              // [[Fallback]]
+    Optional<::Locale::LanguageDisplay> m_language_display; // [[LanguageDisplay]]
 };
 
 ThrowCompletionOr<Value> canonical_code_for_display_names(VM&, DisplayNames::Type, StringView code);

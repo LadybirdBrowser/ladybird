@@ -88,8 +88,8 @@ describe("normal behavior", () => {
         expect(Intl.getCanonicalLocales(["EN-US"])).toEqual(["en-US"]);
         expect(Intl.getCanonicalLocales(["EN-US", "Fr"])).toEqual(["en-US", "fr"]);
         expect(Intl.getCanonicalLocales("EN-lATN-US")).toEqual(["en-Latn-US"]);
-        expect(Intl.getCanonicalLocales("EN-US-POSIX")).toEqual(["en-US-posix"]);
-        expect(Intl.getCanonicalLocales("EN-LATN-US-POSIX")).toEqual(["en-Latn-US-posix"]);
+        expect(Intl.getCanonicalLocales("EN-US-POSIX")).toEqual(["en-US-u-va-posix"]);
+        expect(Intl.getCanonicalLocales("EN-LATN-US-POSIX")).toEqual(["en-Latn-US-u-va-posix"]);
     });
 
     test("duplicate locales", () => {

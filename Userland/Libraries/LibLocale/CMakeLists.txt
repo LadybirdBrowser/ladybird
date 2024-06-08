@@ -11,6 +11,8 @@ endif()
 
 set(SOURCES
     DateTimeFormat.cpp
+    DisplayNames.cpp
+    ICU.cpp
     Locale.cpp
     NumberFormat.cpp
     PluralRules.cpp

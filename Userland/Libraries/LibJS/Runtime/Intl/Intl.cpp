@@ -116,7 +116,7 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
     // 1. Let key be ? ToString(key).
     auto key = TRY(vm.argument(0).to_string(vm));
 
-    ReadonlySpan<StringView> list;
+    Optional<Variant<ReadonlySpan<StringView>, ReadonlySpan<String>>> list;
 
     // 2. If key is "calendar", then
     if (key == "calendar"sv) {
@@ -131,7 +131,8 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
     // 4. Else if key is "currency", then
     else if (key == "currency"sv) {
         // a. Let list be ! AvailableCanonicalCurrencies( ).
-        list = ::Locale::get_available_currencies();
+        static auto const currencies = ::Locale::available_currencies();
+        list = currencies.span();
     }
     // 5. Else if key is "numberingSystem", then
     else if (key == "numberingSystem"sv) {
@@ -141,13 +142,13 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
     // 6. Else if key is "timeZone", then
     else if (key == "timeZone"sv) {
         // a. Let list be ! AvailableCanonicalTimeZones( ).
-        static auto time_zones = available_canonical_time_zones();
+        static auto const time_zones = available_canonical_time_zones();
         list = time_zones.span();
     }
     // 7. Else if key is "unit", then
     else if (key == "unit"sv) {
         // a. Let list be ! AvailableCanonicalUnits( ).
-        static auto units = sanctioned_single_unit_identifiers();
+        static auto const units = sanctioned_single_unit_identifiers();
         list = units.span();
     }
     // 8. Else,
@@ -157,8 +158,10 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
     }
 
     // 9. Return CreateArrayFromList( list ).
-    return Array::create_from<StringView>(realm, list, [&](auto value) {
-        return PrimitiveString::create(vm, value);
+    return list->visit([&]<typename T>(ReadonlySpan<T> list) {
+        return Array::create_from<T>(realm, list, [&](auto value) {
+            return PrimitiveString::create(vm, value);
+        });
     });
 }
 

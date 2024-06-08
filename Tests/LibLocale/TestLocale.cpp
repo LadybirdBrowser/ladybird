@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -338,11 +338,8 @@ TEST_CASE(parse_unicode_locale_id_with_private_use_extension)
 TEST_CASE(canonicalize_unicode_locale_id)
 {
     auto test = [](StringView locale, StringView expected_canonical_locale) {
-        auto locale_id = Locale::parse_unicode_locale_id(locale);
-        VERIFY(locale_id.has_value());
-
-        auto canonical_locale = Locale::canonicalize_unicode_locale_id(*locale_id);
-        EXPECT_EQ(*canonical_locale, expected_canonical_locale);
+        auto canonical_locale = Locale::canonicalize_unicode_locale_id(locale);
+        EXPECT_EQ(canonical_locale, expected_canonical_locale);
     };
 
     test("aaa"sv, "aaa"sv);
@@ -373,8 +370,8 @@ TEST_CASE(canonicalize_unicode_locale_id)
     test("EN-U-KB-YES"sv, "en-u-kb"sv);
     test("en-u-kb-yes-abcd"sv, "en-u-kb-yes-abcd"sv);
     test("EN-U-KB-YES-ABCD"sv, "en-u-kb-yes-abcd"sv);
-    test("en-u-ka-yes"sv, "en-u-ka-yes"sv);
-    test("EN-U-KA-YES"sv, "en-u-ka-yes"sv);
+    test("en-u-ka-yes"sv, "en-u-ka"sv);
+    test("EN-U-KA-YES"sv, "en-u-ka"sv);
     test("en-u-1k-names"sv, "en-u-1k-names"sv);
     test("EN-U-1K-NAMES"sv, "en-u-1k-names"sv);
     test("en-u-ks-primary"sv, "en-u-ks-level1"sv);
@@ -517,76 +514,4 @@ TEST_CASE(supports_locale_aliases)
     EXPECT(Locale::is_locale_available("zh-Hant"sv));
     EXPECT(Locale::is_locale_available("zh-TW"sv));
     EXPECT(Locale::is_locale_available("zh-Hant-TW"sv));
-}
-
-TEST_CASE(locale_mappings_en)
-{
-    auto language = Locale::get_locale_language_mapping("en"sv, "en"sv);
-    EXPECT(language.has_value());
-    EXPECT_EQ(*language, "English"sv);
-
-    language = Locale::get_locale_language_mapping("en"sv, "i-defintely-don't-exist"sv);
-    EXPECT(!language.has_value());
-
-    auto territory = Locale::get_locale_territory_mapping("en"sv, "US"sv);
-    EXPECT(territory.has_value());
-    EXPECT_EQ(*territory, "United States"sv);
-
-    territory = Locale::get_locale_territory_mapping("en"sv, "i-defintely-don't-exist"sv);
-    EXPECT(!territory.has_value());
-
-    auto script = Locale::get_locale_script_mapping("en"sv, "Latn"sv);
-    EXPECT(script.has_value());
-    EXPECT_EQ(*script, "Latin"sv);
-
-    script = Locale::get_locale_script_mapping("en"sv, "i-defintely-don't-exist"sv);
-    EXPECT(!script.has_value());
-}
-
-TEST_CASE(locale_mappings_fr)
-{
-    auto language = Locale::get_locale_language_mapping("fr"sv, "en"sv);
-    EXPECT(language.has_value());
-    EXPECT_EQ(*language, "anglais"sv);
-
-    language = Locale::get_locale_language_mapping("fr"sv, "i-defintely-don't-exist"sv);
-    EXPECT(!language.has_value());
-
-    auto territory = Locale::get_locale_territory_mapping("fr"sv, "US"sv);
-    EXPECT(territory.has_value());
-    EXPECT_EQ(*territory, "États-Unis"sv);
-
-    territory = Locale::get_locale_territory_mapping("fr"sv, "i-defintely-don't-exist"sv);
-    EXPECT(!territory.has_value());
-
-    auto script = Locale::get_locale_script_mapping("fr"sv, "Latn"sv);
-    EXPECT(script.has_value());
-    EXPECT_EQ(*script, "latin"sv);
-
-    script = Locale::get_locale_script_mapping("fr"sv, "i-defintely-don't-exist"sv);
-    EXPECT(!script.has_value());
-}
-
-TEST_CASE(locale_mappings_root)
-{
-    auto language = Locale::get_locale_language_mapping("und"sv, "en"sv);
-    EXPECT(language.has_value());
-    EXPECT_EQ(*language, "en"sv);
-
-    language = Locale::get_locale_language_mapping("und"sv, "i-defintely-don't-exist"sv);
-    EXPECT(!language.has_value());
-
-    auto territory = Locale::get_locale_territory_mapping("und"sv, "US"sv);
-    EXPECT(territory.has_value());
-    EXPECT_EQ(*territory, "US"sv);
-
-    territory = Locale::get_locale_territory_mapping("und"sv, "i-defintely-don't-exist"sv);
-    EXPECT(!territory.has_value());
-
-    auto script = Locale::get_locale_script_mapping("und"sv, "Latn"sv);
-    EXPECT(script.has_value());
-    EXPECT_EQ(*script, "Latn"sv);
-
-    script = Locale::get_locale_script_mapping("und"sv, "i-defintely-don't-exist"sv);
-    EXPECT(!script.has_value());
 }

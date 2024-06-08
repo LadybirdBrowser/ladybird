@@ -75,7 +75,7 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         "${CLDR_VERSION_FILE}"
         "${LOCALE_DATA_HEADER}"
         "${LOCALE_DATA_IMPLEMENTATION}"
-        arguments -b "${CLDR_BCP47_PATH}" -r "${CLDR_CORE_PATH}" -l "${CLDR_LOCALES_PATH}" -m "${CLDR_MISC_PATH}" -n "${CLDR_NUMBERS_PATH}" -d "${CLDR_DATES_PATH}"
+        arguments -b "${CLDR_BCP47_PATH}" -r "${CLDR_CORE_PATH}" -m "${CLDR_MISC_PATH}" -n "${CLDR_NUMBERS_PATH}" -d "${CLDR_DATES_PATH}"
     )
     invoke_generator(
         "NumberFormatData"

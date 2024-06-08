@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -78,30 +78,6 @@ StringView DisplayNames::fallback_string() const
     }
 }
 
-void DisplayNames::set_language_display(StringView language_display)
-{
-    if (language_display == "dialect"sv)
-        m_language_display = LanguageDisplay::Dialect;
-    else if (language_display == "standard"sv)
-        m_language_display = LanguageDisplay::Standard;
-    else
-        VERIFY_NOT_REACHED();
-}
-
-StringView DisplayNames::language_display_string() const
-{
-    VERIFY(m_language_display.has_value());
-
-    switch (*m_language_display) {
-    case LanguageDisplay::Dialect:
-        return "dialect"sv;
-    case LanguageDisplay::Standard:
-        return "standard"sv;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 // 12.5.1 CanonicalCodeForDisplayNames ( type, code ), https://tc39.es/ecma402/#sec-canonicalcodefordisplaynames
 ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::Type type, StringView code)
 {
@@ -112,12 +88,11 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "language"sv);
 
         // b. If IsStructurallyValidLanguageTag(code) is false, throw a RangeError exception.
-        auto locale_id = is_structurally_valid_language_tag(code);
-        if (!locale_id.has_value())
+        if (!is_structurally_valid_language_tag(code))
             return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, code);
 
         // c. Return ! CanonicalizeUnicodeLocaleId(code).
-        auto canonicalized_tag = JS::Intl::canonicalize_unicode_locale_id(*locale_id);
+        auto canonicalized_tag = canonicalize_unicode_locale_id(code);
         return PrimitiveString::create(vm, move(canonicalized_tag));
     }
 
