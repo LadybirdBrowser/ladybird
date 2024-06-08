@@ -1,14 +1,10 @@
 /*
- * Copyright (c) 2020-2022, the SerenityOS developers.
+ * Copyright (c) 2020-2024, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
-
-#ifndef AFLACLOADER_DEBUG
-#    cmakedefine01 AFLACLOADER_DEBUG
-#endif
 
 #ifndef AUDIO_DEBUG
 #    cmakedefine01 AUDIO_DEBUG
@@ -16,6 +12,10 @@
 
 #ifndef AWAVLOADER_DEBUG
 #    cmakedefine01 AWAVLOADER_DEBUG
+#endif
+
+#ifndef AFLACLOADER_DEBUG
+#    cmakedefine01 AFLACLOADER_DEBUG
 #endif
 
 #ifndef BMP_DEBUG
@@ -38,30 +38,6 @@
 #    cmakedefine01 CANVAS_RENDERING_CONTEXT_2D_DEBUG
 #endif
 
-#ifndef CFF_DEBUG
-#    cmakedefine01 CFF_DEBUG
-#endif
-
-#ifndef CMAKE_DEBUG
-#    cmakedefine01 CMAKE_DEBUG
-#endif
-
-#ifndef COMPOSE_DEBUG
-#    cmakedefine01 COMPOSE_DEBUG
-#endif
-
-#ifndef COPY_DEBUG
-#    cmakedefine01 COPY_DEBUG
-#endif
-
-#ifndef CPP_DEBUG
-#    cmakedefine01 CPP_DEBUG
-#endif
-
-#ifndef CPP_LANGUAGE_SERVER_DEBUG
-#    cmakedefine01 CPP_LANGUAGE_SERVER_DEBUG
-#endif
-
 #ifndef CRYPTO_DEBUG
 #    cmakedefine01 CRYPTO_DEBUG
 #endif
@@ -82,64 +58,12 @@
 #    cmakedefine01 DDS_DEBUG
 #endif
 
-#ifndef DHCPV4_DEBUG
-#    cmakedefine01 DHCPV4_DEBUG
-#endif
-
-#ifndef DHCPV4CLIENT_DEBUG
-#    cmakedefine01 DHCPV4CLIENT_DEBUG
-#endif
-
-#ifndef DIFF_DEBUG
-#    cmakedefine01 DIFF_DEBUG
-#endif
-
-#ifndef DISASM_DUMP_DEBUG
-#    cmakedefine01 DISASM_DUMP_DEBUG
-#endif
-
-#ifndef DOUBLECLICK_DEBUG
-#    cmakedefine01 DOUBLECLICK_DEBUG
-#endif
-
-#ifndef DRAG_DEBUG
-#    cmakedefine01 DRAG_DEBUG
-#endif
-
-#ifndef DWARF_DEBUG
-#    cmakedefine01 DWARF_DEBUG
-#endif
-
-#ifndef DYNAMIC_LOAD_DEBUG
-#    cmakedefine01 DYNAMIC_LOAD_DEBUG
-#endif
-
 #ifndef EDITOR_DEBUG
 #    cmakedefine01 EDITOR_DEBUG
 #endif
 
-#ifndef ELF_IMAGE_DEBUG
-#    cmakedefine01 ELF_IMAGE_DEBUG
-#endif
-
 #ifndef EMOJI_DEBUG
 #    cmakedefine01 EMOJI_DEBUG
-#endif
-
-#ifndef ESCAPE_SEQUENCE_DEBUG
-#    cmakedefine01 ESCAPE_SEQUENCE_DEBUG
-#endif
-
-#ifndef EVENT_DEBUG
-#    cmakedefine01 EVENT_DEBUG
-#endif
-
-#ifndef FILE_CONTENT_DEBUG
-#    cmakedefine01 FILE_CONTENT_DEBUG
-#endif
-
-#ifndef FILL_PATH_DEBUG
-#    cmakedefine01 FILL_PATH_DEBUG
 #endif
 
 #ifndef FILE_WATCHER_DEBUG
@@ -148,10 +72,6 @@
 
 #ifndef FLAC_ENCODER_DEBUG
 #    cmakedefine01 FLAC_ENCODER_DEBUG
-#endif
-
-#ifndef GEMINI_DEBUG
-#    cmakedefine01 GEMINI_DEBUG
 #endif
 
 #ifndef GENERATE_DEBUG
@@ -166,28 +86,8 @@
 #    cmakedefine01 GIF_DEBUG
 #endif
 
-#ifndef GL_DEBUG
-#    cmakedefine01 GL_DEBUG
-#endif
-
-#ifndef GLOBAL_DTORS_DEBUG
-#    cmakedefine01 GLOBAL_DTORS_DEBUG
-#endif
-
-#ifndef GPT_DEBUG
-#    cmakedefine01 GPT_DEBUG
-#endif
-
 #ifndef HEAP_DEBUG
 #    cmakedefine01 HEAP_DEBUG
-#endif
-
-#ifndef HEARTS_DEBUG
-#    cmakedefine01 HEARTS_DEBUG
-#endif
-
-#ifndef HEX_DEBUG
-#    cmakedefine01 HEX_DEBUG
 #endif
 
 #ifndef HIGHLIGHT_FOCUSED_FRAME_DEBUG
@@ -226,14 +126,6 @@
 #    cmakedefine01 IMAGE_LOADER_DEBUG
 #endif
 
-#ifndef IMAP_PARSER_DEBUG
-#    cmakedefine01 IMAP_PARSER_DEBUG
-#endif
-
-#ifndef ITEM_RECTS_DEBUG
-#    cmakedefine01 ITEM_RECTS_DEBUG
-#endif
-
 #ifndef JBIG2_DEBUG
 #    cmakedefine01 JBIG2_DEBUG
 #endif
@@ -258,36 +150,20 @@
 #    cmakedefine01 JS_MODULE_DEBUG
 #endif
 
-#ifndef KEYBOARD_SHORTCUTS_DEBUG
-#    cmakedefine01 KEYBOARD_SHORTCUTS_DEBUG
-#endif
-
-#ifndef LANGUAGE_SERVER_DEBUG
-#    cmakedefine01 LANGUAGE_SERVER_DEBUG
-#endif
-
 #ifndef LEXER_DEBUG
 #    cmakedefine01 LEXER_DEBUG
-#endif
-
-#ifndef LIBWEB_CSS_DEBUG
-#    cmakedefine01 LIBWEB_CSS_DEBUG
 #endif
 
 #ifndef LIBWEB_CSS_ANIMATION_DEBUG
 #    cmakedefine01 LIBWEB_CSS_ANIMATION_DEBUG
 #endif
 
+#ifndef LIBWEB_CSS_DEBUG
+#    cmakedefine01 LIBWEB_CSS_DEBUG
+#endif
+
 #ifndef LINE_EDITOR_DEBUG
 #    cmakedefine01 LINE_EDITOR_DEBUG
-#endif
-
-#ifndef LOG_DEBUG
-#    cmakedefine01 LOG_DEBUG
-#endif
-
-#ifndef LOOKUPSERVER_DEBUG
-#    cmakedefine01 LOOKUPSERVER_DEBUG
 #endif
 
 #ifndef LZMA_DEBUG
@@ -302,14 +178,6 @@
 #    cmakedefine01 MACH_PORT_DEBUG
 #endif
 
-#ifndef MALLOC_DEBUG
-#    cmakedefine01 MALLOC_DEBUG
-#endif
-
-#ifndef MARKDOWN_DEBUG
-#    cmakedefine01 MARKDOWN_DEBUG
-#endif
-
 #ifndef MATROSKA_DEBUG
 #    cmakedefine01 MATROSKA_DEBUG
 #endif
@@ -318,32 +186,12 @@
 #    cmakedefine01 MATROSKA_TRACE_DEBUG
 #endif
 
-#ifndef MBR_DEBUG
-#    cmakedefine01 MBR_DEBUG
-#endif
-
-#ifndef MEMORY_DEBUG
-#    cmakedefine01 MEMORY_DEBUG
-#endif
-
-#ifndef MENU_DEBUG
-#    cmakedefine01 MENU_DEBUG
-#endif
-
-#ifndef MOVE_DEBUG
-#    cmakedefine01 MOVE_DEBUG
-#endif
-
 #ifndef NETWORKJOB_DEBUG
 #    cmakedefine01 NETWORKJOB_DEBUG
 #endif
 
 #ifndef NT_DEBUG
 #    cmakedefine01 NT_DEBUG
-#endif
-
-#ifndef OCCLUSIONS_DEBUG
-#    cmakedefine01 OCCLUSIONS_DEBUG
 #endif
 
 #ifndef OPENTYPE_GPOS_DEBUG
@@ -356,10 +204,6 @@
 
 #ifndef PATH_DEBUG
 #    cmakedefine01 PATH_DEBUG
-#endif
-
-#ifndef PDF_DEBUG
-#    cmakedefine01 PDF_DEBUG
 #endif
 
 #ifndef PLAYBACK_MANAGER_DEBUG
@@ -378,24 +222,12 @@
 #    cmakedefine01 PROMISE_DEBUG
 #endif
 
-#ifndef PTHREAD_DEBUG
-#    cmakedefine01 PTHREAD_DEBUG
-#endif
-
-#ifndef REACHABLE_DEBUG
-#    cmakedefine01 REACHABLE_DEBUG
-#endif
-
 #ifndef REGEX_DEBUG
 #    cmakedefine01 REGEX_DEBUG
 #endif
 
 #ifndef REQUESTSERVER_DEBUG
 #    cmakedefine01 REQUESTSERVER_DEBUG
-#endif
-
-#ifndef RESIZE_DEBUG
-#    cmakedefine01 RESIZE_DEBUG
 #endif
 
 #ifndef RESOURCE_DEBUG
@@ -406,64 +238,16 @@
 #    cmakedefine01 RSA_PARSE_DEBUG
 #endif
 
-#ifndef SERVICE_DEBUG
-#    cmakedefine01 SERVICE_DEBUG
-#endif
-
-#ifndef SH_DEBUG
-#    cmakedefine01 SH_DEBUG
-#endif
-
-#ifndef SH_LANGUAGE_SERVER_DEBUG
-#    cmakedefine01 SH_LANGUAGE_SERVER_DEBUG
-#endif
-
 #ifndef SHARED_QUEUE_DEBUG
 #    cmakedefine01 SHARED_QUEUE_DEBUG
-#endif
-
-#ifndef SHELL_JOB_DEBUG
-#    cmakedefine01 SHELL_JOB_DEBUG
-#endif
-
-#ifndef SHELL_POSIX_PARSER_DEBUG
-#    cmakedefine01 SHELL_POSIX_PARSER_DEBUG
-#endif
-
-#ifndef SOLITAIRE_DEBUG
-#    cmakedefine01 SOLITAIRE_DEBUG
 #endif
 
 #ifndef SPAM_DEBUG
 #    cmakedefine01 SPAM_DEBUG
 #endif
 
-#ifndef SPICE_AGENT_DEBUG
-#    cmakedefine01 SPICE_AGENT_DEBUG
-#endif
-
 #ifndef SYNTAX_HIGHLIGHTING_DEBUG
 #    cmakedefine01 SYNTAX_HIGHLIGHTING_DEBUG
-#endif
-
-#ifndef SYSCALL_1_DEBUG
-#    cmakedefine01 SYSCALL_1_DEBUG
-#endif
-
-#ifndef SYSTEM_MENU_DEBUG
-#    cmakedefine01 SYSTEM_MENU_DEBUG
-#endif
-
-#ifndef SYSTEMSERVER_DEBUG
-#    cmakedefine01 SYSTEMSERVER_DEBUG
-#endif
-
-#ifndef TERMCAP_DEBUG
-#    cmakedefine01 TERMCAP_DEBUG
-#endif
-
-#ifndef TERMINAL_DEBUG
-#    cmakedefine01 TERMINAL_DEBUG
 #endif
 
 #ifndef TEXTEDITOR_DEBUG
@@ -488,14 +272,6 @@
 
 #ifndef TOKENIZER_TRACE_DEBUG
 #    cmakedefine01 TOKENIZER_TRACE_DEBUG
-#endif
-
-#ifndef UCI_DEBUG
-#    cmakedefine01 UCI_DEBUG
-#endif
-
-#ifndef UPDATE_COALESCING_DEBUG
-#    cmakedefine01 UPDATE_COALESCING_DEBUG
 #endif
 
 #ifndef URL_PARSER_DEBUG
@@ -542,10 +318,6 @@
 #    cmakedefine01 WEBGL_CONTEXT_DEBUG
 #endif
 
-#ifndef WEBSERVER_DEBUG
-#    cmakedefine01 WEBSERVER_DEBUG
-#endif
-
 #ifndef WEB_FETCH_DEBUG
 #    cmakedefine01 WEB_FETCH_DEBUG
 #endif
@@ -558,20 +330,8 @@
 #    cmakedefine01 WEBP_DEBUG
 #endif
 
-#ifndef WINDOWMANAGER_DEBUG
-#    cmakedefine01 WINDOWMANAGER_DEBUG
-#endif
-
 #ifndef WORKER_THREAD_DEBUG
 #    cmakedefine01 WORKER_THREAD_DEBUG
-#endif
-
-#ifndef WSMESSAGELOOP_DEBUG
-#    cmakedefine01 WSMESSAGELOOP_DEBUG
-#endif
-
-#ifndef WSSCREEN_DEBUG
-#    cmakedefine01 WSSCREEN_DEBUG
 #endif
 
 #ifndef XML_PARSER_DEBUG
