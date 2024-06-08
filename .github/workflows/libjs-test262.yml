@@ -50,11 +50,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build unzip gcc-13 g++-13 jq wget
-          test -e /opt/wabt-1.0.27 || (
+          test -e /opt/wabt-1.0.35 || (
             cd /tmp
-            wget https://github.com/WebAssembly/wabt/releases/download/1.0.27/wabt-1.0.27-ubuntu.tar.gz
-            sudo tar xf wabt-1.0.27-ubuntu.tar.gz -C /opt
-            rm wabt-1.0.27-ubuntu.tar.gz
+            wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
+            sudo tar xf wabt-1.0.35-ubuntu-20.04.tar.gz -C /opt
+            rm wabt-1.0.35-ubuntu-20.04.tar.gz
           )
 
       - name: Setup Python
@@ -86,7 +86,7 @@ jobs:
       - name: Build test262-runner, test-js and test-wasm
         working-directory: libjs-test262
         run: |
-          env PATH="/opt/wabt-1.0.27/bin:$PATH" \
+          env PATH="/opt/wabt-1.0.35/bin:$PATH" \
             cmake -GNinja -B Build \
               -DCMAKE_C_COMPILER=gcc-13 \
               -DCMAKE_CXX_COMPILER=g++-13 \
