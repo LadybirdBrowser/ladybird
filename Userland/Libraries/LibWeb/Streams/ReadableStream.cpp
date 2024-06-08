@@ -68,6 +68,13 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> ReadableStream::construct_
     return readable_stream;
 }
 
+// https://streams.spec.whatwg.org/#rs-from
+WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> ReadableStream::from(JS::VM& vm, JS::Value async_iterable)
+{
+    // 1. Return ? ReadableStreamFromIterable(asyncIterable).
+    return TRY(readable_stream_from_iterable(vm, async_iterable));
+}
+
 ReadableStream::ReadableStream(JS::Realm& realm)
     : PlatformObject(realm)
 {
