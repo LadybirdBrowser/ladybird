@@ -9,7 +9,7 @@ NOTE: In all of the below lists of packages, the Qt6 multimedia package is not n
 On Debian/Ubuntu required packages include, but are not limited to:
 
 ```
-sudo apt install build-essential cmake libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2 zip unzip curl tar
+sudo apt install autoconf autoconf-archive automake build-essential cmake libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2 zip unzip curl tar
 ```
 
 For Ubuntu 20.04 and above, ensure that the Qt6 Wayland packages are available:
@@ -56,7 +56,7 @@ Xcode 14 versions before 14.3 might crash while building ladybird. Xcode 14.3 or
 
 ```
 xcode-select --install
-brew install cmake ninja ccache
+brew install autoconf autoconf-archive automake cmake ninja ccache
 ```
 
 If you also plan to use the Qt chrome on macOS:

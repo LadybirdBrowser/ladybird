@@ -21,6 +21,10 @@ serenity_lib(LibLocale locale)
 target_link_libraries(LibLocale PRIVATE LibUnicode)
 target_compile_definitions(LibLocale PRIVATE ENABLE_UNICODE_DATA=$<BOOL:${ENABLE_UNICODE_DATABASE_DOWNLOAD}>)
 
+find_package(ICU REQUIRED COMPONENTS data i18n uc)
+target_include_directories(LibLocale PRIVATE ${ICU_INCLUDE_DIRS})
+target_link_libraries(LibLocale PUBLIC ${ICU_LIBRARIES})
+
 if (DEFINED LOCALE_DATA_SOURCES)
     target_link_libraries(LibLocale PRIVATE LibLocaleData)
 endif()
