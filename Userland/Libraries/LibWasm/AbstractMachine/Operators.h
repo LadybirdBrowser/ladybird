@@ -10,8 +10,10 @@
 #include <AK/BuiltinWrappers.h>
 #include <AK/Result.h>
 #include <AK/SIMD.h>
+#include <AK/SIMDExtras.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <LibWasm/Types.h>
 #include <limits.h>
 #include <math.h>
 
@@ -192,7 +194,7 @@ struct VectorSwizzle {
         // https://webassembly.github.io/spec/core/bikeshed/#-mathsfi8x16hrefsyntax-instr-vecmathsfswizzle%E2%91%A0
         auto i = bit_cast<Native128ByteVectorOf<i8, MakeSigned>>(c2);
         auto j = bit_cast<Native128ByteVectorOf<i8, MakeSigned>>(c1);
-        auto result = AK::SIMD::shuffle(i, j);
+        auto result = shuffle_or_0(i, j);
         return bit_cast<u128>(result);
     }
     static StringView name() { return "vec(8x16).swizzle"sv; }
@@ -761,5 +763,4 @@ struct SaturatingTruncate {
 
     static StringView name() { return "truncate.saturating"sv; }
 };
-
 }
