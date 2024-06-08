@@ -55,6 +55,7 @@ enum class ParseError {
     HugeAllocationRequested,
     OutOfMemory,
     SectionSizeMismatch,
+    InvalidUtf8,
     // FIXME: This should not exist!
     NotImplemented,
 };

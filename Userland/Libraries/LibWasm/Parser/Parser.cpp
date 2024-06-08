@@ -79,7 +79,10 @@ static ParseResult<ByteString> parse_name(Stream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger;
     auto data = TRY(parse_vector<u8>(stream));
-    return ByteString::copy(data);
+    auto string = ByteString::copy(data);
+    if (!Utf8View(string).validate(Utf8View::AllowSurrogates::No))
+        return ParseError::InvalidUtf8;
+    return string;
 }
 
 template<typename T>
@@ -1546,6 +1549,8 @@ ByteString parse_error_to_byte_string(ParseError error)
         return "A parsed instruction immediate was invalid for the instruction it was used for";
     case ParseError::SectionSizeMismatch:
         return "A parsed section did not fulfill its expected size";
+    case ParseError::InvalidUtf8:
+        return "A parsed string was not valid UTF-8";
     case ParseError::UnknownInstruction:
         return "A parsed instruction was not known to this parser";
     }
