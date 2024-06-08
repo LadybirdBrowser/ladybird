@@ -64,15 +64,11 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::maximize)
     // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
     auto locale_object = TRY(typed_this_object(vm));
 
-    auto locale = ::Locale::parse_unicode_locale_id(locale_object->locale());
-    VERIFY(locale.has_value());
-
     // 3. Let maximal be the result of the Add Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set maximal to loc.[[Locale]].
-    if (auto maximal = ::Locale::add_likely_subtags(locale->language_id); maximal.has_value())
-        locale->language_id = maximal.release_value();
+    auto maximal = ::Locale::add_likely_subtags(locale_object->locale()).value_or(locale_object->locale());
 
     // 4. Return ! Construct(%Locale%, maximal).
-    return Locale::create(realm, locale.release_value());
+    return Locale::create(realm, locale_object, move(maximal));
 }
 
 // 14.3.4 Intl.Locale.prototype.minimize ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.minimize
@@ -84,15 +80,11 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::minimize)
     // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
     auto locale_object = TRY(typed_this_object(vm));
 
-    auto locale = ::Locale::parse_unicode_locale_id(locale_object->locale());
-    VERIFY(locale.has_value());
-
     // 3. Let minimal be the result of the Remove Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set minimal to loc.[[Locale]].
-    if (auto minimal = ::Locale::remove_likely_subtags(locale->language_id); minimal.has_value())
-        locale->language_id = minimal.release_value();
+    auto minimal = ::Locale::remove_likely_subtags(locale_object->locale()).value_or(locale_object->locale());
 
     // 4. Return ! Construct(%Locale%, minimal).
-    return Locale::create(realm, locale.release_value());
+    return Locale::create(realm, locale_object, move(minimal));
 }
 
 // 14.3.5 Intl.Locale.prototype.toString ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.toString

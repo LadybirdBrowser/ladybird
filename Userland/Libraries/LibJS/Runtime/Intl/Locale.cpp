@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,32 +16,17 @@ namespace JS::Intl {
 
 JS_DEFINE_ALLOCATOR(Locale);
 
-NonnullGCPtr<Locale> Locale::create(Realm& realm, ::Locale::LocaleID locale_id)
+NonnullGCPtr<Locale> Locale::create(Realm& realm, NonnullGCPtr<Locale> source_locale, String locale_tag)
 {
     auto locale = realm.heap().allocate<Locale>(realm, realm.intrinsics().intl_locale_prototype());
-    locale->set_locale(locale_id.to_string());
 
-    for (auto& extension : locale_id.extensions) {
-        if (!extension.has<::Locale::LocaleExtension>())
-            continue;
-
-        for (auto& keyword : extension.get<::Locale::LocaleExtension>().keywords) {
-            if (keyword.key == "ca"sv)
-                locale->set_calendar(move(keyword.value));
-            else if (keyword.key == "co"sv)
-                locale->set_collation(move(keyword.value));
-            else if (keyword.key == "hc"sv)
-                locale->set_hour_cycle(move(keyword.value));
-            else if (keyword.key == "kf"sv)
-                locale->set_case_first(move(keyword.value));
-            else if (keyword.key == "kn"sv)
-                locale->set_numeric(keyword.value.is_empty());
-            else if (keyword.key == "nu"sv)
-                locale->set_numbering_system(move(keyword.value));
-        }
-
-        break;
-    }
+    locale->set_locale(move(locale_tag));
+    locale->m_calendar = source_locale->m_calendar;
+    locale->m_case_first = source_locale->m_case_first;
+    locale->m_collation = source_locale->m_collation;
+    locale->m_hour_cycle = source_locale->m_hour_cycle;
+    locale->m_numbering_system = source_locale->m_numbering_system;
+    locale->m_numeric = source_locale->m_numeric;
 
     return locale;
 }

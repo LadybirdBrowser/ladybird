@@ -113,8 +113,11 @@ static T find_regional_values_for_locale(StringView locale, GetRegionalValues&& 
     if (!language.has_value())
         return return_default_values();
 
-    if (!language->region.has_value())
-        language = add_likely_subtags(*language);
+    if (!language->region.has_value()) {
+        if (auto maximized = add_likely_subtags(language->to_string()); maximized.has_value())
+            language = parse_unicode_language_id(*maximized);
+    }
+
     if (!language.has_value() || !language->region.has_value())
         return return_default_values();
 

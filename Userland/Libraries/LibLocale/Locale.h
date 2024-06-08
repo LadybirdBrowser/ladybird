@@ -177,7 +177,7 @@ Optional<CharacterOrder> character_order_from_string(StringView character_order)
 StringView character_order_to_string(CharacterOrder character_order);
 Optional<CharacterOrder> character_order_for_locale(StringView locale);
 
-Optional<LanguageID> add_likely_subtags(LanguageID const& language_id);
-Optional<LanguageID> remove_likely_subtags(LanguageID const& language_id);
+Optional<String> add_likely_subtags(StringView);
+Optional<String> remove_likely_subtags(StringView);
 
 }
