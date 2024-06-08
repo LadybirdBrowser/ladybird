@@ -556,7 +556,6 @@ ReadonlySpan<StringView> __attribute__((weak)) get_available_collation_types() {
 ReadonlySpan<StringView> __attribute__((weak)) get_available_hour_cycles() { return {}; }
 ReadonlySpan<StringView> __attribute__((weak)) get_available_number_systems() { return {}; }
 Optional<Locale> __attribute__((weak)) locale_from_string(StringView) { return {}; }
-Optional<ListPatternType> __attribute__((weak)) list_pattern_type_from_string(StringView) { return {}; }
 Optional<Key> __attribute__((weak)) key_from_string(StringView) { return {}; }
 Optional<KeywordCalendar> __attribute__((weak)) keyword_ca_from_string(StringView) { return {}; }
 Optional<KeywordCollation> __attribute__((weak)) keyword_co_from_string(StringView) { return {}; }
@@ -595,8 +594,6 @@ Vector<String> available_currencies()
 
     return result;
 }
-
-Optional<ListPatterns> __attribute__((weak)) get_locale_list_patterns(StringView, StringView, Style) { return {}; }
 
 static void apply_extensions_to_locale(icu::Locale& locale, icu::Locale const& locale_with_extensions)
 {

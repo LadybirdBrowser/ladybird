@@ -340,7 +340,7 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, String 
 }
 
 // 1.1.7 PartitionDurationFormatPattern ( durationFormat, duration ), https://tc39.es/proposal-intl-duration-format/#sec-partitiondurationformatpattern
-Vector<PatternPartition> partition_duration_format_pattern(VM& vm, DurationFormat const& duration_format, Temporal::DurationRecord const& duration)
+Vector<::Locale::ListFormatPart> partition_duration_format_pattern(VM& vm, DurationFormat const& duration_format, Temporal::DurationRecord const& duration)
 {
     auto& realm = *vm.current_realm();
 

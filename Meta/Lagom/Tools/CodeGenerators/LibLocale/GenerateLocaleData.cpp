@@ -33,72 +33,19 @@ static ByteString format_identifier(StringView owner, ByteString identifier)
     return identifier;
 }
 
-struct ListPatterns {
-    unsigned hash() const
-    {
-        auto hash = pair_int_hash(type.hash(), style.hash());
-        hash = pair_int_hash(hash, start);
-        hash = pair_int_hash(hash, middle);
-        hash = pair_int_hash(hash, end);
-        hash = pair_int_hash(hash, pair);
-        return hash;
-    }
-
-    bool operator==(ListPatterns const& other) const
-    {
-        return (type == other.type)
-            && (style == other.style)
-            && (start == other.start)
-            && (middle == other.middle)
-            && (end == other.end)
-            && (pair == other.pair);
-    }
-
-    StringView type;
-    StringView style;
-    size_t start { 0 };
-    size_t middle { 0 };
-    size_t end { 0 };
-    size_t pair { 0 };
-};
-
-template<>
-struct AK::Formatter<ListPatterns> : Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, ListPatterns const& patterns)
-    {
-        return Formatter<FormatString>::format(builder,
-            "{{ ListPatternType::{}, Style::{}, {}, {}, {}, {} }}"sv,
-            format_identifier({}, patterns.type),
-            format_identifier({}, patterns.style),
-            patterns.start,
-            patterns.middle,
-            patterns.end,
-            patterns.pair);
-    }
-};
-
-template<>
-struct AK::Traits<ListPatterns> : public DefaultTraits<ListPatterns> {
-    static unsigned hash(ListPatterns const& p) { return p.hash(); }
-};
-
 using KeywordList = Vector<size_t>;
-using ListPatternList = Vector<size_t>;
 
 struct LocaleData {
     size_t calendar_keywords { 0 };
     size_t collation_case_keywords { 0 };
     size_t collation_numeric_keywords { 0 };
     size_t number_system_keywords { 0 };
-    size_t list_patterns { 0 };
     size_t text_layout { 0 };
 };
 
 struct CLDR {
     UniqueStringStorage unique_strings;
     UniqueStorage<KeywordList> unique_keyword_lists;
-    UniqueStorage<ListPatterns> unique_list_patterns;
-    UniqueStorage<ListPatternList> unique_list_pattern_lists;
 
     HashMap<ByteString, LocaleData> locales;
     Vector<Alias> locale_aliases;
@@ -106,8 +53,6 @@ struct CLDR {
     HashMap<ByteString, Vector<ByteString>> keywords;
     HashMap<ByteString, Vector<Alias>> keyword_aliases;
     HashMap<ByteString, ByteString> keyword_names;
-
-    Vector<ByteString> list_pattern_types;
 };
 
 // Some parsing is expected to fail. For example, the CLDR contains language mappings
@@ -198,57 +143,6 @@ static Optional<ByteString> find_keyword_alias(StringView key, StringView calend
         return {};
 
     return alias->name;
-}
-
-static ErrorOr<void> parse_locale_list_patterns(ByteString misc_path, CLDR& cldr, LocaleData& locale)
-{
-    LexicalPath list_patterns_path(move(misc_path));
-    list_patterns_path = list_patterns_path.append("listPatterns.json"sv);
-
-    auto locale_list_patterns = TRY(read_json_file(list_patterns_path.string()));
-    auto const& main_object = locale_list_patterns.as_object().get_object("main"sv).value();
-    auto const& locale_object = main_object.get_object(list_patterns_path.parent().basename()).value();
-    auto const& list_patterns_object = locale_object.get_object("listPatterns"sv).value();
-
-    auto list_pattern_type = [](StringView key) {
-        if (key.contains("type-standard"sv))
-            return "conjunction"sv;
-        if (key.contains("type-or"sv))
-            return "disjunction"sv;
-        if (key.contains("type-unit"sv))
-            return "unit"sv;
-        VERIFY_NOT_REACHED();
-    };
-
-    auto list_pattern_style = [](StringView key) {
-        if (key.contains("short"sv))
-            return "short"sv;
-        if (key.contains("narrow"sv))
-            return "narrow"sv;
-        return "long"sv;
-    };
-
-    ListPatternList list_patterns;
-    list_patterns.ensure_capacity(list_patterns_object.size());
-
-    list_patterns_object.for_each_member([&](auto const& key, JsonValue const& value) {
-        auto type = list_pattern_type(key);
-        auto style = list_pattern_style(key);
-
-        auto start = cldr.unique_strings.ensure(value.as_object().get_byte_string("start"sv).value());
-        auto middle = cldr.unique_strings.ensure(value.as_object().get_byte_string("middle"sv).value());
-        auto end = cldr.unique_strings.ensure(value.as_object().get_byte_string("end"sv).value());
-        auto pair = cldr.unique_strings.ensure(value.as_object().get_byte_string("2"sv).value());
-
-        if (!cldr.list_pattern_types.contains_slow(type))
-            cldr.list_pattern_types.append(type);
-
-        ListPatterns list_pattern { type, style, start, middle, end, pair };
-        list_patterns.append(cldr.unique_list_patterns.ensure(move(list_pattern)));
-    });
-
-    locale.list_patterns = cldr.unique_list_pattern_lists.ensure(move(list_patterns));
-    return {};
 }
 
 static ErrorOr<void> parse_number_system_keywords(ByteString locale_numbers_path, CLDR& cldr, LocaleData& locale)
@@ -430,7 +324,7 @@ static ErrorOr<void> define_aliases_without_scripts(CLDR& cldr)
     return {};
 }
 
-static ErrorOr<void> parse_all_locales(ByteString bcp47_path, ByteString core_path, ByteString misc_path, ByteString numbers_path, ByteString dates_path, CLDR& cldr)
+static ErrorOr<void> parse_all_locales(ByteString bcp47_path, ByteString core_path, ByteString numbers_path, ByteString dates_path, CLDR& cldr)
 {
     LexicalPath core_supplemental_path(core_path);
     core_supplemental_path = core_supplemental_path.append("supplemental"sv);
@@ -452,15 +346,6 @@ static ErrorOr<void> parse_all_locales(ByteString bcp47_path, ByteString core_pa
     TRY(Core::Directory::for_each_entry(TRY(String::formatted("{}/bcp47", bcp47_path)), Core::DirIterator::SkipParentAndBaseDir, [&](auto& entry, auto& directory) -> ErrorOr<IterationDecision> {
         auto bcp47_path = LexicalPath::join(directory.path().string(), entry.name).string();
         TRY(parse_unicode_extension_keywords(move(bcp47_path), cldr));
-        return IterationDecision::Continue;
-    }));
-
-    TRY(Core::Directory::for_each_entry(TRY(String::formatted("{}/main", misc_path)), Core::DirIterator::SkipParentAndBaseDir, [&](auto& entry, auto& directory) -> ErrorOr<IterationDecision> {
-        auto misc_path = LexicalPath::join(directory.path().string(), entry.name).string();
-        auto language = TRY(remove_variants_from_path(misc_path));
-
-        auto& locale = cldr.locales.ensure(language);
-        TRY(parse_locale_list_patterns(misc_path, cldr, locale));
         return IterationDecision::Continue;
     }));
 
@@ -506,7 +391,6 @@ namespace Locale {
     auto keywords = cldr.keywords.keys();
 
     generate_enum(generator, format_identifier, "Locale"sv, "None"sv, locales, cldr.locale_aliases);
-    generate_enum(generator, format_identifier, "ListPatternType"sv, {}, cldr.list_pattern_types);
     generate_enum(generator, format_identifier, "Key"sv, {}, keywords);
 
     for (auto& keyword : cldr.keywords) {
@@ -554,17 +438,6 @@ namespace Locale {
 
     cldr.unique_strings.generate(generator);
 
-    generator.append(R"~~~(
-struct Patterns {
-    ListPatternType type;
-    Style style;
-    @string_index_type@ start { 0 };
-    @string_index_type@ middle { 0 };
-    @string_index_type@ end { 0 };
-    @string_index_type@ pair { 0 };
-};
-)~~~");
-
     generate_available_values(generator, "get_available_calendars"sv, cldr.keywords.find("ca"sv)->value, cldr.keyword_aliases.find("ca"sv)->value,
         [](auto calendar) {
             // FIXME: Remove this filter when we support all calendars.
@@ -607,8 +480,6 @@ ReadonlySpan<StringView> get_available_keyword_values(StringView key)
 )~~~");
 
     cldr.unique_keyword_lists.generate(generator, string_index_type, "s_keyword_lists"sv);
-    cldr.unique_list_patterns.generate(generator, "Patterns"sv, "s_list_patterns"sv, 10);
-    cldr.unique_list_pattern_lists.generate(generator, cldr.unique_list_patterns.type_that_fits(), "s_list_pattern_lists"sv);
 
     auto append_mapping = [&](auto const& keys, auto const& map, auto type, auto name, auto mapping_getter) {
         generator.set("type", type);
@@ -638,7 +509,6 @@ static constexpr Array<@type@, @size@> @name@ { {)~~~");
     append_mapping(locales, cldr.locales, cldr.unique_keyword_lists.type_that_fits(), "s_collation_case_keywords"sv, [&](auto const& locale) { return locale.collation_case_keywords; });
     append_mapping(locales, cldr.locales, cldr.unique_keyword_lists.type_that_fits(), "s_collation_numeric_keywords"sv, [&](auto const& locale) { return locale.collation_numeric_keywords; });
     append_mapping(locales, cldr.locales, cldr.unique_keyword_lists.type_that_fits(), "s_number_system_keywords"sv, [&](auto const& locale) { return locale.number_system_keywords; });
-    append_mapping(locales, cldr.locales, cldr.unique_list_pattern_lists.type_that_fits(), "s_locale_list_patterns"sv, [&](auto const& locale) { return locale.list_patterns; });
 
     auto append_from_string = [&](StringView enum_title, StringView enum_snake, auto const& values, Vector<Alias> const& aliases = {}) -> ErrorOr<void> {
         HashValueMap<ByteString> hashes;
@@ -667,8 +537,6 @@ static constexpr Array<@type@, @size@> @name@ { {)~~~");
         else
             TRY(append_from_string(enum_name, enum_snake, keyword.value));
     }
-
-    TRY(append_from_string("ListPatternType"sv, "list_pattern_type"sv, cldr.list_pattern_types));
 
     generator.append(R"~~~(
 static ReadonlySpan<@string_index_type@> find_keyword_indices(StringView locale, StringView key)
@@ -765,37 +633,6 @@ Vector<StringView> get_keywords_for_locale(StringView locale, StringView key)
     return keywords;
 }
 
-Optional<ListPatterns> get_locale_list_patterns(StringView locale, StringView list_pattern_type, Style list_pattern_style)
-{
-    auto locale_value = locale_from_string(locale);
-    if (!locale_value.has_value())
-        return {};
-
-    auto type_value = list_pattern_type_from_string(list_pattern_type);
-    if (!type_value.has_value())
-        return {};
-
-    auto locale_index = to_underlying(*locale_value) - 1; // Subtract 1 because 0 == Locale::None.
-
-    auto list_patterns_list_index = s_locale_list_patterns.at(locale_index);
-    auto const& locale_list_patterns = s_list_pattern_lists.at(list_patterns_list_index);
-
-    for (auto list_patterns_index : locale_list_patterns) {
-        auto const& list_patterns = s_list_patterns.at(list_patterns_index);
-
-        if ((list_patterns.type == type_value) && (list_patterns.style == list_pattern_style)) {
-            auto const& start = decode_string(list_patterns.start);
-            auto const& middle = decode_string(list_patterns.middle);
-            auto const& end = decode_string(list_patterns.end);
-            auto const& pair = decode_string(list_patterns.pair);
-
-            return ListPatterns { start, middle, end, pair };
-        }
-    }
-
-    return {};
-}
-
 }
 )~~~");
 
@@ -809,7 +646,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView generated_implementation_path;
     StringView bcp47_path;
     StringView core_path;
-    StringView misc_path;
     StringView numbers_path;
     StringView dates_path;
 
@@ -818,7 +654,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(generated_implementation_path, "Path to the Unicode locale implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
     args_parser.add_option(bcp47_path, "Path to cldr-bcp47 directory", "bcp47-path", 'b', "bcp47-path");
     args_parser.add_option(core_path, "Path to cldr-core directory", "core-path", 'r', "core-path");
-    args_parser.add_option(misc_path, "Path to cldr-misc directory", "misc-path", 'm', "misc-path");
     args_parser.add_option(numbers_path, "Path to cldr-numbers directory", "numbers-path", 'n', "numbers-path");
     args_parser.add_option(dates_path, "Path to cldr-dates directory", "dates-path", 'd', "dates-path");
     args_parser.parse(arguments);
@@ -827,7 +662,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto generated_implementation_file = TRY(open_file(generated_implementation_path, Core::File::OpenMode::Write));
 
     CLDR cldr;
-    TRY(parse_all_locales(bcp47_path, core_path, misc_path, numbers_path, dates_path, cldr));
+    TRY(parse_all_locales(bcp47_path, core_path, numbers_path, dates_path, cldr));
 
     TRY(generate_unicode_locale_header(*generated_header_file, cldr));
     TRY(generate_unicode_locale_implementation(*generated_implementation_file, cldr));
