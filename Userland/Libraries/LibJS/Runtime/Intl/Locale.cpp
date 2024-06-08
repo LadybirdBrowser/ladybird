@@ -160,10 +160,8 @@ StringView character_direction_of_locale(Locale const& locale_object)
     VERIFY(::Locale::parse_unicode_locale_id(locale).has_value());
 
     // 3. If the default general ordering of characters (characterOrder) within a line in locale is right-to-left, return "rtl".
-    // NOTE: LibUnicode handles both LTR and RTL character orders in this call, not just RTL. We then fallback to LTR
-    //       below if LibUnicode doesn't conclusively know the character order for this locale.
-    if (auto character_order = ::Locale::character_order_for_locale(locale); character_order.has_value())
-        return ::Locale::character_order_to_string(*character_order);
+    if (::Locale::is_locale_character_ordering_right_to_left(locale))
+        return "rtl"sv;
 
     // 4. Return "ltr".
     return "ltr"sv;

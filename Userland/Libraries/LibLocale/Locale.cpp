@@ -597,9 +597,6 @@ Vector<String> available_currencies()
 }
 
 Optional<ListPatterns> __attribute__((weak)) get_locale_list_patterns(StringView, StringView, Style) { return {}; }
-Optional<CharacterOrder> __attribute__((weak)) character_order_from_string(StringView) { return {}; }
-StringView __attribute__((weak)) character_order_to_string(CharacterOrder) { return {}; }
-Optional<CharacterOrder> __attribute__((weak)) character_order_for_locale(StringView) { return {}; }
 
 static void apply_extensions_to_locale(icu::Locale& locale, icu::Locale const& locale_with_extensions)
 {
@@ -668,6 +665,15 @@ Optional<String> remove_likely_subtags(StringView locale)
         return {};
 
     return MUST(result.to_string());
+}
+
+bool is_locale_character_ordering_right_to_left(StringView locale)
+{
+    auto locale_data = LocaleData::for_locale(locale);
+    if (!locale_data.has_value())
+        return false; // Default to left-to-right
+
+    return static_cast<bool>(locale_data->locale().isRightToLeft());
 }
 
 String LanguageID::to_string() const

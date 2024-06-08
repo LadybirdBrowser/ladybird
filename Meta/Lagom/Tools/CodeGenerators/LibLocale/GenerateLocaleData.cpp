@@ -82,35 +82,6 @@ struct AK::Traits<ListPatterns> : public DefaultTraits<ListPatterns> {
     static unsigned hash(ListPatterns const& p) { return p.hash(); }
 };
 
-struct TextLayout {
-    unsigned hash() const
-    {
-        return character_order.hash();
-    }
-
-    bool operator==(TextLayout const& other) const
-    {
-        return character_order == other.character_order;
-    }
-
-    StringView character_order;
-};
-
-template<>
-struct AK::Formatter<TextLayout> : Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, TextLayout const& patterns)
-    {
-        return Formatter<FormatString>::format(builder,
-            "{{ CharacterOrder::{} }}"sv,
-            format_identifier({}, patterns.character_order));
-    }
-};
-
-template<>
-struct AK::Traits<TextLayout> : public DefaultTraits<TextLayout> {
-    static unsigned hash(TextLayout const& t) { return t.hash(); }
-};
-
 using KeywordList = Vector<size_t>;
 using ListPatternList = Vector<size_t>;
 
@@ -128,7 +99,6 @@ struct CLDR {
     UniqueStorage<KeywordList> unique_keyword_lists;
     UniqueStorage<ListPatterns> unique_list_patterns;
     UniqueStorage<ListPatternList> unique_list_pattern_lists;
-    UniqueStorage<TextLayout> unique_text_layouts;
 
     HashMap<ByteString, LocaleData> locales;
     Vector<Alias> locale_aliases;
@@ -138,7 +108,6 @@ struct CLDR {
     HashMap<ByteString, ByteString> keyword_names;
 
     Vector<ByteString> list_pattern_types;
-    Vector<ByteString> character_orders;
 };
 
 // Some parsing is expected to fail. For example, the CLDR contains language mappings
@@ -279,37 +248,6 @@ static ErrorOr<void> parse_locale_list_patterns(ByteString misc_path, CLDR& cldr
     });
 
     locale.list_patterns = cldr.unique_list_pattern_lists.ensure(move(list_patterns));
-    return {};
-}
-
-static ErrorOr<void> parse_locale_layout(ByteString misc_path, CLDR& cldr, LocaleData& locale)
-{
-    LexicalPath layout_path(move(misc_path));
-    layout_path = layout_path.append("layout.json"sv);
-
-    auto locale_layout = TRY(read_json_file(layout_path.string()));
-    auto const& main_object = locale_layout.as_object().get_object("main"sv).value();
-    auto const& locale_object = main_object.get_object(layout_path.parent().basename()).value();
-    auto const& layout_object = locale_object.get_object("layout"sv).value();
-    auto const& orientation_object = layout_object.get_object("orientation"sv).value();
-
-    auto text_layout_character_order = [](StringView key) {
-        if (key == "left-to-right"sv)
-            return "ltr"sv;
-        if (key == "right-to-left"sv)
-            return "rtl"sv;
-        VERIFY_NOT_REACHED();
-    };
-
-    auto character_order = orientation_object.get_byte_string("characterOrder"sv).value();
-
-    TextLayout layout {};
-    layout.character_order = text_layout_character_order(character_order);
-
-    if (!cldr.character_orders.contains_slow(layout.character_order))
-        cldr.character_orders.append(layout.character_order);
-
-    locale.text_layout = cldr.unique_text_layouts.ensure(move(layout));
     return {};
 }
 
@@ -523,7 +461,6 @@ static ErrorOr<void> parse_all_locales(ByteString bcp47_path, ByteString core_pa
 
         auto& locale = cldr.locales.ensure(language);
         TRY(parse_locale_list_patterns(misc_path, cldr, locale));
-        TRY(parse_locale_layout(misc_path, cldr, locale));
         return IterationDecision::Continue;
     }));
 
@@ -570,7 +507,6 @@ namespace Locale {
 
     generate_enum(generator, format_identifier, "Locale"sv, "None"sv, locales, cldr.locale_aliases);
     generate_enum(generator, format_identifier, "ListPatternType"sv, {}, cldr.list_pattern_types);
-    generate_enum(generator, format_identifier, "CharacterOrder"sv, {}, cldr.character_orders);
     generate_enum(generator, format_identifier, "Key"sv, {}, keywords);
 
     for (auto& keyword : cldr.keywords) {
@@ -627,10 +563,6 @@ struct Patterns {
     @string_index_type@ end { 0 };
     @string_index_type@ pair { 0 };
 };
-
-struct TextLayout {
-    CharacterOrder character_order;
-};
 )~~~");
 
     generate_available_values(generator, "get_available_calendars"sv, cldr.keywords.find("ca"sv)->value, cldr.keyword_aliases.find("ca"sv)->value,
@@ -677,7 +609,6 @@ ReadonlySpan<StringView> get_available_keyword_values(StringView key)
     cldr.unique_keyword_lists.generate(generator, string_index_type, "s_keyword_lists"sv);
     cldr.unique_list_patterns.generate(generator, "Patterns"sv, "s_list_patterns"sv, 10);
     cldr.unique_list_pattern_lists.generate(generator, cldr.unique_list_patterns.type_that_fits(), "s_list_pattern_lists"sv);
-    cldr.unique_text_layouts.generate(generator, "TextLayout"sv, "s_text_layouts"sv, 30);
 
     auto append_mapping = [&](auto const& keys, auto const& map, auto type, auto name, auto mapping_getter) {
         generator.set("type", type);
@@ -708,7 +639,6 @@ static constexpr Array<@type@, @size@> @name@ { {)~~~");
     append_mapping(locales, cldr.locales, cldr.unique_keyword_lists.type_that_fits(), "s_collation_numeric_keywords"sv, [&](auto const& locale) { return locale.collation_numeric_keywords; });
     append_mapping(locales, cldr.locales, cldr.unique_keyword_lists.type_that_fits(), "s_number_system_keywords"sv, [&](auto const& locale) { return locale.number_system_keywords; });
     append_mapping(locales, cldr.locales, cldr.unique_list_pattern_lists.type_that_fits(), "s_locale_list_patterns"sv, [&](auto const& locale) { return locale.list_patterns; });
-    append_mapping(locales, cldr.locales, cldr.unique_text_layouts.type_that_fits(), "s_locale_text_layouts"sv, [&](auto const& locale) { return locale.text_layout; });
 
     auto append_from_string = [&](StringView enum_title, StringView enum_snake, auto const& values, Vector<Alias> const& aliases = {}) -> ErrorOr<void> {
         HashValueMap<ByteString> hashes;
@@ -739,9 +669,6 @@ static constexpr Array<@type@, @size@> @name@ { {)~~~");
     }
 
     TRY(append_from_string("ListPatternType"sv, "list_pattern_type"sv, cldr.list_pattern_types));
-
-    TRY(append_from_string("CharacterOrder"sv, "character_order"sv, cldr.character_orders));
-    generate_value_to_string(generator, "{}_to_string"sv, "CharacterOrder"sv, "character_order"sv, format_identifier, cldr.character_orders);
 
     generator.append(R"~~~(
 static ReadonlySpan<@string_index_type@> find_keyword_indices(StringView locale, StringView key)
@@ -866,25 +793,6 @@ Optional<ListPatterns> get_locale_list_patterns(StringView locale, StringView li
         }
     }
 
-    return {};
-}
-
-static Optional<TextLayout> text_layout_for_locale(StringView locale)
-{
-    auto locale_value = locale_from_string(locale);
-    if (!locale_value.has_value())
-        return {};
-
-    auto locale_index = to_underlying(*locale_value) - 1; // Subtract 1 because 0 == Locale::None.
-
-    auto text_layouts_index = s_locale_text_layouts.at(locale_index);
-    return s_text_layouts.at(text_layouts_index);
-}
-
-Optional<CharacterOrder> character_order_for_locale(StringView locale)
-{
-    if (auto text_layout = text_layout_for_locale(locale); text_layout.has_value())
-        return text_layout->character_order;
     return {};
 }
 

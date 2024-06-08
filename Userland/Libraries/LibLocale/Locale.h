@@ -173,11 +173,9 @@ Optional<StringView> get_preferred_keyword_value_for_locale(StringView locale, S
 
 Optional<ListPatterns> get_locale_list_patterns(StringView locale, StringView type, Style style);
 
-Optional<CharacterOrder> character_order_from_string(StringView character_order);
-StringView character_order_to_string(CharacterOrder character_order);
-Optional<CharacterOrder> character_order_for_locale(StringView locale);
-
 Optional<String> add_likely_subtags(StringView);
 Optional<String> remove_likely_subtags(StringView);
+
+bool is_locale_character_ordering_right_to_left(StringView locale);
 
 }
