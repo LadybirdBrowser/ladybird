@@ -364,6 +364,26 @@ struct Maximum {
     static StringView name() { return "maximum"sv; }
 };
 
+struct PseudoMinimum {
+    template<typename Lhs, typename Rhs>
+    auto operator()(Lhs lhs, Rhs rhs) const
+    {
+        return rhs < lhs ? rhs : lhs;
+    }
+
+    static StringView name() { return "pseudo_minimum"sv; }
+};
+
+struct PseudoMaximum {
+    template<typename Lhs, typename Rhs>
+    auto operator()(Lhs lhs, Rhs rhs) const
+    {
+        return lhs < rhs ? rhs : lhs;
+    }
+
+    static StringView name() { return "pseudo_maximum"sv; }
+};
+
 struct CopySign {
     template<typename Lhs, typename Rhs>
     auto operator()(Lhs lhs, Rhs rhs) const
@@ -462,6 +482,61 @@ struct Ceil {
     static StringView name() { return "ceil"sv; }
 };
 
+template<size_t VectorSize, typename Op>
+struct VectorFloatBinaryOp {
+    auto operator()(u128 lhs, u128 rhs) const
+    {
+        using VectorType = NativeFloatingVectorType<128, VectorSize, NativeFloatingType<128 / VectorSize>>;
+        auto first = bit_cast<VectorType>(lhs);
+        auto second = bit_cast<VectorType>(rhs);
+        VectorType result;
+        Op op;
+        for (size_t i = 0; i < VectorSize; ++i) {
+            result[i] = op(first[i], second[i]);
+        }
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 4:
+            return "vecf(32x4).binary_op"sv;
+        case 2:
+            return "vecf(64x2).binary_op"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+};
+
+template<size_t VectorSize, typename Op>
+struct VectorFloatUnaryOp {
+    auto operator()(u128 lhs) const
+    {
+        using VectorType = NativeFloatingVectorType<128, VectorSize, NativeFloatingType<128 / VectorSize>>;
+        auto first = bit_cast<VectorType>(lhs);
+        VectorType result;
+        Op op;
+        for (size_t i = 0; i < VectorSize; ++i) {
+            result[i] = op(first[i]);
+        }
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 4:
+            return "vecf(32x4).unary_op"sv;
+        case 2:
+            return "vecf(64x2).unary_op"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+};
+
 struct Floor {
     template<typename Lhs>
     auto operator()(Lhs lhs) const
@@ -479,7 +554,7 @@ struct Floor {
 
 struct Truncate {
     template<typename Lhs>
-    AK::ErrorOr<Lhs, StringView> operator()(Lhs lhs) const
+    auto operator()(Lhs lhs) const
     {
         if constexpr (IsSame<Lhs, float>)
             return truncf(lhs);
