@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/DataViewConstructor.h>
 #include <LibJS/Runtime/Intrinsics.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -1381,6 +1382,116 @@ void readable_stream_error(ReadableStream& stream, JS::Value error)
         // 2. Perform ! ReadableStreamBYOBReaderErrorReadIntoRequests(reader, e).
         readable_stream_byob_reader_error_read_into_requests(*reader->get<JS::NonnullGCPtr<ReadableStreamBYOBReader>>(), error);
     }
+}
+
+// https://streams.spec.whatwg.org/#readable-stream-from-iterable
+WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> readable_stream_from_iterable(JS::VM& vm, JS::Value async_iterable)
+{
+    auto& realm = *vm.current_realm();
+
+    // 1. Let stream be undefined.
+    // NON-STANDARD: We capture 'stream' in a lambda later, so it needs to be allocated now.
+    //               'stream' is still in an uninitialized state and will be initialized / set up at step 6.
+    auto stream = realm.heap().allocate<ReadableStream>(realm, realm);
+
+    // 2. Let iteratorRecord be ? GetIterator(asyncIterable, async).
+    auto iterator_record = TRY(JS::get_iterator(vm, async_iterable, JS::IteratorHint::Async));
+
+    // 3. Let startAlgorithm be an algorithm that returns undefined.
+    auto start_algorithm = JS::create_heap_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> {
+        return JS::js_undefined();
+    });
+
+    // 4. Let pullAlgorithm be the following steps:
+    auto pull_algorithm = JS::create_heap_function(realm.heap(), [&vm, &realm, stream, iterator_record]() mutable {
+        // 1.  Let nextResult be IteratorNext(iteratorRecord).
+        auto next_result = JS::iterator_next(vm, iterator_record);
+
+        // 2. If nextResult is an abrupt completion, return a promise rejected with nextResult.[[Value]].
+        if (next_result.is_error())
+            return WebIDL::create_rejected_promise(realm, *next_result.throw_completion().release_value());
+
+        // 3. Let nextPromise be a promise resolved with nextResult.[[Value]].
+        auto next_promise = WebIDL::create_resolved_promise(realm, next_result.release_value());
+
+        // 4. Return the result of reacting to nextPromise with the following fulfillment steps, given iterResult:
+        auto react_result = WebIDL::react_to_promise(*next_promise,
+            JS::create_heap_function(realm.heap(), [&vm, stream](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
+                // 1. If Type(iterResult) is not Object, throw a TypeError.
+                if (!iter_result.is_object())
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"sv };
+
+                // 2. Let done be ? IteratorComplete(iterResult).
+                auto done = TRY(JS::iterator_complete(vm, iter_result.as_object()));
+
+                // 3. If done is true:
+                if (done) {
+                    // 1. Perform ! ReadableStreamDefaultControllerClose(stream.[[controller]]).
+                    readable_stream_default_controller_close(*stream->controller()->get<JS::NonnullGCPtr<ReadableStreamDefaultController>>());
+                }
+                // 4. Otherwise:
+                else {
+                    // 1. Let value be ? IteratorValue(iterResult).
+                    auto value = TRY(JS::iterator_value(vm, iter_result.as_object()));
+
+                    // 2. Perform ! ReadableStreamDefaultControllerEnqueue(stream.[[controller]], value).
+                    MUST(readable_stream_default_controller_enqueue(*stream->controller()->get<JS::NonnullGCPtr<ReadableStreamDefaultController>>(), value));
+                }
+
+                return JS::js_undefined();
+            }),
+            {});
+
+        return WebIDL::create_resolved_promise(realm, react_result);
+    });
+
+    // 5. Let cancelAlgorithm be the following steps, given reason:
+    auto cancel_algorithm = JS::create_heap_function(realm.heap(), [&vm, &realm, iterator_record](JS::Value reason) {
+        // 1. Let iterator be iteratorRecord.[[Iterator]].
+        auto iterator = iterator_record->iterator;
+
+        // 2. Let returnMethod be GetMethod(iterator, "return").
+        auto return_method = iterator->get(vm.names.return_);
+
+        // 3. If returnMethod is an abrupt completion, return a promise rejected with returnMethod.[[Value]].
+        if (return_method.is_error())
+            return WebIDL::create_rejected_promise(realm, *return_method.throw_completion().release_value());
+
+        // 4. If returnMethod.[[Value]] is undefined, return a promise resolved with undefined.
+        if (return_method.value().is_undefined())
+            return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+
+        // 5. Let returnResult be Call(returnMethod.[[Value]], iterator, « reason »).
+        auto return_result = JS::call(vm, return_method.value(), reason);
+
+        // 6. If returnResult is an abrupt completion, return a promise rejected with returnResult.[[Value]].
+        if (return_result.is_error())
+            return WebIDL::create_rejected_promise(realm, *return_result.throw_completion().release_value());
+
+        // 7. Let returnPromise be a promise resolved with returnResult.[[Value]].
+        auto return_promise = WebIDL::create_resolved_promise(realm, return_result.release_value());
+
+        // 8. Return the result of reacting to returnPromise with the following fulfillment steps, given iterResult:
+        auto react_result = WebIDL::react_to_promise(*return_promise,
+            JS::create_heap_function(realm.heap(), [](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
+                // 1. If Type(iterResult) is not Object, throw a TypeError.
+                if (!iter_result.is_object())
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"sv };
+
+                // 2. Return undefined.
+                return JS::js_undefined();
+            }),
+            {});
+
+        return WebIDL::create_resolved_promise(realm, react_result);
+    });
+
+    // 6. Set stream to ! CreateReadableStream(startAlgorithm, pullAlgorithm, cancelAlgorithm, 0).
+    // NON-STANDARD: 'stream' is captured in a lambda defined earlier, so we cannot overwrite it by assigning the ReadableStream returned by CreateReadableStream.
+    MUST(set_up_readable_stream(realm, *stream, start_algorithm, pull_algorithm, cancel_algorithm, 0));
+
+    // 7. Return stream.
+    return stream;
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-add-read-request
