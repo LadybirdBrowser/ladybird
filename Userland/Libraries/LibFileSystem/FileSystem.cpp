@@ -12,9 +12,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <limits.h>
 
-#if defined(AK_OS_SERENITY)
-#    include <serenity.h>
-#elif !defined(AK_OS_IOS) && defined(AK_OS_BSD_GENERIC)
+#if !defined(AK_OS_IOS) && defined(AK_OS_BSD_GENERIC)
 #    include <sys/disk.h>
 #elif defined(AK_OS_LINUX)
 #    include <linux/fs.h>
@@ -391,11 +389,7 @@ ErrorOr<off_t> block_device_size_from_ioctl(StringView path)
 
 ErrorOr<off_t> block_device_size_from_ioctl(int fd)
 {
-#if defined(AK_OS_SERENITY)
-    u64 size = 0;
-    TRY(Core::System::ioctl(fd, STORAGE_DEVICE_GET_SIZE, &size));
-    return static_cast<off_t>(size);
-#elif defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS)
     u64 block_count = 0;
     u32 block_size = 0;
     TRY(Core::System::ioctl(fd, DKIOCGETBLOCKCOUNT, &block_count));

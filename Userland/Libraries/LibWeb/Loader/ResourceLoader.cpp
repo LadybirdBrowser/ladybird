@@ -25,10 +25,6 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
-#ifdef AK_OS_SERENITY
-#    include <serenity.h>
-#endif
-
 namespace Web {
 
 ResourceLoaderConnectorRequest::ResourceLoaderConnectorRequest() = default;
@@ -141,13 +137,8 @@ static ByteString sanitized_url_for_logging(URL::URL const& url)
 
 static void emit_signpost(ByteString const& message, int id)
 {
-#ifdef AK_OS_SERENITY
-    auto string_id = perf_register_string(message.characters(), message.length());
-    perf_event(PERF_EVENT_SIGNPOST, string_id, id);
-#else
     (void)message;
     (void)id;
-#endif
 }
 
 static void store_response_cookies(Page& page, URL::URL const& url, ByteString const& cookies)

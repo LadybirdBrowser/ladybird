@@ -48,10 +48,6 @@
 #include <WebContent/PageHost.h>
 #include <WebContent/WebContentClientEndpoint.h>
 
-#ifdef AK_OS_SERENITY
-#    include <pthread.h>
-#endif
-
 namespace WebContent {
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
@@ -129,16 +125,6 @@ void ConnectionFromClient::load_url(u64 page_id, const URL::URL& url)
     auto page = this->page(page_id);
     if (!page.has_value())
         return;
-
-#if defined(AK_OS_SERENITY)
-    ByteString process_name;
-    if (url.host().has<Empty>() || url.host() == String {})
-        process_name = "WebContent";
-    else
-        process_name = ByteString::formatted("WebContent: {}", url.serialized_host().release_value_but_fixme_should_propagate_errors());
-
-    pthread_setname_np(pthread_self(), process_name.characters());
-#endif
 
     page->page().load(url);
 }

@@ -132,17 +132,8 @@ StringView current_time_zone()
 
 ErrorOr<void> change_time_zone([[maybe_unused]] StringView time_zone)
 {
-#ifdef AK_OS_SERENITY
-    TimeZoneFile time_zone_file("w");
-
-    if (auto new_time_zone = canonicalize_time_zone(time_zone); new_time_zone.has_value())
-        return time_zone_file.write_time_zone(*new_time_zone);
-
-    return Error::from_string_literal("Provided time zone is not supported");
-#else
     // Do not even attempt to change the time zone of someone's host machine.
     return {};
-#endif
 }
 
 ReadonlySpan<TimeZoneIdentifier> __attribute__((weak)) all_time_zones()

@@ -9,9 +9,7 @@
 #include <AK/Platform.h>
 #include <LibCore/ThreadedPromise.h>
 
-#if defined(AK_OS_SERENITY)
-#    include <LibAudio/PlaybackStreamSerenity.h>
-#elif defined(HAVE_PULSEAUDIO)
+#if defined(HAVE_PULSEAUDIO)
 #    include <LibAudio/PlaybackStreamPulseAudio.h>
 #elif defined(AK_OS_MACOS)
 #    include <LibAudio/PlaybackStreamAudioUnit.h>
@@ -23,9 +21,7 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState initia
 {
     VERIFY(data_request_callback);
     // Create the platform-specific implementation for this stream.
-#if defined(AK_OS_SERENITY)
-    return PlaybackStreamSerenity::create(initial_output_state, sample_rate, channels, target_latency_ms, move(data_request_callback));
-#elif defined(HAVE_PULSEAUDIO)
+#if defined(HAVE_PULSEAUDIO)
     return PlaybackStreamPulseAudio::create(initial_output_state, sample_rate, channels, target_latency_ms, move(data_request_callback));
 #elif defined(AK_OS_MACOS)
     return PlaybackStreamAudioUnit::create(initial_output_state, sample_rate, channels, target_latency_ms, move(data_request_callback));

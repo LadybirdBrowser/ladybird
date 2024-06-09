@@ -24,19 +24,11 @@
 #include <LibJS/SafeFunction.h>
 #include <setjmp.h>
 
-#ifdef AK_OS_SERENITY
-#    include <serenity.h>
-#endif
-
 #ifdef HAS_ADDRESS_SANITIZER
 #    include <sanitizer/asan_interface.h>
 #endif
 
 namespace JS {
-
-#ifdef AK_OS_SERENITY
-static int gc_perf_string_id;
-#endif
 
 // NOTE: We keep a per-thread list of custom ranges. This hinges on the assumption that there is one JS VM per thread.
 static __thread HashMap<FlatPtr*, size_t>* s_custom_ranges_for_conservative_scan = nullptr;
@@ -45,11 +37,6 @@ static __thread HashMap<FlatPtr*, SourceLocation*>* s_safe_function_locations = 
 Heap::Heap(VM& vm)
     : HeapBase(vm)
 {
-#ifdef AK_OS_SERENITY
-    auto gc_signpost_string = "Garbage collection"sv;
-    gc_perf_string_id = perf_register_string(gc_signpost_string.characters_without_null_termination(), gc_signpost_string.length());
-#endif
-
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
     m_size_based_cell_allocators.append(make<CellAllocator>(64));
     m_size_based_cell_allocators.append(make<CellAllocator>(96));
@@ -263,11 +250,6 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 {
     VERIFY(!m_collecting_garbage);
     TemporaryChange change(m_collecting_garbage, true);
-
-#ifdef AK_OS_SERENITY
-    static size_t global_gc_counter = 0;
-    perf_event(PERF_EVENT_SIGNPOST, gc_perf_string_id, global_gc_counter++);
-#endif
 
     Core::ElapsedTimer collection_measurement_timer;
     if (print_report)

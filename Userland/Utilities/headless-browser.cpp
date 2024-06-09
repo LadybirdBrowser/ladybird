@@ -18,7 +18,9 @@
 #include <AK/Platform.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <Ladybird/HelperProcess.h>
 #include <Ladybird/Types.h>
+#include <Ladybird/Utilities.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/DirIterator.h>
@@ -54,11 +56,6 @@
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 
-#if !defined(AK_OS_SERENITY)
-#    include <Ladybird/HelperProcess.h>
-#    include <Ladybird/Utilities.h>
-#endif
-
 constexpr int DEFAULT_TIMEOUT_MS = 30000; // 30sec
 
 static StringView s_current_test_path;
@@ -69,24 +66,14 @@ public:
     {
         RefPtr<Protocol::RequestClient> request_client;
 
-#if defined(AK_OS_SERENITY)
-        (void)resources_folder;
-        (void)certificates;
-#else
         auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
         request_client = TRY(launch_request_server_process(request_server_paths, resources_folder, certificates));
-#endif
 
         auto database = TRY(WebView::Database::create());
         auto cookie_jar = TRY(WebView::CookieJar::create(*database));
 
         auto view = TRY(adopt_nonnull_own_or_enomem(new (nothrow) HeadlessWebContentView(move(database), move(cookie_jar), request_client)));
 
-#if defined(AK_OS_SERENITY)
-        view->m_client_state.client = TRY(WebView::WebContentClient::try_create(*view));
-        (void)command_line;
-        (void)is_layout_test_mode;
-#else
         Ladybird::WebContentOptions web_content_options {
             .command_line = command_line,
             .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
@@ -97,7 +84,6 @@ public:
 
         auto candidate_web_content_paths = TRY(get_paths_for_helper_process("WebContent"sv));
         view->m_client_state.client = TRY(launch_web_content_process(*view, candidate_web_content_paths, web_content_options, move(request_server_socket)));
-#endif
 
         view->client().async_update_system_theme(0, move(theme));
 
@@ -173,12 +159,7 @@ private:
         };
 
         on_request_worker_agent = [this]() {
-#if defined(AK_OS_SERENITY)
-            auto worker_client = MUST(Web::HTML::WebWorkerClient::try_create());
-            (void)this;
-#else
             auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), *m_request_client));
-#endif
             return worker_client->dup_socket();
         };
     }
@@ -657,10 +638,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     ByteString test_glob;
     Vector<ByteString> certificates;
 
-#if !defined(AK_OS_SERENITY)
     platform_init();
     resources_folder = s_serenity_resource_root;
-#endif
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("This utility runs the Browser in headless mode.");

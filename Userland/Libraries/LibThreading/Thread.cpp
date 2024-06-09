@@ -102,12 +102,6 @@ void Thread::start()
         &NonnullRefPtr(*this).leak_ref());
 
     VERIFY(rc == 0);
-#ifdef AK_OS_SERENITY
-    if (!m_thread_name.is_empty()) {
-        rc = pthread_setname_np(m_tid, m_thread_name.characters());
-        VERIFY(rc == 0);
-    }
-#endif
 }
 
 void Thread::detach()
