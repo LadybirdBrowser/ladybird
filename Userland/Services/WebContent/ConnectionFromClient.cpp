@@ -826,7 +826,8 @@ void ConnectionFromClient::find_in_page(u64 page_id, String const& query, CaseSe
     if (!page.has_value())
         return;
 
-    page->page().find_in_page(query, case_sensitivity);
+    auto result = page->page().find_in_page(query, case_sensitivity);
+    async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 
 void ConnectionFromClient::find_in_page_next_match(u64 page_id)
@@ -835,7 +836,8 @@ void ConnectionFromClient::find_in_page_next_match(u64 page_id)
     if (!page.has_value())
         return;
 
-    page->page().find_in_page_next_match();
+    auto result = page->page().find_in_page_next_match();
+    async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 
 void ConnectionFromClient::find_in_page_previous_match(u64 page_id)
@@ -844,7 +846,8 @@ void ConnectionFromClient::find_in_page_previous_match(u64 page_id)
     if (!page.has_value())
         return;
 
-    page->page().find_in_page_previous_match();
+    auto result = page->page().find_in_page_previous_match();
+    async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 
 void ConnectionFromClient::paste(u64 page_id, String const& text)

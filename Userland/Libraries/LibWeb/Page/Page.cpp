@@ -548,14 +548,14 @@ void Page::clear_selection()
     }
 }
 
-void Page::find_in_page(String const& query, CaseSensitivity case_sensitivity)
+Page::FindInPageResult Page::find_in_page(String const& query, CaseSensitivity case_sensitivity)
 {
     m_find_in_page_match_index = 0;
 
     if (query.is_empty()) {
         m_find_in_page_matches = {};
         update_find_in_page_selection();
-        return;
+        return {};
     }
 
     auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop();
@@ -573,12 +573,17 @@ void Page::find_in_page(String const& query, CaseSensitivity case_sensitivity)
         m_find_in_page_matches.append(*match);
 
     update_find_in_page_selection();
+
+    return Page::FindInPageResult {
+        .current_match_index = m_find_in_page_match_index,
+        .total_match_count = m_find_in_page_matches.size(),
+    };
 }
 
-void Page::find_in_page_next_match()
+Page::FindInPageResult Page::find_in_page_next_match()
 {
     if (m_find_in_page_matches.is_empty())
-        return;
+        return {};
 
     if (m_find_in_page_match_index == m_find_in_page_matches.size() - 1) {
         m_find_in_page_match_index = 0;
@@ -587,12 +592,17 @@ void Page::find_in_page_next_match()
     }
 
     update_find_in_page_selection();
+
+    return Page::FindInPageResult {
+        .current_match_index = m_find_in_page_match_index,
+        .total_match_count = m_find_in_page_matches.size(),
+    };
 }
 
-void Page::find_in_page_previous_match()
+Page::FindInPageResult Page::find_in_page_previous_match()
 {
     if (m_find_in_page_matches.is_empty())
-        return;
+        return {};
 
     if (m_find_in_page_match_index == 0) {
         m_find_in_page_match_index = m_find_in_page_matches.size() - 1;
@@ -601,6 +611,11 @@ void Page::find_in_page_previous_match()
     }
 
     update_find_in_page_selection();
+
+    return Page::FindInPageResult {
+        .current_match_index = m_find_in_page_match_index,
+        .total_match_count = m_find_in_page_matches.size(),
+    };
 }
 
 void Page::update_find_in_page_selection()
