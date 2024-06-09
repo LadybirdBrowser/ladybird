@@ -15,18 +15,6 @@ set(SOURCES
     VorbisComment.cpp
 )
 
-if (SERENITYOS)
-    list(APPEND SOURCES ConnectionToServer.cpp)
-    list(APPEND SOURCES ConnectionToManagerServer.cpp)
-    list(APPEND SOURCES PlaybackStreamSerenity.cpp)
-    set(GENERATED_SOURCES
-        ../../Services/AudioServer/AudioClientEndpoint.h
-        ../../Services/AudioServer/AudioServerEndpoint.h
-        ../../Services/AudioServer/AudioManagerClientEndpoint.h
-        ../../Services/AudioServer/AudioManagerServerEndpoint.h
-    )
-endif()
-
 if (HAVE_PULSEAUDIO)
     list(APPEND SOURCES
         PlaybackStreamPulseAudio.cpp
