@@ -60,7 +60,7 @@ void NestedBrowsingContextPaintable::paint(PaintContext& context, PaintPhase pha
         paint_config.paint_overlay = context.should_paint_overlay();
         paint_config.should_show_line_box_borders = context.should_show_line_box_borders();
         paint_config.has_focus = context.has_focus();
-        const_cast<DOM::Document*>(hosted_document)->navigable()->paint(context.recording_painter(), paint_config);
+        const_cast<DOM::Document*>(hosted_document)->navigable()->record_painting_commands(context.recording_painter(), paint_config);
 
         context.recording_painter().restore();
 
