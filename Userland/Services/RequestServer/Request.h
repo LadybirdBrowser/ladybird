@@ -25,7 +25,7 @@ public:
     Optional<u32> status_code() const { return m_status_code; }
     Optional<u64> total_size() const { return m_total_size; }
     size_t downloaded_size() const { return m_downloaded_size; }
-    HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers() const { return m_response_headers; }
+    HTTP::HeaderMap const& response_headers() const { return m_response_headers; }
 
     void stop();
     virtual void set_certificate(ByteString, ByteString);
@@ -38,7 +38,7 @@ public:
     void did_progress(Optional<u64> total_size, u64 downloaded_size);
     void set_status_code(u32 status_code) { m_status_code = status_code; }
     void did_request_certificates();
-    void set_response_headers(HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const&);
+    void set_response_headers(HTTP::HeaderMap);
     void set_downloaded_size(size_t size) { m_downloaded_size = size; }
     Core::File const& output_stream() const { return *m_output_stream; }
 
@@ -53,7 +53,7 @@ private:
     Optional<u64> m_total_size {};
     size_t m_downloaded_size { 0 };
     NonnullOwnPtr<Core::File> m_output_stream;
-    HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> m_response_headers;
+    HTTP::HeaderMap m_response_headers;
 };
 
 }

@@ -166,13 +166,13 @@ static void store_response_cookies(Page& page, URL::URL const& url, ByteString c
     }
 }
 
-static HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
+static HTTP::HeaderMap response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
 {
     // For file:// and resource:// URLs, we have to guess the MIME type, since there's no HTTP header to tell us what
     // it is. We insert a fake Content-Type header here, so that clients can use it to learn the MIME type.
     auto mime_type = Core::guess_mime_type_based_on_filename(path);
 
-    HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> response_headers;
+    HTTP::HeaderMap response_headers;
     response_headers.set("Content-Type"sv, mime_type);
 
     if (modified_time.has_value()) {
@@ -258,7 +258,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         }
 
         log_success(request);
-        HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> response_headers;
+        HTTP::HeaderMap response_headers;
         response_headers.set("Content-Type"sv, "text/html"sv);
         success_callback(maybe_response.release_value().bytes(), response_headers, {});
     };
@@ -267,7 +267,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         dbgln_if(SPAM_DEBUG, "Loading about: URL {}", url);
         log_success(request);
 
-        HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> response_headers;
+        HTTP::HeaderMap response_headers;
         response_headers.set("Content-Type", "text/html; charset=UTF-8");
 
         // About version page
@@ -304,7 +304,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             MUST(data_url.mime_type.serialized()),
             StringView(data_url.body.bytes()));
 
-        HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> response_headers;
+        HTTP::HeaderMap response_headers;
         response_headers.set("Content-Type", MUST(data_url.mime_type.serialized()).to_byte_string());
 
         log_success(request);
@@ -537,7 +537,7 @@ RefPtr<ResourceLoaderConnectorRequest> ResourceLoader::start_network_request(Loa
     return protocol_request;
 }
 
-void ResourceLoader::handle_network_response_headers(LoadRequest const& request, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers)
+void ResourceLoader::handle_network_response_headers(LoadRequest const& request, HTTP::HeaderMap const& response_headers)
 {
     if (!request.page())
         return;

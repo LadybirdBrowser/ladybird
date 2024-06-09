@@ -21,9 +21,9 @@ void Request::stop()
     m_client.did_finish_request({}, *this, false);
 }
 
-void Request::set_response_headers(HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers)
+void Request::set_response_headers(HTTP::HeaderMap response_headers)
 {
-    m_response_headers = response_headers;
+    m_response_headers = move(response_headers);
     m_client.did_receive_headers({}, *this);
 }
 

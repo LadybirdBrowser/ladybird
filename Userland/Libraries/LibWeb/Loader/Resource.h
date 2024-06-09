@@ -14,6 +14,7 @@
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
 #include <LibGfx/Forward.h>
+#include <LibHTTP/HeaderMap.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/LoadRequest.h>
@@ -53,7 +54,7 @@ public:
     const URL::URL& url() const { return m_request.url(); }
     ByteBuffer const& encoded_data() const { return m_encoded_data; }
 
-    HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers() const { return m_response_headers; }
+    [[nodiscard]] HTTP::HeaderMap const& response_headers() const { return m_response_headers; }
 
     [[nodiscard]] Optional<u32> status_code() const { return m_status_code; }
 
@@ -66,7 +67,7 @@ public:
 
     void for_each_client(Function<void(ResourceClient&)>);
 
-    void did_load(Badge<ResourceLoader>, ReadonlyBytes data, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& headers, Optional<u32> status_code);
+    void did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderMap const&, Optional<u32> status_code);
     void did_fail(Badge<ResourceLoader>, ByteString const& error, Optional<u32> status_code);
 
 protected:
@@ -84,7 +85,7 @@ private:
     Optional<ByteString> m_encoding;
 
     ByteString m_mime_type;
-    HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> m_response_headers;
+    HTTP::HeaderMap m_response_headers;
     Optional<u32> m_status_code;
     HashTable<ResourceClient*> m_clients;
 };

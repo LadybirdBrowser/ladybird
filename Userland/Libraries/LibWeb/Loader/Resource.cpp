@@ -83,12 +83,12 @@ static bool is_valid_encoding(StringView encoding)
     return TextCodec::decoder_for(encoding).has_value();
 }
 
-void Resource::did_load(Badge<ResourceLoader>, ReadonlyBytes data, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& headers, Optional<u32> status_code)
+void Resource::did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code)
 {
     VERIFY(m_state == State::Pending);
     // FIXME: Handle OOM failure.
     m_encoded_data = ByteBuffer::copy(data).release_value_but_fixme_should_propagate_errors();
-    m_response_headers = headers.clone().release_value_but_fixme_should_propagate_errors();
+    m_response_headers = headers;
     m_status_code = move(status_code);
     m_state = State::Loaded;
 

@@ -14,6 +14,7 @@
 #include <AK/RefCounted.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Notifier.h>
+#include <LibHTTP/HeaderMap.h>
 #include <LibIPC/Forward.h>
 
 namespace Protocol {
@@ -36,13 +37,13 @@ public:
     int fd() const { return m_fd; }
     bool stop();
 
-    using BufferedRequestFinished = Function<void(bool success, u64 total_size, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers, Optional<u32> response_code, ReadonlyBytes payload)>;
+    using BufferedRequestFinished = Function<void(bool success, u64 total_size, HTTP::HeaderMap const& response_headers, Optional<u32> response_code, ReadonlyBytes payload)>;
 
     // Configure the request such that the entirety of the response data is buffered. The callback receives that data and
     // the response headers all at once. Using this method is mutually exclusive with `set_unbuffered_data_received_callback`.
     void set_buffered_request_finished_callback(BufferedRequestFinished);
 
-    using HeadersReceived = Function<void(HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers, Optional<u32> response_code)>;
+    using HeadersReceived = Function<void(HTTP::HeaderMap const& response_headers, Optional<u32> response_code)>;
     using DataReceived = Function<void(ReadonlyBytes data)>;
     using RequestFinished = Function<void(bool success, u64 total_size)>;
 
@@ -55,7 +56,7 @@ public:
 
     void did_finish(Badge<RequestClient>, bool success, u64 total_size);
     void did_progress(Badge<RequestClient>, Optional<u64> total_size, u64 downloaded_size);
-    void did_receive_headers(Badge<RequestClient>, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers, Optional<u32> response_code);
+    void did_receive_headers(Badge<RequestClient>, HTTP::HeaderMap const& response_headers, Optional<u32> response_code);
     void did_request_certificates(Badge<RequestClient>);
 
     RefPtr<Core::Notifier>& write_notifier(Badge<RequestClient>) { return m_write_notifier; }
@@ -83,7 +84,7 @@ private:
 
     struct InternalBufferedData {
         AllocatingMemoryStream payload_stream;
-        HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> response_headers;
+        HTTP::HeaderMap response_headers;
         Optional<u32> response_code;
     };
 

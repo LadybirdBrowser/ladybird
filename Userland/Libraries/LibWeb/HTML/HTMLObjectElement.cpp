@@ -183,13 +183,15 @@ void HTMLObjectElement::resource_did_load()
 
     // 4. Run the appropriate set of steps from the following list:
     // * If the resource has associated Content-Type metadata
-    if (auto it = resource()->response_headers().find("Content-Type"sv); it != resource()->response_headers().end()) {
+    if (auto maybe_content_type = resource()->response_headers().get("Content-Type"sv); maybe_content_type.has_value()) {
+        auto& content_type = maybe_content_type.value();
+
         // 1. Let binary be false.
         bool binary = false;
 
         // 2. If the type specified in the resource's Content-Type metadata is "text/plain", and the result of applying the rules for distinguishing if a resource is text or binary to the resource is that the resource is not text/plain, then set binary to true.
-        if (it->value == "text/plain"sv) {
-            auto supplied_type = MimeSniff::MimeType::parse(it->value).release_value_but_fixme_should_propagate_errors();
+        if (content_type == "text/plain"sv) {
+            auto supplied_type = MimeSniff::MimeType::parse(content_type).release_value_but_fixme_should_propagate_errors();
             auto computed_type = MimeSniff::Resource::sniff(resource()->encoded_data(), MimeSniff::SniffingConfiguration {
                                                                                             .sniffing_context = MimeSniff::SniffingContext::TextOrBinary,
                                                                                             .supplied_type = move(supplied_type),
@@ -200,12 +202,12 @@ void HTMLObjectElement::resource_did_load()
         }
 
         // 3. If the type specified in the resource's Content-Type metadata is "application/octet-stream", then set binary to true.
-        if (it->value == "application/octet-stream"sv)
+        if (content_type == "application/octet-stream"sv)
             binary = true;
 
         // 4. If binary is false, then let the resource type be the type specified in the resource's Content-Type metadata, and jump to the step below labeled handler.
         if (!binary)
-            return run_object_representation_handler_steps(it->value);
+            return run_object_representation_handler_steps(content_type);
 
         // 5. If there is a type attribute present on the object element, and its value is not application/octet-stream, then run the following steps:
         if (auto type = this->type(); !type.is_empty() && (type != "application/octet-stream"sv)) {

@@ -87,20 +87,14 @@ void RequestClient::request_progress(i32 request_id, Optional<u64> const& total_
     }
 }
 
-void RequestClient::headers_became_available(i32 request_id, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers, Optional<u32> const& status_code)
+void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap const& response_headers, Optional<u32> const& status_code)
 {
     auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
     if (!request) {
         warnln("Received headers for non-existent request {}", request_id);
         return;
     }
-    auto response_headers_clone_or_error = response_headers.clone();
-    if (response_headers_clone_or_error.is_error()) {
-        warnln("Error while receiving headers for request {}: {}", request_id, response_headers_clone_or_error.error());
-        return;
-    }
-
-    request->did_receive_headers({}, response_headers_clone_or_error.release_value(), status_code);
+    request->did_receive_headers({}, response_headers, status_code);
 }
 
 void RequestClient::certificate_requested(i32 request_id)
