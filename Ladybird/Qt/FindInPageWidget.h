@@ -43,7 +43,6 @@ private:
     QPushButton* m_next_button { nullptr };
     QPushButton* m_exit_button { nullptr };
     QCheckBox* m_match_case { nullptr };
-    QAction* m_copy_attribute_value_action { nullptr };
 };
 
 }
