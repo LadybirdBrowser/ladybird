@@ -224,6 +224,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/HTML/Storage.idl",
   "//Userland/Libraries/LibWeb/HTML/SubmitEvent.idl",
   "//Userland/Libraries/LibWeb/HTML/TextMetrics.idl",
+  "//Userland/Libraries/LibWeb/HTML/TextTrack.idl",
   "//Userland/Libraries/LibWeb/HTML/TimeRanges.idl",
   "//Userland/Libraries/LibWeb/HTML/ToggleEvent.idl",
   "//Userland/Libraries/LibWeb/HTML/TrackEvent.idl",
