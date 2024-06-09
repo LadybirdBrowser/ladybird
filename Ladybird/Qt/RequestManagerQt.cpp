@@ -7,7 +7,6 @@
 #include "RequestManagerQt.h"
 #include "WebSocketImplQt.h"
 #include "WebSocketQt.h"
-#include <AK/JsonObject.h>
 #include <QNetworkCookie>
 
 namespace Ladybird {
@@ -113,7 +112,6 @@ void RequestManagerQt::Request::did_finish()
     auto buffer = m_reply.readAll();
     auto http_status_code = m_reply.attribute(QNetworkRequest::Attribute::HttpStatusCodeAttribute).toInt();
     HTTP::HeaderMap response_headers;
-    Vector<ByteString> set_cookie_headers;
     for (auto& it : m_reply.rawHeaderPairs()) {
         auto name = ByteString(it.first.data(), it.first.length());
         auto value = ByteString(it.second.data(), it.second.length());
@@ -122,14 +120,11 @@ void RequestManagerQt::Request::did_finish()
             //       We have to extract the full list of cookies via QNetworkReply::header().
             auto set_cookie_list = m_reply.header(QNetworkRequest::SetCookieHeader).value<QList<QNetworkCookie>>();
             for (auto const& cookie : set_cookie_list) {
-                set_cookie_headers.append(cookie.toRawForm().data());
+                response_headers.set(name, cookie.toRawForm().data());
             }
         } else {
             response_headers.set(name, value);
         }
-    }
-    if (!set_cookie_headers.is_empty()) {
-        response_headers.set("set-cookie"sv, JsonArray { set_cookie_headers }.to_byte_string());
     }
     bool success = http_status_code != 0;
     on_buffered_request_finish(success, buffer.length(), response_headers, http_status_code, ReadonlyBytes { buffer.data(), (size_t)buffer.size() });
