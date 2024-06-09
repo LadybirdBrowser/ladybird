@@ -36,10 +36,6 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#ifdef AK_OS_SERENITY
-#    include <serenity.h>
-#endif
-
 #define STRCAT(x, y) __STRCAT(x, y)
 #define STRSTRCAT(x, y) __STRSTRCAT(x, y)
 #define __STRCAT(x, y) x #y
@@ -280,11 +276,6 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
 {
     g_currently_running_test = test_path;
 
-#ifdef AK_OS_SERENITY
-    auto string_id = perf_register_string(test_path.characters(), test_path.length());
-    perf_event(PERF_EVENT_SIGNPOST, string_id, 0);
-#endif
-
     double start_time = get_time_in_ms();
 
     JS::GCPtr<JS::Realm> realm;
@@ -515,12 +506,7 @@ inline void TestRunner::print_file_result(JSFileResult const& file_result) const
 
     if (!file_result.logged_messages.is_empty()) {
         print_modifiers({ FG_GRAY, FG_BOLD });
-#ifdef AK_OS_SERENITY
-        outln("     ℹ Console output:");
-#else
-        // This emoji has a second invisible byte after it. The one above does not
         outln("    ℹ️  Console output:");
-#endif
         print_modifiers({ CLEAR, FG_GRAY });
         for (auto& message : file_result.logged_messages)
             outln("         {}", message);
@@ -530,12 +516,7 @@ inline void TestRunner::print_file_result(JSFileResult const& file_result) const
         auto test_error = file_result.error.value();
 
         print_modifiers({ FG_RED });
-#ifdef AK_OS_SERENITY
-        outln("     ❌ The file failed to parse");
-#else
-        // No invisible byte here, but the spacing still needs to be altered on the host
         outln("    ❌ The file failed to parse");
-#endif
         outln();
         print_modifiers({ FG_GRAY });
         for (auto& message : test_error.hint.split('\n', SplitBehavior::KeepEmpty)) {
@@ -557,19 +538,9 @@ inline void TestRunner::print_file_result(JSFileResult const& file_result) const
             print_modifiers({ FG_GRAY, FG_BOLD });
 
             if (failed) {
-#ifdef AK_OS_SERENITY
-                out("     ❌ Suite:  ");
-#else
-                // No invisible byte here, but the spacing still needs to be altered on the host
                 out("    ❌ Suite:  ");
-#endif
             } else {
-#ifdef AK_OS_SERENITY
-                out("     ⚠ Suite:  ");
-#else
-                // This emoji has a second invisible byte after it. The one above does not
                 out("    ⚠️  Suite:  ");
-#endif
             }
 
             print_modifiers({ CLEAR, FG_GRAY });

@@ -38,7 +38,7 @@ public:
 private:
     CGLContextObj m_context;
 };
-#elif !defined(AK_OS_SERENITY)
+#else
 class EGLContextWrapper : public Context {
 public:
     EGLContextWrapper(EGLContext context)
@@ -96,7 +96,7 @@ static ErrorOr<NonnullOwnPtr<CGLContextWrapper>> make_context_cgl()
 
     return make<CGLContextWrapper>(context);
 }
-#elif !defined(AK_OS_SERENITY)
+#else
 
 static StringView format_egl_error(EGLint error)
 {

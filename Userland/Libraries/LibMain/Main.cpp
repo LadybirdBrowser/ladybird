@@ -44,9 +44,6 @@ int main(int argc, char** argv)
     if (result.is_error()) {
         auto error = result.release_error();
         warnln("\033[31;1mRuntime error\033[0m: {}", error);
-#ifdef AK_OS_SERENITY
-        dbgln("\033[31;1mExiting with runtime error\033[0m: {}", error);
-#endif
         return Main::return_code_for_errors();
     }
     return result.value();

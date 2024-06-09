@@ -579,10 +579,6 @@ ErrorOr<Vector<Certificate>> DefaultRootCACertificates::load_certificates(Span<B
     ByteBuffer data;
     if (!cacert_file_or_error.is_error())
         data = TRY(cacert_file_or_error.value()->read_until_eof());
-#ifdef AK_OS_SERENITY
-    else
-        return cacert_file_or_error.release_error();
-#endif
 
     auto user_cert_path = TRY(String::formatted("{}/.config/certs.pem", Core::StandardPaths::home_directory()));
     if (FileSystem::exists(user_cert_path)) {

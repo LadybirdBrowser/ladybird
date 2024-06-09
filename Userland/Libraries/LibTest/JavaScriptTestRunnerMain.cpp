@@ -84,12 +84,7 @@ int main(int argc, char** argv)
 #endif
 
     bool print_times = false;
-    bool print_progress =
-#ifdef AK_OS_SERENITY
-        true; // Use OSC 9 to print progress
-#else
-        false;
-#endif
+    bool print_progress = false;
     bool print_json = false;
     bool per_file = false;
     StringView specified_test_root;
@@ -139,9 +134,6 @@ int main(int argc, char** argv)
     if (!specified_test_root.is_empty()) {
         test_root = ByteString { specified_test_root };
     } else {
-#ifdef AK_OS_SERENITY
-        test_root = LexicalPath::join("/home/anon/Tests"sv, ByteString::formatted("{}-tests", program_name.split_view('-').last())).string();
-#else
         char* ladybird_source_dir = getenv("LADYBIRD_SOURCE_DIR");
         if (!ladybird_source_dir) {
             warnln("No test root given, {} requires the LADYBIRD_SOURCE_DIR environment variable to be set", g_program_name);
@@ -149,7 +141,6 @@ int main(int argc, char** argv)
         }
         test_root = ByteString::formatted("{}/{}", ladybird_source_dir, g_test_root_fragment);
         common_path = ByteString::formatted("{}/Userland/Libraries/LibJS/Tests/test-common.js", ladybird_source_dir);
-#endif
     }
     if (!FileSystem::is_directory(test_root)) {
         warnln("Test root is not a directory: {}", test_root);
@@ -157,16 +148,12 @@ int main(int argc, char** argv)
     }
 
     if (common_path.is_empty()) {
-#ifdef AK_OS_SERENITY
-        common_path = "/home/anon/Tests/js-tests/test-common.js";
-#else
         char* ladybird_source_dir = getenv("LADYBIRD_SOURCE_DIR");
         if (!ladybird_source_dir) {
             warnln("No test root given, {} requires the LADYBIRD_SOURCE_DIR environment variable to be set", g_program_name);
             return 1;
         }
         common_path = ByteString::formatted("{}/Userland/Libraries/LibJS/Tests/test-common.js", ladybird_source_dir);
-#endif
     }
 
     auto test_root_or_error = FileSystem::real_path(test_root);

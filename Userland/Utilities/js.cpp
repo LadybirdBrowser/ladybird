@@ -492,9 +492,6 @@ public:
         }
 
         auto output = TRY(generically_format_values(arguments.get<JS::MarkedVector<JS::Value>>()));
-#ifdef AK_OS_SERENITY
-        m_console->output_debug_message(log_level, output);
-#endif
 
         switch (log_level) {
         case JS::Console::LogLevel::Debug:
