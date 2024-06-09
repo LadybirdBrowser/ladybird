@@ -7,22 +7,17 @@
  */
 
 #include <LibGfx/ShareableBitmap.h>
-#include <LibGfx/SystemTheme.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Painting/CommandExecutorCPU.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
-#include <LibWeb/Platform/Timer.h>
 #include <LibWebView/Attribute.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
@@ -203,34 +198,12 @@ void PageClient::paint_next_frame()
 
 void PageClient::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& target, Web::PaintOptions paint_options)
 {
-    Web::Painting::CommandList painting_commands;
-    Web::Painting::RecordingPainter recording_painter(painting_commands);
-
-    Gfx::IntRect bitmap_rect { {}, content_rect.size().to_type<int>() };
-    recording_painter.fill_rect(bitmap_rect, Web::CSS::SystemColor::canvas());
-
-    Web::HTML::Navigable::PaintConfig paint_config;
-    paint_config.paint_overlay = paint_options.paint_overlay == Web::PaintOptions::PaintOverlay::Yes;
-    paint_config.should_show_line_box_borders = m_should_show_line_box_borders;
-    paint_config.has_focus = m_has_focus;
-    page().top_level_traversable()->record_painting_commands(recording_painter, paint_config);
-
-    if (s_use_gpu_painter) {
-#ifdef HAS_ACCELERATED_GRAPHICS
-        Web::Painting::CommandExecutorGPU painting_command_executor(*m_accelerated_graphics_context, target);
-        painting_commands.execute(painting_command_executor);
-#else
-        static bool has_warned_about_configuration = false;
-
-        if (!has_warned_about_configuration) {
-            warnln("\033[31;1mConfigured to use GPU painter, but current platform does not have accelerated graphics\033[0m");
-            has_warned_about_configuration = true;
-        }
-#endif
-    } else {
-        Web::Painting::CommandExecutorCPU painting_command_executor(target, s_use_experimental_cpu_transform_support);
-        painting_commands.execute(painting_command_executor);
-    }
+    paint_options.should_show_line_box_borders = m_should_show_line_box_borders;
+    paint_options.has_focus = m_has_focus;
+    paint_options.accelerated_graphics_context = m_accelerated_graphics_context.ptr();
+    paint_options.use_gpu_painter = s_use_gpu_painter;
+    paint_options.use_experimental_cpu_transform_support = s_use_experimental_cpu_transform_support;
+    page().top_level_traversable()->paint(content_rect, target, paint_options);
 }
 
 void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
