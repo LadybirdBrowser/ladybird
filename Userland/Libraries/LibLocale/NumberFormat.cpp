@@ -16,10 +16,7 @@
 #include <math.h>
 
 #include <unicode/numberformatter.h>
-
-#if ENABLE_UNICODE_DATA
-#    include <LibUnicode/UnicodeData.h>
-#endif
+#include <unicode/numberrangeformatter.h>
 
 namespace Locale {
 
@@ -534,6 +531,11 @@ static constexpr StringView icu_number_format_field_to_string(i32 field, NumberF
 }
 
 struct Range {
+    constexpr bool contains(i32 position) const
+    {
+        return start <= position && position < end;
+    }
+
     constexpr bool operator<(Range const& other) const
     {
         if (start < other.start)
@@ -604,8 +606,9 @@ static void flatten_partitions(Vector<Range>& partitions)
 
 class NumberFormatImpl : public NumberFormat {
 public:
-    NumberFormatImpl(icu::number::LocalizedNumberFormatter formatter, bool is_unit)
-        : m_formatter(move(formatter))
+    NumberFormatImpl(icu::Locale& locale, icu::number::LocalizedNumberFormatter formatter, bool is_unit)
+        : m_locale(locale)
+        , m_formatter(move(formatter))
         , m_is_unit(is_unit)
     {
     }
@@ -648,10 +651,46 @@ public:
         if (!formatted.has_value())
             return {};
 
-        return format_to_parts_impl(formatted, value);
+        return format_to_parts_impl(formatted, value, value);
+    }
+
+    virtual String format_range(Value const& start, Value const& end) const override
+    {
+        UErrorCode status = U_ZERO_ERROR;
+
+        auto formatted = format_range_impl(start, end);
+        if (!formatted.has_value())
+            return {};
+
+        auto result = formatted->toTempString(status);
+        if (icu_failure(status))
+            return {};
+
+        return icu_string_to_string(result);
+    }
+
+    virtual Vector<Partition> format_range_to_parts(Value const& start, Value const& end) const override
+    {
+        auto formatted = format_range_impl(start, end);
+        if (!formatted.has_value())
+            return {};
+
+        return format_to_parts_impl(formatted, start, end);
     }
 
 private:
+    static icu::Formattable value_to_formattable(Value const& value)
+    {
+        UErrorCode status = U_ZERO_ERROR;
+
+        auto formattable = value.visit(
+            [&](double number) { return icu::Formattable { number }; },
+            [&](String const& number) { return icu::Formattable(icu_string_piece(number), status); });
+        VERIFY(icu_success(status));
+
+        return formattable;
+    }
+
     Optional<icu::number::FormattedNumber> format_impl(Value const& value) const
     {
         UErrorCode status = U_ZERO_ERROR;
@@ -670,8 +709,34 @@ private:
         return formatted;
     }
 
+    Optional<icu::number::FormattedNumberRange> format_range_impl(Value const& start, Value const& end) const
+    {
+        UErrorCode status = U_ZERO_ERROR;
+
+        if (!m_range_formatter.has_value()) {
+            auto skeleton = icu::number::NumberFormatter::forSkeleton(m_formatter.toSkeleton(status), status);
+            if (icu_failure(status))
+                return {};
+
+            auto formatter = icu::number::UnlocalizedNumberRangeFormatter().numberFormatterBoth(move(skeleton)).locale(m_locale);
+            if (icu_failure(status))
+                return {};
+
+            m_range_formatter = move(formatter);
+        }
+
+        auto formattable_start = value_to_formattable(start);
+        auto formattable_end = value_to_formattable(end);
+
+        auto formatted = m_range_formatter->formatFormattableRange(formattable_start, formattable_end, status);
+        if (icu_failure(status))
+            return {};
+
+        return formatted;
+    }
+
     template<typename Formatted>
-    Vector<Partition> format_to_parts_impl(Formatted const& formatted, Value const& value) const
+    Vector<Partition> format_to_parts_impl(Formatted const& formatted, Value const& start, Value const& end) const
     {
         UErrorCode status = U_ZERO_ERROR;
 
@@ -683,22 +748,48 @@ private:
         ranges.empend(LITERAL_FIELD, 0, formatted_number.length());
 
         icu::ConstrainedFieldPosition position;
+        Optional<Range> start_range;
+        Optional<Range> end_range;
 
         while (static_cast<bool>(formatted->nextPosition(position, status)) && icu_success(status)) {
-            ranges.empend(position.getField(), position.getStart(), position.getLimit());
+            if (position.getCategory() == UFIELD_CATEGORY_NUMBER_RANGE_SPAN) {
+                if (position.getField() == 0)
+                    start_range.emplace(position.getField(), position.getStart(), position.getLimit());
+                else
+                    end_range.emplace(position.getField(), position.getStart(), position.getLimit());
+            } else {
+                ranges.empend(position.getField(), position.getStart(), position.getLimit());
+            }
         }
 
         flatten_partitions(ranges);
+
+        auto apply_to_partition = [&](Partition& partition, auto field, auto index) {
+            if (start_range.has_value() && start_range->contains(index)) {
+                partition.type = icu_number_format_field_to_string(field, start, m_is_unit);
+                partition.source = "startRange"sv;
+                return;
+            }
+
+            if (end_range.has_value() && end_range->contains(index)) {
+                partition.type = icu_number_format_field_to_string(field, end, m_is_unit);
+                partition.source = "endRange"sv;
+                return;
+            }
+
+            partition.type = icu_number_format_field_to_string(field, end, m_is_unit);
+            partition.source = "shared"sv;
+        };
 
         Vector<Partition> result;
         result.ensure_capacity(ranges.size());
 
         for (auto const& range : ranges) {
-            auto string = formatted_number.tempSubStringBetween(range.start, range.end);
+            auto value = formatted_number.tempSubStringBetween(range.start, range.end);
 
             Partition partition;
-            partition.type = icu_number_format_field_to_string(range.field, value, m_is_unit);
-            partition.value = icu_string_to_string(string);
+            partition.value = icu_string_to_string(value);
+            apply_to_partition(partition, range.field, range.start);
 
             result.unchecked_append(move(partition));
         }
@@ -706,7 +797,9 @@ private:
         return result;
     }
 
+    icu::Locale& m_locale;
     icu::number::LocalizedNumberFormatter m_formatter;
+    mutable Optional<icu::number::LocalizedNumberRangeFormatter> m_range_formatter;
     bool m_is_unit { false };
 };
 
@@ -731,7 +824,7 @@ NonnullOwnPtr<NumberFormat> NumberFormat::create(
     }
 
     bool is_unit = display_options.style == NumberFormatStyle::Unit;
-    return adopt_own(*new NumberFormatImpl(move(formatter), is_unit));
+    return adopt_own(*new NumberFormatImpl(locale_data->locale(), move(formatter), is_unit));
 }
 
 Optional<StringView> __attribute__((weak)) get_number_system_symbol(StringView, StringView, NumericSymbol) { return {}; }
@@ -762,52 +855,6 @@ String replace_digits_for_number_system(StringView system, StringView number)
     }
 
     return MUST(builder.to_string());
-}
-
-#if ENABLE_UNICODE_DATA
-static u32 last_code_point(StringView string)
-{
-    Utf8View utf8_string { string };
-    u32 code_point = 0;
-
-    for (auto it = utf8_string.begin(); it != utf8_string.end(); ++it)
-        code_point = *it;
-
-    return code_point;
-}
-#endif
-
-// https://unicode.org/reports/tr35/tr35-numbers.html#83-range-pattern-processing
-Optional<String> augment_range_pattern([[maybe_unused]] StringView range_separator, [[maybe_unused]] StringView lower, [[maybe_unused]] StringView upper)
-{
-#if ENABLE_UNICODE_DATA
-    auto range_pattern_with_spacing = [&]() {
-        return MUST(String::formatted(" {} ", range_separator));
-    };
-
-    Utf8View utf8_range_separator { range_separator };
-    Utf8View utf8_upper { upper };
-
-    // NOTE: Our implementation does the prescribed checks backwards for simplicity.
-
-    // To determine whether to add spacing, the currently recommended heuristic is:
-    // 2. If the range pattern does not contain a character having the White_Space binary Unicode property after the {0} or before the {1} placeholders.
-    for (auto it = utf8_range_separator.begin(); it != utf8_range_separator.end(); ++it) {
-        if (Unicode::code_point_has_property(*it, Unicode::Property::White_Space))
-            return {};
-    }
-
-    // 1. If the lower string ends with a character other than a digit, or if the upper string begins with a character other than a digit.
-    if (auto it = utf8_upper.begin(); it != utf8_upper.end()) {
-        if (!Unicode::code_point_has_general_category(*it, Unicode::GeneralCategory::Decimal_Number))
-            return range_pattern_with_spacing();
-    }
-
-    if (!Unicode::code_point_has_general_category(last_code_point(lower), Unicode::GeneralCategory::Decimal_Number))
-        return range_pattern_with_spacing();
-#endif
-
-    return {};
 }
 
 }

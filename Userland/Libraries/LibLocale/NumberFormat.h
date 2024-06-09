@@ -151,6 +151,7 @@ public:
     struct Partition {
         StringView type;
         String value;
+        StringView source;
     };
 
     using Value = Variant<double, String>;
@@ -158,6 +159,9 @@ public:
     virtual String format(Value const&) const = 0;
     virtual String format_to_decimal(Value const&) const = 0;
     virtual Vector<Partition> format_to_parts(Value const&) const = 0;
+
+    virtual String format_range(Value const&, Value const&) const = 0;
+    virtual Vector<Partition> format_range_to_parts(Value const&, Value const&) const = 0;
 
 protected:
     NumberFormat() = default;
@@ -180,7 +184,5 @@ Optional<StringView> get_number_system_symbol(StringView locale, StringView syst
 
 Optional<ReadonlySpan<u32>> get_digits_for_number_system(StringView system);
 String replace_digits_for_number_system(StringView system, StringView number);
-
-Optional<String> augment_range_pattern(StringView range_separator, StringView lower, StringView upper);
 
 }

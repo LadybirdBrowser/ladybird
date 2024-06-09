@@ -229,7 +229,7 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
 }
 
 // 15.5.19 PartitionNumberRangePattern ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-partitionnumberrangepattern
-ThrowCompletionOr<Vector<PatternPartitionWithSource>> partition_number_range_pattern(VM& vm, NumberFormat& number_format, MathematicalValue start, MathematicalValue end)
+ThrowCompletionOr<Vector<::Locale::NumberFormat::Partition>> partition_number_range_pattern(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
 {
     // 1. If x is NaN or y is NaN, throw a RangeError exception.
     if (start.is_nan())
@@ -237,132 +237,38 @@ ThrowCompletionOr<Vector<PatternPartitionWithSource>> partition_number_range_pat
     if (end.is_nan())
         return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "end"sv);
 
-    // 2. Let result be a new empty List.
-    Vector<PatternPartitionWithSource> result;
-
-    // 3. Let xResult be ? PartitionNumberPattern(numberFormat, x).
-    auto raw_start_result = partition_number_pattern(number_format, start);
-    auto start_result = PatternPartitionWithSource::create_from_parent_list(move(raw_start_result));
-
-    // 4. Let yResult be ? PartitionNumberPattern(numberFormat, y).
-    auto raw_end_result = partition_number_pattern(number_format, end);
-    auto end_result = PatternPartitionWithSource::create_from_parent_list(move(raw_end_result));
-
-    // 5. If ! FormatNumeric(numberFormat, x) is equal to ! FormatNumeric(numberFormat, y), then
-    auto formatted_start = format_numeric(number_format, start);
-    auto formatted_end = format_numeric(number_format, end);
-
-    if (formatted_start == formatted_end) {
-        // a. Let appxResult be ? FormatApproximately(numberFormat, xResult).
-        auto approximate_result = format_approximately(number_format, move(start_result));
-
-        // b. For each r in appxResult, do
-        for (auto& result : approximate_result) {
-            // i. Set r.[[Source]] to "shared".
-            result.source = "shared"sv;
-        }
-
-        // c. Return appxResult.
-        return approximate_result;
-    }
-
-    // 6. For each element r in xResult, do
-    result.ensure_capacity(start_result.size());
-
-    for (auto& start_part : start_result) {
-        // a. Append a new Record { [[Type]]: r.[[Type]], [[Value]]: r.[[Value]], [[Source]]: "startRange" } as the last element of result.
-        PatternPartitionWithSource part;
-        part.type = start_part.type;
-        part.value = move(start_part.value);
-        part.source = "startRange"sv;
-
-        result.unchecked_append(move(part));
-    }
-
-    // 7. Let rangeSeparator be an ILND String value used to separate two numbers.
-    auto range_separator_symbol = ::Locale::get_number_system_symbol(number_format.data_locale(), number_format.numbering_system(), ::Locale::NumericSymbol::RangeSeparator).value_or("-"sv);
-    auto range_separator = ::Locale::augment_range_pattern(range_separator_symbol, result.last().value, end_result[0].value);
-
-    // 8. Append a new Record { [[Type]]: "literal", [[Value]]: rangeSeparator, [[Source]]: "shared" } element to result.
-    PatternPartitionWithSource part;
-    part.type = "literal"sv;
-    part.value = range_separator.has_value()
-        ? range_separator.release_value()
-        : MUST(String::from_utf8(range_separator_symbol));
-    part.source = "shared"sv;
-    result.append(move(part));
-
-    // 9. For each element r in yResult, do
-    result.ensure_capacity(result.size() + end_result.size());
-
-    for (auto& end_part : end_result) {
-        // a. Append a new Record { [[Type]]: r.[[Type]], [[Value]]: r.[[Value]], [[Source]]: "endRange" } as the last element of result.
-        PatternPartitionWithSource part;
-        part.type = end_part.type;
-        part.value = move(end_part.value);
-        part.source = "endRange"sv;
-
-        result.unchecked_append(move(part));
-    }
-
-    // 10. Return ! CollapseNumberRange(result).
-    return collapse_number_range(move(result));
-}
-
-// 15.5.20 FormatApproximately ( numberFormat, result ), https://tc39.es/ecma402/#sec-formatapproximately
-Vector<PatternPartitionWithSource> format_approximately(NumberFormat& number_format, Vector<PatternPartitionWithSource> result)
-{
-    // 1. Let approximatelySign be an ILND String value used to signify that a number is approximate.
-    auto approximately_sign = ::Locale::get_number_system_symbol(number_format.data_locale(), number_format.numbering_system(), ::Locale::NumericSymbol::ApproximatelySign);
-
-    // 2. If approximatelySign is not empty, insert a new Record { [[Type]]: "approximatelySign", [[Value]]: approximatelySign } at an ILND index in result. For example, if numberFormat has [[Locale]] "en-US" and [[NumberingSystem]] "latn" and [[Style]] "decimal", the new Record might be inserted before the first element of result.
-    if (approximately_sign.has_value() && !approximately_sign->is_empty()) {
-        PatternPartitionWithSource partition;
-        partition.type = "approximatelySign"sv;
-        partition.value = MUST(String::from_utf8(*approximately_sign));
-
-        result.insert_before_matching(move(partition), [](auto const& part) {
-            return part.type.is_one_of("integer"sv, "decimal"sv, "plusSign"sv, "minusSign"sv, "percentSign"sv, "currency"sv);
-        });
-    }
-
-    // 3. Return result.
-    return result;
-}
-
-// 15.5.21 CollapseNumberRange ( result ), https://tc39.es/ecma402/#sec-collapsenumberrange
-Vector<PatternPartitionWithSource> collapse_number_range(Vector<PatternPartitionWithSource> result)
-{
-    // Returning result unmodified is guaranteed to be a correct implementation of CollapseNumberRange.
-    return result;
+    return number_format.formatter().format_range_to_parts(start.to_value(), end.to_value());
 }
 
 // 15.5.22 FormatNumericRange ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-formatnumericrange
-ThrowCompletionOr<String> format_numeric_range(VM& vm, NumberFormat& number_format, MathematicalValue start, MathematicalValue end)
+ThrowCompletionOr<String> format_numeric_range(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
 {
     // 1. Let parts be ? PartitionNumberRangePattern(numberFormat, x, y).
-    auto parts = TRY(partition_number_range_pattern(vm, number_format, move(start), move(end)));
+    {
+        // NOTE: We short-circuit PartitionNumberRangePattern as we do not need individual partitions. But we must still
+        //       perform the NaN sanity checks from its first step.
 
-    // 2. Let result be the empty String.
-    StringBuilder result;
-
-    // 3. For each part in parts, do
-    for (auto& part : parts) {
-        // a. Set result to the string-concatenation of result and part.[[Value]].
-        result.append(part.value);
+        // 1. If x is NaN or y is NaN, throw a RangeError exception.
+        if (start.is_nan())
+            return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "start"sv);
+        if (end.is_nan())
+            return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "end"sv);
     }
 
+    // 2. Let result be the empty String.
+    // 3. For each part in parts, do
+    //     a. Set result to the string-concatenation of result and part.[[Value]].
     // 4. Return result.
-    return MUST(result.to_string());
+    return number_format.formatter().format_range(start.to_value(), end.to_value());
 }
 
 // 15.5.23 FormatNumericRangeToParts ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-formatnumericrangetoparts
-ThrowCompletionOr<NonnullGCPtr<Array>> format_numeric_range_to_parts(VM& vm, NumberFormat& number_format, MathematicalValue start, MathematicalValue end)
+ThrowCompletionOr<NonnullGCPtr<Array>> format_numeric_range_to_parts(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
 {
     auto& realm = *vm.current_realm();
 
     // 1. Let parts be ? PartitionNumberRangePattern(numberFormat, x, y).
-    auto parts = TRY(partition_number_range_pattern(vm, number_format, move(start), move(end)));
+    auto parts = TRY(partition_number_range_pattern(vm, number_format, start, end));
 
     // 2. Let result be ! ArrayCreate(0).
     auto result = MUST(Array::create(realm, 0));
