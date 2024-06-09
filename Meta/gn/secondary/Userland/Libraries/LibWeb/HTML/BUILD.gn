@@ -164,6 +164,7 @@ source_set("HTML") {
     "TagNames.cpp",
     "TextMetrics.cpp",
     "TextTrack.cpp",
+    "TextTrackList.cpp",
     "TimeRanges.cpp",
     "Timer.cpp",
     "ToggleEvent.cpp",

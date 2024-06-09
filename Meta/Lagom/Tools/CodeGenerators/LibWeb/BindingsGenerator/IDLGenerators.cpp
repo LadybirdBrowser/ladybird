@@ -85,6 +85,7 @@ static bool is_platform_object(Type const& type)
         "Table"sv,
         "Text"sv,
         "TextMetrics"sv,
+        "TextTrack"sv,
         "URLSearchParams"sv,
         "VideoTrack"sv,
         "VideoTrackList"sv,
