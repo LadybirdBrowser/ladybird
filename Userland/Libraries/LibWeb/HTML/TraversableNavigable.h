@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/NavigationType.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
 
@@ -83,6 +84,8 @@ public:
     void set_window_handle(String window_handle) { m_window_handle = move(window_handle); }
 
     [[nodiscard]] JS::GCPtr<DOM::Node> currently_focused_area();
+
+    void paint(Web::DevicePixelRect const&, Gfx::Bitmap&, Web::PaintOptions);
 
 private:
     TraversableNavigable(JS::NonnullGCPtr<Page>);

@@ -6,6 +6,7 @@
 
 #include <AK/QuickSort.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
@@ -16,7 +17,12 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/CommandExecutorCPU.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+
+#ifdef HAS_ACCELERATED_GRAPHICS
+#    include <LibWeb/Painting/CommandExecutorGPU.h>
+#endif
 
 namespace Web::HTML {
 
@@ -1165,6 +1171,38 @@ JS::GCPtr<DOM::Node> TraversableNavigable::currently_focused_area()
 
     // 5. Return candidate.
     return candidate;
+}
+
+void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& target, Web::PaintOptions paint_options)
+{
+    Painting::CommandList painting_commands;
+    Painting::RecordingPainter recording_painter(painting_commands);
+
+    Gfx::IntRect bitmap_rect { {}, content_rect.size().to_type<int>() };
+    recording_painter.fill_rect(bitmap_rect, Web::CSS::SystemColor::canvas());
+
+    Web::HTML::Navigable::PaintConfig paint_config;
+    paint_config.paint_overlay = paint_options.paint_overlay == Web::PaintOptions::PaintOverlay::Yes;
+    paint_config.should_show_line_box_borders = paint_options.should_show_line_box_borders;
+    paint_config.has_focus = paint_options.has_focus;
+    record_painting_commands(recording_painter, paint_config);
+
+    if (paint_options.use_gpu_painter) {
+#ifdef HAS_ACCELERATED_GRAPHICS
+        Web::Painting::CommandExecutorGPU painting_command_executor(*paint_options.accelerated_graphics_context, target);
+        painting_commands.execute(painting_command_executor);
+#else
+        static bool has_warned_about_configuration = false;
+
+        if (!has_warned_about_configuration) {
+            warnln("\033[31;1mConfigured to use GPU painter, but current platform does not have accelerated graphics\033[0m");
+            has_warned_about_configuration = true;
+        }
+#endif
+    } else {
+        Web::Painting::CommandExecutorCPU painting_command_executor(target, paint_options.use_experimental_cpu_transform_support);
+        painting_commands.execute(painting_command_executor);
+    }
 }
 
 }
