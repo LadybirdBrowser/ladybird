@@ -213,7 +213,7 @@ void PageClient::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& ta
     paint_config.paint_overlay = paint_options.paint_overlay == Web::PaintOptions::PaintOverlay::Yes;
     paint_config.should_show_line_box_borders = m_should_show_line_box_borders;
     paint_config.has_focus = m_has_focus;
-    page().top_level_traversable()->paint(recording_painter, paint_config);
+    page().top_level_traversable()->record_painting_commands(recording_painter, paint_config);
 
     if (s_use_gpu_painter) {
 #ifdef HAS_ACCELERATED_GRAPHICS

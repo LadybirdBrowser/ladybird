@@ -2092,7 +2092,7 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
     }));
 }
 
-void Navigable::paint(Painting::RecordingPainter& recording_painter, PaintConfig config)
+void Navigable::record_painting_commands(Painting::RecordingPainter& recording_painter, PaintConfig config)
 {
     auto document = active_document();
     if (!document)

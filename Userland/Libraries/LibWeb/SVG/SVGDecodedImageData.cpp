@@ -96,7 +96,7 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     Painting::RecordingPainter recording_painter(painting_commands);
     Painting::CommandExecutorCPU executor { *bitmap };
 
-    m_document->navigable()->paint(recording_painter, {});
+    m_document->navigable()->record_painting_commands(recording_painter, {});
     painting_commands.execute(executor);
 
     return bitmap;
