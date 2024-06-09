@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/HTMLDivElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -80,6 +81,17 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_selected_files);
     visitor.visit(m_slider_thumb);
     visitor.visit(m_image_request);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+JS::NonnullGCPtr<ValidityState const> HTMLInputElement::validity() const
+{
+    auto& vm = this->vm();
+    auto& realm = this->realm();
+
+    dbgln("FIXME: Implement validity attribute getter");
+
+    return vm.heap().allocate<ValidityState>(realm, realm);
 }
 
 JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)

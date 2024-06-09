@@ -1,5 +1,6 @@
 #import <HTML/HTMLElement.idl>
 #import <HTML/HTMLFormElement.idl>
+#import <HTML/ValidityState.idl>
 #import <FileAPI/FileList.idl>
 
 // https://html.spec.whatwg.org/multipage/input.html#htmlinputelement
@@ -48,7 +49,7 @@ interface HTMLInputElement : HTMLElement {
     undefined stepDown(optional long n = 1);
 
     [FIXME] readonly attribute boolean willValidate;
-    [FIXME] readonly attribute ValidityState validity;
+    readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     boolean checkValidity();
     boolean reportValidity();
