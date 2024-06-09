@@ -502,7 +502,7 @@ RefPtr<ResourceLoaderConnectorRequest> ResourceLoader::start_network_request(Loa
 {
     auto proxy = ProxyMappings::the().proxy_for_url(request.url());
 
-    HashMap<ByteString, ByteString> headers;
+    HTTP::HeaderMap headers;
     headers.set("User-Agent", m_user_agent.to_byte_string());
     headers.set("Accept-Encoding", "gzip, deflate, br");
 

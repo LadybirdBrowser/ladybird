@@ -196,7 +196,7 @@ Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_su
     return supported;
 }
 
-void ConnectionFromClient::start_request(i32 request_id, ByteString const& method, URL::URL const& url, HashMap<ByteString, ByteString> const& request_headers, ByteBuffer const& request_body, Core::ProxyData const& proxy_data)
+void ConnectionFromClient::start_request(i32 request_id, ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& request_headers, ByteBuffer const& request_body, Core::ProxyData const& proxy_data)
 {
     if (!url.is_valid()) {
         dbgln("StartRequest: Invalid URL requested: '{}'", url);

@@ -1,3 +1,4 @@
+#include <LibHTTP/HeaderMap.h>
 #include <LibURL/URL.h>
 #include <RequestServer/ConnectionCache.h>
 
@@ -8,7 +9,7 @@ endpoint RequestServer
     // Test if a specific protocol is supported, e.g "http"
     is_supported_protocol(ByteString protocol) => (bool supported)
 
-    start_request(i32 request_id, ByteString method, URL::URL url, HashMap<ByteString, ByteString> request_headers, ByteBuffer request_body, Core::ProxyData proxy_data) =|
+    start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data) =|
     stop_request(i32 request_id) => (bool success)
     set_certificate(i32 request_id, ByteString certificate, ByteString key) => (bool success)
 

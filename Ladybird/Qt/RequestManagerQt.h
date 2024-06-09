@@ -27,7 +27,7 @@ public:
     virtual void prefetch_dns(URL::URL const&) override { }
     virtual void preconnect(URL::URL const&) override { }
 
-    virtual RefPtr<Web::ResourceLoaderConnectorRequest> start_request(ByteString const& method, URL::URL const&, HashMap<ByteString, ByteString> const& request_headers, ReadonlyBytes request_body, Core::ProxyData const&) override;
+    virtual RefPtr<Web::ResourceLoaderConnectorRequest> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers, ReadonlyBytes request_body, Core::ProxyData const&) override;
     virtual RefPtr<Web::WebSockets::WebSocketClientSocket> websocket_connect(const URL::URL&, ByteString const& origin, Vector<ByteString> const& protocols) override;
 
 private slots:
@@ -39,7 +39,7 @@ private:
     class Request
         : public Web::ResourceLoaderConnectorRequest {
     public:
-        static ErrorOr<NonnullRefPtr<Request>> create(QNetworkAccessManager& qnam, ByteString const& method, URL::URL const& url, HashMap<ByteString, ByteString> const& request_headers, ReadonlyBytes request_body, Core::ProxyData const&);
+        static ErrorOr<NonnullRefPtr<Request>> create(QNetworkAccessManager& qnam, ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& request_headers, ReadonlyBytes request_body, Core::ProxyData const&);
 
         virtual ~Request() override;
 

@@ -61,7 +61,7 @@ void init(TSelf* self, TJob job)
 }
 
 template<typename TBadgedProtocol, typename TPipeResult>
-OwnPtr<Request> start_request(TBadgedProtocol&& protocol, i32 request_id, ConnectionFromClient& client, ByteString const& method, const URL::URL& url, HashMap<ByteString, ByteString> const& headers, ReadonlyBytes body, TPipeResult&& pipe_result, Core::ProxyData proxy_data = {})
+OwnPtr<Request> start_request(TBadgedProtocol&& protocol, i32 request_id, ConnectionFromClient& client, ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& headers, ReadonlyBytes body, TPipeResult&& pipe_result, Core::ProxyData proxy_data = {})
 {
     using TJob = typename TBadgedProtocol::Type::JobType;
     using TRequest = typename TBadgedProtocol::Type::RequestType;

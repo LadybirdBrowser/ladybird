@@ -26,12 +26,8 @@ void RequestClient::ensure_connection(URL::URL const& url, ::RequestServer::Cach
     async_ensure_connection(url, cache_level);
 }
 
-template<typename RequestHashMapTraits>
-RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, HashMap<ByteString, ByteString, RequestHashMapTraits> const& request_headers, ReadonlyBytes request_body, Core::ProxyData const& proxy_data)
+RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& request_headers, ReadonlyBytes request_body, Core::ProxyData const& proxy_data)
 {
-    auto headers_or_error = request_headers.template clone<Traits<ByteString>>();
-    if (headers_or_error.is_error())
-        return nullptr;
     auto body_result = ByteBuffer::copy(request_body);
     if (body_result.is_error())
         return nullptr;
@@ -39,7 +35,7 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     static i32 s_next_request_id = 0;
     auto request_id = s_next_request_id++;
 
-    IPCProxy::async_start_request(request_id, method, url, headers_or_error.release_value(), body_result.release_value(), proxy_data);
+    IPCProxy::async_start_request(request_id, method, url, request_headers, body_result.release_value(), proxy_data);
     auto request = Request::create_from_id({}, *this, request_id);
     m_requests.set(request_id, request);
     return request;
@@ -153,6 +149,3 @@ void RequestClient::websocket_certificate_requested(i32 connection_id)
 }
 
 }
-
-template RefPtr<Protocol::Request> Protocol::RequestClient::start_request(ByteString const& method, URL::URL const&, HashMap<ByteString, ByteString> const& request_headers, ReadonlyBytes request_body, Core::ProxyData const&);
-template RefPtr<Protocol::Request> Protocol::RequestClient::start_request(ByteString const& method, URL::URL const&, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& request_headers, ReadonlyBytes request_body, Core::ProxyData const&);

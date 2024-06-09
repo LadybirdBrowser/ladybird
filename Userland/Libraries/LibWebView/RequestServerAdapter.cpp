@@ -75,7 +75,7 @@ RequestServerAdapter::RequestServerAdapter(NonnullRefPtr<Protocol::RequestClient
 
 RequestServerAdapter::~RequestServerAdapter() = default;
 
-RefPtr<Web::ResourceLoaderConnectorRequest> RequestServerAdapter::start_request(ByteString const& method, URL::URL const& url, HashMap<ByteString, ByteString> const& headers, ReadonlyBytes body, Core::ProxyData const& proxy)
+RefPtr<Web::ResourceLoaderConnectorRequest> RequestServerAdapter::start_request(ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& headers, ReadonlyBytes body, Core::ProxyData const& proxy)
 {
     auto protocol_request = m_protocol_client->start_request(method, url, headers, body, proxy);
     if (!protocol_request)

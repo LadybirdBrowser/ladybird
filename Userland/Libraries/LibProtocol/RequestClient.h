@@ -26,8 +26,7 @@ class RequestClient final
 public:
     explicit RequestClient(NonnullOwnPtr<Core::LocalSocket>);
 
-    template<typename RequestHashMapTraits = Traits<ByteString>>
-    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, HashMap<ByteString, ByteString, RequestHashMapTraits> const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {});
+    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {});
 
     RefPtr<WebSocket> websocket_connect(const URL::URL&, ByteString const& origin = {}, Vector<ByteString> const& protocols = {}, Vector<ByteString> const& extensions = {}, HashMap<ByteString, ByteString> const& request_headers = {});
 
