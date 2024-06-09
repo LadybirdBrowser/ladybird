@@ -7,7 +7,6 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
-#include <AK/JsonObject.h>
 #include <AK/MemoryStream.h>
 #include <AK/Try.h>
 #include <LibCompress/Brotli.h>
@@ -315,8 +314,6 @@ void Job::on_socket_connected()
                     return finish_up();
                 }
                 if (on_headers_received) {
-                    if (!m_set_cookie_headers.is_empty())
-                        m_headers.set("Set-Cookie", JsonArray { m_set_cookie_headers }.to_byte_string());
                     on_headers_received(m_headers, m_code > 0 ? m_code : Optional<u32> {});
                 }
                 m_state = State::InBody;
@@ -362,24 +359,7 @@ void Job::on_socket_connected()
                 return deferred_invoke([this] { did_fail(Core::NetworkJob::Error::ProtocolFailed); });
             }
             auto value = line.substring(name.length() + 2, line.length() - name.length() - 2);
-            if (name.equals_ignoring_ascii_case("Set-Cookie"sv)) {
-                dbgln_if(JOB_DEBUG, "Job: Received Set-Cookie header: '{}'", value);
-                m_set_cookie_headers.append(move(value));
-
-                auto can_read_without_blocking = m_socket->can_read_without_blocking();
-                if (can_read_without_blocking.is_error())
-                    return deferred_invoke([this] { did_fail(Core::NetworkJob::Error::TransmissionFailed); });
-                if (!can_read_without_blocking.value())
-                    return;
-            } else if (auto existing_value = m_headers.get(name); existing_value.has_value()) {
-                StringBuilder builder;
-                builder.append(existing_value.value());
-                builder.append(',');
-                builder.append(value);
-                m_headers.set(name, builder.to_byte_string());
-            } else {
-                m_headers.set(name, value);
-            }
+            m_headers.set(name, value);
             if (name.equals_ignoring_ascii_case("Content-Encoding"sv)) {
                 // Assume that any content-encoding means that we can't decode it as a stream :(
                 dbgln_if(JOB_DEBUG, "Content-Encoding {} detected, cannot stream output :(", value);

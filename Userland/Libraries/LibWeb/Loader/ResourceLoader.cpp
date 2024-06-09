@@ -6,7 +6,6 @@
  */
 
 #include <AK/Debug.h>
-#include <AK/JsonObject.h>
 #include <LibCore/DateTime.h>
 #include <LibCore/Directory.h>
 #include <LibCore/ElapsedTimer.h>
@@ -150,20 +149,12 @@ static void emit_signpost(ByteString const& message, int id)
 #endif
 }
 
-static void store_response_cookies(Page& page, URL::URL const& url, ByteString const& cookies)
+static void store_response_cookies(Page& page, URL::URL const& url, ByteString const& set_cookie_entry)
 {
-    auto set_cookie_json_value = MUST(JsonValue::from_string(cookies));
-    VERIFY(set_cookie_json_value.type() == JsonValue::Type::Array);
-
-    for (auto const& set_cookie_entry : set_cookie_json_value.as_array().values()) {
-        VERIFY(set_cookie_entry.type() == JsonValue::Type::String);
-
-        auto cookie = Cookie::parse_cookie(set_cookie_entry.as_string());
-        if (!cookie.has_value())
-            continue;
-
-        page.client().page_did_set_cookie(url, cookie.value(), Cookie::Source::Http); // FIXME: Determine cookie source correctly
-    }
+    auto cookie = Cookie::parse_cookie(set_cookie_entry);
+    if (!cookie.has_value())
+        return;
+    page.client().page_did_set_cookie(url, cookie.value(), Cookie::Source::Http); // FIXME: Determine cookie source correctly
 }
 
 static HTTP::HeaderMap response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
@@ -542,8 +533,11 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
     if (!request.page())
         return;
 
-    if (auto set_cookie = response_headers.get("Set-Cookie"); set_cookie.has_value())
-        store_response_cookies(*request.page(), request.url(), *set_cookie);
+    for (auto const& [header, value] : response_headers.headers()) {
+        if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
+            store_response_cookies(*request.page(), request.url(), value);
+        }
+    }
 
     if (auto cache_control = response_headers.get("Cache-Control"); cache_control.has_value()) {
         if (cache_control.value().contains("no-store"sv))

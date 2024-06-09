@@ -54,7 +54,6 @@ protected:
     bool m_legacy_connection { false };
     int m_code { -1 };
     HTTP::HeaderMap m_headers;
-    Vector<ByteString> m_set_cookie_headers;
 
     struct ReceivedBuffer {
         ReceivedBuffer(ByteBuffer d)
