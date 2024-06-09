@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -99,7 +99,7 @@ ThrowCompletionOr<NonnullGCPtr<PluralRules>> initialize_plural_rules(VM& vm, Plu
     plural_rules.set_type(type.as_string().utf8_string_view());
 
     // 8. Perform ? SetNumberFormatDigitOptions(pluralRules, options, +0𝔽, 3𝔽, "standard").
-    TRY(set_number_format_digit_options(vm, plural_rules, *options, 0, 3, NumberFormat::Notation::Standard));
+    TRY(set_number_format_digit_options(vm, plural_rules, *options, 0, 3, ::Locale::Notation::Standard));
 
     // 9. Let localeData be %PluralRules%.[[LocaleData]].
     // 10. Let r be ResolveLocale(%PluralRules%.[[AvailableLocales]], requestedLocales, opt, %PluralRules%.[[RelevantExtensionKeys]], localeData).
@@ -110,6 +110,14 @@ ThrowCompletionOr<NonnullGCPtr<PluralRules>> initialize_plural_rules(VM& vm, Plu
 
     // Non-standard, the data locale is used by our NumberFormat implementation.
     plural_rules.set_data_locale(move(result.data_locale));
+
+    // Non-standard, create an ICU number formatter for this Intl object.
+    auto formatter = ::Locale::NumberFormat::create(
+        plural_rules.locale(),
+        {},
+        {},
+        plural_rules.rounding_options());
+    plural_rules.set_formatter(move(formatter));
 
     // 12. Return pluralRules.
     return plural_rules;

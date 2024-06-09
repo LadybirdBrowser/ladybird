@@ -275,7 +275,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_locale_string)
     auto* number_format = static_cast<Intl::NumberFormat*>(TRY(construct(vm, realm.intrinsics().intl_number_format_constructor(), locales, options)).ptr());
 
     // 3. Return ? FormatNumeric(numberFormat, x).
-    auto formatted = Intl::format_numeric(vm, *number_format, number_value);
+    auto formatted = Intl::format_numeric(*number_format, number_value);
     return PrimitiveString::create(vm, move(formatted));
 }
 

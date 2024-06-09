@@ -24,9 +24,6 @@ set(CLDR_LOCALES_PATH "${CLDR_PATH}/${CLDR_LOCALES_SOURCE}")
 set(CLDR_NUMBERS_SOURCE cldr-numbers-modern)
 set(CLDR_NUMBERS_PATH "${CLDR_PATH}/${CLDR_NUMBERS_SOURCE}")
 
-set(CLDR_UNITS_SOURCE cldr-units-modern)
-set(CLDR_UNITS_PATH "${CLDR_PATH}/${CLDR_UNITS_SOURCE}")
-
 if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     remove_path_if_version_changed("${CLDR_VERSION}" "${CLDR_VERSION_FILE}" "${CLDR_PATH}")
 
@@ -37,7 +34,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_DATES_SOURCE}/**" "${CLDR_DATES_PATH}")
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_LOCALES_SOURCE}/**" "${CLDR_LOCALES_PATH}")
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_NUMBERS_SOURCE}/**" "${CLDR_NUMBERS_PATH}")
-        extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_UNITS_SOURCE}/**" "${CLDR_UNITS_PATH}")
     else()
         message(STATUS "Skipping download of ${CLDR_ZIP_URL}, expecting the archive to have been extracted to ${CLDR_PATH}")
     endif()
@@ -79,7 +75,7 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         "${CLDR_VERSION_FILE}"
         "${NUMBER_FORMAT_DATA_HEADER}"
         "${NUMBER_FORMAT_DATA_IMPLEMENTATION}"
-        arguments -r "${CLDR_CORE_PATH}" -n "${CLDR_NUMBERS_PATH}" -u "${CLDR_UNITS_PATH}"
+        arguments -r "${CLDR_CORE_PATH}" -n "${CLDR_NUMBERS_PATH}"
     )
     invoke_generator(
         "PluralRulesData"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,40 +9,158 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibLocale/Forward.h>
 #include <LibLocale/PluralRules.h>
 
 namespace Locale {
 
-struct NumberGroupings {
-    u8 minimum_grouping_digits { 0 };
-    u8 primary_grouping_size { 0 };
-    u8 secondary_grouping_size { 0 };
-};
-
-enum class StandardNumberFormatType : u8 {
+enum class NumberFormatStyle {
     Decimal,
-    Currency,
-    Accounting,
     Percent,
+    Currency,
+    Unit,
+};
+NumberFormatStyle number_format_style_from_string(StringView);
+StringView number_format_style_to_string(NumberFormatStyle);
+
+enum class SignDisplay {
+    Auto,
+    Never,
+    Always,
+    ExceptZero,
+    Negative,
+};
+SignDisplay sign_display_from_string(StringView);
+StringView sign_display_to_string(SignDisplay);
+
+enum class Notation {
+    Standard,
     Scientific,
+    Engineering,
+    Compact,
+};
+Notation notation_from_string(StringView);
+StringView notation_to_string(Notation);
+
+enum class CompactDisplay {
+    Short,
+    Long,
+};
+CompactDisplay compact_display_from_string(StringView);
+StringView compact_display_to_string(CompactDisplay);
+
+enum class Grouping {
+    Always,
+    Auto,
+    Min2,
+    False,
+};
+Grouping grouping_from_string(StringView);
+StringView grouping_to_string(Grouping);
+
+enum class CurrencyDisplay {
+    Code,
+    Symbol,
+    NarrowSymbol,
+    Name,
+};
+CurrencyDisplay currency_display_from_string(StringView);
+StringView currency_display_to_string(CurrencyDisplay);
+
+enum class CurrencySign {
+    Standard,
+    Accounting,
+};
+CurrencySign currency_sign_from_string(StringView);
+StringView currency_sign_to_string(CurrencySign);
+
+struct DisplayOptions {
+    NumberFormatStyle style { NumberFormatStyle::Decimal };
+    SignDisplay sign_display { SignDisplay::Auto };
+
+    Notation notation { Notation::Standard };
+    Optional<CompactDisplay> compact_display;
+
+    Grouping grouping { Grouping::Always };
+
+    Optional<String> currency;
+    Optional<CurrencyDisplay> currency_display;
+    Optional<CurrencySign> currency_sign;
+
+    Optional<String> unit;
+    Optional<Style> unit_display;
 };
 
-enum class CompactNumberFormatType : u8 {
-    DecimalLong,
-    DecimalShort,
-    CurrencyUnit,
+enum class RoundingType {
+    SignificantDigits,
+    FractionDigits,
+    MorePrecision,
+    LessPrecision,
+};
+RoundingType rounding_type_from_string(StringView);
+StringView rounding_type_to_string(RoundingType);
+
+enum class RoundingMode {
+    Ceil,
+    Expand,
+    Floor,
+    HalfCeil,
+    HalfEven,
+    HalfExpand,
+    HalfFloor,
+    HalfTrunc,
+    Trunc,
+};
+RoundingMode rounding_mode_from_string(StringView);
+StringView rounding_mode_to_string(RoundingMode);
+
+enum class TrailingZeroDisplay {
+    Auto,
+    StripIfInteger,
+};
+TrailingZeroDisplay trailing_zero_display_from_string(StringView);
+StringView trailing_zero_display_to_string(TrailingZeroDisplay);
+
+struct RoundingOptions {
+    RoundingType type { RoundingType::MorePrecision };
+    RoundingMode mode { RoundingMode::HalfExpand };
+    TrailingZeroDisplay trailing_zero_display;
+
+    Optional<int> min_significant_digits;
+    Optional<int> max_significant_digits;
+
+    Optional<int> min_fraction_digits;
+    Optional<int> max_fraction_digits;
+
+    int min_integer_digits { 0 };
+    int rounding_increment { 1 };
 };
 
-struct NumberFormat {
-    u8 magnitude { 0 };
-    u8 exponent { 0 };
-    PluralCategory plurality { PluralCategory::Other };
-    StringView zero_format {};
-    StringView positive_format {};
-    StringView negative_format {};
-    Vector<StringView> identifiers {};
+class NumberFormat {
+public:
+    static NonnullOwnPtr<NumberFormat> create(
+        StringView locale,
+        StringView numbering_system,
+        DisplayOptions const&,
+        RoundingOptions const&);
+
+    virtual ~NumberFormat() = default;
+
+    struct Partition {
+        StringView type;
+        String value;
+    };
+
+    using Value = Variant<double, String>;
+
+    virtual String format(Value const&) const = 0;
+    virtual String format_to_decimal(Value const&) const = 0;
+    virtual Vector<Partition> format_to_parts(Value const&) const = 0;
+
+protected:
+    NumberFormat() = default;
 };
 
 enum class NumericSymbol : u8 {
@@ -58,18 +176,11 @@ enum class NumericSymbol : u8 {
     RangeSeparator,
     TimeSeparator,
 };
-
 Optional<StringView> get_number_system_symbol(StringView locale, StringView system, NumericSymbol symbol);
-Optional<NumberGroupings> get_number_system_groupings(StringView locale, StringView system);
 
 Optional<ReadonlySpan<u32>> get_digits_for_number_system(StringView system);
 String replace_digits_for_number_system(StringView system, StringView number);
 
-Optional<NumberFormat> get_standard_number_system_format(StringView locale, StringView system, StandardNumberFormatType type);
-Vector<NumberFormat> get_compact_number_system_formats(StringView locale, StringView system, CompactNumberFormatType type);
-Vector<NumberFormat> get_unit_formats(StringView locale, StringView unit, Style style);
-
-Optional<String> augment_currency_format_pattern(StringView currency_display, StringView base_pattern);
 Optional<String> augment_range_pattern(StringView range_separator, StringView lower, StringView upper);
 
 }

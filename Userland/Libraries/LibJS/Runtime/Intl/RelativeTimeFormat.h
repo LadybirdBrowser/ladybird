@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +13,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibLocale/Locale.h>
+#include <LibLocale/NumberFormat.h>
 #include <LibLocale/RelativeTimeFormat.h>
 
 namespace JS::Intl {
@@ -85,7 +86,7 @@ struct PatternPartitionWithUnit : public PatternPartition {
 
 ThrowCompletionOr<::Locale::TimeUnit> singular_relative_time_unit(VM&, StringView unit);
 ThrowCompletionOr<Vector<PatternPartitionWithUnit>> partition_relative_time_pattern(VM&, RelativeTimeFormat&, double value, StringView unit);
-Vector<PatternPartitionWithUnit> make_parts_list(StringView pattern, StringView unit, Vector<PatternPartition> parts);
+Vector<PatternPartitionWithUnit> make_parts_list(StringView pattern, StringView unit, Vector<::Locale::NumberFormat::Partition> parts);
 ThrowCompletionOr<String> format_relative_time(VM&, RelativeTimeFormat&, double value, StringView unit);
 ThrowCompletionOr<NonnullGCPtr<Array>> format_relative_time_to_parts(VM&, RelativeTimeFormat&, double value, StringView unit);
 

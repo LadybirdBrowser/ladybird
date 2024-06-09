@@ -1,17 +1,16 @@
 /*
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/Checked.h>
-#include <AK/String.h>
 #include <AK/Variant.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibLocale/NumberFormat.h>
 
 namespace JS::Intl {
 
@@ -61,36 +60,7 @@ public:
     bool is_negative_zero() const;
     bool is_nan() const;
 
-    void negate();
-
-    MathematicalValue plus(Checked<i32> addition) const;
-    MathematicalValue plus(MathematicalValue const& addition) const;
-
-    MathematicalValue minus(Checked<i32> subtraction) const;
-    MathematicalValue minus(MathematicalValue const& subtraction) const;
-
-    MathematicalValue multiplied_by(Checked<i32> multiplier) const;
-    MathematicalValue multiplied_by(MathematicalValue const& multiplier) const;
-
-    MathematicalValue divided_by(Checked<i32> divisor) const;
-    MathematicalValue divided_by(MathematicalValue const& divisor) const;
-
-    MathematicalValue multiplied_by_power(Checked<i32> exponent) const;
-    MathematicalValue divided_by_power(Checked<i32> exponent) const;
-
-    bool modulo_is_zero(Checked<i32> mod) const;
-
-    int logarithmic_floor() const;
-
-    bool is_equal_to(MathematicalValue const&) const;
-    bool is_less_than(MathematicalValue const&) const;
-
-    bool is_negative() const;
-    bool is_positive() const;
-    bool is_zero() const;
-
-    String to_string() const;
-    Value to_value(VM&) const;
+    ::Locale::NumberFormat::Value to_value() const;
 
 private:
     using ValueType = Variant<double, Crypto::SignedBigInteger, Symbol>;

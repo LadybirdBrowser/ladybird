@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -96,12 +96,6 @@ PluralRules::PluralRules(Object& prototype)
 // 16.5.3 ResolvePlural ( pluralRules, n ), https://tc39.es/ecma402/#sec-resolveplural
 ResolvedPlurality resolve_plural(PluralRules const& plural_rules, Value number)
 {
-    return resolve_plural(plural_rules, plural_rules.type(), number);
-}
-
-// Non-standard overload of ResolvePlural to allow using the AO without an Intl.PluralRules object.
-ResolvedPlurality resolve_plural(NumberFormatBase const& number_format, ::Locale::PluralForm type, Value number)
-{
     // 1. Assert: Type(pluralRules) is Object.
     // 2. Assert: pluralRules has an [[InitializedPluralRules]] internal slot.
     // 3. Assert: Type(n) is Number.
@@ -113,15 +107,16 @@ ResolvedPlurality resolve_plural(NumberFormatBase const& number_format, ::Locale
     }
 
     // 5. Let locale be pluralRules.[[Locale]].
-    auto const& locale = number_format.locale();
+    auto const& locale = plural_rules.locale();
 
     // 6. Let type be pluralRules.[[Type]].
+    auto type = plural_rules.type();
 
     // 7. Let res be ! FormatNumericToString(pluralRules, n).
-    auto result = format_numeric_to_string(number_format, number);
+    auto result = format_numeric_to_string(plural_rules, number);
 
     // 8. Let s be res.[[FormattedString]].
-    auto string = move(result.formatted_string);
+    auto string = move(result);
 
     // 9. Let operands be ! GetOperands(s).
     auto operands = get_operands(string);

@@ -449,7 +449,7 @@ Vector<::Locale::ListFormatPart> partition_duration_format_pattern(VM& vm, Durat
                 // 3. Let dataLocaleData be %DurationFormat%.[[LocaleData]].[[<dataLocale>]].
 
                 // 4. Let num be ! FormatNumeric(nf, 𝔽(value)).
-                auto number = format_numeric(vm, *number_format, MathematicalValue(value));
+                auto number = format_numeric(*number_format, MathematicalValue(value));
 
                 // 5. Append the new Record { [[Type]]: unit, [[Value]]: num} to the end of result.
                 result.append({ unit, move(number) });
@@ -508,7 +508,7 @@ Vector<::Locale::ListFormatPart> partition_duration_format_pattern(VM& vm, Durat
                 auto* number_format = static_cast<NumberFormat*>(MUST(construct(vm, realm.intrinsics().intl_number_format_constructor(), PrimitiveString::create(vm, duration_format.locale()), number_format_options)).ptr());
 
                 // 5. Let parts be ! PartitionNumberPattern(nf, 𝔽(value)).
-                auto parts = partition_number_pattern(vm, *number_format, MathematicalValue(value));
+                auto parts = partition_number_pattern(*number_format, MathematicalValue(value));
 
                 // 6. Let concat be an empty String.
                 StringBuilder concat;

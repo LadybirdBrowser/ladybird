@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -176,7 +176,7 @@ ThrowCompletionOr<Vector<PatternPartitionWithUnit>> partition_relative_time_patt
     auto patterns = find_patterns_for_tense_or_number(tense);
 
     // 20. Let fv be ! PartitionNumberPattern(relativeTimeFormat.[[NumberFormat]], value).
-    auto value_partitions = partition_number_pattern(vm, relative_time_format.number_format(), Value(value));
+    auto value_partitions = partition_number_pattern(relative_time_format.number_format(), Value(value));
 
     // 21. Let pr be ! ResolvePlural(relativeTimeFormat.[[PluralRules]], value).[[PluralCategory]].
     auto plurality = resolve_plural(relative_time_format.plural_rules(), Value(value));
@@ -191,7 +191,7 @@ ThrowCompletionOr<Vector<PatternPartitionWithUnit>> partition_relative_time_patt
 }
 
 // 17.5.3 MakePartsList ( pattern, unit, parts ), https://tc39.es/ecma402/#sec-makepartslist
-Vector<PatternPartitionWithUnit> make_parts_list(StringView pattern, StringView unit, Vector<PatternPartition> parts)
+Vector<PatternPartitionWithUnit> make_parts_list(StringView pattern, StringView unit, Vector<::Locale::NumberFormat::Partition> parts)
 {
     // 1. Let patternParts be PartitionPattern(pattern).
     auto pattern_parts = partition_pattern(pattern);

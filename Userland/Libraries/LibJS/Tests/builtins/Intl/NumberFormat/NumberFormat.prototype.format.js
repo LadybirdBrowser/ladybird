@@ -1065,13 +1065,13 @@ describe("style=percent", () => {
         expect(enFullwide.format(0.1234)).toBe("１２%");
 
         const ar = new Intl.NumberFormat("ar", { style: "percent", notation: "compact" });
-        expect(ar.format(0.01)).toBe("\u0661\u066a\u061c");
-        expect(ar.format(0.012)).toBe("\u0661\u066b\u0662\u066a\u061c");
-        expect(ar.format(0.0123)).toBe("\u0661\u066b\u0662\u066a\u061c");
-        expect(ar.format(0.0129)).toBe("\u0661\u066b\u0663\u066a\u061c");
-        expect(ar.format(0.12)).toBe("\u0661\u0662\u066a\u061c");
-        expect(ar.format(0.123)).toBe("\u0661\u0662\u066a\u061c");
-        expect(ar.format(0.1234)).toBe("\u0661\u0662\u066a\u061c");
+        expect(ar.format(0.01)).toBe("\u0661\u066a");
+        expect(ar.format(0.012)).toBe("\u0661\u066b\u0662\u066a");
+        expect(ar.format(0.0123)).toBe("\u0661\u066b\u0662\u066a");
+        expect(ar.format(0.0129)).toBe("\u0661\u066b\u0663\u066a");
+        expect(ar.format(0.12)).toBe("\u0661\u0662\u066a");
+        expect(ar.format(0.123)).toBe("\u0661\u0662\u066a");
+        expect(ar.format(0.1234)).toBe("\u0661\u0662\u066a");
     });
 
     test("signDisplay=never", () => {
@@ -1322,14 +1322,14 @@ describe("style=currency", () => {
             compactDisplay: "long",
         });
         expect(ar.format(1)).toBe("‏١ US$");
-        expect(ar.format(1200)).toBe("‏١٫٢ ألف US$");
-        expect(ar.format(1290)).toBe("‏١٫٣ ألف US$");
-        expect(ar.format(12000)).toBe("‏١٢ ألف US$");
-        expect(ar.format(12900)).toBe("‏١٣ ألف US$");
-        expect(ar.format(1200000)).toBe("‏١٫٢ مليون US$");
-        expect(ar.format(1290000)).toBe("‏١٫٣ مليون US$");
-        expect(ar.format(12000000)).toBe("‏١٢ مليون US$");
-        expect(ar.format(12900000)).toBe("‏١٣ مليون US$");
+        expect(ar.format(1200)).toBe("١٫٢ ألف US$");
+        expect(ar.format(1290)).toBe("١٫٣ ألف US$");
+        expect(ar.format(12000)).toBe("١٢ ألف US$");
+        expect(ar.format(12900)).toBe("١٣ ألف US$");
+        expect(ar.format(1200000)).toBe("١٫٢ مليون US$");
+        expect(ar.format(1290000)).toBe("١٫٣ مليون US$");
+        expect(ar.format(12000000)).toBe("١٢ مليون US$");
+        expect(ar.format(12900000)).toBe("١٣ مليون US$");
 
         const ja = new Intl.NumberFormat("ja", {
             style: "currency",
@@ -1392,14 +1392,14 @@ describe("style=currency", () => {
             compactDisplay: "short",
         });
         expect(ar.format(1)).toBe("‏١ US$");
-        expect(ar.format(1200)).toBe("‏١٫٢ ألف US$");
-        expect(ar.format(1290)).toBe("‏١٫٣ ألف US$");
-        expect(ar.format(12000)).toBe("‏١٢ ألف US$");
-        expect(ar.format(12900)).toBe("‏١٣ ألف US$");
-        expect(ar.format(1200000)).toBe("‏١٫٢ مليون US$");
-        expect(ar.format(1290000)).toBe("‏١٫٣ مليون US$");
-        expect(ar.format(12000000)).toBe("‏١٢ مليون US$");
-        expect(ar.format(12900000)).toBe("‏١٣ مليون US$");
+        expect(ar.format(1200)).toBe("١٫٢ ألف US$");
+        expect(ar.format(1290)).toBe("١٫٣ ألف US$");
+        expect(ar.format(12000)).toBe("١٢ ألف US$");
+        expect(ar.format(12900)).toBe("١٣ ألف US$");
+        expect(ar.format(1200000)).toBe("١٫٢ مليون US$");
+        expect(ar.format(1290000)).toBe("١٫٣ مليون US$");
+        expect(ar.format(12000000)).toBe("١٢ مليون US$");
+        expect(ar.format(12900000)).toBe("١٣ مليون US$");
 
         const ja = new Intl.NumberFormat("ja", {
             style: "currency",

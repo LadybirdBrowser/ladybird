@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -31,7 +31,7 @@ private:
 };
 
 ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM&, NumberFormat&, Value locales_value, Value options_value);
-ThrowCompletionOr<void> set_number_format_digit_options(VM&, NumberFormatBase& intl_object, Object const& options, int default_min_fraction_digits, int default_max_fraction_digits, NumberFormat::Notation notation);
+ThrowCompletionOr<void> set_number_format_digit_options(VM&, NumberFormatBase& intl_object, Object const& options, int default_min_fraction_digits, int default_max_fraction_digits, ::Locale::Notation notation);
 ThrowCompletionOr<void> set_number_format_unit_options(VM&, NumberFormat& intl_object, Object const& options);
 
 }
