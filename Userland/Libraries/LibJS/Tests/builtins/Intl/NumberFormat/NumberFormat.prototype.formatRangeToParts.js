@@ -135,13 +135,13 @@ describe("correct behavior", () => {
         const en = new Intl.NumberFormat("en");
         expect(en.formatRangeToParts(1, -Infinity)).toEqual([
             { type: "integer", value: "1", source: "startRange" },
-            { type: "literal", value: " – ", source: "shared" },
+            { type: "literal", value: "–", source: "shared" },
             { type: "minusSign", value: "-", source: "endRange" },
             { type: "infinity", value: "∞", source: "endRange" },
         ]);
         expect(en.formatRangeToParts(Infinity, -Infinity)).toEqual([
             { type: "infinity", value: "∞", source: "startRange" },
-            { type: "literal", value: " – ", source: "shared" },
+            { type: "literal", value: "–", source: "shared" },
             { type: "minusSign", value: "-", source: "endRange" },
             { type: "infinity", value: "∞", source: "endRange" },
         ]);
@@ -156,13 +156,13 @@ describe("correct behavior", () => {
         const ja = new Intl.NumberFormat("ja");
         expect(ja.formatRangeToParts(1, -Infinity)).toEqual([
             { type: "integer", value: "1", source: "startRange" },
-            { type: "literal", value: " ～ ", source: "shared" },
+            { type: "literal", value: "～", source: "shared" },
             { type: "minusSign", value: "-", source: "endRange" },
             { type: "infinity", value: "∞", source: "endRange" },
         ]);
         expect(ja.formatRangeToParts(Infinity, -Infinity)).toEqual([
             { type: "infinity", value: "∞", source: "startRange" },
-            { type: "literal", value: " ～ ", source: "shared" },
+            { type: "literal", value: "～", source: "shared" },
             { type: "minusSign", value: "-", source: "endRange" },
             { type: "infinity", value: "∞", source: "endRange" },
         ]);

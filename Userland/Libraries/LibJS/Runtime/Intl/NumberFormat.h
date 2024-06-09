@@ -194,10 +194,8 @@ Vector<::Locale::NumberFormat::Partition> partition_number_pattern(NumberFormat 
 String format_numeric(NumberFormat const&, MathematicalValue const& number);
 NonnullGCPtr<Array> format_numeric_to_parts(VM&, NumberFormat const&, MathematicalValue const& number);
 ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM&, Value value);
-ThrowCompletionOr<Vector<PatternPartitionWithSource>> partition_number_range_pattern(VM&, NumberFormat&, MathematicalValue start, MathematicalValue end);
-Vector<PatternPartitionWithSource> format_approximately(NumberFormat&, Vector<PatternPartitionWithSource> result);
-Vector<PatternPartitionWithSource> collapse_number_range(Vector<PatternPartitionWithSource> result);
-ThrowCompletionOr<String> format_numeric_range(VM&, NumberFormat&, MathematicalValue start, MathematicalValue end);
-ThrowCompletionOr<NonnullGCPtr<Array>> format_numeric_range_to_parts(VM&, NumberFormat&, MathematicalValue start, MathematicalValue end);
+ThrowCompletionOr<Vector<::Locale::NumberFormat::Partition>> partition_number_range_pattern(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);
+ThrowCompletionOr<String> format_numeric_range(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);
+ThrowCompletionOr<NonnullGCPtr<Array>> format_numeric_range_to_parts(VM&, NumberFormat const&, MathematicalValue const& start, MathematicalValue const& end);
 
 }
