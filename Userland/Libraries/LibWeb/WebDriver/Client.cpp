@@ -252,7 +252,7 @@ ErrorOr<JsonValue, Client::WrappedError> Client::read_body_as_json()
     // FIXME: Check the Content-Type is actually application/json.
     size_t content_length = 0;
 
-    for (auto const& header : m_request->headers()) {
+    for (auto const& header : m_request->headers().headers()) {
         if (header.name.equals_ignoring_ascii_case("Content-Length"sv)) {
             content_length = header.value.to_number<size_t>(TrimWhitespace::Yes).value_or(0);
             break;
@@ -281,7 +281,7 @@ ErrorOr<void, Client::WrappedError> Client::handle_request(JsonValue body)
 ErrorOr<void, Client::WrappedError> Client::send_success_response(JsonValue result)
 {
     bool keep_alive = false;
-    if (auto it = m_request->headers().find_if([](auto& header) { return header.name.equals_ignoring_ascii_case("Connection"sv); }); !it.is_end())
+    if (auto it = m_request->headers().headers().find_if([](auto& header) { return header.name.equals_ignoring_ascii_case("Connection"sv); }); !it.is_end())
         keep_alive = it->value.trim_whitespace().equals_ignoring_ascii_case("keep-alive"sv);
 
     result = make_success_response(move(result));
