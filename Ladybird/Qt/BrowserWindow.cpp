@@ -186,7 +186,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     auto* zoom_in_action = new QAction("Zoom &In", this);
     zoom_in_action->setIcon(load_icon_from_uri("resource://icons/16x16/zoom-in.png"sv));
     auto zoom_in_shortcuts = QKeySequence::keyBindings(QKeySequence::StandardKey::ZoomIn);
-    zoom_in_shortcuts.append(QKeySequence(Qt::CTRL | Qt::Key_Equal));
+    auto secondary_zoom_shortcut = QKeySequence(Qt::CTRL | Qt::Key_Equal);
+    if (!zoom_in_shortcuts.contains(secondary_zoom_shortcut))
+        zoom_in_shortcuts.append(AK::move(secondary_zoom_shortcut));
+
     zoom_in_action->setShortcuts(zoom_in_shortcuts);
     m_zoom_menu->addAction(zoom_in_action);
     QObject::connect(zoom_in_action, &QAction::triggered, this, &BrowserWindow::zoom_in);
