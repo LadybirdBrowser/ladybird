@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -40,7 +40,6 @@ struct ResolvedPlurality {
 ::Locale::PluralOperands get_operands(StringView string);
 ::Locale::PluralCategory plural_rule_select(StringView locale, ::Locale::PluralForm type, Value number, ::Locale::PluralOperands operands);
 ResolvedPlurality resolve_plural(PluralRules const&, Value number);
-ResolvedPlurality resolve_plural(NumberFormatBase const& number_format, ::Locale::PluralForm type, Value number);
 ::Locale::PluralCategory plural_rule_select_range(StringView locale, ::Locale::PluralForm, ::Locale::PluralCategory start, ::Locale::PluralCategory end);
 ThrowCompletionOr<::Locale::PluralCategory> resolve_plural_range(VM&, PluralRules const&, Value start, Value end);
 

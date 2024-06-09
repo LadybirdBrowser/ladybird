@@ -56,7 +56,8 @@ struct PatternPartition {
 };
 
 struct PatternPartitionWithSource : public PatternPartition {
-    static Vector<PatternPartitionWithSource> create_from_parent_list(Vector<PatternPartition> partitions)
+    template<typename ParentList>
+    static Vector<PatternPartitionWithSource> create_from_parent_list(ParentList partitions)
     {
         Vector<PatternPartitionWithSource> result;
         result.ensure_capacity(partitions.size());

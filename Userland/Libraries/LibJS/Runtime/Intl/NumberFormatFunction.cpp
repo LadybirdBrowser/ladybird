@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -46,7 +46,7 @@ ThrowCompletionOr<Value> NumberFormatFunction::call()
     auto mathematical_value = TRY(to_intl_mathematical_value(vm, value));
 
     // 5. Return ? FormatNumeric(nf, x).
-    auto formatted = format_numeric(vm, m_number_format, move(mathematical_value));
+    auto formatted = format_numeric(m_number_format, move(mathematical_value));
     return PrimitiveString::create(vm, move(formatted));
 }
 

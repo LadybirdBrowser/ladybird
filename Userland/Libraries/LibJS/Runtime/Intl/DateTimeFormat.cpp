@@ -541,7 +541,7 @@ ThrowCompletionOr<Vector<PatternPartition>> format_date_time_pattern(VM& vm, Dat
             value = floor(value * pow(10, static_cast<int>(*fractional_second_digits) - 3));
 
             // iii. Let fv be FormatNumeric(nf3, v).
-            auto formatted_value = format_numeric(vm, *number_format3, Value(value));
+            auto formatted_value = format_numeric(*number_format3, Value(value));
 
             // iv. Append a new Record { [[Type]]: "fractionalSecond", [[Value]]: fv } as the last element of result.
             result.append({ "fractionalSecond"sv, move(formatted_value) });
@@ -625,13 +625,13 @@ ThrowCompletionOr<Vector<PatternPartition>> format_date_time_pattern(VM& vm, Dat
             // viii. If f is "numeric", then
             case ::Locale::CalendarPatternStyle::Numeric:
                 // 1. Let fv be FormatNumeric(nf, v).
-                formatted_value = format_numeric(vm, *number_format, Value(value));
+                formatted_value = format_numeric(*number_format, Value(value));
                 break;
 
             // ix. Else if f is "2-digit", then
             case ::Locale::CalendarPatternStyle::TwoDigit:
                 // 1. Let fv be FormatNumeric(nf2, v).
-                formatted_value = format_numeric(vm, *number_format2, Value(value));
+                formatted_value = format_numeric(*number_format2, Value(value));
 
                 // 2. If the "length" property of fv is greater than 2, let fv be the substring of fv containing the last two characters.
                 // NOTE: The first length check here isn't enough, but lets us avoid UTF-16 transcoding when the formatted value is ASCII.
