@@ -28,6 +28,6 @@ interface HTMLTrackElement : HTMLElement {
     // FIXME: [const unsigned short ERROR = 3;
     [FIXME] readonly attribute unsigned short readyState;
 
-    [FIXME] readonly attribute TextTrack track;
+    readonly attribute TextTrack track;
 
 };

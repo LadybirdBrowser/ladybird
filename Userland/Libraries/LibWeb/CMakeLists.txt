@@ -431,6 +431,7 @@ set(SOURCES
     HTML/SyntaxHighlighter/SyntaxHighlighter.cpp
     HTML/TagNames.cpp
     HTML/TextMetrics.cpp
+    HTML/TextTrack.cpp
     HTML/Timer.cpp
     HTML/TimeRanges.cpp
     HTML/ToggleEvent.cpp
