@@ -112,7 +112,7 @@ void RequestManagerQt::Request::did_finish()
 {
     auto buffer = m_reply.readAll();
     auto http_status_code = m_reply.attribute(QNetworkRequest::Attribute::HttpStatusCodeAttribute).toInt();
-    HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> response_headers;
+    HTTP::HeaderMap response_headers;
     Vector<ByteString> set_cookie_headers;
     for (auto& it : m_reply.rawHeaderPairs()) {
         auto name = ByteString(it.first.data(), it.first.length());

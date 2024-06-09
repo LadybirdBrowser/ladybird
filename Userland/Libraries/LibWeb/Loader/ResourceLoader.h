@@ -72,13 +72,13 @@ public:
 
     RefPtr<Resource> load_resource(Resource::Type, LoadRequest&);
 
-    using SuccessCallback = JS::SafeFunction<void(ReadonlyBytes, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers, Optional<u32> status_code)>;
-    using ErrorCallback = JS::SafeFunction<void(ByteString const&, Optional<u32> status_code, ReadonlyBytes payload, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers)>;
+    using SuccessCallback = JS::SafeFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
+    using ErrorCallback = JS::SafeFunction<void(ByteString const&, Optional<u32> status_code, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
     using TimeoutCallback = JS::SafeFunction<void()>;
 
     void load(LoadRequest&, SuccessCallback success_callback, ErrorCallback error_callback = nullptr, Optional<u32> timeout = {}, TimeoutCallback timeout_callback = nullptr);
 
-    using OnHeadersReceived = JS::SafeFunction<void(HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers, Optional<u32> status_code)>;
+    using OnHeadersReceived = JS::SafeFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
     using OnDataReceived = JS::SafeFunction<void(ReadonlyBytes data)>;
     using OnComplete = JS::SafeFunction<void(bool success, Optional<StringView> error_message)>;
 
@@ -107,7 +107,7 @@ private:
     static ErrorOr<NonnullRefPtr<ResourceLoader>> try_create(NonnullRefPtr<ResourceLoaderConnector>);
 
     RefPtr<ResourceLoaderConnectorRequest> start_network_request(LoadRequest const&);
-    void handle_network_response_headers(LoadRequest const&, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const&);
+    void handle_network_response_headers(LoadRequest const&, HTTP::HeaderMap const&);
     void finish_network_request(NonnullRefPtr<ResourceLoaderConnectorRequest> const&);
 
     int m_pending_loads { 0 };

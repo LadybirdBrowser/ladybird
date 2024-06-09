@@ -1,3 +1,4 @@
+#include <LibHTTP/HeaderMap.h>
 #include <LibURL/URL.h>
 
 endpoint RequestClient
@@ -5,7 +6,7 @@ endpoint RequestClient
     request_started(i32 request_id, IPC::File fd) =|
     request_progress(i32 request_id, Optional<u64> total_size, u64 downloaded_size) =|
     request_finished(i32 request_id, bool success, u64 total_size) =|
-    headers_became_available(i32 request_id, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> response_headers, Optional<u32> status_code) =|
+    headers_became_available(i32 request_id, HTTP::HeaderMap response_headers, Optional<u32> status_code) =|
 
     // Websocket API
     // FIXME: See if this can be merged with the regular APIs

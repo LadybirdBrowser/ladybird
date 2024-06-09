@@ -11,6 +11,7 @@
 #include <AK/Stream.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Forward.h>
+#include <LibHTTP/HeaderMap.h>
 
 namespace Core {
 
@@ -27,7 +28,7 @@ public:
     virtual ~NetworkJob() override = default;
 
     // Could fire twice, after Headers and after Trailers!
-    Function<void(HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& response_headers, Optional<u32> response_code)> on_headers_received;
+    Function<void(HTTP::HeaderMap const& response_headers, Optional<u32> response_code)> on_headers_received;
     Function<void(bool success)> on_finish;
     Function<void(Optional<u64>, u64)> on_progress;
 

@@ -1985,7 +1985,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                 log_response(status_code, response_headers, ReadonlyBytes {});
             }
 
-            for (auto const& [name, value] : response_headers) {
+            for (auto const& [name, value] : response_headers.headers()) {
                 auto header = Infrastructure::Header::from_string_pair(name, value);
                 response->header_list()->append(move(header));
             }
@@ -2050,7 +2050,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
             auto response = Infrastructure::Response::create(vm);
             response->set_status(status_code.value_or(200));
             response->set_body(move(body));
-            for (auto const& [name, value] : response_headers) {
+            for (auto const& [name, value] : response_headers.headers()) {
                 auto header = Infrastructure::Header::from_string_pair(name, value);
                 response->header_list()->append(move(header));
             }
@@ -2071,7 +2071,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                 response->set_status(status_code.value_or(400));
                 auto [body, _] = TRY_OR_IGNORE(extract_body(realm, data));
                 response->set_body(move(body));
-                for (auto const& [name, value] : response_headers) {
+                for (auto const& [name, value] : response_headers.headers()) {
                     auto header = Infrastructure::Header::from_string_pair(name, value);
                     response->header_list()->append(move(header));
                 }

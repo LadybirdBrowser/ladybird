@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <LibHTTP/HeaderMap.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibProtocol/WebSocket.h>
 #include <LibWebSocket/WebSocket.h>
@@ -42,7 +43,7 @@ private:
     virtual void request_progress(i32, Optional<u64> const&, u64) override;
     virtual void request_finished(i32, bool, u64) override;
     virtual void certificate_requested(i32) override;
-    virtual void headers_became_available(i32, HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const&, Optional<u32> const&) override;
+    virtual void headers_became_available(i32, HTTP::HeaderMap const&, Optional<u32> const&) override;
 
     virtual void websocket_connected(i32) override;
     virtual void websocket_received(i32, bool, ByteBuffer const&) override;

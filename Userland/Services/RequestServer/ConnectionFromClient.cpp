@@ -231,9 +231,8 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
 
 void ConnectionFromClient::did_receive_headers(Badge<Request>, Request& request)
 {
-    auto response_headers = request.response_headers().clone().release_value_but_fixme_should_propagate_errors();
     auto lock = Threading::MutexLocker(m_ipc_mutex);
-    async_headers_became_available(request.id(), move(response_headers), request.status_code());
+    async_headers_became_available(request.id(), request.response_headers(), request.status_code());
 }
 
 void ConnectionFromClient::did_finish_request(Badge<Request>, Request& request, bool success)
