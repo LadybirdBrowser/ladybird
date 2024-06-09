@@ -181,9 +181,13 @@ public:
 
     void clear_selection();
 
-    void find_in_page(String const& query, CaseSensitivity);
-    void find_in_page_next_match();
-    void find_in_page_previous_match();
+    struct FindInPageResult {
+        size_t current_match_index { 0 };
+        Optional<size_t> total_match_count {};
+    };
+    FindInPageResult find_in_page(String const& query, CaseSensitivity);
+    FindInPageResult find_in_page_next_match();
+    FindInPageResult find_in_page_previous_match();
 
 private:
     explicit Page(JS::NonnullGCPtr<PageClient>);

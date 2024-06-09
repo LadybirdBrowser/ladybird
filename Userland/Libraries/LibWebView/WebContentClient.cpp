@@ -78,6 +78,14 @@ void WebContentClient::did_finish_text_test(u64 page_id)
     }
 }
 
+void WebContentClient::did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> const& total_match_count)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_find_in_page)
+            view->on_find_in_page(current_match_index, total_match_count);
+    }
+}
+
 void WebContentClient::did_request_navigate_back(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
