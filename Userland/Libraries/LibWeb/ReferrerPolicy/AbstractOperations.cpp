@@ -30,7 +30,7 @@ ReferrerPolicy parse_a_referrer_policy_from_a_referrer_policy_header(Fetch::Infr
     // 3. For each token in policy-tokens, if token is a referrer policy and token is not the empty string, then set policy to token.
     for (auto token : policy_tokens) {
         auto referrer_policy = from_string(token);
-        if (referrer_policy.has_value() && referrer_policy.release_value() != ReferrerPolicy::EmptyString)
+        if (referrer_policy.has_value() && referrer_policy.value() != ReferrerPolicy::EmptyString)
             policy = referrer_policy.release_value();
     }
 
