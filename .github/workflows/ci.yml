@@ -8,7 +8,7 @@ concurrency:
 
 jobs:
   Lagom:
-    if: github.repository == 'LadybirdWebBrowser/ladybird'
+    if: github.repository == 'LadybirdBrowser/ladybird'
 
     strategy:
       fail-fast: false

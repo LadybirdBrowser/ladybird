@@ -22,7 +22,7 @@ FROM fedora:39 AS serenity-build
 
 WORKDIR /home
 RUN dnf install -y clang cmake git-core ninja-build
-RUN git clone --depth=1 https://github.com/LadybirdWebBrowser/ladybird
+RUN git clone --depth=1 https://github.com/LadybirdBrowser/ladybird
 
 RUN cd ladybird/Meta/Lagom && ./BuildFuzzers.sh
 

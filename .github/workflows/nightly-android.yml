@@ -20,7 +20,7 @@ concurrency:
 jobs:
   CI:
     runs-on: ${{ matrix.os }}
-    if: always() && github.repository == 'LadybirdWebBrowser/ladybird' && github.ref == 'refs/heads/master'
+    if: always() && github.repository == 'LadybirdBrowser/ladybird' && github.ref == 'refs/heads/master'
     strategy:
       fail-fast: false
       matrix:

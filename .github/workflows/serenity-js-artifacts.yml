@@ -11,7 +11,7 @@ env:
 jobs:
   build-and-package:
     runs-on: ${{ matrix.os }}
-    if: always() && github.repository == 'LadybirdWebBrowser/ladybird' && github.ref == 'refs/heads/master'
+    if: always() && github.repository == 'LadybirdBrowser/ladybird' && github.ref == 'refs/heads/master'
     strategy:
       fail-fast: false
       matrix:
@@ -28,7 +28,7 @@ jobs:
       cancel-in-progress: true
 
     steps:
-      - name: Checkout LadybirdWebBrowser/ladybird
+      - name: Checkout LadybirdBrowser/ladybird
         uses: actions/checkout@v4
 
       - name: "Set up environment"

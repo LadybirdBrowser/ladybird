@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
     steps:
-      - name: Checkout LadybirdWebBrowser/ladybird
+      - name: Checkout LadybirdBrowser/ladybird
         uses: actions/checkout@v4
 
       - name: Checkout SerenityOS/libjs-data libjs-wasm
