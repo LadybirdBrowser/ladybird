@@ -9,6 +9,7 @@
 #include "WebContentView.h"
 #include <LibWebView/Forward.h>
 #include <QCheckBox>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QWidget>
@@ -22,6 +23,8 @@ class FindInPageWidget final : public QWidget {
 
 public:
     FindInPageWidget(Tab* tab, WebContentView* content_view);
+
+    void update_result_label(size_t current_match_index, Optional<size_t> const& total_match_count);
 
     virtual ~FindInPageWidget() override;
 
@@ -43,6 +46,7 @@ private:
     QPushButton* m_next_button { nullptr };
     QPushButton* m_exit_button { nullptr };
     QCheckBox* m_match_case { nullptr };
+    QLabel* m_result_label { nullptr };
 };
 
 }

@@ -66,10 +66,15 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
         find_text_changed();
     });
 
+    m_result_label = new QLabel(this);
+    m_result_label->setVisible(false);
+    m_result_label->setStyleSheet("font-weight: bold;");
+
     layout->addWidget(m_find_text, 1);
     layout->addWidget(m_previous_button);
     layout->addWidget(m_next_button);
     layout->addWidget(m_match_case);
+    layout->addWidget(m_result_label);
     layout->addStretch(1);
     layout->addWidget(m_exit_button);
 }
@@ -121,6 +126,20 @@ void FindInPageWidget::hideEvent(QHideEvent*)
 {
     if (m_tab && m_tab->isVisible())
         m_tab->update_hover_label();
+}
+
+void FindInPageWidget::update_result_label(size_t current_match_index, Optional<size_t> const& total_match_count)
+{
+    if (total_match_count.has_value()) {
+        auto label_text = "Phrase not found"_string;
+        if (total_match_count.value() > 0)
+            label_text = MUST(String::formatted("{} of {} matches", current_match_index + 1, total_match_count.value()));
+
+        m_result_label->setText(qstring_from_ak_string(label_text));
+        m_result_label->setVisible(true);
+    } else {
+        m_result_label->setVisible(false);
+    }
 }
 
 }

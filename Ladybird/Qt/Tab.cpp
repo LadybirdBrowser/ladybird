@@ -315,6 +315,10 @@ Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, St
         view().file_picker_closed(std::move(selected_files));
     };
 
+    view().on_find_in_page = [this](auto current_match_index, auto const& total_match_count) {
+        m_find_in_page->update_result_label(current_match_index, total_match_count);
+    };
+
     m_select_dropdown = new QMenu("Select Dropdown", this);
     QObject::connect(m_select_dropdown, &QMenu::aboutToHide, this, [this]() {
         if (!m_select_dropdown->activeAction())
