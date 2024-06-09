@@ -470,6 +470,7 @@ class Storage;
 class SubmitEvent;
 class TextMetrics;
 class TextTrack;
+class TextTrackList;
 class Timer;
 class TimeRanges;
 class ToggleEvent;

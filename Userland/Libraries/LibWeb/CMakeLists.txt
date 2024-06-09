@@ -432,6 +432,7 @@ set(SOURCES
     HTML/TagNames.cpp
     HTML/TextMetrics.cpp
     HTML/TextTrack.cpp
+    HTML/TextTrackList.cpp
     HTML/Timer.cpp
     HTML/TimeRanges.cpp
     HTML/ToggleEvent.cpp
