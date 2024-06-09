@@ -1877,7 +1877,7 @@ static void log_load_request(auto const& load_request)
 static void log_response(auto const& status_code, auto const& headers, auto const& data)
 {
     dbgln("< HTTP/1.1 {}", status_code.value_or(0));
-    for (auto const& [name, value] : headers)
+    for (auto const& [name, value] : headers.headers())
         dbgln("< {}: {}", name, value);
     dbgln("<");
     for (auto line : StringView { data }.split_view('\n', SplitBehavior::KeepEmpty))
