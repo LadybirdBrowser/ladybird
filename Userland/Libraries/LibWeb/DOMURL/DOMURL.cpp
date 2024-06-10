@@ -548,7 +548,8 @@ HTML::Origin url_origin(URL::URL const& url)
     }
 
     // -> "file"
-    if (url.scheme() == "file"sv) {
+    // AD-HOC: Our resource:// is basically an alias to file://
+    if (url.scheme() == "file"sv || url.scheme() == "resource"sv) {
         // Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.
         // Note: We must return an origin with the `file://' protocol for `file://' iframes to work from `file://' pages.
         return HTML::Origin(url.scheme().to_byte_string(), String {}, 0);

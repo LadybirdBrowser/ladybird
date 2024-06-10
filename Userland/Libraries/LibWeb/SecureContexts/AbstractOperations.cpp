@@ -54,7 +54,8 @@ Trustworthiness is_origin_potentially_trustworthy(HTML::Origin const& origin)
     }
 
     // 6. If origin’s scheme is "file", return "Potentially Trustworthy".
-    if (origin.scheme() == "file"sv)
+    // AD-HOC: Our resource:// is basically an alias to file://
+    if (origin.scheme() == "file"sv || origin.scheme() == "resource"sv)
         return Trustworthiness::PotentiallyTrustworthy;
 
     // 7. If origin’s scheme component is one which the user agent considers to be authenticated, return "Potentially Trustworthy".
