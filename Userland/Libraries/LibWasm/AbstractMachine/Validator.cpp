@@ -41,6 +41,10 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
         m_context.types.extend(section.types());
     });
 
+    module.for_each_section_of_type<DataCountSection>([this](DataCountSection const& section) {
+        m_context.data_count = section.count();
+    });
+
     module.for_each_section_of_type<ImportSection>([&](ImportSection const& section) {
         for (auto& import_ : section.imports()) {
             import_.description().visit(
@@ -177,6 +181,8 @@ ErrorOr<void, ValidationError> Validator::validate(StartSection const& section)
 
 ErrorOr<void, ValidationError> Validator::validate(DataSection const& section)
 {
+    if (m_context.data_count.has_value() && section.data().size() != m_context.data_count)
+        return Errors::invalid("data count does not match segment count"sv);
     for (auto& entry : section.data()) {
         TRY(entry.value().visit(
             [](DataSection::Data::Passive const&) { return ErrorOr<void, ValidationError> {}; },

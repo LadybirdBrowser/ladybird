@@ -27,6 +27,7 @@ struct Context {
     COWVector<bool> datas;
     COWVector<ValueType> locals;
     COWVector<ResultType> labels;
+    Optional<u32> data_count;
     Optional<ResultType> return_;
     AK::HashTable<FunctionIndex> references;
     size_t imported_function_count { 0 };
