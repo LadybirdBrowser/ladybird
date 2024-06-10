@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
@@ -155,7 +156,52 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     Vector<Vector<Reference>> elements;
     ModuleInstance auxiliary_instance;
 
-    // FIXME: Check that imports/extern match
+    module.for_each_section_of_type<ImportSection>([&](ImportSection const& section) {
+        for (auto [i, import_] : enumerate(section.imports())) {
+            auto extern_ = externs.at(i);
+            auto is_valid = import_.description().visit(
+                [&](MemoryType const& mem_type) -> bool {
+                    if (!extern_.has<MemoryAddress>())
+                        return false;
+                    auto other_mem_type = m_store.get(extern_.get<MemoryAddress>())->type();
+                    return other_mem_type.limits().is_subset_of(mem_type.limits());
+                },
+                [&](TableType const& table_type) -> bool {
+                    if (!extern_.has<TableAddress>())
+                        return false;
+                    auto other_table_type = m_store.get(extern_.get<TableAddress>())->type();
+                    return table_type.element_type() == other_table_type.element_type()
+                        && other_table_type.limits().is_subset_of(table_type.limits());
+                },
+                [&](GlobalType const& global_type) -> bool {
+                    if (!extern_.has<GlobalAddress>())
+                        return false;
+                    auto other_global_type = m_store.get(extern_.get<GlobalAddress>())->type();
+                    return global_type.type() == other_global_type.type()
+                        && global_type.is_mutable() == other_global_type.is_mutable();
+                },
+                [&](FunctionType const& type) -> bool {
+                    if (!extern_.has<FunctionAddress>())
+                        return false;
+                    auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
+                    return type.results() == other_type.results()
+                        && type.parameters() == other_type.parameters();
+                },
+                [&](TypeIndex type_index) -> bool {
+                    if (!extern_.has<FunctionAddress>())
+                        return false;
+                    auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
+                    auto& type = module.type(type_index);
+                    return type.results() == other_type.results()
+                        && type.parameters() == other_type.parameters();
+                });
+            if (!is_valid)
+                instantiation_result = InstantiationError { "Import and extern do not match" };
+        }
+    });
+
+    if (instantiation_result.has_value())
+        return instantiation_result.release_value();
 
     for (auto& entry : externs) {
         if (auto* ptr = entry.get_pointer<GlobalAddress>())

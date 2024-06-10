@@ -258,6 +258,11 @@ public:
 
     auto min() const { return m_min; }
     auto& max() const { return m_max; }
+    bool is_subset_of(Limits other) const
+    {
+        return m_min >= other.min()
+            && (!other.max().has_value() || (m_max.has_value() && *m_max <= *other.max()));
+    }
 
     static ParseResult<Limits> parse(Stream& stream);
 
