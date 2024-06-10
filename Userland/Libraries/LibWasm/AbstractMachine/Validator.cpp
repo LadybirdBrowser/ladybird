@@ -97,6 +97,7 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
         for (auto& table : section.tables())
             m_context.tables.append(table.type());
     });
+
     module.for_each_section_of_type<MemorySection>([this](MemorySection const& section) {
         m_context.memories.ensure_capacity(m_context.memories.size() + section.memories().size());
         for (auto& memory : section.memories())
@@ -142,6 +143,16 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
         for (auto& segment : section.entries())
             scan_expression_for_function_indices(segment.expression());
     });
+    bool seen_start_section = false;
+    module.for_each_section_of_type<StartSection>([&](StartSection const&) {
+        if (seen_start_section)
+            result = Errors::multiple_start_sections();
+        seen_start_section = true;
+    });
+    if (result.is_error()) {
+        module.set_validation_status(Module::ValidationStatus::Invalid, {});
+        return result;
+    }
 
     for (auto& section : module.sections()) {
         section.visit([this, &result](auto& section) {
