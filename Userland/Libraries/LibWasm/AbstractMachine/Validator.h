@@ -287,6 +287,7 @@ private:
         }
 
         static ValidationError duplicate_export_name(StringView name) { return ByteString::formatted("Duplicate exported name '{}'", name); }
+        static ValidationError multiple_start_sections() { return ByteString("Found multiple start sections"sv); }
 
         template<typename T, typename U, typename V>
         static ValidationError out_of_bounds(StringView name, V value, T min, U max) { return ByteString::formatted("Value {} for {} is out of bounds ({},{})", value, name, min, max); }
