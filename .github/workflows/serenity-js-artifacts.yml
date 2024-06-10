@@ -56,12 +56,14 @@ jobs:
         env:
           CCACHE_DIR: ${{ env.SERENITY_CCACHE_DIR }}
 
+      # FIXME: Add the following flag back when vcpkg supports Universal binaries:
+      #        -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+      #
+      #        See: https://github.com/microsoft/vcpkg/discussions/19454
       - name: Create build directory macOS
         run: |
-          # Note: We are using Apple Clang to create Universal binary
           cmake --preset CI -B Build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0"
         if: ${{ matrix.os == 'macos-14' }}
         env:
