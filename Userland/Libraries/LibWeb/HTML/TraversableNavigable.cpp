@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/CommandExecutorCPU.h>
+#include <LibWeb/Painting/CommandExecutorSkia.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 #ifdef HAS_ACCELERATED_GRAPHICS
@@ -1199,6 +1200,9 @@ void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::
             has_warned_about_configuration = true;
         }
 #endif
+    } else if (paint_options.use_skia_painter) {
+        Painting::CommandExecutorSkia painting_command_executor(target);
+        painting_commands.execute(painting_command_executor);
     } else {
         Web::Painting::CommandExecutorCPU painting_command_executor(target, paint_options.use_experimental_cpu_transform_support);
         painting_commands.execute(painting_command_executor);

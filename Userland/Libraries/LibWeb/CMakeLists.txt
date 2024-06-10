@@ -538,6 +538,7 @@ set(SOURCES
     Painting/CanvasPaintable.cpp
     Painting/Command.cpp
     Painting/CommandExecutorCPU.cpp
+    Painting/CommandExecutorSkia.cpp
     Painting/CommandList.cpp
     Painting/CheckBoxPaintable.cpp
     Painting/ClippableAndScrollable.cpp
@@ -748,9 +749,11 @@ set(GENERATED_SOURCES
     Worker/WebWorkerServerEndpoint.h
 )
 
+find_package(unofficial-skia CONFIG REQUIRED)
+
 serenity_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibLocale LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibVideo LibWasm LibXML LibIDL LibURL LibTLS)
+target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibLocale LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibVideo LibWasm LibXML LibIDL LibURL LibTLS unofficial::skia::skia)
 
 if (HAS_ACCELERATED_GRAPHICS)
     target_link_libraries(LibWeb PRIVATE ${ACCEL_GFX_LIBS})
