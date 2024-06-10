@@ -126,7 +126,7 @@ DecoderErrorOr<Optional<Duration>> MatroskaDemuxer::seek_to_most_recent_keyframe
     return track_status.iterator.last_timestamp();
 }
 
-DecoderErrorOr<NonnullOwnPtr<Sample>> MatroskaDemuxer::get_next_sample_for_track(Track track)
+DecoderErrorOr<Sample> MatroskaDemuxer::get_next_sample_for_track(Track track)
 {
     // FIXME: This makes a copy of the sample, which shouldn't be necessary.
     //        Matroska should make a RefPtr<ByteBuffer>, probably.
@@ -137,7 +137,7 @@ DecoderErrorOr<NonnullOwnPtr<Sample>> MatroskaDemuxer::get_next_sample_for_track
         status.frame_index = 0;
     }
     auto cicp = TRY(m_reader.track_for_track_number(track.identifier())).video_track()->color_format.to_cicp();
-    return make<Video::VideoSample>(status.block->frame(status.frame_index++), cicp, status.block->timestamp());
+    return Sample(status.block->timestamp(), status.block->frame(status.frame_index++), Video::VideoSampleData(cicp));
 }
 
 DecoderErrorOr<Duration> MatroskaDemuxer::duration()

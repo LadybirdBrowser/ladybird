@@ -8,10 +8,10 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventReceiver.h>
-#include <LibMedia/Video/VideoSample.h>
 
 #include "CodecID.h"
 #include "DecoderError.h"
+#include "Sample.h"
 #include "Track.h"
 
 namespace Media {
@@ -22,13 +22,7 @@ public:
 
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) = 0;
 
-    DecoderErrorOr<NonnullOwnPtr<Video::VideoSample>> get_next_video_sample_for_track(Track track)
-    {
-        VERIFY(track.type() == TrackType::Video);
-        auto sample = TRY(get_next_sample_for_track(track));
-        VERIFY(sample->is_video_sample());
-        return sample.release_nonnull<Video::VideoSample>();
-    }
+    virtual DecoderErrorOr<Sample> get_next_sample_for_track(Track track) = 0;
 
     virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) = 0;
 
@@ -38,9 +32,6 @@ public:
     virtual DecoderErrorOr<Optional<Duration>> seek_to_most_recent_keyframe(Track track, Duration timestamp, Optional<Duration> earliest_available_sample = OptionalNone()) = 0;
 
     virtual DecoderErrorOr<Duration> duration() = 0;
-
-protected:
-    virtual DecoderErrorOr<NonnullOwnPtr<Sample>> get_next_sample_for_track(Track track) = 0;
 };
 
 }

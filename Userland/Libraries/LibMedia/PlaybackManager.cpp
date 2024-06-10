@@ -205,7 +205,7 @@ void PlaybackManager::decode_and_queue_one_sample()
         auto sample_result = [&]() {
             // FIXME: Implement and use a class to enforce that this field is accessed through a mutex (like Kernel::MutexProtected).
             Threading::MutexLocker demuxer_locker(m_demuxer_mutex);
-            return m_demuxer->get_next_video_sample_for_track(m_selected_video_track);
+            return m_demuxer->get_next_sample_for_track(m_selected_video_track);
         }();
         if (sample_result.is_error()) {
             item_to_enqueue = FrameQueueItem::error_marker(sample_result.release_error(), FrameQueueItem::no_timestamp);
@@ -214,9 +214,9 @@ void PlaybackManager::decode_and_queue_one_sample()
         auto sample = sample_result.release_value();
 
         // Submit the sample to the decoder.
-        auto decode_result = m_decoder->receive_sample(sample->data());
+        auto decode_result = m_decoder->receive_sample(sample.data());
         if (decode_result.is_error()) {
-            item_to_enqueue = FrameQueueItem::error_marker(decode_result.release_error(), sample->timestamp());
+            item_to_enqueue = FrameQueueItem::error_marker(decode_result.release_error(), sample.timestamp());
             break;
         }
 
@@ -230,7 +230,7 @@ void PlaybackManager::decode_and_queue_one_sample()
                     break;
                 }
 
-                item_to_enqueue = FrameQueueItem::error_marker(frame_result.release_error(), sample->timestamp());
+                item_to_enqueue = FrameQueueItem::error_marker(frame_result.release_error(), sample.timestamp());
                 break;
             }
 
@@ -240,7 +240,7 @@ void PlaybackManager::decode_and_queue_one_sample()
         // Convert the frame for display.
         if (decoded_frame != nullptr) {
             auto& cicp = decoded_frame->cicp();
-            cicp.adopt_specified_values(sample->container_cicp());
+            cicp.adopt_specified_values(sample.auxiliary_data().get<Video::VideoSampleData>().container_cicp());
             cicp.default_code_points_if_unspecified({ ColorPrimaries::BT709, TransferCharacteristics::BT709, MatrixCoefficients::BT709, VideoFullRangeFlag::Studio });
 
             // BT.601, BT.709 and BT.2020 have a similar transfer function to sRGB, so other applications
@@ -261,9 +261,9 @@ void PlaybackManager::decode_and_queue_one_sample()
             auto bitmap_result = decoded_frame->to_bitmap();
 
             if (bitmap_result.is_error())
-                item_to_enqueue = FrameQueueItem::error_marker(bitmap_result.release_error(), sample->timestamp());
+                item_to_enqueue = FrameQueueItem::error_marker(bitmap_result.release_error(), sample.timestamp());
             else
-                item_to_enqueue = FrameQueueItem::frame(bitmap_result.release_value(), sample->timestamp());
+                item_to_enqueue = FrameQueueItem::frame(bitmap_result.release_value(), sample.timestamp());
             break;
         }
     }

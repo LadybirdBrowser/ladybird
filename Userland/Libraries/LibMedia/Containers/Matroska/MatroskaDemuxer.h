@@ -35,8 +35,7 @@ public:
 
     DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) override;
 
-protected:
-    DecoderErrorOr<NonnullOwnPtr<Sample>> get_next_sample_for_track(Track track) override;
+    DecoderErrorOr<Sample> get_next_sample_for_track(Track track) override;
 
 private:
     struct TrackStatus {
