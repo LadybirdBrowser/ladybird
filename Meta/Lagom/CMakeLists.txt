@@ -409,6 +409,7 @@ set(lagom_standard_libraries
     JS
     Line
     Locale
+    Media
     Protocol
     Regex
     RIFF
@@ -416,7 +417,6 @@ set(lagom_standard_libraries
     TextCodec
     Threading
     TLS
-    Video
     Wasm
     Web
     WebSocket
@@ -526,13 +526,13 @@ if (BUILD_TESTING)
         LibCompress
         LibGfx
         LibLocale
+        LibMedia
         LibTest
         LibTextCodec
         LibTTF
         LibTimeZone
         LibUnicode
         LibURL
-        LibVideo
         LibWeb
         LibWebView
         LibXML

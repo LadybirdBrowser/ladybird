@@ -5,4 +5,4 @@ add_executable(VideoPlayerSDL
 )
 
 target_include_directories(VideoPlayerSDL PRIVATE ${SDL2_INCLUDE_DIRS})
-target_link_libraries(VideoPlayerSDL PRIVATE LibMain LibCore LibGfx LibVideo SDL2::SDL2)
+target_link_libraries(VideoPlayerSDL PRIVATE LibMain LibCore LibGfx LibMedia SDL2::SDL2)

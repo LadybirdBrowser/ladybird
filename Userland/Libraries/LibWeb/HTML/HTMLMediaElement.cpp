@@ -7,7 +7,7 @@
 
 #include <LibAudio/Loader.h>
 #include <LibJS/Runtime/Promise.h>
-#include <LibVideo/PlaybackManager.h>
+#include <LibMedia/PlaybackManager.h>
 #include <LibWeb/Bindings/HTMLMediaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
@@ -1068,7 +1068,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
     auto& vm = realm.vm();
 
     auto audio_loader = Audio::Loader::create(m_media_data.bytes());
-    auto playback_manager = Video::PlaybackManager::from_data(m_media_data);
+    auto playback_manager = Media::PlaybackManager::from_data(m_media_data);
 
     // -> If the media data cannot be fetched at all, due to network errors, causing the user agent to give up trying to fetch the resource
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
