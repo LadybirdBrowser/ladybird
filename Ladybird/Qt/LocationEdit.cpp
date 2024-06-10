@@ -19,7 +19,10 @@ namespace Ladybird {
 LocationEdit::LocationEdit(QWidget* parent)
     : QLineEdit(parent)
 {
-    setPlaceholderText("Search or enter web address");
+    if (Settings::the()->enable_search())
+        setPlaceholderText("Search or enter web address");
+    else
+        setPlaceholderText("Enter web address");
     m_autocomplete = make<AutoComplete>(this);
     this->setCompleter(m_autocomplete);
 
