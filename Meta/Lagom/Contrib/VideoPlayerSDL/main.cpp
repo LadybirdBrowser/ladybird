@@ -9,7 +9,7 @@
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
 #include <LibMain/Main.h>
-#include <LibVideo/PlaybackManager.h>
+#include <LibMedia/PlaybackManager.h>
 #include <SDL2/SDL.h>
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
@@ -26,7 +26,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     auto file = TRY(Core::File::open(filename, Core::File::OpenMode::Read));
     auto mapped_file = TRY(Core::MappedFile::map_from_file(move(file), filename));
-    auto load_file_result = Video::PlaybackManager::from_mapped_file(move(mapped_file));
+    auto load_file_result = Media::PlaybackManager::from_mapped_file(move(mapped_file));
     if (load_file_result.is_error()) {
         warnln("Failed to decode file {}", filename);
         return 1;

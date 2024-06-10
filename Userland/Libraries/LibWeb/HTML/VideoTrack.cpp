@@ -9,8 +9,8 @@
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibVideo/PlaybackManager.h>
-#include <LibVideo/Track.h>
+#include <LibMedia/PlaybackManager.h>
+#include <LibMedia/Track.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/VideoTrackPrototype.h>
 #include <LibWeb/DOM/Event.h>
@@ -26,7 +26,7 @@ JS_DEFINE_ALLOCATOR(VideoTrack);
 
 static IDAllocator s_video_track_id_allocator;
 
-VideoTrack::VideoTrack(JS::Realm& realm, JS::NonnullGCPtr<HTMLMediaElement> media_element, NonnullOwnPtr<Video::PlaybackManager> playback_manager)
+VideoTrack::VideoTrack(JS::Realm& realm, JS::NonnullGCPtr<HTMLMediaElement> media_element, NonnullOwnPtr<Media::PlaybackManager> playback_manager)
     : PlatformObject(realm)
     , m_media_element(media_element)
     , m_playback_manager(move(playback_manager))
@@ -42,7 +42,7 @@ VideoTrack::VideoTrack(JS::Realm& realm, JS::NonnullGCPtr<HTMLMediaElement> medi
 
     m_playback_manager->on_playback_state_change = [this]() {
         switch (m_playback_manager->get_state()) {
-        case Video::PlaybackState::Stopped: {
+        case Media::PlaybackState::Stopped: {
             auto playback_position_ms = static_cast<double>(duration().to_milliseconds());
             m_media_element->set_current_playback_position(playback_position_ms / 1000.0);
             break;
@@ -117,10 +117,10 @@ void VideoTrack::seek(Duration position, MediaSeekMode seek_mode)
 {
     switch (seek_mode) {
     case MediaSeekMode::Accurate:
-        m_playback_manager->seek_to_timestamp(position, Video::PlaybackManager::SeekMode::Accurate);
+        m_playback_manager->seek_to_timestamp(position, Media::PlaybackManager::SeekMode::Accurate);
         break;
     case MediaSeekMode::ApproximateForSpeed:
-        m_playback_manager->seek_to_timestamp(position, Video::PlaybackManager::SeekMode::Fast);
+        m_playback_manager->seek_to_timestamp(position, Media::PlaybackManager::SeekMode::Fast);
         break;
     }
 }
