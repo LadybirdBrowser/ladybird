@@ -341,7 +341,7 @@ let _field = {module}.getExport("{get.field}");"""
 def gen_register(register: Register, _: Context):
     module = "module"
     if register.name is not None:
-        module = f'namedModules["{module}"]'
+        module = f'namedModules["{register.name}"]'
     print(f'globalImportObject["{register.as_}"] = {module};')
 
 
