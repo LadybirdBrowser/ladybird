@@ -46,11 +46,15 @@ describe("style=decimal", () => {
         expect(en.format(1)).toBe("1");
         expect(en.format(12)).toBe("12");
         expect(en.format(123)).toBe("123");
+        expect(en.format("987654321987654321")).toBe("987,654,321,987,654,321");
 
         const ar = new Intl.NumberFormat("ar");
         expect(ar.format(1)).toBe("\u0661");
         expect(ar.format(12)).toBe("\u0661\u0662");
         expect(ar.format(123)).toBe("\u0661\u0662\u0663");
+        expect(ar.format("987654321987654321")).toBe(
+            "\u0669\u0668\u0667\u066c\u0666\u0665\u0664\u066c\u0663\u0662\u0661\u066c\u0669\u0668\u0667\u066c\u0666\u0665\u0664\u066c\u0663\u0662\u0661"
+        );
     });
 
     test("integer digits", () => {

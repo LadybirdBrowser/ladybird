@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/String.h>
 #include <AK/Variant.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -31,7 +32,7 @@ public:
     {
     }
 
-    explicit MathematicalValue(Crypto::SignedBigInteger value)
+    explicit MathematicalValue(String value)
         : m_value(move(value))
     {
     }
@@ -44,15 +45,15 @@ public:
     MathematicalValue(Value value)
         : m_value(value.is_number()
                   ? value_from_number(value.as_double())
-                  : ValueType(value.as_bigint().big_integer()))
+                  : ValueType(MUST(value.as_bigint().big_integer().to_base(10))))
     {
     }
 
     bool is_number() const;
     double as_number() const;
 
-    bool is_bigint() const;
-    Crypto::SignedBigInteger const& as_bigint() const;
+    bool is_string() const;
+    String const& as_string() const;
 
     bool is_mathematical_value() const;
     bool is_positive_infinity() const;
@@ -63,7 +64,7 @@ public:
     ::Locale::NumberFormat::Value to_value() const;
 
 private:
-    using ValueType = Variant<double, Crypto::SignedBigInteger, Symbol>;
+    using ValueType = Variant<double, String, Symbol>;
 
     static ValueType value_from_number(double number);
 

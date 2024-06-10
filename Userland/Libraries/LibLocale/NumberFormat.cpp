@@ -753,10 +753,8 @@ private:
 
         while (static_cast<bool>(formatted->nextPosition(position, status)) && icu_success(status)) {
             if (position.getCategory() == UFIELD_CATEGORY_NUMBER_RANGE_SPAN) {
-                if (position.getField() == 0)
-                    start_range.emplace(position.getField(), position.getStart(), position.getLimit());
-                else
-                    end_range.emplace(position.getField(), position.getStart(), position.getLimit());
+                auto& range = position.getField() == 0 ? start_range : end_range;
+                range = Range { position.getField(), position.getStart(), position.getLimit() };
             } else {
                 ranges.empend(position.getField(), position.getStart(), position.getLimit());
             }
