@@ -17,12 +17,21 @@ class LocationEdit final : public QLineEdit {
 public:
     explicit LocationEdit(QWidget*);
 
+    URL::URL url() const { return m_url; }
+    void set_url(URL::URL const&);
+
+    bool url_is_hidden() const { return m_url_is_hidden; }
+    void set_url_is_hidden(bool url_is_hidden) { m_url_is_hidden = url_is_hidden; }
+
 private:
     virtual void focusInEvent(QFocusEvent* event) override;
     virtual void focusOutEvent(QFocusEvent* event) override;
 
     void highlight_location();
     AK::OwnPtr<AutoComplete> m_autocomplete;
+
+    URL::URL m_url;
+    bool m_url_is_hidden { false };
 };
 
 }

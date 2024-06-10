@@ -40,7 +40,7 @@ LocationEdit::LocationEdit(QWidget* parent)
         auto query = ak_string_from_qstring(text());
 
         if (auto url = WebView::sanitize_url(query, search_engine_url); url.has_value())
-            setText(qstring_from_ak_string(url->serialize()));
+            set_url(url.release_value());
     });
 
     connect(this, &QLineEdit::textEdited, [this] {
@@ -68,6 +68,11 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
 void LocationEdit::focusOutEvent(QFocusEvent* event)
 {
     QLineEdit::focusOutEvent(event);
+    if (m_url_is_hidden) {
+        m_url_is_hidden = false;
+        if (text().isEmpty())
+            setText(qstring_from_ak_string(m_url.serialize()));
+    }
     highlight_location();
 }
 
@@ -110,6 +115,16 @@ void LocationEdit::highlight_location()
 
     QInputMethodEvent event(QString(), attributes);
     QCoreApplication::sendEvent(this, &event);
+}
+
+void LocationEdit::set_url(URL::URL const& url)
+{
+    m_url = url;
+    if (m_url_is_hidden) {
+        clear();
+    } else {
+        setText(qstring_from_ak_string(url.serialize()));
+    }
 }
 
 }

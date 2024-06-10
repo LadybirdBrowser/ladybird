@@ -648,8 +648,11 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Tab& par
     }
 
     m_tabs_container->addTab(tab, "New Tab");
-    if (activate_tab == Web::HTML::ActivateTab::Yes)
+    if (activate_tab == Web::HTML::ActivateTab::Yes) {
         m_tabs_container->setCurrentWidget(tab);
+        if (m_tabs_container->count() != 1)
+            tab->set_url_is_hidden(true);
+    }
     initialize_tab(tab);
     return *tab;
 }
@@ -663,8 +666,11 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
     }
 
     m_tabs_container->addTab(tab, "New Tab");
-    if (activate_tab == Web::HTML::ActivateTab::Yes)
+    if (activate_tab == Web::HTML::ActivateTab::Yes) {
         m_tabs_container->setCurrentWidget(tab);
+        if (m_tabs_container->count() != 1)
+            tab->set_url_is_hidden(true);
+    }
     initialize_tab(tab);
 
     return *tab;

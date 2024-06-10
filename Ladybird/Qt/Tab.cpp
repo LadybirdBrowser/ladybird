@@ -145,7 +145,7 @@ Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, St
         m_favicon = default_favicon();
         emit favicon_changed(tab_index(), m_favicon);
 
-        m_location_edit->setText(url_serialized);
+        m_location_edit->set_url(url);
         m_location_edit->setCursorPosition(0);
     };
 
@@ -155,7 +155,7 @@ Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, St
     };
 
     view().on_url_change = [this](auto const& url) {
-        m_location_edit->setText(qstring_from_ak_string(url.serialize()));
+        m_location_edit->set_url(url);
     };
 
     QObject::connect(m_location_edit, &QLineEdit::returnPressed, this, &Tab::location_edit_return_pressed);
@@ -863,7 +863,7 @@ void Tab::copy_link_url(URL::URL const& url)
 
 void Tab::location_edit_return_pressed()
 {
-    navigate(ak_url_from_qstring(m_location_edit->text()));
+    navigate(m_location_edit->url());
 }
 
 void Tab::open_file()
