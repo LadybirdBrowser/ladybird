@@ -16,35 +16,6 @@
 
 namespace WebView {
 
-static Optional<URL::URL> query_public_suffix_list(StringView url_string)
-{
-    auto out = MUST(String::from_utf8(url_string));
-    if (!out.starts_with_bytes("about:"sv) && !out.contains("://"sv))
-        out = MUST(String::formatted("https://{}"sv, out));
-
-    auto url = URL::create_with_url_or_path(out.to_byte_string());
-    if (!url.is_valid())
-        return {};
-
-    if (url.host().has<URL::IPv4Address>() || url.host().has<URL::IPv6Address>())
-        return url;
-
-    if (url.scheme() != "http"sv && url.scheme() != "https"sv)
-        return url;
-
-    if (url.host().has<String>()) {
-        auto const& host = url.host().get<String>();
-
-        if (auto public_suffix = get_public_suffix(host); public_suffix.has_value())
-            return url;
-
-        if (host.ends_with_bytes(".local"sv) || host.ends_with_bytes("localhost"sv))
-            return url;
-    }
-
-    return {};
-}
-
 bool is_public_suffix([[maybe_unused]] StringView host)
 {
 #if defined(ENABLE_PUBLIC_SUFFIX)
@@ -90,11 +61,15 @@ Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engi
         }
     }
 
-    auto result = query_public_suffix_list(url);
-    if (!result.has_value())
+    ByteString url_with_scheme = url;
+    if (!(url_with_scheme.starts_with("about:"sv) || url_with_scheme.contains("://"sv)))
+        url_with_scheme = ByteString::formatted("https://{}"sv, url_with_scheme);
+
+    auto result = URL::create_with_url_or_path(url_with_scheme);
+    if (!result.is_valid())
         return format_search_engine();
 
-    return result.release_value();
+    return result;
 }
 
 static URLParts break_file_url_into_parts(URL::URL const& url, StringView url_string)
