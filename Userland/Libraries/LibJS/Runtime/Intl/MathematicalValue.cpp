@@ -19,20 +19,20 @@ double MathematicalValue::as_number() const
     return m_value.get<double>();
 }
 
-bool MathematicalValue::is_bigint() const
+bool MathematicalValue::is_string() const
 {
-    return m_value.has<Crypto::SignedBigInteger>();
+    return m_value.has<String>();
 }
 
-Crypto::SignedBigInteger const& MathematicalValue::as_bigint() const
+String const& MathematicalValue::as_string() const
 {
-    VERIFY(is_bigint());
-    return m_value.get<Crypto::SignedBigInteger>();
+    VERIFY(is_string());
+    return m_value.get<String>();
 }
 
 bool MathematicalValue::is_mathematical_value() const
 {
-    return is_number() || is_bigint();
+    return is_number() || is_string();
 }
 
 bool MathematicalValue::is_positive_infinity() const
@@ -69,8 +69,8 @@ bool MathematicalValue::is_nan() const
         [](double value) -> ::Locale::NumberFormat::Value {
             return value;
         },
-        [](Crypto::SignedBigInteger const& value) -> ::Locale::NumberFormat::Value {
-            return MUST(value.to_base(10));
+        [](String const& value) -> ::Locale::NumberFormat::Value {
+            return value;
         },
         [](auto symbol) -> ::Locale::NumberFormat::Value {
             switch (symbol) {
