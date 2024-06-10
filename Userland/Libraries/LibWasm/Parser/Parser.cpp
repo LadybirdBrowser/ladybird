@@ -1483,12 +1483,17 @@ bool Module::populate_sections()
 {
     auto is_ok = true;
     FunctionSection const* function_section { nullptr };
+    bool seen_code_section = false;
     for_each_section_of_type<FunctionSection>([&](FunctionSection const& section) { function_section = &section; });
     for_each_section_of_type<CodeSection>([&](CodeSection const& section) {
-        if (!function_section) {
+        if (!function_section && section.functions().is_empty()) {
+            return;
+        }
+        if (!function_section || function_section->types().size() != section.functions().size()) {
             is_ok = false;
             return;
         }
+        seen_code_section = true;
         size_t index = 0;
         for (auto& entry : section.functions()) {
             if (function_section->types().size() <= index) {
@@ -1505,6 +1510,8 @@ bool Module::populate_sections()
             ++index;
         }
     });
+    if (!seen_code_section && function_section && !function_section->types().is_empty())
+        return false;
     return is_ok;
 }
 
