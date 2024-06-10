@@ -51,6 +51,8 @@ public:
     ReadonlySpan<ColorStop> color_stops() const { return m_color_stops; }
     Optional<float> repeat_length() const { return m_repeat_length; }
 
+    float scale() const { return m_scale; }
+
     virtual ~SVGGradientPaintStyle() {};
 
 protected:
@@ -70,6 +72,9 @@ public:
     }
 
     NonnullRefPtr<Gfx::SVGGradientPaintStyle> create_gfx_paint_style() const override;
+
+    Gfx::FloatPoint start_point() const { return m_start_point; }
+    Gfx::FloatPoint end_point() const { return m_end_point; }
 
     void set_start_point(Gfx::FloatPoint start_point) { m_start_point = start_point; }
     void set_end_point(Gfx::FloatPoint end_point) { m_end_point = end_point; }

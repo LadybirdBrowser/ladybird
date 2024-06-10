@@ -7,6 +7,7 @@
     },
     "icu",
     "libjpeg-turbo",
+    "skia",
     "sqlite3",
     "woff2"
   ],
@@ -22,6 +23,10 @@
     {
       "name": "libjpeg-turbo",
       "version": "3.0.2"
+    },
+    {
+      "name": "skia",
+      "version": "124#0"
     },
     {
       "name": "sqlite3",
