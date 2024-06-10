@@ -25,9 +25,10 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
         if (result.is_error())
             return;
         for (auto& export_ : section.entries()) {
-            if (seen_export_names.try_set(export_.name()).release_value_but_fixme_should_propagate_errors() != AK::HashSetResult::InsertedNewEntry)
+            if (seen_export_names.try_set(export_.name()).release_value_but_fixme_should_propagate_errors() != AK::HashSetResult::InsertedNewEntry) {
                 result = Errors::duplicate_export_name(export_.name());
-            return;
+                return;
+            }
         }
     });
     if (result.is_error()) {
