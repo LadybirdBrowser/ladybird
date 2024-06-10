@@ -532,6 +532,7 @@ if (BUILD_TESTING)
         LibTTF
         LibTimeZone
         LibUnicode
+        LibURL
         LibVideo
         LibWeb
         LibWebView
