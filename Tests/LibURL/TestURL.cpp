@@ -489,3 +489,24 @@ TEST_CASE(username_and_password)
         EXPECT_EQ(MUST(url.password()), password);
     }
 }
+
+TEST_CASE(ascii_only_url)
+{
+    {
+        constexpr auto upper_case_url = "HTTP://EXAMPLE.COM:80/INDEX.HTML#FRAGMENT"sv;
+        URL::URL url(upper_case_url);
+        EXPECT(url.is_valid());
+        EXPECT_EQ(url.scheme(), "http");
+        EXPECT_EQ(MUST(url.serialized_host()), "example.com"sv);
+        EXPECT_EQ(url.to_byte_string(), "http://example.com/INDEX.HTML#FRAGMENT");
+    }
+
+    {
+        constexpr auto mixed_case_url = "hTtP://eXaMpLe.CoM:80/iNdEx.HtMl#fRaGmEnT"sv;
+        URL::URL url(mixed_case_url);
+        EXPECT(url.is_valid());
+        EXPECT_EQ(url.scheme(), "http");
+        EXPECT_EQ(MUST(url.serialized_host()), "example.com"sv);
+        EXPECT_EQ(url.to_byte_string(), "http://example.com/iNdEx.HtMl#fRaGmEnT");
+    }
+}

@@ -586,7 +586,9 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
         // 3. If result is the empty string, domain-to-ASCII validation error, return failure.
         if (domain.is_empty())
             return Error::from_string_literal("Empty domain");
-        return String::from_utf8_without_validation(domain.bytes());
+
+        auto lowercase_domain = domain.to_lowercase_string();
+        return String::from_utf8_without_validation(lowercase_domain.bytes());
     }
 
     Unicode::IDNA::ToAsciiOptions const options {
