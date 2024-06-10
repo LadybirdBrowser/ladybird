@@ -1950,6 +1950,8 @@ VALIDATE_INSTRUCTION(memory_copy)
 
 VALIDATE_INSTRUCTION(memory_init)
 {
+    if (!m_context.data_count.has_value())
+        return Errors::invalid("memory.init, requires data count section"sv);
 
     auto& args = instruction.arguments().get<Instruction::MemoryInitArgs>();
 
@@ -1963,6 +1965,9 @@ VALIDATE_INSTRUCTION(memory_init)
 
 VALIDATE_INSTRUCTION(data_drop)
 {
+    if (!m_context.data_count.has_value())
+        return Errors::invalid("data.drop, requires data count section"sv);
+
     auto index = instruction.arguments().get<DataIndex>();
     TRY(validate(index));
 
