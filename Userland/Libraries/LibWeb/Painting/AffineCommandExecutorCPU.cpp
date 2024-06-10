@@ -64,16 +64,22 @@ CommandResult AffineCommandExecutorCPU::draw_scaled_immutable_bitmap(DrawScaledI
     return CommandResult::Continue;
 }
 
-CommandResult AffineCommandExecutorCPU::set_clip_rect(SetClipRect const&)
+CommandResult AffineCommandExecutorCPU::save(Save const&)
 {
-    // FIXME: Implement. The plan here is to implement https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
-    // within the rasterizer (which should work as the clip quadrilateral will always be convex).
+    m_painter.save();
     return CommandResult::Continue;
 }
 
-CommandResult AffineCommandExecutorCPU::clear_clip_rect(ClearClipRect const&)
+CommandResult AffineCommandExecutorCPU::restore(Restore const&)
 {
-    // FIXME: Implement.
+    m_painter.restore();
+    return CommandResult::Continue;
+}
+
+CommandResult AffineCommandExecutorCPU::add_clip_rect(AddClipRect const&)
+{
+    // FIXME: Implement. The plan here is to implement https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
+    // within the rasterizer (which should work as the clip quadrilateral will always be convex).
     return CommandResult::Continue;
 }
 

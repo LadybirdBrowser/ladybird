@@ -63,8 +63,8 @@ void CommandList::mark_unnecessary_commands()
                 m_commands[command_index].skip = true;
             }
         } else {
-            // SetClipRect and ClearClipRect commands do not produce visible output
-            auto update_clip_command = command.has<SetClipRect>() || command.has<ClearClipRect>();
+            // Save, Restore and AddClipRect commands do not produce visible output
+            auto update_clip_command = command.has<Save>() || command.has<Restore>() || command.has<AddClipRect>();
             if (sample_blit_ranges.size() > 0 && !update_clip_command) {
                 // If painting command is found for sample_under_corners command on top of the stack, then all
                 // sample_under_corners commands below should also not be skipped.
@@ -154,8 +154,9 @@ void CommandList::execute(CommandExecutor& executor)
         else HANDLE_COMMAND(FillRect, fill_rect)
         else HANDLE_COMMAND(DrawScaledBitmap, draw_scaled_bitmap)
         else HANDLE_COMMAND(DrawScaledImmutableBitmap, draw_scaled_immutable_bitmap)
-        else HANDLE_COMMAND(SetClipRect, set_clip_rect)
-        else HANDLE_COMMAND(ClearClipRect, clear_clip_rect)
+        else HANDLE_COMMAND(AddClipRect, add_clip_rect)
+        else HANDLE_COMMAND(Save, save)
+        else HANDLE_COMMAND(Restore, restore)
         else HANDLE_COMMAND(PushStackingContext, push_stacking_context)
         else HANDLE_COMMAND(PopStackingContext, pop_stacking_context)
         else HANDLE_COMMAND(PaintLinearGradient, paint_linear_gradient)

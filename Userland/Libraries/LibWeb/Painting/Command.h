@@ -92,11 +92,12 @@ struct DrawScaledImmutableBitmap {
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
 };
 
-struct SetClipRect {
+struct Save { };
+struct Restore { };
+
+struct AddClipRect {
     Gfx::IntRect rect;
 };
-
-struct ClearClipRect { };
 
 struct StackingContextTransform {
     Gfx::FloatPoint origin;
@@ -372,8 +373,9 @@ using Command = Variant<
     FillRect,
     DrawScaledBitmap,
     DrawScaledImmutableBitmap,
-    SetClipRect,
-    ClearClipRect,
+    Save,
+    Restore,
+    AddClipRect,
     PushStackingContext,
     PopStackingContext,
     PaintLinearGradient,

@@ -19,8 +19,9 @@ public:
     CommandResult fill_rect(FillRect const&) override;
     CommandResult draw_scaled_bitmap(DrawScaledBitmap const&) override;
     CommandResult draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
-    CommandResult set_clip_rect(SetClipRect const&) override;
-    CommandResult clear_clip_rect(ClearClipRect const&) override;
+    CommandResult save(Save const&) override;
+    CommandResult restore(Restore const&) override;
+    CommandResult add_clip_rect(AddClipRect const&) override;
     CommandResult push_stacking_context(PushStackingContext const&) override;
     CommandResult pop_stacking_context(PopStackingContext const&) override;
     CommandResult paint_linear_gradient(PaintLinearGradient const&) override;

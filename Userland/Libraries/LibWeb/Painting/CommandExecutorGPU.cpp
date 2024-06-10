@@ -89,15 +89,21 @@ CommandResult CommandExecutorGPU::draw_scaled_immutable_bitmap(DrawScaledImmutab
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::set_clip_rect(SetClipRect const& command)
+CommandResult CommandExecutorGPU::save(Save const&)
 {
-    painter().set_clip_rect(command.rect);
+    painter().save();
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::clear_clip_rect(ClearClipRect const&)
+CommandResult CommandExecutorGPU::restore(Restore const&)
 {
-    painter().clear_clip_rect();
+    painter().restore();
+    return CommandResult::Continue;
+}
+
+CommandResult CommandExecutorGPU::add_clip_rect(AddClipRect const& command)
+{
+    painter().set_clip_rect(command.rect);
     return CommandResult::Continue;
 }
 

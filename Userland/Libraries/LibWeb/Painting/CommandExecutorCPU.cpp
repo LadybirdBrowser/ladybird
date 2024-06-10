@@ -107,17 +107,21 @@ CommandResult CommandExecutorCPU::draw_scaled_immutable_bitmap(DrawScaledImmutab
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorCPU::set_clip_rect(SetClipRect const& command)
+CommandResult CommandExecutorCPU::save(Save const&)
 {
-    auto& painter = this->painter();
-    painter.clear_clip_rect();
-    painter.add_clip_rect(command.rect);
+    painter().save();
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorCPU::clear_clip_rect(ClearClipRect const&)
+CommandResult CommandExecutorCPU::restore(Restore const&)
 {
-    painter().clear_clip_rect();
+    painter().restore();
+    return CommandResult::Continue;
+}
+
+CommandResult CommandExecutorCPU::add_clip_rect(AddClipRect const& command)
+{
+    painter().add_clip_rect(command.rect);
     return CommandResult::Continue;
 }
 

@@ -253,15 +253,7 @@ void RecordingPainter::draw_text_run(Gfx::IntPoint baseline_start, Gfx::GlyphRun
 
 void RecordingPainter::add_clip_rect(Gfx::IntRect const& rect)
 {
-    auto prev_clip_rect = state().clip_rect;
-    if (!state().clip_rect.has_value()) {
-        state().clip_rect = state().translation.map(rect);
-    } else {
-        state().clip_rect->intersect(state().translation.map(rect));
-    }
-
-    if (prev_clip_rect != state().clip_rect)
-        append(SetClipRect { .rect = *state().clip_rect });
+    append(AddClipRect { .rect = state().translation.map(rect) });
 }
 
 void RecordingPainter::translate(int dx, int dy)
@@ -276,22 +268,16 @@ void RecordingPainter::translate(Gfx::IntPoint delta)
 
 void RecordingPainter::save()
 {
+    append(Save {});
     m_state_stack.append(m_state_stack.last());
 }
 
 void RecordingPainter::restore()
 {
-    auto prev_clip_rect = state().clip_rect;
+    append(Restore {});
 
     VERIFY(m_state_stack.size() > 1);
     m_state_stack.take_last();
-
-    if (state().clip_rect != prev_clip_rect) {
-        if (state().clip_rect.has_value())
-            append(SetClipRect { .rect = *state().clip_rect });
-        else
-            append(ClearClipRect {});
-    }
 }
 
 void RecordingPainter::push_stacking_context(PushStackingContextParams params)

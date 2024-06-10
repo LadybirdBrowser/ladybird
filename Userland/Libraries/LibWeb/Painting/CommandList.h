@@ -52,8 +52,9 @@ public:
     virtual CommandResult fill_rect(FillRect const&) = 0;
     virtual CommandResult draw_scaled_bitmap(DrawScaledBitmap const&) = 0;
     virtual CommandResult draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) = 0;
-    virtual CommandResult set_clip_rect(SetClipRect const&) = 0;
-    virtual CommandResult clear_clip_rect(ClearClipRect const&) = 0;
+    virtual CommandResult save(Save const&) = 0;
+    virtual CommandResult restore(Restore const&) = 0;
+    virtual CommandResult add_clip_rect(AddClipRect const&) = 0;
     virtual CommandResult push_stacking_context(PushStackingContext const&) = 0;
     virtual CommandResult pop_stacking_context(PopStackingContext const&) = 0;
     virtual CommandResult paint_linear_gradient(PaintLinearGradient const&) = 0;
