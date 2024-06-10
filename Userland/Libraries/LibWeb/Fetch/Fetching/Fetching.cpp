@@ -869,19 +869,19 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> scheme_fetch(JS::Realm& r
         return PendingResponse::create(vm, request, response);
     }
     // -> "file"
-    else if (request->current_url().scheme() == "file"sv) {
+    // AD-HOC: "resource"
+    else if (request->current_url().scheme() == "file"sv || request->current_url().scheme() == "resource"sv) {
         // For now, unfortunate as it is, file: URLs are left as an exercise for the reader.
         // When in doubt, return a network error.
-        return TRY(nonstandard_resource_loader_file_or_http_network_fetch(realm, fetch_params));
+        if (request->origin().has<HTML::Origin>() && (request->origin().get<HTML::Origin>().is_opaque() || request->origin().get<HTML::Origin>().scheme() == "file"sv || request->origin().get<HTML::Origin>().scheme() == "resource"sv))
+            return TRY(nonstandard_resource_loader_file_or_http_network_fetch(realm, fetch_params));
+        else
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'file:' or 'resource:' URL blocked"sv));
     }
     // -> HTTP(S) scheme
     else if (Infrastructure::is_http_or_https_scheme(request->current_url().scheme())) {
         // Return the result of running HTTP fetch given fetchParams.
         return http_fetch(realm, fetch_params);
-    }
-    // AD-HOC: "resource"
-    else if (request->current_url().scheme() == "resource"sv) {
-        return TRY(nonstandard_resource_loader_file_or_http_network_fetch(realm, fetch_params));
     }
 
     // 4. Return a network error.
