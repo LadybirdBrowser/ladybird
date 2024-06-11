@@ -37,6 +37,9 @@
 - (void)onFaviconChange:(Gfx::Bitmap const&)bitmap;
 - (void)onAudioPlayStateChange:(Web::HTML::AudioPlayState)play_state;
 
+- (void)onFindInPageResult:(size_t)current_match_index
+           totalMatchCount:(Optional<size_t> const&)total_match_count;
+
 @end
 
 @interface LadybirdWebView : NSClipView <NSMenuDelegate>
