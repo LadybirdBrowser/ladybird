@@ -25,6 +25,7 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
 
 @property (nonatomic, strong) NSSearchField* search_field;
 @property (nonatomic, strong) NSButton* search_match_case;
+@property (nonatomic, strong) NSTextField* result_label;
 
 @end
 
@@ -55,6 +56,9 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
         [self.search_match_case setState:NSControlStateValueOff];
         m_case_sensitivity = CaseSensitivity::CaseInsensitive;
 
+        self.result_label = [NSTextField labelWithString:@""];
+        [self.result_label setHidden:YES];
+
         auto* search_done = [NSButton buttonWithTitle:@"Done"
                                                target:self
                                                action:@selector(cancelSearch:)];
@@ -65,6 +69,7 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
         [self addView:search_previous inGravity:NSStackViewGravityLeading];
         [self addView:search_next inGravity:NSStackViewGravityLeading];
         [self addView:self.search_match_case inGravity:NSStackViewGravityLeading];
+        [self addView:self.result_label inGravity:NSStackViewGravityLeading];
         [self addView:search_done inGravity:NSStackViewGravityTrailing];
 
         [self setOrientation:NSUserInterfaceLayoutOrientationHorizontal];
@@ -117,6 +122,28 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
         [[[self tab] web_view] findInPage:query caseSensitivity:m_case_sensitivity];
 
         [self.window makeFirstResponder:self.search_field];
+    }
+}
+
+- (void)onFindInPageResult:(size_t)current_match_index
+           totalMatchCount:(Optional<size_t> const&)total_match_count
+{
+    if (total_match_count.has_value()) {
+        auto* label_text = *total_match_count > 0
+            ? [NSString stringWithFormat:@"%zu of %zu matches", current_match_index, *total_match_count]
+            : @"Phrase not found";
+
+        auto* label_attributes = @{
+            NSFontAttributeName : [NSFont boldSystemFontOfSize:12.0f],
+        };
+
+        auto* label_attribute = [[NSAttributedString alloc] initWithString:label_text
+                                                                attributes:label_attributes];
+
+        [self.result_label setAttributedStringValue:label_attribute];
+        [self.result_label setHidden:NO];
+    } else {
+        [self.result_label setHidden:YES];
     }
 }
 

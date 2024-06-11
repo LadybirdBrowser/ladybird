@@ -858,6 +858,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         self.backgroundColor = Ladybird::gfx_color_to_ns_color(color);
     };
 
+    m_web_view_bridge->on_find_in_page = [self](auto current_match_index, auto const& total_match_count) {
+        [self.observer onFindInPageResult:current_match_index + 1
+                          totalMatchCount:total_match_count];
+    };
+
     m_web_view_bridge->on_insert_clipboard_entry = [](auto const& data, auto const&, auto const& mime_type) {
         NSPasteboardType pasteboard_type = nil;
 

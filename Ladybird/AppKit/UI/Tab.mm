@@ -385,6 +385,13 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     }
 }
 
+- (void)onFindInPageResult:(size_t)current_match_index
+           totalMatchCount:(Optional<size_t> const&)total_match_count
+{
+    [self.search_panel onFindInPageResult:current_match_index
+                          totalMatchCount:total_match_count];
+}
+
 #pragma mark - NSWindow
 
 - (void)setIsVisible:(BOOL)flag
