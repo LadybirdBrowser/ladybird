@@ -31,7 +31,7 @@ public:
     // Not a standard abstract operation, but "If every field in Desc is absent".
     [[nodiscard]] bool is_empty() const
     {
-        return !value.has_value() && !get.has_value() && !set.has_value() && !writable.has_value() && !enumerable.has_value() && !configurable.has_value();
+        return !value.has_value() && !get.has_value() && !set.has_value() && !writable.has_value() && !enumerable.has_value() && !configurable.has_value() && !unimplemented.has_value();
     }
 
     Optional<Value> value {};
@@ -40,6 +40,7 @@ public:
     Optional<bool> writable {};
     Optional<bool> enumerable {};
     Optional<bool> configurable {};
+    Optional<bool> unimplemented {};
 
     Optional<u32> property_offset {};
 };
@@ -65,6 +66,8 @@ struct Formatter<JS::PropertyDescriptor> : Formatter<StringView> {
             TRY(parts.try_append(TRY(String::formatted("[[Enumerable]]: {}", *property_descriptor.enumerable))));
         if (property_descriptor.configurable.has_value())
             TRY(parts.try_append(TRY(String::formatted("[[Configurable]]: {}", *property_descriptor.configurable))));
+        if (property_descriptor.unimplemented.has_value())
+            TRY(parts.try_append(TRY(String::formatted("[[Unimplemented]]: {}", *property_descriptor.unimplemented))));
         return Formatter<StringView>::format(builder, TRY(String::formatted("PropertyDescriptor {{ {} }}", TRY(String::join(", "sv, parts)))));
     }
 };

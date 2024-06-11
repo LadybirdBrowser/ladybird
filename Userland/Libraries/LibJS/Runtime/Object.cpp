@@ -808,6 +808,13 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Object::internal_get_own_propert
     // 3. Let X be O's own property whose key is P.
     auto [value, attributes, property_offset] = *maybe_storage_entry;
 
+    // AD-HOC: Properties with the [[Unimplemented]] attribute are used for reporting unimplemented IDL interfaces.
+    if (attributes.is_unimplemented()) {
+        if (vm().on_unimplemented_property_access)
+            vm().on_unimplemented_property_access(*this, property_key);
+        descriptor.unimplemented = true;
+    }
+
     // 4. If X is a data property, then
     if (!value.is_accessor()) {
         // a. Set D.[[Value]] to the value of X's [[Value]] attribute.
