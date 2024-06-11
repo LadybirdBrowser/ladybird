@@ -1946,15 +1946,6 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@@overload_suffi
     [[maybe_unused]] auto& realm = *vm.current_realm();
 )~~~");
 
-    if (function.extended_attributes.contains("FIXME")) {
-        function_generator.append(R"~~~(
-            dbgln("FIXME: Unimplemented IDL interface '@namespaced_name@.@function.name@'");
-            return JS::js_undefined();
-}
-)~~~");
-        return;
-    }
-
     if (is_static_function == StaticFunction::No) {
         function_generator.append(R"~~~(
     auto* impl = TRY(impl_from(vm));
@@ -2696,6 +2687,8 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
     }
 
     for (auto& attribute : interface.attributes) {
+        if (attribute.extended_attributes.contains("FIXME"))
+            continue;
         auto attribute_generator = generator.fork();
         attribute_generator.set("attribute.name:snakecase", attribute.name.to_snakecase());
         attribute_generator.append(R"~~~(
@@ -2777,6 +2770,8 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
         // NOTE: Functions, constructors and static functions cannot be JSON types, so they're not checked here.
 
         for (auto& attribute : interface_in_chain.attributes) {
+            if (attribute.extended_attributes.contains("FIXME"))
+                continue;
             if (!attribute.type->is_json(interface_in_chain))
                 continue;
 
@@ -3130,6 +3125,15 @@ void @class_name@::initialize(JS::Realm& realm)
 
     // https://webidl.spec.whatwg.org/#es-attributes
     for (auto& attribute : interface.attributes) {
+        if (attribute.extended_attributes.contains("FIXME")) {
+            auto fixme_attribute_generator = generator.fork();
+            fixme_attribute_generator.set("attribute.name", attribute.name);
+            fixme_attribute_generator.append(R"~~~(
+    define_direct_property("@attribute.name@", JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
+            )~~~");
+            continue;
+        }
+
         auto attribute_generator = generator.fork();
         attribute_generator.set("attribute.name", attribute.name);
         attribute_generator.set("attribute.getter_callback", attribute.getter_callback_name);
@@ -3148,6 +3152,16 @@ void @class_name@::initialize(JS::Realm& realm)
         attribute_generator.append(R"~~~(
     define_native_accessor(realm, "@attribute.name@", @attribute.getter_callback@, @attribute.setter_callback@, default_attributes);
 )~~~");
+    }
+
+    for (auto& function : interface.functions) {
+        if (function.extended_attributes.contains("FIXME")) {
+            auto fixme_function_generator = generator.fork();
+            fixme_function_generator.set("function.name", function.name);
+            fixme_function_generator.append(R"~~~(
+        define_direct_property("@function.name@", JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
+            )~~~");
+        }
     }
 
     // https://webidl.spec.whatwg.org/#es-constants
@@ -3309,6 +3323,8 @@ void @class_name@::initialize(JS::Realm& realm)
     }
 
     for (auto& attribute : interface.attributes) {
+        if (attribute.extended_attributes.contains("FIXME"))
+            continue;
         auto attribute_generator = generator.fork();
         attribute_generator.set("attribute.name", attribute.name);
         attribute_generator.set("attribute.getter_callback", attribute.getter_callback_name);
@@ -3341,26 +3357,6 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
     [[maybe_unused]] auto& realm = *vm.current_realm();
     [[maybe_unused]] auto* impl = TRY(impl_from(vm));
 )~~~");
-        if (attribute.extended_attributes.contains("FIXME")) {
-            attribute_generator.append(R"~~~(
-    dbgln("FIXME: Unimplemented IDL interface '@namespaced_name@.@attribute.name@'");
-    return JS::js_undefined();
-}
-)~~~");
-            if (!attribute.readonly || attribute.extended_attributes.contains("PutForwards"sv)) {
-                attribute_generator.append(R"~~~(
-JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
-{
-    WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
-    dbgln("FIXME: Unimplemented IDL interface '@namespaced_name@.@attribute.name@'");
-    return JS::js_undefined();
-}
-)~~~");
-            }
-
-            continue;
-        }
-
         if (attribute.extended_attributes.contains("CEReactions")) {
             // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
             attribute_generator.append(R"~~~(
@@ -3756,6 +3752,8 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 
     // Implementation: Functions
     for (auto& function : interface.functions) {
+        if (function.extended_attributes.contains("FIXME"))
+            continue;
         if (function.extended_attributes.contains("Default")) {
             if (function.name == "toJSON"sv && function.return_type->name() == "object"sv) {
                 generate_default_to_json_function(generator, class_name, interface);
@@ -4191,8 +4189,11 @@ void @namespace_class@::finalize()
 )~~~");
     }
 
-    for (auto const& function : interface.functions)
+    for (auto const& function : interface.functions) {
+        if (function.extended_attributes.contains("FIXME"))
+            continue;
         generate_function(generator, function, StaticFunction::Yes, interface.namespace_class, interface.name, interface);
+    }
     for (auto const& overload_set : interface.overload_sets) {
         if (overload_set.value.size() == 1)
             continue;
@@ -4483,8 +4484,11 @@ JS_DEFINE_NATIVE_FUNCTION(@constructor_class@::@attribute.getter_callback@)
     }
 
     // Implementation: Static Functions
-    for (auto& function : interface.static_functions)
+    for (auto& function : interface.static_functions) {
+        if (function.extended_attributes.contains("FIXME"))
+            continue;
         generate_function(generator, function, StaticFunction::Yes, interface.constructor_class, interface.fully_qualified_name, interface);
+    }
     for (auto const& overload_set : interface.static_overload_sets) {
         if (overload_set.value.size() == 1)
             continue;
@@ -4585,6 +4589,8 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
 
     bool has_ce_reactions = false;
     for (auto const& function : interface.functions) {
+        if (function.extended_attributes.contains("FIXME"))
+            continue;
         if (function.extended_attributes.contains("CEReactions")) {
             has_ce_reactions = true;
             break;

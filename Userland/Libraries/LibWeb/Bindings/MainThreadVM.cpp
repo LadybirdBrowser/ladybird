@@ -81,6 +81,9 @@ ErrorOr<void> initialize_main_thread_vm()
     VERIFY(!s_main_thread_vm);
 
     s_main_thread_vm = TRY(JS::VM::create(make<WebEngineCustomData>()));
+    s_main_thread_vm->on_unimplemented_property_access = [](auto const& object, auto const& property_key) {
+        dbgln("FIXME: Unimplemented IDL interface: '{}.{}'", object.class_name(), property_key.to_string());
+    };
 
     // NOTE: We intentionally leak the main thread JavaScript VM.
     //       This avoids doing an exhaustive garbage collection on process exit.
