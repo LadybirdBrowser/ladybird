@@ -19,6 +19,8 @@ struct Attribute {
         Writable = 1 << 0,
         Enumerable = 1 << 1,
         Configurable = 1 << 2,
+        // AD-HOC: This is used for reporting unimplemented IDL interfaces.
+        Unimplemented = 1 << 3,
     };
 };
 
@@ -33,6 +35,7 @@ public:
     [[nodiscard]] bool is_writable() const { return m_bits & Attribute::Writable; }
     [[nodiscard]] bool is_enumerable() const { return m_bits & Attribute::Enumerable; }
     [[nodiscard]] bool is_configurable() const { return m_bits & Attribute::Configurable; }
+    [[nodiscard]] bool is_unimplemented() const { return m_bits & Attribute::Unimplemented; }
 
     void set_writable(bool writable = true)
     {
