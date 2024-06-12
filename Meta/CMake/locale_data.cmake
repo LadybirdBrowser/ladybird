@@ -38,9 +38,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         message(STATUS "Skipping download of ${CLDR_ZIP_URL}, expecting the archive to have been extracted to ${CLDR_PATH}")
     endif()
 
-    set(DATE_TIME_FORMAT_DATA_HEADER DateTimeFormatData.h)
-    set(DATE_TIME_FORMAT_DATA_IMPLEMENTATION DateTimeFormatData.cpp)
-
     set(LOCALE_DATA_HEADER LocaleData.h)
     set(LOCALE_DATA_IMPLEMENTATION LocaleData.cpp)
 
@@ -53,14 +50,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     set(RELATIVE_TIME_FORMAT_DATA_HEADER RelativeTimeFormatData.h)
     set(RELATIVE_TIME_FORMAT_DATA_IMPLEMENTATION RelativeTimeFormatData.cpp)
 
-    invoke_generator(
-        "DateTimeFormatData"
-        Lagom::GenerateDateTimeFormatData
-        "${CLDR_VERSION_FILE}"
-        "${DATE_TIME_FORMAT_DATA_HEADER}"
-        "${DATE_TIME_FORMAT_DATA_IMPLEMENTATION}"
-        arguments -r "${CLDR_CORE_PATH}"
-    )
     invoke_generator(
         "LocaleData"
         Lagom::GenerateLocaleData
@@ -95,8 +84,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     )
 
     set(LOCALE_DATA_SOURCES
-        ${DATE_TIME_FORMAT_DATA_HEADER}
-        ${DATE_TIME_FORMAT_DATA_IMPLEMENTATION}
         ${LOCALE_DATA_HEADER}
         ${LOCALE_DATA_IMPLEMENTATION}
         ${NUMBER_FORMAT_DATA_HEADER}

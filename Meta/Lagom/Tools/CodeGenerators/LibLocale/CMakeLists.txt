@@ -1,4 +1,3 @@
-lagom_tool(GenerateDateTimeFormatData SOURCES GenerateDateTimeFormatData.cpp LIBS LibMain LibTimeZone)
 lagom_tool(GenerateLocaleData SOURCES GenerateLocaleData.cpp LIBS LibMain)
 lagom_tool(GenerateNumberFormatData SOURCES GenerateNumberFormatData.cpp LIBS LibMain)
 lagom_tool(GeneratePluralRulesData SOURCES GeneratePluralRulesData.cpp LIBS LibMain)

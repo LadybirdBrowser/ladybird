@@ -11,7 +11,6 @@
 namespace Locale {
 
 enum class CalendarPatternStyle : u8;
-enum class FirstDayRegion : u8;
 enum class HourCycle : u8;
 enum class Key : u8;
 enum class KeywordCalendar : u8;
@@ -21,13 +20,10 @@ enum class KeywordColNumeric : u8;
 enum class KeywordHours : u8;
 enum class KeywordNumbers : u8;
 enum class Locale : u16;
-enum class MinimumDaysRegion : u8;
 enum class NumericSymbol : u8;
 enum class PluralCategory : u8;
 enum class Style : u8;
 enum class Weekday : u8;
-enum class WeekendEndRegion : u8;
-enum class WeekendStartRegion : u8;
 
 class NumberFormat;
 

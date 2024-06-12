@@ -97,22 +97,6 @@ struct CalendarPattern {
     Optional<CalendarPatternStyle> time_zone_name;
 };
 
-Optional<MinimumDaysRegion> minimum_days_region_from_string(StringView minimum_days_region);
-Optional<u8> get_regional_minimum_days(StringView region);
-Optional<u8> get_locale_minimum_days(StringView locale);
-
-Optional<FirstDayRegion> first_day_region_from_string(StringView first_day_region);
-Optional<Weekday> get_regional_first_day(StringView region);
-Optional<Weekday> get_locale_first_day(StringView locale);
-
-Optional<WeekendStartRegion> weekend_start_region_from_string(StringView weekend_start_region);
-Optional<Weekday> get_regional_weekend_start(StringView region);
-Optional<Weekday> get_locale_weekend_start(StringView locale);
-
-Optional<WeekendEndRegion> weekend_end_region_from_string(StringView weekend_end_region);
-Optional<Weekday> get_regional_weekend_end(StringView region);
-Optional<Weekday> get_locale_weekend_end(StringView locale);
-
 class DateTimeFormat {
 public:
     static NonnullOwnPtr<DateTimeFormat> create_for_date_and_time_style(
@@ -147,5 +131,12 @@ public:
 protected:
     DateTimeFormat() = default;
 };
+
+struct WeekInfo {
+    u8 minimal_days_in_first_week { 1 };
+    Optional<Weekday> first_day_of_week;
+    Vector<Weekday> weekend_days;
+};
+WeekInfo week_info_of_locale(StringView locale);
 
 }

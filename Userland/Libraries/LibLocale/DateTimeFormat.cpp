@@ -24,6 +24,7 @@
 #include <unicode/gregocal.h>
 #include <unicode/smpdtfmt.h>
 #include <unicode/timezone.h>
+#include <unicode/ucal.h>
 
 namespace Locale {
 
@@ -530,38 +531,6 @@ static T find_regional_values_for_locale(StringView locale, GetRegionalValues&& 
     return return_default_values();
 }
 
-Optional<MinimumDaysRegion> __attribute__((weak)) minimum_days_region_from_string(StringView) { return {}; }
-Optional<u8> __attribute__((weak)) get_regional_minimum_days(StringView) { return {}; }
-
-Optional<u8> get_locale_minimum_days(StringView locale)
-{
-    return find_regional_values_for_locale<Optional<u8>>(locale, get_regional_minimum_days);
-}
-
-Optional<FirstDayRegion> __attribute__((weak)) first_day_region_from_string(StringView) { return {}; }
-Optional<Weekday> __attribute__((weak)) get_regional_first_day(StringView) { return {}; }
-
-Optional<Weekday> get_locale_first_day(StringView locale)
-{
-    return find_regional_values_for_locale<Optional<Weekday>>(locale, get_regional_first_day);
-}
-
-Optional<WeekendStartRegion> __attribute__((weak)) weekend_start_region_from_string(StringView) { return {}; }
-Optional<Weekday> __attribute__((weak)) get_regional_weekend_start(StringView) { return {}; }
-
-Optional<Weekday> get_locale_weekend_start(StringView locale)
-{
-    return find_regional_values_for_locale<Optional<Weekday>>(locale, get_regional_weekend_start);
-}
-
-Optional<WeekendEndRegion> __attribute__((weak)) weekend_end_region_from_string(StringView) { return {}; }
-Optional<Weekday> __attribute__((weak)) get_regional_weekend_end(StringView) { return {}; }
-
-Optional<Weekday> get_locale_weekend_end(StringView locale)
-{
-    return find_regional_values_for_locale<Optional<Weekday>>(locale, get_regional_weekend_end);
-}
-
 // ICU does not contain a field enumeration for "literal" partitions. Define a custom field so that we may provide a
 // type for those partitions.
 static constexpr i32 LITERAL_FIELD = -1;
@@ -959,6 +928,72 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_pattern_options(
     VERIFY(icu_success(status));
 
     return adopt_own(*new DateTimeFormatImpl(locale_data->locale(), pattern, time_zone_identifier, move(formatter)));
+}
+
+static constexpr Weekday icu_calendar_day_to_weekday(UCalendarDaysOfWeek day)
+{
+    switch (day) {
+    case UCAL_SUNDAY:
+        return Weekday::Sunday;
+    case UCAL_MONDAY:
+        return Weekday::Monday;
+    case UCAL_TUESDAY:
+        return Weekday::Tuesday;
+    case UCAL_WEDNESDAY:
+        return Weekday::Wednesday;
+    case UCAL_THURSDAY:
+        return Weekday::Thursday;
+    case UCAL_FRIDAY:
+        return Weekday::Friday;
+    case UCAL_SATURDAY:
+        return Weekday::Saturday;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+WeekInfo week_info_of_locale(StringView locale)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto locale_data = LocaleData::for_locale(locale);
+    if (!locale_data.has_value())
+        return {};
+
+    auto calendar = adopt_own_if_nonnull(icu::Calendar::createInstance(locale_data->locale(), status));
+    if (icu_failure(status))
+        return {};
+
+    WeekInfo week_info;
+    week_info.minimal_days_in_first_week = calendar->getMinimalDaysInFirstWeek();
+
+    if (auto day = calendar->getFirstDayOfWeek(status); icu_success(status))
+        week_info.first_day_of_week = icu_calendar_day_to_weekday(day);
+
+    auto append_if_weekend = [&](auto day) {
+        auto type = calendar->getDayOfWeekType(day, status);
+        if (icu_failure(status))
+            return;
+
+        switch (type) {
+        case UCAL_WEEKEND_ONSET:
+        case UCAL_WEEKEND_CEASE:
+        case UCAL_WEEKEND:
+            week_info.weekend_days.append(icu_calendar_day_to_weekday(day));
+            break;
+        default:
+            break;
+        }
+    };
+
+    append_if_weekend(UCAL_SUNDAY);
+    append_if_weekend(UCAL_MONDAY);
+    append_if_weekend(UCAL_TUESDAY);
+    append_if_weekend(UCAL_WEDNESDAY);
+    append_if_weekend(UCAL_THURSDAY);
+    append_if_weekend(UCAL_FRIDAY);
+    append_if_weekend(UCAL_SATURDAY);
+
+    return week_info;
 }
 
 }

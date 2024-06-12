@@ -254,10 +254,10 @@ StringView weekday_to_string(StringView weekday)
     VERIFY_NOT_REACHED();
 }
 
-static u8 weekday_to_integer(Optional<::Locale::Weekday> weekday, ::Locale::Weekday falllback)
+static u8 weekday_to_integer(Optional<::Locale::Weekday> const& weekday, ::Locale::Weekday falllback)
 {
-    // NOTE: This fallback will be used if LibUnicode data generation is disabled. Its value should
-    //       be that of the default region ("001") in the CLDR.
+    // NOTE: This fallback will be used if the ICU data lookup failed. Its value should be that of the
+    //       default region ("001") in the CLDR.
     switch (weekday.value_or(falllback)) {
     case ::Locale::Weekday::Monday:
         return 1;
@@ -274,25 +274,18 @@ static u8 weekday_to_integer(Optional<::Locale::Weekday> weekday, ::Locale::Week
     case ::Locale::Weekday::Sunday:
         return 7;
     }
-
     VERIFY_NOT_REACHED();
 }
 
-static Vector<u8> weekend_of_locale(StringView locale)
+static Vector<u8> weekend_of_locale(ReadonlySpan<::Locale::Weekday> const& weekend_days)
 {
-    auto weekend_start = weekday_to_integer(::Locale::get_locale_weekend_start(locale), ::Locale::Weekday::Saturday);
-    auto weekend_end = weekday_to_integer(::Locale::get_locale_weekend_end(locale), ::Locale::Weekday::Sunday);
-
-    // There currently aren't any regions in the CLDR which wrap around from Sunday (7) to Monday (1).
-    // If this changes, this logic will need to be updated to handle that.
-    VERIFY(weekend_start <= weekend_end);
-
     Vector<u8> weekend;
-    weekend.ensure_capacity(weekend_end - weekend_start + 1);
+    weekend.ensure_capacity(weekend_days.size());
 
-    for (auto day = weekend_start; day <= weekend_end; ++day)
-        weekend.unchecked_append(day);
+    for (auto day : weekend_days)
+        weekend.unchecked_append(weekday_to_integer(day, day));
 
+    quick_sort(weekend);
     return weekend;
 }
 
@@ -306,10 +299,12 @@ WeekInfo week_info_of_locale(Locale const& locale_object)
     VERIFY(::Locale::parse_unicode_locale_id(locale).has_value());
 
     // 3. Let r be a record whose fields are defined by Table 3, with values based on locale.
+    auto locale_week_info = ::Locale::week_info_of_locale(locale);
+
     WeekInfo week_info {};
-    week_info.minimal_days = ::Locale::get_locale_minimum_days(locale).value_or(1);
-    week_info.first_day = weekday_to_integer(::Locale::get_locale_first_day(locale), ::Locale::Weekday::Monday);
-    week_info.weekend = weekend_of_locale(locale);
+    week_info.minimal_days = locale_week_info.minimal_days_in_first_week;
+    week_info.first_day = weekday_to_integer(locale_week_info.first_day_of_week, ::Locale::Weekday::Monday);
+    week_info.weekend = weekend_of_locale(locale_week_info.weekend_days);
 
     // 4. Let fw be loc.[[FirstDayOfWeek]].
     // 5. If fw is not undefined, then
