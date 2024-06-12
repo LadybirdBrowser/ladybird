@@ -179,10 +179,10 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::resolved_options)
     MUST(options->create_data_property_or_throw(vm.names.numberingSystem, PrimitiveString::create(vm, date_time_format->numbering_system())));
     MUST(options->create_data_property_or_throw(vm.names.timeZone, PrimitiveString::create(vm, date_time_format->time_zone())));
 
-    if (date_time_format->has_hour_cycle()) {
-        MUST(options->create_data_property_or_throw(vm.names.hourCycle, PrimitiveString::create(vm, date_time_format->hour_cycle_string())));
+    if (date_time_format->hour_cycle.has_value()) {
+        MUST(options->create_data_property_or_throw(vm.names.hourCycle, PrimitiveString::create(vm, ::Locale::hour_cycle_to_string(*date_time_format->hour_cycle))));
 
-        switch (date_time_format->hour_cycle()) {
+        switch (*date_time_format->hour_cycle) {
         case ::Locale::HourCycle::H11:
         case ::Locale::HourCycle::H12:
             MUST(options->create_data_property_or_throw(vm.names.hour12, Value(true)));

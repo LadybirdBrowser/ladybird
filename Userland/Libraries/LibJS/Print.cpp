@@ -736,15 +736,13 @@ ErrorOr<void> print_intl_date_time_format(JS::PrintContext& print_context, JS::I
     TRY(print_type(print_context, "Intl.DateTimeFormat"sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.locale()), seen_objects));
-    TRY(js_out(print_context, "\n  pattern: "));
-    TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.pattern()), seen_objects));
     TRY(js_out(print_context, "\n  calendar: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.calendar()), seen_objects));
     TRY(js_out(print_context, "\n  numberingSystem: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.numbering_system()), seen_objects));
-    if (date_time_format.has_hour_cycle()) {
+    if (date_time_format.hour_cycle.has_value()) {
         TRY(js_out(print_context, "\n  hourCycle: "));
-        TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.hour_cycle_string()), seen_objects));
+        TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), ::Locale::hour_cycle_to_string(*date_time_format.hour_cycle)), seen_objects));
     }
     TRY(js_out(print_context, "\n  timeZone: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.time_zone()), seen_objects));
