@@ -21,6 +21,7 @@
 U_NAMESPACE_BEGIN
 class DateTimePatternGenerator;
 class LocaleDisplayNames;
+class TimeZoneNames;
 class UnicodeString;
 U_NAMESPACE_END
 
@@ -39,6 +40,8 @@ public:
 
     icu::DateTimePatternGenerator& date_time_pattern_generator();
 
+    icu::TimeZoneNames& time_zone_names();
+
 private:
     explicit LocaleData(icu::Locale locale);
 
@@ -48,6 +51,7 @@ private:
     OwnPtr<icu::LocaleDisplayNames> m_standard_display_names;
     OwnPtr<icu::LocaleDisplayNames> m_dialect_display_names;
     OwnPtr<icu::DateTimePatternGenerator> m_date_time_pattern_generator;
+    OwnPtr<icu::TimeZoneNames> m_time_zone_names;
 };
 
 static constexpr bool icu_success(UErrorCode code)

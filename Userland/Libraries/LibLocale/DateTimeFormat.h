@@ -13,7 +13,6 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibLocale/Forward.h>
-#include <LibTimeZone/TimeZone.h>
 
 namespace Locale {
 
@@ -97,17 +96,6 @@ struct CalendarPattern {
     Optional<CalendarPatternStyle> time_zone_name;
 };
 
-struct TimeZoneFormat {
-    StringView symbol_ahead_sign {};
-    StringView symbol_ahead_separator {};
-
-    StringView symbol_behind_sign {};
-    StringView symbol_behind_separator {};
-
-    StringView gmt_format {};
-    StringView gmt_zero_format {};
-};
-
 Optional<HourCycleRegion> hour_cycle_region_from_string(StringView hour_cycle_region);
 Vector<HourCycle> get_regional_hour_cycles(StringView region);
 Vector<HourCycle> get_locale_hour_cycles(StringView locale);
@@ -128,9 +116,6 @@ Optional<Weekday> get_locale_weekend_start(StringView locale);
 Optional<WeekendEndRegion> weekend_end_region_from_string(StringView weekend_end_region);
 Optional<Weekday> get_regional_weekend_end(StringView region);
 Optional<Weekday> get_locale_weekend_end(StringView locale);
-
-Optional<StringView> get_time_zone_name(StringView locale, StringView time_zone, CalendarPatternStyle style, TimeZone::InDST in_dst);
-Optional<TimeZoneFormat> get_time_zone_format(StringView locale);
 
 class DateTimeFormat {
 public:
