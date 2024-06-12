@@ -21,22 +21,7 @@
 #include <LibCore/Directory.h>
 #include <LibLocale/DateTimeFormat.h>
 
-using HourCycleList = Vector<Locale::HourCycle>;
-
-template<>
-struct AK::Formatter<Locale::HourCycle> : Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, Locale::HourCycle hour_cycle)
-    {
-        return builder.put_u64(to_underlying(hour_cycle));
-    }
-};
-
 struct CLDR {
-    UniqueStorage<HourCycleList> unique_hour_cycle_lists;
-
-    HashMap<ByteString, size_t> hour_cycles;
-    Vector<ByteString> hour_cycle_regions;
-
     HashMap<ByteString, u8> minimum_days;
     Vector<ByteString> minimum_days_regions;
 
@@ -49,50 +34,6 @@ struct CLDR {
     HashMap<ByteString, Locale::Weekday> weekend_end;
     Vector<ByteString> weekend_end_regions;
 };
-
-static ErrorOr<void> parse_hour_cycles(ByteString core_path, CLDR& cldr)
-{
-    // https://unicode.org/reports/tr35/tr35-dates.html#Time_Data
-    LexicalPath time_data_path(move(core_path));
-    time_data_path = time_data_path.append("supplemental"sv);
-    time_data_path = time_data_path.append("timeData.json"sv);
-
-    auto time_data = TRY(read_json_file(time_data_path.string()));
-    auto const& supplemental_object = time_data.as_object().get_object("supplemental"sv).value();
-    auto const& time_data_object = supplemental_object.get_object("timeData"sv).value();
-
-    auto parse_hour_cycle = [](StringView hour_cycle) -> Optional<Locale::HourCycle> {
-        if (hour_cycle.is_one_of("h"sv, "hb"sv, "hB"sv))
-            return Locale::HourCycle::H12;
-        if (hour_cycle.is_one_of("H"sv, "Hb"sv, "HB"sv))
-            return Locale::HourCycle::H23;
-        if (hour_cycle == "K"sv)
-            return Locale::HourCycle::H11;
-        if (hour_cycle == "k"sv)
-            return Locale::HourCycle::H24;
-        return {};
-    };
-
-    time_data_object.for_each_member([&](auto const& key, JsonValue const& value) {
-        auto allowed_hour_cycles_string = value.as_object().get_byte_string("_allowed"sv).value();
-        auto allowed_hour_cycles = allowed_hour_cycles_string.split_view(' ');
-
-        Vector<Locale::HourCycle> hour_cycles;
-
-        for (auto allowed_hour_cycle : allowed_hour_cycles) {
-            if (auto hour_cycle = parse_hour_cycle(allowed_hour_cycle); hour_cycle.has_value())
-                hour_cycles.append(*hour_cycle);
-        }
-
-        auto hour_cycles_index = cldr.unique_hour_cycle_lists.ensure(move(hour_cycles));
-        cldr.hour_cycles.set(key, hour_cycles_index);
-
-        if (!cldr.hour_cycle_regions.contains_slow(key))
-            cldr.hour_cycle_regions.append(key);
-    });
-
-    return {};
-}
 
 static ErrorOr<void> parse_week_data(ByteString core_path, CLDR& cldr)
 {
@@ -161,7 +102,6 @@ static ErrorOr<void> parse_week_data(ByteString core_path, CLDR& cldr)
 
 static ErrorOr<void> parse_all_locales(ByteString core_path, CLDR& cldr)
 {
-    TRY(parse_hour_cycles(core_path, cldr));
     TRY(parse_week_data(core_path, cldr));
     return {};
 }
@@ -191,7 +131,6 @@ static ErrorOr<void> generate_unicode_locale_header(Core::InputBufferedFile& fil
 namespace Locale {
 )~~~");
 
-    generate_enum(generator, format_identifier, "HourCycleRegion"sv, {}, cldr.hour_cycle_regions);
     generate_enum(generator, format_identifier, "MinimumDaysRegion"sv, {}, cldr.minimum_days_regions);
     generate_enum(generator, format_identifier, "FirstDayRegion"sv, {}, cldr.first_day_regions);
     generate_enum(generator, format_identifier, "WeekendStartRegion"sv, {}, cldr.weekend_start_regions);
@@ -225,8 +164,6 @@ static ErrorOr<void> generate_unicode_locale_implementation(Core::InputBufferedF
 namespace Locale {
 )~~~");
 
-    cldr.unique_hour_cycle_lists.generate(generator, cldr.unique_hour_cycle_lists.type_that_fits(), "s_hour_cycle_lists"sv);
-
     auto append_mapping = [&](auto const& keys, auto const& map, auto type, auto name, auto mapping_getter) {
         generator.set("type", type);
         generator.set("name", name);
@@ -248,7 +185,6 @@ static constexpr Array<@type@, @size@> @name@ { {)~~~");
         generator.append(" } };");
     };
 
-    append_mapping(cldr.hour_cycle_regions, cldr.hour_cycles, cldr.unique_hour_cycle_lists.type_that_fits(), "s_hour_cycles"sv, [](auto const& hour_cycles) { return hour_cycles; });
     append_mapping(cldr.minimum_days_regions, cldr.minimum_days, "u8"sv, "s_minimum_days"sv, [](auto minimum_days) { return minimum_days; });
     append_mapping(cldr.first_day_regions, cldr.first_day, "u8"sv, "s_first_day"sv, [](auto first_day) { return to_underlying(first_day); });
     append_mapping(cldr.weekend_start_regions, cldr.weekend_start, "u8"sv, "s_weekend_start"sv, [](auto weekend_start) { return to_underlying(weekend_start); });
@@ -269,33 +205,10 @@ static constexpr Array<@type@, @size@> @name@ { {)~~~");
         return {};
     };
 
-    TRY(append_from_string("HourCycleRegion"sv, "hour_cycle_region"sv, cldr.hour_cycle_regions));
     TRY(append_from_string("MinimumDaysRegion"sv, "minimum_days_region"sv, cldr.minimum_days_regions));
     TRY(append_from_string("FirstDayRegion"sv, "first_day_region"sv, cldr.first_day_regions));
     TRY(append_from_string("WeekendStartRegion"sv, "weekend_start_region"sv, cldr.weekend_start_regions));
     TRY(append_from_string("WeekendEndRegion"sv, "weekend_end_region"sv, cldr.weekend_end_regions));
-
-    generator.append(R"~~~(
-Vector<HourCycle> get_regional_hour_cycles(StringView region)
-{
-    auto region_value = hour_cycle_region_from_string(region);
-    if (!region_value.has_value())
-        return {};
-
-    auto region_index = to_underlying(*region_value);
-
-    auto regional_hour_cycles_index = s_hour_cycles.at(region_index);
-    auto const& regional_hour_cycles = s_hour_cycle_lists.at(regional_hour_cycles_index);
-
-    Vector<HourCycle> hour_cycles;
-    hour_cycles.ensure_capacity(regional_hour_cycles.size());
-
-    for (auto hour_cycle : regional_hour_cycles)
-        hour_cycles.unchecked_append(static_cast<HourCycle>(hour_cycle));
-
-    return hour_cycles;
-}
-)~~~");
 
     auto append_regional_lookup = [&](StringView return_type, StringView lookup_type) {
         generator.set("return_type", return_type);

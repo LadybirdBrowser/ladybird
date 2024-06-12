@@ -189,7 +189,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
 
         // c. If hc is null, set hc to dataLocaleData.[[hourCycle]].
         if (!hour_cycle_value.has_value())
-            hour_cycle_value = ::Locale::get_default_regional_hour_cycle(data_locale);
+            hour_cycle_value = ::Locale::default_hour_cycle(data_locale);
     }
 
     // 28. Set dateTimeFormat.[[HourCycle]] to hc.

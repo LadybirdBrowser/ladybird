@@ -43,6 +43,7 @@ enum class HourCycle : u8 {
 };
 HourCycle hour_cycle_from_string(StringView hour_cycle);
 StringView hour_cycle_to_string(HourCycle hour_cycle);
+Optional<HourCycle> default_hour_cycle(StringView locale);
 
 enum class CalendarPatternStyle : u8 {
     Narrow,
@@ -95,11 +96,6 @@ struct CalendarPattern {
     Optional<u8> fractional_second_digits;
     Optional<CalendarPatternStyle> time_zone_name;
 };
-
-Optional<HourCycleRegion> hour_cycle_region_from_string(StringView hour_cycle_region);
-Vector<HourCycle> get_regional_hour_cycles(StringView region);
-Vector<HourCycle> get_locale_hour_cycles(StringView locale);
-Optional<HourCycle> get_default_regional_hour_cycle(StringView locale);
 
 Optional<MinimumDaysRegion> minimum_days_region_from_string(StringView minimum_days_region);
 Optional<u8> get_regional_minimum_days(StringView region);

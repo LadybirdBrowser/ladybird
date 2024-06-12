@@ -98,6 +98,31 @@ StringView hour_cycle_to_string(HourCycle hour_cycle)
     VERIFY_NOT_REACHED();
 }
 
+Optional<HourCycle> default_hour_cycle(StringView locale)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto locale_data = LocaleData::for_locale(locale);
+    if (!locale_data.has_value())
+        return {};
+
+    auto hour_cycle = locale_data->date_time_pattern_generator().getDefaultHourCycle(status);
+    if (icu_failure(status))
+        return {};
+
+    switch (hour_cycle) {
+    case UDAT_HOUR_CYCLE_11:
+        return HourCycle::H11;
+    case UDAT_HOUR_CYCLE_12:
+        return HourCycle::H12;
+    case UDAT_HOUR_CYCLE_23:
+        return HourCycle::H23;
+    case UDAT_HOUR_CYCLE_24:
+        return HourCycle::H24;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 static constexpr char icu_hour_cycle(Optional<HourCycle> const& hour_cycle, Optional<bool> const& hour12)
 {
     if (hour12.has_value())
@@ -472,9 +497,6 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
     return format;
 }
 
-Optional<HourCycleRegion> __attribute__((weak)) hour_cycle_region_from_string(StringView) { return {}; }
-Vector<HourCycle> __attribute__((weak)) get_regional_hour_cycles(StringView) { return {}; }
-
 template<typename T, typename GetRegionalValues>
 static T find_regional_values_for_locale(StringView locale, GetRegionalValues&& get_regional_values)
 {
@@ -506,19 +528,6 @@ static T find_regional_values_for_locale(StringView locale, GetRegionalValues&& 
         return regional_values;
 
     return return_default_values();
-}
-
-// https://unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table
-Vector<HourCycle> get_locale_hour_cycles(StringView locale)
-{
-    return find_regional_values_for_locale<Vector<HourCycle>>(locale, get_regional_hour_cycles);
-}
-
-Optional<HourCycle> get_default_regional_hour_cycle(StringView locale)
-{
-    if (auto hour_cycles = get_locale_hour_cycles(locale); !hour_cycles.is_empty())
-        return hour_cycles.first();
-    return {};
 }
 
 Optional<MinimumDaysRegion> __attribute__((weak)) minimum_days_region_from_string(StringView) { return {}; }
