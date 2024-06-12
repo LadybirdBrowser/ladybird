@@ -553,9 +553,6 @@ Optional<Weekday> get_locale_weekend_end(StringView locale)
     return find_regional_values_for_locale<Optional<Weekday>>(locale, get_regional_weekend_end);
 }
 
-Optional<StringView> __attribute__((weak)) get_time_zone_name(StringView, StringView, CalendarPatternStyle, TimeZone::InDST) { return {}; }
-Optional<TimeZoneFormat> __attribute__((weak)) get_time_zone_format(StringView) { return {}; }
-
 // ICU does not contain a field enumeration for "literal" partitions. Define a custom field so that we may provide a
 // type for those partitions.
 static constexpr i32 LITERAL_FIELD = -1;

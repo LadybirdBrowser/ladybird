@@ -24,7 +24,7 @@
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibLocale/DateTimeFormat.h>
+#include <LibLocale/DisplayNames.h>
 #include <LibLocale/Locale.h>
 #include <LibTimeZone/TimeZone.h>
 
@@ -1152,12 +1152,14 @@ ByteString time_zone_string(double time)
     auto offset_hour = hour_from_time(offset);
 
     // 9. Let tzName be an implementation-defined string that is either the empty String or the string-concatenation of the code unit 0x0020 (SPACE), the code unit 0x0028 (LEFT PARENTHESIS), an implementation-defined timezone name, and the code unit 0x0029 (RIGHT PARENTHESIS).
-    auto tz_name = TimeZone::current_time_zone();
+    String tz_name;
 
     // Most implementations seem to prefer the long-form display name of the time zone. Not super important, but we may as well match that behavior.
     if (auto maybe_offset = TimeZone::get_time_zone_offset(tz_name, AK::UnixDateTime::from_milliseconds_since_epoch(time)); maybe_offset.has_value()) {
-        if (auto long_name = Locale::get_time_zone_name(Locale::default_locale(), tz_name, Locale::CalendarPatternStyle::Long, maybe_offset->in_dst); long_name.has_value())
-            tz_name = long_name.release_value();
+        if (auto name = Locale::time_zone_display_name(Locale::default_locale(), tz_name, maybe_offset->in_dst, time); name.has_value())
+            tz_name = name.release_value();
+    } else {
+        tz_name = MUST(String::from_utf8(TimeZone::current_time_zone()));
     }
 
     // 10. Return the string-concatenation of offsetSign, offsetHour, offsetMin, and tzName.

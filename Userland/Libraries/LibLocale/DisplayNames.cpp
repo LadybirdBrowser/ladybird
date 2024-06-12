@@ -13,6 +13,7 @@
 #include <unicode/dtptngen.h>
 #include <unicode/localebuilder.h>
 #include <unicode/locdspnm.h>
+#include <unicode/tznames.h>
 #include <unicode/udatpg.h>
 
 namespace Locale {
@@ -169,6 +170,22 @@ Optional<String> date_time_field_display_name(StringView locale, StringView fiel
     result = locale_data->date_time_pattern_generator().getFieldDisplayName(icu_field, icu_style);
 
     return icu_string_to_string(result);
+}
+
+Optional<String> time_zone_display_name(StringView locale, StringView time_zone_identifier, TimeZone::InDST in_dst, double time)
+{
+    auto locale_data = LocaleData::for_locale(locale);
+    if (!locale_data.has_value())
+        return {};
+
+    icu::UnicodeString time_zone_name;
+    auto type = in_dst == TimeZone::InDST::Yes ? UTZNM_LONG_DAYLIGHT : UTZNM_LONG_STANDARD;
+
+    locale_data->time_zone_names().getDisplayName(icu_string(time_zone_identifier), type, time, time_zone_name);
+    if (static_cast<bool>(time_zone_name.isBogus()))
+        return {};
+
+    return icu_string_to_string(time_zone_name);
 }
 
 static constexpr Array<UChar, 4> icu_currency_code(StringView currency)

@@ -59,7 +59,7 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         "${CLDR_VERSION_FILE}"
         "${DATE_TIME_FORMAT_DATA_HEADER}"
         "${DATE_TIME_FORMAT_DATA_IMPLEMENTATION}"
-        arguments -r "${CLDR_CORE_PATH}" -d "${CLDR_DATES_PATH}"
+        arguments -r "${CLDR_CORE_PATH}"
     )
     invoke_generator(
         "LocaleData"

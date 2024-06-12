@@ -13,6 +13,7 @@
 
 #include <unicode/dtptngen.h>
 #include <unicode/locdspnm.h>
+#include <unicode/tznames.h>
 #include <unicode/unistr.h>
 
 namespace Locale {
@@ -83,6 +84,18 @@ icu::DateTimePatternGenerator& LocaleData::date_time_pattern_generator()
     }
 
     return *m_date_time_pattern_generator;
+}
+
+icu::TimeZoneNames& LocaleData::time_zone_names()
+{
+    if (!m_time_zone_names) {
+        UErrorCode status = U_ZERO_ERROR;
+
+        m_time_zone_names = adopt_own(*icu::TimeZoneNames::createInstance(locale(), status));
+        VERIFY(icu_success(status));
+    }
+
+    return *m_time_zone_names;
 }
 
 icu::UnicodeString icu_string(StringView string)
