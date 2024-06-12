@@ -19,10 +19,10 @@ namespace Ladybird {
 LocationEdit::LocationEdit(QWidget* parent)
     : QLineEdit(parent)
 {
-    if (Settings::the()->enable_search())
-        setPlaceholderText("Search or enter web address");
-    else
-        setPlaceholderText("Enter web address");
+    update_placeholder();
+    QObject::connect(Settings::the(), &Settings::enable_search_changed, this, &LocationEdit::update_placeholder);
+    QObject::connect(Settings::the(), &Settings::search_engine_changed, this, &LocationEdit::update_placeholder);
+
     m_autocomplete = make<AutoComplete>(this);
     this->setCompleter(m_autocomplete);
 
@@ -74,6 +74,16 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
             setText(qstring_from_ak_string(m_url.serialize()));
     }
     highlight_location();
+}
+
+void LocationEdit::update_placeholder()
+{
+    if (Settings::the()->enable_search())
+        setPlaceholderText(qstring_from_ak_string(
+            MUST(String::formatted("Search with {} or enter web address",
+                Settings::the()->search_engine().name))));
+    else
+        setPlaceholderText("Enter web address");
 }
 
 void LocationEdit::highlight_location()

@@ -64,6 +64,7 @@ void Settings::set_search_engine(WebView::SearchEngine search_engine)
 {
     m_qsettings->setValue("search_engine_name", qstring_from_ak_string(search_engine.name));
     m_search_engine = move(search_engine);
+    emit search_engine_changed(m_search_engine);
 }
 
 Settings::EngineProvider Settings::autocomplete_engine()
@@ -109,6 +110,7 @@ bool Settings::enable_search()
 void Settings::set_enable_search(bool enable)
 {
     m_qsettings->setValue("enable_search", enable);
+    emit enable_search_changed(enable);
 }
 
 bool Settings::show_menubar()
