@@ -10,11 +10,7 @@
 
 namespace Locale {
 
-enum class CalendarFormatType : u8;
 enum class CalendarPatternStyle : u8;
-enum class CalendarSymbol : u8;
-enum class DayPeriod : u8;
-enum class Era : u8;
 enum class FirstDayRegion : u8;
 enum class HourCycle : u8;
 enum class HourCycleRegion : u16;
@@ -27,7 +23,6 @@ enum class KeywordHours : u8;
 enum class KeywordNumbers : u8;
 enum class Locale : u16;
 enum class MinimumDaysRegion : u8;
-enum class Month : u8;
 enum class NumericSymbol : u8;
 enum class PluralCategory : u8;
 enum class Style : u8;
@@ -37,9 +32,7 @@ enum class WeekendStartRegion : u8;
 
 class NumberFormat;
 
-struct CalendarFormat;
 struct CalendarPattern;
-struct CalendarRangePattern;
 struct Keyword;
 struct LanguageID;
 struct ListFormatPart;

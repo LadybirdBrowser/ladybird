@@ -60,6 +60,7 @@ static constexpr bool icu_failure(UErrorCode code)
     return static_cast<bool>(U_FAILURE(code));
 }
 
+icu::UnicodeString icu_string(StringView string);
 icu::StringPiece icu_string_piece(StringView string);
 
 Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings);

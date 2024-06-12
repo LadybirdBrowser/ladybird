@@ -58,8 +58,8 @@ describe("equal dates are squashed", () => {
             day: "2-digit",
             timeZone: "UTC",
         });
-        expect(ja.formatRange(d0, d0)).toBe("1989/1月/23");
-        expect(ja.formatRange(d1, d1)).toBe("2021/12月/07");
+        expect(ja.formatRange(d0, d0)).toBe("1989年1月23日");
+        expect(ja.formatRange(d1, d1)).toBe("2021年12月07日");
     });
 
     test("with time fields", () => {
@@ -104,8 +104,8 @@ describe("equal dates are squashed", () => {
             second: "2-digit",
             timeZone: "UTC",
         });
-        expect(ja.formatRange(d0, d0)).toBe("1989/1月/23 7:08:09");
-        expect(ja.formatRange(d1, d1)).toBe("2021/12月/07 17:40:50");
+        expect(ja.formatRange(d0, d0)).toBe("1989年1月23日 7:08:09");
+        expect(ja.formatRange(d1, d1)).toBe("2021年12月07日 17:40:50");
     });
 
     test("with date/time style fields", () => {
@@ -130,7 +130,7 @@ describe("equal dates are squashed", () => {
 describe("dateStyle", () => {
     // prettier-ignore
     const data = [
-        { date: "full", en: "Monday, January 23, 1989\u2009–\u2009Tuesday, December 7, 2021", ja: "1989年1月23日月曜日～2021年12月7日火曜日" },
+        { date: "full", en: "Monday, January 23, 1989\u2009–\u2009Tuesday, December 7, 2021", ja: "1989/01/23(月曜日)～2021/12/07(火曜日)" },
         { date: "long", en: "January 23, 1989\u2009–\u2009December 7, 2021", ja: "1989/01/23～2021/12/07" },
         { date: "medium", en: "Jan 23, 1989\u2009–\u2009Dec 7, 2021", ja: "1989/01/23～2021/12/07" },
         { date: "short", en: "1/23/89\u2009–\u200912/7/21", ja: "1989/01/23～2021/12/07" },
@@ -159,19 +159,17 @@ describe("dateStyle", () => {
         );
 
         const ja = new Intl.DateTimeFormat("ja", { dateStyle: "full", timeZone: "UTC" });
-        expect(ja.formatRange(d1, d0)).toBe("2021年12月7日火曜日～1989年1月23日月曜日");
+        expect(ja.formatRange(d1, d0)).toBe("2021/12/07(火曜日)～1989/01/23(月曜日)");
     });
 });
 
 describe("timeStyle", () => {
     // prettier-ignore
     const data = [
-        // FIXME: These results should include the date, even though it isn't requested, because the start/end dates
-        //        are more than just hours apart. See the FIXME in PartitionDateTimeRangePattern.
-        { time: "full", en: "7:08:09\u202fAM Coordinated Universal Time\u2009–\u20095:40:50\u202fPM Coordinated Universal Time", ja: "7時08分09秒 協定世界時～17時40分50秒 協定世界時" },
-        { time: "long", en: "7:08:09\u202fAM UTC\u2009–\u20095:40:50\u202fPM UTC", ja: "7:08:09 UTC～17:40:50 UTC" },
-        { time: "medium", en: "7:08:09\u202fAM\u2009–\u20095:40:50\u202fPM", ja: "7:08:09～17:40:50" },
-        { time: "short", en: "7:08\u202fAM\u2009–\u20095:40\u202fPM", ja: "7:08～17:40" },
+        { time: "full", en: "1/23/1989, 7:08:09\u202fAM Coordinated Universal Time\u2009–\u200912/7/2021, 5:40:50\u202fPM Coordinated Universal Time", ja: "1989/1/23 7時08分09秒 協定世界時～2021/12/7 17時40分50秒 協定世界時" },
+        { time: "long", en: "1/23/1989, 7:08:09\u202fAM UTC\u2009–\u200912/7/2021, 5:40:50\u202fPM UTC", ja: "1989/1/23 7:08:09 UTC～2021/12/7 17:40:50 UTC" },
+        { time: "medium", en: "1/23/1989, 7:08:09\u202fAM\u2009–\u200912/7/2021, 5:40:50\u202fPM", ja: "1989/1/23 7:08:09～2021/12/7 17:40:50" },
+        { time: "short", en: "1/23/1989, 7:08\u202fAM\u2009–\u200912/7/2021, 5:40\u202fPM", ja: "1989/1/23 7:08～2021/12/7 17:40" },
     ];
 
     test("all", () => {
@@ -188,14 +186,14 @@ describe("timeStyle", () => {
 describe("dateStyle + timeStyle", () => {
     // prettier-ignore
     const data = [
-        { date: "full", time: "full", en: "Monday, January 23, 1989 at 7:08:09\u202fAM Coordinated Universal Time\u2009–\u2009Tuesday, December 7, 2021 at 5:40:50\u202fPM Coordinated Universal Time", ja: "1989年1月23日月曜日 7時08分09秒 協定世界時～2021年12月7日火曜日 17時40分50秒 協定世界時" },
-        { date: "full", time: "long", en: "Monday, January 23, 1989 at 7:08:09\u202fAM UTC\u2009–\u2009Tuesday, December 7, 2021 at 5:40:50\u202fPM UTC", ja: "1989年1月23日月曜日 7:08:09 UTC～2021年12月7日火曜日 17:40:50 UTC" },
-        { date: "full", time: "medium", en: "Monday, January 23, 1989 at 7:08:09\u202fAM\u2009–\u2009Tuesday, December 7, 2021 at 5:40:50\u202fPM", ja: "1989年1月23日月曜日 7:08:09～2021年12月7日火曜日 17:40:50" },
-        { date: "full", time: "short", en: "Monday, January 23, 1989 at 7:08\u202fAM\u2009–\u2009Tuesday, December 7, 2021 at 5:40\u202fPM", ja: "1989年1月23日月曜日 7:08～2021年12月7日火曜日 17:40" },
-        { date: "long", time: "full", en: "January 23, 1989 at 7:08:09\u202fAM Coordinated Universal Time\u2009–\u2009December 7, 2021 at 5:40:50\u202fPM Coordinated Universal Time", ja: "1989年1月23日 7時08分09秒 協定世界時～2021年12月7日 17時40分50秒 協定世界時" },
-        { date: "long", time: "long", en: "January 23, 1989 at 7:08:09\u202fAM UTC\u2009–\u2009December 7, 2021 at 5:40:50\u202fPM UTC", ja: "1989年1月23日 7:08:09 UTC～2021年12月7日 17:40:50 UTC" },
-        { date: "long", time: "medium", en: "January 23, 1989 at 7:08:09\u202fAM\u2009–\u2009December 7, 2021 at 5:40:50\u202fPM", ja: "1989年1月23日 7:08:09～2021年12月7日 17:40:50" },
-        { date: "long", time: "short", en: "January 23, 1989 at 7:08\u202fAM\u2009–\u2009December 7, 2021 at 5:40\u202fPM", ja: "1989年1月23日 7:08～2021年12月7日 17:40" },
+        { date: "full", time: "full", en: "Monday, January 23, 1989 at 7:08:09\u202fAM Coordinated Universal Time\u2009–\u2009Tuesday, December 7, 2021 at 5:40:50\u202fPM Coordinated Universal Time", ja: "1989/1/23月曜日 7時08分09秒 協定世界時～2021/12/7火曜日 17時40分50秒 協定世界時" },
+        { date: "full", time: "long", en: "Monday, January 23, 1989 at 7:08:09\u202fAM UTC\u2009–\u2009Tuesday, December 7, 2021 at 5:40:50\u202fPM UTC", ja: "1989/1/23月曜日 7:08:09 UTC～2021/12/7火曜日 17:40:50 UTC" },
+        { date: "full", time: "medium", en: "Monday, January 23, 1989 at 7:08:09\u202fAM\u2009–\u2009Tuesday, December 7, 2021 at 5:40:50\u202fPM", ja: "1989/1/23月曜日 7:08:09～2021/12/7火曜日 17:40:50" },
+        { date: "full", time: "short", en: "Monday, January 23, 1989 at 7:08\u202fAM\u2009–\u2009Tuesday, December 7, 2021 at 5:40\u202fPM", ja: "1989/1/23月曜日 7:08～2021/12/7火曜日 17:40" },
+        { date: "long", time: "full", en: "January 23, 1989 at 7:08:09\u202fAM Coordinated Universal Time\u2009–\u2009December 7, 2021 at 5:40:50\u202fPM Coordinated Universal Time", ja: "1989/1/23 7時08分09秒 協定世界時～2021/12/7 17時40分50秒 協定世界時" },
+        { date: "long", time: "long", en: "January 23, 1989 at 7:08:09\u202fAM UTC\u2009–\u2009December 7, 2021 at 5:40:50\u202fPM UTC", ja: "1989/1/23 7:08:09 UTC～2021/12/7 17:40:50 UTC" },
+        { date: "long", time: "medium", en: "January 23, 1989 at 7:08:09\u202fAM\u2009–\u2009December 7, 2021 at 5:40:50\u202fPM", ja: "1989/1/23 7:08:09～2021/12/7 17:40:50" },
+        { date: "long", time: "short", en: "January 23, 1989 at 7:08\u202fAM\u2009–\u2009December 7, 2021 at 5:40\u202fPM", ja: "1989/1/23 7:08～2021/12/7 17:40" },
         { date: "medium", time: "full", en: "Jan 23, 1989, 7:08:09\u202fAM Coordinated Universal Time\u2009–\u2009Dec 7, 2021, 5:40:50\u202fPM Coordinated Universal Time", ja: "1989/01/23 7時08分09秒 協定世界時～2021/12/07 17時40分50秒 協定世界時" },
         { date: "medium", time: "long", en: "Jan 23, 1989, 7:08:09\u202fAM UTC\u2009–\u2009Dec 7, 2021, 5:40:50\u202fPM UTC", ja: "1989/01/23 7:08:09 UTC～2021/12/07 17:40:50 UTC" },
         { date: "medium", time: "medium", en: "Jan 23, 1989, 7:08:09\u202fAM\u2009–\u2009Dec 7, 2021, 5:40:50\u202fPM", ja: "1989/01/23 7:08:09～2021/12/07 17:40:50" },

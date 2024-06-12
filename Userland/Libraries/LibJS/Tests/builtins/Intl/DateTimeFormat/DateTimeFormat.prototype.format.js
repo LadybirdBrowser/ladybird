@@ -145,9 +145,9 @@ describe("weekday", () => {
 describe("era", () => {
     // prettier-ignore
     const data = [
-        { era: "narrow", en0: "12/7/2021 A", en1: "1/23/1989 A", ar0: "٧ ١٢ ٢٠٢١ م", ar1: "٢٣ ١ ١٩٨٩ م" },
-        { era: "short", en0: "12/7/2021 AD", en1: "1/23/1989 AD", ar0: "٧ ١٢ ٢٠٢١ م", ar1: "٢٣ ١ ١٩٨٩ م" },
-        { era: "long", en0: "12/7/2021 Anno Domini", en1: "1/23/1989 Anno Domini", ar0: "٧ ١٢ ٢٠٢١ ميلادي", ar1: "٢٣ ١ ١٩٨٩ ميلادي" },
+        { era: "narrow", en0: "12/7/2021 A", en1: "1/23/1989 A", ar0: "٠٧-١٢-٢٠٢١ م", ar1: "٢٣-٠١-١٩٨٩ م" },
+        { era: "short", en0: "12/7/2021 AD", en1: "1/23/1989 AD", ar0: "٠٧-١٢-٢٠٢١ م", ar1: "٢٣-٠١-١٩٨٩ م" },
+        { era: "long", en0: "12/7/2021 Anno Domini", en1: "1/23/1989 Anno Domini", ar0: "٠٧-١٢-٢٠٢١ ميلادي", ar1: "٢٣-٠١-١٩٨٩ ميلادي" },
     ];
 
     test("all", () => {
@@ -170,7 +170,7 @@ describe("era", () => {
         expect(en.format(year1BC)).toBe("1/1/1 BC");
 
         const ar = new Intl.DateTimeFormat("ar", { era: "short", timeZone: "UTC" });
-        expect(ar.format(year1BC)).toBe("١ ١ ١ ق.م");
+        expect(ar.format(year1BC)).toBe("٠١-٠١-١ ق.م");
     });
 });
 
@@ -300,7 +300,7 @@ describe("dayPeriod", () => {
             { minute: undefined, second: undefined, fractionalSecondDigits: undefined, en0: "12 noon", en1: "12 noon", en2: "12 noon", en3: "12 noon", ar0: "١٢ ظهرًا", ar1: "١٢ ظهرًا", ar2: "١٢ ظهرًا", ar3: "١٢ ظهرًا" },
             { minute: "numeric", second: undefined, fractionalSecondDigits: undefined, en0: "12:00 noon", en1: "12:01 in the afternoon", en2: "12:00 noon", en3: "12:00 noon", ar0: "١٢:٠٠ ظهرًا", ar1: "١٢:٠١ ظهرًا", ar2: "١٢:٠٠ ظهرًا", ar3: "١٢:٠٠ ظهرًا" },
             { minute: "numeric", second: "numeric", fractionalSecondDigits: undefined, en0: "12:00:00 noon", en1: "12:01:00 in the afternoon", en2: "12:00:01 in the afternoon", en3: "12:00:00 noon", ar0: "١٢:٠٠:٠٠ ظهرًا", ar1: "١٢:٠١:٠٠ ظهرًا", ar2: "١٢:٠٠:٠١ ظهرًا", ar3: "١٢:٠٠:٠٠ ظهرًا" },
-            { minute: "numeric", second: "numeric", fractionalSecondDigits: 1, en0: "12:00:00.0 noon", en1: "12:01:00.0 in the afternoon", en2: "12:00:01.0 in the afternoon", en3: "12:00:00.5 in the afternoon", ar0: "١٢:٠٠:٠٠٫٠ ظهرًا", ar1: "١٢:٠١:٠٠٫٠ ظهرًا", ar2: "١٢:٠٠:٠١٫٠ ظهرًا", ar3: "١٢:٠٠:٠٠٫٥ ظهرًا" },
+            { minute: "numeric", second: "numeric", fractionalSecondDigits: 1, en0: "12:00:00.0 noon", en1: "12:01:00.0 in the afternoon", en2: "12:00:01.0 in the afternoon", en3: "12:00:00.5 noon", ar0: "١٢:٠٠:٠٠٫٠ ظهرًا", ar1: "١٢:٠١:٠٠٫٠ ظهرًا", ar2: "١٢:٠٠:٠١٫٠ ظهرًا", ar3: "١٢:٠٠:٠٠٫٥ ظهرًا" },
         ];
 
         // The en locale includes the "noon" fixed day period, whereas the ar locale does not.
@@ -368,10 +368,8 @@ describe("dayPeriod", () => {
 
 describe("hour", () => {
     // prettier-ignore
-    // FIXME: The 2-digit results are supposed to include {ampm}. These results are achieved from the "HH"
-    //        pattern, which should only be applied to 24-hour cycles.
     const data = [
-        { hour: "2-digit", en0: "05", en1: "07", ar0: "٠٥", ar1: "٠٧" },
+        { hour: "2-digit", en0: "05\u202fPM", en1: "07\u202fAM", ar0: "٠٥ م", ar1: "٠٧ ص" },
         { hour: "numeric", en0: "5\u202fPM", en1: "7\u202fAM", ar0: "٥ م", ar1: "٧ ص" },
     ];
 
@@ -478,47 +476,47 @@ describe("fractionalSecondDigits", () => {
 describe("timeZoneName", () => {
     // prettier-ignore
     const data = [
-        { timeZone: "UTC", timeZoneName: "short", en0: "12/7/2021, 5:40\u202fPM UTC", en1: "1/23/1989, 7:08\u202fAM UTC", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م UTC", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص UTC" },
-        { timeZone: "UTC", timeZoneName: "long", en0: "12/7/2021, 5:40\u202fPM Coordinated Universal Time", en1: "1/23/1989, 7:08\u202fAM Coordinated Universal Time", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م التوقيت العالمي المنسق", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص التوقيت العالمي المنسق" },
-        { timeZone: "UTC", timeZoneName: "shortOffset", en0: "12/7/2021, 5:40\u202fPM GMT", en1: "1/23/1989, 7:08\u202fAM GMT", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص غرينتش" },
-        { timeZone: "UTC", timeZoneName: "longOffset", en0: "12/7/2021, 5:40\u202fPM GMT", en1: "1/23/1989, 7:08\u202fAM GMT", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص غرينتش" },
-        { timeZone: "UTC", timeZoneName: "shortGeneric", en0: "12/7/2021, 5:40\u202fPM GMT", en1: "1/23/1989, 7:08\u202fAM GMT", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص غرينتش" },
-        { timeZone: "UTC", timeZoneName: "longGeneric", en0: "12/7/2021, 5:40\u202fPM GMT", en1: "1/23/1989, 7:08\u202fAM GMT", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص غرينتش" },
+        { timeZone: "UTC", timeZoneName: "short", en0: "12/7/2021, UTC", en1: "1/23/1989, UTC", ar0: "٧‏/١٢‏/٢٠٢١، UTC", ar1: "٢٣‏/١‏/١٩٨٩، UTC" },
+        { timeZone: "UTC", timeZoneName: "long", en0: "12/7/2021, Coordinated Universal Time", en1: "1/23/1989, Coordinated Universal Time", ar0: "٧‏/١٢‏/٢٠٢١، التوقيت العالمي المنسق", ar1: "٢٣‏/١‏/١٩٨٩، التوقيت العالمي المنسق" },
+        { timeZone: "UTC", timeZoneName: "shortOffset", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
+        { timeZone: "UTC", timeZoneName: "longOffset", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
+        { timeZone: "UTC", timeZoneName: "shortGeneric", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
+        { timeZone: "UTC", timeZoneName: "longGeneric", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
 
-        { timeZone: "America/New_York", timeZoneName: "short", en0: "12/7/2021, 12:40\u202fPM EST", en1: "1/23/1989, 2:08\u202fAM EST", ar0: "٧‏/١٢‏/٢٠٢١، ١٢:٤٠ م غرينتش-٥", ar1: "٢٣‏/١‏/١٩٨٩، ٢:٠٨ ص غرينتش-٥" },
-        { timeZone: "America/New_York", timeZoneName: "long", en0: "12/7/2021, 12:40\u202fPM Eastern Standard Time", en1: "1/23/1989, 2:08\u202fAM Eastern Standard Time", ar0: "٧‏/١٢‏/٢٠٢١، ١٢:٤٠ م التوقيت الرسمي الشرقي لأمريكا الشمالية", ar1: "٢٣‏/١‏/١٩٨٩، ٢:٠٨ ص التوقيت الرسمي الشرقي لأمريكا الشمالية" },
-        { timeZone: "America/New_York", timeZoneName: "shortOffset", en0: "12/7/2021, 12:40\u202fPM GMT-5", en1: "1/23/1989, 2:08\u202fAM GMT-5", ar0: "٧‏/١٢‏/٢٠٢١، ١٢:٤٠ م غرينتش-٥", ar1: "٢٣‏/١‏/١٩٨٩، ٢:٠٨ ص غرينتش-٥" },
-        { timeZone: "America/New_York", timeZoneName: "longOffset", en0: "12/7/2021, 12:40\u202fPM GMT-05:00", en1: "1/23/1989, 2:08\u202fAM GMT-05:00", ar0: "٧‏/١٢‏/٢٠٢١، ١٢:٤٠ م غرينتش-٠٥:٠٠", ar1: "٢٣‏/١‏/١٩٨٩، ٢:٠٨ ص غرينتش-٠٥:٠٠" },
-        { timeZone: "America/New_York", timeZoneName: "shortGeneric", en0: "12/7/2021, 12:40\u202fPM ET", en1: "1/23/1989, 2:08\u202fAM ET", ar0: "٧‏/١٢‏/٢٠٢١، ١٢:٤٠ م غرينتش-٥", ar1: "٢٣‏/١‏/١٩٨٩، ٢:٠٨ ص غرينتش-٥" },
-        { timeZone: "America/New_York", timeZoneName: "longGeneric", en0: "12/7/2021, 12:40\u202fPM Eastern Time", en1: "1/23/1989, 2:08\u202fAM Eastern Time", ar0: "٧‏/١٢‏/٢٠٢١، ١٢:٤٠ م التوقيت الشرقي لأمريكا الشمالية", ar1: "٢٣‏/١‏/١٩٨٩، ٢:٠٨ ص التوقيت الشرقي لأمريكا الشمالية" },
+        { timeZone: "America/New_York", timeZoneName: "short", en0: "12/7/2021, EST", en1: "1/23/1989, EST", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش-٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش-٥" },
+        { timeZone: "America/New_York", timeZoneName: "long", en0: "12/7/2021, Eastern Standard Time", en1: "1/23/1989, Eastern Standard Time", ar0: "٧‏/١٢‏/٢٠٢١، التوقيت الرسمي الشرقي لأمريكا الشمالية", ar1: "٢٣‏/١‏/١٩٨٩، التوقيت الرسمي الشرقي لأمريكا الشمالية" },
+        { timeZone: "America/New_York", timeZoneName: "shortOffset", en0: "12/7/2021, GMT-5", en1: "1/23/1989, GMT-5", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش-٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش-٥" },
+        { timeZone: "America/New_York", timeZoneName: "longOffset", en0: "12/7/2021, GMT-05:00", en1: "1/23/1989, GMT-05:00", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش-٠٥:٠٠", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش-٠٥:٠٠" },
+        { timeZone: "America/New_York", timeZoneName: "shortGeneric", en0: "12/7/2021, ET", en1: "1/23/1989, ET", ar0: "٧‏/١٢‏/٢٠٢١، توقيت نيويورك", ar1: "٢٣‏/١‏/١٩٨٩، توقيت نيويورك" },
+        { timeZone: "America/New_York", timeZoneName: "longGeneric", en0: "12/7/2021, Eastern Time", en1: "1/23/1989, Eastern Time", ar0: "٧‏/١٢‏/٢٠٢١، التوقيت الشرقي لأمريكا الشمالية", ar1: "٢٣‏/١‏/١٩٨٩، التوقيت الشرقي لأمريكا الشمالية" },
 
-        { timeZone: "Europe/London", timeZoneName: "short", en0: "12/7/2021, 5:40\u202fPM GMT", en1: "1/23/1989, 7:08\u202fAM GMT", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص غرينتش" },
-        { timeZone: "Europe/London", timeZoneName: "long", en0: "12/7/2021, 5:40\u202fPM Greenwich Mean Time", en1: "1/23/1989, 7:08\u202fAM Greenwich Mean Time", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م توقيت غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص توقيت غرينتش" },
-        { timeZone: "Europe/London", timeZoneName: "shortOffset", en0: "12/7/2021, 5:40\u202fPM GMT", en1: "1/23/1989, 7:08\u202fAM GMT", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص غرينتش" },
-        { timeZone: "Europe/London", timeZoneName: "longOffset", en0: "12/7/2021, 5:40\u202fPM GMT", en1: "1/23/1989, 7:08\u202fAM GMT", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص غرينتش" },
-        { timeZone: "Europe/London", timeZoneName: "shortGeneric", en0: "12/7/2021, 5:40\u202fPM GMT", en1: "1/23/1989, 7:08\u202fAM GMT", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص غرينتش" },
-        { timeZone: "Europe/London", timeZoneName: "longGeneric", en0: "12/7/2021, 5:40\u202fPM GMT", en1: "1/23/1989, 7:08\u202fAM GMT", ar0: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، ٧:٠٨ ص غرينتش" },
+        { timeZone: "Europe/London", timeZoneName: "short", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
+        { timeZone: "Europe/London", timeZoneName: "long", en0: "12/7/2021, Greenwich Mean Time", en1: "1/23/1989, Greenwich Mean Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، توقيت غرينتش" },
+        { timeZone: "Europe/London", timeZoneName: "shortOffset", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
+        { timeZone: "Europe/London", timeZoneName: "longOffset", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
+        { timeZone: "Europe/London", timeZoneName: "shortGeneric", en0: "12/7/2021, United Kingdom Time", en1: "1/23/1989, United Kingdom Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت المملكة المتحدة", ar1: "٢٣‏/١‏/١٩٨٩، توقيت المملكة المتحدة" },
+        { timeZone: "Europe/London", timeZoneName: "longGeneric", en0: "12/7/2021, United Kingdom Time", en1: "1/23/1989, United Kingdom Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت المملكة المتحدة", ar1: "٢٣‏/١‏/١٩٨٩، توقيت المملكة المتحدة" },
 
-        { timeZone: "America/Los_Angeles", timeZoneName: "short", en0: "12/7/2021, 9:40\u202fAM PST", en1: "1/22/1989, 11:08\u202fPM PST", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٤٠ ص غرينتش-٨", ar1: "٢٢‏/١‏/١٩٨٩، ١١:٠٨ م غرينتش-٨" },
-        { timeZone: "America/Los_Angeles", timeZoneName: "long", en0: "12/7/2021, 9:40\u202fAM Pacific Standard Time", en1: "1/22/1989, 11:08\u202fPM Pacific Standard Time", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٤٠ ص توقيت المحيط الهادي الرسمي", ar1: "٢٢‏/١‏/١٩٨٩، ١١:٠٨ م توقيت المحيط الهادي الرسمي" },
-        { timeZone: "America/Los_Angeles", timeZoneName: "shortOffset", en0: "12/7/2021, 9:40\u202fAM GMT-8", en1: "1/22/1989, 11:08\u202fPM GMT-8", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٤٠ ص غرينتش-٨", ar1: "٢٢‏/١‏/١٩٨٩، ١١:٠٨ م غرينتش-٨" },
-        { timeZone: "America/Los_Angeles", timeZoneName: "longOffset", en0: "12/7/2021, 9:40\u202fAM GMT-08:00", en1: "1/22/1989, 11:08\u202fPM GMT-08:00", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٤٠ ص غرينتش-٠٨:٠٠", ar1: "٢٢‏/١‏/١٩٨٩، ١١:٠٨ م غرينتش-٠٨:٠٠" },
-        { timeZone: "America/Los_Angeles", timeZoneName: "shortGeneric", en0: "12/7/2021, 9:40\u202fAM PT", en1: "1/22/1989, 11:08\u202fPM PT", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٤٠ ص غرينتش-٨", ar1: "٢٢‏/١‏/١٩٨٩، ١١:٠٨ م غرينتش-٨" },
-        { timeZone: "America/Los_Angeles", timeZoneName: "longGeneric", en0: "12/7/2021, 9:40\u202fAM Pacific Time", en1: "1/22/1989, 11:08\u202fPM Pacific Time", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٤٠ ص توقيت المحيط الهادي", ar1: "٢٢‏/١‏/١٩٨٩، ١١:٠٨ م توقيت المحيط الهادي" },
+        { timeZone: "America/Los_Angeles", timeZoneName: "short", en0: "12/7/2021, PST", en1: "1/22/1989, PST", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش-٨", ar1: "٢٢‏/١‏/١٩٨٩، غرينتش-٨" },
+        { timeZone: "America/Los_Angeles", timeZoneName: "long", en0: "12/7/2021, Pacific Standard Time", en1: "1/22/1989, Pacific Standard Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت المحيط الهادي الرسمي", ar1: "٢٢‏/١‏/١٩٨٩، توقيت المحيط الهادي الرسمي" },
+        { timeZone: "America/Los_Angeles", timeZoneName: "shortOffset", en0: "12/7/2021, GMT-8", en1: "1/22/1989, GMT-8", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش-٨", ar1: "٢٢‏/١‏/١٩٨٩، غرينتش-٨" },
+        { timeZone: "America/Los_Angeles", timeZoneName: "longOffset", en0: "12/7/2021, GMT-08:00", en1: "1/22/1989, GMT-08:00", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش-٠٨:٠٠", ar1: "٢٢‏/١‏/١٩٨٩، غرينتش-٠٨:٠٠" },
+        { timeZone: "America/Los_Angeles", timeZoneName: "shortGeneric", en0: "12/7/2021, PT", en1: "1/22/1989, PT", ar0: "٧‏/١٢‏/٢٠٢١، توقيت لوس انجلوس", ar1: "٢٢‏/١‏/١٩٨٩، توقيت لوس انجلوس" },
+        { timeZone: "America/Los_Angeles", timeZoneName: "longGeneric", en0: "12/7/2021, Pacific Time", en1: "1/22/1989, Pacific Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت المحيط الهادي", ar1: "٢٢‏/١‏/١٩٨٩، توقيت المحيط الهادي" },
 
-        { timeZone: "Asia/Kathmandu", timeZoneName: "short", en0: "12/7/2021, 11:25\u202fPM GMT+5:45", en1: "1/23/1989, 12:53\u202fPM GMT+5:45", ar0: "٧‏/١٢‏/٢٠٢١، ١١:٢٥ م غرينتش+٥:٤٥", ar1: "٢٣‏/١‏/١٩٨٩، ١٢:٥٣ م غرينتش+٥:٤٥" },
-        { timeZone: "Asia/Kathmandu", timeZoneName: "long", en0: "12/7/2021, 11:25\u202fPM Nepal Time", en1: "1/23/1989, 12:53\u202fPM Nepal Time", ar0: "٧‏/١٢‏/٢٠٢١، ١١:٢٥ م توقيت نيبال", ar1: "٢٣‏/١‏/١٩٨٩، ١٢:٥٣ م توقيت نيبال" },
-        { timeZone: "Asia/Kathmandu", timeZoneName: "shortOffset", en0: "12/7/2021, 11:25\u202fPM GMT+5:45", en1: "1/23/1989, 12:53\u202fPM GMT+5:45", ar0: "٧‏/١٢‏/٢٠٢١، ١١:٢٥ م غرينتش+٥:٤٥", ar1: "٢٣‏/١‏/١٩٨٩، ١٢:٥٣ م غرينتش+٥:٤٥" },
-        { timeZone: "Asia/Kathmandu", timeZoneName: "longOffset", en0: "12/7/2021, 11:25\u202fPM GMT+05:45", en1: "1/23/1989, 12:53\u202fPM GMT+05:45", ar0: "٧‏/١٢‏/٢٠٢١، ١١:٢٥ م غرينتش+٠٥:٤٥", ar1: "٢٣‏/١‏/١٩٨٩، ١٢:٥٣ م غرينتش+٠٥:٤٥" },
-        { timeZone: "Asia/Kathmandu", timeZoneName: "shortGeneric", en0: "12/7/2021, 11:25\u202fPM GMT+5:45", en1: "1/23/1989, 12:53\u202fPM GMT+5:45", ar0: "٧‏/١٢‏/٢٠٢١، ١١:٢٥ م غرينتش+٥:٤٥", ar1: "٢٣‏/١‏/١٩٨٩، ١٢:٥٣ م غرينتش+٥:٤٥" },
-        { timeZone: "Asia/Kathmandu", timeZoneName: "longGeneric", en0: "12/7/2021, 11:25\u202fPM GMT+05:45", en1: "1/23/1989, 12:53\u202fPM GMT+05:45", ar0: "٧‏/١٢‏/٢٠٢١، ١١:٢٥ م غرينتش+٠٥:٤٥", ar1: "٢٣‏/١‏/١٩٨٩، ١٢:٥٣ م غرينتش+٠٥:٤٥" },
+        { timeZone: "Asia/Kathmandu", timeZoneName: "short", en0: "12/7/2021, GMT+5:45", en1: "1/23/1989, GMT+5:45", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٥:٤٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٥:٤٥" },
+        { timeZone: "Asia/Kathmandu", timeZoneName: "long", en0: "12/7/2021, Nepal Time", en1: "1/23/1989, Nepal Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت نيبال", ar1: "٢٣‏/١‏/١٩٨٩، توقيت نيبال" },
+        { timeZone: "Asia/Kathmandu", timeZoneName: "shortOffset", en0: "12/7/2021, GMT+5:45", en1: "1/23/1989, GMT+5:45", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٥:٤٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٥:٤٥" },
+        { timeZone: "Asia/Kathmandu", timeZoneName: "longOffset", en0: "12/7/2021, GMT+05:45", en1: "1/23/1989, GMT+05:45", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠٥:٤٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠٥:٤٥" },
+        { timeZone: "Asia/Kathmandu", timeZoneName: "shortGeneric", en0: "12/7/2021, Nepal Time", en1: "1/23/1989, Nepal Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت نيبال", ar1: "٢٣‏/١‏/١٩٨٩، توقيت نيبال" },
+        { timeZone: "Asia/Kathmandu", timeZoneName: "longGeneric", en0: "12/7/2021, Nepal Time", en1: "1/23/1989, Nepal Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت نيبال", ar1: "٢٣‏/١‏/١٩٨٩، توقيت نيبال" },
 
-        { timeZone: "+04:15", timeZoneName: "short", en0: "12/7/2021, 9:55\u202fPM +04:15", en1: "1/23/1989, 11:23\u202fAM +04:15", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٥٥ م +04:15", ar1: "٢٣‏/١‏/١٩٨٩، ١١:٢٣ ص +04:15" },
-        { timeZone: "+04:15", timeZoneName: "long", en0: "12/7/2021, 9:55\u202fPM +04:15", en1: "1/23/1989, 11:23\u202fAM +04:15", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٥٥ م +04:15", ar1: "٢٣‏/١‏/١٩٨٩، ١١:٢٣ ص +04:15" },
-        { timeZone: "+04:15", timeZoneName: "shortOffset", en0: "12/7/2021, 9:55\u202fPM +04:15", en1: "1/23/1989, 11:23\u202fAM +04:15", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٥٥ م +04:15", ar1: "٢٣‏/١‏/١٩٨٩، ١١:٢٣ ص +04:15" },
-        { timeZone: "+04:15", timeZoneName: "longOffset", en0: "12/7/2021, 9:55\u202fPM +04:15", en1: "1/23/1989, 11:23\u202fAM +04:15", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٥٥ م +04:15", ar1: "٢٣‏/١‏/١٩٨٩، ١١:٢٣ ص +04:15" },
-        { timeZone: "+04:15", timeZoneName: "shortGeneric", en0: "12/7/2021, 9:55\u202fPM +04:15", en1: "1/23/1989, 11:23\u202fAM +04:15", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٥٥ م +04:15", ar1: "٢٣‏/١‏/١٩٨٩، ١١:٢٣ ص +04:15" },
-        { timeZone: "+04:15", timeZoneName: "longGeneric", en0: "12/7/2021, 9:55\u202fPM +04:15", en1: "1/23/1989, 11:23\u202fAM +04:15", ar0: "٧‏/١٢‏/٢٠٢١، ٩:٥٥ م +04:15", ar1: "٢٣‏/١‏/١٩٨٩، ١١:٢٣ ص +04:15" },
+        { timeZone: "+04:15", timeZoneName: "short", en0: "12/7/2021, GMT+4:15", en1: "1/23/1989, GMT+4:15", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٤:١٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٤:١٥" },
+        { timeZone: "+04:15", timeZoneName: "long", en0: "12/7/2021, GMT+04:15", en1: "1/23/1989, GMT+04:15", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠٤:١٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠٤:١٥" },
+        { timeZone: "+04:15", timeZoneName: "shortOffset", en0: "12/7/2021, GMT+4:15", en1: "1/23/1989, GMT+4:15", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٤:١٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٤:١٥" },
+        { timeZone: "+04:15", timeZoneName: "longOffset", en0: "12/7/2021, GMT+04:15", en1: "1/23/1989, GMT+04:15", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠٤:١٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠٤:١٥" },
+        { timeZone: "+04:15", timeZoneName: "shortGeneric", en0: "12/7/2021, GMT+4:15", en1: "1/23/1989, GMT+4:15", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٤:١٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٤:١٥" },
+        { timeZone: "+04:15", timeZoneName: "longGeneric", en0: "12/7/2021, GMT+04:15", en1: "1/23/1989, GMT+04:15", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠٤:١٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠٤:١٥" },
     ];
 
     test("all", () => {

@@ -211,14 +211,14 @@ describe("correct behavior", () => {
     test("minute", () => {
         ["2-digit", "numeric"].forEach(minute => {
             const en = new Intl.DateTimeFormat("en", { minute: minute });
-            expect(en.resolvedOptions().minute).toBe("2-digit");
+            expect(en.resolvedOptions().minute).toBe(minute);
         });
     });
 
     test("second", () => {
         ["2-digit", "numeric"].forEach(second => {
             const en = new Intl.DateTimeFormat("en", { second: second });
-            expect(en.resolvedOptions().second).toBe("2-digit");
+            expect(en.resolvedOptions().second).toBe(second);
         });
     });
 
