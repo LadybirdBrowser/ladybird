@@ -63,6 +63,8 @@ public:
 
 signals:
     void show_menubar_changed(bool show_menubar);
+    void enable_search_changed(bool enable);
+    void search_engine_changed(WebView::SearchEngine engine);
 
 protected:
     Settings();

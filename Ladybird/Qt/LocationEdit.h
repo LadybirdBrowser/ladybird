@@ -27,6 +27,7 @@ private:
     virtual void focusInEvent(QFocusEvent* event) override;
     virtual void focusOutEvent(QFocusEvent* event) override;
 
+    void update_placeholder();
     void highlight_location();
     AK::OwnPtr<AutoComplete> m_autocomplete;
 
