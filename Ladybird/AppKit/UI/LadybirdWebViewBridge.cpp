@@ -23,16 +23,17 @@ static T scale_for_device(T size, float device_pixel_ratio)
     return size.template to_type<float>().scaled(device_pixel_ratio).template to_type<int>();
 }
 
-ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme)
+ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast)
 {
-    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, web_content_options, move(webdriver_content_ipc_path), preferred_color_scheme));
+    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, web_content_options, move(webdriver_content_ipc_path), preferred_color_scheme, preferred_contrast));
 }
 
-WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme)
+WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast)
     : m_screen_rects(move(screen_rects))
     , m_web_content_options(web_content_options)
     , m_webdriver_content_ipc_path(move(webdriver_content_ipc_path))
     , m_preferred_color_scheme(preferred_color_scheme)
+    , m_preferred_contrast(preferred_contrast)
 {
     m_device_pixel_ratio = device_pixel_ratio;
 }
@@ -72,6 +73,12 @@ void WebViewBridge::set_preferred_color_scheme(Web::CSS::PreferredColorScheme co
 {
     m_preferred_color_scheme = color_scheme;
     client().async_set_preferred_color_scheme(m_client_state.page_index, color_scheme);
+}
+
+void WebViewBridge::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
+{
+    m_preferred_contrast = contrast;
+    client().async_set_preferred_contrast(m_client_state.page_index, contrast);
 }
 
 void WebViewBridge::enqueue_input_event(Web::MouseEvent event)

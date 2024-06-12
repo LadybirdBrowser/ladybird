@@ -157,6 +157,11 @@ void ViewImplementation::set_preferred_color_scheme(Web::CSS::PreferredColorSche
     client().async_set_preferred_color_scheme(page_id(), color_scheme);
 }
 
+void ViewImplementation::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
+{
+    client().async_set_preferred_contrast(page_id(), contrast);
+}
+
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());

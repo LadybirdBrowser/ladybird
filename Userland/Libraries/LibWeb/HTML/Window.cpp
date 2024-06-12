@@ -338,8 +338,18 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
         }
     }
     case CSS::MediaFeatureID::PrefersContrast:
-        // FIXME: Make this a preference
-        return CSS::MediaFeatureValue(CSS::ValueID::NoPreference);
+        switch (page().preferred_contrast()) {
+        case CSS::PreferredContrast::Less:
+            return CSS::MediaFeatureValue(CSS::ValueID::Less);
+        case CSS::PreferredContrast::More:
+            return CSS::MediaFeatureValue(CSS::ValueID::More);
+        case CSS::PreferredContrast::NoPreference:
+            return CSS::MediaFeatureValue(CSS::ValueID::NoPreference);
+        case CSS::PreferredContrast::Auto:
+        default:
+            // FIXME: Fallback to system settings
+            return CSS::MediaFeatureValue(CSS::ValueID::NoPreference);
+        }
     case CSS::MediaFeatureID::PrefersReducedData:
         // FIXME: Make this a preference
         return CSS::MediaFeatureValue(CSS::ValueID::NoPreference);

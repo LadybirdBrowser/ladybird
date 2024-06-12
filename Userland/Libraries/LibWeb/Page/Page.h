@@ -25,6 +25,7 @@
 #include <LibJS/Heap/Heap.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Forward.h>
@@ -102,6 +103,7 @@ public:
     Gfx::Palette palette() const;
     CSSPixelRect web_exposed_screen_area() const;
     CSS::PreferredColorScheme preferred_color_scheme() const;
+    CSS::PreferredContrast preferred_contrast() const;
 
     bool is_same_origin_policy_enabled() const { return m_same_origin_policy_enabled; }
     void set_same_origin_policy_enabled(bool b) { m_same_origin_policy_enabled = b; }
@@ -275,6 +277,7 @@ public:
     virtual DevicePixelRect screen_rect() const = 0;
     virtual double device_pixels_per_css_pixel() const = 0;
     virtual CSS::PreferredColorScheme preferred_color_scheme() const = 0;
+    virtual CSS::PreferredContrast preferred_contrast() const = 0;
     virtual void paint_next_frame() = 0;
     virtual void paint(DevicePixelRect const&, Gfx::Bitmap&, PaintOptions = {}) = 0;
     virtual void page_did_change_title(ByteString const&) { }
