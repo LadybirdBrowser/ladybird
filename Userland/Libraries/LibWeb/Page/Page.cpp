@@ -112,6 +112,11 @@ CSS::PreferredColorScheme Page::preferred_color_scheme() const
     return m_client->preferred_color_scheme();
 }
 
+CSS::PreferredContrast Page::preferred_contrast() const
+{
+    return m_client->preferred_contrast();
+}
+
 CSSPixelPoint Page::device_to_css_point(DevicePixelPoint point) const
 {
     return {

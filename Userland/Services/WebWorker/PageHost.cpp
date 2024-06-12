@@ -67,6 +67,11 @@ Web::CSS::PreferredColorScheme PageHost::preferred_color_scheme() const
     return Web::CSS::PreferredColorScheme::Auto;
 }
 
+Web::CSS::PreferredContrast PageHost::preferred_contrast() const
+{
+    return Web::CSS::PreferredContrast::Auto;
+}
+
 void PageHost::paint(Web::DevicePixelRect const&, Gfx::Bitmap&, Web::PaintOptions)
 {
 }

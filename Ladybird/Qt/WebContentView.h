@@ -17,6 +17,7 @@
 #include <LibGfx/StandardCursor.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>

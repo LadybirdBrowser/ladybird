@@ -30,6 +30,7 @@
     Optional<StringView> m_webdriver_content_ipc_path;
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
+    Web::CSS::PreferredContrast m_preferred_contrast;
 
     WebView::SearchEngine m_search_engine;
 }
@@ -88,6 +89,7 @@
         }
 
         m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Auto;
+        m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
         m_search_engine = WebView::default_search_engine();
 
         // Reduce the tooltip delay, as the default delay feels quite long.
@@ -159,6 +161,11 @@
 - (Web::CSS::PreferredColorScheme)preferredColorScheme
 {
     return m_preferred_color_scheme;
+}
+
+- (Web::CSS::PreferredContrast)preferredContrast
+{
+    return m_preferred_contrast;
 }
 
 - (WebView::SearchEngine const&)searchEngine
@@ -255,6 +262,38 @@
     for (TabController* controller in self.managed_tabs) {
         auto* tab = (Tab*)[controller window];
         [[tab web_view] setPreferredColorScheme:m_preferred_color_scheme];
+    }
+}
+
+- (void)setAutoPreferredContrast:(id)sender
+{
+    m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
+    [self broadcastPreferredContrastUpdate];
+}
+
+- (void)setLessPreferredContrast:(id)sender
+{
+    m_preferred_contrast = Web::CSS::PreferredContrast::Less;
+    [self broadcastPreferredContrastUpdate];
+}
+
+- (void)setMorePreferredContrast:(id)sender
+{
+    m_preferred_contrast = Web::CSS::PreferredContrast::More;
+    [self broadcastPreferredContrastUpdate];
+}
+
+- (void)setNoPreferencePreferredContrast:(id)sender
+{
+    m_preferred_contrast = Web::CSS::PreferredContrast::NoPreference;
+    [self broadcastPreferredContrastUpdate];
+}
+
+- (void)broadcastPreferredContrastUpdate
+{
+    for (TabController* controller in self.managed_tabs) {
+        auto* tab = (Tab*)[controller window];
+        [[tab web_view] setPreferredContrast:m_preferred_contrast];
     }
 }
 
@@ -394,6 +433,25 @@
                                                        keyEquivalent:@""];
     [color_scheme_menu_item setSubmenu:color_scheme_menu];
 
+    auto* contrast_menu = [[NSMenu alloc] init];
+    [contrast_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Auto"
+                                                      action:@selector(setAutoPreferredContrast:)
+                                               keyEquivalent:@""]];
+    [contrast_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Less"
+                                                      action:@selector(setLessPreferredContrast:)
+                                               keyEquivalent:@""]];
+    [contrast_menu addItem:[[NSMenuItem alloc] initWithTitle:@"More"
+                                                      action:@selector(setMorePreferredContrast:)
+                                               keyEquivalent:@""]];
+    [contrast_menu addItem:[[NSMenuItem alloc] initWithTitle:@"No Preference"
+                                                      action:@selector(setNoPreferencePreferredContrast:)
+                                               keyEquivalent:@""]];
+
+    auto* contrast_menu_item = [[NSMenuItem alloc] initWithTitle:@"Contrast"
+                                                          action:nil
+                                                   keyEquivalent:@""];
+    [contrast_menu_item setSubmenu:contrast_menu];
+
     auto* zoom_menu = [[NSMenu alloc] init];
     [zoom_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Zoom In"
                                                   action:@selector(zoomIn:)
@@ -411,6 +469,7 @@
     [zoom_menu_item setSubmenu:zoom_menu];
 
     [submenu addItem:color_scheme_menu_item];
+    [submenu addItem:contrast_menu_item];
     [submenu addItem:zoom_menu_item];
     [submenu addItem:[NSMenuItem separatorItem]];
 
@@ -622,14 +681,20 @@
 
 - (BOOL)validateMenuItem:(NSMenuItem*)item
 {
-    using enum Web::CSS::PreferredColorScheme;
-
     if ([item action] == @selector(setAutoPreferredColorScheme:)) {
-        [item setState:(m_preferred_color_scheme == Auto) ? NSControlStateValueOn : NSControlStateValueOff];
+        [item setState:(m_preferred_color_scheme == Web::CSS::PreferredColorScheme::Auto) ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setDarkPreferredColorScheme:)) {
-        [item setState:(m_preferred_color_scheme == Dark) ? NSControlStateValueOn : NSControlStateValueOff];
+        [item setState:(m_preferred_color_scheme == Web::CSS::PreferredColorScheme::Dark) ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setLightPreferredColorScheme:)) {
-        [item setState:(m_preferred_color_scheme == Light) ? NSControlStateValueOn : NSControlStateValueOff];
+        [item setState:(m_preferred_color_scheme == Web::CSS::PreferredColorScheme::Light) ? NSControlStateValueOn : NSControlStateValueOff];
+    } else if ([item action] == @selector(setAutoPreferredContrast:)) {
+        [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::Auto) ? NSControlStateValueOn : NSControlStateValueOff];
+    } else if ([item action] == @selector(setLessPreferredContrast:)) {
+        [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::Less) ? NSControlStateValueOn : NSControlStateValueOff];
+    } else if ([item action] == @selector(setMorePreferredContrast:)) {
+        [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::More) ? NSControlStateValueOn : NSControlStateValueOff];
+    } else if ([item action] == @selector(setNoPreferencePreferredContrast:)) {
+        [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::NoPreference) ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setSearchEngine:)) {
         auto title = Ladybird::ns_string_to_string([item title]);
         [item setState:(m_search_engine.name == title) ? NSControlStateValueOn : NSControlStateValueOff];

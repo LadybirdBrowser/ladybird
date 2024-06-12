@@ -120,6 +120,10 @@ public slots:
     void enable_auto_color_scheme();
     void enable_light_color_scheme();
     void enable_dark_color_scheme();
+    void enable_auto_contrast();
+    void enable_less_contrast();
+    void enable_more_contrast();
+    void enable_no_preference_contrast();
     void zoom_in();
     void zoom_out();
     void reset_zoom();

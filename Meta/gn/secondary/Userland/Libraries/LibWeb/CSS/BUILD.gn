@@ -46,6 +46,7 @@ source_set("CSS") {
     "ParsedFontFace.cpp",
     "PercentageOr.cpp",
     "PreferredColorScheme.cpp",
+    "PreferredContrast.cpp",
     "Ratio.cpp",
     "Resolution.cpp",
     "ResolvedCSSStyleDeclaration.cpp",

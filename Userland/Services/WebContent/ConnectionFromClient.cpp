@@ -933,6 +933,12 @@ void ConnectionFromClient::set_preferred_color_scheme(u64 page_id, Web::CSS::Pre
         page->set_preferred_color_scheme(color_scheme);
 }
 
+void ConnectionFromClient::set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast const& contrast)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_preferred_contrast(contrast);
+}
+
 void ConnectionFromClient::set_has_focus(u64 page_id, bool has_focus)
 {
     if (auto page = this->page(page_id); page.has_value())

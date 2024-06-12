@@ -13,6 +13,7 @@
 #include <LibGfx/Size.h>
 #include <LibGfx/StandardCursor.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -20,7 +21,7 @@ namespace Ladybird {
 
 class WebViewBridge final : public WebView::ViewImplementation {
 public:
-    static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const&, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme);
+    static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const&, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast);
     virtual ~WebViewBridge() override;
 
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes) override;
@@ -41,6 +42,7 @@ public:
 
     void update_palette();
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
+    void set_preferred_contrast(Web::CSS::PreferredContrast);
 
     void enqueue_input_event(Web::MouseEvent);
     void enqueue_input_event(Web::KeyEvent);
@@ -55,7 +57,7 @@ public:
     Function<void()> on_zoom_level_changed;
 
 private:
-    WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const&, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme);
+    WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const&, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast);
 
     virtual void update_zoom() override;
     virtual Web::DevicePixelSize viewport_size() const override;
@@ -69,6 +71,7 @@ private:
     Optional<StringView> m_webdriver_content_ipc_path;
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
+    Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::Auto };
 };
 
 }

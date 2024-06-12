@@ -15,6 +15,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Handle.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -88,6 +89,7 @@ private:
     virtual void set_autoplay_allowlist(u64 page_id, Vector<String> const& allowlist) override;
     virtual void set_proxy_mappings(u64 page_id, Vector<ByteString> const&, HashMap<ByteString, size_t> const&) override;
     virtual void set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme const&) override;
+    virtual void set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast const&) override;
     virtual void set_has_focus(u64 page_id, bool) override;
     virtual void set_is_scripting_enabled(u64 page_id, bool) override;
     virtual void set_device_pixels_per_css_pixel(u64 page_id, float) override;

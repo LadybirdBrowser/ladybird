@@ -19,6 +19,7 @@
 #include <Ladybird/Qt/TabBar.h>
 #include <Ladybird/Utilities.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/UserAgent.h>
@@ -231,6 +232,36 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     QObject::connect(dark_color_scheme, &QAction::triggered, this, &BrowserWindow::enable_dark_color_scheme);
 
     auto_color_scheme->setChecked(true);
+
+    auto* contrast_menu = view_menu->addMenu("&Contrast");
+
+    auto* contrast_group = new QActionGroup(this);
+
+    auto* auto_contrast = new QAction("&Auto", this);
+    auto_contrast->setCheckable(true);
+    contrast_group->addAction(auto_contrast);
+    contrast_menu->addAction(auto_contrast);
+    QObject::connect(auto_contrast, &QAction::triggered, this, &BrowserWindow::enable_auto_contrast);
+
+    auto* less_contrast = new QAction("&Less", this);
+    less_contrast->setCheckable(true);
+    contrast_group->addAction(less_contrast);
+    contrast_menu->addAction(less_contrast);
+    QObject::connect(less_contrast, &QAction::triggered, this, &BrowserWindow::enable_less_contrast);
+
+    auto* more_contrast = new QAction("&More", this);
+    more_contrast->setCheckable(true);
+    contrast_group->addAction(more_contrast);
+    contrast_menu->addAction(more_contrast);
+    QObject::connect(more_contrast, &QAction::triggered, this, &BrowserWindow::enable_more_contrast);
+
+    auto* no_preference_contrast = new QAction("&No Preference", this);
+    no_preference_contrast->setCheckable(true);
+    contrast_group->addAction(no_preference_contrast);
+    contrast_menu->addAction(no_preference_contrast);
+    QObject::connect(no_preference_contrast, &QAction::triggered, this, &BrowserWindow::enable_no_preference_contrast);
+
+    auto_contrast->setChecked(true);
 
     auto* show_menubar = new QAction("Show &Menubar", this);
     show_menubar->setCheckable(true);
@@ -892,6 +923,34 @@ void BrowserWindow::enable_dark_color_scheme()
 {
     for_each_tab([](auto& tab) {
         tab.view().set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Dark);
+    });
+}
+
+void BrowserWindow::enable_auto_contrast()
+{
+    for_each_tab([](auto& tab) {
+        tab.view().set_preferred_contrast(Web::CSS::PreferredContrast::Auto);
+    });
+}
+
+void BrowserWindow::enable_less_contrast()
+{
+    for_each_tab([](auto& tab) {
+        tab.view().set_preferred_contrast(Web::CSS::PreferredContrast::Less);
+    });
+}
+
+void BrowserWindow::enable_more_contrast()
+{
+    for_each_tab([](auto& tab) {
+        tab.view().set_preferred_contrast(Web::CSS::PreferredContrast::More);
+    });
+}
+
+void BrowserWindow::enable_no_preference_contrast()
+{
+    for_each_tab([](auto& tab) {
+        tab.view().set_preferred_contrast(Web::CSS::PreferredContrast::NoPreference);
     });
 }
 

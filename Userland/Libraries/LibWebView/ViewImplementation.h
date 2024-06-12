@@ -62,6 +62,7 @@ public:
     void did_finish_handling_input_event(Badge<WebContentClient>, bool event_was_accepted);
 
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
+    void set_preferred_contrast(Web::CSS::PreferredContrast);
 
     ByteString selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();

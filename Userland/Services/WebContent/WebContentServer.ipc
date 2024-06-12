@@ -4,6 +4,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -77,6 +78,7 @@ endpoint WebContentServer
     set_autoplay_allowlist(u64 page_id, Vector<String> allowlist) =|
     set_proxy_mappings(u64 page_id, Vector<ByteString> proxies, HashMap<ByteString, size_t> mappings) =|
     set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme color_scheme) =|
+    set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast contrast) =|
     set_has_focus(u64 page_id, bool has_focus) =|
     set_is_scripting_enabled(u64 page_id, bool is_scripting_enabled) =|
     set_device_pixels_per_css_pixel(u64 page_id, float device_pixels_per_css_pixel) =|

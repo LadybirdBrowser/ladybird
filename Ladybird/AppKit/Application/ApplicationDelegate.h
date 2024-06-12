@@ -12,6 +12,7 @@
 #include <Ladybird/Types.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/CookieJar.h>
 
@@ -46,6 +47,7 @@
 - (Ladybird::WebContentOptions const&)webContentOptions;
 - (Optional<StringView> const&)webdriverContentIPCPath;
 - (Web::CSS::PreferredColorScheme)preferredColorScheme;
+- (Web::CSS::PreferredContrast)preferredContrast;
 - (WebView::SearchEngine const&)searchEngine;
 
 @end
