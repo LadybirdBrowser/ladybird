@@ -26,9 +26,7 @@ struct Context {
     COWVector<ValueType> elements;
     COWVector<bool> datas;
     COWVector<ValueType> locals;
-    COWVector<ResultType> labels;
     Optional<u32> data_count;
-    Optional<ResultType> return_;
     AK::HashTable<FunctionIndex> references;
     size_t imported_function_count { 0 };
 };
@@ -115,7 +113,7 @@ public:
 
     ErrorOr<void, ValidationError> validate(LabelIndex index) const
     {
-        if (index.value() < m_context.labels.size())
+        if (index.value() < m_frames.size())
             return {};
         return Errors::invalid("LabelIndex"sv);
     }
@@ -328,13 +326,6 @@ private:
         static ByteString find_instruction_name(SourceLocation const&);
     };
 
-    enum class ChildScopeKind {
-        Block,
-        IfWithoutElse,
-        IfWithElse,
-        Else,
-    };
-
     struct BlockDetails {
         size_t initial_stack_size { 0 };
         struct IfDetails {
@@ -343,11 +334,28 @@ private:
         Variant<IfDetails, Empty> details;
     };
 
+    enum class FrameKind {
+        Block,
+        Loop,
+        If,
+        Else,
+        Function,
+    };
+
+    struct Frame {
+        FunctionType type;
+        FrameKind kind;
+        size_t init_size;
+        bool unreachable { false };
+
+        Vector<ValueType> const& labels() const
+        {
+            return kind != FrameKind::Loop ? type.results() : type.parameters();
+        }
+    };
+
     Context m_context;
-    Vector<Context> m_parent_contexts;
-    Vector<ChildScopeKind> m_entered_scopes;
-    Vector<BlockDetails> m_block_details;
-    Vector<FunctionType> m_entered_blocks;
+    Vector<Frame> m_frames;
     COWVector<GlobalType> m_globals_without_internal_globals;
 };
 

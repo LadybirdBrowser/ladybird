@@ -289,8 +289,7 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
                 function_validator.m_context.locals.append(local.type());
         }
 
-        function_validator.m_context.labels = { ResultType { function_type.results() } };
-        function_validator.m_context.return_ = ResultType { function_type.results() };
+        function_validator.m_frames.empend(function_type, FrameKind::Function, (size_t)0);
 
         TRY(function_validator.validate(function.body(), function_type.results()));
     }
@@ -1991,24 +1990,12 @@ VALIDATE_INSTRUCTION(unreachable)
 // Note: This is responsible for _all_ structured instructions, and is *not* from the spec.
 VALIDATE_INSTRUCTION(structured_end)
 {
-    if (m_entered_scopes.is_empty())
+    if (m_frames.is_empty())
         return Errors::invalid("usage of structured end"sv);
 
-    auto last_scope = m_entered_scopes.take_last();
-    m_context = m_parent_contexts.take_last();
-    auto last_block_type = m_entered_blocks.take_last();
+    auto last_frame = m_frames.take_last();
 
-    switch (last_scope) {
-    case ChildScopeKind::Block:
-    case ChildScopeKind::IfWithoutElse:
-    case ChildScopeKind::Else:
-        m_block_details.take_last();
-        break;
-    case ChildScopeKind::IfWithElse:
-        return Errors::invalid("usage of if without an else clause that appears to have one anyway"sv);
-    }
-
-    auto& results = last_block_type.results();
+    auto& results = last_frame.type.results();
     for (size_t i = 1; i <= results.size(); ++i)
         TRY(stack.take(results[results.size() - i]));
 
@@ -2021,21 +2008,23 @@ VALIDATE_INSTRUCTION(structured_end)
 // Note: This is *not* from the spec.
 VALIDATE_INSTRUCTION(structured_else)
 {
-    if (m_entered_scopes.is_empty())
+    if (m_frames.is_empty())
         return Errors::invalid("usage of structured else"sv);
 
-    if (m_entered_scopes.last() != ChildScopeKind::IfWithElse)
+    if (m_frames.last().kind != FrameKind::If)
         return Errors::invalid("usage of structured else"sv);
 
-    auto& block_type = m_entered_blocks.last();
+    auto frame = m_frames.take_last();
+    auto& block_type = frame.type;
     auto& results = block_type.results();
 
     for (size_t i = 1; i <= results.size(); ++i)
         TRY(stack.take(results[results.size() - i]));
 
-    auto& details = m_block_details.last().details.get<BlockDetails::IfDetails>();
-    m_entered_scopes.last() = ChildScopeKind::Else;
-    stack = move(details.initial_stack);
+    m_frames.empend(block_type, FrameKind::Else, stack.actual_size());
+    for (auto& parameter : block_type.parameters())
+        stack.append(parameter);
+
     return {};
 }
 
@@ -2048,14 +2037,10 @@ VALIDATE_INSTRUCTION(block)
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
 
+    m_frames.empend(block_type, FrameKind::Block, stack.actual_size());
     for (auto& parameter : parameters)
         stack.append(parameter);
 
-    m_entered_scopes.append(ChildScopeKind::Block);
-    m_block_details.empend(stack.actual_size(), Empty {});
-    m_parent_contexts.append(m_context);
-    m_entered_blocks.append(block_type);
-    m_context.labels.prepend(ResultType { block_type.results() });
     return {};
 }
 
@@ -2068,14 +2053,10 @@ VALIDATE_INSTRUCTION(loop)
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
 
+    m_frames.empend(block_type, FrameKind::Loop, stack.actual_size());
     for (auto& parameter : parameters)
         stack.append(parameter);
 
-    m_entered_scopes.append(ChildScopeKind::Block);
-    m_block_details.empend(stack.actual_size(), Empty {});
-    m_parent_contexts.append(m_context);
-    m_entered_blocks.append(block_type);
-    m_context.labels.prepend(ResultType { block_type.parameters() });
     return {};
 }
 
@@ -2092,14 +2073,10 @@ VALIDATE_INSTRUCTION(if_)
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
 
+    m_frames.empend(block_type, FrameKind::If, stack.actual_size());
     for (auto& parameter : parameters)
         stack.append(parameter);
 
-    m_entered_scopes.append(args.else_ip.has_value() ? ChildScopeKind::IfWithElse : ChildScopeKind::IfWithoutElse);
-    m_block_details.empend(stack.actual_size(), BlockDetails::IfDetails { move(stack_snapshot) });
-    m_parent_contexts.append(m_context);
-    m_entered_blocks.append(block_type);
-    m_context.labels.prepend(ResultType { block_type.results() });
     return {};
 }
 
@@ -2108,9 +2085,9 @@ VALIDATE_INSTRUCTION(br)
     auto label = instruction.arguments().get<LabelIndex>();
     TRY(validate(label));
 
-    auto& type = m_context.labels[label.value()];
-    for (size_t i = 1; i <= type.types().size(); ++i)
-        TRY(stack.take(type.types()[type.types().size() - i]));
+    auto& type = m_frames[(m_frames.size() - 1) - label.value()].labels();
+    for (size_t i = 1; i <= type.size(); ++i)
+        TRY(stack.take(type[type.size() - i]));
 
     stack.append(StackEntry());
     return {};
@@ -2123,13 +2100,13 @@ VALIDATE_INSTRUCTION(br_if)
 
     TRY(stack.take<ValueType::I32>());
 
-    auto& type = m_context.labels[label.value()];
+    auto& type = m_frames[(m_frames.size() - 1) - label.value()].labels();
 
     Vector<StackEntry> entries;
-    entries.ensure_capacity(type.types().size());
+    entries.ensure_capacity(type.size());
 
-    for (size_t i = 0; i < type.types().size(); ++i) {
-        auto& entry = type.types()[type.types().size() - i - 1];
+    for (size_t i = 0; i < type.size(); ++i) {
+        auto& entry = type[type.size() - i - 1];
         TRY(stack.take(entry));
         entries.append(entry);
     }
@@ -2150,13 +2127,13 @@ VALIDATE_INSTRUCTION(br_table)
 
     TRY(stack.take<ValueType::I32>());
 
-    auto& default_types = m_context.labels[args.default_.value()].types();
+    auto& default_types = m_frames[(m_frames.size() - 1) - args.default_.value()].labels();
     auto arity = default_types.size();
 
     auto stack_snapshot = stack;
     auto stack_to_check = stack_snapshot;
     for (auto& label : args.labels) {
-        auto& label_types = m_context.labels[label.value()].types();
+        auto& label_types = m_frames[(m_frames.size() - 1) - label.value()].labels();
         if (label_types.size() != arity)
             return Errors::invalid("br_table label arity mismatch"sv);
         for (size_t i = 0; i < arity; ++i)
@@ -2176,10 +2153,7 @@ VALIDATE_INSTRUCTION(br_table)
 
 VALIDATE_INSTRUCTION(return_)
 {
-    if (!m_context.return_.has_value())
-        return Errors::invalid("use of return outside function"sv);
-
-    auto& return_types = m_context.return_->types();
+    auto& return_types = m_frames.first().type.results();
     for (size_t i = 0; i < return_types.size(); ++i)
         TRY((stack.take(return_types[return_types.size() - i - 1])));
 
