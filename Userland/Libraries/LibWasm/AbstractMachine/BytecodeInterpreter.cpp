@@ -1414,6 +1414,36 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<16, Operators::GreaterThanOrEquals, MakeSigned>>(configuration);
     case Instructions::i8x16_ge_u.value():
         return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<16, Operators::GreaterThanOrEquals, MakeUnsigned>>(configuration);
+    case Instructions::i8x16_abs.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerUnaryOp<16, Operators::Absolute>>(configuration);
+    case Instructions::i8x16_neg.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerUnaryOp<16, Operators::Negate>>(configuration);
+    case Instructions::i8x16_all_true.value():
+        return unary_operation<u128, i32, Operators::VectorAllTrue<16>>(configuration);
+    case Instructions::i8x16_popcnt.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerUnaryOp<16, Operators::PopCount>>(configuration);
+    case Instructions::i8x16_add.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::Add>>(configuration);
+    case Instructions::i8x16_sub.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::Subtract>>(configuration);
+    case Instructions::i8x16_avgr_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::Average, MakeUnsigned>>(configuration);
+    case Instructions::i8x16_add_sat_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::SaturatingOp<i8, Operators::Add>, MakeSigned>>(configuration);
+    case Instructions::i8x16_add_sat_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::SaturatingOp<u8, Operators::Add>, MakeUnsigned>>(configuration);
+    case Instructions::i8x16_sub_sat_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::SaturatingOp<i8, Operators::Subtract>, MakeSigned>>(configuration);
+    case Instructions::i8x16_sub_sat_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::SaturatingOp<u8, Operators::Subtract>, MakeUnsigned>>(configuration);
+    case Instructions::i8x16_min_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::Minimum, MakeSigned>>(configuration);
+    case Instructions::i8x16_min_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::Minimum, MakeUnsigned>>(configuration);
+    case Instructions::i8x16_max_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::Maximum, MakeSigned>>(configuration);
+    case Instructions::i8x16_max_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<16, Operators::Maximum, MakeUnsigned>>(configuration);
     case Instructions::i16x8_eq.value():
         return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<8, Operators::Equals>>(configuration);
     case Instructions::i16x8_ne.value():
@@ -1434,6 +1464,56 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<8, Operators::GreaterThanOrEquals, MakeSigned>>(configuration);
     case Instructions::i16x8_ge_u.value():
         return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<8, Operators::GreaterThanOrEquals, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_abs.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerUnaryOp<8, Operators::Absolute>>(configuration);
+    case Instructions::i16x8_neg.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerUnaryOp<8, Operators::Negate>>(configuration);
+    case Instructions::i16x8_all_true.value():
+        return unary_operation<u128, i32, Operators::VectorAllTrue<8>>(configuration);
+    case Instructions::i16x8_add.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::Add>>(configuration);
+    case Instructions::i16x8_sub.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::Subtract>>(configuration);
+    case Instructions::i16x8_mul.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::Multiply>>(configuration);
+    case Instructions::i16x8_avgr_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::Average, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_add_sat_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::SaturatingOp<i16, Operators::Add>, MakeSigned>>(configuration);
+    case Instructions::i16x8_add_sat_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::SaturatingOp<u16, Operators::Add>, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_sub_sat_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::SaturatingOp<i16, Operators::Subtract>, MakeSigned>>(configuration);
+    case Instructions::i16x8_sub_sat_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::SaturatingOp<u16, Operators::Subtract>, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_min_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::Minimum, MakeSigned>>(configuration);
+    case Instructions::i16x8_min_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::Minimum, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_max_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::Maximum, MakeSigned>>(configuration);
+    case Instructions::i16x8_max_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::Maximum, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_extend_low_i8x16_s.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<8, Operators::VectorExt::Low, MakeSigned>>(configuration);
+    case Instructions::i16x8_extend_high_i8x16_s.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<8, Operators::VectorExt::High, MakeSigned>>(configuration);
+    case Instructions::i16x8_extend_low_i8x16_u.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<8, Operators::VectorExt::Low, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_extend_high_i8x16_u.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<8, Operators::VectorExt::High, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_extadd_pairwise_i8x16_s.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExtOpPairwise<8, Operators::Add, MakeSigned>>(configuration);
+    case Instructions::i16x8_extadd_pairwise_i8x16_u.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExtOpPairwise<8, Operators::Add, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_extmul_low_i8x16_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<8, Operators::Multiply, Operators::VectorExt::Low, MakeSigned>>(configuration);
+    case Instructions::i16x8_extmul_high_i8x16_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<8, Operators::Multiply, Operators::VectorExt::High, MakeSigned>>(configuration);
+    case Instructions::i16x8_extmul_low_i8x16_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<8, Operators::Multiply, Operators::VectorExt::Low, MakeUnsigned>>(configuration);
+    case Instructions::i16x8_extmul_high_i8x16_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<8, Operators::Multiply, Operators::VectorExt::High, MakeUnsigned>>(configuration);
     case Instructions::i32x4_eq.value():
         return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<4, Operators::Equals>>(configuration);
     case Instructions::i32x4_ne.value():
@@ -1454,6 +1534,86 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<4, Operators::GreaterThanOrEquals, MakeSigned>>(configuration);
     case Instructions::i32x4_ge_u.value():
         return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<4, Operators::GreaterThanOrEquals, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_abs.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerUnaryOp<4, Operators::Absolute>>(configuration);
+    case Instructions::i32x4_neg.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerUnaryOp<4, Operators::Negate, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_all_true.value():
+        return unary_operation<u128, i32, Operators::VectorAllTrue<4>>(configuration);
+    case Instructions::i32x4_add.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<4, Operators::Add, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_sub.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<4, Operators::Subtract, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_mul.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<4, Operators::Multiply, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_min_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<4, Operators::Minimum, MakeSigned>>(configuration);
+    case Instructions::i32x4_min_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<4, Operators::Minimum, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_max_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<4, Operators::Maximum, MakeSigned>>(configuration);
+    case Instructions::i32x4_max_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<4, Operators::Maximum, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_extend_low_i16x8_s.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<4, Operators::VectorExt::Low, MakeSigned>>(configuration);
+    case Instructions::i32x4_extend_high_i16x8_s.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<4, Operators::VectorExt::High, MakeSigned>>(configuration);
+    case Instructions::i32x4_extend_low_i16x8_u.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<4, Operators::VectorExt::Low, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_extend_high_i16x8_u.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<4, Operators::VectorExt::High, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_extadd_pairwise_i16x8_s.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExtOpPairwise<4, Operators::Add, MakeSigned>>(configuration);
+    case Instructions::i32x4_extadd_pairwise_i16x8_u.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExtOpPairwise<4, Operators::Add, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_extmul_low_i16x8_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<4, Operators::Multiply, Operators::VectorExt::Low, MakeSigned>>(configuration);
+    case Instructions::i32x4_extmul_high_i16x8_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<4, Operators::Multiply, Operators::VectorExt::High, MakeSigned>>(configuration);
+    case Instructions::i32x4_extmul_low_i16x8_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<4, Operators::Multiply, Operators::VectorExt::Low, MakeUnsigned>>(configuration);
+    case Instructions::i32x4_extmul_high_i16x8_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<4, Operators::Multiply, Operators::VectorExt::High, MakeUnsigned>>(configuration);
+    case Instructions::i64x2_eq.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<2, Operators::Equals>>(configuration);
+    case Instructions::i64x2_ne.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<2, Operators::NotEquals>>(configuration);
+    case Instructions::i64x2_lt_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<2, Operators::LessThan, MakeSigned>>(configuration);
+    case Instructions::i64x2_gt_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<2, Operators::GreaterThan, MakeSigned>>(configuration);
+    case Instructions::i64x2_le_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<2, Operators::LessThanOrEquals, MakeSigned>>(configuration);
+    case Instructions::i64x2_ge_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorCmpOp<2, Operators::GreaterThanOrEquals, MakeSigned>>(configuration);
+    case Instructions::i64x2_abs.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerUnaryOp<2, Operators::Absolute>>(configuration);
+    case Instructions::i64x2_neg.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerUnaryOp<2, Operators::Negate, MakeUnsigned>>(configuration);
+    case Instructions::i64x2_all_true.value():
+        return unary_operation<u128, i32, Operators::VectorAllTrue<2>>(configuration);
+    case Instructions::i64x2_add.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<2, Operators::Add, MakeUnsigned>>(configuration);
+    case Instructions::i64x2_sub.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<2, Operators::Subtract, MakeUnsigned>>(configuration);
+    case Instructions::i64x2_mul.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<2, Operators::Multiply, MakeUnsigned>>(configuration);
+    case Instructions::i64x2_extend_low_i32x4_s.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<2, Operators::VectorExt::Low, MakeSigned>>(configuration);
+    case Instructions::i64x2_extend_high_i32x4_s.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<2, Operators::VectorExt::High, MakeSigned>>(configuration);
+    case Instructions::i64x2_extend_low_i32x4_u.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<2, Operators::VectorExt::Low, MakeUnsigned>>(configuration);
+    case Instructions::i64x2_extend_high_i32x4_u.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerExt<2, Operators::VectorExt::High, MakeUnsigned>>(configuration);
+    case Instructions::i64x2_extmul_low_i32x4_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<2, Operators::Multiply, Operators::VectorExt::Low, MakeSigned>>(configuration);
+    case Instructions::i64x2_extmul_high_i32x4_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<2, Operators::Multiply, Operators::VectorExt::High, MakeSigned>>(configuration);
+    case Instructions::i64x2_extmul_low_i32x4_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<2, Operators::Multiply, Operators::VectorExt::Low, MakeUnsigned>>(configuration);
+    case Instructions::i64x2_extmul_high_i32x4_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerExtOp<2, Operators::Multiply, Operators::VectorExt::High, MakeUnsigned>>(configuration);
     case Instructions::f32x4_eq.value():
         return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<4, Operators::Equals>>(configuration);
     case Instructions::f32x4_ne.value():
@@ -1569,95 +1729,16 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::v128_load64_zero.value():
     case Instructions::f32x4_demote_f64x2_zero.value():
     case Instructions::f64x2_promote_low_f32x4.value():
-    case Instructions::i8x16_abs.value():
-    case Instructions::i8x16_neg.value():
-    case Instructions::i8x16_popcnt.value():
-    case Instructions::i8x16_all_true.value():
     case Instructions::i8x16_bitmask.value():
     case Instructions::i8x16_narrow_i16x8_s.value():
     case Instructions::i8x16_narrow_i16x8_u.value():
-    case Instructions::i8x16_add.value():
-    case Instructions::i8x16_add_sat_s.value():
-    case Instructions::i8x16_add_sat_u.value():
-    case Instructions::i8x16_sub.value():
-    case Instructions::i8x16_sub_sat_s.value():
-    case Instructions::i8x16_sub_sat_u.value():
-    case Instructions::i8x16_min_s.value():
-    case Instructions::i8x16_min_u.value():
-    case Instructions::i8x16_max_s.value():
-    case Instructions::i8x16_max_u.value():
-    case Instructions::i8x16_avgr_u.value():
-    case Instructions::i16x8_extadd_pairwise_i8x16_s.value():
-    case Instructions::i16x8_extadd_pairwise_i8x16_u.value():
-    case Instructions::i32x4_extadd_pairwise_i16x8_s.value():
-    case Instructions::i32x4_extadd_pairwise_i16x8_u.value():
-    case Instructions::i16x8_abs.value():
-    case Instructions::i16x8_neg.value():
     case Instructions::i16x8_q15mulr_sat_s.value():
-    case Instructions::i16x8_all_true.value():
     case Instructions::i16x8_bitmask.value():
     case Instructions::i16x8_narrow_i32x4_s.value():
     case Instructions::i16x8_narrow_i32x4_u.value():
-    case Instructions::i16x8_extend_low_i8x16_s.value():
-    case Instructions::i16x8_extend_high_i8x16_s.value():
-    case Instructions::i16x8_extend_low_i8x16_u.value():
-    case Instructions::i16x8_extend_high_i8x16_u.value():
-    case Instructions::i16x8_add.value():
-    case Instructions::i16x8_add_sat_s.value():
-    case Instructions::i16x8_add_sat_u.value():
-    case Instructions::i16x8_sub.value():
-    case Instructions::i16x8_sub_sat_s.value():
-    case Instructions::i16x8_sub_sat_u.value():
-    case Instructions::i16x8_mul.value():
-    case Instructions::i16x8_min_s.value():
-    case Instructions::i16x8_min_u.value():
-    case Instructions::i16x8_max_s.value():
-    case Instructions::i16x8_max_u.value():
-    case Instructions::i16x8_avgr_u.value():
-    case Instructions::i16x8_extmul_low_i8x16_s.value():
-    case Instructions::i16x8_extmul_high_i8x16_s.value():
-    case Instructions::i16x8_extmul_low_i8x16_u.value():
-    case Instructions::i16x8_extmul_high_i8x16_u.value():
-    case Instructions::i32x4_abs.value():
-    case Instructions::i32x4_neg.value():
-    case Instructions::i32x4_all_true.value():
     case Instructions::i32x4_bitmask.value():
-    case Instructions::i32x4_extend_low_i16x8_s.value():
-    case Instructions::i32x4_extend_high_i16x8_s.value():
-    case Instructions::i32x4_extend_low_i16x8_u.value():
-    case Instructions::i32x4_extend_high_i16x8_u.value():
-    case Instructions::i32x4_add.value():
-    case Instructions::i32x4_sub.value():
-    case Instructions::i32x4_mul.value():
-    case Instructions::i32x4_min_s.value():
-    case Instructions::i32x4_min_u.value():
-    case Instructions::i32x4_max_s.value():
-    case Instructions::i32x4_max_u.value():
     case Instructions::i32x4_dot_i16x8_s.value():
-    case Instructions::i32x4_extmul_low_i16x8_s.value():
-    case Instructions::i32x4_extmul_high_i16x8_s.value():
-    case Instructions::i32x4_extmul_low_i16x8_u.value():
-    case Instructions::i32x4_extmul_high_i16x8_u.value():
-    case Instructions::i64x2_abs.value():
-    case Instructions::i64x2_neg.value():
-    case Instructions::i64x2_all_true.value():
     case Instructions::i64x2_bitmask.value():
-    case Instructions::i64x2_extend_low_i32x4_s.value():
-    case Instructions::i64x2_extend_high_i32x4_s.value():
-    case Instructions::i64x2_extend_low_i32x4_u.value():
-    case Instructions::i64x2_extend_high_i32x4_u.value():
-    case Instructions::i64x2_sub.value():
-    case Instructions::i64x2_mul.value():
-    case Instructions::i64x2_eq.value():
-    case Instructions::i64x2_ne.value():
-    case Instructions::i64x2_lt_s.value():
-    case Instructions::i64x2_gt_s.value():
-    case Instructions::i64x2_le_s.value():
-    case Instructions::i64x2_ge_s.value():
-    case Instructions::i64x2_extmul_low_i32x4_s.value():
-    case Instructions::i64x2_extmul_high_i32x4_s.value():
-    case Instructions::i64x2_extmul_low_i32x4_u.value():
-    case Instructions::i64x2_extmul_high_i32x4_u.value():
     case Instructions::i32x4_trunc_sat_f32x4_s.value():
     case Instructions::i32x4_trunc_sat_f32x4_u.value():
     case Instructions::f32x4_convert_i32x4_s.value():
