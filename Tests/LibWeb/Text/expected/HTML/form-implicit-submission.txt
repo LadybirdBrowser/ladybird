@@ -1,4 +1,4 @@
- wfh :^) PASS   wfh :^)    wfh :^) FAIL PASS FAIL   wfh :^) FAIL FAIL PASS  PASS  wfh :^)   wfh :^)  PASS  PASSwfh :^) FAIL   wfh :^) FAIL   wfh :^)   wfh :^) FAIL   wfh :^)    wfh :^)     defaultButton: click button=PASS
+ wfh :^) PASS   wfh :^) PASS   wfh :^) FAIL PASS FAIL   wfh :^) FAIL FAIL PASS  PASS  wfh :^)   wfh :^)  PASS  PASSwfh :^) FAIL   wfh :^) FAIL   wfh :^)   wfh :^) FAIL   wfh :^)    wfh :^)     defaultButton: click button=PASS
 defaultButton: submit
 defaultButton: handledEvent=true
 defaultButtonAsInput: click button=PASS

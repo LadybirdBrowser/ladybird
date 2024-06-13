@@ -27,17 +27,16 @@
 #include <LibWeb/HTML/HTMLDivElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SharedImageRequest.h>
+#include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/ButtonBox.h>
 #include <LibWeb/Layout/CheckBox.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/RadioButton.h>
@@ -100,7 +99,7 @@ JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::
         return nullptr;
 
     if (type_state() == TypeAttributeState::SubmitButton || type_state() == TypeAttributeState::Button || type_state() == TypeAttributeState::ResetButton)
-        return heap().allocate_without_realm<Layout::ButtonBox>(document(), *this, move(style));
+        return heap().allocate_without_realm<Layout::BlockContainer>(document(), this, move(style));
 
     if (type_state() == TypeAttributeState::ImageButton)
         return heap().allocate_without_realm<Layout::ImageBox>(document(), *this, move(style), *this);
@@ -740,9 +739,12 @@ void HTMLInputElement::create_shadow_tree_if_needed()
     case TypeAttributeState::Hidden:
     case TypeAttributeState::RadioButton:
     case TypeAttributeState::Checkbox:
+        break;
     case TypeAttributeState::Button:
     case TypeAttributeState::SubmitButton:
     case TypeAttributeState::ResetButton:
+        create_button_input_shadow_tree();
+        break;
     case TypeAttributeState::ImageButton:
         break;
     case TypeAttributeState::Color:
@@ -777,6 +779,15 @@ void HTMLInputElement::update_shadow_tree()
         update_text_input_shadow_tree();
         break;
     }
+}
+
+void HTMLInputElement::create_button_input_shadow_tree()
+{
+    auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
+    set_shadow_root(shadow_root);
+
+    m_text_node = heap().allocate<DOM::Text>(realm(), document(), value());
+    MUST(shadow_root->append_child(*m_text_node));
 }
 
 void HTMLInputElement::create_text_input_shadow_tree()

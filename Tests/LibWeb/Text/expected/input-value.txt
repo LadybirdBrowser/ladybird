@@ -1,4 +1,4 @@
-pass    Select file...No file selected.   text: "pass"
+pass  pass  Select file...No file selected.   text: "pass"
 hidden: "pass"
 button: "pass"
 checkbox: "pass"

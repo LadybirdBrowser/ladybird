@@ -12,7 +12,6 @@ source_set("Painting") {
     "BorderRadiiData.cpp",
     "BorderRadiusCornerClipper.cpp",
     "BordersData.cpp",
-    "ButtonPaintable.cpp",
     "CanvasPaintable.cpp",
     "CheckBoxPaintable.cpp",
     "ClippableAndScrollable.cpp",
