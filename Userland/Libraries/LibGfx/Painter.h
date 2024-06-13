@@ -76,7 +76,6 @@ public:
     void draw_emoji(IntPoint, Gfx::Bitmap const&, Font const&);
     void draw_glyph(FloatPoint, u32, Font const&, Color);
     void draw_glyph_or_emoji(FloatPoint, Utf8CodePointIterator&, Font const&, Color);
-    void draw_signed_distance_field(IntRect const& dst_rect, Color, Gfx::GrayscaleBitmap const&, float smoothing);
 
     enum class CornerOrientation {
         TopLeft,
