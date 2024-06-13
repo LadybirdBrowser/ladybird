@@ -70,7 +70,6 @@ public:
     virtual CommandResult draw_ellipse(DrawEllipse const&) = 0;
     virtual CommandResult fill_ellipse(FillEllipse const&) = 0;
     virtual CommandResult draw_line(DrawLine const&) = 0;
-    virtual CommandResult draw_signed_distance_field(DrawSignedDistanceField const&) = 0;
     virtual CommandResult apply_backdrop_filter(ApplyBackdropFilter const&) = 0;
     virtual CommandResult draw_rect(DrawRect const&) = 0;
     virtual CommandResult draw_triangle_wave(DrawTriangleWave const&) = 0;

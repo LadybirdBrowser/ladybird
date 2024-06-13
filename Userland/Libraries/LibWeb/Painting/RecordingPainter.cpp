@@ -237,18 +237,6 @@ void RecordingPainter::draw_text(Gfx::IntRect const& rect, String raw_text, Gfx:
     });
 }
 
-void RecordingPainter::draw_signed_distance_field(Gfx::IntRect const& dst_rect, Color color, Gfx::GrayscaleBitmap const& sdf, float smoothing)
-{
-    if (dst_rect.is_empty())
-        return;
-    append(DrawSignedDistanceField {
-        .rect = state().translation.map(dst_rect),
-        .color = color,
-        .sdf = sdf,
-        .smoothing = smoothing,
-    });
-}
-
 void RecordingPainter::draw_text_run(Gfx::IntPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale)
 {
     if (rect.is_empty())

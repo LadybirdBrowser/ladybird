@@ -35,7 +35,6 @@ public:
     CommandResult draw_ellipse(DrawEllipse const&) override;
     CommandResult fill_ellipse(FillEllipse const&) override;
     CommandResult draw_line(DrawLine const&) override;
-    CommandResult draw_signed_distance_field(DrawSignedDistanceField const&) override;
     CommandResult apply_backdrop_filter(ApplyBackdropFilter const&) override;
     CommandResult draw_rect(DrawRect const&) override;
     CommandResult paint_radial_gradient(PaintRadialGradient const&) override;

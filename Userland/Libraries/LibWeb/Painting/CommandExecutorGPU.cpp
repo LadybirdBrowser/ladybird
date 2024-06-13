@@ -268,12 +268,6 @@ CommandResult CommandExecutorGPU::draw_line(DrawLine const& command)
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::draw_signed_distance_field(DrawSignedDistanceField const&)
-{
-    // FIXME
-    return CommandResult::Continue;
-}
-
 CommandResult CommandExecutorGPU::apply_backdrop_filter(ApplyBackdropFilter const&)
 {
     // FIXME

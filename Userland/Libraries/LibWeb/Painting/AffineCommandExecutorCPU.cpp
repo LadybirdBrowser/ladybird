@@ -227,12 +227,6 @@ CommandResult AffineCommandExecutorCPU::draw_line(DrawLine const& command)
     return CommandResult::Continue;
 }
 
-CommandResult AffineCommandExecutorCPU::draw_signed_distance_field(DrawSignedDistanceField const&)
-{
-    // FIXME: Implement.
-    return CommandResult::Continue;
-}
-
 CommandResult AffineCommandExecutorCPU::apply_backdrop_filter(ApplyBackdropFilter const&)
 {
     // FIXME: Implement.
