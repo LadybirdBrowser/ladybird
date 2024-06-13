@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGGradientElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -93,7 +94,7 @@ Gfx::AffineTransform SVGGradientElement::gradient_paint_transform(SVGPaintContex
     return Gfx::AffineTransform { paint_context.transform }.multiply(transform);
 }
 
-void SVGGradientElement::add_color_stops(Gfx::SVGGradientPaintStyle& paint_style) const
+void SVGGradientElement::add_color_stops(Painting::SVGGradientPaintStyle& paint_style) const
 {
     for_each_color_stop([&](auto& stop) {
         // https://svgwg.org/svg2-draft/pservers.html#StopNotes
@@ -104,7 +105,7 @@ void SVGGradientElement::add_color_stops(Gfx::SVGGradientPaintStyle& paint_style
         // stop's offset value. If a given gradient stop's offset value is not equal to or greater than all
         // previous offset values, then the offset value is adjusted to be equal to the largest of all previous
         // offset values.
-        paint_style.add_color_stop(stop_offset, stop.stop_color().with_opacity(stop.stop_opacity())).release_value_but_fixme_should_propagate_errors();
+        paint_style.add_color_stop(stop_offset, stop.stop_color().with_opacity(stop.stop_opacity()));
     });
 }
 

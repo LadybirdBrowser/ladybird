@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -48,7 +49,7 @@ void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<Strin
     }
 }
 
-Optional<Gfx::PaintStyle const&> SVGGraphicsElement::svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value) const
+Optional<Painting::PaintStyle> SVGGraphicsElement::svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value) const
 {
     // FIXME: This entire function is an ad-hoc hack:
     if (!paint_value.has_value() || !paint_value->is_url())
@@ -58,14 +59,14 @@ Optional<Gfx::PaintStyle const&> SVGGraphicsElement::svg_paint_computed_value_to
     return {};
 }
 
-Optional<Gfx::PaintStyle const&> SVGGraphicsElement::fill_paint_style(SVGPaintContext const& paint_context) const
+Optional<Painting::PaintStyle> SVGGraphicsElement::fill_paint_style(SVGPaintContext const& paint_context) const
 {
     if (!layout_node())
         return {};
     return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().fill());
 }
 
-Optional<Gfx::PaintStyle const&> SVGGraphicsElement::stroke_paint_style(SVGPaintContext const& paint_context) const
+Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintContext const& paint_context) const
 {
     if (!layout_node())
         return {};

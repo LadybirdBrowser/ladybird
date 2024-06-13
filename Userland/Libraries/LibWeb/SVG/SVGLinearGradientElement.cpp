@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGLinearGradientElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGLinearGradientElement.h>
@@ -34,16 +35,12 @@ void SVGLinearGradientElement::attribute_changed(FlyString const& name, Optional
     // FIXME: Should allow for `<number-percentage> | <length>` for x1, x2, y1, y2
     if (name == SVG::AttributeNames::x1) {
         m_x1 = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
     } else if (name == SVG::AttributeNames::y1) {
         m_y1 = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
     } else if (name == SVG::AttributeNames::x2) {
         m_x2 = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
     } else if (name == SVG::AttributeNames::y2) {
         m_y2 = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
     }
 }
 
@@ -115,7 +112,7 @@ NumberPercentage SVGLinearGradientElement::end_y_impl(HashTable<SVGGradientEleme
     return NumberPercentage::create_percentage(0);
 }
 
-Optional<Gfx::PaintStyle const&> SVGLinearGradientElement::to_gfx_paint_style(SVGPaintContext const& paint_context) const
+Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGPaintContext const& paint_context) const
 {
     auto units = gradient_units();
     // FIXME: Resolve percentages properly
@@ -148,8 +145,7 @@ Optional<Gfx::PaintStyle const&> SVGLinearGradientElement::to_gfx_paint_style(SV
     }
 
     if (!m_paint_style) {
-        m_paint_style = Gfx::SVGLinearGradientPaintStyle::create(start_point, end_point)
-                            .release_value_but_fixme_should_propagate_errors();
+        m_paint_style = Painting::SVGLinearGradientPaintStyle::create(start_point, end_point);
         // FIXME: Update stops in DOM changes:
         add_color_stops(*m_paint_style);
     } else {
@@ -158,7 +154,7 @@ Optional<Gfx::PaintStyle const&> SVGLinearGradientElement::to_gfx_paint_style(SV
     }
 
     m_paint_style->set_gradient_transform(gradient_paint_transform(paint_context));
-    m_paint_style->set_spread_method(to_gfx_spread_method(spread_method()));
+    m_paint_style->set_spread_method(to_painting_spread_method(spread_method()));
     return *m_paint_style;
 }
 

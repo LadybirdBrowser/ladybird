@@ -21,7 +21,7 @@ public:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& value) override;
 
-    virtual Optional<Gfx::PaintStyle const&> to_gfx_paint_style(SVGPaintContext const&) const override;
+    virtual Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&) const override;
 
     JS::NonnullGCPtr<SVGAnimatedLength> x1() const;
     JS::NonnullGCPtr<SVGAnimatedLength> y1() const;
@@ -56,7 +56,7 @@ private:
     Optional<NumberPercentage> m_x2;
     Optional<NumberPercentage> m_y2;
 
-    mutable RefPtr<Gfx::SVGLinearGradientPaintStyle> m_paint_style;
+    mutable RefPtr<Painting::SVGLinearGradientPaintStyle> m_paint_style;
 };
 
 }

@@ -161,6 +161,8 @@ public:
     }
 
     ReadonlySpan<ColorStop> color_stops() const { return m_color_stops; }
+    void set_color_stops(Vector<ColorStop>&& color_stops) { m_color_stops = move(color_stops); }
+
     Optional<float> repeat_length() const { return m_repeat_length; }
 
 private:
@@ -314,6 +316,9 @@ public:
         m_spread_method = spread_method;
     }
 
+    void set_inverse_transform(AffineTransform transform) { m_inverse_transform = transform; }
+    void set_scale(float scale) { m_scale = scale; }
+
 protected:
     Optional<AffineTransform> const& scale_adjusted_inverse_gradient_transform() const { return m_inverse_transform; }
     float gradient_transform_scale() const { return m_scale; }
@@ -342,14 +347,14 @@ public:
         m_p1 = end_point;
     }
 
-private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
-
     SVGLinearGradientPaintStyle(FloatPoint p0, FloatPoint p1)
         : m_p0(p0)
         , m_p1(p1)
     {
     }
+
+private:
+    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
 
     FloatPoint m_p0;
     FloatPoint m_p1;
@@ -382,9 +387,6 @@ public:
         m_end_radius = end_radius;
     }
 
-private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
-
     SVGRadialGradientPaintStyle(FloatPoint start_center, float start_radius, FloatPoint end_center, float end_radius)
         : m_start_center(start_center)
         , m_start_radius(start_radius)
@@ -392,6 +394,9 @@ private:
         , m_end_radius(end_radius)
     {
     }
+
+private:
+    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
 
     FloatPoint m_start_center;
     float m_start_radius { 0.0f };
