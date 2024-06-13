@@ -47,6 +47,7 @@ source_set("CSS") {
     "PercentageOr.cpp",
     "PreferredColorScheme.cpp",
     "PreferredContrast.cpp",
+    "PreferredMotion.cpp",
     "Ratio.cpp",
     "Resolution.cpp",
     "ResolvedCSSStyleDeclaration.cpp",

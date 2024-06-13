@@ -23,17 +23,18 @@ static T scale_for_device(T size, float device_pixel_ratio)
     return size.template to_type<float>().scaled(device_pixel_ratio).template to_type<int>();
 }
 
-ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast)
+ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast, Web::CSS::PreferredMotion preferred_motion)
 {
-    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, web_content_options, move(webdriver_content_ipc_path), preferred_color_scheme, preferred_contrast));
+    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, web_content_options, move(webdriver_content_ipc_path), preferred_color_scheme, preferred_contrast, preferred_motion));
 }
 
-WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast)
+WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast, Web::CSS::PreferredMotion preferred_motion)
     : m_screen_rects(move(screen_rects))
     , m_web_content_options(web_content_options)
     , m_webdriver_content_ipc_path(move(webdriver_content_ipc_path))
     , m_preferred_color_scheme(preferred_color_scheme)
     , m_preferred_contrast(preferred_contrast)
+    , m_preferred_motion(preferred_motion)
 {
     m_device_pixel_ratio = device_pixel_ratio;
 }
@@ -79,6 +80,12 @@ void WebViewBridge::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
 {
     m_preferred_contrast = contrast;
     client().async_set_preferred_contrast(m_client_state.page_index, contrast);
+}
+
+void WebViewBridge::set_preferred_motion(Web::CSS::PreferredMotion motion)
+{
+    m_preferred_motion = motion;
+    client().async_set_preferred_motion(m_client_state.page_index, motion);
 }
 
 void WebViewBridge::enqueue_input_event(Web::MouseEvent event)

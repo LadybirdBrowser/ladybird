@@ -73,6 +73,7 @@ public:
     virtual double device_pixels_per_css_pixel() const override { return 1.0; }
     virtual CSS::PreferredColorScheme preferred_color_scheme() const override { return m_host_page->client().preferred_color_scheme(); }
     virtual CSS::PreferredContrast preferred_contrast() const override { return m_host_page->client().preferred_contrast(); }
+    virtual CSS::PreferredMotion preferred_motion() const override { return m_host_page->client().preferred_motion(); }
     virtual void request_file(FileRequest) override { }
     virtual void paint_next_frame() override { }
     virtual void paint(DevicePixelRect const&, Gfx::Bitmap&, Web::PaintOptions = {}) override { }

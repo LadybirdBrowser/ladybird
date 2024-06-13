@@ -72,6 +72,11 @@ Web::CSS::PreferredContrast PageHost::preferred_contrast() const
     return Web::CSS::PreferredContrast::Auto;
 }
 
+Web::CSS::PreferredMotion PageHost::preferred_motion() const
+{
+    return Web::CSS::PreferredMotion::Auto;
+}
+
 void PageHost::paint(Web::DevicePixelRect const&, Gfx::Bitmap&, Web::PaintOptions)
 {
 }

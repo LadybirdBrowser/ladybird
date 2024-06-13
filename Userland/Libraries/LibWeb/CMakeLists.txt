@@ -83,6 +83,7 @@ set(SOURCES
     CSS/PercentageOr.cpp
     CSS/PreferredColorScheme.cpp
     CSS/PreferredContrast.cpp
+    CSS/PreferredMotion.cpp
     CSS/Ratio.cpp
     CSS/Resolution.cpp
     CSS/ResolvedCSSStyleDeclaration.cpp

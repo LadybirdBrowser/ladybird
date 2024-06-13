@@ -117,6 +117,11 @@ CSS::PreferredContrast Page::preferred_contrast() const
     return m_client->preferred_contrast();
 }
 
+CSS::PreferredMotion Page::preferred_motion() const
+{
+    return m_client->preferred_motion();
+}
+
 CSSPixelPoint Page::device_to_css_point(DevicePixelPoint point) const
 {
     return {

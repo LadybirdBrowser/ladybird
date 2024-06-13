@@ -124,6 +124,9 @@ public slots:
     void enable_less_contrast();
     void enable_more_contrast();
     void enable_no_preference_contrast();
+    void enable_auto_motion();
+    void enable_no_preference_motion();
+    void enable_reduce_motion();
     void zoom_in();
     void zoom_out();
     void reset_zoom();

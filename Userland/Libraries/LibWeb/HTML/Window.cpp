@@ -354,8 +354,16 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
         // FIXME: Make this a preference
         return CSS::MediaFeatureValue(CSS::ValueID::NoPreference);
     case CSS::MediaFeatureID::PrefersReducedMotion:
-        // FIXME: Make this a preference
-        return CSS::MediaFeatureValue(CSS::ValueID::NoPreference);
+        switch (page().preferred_motion()) {
+        case CSS::PreferredMotion::NoPreference:
+            return CSS::MediaFeatureValue(CSS::ValueID::NoPreference);
+        case CSS::PreferredMotion::Reduce:
+            return CSS::MediaFeatureValue(CSS::ValueID::Reduce);
+        case CSS::PreferredMotion::Auto:
+        default:
+            // FIXME: Fallback to system settings
+            return CSS::MediaFeatureValue(CSS::ValueID::NoPreference);
+        }
     case CSS::MediaFeatureID::PrefersReducedTransparency:
         // FIXME: Make this a preference
         return CSS::MediaFeatureValue(CSS::ValueID::NoPreference);

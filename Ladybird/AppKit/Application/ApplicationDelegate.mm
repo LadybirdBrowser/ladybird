@@ -31,6 +31,7 @@
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
     Web::CSS::PreferredContrast m_preferred_contrast;
+    Web::CSS::PreferredMotion m_preferred_motion;
 
     WebView::SearchEngine m_search_engine;
 }
@@ -90,6 +91,7 @@
 
         m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Auto;
         m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
+        m_preferred_motion = Web::CSS::PreferredMotion::Auto;
         m_search_engine = WebView::default_search_engine();
 
         // Reduce the tooltip delay, as the default delay feels quite long.
@@ -166,6 +168,11 @@
 - (Web::CSS::PreferredContrast)preferredContrast
 {
     return m_preferred_contrast;
+}
+
+- (Web::CSS::PreferredMotion)preferredMotion
+{
+    return m_preferred_motion;
 }
 
 - (WebView::SearchEngine const&)searchEngine
@@ -294,6 +301,32 @@
     for (TabController* controller in self.managed_tabs) {
         auto* tab = (Tab*)[controller window];
         [[tab web_view] setPreferredContrast:m_preferred_contrast];
+    }
+}
+
+- (void)setAutoPreferredMotion:(id)sender
+{
+    m_preferred_motion = Web::CSS::PreferredMotion::Auto;
+    [self broadcastPreferredMotionUpdate];
+}
+
+- (void)setNoPreferencePreferredMotion:(id)sender
+{
+    m_preferred_motion = Web::CSS::PreferredMotion::NoPreference;
+    [self broadcastPreferredMotionUpdate];
+}
+
+- (void)setReducePreferredMotion:(id)sender
+{
+    m_preferred_motion = Web::CSS::PreferredMotion::Reduce;
+    [self broadcastPreferredMotionUpdate];
+}
+
+- (void)broadcastPreferredMotionUpdate
+{
+    for (TabController* controller in self.managed_tabs) {
+        auto* tab = (Tab*)[controller window];
+        [[tab web_view] setPreferredMotion:m_preferred_motion];
     }
 }
 
@@ -452,6 +485,22 @@
                                                    keyEquivalent:@""];
     [contrast_menu_item setSubmenu:contrast_menu];
 
+    auto* motion_menu = [[NSMenu alloc] init];
+    [motion_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Auto"
+                                                    action:@selector(setAutoPreferredMotion:)
+                                             keyEquivalent:@""]];
+    [motion_menu addItem:[[NSMenuItem alloc] initWithTitle:@"No Preference"
+                                                    action:@selector(setNoPreferencePreferredMotion:)
+                                             keyEquivalent:@""]];
+    [motion_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Reduce"
+                                                    action:@selector(setReducePreferredMotion:)
+                                             keyEquivalent:@""]];
+
+    auto* motion_menu_item = [[NSMenuItem alloc] initWithTitle:@"Motion"
+                                                        action:nil
+                                                 keyEquivalent:@""];
+    [motion_menu_item setSubmenu:motion_menu];
+
     auto* zoom_menu = [[NSMenu alloc] init];
     [zoom_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Zoom In"
                                                   action:@selector(zoomIn:)
@@ -470,6 +519,7 @@
 
     [submenu addItem:color_scheme_menu_item];
     [submenu addItem:contrast_menu_item];
+    [submenu addItem:motion_menu_item];
     [submenu addItem:zoom_menu_item];
     [submenu addItem:[NSMenuItem separatorItem]];
 
@@ -695,6 +745,12 @@
         [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::More) ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setNoPreferencePreferredContrast:)) {
         [item setState:(m_preferred_contrast == Web::CSS::PreferredContrast::NoPreference) ? NSControlStateValueOn : NSControlStateValueOff];
+    } else if ([item action] == @selector(setAutoPreferredMotion:)) {
+        [item setState:(m_preferred_motion == Web::CSS::PreferredMotion::Auto) ? NSControlStateValueOn : NSControlStateValueOff];
+    } else if ([item action] == @selector(setNoPreferencePreferredMotion:)) {
+        [item setState:(m_preferred_motion == Web::CSS::PreferredMotion::NoPreference) ? NSControlStateValueOn : NSControlStateValueOff];
+    } else if ([item action] == @selector(setReducePreferredMotion:)) {
+        [item setState:(m_preferred_motion == Web::CSS::PreferredMotion::Reduce) ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setSearchEngine:)) {
         auto title = Ladybird::ns_string_to_string([item title]);
         [item setState:(m_search_engine.name == title) ? NSControlStateValueOn : NSControlStateValueOff];
