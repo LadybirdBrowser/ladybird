@@ -199,7 +199,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     return {};
 }
 
-CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GCPtr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion)
+CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GCPtr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion, Vector<DeprecatedFlyString> local_variable_names)
 {
     Generator generator(vm, function, must_propagate_completion);
 
@@ -451,6 +451,8 @@ CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::compile(VM& vm, ASTNo
     executable->exception_handlers = move(linked_exception_handlers);
     executable->basic_block_start_offsets = move(basic_block_start_offsets);
     executable->source_map = move(source_map);
+    executable->local_variable_names = move(local_variable_names);
+    executable->local_index_base = number_of_registers + number_of_constants;
 
     generator.m_finished = true;
 
@@ -459,12 +461,15 @@ CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::compile(VM& vm, ASTNo
 
 CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::generate_from_ast_node(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind)
 {
-    return compile(vm, node, enclosing_function_kind, {});
+    Vector<DeprecatedFlyString> local_variable_names;
+    if (is<ScopeNode>(node))
+        local_variable_names = static_cast<ScopeNode const&>(node).local_variables_names();
+    return compile(vm, node, enclosing_function_kind, {}, MustPropagateCompletion::Yes, move(local_variable_names));
 }
 
 CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::generate_from_function(VM& vm, ECMAScriptFunctionObject const& function)
 {
-    return compile(vm, function.ecmascript_code(), function.kind(), &function, MustPropagateCompletion::No);
+    return compile(vm, function.ecmascript_code(), function.kind(), &function, MustPropagateCompletion::No, function.local_variables_names());
 }
 
 void Generator::grow(size_t additional_size)

@@ -343,7 +343,7 @@ public:
 private:
     VM& m_vm;
 
-    static CodeGenerationErrorOr<NonnullGCPtr<Executable>> compile(VM&, ASTNode const&, FunctionKind, GCPtr<ECMAScriptFunctionObject const>, MustPropagateCompletion = MustPropagateCompletion::Yes);
+    static CodeGenerationErrorOr<NonnullGCPtr<Executable>> compile(VM&, ASTNode const&, FunctionKind, GCPtr<ECMAScriptFunctionObject const>, MustPropagateCompletion, Vector<DeprecatedFlyString> local_variable_names);
 
     enum class JumpType {
         Continue,

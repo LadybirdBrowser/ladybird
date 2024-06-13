@@ -53,8 +53,7 @@ static ByteString format_operand(StringView name, Operand operand, Bytecode::Exe
         }
         break;
     case Operand::Type::Local:
-        // FIXME: Show local name.
-        builder.appendff("\033[34mloc{}\033[0m", operand.index());
+        builder.appendff("\033[34m{}~{}\033[0m", executable.local_variable_names[operand.index() - executable.local_index_base], operand.index() - executable.local_index_base);
         break;
     case Operand::Type::Constant: {
         builder.append("\033[36m"sv);
@@ -708,9 +707,9 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
     VERIFY(!vm().execution_context_stack().is_empty());
 
     auto& running_execution_context = vm().running_execution_context();
-    u32 registers_and_contants_count = executable.number_of_registers + executable.constants.size();
-    if (running_execution_context.registers_and_constants_and_locals.size() < registers_and_contants_count)
-        running_execution_context.registers_and_constants_and_locals.resize(registers_and_contants_count);
+    u32 registers_and_constants_and_locals_count = executable.number_of_registers + executable.constants.size() + executable.local_variable_names.size();
+    if (running_execution_context.registers_and_constants_and_locals.size() < registers_and_constants_and_locals_count)
+        running_execution_context.registers_and_constants_and_locals.resize(registers_and_constants_and_locals_count);
 
     TemporaryChange restore_running_execution_context { m_running_execution_context, &running_execution_context };
     TemporaryChange restore_arguments { m_arguments, running_execution_context.arguments.span() };

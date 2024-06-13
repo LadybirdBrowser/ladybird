@@ -82,6 +82,9 @@ public:
 
     HashMap<size_t, SourceRecord> source_map;
 
+    Vector<DeprecatedFlyString> local_variable_names;
+    size_t local_index_base { 0 };
+
     ByteString const& get_string(StringTableIndex index) const { return string_table->get(index); }
     DeprecatedFlyString const& get_identifier(IdentifierTableIndex index) const { return identifier_table->get(index); }
 
