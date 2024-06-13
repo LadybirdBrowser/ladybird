@@ -243,6 +243,7 @@ private:
     static TypeAttributeState parse_type_attribute(StringView);
     void create_shadow_tree_if_needed();
     void update_shadow_tree();
+    void create_button_input_shadow_tree();
     void create_text_input_shadow_tree();
     void create_color_input_shadow_tree();
     void create_file_input_shadow_tree();

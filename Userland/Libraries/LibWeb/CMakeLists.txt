@@ -471,7 +471,6 @@ set(SOURCES
     Layout/Box.cpp
     Layout/BoxModelMetrics.cpp
     Layout/BreakNode.cpp
-    Layout/ButtonBox.cpp
     Layout/CanvasBox.cpp
     Layout/CheckBox.cpp
     Layout/FlexFormattingContext.cpp
@@ -537,7 +536,6 @@ set(SOURCES
     Painting/BorderPainting.cpp
     Painting/BorderRadiusCornerClipper.cpp
     Painting/BordersData.cpp
-    Painting/ButtonPaintable.cpp
     Painting/CanvasPaintable.cpp
     Painting/Command.cpp
     Painting/CommandExecutorCPU.cpp
