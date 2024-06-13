@@ -20,6 +20,7 @@
 #include <Ladybird/Utilities.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
+#include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/UserAgent.h>
@@ -262,6 +263,30 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     QObject::connect(no_preference_contrast, &QAction::triggered, this, &BrowserWindow::enable_no_preference_contrast);
 
     auto_contrast->setChecked(true);
+
+    auto* motion_menu = view_menu->addMenu("&Motion");
+
+    auto* motion_group = new QActionGroup(this);
+
+    auto* auto_motion = new QAction("&Auto", this);
+    auto_motion->setCheckable(true);
+    motion_group->addAction(auto_motion);
+    motion_menu->addAction(auto_motion);
+    QObject::connect(auto_motion, &QAction::triggered, this, &BrowserWindow::enable_auto_motion);
+
+    auto* reduce_motion = new QAction("&Reduce", this);
+    reduce_motion->setCheckable(true);
+    motion_group->addAction(reduce_motion);
+    motion_menu->addAction(reduce_motion);
+    QObject::connect(reduce_motion, &QAction::triggered, this, &BrowserWindow::enable_reduce_motion);
+
+    auto* no_preference_motion = new QAction("&No Preference", this);
+    no_preference_motion->setCheckable(true);
+    motion_group->addAction(no_preference_motion);
+    motion_menu->addAction(no_preference_motion);
+    QObject::connect(no_preference_motion, &QAction::triggered, this, &BrowserWindow::enable_no_preference_motion);
+
+    auto_motion->setChecked(true);
 
     auto* show_menubar = new QAction("Show &Menubar", this);
     show_menubar->setCheckable(true);
@@ -951,6 +976,27 @@ void BrowserWindow::enable_no_preference_contrast()
 {
     for_each_tab([](auto& tab) {
         tab.view().set_preferred_contrast(Web::CSS::PreferredContrast::NoPreference);
+    });
+}
+
+void BrowserWindow::enable_auto_motion()
+{
+    for_each_tab([](auto& tab) {
+        tab.view().set_preferred_motion(Web::CSS::PreferredMotion::Auto);
+    });
+}
+
+void BrowserWindow::enable_no_preference_motion()
+{
+    for_each_tab([](auto& tab) {
+        tab.view().set_preferred_motion(Web::CSS::PreferredMotion::NoPreference);
+    });
+}
+
+void BrowserWindow::enable_reduce_motion()
+{
+    for_each_tab([](auto& tab) {
+        tab.view().set_preferred_motion(Web::CSS::PreferredMotion::Reduce);
     });
 }
 

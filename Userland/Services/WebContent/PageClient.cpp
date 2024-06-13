@@ -162,6 +162,13 @@ void PageClient::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
         document->invalidate_style();
 }
 
+void PageClient::set_preferred_motion(Web::CSS::PreferredMotion motion)
+{
+    m_preferred_motion = motion;
+    if (auto* document = page().top_level_browsing_context().active_document())
+        document->invalidate_style();
+}
+
 void PageClient::set_is_scripting_enabled(bool is_scripting_enabled)
 {
     page().set_is_scripting_enabled(is_scripting_enabled);

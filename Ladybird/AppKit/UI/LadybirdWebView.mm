@@ -104,7 +104,7 @@ struct HideCursor {
         // This returns device pixel ratio of the screen the window is opened in
         auto device_pixel_ratio = [[NSScreen mainScreen] backingScaleFactor];
 
-        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, [delegate webContentOptions], [delegate webdriverContentIPCPath], [delegate preferredColorScheme], [delegate preferredContrast]));
+        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, [delegate webContentOptions], [delegate webdriverContentIPCPath], [delegate preferredColorScheme], [delegate preferredContrast], [delegate preferredMotion]));
         [self setWebViewCallbacks];
 
         m_web_view_bridge->initialize_client();
@@ -224,6 +224,11 @@ struct HideCursor {
 - (void)setPreferredContrast:(Web::CSS::PreferredContrast)contrast
 {
     m_web_view_bridge->set_preferred_contrast(contrast);
+}
+
+- (void)setPreferredMotion:(Web::CSS::PreferredMotion)motion
+{
+    m_web_view_bridge->set_preferred_motion(motion);
 }
 
 - (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument

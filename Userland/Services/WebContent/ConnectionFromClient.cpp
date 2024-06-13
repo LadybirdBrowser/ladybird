@@ -939,6 +939,12 @@ void ConnectionFromClient::set_preferred_contrast(u64 page_id, Web::CSS::Preferr
         page->set_preferred_contrast(contrast);
 }
 
+void ConnectionFromClient::set_preferred_motion(u64 page_id, Web::CSS::PreferredMotion const& motion)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_preferred_motion(motion);
+}
+
 void ConnectionFromClient::set_has_focus(u64 page_id, bool has_focus)
 {
     if (auto page = this->page(page_id); page.has_value())

@@ -162,6 +162,11 @@ void ViewImplementation::set_preferred_contrast(Web::CSS::PreferredContrast cont
     client().async_set_preferred_contrast(page_id(), contrast);
 }
 
+void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
+{
+    client().async_set_preferred_motion(page_id(), motion);
+}
+
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());
