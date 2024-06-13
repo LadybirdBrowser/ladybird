@@ -34,6 +34,6 @@ jobs:
       - name: Build Base Dev Container Image
         uses: devcontainers/ci@v0.3
         with:
-          imageName: ghcr.io/ladybirdwebbrowser/ladybird-devcontainer
+          imageName: ghcr.io/ladybirdbrowser/ladybird-devcontainer
           imageTag: base,latest
           push: always
