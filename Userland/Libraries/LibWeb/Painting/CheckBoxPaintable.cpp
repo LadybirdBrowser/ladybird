@@ -19,56 +19,22 @@ namespace Web::Painting {
 
 JS_DEFINE_ALLOCATOR(CheckBoxPaintable);
 
-// A 16x16 signed distance field for the checkbox's tick (slightly rounded):
-static constexpr Array<u8, 16 * 16> s_check_mark_sdf {
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 251, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 231, 194, 189, 218, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 245, 193, 142, 131, 165, 205, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 209, 156, 105, 78, 116, 174, 237,
-    254, 254, 254, 254, 254, 254, 254, 254, 226, 173, 120, 69, 79, 132, 185, 243,
-    254, 254, 254, 254, 254, 254, 254, 243, 190, 138, 85, 62, 115, 167, 219, 254,
-    254, 254, 227, 203, 212, 249, 254, 207, 154, 102, 50, 98, 149, 202, 254, 254,
-    254, 225, 180, 141, 159, 204, 224, 171, 119, 67, 81, 134, 186, 238, 254, 254,
-    243, 184, 135, 90, 113, 157, 188, 136, 84, 64, 116, 169, 221, 254, 254, 254,
-    237, 174, 118, 71, 68, 113, 153, 100, 48, 100, 152, 204, 254, 254, 254, 254,
-    254, 208, 162, 116, 71, 67, 107, 65, 83, 135, 187, 240, 254, 254, 254, 254,
-    254, 251, 206, 162, 116, 71, 43, 66, 119, 171, 223, 254, 254, 254, 254, 254,
-    254, 254, 251, 206, 162, 116, 73, 102, 154, 207, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 251, 206, 162, 124, 139, 190, 242, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 251, 210, 187, 194, 229, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 251, 254, 254, 254, 254, 254, 254, 254, 254, 254
-};
-
-// A 16x16 signed distance field for an indeterminate checkbox (rounded line)
-// Note: We could use the AA fill_rect_with_rounded_corners() for this in future,
-// though right now it can't draw at subpixel accuracy (so is misaligned and jitters when scaling).
-static constexpr Array<u8, 16 * 16> s_check_indeterminate {
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 239, 211, 209, 209, 209, 209, 209, 209, 211, 237, 254, 254, 254,
-    254, 254, 252, 195, 151, 145, 145, 145, 145, 145, 145, 150, 193, 250, 254, 254,
-    254, 254, 243, 179, 115, 81, 81, 81, 81, 81, 81, 113, 177, 241, 254, 254,
-    254, 254, 243, 179, 115, 79, 79, 79, 79, 79, 79, 113, 177, 241, 254, 254,
-    254, 254, 251, 194, 149, 143, 143, 143, 143, 143, 143, 148, 192, 250, 254, 254,
-    254, 254, 254, 237, 210, 207, 207, 207, 207, 207, 207, 209, 236, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254,
-    254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254, 254
-};
-
-static constexpr Gfx::GrayscaleBitmap check_mark_sdf()
+static Gfx::Path check_mark_path(Gfx::IntRect checkbox_rect)
 {
-    return Gfx::GrayscaleBitmap(s_check_mark_sdf, 16, 16);
-}
+    Gfx::Path path;
+    path.move_to({ 72, 14 });
+    path.line_to({ 37, 64 });
+    path.line_to({ 19, 47 });
+    path.line_to({ 8, 58 });
+    path.line_to({ 40, 89 });
+    path.line_to({ 85, 24 });
+    path.close();
 
-static constexpr Gfx::GrayscaleBitmap check_indeterminate_sdf()
-{
-    return Gfx::GrayscaleBitmap(s_check_indeterminate, 16, 16);
+    float const checkmark_width = 100;
+    float const checkmark_height = 100;
+    Gfx::AffineTransform scale_checkmark_to_fit;
+    scale_checkmark_to_fit.scale(checkbox_rect.width() / checkmark_width, checkbox_rect.height() / checkmark_height);
+    return path.copy_transformed(scale_checkmark_to_fit);
 }
 
 JS::NonnullGCPtr<CheckBoxPaintable>
@@ -132,14 +98,17 @@ void CheckBoxPaintable::paint(PaintContext& context, PaintPhase phase) const
     };
 
     // Little heuristic that smaller things look better with more smoothness.
-    float smoothness = 1.0f / (max(checkbox_rect.width(), checkbox_rect.height()) / 2);
     if (checkbox.checked() && !checkbox.indeterminate()) {
         auto background_color = enabled ? input_colors.accent : input_colors.mid_gray;
         context.recording_painter().fill_rect_with_rounded_corners(checkbox_rect, modify_color(background_color), checkbox_radius);
         auto tick_color = increase_contrast(input_colors.base, background_color);
         if (!enabled)
             tick_color = shade(tick_color, 0.5f);
-        context.recording_painter().draw_signed_distance_field(checkbox_rect, tick_color, check_mark_sdf(), smoothness);
+        context.recording_painter().fill_path({
+            .path = check_mark_path(checkbox_rect),
+            .color = tick_color,
+            .translation = checkbox_rect.location().to_type<float>(),
+        });
     } else {
         auto background_color = input_colors.background_color(enabled);
         auto border_thickness = max(1, checkbox_rect.width() / 10);
@@ -147,9 +116,10 @@ void CheckBoxPaintable::paint(PaintContext& context, PaintPhase phase) const
         context.recording_painter().fill_rect_with_rounded_corners(checkbox_rect.shrunken(border_thickness, border_thickness, border_thickness, border_thickness),
             background_color, max(0, checkbox_radius - border_thickness));
         if (checkbox.indeterminate()) {
+            int radius = 0.05 * checkbox_rect.width();
             auto dash_color = increase_contrast(input_colors.dark_gray, background_color);
-            context.recording_painter().draw_signed_distance_field(checkbox_rect,
-                modify_color(enabled ? dash_color : shade(dash_color, 0.3f)), check_indeterminate_sdf(), smoothness);
+            auto dash_rect = checkbox_rect.inflated(-0.4 * checkbox_rect.width(), -0.8 * checkbox_rect.height());
+            context.recording_painter().fill_rect_with_rounded_corners(dash_rect, dash_color, radius, radius, radius, radius);
         }
     }
 }
