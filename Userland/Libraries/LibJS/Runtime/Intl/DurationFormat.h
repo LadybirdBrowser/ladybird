@@ -12,7 +12,6 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
-#include <LibLocale/ListFormat.h>
 
 namespace JS::Intl {
 
@@ -33,7 +32,8 @@ public:
         Short,
         Narrow,
         Numeric,
-        TwoDigit
+        TwoDigit,
+        Fractional,
     };
     static_assert(to_underlying(ValueStyle::Long) == to_underlying(::Locale::Style::Long));
     static_assert(to_underlying(ValueStyle::Short) == to_underlying(::Locale::Style::Short));
@@ -61,6 +61,15 @@ public:
 
     void set_numbering_system(String numbering_system) { m_numbering_system = move(numbering_system); }
     String const& numbering_system() const { return m_numbering_system; }
+
+    void set_hours_minutes_separator(String hours_minutes_separator) { m_hours_minutes_separator = move(hours_minutes_separator); }
+    String const& hours_minutes_separator() const { return m_hours_minutes_separator; }
+
+    void set_minutes_seconds_separator(String minutes_seconds_separator) { m_minutes_seconds_separator = move(minutes_seconds_separator); }
+    String const& minutes_seconds_separator() const { return m_minutes_seconds_separator; }
+
+    void set_two_digit_hours(bool two_digit_hours) { m_two_digit_hours = two_digit_hours; }
+    bool two_digit_hours() const { return m_two_digit_hours; }
 
     void set_style(StringView style) { m_style = style_from_string(style); }
     Style style() const { return m_style; }
@@ -162,9 +171,13 @@ private:
     static Display display_from_string(StringView display);
     static StringView display_to_string(Display);
 
-    String m_locale;                                      // [[Locale]]
-    String m_data_locale;                                 // [[DataLocale]]
-    String m_numbering_system;                            // [[NumberingSystem]]
+    String m_locale;                    // [[Locale]]
+    String m_data_locale;               // [[DataLocale]]
+    String m_numbering_system;          // [[NumberingSystem]]
+    String m_hours_minutes_separator;   // [[HourMinutesSeparator]]
+    String m_minutes_seconds_separator; // [[MinutesSecondsSeparator]]
+    bool m_two_digit_hours { false };   // [[TwoDigitHours]]
+
     Style m_style { Style::Long };                        // [[Style]]
     ValueStyle m_years_style { ValueStyle::Long };        // [[YearsStyle]]
     Display m_years_display { Display::Auto };            // [[YearsDisplay]]
@@ -223,10 +236,21 @@ struct DurationUnitOptions {
     String display;
 };
 
+struct DurationFormatPart {
+    StringView type;
+    String value;
+    StringView unit;
+};
+
 ThrowCompletionOr<Temporal::DurationRecord> to_duration_record(VM&, Value input);
-i8 duration_record_sign(Temporal::DurationRecord const&);
-bool is_valid_duration_record(Temporal::DurationRecord const&);
-ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM&, String const& unit, Object const& options, StringView base_style, ReadonlySpan<StringView> styles_list, StringView digital_base, StringView previous_style);
-Vector<::Locale::ListFormatPart> partition_duration_format_pattern(VM&, DurationFormat const&, Temporal::DurationRecord const& duration);
+ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM&, String const& unit, Object const& options, StringView base_style, ReadonlySpan<StringView> styles_list, StringView digital_base, StringView previous_style, bool two_digit_hours);
+double add_fractional_digits(DurationFormat const&, Temporal::DurationRecord const&);
+bool next_unit_fractional(DurationFormat const&, StringView unit);
+Vector<DurationFormatPart> format_numeric_hours(VM&, DurationFormat const&, double hours_value, bool sign_displayed);
+Vector<DurationFormatPart> format_numeric_minutes(VM&, DurationFormat const&, double minutes_value, bool hours_displayed, bool sign_displayed);
+Vector<DurationFormatPart> format_numeric_seconds(VM&, DurationFormat const&, double seconds_value, bool minutes_displayed, bool sign_displayed);
+Vector<DurationFormatPart> format_numeric_units(VM&, DurationFormat const&, Temporal::DurationRecord const&, StringView first_numeric_unit, bool sign_displayed);
+Vector<DurationFormatPart> list_format_parts(VM&, DurationFormat const&, Vector<Vector<DurationFormatPart>>& partitioned_parts_list);
+Vector<DurationFormatPart> partition_duration_format_pattern(VM&, DurationFormat const&, Temporal::DurationRecord const&);
 
 }

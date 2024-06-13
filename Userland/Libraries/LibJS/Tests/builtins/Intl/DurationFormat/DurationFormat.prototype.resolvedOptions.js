@@ -284,7 +284,7 @@ describe("correct behavior", () => {
 
     test("fractionalDigits", () => {
         const en1 = new Intl.DurationFormat("en");
-        expect(en1.resolvedOptions().fractionalDigits).toBe(0);
+        expect(en1.resolvedOptions().fractionalDigits).toBeUndefined();
 
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(fractionalDigits => {
             const en2 = new Intl.DurationFormat("en", { fractionalDigits: fractionalDigits });

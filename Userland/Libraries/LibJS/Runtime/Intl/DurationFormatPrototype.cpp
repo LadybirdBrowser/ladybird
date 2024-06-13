@@ -1,10 +1,11 @@
 /*
  * Copyright (c) 2022, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -81,9 +82,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format_to_parts)
 
     // 6. Let n be 0.
     // 7. For each { [[Type]], [[Value]] } part in parts, do
-    for (size_t n = 0; n < parts.size(); ++n) {
-        auto const& part = parts[n];
-
+    for (auto [n, part] : enumerate(parts)) {
         // a. Let obj be OrdinaryObjectCreate(%ObjectPrototype%).
         auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
@@ -91,12 +90,16 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format_to_parts)
         MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, part.type)));
 
         // c. Perform ! CreateDataPropertyOrThrow(obj, "value", part.[[Value]]).
-        MUST(object->create_data_property_or_throw(vm.names.value, PrimitiveString::create(vm, part.value)));
+        MUST(object->create_data_property_or_throw(vm.names.value, PrimitiveString::create(vm, move(part.value))));
 
-        // d. Perform ! CreateDataPropertyOrThrow(result, ! ToString(n), obj).
+        // d. If part.[[Unit]] is not empty, perform ! CreateDataPropertyOrThrow(obj, "unit", part.[[Unit]]).
+        if (!part.unit.is_empty())
+            MUST(object->create_data_property_or_throw(vm.names.unit, PrimitiveString::create(vm, part.unit)));
+
+        // e. Perform ! CreateDataPropertyOrThrow(result, ! ToString(n), obj).
         MUST(result->create_data_property_or_throw(n, object));
 
-        // e. Increment n by 1.
+        // f. Increment n by 1.
     }
 
     // 8. Return result.
@@ -115,35 +118,54 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::resolved_options)
     // 3. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 4. For each row of Table 2, except the header row, in table order, do
-    //     a. Let p be the Property value of the current row.
-    //     b. Let v be the value of df's internal slot whose name is the Internal Slot value of the current row.
-    //     c. Assert: v is not undefined.
-    //     d. Perform ! CreateDataPropertyOrThrow(options, p, v).
-    MUST(options->create_data_property_or_throw(vm.names.locale, PrimitiveString::create(vm, duration_format->locale())));
-    MUST(options->create_data_property_or_throw(vm.names.style, PrimitiveString::create(vm, duration_format->style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.years, PrimitiveString::create(vm, duration_format->years_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.yearsDisplay, PrimitiveString::create(vm, duration_format->years_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.months, PrimitiveString::create(vm, duration_format->months_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.monthsDisplay, PrimitiveString::create(vm, duration_format->months_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.weeks, PrimitiveString::create(vm, duration_format->weeks_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.weeksDisplay, PrimitiveString::create(vm, duration_format->weeks_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.days, PrimitiveString::create(vm, duration_format->days_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.daysDisplay, PrimitiveString::create(vm, duration_format->days_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.hours, PrimitiveString::create(vm, duration_format->hours_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.hoursDisplay, PrimitiveString::create(vm, duration_format->hours_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.minutes, PrimitiveString::create(vm, duration_format->minutes_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.minutesDisplay, PrimitiveString::create(vm, duration_format->minutes_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.seconds, PrimitiveString::create(vm, duration_format->seconds_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.secondsDisplay, PrimitiveString::create(vm, duration_format->seconds_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.milliseconds, PrimitiveString::create(vm, duration_format->milliseconds_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.millisecondsDisplay, PrimitiveString::create(vm, duration_format->milliseconds_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.microseconds, PrimitiveString::create(vm, duration_format->microseconds_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.microsecondsDisplay, PrimitiveString::create(vm, duration_format->microseconds_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.nanoseconds, PrimitiveString::create(vm, duration_format->nanoseconds_style_string())));
-    MUST(options->create_data_property_or_throw(vm.names.nanosecondsDisplay, PrimitiveString::create(vm, duration_format->nanoseconds_display_string())));
-    MUST(options->create_data_property_or_throw(vm.names.fractionalDigits, duration_format->has_fractional_digits() ? Value(duration_format->fractional_digits()) : js_undefined()));
-    MUST(options->create_data_property_or_throw(vm.names.numberingSystem, PrimitiveString::create(vm, duration_format->numbering_system())));
+    // 4. For each row of Table 4, except the header row, in table order, do
+    auto create_option = [&](PropertyKey const& property, StringView value) {
+        // a. Let p be the Property value of the current row.
+        // b. Let v be the value of df's internal slot whose name is the Internal Slot value of the current row.
+
+        // c. If p is "fractionalDigits", then
+        //     i. If v is not undefined, set v to 𝔽(v).
+        // d. Else,
+        //     i. Assert: v is not undefined.
+
+        // e. If v is "fractional", then
+        if (value == "fractional"sv) {
+            // i. Assert: The Internal Slot value of the current row is [[MillisecondsStyle]], [[MicrosecondsStyle]], or [[NanosecondsStyle]].
+            // ii. Set v to "numeric".
+            value = "numeric"sv;
+        }
+
+        // f. If v is not undefined, then
+        //     i. Perform ! CreateDataPropertyOrThrow(options, p, v).
+        MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, value)));
+    };
+
+    create_option(vm.names.locale, duration_format->locale());
+    create_option(vm.names.numberingSystem, duration_format->numbering_system());
+    create_option(vm.names.style, duration_format->style_string());
+    create_option(vm.names.years, duration_format->years_style_string());
+    create_option(vm.names.yearsDisplay, duration_format->years_display_string());
+    create_option(vm.names.months, duration_format->months_style_string());
+    create_option(vm.names.monthsDisplay, duration_format->months_display_string());
+    create_option(vm.names.weeks, duration_format->weeks_style_string());
+    create_option(vm.names.weeksDisplay, duration_format->weeks_display_string());
+    create_option(vm.names.days, duration_format->days_style_string());
+    create_option(vm.names.daysDisplay, duration_format->days_display_string());
+    create_option(vm.names.hours, duration_format->hours_style_string());
+    create_option(vm.names.hoursDisplay, duration_format->hours_display_string());
+    create_option(vm.names.minutes, duration_format->minutes_style_string());
+    create_option(vm.names.minutesDisplay, duration_format->minutes_display_string());
+    create_option(vm.names.seconds, duration_format->seconds_style_string());
+    create_option(vm.names.secondsDisplay, duration_format->seconds_display_string());
+    create_option(vm.names.milliseconds, duration_format->milliseconds_style_string());
+    create_option(vm.names.millisecondsDisplay, duration_format->milliseconds_display_string());
+    create_option(vm.names.microseconds, duration_format->microseconds_style_string());
+    create_option(vm.names.microsecondsDisplay, duration_format->microseconds_display_string());
+    create_option(vm.names.nanoseconds, duration_format->nanoseconds_style_string());
+    create_option(vm.names.nanosecondsDisplay, duration_format->nanoseconds_display_string());
+
+    if (duration_format->has_fractional_digits())
+        MUST(options->create_data_property_or_throw(vm.names.fractionalDigits, Value(duration_format->fractional_digits())));
 
     // 5. Return options.
     return options;

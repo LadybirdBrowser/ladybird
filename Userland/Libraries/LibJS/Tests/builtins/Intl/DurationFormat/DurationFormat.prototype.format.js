@@ -32,7 +32,7 @@ describe("correct behavior", () => {
             "1y 2m 3w 3d 4h 5m 6s 7ms 8μs 9ns"
         );
         expect(new Intl.DurationFormat("en", { style: "digital" }).format(duration)).toBe(
-            "1 yr, 2 mths, 3 wks, 3 days, 4:05:06"
+            "1 yr, 2 mths, 3 wks, 3 days, 4:05:06.007008009"
         );
         expect(
             new Intl.DurationFormat("en", {
@@ -52,7 +52,7 @@ describe("correct behavior", () => {
             "1 J, 2 M, 3 W, 3 T, 4 Std., 5 Min., 6 Sek., 7 ms, 8 μs und 9 ns"
         );
         expect(new Intl.DurationFormat("de", { style: "digital" }).format(duration)).toBe(
-            "1 J, 2 Mon., 3 Wo., 3 Tg. und 4:05:06"
+            "1 J, 2 Mon., 3 Wo., 3 Tg. und 4:05:06,007008009"
         );
         expect(
             new Intl.DurationFormat("de", {
@@ -87,6 +87,28 @@ describe("correct behavior", () => {
         const de = new Intl.DurationFormat("de", { style: "digital" });
         expect(de.format(duration1)).toBe("1 J, 2 Mon., 3 Wo., 3 Tg. und 0:00:00");
         expect(de.format(duration2)).toBe("1 J, 2 Mon., 3 Wo., 3 Tg. und 4:05:06");
+    });
+
+    test("locale with a time separator string other than ':'", () => {
+        const duration = {
+            hours: 1,
+            minutes: 2,
+            seconds: 3,
+        };
+
+        const da = new Intl.DurationFormat("da", { style: "digital" });
+        expect(da.format(duration)).toBe("1.02.03");
+    });
+
+    test("locale with preferred 2-digit hours", () => {
+        const duration = {
+            hours: 1,
+            minutes: 2,
+            seconds: 3,
+        };
+
+        const lt = new Intl.DurationFormat("lt", { style: "digital" });
+        expect(lt.format(duration)).toBe("01:02:03");
     });
 });
 
