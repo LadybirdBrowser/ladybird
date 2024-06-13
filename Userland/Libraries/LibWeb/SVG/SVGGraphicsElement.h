@@ -51,8 +51,8 @@ public:
 
     Gfx::AffineTransform get_transform() const;
 
-    Optional<Gfx::PaintStyle const&> fill_paint_style(SVGPaintContext const&) const;
-    Optional<Gfx::PaintStyle const&> stroke_paint_style(SVGPaintContext const&) const;
+    Optional<Painting::PaintStyle> fill_paint_style(SVGPaintContext const&) const;
+    Optional<Painting::PaintStyle> stroke_paint_style(SVGPaintContext const&) const;
 
     JS::GCPtr<SVG::SVGMaskElement const> mask() const;
     JS::GCPtr<SVG::SVGClipPathElement const> clip_path() const;
@@ -70,7 +70,7 @@ protected:
         return m_transform;
     }
 
-    Optional<Gfx::PaintStyle const&> svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value) const;
+    Optional<Painting::PaintStyle> svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value) const;
 
     Gfx::AffineTransform m_transform = {};
 

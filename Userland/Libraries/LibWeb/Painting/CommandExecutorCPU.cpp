@@ -333,8 +333,9 @@ CommandResult CommandExecutorCPU::fill_path_using_color(FillPathUsingColor const
 CommandResult CommandExecutorCPU::fill_path_using_paint_style(FillPathUsingPaintStyle const& command)
 {
     Gfx::AntiAliasingPainter aa_painter(painter());
+    auto gfx_paint_style = command.paint_style->create_gfx_paint_style();
     aa_painter.translate(command.aa_translation);
-    aa_painter.fill_path(command.path, command.paint_style, command.opacity, command.winding_rule);
+    aa_painter.fill_path(command.path, gfx_paint_style, command.opacity, command.winding_rule);
     return CommandResult::Continue;
 }
 
@@ -349,8 +350,9 @@ CommandResult CommandExecutorCPU::stroke_path_using_color(StrokePathUsingColor c
 CommandResult CommandExecutorCPU::stroke_path_using_paint_style(StrokePathUsingPaintStyle const& command)
 {
     Gfx::AntiAliasingPainter aa_painter(painter());
+    auto gfx_paint_style = command.paint_style->create_gfx_paint_style();
     aa_painter.translate(command.aa_translation);
-    aa_painter.stroke_path(command.path, command.paint_style, command.thickness, command.opacity);
+    aa_painter.stroke_path(command.path, gfx_paint_style, command.thickness, command.opacity);
     return CommandResult::Continue;
 }
 

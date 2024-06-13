@@ -8,6 +8,7 @@
 
 #include <AK/IterationDecision.h>
 #include <LibGfx/PaintStyle.h>
+#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGStopElement.h>
@@ -20,15 +21,15 @@ struct SVGPaintContext {
     Gfx::AffineTransform transform;
 };
 
-inline Gfx::SVGGradientPaintStyle::SpreadMethod to_gfx_spread_method(SpreadMethod spread_method)
+inline Painting::SVGGradientPaintStyle::SpreadMethod to_painting_spread_method(SpreadMethod spread_method)
 {
     switch (spread_method) {
     case SpreadMethod::Pad:
-        return Gfx::SVGGradientPaintStyle::SpreadMethod::Pad;
+        return Painting::SVGGradientPaintStyle::SpreadMethod::Pad;
     case SpreadMethod::Reflect:
-        return Gfx::SVGGradientPaintStyle::SpreadMethod::Reflect;
+        return Painting::SVGGradientPaintStyle::SpreadMethod::Reflect;
     case SpreadMethod::Repeat:
-        return Gfx::SVGGradientPaintStyle::SpreadMethod::Repeat;
+        return Painting::SVGGradientPaintStyle::SpreadMethod::Repeat;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -42,7 +43,7 @@ public:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& value) override;
 
-    virtual Optional<Gfx::PaintStyle const&> to_gfx_paint_style(SVGPaintContext const&) const = 0;
+    virtual Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&) const = 0;
 
     GradientUnits gradient_units() const;
 
@@ -66,7 +67,7 @@ protected:
         return for_each_color_stop_impl(callback, seen_gradients);
     }
 
-    void add_color_stops(Gfx::SVGGradientPaintStyle&) const;
+    void add_color_stops(Painting::SVGGradientPaintStyle&) const;
 
 private:
     template<VoidFunction<SVGStopElement> Callback>

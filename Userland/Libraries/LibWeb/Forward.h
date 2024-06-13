@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Variant.h>
 #include <LibJS/Forward.h>
 
 namespace Web {
@@ -24,6 +25,8 @@ class XMLDocumentBuilder;
 
 namespace Web::Painting {
 class RecordingPainter;
+class SVGGradientPaintStyle;
+using PaintStyle = RefPtr<SVGGradientPaintStyle>;
 }
 
 namespace Web::Animations {
