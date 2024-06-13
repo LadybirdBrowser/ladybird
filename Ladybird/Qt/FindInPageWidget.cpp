@@ -142,4 +142,14 @@ void FindInPageWidget::update_result_label(size_t current_match_index, Optional<
     }
 }
 
+void FindInPageWidget::find_previous()
+{
+    m_previous_button->click();
+}
+
+void FindInPageWidget::find_next()
+{
+    m_next_button->click();
+}
+
 }

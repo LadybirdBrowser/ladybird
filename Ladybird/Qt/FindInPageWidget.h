@@ -26,6 +26,9 @@ public:
 
     void update_result_label(size_t current_match_index, Optional<size_t> const& total_match_count);
 
+    void find_previous();
+    void find_next();
+
     virtual ~FindInPageWidget() override;
 
 public slots:

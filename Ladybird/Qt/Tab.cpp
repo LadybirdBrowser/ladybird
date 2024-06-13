@@ -950,6 +950,16 @@ void Tab::show_find_in_page()
     m_find_in_page->setFocus();
 }
 
+void Tab::find_previous()
+{
+    m_find_in_page->find_previous();
+}
+
+void Tab::find_next()
+{
+    m_find_in_page->find_next();
+}
+
 void Tab::close_sub_widgets()
 {
     auto close_widget_window = [](auto* widget) {

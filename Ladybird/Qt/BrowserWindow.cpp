@@ -157,6 +157,20 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     m_find_in_page_action->setIcon(load_icon_from_uri("resource://icons/16x16/find.png"sv));
     m_find_in_page_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Find));
 
+    auto find_previous_shortcuts = QKeySequence::keyBindings(QKeySequence::StandardKey::FindPrevious);
+    for (auto const& shortcut : find_previous_shortcuts)
+        new QShortcut(shortcut, this, [this] {
+            if (m_current_tab)
+                m_current_tab->find_previous();
+        });
+
+    auto find_next_shortcuts = QKeySequence::keyBindings(QKeySequence::StandardKey::FindNext);
+    for (auto const& shortcut : find_next_shortcuts)
+        new QShortcut(shortcut, this, [this] {
+            if (m_current_tab)
+                m_current_tab->find_next();
+        });
+
     edit_menu->addAction(m_find_in_page_action);
     QObject::connect(m_find_in_page_action, &QAction::triggered, this, &BrowserWindow::show_find_in_page);
 

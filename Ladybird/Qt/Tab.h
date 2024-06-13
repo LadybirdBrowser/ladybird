@@ -53,6 +53,8 @@ public:
     void show_inspector_window(InspectorTarget = InspectorTarget::Document);
 
     void show_find_in_page();
+    void find_previous();
+    void find_next();
 
     QIcon const& favicon() const { return m_favicon; }
     QString const& title() const { return m_title; }
