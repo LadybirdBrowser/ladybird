@@ -11,6 +11,7 @@ endif()
 
 set(SOURCES
     DateTimeFormat.cpp
+    DurationFormat.cpp
     DisplayNames.cpp
     ICU.cpp
     ListFormat.cpp
