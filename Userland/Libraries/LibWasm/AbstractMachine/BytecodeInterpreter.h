@@ -62,7 +62,7 @@ protected:
     Optional<VectorType> pop_vector(Configuration&);
     template<typename M, template<typename> typename SetSign, typename VectorType = Native128ByteVectorOf<M, SetSign>>
     Optional<VectorType> peek_vector(Configuration&);
-    void store_to_memory(Configuration&, Instruction const&, ReadonlyBytes data, i32 base);
+    void store_to_memory(Configuration&, Instruction const&, ReadonlyBytes data, u32 base);
     void call_address(Configuration&, FunctionAddress);
 
     template<typename PopTypeLHS, typename PushType, typename Operator, typename PopTypeRHS = PopTypeLHS, typename... Args>
