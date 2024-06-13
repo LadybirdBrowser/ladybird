@@ -233,6 +233,8 @@ ErrorOr<void, ValidationError> Validator::validate(ElementSection const& section
             }));
 
         for (auto& expression : segment.init) {
+            if (expression.instructions().is_empty())
+                continue;
             auto result = TRY(validate(expression, { segment.type }));
             if (!result.is_constant)
                 return Errors::invalid("element initializer"sv);
@@ -291,7 +293,9 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
 
         function_validator.m_frames.empend(function_type, FrameKind::Function, (size_t)0);
 
-        TRY(function_validator.validate(function.body(), function_type.results()));
+        auto results = TRY(function_validator.validate(function.body(), function_type.results()));
+        if (results.result_types.size() != function_type.results().size())
+            return Errors::invalid("function result"sv, function_type.results(), results.result_types);
     }
 
     return {};
@@ -384,176 +388,151 @@ VALIDATE_INSTRUCTION(f64_const)
 // https://webassembly.github.io/spec/core/bikeshed/#-tmathsfhrefsyntax-unopmathitunop
 VALIDATE_INSTRUCTION(i32_clz)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I32) });
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_ctz)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I32) });
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_popcnt)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I32) });
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_clz)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I64) });
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_ctz)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I64) });
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_popcnt)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I64) });
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_abs)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F32) });
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_neg)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F32) });
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_sqrt)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F32) });
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_ceil)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F32) });
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_floor)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F32) });
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_trunc)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F32) });
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_nearest)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F32) });
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_abs)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F32) });
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_neg)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F64) });
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_sqrt)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F64) });
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_ceil)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F64) });
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_floor)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F64) });
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_trunc)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F64) });
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_nearest)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::F64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::F64) });
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_extend16_s)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I32) });
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_extend8_s)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I32))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I32) });
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_extend32_s)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I64) });
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_extend16_s)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I64) });
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_extend8_s)
 {
-    if (stack.is_empty() || !stack.last().is_of_kind(ValueType::I64))
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I64) });
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::I64));
     return {};
 }
 
@@ -1109,232 +1088,199 @@ VALIDATE_INSTRUCTION(f64_ge)
 // https://webassembly.github.io/spec/core/bikeshed/#-t_2mathsfhrefsyntax-cvtopmathitcvtopmathsf_t_1mathsf_hrefsyntax-sxmathitsx
 VALIDATE_INSTRUCTION(i32_wrap_i64)
 {
-    TRY(stack.take<ValueType::I64>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_extend_si32)
 {
-    TRY(stack.take<ValueType::I32>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_extend_ui32)
 {
-    TRY(stack.take<ValueType::I32>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_trunc_sf32)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_trunc_uf32)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_trunc_sf64)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_trunc_uf64)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_trunc_sf32)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_trunc_uf32)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_trunc_sf64)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_trunc_uf64)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_trunc_sat_f32_s)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_trunc_sat_f32_u)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_trunc_sat_f64_s)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_trunc_sat_f64_u)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_trunc_sat_f32_s)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_trunc_sat_f32_u)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_trunc_sat_f64_s)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_trunc_sat_f64_u)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::I64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_convert_si32)
 {
-    TRY(stack.take<ValueType::I32>());
-    stack.append(ValueType(ValueType::F32));
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_convert_ui32)
 {
-    TRY(stack.take<ValueType::I32>());
-    stack.append(ValueType(ValueType::F32));
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_convert_si64)
 {
-    TRY(stack.take<ValueType::I64>());
-    stack.append(ValueType(ValueType::F32));
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_convert_ui64)
 {
-    TRY(stack.take<ValueType::I64>());
-    stack.append(ValueType(ValueType::F32));
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_convert_si32)
 {
-    TRY(stack.take<ValueType::I32>());
-    stack.append(ValueType(ValueType::F64));
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_convert_ui32)
 {
-    TRY(stack.take<ValueType::I32>());
-    stack.append(ValueType(ValueType::F64));
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_convert_si64)
 {
-    TRY(stack.take<ValueType::I64>());
-    stack.append(ValueType(ValueType::F64));
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_convert_ui64)
 {
-    TRY(stack.take<ValueType::I64>());
-    stack.append(ValueType(ValueType::F64));
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_demote_f64)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::F32));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_promote_f32)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::F64));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f32_reinterpret_i32)
 {
-    TRY(stack.take<ValueType::I32>());
-    stack.append(ValueType(ValueType::F32));
+    TRY(stack.take_and_put<ValueType::I32>(ValueType::F32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(f64_reinterpret_i64)
 {
-    TRY(stack.take<ValueType::I64>());
-    stack.append(ValueType(ValueType::F64));
+    TRY(stack.take_and_put<ValueType::I64>(ValueType::F64));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i32_reinterpret_f32)
 {
-    TRY(stack.take<ValueType::F32>());
-    stack.append(ValueType(ValueType::I32));
+    TRY(stack.take_and_put<ValueType::F32>(ValueType::I32));
     return {};
 }
 
 VALIDATE_INSTRUCTION(i64_reinterpret_f64)
 {
-    TRY(stack.take<ValueType::F64>());
-    stack.append(ValueType(ValueType::I64));
+    TRY(stack.take_and_put<ValueType::F64>(ValueType::I64));
     return {};
 }
 
@@ -1352,7 +1298,7 @@ VALIDATE_INSTRUCTION(ref_is_null)
     if (stack.is_empty() || !stack.last().is_reference())
         return Errors::invalid_stack_state(stack, Tuple { "reference" });
 
-    stack.take_last();
+    TRY(stack.take_last());
     stack.append(ValueType(ValueType::I32));
     return {};
 }
@@ -1373,25 +1319,20 @@ VALIDATE_INSTRUCTION(ref_func)
 // https://webassembly.github.io/spec/core/bikeshed/#parametric-instructions%E2%91%A2
 VALIDATE_INSTRUCTION(drop)
 {
-    if (stack.is_empty())
-        return Errors::invalid_stack_state(stack, Tuple { "any" });
-    stack.take_last();
+    TRY(stack.take_last());
     return {};
 }
 
 VALIDATE_INSTRUCTION(select)
 {
-    if (stack.size() < 3)
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I32), "any", "any" });
+    TRY(stack.take<ValueType::I32>());
+    auto arg0_type = TRY(stack.take_last());
+    auto arg1_type = TRY(stack.take_last());
 
-    auto index_type = stack.take_last();
-    auto arg0_type = stack.take_last();
-    auto& arg1_type = stack.last();
-    if (!index_type.is_of_kind(ValueType::I32))
-        return Errors::invalid("select index type"sv, ValueType(ValueType::I32), index_type);
-
-    if (arg0_type != arg1_type)
+    if (arg0_type != arg1_type || arg0_type.concrete_type.is_reference() || arg1_type.concrete_type.is_reference())
         return Errors::invalid("select argument types"sv, Vector { arg0_type, arg0_type }, Vector { arg0_type, arg1_type });
+
+    stack.append(arg0_type.is_known ? arg0_type : arg1_type);
 
     return {};
 }
@@ -1402,17 +1343,14 @@ VALIDATE_INSTRUCTION(select_typed)
     if (required_types.size() != 1)
         return Errors::invalid("select types"sv, "exactly one type"sv, required_types);
 
-    if (stack.size() < 3)
-        return Errors::invalid_stack_state(stack, Tuple { ValueType(ValueType::I32), required_types.first(), required_types.first() });
-
-    auto index_type = stack.take_last();
-    auto arg0_type = stack.take_last();
-    auto& arg1_type = stack.last();
-    if (!index_type.is_of_kind(ValueType::I32))
-        return Errors::invalid("select index type"sv, ValueType(ValueType::I32), index_type);
+    TRY(stack.take<ValueType::I32>());
+    auto arg0_type = TRY(stack.take_last());
+    auto arg1_type = TRY(stack.take_last());
 
     if (arg0_type != arg1_type || arg0_type != required_types.first())
         return Errors::invalid("select argument types"sv, Vector { required_types.first(), required_types.first() }, Vector { arg0_type, arg1_type });
+
+    stack.append(arg0_type.is_known ? arg0_type : arg1_type);
 
     return {};
 }
@@ -1982,7 +1920,8 @@ VALIDATE_INSTRUCTION(nop)
 VALIDATE_INSTRUCTION(unreachable)
 {
     // https://webassembly.github.io/spec/core/bikeshed/#polymorphism
-    stack.append(StackEntry());
+    m_frames.last().unreachable = true;
+    stack.resize(m_frames.last().initial_size);
 
     return {};
 }
@@ -1993,14 +1932,18 @@ VALIDATE_INSTRUCTION(structured_end)
     if (m_frames.is_empty())
         return Errors::invalid("usage of structured end"sv);
 
-    auto last_frame = m_frames.take_last();
+    auto& last_frame = m_frames.last();
 
     auto& results = last_frame.type.results();
     for (size_t i = 1; i <= results.size(); ++i)
         TRY(stack.take(results[results.size() - i]));
 
+    if (stack.size() != last_frame.initial_size)
+        return Errors::stack_height_mismatch(stack, last_frame.initial_size);
+
     for (auto& result : results)
         stack.append(result);
+    m_frames.take_last();
 
     return {};
 }
@@ -2014,14 +1957,18 @@ VALIDATE_INSTRUCTION(structured_else)
     if (m_frames.last().kind != FrameKind::If)
         return Errors::invalid("usage of structured else"sv);
 
-    auto frame = m_frames.take_last();
+    auto& frame = m_frames.last();
     auto& block_type = frame.type;
     auto& results = block_type.results();
 
     for (size_t i = 1; i <= results.size(); ++i)
         TRY(stack.take(results[results.size() - i]));
 
-    m_frames.empend(block_type, FrameKind::Else, stack.actual_size());
+    if (stack.size() != frame.initial_size)
+        return Errors::stack_height_mismatch(stack, frame.initial_size);
+
+    frame.kind = FrameKind::Else;
+    frame.unreachable = false;
     for (auto& parameter : block_type.parameters())
         stack.append(parameter);
 
@@ -2037,7 +1984,7 @@ VALIDATE_INSTRUCTION(block)
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
 
-    m_frames.empend(block_type, FrameKind::Block, stack.actual_size());
+    m_frames.empend(block_type, FrameKind::Block, stack.size());
     for (auto& parameter : parameters)
         stack.append(parameter);
 
@@ -2053,7 +2000,7 @@ VALIDATE_INSTRUCTION(loop)
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
 
-    m_frames.empend(block_type, FrameKind::Loop, stack.actual_size());
+    m_frames.empend(block_type, FrameKind::Loop, stack.size());
     for (auto& parameter : parameters)
         stack.append(parameter);
 
@@ -2073,7 +2020,7 @@ VALIDATE_INSTRUCTION(if_)
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
 
-    m_frames.empend(block_type, FrameKind::If, stack.actual_size());
+    m_frames.empend(block_type, FrameKind::If, stack.size());
     for (auto& parameter : parameters)
         stack.append(parameter);
 
@@ -2089,7 +2036,8 @@ VALIDATE_INSTRUCTION(br)
     for (size_t i = 1; i <= type.size(); ++i)
         TRY(stack.take(type[type.size() - i]));
 
-    stack.append(StackEntry());
+    m_frames.last().unreachable = true;
+    stack.resize(m_frames.last().initial_size);
     return {};
 }
 
@@ -2130,15 +2078,17 @@ VALIDATE_INSTRUCTION(br_table)
     auto& default_types = m_frames[(m_frames.size() - 1) - args.default_.value()].labels();
     auto arity = default_types.size();
 
-    auto stack_snapshot = stack;
-    auto stack_to_check = stack_snapshot;
     for (auto& label : args.labels) {
         auto& label_types = m_frames[(m_frames.size() - 1) - label.value()].labels();
         if (label_types.size() != arity)
             return Errors::invalid("br_table label arity mismatch"sv);
-        for (size_t i = 0; i < arity; ++i)
-            TRY(stack_to_check.take(label_types[label_types.size() - i - 1]));
-        stack_to_check = stack_snapshot;
+        Vector<StackEntry> popped {};
+        for (size_t i = 0; i < arity; ++i) {
+            auto stack_entry = TRY(stack.take(label_types[label_types.size() - i - 1]));
+            popped.append(stack_entry);
+        }
+        for (auto popped_type : popped.in_reverse())
+            stack.append(popped_type);
     }
 
     for (size_t i = 0; i < arity; ++i) {
@@ -2146,7 +2096,8 @@ VALIDATE_INSTRUCTION(br_table)
         TRY((stack.take(expected)));
     }
 
-    stack.append(StackEntry());
+    m_frames.last().unreachable = true;
+    stack.resize(m_frames.last().initial_size);
 
     return {};
 }
@@ -2157,7 +2108,8 @@ VALIDATE_INSTRUCTION(return_)
     for (size_t i = 0; i < return_types.size(); ++i)
         TRY((stack.take(return_types[return_types.size() - i - 1])));
 
-    stack.append(StackEntry());
+    m_frames.last().unreachable = true;
+    stack.resize(m_frames.last().initial_size);
 
     return {};
 }
@@ -3777,7 +3729,9 @@ ErrorOr<void, ValidationError> Validator::validate(Instruction const& instructio
 
 ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Expression const& expression, Vector<ValueType> const& result_types)
 {
-    Stack stack;
+    if (m_frames.is_empty())
+        m_frames.empend(FunctionType { {}, result_types }, FrameKind::Function, (size_t)0);
+    auto stack = Stack(m_frames);
     bool is_constant_expression = true;
 
     for (auto& instruction : expression.instructions()) {
@@ -3793,59 +3747,10 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
 
     for (auto& type : result_types)
         stack.append(type);
+    m_frames.take_last();
+    VERIFY(m_frames.is_empty());
 
     return ExpressionTypeResult { stack.release_vector(), is_constant_expression };
-}
-
-bool Validator::Stack::operator==(Stack const& other) const
-{
-    if (!m_did_insert_unknown_entry && !other.m_did_insert_unknown_entry)
-        return static_cast<Vector<StackEntry> const&>(*this) == static_cast<Vector<StackEntry> const&>(other);
-
-    Optional<size_t> own_last_unknown_entry_index_from_end, other_last_unknown_entry_index_from_end;
-    auto other_size = static_cast<Vector<StackEntry> const&>(other).size();
-    auto own_size = Vector<StackEntry>::size();
-
-    for (size_t i = 0; i < own_size; ++i) {
-        if (other_size <= i)
-            break;
-
-        auto own_entry = at(own_size - i - 1);
-        auto other_entry = other.at(other_size - i - 1);
-        if (!own_entry.is_known) {
-            own_last_unknown_entry_index_from_end = i;
-            break;
-        }
-
-        if (!other_entry.is_known) {
-            other_last_unknown_entry_index_from_end = i;
-            break;
-        }
-    }
-
-    if (!own_last_unknown_entry_index_from_end.has_value() && !other_last_unknown_entry_index_from_end.has_value()) {
-        if (static_cast<Vector<StackEntry> const&>(other).is_empty() || Vector<StackEntry>::is_empty())
-            return true;
-
-        dbgln("Equality check internal error between");
-        dbgln("stack:");
-        for (auto& entry : *this)
-            dbgln("- {}", entry.is_known ? Wasm::ValueType::kind_name(entry.concrete_type.kind()) : "<unknown>");
-        dbgln("and stack:");
-        for (auto& entry : other)
-            dbgln("- {}", entry.is_known ? Wasm::ValueType::kind_name(entry.concrete_type.kind()) : "<unknown>");
-
-        VERIFY_NOT_REACHED();
-    }
-
-    auto index_from_end = max(own_last_unknown_entry_index_from_end.value_or(0), other_last_unknown_entry_index_from_end.value_or(0));
-
-    for (size_t i = 0; i < index_from_end; ++i) {
-        if (at(own_size - i - 1) != other.at(other_size - i - 1))
-            return false;
-    }
-
-    return true;
 }
 
 ByteString Validator::Errors::find_instruction_name(SourceLocation const& location)
