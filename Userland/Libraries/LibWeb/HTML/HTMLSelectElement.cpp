@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
@@ -336,8 +337,37 @@ static String strip_newlines(Optional<String> string)
     return MUST(Infra::strip_and_collapse_whitespace(MUST(builder.to_string())));
 }
 
-void HTMLSelectElement::activation_behavior(DOM::Event const&)
+// https://html.spec.whatwg.org/multipage/input.html#show-the-picker,-if-applicable
+void HTMLSelectElement::show_the_picker_if_applicable()
 {
+    // FIXME: Deduplicate with HTMLInputElement
+    // To show the picker, if applicable for a select element:
+
+    // 1. If element's relevant global object does not have transient activation, then return.
+    auto& global_object = relevant_global_object(*this);
+    if (!is<HTML::Window>(global_object))
+        return;
+    auto& relevant_global_object = static_cast<HTML::Window&>(global_object);
+    if (!relevant_global_object.has_transient_activation())
+        return;
+
+    // 2. If element is not mutable, then return.
+    if (!enabled())
+        return;
+
+    // 3. Consume user activation given element's relevant global object.
+    relevant_global_object.consume_user_activation();
+
+    // 4. If element's type attribute is in the File Upload state, then run these steps in parallel:
+    // Not Applicable to select elements
+
+    // 5. Otherwise, the user agent should show any relevant user interface for selecting a value for element,
+    //    in the way it normally would when the user interacts with the control. (If no such UI applies to element, then this step does nothing.)
+    //    If such a user interface is shown, it must respect the requirements stated in the relevant parts of the specification for how element
+    //    behaves given its type attribute state. (For example, various sections describe restrictions on the resulting value string.)
+    //    This step can have side effects, such as closing other pickers that were previously shown by this algorithm.
+    //    (If this closes a file selection picker, then per the above that will lead to firing either input and change events, or a cancel event.)
+
     // Populate select items
     m_select_items.clear();
     u32 id_counter = 1;
@@ -369,6 +399,41 @@ void HTMLSelectElement::activation_behavior(DOM::Event const&)
     auto position = document().navigable()->to_top_level_position(Web::CSSPixelPoint { rect->x(), rect->y() });
     document().page().did_request_select_dropdown(weak_element, position, CSSPixels(rect->width()), m_select_items);
     set_is_open(true);
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#dom-select-showpicker
+WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
+{
+    // FIXME: Deduplicate with HTMLInputElement
+    // The showPicker() method steps are:
+
+    // 1. If this is not mutable, then throw an "InvalidStateError" DOMException.
+    if (!enabled())
+        return WebIDL::InvalidStateError::create(realm(), "Element is not mutable"_fly_string);
+
+    // 2. If this's relevant settings object's origin is not same origin with this's relevant settings object's top-level origin,
+    // and this is a select element, then throw a "SecurityError" DOMException.
+    if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*this).top_level_origin)) {
+        return WebIDL::SecurityError::create(realm(), "Cross origin pickers are not allowed"_fly_string);
+    }
+
+    // 3. If this's relevant global object does not have transient activation, then throw a "NotAllowedError" DOMException.
+    // FIXME: The global object we get here should probably not need casted to Window to check for transient activation
+    auto& global_object = relevant_global_object(*this);
+    if (!is<HTML::Window>(global_object) || !static_cast<HTML::Window&>(global_object).has_transient_activation()) {
+        return WebIDL::NotAllowedError::create(realm(), "Too long since user activation to show picker"_fly_string);
+    }
+
+    // FIXME: 4. If this is a select element, and this is not being rendered, then throw a "NotSupportedError" DOMException.
+
+    // 5. Show the picker, if applicable, for this.
+    show_the_picker_if_applicable();
+    return {};
+}
+
+void HTMLSelectElement::activation_behavior(DOM::Event const&)
+{
+    show_the_picker_if_applicable();
 }
 
 void HTMLSelectElement::did_select_item(Optional<u32> const& id)

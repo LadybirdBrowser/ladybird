@@ -37,5 +37,7 @@ interface HTMLSelectElement : HTMLElement {
     [FIXME] boolean reportValidity();
     [FIXME] undefined setCustomValidity(DOMString error);
 
+    undefined showPicker();
+
     readonly attribute NodeList labels;
 };
