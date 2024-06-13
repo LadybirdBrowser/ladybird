@@ -1,0 +1,20 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x36 children: not-inline
+      BlockContainer <input.btn> at (13,10) content-size 195.734375x32 children: not-inline
+        BlockContainer <(anonymous)> at (13,10) content-size 195.734375x32 flex-container(column) [FFC] children: not-inline
+          BlockContainer <(anonymous)> at (13,18) content-size 195.734375x16 flex-item [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 26, rect: [13,18 195.734375x16] baseline: 12.5
+                "Width should shrink to fit"
+            TextNode <#text>
+      BlockContainer <(anonymous)> at (8,44) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x36]
+      PaintableWithLines (BlockContainer<INPUT>.btn) [8,8 205.734375x36]
+        PaintableWithLines (BlockContainer(anonymous)) [13,10 195.734375x32]
+          PaintableWithLines (BlockContainer(anonymous)) [13,18 195.734375x16]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]

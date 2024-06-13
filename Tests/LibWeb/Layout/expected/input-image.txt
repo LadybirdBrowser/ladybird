@@ -11,10 +11,16 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         frag 4 from ImageBox start: 0, length: 0, rect: [136,8 128x256] baseline: 256
         TextNode <#text>
         ImageBox <input> at (8,216) content-size 48x48 inline-block children: not-inline
+          BlockContainer <(anonymous)> at (8,8) content-size 784x0 flex-container(column) [FFC] children: not-inline
+            BlockContainer <(anonymous)> at (8,8) content-size 0x0 [BFC] children: not-inline
         TextNode <#text>
         ImageBox <input> at (64,200) content-size 64x64 inline-block children: not-inline
+          BlockContainer <(anonymous)> at (8,8) content-size 784x0 flex-container(column) [FFC] children: not-inline
+            BlockContainer <(anonymous)> at (8,8) content-size 0x0 [BFC] children: not-inline
         TextNode <#text>
         ImageBox <input> at (136,8) content-size 128x256 inline-block children: not-inline
+          BlockContainer <(anonymous)> at (8,8) content-size 784x0 flex-container(column) [FFC] children: not-inline
+            BlockContainer <(anonymous)> at (8,8) content-size 0x0 [BFC] children: not-inline
         TextNode <#text>
       BlockContainer <(anonymous)> at (8,283) content-size 784x0 children: inline
         TextNode <#text>
@@ -23,9 +29,15 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x259] overflow: [8,8 784x275]
       PaintableWithLines (BlockContainer<FORM>) [8,8 784x259]
-        ImagePaintable (ImageBox<INPUT>) [8,216 48x48]
+        ImagePaintable (ImageBox<INPUT>) [8,216 48x48] overflow: [8,8 48x256]
+          PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
+            PaintableWithLines (BlockContainer(anonymous)) [8,8 0x0]
         TextPaintable (TextNode<#text>)
-        ImagePaintable (ImageBox<INPUT>) [64,200 64x64]
+        ImagePaintable (ImageBox<INPUT>) [64,200 64x64] overflow: [8,8 120x256]
+          PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
+            PaintableWithLines (BlockContainer(anonymous)) [8,8 0x0]
         TextPaintable (TextNode<#text>)
-        ImagePaintable (ImageBox<INPUT>) [136,8 128x256]
+        ImagePaintable (ImageBox<INPUT>) [136,8 128x256] overflow: [8,8 256x256]
+          PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
+            PaintableWithLines (BlockContainer(anonymous)) [8,8 0x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,283 784x0]
