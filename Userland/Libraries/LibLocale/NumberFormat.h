@@ -126,7 +126,7 @@ StringView trailing_zero_display_to_string(TrailingZeroDisplay);
 struct RoundingOptions {
     RoundingType type { RoundingType::MorePrecision };
     RoundingMode mode { RoundingMode::HalfExpand };
-    TrailingZeroDisplay trailing_zero_display;
+    TrailingZeroDisplay trailing_zero_display { TrailingZeroDisplay::Auto };
 
     Optional<int> min_significant_digits;
     Optional<int> max_significant_digits;
