@@ -825,34 +825,4 @@ NonnullOwnPtr<NumberFormat> NumberFormat::create(
     return adopt_own(*new NumberFormatImpl(locale_data->locale(), move(formatter), is_unit));
 }
 
-Optional<StringView> __attribute__((weak)) get_number_system_symbol(StringView, StringView, NumericSymbol) { return {}; }
-
-Optional<ReadonlySpan<u32>> __attribute__((weak)) get_digits_for_number_system(StringView)
-{
-    // Fall back to "latn" digits when Unicode data generation is disabled.
-    constexpr Array<u32, 10> digits { { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39 } };
-    return digits.span();
-}
-
-String replace_digits_for_number_system(StringView system, StringView number)
-{
-    auto digits = get_digits_for_number_system(system);
-    if (!digits.has_value())
-        digits = get_digits_for_number_system("latn"sv);
-    VERIFY(digits.has_value());
-
-    StringBuilder builder;
-
-    for (auto ch : number) {
-        if (is_ascii_digit(ch)) {
-            u32 digit = digits->at(parse_ascii_digit(ch));
-            builder.append_code_point(digit);
-        } else {
-            builder.append(ch);
-        }
-    }
-
-    return MUST(builder.to_string());
-}
-
 }

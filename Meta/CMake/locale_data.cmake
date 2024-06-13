@@ -41,9 +41,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     set(LOCALE_DATA_HEADER LocaleData.h)
     set(LOCALE_DATA_IMPLEMENTATION LocaleData.cpp)
 
-    set(NUMBER_FORMAT_DATA_HEADER NumberFormatData.h)
-    set(NUMBER_FORMAT_DATA_IMPLEMENTATION NumberFormatData.cpp)
-
     set(PLURAL_RULES_DATA_HEADER PluralRulesData.h)
     set(PLURAL_RULES_DATA_IMPLEMENTATION PluralRulesData.cpp)
 
@@ -57,14 +54,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         "${LOCALE_DATA_HEADER}"
         "${LOCALE_DATA_IMPLEMENTATION}"
         arguments -b "${CLDR_BCP47_PATH}" -r "${CLDR_CORE_PATH}" -n "${CLDR_NUMBERS_PATH}" -d "${CLDR_DATES_PATH}"
-    )
-    invoke_generator(
-        "NumberFormatData"
-        Lagom::GenerateNumberFormatData
-        "${CLDR_VERSION_FILE}"
-        "${NUMBER_FORMAT_DATA_HEADER}"
-        "${NUMBER_FORMAT_DATA_IMPLEMENTATION}"
-        arguments -r "${CLDR_CORE_PATH}" -n "${CLDR_NUMBERS_PATH}"
     )
     invoke_generator(
         "PluralRulesData"
@@ -86,8 +75,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     set(LOCALE_DATA_SOURCES
         ${LOCALE_DATA_HEADER}
         ${LOCALE_DATA_IMPLEMENTATION}
-        ${NUMBER_FORMAT_DATA_HEADER}
-        ${NUMBER_FORMAT_DATA_IMPLEMENTATION}
         ${PLURAL_RULES_DATA_HEADER}
         ${PLURAL_RULES_DATA_IMPLEMENTATION}
         ${RELATIVE_TIME_FORMAT_DATA_HEADER}

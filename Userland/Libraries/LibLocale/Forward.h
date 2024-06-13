@@ -20,7 +20,6 @@ enum class KeywordColNumeric : u8;
 enum class KeywordHours : u8;
 enum class KeywordNumbers : u8;
 enum class Locale : u16;
-enum class NumericSymbol : u8;
 enum class PluralCategory : u8;
 enum class Style : u8;
 enum class Weekday : u8;
