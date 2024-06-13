@@ -431,9 +431,10 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
     return {};
 }
 
-void HTMLSelectElement::activation_behavior(DOM::Event const&)
+void HTMLSelectElement::activation_behavior(DOM::Event const& event)
 {
-    show_the_picker_if_applicable();
+    if (event.is_trusted())
+        show_the_picker_if_applicable();
 }
 
 void HTMLSelectElement::did_select_item(Optional<u32> const& id)
