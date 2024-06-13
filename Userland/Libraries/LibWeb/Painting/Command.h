@@ -286,20 +286,6 @@ struct DrawLine {
     }
 };
 
-struct DrawSignedDistanceField {
-    Gfx::IntRect rect;
-    Color color;
-    Gfx::GrayscaleBitmap sdf;
-    float smoothing;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
-
-    void translate_by(Gfx::IntPoint const& offset)
-    {
-        rect.translate_by(offset);
-    }
-};
-
 struct ApplyBackdropFilter {
     Gfx::IntRect backdrop_region;
     BorderRadiiData border_radii_data;
@@ -404,7 +390,6 @@ using Command = Variant<
     DrawEllipse,
     FillEllipse,
     DrawLine,
-    DrawSignedDistanceField,
     ApplyBackdropFilter,
     DrawRect,
     DrawTriangleWave,

@@ -381,12 +381,6 @@ CommandResult CommandExecutorCPU::draw_line(DrawLine const& command)
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorCPU::draw_signed_distance_field(DrawSignedDistanceField const& command)
-{
-    painter().draw_signed_distance_field(command.rect, command.color, command.sdf, command.smoothing);
-    return CommandResult::Continue;
-}
-
 CommandResult CommandExecutorCPU::apply_backdrop_filter(ApplyBackdropFilter const& command)
 {
     auto& painter = this->painter();
