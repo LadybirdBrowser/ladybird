@@ -382,12 +382,12 @@ void BytecodeInterpreter::pop_and_store(Configuration& configuration, Instructio
     store_to_memory(configuration, instruction, { &value, sizeof(StoreT) }, *base);
 }
 
-void BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruction const& instruction, ReadonlyBytes data, i32 base)
+void BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruction const& instruction, ReadonlyBytes data, u32 base)
 {
     auto& arg = instruction.arguments().get<Instruction::MemoryArgument>();
     auto& address = configuration.frame().module().memories()[arg.memory_index.value()];
     auto memory = configuration.store().get(address);
-    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    u64 instance_address = static_cast<u64>(base) + arg.offset;
     Checked addition { instance_address };
     addition += data.size();
     if (addition.has_overflow() || addition.value() > memory->size()) {
@@ -771,9 +771,9 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         auto& args = instruction.arguments().get<Instruction::MemoryIndexArgument>();
         auto address = configuration.frame().module().memories()[args.memory_index.value()];
         auto instance = configuration.store().get(address);
-        auto count = configuration.stack().pop().get<Value>().to<i32>().value();
-        auto value = configuration.stack().pop().get<Value>().to<i32>().value();
-        auto destination_offset = configuration.stack().pop().get<Value>().to<i32>().value();
+        auto count = configuration.stack().pop().get<Value>().to<u32>().value();
+        u8 value = static_cast<u8>(configuration.stack().pop().get<Value>().to<u32>().value());
+        auto destination_offset = configuration.stack().pop().get<Value>().to<u32>().value();
 
         TRAP_IF_NOT(static_cast<size_t>(destination_offset + count) <= instance->data().size());
 
@@ -785,8 +785,8 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
             Instruction::MemoryArgument { 0, 0 }
         };
 
-        for (auto i = 0; i < count; ++i) {
-            store_to_memory(configuration, synthetic_store_instruction, { &value, sizeof(value) }, destination_offset);
+        for (u32 i = 0; i < count; ++i) {
+            store_to_memory(configuration, synthetic_store_instruction, { &value, sizeof(value) }, destination_offset + i);
         }
         return;
     }
@@ -836,11 +836,13 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         auto& args = instruction.arguments().get<Instruction::MemoryInitArgs>();
         auto& data_address = configuration.frame().module().datas()[args.data_index.value()];
         auto& data = *configuration.store().get(data_address);
-        auto count = *configuration.stack().pop().get<Value>().to<i32>();
-        auto source_offset = *configuration.stack().pop().get<Value>().to<i32>();
-        auto destination_offset = *configuration.stack().pop().get<Value>().to<i32>();
+        auto count = *configuration.stack().pop().get<Value>().to<u32>();
+        auto source_offset = *configuration.stack().pop().get<Value>().to<u32>();
+        auto destination_offset = *configuration.stack().pop().get<Value>().to<u32>();
 
-        TRAP_IF_NOT(count > 0);
+        if (count == 0)
+            return;
+
         TRAP_IF_NOT(source_offset + count > 0);
         TRAP_IF_NOT(static_cast<size_t>(source_offset + count) <= data.size());
 
