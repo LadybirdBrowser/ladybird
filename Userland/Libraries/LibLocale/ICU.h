@@ -12,6 +12,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <LibLocale/DurationFormat.h>
 
 #include <unicode/locid.h>
 #include <unicode/stringpiece.h>
@@ -42,6 +43,9 @@ public:
 
     icu::TimeZoneNames& time_zone_names();
 
+    Optional<DigitalFormat> const& digital_format() { return m_digital_format; }
+    void set_digital_format(DigitalFormat digital_format) { m_digital_format = move(digital_format); }
+
 private:
     explicit LocaleData(icu::Locale locale);
 
@@ -52,6 +56,8 @@ private:
     OwnPtr<icu::LocaleDisplayNames> m_dialect_display_names;
     OwnPtr<icu::DateTimePatternGenerator> m_date_time_pattern_generator;
     OwnPtr<icu::TimeZoneNames> m_time_zone_names;
+
+    Optional<DigitalFormat> m_digital_format;
 };
 
 static constexpr bool icu_success(UErrorCode code)
