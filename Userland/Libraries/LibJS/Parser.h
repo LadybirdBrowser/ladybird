@@ -96,7 +96,7 @@ public:
     };
 
     NonnullRefPtr<VariableDeclaration const> parse_variable_declaration(IsForLoopVariableDeclaration is_for_loop_variable_declaration = IsForLoopVariableDeclaration::No);
-    RefPtr<Identifier const> parse_lexical_binding();
+    [[nodiscard]] RefPtr<Identifier const> parse_lexical_binding(Optional<DeclarationKind> = {});
     NonnullRefPtr<UsingDeclaration const> parse_using_declaration(IsForLoopVariableDeclaration is_for_loop_variable_declaration = IsForLoopVariableDeclaration::No);
     NonnullRefPtr<Statement const> parse_for_statement();
 
@@ -347,7 +347,7 @@ private:
         }
     };
 
-    NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, DeprecatedFlyString string);
+    [[nodiscard]] NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, DeprecatedFlyString string, Optional<DeclarationKind> = {});
 
     NonnullRefPtr<SourceCode const> m_source_code;
     Vector<Position> m_rule_starts;

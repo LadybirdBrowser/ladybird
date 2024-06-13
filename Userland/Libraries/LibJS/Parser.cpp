@@ -351,12 +351,24 @@ public:
                     continue;
 
                 if (!identifier_group.captured_by_nested_function && !identifier_group.used_inside_with_statement) {
-                    auto function_scope = last_function_scope();
-                    if (!function_scope || m_screwed_by_eval_in_scope_chain) {
+                    if (m_screwed_by_eval_in_scope_chain)
                         continue;
+
+                    auto local_scope = last_function_scope();
+                    if (!local_scope) {
+                        // NOTE: If there is no function scope, we are in a *descendant* of the global program scope.
+                        //       While we cannot make `let` and `const` into locals in the topmost program scope,
+                        //       as that would break expected web behavior where subsequent <script> elements should see
+                        //       lexical bindings created by earlier <script> elements, we *can* promote them in descendant scopes.
+                        //       Of course, global `var` bindings can never be made into locals, as they get hoisted to the topmost program scope.
+                        if (identifier_group.declaration_kind == DeclarationKind::Var)
+                            continue;
+                        // Add these locals to the top-level scope. (We only produce one executable for the entire program
+                        // scope, so that's where the locals have to be stored.)
+                        local_scope = m_top_level_scope;
                     }
 
-                    auto local_variable_index = function_scope->m_node->add_local_variable(identifier_group_name);
+                    auto local_variable_index = local_scope->m_node->add_local_variable(identifier_group_name);
                     for (auto& identifier : identifier_group.identifiers)
                         identifier->set_local_variable_index(local_variable_index);
                 }
@@ -421,7 +433,7 @@ public:
         return m_scope_level != ScopeLevel::ScriptTopLevel;
     }
 
-    void register_identifier(NonnullRefPtr<Identifier> id)
+    void register_identifier(NonnullRefPtr<Identifier> id, Optional<DeclarationKind> declaration_kind = {})
     {
         if (auto maybe_identifier_group = m_identifier_groups.get(id->string()); maybe_identifier_group.has_value()) {
             maybe_identifier_group.value().identifiers.append(id);
@@ -429,6 +441,7 @@ public:
             m_identifier_groups.set(id->string(), IdentifierGroup {
                                                       .captured_by_nested_function = false,
                                                       .identifiers = { id },
+                                                      .declaration_kind = declaration_kind,
                                                   });
         }
     }
@@ -495,6 +508,7 @@ private:
         bool used_inside_scope_with_eval { false };
         bool might_be_variable_in_lexical_scope_in_named_function_assignment { false };
         Vector<NonnullRefPtr<Identifier>> identifiers;
+        Optional<DeclarationKind> declaration_kind;
     };
     HashMap<DeprecatedFlyString, IdentifierGroup> m_identifier_groups;
 
@@ -3273,24 +3287,24 @@ RefPtr<BindingPattern const> Parser::parse_binding_pattern(Parser::AllowDuplicat
     return pattern;
 }
 
-RefPtr<Identifier const> Parser::parse_lexical_binding()
+RefPtr<Identifier const> Parser::parse_lexical_binding(Optional<DeclarationKind> declaration_kind)
 {
     auto binding_start = push_start();
 
     if (match_identifier()) {
-        return create_identifier_and_register_in_current_scope({ m_source_code, binding_start.position(), position() }, consume_identifier().DeprecatedFlyString_value());
+        return create_identifier_and_register_in_current_scope({ m_source_code, binding_start.position(), position() }, consume_identifier().DeprecatedFlyString_value(), declaration_kind);
     }
     if (!m_state.in_generator_function_context && match(TokenType::Yield)) {
         if (m_state.strict_mode)
             syntax_error("Identifier must not be a reserved word in strict mode ('yield')");
 
-        return create_identifier_and_register_in_current_scope({ m_source_code, binding_start.position(), position() }, consume().DeprecatedFlyString_value());
+        return create_identifier_and_register_in_current_scope({ m_source_code, binding_start.position(), position() }, consume().DeprecatedFlyString_value(), declaration_kind);
     }
     if (!m_state.await_expression_is_valid && match(TokenType::Async)) {
         if (m_program_type == Program::Type::Module)
             syntax_error("Identifier must not be a reserved word in modules ('async')");
 
-        return create_identifier_and_register_in_current_scope({ m_source_code, binding_start.position(), position() }, consume().DeprecatedFlyString_value());
+        return create_identifier_and_register_in_current_scope({ m_source_code, binding_start.position(), position() }, consume().DeprecatedFlyString_value(), declaration_kind);
     }
 
     return {};
@@ -3329,7 +3343,7 @@ NonnullRefPtr<VariableDeclaration const> Parser::parse_variable_declaration(IsFo
             }
 
             target = pattern.release_nonnull();
-        } else if (auto lexical_binding = parse_lexical_binding()) {
+        } else if (auto lexical_binding = parse_lexical_binding(declaration_kind)) {
             check_identifier_name_for_assignment_validity(lexical_binding->string());
             if ((declaration_kind == DeclarationKind::Let || declaration_kind == DeclarationKind::Const) && lexical_binding->string() == "let"sv)
                 syntax_error("Lexical binding may not be called 'let'");
@@ -5145,11 +5159,11 @@ Parser::ForbiddenTokens Parser::ForbiddenTokens::forbid(std::initializer_list<To
 template NonnullRefPtr<FunctionExpression> Parser::parse_function_node(u16, Optional<Position> const&);
 template NonnullRefPtr<FunctionDeclaration> Parser::parse_function_node(u16, Optional<Position> const&);
 
-NonnullRefPtr<Identifier const> Parser::create_identifier_and_register_in_current_scope(SourceRange range, DeprecatedFlyString string)
+NonnullRefPtr<Identifier const> Parser::create_identifier_and_register_in_current_scope(SourceRange range, DeprecatedFlyString string, Optional<DeclarationKind> declaration_kind)
 {
     auto id = create_ast_node<Identifier const>(range, string);
     if (m_state.current_scope_pusher)
-        m_state.current_scope_pusher->register_identifier(const_cast<Identifier&>(*id));
+        m_state.current_scope_pusher->register_identifier(const_cast<Identifier&>(*id), declaration_kind);
     return id;
 }
 
