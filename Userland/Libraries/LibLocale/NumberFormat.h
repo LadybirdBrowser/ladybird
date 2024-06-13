@@ -12,7 +12,6 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibLocale/Forward.h>
-#include <LibLocale/PluralRules.h>
 
 namespace Locale {
 
@@ -166,23 +165,5 @@ public:
 protected:
     NumberFormat() = default;
 };
-
-enum class NumericSymbol : u8 {
-    ApproximatelySign,
-    Decimal,
-    Exponential,
-    Group,
-    Infinity,
-    MinusSign,
-    NaN,
-    PercentSign,
-    PlusSign,
-    RangeSeparator,
-    TimeSeparator,
-};
-Optional<StringView> get_number_system_symbol(StringView locale, StringView system, NumericSymbol symbol);
-
-Optional<ReadonlySpan<u32>> get_digits_for_number_system(StringView system);
-String replace_digits_for_number_system(StringView system, StringView number);
 
 }
