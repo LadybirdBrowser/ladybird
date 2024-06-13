@@ -79,7 +79,7 @@ void BytecodeInterpreter::branch_to_label(Configuration& configuration, LabelInd
         configuration.stack().pop();
     }
 
-    for (auto& result : results)
+    for (auto& result : results.in_reverse())
         configuration.stack().push(move(result));
 
     configuration.ip() = label->continuation();
@@ -555,7 +555,7 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
             break;
         case BlockType::Index: {
             auto& type = configuration.frame().module().types()[args.block_type.type_index().value()];
-            arity = type.results().size();
+            arity = type.parameters().size();
             parameter_count = type.parameters().size();
         }
         }
