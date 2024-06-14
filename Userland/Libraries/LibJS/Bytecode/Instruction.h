@@ -138,7 +138,7 @@
     O(ThrowIfNullish)                  \
     O(ThrowIfTDZ)                      \
     O(Typeof)                          \
-    O(TypeofVariable)                  \
+    O(TypeofBinding)                   \
     O(UnaryMinus)                      \
     O(UnaryPlus)                       \
     O(UnsignedRightShift)              \
