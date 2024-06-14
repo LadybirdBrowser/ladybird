@@ -13,9 +13,17 @@ namespace Web::CSS {
 
 JS_DEFINE_ALLOCATOR(CSSKeyframeRule);
 
-JS::NonnullGCPtr<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, CSS::Percentage key, Web::CSS::CSSStyleDeclaration& declarations)
+JS::NonnullGCPtr<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, CSS::Percentage key, Web::CSS::PropertyOwningCSSStyleDeclaration& declarations)
 {
     return realm.heap().allocate<CSSKeyframeRule>(realm, realm, key, declarations);
+}
+
+CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, CSS::Percentage key, PropertyOwningCSSStyleDeclaration& declarations)
+    : CSSRule(realm)
+    , m_key(key)
+    , m_declarations(declarations)
+{
+    m_declarations->set_parent_rule(*this);
 }
 
 void CSSKeyframeRule::visit_edges(Visitor& visitor)

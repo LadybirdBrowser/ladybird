@@ -21,7 +21,7 @@ class CSSKeyframeRule final : public CSSRule {
     JS_DECLARE_ALLOCATOR(CSSKeyframeRule);
 
 public:
-    static JS::NonnullGCPtr<CSSKeyframeRule> create(JS::Realm&, CSS::Percentage key, CSSStyleDeclaration&);
+    static JS::NonnullGCPtr<CSSKeyframeRule> create(JS::Realm&, CSS::Percentage key, PropertyOwningCSSStyleDeclaration&);
 
     virtual ~CSSKeyframeRule() = default;
 
@@ -41,19 +41,14 @@ public:
     }
 
 private:
-    CSSKeyframeRule(JS::Realm& realm, CSS::Percentage key, CSSStyleDeclaration& declarations)
-        : CSSRule(realm)
-        , m_key(key)
-        , m_declarations(declarations)
-    {
-    }
+    CSSKeyframeRule(JS::Realm&, CSS::Percentage, PropertyOwningCSSStyleDeclaration&);
 
     virtual void visit_edges(Visitor&) override;
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
 
     CSS::Percentage m_key;
-    JS::NonnullGCPtr<CSSStyleDeclaration> m_declarations;
+    JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declarations;
 };
 
 template<>

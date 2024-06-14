@@ -31,6 +31,11 @@ void CSSStyleDeclaration::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleDeclaration);
 }
 
+JS::GCPtr<CSSRule> CSSStyleDeclaration::parent_rule() const
+{
+    return nullptr;
+}
+
 JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> PropertyOwningCSSStyleDeclaration::create(JS::Realm& realm, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
     return realm.heap().allocate<PropertyOwningCSSStyleDeclaration>(realm, realm, move(properties), move(custom_properties));
@@ -46,6 +51,7 @@ PropertyOwningCSSStyleDeclaration::PropertyOwningCSSStyleDeclaration(JS::Realm& 
 void PropertyOwningCSSStyleDeclaration::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_parent_rule);
     for (auto& property : m_properties) {
         if (property.value->is_image())
             property.value->as_image().visit_edges(visitor);
@@ -480,6 +486,16 @@ WebIDL::ExceptionOr<void> ElementInlineCSSStyleDeclaration::set_css_text(StringV
     update_style_attribute();
 
     return {};
+}
+
+JS::GCPtr<CSSRule> PropertyOwningCSSStyleDeclaration::parent_rule() const
+{
+    return m_parent_rule;
+}
+
+void PropertyOwningCSSStyleDeclaration::set_parent_rule(JS::NonnullGCPtr<CSSRule> rule)
+{
+    m_parent_rule = rule;
 }
 
 }
