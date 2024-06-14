@@ -17,10 +17,6 @@ runs:
       if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
-        # These packages are already part of the ubuntu-22.04 image:
-        # cmake libgmp-dev npm shellcheck
-        # Packages below aren't.
-
         set -e
 
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
@@ -29,7 +25,7 @@ runs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
         sudo apt-get update
-        sudo apt-get install autoconf autoconf-archive automake ccache clang-18 clang++-18 lld-18 gcc-13 g++-13 libstdc++-13-dev ninja-build unzip qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev qt6-multimedia-dev libgl1-mesa-dev libpulse-dev libssl-dev libegl1-mesa-dev
+        sudo apt-get install autoconf autoconf-archive automake build-essential cmake fonts-liberation2 zip curl tar ccache clang-18 clang++-18 lld-18 gcc-13 g++-13 libstdc++-13-dev ninja-build unzip qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev qt6-multimedia-dev libgl1-mesa-dev libpulse-dev libssl-dev libegl1-mesa-dev
 
         sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
         sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100

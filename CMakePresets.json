@@ -46,7 +46,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "ENABLE_UNDEFINED_SANITIZER": "ON",
-        "ENABLE_ADDRESS_SANITIZER": "ON"
+        "ENABLE_ADDRESS_SANITIZER": "ON",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/Meta/CMake/vcpkg/sanitizer-triplets"
       }
     },
     {
