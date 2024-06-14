@@ -201,6 +201,8 @@ private:
 
     JS::GCPtr<HTML::HTMLMediaElement> media_context_menu_element();
 
+    Vector<JS::Handle<DOM::Document>> documents_in_active_window() const;
+
     void update_find_in_page_selection();
 
     JS::NonnullGCPtr<PageClient> m_client;

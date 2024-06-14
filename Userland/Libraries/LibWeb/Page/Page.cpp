@@ -538,13 +538,23 @@ void Page::set_user_style(String source)
     }
 }
 
+Vector<JS::Handle<DOM::Document>> Page::documents_in_active_window() const
+{
+    if (!top_level_traversable_is_initialized())
+        return {};
+
+    auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop();
+    for (ssize_t i = documents.size() - 1; i >= 0; --i) {
+        if (documents[i]->window() != top_level_traversable()->active_window())
+            documents.remove(i);
+    }
+
+    return documents;
+}
+
 void Page::clear_selection()
 {
-    auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop();
-    for (auto const& document : documents) {
-        if (&document->page() != this)
-            continue;
-
+    for (auto const& document : documents_in_active_window()) {
         auto selection = document->get_selection();
         if (!selection)
             continue;
@@ -563,12 +573,8 @@ Page::FindInPageResult Page::find_in_page(String const& query, CaseSensitivity c
         return {};
     }
 
-    auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop();
     Vector<JS::Handle<DOM::Range>> all_matches;
-    for (auto const& document : documents) {
-        if (&document->page() != this)
-            continue;
-
+    for (auto const& document : documents_in_active_window()) {
         auto matches = document->find_matching_text(query, case_sensitivity);
         all_matches.extend(move(matches));
     }
