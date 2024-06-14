@@ -360,9 +360,10 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
     // FIXME: Can't use a Gfx::Painter + blit() here as it doesn't support ImageData bitmap's RGBA8888 format.
     for (int target_y = 0; target_y < source_rect_intersected.height(); ++target_y) {
-        auto* dst = image_data->bitmap().scanline(target_y);
-        auto const* src = bitmap.scanline(target_y + y) + x;
-        memcpy(dst, src, source_rect_intersected.width() * sizeof(Gfx::ARGB32));
+        for (int target_x = 0; target_x < source_rect_intersected.width(); ++target_x) {
+            auto pixel = bitmap.get_pixel(target_x + x, target_y + y);
+            image_data->bitmap().set_pixel(target_x, target_y, pixel);
+        }
     }
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
