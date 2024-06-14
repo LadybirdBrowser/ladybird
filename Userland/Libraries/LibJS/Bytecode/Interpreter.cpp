@@ -1976,7 +1976,38 @@ ThrowCompletionOr<void> NewClass::execute_impl(Bytecode::Interpreter& interprete
 ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    interpreter.set(dst(), TRY(typeof_binding(vm, interpreter.current_executable().get_identifier(m_identifier))));
+
+    if (m_cache.is_valid()) {
+        auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
+        for (size_t i = 0; i < m_cache.hops; ++i)
+            environment = environment->outer_environment();
+        if (!environment->is_permanently_screwed_by_eval()) {
+            auto value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, m_cache.index));
+            interpreter.set(dst(), PrimitiveString::create(vm, value.typeof()));
+            return {};
+        }
+        m_cache = {};
+    }
+
+    // 1. Let val be the result of evaluating UnaryExpression.
+    auto reference = TRY(vm.resolve_binding(interpreter.current_executable().get_identifier(m_identifier)));
+
+    // 2. If val is a Reference Record, then
+    //    a. If IsUnresolvableReference(val) is true, return "undefined".
+    if (reference.is_unresolvable()) {
+        interpreter.set(dst(), PrimitiveString::create(vm, "undefined"_string));
+        return {};
+    }
+
+    // 3. Set val to ? GetValue(val).
+    auto value = TRY(reference.get_value(vm));
+
+    if (reference.environment_coordinate().has_value())
+        m_cache = reference.environment_coordinate().value();
+
+    // 4. NOTE: This step is replaced in section B.3.6.3.
+    // 5. Return a String according to Table 41.
+    interpreter.set(dst(), PrimitiveString::create(vm, value.typeof()));
     return {};
 }
 
