@@ -563,19 +563,13 @@ void Page::clear_selection()
     }
 }
 
-Page::FindInPageResult Page::find_in_page(String const& query, CaseSensitivity case_sensitivity)
+Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& query)
 {
-    m_find_in_page_match_index = 0;
-
-    if (query.is_empty()) {
-        m_find_in_page_matches = {};
-        update_find_in_page_selection();
-        return {};
-    }
+    VERIFY(top_level_traversable_is_initialized());
 
     Vector<JS::Handle<DOM::Range>> all_matches;
     for (auto const& document : documents_in_active_window()) {
-        auto matches = document->find_matching_text(query, case_sensitivity);
+        auto matches = document->find_matching_text(query.string, query.case_sensitivity);
         all_matches.extend(move(matches));
     }
 
@@ -583,6 +577,15 @@ Page::FindInPageResult Page::find_in_page(String const& query, CaseSensitivity c
     for (auto& match : all_matches)
         m_find_in_page_matches.append(*match);
 
+    if (auto active_document = top_level_traversable()->active_document()) {
+        if (m_last_find_in_page_url.serialize(URL::ExcludeFragment::Yes) != active_document->url().serialize(URL::ExcludeFragment::Yes)) {
+            m_last_find_in_page_url = top_level_traversable()->active_document()->url();
+            m_find_in_page_match_index = 0;
+        }
+    } else if (m_find_in_page_match_index >= m_find_in_page_matches.size()) {
+        m_find_in_page_match_index = 0;
+    }
+
     update_find_in_page_selection();
 
     return Page::FindInPageResult {
@@ -591,42 +594,52 @@ Page::FindInPageResult Page::find_in_page(String const& query, CaseSensitivity c
     };
 }
 
-Page::FindInPageResult Page::find_in_page_next_match()
+Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
 {
-    if (m_find_in_page_matches.is_empty())
+    if (!top_level_traversable_is_initialized())
         return {};
 
-    if (m_find_in_page_match_index == m_find_in_page_matches.size() - 1) {
+    m_find_in_page_match_index = 0;
+    m_last_find_in_page_query = query;
+    m_last_find_in_page_url = top_level_traversable()->active_document()->url();
+
+    if (query.string.is_empty()) {
+        m_last_find_in_page_query = {};
+        update_find_in_page_selection();
+        return {};
+    }
+
+    return perform_find_in_page_query(query);
+}
+
+Page::FindInPageResult Page::find_in_page_next_match()
+{
+    if (!(m_last_find_in_page_query.has_value() && top_level_traversable_is_initialized()))
+        return {};
+
+    auto result = perform_find_in_page_query(*m_last_find_in_page_query);
+    if (m_find_in_page_match_index == *result.total_match_count - 1) {
         m_find_in_page_match_index = 0;
     } else {
         m_find_in_page_match_index++;
     }
 
-    update_find_in_page_selection();
-
-    return Page::FindInPageResult {
-        .current_match_index = m_find_in_page_match_index,
-        .total_match_count = m_find_in_page_matches.size(),
-    };
+    return result;
 }
 
 Page::FindInPageResult Page::find_in_page_previous_match()
 {
-    if (m_find_in_page_matches.is_empty())
+    if (!(m_last_find_in_page_query.has_value() && top_level_traversable_is_initialized()))
         return {};
 
+    auto result = perform_find_in_page_query(*m_last_find_in_page_query);
     if (m_find_in_page_match_index == 0) {
-        m_find_in_page_match_index = m_find_in_page_matches.size() - 1;
+        m_find_in_page_match_index = *result.total_match_count - 1;
     } else {
         m_find_in_page_match_index--;
     }
 
-    update_find_in_page_selection();
-
-    return Page::FindInPageResult {
-        .current_match_index = m_find_in_page_match_index,
-        .total_match_count = m_find_in_page_matches.size(),
-    };
+    return result;
 }
 
 void Page::update_find_in_page_selection()
