@@ -270,6 +270,7 @@ struct PaintOptions {
     bool has_focus { false };
 
     bool use_gpu_painter { false };
+    bool use_skia_painter { false };
     bool use_experimental_cpu_transform_support { false };
 
 #ifdef HAS_ACCELERATED_GRAPHICS

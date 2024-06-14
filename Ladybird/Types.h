@@ -25,6 +25,11 @@ enum class EnableExperimentalCPUTransforms {
     Yes
 };
 
+enum class EnableSkiaPainting {
+    No,
+    Yes
+};
+
 enum class IsLayoutTestMode {
     No,
     Yes
@@ -61,6 +66,7 @@ struct WebContentOptions {
     EnableCallgrindProfiling enable_callgrind_profiling { EnableCallgrindProfiling::No };
     EnableGPUPainting enable_gpu_painting { EnableGPUPainting::No };
     EnableExperimentalCPUTransforms enable_experimental_cpu_transforms { EnableExperimentalCPUTransforms::No };
+    EnableSkiaPainting enable_skia_painting { EnableSkiaPainting::No };
     IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
     UseLagomNetworking use_lagom_networking { UseLagomNetworking::Yes };
     WaitForDebugger wait_for_debugger { WaitForDebugger::No };

@@ -32,6 +32,7 @@ public:
     virtual ~PageClient() override;
 
     static void set_use_gpu_painter();
+    static void set_use_skia_painter();
     static void set_use_experimental_cpu_transform_support();
 
     virtual void schedule_repaint() override;
