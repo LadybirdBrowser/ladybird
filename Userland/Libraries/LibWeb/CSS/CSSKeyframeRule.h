@@ -29,6 +29,7 @@ public:
 
     CSS::Percentage key() const { return m_key; }
     JS::NonnullGCPtr<CSSStyleDeclaration> style() const { return m_declarations; }
+    JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> style_as_property_owning_style_declaration() const { return m_declarations; }
 
     String key_text() const
     {

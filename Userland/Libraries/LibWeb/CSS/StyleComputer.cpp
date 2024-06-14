@@ -2553,16 +2553,12 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
             HashTable<PropertyID> animated_properties;
 
             // Forwards pass, resolve all the user-specified keyframe properties.
-            for (auto const& keyframe : rule.keyframes()) {
+            for (auto const& keyframe_rule : *rule.css_rules()) {
+                auto const& keyframe = verify_cast<CSSKeyframeRule>(*keyframe_rule);
                 Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame resolved_keyframe;
 
-                auto key = static_cast<u64>(keyframe->key().value() * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
-                auto keyframe_rule = keyframe->style();
-
-                if (!is<PropertyOwningCSSStyleDeclaration>(*keyframe_rule))
-                    continue;
-
-                auto const& keyframe_style = static_cast<PropertyOwningCSSStyleDeclaration const&>(*keyframe_rule);
+                auto key = static_cast<u64>(keyframe.key().value() * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
+                auto const& keyframe_style = *keyframe.style_as_property_owning_style_declaration();
                 for (auto const& it : keyframe_style.properties()) {
                     // Unresolved properties will be resolved in collect_animation_into()
                     for_each_property_expanding_shorthands(it.property_id, it.value, AllowUnresolved::Yes, [&](PropertyID shorthand_id, StyleValue const& shorthand_value) {

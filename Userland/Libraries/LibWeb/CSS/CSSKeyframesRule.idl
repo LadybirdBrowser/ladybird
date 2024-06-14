@@ -5,7 +5,7 @@
 [Exposed=Window]
 interface CSSKeyframesRule : CSSRule {
     attribute CSSOMString name;
-    [FIXME] readonly attribute CSSRuleList cssRules;
+    readonly attribute CSSRuleList cssRules;
     readonly attribute unsigned long length;
 
     getter CSSKeyframeRule (unsigned long index);

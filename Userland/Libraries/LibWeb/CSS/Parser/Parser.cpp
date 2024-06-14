@@ -1349,7 +1349,7 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
 
             auto child_tokens = TokenStream { rule->block()->values() };
 
-            JS::MarkedVector<JS::NonnullGCPtr<CSSKeyframeRule>> keyframes(m_context.realm().heap());
+            JS::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
             while (child_tokens.has_next_token()) {
                 child_tokens.skip_whitespace();
                 // keyframe-selector = <keyframe-keyword> | <percentage>
@@ -1415,7 +1415,7 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
                 }
             }
 
-            return CSSKeyframesRule::create(m_context.realm(), name, move(keyframes));
+            return CSSKeyframesRule::create(m_context.realm(), name, CSSRuleList::create(m_context.realm(), move(keyframes)));
         }
         if (rule->at_rule_name().equals_ignoring_ascii_case("namespace"sv)) {
             // https://drafts.csswg.org/css-namespaces/#syntax
