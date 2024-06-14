@@ -44,9 +44,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     set(PLURAL_RULES_DATA_HEADER PluralRulesData.h)
     set(PLURAL_RULES_DATA_IMPLEMENTATION PluralRulesData.cpp)
 
-    set(RELATIVE_TIME_FORMAT_DATA_HEADER RelativeTimeFormatData.h)
-    set(RELATIVE_TIME_FORMAT_DATA_IMPLEMENTATION RelativeTimeFormatData.cpp)
-
     invoke_generator(
         "LocaleData"
         Lagom::GenerateLocaleData
@@ -63,21 +60,11 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         "${PLURAL_RULES_DATA_IMPLEMENTATION}"
         arguments -r "${CLDR_CORE_PATH}" -l "${CLDR_LOCALES_PATH}"
     )
-    invoke_generator(
-        "RelativeTimeFormatData"
-        Lagom::GenerateRelativeTimeFormatData
-        "${CLDR_VERSION_FILE}"
-        "${RELATIVE_TIME_FORMAT_DATA_HEADER}"
-        "${RELATIVE_TIME_FORMAT_DATA_IMPLEMENTATION}"
-        arguments -d "${CLDR_DATES_PATH}"
-    )
 
     set(LOCALE_DATA_SOURCES
         ${LOCALE_DATA_HEADER}
         ${LOCALE_DATA_IMPLEMENTATION}
         ${PLURAL_RULES_DATA_HEADER}
         ${PLURAL_RULES_DATA_IMPLEMENTATION}
-        ${RELATIVE_TIME_FORMAT_DATA_HEADER}
-        ${RELATIVE_TIME_FORMAT_DATA_IMPLEMENTATION}
     )
 endif()

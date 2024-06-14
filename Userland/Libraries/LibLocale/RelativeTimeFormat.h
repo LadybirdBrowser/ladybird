@@ -1,16 +1,17 @@
 /*
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibLocale/Forward.h>
-#include <LibLocale/Locale.h>
 
 namespace Locale {
 
@@ -25,15 +26,32 @@ enum class TimeUnit {
     Quarter,
     Year,
 };
+Optional<TimeUnit> time_unit_from_string(StringView);
+StringView time_unit_to_string(TimeUnit);
 
-struct RelativeTimeFormat {
-    PluralCategory plurality;
-    StringView pattern;
+enum class NumericDisplay {
+    Always,
+    Auto,
 };
+NumericDisplay numeric_display_from_string(StringView);
+StringView numeric_display_to_string(NumericDisplay);
 
-Optional<TimeUnit> time_unit_from_string(StringView time_unit);
-StringView time_unit_to_string(TimeUnit time_unit);
+class RelativeTimeFormat {
+public:
+    static NonnullOwnPtr<RelativeTimeFormat> create(StringView locale, Style style);
+    virtual ~RelativeTimeFormat() = default;
 
-Vector<RelativeTimeFormat> get_relative_time_format_patterns(StringView locale, TimeUnit time_unit, StringView tense_or_number, Style style);
+    struct Partition {
+        StringView type;
+        String value;
+        StringView unit;
+    };
+
+    virtual String format(double, TimeUnit, NumericDisplay) const = 0;
+    virtual Vector<Partition> format_to_parts(double, TimeUnit, NumericDisplay) const = 0;
+
+protected:
+    RelativeTimeFormat() = default;
+};
 
 }
