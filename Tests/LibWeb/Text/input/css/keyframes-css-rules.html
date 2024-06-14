@@ -1,0 +1,17 @@
+<style>
+@keyframes foo {
+    from { color: black; }
+    to { color: white; }
+}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const fooRule = document.styleSheets[0].cssRules[0];
+        println("fooRule: " + fooRule + " ~ " + fooRule.cssText);
+        println("fooRule.cssRules: " + fooRule.cssRules);
+        println("fooRule.cssRules[0]: " + fooRule.cssRules[0] + " ~ " + fooRule.cssRules[0].cssText);
+        println("fooRule.cssRules[0].style.parentRule: " + fooRule.cssRules[0].style.parentRule + " ~ " + fooRule.cssRules[0].style.parentRule.cssText);
+        println("fooRule.cssRules[0].style.parentRule === fooRule.cssRules[0]: " + (fooRule.cssRules[0].style.parentRule === fooRule.cssRules[0]));
+    });
+</script>

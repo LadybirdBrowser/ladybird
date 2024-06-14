@@ -1,26 +1,28 @@
 /*
  * Copyright (c) 2023, Ali Mohammad Pur <mpfard@serenityos.org>
+ * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSKeyframesRule.h"
 #include <LibWeb/Bindings/CSSKeyframesRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSKeyframesRule.h>
+#include <LibWeb/CSS/CSSRuleList.h>
 
 namespace Web::CSS {
 
 JS_DEFINE_ALLOCATOR(CSSKeyframesRule);
 
-JS::NonnullGCPtr<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, FlyString name, JS::MarkedVector<JS::NonnullGCPtr<CSSKeyframeRule>> keyframes)
+JS::NonnullGCPtr<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, FlyString name, JS::NonnullGCPtr<CSSRuleList> css_rules)
 {
-    return realm.heap().allocate<CSSKeyframesRule>(realm, realm, move(name), move(keyframes));
+    return realm.heap().allocate<CSSKeyframesRule>(realm, realm, move(name), move(css_rules));
 }
 
 void CSSKeyframesRule::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_keyframes);
+    visitor.visit(m_rules);
 }
 
 void CSSKeyframesRule::initialize(JS::Realm& realm)
@@ -34,12 +36,17 @@ String CSSKeyframesRule::serialized() const
     StringBuilder builder;
     builder.appendff("@keyframes \"{}\"", name());
     builder.append(" { "sv);
-    for (auto const& keyframe : keyframes()) {
+    for (auto const& keyframe : *m_rules) {
         builder.append(keyframe->css_text());
         builder.append(' ');
     }
     builder.append('}');
     return MUST(builder.to_string());
+}
+
+WebIDL::UnsignedLong CSSKeyframesRule::length() const
+{
+    return m_rules->length();
 }
 
 }
