@@ -2645,6 +2645,7 @@ public:
 private:
     Operand m_dst;
     IdentifierTableIndex m_identifier;
+    mutable EnvironmentCoordinate m_cache;
 };
 
 class End final : public Instruction {
