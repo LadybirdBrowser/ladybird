@@ -663,7 +663,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(ThrowIfNullish);
             HANDLE_INSTRUCTION(ThrowIfTDZ);
             HANDLE_INSTRUCTION(Typeof);
-            HANDLE_INSTRUCTION(TypeofVariable);
+            HANDLE_INSTRUCTION(TypeofBinding);
             HANDLE_INSTRUCTION(UnaryMinus);
             HANDLE_INSTRUCTION(UnaryPlus);
             HANDLE_INSTRUCTION(UnsignedRightShift);
@@ -1973,10 +1973,10 @@ ThrowCompletionOr<void> NewClass::execute_impl(Bytecode::Interpreter& interprete
 }
 
 // 13.5.3.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-typeof-operator-runtime-semantics-evaluation
-ThrowCompletionOr<void> TypeofVariable::execute_impl(Bytecode::Interpreter& interpreter) const
+ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    interpreter.set(dst(), TRY(typeof_variable(vm, interpreter.current_executable().get_identifier(m_identifier))));
+    interpreter.set(dst(), TRY(typeof_binding(vm, interpreter.current_executable().get_identifier(m_identifier))));
     return {};
 }
 
@@ -2679,9 +2679,9 @@ ByteString GetImportMeta::to_byte_string_impl(Bytecode::Executable const& execut
     return ByteString::formatted("GetImportMeta {}", format_operand("dst"sv, m_dst, executable));
 }
 
-ByteString TypeofVariable::to_byte_string_impl(Bytecode::Executable const& executable) const
+ByteString TypeofBinding::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    return ByteString::formatted("TypeofVariable {}, {}",
+    return ByteString::formatted("TypeofBinding {}, {}",
         format_operand("dst"sv, m_dst, executable),
         executable.identifier_table->get(m_identifier));
 }

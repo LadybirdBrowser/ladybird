@@ -389,7 +389,7 @@ inline ThrowCompletionOr<void> throw_if_needed_for_call(Interpreter& interpreter
     return {};
 }
 
-inline ThrowCompletionOr<Value> typeof_variable(VM& vm, DeprecatedFlyString const& string)
+inline ThrowCompletionOr<Value> typeof_binding(VM& vm, DeprecatedFlyString const& string)
 {
     // 1. Let val be the result of evaluating UnaryExpression.
     auto reference = TRY(vm.resolve_binding(string));

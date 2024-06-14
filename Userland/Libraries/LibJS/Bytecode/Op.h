@@ -2623,10 +2623,10 @@ private:
     Operand m_dst;
 };
 
-class TypeofVariable final : public Instruction {
+class TypeofBinding final : public Instruction {
 public:
-    TypeofVariable(Operand dst, IdentifierTableIndex identifier)
-        : Instruction(Type::TypeofVariable)
+    TypeofBinding(Operand dst, IdentifierTableIndex identifier)
+        : Instruction(Type::TypeofBinding)
         , m_dst(dst)
         , m_identifier(identifier)
     {

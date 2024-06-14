@@ -362,7 +362,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> UnaryExpression::genera
         if (is<Identifier>(*m_lhs)) {
             auto& identifier = static_cast<Identifier const&>(*m_lhs);
             if (!identifier.is_local()) {
-                generator.emit<Bytecode::Op::TypeofVariable>(dst, generator.intern_identifier(identifier.string()));
+                generator.emit<Bytecode::Op::TypeofBinding>(dst, generator.intern_identifier(identifier.string()));
                 break;
             }
         }
