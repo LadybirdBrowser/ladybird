@@ -1,0 +1,20 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let area = document.createElement("canvas");
+        let areaCtx = area.getContext("2d");
+
+        area.width = 1;
+        area.height = 1;
+
+        areaCtx.fillStyle = "#ff8040";
+        areaCtx.fillRect(0, 0, 1, 1);
+
+        let imageData = areaCtx.getImageData(0, 0, area.width, area.height);
+
+        if (imageData.data[0] == 0xff && imageData.data[1] == 0x80 && imageData.data[2] == 0x40)
+            println("PASS");
+        else
+            println("FAIL");
+    });
+</script>
