@@ -37,13 +37,7 @@ public:
     void set_name(String const& name) { m_name = name; }
 
 private:
-    CSSKeyframesRule(JS::Realm& realm, FlyString name, JS::NonnullGCPtr<CSSRuleList> keyframes)
-        : CSSRule(realm)
-        , m_name(move(name))
-        , m_rules(move(keyframes))
-    {
-    }
-
+    CSSKeyframesRule(JS::Realm&, FlyString name, JS::NonnullGCPtr<CSSRuleList> keyframes);
     virtual void visit_edges(Visitor&) override;
 
     virtual void initialize(JS::Realm&) override;

@@ -19,6 +19,15 @@ JS::NonnullGCPtr<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, Fl
     return realm.heap().allocate<CSSKeyframesRule>(realm, realm, move(name), move(css_rules));
 }
 
+CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, FlyString name, JS::NonnullGCPtr<CSSRuleList> keyframes)
+    : CSSRule(realm)
+    , m_name(move(name))
+    , m_rules(move(keyframes))
+{
+    for (auto& rule : *m_rules)
+        rule->set_parent_rule(this);
+}
+
 void CSSKeyframesRule::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);

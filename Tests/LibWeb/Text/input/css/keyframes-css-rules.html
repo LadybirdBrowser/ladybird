@@ -11,6 +11,8 @@
         println("fooRule: " + fooRule + " ~ " + fooRule.cssText);
         println("fooRule.cssRules: " + fooRule.cssRules);
         println("fooRule.cssRules[0]: " + fooRule.cssRules[0] + " ~ " + fooRule.cssRules[0].cssText);
+        println("fooRule.cssRules[0].parentRule: " + fooRule.cssRules[0].parentRule);
+        println("fooRule.cssRules[0].parentRule: " + fooRule.cssRules[0].parentRule + " ~ " + fooRule.cssRules[0].parentRule.cssText);
         println("fooRule.cssRules[0].style.parentRule: " + fooRule.cssRules[0].style.parentRule + " ~ " + fooRule.cssRules[0].style.parentRule.cssText);
         println("fooRule.cssRules[0].style.parentRule === fooRule.cssRules[0]: " + (fooRule.cssRules[0].style.parentRule === fooRule.cssRules[0]));
     });
