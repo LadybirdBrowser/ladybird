@@ -49,14 +49,58 @@ ThrowCompletionOr<NonnullGCPtr<Object>> PluralRulesConstructor::construct(Functi
 {
     auto& vm = this->vm();
 
-    auto locales = vm.argument(0);
-    auto options = vm.argument(1);
+    auto locales_value = vm.argument(0);
+    auto options_value = vm.argument(1);
 
-    // 2. Let pluralRules be ? OrdinaryCreateFromConstructor(NewTarget, "%PluralRules.prototype%", « [[InitializedPluralRules]], [[Locale]], [[Type]], [[MinimumIntegerDigits]], [[MinimumFractionDigits]], [[MaximumFractionDigits]], [[MinimumSignificantDigits]], [[MaximumSignificantDigits]], [[RoundingType]], [[RoundingMode]], [[RoundingIncrement]], [[TrailingZeroDisplay]] »).
+    // 2. Let pluralRules be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.PluralRules.prototype%", « [[InitializedPluralRules]], [[Locale]], [[Type]], [[MinimumIntegerDigits]], [[MinimumFractionDigits]], [[MaximumFractionDigits]], [[MinimumSignificantDigits]], [[MaximumSignificantDigits]], [[RoundingType]], [[RoundingIncrement]], [[RoundingMode]], [[ComputedRoundingPriority]], [[TrailingZeroDisplay]] »).
     auto plural_rules = TRY(ordinary_create_from_constructor<PluralRules>(vm, new_target, &Intrinsics::intl_plural_rules_prototype));
 
-    // 3. Return ? InitializePluralRules(pluralRules, locales, options).
-    return TRY(initialize_plural_rules(vm, plural_rules, locales, options));
+    // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+    auto requested_locales = TRY(canonicalize_locale_list(vm, locales_value));
+
+    // 4. Set options to ? CoerceOptionsToObject(options).
+    auto* options = TRY(coerce_options_to_object(vm, options_value));
+
+    // 5. Let opt be a new Record.
+    LocaleOptions opt {};
+
+    // 6. Let matcher be ? GetOption(options, "localeMatcher", string, « "lookup", "best fit" », "best fit").
+    auto matcher = TRY(get_option(vm, *options, vm.names.localeMatcher, OptionType::String, AK::Array { "lookup"sv, "best fit"sv }, "best fit"sv));
+
+    // 7. Set opt.[[localeMatcher]] to matcher.
+    opt.locale_matcher = matcher;
+
+    // 8. Let localeData be %Intl.PluralRules%.[[LocaleData]].
+    // 9. Let r be ResolveLocale(%Intl.PluralRules%.[[AvailableLocales]], requestedLocales, opt, %Intl.PluralRules%.[[RelevantExtensionKeys]], localeData).
+    auto result = resolve_locale(requested_locales, opt, {});
+
+    // 10. Set pluralRules.[[Locale]] to r.[[locale]].
+    plural_rules->set_locale(move(result.locale));
+
+    // Non-standard, the data locale is used by our NumberFormat implementation.
+    plural_rules->set_data_locale(move(result.data_locale));
+
+    // 11. Let t be ? GetOption(options, "type", string, « "cardinal", "ordinal" », "cardinal").
+    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, AK::Array { "cardinal"sv, "ordinal"sv }, "cardinal"sv));
+
+    // 12. Set pluralRules.[[Type]] to t.
+    plural_rules->set_type(type.as_string().utf8_string_view());
+
+    // 13. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3, "standard").
+    TRY(set_number_format_digit_options(vm, plural_rules, *options, 0, 3, ::Locale::Notation::Standard));
+
+    // Non-standard, create an ICU number formatter for this Intl object.
+    auto formatter = ::Locale::NumberFormat::create(
+        plural_rules->locale(),
+        {},
+        {},
+        plural_rules->rounding_options());
+
+    formatter->create_plural_rules(plural_rules->type());
+    plural_rules->set_formatter(move(formatter));
+
+    // 14. Return pluralRules.
+    return plural_rules;
 }
 
 // 16.2.2 Intl.PluralRules.supportedLocalesOf ( locales [ , options ] ), https://tc39.es/ecma402/#sec-intl.pluralrules.supportedlocalesof
@@ -72,55 +116,6 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesConstructor::supported_locales_of)
 
     // 3. Return ? SupportedLocales(availableLocales, requestedLocales, options).
     return TRY(supported_locales(vm, requested_locales, options));
-}
-
-// 16.1.2 InitializePluralRules ( pluralRules, locales, options ), https://tc39.es/ecma402/#sec-initializepluralrules
-ThrowCompletionOr<NonnullGCPtr<PluralRules>> initialize_plural_rules(VM& vm, PluralRules& plural_rules, Value locales_value, Value options_value)
-{
-    // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-    auto requested_locales = TRY(canonicalize_locale_list(vm, locales_value));
-
-    // 2. Set options to ? CoerceOptionsToObject(options).
-    auto* options = TRY(coerce_options_to_object(vm, options_value));
-
-    // 3. Let opt be a new Record.
-    LocaleOptions opt {};
-
-    // 4. Let matcher be ? GetOption(options, "localeMatcher", string, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, *options, vm.names.localeMatcher, OptionType::String, AK::Array { "lookup"sv, "best fit"sv }, "best fit"sv));
-
-    // 5. Set opt.[[localeMatcher]] to matcher.
-    opt.locale_matcher = matcher;
-
-    // 6. Let t be ? GetOption(options, "type", string, « "cardinal", "ordinal" », "cardinal").
-    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, AK::Array { "cardinal"sv, "ordinal"sv }, "cardinal"sv));
-
-    // 7. Set pluralRules.[[Type]] to t.
-    plural_rules.set_type(type.as_string().utf8_string_view());
-
-    // 8. Perform ? SetNumberFormatDigitOptions(pluralRules, options, +0𝔽, 3𝔽, "standard").
-    TRY(set_number_format_digit_options(vm, plural_rules, *options, 0, 3, ::Locale::Notation::Standard));
-
-    // 9. Let localeData be %PluralRules%.[[LocaleData]].
-    // 10. Let r be ResolveLocale(%PluralRules%.[[AvailableLocales]], requestedLocales, opt, %PluralRules%.[[RelevantExtensionKeys]], localeData).
-    auto result = resolve_locale(requested_locales, opt, {});
-
-    // 11. Set pluralRules.[[Locale]] to r.[[locale]].
-    plural_rules.set_locale(move(result.locale));
-
-    // Non-standard, the data locale is used by our NumberFormat implementation.
-    plural_rules.set_data_locale(move(result.data_locale));
-
-    // Non-standard, create an ICU number formatter for this Intl object.
-    auto formatter = ::Locale::NumberFormat::create(
-        plural_rules.locale(),
-        {},
-        {},
-        plural_rules.rounding_options());
-    plural_rules.set_formatter(move(formatter));
-
-    // 12. Return pluralRules.
-    return plural_rules;
 }
 
 }

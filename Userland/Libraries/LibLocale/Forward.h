@@ -33,7 +33,6 @@ struct ListFormatPart;
 struct LocaleExtension;
 struct LocaleID;
 struct OtherExtension;
-struct PluralOperands;
 struct TransformedExtension;
 struct TransformedField;
 

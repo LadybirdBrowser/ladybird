@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -28,7 +28,5 @@ private:
 
     JS_DECLARE_NATIVE_FUNCTION(supported_locales_of);
 };
-
-ThrowCompletionOr<NonnullGCPtr<PluralRules>> initialize_plural_rules(VM&, PluralRules&, Value locales_value, Value options_value);
 
 }
