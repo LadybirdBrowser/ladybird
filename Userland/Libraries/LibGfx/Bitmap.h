@@ -16,32 +16,6 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 
-#define ENUMERATE_IMAGE_FORMATS                \
-    __ENUMERATE_IMAGE_FORMAT(bmp, ".bmp")      \
-    __ENUMERATE_IMAGE_FORMAT(dds, ".dds")      \
-    __ENUMERATE_IMAGE_FORMAT(gif, ".gif")      \
-    __ENUMERATE_IMAGE_FORMAT(ico, ".ico")      \
-    __ENUMERATE_IMAGE_FORMAT(iff, ".iff")      \
-    __ENUMERATE_IMAGE_FORMAT(jpeg, ".jb2")     \
-    __ENUMERATE_IMAGE_FORMAT(jpeg, ".jbig2")   \
-    __ENUMERATE_IMAGE_FORMAT(jpeg2000, ".jp2") \
-    __ENUMERATE_IMAGE_FORMAT(jpeg, ".jpeg")    \
-    __ENUMERATE_IMAGE_FORMAT(jpeg, ".jpg")     \
-    __ENUMERATE_IMAGE_FORMAT(jpeg2000, ".jpx") \
-    __ENUMERATE_IMAGE_FORMAT(jxl, ".jxl")      \
-    __ENUMERATE_IMAGE_FORMAT(iff, ".lbm")      \
-    __ENUMERATE_IMAGE_FORMAT(pam, ".pam")      \
-    __ENUMERATE_IMAGE_FORMAT(pbm, ".pbm")      \
-    __ENUMERATE_IMAGE_FORMAT(pgm, ".pgm")      \
-    __ENUMERATE_IMAGE_FORMAT(png, ".png")      \
-    __ENUMERATE_IMAGE_FORMAT(ppm, ".ppm")      \
-    __ENUMERATE_IMAGE_FORMAT(qoi, ".qoi")      \
-    __ENUMERATE_IMAGE_FORMAT(tga, ".tga")      \
-    __ENUMERATE_IMAGE_FORMAT(tiff, ".tif")     \
-    __ENUMERATE_IMAGE_FORMAT(tiff, ".tiff")    \
-    __ENUMERATE_IMAGE_FORMAT(tvg, ".tvg")      \
-    __ENUMERATE_IMAGE_FORMAT(tvg, ".webp")
-
 namespace Gfx {
 
 enum class BitmapFormat {
@@ -49,9 +23,6 @@ enum class BitmapFormat {
     BGRx8888,
     BGRA8888,
     RGBA8888,
-
-    FirstValid = BGRx8888,
-    LastValid = RGBA8888,
 };
 
 inline bool is_valid_bitmap_format(unsigned format)
@@ -87,12 +58,6 @@ inline StorageFormat determine_storage_format(BitmapFormat format)
 }
 
 struct BackingStore;
-
-enum class RotationDirection {
-    CounterClockwise,
-    Flip,
-    Clockwise,
-};
 
 class Bitmap : public RefCounted<Bitmap> {
 public:
