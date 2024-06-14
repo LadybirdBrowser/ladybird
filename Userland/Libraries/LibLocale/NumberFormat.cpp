@@ -17,6 +17,7 @@
 
 #include <unicode/numberformatter.h>
 #include <unicode/numberrangeformatter.h>
+#include <unicode/plurrule.h>
 
 namespace Locale {
 
@@ -416,6 +417,17 @@ static constexpr UNumberUnitWidth icu_unit_width(Style unit_display)
     VERIFY_NOT_REACHED();
 }
 
+static constexpr UPluralType icu_plural_type(PluralForm plural_form)
+{
+    switch (plural_form) {
+    case PluralForm::Cardinal:
+        return UPluralType::UPLURAL_TYPE_CARDINAL;
+    case PluralForm::Ordinal:
+        return UPluralType::UPLURAL_TYPE_ORDINAL;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 static void apply_display_options(icu::number::LocalizedNumberFormatter& formatter, DisplayOptions const& display_options)
 {
     UErrorCode status = U_ZERO_ERROR;
@@ -678,6 +690,78 @@ public:
         return format_to_parts_impl(formatted, start, end);
     }
 
+    virtual void create_plural_rules(PluralForm plural_form) override
+    {
+        UErrorCode status = U_ZERO_ERROR;
+        VERIFY(!m_plural_rules);
+
+        m_plural_rules = adopt_own(*icu::PluralRules::forLocale(m_locale, icu_plural_type(plural_form), status));
+        VERIFY(icu_success(status));
+    }
+
+    virtual PluralCategory select_plural(double value) const override
+    {
+        UErrorCode status = U_ZERO_ERROR;
+        VERIFY(m_plural_rules);
+
+        auto formatted = format_impl(value);
+        if (!formatted.has_value())
+            return PluralCategory::Other;
+
+        auto result = m_plural_rules->select(*formatted, status);
+        if (icu_failure(status))
+            return PluralCategory::Other;
+
+        return plural_category_from_string(icu_string_to_string(result));
+    }
+
+    virtual PluralCategory select_plural_range(double start, double end) const override
+    {
+        UErrorCode status = U_ZERO_ERROR;
+        VERIFY(m_plural_rules);
+
+        auto formatted = format_range_impl(start, end);
+        if (!formatted.has_value())
+            return PluralCategory::Other;
+
+        auto [formatted_start, formatted_end] = formatted->getDecimalNumbers<StringBuilder>(status);
+        if (icu_failure(status))
+            return PluralCategory::Other;
+
+        if (formatted_start.string_view() == formatted_end.string_view())
+            return select_plural(start);
+
+        auto result = m_plural_rules->select(*formatted, status);
+        if (icu_failure(status))
+            return PluralCategory::Other;
+
+        return plural_category_from_string(icu_string_to_string(result));
+    }
+
+    virtual Vector<PluralCategory> available_plural_categories() const override
+    {
+        UErrorCode status = U_ZERO_ERROR;
+        VERIFY(m_plural_rules);
+
+        auto keywords = adopt_own_if_nonnull(m_plural_rules->getKeywords(status));
+        if (icu_failure(status))
+            return {};
+
+        Vector<PluralCategory> result;
+
+        while (true) {
+            i32 length = 0;
+            auto const* category = keywords->next(&length, status);
+
+            if (icu_failure(status) || category == nullptr)
+                break;
+
+            result.append(plural_category_from_string({ category, static_cast<size_t>(length) }));
+        }
+
+        return result;
+    }
+
 private:
     static icu::Formattable value_to_formattable(Value const& value)
     {
@@ -796,8 +880,12 @@ private:
     }
 
     icu::Locale& m_locale;
+
     icu::number::LocalizedNumberFormatter m_formatter;
     mutable Optional<icu::number::LocalizedNumberRangeFormatter> m_range_formatter;
+
+    OwnPtr<icu::PluralRules> m_plural_rules;
+
     bool m_is_unit { false };
 };
 

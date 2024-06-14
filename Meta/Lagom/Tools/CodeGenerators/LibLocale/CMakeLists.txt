@@ -1,2 +1,1 @@
 lagom_tool(GenerateLocaleData SOURCES GenerateLocaleData.cpp LIBS LibMain)
-lagom_tool(GeneratePluralRulesData SOURCES GeneratePluralRulesData.cpp LIBS LibMain)

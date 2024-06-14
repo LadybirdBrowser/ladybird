@@ -48,7 +48,7 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select)
 
     // 4. Return ! ResolvePlural(pr, n).[[PluralCategory]].
     auto plurality = resolve_plural(plural_rules, number);
-    return PrimitiveString::create(vm, ::Locale::plural_category_to_string(plurality.plural_category));
+    return PrimitiveString::create(vm, ::Locale::plural_category_to_string(plurality));
 }
 
 // 16.3.4 Intl.PluralRules.prototype.selectRange ( start, end ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.selectrange
@@ -91,7 +91,7 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::resolved_options)
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
     // 4. Let pluralCategories be a List of Strings containing all possible results of PluralRuleSelect for the selected locale pr.[[Locale]].
-    auto available_categories = ::Locale::available_plural_categories(plural_rules->locale(), plural_rules->type());
+    auto available_categories = plural_rules->formatter().available_plural_categories();
 
     auto plural_categories = Array::create_from<::Locale::PluralCategory>(realm, available_categories, [&](auto category) {
         return PrimitiveString::create(vm, ::Locale::plural_category_to_string(category));

@@ -18,9 +18,6 @@ set(CLDR_CORE_PATH "${CLDR_PATH}/${CLDR_CORE_SOURCE}")
 set(CLDR_DATES_SOURCE cldr-dates-modern)
 set(CLDR_DATES_PATH "${CLDR_PATH}/${CLDR_DATES_SOURCE}")
 
-set(CLDR_LOCALES_SOURCE cldr-localenames-modern)
-set(CLDR_LOCALES_PATH "${CLDR_PATH}/${CLDR_LOCALES_SOURCE}")
-
 set(CLDR_NUMBERS_SOURCE cldr-numbers-modern)
 set(CLDR_NUMBERS_PATH "${CLDR_PATH}/${CLDR_NUMBERS_SOURCE}")
 
@@ -32,7 +29,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_BCP47_SOURCE}/**" "${CLDR_BCP47_PATH}")
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_CORE_SOURCE}/**" "${CLDR_CORE_PATH}")
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_DATES_SOURCE}/**" "${CLDR_DATES_PATH}")
-        extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_LOCALES_SOURCE}/**" "${CLDR_LOCALES_PATH}")
         extract_path("${CLDR_PATH}" "${CLDR_ZIP_PATH}" "${CLDR_NUMBERS_SOURCE}/**" "${CLDR_NUMBERS_PATH}")
     else()
         message(STATUS "Skipping download of ${CLDR_ZIP_URL}, expecting the archive to have been extracted to ${CLDR_PATH}")
@@ -40,9 +36,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
 
     set(LOCALE_DATA_HEADER LocaleData.h)
     set(LOCALE_DATA_IMPLEMENTATION LocaleData.cpp)
-
-    set(PLURAL_RULES_DATA_HEADER PluralRulesData.h)
-    set(PLURAL_RULES_DATA_IMPLEMENTATION PluralRulesData.cpp)
 
     invoke_generator(
         "LocaleData"
@@ -52,19 +45,9 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         "${LOCALE_DATA_IMPLEMENTATION}"
         arguments -b "${CLDR_BCP47_PATH}" -r "${CLDR_CORE_PATH}" -n "${CLDR_NUMBERS_PATH}" -d "${CLDR_DATES_PATH}"
     )
-    invoke_generator(
-        "PluralRulesData"
-        Lagom::GeneratePluralRulesData
-        "${CLDR_VERSION_FILE}"
-        "${PLURAL_RULES_DATA_HEADER}"
-        "${PLURAL_RULES_DATA_IMPLEMENTATION}"
-        arguments -r "${CLDR_CORE_PATH}" -l "${CLDR_LOCALES_PATH}"
-    )
 
     set(LOCALE_DATA_SOURCES
         ${LOCALE_DATA_HEADER}
         ${LOCALE_DATA_IMPLEMENTATION}
-        ${PLURAL_RULES_DATA_HEADER}
-        ${PLURAL_RULES_DATA_IMPLEMENTATION}
     )
 endif()

@@ -62,13 +62,6 @@ describe("correct behavior", () => {
         expect(pl.selectRange(0.14, 3.14)).toBe("other"); // other + other = other
     });
 
-    test("default to end of range", () => {
-        // "so" specifies "one" to be the integer 1, but does not specify any ranges.
-        const so = new Intl.PluralRules("so");
-        expect(so.selectRange(0, 1)).toBe("one");
-        expect(so.selectRange(1, 2)).toBe("other");
-    });
-
     test("numbers in reverse order", () => {
         const en = new Intl.PluralRules("en");
         expect(en.selectRange(1, -Infinity)).toBe("other");
