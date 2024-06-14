@@ -1,0 +1,15 @@
+<style>
+span {
+    color: purple;
+}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const spanRule = document.styleSheets[0].cssRules[0];
+        println("spanRule: " + spanRule + " ~ " + spanRule.cssText);
+        println("spanRule.style: " + spanRule.style + " ~ " + spanRule.cssText);
+        println("spanRule.style.parentRule: " + spanRule.style.parentRule + " ~ " + spanRule.cssText);
+        println("spanRule.style.parentRule === spanRule: " + (spanRule.style.parentRule === spanRule));
+    });
+</script>

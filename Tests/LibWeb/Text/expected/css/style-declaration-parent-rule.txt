@@ -1,0 +1,4 @@
+spanRule: [object CSSStyleRule] ~ span { color: rgb(128, 0, 128); }
+spanRule.style: [object CSSStyleDeclaration] ~ span { color: rgb(128, 0, 128); }
+spanRule.style.parentRule: [object CSSStyleRule] ~ span { color: rgb(128, 0, 128); }
+spanRule.style.parentRule === spanRule: true

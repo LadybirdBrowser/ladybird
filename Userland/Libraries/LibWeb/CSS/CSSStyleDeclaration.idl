@@ -13,7 +13,7 @@ interface CSSStyleDeclaration {
     [CEReactions] undefined setProperty(CSSOMString property, [LegacyNullToEmptyString] CSSOMString value, optional [LegacyNullToEmptyString] CSSOMString priority = "");
     [CEReactions] CSSOMString removeProperty(CSSOMString property);
 
-    [FIXME] readonly attribute CSSRule? parentRule;
+    readonly attribute CSSRule? parentRule;
     [FIXME, CEReactions, LegacyNullToEmptyString] attribute CSSOMString cssFloat;
 
 };

@@ -25,6 +25,7 @@ CSSStyleRule::CSSStyleRule(JS::Realm& realm, Vector<NonnullRefPtr<Selector>>&& s
     , m_selectors(move(selectors))
     , m_declaration(declaration)
 {
+    m_declaration->set_parent_rule(*this);
 }
 
 void CSSStyleRule::initialize(JS::Realm& realm)
