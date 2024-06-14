@@ -77,6 +77,10 @@ cmd_with_target() {
     CMAKE_ARGS+=("-DCMAKE_C_COMPILER=${CC}")
     CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER=${CXX}")
 
+    # Export CC and CXX for the vcpkg toolchain, so it will pick up the same version as the ladybird build
+    export CC="$CC"
+    export CXX="$CXX"
+
     if [ ! -d "$LADYBIRD_SOURCE_DIR" ]; then
         LADYBIRD_SOURCE_DIR="$(get_top_dir)"
         export LADYBIRD_SOURCE_DIR

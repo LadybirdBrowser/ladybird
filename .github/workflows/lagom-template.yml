@@ -76,6 +76,13 @@ jobs:
             echo "host_cxx=$(brew --prefix llvm@18)/bin/clang++" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Set dynamic environment variables
+        id: 'set-env-vars'
+        run: |
+          # Note: Required for vcpkg to use this compiler for its own builds.
+          echo "CC=${{ steps.build-parameters.outputs.host_cc }} >> "$GITHUB_ENV"
+          echo "CXX=${{ steps.build-parameters.outputs.host_cxx }} >> "$GITHUB_ENV"
+
       # https://github.com/actions/runner-images/issues/9330
       - name: Enable Microphone Access (macOS 14)
         if: ${{ inputs.os == 'macos-14' }}
