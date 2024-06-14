@@ -187,11 +187,15 @@ public:
 
     void clear_selection();
 
+    struct FindInPageQuery {
+        String string {};
+        CaseSensitivity case_sensitivity { CaseSensitivity::CaseInsensitive };
+    };
     struct FindInPageResult {
         size_t current_match_index { 0 };
         Optional<size_t> total_match_count {};
     };
-    FindInPageResult find_in_page(String const& query, CaseSensitivity);
+    FindInPageResult find_in_page(FindInPageQuery const&);
     FindInPageResult find_in_page_next_match();
     FindInPageResult find_in_page_previous_match();
 
@@ -203,6 +207,7 @@ private:
 
     Vector<JS::Handle<DOM::Document>> documents_in_active_window() const;
 
+    FindInPageResult perform_find_in_page_query(FindInPageQuery const&);
     void update_find_in_page_selection();
 
     JS::NonnullGCPtr<PageClient> m_client;
@@ -248,6 +253,8 @@ private:
     bool m_pdf_viewer_supported { false };
     size_t m_find_in_page_match_index { 0 };
     Vector<JS::NonnullGCPtr<DOM::Range>> m_find_in_page_matches;
+    Optional<FindInPageQuery> m_last_find_in_page_query;
+    URL::URL m_last_find_in_page_url;
 };
 
 struct PaintOptions {
