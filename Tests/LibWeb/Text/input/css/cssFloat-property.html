@@ -1,0 +1,13 @@
+<style>
+span {
+    float: right;
+}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const spanRule = document.styleSheets[0].cssRules[0];
+        println("spanRule: " + spanRule + " ~ " + spanRule.cssText);
+        println("spanRule.style.cssFloat: " + spanRule.style.cssFloat);
+    });
+</script>
