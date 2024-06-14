@@ -33,12 +33,18 @@ namespace WebContent {
 
 static bool s_use_gpu_painter = false;
 static bool s_use_experimental_cpu_transform_support = false;
+static bool s_use_skia_painter = false;
 
 JS_DEFINE_ALLOCATOR(PageClient);
 
 void PageClient::set_use_gpu_painter()
 {
     s_use_gpu_painter = true;
+}
+
+void PageClient::set_use_skia_painter()
+{
+    s_use_skia_painter = true;
 }
 
 void PageClient::set_use_experimental_cpu_transform_support()
@@ -213,6 +219,7 @@ void PageClient::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& ta
     paint_options.accelerated_graphics_context = m_accelerated_graphics_context.ptr();
 #endif
     paint_options.use_gpu_painter = s_use_gpu_painter;
+    paint_options.use_skia_painter = s_use_skia_painter;
     paint_options.use_experimental_cpu_transform_support = s_use_experimental_cpu_transform_support;
     page().top_level_traversable()->paint(content_rect, target, paint_options);
 }

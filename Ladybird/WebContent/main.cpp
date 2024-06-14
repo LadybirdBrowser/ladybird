@@ -98,6 +98,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool use_lagom_networking = false;
     bool use_gpu_painting = false;
     bool use_experimental_cpu_transform_support = false;
+    bool use_skia_painter = false;
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
@@ -111,6 +112,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(use_lagom_networking, "Enable Lagom servers for networking", "use-lagom-networking");
     args_parser.add_option(use_gpu_painting, "Enable GPU painting", "use-gpu-painting");
     args_parser.add_option(use_experimental_cpu_transform_support, "Enable experimental CPU transform support", "experimental-cpu-transforms");
+    args_parser.add_option(use_skia_painter, "Enable Skia painter", "use-skia-painting");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
@@ -130,6 +132,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Web::set_chrome_process_executable_path(executable_path);
     if (use_gpu_painting) {
         WebContent::PageClient::set_use_gpu_painter();
+    }
+
+    if (use_skia_painter) {
+        WebContent::PageClient::set_use_skia_painter();
     }
 
     if (use_experimental_cpu_transform_support) {
