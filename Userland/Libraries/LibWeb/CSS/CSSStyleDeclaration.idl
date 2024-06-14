@@ -14,6 +14,9 @@ interface CSSStyleDeclaration {
     [CEReactions] CSSOMString removeProperty(CSSOMString property);
 
     readonly attribute CSSRule? parentRule;
-    [FIXME, CEReactions, LegacyNullToEmptyString] attribute CSSOMString cssFloat;
+
+    // NOTE: cssFloat is implemented manually in the bindings code, along with the other property accessors.
+    //       Hence, this does not need to be implemented.
+    // [CEReactions, LegacyNullToEmptyString] attribute CSSOMString cssFloat;
 
 };
