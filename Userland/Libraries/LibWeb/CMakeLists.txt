@@ -735,7 +735,6 @@ generate_css_implementation()
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
     CSS/DefaultStyleSheetSource.cpp
-    CSS/EasingFunctions.cpp
     CSS/Enums.cpp
     CSS/MathFunctions.cpp
     CSS/MediaFeatureID.cpp

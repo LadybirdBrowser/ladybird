@@ -1,13 +1,5 @@
 function (generate_css_implementation)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
-    invoke_generator(
-        "EasingFunctions.cpp"
-        Lagom::GenerateCSSEasingFunctions
-        "${LIBWEB_INPUT_FOLDER}/CSS/EasingFunctions.json"
-        "CSS/EasingFunctions.h"
-        "CSS/EasingFunctions.cpp"
-        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/EasingFunctions.json"
-    )
 
     invoke_generator(
         "Enums.cpp"
@@ -105,7 +97,6 @@ function (generate_css_implementation)
     )
 
     set(CSS_GENERATED_TO_INSTALL
-        "CSS/EasingFunctions.h"
         "CSS/Enums.h"
         "CSS/MathFunctions.h"
         "CSS/MediaFeatureID.h"
