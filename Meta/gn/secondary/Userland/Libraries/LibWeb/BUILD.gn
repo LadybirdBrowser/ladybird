@@ -100,23 +100,6 @@ compiled_action("generate_aria_roles") {
   ]
 }
 
-compiled_action("generate_css_easing_functions") {
-  tool = "//Meta/Lagom/Tools/CodeGenerators/LibWeb:GenerateCSSEasingFunctions"
-  inputs = [ "CSS/EasingFunctions.json" ]
-  outputs = [
-    "$target_gen_dir/CSS/EasingFunctions.h",
-    "$target_gen_dir/CSS/EasingFunctions.cpp",
-  ]
-  args = [
-    "-h",
-    rebase_path(outputs[0], root_build_dir),
-    "-c",
-    rebase_path(outputs[1], root_build_dir),
-    "-j",
-    rebase_path(inputs[0], root_build_dir),
-  ]
-}
-
 compiled_action("generate_css_enums") {
   tool = "//Meta/Lagom/Tools/CodeGenerators/LibWeb:GenerateCSSEnums"
   inputs = [ "CSS/Enums.json" ]
@@ -270,7 +253,6 @@ source_set("all_generated") {
     ":WebWorkerClientEndpoint",
     ":WebWorkerServerEndpoint",
     ":generate_aria_roles",
-    ":generate_css_easing_functions",
     ":generate_css_enums",
     ":generate_css_math_functions",
     ":generate_css_media_feature_id",

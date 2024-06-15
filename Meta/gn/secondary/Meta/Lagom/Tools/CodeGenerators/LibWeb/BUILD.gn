@@ -12,14 +12,6 @@ lagom_tool("GenerateAriaRoles") {
   ]
 }
 
-lagom_tool("GenerateCSSEasingFunctions") {
-  sources = [ "GenerateCSSEasingFunctions.cpp" ]
-  deps = [
-    ":headers",
-    "//Userland/Libraries/LibMain",
-  ]
-}
-
 lagom_tool("GenerateCSSEnums") {
   sources = [ "GenerateCSSEnums.cpp" ]
   deps = [
