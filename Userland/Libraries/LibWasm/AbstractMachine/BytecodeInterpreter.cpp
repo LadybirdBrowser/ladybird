@@ -9,6 +9,7 @@
 #include <AK/Debug.h>
 #include <AK/Endian.h>
 #include <AK/MemoryStream.h>
+#include <AK/NumericLimits.h>
 #include <AK/SIMDExtras.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
@@ -871,6 +872,78 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         *configuration.store().get(address) = ElementInstance(elem->type(), {});
         return;
     }
+    case Instructions::table_init.value(): {
+        auto& args = instruction.arguments().get<Instruction::TableElementArgs>();
+        auto table_address = configuration.frame().module().tables()[args.table_index.value()];
+        auto table = configuration.store().get(table_address);
+        auto element_address = configuration.frame().module().elements()[args.element_index.value()];
+        auto element = configuration.store().get(element_address);
+        auto count = *configuration.stack().pop().get<Value>().to<u32>();
+        auto source_offset = *configuration.stack().pop().get<Value>().to<u32>();
+        auto destination_offset = *configuration.stack().pop().get<Value>().to<u32>();
+
+        Checked<u32> checked_source_offset = source_offset;
+        Checked<u32> checked_destination_offset = destination_offset;
+        checked_source_offset += count;
+        checked_destination_offset += count;
+        TRAP_IF_NOT(!checked_source_offset.has_overflow() && checked_source_offset <= (u32)element->references().size());
+        TRAP_IF_NOT(!checked_destination_offset.has_overflow() && checked_destination_offset <= (u32)table->elements().size());
+
+        for (u32 i = 0; i < count; ++i)
+            table->elements()[destination_offset + i] = element->references()[source_offset + i];
+        return;
+    }
+    case Instructions::table_copy.value(): {
+        auto& args = instruction.arguments().get<Instruction::TableTableArgs>();
+        auto source_address = configuration.frame().module().tables()[args.rhs.value()];
+        auto destination_address = configuration.frame().module().tables()[args.lhs.value()];
+        auto source_instance = configuration.store().get(source_address);
+        auto destination_instance = configuration.store().get(destination_address);
+
+        auto count = configuration.stack().pop().get<Value>().to<u32>().value();
+        auto source_offset = configuration.stack().pop().get<Value>().to<u32>().value();
+        auto destination_offset = configuration.stack().pop().get<Value>().to<u32>().value();
+
+        Checked<size_t> source_position = source_offset;
+        source_position.saturating_add(count);
+        Checked<size_t> destination_position = destination_offset;
+        destination_position.saturating_add(count);
+        TRAP_IF_NOT(source_position <= source_instance->elements().size());
+        TRAP_IF_NOT(destination_position <= destination_instance->elements().size());
+
+        if (count == 0)
+            return;
+
+        if (destination_offset <= source_offset) {
+            for (u32 i = 0; i < count; ++i) {
+                auto value = source_instance->elements()[source_offset + i];
+                destination_instance->elements()[destination_offset + i] = value;
+            }
+        } else {
+            for (u32 i = count - 1; i != NumericLimits<u32>::max(); --i) {
+                auto value = source_instance->elements()[source_offset + i];
+                destination_instance->elements()[destination_offset + i] = value;
+            }
+        }
+
+        return;
+    }
+    case Instructions::table_fill.value(): {
+        auto table_index = instruction.arguments().get<TableIndex>();
+        auto address = configuration.frame().module().tables()[table_index.value()];
+        auto table = configuration.store().get(address);
+        auto count = *configuration.stack().pop().get<Value>().to<u32>();
+        auto value = *configuration.stack().pop().get<Value>().to<Reference>();
+        auto start = *configuration.stack().pop().get<Value>().to<u32>();
+
+        Checked<u32> checked_offset = start;
+        checked_offset += count;
+        TRAP_IF_NOT(!checked_offset.has_overflow() && checked_offset <= (u32)table->elements().size());
+
+        for (u32 i = 0; i < count; ++i)
+            table->elements()[start + i] = value;
+        return;
+    }
     case Instructions::table_set.value(): {
         auto ref = *configuration.stack().pop().get<Value>().to<Reference>();
         auto index = (size_t)(*configuration.stack().pop().get<Value>().to<i32>());
@@ -1582,9 +1655,6 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::i32x4_trunc_sat_f64x2_u_zero.value():
     case Instructions::f64x2_convert_low_i32x4_s.value():
     case Instructions::f64x2_convert_low_i32x4_u.value():
-    case Instructions::table_init.value():
-    case Instructions::table_copy.value():
-    case Instructions::table_fill.value():
     default:
         dbgln_if(WASM_TRACE_DEBUG, "Instruction '{}' not implemented", instruction_name(instruction.opcode()));
         m_trap = Trap { ByteString::formatted("Unimplemented instruction {}", instruction_name(instruction.opcode())) };
