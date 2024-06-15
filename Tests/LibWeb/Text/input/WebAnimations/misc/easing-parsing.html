@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const div = document.getElementById("foo");
+
+        const validEasings = [
+            "linear",
+            "linear(0, 1)",
+            "linear(0, 0.5, 1)",
+            "linear(0 5%, 0.5 10%, 1 100%)",
+            "linear(5% 0, 10% 0.5, 100% 1)",
+            "linear(5% 0, 1 100%)",
+            "linear(-14, 27 210%)",
+            "ease",
+            "ease-in",
+            "ease-out",
+            "ease-in-out",
+            "cubic-bezier(0, 0, 0, 0)",
+            "cubic-bezier(1, 1, 1, 1)",
+            "cubic-bezier(1, 1000, 1, 1000)",
+            "step-start",
+            "step-end",
+            "steps(1000)",
+            "steps(10, jump-start)",
+            "steps(10, jump-end)",
+            "steps(10, jump-none)",
+            "steps(10, jump-both)",
+            "steps(10, start)",
+            "steps(10, end)",
+        ];
+
+        const invalidEasings = [
+            "abc",
+            "foo()",
+            "linear()",
+            "linear(a, b, c)",
+            "linear(5 10)",
+            "linear(5% 10%)",
+            "linear(0.5 5% 10)",
+            "linear(0.5 5% 10%)",
+            "cubic-bezier(0, 0, 0)",
+            "cubic-bezier(2, 0, 0, 0)",
+            "cubic-bezier(0, 0, 2, 0)",
+            "steps(1.5)",
+            "steps(-1)",
+            "steps(0, jump-none)",
+        ];
+
+        let numFailed = 0;
+
+        for (const easing of validEasings) {
+            try {
+                div.animate(null, { duration: 1, easing });
+            } catch {
+                println(`Failed to parse valid easing ${easing}`);
+                numFailed++;
+            }
+        }
+
+        for (const easing of invalidEasings) {
+            try {
+                div.animate(null, { duration: 1, easing });
+                println(`Successfully parsed invalid easing ${easing}`);
+                numFailed++;
+            } catch {
+            }
+        }
+
+        if (numFailed === 0)
+            println(`PASS`);
+    });
+</script>

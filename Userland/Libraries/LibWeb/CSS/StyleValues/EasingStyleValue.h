@@ -10,38 +10,80 @@
 
 #pragma once
 
-#include <LibWeb/CSS/EasingFunctions.h>
 #include <LibWeb/CSS/StyleValue.h>
 
 namespace Web::CSS {
 
 class EasingStyleValue final : public StyleValueWithDefaultOperators<EasingStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<EasingStyleValue> create(CSS::EasingFunction easing_function, StyleValueVector&& values)
+    struct Linear {
+        struct Stop {
+            double offset;
+            Optional<double> position;
+
+            bool operator==(Stop const&) const = default;
+        };
+
+        Vector<Stop> stops;
+
+        bool operator==(Linear const&) const = default;
+    };
+
+    struct CubicBezier {
+        static CubicBezier ease();
+        static CubicBezier ease_in();
+        static CubicBezier ease_out();
+        static CubicBezier ease_in_out();
+
+        double x1;
+        double y1;
+        double x2;
+        double y2;
+
+        bool operator==(CubicBezier const&) const = default;
+    };
+
+    struct Steps {
+        enum class Position {
+            JumpStart,
+            JumpEnd,
+            JumpNone,
+            JumpBoth,
+            Start,
+            End,
+        };
+
+        static Steps step_start();
+        static Steps step_end();
+
+        unsigned int number_of_intervals;
+        Position position { Position::End };
+
+        bool operator==(Steps const&) const = default;
+    };
+
+    using Function = Variant<Linear, CubicBezier, Steps>;
+
+    static ValueComparingNonnullRefPtr<EasingStyleValue> create(Function const& function)
     {
-        return adopt_ref(*new (nothrow) EasingStyleValue(easing_function, move(values)));
+        return adopt_ref(*new (nothrow) EasingStyleValue(function));
     }
     virtual ~EasingStyleValue() override = default;
 
-    CSS::EasingFunction easing_function() const { return m_properties.easing_function; }
-    StyleValueVector values() const { return m_properties.values; }
+    Function const& function() const { return m_function; }
 
     virtual String to_string() const override;
 
-    bool properties_equal(EasingStyleValue const& other) const { return m_properties == other.m_properties; }
+    bool properties_equal(EasingStyleValue const& other) const { return m_function == other.m_function; }
 
 private:
-    EasingStyleValue(CSS::EasingFunction easing_function, StyleValueVector&& values)
+    EasingStyleValue(Function function)
         : StyleValueWithDefaultOperators(Type::Easing)
-        , m_properties { .easing_function = easing_function, .values = move(values) }
+        , m_function(function)
     {
     }
 
-    struct Properties {
-        CSS::EasingFunction easing_function;
-        StyleValueVector values;
-        bool operator==(Properties const& other) const;
-    } m_properties;
+    Function m_function;
 };
 
 }

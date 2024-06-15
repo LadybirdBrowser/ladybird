@@ -1557,7 +1557,8 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
             play_state = *play_state_value;
     }
 
-    Animations::TimingFunction timing_function = Animations::ease_timing_function;
+    static Animations::TimingFunction ease_timing_function = Animations::TimingFunction::from_easing_style_value(*CSS::EasingStyleValue::create(CSS::EasingStyleValue::CubicBezier::ease()));
+    Animations::TimingFunction timing_function = ease_timing_function;
     if (auto timing_property = style.maybe_null_property(PropertyID::AnimationTimingFunction); timing_property && timing_property->is_easing())
         timing_function = Animations::TimingFunction::from_easing_style_value(timing_property->as_easing());
 

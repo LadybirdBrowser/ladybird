@@ -13,33 +13,105 @@
 
 namespace Web::CSS {
 
-String EasingStyleValue::to_string() const
+// NOTE: Magic cubic bezier values from https://www.w3.org/TR/css-easing-1/#valdef-cubic-bezier-easing-function-ease
+
+EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease()
 {
-    if (m_properties.easing_function == EasingFunction::StepStart)
-        return "steps(1, start)"_string;
-    if (m_properties.easing_function == EasingFunction::StepEnd)
-        return "steps(1, end)"_string;
-
-    StringBuilder builder;
-    builder.append(CSS::to_string(m_properties.easing_function));
-
-    if (m_properties.values.is_empty())
-        return MUST(builder.to_string());
-
-    builder.append('(');
-    for (size_t i = 0; i < m_properties.values.size(); ++i) {
-        builder.append(m_properties.values[i]->to_string());
-        if (i != m_properties.values.size() - 1)
-            builder.append(", "sv);
-    }
-    builder.append(')');
-
-    return MUST(builder.to_string());
+    static CubicBezier bezier { 0.25, 0.1, 0.25, 1.0 };
+    return bezier;
 }
 
-bool EasingStyleValue::Properties::operator==(Properties const& other) const
+EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_in()
 {
-    return easing_function == other.easing_function && values == other.values;
+    static CubicBezier bezier { 0.42, 0.0, 1.0, 1.0 };
+    return bezier;
+}
+
+EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_out()
+{
+    static CubicBezier bezier { 0.0, 0.0, 0.58, 1.0 };
+    return bezier;
+}
+
+EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_in_out()
+{
+    static CubicBezier bezier { 0.42, 0.0, 0.58, 1.0 };
+    return bezier;
+}
+
+EasingStyleValue::Steps EasingStyleValue::Steps::step_start() {
+    static Steps steps { 1, Steps::Position::Start };
+    return steps;
+}
+
+EasingStyleValue::Steps EasingStyleValue::Steps::step_end() {
+    static Steps steps { 1, Steps::Position::End };
+    return steps;
+}
+
+String EasingStyleValue::to_string() const
+{
+    StringBuilder builder;
+    m_function.visit(
+        [&](Linear const& linear) {
+            builder.append("linear"sv);
+            if (!linear.stops.is_empty()) {
+                builder.append('(');
+
+                bool first = true;
+                for (auto const& stop : linear.stops) {
+                    if (!first)
+                        builder.append(", "sv);
+                    first = false;
+                    builder.appendff("{}"sv, stop.offset);
+                    if (stop.position.has_value())
+                        builder.appendff(" {}"sv, stop.position.value());
+                }
+
+                builder.append(')');
+            }
+        },
+        [&](CubicBezier const& bezier) {
+            if (bezier == CubicBezier::ease()) {
+                builder.append("ease"sv);
+            } else if (bezier == CubicBezier::ease_in()) {
+                builder.append("ease-in"sv);
+            } else if (bezier == CubicBezier::ease_out()) {
+                builder.append("ease-out"sv);
+            } else if (bezier == CubicBezier::ease_in_out()) {
+                builder.append("ease-in-out"sv);
+            } else {
+                builder.appendff("cubic-bezier({}, {}, {}, {})", bezier.x1, bezier.y1, bezier.x2, bezier.y2);
+            }
+        },
+        [&](Steps const& steps) {
+            if (steps == Steps::step_start()) {
+                builder.append("step-start"sv);
+            } else if (steps == Steps::step_end()) {
+                builder.append("step-end"sv);
+            } else {
+                auto position = [&] -> Optional<StringView> {
+                    switch (steps.position) {
+                    case Steps::Position::JumpStart:
+                        return "jump-start"sv;
+                    case Steps::Position::JumpNone:
+                        return "jump-none"sv;
+                    case Steps::Position::JumpBoth:
+                        return "jump-both"sv;
+                    case Steps::Position::Start:
+                        return "start"sv;
+                    default:
+                        return {};
+                    }
+                }();
+                if (position.has_value()) {
+                    builder.appendff("steps({}, {})", steps.number_of_intervals, position.value());
+                } else {
+                    builder.appendff("steps({})", steps.number_of_intervals);
+                }
+            }
+        });
+    return MUST(builder.to_string());
 }
 
 }

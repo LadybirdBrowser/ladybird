@@ -56,11 +56,4 @@ struct TimingFunction {
     double operator()(double input_progress, bool before_flag) const;
 };
 
-static TimingFunction linear_timing_function { LinearTimingFunction {} };
-// NOTE: Magic values from <https://www.w3.org/TR/css-easing-1/#valdef-cubic-bezier-easing-function-ease>
-static TimingFunction ease_timing_function { CubicBezierTimingFunction { 0.25, 0.1, 0.25, 1.0 } };
-static TimingFunction ease_in_timing_function { CubicBezierTimingFunction { 0.42, 0.0, 1.0, 1.0 } };
-static TimingFunction ease_out_timing_function { CubicBezierTimingFunction { 0.0, 0.0, 0.58, 1.0 } };
-static TimingFunction ease_in_out_timing_function { CubicBezierTimingFunction { 0.42, 0.0, 0.58, 1.0 } };
-
 }

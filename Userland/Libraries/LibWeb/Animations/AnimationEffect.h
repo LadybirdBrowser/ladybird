@@ -184,7 +184,7 @@ protected:
     JS::GCPtr<Animation> m_associated_animation {};
 
     // https://www.w3.org/TR/web-animations-1/#time-transformations
-    TimingFunction m_timing_function { linear_timing_function };
+    TimingFunction m_timing_function { LinearTimingFunction {} };
 
     // Used for calculating transitions in StyleComputer
     Phase m_previous_phase { Phase::Idle };
