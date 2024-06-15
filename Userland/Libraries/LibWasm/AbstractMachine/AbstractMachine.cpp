@@ -340,6 +340,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             for (auto it = elem_instance->references().begin(); it < elem_instance->references().end(); ++i, ++it) {
                 table_instance->elements()[i + d.value()] = *it;
             }
+            // Drop element
+            *m_store.get(main_module_instance.elements()[current_index]) = ElementInstance(elem_instance->type(), {});
         }
 
         return IterationDecision::Continue;
