@@ -169,76 +169,39 @@ double StepsTimingFunction::operator()(double input_progress, bool before_flag) 
 
 TimingFunction TimingFunction::from_easing_style_value(CSS::EasingStyleValue const& easing_value)
 {
-    switch (easing_value.easing_function()) {
-    case CSS::EasingFunction::Linear:
-        return Animations::linear_timing_function;
-    case CSS::EasingFunction::Ease:
-        return Animations::ease_timing_function;
-    case CSS::EasingFunction::EaseIn:
-        return Animations::ease_in_timing_function;
-    case CSS::EasingFunction::EaseOut:
-        return Animations::ease_out_timing_function;
-    case CSS::EasingFunction::EaseInOut:
-        return Animations::ease_in_out_timing_function;
-    case CSS::EasingFunction::CubicBezier: {
-        auto values = easing_value.values();
-        return {
-            Animations::CubicBezierTimingFunction {
-                values[0]->as_number().number(),
-                values[1]->as_number().number(),
-                values[2]->as_number().number(),
-                values[3]->as_number().number(),
-            },
-        };
-    }
-    case CSS::EasingFunction::Steps: {
-        auto values = easing_value.values();
-        auto jump_at_start = false;
-        auto jump_at_end = true;
+    return easing_value.function().visit(
+        [](CSS::EasingStyleValue::Linear const& linear) {
+            if (!linear.stops.is_empty()) {
+                dbgln("FIXME: Handle linear easing functions with stops");
+            }
+            return TimingFunction { LinearTimingFunction {} };
+        },
+        [](CSS::EasingStyleValue::CubicBezier const& bezier) {
+            return TimingFunction { CubicBezierTimingFunction { bezier.x1, bezier.y1, bezier.x2, bezier.y2 } };
+        },
+        [](CSS::EasingStyleValue::Steps const& steps) {
+            auto jump_at_start = false;
+            auto jump_at_end = false;
 
-        if (values.size() > 1) {
-            auto identifier = values[1]->to_identifier();
-            switch (identifier) {
-            case CSS::ValueID::JumpStart:
-            case CSS::ValueID::Start:
+            switch (steps.position) {
+            case CSS::EasingStyleValue::Steps::Position::Start:
+            case CSS::EasingStyleValue::Steps::Position::JumpStart:
                 jump_at_start = true;
-                jump_at_end = false;
                 break;
-            case CSS::ValueID::JumpEnd:
-            case CSS::ValueID::End:
-                jump_at_start = false;
+            case CSS::EasingStyleValue::Steps::Position::End:
+            case CSS::EasingStyleValue::Steps::Position::JumpEnd:
                 jump_at_end = true;
                 break;
-            case CSS::ValueID::JumpNone:
-                jump_at_start = false;
-                jump_at_end = false;
+            case CSS::EasingStyleValue::Steps::Position::JumpBoth:
+                jump_at_start = true;
+                jump_at_end = true;
                 break;
-            default:
+            case CSS::EasingStyleValue::Steps::Position::JumpNone:
                 break;
             }
-        }
 
-        return Animations::TimingFunction { Animations::StepsTimingFunction {
-            .number_of_steps = static_cast<size_t>(max(values[0]->as_integer().integer(), !(jump_at_end && jump_at_start) ? 1 : 0)),
-            .jump_at_start = jump_at_start,
-            .jump_at_end = jump_at_end,
-        } };
-    }
-    case CSS::EasingFunction::StepEnd:
-        return Animations::TimingFunction { Animations::StepsTimingFunction {
-            .number_of_steps = 1,
-            .jump_at_start = false,
-            .jump_at_end = true,
-        } };
-    case CSS::EasingFunction::StepStart:
-        return Animations::TimingFunction { Animations::StepsTimingFunction {
-            .number_of_steps = 1,
-            .jump_at_start = true,
-            .jump_at_end = false,
-        } };
-    default:
-        return Animations::ease_timing_function;
-    }
+            return TimingFunction { StepsTimingFunction { steps.number_of_intervals, jump_at_start, jump_at_end } };
+        });
 }
 
 double TimingFunction::operator()(double input_progress, bool before_flag) const

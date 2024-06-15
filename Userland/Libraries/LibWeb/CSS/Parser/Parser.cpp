@@ -5065,102 +5065,169 @@ RefPtr<StyleValue> Parser::parse_easing_value(TokenStream<ComponentValue>& token
 
     auto const& part = tokens.next_token();
 
-    StringView name;
-    Optional<Vector<ComponentValue> const&> arguments;
     if (part.is(Token::Type::Ident)) {
-        name = part.token().ident();
-    } else if (part.is_function()) {
-        name = part.function().name();
-        arguments = part.function().values();
-    } else {
-        return nullptr;
-    }
+        auto name = part.token().ident();
+        auto maybe_simple_easing = [&] -> RefPtr<EasingStyleValue> {
+            if (name == "linear"sv)
+                return EasingStyleValue::create(EasingStyleValue::Linear {});
+            if (name == "ease"sv)
+                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease());
+            if (name == "ease-in"sv)
+                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_in());
+            if (name == "ease-out"sv)
+                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_out());
+            if (name == "ease-in-out"sv)
+                return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_in_out());
+            if (name == "step-start"sv)
+                return EasingStyleValue::create(EasingStyleValue::Steps::step_start());
+            if (name == "step-end"sv)
+                return EasingStyleValue::create(EasingStyleValue::Steps::step_end());
+            return {};
+        }();
 
-    auto maybe_function = easing_function_from_string(name);
-    if (!maybe_function.has_value())
-        return nullptr;
-
-    auto function = maybe_function.release_value();
-    auto function_metadata = easing_function_metadata(function);
-
-    if (function_metadata.parameters.is_empty() && arguments.has_value()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Too many arguments to {}. max: 0", name);
-        return nullptr;
-    }
-
-    StyleValueVector values;
-    size_t argument_index = 0;
-    if (arguments.has_value()) {
-        auto argument_tokens = TokenStream { *arguments };
-        auto arguments_values = parse_a_comma_separated_list_of_component_values(argument_tokens);
-        if (arguments_values.size() > function_metadata.parameters.size()) {
-            dbgln_if(CSS_PARSER_DEBUG, "Too many arguments to {}. max: {}", name, function_metadata.parameters.size());
+        if (!maybe_simple_easing)
             return nullptr;
-        }
-        for (auto& argument_values : arguments_values) {
-            // Prune any whitespace before and after the actual argument values.
-            argument_values.remove_all_matching([](auto& value) { return value.is(Token::Type::Whitespace); });
 
-            if (argument_values.size() != 1) {
-                dbgln_if(CSS_PARSER_DEBUG, "Too many values in argument to {}. max: 1", name);
+        transaction.commit();
+        return maybe_simple_easing;
+    }
+
+    if (!part.is_function())
+        return nullptr;
+
+    TokenStream argument_tokens { part.function().values() };
+    auto comma_separated_arguments = parse_a_comma_separated_list_of_component_values(argument_tokens);
+
+    // Remove whitespace
+    for (auto& argument : comma_separated_arguments)
+        argument.remove_all_matching([](auto& value) { return value.is(Token::Type::Whitespace); });
+
+    auto name = part.function().name();
+    if (name == "linear"sv) {
+        Vector<EasingStyleValue::Linear::Stop> stops;
+        for (auto const& argument : comma_separated_arguments) {
+            if (argument.is_empty() || argument.size() > 2)
+                return nullptr;
+
+            Optional<double> offset;
+            Optional<double> position;
+
+            for (auto const& part : argument) {
+                if (part.is(Token::Type::Number)) {
+                    if (offset.has_value())
+                        return nullptr;
+                    offset = part.token().number_value();
+                } else if (part.is(Token::Type::Percentage)) {
+                    if (position.has_value())
+                        return nullptr;
+                    position = part.token().percentage();
+                } else {
+                    return nullptr;
+                };
+            }
+
+            if (!offset.has_value())
+                return nullptr;
+
+            stops.append({ offset.value(), move(position) });
+        }
+
+        if (stops.is_empty())
+            return nullptr;
+
+        transaction.commit();
+        return EasingStyleValue::create(EasingStyleValue::Linear { move(stops) });
+    }
+
+    if (name == "cubic-bezier") {
+        if (comma_separated_arguments.size() != 4)
+            return nullptr;
+
+        for (auto const& argument : comma_separated_arguments) {
+            if (argument.size() != 1)
+                return nullptr;
+            if (!argument[0].is(Token::Type::Number))
+                return nullptr;
+        }
+
+        EasingStyleValue::CubicBezier bezier {
+            comma_separated_arguments[0][0].token().number_value(),
+            comma_separated_arguments[1][0].token().number_value(),
+            comma_separated_arguments[2][0].token().number_value(),
+            comma_separated_arguments[3][0].token().number_value(),
+        };
+
+        if (bezier.x1 < 0.0 || bezier.x1 > 1.0 || bezier.x2 < 0.0 || bezier.x2 > 1.0)
+            return nullptr;
+
+        transaction.commit();
+        return EasingStyleValue::create(bezier);
+    }
+
+    if (name == "steps") {
+        if (comma_separated_arguments.is_empty() || comma_separated_arguments.size() > 2)
+            return nullptr;
+
+        for (auto const& argument : comma_separated_arguments) {
+            if (argument.size() != 1)
+                return nullptr;
+        }
+
+        EasingStyleValue::Steps steps;
+
+        auto intervals_argument = comma_separated_arguments[0][0];
+        if (!intervals_argument.is(Token::Type::Number))
+            return nullptr;
+        if (!intervals_argument.token().number().is_integer())
+            return nullptr;
+        auto intervals = intervals_argument.token().to_integer();
+
+        if (comma_separated_arguments.size() == 2) {
+            TokenStream identifier_stream { comma_separated_arguments[1] };
+            auto ident = parse_identifier_value(identifier_stream);
+            if (!ident)
+                return nullptr;
+            switch (ident->to_identifier()) {
+            case ValueID::JumpStart:
+                steps.position = EasingStyleValue::Steps::Position::JumpStart;
+                break;
+            case ValueID::JumpEnd:
+                steps.position = EasingStyleValue::Steps::Position::JumpEnd;
+                break;
+            case ValueID::JumpBoth:
+                steps.position = EasingStyleValue::Steps::Position::JumpBoth;
+                break;
+            case ValueID::JumpNone:
+                steps.position = EasingStyleValue::Steps::Position::JumpNone;
+                break;
+            case ValueID::Start:
+                steps.position = EasingStyleValue::Steps::Position::Start;
+                break;
+            case ValueID::End:
+                steps.position = EasingStyleValue::Steps::Position::End;
+                break;
+            default:
                 return nullptr;
             }
-
-            auto& value = argument_values[0];
-            auto value_as_stream = TokenStream { argument_values };
-            switch (function_metadata.parameters[argument_index].type) {
-            case EasingFunctionParameterType::Number: {
-                if (value.is(Token::Type::Number))
-                    values.append(NumberStyleValue::create(value.token().number().value()));
-                else
-                    return nullptr;
-                break;
-            }
-            case EasingFunctionParameterType::NumberZeroToOne: {
-                if (value.is(Token::Type::Number) && value.token().number_value() >= 0 && value.token().number_value() <= 1)
-                    values.append(NumberStyleValue::create(value.token().number().value()));
-                else
-                    return nullptr;
-                break;
-            }
-            case EasingFunctionParameterType::Integer: {
-                if (value.is(Token::Type::Number) && value.token().number().is_integer())
-                    values.append(IntegerStyleValue::create(value.token().number().integer_value()));
-                else
-                    return nullptr;
-                break;
-            }
-            case EasingFunctionParameterType::StepPosition: {
-                if (!value.is(Token::Type::Ident))
-                    return nullptr;
-                auto ident = parse_identifier_value(value_as_stream);
-                if (!ident)
-                    return nullptr;
-                switch (ident->to_identifier()) {
-                case ValueID::JumpStart:
-                case ValueID::JumpEnd:
-                case ValueID::JumpNone:
-                case ValueID::Start:
-                case ValueID::End:
-                    values.append(*ident);
-                    break;
-                default:
-                    return nullptr;
-                }
-            }
-            }
-
-            ++argument_index;
         }
+
+        // Perform extra validation
+        // https://drafts.csswg.org/css-easing/#funcdef-step-easing-function-steps
+        // The first parameter specifies the number of intervals in the function. It must be a positive integer greater than 0
+        // unless the second parameter is jump-none in which case it must be a positive integer greater than 1.
+        if (steps.position == EasingStyleValue::Steps::Position::JumpNone) {
+            if (intervals < 1)
+                return nullptr;
+        } else if (intervals < 0) {
+            return nullptr;
+        }
+
+        steps.number_of_intervals = intervals;
+        transaction.commit();
+        return EasingStyleValue::create(steps);
     }
 
-    if (argument_index < function_metadata.parameters.size() && !function_metadata.parameters[argument_index].is_optional) {
-        dbgln_if(CSS_PARSER_DEBUG, "Required parameter at position {} is missing", argument_index);
-        return nullptr;
-    }
-
-    transaction.commit();
-    return EasingStyleValue::create(function, move(values));
+    return nullptr;
 }
 
 // https://www.w3.org/TR/css-transforms-1/#transform-property
@@ -5483,7 +5550,7 @@ RefPtr<StyleValue> Parser::parse_transition_value(TokenStream<ComponentValue>& t
             transition.property_name = CustomIdentStyleValue::create("all"_fly_string);
 
         if (!transition.easing)
-            transition.easing = EasingStyleValue::create(EasingFunction::Ease, {});
+            transition.easing = EasingStyleValue::create(EasingStyleValue::CubicBezier::ease());
 
         transitions.append(move(transition));
 
