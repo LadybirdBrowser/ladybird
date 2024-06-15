@@ -9,10 +9,10 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Variant.h>
-#include <LibWeb/Animations/TimingFunction.h>
 #include <LibWeb/Bindings/AnimationEffectPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 
 namespace Web::Animations {
 
@@ -92,11 +92,8 @@ public:
     Bindings::PlaybackDirection playback_direction() const { return m_playback_direction; }
     void set_playback_direction(Bindings::PlaybackDirection playback_direction) { m_playback_direction = playback_direction; }
 
-    String const& easing_function() const { return m_easing_function; }
-    void set_easing_function(String easing_function) { m_easing_function = move(easing_function); }
-
-    TimingFunction const& timing_function() { return m_timing_function; }
-    void set_timing_function(TimingFunction value) { m_timing_function = move(value); }
+    CSS::EasingStyleValue::Function const& timing_function() { return m_timing_function; }
+    void set_timing_function(CSS::EasingStyleValue::Function value) { m_timing_function = move(value); }
 
     JS::GCPtr<Animation> associated_animation() const { return m_associated_animation; }
     void set_associated_animation(JS::GCPtr<Animation> value);
@@ -177,14 +174,11 @@ protected:
     // https://www.w3.org/TR/web-animations-1/#playback-direction
     Bindings::PlaybackDirection m_playback_direction { Bindings::PlaybackDirection::Normal };
 
-    // https://www.w3.org/TR/css-easing-1/#easing-function
-    String m_easing_function { "linear"_string };
-
     // https://www.w3.org/TR/web-animations-1/#animation-associated-effect
     JS::GCPtr<Animation> m_associated_animation {};
 
     // https://www.w3.org/TR/web-animations-1/#time-transformations
-    TimingFunction m_timing_function { LinearTimingFunction {} };
+    CSS::EasingStyleValue::Function m_timing_function { CSS::EasingStyleValue::Linear {} };
 
     // Used for calculating transitions in StyleComputer
     Phase m_previous_phase { Phase::Idle };
