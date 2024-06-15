@@ -40,7 +40,15 @@ public:
         double x2;
         double y2;
 
-        bool operator==(CubicBezier const&) const = default;
+        struct CachedSample {
+            double x;
+            double y;
+            double t;
+        };
+
+        mutable Vector<CachedSample, 64> m_cached_x_samples {};
+
+        bool operator==(CubicBezier const&) const;
     };
 
     struct Steps {
@@ -62,7 +70,14 @@ public:
         bool operator==(Steps const&) const = default;
     };
 
-    using Function = Variant<Linear, CubicBezier, Steps>;
+    struct Function : public Variant<Linear, CubicBezier, Steps>
+    {
+        using Variant::Variant;
+
+        double evaluate_at(double input_progress, bool before_flag) const;
+
+        String to_string() const;
+    };
 
     static ValueComparingNonnullRefPtr<EasingStyleValue> create(Function const& function)
     {
@@ -72,7 +87,7 @@ public:
 
     Function const& function() const { return m_function; }
 
-    virtual String to_string() const override;
+    virtual String to_string() const override { return m_function.to_string(); }
 
     bool properties_equal(EasingStyleValue const& other) const { return m_function == other.m_function; }
 

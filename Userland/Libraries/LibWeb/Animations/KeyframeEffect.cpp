@@ -762,7 +762,6 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyframeEffect>> KeyframeEffect::construct_
     effect->m_playback_direction = source->m_playback_direction;
 
     //     - timing function.
-    effect->m_easing_function = source->m_easing_function;
     effect->m_timing_function = source->m_timing_function;
 
     return effect;

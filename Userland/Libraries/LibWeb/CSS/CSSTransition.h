@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/Animations/Animation.h>
-#include <LibWeb/Animations/TimingFunction.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValue.h>
 #include <LibWeb/CSS/Time.h>

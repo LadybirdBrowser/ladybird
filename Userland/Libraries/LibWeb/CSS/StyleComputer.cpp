@@ -26,7 +26,6 @@
 #include <LibGfx/Font/WOFF2/Font.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Animations/TimingFunction.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
@@ -1557,10 +1556,9 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
             play_state = *play_state_value;
     }
 
-    static Animations::TimingFunction ease_timing_function = Animations::TimingFunction::from_easing_style_value(*CSS::EasingStyleValue::create(CSS::EasingStyleValue::CubicBezier::ease()));
-    Animations::TimingFunction timing_function = ease_timing_function;
+    CSS::EasingStyleValue::Function timing_function { CSS::EasingStyleValue::CubicBezier::ease() };
     if (auto timing_property = style.maybe_null_property(PropertyID::AnimationTimingFunction); timing_property && timing_property->is_easing())
-        timing_function = Animations::TimingFunction::from_easing_style_value(timing_property->as_easing());
+        timing_function = timing_property->as_easing().function();
 
     auto iteration_duration = duration.has_value()
         ? Variant<double, String> { duration.release_value().to_milliseconds() }
