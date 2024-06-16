@@ -29,7 +29,7 @@ runs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
         sudo apt-get update
-        sudo apt-get install autoconf autoconf-archive automake ccache clang-18 clang++-18 clang-format-18 lld-18 gcc-13 g++-13 libstdc++-13-dev ninja-build unzip qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev qt6-multimedia-dev libgl1-mesa-dev libpulse-dev libssl-dev libegl1-mesa-dev
+        sudo apt-get install autoconf autoconf-archive automake ccache clang-18 clang++-18 lld-18 gcc-13 g++-13 libstdc++-13-dev ninja-build unzip qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev qt6-multimedia-dev libgl1-mesa-dev libpulse-dev libssl-dev libegl1-mesa-dev
 
         sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
         sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
@@ -41,17 +41,12 @@ runs:
         rm ./wabt-1.0.35-ubuntu-20.04.tar.gz
         echo "${{ github.workspace }}/wabt-1.0.35/bin" >> $GITHUB_PATH
 
-    - name: 'Install JS dependencies'
-      if: ${{ inputs.os == 'Linux' }}
-      shell: bash
-      run: sudo npm install -g prettier@2.7.1
-
     - name: 'Install Python dependencies'
       if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
         python3 -m pip install --upgrade pip
-        pip3 install flake8 requests six
+        pip3 install requests six
 
     - name: 'Install Dependencies'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
