@@ -470,7 +470,7 @@ LocaleResult resolve_locale(Vector<String> const& requested_locales, LocaleOptio
         if (options_value.has_value()) {
             // 1. Let optionsValue be the string optionsValue after performing the algorithm steps to transform Unicode extension values to canonical syntax per Unicode Technical Standard #35 LDML § 3.2.1 Canonical Unicode Locale Identifiers, treating key as ukey and optionsValue as uvalue productions.
             // 2. Let optionsValue be the string optionsValue after performing the algorithm steps to replace Unicode extension values with their canonical form per Unicode Technical Standard #35 LDML § 3.2.1 Canonical Unicode Locale Identifiers, treating key as ukey and optionsValue as uvalue productions.
-            ::Locale::canonicalize_unicode_extension_values(key, *options_value, true);
+            ::Locale::canonicalize_unicode_extension_values(key, *options_value);
 
             // 3. If optionsValue is the empty String, then
             if (options_value->is_empty()) {
