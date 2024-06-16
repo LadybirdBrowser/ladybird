@@ -56,47 +56,34 @@ public:
     static ErrorOr<LEB128<ValueType>> read_from_stream(Stream& stream)
     requires(Signed<ValueType>)
     {
-        // Note: We read into a u64 to simplify the parsing logic;
-        //    result is range checked into ValueType after parsing.
-        static_assert(sizeof(ValueType) <= sizeof(u64), "Error checking logic assumes 64 bits or less!");
+        constexpr auto BITS = sizeof(ValueType) * 8;
 
-        i64 temp = 0;
-        size_t num_bytes = 0;
+        ValueType result = 0;
+        u32 shift = 0;
         u8 byte = 0;
-        ValueType result {};
 
         do {
             if (stream.is_eof())
                 return Error::from_string_literal("Stream reached end-of-file while reading LEB128 value");
-
             byte = TRY(stream.read_value<u8>());
+            result |= (ValueType)(byte & 0x7F) << shift;
 
-            // note: 64 bit assumptions!
-            u64 masked_byte = byte & ~(1 << 7);
-            bool const shift_too_large_for_result = num_bytes * 7 >= 64;
-            if (shift_too_large_for_result)
-                return Error::from_string_literal("Read value contains more bits than fit the chosen ValueType");
+            if (shift >= BITS - 7) {
+                bool has_continuation = (byte & 0x80);
+                ValueType sign_and_unused = (i8)(byte << 1) >> (BITS - shift);
+                if (has_continuation)
+                    return Error::from_string_literal("Read value contains more bits than fit the chosen ValueType");
+                if (sign_and_unused != 0 && sign_and_unused != -1)
+                    return Error::from_string_literal("Read byte is too large to fit the chosen ValueType");
+                return LEB128<ValueType> { result };
+            }
 
-            bool const shift_too_large_for_byte = (num_bytes * 7) == 63 && masked_byte != 0x00 && masked_byte != 0x7Fu;
-            if (shift_too_large_for_byte)
-                return Error::from_string_literal("Read byte is too large to fit the chosen ValueType");
+            shift += 7;
+        } while (byte & 0x80);
 
-            temp = (temp) | (masked_byte << (num_bytes * 7));
-            ++num_bytes;
-        } while (byte & (1 << 7));
-
-        if ((num_bytes * 7) < 64 && (byte & 0x40)) {
-            // sign extend
-            temp |= ((u64)(-1) << (num_bytes * 7));
-        }
-
-        // Now that we've accumulated into an i64, make sure it fits into result
-        if constexpr (sizeof(ValueType) < sizeof(u64)) {
-            if (temp > NumericLimits<ValueType>::max() || temp < NumericLimits<ValueType>::min())
-                return Error::from_string_literal("Temporary value does not fit the result type");
-        }
-
-        result = static_cast<ValueType>(temp);
+        // Sign extend
+        if (shift < BITS && (byte & 0x40))
+            result |= ((ValueType)~0 << shift);
 
         return LEB128<ValueType> { result };
     }
