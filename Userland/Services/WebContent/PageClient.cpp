@@ -207,7 +207,9 @@ void PageClient::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& ta
 {
     paint_options.should_show_line_box_borders = m_should_show_line_box_borders;
     paint_options.has_focus = m_has_focus;
+#ifdef HAS_ACCELERATED_GRAPHICS
     paint_options.accelerated_graphics_context = m_accelerated_graphics_context.ptr();
+#endif
     paint_options.use_gpu_painter = s_use_gpu_painter;
     paint_options.use_experimental_cpu_transform_support = s_use_experimental_cpu_transform_support;
     page().top_level_traversable()->paint(content_rect, target, paint_options);
