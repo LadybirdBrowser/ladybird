@@ -343,7 +343,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
         // d. Let styles be dataLocaleData.[[styles]].[[<resolvedCalendar>]].
         // e. Let bestFormat be DateTimeStyleFormat(dateStyle, timeStyle, styles).
         auto formatter = ::Locale::DateTimeFormat::create_for_date_and_time_style(
-            date_time_format->data_locale(),
+            date_time_format->locale(),
             time_zone,
             format_options.hour_cycle,
             format_options.hour12,
@@ -421,7 +421,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
         // h. Else,
         //     i. Let bestFormat be BestFitFormatMatcher(formatOptions, formats).
         auto formatter = ::Locale::DateTimeFormat::create_for_pattern_options(
-            date_time_format->data_locale(),
+            date_time_format->locale(),
             time_zone,
             format_options);
         date_time_format->set_formatter(move(formatter));

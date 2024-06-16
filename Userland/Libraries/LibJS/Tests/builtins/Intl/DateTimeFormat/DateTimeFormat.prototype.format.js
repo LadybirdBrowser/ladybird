@@ -537,3 +537,41 @@ describe("timeZoneName", () => {
         });
     });
 });
+
+describe("non-Gregorian calendars", () => {
+    test("Hebrew", () => {
+        const en = new Intl.DateTimeFormat("en-u-ca-hebrew", {
+            dateStyle: "long",
+            timeStyle: "long",
+            timeZone: "UTC",
+        });
+        expect(en.format(d0)).toBe("3 Tevet 5782 at 5:40:50\u202fPM UTC");
+        expect(en.format(d1)).toBe("17 Shevat 5749 at 7:08:09\u202fAM UTC");
+
+        const ar = new Intl.DateTimeFormat("ar-u-ca-hebrew", {
+            dateStyle: "long",
+            timeStyle: "long",
+            timeZone: "UTC",
+        });
+        expect(ar.format(d0)).toBe("٣ طيفت ٥٧٨٢ ص في ٥:٤٠:٥٠ م UTC");
+        expect(ar.format(d1)).toBe("١٧ شباط ٥٧٤٩ ص في ٧:٠٨:٠٩ ص UTC");
+    });
+
+    test("Chinese", () => {
+        const en = new Intl.DateTimeFormat("en-u-ca-chinese", {
+            dateStyle: "long",
+            timeStyle: "long",
+            timeZone: "UTC",
+        });
+        expect(en.format(d0)).toBe("Eleventh Month 4, 2021(xin-chou) at 5:40:50\u202fPM UTC");
+        expect(en.format(d1)).toBe("Twelfth Month 16, 1988(wu-chen) at 7:08:09\u202fAM UTC");
+
+        const zh = new Intl.DateTimeFormat("zh-u-ca-chinese", {
+            dateStyle: "long",
+            timeStyle: "long",
+            timeZone: "UTC",
+        });
+        expect(zh.format(d0)).toBe("2021辛丑年十一月初四 UTC 17:40:50");
+        expect(zh.format(d1)).toBe("1988戊辰年腊月十六 UTC 07:08:09");
+    });
+});
