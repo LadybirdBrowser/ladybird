@@ -392,8 +392,6 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                     }
                     main_module_instance.datas().append(*maybe_data_address);
 
-                    if (data.init.is_empty())
-                        return;
                     auto address = main_module_instance.memories()[data.index.value()];
                     auto instance = m_store.get(address);
                     Checked<size_t> checked_offset = data.init.size();
@@ -405,6 +403,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                         };
                         return;
                     }
+                    if (data.init.is_empty())
+                        return;
                     instance->data().overwrite(offset, data.init.data(), data.init.size());
                 },
                 [&](DataSection::Data::Passive const& passive) {
