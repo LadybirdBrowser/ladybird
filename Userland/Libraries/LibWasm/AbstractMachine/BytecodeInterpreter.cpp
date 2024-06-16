@@ -728,6 +728,9 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     }
     case Instructions::global_get.value(): {
         auto global_index = instruction.arguments().get<GlobalIndex>();
+        // This check here is for const expressions. In non-const expressions,
+        // a validation error would have been thrown.
+        TRAP_IF_NOT(global_index < configuration.frame().module().globals().size());
         auto address = configuration.frame().module().globals()[global_index.value()];
         dbgln_if(WASM_TRACE_DEBUG, "global({}) -> stack", address.value());
         auto global = configuration.store().get(address);
