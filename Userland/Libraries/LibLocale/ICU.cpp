@@ -13,6 +13,7 @@
 
 #include <unicode/dtptngen.h>
 #include <unicode/locdspnm.h>
+#include <unicode/numsys.h>
 #include <unicode/tznames.h>
 #include <unicode/unistr.h>
 
@@ -72,6 +73,23 @@ icu::LocaleDisplayNames& LocaleData::dialect_display_names()
     if (!m_dialect_display_names)
         m_dialect_display_names = adopt_own(*icu::LocaleDisplayNames::createInstance(locale(), ULDN_DIALECT_NAMES));
     return *m_dialect_display_names;
+}
+
+icu::NumberingSystem& LocaleData::numbering_system()
+{
+    if (!m_numbering_system) {
+        UErrorCode status = U_ZERO_ERROR;
+        m_numbering_system = adopt_own_if_nonnull(icu::NumberingSystem::createInstance(locale(), status));
+
+        if (icu_failure(status)) {
+            status = U_ZERO_ERROR;
+
+            m_numbering_system = adopt_own_if_nonnull(icu::NumberingSystem::createInstance("und", status));
+            VERIFY(icu_success(status));
+        }
+    }
+
+    return *m_numbering_system;
 }
 
 icu::DateTimePatternGenerator& LocaleData::date_time_pattern_generator()

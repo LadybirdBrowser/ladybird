@@ -67,14 +67,14 @@ describe("correct behavior", () => {
     });
 
     test("numeric option limited to known 'kn' values", () => {
-        ["true", "foo"].forEach(numeric => {
+        ["false", "foo"].forEach(numeric => {
             const en = new Intl.Collator(`en-u-kn-${numeric}`);
-            expect(en.resolvedOptions().numeric).toBeTrue();
+            expect(en.resolvedOptions().numeric).toBeFalse();
         });
 
-        ["true", "foo"].forEach(numeric => {
+        ["false", "foo"].forEach(numeric => {
             const el = new Intl.Collator(`el-u-kn-${numeric}`);
-            expect(el.resolvedOptions().numeric).toBeTrue();
+            expect(el.resolvedOptions().numeric).toBeFalse();
         });
     });
 
@@ -95,14 +95,14 @@ describe("correct behavior", () => {
     });
 
     test("caseFirst option limited to known 'kf' values", () => {
-        ["upper", "foo"].forEach(caseFirst => {
+        ["false", "foo"].forEach(caseFirst => {
             const en = Intl.Collator(`en-u-kf-${caseFirst}`);
-            expect(en.resolvedOptions().caseFirst).toBe("upper");
+            expect(en.resolvedOptions().caseFirst).toBe("false");
         });
 
-        ["upper", "foo"].forEach(caseFirst => {
+        ["false", "foo"].forEach(caseFirst => {
             const el = Intl.Collator(`el-u-kf-${caseFirst}`);
-            expect(el.resolvedOptions().caseFirst).toBe("upper");
+            expect(el.resolvedOptions().caseFirst).toBe("false");
         });
     });
 });

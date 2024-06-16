@@ -19,6 +19,7 @@ set(SOURCES
     NumberFormat.cpp
     PluralRules.cpp
     RelativeTimeFormat.cpp
+    UnicodeKeywords.cpp
 )
 
 serenity_lib(LibLocale locale)

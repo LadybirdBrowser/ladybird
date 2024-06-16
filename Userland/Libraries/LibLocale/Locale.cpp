@@ -9,16 +9,12 @@
 #include <AK/AllOf.h>
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
-#include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
-#include <LibLocale/DateTimeFormat.h>
 #include <LibLocale/ICU.h>
 #include <LibLocale/Locale.h>
-#include <LibUnicode/CharacterTypes.h>
 
 #include <unicode/localebuilder.h>
 #include <unicode/locid.h>
-#include <unicode/ucurr.h>
 
 namespace Locale {
 
@@ -548,52 +544,7 @@ StringView style_to_string(Style style)
     }
 }
 
-ReadonlySpan<StringView> __attribute__((weak)) get_available_keyword_values(StringView) { return {}; }
-ReadonlySpan<StringView> __attribute__((weak)) get_available_calendars() { return {}; }
-ReadonlySpan<StringView> __attribute__((weak)) get_available_collation_case_orderings() { return {}; }
-ReadonlySpan<StringView> __attribute__((weak)) get_available_collation_numeric_orderings() { return {}; }
-ReadonlySpan<StringView> __attribute__((weak)) get_available_collation_types() { return {}; }
-ReadonlySpan<StringView> __attribute__((weak)) get_available_hour_cycles() { return {}; }
-ReadonlySpan<StringView> __attribute__((weak)) get_available_number_systems() { return {}; }
 Optional<Locale> __attribute__((weak)) locale_from_string(StringView) { return {}; }
-Optional<Key> __attribute__((weak)) key_from_string(StringView) { return {}; }
-Optional<KeywordCalendar> __attribute__((weak)) keyword_ca_from_string(StringView) { return {}; }
-Optional<KeywordCollation> __attribute__((weak)) keyword_co_from_string(StringView) { return {}; }
-Optional<KeywordHours> __attribute__((weak)) keyword_hc_from_string(StringView) { return {}; }
-Optional<KeywordColCaseFirst> __attribute__((weak)) keyword_kf_from_string(StringView) { return {}; }
-Optional<KeywordColNumeric> __attribute__((weak)) keyword_kn_from_string(StringView) { return {}; }
-Optional<KeywordNumbers> __attribute__((weak)) keyword_nu_from_string(StringView) { return {}; }
-Vector<StringView> __attribute__((weak)) get_keywords_for_locale(StringView, StringView) { return {}; }
-Optional<StringView> __attribute__((weak)) get_preferred_keyword_value_for_locale(StringView, StringView) { return {}; }
-
-Vector<String> available_currencies()
-{
-    UErrorCode status = U_ZERO_ERROR;
-
-    auto* currencies = ucurr_openISOCurrencies(UCURR_ALL, &status);
-    ScopeGuard guard { [&]() { uenum_close(currencies); } };
-
-    if (icu_failure(status))
-        return {};
-
-    Vector<String> result;
-
-    while (true) {
-        i32 length = 0;
-        char const* next = uenum_next(currencies, &length, &status);
-
-        if (icu_failure(status))
-            return {};
-        if (next == nullptr)
-            break;
-
-        // https://unicode-org.atlassian.net/browse/ICU-21687
-        if (StringView currency { next, static_cast<size_t>(length) }; currency != "LSM"sv)
-            result.append(MUST(String::from_utf8(currency)));
-    }
-
-    return result;
-}
 
 static void apply_extensions_to_locale(icu::Locale& locale, icu::Locale const& locale_with_extensions)
 {
