@@ -17,7 +17,7 @@ enum class PluralForm {
 PluralForm plural_form_from_string(StringView);
 StringView plural_form_to_string(PluralForm);
 
-enum class PluralCategory : u8 {
+enum class PluralCategory {
     Other,
     Zero,
     One,
