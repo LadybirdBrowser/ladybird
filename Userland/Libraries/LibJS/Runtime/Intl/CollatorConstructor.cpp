@@ -62,16 +62,19 @@ static ThrowCompletionOr<NonnullGCPtr<Collator>> initialize_collator(VM& vm, Col
     auto numeric = TRY(get_option(vm, *options, vm.names.numeric, OptionType::Boolean, {}, Empty {}));
 
     // 14. If numeric is not undefined, then
-    //     a. Let numeric be ! ToString(numeric).
+    if (!numeric.is_undefined()) {
+        // a. Let numeric be ! ToString(numeric).
+        numeric = PrimitiveString::create(vm, MUST(numeric.to_string(vm)));
+    }
+
     // 15. Set opt.[[kn]] to numeric.
-    if (!numeric.is_undefined())
-        opt.kn = MUST(numeric.to_string(vm));
+    opt.kn = locale_key_from_value(numeric);
 
     // 16. Let caseFirst be ? GetOption(options, "caseFirst", string, « "upper", "lower", "false" », undefined).
-    // 17. Set opt.[[kf]] to caseFirst.
     auto case_first = TRY(get_option(vm, *options, vm.names.caseFirst, OptionType::String, { "upper"sv, "lower"sv, "false"sv }, Empty {}));
-    if (!case_first.is_undefined())
-        opt.kf = case_first.as_string().utf8_string();
+
+    // 17. Set opt.[[kf]] to caseFirst.
+    opt.kf = locale_key_from_value(case_first);
 
     // 18. Let relevantExtensionKeys be %Collator%.[[RelevantExtensionKeys]].
     auto relevant_extension_keys = Collator::relevant_extension_keys();
@@ -83,20 +86,26 @@ static ThrowCompletionOr<NonnullGCPtr<Collator>> initialize_collator(VM& vm, Col
     collator.set_locale(move(result.locale));
 
     // 21. Let collation be r.[[co]].
+    auto& collation_value = result.co;
+
     // 22. If collation is null, let collation be "default".
+    if (collation_value.has<Empty>())
+        collation_value = "default"_string;
+
     // 23. Set collator.[[Collation]] to collation.
-    collator.set_collation(result.co.has_value() ? result.co.release_value() : "default"_string);
+    collator.set_collation(move(collation_value.get<String>()));
 
     // 24. If relevantExtensionKeys contains "kn", then
-    if (relevant_extension_keys.span().contains_slow("kn"sv) && result.kn.has_value()) {
+    if (relevant_extension_keys.span().contains_slow("kn"sv)) {
         // a. Set collator.[[Numeric]] to SameValue(r.[[kn]], "true").
-        collator.set_numeric(same_value(PrimitiveString::create(vm, result.kn.release_value()), PrimitiveString::create(vm, "true"_string)));
+        collator.set_numeric(result.kn == "true"_string);
     }
 
     // 25. If relevantExtensionKeys contains "kf", then
-    if (relevant_extension_keys.span().contains_slow("kf"sv) && result.kf.has_value()) {
+    if (relevant_extension_keys.span().contains_slow("kf"sv)) {
         // a. Set collator.[[CaseFirst]] to r.[[kf]].
-        collator.set_case_first(result.kf.release_value());
+        if (auto* resolved_case_first = result.kf.get_pointer<String>())
+            collator.set_case_first(*resolved_case_first);
     }
 
     // 26. Let sensitivity be ? GetOption(options, "sensitivity", string, « "base", "accent", "case", "variant" », undefined).

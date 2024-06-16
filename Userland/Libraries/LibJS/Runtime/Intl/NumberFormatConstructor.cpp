@@ -106,10 +106,10 @@ ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM& vm, N
         // a. If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
         if (!::Locale::is_type_identifier(numbering_system.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
-
-        // 8. Set opt.[[nu]] to numberingSystem.
-        opt.nu = numbering_system.as_string().utf8_string();
     }
+
+    // 8. Set opt.[[nu]] to numberingSystem.
+    opt.nu = locale_key_from_value(numbering_system);
 
     // 9. Let localeData be %NumberFormat%.[[LocaleData]].
     // 10. Let r be ResolveLocale(%NumberFormat%.[[AvailableLocales]], requestedLocales, opt, %NumberFormat%.[[RelevantExtensionKeys]], localeData).
@@ -122,8 +122,8 @@ ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM& vm, N
     number_format.set_data_locale(move(result.data_locale));
 
     // 13. Set numberFormat.[[NumberingSystem]] to r.[[nu]].
-    if (result.nu.has_value())
-        number_format.set_numbering_system(result.nu.release_value());
+    if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
+        number_format.set_numbering_system(move(*resolved_numbering_system));
 
     // 14. Perform ? SetNumberFormatUnitOptions(numberFormat, options).
     TRY(set_number_format_unit_options(vm, number_format, *options));

@@ -110,10 +110,10 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
         // a. If calendar cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
         if (!::Locale::is_type_identifier(calendar.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, calendar, "calendar"sv);
-
-        // 9. Set opt.[[ca]] to calendar.
-        opt.ca = calendar.as_string().utf8_string();
     }
+
+    // 9. Set opt.[[ca]] to calendar.
+    opt.ca = locale_key_from_value(calendar);
 
     // 10. Let numberingSystem be ? GetOption(options, "numberingSystem", string, empty, undefined).
     auto numbering_system = TRY(get_option(vm, *options, vm.names.numberingSystem, OptionType::String, {}, Empty {}));
@@ -123,10 +123,10 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
         // a. If numberingSystem cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
         if (!::Locale::is_type_identifier(numbering_system.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
-
-        // 12. Set opt.[[nu]] to numberingSystem.
-        opt.nu = numbering_system.as_string().utf8_string();
     }
+
+    // 12. Set opt.[[nu]] to numberingSystem.
+    opt.nu = locale_key_from_value(numbering_system);
 
     // 13. Let hour12 be ? GetOption(options, "hour12", boolean, empty, undefined).
     auto hour12 = TRY(get_option(vm, *options, vm.names.hour12, OptionType::Boolean, {}, Empty {}));
@@ -141,8 +141,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
     }
 
     // 16. Set opt.[[hc]] to hourCycle.
-    if (!hour_cycle.is_nullish())
-        opt.hc = hour_cycle.as_string().utf8_string();
+    opt.hc = locale_key_from_value(hour_cycle);
 
     // 17. Let localeData be %DateTimeFormat%.[[LocaleData]].
     // 18. Let r be ResolveLocale(%DateTimeFormat%.[[AvailableLocales]], requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]], localeData).
@@ -153,12 +152,12 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
 
     // 20. Let resolvedCalendar be r.[[ca]].
     // 21. Set dateTimeFormat.[[Calendar]] to resolvedCalendar.
-    if (result.ca.has_value())
-        date_time_format->set_calendar(result.ca.release_value());
+    if (auto* resolved_calendar = result.ca.get_pointer<String>())
+        date_time_format->set_calendar(move(*resolved_calendar));
 
     // 22. Set dateTimeFormat.[[NumberingSystem]] to r.[[nu]].
-    if (result.nu.has_value())
-        date_time_format->set_numbering_system(result.nu.release_value());
+    if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
+        date_time_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 23. Let dataLocale be r.[[dataLocale]].
     auto data_locale = move(result.data_locale);
@@ -184,8 +183,8 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
         VERIFY(hour12.is_undefined());
 
         // b. Let hc be r.[[hc]].
-        if (result.hc.has_value())
-            hour_cycle_value = ::Locale::hour_cycle_from_string(*result.hc);
+        if (auto* resolved_hour_cycle = result.hc.get_pointer<String>())
+            hour_cycle_value = ::Locale::hour_cycle_from_string(*resolved_hour_cycle);
 
         // c. If hc is null, set hc to dataLocaleData.[[hourCycle]].
         if (!hour_cycle_value.has_value())

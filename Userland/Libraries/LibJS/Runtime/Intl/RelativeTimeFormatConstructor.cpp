@@ -77,10 +77,10 @@ ThrowCompletionOr<NonnullGCPtr<Object>> RelativeTimeFormatConstructor::construct
         // a. If numberingSystem cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
         if (!::Locale::is_type_identifier(numbering_system.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
-
-        // 10. Set opt.[[nu]] to numberingSystem.
-        opt.nu = numbering_system.as_string().utf8_string();
     }
+
+    // 10. Set opt.[[nu]] to numberingSystem.
+    opt.nu = locale_key_from_value(numbering_system);
 
     // 11. Let r be ResolveLocale(%Intl.RelativeTimeFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.RelativeTimeFormat%.[[RelevantExtensionKeys]], %Intl.RelativeTimeFormat%.[[LocaleData]]).
     auto result = resolve_locale(requested_locales, opt, RelativeTimeFormat::relevant_extension_keys());
@@ -95,8 +95,8 @@ ThrowCompletionOr<NonnullGCPtr<Object>> RelativeTimeFormatConstructor::construct
     relative_time_format->set_data_locale(move(result.data_locale));
 
     // 15. Set relativeTimeFormat.[[NumberingSystem]] to r.[[nu]].
-    if (result.nu.has_value())
-        relative_time_format->set_numbering_system(result.nu.release_value());
+    if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
+        relative_time_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 16. Let style be ? GetOption(options, "style", string, « "long", "short", "narrow" », "long").
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));

@@ -77,8 +77,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> DurationFormatConstructor::construct(Fun
     // 8. Let opt be the Record { [[localeMatcher]]: matcher, [[nu]]: numberingSystem }.
     LocaleOptions opt {};
     opt.locale_matcher = matcher;
-    if (!numbering_system.is_undefined())
-        opt.nu = numbering_system.as_string().utf8_string();
+    opt.nu = locale_key_from_value(numbering_system);
 
     // 9. Let r be ResolveLocale(%DurationFormat%.[[AvailableLocales]], requestedLocales, opt, %DurationFormat%.[[RelevantExtensionKeys]], %DurationFormat%.[[LocaleData]]).
     auto result = resolve_locale(requested_locales, opt, DurationFormat::relevant_extension_keys());
@@ -110,8 +109,8 @@ ThrowCompletionOr<NonnullGCPtr<Object>> DurationFormatConstructor::construct(Fun
     duration_format->set_minutes_seconds_separator(move(digital_format.minutes_seconds_separator));
 
     // 22. Set durationFormat.[[NumberingSystem]] to r.[[nu]].
-    if (result.nu.has_value())
-        duration_format->set_numbering_system(result.nu.release_value());
+    if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
+        duration_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 23. Let style be ? GetOption(options, "style", string, « "long", "short", "narrow", "digital" », "short").
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv, "digital"sv }, "short"sv));

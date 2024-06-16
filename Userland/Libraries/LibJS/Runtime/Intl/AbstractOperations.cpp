@@ -21,6 +21,17 @@
 
 namespace JS::Intl {
 
+Optional<LocaleKey> locale_key_from_value(Value value)
+{
+    if (value.is_undefined())
+        return OptionalNone {};
+    if (value.is_null())
+        return Empty {};
+    if (value.is_string())
+        return value.as_string().utf8_string();
+    VERIFY_NOT_REACHED();
+}
+
 // 6.2.2 IsStructurallyValidLanguageTag ( locale ), https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
 bool is_structurally_valid_language_tag(StringView locale)
 {
@@ -366,9 +377,30 @@ static auto& find_key_in_value(T& value, StringView key)
     VERIFY_NOT_REACHED();
 }
 
+static Vector<LocaleKey> available_keyword_values(StringView locale, StringView key)
+{
+    auto key_locale_data = ::Locale::available_keyword_values(locale, key);
+
+    Vector<LocaleKey> result;
+    result.ensure_capacity(key_locale_data.size());
+
+    for (auto& keyword : key_locale_data)
+        result.unchecked_append(move(keyword));
+
+    if (key == "hc"sv) {
+        // https://tc39.es/ecma402/#sec-intl.datetimeformat-internal-slots
+        // [[LocaleData]].[[<locale>]].[[hc]] must be « null, "h11", "h12", "h23", "h24" ».
+        result.prepend(Empty {});
+    }
+
+    return result;
+}
+
 // 9.2.7 ResolveLocale ( availableLocales, requestedLocales, options, relevantExtensionKeys, localeData ), https://tc39.es/ecma402/#sec-resolvelocale
 LocaleResult resolve_locale(Vector<String> const& requested_locales, LocaleOptions const& options, ReadonlySpan<StringView> relevant_extension_keys)
 {
+    static auto true_string = "true"_string;
+
     // 1. Let matcher be options.[[localeMatcher]].
     auto const& matcher = options.locale_matcher;
     MatcherResult matcher_result;
@@ -416,7 +448,7 @@ LocaleResult resolve_locale(Vector<String> const& requested_locales, LocaleOptio
         // b. Assert: Type(foundLocaleData) is Record.
         // c. Let keyLocaleData be foundLocaleData.[[<key>]].
         // d. Assert: Type(keyLocaleData) is List.
-        auto key_locale_data = ::Locale::available_keyword_values(found_locale, key);
+        auto key_locale_data = available_keyword_values(found_locale, key);
 
         // e. Let value be keyLocaleData[0].
         // f. Assert: Type(value) is either String or Null.
@@ -447,9 +479,9 @@ LocaleResult resolve_locale(Vector<String> const& requested_locales, LocaleOptio
                 }
             }
             // 4. Else if keyLocaleData contains "true", then
-            else if (key_locale_data.contains_slow("true"sv)) {
+            else if (key_locale_data.contains_slow(true_string)) {
                 // a. Let value be "true".
-                value = "true"_string;
+                value = true_string;
 
                 // b. Let supportedExtensionAddition be the string-concatenation of "-" and key.
                 supported_extension_addition = ::Locale::Keyword { MUST(String::from_utf8(key)), {} };
@@ -464,15 +496,15 @@ LocaleResult resolve_locale(Vector<String> const& requested_locales, LocaleOptio
         auto options_value = find_key_in_value(options, key);
 
         // iii. If Type(optionsValue) is String, then
-        if (options_value.has_value()) {
+        if (auto* options_string = options_value.has_value() ? options_value->get_pointer<String>() : nullptr) {
             // 1. Let optionsValue be the string optionsValue after performing the algorithm steps to transform Unicode extension values to canonical syntax per Unicode Technical Standard #35 LDML § 3.2.1 Canonical Unicode Locale Identifiers, treating key as ukey and optionsValue as uvalue productions.
             // 2. Let optionsValue be the string optionsValue after performing the algorithm steps to replace Unicode extension values with their canonical form per Unicode Technical Standard #35 LDML § 3.2.1 Canonical Unicode Locale Identifiers, treating key as ukey and optionsValue as uvalue productions.
-            ::Locale::canonicalize_unicode_extension_values(key, *options_value);
+            ::Locale::canonicalize_unicode_extension_values(key, *options_string);
 
             // 3. If optionsValue is the empty String, then
-            if (options_value->is_empty()) {
+            if (options_string->is_empty()) {
                 // a. Let optionsValue be "true".
-                options_value = "true"_string;
+                *options_string = true_string;
             }
         }
 
