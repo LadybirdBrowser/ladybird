@@ -420,7 +420,9 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             instantiation_result = InstantiationError { ByteString::formatted("Start section function referenced invalid index {} of max {} entries", index.value(), functions.size()) };
             return;
         }
-        invoke(functions[index.value()], {});
+        auto result = invoke(functions[index.value()], {});
+        if (result.is_trap())
+            instantiation_result = InstantiationError { ByteString::formatted("Start function trapped: {}", result.trap().reason) };
     });
 
     if (instantiation_result.has_value())
