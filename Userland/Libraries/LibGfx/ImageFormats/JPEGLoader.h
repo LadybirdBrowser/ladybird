@@ -1,37 +1,21 @@
 /*
- * Copyright (c) 2020, the SerenityOS developers.
- * Copyright (c) 2022-2023, Lucas Chollet <lucas.chollet@serenityos.org>
+ * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/MemoryStream.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 
 namespace Gfx {
 
 struct JPEGLoadingContext;
 
-// For the specification, see: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
-
-struct JPEGDecoderOptions {
-    enum class CMYK {
-        // For standalone jpeg files.
-        Normal,
-
-        // For jpeg data embedded in PDF files.
-        PDF,
-    };
-    CMYK cmyk { CMYK::Normal };
-};
-
 class JPEGImageDecoderPlugin : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
-    static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create_with_options(ReadonlyBytes, JPEGDecoderOptions = {});
 
     virtual ~JPEGImageDecoderPlugin() override;
     virtual IntSize size() override;
@@ -46,7 +30,7 @@ public:
     virtual ErrorOr<NonnullRefPtr<CMYKBitmap>> cmyk_frame() override;
 
 private:
-    JPEGImageDecoderPlugin(NonnullOwnPtr<JPEGLoadingContext>);
+    explicit JPEGImageDecoderPlugin(NonnullOwnPtr<JPEGLoadingContext>);
 
     NonnullOwnPtr<JPEGLoadingContext> m_context;
 };
