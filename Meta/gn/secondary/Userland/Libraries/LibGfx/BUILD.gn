@@ -82,8 +82,6 @@ shared_library("LibGfx") {
     "ImageFormats/PPMLoader.cpp",
     "ImageFormats/PortableFormatWriter.cpp",
     "ImageFormats/QMArithmeticDecoder.cpp",
-    "ImageFormats/QOILoader.cpp",
-    "ImageFormats/QOIWriter.cpp",
     "ImageFormats/TGALoader.cpp",
     "ImageFormats/TIFFLoader.cpp",
     "ImageFormats/TinyVGLoader.cpp",

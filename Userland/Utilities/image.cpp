@@ -14,7 +14,6 @@
 #include <LibGfx/ImageFormats/JPEGWriter.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/ImageFormats/PortableFormatWriter.h>
-#include <LibGfx/ImageFormats/QOIWriter.h>
 #include <LibGfx/ImageFormats/WebPSharedLossless.h>
 #include <LibGfx/ImageFormats/WebPWriter.h>
 
@@ -186,10 +185,8 @@ static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, bool pp
         bytes = TRY(Gfx::BMPWriter::encode(*frame, { .icc_data = image.icc_data }));
     } else if (out_path.ends_with(".png"sv, CaseSensitivity::CaseInsensitive)) {
         bytes = TRY(Gfx::PNGWriter::encode(*frame, { .icc_data = image.icc_data }));
-    } else if (out_path.ends_with(".qoi"sv, CaseSensitivity::CaseInsensitive)) {
-        bytes = TRY(Gfx::QOIWriter::encode(*frame));
     } else {
-        return Error::from_string_view("can only write .bmp, .gif, .jpg, .png, .ppm, .qoi, and .webp"sv);
+        return Error::from_string_view("can only write .bmp, .gif, .jpg, .png, .ppm, and .webp"sv);
     }
     TRY(TRY(stream())->write_until_depleted(bytes));
 
