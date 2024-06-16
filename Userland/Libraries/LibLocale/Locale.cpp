@@ -494,7 +494,7 @@ String canonicalize_unicode_locale_id(StringView locale)
     return locale_data->to_string();
 }
 
-void canonicalize_unicode_extension_values(StringView key, String& value, bool)
+void canonicalize_unicode_extension_values(StringView key, String& value)
 {
     UErrorCode status = U_ZERO_ERROR;
 
