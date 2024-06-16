@@ -21,25 +21,28 @@
 
 namespace JS::Intl {
 
+using LocaleKey = Variant<Empty, String>;
+Optional<LocaleKey> locale_key_from_value(Value);
+
 struct LocaleOptions {
     Value locale_matcher;
-    Optional<String> ca; // [[Calendar]]
-    Optional<String> co; // [[Collation]]
-    Optional<String> hc; // [[HourCycle]]
-    Optional<String> kf; // [[CaseFirst]]
-    Optional<String> kn; // [[Numeric]]
-    Optional<String> nu; // [[NumberingSystem]]
+    Optional<LocaleKey> ca; // [[Calendar]]
+    Optional<LocaleKey> co; // [[Collation]]
+    Optional<LocaleKey> hc; // [[HourCycle]]
+    Optional<LocaleKey> kf; // [[CaseFirst]]
+    Optional<LocaleKey> kn; // [[Numeric]]
+    Optional<LocaleKey> nu; // [[NumberingSystem]]
 };
 
 struct LocaleResult {
     String locale;
     String data_locale;
-    Optional<String> ca; // [[Calendar]]
-    Optional<String> co; // [[Collation]]
-    Optional<String> hc; // [[HourCycle]]
-    Optional<String> kf; // [[CaseFirst]]
-    Optional<String> kn; // [[Numeric]]
-    Optional<String> nu; // [[NumberingSystem]]
+    LocaleKey ca; // [[Calendar]]
+    LocaleKey co; // [[Collation]]
+    LocaleKey hc; // [[HourCycle]]
+    LocaleKey kf; // [[CaseFirst]]
+    LocaleKey kn; // [[Numeric]]
+    LocaleKey nu; // [[NumberingSystem]]
 };
 
 struct PatternPartition {
