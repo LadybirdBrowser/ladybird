@@ -33,7 +33,6 @@ set(FUZZER_TARGETS
     Poly1305
     PPMLoader
     QOALoader
-    QOILoader
     RegexECMA262
     RegexPosixBasic
     RegexPosixExtended
@@ -98,7 +97,6 @@ set(FUZZER_DEPENDENCIES_PNGLoader LibGfx)
 set(FUZZER_DEPENDENCIES_Poly1305 LibCrypto)
 set(FUZZER_DEPENDENCIES_PPMLoader LibGfx)
 set(FUZZER_DEPENDENCIES_QOALoader LibAudio)
-set(FUZZER_DEPENDENCIES_QOILoader LibGfx)
 set(FUZZER_DEPENDENCIES_RegexECMA262 LibRegex)
 set(FUZZER_DEPENDENCIES_RegexPosixBasic LibRegex)
 set(FUZZER_DEPENDENCIES_RegexPosixExtended LibRegex)

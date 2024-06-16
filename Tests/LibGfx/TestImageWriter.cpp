@@ -18,8 +18,6 @@
 #include <LibGfx/ImageFormats/JPEGWriter.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
-#include <LibGfx/ImageFormats/QOILoader.h>
-#include <LibGfx/ImageFormats/QOIWriter.h>
 #include <LibGfx/ImageFormats/WebPLoader.h>
 #include <LibGfx/ImageFormats/WebPWriter.h>
 #include <LibTest/TestCase.h>
@@ -172,12 +170,6 @@ TEST_CASE(test_png)
 {
     TRY_OR_FAIL((test_roundtrip<Gfx::PNGWriter, Gfx::PNGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
     TRY_OR_FAIL((test_roundtrip<Gfx::PNGWriter, Gfx::PNGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgba_bitmap()))));
-}
-
-TEST_CASE(test_qoi)
-{
-    TRY_OR_FAIL((test_roundtrip<Gfx::QOIWriter, Gfx::QOIImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
-    TRY_OR_FAIL((test_roundtrip<Gfx::QOIWriter, Gfx::QOIImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgba_bitmap()))));
 }
 
 TEST_CASE(test_webp)

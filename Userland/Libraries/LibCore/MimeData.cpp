@@ -133,7 +133,6 @@ static Array const s_registered_mime_type = {
     MimeType { .name = "image/x-portable-bitmap"sv, .common_extensions = { ".pbm"sv }, .description = "PBM image data"sv, .magic_bytes = Vector<u8> { 0x50, 0x31, 0x0A } },
     MimeType { .name = "image/x-portable-graymap"sv, .common_extensions = { ".pgm"sv }, .description = "PGM image data"sv, .magic_bytes = Vector<u8> { 0x50, 0x32, 0x0A } },
     MimeType { .name = "image/x-portable-pixmap"sv, .common_extensions = { ".ppm"sv }, .description = "PPM image data"sv, .magic_bytes = Vector<u8> { 0x50, 0x33, 0x0A } },
-    MimeType { .name = "image/x-qoi"sv, .common_extensions = { ".qoi"sv }, .description = "QOI image data"sv, .magic_bytes = Vector<u8> { 'q', 'o', 'i', 'f' } },
     MimeType { .name = "image/x-targa"sv, .common_extensions = { ".tga"sv }, .description = "Targa image data"sv },
 
     MimeType { .name = "text/css"sv, .common_extensions = { ".css"sv }, .description = "Cascading Style Sheet"sv },

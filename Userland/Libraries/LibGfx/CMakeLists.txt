@@ -60,8 +60,6 @@ set(SOURCES
     ImageFormats/PAMLoader.cpp
     ImageFormats/PPMLoader.cpp
     ImageFormats/QMArithmeticDecoder.cpp
-    ImageFormats/QOILoader.cpp
-    ImageFormats/QOIWriter.cpp
     ImageFormats/TGALoader.cpp
     ImageFormats/TIFFLoader.cpp
     ImageFormats/TinyVGLoader.cpp

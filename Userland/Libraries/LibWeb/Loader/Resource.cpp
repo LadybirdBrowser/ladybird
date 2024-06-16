@@ -97,11 +97,6 @@ void Resource::did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderM
     if (content_type.has_value()) {
         dbgln_if(RESOURCE_DEBUG, "Content-Type header: '{}'", content_type.value());
         m_mime_type = mime_type_from_content_type(content_type.value());
-        // FIXME: "The Quite OK Image Format" doesn't have an official mime type yet,
-        //        and servers like nginx will send a generic octet-stream mime type instead.
-        //        Let's use image/x-qoi for now, which is also what our Core::MimeData uses & would guess.
-        if (m_mime_type == "application/octet-stream" && url().serialize_path().ends_with(".qoi"sv))
-            m_mime_type = "image/x-qoi";
     } else {
         auto content_type_options = headers.get("X-Content-Type-Options");
         if (content_type_options.value_or("").equals_ignoring_ascii_case("nosniff"sv)) {
