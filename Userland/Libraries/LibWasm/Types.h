@@ -82,7 +82,7 @@ template<typename T>
 struct GenericIndexParser {
     static ParseResult<T> parse(Stream& stream)
     {
-        auto value_or_error = stream.read_value<LEB128<size_t>>();
+        auto value_or_error = stream.read_value<LEB128<u32>>();
         if (value_or_error.is_error())
             return with_eof_check(stream, ParseError::ExpectedIndex);
         size_t value = value_or_error.release_value();
