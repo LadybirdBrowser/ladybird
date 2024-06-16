@@ -1,4 +1,4 @@
-name: Commit linter
+name: Lint Commit Messages
 
 on: [pull_request_target]
 
@@ -6,7 +6,7 @@ on: [pull_request_target]
 # (… but don't accept overlong 'fixup!' commit descriptions.)
 
 jobs:
-  lint_commits:
+  lint:
     runs-on: ubuntu-22.04
     if: always() && github.repository == 'LadybirdBrowser/ladybird'
 

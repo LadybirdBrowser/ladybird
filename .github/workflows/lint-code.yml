@@ -1,0 +1,37 @@
+name: Lint Code
+
+on: [ push, pull_request ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-22.04
+    if: always() && github.repository == 'LadybirdBrowser/ladybird'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set Up Environment
+        shell: bash
+        run: |
+          set -e
+
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main'
+
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+
+          sudo apt-get update
+          sudo apt-get install clang-format-18 generate-ninja
+
+      - name: Install JS Dependencies
+        shell: bash
+        run: sudo npm install -g prettier@2.7.1
+
+      - name: Install Python Dependencies
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install flake8
+
+      - name: Lint
+        run: ${{ github.workspace }}/Meta/lint-ci.sh
