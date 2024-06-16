@@ -748,6 +748,8 @@ TIFFImageDecoderPlugin::TIFFImageDecoderPlugin(NonnullOwnPtr<FixedMemoryStream> 
     m_context = make<TIFF::TIFFLoadingContext>(move(stream));
 }
 
+TIFFImageDecoderPlugin::~TIFFImageDecoderPlugin() = default;
+
 bool TIFFImageDecoderPlugin::sniff(ReadonlyBytes bytes)
 {
     if (bytes.size() < 4)

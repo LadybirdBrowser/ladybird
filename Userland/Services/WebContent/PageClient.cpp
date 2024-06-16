@@ -70,6 +70,8 @@ PageClient::PageClient(PageHost& owner, u64 id)
 #endif
 }
 
+PageClient::~PageClient() = default;
+
 void PageClient::schedule_repaint()
 {
     if (m_paint_state != PaintState::Ready) {

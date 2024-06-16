@@ -26,6 +26,8 @@ ImageStyleValue::ImageStyleValue(URL::URL const& url)
 {
 }
 
+ImageStyleValue::~ImageStyleValue() = default;
+
 void ImageStyleValue::load_any_resources(DOM::Document& document)
 {
     if (m_image_request)

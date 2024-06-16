@@ -30,7 +30,7 @@ public:
 
     static ThrowCompletionOr<NonnullGCPtr<AsyncGenerator>> create(Realm&, Value, ECMAScriptFunctionObject*, NonnullOwnPtr<ExecutionContext>);
 
-    virtual ~AsyncGenerator() override = default;
+    virtual ~AsyncGenerator() override;
 
     void async_generator_enqueue(Completion, NonnullGCPtr<PromiseCapability>);
     ThrowCompletionOr<void> resume(VM&, Completion completion);

@@ -38,7 +38,7 @@ public:
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ExifMetadata>> read_exif_metadata(ReadonlyBytes);
 
-    virtual ~TIFFImageDecoderPlugin() override = default;
+    virtual ~TIFFImageDecoderPlugin() override;
 
     virtual IntSize size() override;
 

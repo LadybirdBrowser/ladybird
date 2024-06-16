@@ -25,6 +25,7 @@ class RequestClient final
 
 public:
     explicit RequestClient(NonnullOwnPtr<Core::LocalSocket>);
+    virtual ~RequestClient() override;
 
     RefPtr<Request> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {});
 

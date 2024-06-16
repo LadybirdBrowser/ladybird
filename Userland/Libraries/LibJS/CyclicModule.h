@@ -28,6 +28,8 @@ class CyclicModule : public Module {
     JS_DECLARE_ALLOCATOR(CyclicModule);
 
 public:
+    virtual ~CyclicModule() override;
+
     // Note: Do not call these methods directly unless you are HostResolveImportedModule.
     //       Badges cannot be used because other hosts must be able to call this (and it is called recursively)
     virtual ThrowCompletionOr<void> link(VM& vm) override final;

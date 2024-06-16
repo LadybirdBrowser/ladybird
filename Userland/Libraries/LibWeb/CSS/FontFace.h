@@ -35,7 +35,7 @@ public:
     using FontFaceSource = Variant<String, JS::Handle<WebIDL::BufferSource>>;
 
     [[nodiscard]] static JS::NonnullGCPtr<FontFace> construct_impl(JS::Realm&, String family, FontFaceSource source, FontFaceDescriptors const& descriptors);
-    virtual ~FontFace() override = default;
+    virtual ~FontFace() override;
 
     String family() const { return m_family; }
     WebIDL::ExceptionOr<void> set_family(String const&);

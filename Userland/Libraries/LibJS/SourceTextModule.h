@@ -19,6 +19,8 @@ class SourceTextModule final : public CyclicModule {
     JS_DECLARE_ALLOCATOR(SourceTextModule);
 
 public:
+    virtual ~SourceTextModule() override;
+
     static Result<NonnullGCPtr<SourceTextModule>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, Script::HostDefined* host_defined = nullptr);
 
     Program const& parse_node() const { return *m_ecmascript_code; }

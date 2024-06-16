@@ -29,6 +29,8 @@ class PageClient final : public Web::PageClient {
 public:
     static JS::NonnullGCPtr<PageClient> create(JS::VM& vm, PageHost& page_host, u64 id);
 
+    virtual ~PageClient() override;
+
     static void set_use_gpu_painter();
     static void set_use_experimental_cpu_transform_support();
 

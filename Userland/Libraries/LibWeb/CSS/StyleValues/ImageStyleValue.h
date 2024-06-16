@@ -26,7 +26,7 @@ public:
     {
         return adopt_ref(*new (nothrow) ImageStyleValue(url));
     }
-    virtual ~ImageStyleValue() override = default;
+    virtual ~ImageStyleValue() override;
 
     void visit_edges(JS::Cell::Visitor& visitor) const
     {

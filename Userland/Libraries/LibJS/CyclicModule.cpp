@@ -24,6 +24,8 @@ CyclicModule::CyclicModule(Realm& realm, StringView filename, bool has_top_level
 {
 }
 
+CyclicModule::~CyclicModule() = default;
+
 void CyclicModule::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

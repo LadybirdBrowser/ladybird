@@ -19,7 +19,7 @@ public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
 
-    virtual ~JBIG2ImageDecoderPlugin() override = default;
+    virtual ~JBIG2ImageDecoderPlugin() override;
 
     virtual IntSize size() override;
 

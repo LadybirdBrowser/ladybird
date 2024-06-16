@@ -25,7 +25,7 @@ public:
         ProtocolFailed,
         Cancelled,
     };
-    virtual ~NetworkJob() override = default;
+    virtual ~NetworkJob() override;
 
     // Could fire twice, after Headers and after Trailers!
     Function<void(HTTP::HeaderMap const& response_headers, Optional<u32> response_code)> on_headers_received;

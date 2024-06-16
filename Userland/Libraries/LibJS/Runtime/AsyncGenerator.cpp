@@ -34,6 +34,8 @@ AsyncGenerator::AsyncGenerator(Realm&, Object& prototype, NonnullOwnPtr<Executio
 {
 }
 
+AsyncGenerator::~AsyncGenerator() = default;
+
 void AsyncGenerator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
