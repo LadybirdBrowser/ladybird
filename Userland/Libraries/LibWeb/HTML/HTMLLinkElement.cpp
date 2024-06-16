@@ -95,15 +95,16 @@ String HTMLLinkElement::as() const
 {
     String attribute_value = get_attribute_value(HTML::AttributeNames::as);
 
-    if (attribute_value.equals_ignoring_ascii_case("fetch"sv) ||
-        attribute_value.equals_ignoring_ascii_case("image"sv) ||
-        attribute_value.equals_ignoring_ascii_case("script"sv) ||
-        attribute_value.equals_ignoring_ascii_case("style"sv) ||
-        attribute_value.equals_ignoring_ascii_case("video"sv) ||
-        attribute_value.equals_ignoring_ascii_case("audio"sv) ||
-        attribute_value.equals_ignoring_ascii_case("track"sv) ||
-        attribute_value.equals_ignoring_ascii_case("font"sv))
+    if (attribute_value.equals_ignoring_ascii_case("fetch"sv)
+        || attribute_value.equals_ignoring_ascii_case("image"sv)
+        || attribute_value.equals_ignoring_ascii_case("script"sv)
+        || attribute_value.equals_ignoring_ascii_case("style"sv)
+        || attribute_value.equals_ignoring_ascii_case("video"sv)
+        || attribute_value.equals_ignoring_ascii_case("audio"sv)
+        || attribute_value.equals_ignoring_ascii_case("track"sv)
+        || attribute_value.equals_ignoring_ascii_case("font"sv)) {
         return attribute_value.to_lowercase().release_value();
+    }
 
     return String {};
 }

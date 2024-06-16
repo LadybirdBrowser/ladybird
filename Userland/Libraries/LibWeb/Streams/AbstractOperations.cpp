@@ -2889,7 +2889,6 @@ bool readable_byte_stream_controller_should_call_pull(ReadableByteStreamControll
     return false;
 }
 
-
 // NON-STANDARD: Can be used instead of CreateReadableStream in cases where we need to set up a newly allocated
 //               ReadableStream before initialization of said ReadableStream, i.e. ReadableStream is captured by lambdas in an uninitialized state.
 // Spec steps are taken from: https://streams.spec.whatwg.org/#create-readable-stream

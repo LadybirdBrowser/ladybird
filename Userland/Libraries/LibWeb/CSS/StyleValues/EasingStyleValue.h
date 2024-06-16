@@ -70,8 +70,7 @@ public:
         bool operator==(Steps const&) const = default;
     };
 
-    struct Function : public Variant<Linear, CubicBezier, Steps>
-    {
+    struct Function : public Variant<Linear, CubicBezier, Steps> {
         using Variant::Variant;
 
         double evaluate_at(double input_progress, bool before_flag) const;
