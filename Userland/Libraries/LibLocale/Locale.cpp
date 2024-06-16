@@ -8,6 +8,7 @@
 
 #include <AK/AllOf.h>
 #include <AK/GenericLexer.h>
+#include <AK/HashTable.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
 #include <LibLocale/ICU.h>
@@ -514,9 +515,56 @@ StringView default_locale()
     return "en"sv;
 }
 
+static void define_locales_without_scripts(HashTable<String>& locales)
+{
+    // https://tc39.es/ecma402/#sec-internal-slots
+    // For locales that include a script subtag in addition to language and region, the corresponding locale without a
+    // script subtag must also be supported.
+
+    HashTable<String> new_locales;
+
+    auto append_locale_without_script = [&](auto const& locale) {
+        auto parsed_locale = parse_unicode_language_id(locale);
+        if (!parsed_locale.has_value())
+            return;
+        if (!parsed_locale->language.has_value() || !parsed_locale->script.has_value() || !parsed_locale->region.has_value())
+            return;
+
+        auto locale_without_script = MUST(String::formatted("{}-{}", *parsed_locale->language, *parsed_locale->region));
+        new_locales.set(move(locale_without_script));
+    };
+
+    for (auto const& locale : locales)
+        append_locale_without_script(locale);
+
+    for (auto const& new_locale : new_locales)
+        locales.set(new_locale);
+}
+
 bool is_locale_available(StringView locale)
 {
-    return locale_from_string(locale).has_value();
+    static auto available_locales = []() {
+        i32 count = 0;
+        auto const* locale_list = icu::Locale::getAvailableLocales(count);
+
+        HashTable<String> available_locales;
+        available_locales.ensure_capacity(static_cast<size_t>(count));
+
+        for (i32 i = 0; i < count; ++i) {
+            UErrorCode status = U_ZERO_ERROR;
+
+            auto locale_name = locale_list[i].toLanguageTag<StringBuilder>(status);
+            if (icu_failure(status))
+                continue;
+
+            available_locales.set(MUST(locale_name.to_string()));
+        }
+
+        define_locales_without_scripts(available_locales);
+        return available_locales;
+    }();
+
+    return available_locales.contains(locale);
 }
 
 Style style_from_string(StringView style)
@@ -543,8 +591,6 @@ StringView style_to_string(Style style)
         VERIFY_NOT_REACHED();
     }
 }
-
-Optional<Locale> __attribute__((weak)) locale_from_string(StringView) { return {}; }
 
 static void apply_extensions_to_locale(icu::Locale& locale, icu::Locale const& locale_with_extensions)
 {

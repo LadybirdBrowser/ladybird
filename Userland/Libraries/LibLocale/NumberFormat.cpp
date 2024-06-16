@@ -12,7 +12,6 @@
 #include <LibLocale/ICU.h>
 #include <LibLocale/Locale.h>
 #include <LibLocale/NumberFormat.h>
-#include <LibUnicode/CharacterTypes.h>
 #include <math.h>
 
 #include <unicode/numberformatter.h>

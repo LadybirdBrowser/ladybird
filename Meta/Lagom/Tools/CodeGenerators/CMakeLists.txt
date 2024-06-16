@@ -1,5 +1,4 @@
 add_subdirectory(IPCCompiler)
-add_subdirectory(LibLocale)
 add_subdirectory(LibTextCodec)
 add_subdirectory(LibTimeZone)
 add_subdirectory(LibUnicode)

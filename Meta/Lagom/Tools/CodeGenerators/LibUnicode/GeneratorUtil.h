@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,25 +10,16 @@
 #include <AK/Function.h>
 #include <AK/HashFunctions.h>
 #include <AK/HashMap.h>
-#include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
 #include <AK/NumericLimits.h>
 #include <AK/Optional.h>
 #include <AK/QuickSort.h>
 #include <AK/SourceGenerator.h>
-#include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Traits.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
-#include <LibLocale/Locale.h>
 #include <LibUnicode/CharacterTypes.h>
-
-template<class T>
-inline constexpr bool StorageTypeIsList = false;
-
-template<class T>
-inline constexpr bool StorageTypeIsList<Vector<T>> = true;
 
 template<typename T>
 concept IntegralOrEnum = Integral<T> || Enum<T>;
@@ -94,92 +85,6 @@ public:
         if (m_storage.size() <= NumericLimits<u32>::max())
             return "u32"sv;
         return "u64"sv;
-    }
-
-    void generate(SourceGenerator& generator, StringView type, StringView name, size_t max_values_per_row)
-    requires(!StorageTypeIsList<StorageType>)
-    {
-        generator.set("type"sv, type);
-        generator.set("name"sv, name);
-        generator.set("size"sv, ByteString::number(m_storage.size()));
-
-        generator.append(R"~~~(
-static constexpr Array<@type@, @size@ + 1> @name@ { {
-    {})~~~");
-
-        size_t values_in_current_row = 1;
-
-        for (auto const& value : m_storage) {
-            if (values_in_current_row++ > 0)
-                generator.append(", ");
-
-            if constexpr (IsSame<StorageType, ByteString>)
-                generator.append(ByteString::formatted("\"{}\"sv", value));
-            else
-                generator.append(ByteString::formatted("{}", value));
-
-            if (values_in_current_row == max_values_per_row) {
-                values_in_current_row = 0;
-                generator.append(",\n    ");
-            }
-        }
-
-        generator.append(R"~~~(
-} };
-)~~~");
-    }
-
-    void generate(SourceGenerator& generator, StringView type, StringView name)
-    requires(StorageTypeIsList<StorageType>)
-    {
-        generator.set("type"sv, type);
-        generator.set("name"sv, name);
-
-        for (size_t i = 0; i < m_storage.size(); ++i) {
-            auto const& list = m_storage[i];
-
-            generator.set("index"sv, ByteString::number(i));
-            generator.set("size"sv, ByteString::number(list.size()));
-
-            generator.append(R"~~~(
-static constexpr Array<@type@, @size@> @name@@index@ { {)~~~");
-
-            bool first = true;
-            for (auto const& value : list) {
-                generator.append(first ? " "sv : ", "sv);
-                generator.append(ByteString::formatted("{}", value));
-                first = false;
-            }
-
-            generator.append(" } };");
-        }
-
-        generator.set("size"sv, ByteString::number(m_storage.size()));
-
-        generator.append(R"~~~(
-
-static constexpr Array<ReadonlySpan<@type@>, @size@ + 1> @name@ { {
-    {})~~~");
-
-        constexpr size_t max_values_per_row = 10;
-        size_t values_in_current_row = 1;
-
-        for (size_t i = 0; i < m_storage.size(); ++i) {
-            if (values_in_current_row++ > 0)
-                generator.append(", ");
-
-            generator.set("index"sv, ByteString::number(i));
-            generator.append("@name@@index@.span()");
-
-            if (values_in_current_row == max_values_per_row) {
-                values_in_current_row = 0;
-                generator.append(",\n    ");
-            }
-        }
-
-        generator.append(R"~~~(
-} };
-)~~~");
     }
 
 protected:
@@ -280,50 +185,6 @@ struct Alias {
     ByteString alias;
 };
 
-struct CanonicalLanguageID {
-    static ErrorOr<CanonicalLanguageID> parse(UniqueStringStorage& unique_strings, StringView language)
-    {
-        CanonicalLanguageID language_id {};
-
-        auto segments = language.split_view('-');
-        VERIFY(!segments.is_empty());
-        size_t index = 0;
-
-        if (Locale::is_unicode_language_subtag(segments[index])) {
-            language_id.language = unique_strings.ensure(segments[index]);
-            if (segments.size() == ++index)
-                return language_id;
-        } else {
-            return Error::from_string_literal("Expected language subtag");
-        }
-
-        if (Locale::is_unicode_script_subtag(segments[index])) {
-            language_id.script = unique_strings.ensure(segments[index]);
-            if (segments.size() == ++index)
-                return language_id;
-        }
-
-        if (Locale::is_unicode_region_subtag(segments[index])) {
-            language_id.region = unique_strings.ensure(segments[index]);
-            if (segments.size() == ++index)
-                return language_id;
-        }
-
-        while (index < segments.size()) {
-            if (!Locale::is_unicode_variant_subtag(segments[index]))
-                return Error::from_string_literal("Expected variant subtag");
-            language_id.variants.append(unique_strings.ensure(segments[index++]));
-        }
-
-        return language_id;
-    }
-
-    size_t language { 0 };
-    size_t script { 0 };
-    size_t region { 0 };
-    Vector<size_t> variants {};
-};
-
 inline ErrorOr<NonnullOwnPtr<Core::InputBufferedFile>> open_file(StringView path, Core::File::OpenMode mode)
 {
     if (path.is_empty())
@@ -331,14 +192,6 @@ inline ErrorOr<NonnullOwnPtr<Core::InputBufferedFile>> open_file(StringView path
 
     auto file = TRY(Core::File::open(path, mode));
     return Core::InputBufferedFile::create(move(file));
-}
-
-inline ErrorOr<JsonValue> read_json_file(StringView path)
-{
-    auto file = TRY(open_file(path, Core::File::OpenMode::Read));
-    auto buffer = TRY(file->read_until_eof());
-
-    return JsonValue::from_string(buffer);
 }
 
 inline void ensure_from_string_types_are_generated(SourceGenerator& generator)
@@ -567,36 +420,6 @@ static constexpr Array<ReadonlySpan<@type@>, @size@> @name@ { {
 
     generator.append(R"~~~(
 } };
-)~~~");
-}
-
-template<typename T>
-void generate_available_values(SourceGenerator& generator, StringView name, Vector<T> const& values, Vector<Alias> const& aliases = {}, Function<bool(StringView)> value_filter = {})
-{
-    generator.set("name", name);
-
-    generator.append(R"~~~(
-ReadonlySpan<StringView> @name@()
-{
-    static constexpr auto values = Array {)~~~");
-
-    bool first = true;
-    for (auto const& value : values) {
-        if (value_filter && !value_filter(value))
-            continue;
-
-        generator.append(first ? " "sv : ", "sv);
-        first = false;
-
-        if (auto it = aliases.find_if([&](auto const& alias) { return alias.alias == value; }); it != aliases.end())
-            generator.append(ByteString::formatted("\"{}\"sv", it->name));
-        else
-            generator.append(ByteString::formatted("\"{}\"sv", value));
-    }
-
-    generator.append(R"~~~( };
-    return values.span();
-}
 )~~~");
 }
 
