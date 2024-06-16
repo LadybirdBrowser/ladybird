@@ -124,7 +124,6 @@ static Array const s_registered_mime_type = {
     MimeType { .name = "image/tiff"sv, .common_extensions = { ".tiff"sv }, .description = "TIFF image data"sv, .magic_bytes = Vector<u8> { 'I', 'I', '*', 0x00 } },
     MimeType { .name = "image/tiff"sv, .common_extensions = { ".tiff"sv }, .description = "TIFF image data"sv, .magic_bytes = Vector<u8> { 'M', 'M', 0x00, '*' } },
     MimeType { .name = "image/tinyvg"sv, .common_extensions = { ".tvg"sv }, .description = "TinyVG vector graphics"sv, .magic_bytes = Vector<u8> { 0x72, 0x56 } },
-    MimeType { .name = "image/vnd.ms-dds"sv, .common_extensions = { ".dds"sv }, .description = "DDS image data"sv, .magic_bytes = Vector<u8> { 'D', 'D', 'S', ' ' } },
     MimeType { .name = "image/webp"sv, .common_extensions = { ".webp"sv }, .description = "WebP image data"sv, .magic_bytes = Vector<u8> { 'W', 'E', 'B', 'P' }, .offset = 8 },
     MimeType { .name = "image/x-icon"sv, .common_extensions = { ".ico"sv }, .description = "ICO image data"sv },
     MimeType { .name = "image/x-ilbm"sv, .common_extensions = { ".iff"sv, ".lbm"sv }, .description = "Interleaved bitmap image data"sv, .magic_bytes = Vector<u8> { 0x46, 0x4F, 0x52, 0x4F } },

@@ -230,7 +230,6 @@ write_cmake_config("ak_debug_gen") {
     "CSS_LOADER_DEBUG=",
     "CSS_PARSER_DEBUG=",
     "CSS_TOKENIZER_DEBUG=",
-    "DDS_DEBUG=",
     "EDITOR_DEBUG=",
     "EMOJI_DEBUG=",
     "FILE_WATCHER_DEBUG=",
