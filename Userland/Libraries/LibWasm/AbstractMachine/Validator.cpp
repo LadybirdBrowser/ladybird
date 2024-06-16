@@ -224,6 +224,9 @@ ErrorOr<void, ValidationError> Validator::validate(ElementSection const& section
             [](ElementSection::Passive const&) -> ErrorOr<void, ValidationError> { return {}; },
             [&](ElementSection::Active const& active) -> ErrorOr<void, ValidationError> {
                 TRY(validate(active.index));
+                auto table = m_context.tables[active.index.value()];
+                if (table.element_type() != segment.type)
+                    return Errors::invalid("active element reference type"sv);
                 auto expression_result = TRY(validate(active.expression, { ValueType(ValueType::I32) }));
                 if (!expression_result.is_constant)
                     return Errors::invalid("active element initializer"sv);

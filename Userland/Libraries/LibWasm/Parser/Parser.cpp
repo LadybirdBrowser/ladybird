@@ -1281,10 +1281,10 @@ ParseResult<ElementSection::Element> ElementSection::Element::parse(Stream& stre
     Vector<Expression> items;
     if (!has_exprs) {
         auto indices = TRY(parse_vector<GenericIndexParser<FunctionIndex>>(stream));
-        Vector<Instruction> instructions;
-        for (auto& index : indices)
-            instructions.empend(Instructions::ref_func, index);
-        items = { Expression { move(instructions) } };
+        for (auto& index : indices) {
+            Vector<Instruction> instructions { Instruction(Instructions::ref_func, index) };
+            items.empend(move(instructions));
+        }
     } else {
         items = TRY(parse_vector<Expression>(stream));
     }

@@ -275,7 +275,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                         return IterationDecision::Continue;
                     }
                     // FIXME: type-check the reference.
-                    references.prepend(reference.release_value());
+                    references.append(reference.release_value());
                 }
             }
             elements.append(move(references));
@@ -296,8 +296,12 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             auto current_index = index;
             ++index;
             auto active_ptr = segment.mode.get_pointer<ElementSection::Active>();
-            if (!active_ptr)
+            auto elem_instance = m_store.get(main_module_instance.elements()[current_index]);
+            if (!active_ptr) {
+                if (segment.mode.has<ElementSection::Declarative>())
+                    *elem_instance = ElementInstance(elem_instance->type(), {});
                 continue;
+            }
             Configuration config { m_store };
             if (m_should_limit_instruction_count)
                 config.enable_instruction_count_limit();
@@ -322,7 +326,6 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 instantiation_result = InstantiationError { "Invalid element referenced by active element segment" };
                 return IterationDecision::Break;
             }
-            auto elem_instance = m_store.get(main_module_instance.elements()[current_index]);
             if (!table_instance || !elem_instance) {
                 instantiation_result = InstantiationError { "Invalid element referenced by active element segment" };
                 return IterationDecision::Break;
