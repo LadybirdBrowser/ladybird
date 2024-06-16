@@ -10,7 +10,6 @@ set(CMD_SOURCES
     js.cpp
     lzcat.cpp
     tar.cpp
-    test-jpeg-roundtrip.cpp
     ttfdisasm.cpp
     unzip.cpp
     wasm.cpp
@@ -43,7 +42,6 @@ target_link_libraries(isobmff PRIVATE LibGfx)
 target_link_libraries(js PRIVATE LibCrypto LibJS LibLine LibLocale LibTextCodec)
 target_link_libraries(lzcat PRIVATE LibCompress)
 target_link_libraries(tar PRIVATE LibArchive LibCompress LibFileSystem)
-target_link_libraries(test-jpeg-roundtrip PRIVATE LibGfx)
 target_link_libraries(ttfdisasm PRIVATE LibGfx)
 target_link_libraries(unzip PRIVATE LibArchive LibCompress LibCrypto LibFileSystem)
 target_link_libraries(wasm PRIVATE LibFileSystem LibJS LibLine LibWasm)

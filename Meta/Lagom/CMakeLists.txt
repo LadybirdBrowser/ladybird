@@ -573,11 +573,6 @@ if (BUILD_TESTING)
     # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
     lagom_test(../../Tests/LibRegex/Regex.cpp LIBS LibRegex WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/LibRegex)
 
-    # test-jpeg-roundtrip
-    add_executable(test-jpeg-roundtrip
-        ../../Userland/Utilities/test-jpeg-roundtrip.cpp)
-    target_link_libraries(test-jpeg-roundtrip AK LibGfx LibMain)
-
     # JavaScriptTestRunner + LibTest tests
     # test-js
     add_executable(test-js

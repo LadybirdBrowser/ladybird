@@ -157,17 +157,6 @@ static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, bool pp
         return Core::OutputBufferedFile::create(move(output_stream));
     };
 
-    if (image.bitmap.has<RefPtr<Gfx::CMYKBitmap>>()) {
-        auto& cmyk_frame = image.bitmap.get<RefPtr<Gfx::CMYKBitmap>>();
-
-        if (out_path.ends_with(".jpg"sv, CaseSensitivity::CaseInsensitive) || out_path.ends_with(".jpeg"sv, CaseSensitivity::CaseInsensitive)) {
-            TRY(Gfx::JPEGWriter::encode(*TRY(stream()), *cmyk_frame, { .icc_data = image.icc_data, .quality = jpeg_quality }));
-            return {};
-        }
-
-        return Error::from_string_view("Can save CMYK bitmaps only as .jpg, convert to RGB first with --convert-to-color-profile"sv);
-    }
-
     auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
 
     if (out_path.ends_with(".gif"sv, CaseSensitivity::CaseInsensitive)) {

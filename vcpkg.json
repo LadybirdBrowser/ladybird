@@ -6,6 +6,7 @@
       "platform": "linux | freebsd | openbsd"
     },
     "icu",
+    "libjpeg-turbo",
     "sqlite3",
     "woff2"
   ],
@@ -17,6 +18,10 @@
     {
       "name": "icu",
       "version": "74.2#1"
+    },
+    {
+      "name": "libjpeg-turbo",
+      "version": "3.0.2"
     },
     {
       "name": "sqlite3",

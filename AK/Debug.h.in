@@ -134,10 +134,6 @@
 #    cmakedefine01 JOB_DEBUG
 #endif
 
-#ifndef JPEG_DEBUG
-#    cmakedefine01 JPEG_DEBUG
-#endif
-
 #ifndef JPEG2000_DEBUG
 #    cmakedefine01 JPEG2000_DEBUG
 #endif
