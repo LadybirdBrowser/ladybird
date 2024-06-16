@@ -86,7 +86,7 @@ public:
     virtual NaturalFrameFormat natural_frame_format() const override { return NaturalFrameFormat::Vector; }
     virtual ErrorOr<VectorImageFrameDescriptor> vector_frame(size_t index) override;
 
-    virtual ~TinyVGImageDecoderPlugin() override = default;
+    virtual ~TinyVGImageDecoderPlugin() override;
 
 private:
     TinyVGImageDecoderPlugin(ReadonlyBytes);

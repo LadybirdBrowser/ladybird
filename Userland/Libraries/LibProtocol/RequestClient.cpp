@@ -14,6 +14,8 @@ RequestClient::RequestClient(NonnullOwnPtr<Core::LocalSocket> socket)
 {
 }
 
+RequestClient::~RequestClient() = default;
+
 void RequestClient::die()
 {
     // FIXME: Gracefully handle this, or relaunch and reconnect to RequestServer.

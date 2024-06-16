@@ -37,7 +37,7 @@ public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
 
-    virtual ~JPEG2000ImageDecoderPlugin() override = default;
+    virtual ~JPEG2000ImageDecoderPlugin() override;
 
     virtual IntSize size() override;
 

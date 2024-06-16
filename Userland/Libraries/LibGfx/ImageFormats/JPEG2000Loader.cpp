@@ -988,6 +988,8 @@ JPEG2000ImageDecoderPlugin::JPEG2000ImageDecoderPlugin()
     m_context = make<JPEG2000LoadingContext>();
 }
 
+JPEG2000ImageDecoderPlugin::~JPEG2000ImageDecoderPlugin() = default;
+
 IntSize JPEG2000ImageDecoderPlugin::size()
 {
     return m_context->size;

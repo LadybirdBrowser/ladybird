@@ -58,6 +58,8 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> sock
     async_notify_process_information({ ::getpid() });
 }
 
+ConnectionFromClient::~ConnectionFromClient() = default;
+
 void ConnectionFromClient::die()
 {
     Web::Platform::EventLoopPlugin::the().quit();

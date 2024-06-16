@@ -550,6 +550,8 @@ TinyVGImageDecoderPlugin::TinyVGImageDecoderPlugin(ReadonlyBytes bytes)
 {
 }
 
+TinyVGImageDecoderPlugin::~TinyVGImageDecoderPlugin() = default;
+
 ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> TinyVGImageDecoderPlugin::create(ReadonlyBytes bytes)
 {
     auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TinyVGImageDecoderPlugin(bytes)));

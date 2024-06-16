@@ -16,6 +16,8 @@ NetworkJob::NetworkJob(Stream& output_stream)
 {
 }
 
+NetworkJob::~NetworkJob() = default;
+
 void NetworkJob::did_finish(NonnullRefPtr<NetworkResponse>&& response)
 {
     if (is_cancelled())

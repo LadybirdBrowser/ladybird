@@ -2627,6 +2627,8 @@ JBIG2ImageDecoderPlugin::JBIG2ImageDecoderPlugin()
     m_context = make<JBIG2LoadingContext>();
 }
 
+JBIG2ImageDecoderPlugin::~JBIG2ImageDecoderPlugin() = default;
+
 IntSize JBIG2ImageDecoderPlugin::size()
 {
     return m_context->page.size;

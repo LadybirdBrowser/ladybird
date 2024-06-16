@@ -116,6 +116,8 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
 {
 }
 
+SourceTextModule::~SourceTextModule() = default;
+
 void SourceTextModule::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

@@ -198,6 +198,8 @@ FontFace::FontFace(JS::Realm& realm, JS::NonnullGCPtr<WebIDL::Promise> font_stat
         m_status = Bindings::FontFaceLoadStatus::Error;
 }
 
+FontFace::~FontFace() = default;
+
 void FontFace::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
