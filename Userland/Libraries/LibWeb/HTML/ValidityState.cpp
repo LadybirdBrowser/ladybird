@@ -1,12 +1,12 @@
 /*
-* Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
-*
-* SPDX-License-Identifier: BSD-2-Clause
-*/
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/Bindings/ValidityStatePrototype.h>
+#include <LibWeb/HTML/ValidityState.h>
 
 namespace Web::HTML {
 

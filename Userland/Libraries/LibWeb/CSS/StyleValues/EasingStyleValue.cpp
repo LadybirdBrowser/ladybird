@@ -40,12 +40,14 @@ EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease_in_out()
     return bezier;
 }
 
-EasingStyleValue::Steps EasingStyleValue::Steps::step_start() {
+EasingStyleValue::Steps EasingStyleValue::Steps::step_start()
+{
     static Steps steps { 1, Steps::Position::Start };
     return steps;
 }
 
-EasingStyleValue::Steps EasingStyleValue::Steps::step_end() {
+EasingStyleValue::Steps EasingStyleValue::Steps::step_end()
+{
     static Steps steps { 1, Steps::Position::End };
     return steps;
 }
@@ -57,8 +59,7 @@ bool EasingStyleValue::CubicBezier::operator==(Web::CSS::EasingStyleValue::Cubic
 
 double EasingStyleValue::Function::evaluate_at(double input_progress, bool before_flag) const
 {
-    constexpr static auto cubic_bezier_at = [](double x1, double x2, double t)
-    {
+    constexpr static auto cubic_bezier_at = [](double x1, double x2, double t) {
         auto a = 1.0 - 3.0 * x2 + 3.0 * x1;
         auto b = 3.0 * x2 - 6.0 * x1;
         auto c = 3.0 * x1;
