@@ -10,11 +10,11 @@
 
 namespace Locale {
 
-enum class CalendarPatternStyle : u8;
-enum class HourCycle : u8;
-enum class PluralCategory : u8;
-enum class Style : u8;
-enum class Weekday : u8;
+enum class CalendarPatternStyle;
+enum class HourCycle;
+enum class PluralCategory;
+enum class Style;
+enum class Weekday;
 
 class NumberFormat;
 

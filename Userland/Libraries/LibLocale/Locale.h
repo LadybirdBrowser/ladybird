@@ -78,7 +78,7 @@ struct LocaleID {
     Vector<String> private_use_extensions {};
 };
 
-enum class Style : u8 {
+enum class Style {
     Long,
     Short,
     Narrow,

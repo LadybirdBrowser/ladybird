@@ -25,7 +25,7 @@ enum class DateTimeStyle {
 DateTimeStyle date_time_style_from_string(StringView);
 StringView date_time_style_to_string(DateTimeStyle);
 
-enum class Weekday : u8 {
+enum class Weekday {
     Sunday,
     Monday,
     Tuesday,
@@ -35,7 +35,7 @@ enum class Weekday : u8 {
     Saturday,
 };
 
-enum class HourCycle : u8 {
+enum class HourCycle {
     H11,
     H12,
     H23,
@@ -45,7 +45,7 @@ HourCycle hour_cycle_from_string(StringView hour_cycle);
 StringView hour_cycle_to_string(HourCycle hour_cycle);
 Optional<HourCycle> default_hour_cycle(StringView locale);
 
-enum class CalendarPatternStyle : u8 {
+enum class CalendarPatternStyle {
     Narrow,
     Short,
     Long,
