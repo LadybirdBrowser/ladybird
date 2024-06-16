@@ -7,29 +7,29 @@ describe("errors", () => {
 });
 
 describe("normal behavior", () => {
-    test("basic functionality", () => {
-        expect(Array.isArray(new Intl.Locale("en").getNumberingSystems())).toBeTrue();
-        expect(new Intl.Locale("en").getNumberingSystems()).toEqual(["latn"]);
+    const testNumberingSystems = (locale, expected) => {
+        const result = locale.getNumberingSystems();
+        expect(Array.isArray(result)).toBeTrue();
 
-        expect(Array.isArray(new Intl.Locale("ar").getNumberingSystems())).toBeTrue();
-        expect(new Intl.Locale("ar").getNumberingSystems()).toEqual(["arab", "latn"]);
+        for (const entry of expected) {
+            expect(result).toContain(entry);
+        }
+    };
+
+    test("basic functionality", () => {
+        testNumberingSystems(new Intl.Locale("en"), ["latn"]);
+        testNumberingSystems(new Intl.Locale("ar"), ["arab", "latn"]);
     });
 
     test("extension keyword overrides default data", () => {
-        expect(new Intl.Locale("en-u-nu-deva").getNumberingSystems()).toEqual(["deva"]);
-        expect(new Intl.Locale("en", { numberingSystem: "deva" }).getNumberingSystems()).toEqual([
-            "deva",
-        ]);
+        testNumberingSystems(new Intl.Locale("en-u-nu-deva"), ["deva"]);
+        testNumberingSystems(new Intl.Locale("en", { numberingSystem: "deva" }), ["deva"]);
 
-        expect(new Intl.Locale("ar-u-nu-bali").getNumberingSystems()).toEqual(["bali"]);
-        expect(new Intl.Locale("ar", { numberingSystem: "bali" }).getNumberingSystems()).toEqual([
-            "bali",
-        ]);
+        testNumberingSystems(new Intl.Locale("ar-u-nu-bali"), ["bali"]);
+        testNumberingSystems(new Intl.Locale("ar", { numberingSystem: "bali" }), ["bali"]);
 
         // Invalid numberingSystems also take precedence.
-        expect(new Intl.Locale("en-u-nu-ladybird").getNumberingSystems()).toEqual(["ladybird"]);
-        expect(
-            new Intl.Locale("en", { numberingSystem: "ladybird" }).getNumberingSystems()
-        ).toEqual(["ladybird"]);
+        testNumberingSystems(new Intl.Locale("en-u-nu-ladybird"), ["ladybird"]);
+        testNumberingSystems(new Intl.Locale("en", { numberingSystem: "ladybird" }), ["ladybird"]);
     });
 });

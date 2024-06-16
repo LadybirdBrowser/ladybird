@@ -22,6 +22,7 @@
 U_NAMESPACE_BEGIN
 class DateTimePatternGenerator;
 class LocaleDisplayNames;
+class NumberingSystem;
 class TimeZoneNames;
 class UnicodeString;
 U_NAMESPACE_END
@@ -39,6 +40,8 @@ public:
     icu::LocaleDisplayNames& standard_display_names();
     icu::LocaleDisplayNames& dialect_display_names();
 
+    icu::NumberingSystem& numbering_system();
+
     icu::DateTimePatternGenerator& date_time_pattern_generator();
 
     icu::TimeZoneNames& time_zone_names();
@@ -54,9 +57,9 @@ private:
 
     OwnPtr<icu::LocaleDisplayNames> m_standard_display_names;
     OwnPtr<icu::LocaleDisplayNames> m_dialect_display_names;
+    OwnPtr<icu::NumberingSystem> m_numbering_system;
     OwnPtr<icu::DateTimePatternGenerator> m_date_time_pattern_generator;
     OwnPtr<icu::TimeZoneNames> m_time_zone_names;
-
     Optional<DigitalFormat> m_digital_format;
 };
 

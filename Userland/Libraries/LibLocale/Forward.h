@@ -12,13 +12,6 @@ namespace Locale {
 
 enum class CalendarPatternStyle : u8;
 enum class HourCycle : u8;
-enum class Key : u8;
-enum class KeywordCalendar : u8;
-enum class KeywordCollation : u8;
-enum class KeywordColCaseFirst : u8;
-enum class KeywordColNumeric : u8;
-enum class KeywordHours : u8;
-enum class KeywordNumbers : u8;
 enum class Locale : u16;
 enum class PluralCategory : u8;
 enum class Style : u8;

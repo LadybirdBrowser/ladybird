@@ -31,8 +31,8 @@ describe("correct behavior", () => {
     });
 
     test("numberingSystem option overrides locale extension", () => {
-        const el = new Intl.RelativeTimeFormat("el-u-nu-latn", { numberingSystem: "grek" });
-        expect(el.resolvedOptions().numberingSystem).toBe("grek");
+        const el = new Intl.RelativeTimeFormat("el-u-nu-latn", { numberingSystem: "adlm" });
+        expect(el.resolvedOptions().numberingSystem).toBe("adlm");
     });
 
     test("numberingSystem option limited to known 'nu' values", () => {
@@ -46,12 +46,12 @@ describe("correct behavior", () => {
             expect(en.resolvedOptions().numberingSystem).toBe("latn");
         });
 
-        ["latn", "grek"].forEach(numberingSystem => {
+        ["latn", "adlm"].forEach(numberingSystem => {
             const el = new Intl.RelativeTimeFormat("el", { numberingSystem: numberingSystem });
             expect(el.resolvedOptions().numberingSystem).toBe(numberingSystem);
         });
 
-        ["latn", "grek"].forEach(numberingSystem => {
+        ["latn", "adlm"].forEach(numberingSystem => {
             const el = new Intl.RelativeTimeFormat(`el-u-nu-${numberingSystem}`);
             expect(el.resolvedOptions().numberingSystem).toBe(numberingSystem);
         });

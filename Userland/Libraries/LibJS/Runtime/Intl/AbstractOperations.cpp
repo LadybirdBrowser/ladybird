@@ -17,6 +17,7 @@
 #include <LibJS/Runtime/Intl/Locale.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibLocale/Locale.h>
+#include <LibLocale/UnicodeKeywords.h>
 
 namespace JS::Intl {
 
@@ -415,15 +416,11 @@ LocaleResult resolve_locale(Vector<String> const& requested_locales, LocaleOptio
         // b. Assert: Type(foundLocaleData) is Record.
         // c. Let keyLocaleData be foundLocaleData.[[<key>]].
         // d. Assert: Type(keyLocaleData) is List.
-        auto key_locale_data = ::Locale::get_available_keyword_values(key);
+        auto key_locale_data = ::Locale::available_keyword_values(found_locale, key);
 
         // e. Let value be keyLocaleData[0].
         // f. Assert: Type(value) is either String or Null.
-        // NOTE: ECMA-402 assumes keyLocaleData is sorted by locale preference. Our list is sorted
-        //       alphabetically, so we get the locale's preferred value from LibUnicode.
-        Optional<String> value;
-        if (auto preference = ::Locale::get_preferred_keyword_value_for_locale(found_locale, key); preference.has_value())
-            value = MUST(String::from_utf8(*preference));
+        auto value = key_locale_data[0];
 
         // g. Let supportedExtensionAddition be "".
         Optional<::Locale::Keyword> supported_extension_addition {};
@@ -482,7 +479,7 @@ LocaleResult resolve_locale(Vector<String> const& requested_locales, LocaleOptio
         // iv. If SameValue(optionsValue, value) is false and keyLocaleData contains optionsValue, then
         if (options_value.has_value() && (options_value != value) && key_locale_data.contains_slow(*options_value)) {
             // 1. Let value be optionsValue.
-            value = move(options_value);
+            value = options_value.release_value();
 
             // 2. Let supportedExtensionAddition be "".
             supported_extension_addition.clear();

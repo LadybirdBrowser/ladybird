@@ -7,25 +7,29 @@ describe("errors", () => {
 });
 
 describe("normal behavior", () => {
-    test("basic functionality", () => {
-        expect(Array.isArray(new Intl.Locale("en").getCalendars())).toBeTrue();
-        expect(new Intl.Locale("en").getCalendars()).toEqual(["gregory"]);
+    const testCalendars = (locale, expected) => {
+        const result = locale.getCalendars();
+        expect(Array.isArray(result)).toBeTrue();
 
-        expect(Array.isArray(new Intl.Locale("ar").getCalendars())).toBeTrue();
-        expect(new Intl.Locale("ar").getCalendars()).toEqual(["gregory"]);
+        for (const entry of expected) {
+            expect(result).toContain(entry);
+        }
+    };
+
+    test("basic functionality", () => {
+        testCalendars(new Intl.Locale("en"), ["gregory"]);
+        testCalendars(new Intl.Locale("ar"), ["gregory"]);
     });
 
     test("extension keyword overrides default data", () => {
-        expect(new Intl.Locale("en-u-ca-islamicc").getCalendars()).toEqual(["islamic-civil"]);
-        expect(new Intl.Locale("en", { calendar: "dangi" }).getCalendars()).toEqual(["dangi"]);
+        testCalendars(new Intl.Locale("en-u-ca-islamicc"), ["islamic-civil"]);
+        testCalendars(new Intl.Locale("en", { calendar: "dangi" }), ["dangi"]);
 
-        expect(new Intl.Locale("ar-u-ca-ethiopic-amete-alem").getCalendars()).toEqual(["ethioaa"]);
-        expect(new Intl.Locale("ar", { calendar: "hebrew" }).getCalendars()).toEqual(["hebrew"]);
+        testCalendars(new Intl.Locale("ar-u-ca-ethiopic-amete-alem"), ["ethioaa"]);
+        testCalendars(new Intl.Locale("ar", { calendar: "hebrew" }), ["hebrew"]);
 
         // Invalid calendars also take precedence.
-        expect(new Intl.Locale("en-u-ca-ladybird").getCalendars()).toEqual(["ladybird"]);
-        expect(new Intl.Locale("en", { calendar: "ladybird" }).getCalendars()).toEqual([
-            "ladybird",
-        ]);
+        testCalendars(new Intl.Locale("en-u-ca-ladybird"), ["ladybird"]);
+        testCalendars(new Intl.Locale("en", { calendar: "ladybird" }), ["ladybird"]);
     });
 });

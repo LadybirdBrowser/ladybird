@@ -133,29 +133,10 @@ void canonicalize_unicode_extension_values(StringView key, String& value);
 StringView default_locale();
 bool is_locale_available(StringView locale);
 
-ReadonlySpan<StringView> get_available_keyword_values(StringView key);
-ReadonlySpan<StringView> get_available_calendars();
-ReadonlySpan<StringView> get_available_collation_case_orderings();
-ReadonlySpan<StringView> get_available_collation_numeric_orderings();
-ReadonlySpan<StringView> get_available_collation_types();
-ReadonlySpan<StringView> get_available_hour_cycles();
-ReadonlySpan<StringView> get_available_number_systems();
-
-Vector<String> available_currencies();
-
 Style style_from_string(StringView style);
 StringView style_to_string(Style style);
 
 Optional<Locale> locale_from_string(StringView locale);
-Optional<Key> key_from_string(StringView key);
-Optional<KeywordCalendar> keyword_ca_from_string(StringView ca);
-Optional<KeywordCollation> keyword_co_from_string(StringView co);
-Optional<KeywordHours> keyword_hc_from_string(StringView hc);
-Optional<KeywordColCaseFirst> keyword_kf_from_string(StringView kf);
-Optional<KeywordColNumeric> keyword_kn_from_string(StringView kn);
-Optional<KeywordNumbers> keyword_nu_from_string(StringView nu);
-Vector<StringView> get_keywords_for_locale(StringView locale, StringView key);
-Optional<StringView> get_preferred_keyword_value_for_locale(StringView locale, StringView key);
 
 Optional<String> add_likely_subtags(StringView);
 Optional<String> remove_likely_subtags(StringView);

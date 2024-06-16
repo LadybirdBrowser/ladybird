@@ -7,27 +7,29 @@ describe("errors", () => {
 });
 
 describe("normal behavior", () => {
-    test("basic functionality", () => {
-        expect(Array.isArray(new Intl.Locale("en").getCollations())).toBeTrue();
-        expect(new Intl.Locale("en").getCollations()).toEqual(["default"]);
+    const testCollations = (locale, expected) => {
+        const result = locale.getCollations();
+        expect(Array.isArray(result)).toBeTrue();
 
-        expect(Array.isArray(new Intl.Locale("ar").getCollations())).toBeTrue();
-        expect(new Intl.Locale("ar").getCollations()).toEqual(["default"]);
+        for (const entry of expected) {
+            expect(result).toContain(entry);
+        }
+    };
+
+    test("basic functionality", () => {
+        testCollations(new Intl.Locale("en"), ["default"]);
+        testCollations(new Intl.Locale("ar"), ["default"]);
     });
 
     test("extension keyword overrides default data", () => {
-        expect(new Intl.Locale("en-u-co-compat").getCollations()).toEqual(["compat"]);
-        expect(new Intl.Locale("en", { collation: "compat" }).getCollations()).toEqual(["compat"]);
+        testCollations(new Intl.Locale("en-u-co-compat"), ["compat"]);
+        testCollations(new Intl.Locale("en", { collation: "compat" }), ["compat"]);
 
-        expect(new Intl.Locale("ar-u-co-reformed").getCollations()).toEqual(["reformed"]);
-        expect(new Intl.Locale("ar", { collation: "reformed" }).getCollations()).toEqual([
-            "reformed",
-        ]);
+        testCollations(new Intl.Locale("ar-u-co-reformed"), ["reformed"]);
+        testCollations(new Intl.Locale("ar", { collation: "reformed" }), ["reformed"]);
 
         // Invalid getCollations() also take precedence.
-        expect(new Intl.Locale("en-u-co-ladybird").getCollations()).toEqual(["ladybird"]);
-        expect(new Intl.Locale("en", { collation: "ladybird" }).getCollations()).toEqual([
-            "ladybird",
-        ]);
+        testCollations(new Intl.Locale("en-u-co-ladybird"), ["ladybird"]);
+        testCollations(new Intl.Locale("en", { collation: "ladybird" }), ["ladybird"]);
     });
 });
