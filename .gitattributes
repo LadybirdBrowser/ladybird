@@ -3,7 +3,6 @@
 
 # Denote all files that are truly binary and should not be modified.
 *.bmp binary
-*.dds binary
 *.gif binary
 *.jpg binary
 *.pbm binary

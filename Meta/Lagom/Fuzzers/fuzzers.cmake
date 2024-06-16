@@ -4,7 +4,6 @@ set(FUZZER_TARGETS
     BLAKE2b
     BMPLoader
     Brotli
-    DDSLoader
     DeflateCompression
     DeflateDecompression
     FlacLoader
@@ -68,7 +67,6 @@ set(FUZZER_DEPENDENCIES_BLAKE2b LibCrypto)
 set(FUZZER_DEPENDENCIES_BMPLoader LibGfx)
 set(FUZZER_DEPENDENCIES_Brotli LibCompress)
 set(FUZZER_DEPENDENCIES_CSSParser LibWeb)
-set(FUZZER_DEPENDENCIES_DDSLoader LibGfx)
 set(FUZZER_DEPENDENCIES_DeflateCompression LibCompress)
 set(FUZZER_DEPENDENCIES_DeflateDecompression LibCompress)
 set(FUZZER_DEPENDENCIES_ELF LibELF)

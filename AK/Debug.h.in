@@ -54,10 +54,6 @@
 #    cmakedefine01 CSS_TOKENIZER_DEBUG
 #endif
 
-#ifndef DDS_DEBUG
-#    cmakedefine01 DDS_DEBUG
-#endif
-
 #ifndef EDITOR_DEBUG
 #    cmakedefine01 EDITOR_DEBUG
 #endif
