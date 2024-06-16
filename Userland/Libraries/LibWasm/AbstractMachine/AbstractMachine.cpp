@@ -206,6 +206,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     for (auto& entry : externs) {
         if (auto* ptr = entry.get_pointer<GlobalAddress>())
             auxiliary_instance.globals().append(*ptr);
+        else if (auto* ptr = entry.get_pointer<FunctionAddress>())
+            auxiliary_instance.functions().append(*ptr);
     }
 
     Vector<FunctionAddress> module_functions;
@@ -253,7 +255,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 if (m_should_limit_instruction_count)
                     config.enable_instruction_count_limit();
                 config.set_frame(Frame {
-                    main_module_instance,
+                    auxiliary_instance,
                     Vector<Value> {},
                     entry,
                     entry.instructions().size(),
@@ -302,7 +304,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             if (m_should_limit_instruction_count)
                 config.enable_instruction_count_limit();
             config.set_frame(Frame {
-                main_module_instance,
+                auxiliary_instance,
                 Vector<Value> {},
                 active_ptr->expression,
                 1,
@@ -356,7 +358,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                     if (m_should_limit_instruction_count)
                         config.enable_instruction_count_limit();
                     config.set_frame(Frame {
-                        main_module_instance,
+                        auxiliary_instance,
                         Vector<Value> {},
                         data.offset,
                         1,
