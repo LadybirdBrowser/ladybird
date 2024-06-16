@@ -136,8 +136,6 @@ bool is_locale_available(StringView locale);
 Style style_from_string(StringView style);
 StringView style_to_string(Style style);
 
-Optional<Locale> locale_from_string(StringView locale);
-
 Optional<String> add_likely_subtags(StringView);
 Optional<String> remove_likely_subtags(StringView);
 
