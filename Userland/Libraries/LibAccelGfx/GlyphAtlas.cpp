@@ -25,12 +25,12 @@ void GlyphAtlas::update(HashMap<Gfx::Font const*, HashTable<u32>> const& unique_
     for (auto const& [font, code_points] : unique_glyphs) {
         for (auto const& code_point : code_points) {
             auto glyph = font->glyph(code_point);
+            if (!glyph.has_value())
+                continue;
             auto atlas_key = GlyphsTextureKey { font, code_point };
             if (!m_glyphs_texture_map.contains(atlas_key))
                 need_to_rebuild_texture = true;
-            if (glyph.bitmap()) {
-                glyph_bitmaps.set(atlas_key, *glyph.bitmap());
-            }
+            glyph_bitmaps.set(atlas_key, *glyph->bitmap());
         }
     }
 

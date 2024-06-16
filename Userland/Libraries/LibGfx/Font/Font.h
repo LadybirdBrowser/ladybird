@@ -32,7 +32,7 @@ public:
 
     bool is_color_bitmap() const { return m_color_bitmap; }
 
-    RefPtr<Bitmap> bitmap() const { return m_bitmap; }
+    [[nodiscard]] NonnullRefPtr<Bitmap> bitmap() const { return m_bitmap; }
     float left_bearing() const { return m_left_bearing; }
     float advance() const { return m_advance; }
     float ascent() const { return m_ascent; }
@@ -116,8 +116,8 @@ public:
     virtual int pixel_size_rounded_up() const = 0;
 
     virtual u16 weight() const = 0;
-    virtual Glyph glyph(u32 code_point) const = 0;
-    virtual Glyph glyph(u32 code_point, GlyphSubpixelOffset) const = 0;
+    virtual Optional<Glyph> glyph(u32 code_point) const = 0;
+    virtual Optional<Glyph> glyph(u32 code_point, GlyphSubpixelOffset) const = 0;
     virtual bool contains_glyph(u32 code_point) const = 0;
 
     virtual float glyph_left_bearing(u32 code_point) const = 0;

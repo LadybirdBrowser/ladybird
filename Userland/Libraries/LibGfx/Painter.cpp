@@ -849,7 +849,10 @@ FLATTEN void Painter::draw_glyph(FloatPoint point, u32 code_point, Font const& f
 {
     auto top_left = point + FloatPoint(font.glyph_left_bearing(code_point), 0);
     auto glyph_position = Gfx::GlyphRasterPosition::get_nearest_fit_for(top_left);
-    auto glyph = font.glyph(code_point, glyph_position.subpixel_offset);
+    auto maybe_glyph = font.glyph(code_point, glyph_position.subpixel_offset);
+    if (!maybe_glyph.has_value())
+        return;
+    auto glyph = maybe_glyph.release_value();
 
     if (glyph.is_color_bitmap()) {
         float scaled_width = glyph.advance();
