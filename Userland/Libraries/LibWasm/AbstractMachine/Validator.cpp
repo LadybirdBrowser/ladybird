@@ -118,21 +118,23 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
         m_context.datas.resize(section.data().size());
     });
 
-    // FIXME: C.refs is the set funcidx(module with funcs=ϵ with start=ϵ),
-    //        i.e., the set of function indices occurring in the module, except in its functions or start function.
-    // This is rather weird, it seems to ultimately be checking that `ref.func` uses a specific set of predetermined functions:
-    // The only place where this is accessed is in validate_instruction<ref_func>(), but we *populate* this from the ref.func instructions occurring outside regular functions,
-    // which limits it to only functions referenced from the elements section.
-    // so the only reason for this (as I see) is to ensure that ref.func only hands out references that occur within the elements and global sections
-    // _if_ that is indeed the case, then this should be much more specific about where the "valid" references are, and about the actual purpose of this field.
-    //
-    // For now, we simply assume that we need to scan the aforementioned section initializers for (ref.func f).
+    // We need to build the set of declared functions to check that `ref.func` uses a specific set of predetermined functions, found in:
+    // - Element initializer expressions
+    // - Global initializer expressions
+    // - Exports
     auto scan_expression_for_function_indices = [&](auto& expression) {
         for (auto& instruction : expression.instructions()) {
             if (instruction.opcode() == Instructions::ref_func)
                 m_context.references.set(instruction.arguments().template get<FunctionIndex>());
         }
     };
+    module.for_each_section_of_type<ExportSection>([&](ExportSection const& section) {
+        for (auto& export_ : section.entries()) {
+            if (!export_.description().has<FunctionIndex>())
+                continue;
+            m_context.references.set(export_.description().get<FunctionIndex>());
+        }
+    });
     module.for_each_section_of_type<ElementSection>([&](ElementSection const& section) {
         for (auto& segment : section.segments()) {
             for (auto& expression : segment.init)
