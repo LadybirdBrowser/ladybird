@@ -593,6 +593,12 @@ void WebContentClient::did_update_navigation_buttons_state(u64 page_id, bool bac
         view->did_update_navigation_buttons_state({}, back_enabled, forward_enabled);
 }
 
+void WebContentClient::did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap const& front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap const& back_bitmap)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_allocate_backing_stores({}, front_bitmap_id, front_bitmap, back_bitmap_id, back_bitmap);
+}
+
 void WebContentClient::inspector_did_load(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

@@ -63,7 +63,6 @@ private:
     virtual void set_viewport_size(u64 page_id, Web::DevicePixelSize const) override;
     virtual void key_event(u64 page_id, Web::KeyEvent const&) override;
     virtual void mouse_event(u64 page_id, Web::MouseEvent const&) override;
-    virtual void add_backing_store(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap const& front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap const& back_bitmap) override;
     virtual void ready_to_paint(u64 page_id) override;
     virtual void debug_request(u64 page_id, ByteString const&, ByteString const&) override;
     virtual void get_source(u64 page_id) override;

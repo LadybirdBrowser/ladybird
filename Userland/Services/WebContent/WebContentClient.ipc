@@ -80,6 +80,7 @@ endpoint WebContentClient
     did_change_theme_color(u64 page_id, Gfx::Color color) =|
     did_insert_clipboard_entry(u64 page_id, String data, String presentation_style, String mime_type) =|
     did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) =|
+    did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) =|
 
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|
 

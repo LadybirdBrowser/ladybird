@@ -117,6 +117,8 @@ public:
 
     void did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled) const;
 
+    void did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::ShareableBitmap const&, i32 back_bitmap_id, Gfx::ShareableBitmap const&);
+
     enum class ScreenshotType {
         Visible,
         Full,
@@ -222,12 +224,6 @@ protected:
     u64 page_id() const;
     virtual void update_zoom() = 0;
 
-    enum class WindowResizeInProgress {
-        No,
-        Yes,
-    };
-    void resize_backing_stores_if_needed(WindowResizeInProgress);
-
     void handle_resize();
 
     enum class CreateNewClient {
@@ -250,7 +246,6 @@ protected:
         SharedBitmap front_bitmap;
         SharedBitmap back_bitmap;
         u64 page_index { 0 };
-        i32 next_bitmap_id { 0 };
         bool has_usable_bitmap { false };
     } m_client_state;
 
