@@ -63,7 +63,7 @@ class Bitmap : public RefCounted<Bitmap> {
 public:
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize);
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, IntSize, size_t pitch, void*);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {});
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> load_from_file(StringView path, Optional<IntSize> ideal_size = {});
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> load_from_file(NonnullOwnPtr<Core::File>, StringView path, Optional<IntSize> ideal_size = {});
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> load_from_bytes(ReadonlyBytes, Optional<IntSize> ideal_size = {}, Optional<ByteString> mine_type = {});
@@ -160,7 +160,7 @@ public:
 
 private:
     Bitmap(BitmapFormat, IntSize, BackingStore const&);
-    Bitmap(BitmapFormat, IntSize, size_t pitch, void*);
+    Bitmap(BitmapFormat, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback);
     Bitmap(BitmapFormat, Core::AnonymousBuffer, IntSize);
 
     static ErrorOr<BackingStore> allocate_backing_store(BitmapFormat format, IntSize size);
@@ -169,8 +169,8 @@ private:
     void* m_data { nullptr };
     size_t m_pitch { 0 };
     BitmapFormat m_format { BitmapFormat::Invalid };
-    bool m_data_is_malloced { false };
     Core::AnonymousBuffer m_buffer;
+    Function<void()> m_destruction_callback;
 };
 
 ALWAYS_INLINE u8* Bitmap::scanline_u8(int y)

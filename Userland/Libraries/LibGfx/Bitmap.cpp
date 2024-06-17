@@ -84,14 +84,16 @@ Bitmap::Bitmap(BitmapFormat format, IntSize size, BackingStore const& backing_st
     VERIFY(!size_would_overflow(format, size));
     VERIFY(m_data);
     VERIFY(backing_store.size_in_bytes == size_in_bytes());
-    m_data_is_malloced = true;
+    m_destruction_callback = [data = m_data, size_in_bytes = this->size_in_bytes()] {
+        kfree_sized(data, size_in_bytes);
+    };
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, IntSize size, size_t pitch, void* data)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
 {
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_wrapper size overflow");
-    return adopt_ref(*new Bitmap(format, size, pitch, data));
+    return adopt_ref(*new Bitmap(format, size, pitch, data, move(destruction_callback)));
 }
 
 ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::load_from_file(StringView path, Optional<IntSize> ideal_size)
@@ -118,11 +120,12 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::load_from_bytes(ReadonlyBytes bytes, Opti
     return Error::from_string_literal("Gfx::Bitmap unable to load from file");
 }
 
-Bitmap::Bitmap(BitmapFormat format, IntSize size, size_t pitch, void* data)
+Bitmap::Bitmap(BitmapFormat format, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
     : m_size(size)
     , m_data(data)
     , m_pitch(pitch)
     , m_format(format)
+    , m_destruction_callback(move(destruction_callback))
 {
     VERIFY(pitch >= minimum_pitch(size.width(), format));
     VERIFY(!size_would_overflow(format, size));
@@ -368,9 +371,8 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::to_bitmap_backed_by_anonymous_buffer() co
 
 Bitmap::~Bitmap()
 {
-    if (m_data_is_malloced) {
-        kfree_sized(m_data, size_in_bytes());
-    }
+    if (m_destruction_callback)
+        m_destruction_callback();
     m_data = nullptr;
 }
 
