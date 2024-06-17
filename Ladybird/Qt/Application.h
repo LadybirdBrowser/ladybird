@@ -27,7 +27,7 @@ public:
     Function<void(URL::URL)> on_open_file;
     RefPtr<Protocol::RequestClient> request_server_client;
 
-    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, WebContentOptions const&, StringView webdriver_content_ipc_path, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, WebContentOptions const&, StringView webdriver_content_ipc_path, bool allow_popups, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
     void show_task_manager_window();
     void close_task_manager_window();

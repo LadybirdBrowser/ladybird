@@ -69,11 +69,12 @@ public:
     }
 };
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::CookieJar& cookie_jar, WebContentOptions const& web_content_options, StringView webdriver_content_ipc_path, Tab* parent_tab, Optional<u64> page_index)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::CookieJar& cookie_jar, WebContentOptions const& web_content_options, StringView webdriver_content_ipc_path, bool allow_popups, Tab* parent_tab, Optional<u64> page_index)
     : m_tabs_container(new TabWidget(this))
     , m_cookie_jar(cookie_jar)
     , m_web_content_options(web_content_options)
     , m_webdriver_content_ipc_path(webdriver_content_ipc_path)
+    , m_allow_popups(allow_popups)
 {
     setWindowIcon(app_icon());
 
@@ -480,7 +481,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
 
     m_block_pop_ups_action = new QAction("Block Pop-ups", this);
     m_block_pop_ups_action->setCheckable(true);
-    m_block_pop_ups_action->setChecked(true);
+    m_block_pop_ups_action->setChecked(!allow_popups);
     debug_menu->addAction(m_block_pop_ups_action);
     QObject::connect(m_block_pop_ups_action, &QAction::triggered, this, [this] {
         bool state = m_block_pop_ups_action->isChecked();
@@ -522,7 +523,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [this] {
         auto initial_urls = Vector<URL::URL> { ak_url_from_qstring(Settings::the()->new_tab_page()) };
-        (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window(initial_urls, m_cookie_jar, m_web_content_options, m_webdriver_content_ipc_path);
+        (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window(initial_urls, m_cookie_jar, m_web_content_options, m_webdriver_content_ipc_path, m_allow_popups);
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
     QObject::connect(settings_action, &QAction::triggered, this, [this] {
@@ -686,7 +687,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
         if (hints.popup) {
-            auto& window = static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, m_cookie_jar, m_web_content_options, m_webdriver_content_ipc_path, tab, AK::move(page_index));
+            auto& window = static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, m_cookie_jar, m_web_content_options, m_webdriver_content_ipc_path, m_allow_popups, tab, AK::move(page_index));
             window.set_window_rect(hints.screen_x, hints.screen_y, hints.width, hints.height);
             return window.current_tab()->view().handle();
         }

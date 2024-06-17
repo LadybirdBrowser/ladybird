@@ -102,6 +102,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool enable_idl_tracing = false;
     bool new_window = false;
     bool force_new_process = false;
+    bool allow_popups = false;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("The Ladybird web browser :^)");
@@ -119,6 +120,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
     args_parser.add_option(force_new_process, "Force creation of new browser/chrome process", "force-new-process");
+    args_parser.add_option(allow_popups, "Disable popup blocking by default", "allow-popups");
     args_parser.parse(arguments);
 
     WebView::ChromeProcess chrome_process;
@@ -181,10 +183,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     };
 
     chrome_process.on_new_window = [&](auto const& urls) {
-        app.new_window(sanitize_urls(urls), *cookie_jar, web_content_options, webdriver_content_ipc_path);
+        app.new_window(sanitize_urls(urls), *cookie_jar, web_content_options, webdriver_content_ipc_path, allow_popups);
     };
 
-    auto& window = app.new_window(sanitize_urls(raw_urls), *cookie_jar, web_content_options, webdriver_content_ipc_path);
+    auto& window = app.new_window(sanitize_urls(raw_urls), *cookie_jar, web_content_options, webdriver_content_ipc_path, allow_popups);
     window.setWindowTitle("Ladybird");
 
     if (Ladybird::Settings::the()->is_maximized()) {
