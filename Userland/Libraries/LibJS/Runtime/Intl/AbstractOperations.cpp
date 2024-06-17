@@ -5,16 +5,16 @@
  */
 
 #include <AK/AllOf.h>
-#include <AK/AnyOf.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
-#include <AK/Function.h>
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/Locale.h>
+#include <LibJS/Runtime/Intl/SingleUnitIdentifiers.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibLocale/Locale.h>
 #include <LibLocale/UnicodeKeywords.h>
@@ -683,65 +683,6 @@ ThrowCompletionOr<Optional<int>> get_number_option(VM& vm, Object const& options
 
     // 3. Return ? DefaultNumberOption(value, minimum, maximum, fallback).
     return default_number_option(vm, value, minimum, maximum, move(fallback));
-}
-
-// 9.2.17 PartitionPattern ( pattern ), https://tc39.es/ecma402/#sec-partitionpattern
-Vector<PatternPartition> partition_pattern(StringView pattern)
-{
-    // 1. Let result be a new empty List.
-    Vector<PatternPartition> result;
-
-    // 2. Let beginIndex be StringIndexOf(pattern, "{", 0).
-    auto begin_index = pattern.find('{', 0);
-
-    // 3. Let endIndex be 0.
-    size_t end_index = 0;
-
-    // 4. Let nextIndex be 0.
-    size_t next_index = 0;
-
-    // 5. Let length be the number of code units in pattern.
-    // 6. Repeat, while beginIndex is an integer index into pattern,
-    while (begin_index.has_value()) {
-        // a. Set endIndex to StringIndexOf(pattern, "}", beginIndex).
-        end_index = pattern.find('}', *begin_index).value();
-
-        // b. Assert: endIndex is greater than beginIndex.
-        VERIFY(end_index > *begin_index);
-
-        // c. If beginIndex is greater than nextIndex, then
-        if (*begin_index > next_index) {
-            // i. Let literal be a substring of pattern from position nextIndex, inclusive, to position beginIndex, exclusive.
-            auto literal = pattern.substring_view(next_index, *begin_index - next_index);
-
-            // ii. Append a new Record { [[Type]]: "literal", [[Value]]: literal } as the last element of the list result.
-            result.append({ "literal"sv, MUST(String::from_utf8(literal)) });
-        }
-
-        // d. Let p be the substring of pattern from position beginIndex, exclusive, to position endIndex, exclusive.
-        auto partition = pattern.substring_view(*begin_index + 1, end_index - *begin_index - 1);
-
-        // e. Append a new Record { [[Type]]: p, [[Value]]: undefined } as the last element of the list result.
-        result.append({ partition, {} });
-
-        // f. Set nextIndex to endIndex + 1.
-        next_index = end_index + 1;
-
-        // g. Set beginIndex to StringIndexOf(pattern, "{", nextIndex).
-        begin_index = pattern.find('{', next_index);
-    }
-
-    // 7. If nextIndex is less than length, then
-    if (next_index < pattern.length()) {
-        // a. Let literal be the substring of pattern from position nextIndex, inclusive, to position length, exclusive.
-        auto literal = pattern.substring_view(next_index);
-
-        // b. Append a new Record { [[Type]]: "literal", [[Value]]: literal } as the last element of the list result.
-        result.append({ "literal"sv, MUST(String::from_utf8(literal)) });
-    }
-
-    // 8. Return result.
-    return result;
 }
 
 }

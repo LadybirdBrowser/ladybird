@@ -12,10 +12,7 @@
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/Intl/DisplayNames.h>
-#include <LibJS/Runtime/Intl/SingleUnitIdentifiers.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
-#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibLocale/Forward.h>
 
@@ -45,44 +42,6 @@ struct LocaleResult {
     LocaleKey nu; // [[NumberingSystem]]
 };
 
-struct PatternPartition {
-    PatternPartition() = default;
-
-    PatternPartition(StringView type_string, String value_string)
-        : type(type_string)
-        , value(move(value_string))
-    {
-    }
-
-    StringView type;
-    String value;
-};
-
-struct PatternPartitionWithSource : public PatternPartition {
-    template<typename ParentList>
-    static Vector<PatternPartitionWithSource> create_from_parent_list(ParentList partitions)
-    {
-        Vector<PatternPartitionWithSource> result;
-        result.ensure_capacity(partitions.size());
-
-        for (auto& partition : partitions) {
-            PatternPartitionWithSource partition_with_source {};
-            partition_with_source.type = partition.type;
-            partition_with_source.value = move(partition.value);
-            result.unchecked_append(move(partition_with_source));
-        }
-
-        return result;
-    }
-
-    bool operator==(PatternPartitionWithSource const& other) const
-    {
-        return (type == other.type) && (value == other.value) && (source == other.source);
-    }
-
-    StringView source;
-};
-
 using StringOrBoolean = Variant<StringView, bool>;
 
 bool is_structurally_valid_language_tag(StringView locale);
@@ -98,7 +57,6 @@ ThrowCompletionOr<Object*> coerce_options_to_object(VM&, Value options);
 ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM& vm, Object const& options, PropertyKey const& property, ReadonlySpan<StringView> string_values, StringOrBoolean fallback);
 ThrowCompletionOr<Optional<int>> default_number_option(VM&, Value value, int minimum, int maximum, Optional<int> fallback);
 ThrowCompletionOr<Optional<int>> get_number_option(VM&, Object const& options, PropertyKey const& property, int minimum, int maximum, Optional<int> fallback);
-Vector<PatternPartition> partition_pattern(StringView pattern);
 
 template<size_t Size>
 ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM& vm, Object const& options, PropertyKey const& property, StringView const (&string_values)[Size], StringOrBoolean fallback)
