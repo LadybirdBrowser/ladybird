@@ -46,14 +46,12 @@ set(SOURCES
     ImageFormats/ISOBMFF/Boxes.cpp
     ImageFormats/ISOBMFF/JPEG2000Boxes.cpp
     ImageFormats/ISOBMFF/Reader.cpp
-    ImageFormats/JBIG2Loader.cpp
     ImageFormats/JPEG2000Loader.cpp
     ImageFormats/JPEGLoader.cpp
     ImageFormats/JPEGXLLoader.cpp
     ImageFormats/JPEGWriter.cpp
     ImageFormats/PNGLoader.cpp
     ImageFormats/PNGWriter.cpp
-    ImageFormats/QMArithmeticDecoder.cpp
     ImageFormats/TIFFLoader.cpp
     ImageFormats/TinyVGLoader.cpp
     ImageFormats/WebPLoader.cpp

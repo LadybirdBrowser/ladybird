@@ -12,12 +12,10 @@
 #include <LibGfx/ImageFormats/ICOLoader.h>
 #include <LibGfx/ImageFormats/ILBMLoader.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
-#include <LibGfx/ImageFormats/JBIG2Loader.h>
 #include <LibGfx/ImageFormats/JPEG2000Loader.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
-#include <LibGfx/ImageFormats/QMArithmeticDecoder.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <LibGfx/ImageFormats/TinyVGLoader.h>
@@ -311,110 +309,6 @@ TEST_CASE(test_ilbm_malformed_frame)
         auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
-    }
-}
-
-TEST_CASE(test_jbig2_black_47x23)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jbig2/black_47x23.jbig2"sv)));
-    EXPECT(Gfx::JBIG2ImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JBIG2ImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 47, 23 }));
-    for (auto pixel : *frame.image)
-        EXPECT_EQ(pixel, Gfx::Color(Gfx::Color::Black).value());
-}
-
-TEST_CASE(test_jbig2_white_47x23)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jbig2/white_47x23.jbig2"sv)));
-    EXPECT(Gfx::JBIG2ImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JBIG2ImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 47, 23 }));
-    for (auto pixel : *frame.image)
-        EXPECT_EQ(pixel, Gfx::Color(Gfx::Color::White).value());
-}
-
-TEST_CASE(test_jbig2_decode)
-{
-    auto bmp_file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/bitmap.bmp"sv)));
-    auto bmp_plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_file->bytes()));
-    auto bmp_frame = TRY_OR_FAIL(expect_single_frame_of_size(*bmp_plugin_decoder, { 399, 400 }));
-
-    Array test_inputs = {
-        TEST_INPUT("jbig2/bitmap.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-customat.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-tpgdon.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-customat-tpgdon.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template1.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template1-customat.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template1-tpgdon.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template1-customat-tpgdon.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template2.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template2-customat.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template2-tpgdon.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template2-customat-tpgdon.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template3.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template3-customat.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template3-tpgdon.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-template3-customat-tpgdon.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-textrefine.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-textrefine-customat.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-symbolrefine.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-textbottomleft.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-textbottomlefttranspose.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-textbottomright.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-textbottomrighttranspose.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-texttopright.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-texttoprighttranspose.jbig2"sv),
-        TEST_INPUT("jbig2/bitmap-symbol-texttranspose.jbig2"sv),
-    };
-
-    for (auto test_input : test_inputs) {
-        auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        EXPECT(Gfx::JBIG2ImageDecoderPlugin::sniff(file->bytes()));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::JBIG2ImageDecoderPlugin::create(file->bytes()));
-
-        auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 399, 400 }));
-
-        for (int y = 0; y < frame.image->height(); ++y)
-            for (int x = 0; x < frame.image->width(); ++x)
-                EXPECT_EQ(frame.image->get_pixel(x, y), bmp_frame.image->get_pixel(x, y));
-    }
-}
-
-TEST_CASE(test_qm_arithmetic_decoder)
-{
-    // https://www.itu.int/rec/T-REC-T.88-201808-I
-    // H.2 Test sequence for arithmetic coder
-    // clang-format off
-    constexpr auto input = to_array<u8>({
-        0x84, 0xC7, 0x3B, 0xFC, 0xE1, 0xA1, 0x43, 0x04,
-        0x02, 0x20, 0x00, 0x00, 0x41, 0x0D, 0xBB, 0x86,
-        0xF4, 0x31, 0x7F, 0xFF, 0x88, 0xFF, 0x37, 0x47,
-        0x1A, 0xDB, 0x6A, 0xDF, 0xFF, 0xAC
-        });
-    constexpr auto output = to_array<u8>({
-        0x00, 0x02, 0x00, 0x51, 0x00, 0x00, 0x00, 0xC0,
-        0x03, 0x52, 0x87, 0x2A, 0xAA, 0xAA, 0xAA, 0xAA,
-        0x82, 0xC0, 0x20, 0x00, 0xFC, 0xD7, 0x9E, 0xF6,
-        0xBF, 0x7F, 0xED, 0x90, 0x4F, 0x46, 0xA3, 0xBF
-    });
-    // clang-format on
-
-    // "For this entire test, a single value of CX is used. I(CX) is initially 0 and MPS(CX) is initially 0."
-    Gfx::QMArithmeticDecoder::Context context { 0, 0 };
-    auto decoder = MUST(Gfx::QMArithmeticDecoder::initialize(input));
-
-    for (auto expected : output) {
-        u8 actual = 0;
-        for (size_t i = 0; i < 8; ++i) {
-            actual <<= 1;
-            actual |= static_cast<u8>(decoder.get_next_bit(context));
-        }
-        EXPECT_EQ(actual, expected);
     }
 }
 
