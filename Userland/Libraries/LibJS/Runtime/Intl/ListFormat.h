@@ -41,17 +41,23 @@ public:
     void set_style(StringView style) { m_style = ::Locale::style_from_string(style); }
     StringView style_string() const { return ::Locale::style_to_string(m_style); }
 
+    ::Locale::ListFormat const& formatter() const { return *m_formatter; }
+    void set_formatter(NonnullOwnPtr<::Locale::ListFormat> formatter) { m_formatter = move(formatter); }
+
 private:
     explicit ListFormat(Object& prototype);
 
     String m_locale;                                                           // [[Locale]]
     ::Locale::ListFormatType m_type { ::Locale::ListFormatType::Conjunction }; // [[Type]]
     ::Locale::Style m_style { ::Locale::Style::Long };                         // [[Style]]
+
+    // Non-standard. Stores the ICU list formatter for the Intl object's formatting options.
+    OwnPtr<::Locale::ListFormat> m_formatter;
 };
 
-Vector<::Locale::ListFormatPart> create_parts_from_list(ListFormat const&, Vector<String> const& list);
-String format_list(ListFormat const&, Vector<String> const& list);
-NonnullGCPtr<Array> format_list_to_parts(VM&, ListFormat const&, Vector<String> const& list);
+Vector<::Locale::ListFormat::Partition> create_parts_from_list(ListFormat const&, ReadonlySpan<String> list);
+String format_list(ListFormat const&, ReadonlySpan<String> list);
+NonnullGCPtr<Array> format_list_to_parts(VM&, ListFormat const&, ReadonlySpan<String> list);
 ThrowCompletionOr<Vector<String>> string_list_from_iterable(VM&, Value iterable);
 
 }

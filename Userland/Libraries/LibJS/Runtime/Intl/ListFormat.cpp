@@ -22,24 +22,24 @@ ListFormat::ListFormat(Object& prototype)
 }
 
 // 13.5.2 CreatePartsFromList ( listFormat, list ), https://tc39.es/ecma402/#sec-createpartsfromlist
-Vector<::Locale::ListFormatPart> create_parts_from_list(ListFormat const& list_format, Vector<String> const& list)
+Vector<::Locale::ListFormat::Partition> create_parts_from_list(ListFormat const& list_format, ReadonlySpan<String> list)
 {
-    return ::Locale::format_list_to_parts(list_format.locale(), list_format.type(), list_format.style(), list);
+    return list_format.formatter().format_to_parts(list);
 }
 
 // 13.5.3 FormatList ( listFormat, list ), https://tc39.es/ecma402/#sec-formatlist
-String format_list(ListFormat const& list_format, Vector<String> const& list)
+String format_list(ListFormat const& list_format, ReadonlySpan<String> list)
 {
     // 1. Let parts be ! CreatePartsFromList(listFormat, list).
     // 2. Let result be an empty String.
     // 3. For each Record { [[Type]], [[Value]] } part in parts, do
     //     a. Set result to the string-concatenation of result and part.[[Value]].
     // 4. Return result.
-    return ::Locale::format_list(list_format.locale(), list_format.type(), list_format.style(), list);
+    return list_format.formatter().format(list);
 }
 
 // 13.5.4 FormatListToParts ( listFormat, list ), https://tc39.es/ecma402/#sec-formatlisttoparts
-NonnullGCPtr<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, Vector<String> const& list)
+NonnullGCPtr<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, ReadonlySpan<String> list)
 {
     auto& realm = *vm.current_realm();
 
