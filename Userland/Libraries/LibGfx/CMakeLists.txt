@@ -51,13 +51,8 @@ set(SOURCES
     ImageFormats/JPEGLoader.cpp
     ImageFormats/JPEGXLLoader.cpp
     ImageFormats/JPEGWriter.cpp
-    ImageFormats/PBMLoader.cpp
-    ImageFormats/PGMLoader.cpp
     ImageFormats/PNGLoader.cpp
     ImageFormats/PNGWriter.cpp
-    ImageFormats/PortableFormatWriter.cpp
-    ImageFormats/PAMLoader.cpp
-    ImageFormats/PPMLoader.cpp
     ImageFormats/QMArithmeticDecoder.cpp
     ImageFormats/TGALoader.cpp
     ImageFormats/TIFFLoader.cpp
