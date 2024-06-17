@@ -13,7 +13,6 @@ set(FUZZER_TARGETS
     HttpRequest
     ICCProfile
     ICOLoader
-    ILBMLoader
     JPEG2000Loader
     JPEGLoader
     Js
@@ -71,7 +70,6 @@ set(FUZZER_DEPENDENCIES_GzipRoundtrip LibCompress)
 set(FUZZER_DEPENDENCIES_HttpRequest LibHTTP)
 set(FUZZER_DEPENDENCIES_ICCProfile LibGfx)
 set(FUZZER_DEPENDENCIES_ICOLoader LibGfx)
-set(FUZZER_DEPENDENCIES_ILBMLoader LibGfx)
 set(FUZZER_DEPENDENCIES_JPEG2000Loader LibGfx)
 set(FUZZER_DEPENDENCIES_JPEGLoader LibGfx)
 set(FUZZER_DEPENDENCIES_Js LibJS)

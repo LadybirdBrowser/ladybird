@@ -41,7 +41,6 @@ set(SOURCES
     ImageFormats/GIFLoader.cpp
     ImageFormats/GIFWriter.cpp
     ImageFormats/ICOLoader.cpp
-    ImageFormats/ILBMLoader.cpp
     ImageFormats/ImageDecoder.cpp
     ImageFormats/ISOBMFF/Boxes.cpp
     ImageFormats/ISOBMFF/JPEG2000Boxes.cpp

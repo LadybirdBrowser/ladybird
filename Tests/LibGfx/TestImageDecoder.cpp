@@ -10,7 +10,6 @@
 #include <LibGfx/ImageFormats/BMPLoader.h>
 #include <LibGfx/ImageFormats/GIFLoader.h>
 #include <LibGfx/ImageFormats/ICOLoader.h>
-#include <LibGfx/ImageFormats/ILBMLoader.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/ImageFormats/JPEG2000Loader.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
@@ -193,123 +192,6 @@ TEST_CASE(test_malformed_maskless_ico)
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 16, 16 }));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Transparent);
     EXPECT_EQ(frame.image->get_pixel(7, 4), Gfx::Color(161, 0, 0));
-}
-
-TEST_CASE(test_ilbm)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ilbm/gradient.iff"sv)));
-    EXPECT(Gfx::ILBMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 320, 200 }));
-
-    EXPECT_EQ(frame.image->get_pixel(8, 0), Gfx::Color(0xee, 0xbb, 0, 255));
-}
-
-TEST_CASE(test_ilbm_uncompressed)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ilbm/gradient-uncompressed.iff"sv)));
-    EXPECT(Gfx::ILBMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 320, 200 }));
-
-    EXPECT_EQ(frame.image->get_pixel(8, 0), Gfx::Color(0xee, 0xbb, 0, 255));
-}
-
-TEST_CASE(test_ilbm_ham6)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ilbm/ham6.iff"sv)));
-    EXPECT(Gfx::ILBMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 256, 256 }));
-
-    EXPECT_EQ(frame.image->get_pixel(77, 107), Gfx::Color(0xf0, 0x40, 0x40, 0xff));
-}
-
-TEST_CASE(test_ilbm_dos)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ilbm/serenity.lbm"sv)));
-    EXPECT(Gfx::ILBMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 640, 480 }));
-
-    EXPECT_EQ(frame.image->get_pixel(315, 134), Gfx::Color::NamedColor::Red);
-}
-
-TEST_CASE(test_24bit)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ilbm/serenity-24bit.iff"sv)));
-    EXPECT(Gfx::ILBMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 640, 640 }));
-
-    EXPECT_EQ(frame.image->get_pixel(158, 270), Gfx::Color(0xee, 0x3d, 0x3c, 255));
-}
-
-TEST_CASE(test_brush_transparent_color)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ilbm/brush-transparent-color.iff"sv)));
-    EXPECT(Gfx::ILBMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 266, 309 }));
-
-    EXPECT_EQ(frame.image->get_pixel(114, 103), Gfx::Color::NamedColor::Black);
-}
-
-TEST_CASE(test_small_24bit)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ilbm/small-24bit.iff"sv)));
-    EXPECT(Gfx::ILBMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 10, 10 }));
-
-    EXPECT_EQ(frame.image->get_pixel(0, 4), Gfx::Color(1, 0, 1, 255));
-}
-
-TEST_CASE(test_stencil_mask)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ilbm/test-stencil.iff"sv)));
-    EXPECT(Gfx::ILBMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 320, 200 }));
-
-    EXPECT_EQ(frame.image->get_pixel(0, 4), Gfx::Color(0, 0, 0, 255));
-}
-
-TEST_CASE(test_ilbm_malformed_header)
-{
-    Array test_inputs = {
-        TEST_INPUT("ilbm/truncated-bmhd-chunk.iff"sv)
-    };
-
-    for (auto test_input : test_inputs) {
-        auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder_or_error = Gfx::ILBMImageDecoderPlugin::create(file->bytes());
-        EXPECT(plugin_decoder_or_error.is_error());
-    }
-}
-
-TEST_CASE(test_ilbm_malformed_frame)
-{
-    Array test_inputs = {
-        TEST_INPUT("ilbm/incorrect-cmap-size.iff"sv),
-        TEST_INPUT("ilbm/incorrect-uncompressed-size.iff"sv),
-        TEST_INPUT("ilbm/missing-body-chunk.iff"sv)
-    };
-
-    for (auto test_input : test_inputs) {
-        auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::ILBMImageDecoderPlugin::create(file->bytes()));
-        auto frame_or_error = plugin_decoder->frame(0);
-        EXPECT(frame_or_error.is_error());
-    }
 }
 
 TEST_CASE(test_jpeg_sof0_one_scan)
