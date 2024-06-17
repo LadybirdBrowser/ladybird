@@ -128,7 +128,7 @@ Optional<LanguageID> parse_unicode_language_id(StringView);
 Optional<LocaleID> parse_unicode_locale_id(StringView);
 
 String canonicalize_unicode_locale_id(StringView);
-void canonicalize_unicode_extension_values(StringView key, String& value);
+String canonicalize_unicode_extension_values(StringView key, StringView value);
 
 StringView default_locale();
 bool is_locale_available(StringView locale);
