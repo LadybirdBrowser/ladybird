@@ -13,6 +13,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/Build/ladybird",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "SERENITY_CACHE_DIR": "${sourceDir}/Build/caches",
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALL_OPTIONS": "--no-print-usage"
