@@ -6,7 +6,6 @@ set(CMD_SOURCES
     headless-browser.cpp
     icc.cpp
     image.cpp
-    isobmff.cpp
     js.cpp
     lzcat.cpp
     tar.cpp
@@ -38,7 +37,6 @@ target_link_libraries(gzip PRIVATE LibCompress)
 target_link_libraries(headless-browser PRIVATE LibCrypto LibFileSystem LibGfx LibHTTP LibImageDecoderClient LibTLS LibWeb LibWebView LibWebSocket LibIPC LibJS LibDiff LibURL)
 target_link_libraries(icc PRIVATE LibGfx LibVideo LibURL)
 target_link_libraries(image PRIVATE LibGfx)
-target_link_libraries(isobmff PRIVATE LibGfx)
 target_link_libraries(js PRIVATE LibCrypto LibJS LibLine LibLocale LibTextCodec)
 target_link_libraries(lzcat PRIVATE LibCompress)
 target_link_libraries(tar PRIVATE LibArchive LibCompress LibFileSystem)
