@@ -136,8 +136,6 @@ private:
     T* m_ptr = nullptr;
 };
 
-#if !defined(KERNEL)
-
 template<typename T>
 inline NonnullOwnPtr<T> adopt_own(T& object)
 {
@@ -150,15 +148,13 @@ requires(IsConstructible<T, Args...>) inline NonnullOwnPtr<T> make(Args&&... arg
     return NonnullOwnPtr<T>(NonnullOwnPtr<T>::Adopt, *new T(forward<Args>(args)...));
 }
 
-#    ifdef AK_COMPILER_APPLE_CLANG
+#ifdef AK_COMPILER_APPLE_CLANG
 // FIXME: Remove once P0960R3 is available in Apple Clang.
 template<class T, class... Args>
 inline NonnullOwnPtr<T> make(Args&&... args)
 {
     return NonnullOwnPtr<T>(NonnullOwnPtr<T>::Adopt, *new T { forward<Args>(args)... });
 }
-#    endif
-
 #endif
 
 // Use like `adopt_nonnull_own_or_enomem(new (nothrow) T(args...))`.
@@ -220,11 +216,9 @@ struct Formatter<NonnullOwnPtr<T>> : Formatter<T const*> {
 }
 
 #if USING_AK_GLOBALLY
-#    if !defined(KERNEL)
+using AK::adopt_nonnull_own_or_enomem;
 using AK::adopt_own;
 using AK::make;
-#    endif
-using AK::adopt_nonnull_own_or_enomem;
 using AK::NonnullOwnPtr;
 using AK::try_make;
 #endif

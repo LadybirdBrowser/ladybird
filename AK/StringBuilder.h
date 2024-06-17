@@ -32,9 +32,7 @@ public:
     ~StringBuilder() = default;
 
     ErrorOr<void> try_append(StringView);
-#ifndef KERNEL
     ErrorOr<void> try_append(Utf16View const&);
-#endif
     ErrorOr<void> try_append(Utf32View const&);
     ErrorOr<void> try_append_code_point(u32);
     ErrorOr<void> try_append(char);
@@ -49,9 +47,7 @@ public:
     ErrorOr<void> try_append_escaped_for_json(StringView);
 
     void append(StringView);
-#ifndef KERNEL
     void append(Utf16View const&);
-#endif
     void append(Utf32View const&);
     void append(char);
     void append_code_point(u32);
@@ -69,9 +65,7 @@ public:
         MUST(vformat(*this, fmtstr.view(), variadic_format_params));
     }
 
-#ifndef KERNEL
     [[nodiscard]] ByteString to_byte_string() const;
-#endif
 
     [[nodiscard]] String to_string_without_validation() const;
     ErrorOr<String> to_string() const;

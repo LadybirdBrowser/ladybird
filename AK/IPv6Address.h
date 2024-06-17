@@ -8,18 +8,12 @@
 
 #include <AK/Endian.h>
 #include <AK/Format.h>
+#include <AK/IPv4Address.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
-
-#ifdef KERNEL
-#    include <AK/Error.h>
-#    include <Kernel/Library/KString.h>
-#else
-#    include <AK/String.h>
-#endif
-#include <AK/IPv4Address.h>
-#include <AK/StringBuilder.h>
 
 namespace AK {
 
@@ -48,28 +42,16 @@ public:
 
     constexpr u16 operator[](int i) const { return group(i); }
 
-#ifdef KERNEL
-    ErrorOr<NonnullOwnPtr<Kernel::KString>> to_string() const
-#else
     ErrorOr<String> to_string() const
-#endif
     {
         if (is_zero()) {
-#ifdef KERNEL
-            return Kernel::KString::try_create("::"sv);
-#else
             return "::"_string;
-#endif
         }
 
         StringBuilder builder;
 
         if (is_ipv4_mapped()) {
-#ifdef KERNEL
-            return Kernel::KString::formatted("::ffff:{}.{}.{}.{}", m_data[12], m_data[13], m_data[14], m_data[15]);
-#else
             return String::formatted("::ffff:{}.{}.{}.{}", m_data[12], m_data[13], m_data[14], m_data[15]);
-#endif
         }
 
         // Find the start of the longest span of 0 values
@@ -112,11 +94,7 @@ public:
 
             i++;
         }
-#ifdef KERNEL
-        return Kernel::KString::try_create(builder.string_view());
-#else
         return builder.to_string();
-#endif
     }
 
     static Optional<IPv6Address> from_string(StringView string)
@@ -274,15 +252,6 @@ struct Traits<IPv6Address> : public DefaultTraits<IPv6Address> {
     static unsigned hash(IPv6Address const& address) { return sip_hash_bytes<4, 8>({ &address.to_in6_addr_t(), sizeof(address.to_in6_addr_t()) }); }
 };
 
-#ifdef KERNEL
-template<>
-struct Formatter<IPv6Address> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, IPv6Address const& value)
-    {
-        return Formatter<StringView>::format(builder, TRY(value.to_string())->view());
-    }
-};
-#else
 template<>
 struct Formatter<IPv6Address> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, IPv6Address const& value)
@@ -290,7 +259,6 @@ struct Formatter<IPv6Address> : Formatter<StringView> {
         return Formatter<StringView>::format(builder, TRY(value.to_string()));
     }
 };
-#endif
 
 }
 

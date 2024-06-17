@@ -74,17 +74,13 @@ public:
     Optional<FlatPtr> get_addr(StringView key) const;
     Optional<bool> get_bool(StringView key) const;
 
-#if !defined(KERNEL)
     Optional<ByteString> get_byte_string(StringView key) const;
-#endif
 
     Optional<JsonObject const&> get_object(StringView key) const;
     Optional<JsonArray const&> get_array(StringView key) const;
 
-#if !defined(KERNEL)
     Optional<double> get_double_with_precision_loss(StringView key) const;
     Optional<float> get_float_with_precision_loss(StringView key) const;
-#endif
 
     void set(ByteString const& key, JsonValue value);
 

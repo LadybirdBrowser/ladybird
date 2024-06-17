@@ -9,13 +9,8 @@
 #include <AK/StringView.h>
 #include <AK/Try.h>
 #include <AK/Variant.h>
-
-#if defined(AK_OS_SERENITY) && defined(KERNEL)
-#    include <errno_codes.h>
-#else
-#    include <errno.h>
-#    include <string.h>
-#endif
+#include <errno.h>
+#include <string.h>
 
 namespace AK {
 
@@ -36,7 +31,6 @@ public:
     // the Error::from_string_view method!
     static Error from_string_view_or_print_error_and_return_errno(StringView string_literal, int code);
 
-#ifndef KERNEL
     static Error from_syscall(StringView syscall_name, int rc)
     {
         return Error(syscall_name, rc);
@@ -52,14 +46,11 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-#endif
-
     static Error copy(Error const& error)
     {
         return Error(error);
     }
 
-#ifndef KERNEL
     // NOTE: Prefer `from_string_literal` when directly typing out an error message:
     //
     //     return Error::from_string_literal("Class: Some failure");
@@ -78,15 +69,10 @@ public:
     {
         return from_string_view(string);
     }
-#endif
 
     bool operator==(Error const& other) const
     {
-#ifdef KERNEL
-        return m_code == other.m_code;
-#else
         return m_code == other.m_code && m_string_literal == other.m_string_literal && m_syscall == other.m_syscall;
-#endif
     }
 
     int code() const { return m_code; }
@@ -94,7 +80,6 @@ public:
     {
         return m_code != 0;
     }
-#ifndef KERNEL
     bool is_syscall() const
     {
         return m_syscall;
@@ -103,7 +88,6 @@ public:
     {
         return m_string_literal;
     }
-#endif
 
 protected:
     Error(int code)
@@ -112,7 +96,6 @@ protected:
     }
 
 private:
-#ifndef KERNEL
     Error(StringView string_literal)
         : m_string_literal(string_literal)
     {
@@ -124,20 +107,15 @@ private:
         , m_syscall(true)
     {
     }
-#endif
 
     Error(Error const&) = default;
     Error& operator=(Error const&) = default;
 
-#ifndef KERNEL
     StringView m_string_literal;
-#endif
 
     int m_code { 0 };
 
-#ifndef KERNEL
     bool m_syscall { false };
-#endif
 };
 
 template<typename T, typename E>

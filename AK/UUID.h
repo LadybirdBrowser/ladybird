@@ -8,14 +8,9 @@
 
 #include <AK/Array.h>
 #include <AK/ByteBuffer.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-
-#ifdef KERNEL
-#    include <Kernel/Library/KString.h>
-#else
-#    include <AK/String.h>
-#endif
 
 namespace AK {
 
@@ -33,11 +28,7 @@ public:
 
     bool operator==(const UUID&) const = default;
 
-#ifdef KERNEL
-    ErrorOr<NonnullOwnPtr<Kernel::KString>> to_string() const;
-#else
     ErrorOr<String> to_string() const;
-#endif
     bool is_zero() const;
 
 private:

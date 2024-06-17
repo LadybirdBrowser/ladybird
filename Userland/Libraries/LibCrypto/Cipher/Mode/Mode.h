@@ -33,9 +33,7 @@ public:
             return ByteBuffer::create_uninitialized(input_size + T::block_size() - remainder);
     }
 
-#ifndef KERNEL
     virtual ByteString class_name() const = 0;
-#endif
 
     T& cipher()
     {

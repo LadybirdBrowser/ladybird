@@ -7,14 +7,11 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
-
-#ifndef KERNEL
-#    include <AK/ByteString.h>
-#endif
 
 constexpr static auto IPAD = 0x36;
 constexpr static auto OPAD = 0x5c;
@@ -72,7 +69,6 @@ public:
         m_outer_hasher.update(m_key_data + m_inner_hasher.block_size(), m_outer_hasher.block_size());
     }
 
-#ifndef KERNEL
     ByteString class_name() const
     {
         StringBuilder builder;
@@ -80,7 +76,6 @@ public:
         builder.append(m_inner_hasher.class_name());
         return builder.to_byte_string();
     }
-#endif
 
 private:
     void derive_key(u8 const* key, size_t length)

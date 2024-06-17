@@ -34,17 +34,6 @@ ErrorOr<ByteBuffer> decode_hex(StringView input)
     return { move(output) };
 }
 
-#ifdef KERNEL
-ErrorOr<NonnullOwnPtr<Kernel::KString>> encode_hex(ReadonlyBytes const input)
-{
-    StringBuilder output(input.size() * 2);
-
-    for (auto ch : input)
-        TRY(output.try_appendff("{:02x}", ch));
-
-    return Kernel::KString::try_create(output.string_view());
-}
-#else
 ByteString encode_hex(ReadonlyBytes const input)
 {
     StringBuilder output(input.size() * 2);
@@ -54,6 +43,5 @@ ByteString encode_hex(ReadonlyBytes const input)
 
     return output.to_byte_string();
 }
-#endif
 
 }

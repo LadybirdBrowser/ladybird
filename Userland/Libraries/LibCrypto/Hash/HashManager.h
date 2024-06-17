@@ -196,14 +196,12 @@ public:
             [&](auto& hash) { hash.reset(); });
     }
 
-#ifndef KERNEL
     virtual ByteString class_name() const override
     {
         return m_algorithm.visit(
             [&](Empty const&) -> ByteString { return "UninitializedHashManager"; },
             [&](auto const& hash) { return hash.class_name(); });
     }
-#endif
 
     inline HashKind kind() const
     {

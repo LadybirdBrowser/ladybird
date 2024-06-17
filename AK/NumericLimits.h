@@ -110,7 +110,6 @@ struct NumericLimits<unsigned long long> {
     static constexpr size_t digits() { return __CHAR_BIT__ * sizeof(long long); }
 };
 
-#ifndef KERNEL
 template<>
 struct NumericLimits<float> {
     static constexpr float lowest() { return -__FLT_MAX__; }
@@ -143,7 +142,6 @@ struct NumericLimits<long double> {
     static constexpr bool is_signed() { return true; }
     static constexpr size_t digits() { return __LDBL_MANT_DIG__; }
 };
-#endif
 
 }
 

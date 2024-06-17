@@ -6,22 +6,18 @@
 
 #include <AK/AnyOf.h>
 #include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
+#include <AK/DeprecatedFlyString.h>
 #include <AK/Find.h>
+#include <AK/FlyString.h>
 #include <AK/Function.h>
+#include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 
-#ifndef KERNEL
-#    include <AK/ByteString.h>
-#    include <AK/DeprecatedFlyString.h>
-#    include <AK/FlyString.h>
-#    include <AK/String.h>
-#endif
-
 namespace AK {
 
-#ifndef KERNEL
 StringView::StringView(String const& string)
     : m_characters(reinterpret_cast<char const*>(string.bytes().data()))
     , m_length(string.bytes().size())
@@ -45,7 +41,6 @@ StringView::StringView(DeprecatedFlyString const& string)
     , m_length(string.length())
 {
 }
-#endif
 
 StringView::StringView(ByteBuffer const& buffer)
     : m_characters((char const*)buffer.data())
@@ -207,7 +202,6 @@ bool StringView::equals_ignoring_ascii_case(StringView other) const
     return StringUtils::equals_ignoring_ascii_case(*this, other);
 }
 
-#ifndef KERNEL
 ByteString StringView::to_lowercase_string() const
 {
     return StringImpl::create_lowercased(characters_without_null_termination(), length()).release_nonnull();
@@ -222,7 +216,6 @@ ByteString StringView::to_titlecase_string() const
 {
     return StringUtils::to_titlecase(*this);
 }
-#endif
 
 StringView StringView::substring_view_starting_from_substring(StringView substring) const
 {
@@ -254,8 +247,6 @@ bool StringView::copy_characters_to_buffer(char* buffer, size_t buffer_size) con
     return characters_to_copy == m_length;
 }
 
-#ifndef KERNEL
-
 bool StringView::operator==(ByteString const& string) const
 {
     return *this == string.view();
@@ -267,7 +258,6 @@ ByteString StringView::replace(StringView needle, StringView replacement, Replac
 {
     return StringUtils::replace(*this, needle, replacement, replace_mode);
 }
-#endif
 
 Vector<size_t> StringView::find_all(StringView needle) const
 {

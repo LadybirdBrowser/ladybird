@@ -8,9 +8,6 @@
 
 #include <AK/NonnullRefPtr.h>
 
-#ifdef KERNEL
-#    include <Kernel/Library/LockRefPtr.h>
-#endif
 namespace AK::Detail {
 
 template<typename T, typename Container>
@@ -22,13 +19,6 @@ template<typename T>
 struct SubstituteIntrusiveContainerType<T, NonnullRefPtr<T>> {
     using Type = RefPtr<T>;
 };
-
-#ifdef KERNEL
-template<typename T>
-struct SubstituteIntrusiveContainerType<T, NonnullLockRefPtr<T>> {
-    using Type = LockRefPtr<T>;
-};
-#endif
 
 template<typename Container, bool _IsRaw>
 struct SelfReferenceIfNeeded {

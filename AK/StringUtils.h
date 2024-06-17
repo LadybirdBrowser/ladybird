@@ -82,10 +82,8 @@ template<typename T = unsigned>
 Optional<T> convert_to_uint_from_hex(StringView, TrimWhitespace = TrimWhitespace::Yes);
 template<typename T = unsigned>
 Optional<T> convert_to_uint_from_octal(StringView, TrimWhitespace = TrimWhitespace::Yes);
-#ifndef KERNEL
 template<typename T>
 Optional<T> convert_to_floating_point(StringView, TrimWhitespace = TrimWhitespace::Yes);
-#endif
 bool equals_ignoring_ascii_case(StringView, StringView);
 bool ends_with(StringView a, StringView b, CaseSensitivity);
 bool starts_with(StringView, StringView, CaseSensitivity);

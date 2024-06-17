@@ -108,7 +108,6 @@ Optional<bool> JsonObject::get_bool(StringView key) const
     return {};
 }
 
-#if !defined(KERNEL)
 Optional<ByteString> JsonObject::get_byte_string(StringView key) const
 {
     auto maybe_value = get(key);
@@ -116,7 +115,6 @@ Optional<ByteString> JsonObject::get_byte_string(StringView key) const
         return maybe_value->as_string();
     return {};
 }
-#endif
 
 Optional<JsonObject const&> JsonObject::get_object(StringView key) const
 {
@@ -134,7 +132,6 @@ Optional<JsonArray const&> JsonObject::get_array(StringView key) const
     return {};
 }
 
-#if !defined(KERNEL)
 Optional<double> JsonObject::get_double_with_precision_loss(StringView key) const
 {
     auto maybe_value = get(key);
@@ -150,7 +147,6 @@ Optional<float> JsonObject::get_float_with_precision_loss(StringView key) const
         return maybe_value->get_float_with_precision_loss();
     return {};
 }
-#endif
 
 bool JsonObject::has(StringView key) const
 {

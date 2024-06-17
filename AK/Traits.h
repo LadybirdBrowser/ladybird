@@ -47,7 +47,6 @@ struct Traits<T> : public DefaultTraits<T> {
     }
 };
 
-#ifndef KERNEL
 template<FloatingPoint T>
 struct Traits<T> : public DefaultTraits<T> {
     static constexpr bool is_trivial() { return true; }
@@ -60,7 +59,6 @@ struct Traits<T> : public DefaultTraits<T> {
             return u64_hash(bit_cast<u64>(value));
     }
 };
-#endif
 
 template<typename T>
 requires(IsPointer<T> && !Detail::IsPointerOfType<char, T>) struct Traits<T> : public DefaultTraits<T> {

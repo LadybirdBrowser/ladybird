@@ -7,13 +7,10 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <AK/Format.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-
-#ifndef KERNEL
-#    include <AK/ByteString.h>
-#endif
 
 namespace AK {
 
@@ -71,14 +68,12 @@ public:
     {
     }
 
-#ifndef KERNEL
     explicit Utf8View(ByteString& string)
         : m_string(string.view())
     {
     }
 
     explicit Utf8View(ByteString&&) = delete;
-#endif
 
     enum class AllowSurrogates {
         Yes,
@@ -238,7 +233,6 @@ private:
     mutable bool m_have_length { false };
 };
 
-#ifndef KERNEL
 class DeprecatedStringCodePointIterator {
 public:
     Optional<u32> next()
@@ -272,7 +266,6 @@ private:
     ByteString m_string;
     Utf8CodePointIterator m_it;
 };
-#endif
 
 template<>
 struct Formatter<Utf8View> : Formatter<StringView> {
@@ -282,9 +275,7 @@ struct Formatter<Utf8View> : Formatter<StringView> {
 }
 
 #if USING_AK_GLOBALLY
-#    ifndef KERNEL
 using AK::DeprecatedStringCodePointIterator;
-#    endif
 using AK::Utf8CodePointIterator;
 using AK::Utf8View;
 #endif

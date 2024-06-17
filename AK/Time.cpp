@@ -6,15 +6,8 @@
 
 #include <AK/Checked.h>
 #include <AK/Time.h>
-
-// Make a reasonable guess as to which timespec/timeval definition to use.
-// It doesn't really matter, since both are identical.
-#ifdef KERNEL
-#    include <Kernel/UnixTypes.h>
-#else
-#    include <sys/time.h>
-#    include <time.h>
-#endif
+#include <sys/time.h>
+#include <time.h>
 
 namespace AK {
 
@@ -207,7 +200,6 @@ Duration Duration::from_half_sanitized(i64 seconds, i32 extra_seconds, u32 nanos
     return Duration { seconds + extra_seconds, nanoseconds };
 }
 
-#ifndef KERNEL
 namespace {
 static Duration now_time_from_clock(clockid_t clock_id)
 {
@@ -236,7 +228,5 @@ UnixDateTime UnixDateTime::now_coarse()
 {
     return UnixDateTime { now_time_from_clock(CLOCK_REALTIME_COARSE) };
 }
-
-#endif
 
 }

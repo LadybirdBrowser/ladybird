@@ -232,10 +232,8 @@ private:
 
         if constexpr (requires(MetadataType t) { { t.copy() } -> SpecializationOf<ErrorOr>; })
             return Optional<MetadataType> { TRY(metadata->copy()) };
-#ifndef KERNEL
         else
             return Optional<MetadataType> { MetadataType(metadata.value()) };
-#endif
     }
 
     static ErrorOr<void> skip_to_next_iterator(auto& state, auto& current_node)

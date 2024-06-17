@@ -5,16 +5,11 @@
  */
 
 #include <AK/ByteReader.h>
+#include <AK/Random.h>
 #include <AK/Singleton.h>
 #include <AK/SipHash.h>
 #include <AK/Span.h>
 #include <AK/UFixedBigInt.h>
-
-#ifdef KERNEL
-#    include <Kernel/Security/Random.h>
-#else
-#    include <AK/Random.h>
-#endif
 
 namespace AK {
 
@@ -137,12 +132,8 @@ static void do_siphash(ReadonlyBytes input, u128 key, Bytes output)
 struct SipHashKey {
     SipHashKey()
     {
-#ifdef KERNEL
-        key = Kernel::get_good_random<u128>();
-#else
         // get_random is assumed to be secure, otherwise SipHash doesn't deliver on its promises!
         key = get_random<u128>();
-#endif
     }
     constexpr u128 operator*() const { return key; }
     u128 key;

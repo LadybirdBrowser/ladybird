@@ -17,20 +17,18 @@ using i32 = __INT32_TYPE__;
 using i16 = __INT16_TYPE__;
 using i8 = __INT8_TYPE__;
 
-#ifndef KERNEL
 using f32 = float;
 static_assert(__FLT_MANT_DIG__ == 24 && __FLT_MAX_EXP__ == 128);
 
 using f64 = double;
 static_assert(__DBL_MANT_DIG__ == 53 && __DBL_MAX_EXP__ == 1024);
 
-#    if __LDBL_MANT_DIG__ == 64 && __LDBL_MAX_EXP__ == 16384
-#        define AK_HAS_FLOAT_80 1
+#if __LDBL_MANT_DIG__ == 64 && __LDBL_MAX_EXP__ == 16384
+#    define AK_HAS_FLOAT_80 1
 using f80 = long double;
-#    elif __LDBL_MANT_DIG__ == 113 && __LDBL_MAX_EXP__ == 16384
-#        define AK_HAS_FLOAT_128 1
+#elif __LDBL_MANT_DIG__ == 113 && __LDBL_MAX_EXP__ == 16384
+#    define AK_HAS_FLOAT_128 1
 using f128 = long double;
-#    endif
 #endif
 
 namespace AK::Detail {

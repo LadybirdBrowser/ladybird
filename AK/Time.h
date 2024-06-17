@@ -12,20 +12,8 @@
 #include <AK/Checked.h>
 #include <AK/Platform.h>
 #include <AK/Types.h>
-
-#if defined(AK_OS_SERENITY) && defined(KERNEL)
-#    include <Kernel/API/POSIX/sys/time.h>
-#    include <Kernel/API/POSIX/time.h>
-
-// We need a Badge<TimeManagement> for some MonotonicTime operations.
-namespace Kernel {
-class TimeManagement;
-}
-
-#else
-#    include <sys/time.h>
-#    include <time.h>
-#endif
+#include <sys/time.h>
+#include <time.h>
 
 namespace AK {
 
@@ -450,10 +438,8 @@ public:
     // Subtracting two UNIX times yields their time difference.
     constexpr Duration operator-(UnixDateTime const& other) const { return m_offset - other.m_offset; }
 
-#ifndef KERNEL
     [[nodiscard]] static UnixDateTime now();
     [[nodiscard]] static UnixDateTime now_coarse();
-#endif
 
     constexpr bool operator==(UnixDateTime const& other) const
     {
@@ -479,10 +465,8 @@ public:
     constexpr MonotonicTime& operator=(MonotonicTime const&) = default;
     constexpr MonotonicTime& operator=(MonotonicTime&&) = default;
 
-#ifndef KERNEL
     [[nodiscard]] static MonotonicTime now();
     [[nodiscard]] static MonotonicTime now_coarse();
-#endif
 
     [[nodiscard]] i64 seconds() const { return m_offset.to_seconds(); }
     [[nodiscard]] i64 milliseconds() const { return m_offset.to_milliseconds(); }
@@ -502,20 +486,6 @@ public:
     }
     constexpr MonotonicTime operator-(Duration const& other) const { return MonotonicTime { m_offset - other }; }
     constexpr Duration operator-(MonotonicTime const& other) const { return m_offset - other.m_offset; }
-
-#ifdef KERNEL
-    // Required in the Kernel in order to create monotonic time information from hardware timers.
-    [[nodiscard]] static MonotonicTime from_hardware_time(Badge<Kernel::TimeManagement>, time_t seconds, long nanoseconds)
-    {
-        return MonotonicTime { Duration::from_timespec({ seconds, nanoseconds }) };
-    }
-
-    // "Start" is whenever the hardware timers started counting (e.g. for HPET it's most certainly boot).
-    [[nodiscard]] Duration time_since_start(Badge<Kernel::TimeManagement>)
-    {
-        return m_offset;
-    }
-#endif
 
 private:
     constexpr explicit MonotonicTime(Duration offset)

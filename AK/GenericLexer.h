@@ -92,14 +92,12 @@ public:
         return true;
     }
 
-#ifndef KERNEL
     bool consume_specific(ByteString next) = delete;
 
     bool consume_specific(String const& next)
     {
         return consume_specific(next.bytes_as_string_view());
     }
-#endif
 
     constexpr bool consume_specific(char const* next)
     {
@@ -128,9 +126,7 @@ public:
     StringView consume_until(char const*);
     StringView consume_until(StringView);
     StringView consume_quoted_string(char escape_char = 0);
-#ifndef KERNEL
     Optional<ByteString> consume_and_unescape_string(char escape_char = '\\');
-#endif
     template<Integral T>
     ErrorOr<T> consume_decimal_integer();
 
@@ -139,9 +135,7 @@ public:
         UnicodeEscapeOverflow,
     };
 
-#ifndef KERNEL
     Result<u32, UnicodeEscapeError> consume_escaped_code_point(bool combine_surrogate_pairs = true);
-#endif
 
     constexpr void ignore(size_t count = 1)
     {
@@ -228,10 +222,8 @@ protected:
     size_t m_index { 0 };
 
 private:
-#ifndef KERNEL
     Result<u32, UnicodeEscapeError> decode_code_point();
     Result<u32, UnicodeEscapeError> decode_single_or_paired_surrogate(bool combine_surrogate_pairs);
-#endif
 };
 
 class LineTrackingLexer : public GenericLexer {

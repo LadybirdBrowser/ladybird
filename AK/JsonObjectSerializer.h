@@ -9,11 +9,8 @@
 
 #include <AK/Error.h>
 #include <AK/JsonArraySerializer.h>
+#include <AK/JsonValue.h>
 #include <AK/Try.h>
-
-#ifndef KERNEL
-#    include <AK/JsonValue.h>
-#endif
 
 namespace AK {
 
@@ -38,14 +35,12 @@ public:
 
     JsonObjectSerializer(JsonObjectSerializer const&) = delete;
 
-#ifndef KERNEL
     ErrorOr<void> add(StringView key, JsonValue const& value)
     {
         TRY(begin_item(key));
         value.serialize(m_builder);
         return {};
     }
-#endif
 
     ErrorOr<void> add(StringView key, StringView value)
     {
@@ -62,7 +57,6 @@ public:
         return {};
     }
 
-#ifndef KERNEL
     ErrorOr<void> add(StringView key, ByteString const& value)
     {
         TRY(begin_item(key));
@@ -77,7 +71,6 @@ public:
         }
         return {};
     }
-#endif
 
     ErrorOr<void> add(StringView key, char const* value)
     {
@@ -164,7 +157,6 @@ public:
         return {};
     }
 
-#ifndef KERNEL
     ErrorOr<void> add(StringView key, float value)
     {
         TRY(begin_item(key));
@@ -184,7 +176,6 @@ public:
             TRY(m_builder.appendff("{}", value));
         return {};
     }
-#endif
 
     ErrorOr<JsonArraySerializer<Builder>> add_array(StringView key)
     {

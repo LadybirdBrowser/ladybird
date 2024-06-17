@@ -181,7 +181,6 @@ public:
         return {};
     }
 
-#ifndef KERNEL
     template<typename U = T>
     void append(U&& value)
     {
@@ -193,7 +192,6 @@ public:
     {
         MUST(try_prepend(forward<U>(value)));
     }
-#endif
 
     bool contains_slow(T const& value) const
     {
@@ -266,7 +264,6 @@ public:
         return {};
     }
 
-#ifndef KERNEL
     template<typename U = T>
     void insert_before(Iterator iterator, U&& value)
     {
@@ -278,7 +275,6 @@ public:
     {
         MUST(try_insert_after(iterator, forward<U>(value)));
     }
-#endif
 
     void remove(Iterator& iterator)
     {

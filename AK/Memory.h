@@ -8,12 +8,7 @@
 #pragma once
 
 #include <AK/Types.h>
-
-#if defined(KERNEL)
-#    include <Kernel/Library/StdLib.h>
-#else
-#    include <string.h>
-#endif
+#include <string.h>
 
 ALWAYS_INLINE void fast_u32_copy(u32* dest, u32 const* src, size_t count)
 {

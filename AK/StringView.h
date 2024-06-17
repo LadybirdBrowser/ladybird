@@ -48,20 +48,16 @@ public:
     }
 
     StringView(ByteBuffer const&);
-#ifndef KERNEL
     StringView(String const&);
     StringView(FlyString const&);
     StringView(ByteString const&);
     StringView(DeprecatedFlyString const&);
-#endif
 
     explicit StringView(ByteBuffer&&) = delete;
-#ifndef KERNEL
     explicit StringView(String&&) = delete;
     explicit StringView(FlyString&&) = delete;
     explicit StringView(ByteString&&) = delete;
     explicit StringView(DeprecatedFlyString&&) = delete;
-#endif
 
     template<OneOf<String, FlyString, ByteString, DeprecatedFlyString, ByteBuffer> StringType>
     StringView& operator=(StringType&&) = delete;
@@ -110,11 +106,9 @@ public:
     [[nodiscard]] StringView trim(StringView characters, TrimMode mode = TrimMode::Both) const { return StringUtils::trim(*this, characters, mode); }
     [[nodiscard]] StringView trim_whitespace(TrimMode mode = TrimMode::Both) const { return StringUtils::trim_whitespace(*this, mode); }
 
-#ifndef KERNEL
     [[nodiscard]] ByteString to_lowercase_string() const;
     [[nodiscard]] ByteString to_uppercase_string() const;
     [[nodiscard]] ByteString to_titlecase_string() const;
-#endif
 
     [[nodiscard]] Optional<size_t> find(char needle, size_t start = 0) const
     {
@@ -285,9 +279,7 @@ public:
         return m_length == 1 && *m_characters == c;
     }
 
-#ifndef KERNEL
     bool operator==(ByteString const&) const;
-#endif
 
     [[nodiscard]] constexpr int compare(StringView other) const
     {
@@ -327,18 +319,14 @@ public:
 
     constexpr bool operator>=(StringView other) const { return compare(other) >= 0; }
 
-#ifndef KERNEL
     [[nodiscard]] ByteString to_byte_string() const;
-#endif
 
     [[nodiscard]] bool is_whitespace() const
     {
         return StringUtils::is_whitespace(*this);
     }
 
-#ifndef KERNEL
     [[nodiscard]] ByteString replace(StringView needle, StringView replacement, ReplaceMode) const;
-#endif
     [[nodiscard]] size_t count(StringView needle) const
     {
         return StringUtils::count(*this, needle);
@@ -370,10 +358,8 @@ public:
     template<Arithmetic T>
     Optional<T> to_number(TrimWhitespace trim_whitespace = TrimWhitespace::Yes) const
     {
-#ifndef KERNEL
         if constexpr (IsFloatingPoint<T>)
             return StringUtils::convert_to_floating_point<T>(*this, trim_whitespace);
-#endif
         if constexpr (IsSigned<T>)
             return StringUtils::convert_to_int<T>(*this, trim_whitespace);
         else

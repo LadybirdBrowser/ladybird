@@ -8,32 +8,22 @@
 #include <AK/Format.h>
 #include <AK/GenericLexer.h>
 #include <AK/IntegralMath.h>
+#include <AK/LexicalPath.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <AK/StringFloatingPointConversions.h>
 #include <AK/kstdio.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
-#if defined(AK_OS_SERENITY) && !defined(KERNEL)
+#if defined(AK_OS_SERENITY)
 #    include <serenity.h>
-#endif
-
-#ifdef KERNEL
-#    include <Kernel/Tasks/Process.h>
-#    include <Kernel/Tasks/Thread.h>
-#    include <Kernel/Time/TimeManagement.h>
-#else
-#    include <AK/LexicalPath.h>
-#    include <math.h>
-#    include <stdio.h>
-#    include <string.h>
-#    include <time.h>
 #endif
 
 #if defined(AK_OS_ANDROID)
 #    include <android/log.h>
-#endif
-
-#ifndef KERNEL
-#    include <AK/StringFloatingPointConversions.h>
 #endif
 
 namespace AK {
@@ -452,7 +442,6 @@ ErrorOr<void> FormatBuilder::put_fixed_point(
     return {};
 }
 
-#ifndef KERNEL
 static ErrorOr<void> round_up_digits(StringBuilder& digits_builder)
 {
     auto digits_buffer = TRY(digits_builder.to_byte_buffer());
@@ -746,8 +735,6 @@ ErrorOr<void> FormatBuilder::put_f80(
     return {};
 }
 
-#endif
-
 ErrorOr<void> FormatBuilder::put_hexdump(ReadonlyBytes bytes, size_t width, char fill)
 {
     auto put_char_view = [&](auto i) -> ErrorOr<void> {
@@ -991,7 +978,6 @@ ErrorOr<void> Formatter<bool>::format(FormatBuilder& builder, bool value)
         return formatter.format(builder, value ? "true"sv : "false"sv);
     }
 }
-#ifndef KERNEL
 ErrorOr<void> Formatter<long double>::format(FormatBuilder& builder, long double value)
 {
     u8 base;
@@ -1070,9 +1056,7 @@ ErrorOr<void> Formatter<float>::format(FormatBuilder& builder, float value)
 
 template ErrorOr<void> FormatBuilder::put_f32_or_f64<float>(float, u8, bool, bool, bool, Align, size_t, Optional<size_t>, char, SignMode, RealNumberDisplayMode);
 template ErrorOr<void> FormatBuilder::put_f32_or_f64<double>(double, u8, bool, bool, bool, Align, size_t, Optional<size_t>, char, SignMode, RealNumberDisplayMode);
-#endif
 
-#ifndef KERNEL
 void vout(FILE* file, StringView fmtstr, TypeErasedFormatParams& params, bool newline)
 {
     StringBuilder builder;
@@ -1088,7 +1072,6 @@ void vout(FILE* file, StringView fmtstr, TypeErasedFormatParams& params, bool ne
         dbgln("vout() failed ({} written out of {}), error was {} ({})", retval, string.length(), error, strerror(error));
     }
 }
-#endif
 
 #ifdef AK_OS_ANDROID
 static char const* s_log_tag_name = "Serenity";
@@ -1129,25 +1112,24 @@ void vout(LogLevel log_level, StringView fmtstr, TypeErasedFormatParams& params,
 
 #endif
 
-#ifndef KERNEL
 // FIXME: Deduplicate with Core::Process:get_name()
 [[gnu::used]] static ByteString process_name_helper()
 {
-#    if defined(AK_OS_SERENITY)
+#if defined(AK_OS_SERENITY)
     char buffer[BUFSIZ] = {};
     int rc = get_process_name(buffer, BUFSIZ);
     if (rc != 0)
         return ByteString {};
     return StringView { buffer, strlen(buffer) };
-#    elif defined(AK_LIBC_GLIBC) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+#elif defined(AK_LIBC_GLIBC) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
     return StringView { program_invocation_name, strlen(program_invocation_name) };
-#    elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
+#elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
     auto const* progname = getprogname();
     return StringView { progname, strlen(progname) };
-#    else
+#else
     // FIXME: Implement process_name_helper() for other platforms.
     return StringView {};
-#    endif
+#endif
 }
 
 static StringView process_name_for_logging()
@@ -1165,7 +1147,6 @@ static StringView process_name_for_logging()
     }
     return process_name;
 }
-#endif
 
 static bool is_debug_enabled = true;
 
@@ -1195,21 +1176,7 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
     StringBuilder builder;
 
     if (is_rich_debug_enabled) {
-#ifdef KERNEL
-        if (Kernel::Processor::is_initialized() && TimeManagement::is_initialized()) {
-            auto time = TimeManagement::the().monotonic_time(TimePrecision::Coarse);
-            if (Kernel::Thread::current()) {
-                auto& thread = *Kernel::Thread::current();
-                thread.process().name().with([&](auto& process_name) {
-                    builder.appendff("{}.{:03} \033[34;1m[#{} {}({}:{})]\033[0m: ", time.truncated_seconds(), time.nanoseconds_within_second() / 1000000, Kernel::Processor::current_id(), process_name.representable_view(), thread.pid().value(), thread.tid().value());
-                });
-            } else {
-                builder.appendff("{}.{:03} \033[34;1m[#{} Kernel]\033[0m: ", time.truncated_seconds(), time.nanoseconds_within_second() / 1000000, Kernel::Processor::current_id());
-            }
-        } else {
-            builder.appendff("\033[34;1m[Kernel]\033[0m: ");
-        }
-#elif !defined(AK_OS_WINDOWS)
+#ifndef AK_OS_WINDOWS
         auto process_name = process_name_for_logging();
         if (!process_name.is_empty()) {
             struct timespec ts = {};
@@ -1240,75 +1207,12 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
 #endif
     auto const string = builder.string_view();
 
-#ifdef AK_OS_SERENITY
-#    ifdef KERNEL
-    if (!Kernel::Processor::is_initialized()) {
-        kernelearlyputstr(string.characters_without_null_termination(), string.length());
-        return;
-    }
-#    endif
-#endif
 #ifdef AK_OS_ANDROID
     __android_log_write(ANDROID_LOG_DEBUG, s_log_tag_name, string.characters_without_null_termination());
 #else
     dbgputstr(string.characters_without_null_termination(), string.length());
 #endif
 }
-
-#ifdef KERNEL
-void vdmesgln(StringView fmtstr, TypeErasedFormatParams& params)
-{
-    StringBuilder builder;
-
-#    ifdef AK_OS_SERENITY
-    if (TimeManagement::is_initialized()) {
-        auto time = TimeManagement::the().monotonic_time(TimePrecision::Coarse);
-
-        if (Kernel::Processor::is_initialized() && Kernel::Thread::current()) {
-            auto& thread = *Kernel::Thread::current();
-            thread.process().name().with([&](auto& process_name) {
-                builder.appendff("{}.{:03} \033[34;1m[{}({}:{})]\033[0m: ", time.truncated_seconds(), time.nanoseconds_within_second() / 1000000, process_name.representable_view(), thread.pid().value(), thread.tid().value());
-            });
-        } else {
-            builder.appendff("{}.{:03} \033[34;1m[Kernel]\033[0m: ", time.truncated_seconds(), time.nanoseconds_within_second() / 1000000);
-        }
-    } else {
-        builder.appendff("\033[34;1m[Kernel]\033[0m: ");
-    }
-#    endif
-
-    MUST(vformat(builder, fmtstr, params));
-    builder.append('\n');
-
-    auto const string = builder.string_view();
-    kernelputstr(string.characters_without_null_termination(), string.length());
-}
-
-void v_critical_dmesgln(StringView fmtstr, TypeErasedFormatParams& params)
-{
-    // FIXME: Try to avoid memory allocations further to prevent faulting
-    // at OOM conditions.
-
-    StringBuilder builder;
-#    ifdef AK_OS_SERENITY
-    if (Kernel::Processor::is_initialized() && Kernel::Thread::current()) {
-        auto& thread = *Kernel::Thread::current();
-        thread.process().name().with([&](auto& process_name) {
-            builder.appendff("[{}({}:{})]: ", process_name.representable_view(), thread.pid().value(), thread.tid().value());
-        });
-    } else {
-        builder.appendff("[Kernel]: ");
-    }
-#    endif
-
-    MUST(vformat(builder, fmtstr, params));
-    builder.append('\n');
-
-    auto const string = builder.string_view();
-    kernelcriticalputstr(string.characters_without_null_termination(), string.length());
-}
-
-#endif
 
 template struct Formatter<unsigned char, void>;
 template struct Formatter<unsigned short, void>;

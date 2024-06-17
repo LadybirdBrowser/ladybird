@@ -8,11 +8,8 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/JsonValue.h>
 #include <AK/Try.h>
-
-#ifndef KERNEL
-#    include <AK/JsonValue.h>
-#endif
 
 namespace AK {
 
@@ -43,14 +40,12 @@ public:
 
     JsonArraySerializer(JsonArraySerializer const&) = delete;
 
-#ifndef KERNEL
     ErrorOr<void> add(JsonValue const& value)
     {
         TRY(begin_item());
         value.serialize(m_builder);
         return {};
     }
-#endif
 
     ErrorOr<void> add(StringView value)
     {
@@ -67,7 +62,6 @@ public:
         return {};
     }
 
-#ifndef KERNEL
     ErrorOr<void> add(ByteString const& value)
     {
         TRY(begin_item());
@@ -82,7 +76,6 @@ public:
         }
         return {};
     }
-#endif
 
     ErrorOr<void> add(char const* value)
     {

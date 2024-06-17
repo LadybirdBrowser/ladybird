@@ -226,8 +226,6 @@ public:
         return false;
     }
 
-#ifndef KERNEL
-
     template<typename U = T>
     void insert(size_t index, U&& value)
     requires(CanBePlacedInsideVector<U>)
@@ -252,8 +250,6 @@ public:
         MUST(try_extend(other));
     }
 
-#endif
-
     ALWAYS_INLINE void append(T&& value)
     {
         if constexpr (contains_reference)
@@ -268,12 +264,10 @@ public:
         MUST(try_append(T(value)));
     }
 
-#ifndef KERNEL
     void append(StorageType const* values, size_t count)
     {
         MUST(try_append(values, count));
     }
-#endif
 
     template<typename U = T>
     ALWAYS_INLINE void unchecked_append(U&& value)
@@ -296,7 +290,6 @@ public:
         m_size += count;
     }
 
-#ifndef KERNEL
     template<class... Args>
     void empend(Args&&... args)
     requires(!contains_reference)
@@ -320,8 +313,6 @@ public:
     {
         MUST(try_prepend(values, count));
     }
-
-#endif
 
     // FIXME: What about assigning from a vector with lower inline capacity?
     Vector& operator=(Vector&& other)
