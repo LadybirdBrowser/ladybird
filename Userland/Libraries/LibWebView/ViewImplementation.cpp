@@ -16,10 +16,6 @@ namespace WebView {
 
 ViewImplementation::ViewImplementation()
 {
-    m_backing_store_shrink_timer = Core::Timer::create_single_shot(3000, [this] {
-        resize_backing_stores_if_needed(WindowResizeInProgress::No);
-    });
-
     m_repeated_crash_timer = Core::Timer::create_single_shot(1000, [this] {
         // Reset the "crashing a lot" counter after 1 second in case we just
         // happen to be visiting crashy websites a lot.
@@ -386,62 +382,24 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
         on_navigation_buttons_state_changed(back_enabled, forward_enabled);
 }
 
-void ViewImplementation::handle_resize()
-{
-    resize_backing_stores_if_needed(WindowResizeInProgress::Yes);
-    m_backing_store_shrink_timer->restart();
-}
-
-void ViewImplementation::resize_backing_stores_if_needed(WindowResizeInProgress window_resize_in_progress)
+void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::ShareableBitmap const& front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap const& back_bitmap)
 {
     if (m_client_state.has_usable_bitmap) {
         // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
         m_backup_bitmap = m_client_state.front_bitmap.bitmap;
         m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
     }
-
     m_client_state.has_usable_bitmap = false;
 
-    auto viewport_size = this->viewport_size();
-    if (viewport_size.is_empty())
-        return;
+    m_client_state.front_bitmap.bitmap = front_bitmap.bitmap();
+    m_client_state.front_bitmap.id = front_bitmap_id;
+    m_client_state.back_bitmap.bitmap = back_bitmap.bitmap();
+    m_client_state.back_bitmap.id = back_bitmap_id;
+}
 
-    Web::DevicePixelSize minimum_needed_size;
-
-    if (window_resize_in_progress == WindowResizeInProgress::Yes) {
-        // Pad the minimum needed size so that we don't have to keep reallocating backing stores while the window is being resized.
-        minimum_needed_size = { viewport_size.width() + 256, viewport_size.height() + 256 };
-    } else {
-        // If we're not in the middle of a resize, we can shrink the backing store size to match the viewport size.
-        minimum_needed_size = viewport_size;
-        m_client_state.front_bitmap = {};
-        m_client_state.back_bitmap = {};
-    }
-
-    auto old_front_bitmap_id = m_client_state.front_bitmap.id;
-    auto old_back_bitmap_id = m_client_state.back_bitmap.id;
-
-    auto reallocate_backing_store_if_needed = [&](SharedBitmap& backing_store) {
-        if (!backing_store.bitmap || !backing_store.bitmap->size().contains(minimum_needed_size.to_type<int>())) {
-            if (auto new_bitmap_or_error = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, minimum_needed_size.to_type<int>()); !new_bitmap_or_error.is_error()) {
-                backing_store.bitmap = new_bitmap_or_error.release_value();
-                backing_store.id = m_client_state.next_bitmap_id++;
-            }
-            backing_store.last_painted_size = viewport_size;
-        }
-    };
-
-    reallocate_backing_store_if_needed(m_client_state.front_bitmap);
-    reallocate_backing_store_if_needed(m_client_state.back_bitmap);
-
-    auto& front_bitmap = m_client_state.front_bitmap;
-    auto& back_bitmap = m_client_state.back_bitmap;
-
-    if (front_bitmap.id != old_front_bitmap_id || back_bitmap.id != old_back_bitmap_id) {
-        client().async_add_backing_store(page_id(), front_bitmap.id, front_bitmap.bitmap->to_shareable_bitmap(), back_bitmap.id,
-            back_bitmap.bitmap->to_shareable_bitmap());
-        client().async_set_viewport_size(page_id(), viewport_size);
-    }
+void ViewImplementation::handle_resize()
+{
+    client().async_set_viewport_size(page_id(), this->viewport_size());
 }
 
 void ViewImplementation::handle_web_content_process_crash()

@@ -1,8 +1,6 @@
 #include <LibURL/URL.h>
 #include <LibIPC/File.h>
-#include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/ShareableBitmap.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
@@ -28,7 +26,6 @@ endpoint WebContentServer
     reload(u64 page_id) =|
     traverse_the_history_by_delta(u64 page_id, i32 delta) =|
 
-    add_backing_store(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) =|
     ready_to_paint(u64 page_id) =|
 
     set_viewport_size(u64 page_id, Web::DevicePixelSize size) =|

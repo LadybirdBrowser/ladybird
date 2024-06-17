@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
+#include <WebContent/BackingStoreManager.h>
 #include <WebContent/Forward.h>
 
 #ifdef HAS_ACCELERATED_GRAPHICS
@@ -75,8 +76,6 @@ public:
 
     void ready_to_paint();
 
-    void add_backing_store(i32 front_bitmap_id, Gfx::ShareableBitmap const& front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap const& back_bitmap);
-
     void initialize_js_console(Web::DOM::Document& document);
     void destroy_js_console(Web::DOM::Document& document);
     void js_console_input(ByteString const& js_source);
@@ -91,6 +90,8 @@ public:
     virtual Web::PaintingCommandExecutorType painting_command_executor_type() const override;
 
     void queue_screenshot_task(Optional<i32> node_id);
+
+    friend class BackingStoreManager;
 
 private:
     PageClient(PageHost&, u64 id);
@@ -156,6 +157,7 @@ private:
     virtual void page_did_change_theme_color(Gfx::Color color) override;
     virtual void page_did_insert_clipboard_entry(String data, String presentation_style, String mime_type) override;
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
+    virtual void page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) override;
     virtual IPC::File request_worker_agent() override;
     virtual void inspector_did_load() override;
     virtual void inspector_did_select_dom_node(i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
@@ -203,13 +205,7 @@ private:
     OwnPtr<AccelGfx::Context> m_accelerated_graphics_context;
 #endif
 
-    struct BackingStores {
-        i32 front_bitmap_id { -1 };
-        i32 back_bitmap_id { -1 };
-        RefPtr<Gfx::Bitmap> front_bitmap;
-        RefPtr<Gfx::Bitmap> back_bitmap;
-    };
-    BackingStores m_backing_stores;
+    BackingStoreManager m_backing_store_manager;
 
     // NOTE: These documents are not visited, but manually removed from the map on document finalization.
     HashMap<JS::RawGCPtr<Web::DOM::Document>, JS::NonnullGCPtr<WebContentConsoleClient>> m_console_clients;

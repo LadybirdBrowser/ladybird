@@ -18,6 +18,7 @@
 #include <LibGfx/Palette.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/StandardCursor.h>
 #include <LibIPC/Forward.h>
@@ -346,6 +347,7 @@ public:
     virtual void page_did_request_activate_tab() { }
     virtual void page_did_close_top_level_traversable() { }
     virtual void page_did_update_navigation_buttons_state([[maybe_unused]] bool back_enabled, [[maybe_unused]] bool forward_enabled) { }
+    virtual void page_did_allocate_backing_stores([[maybe_unused]] i32 front_bitmap_id, [[maybe_unused]] Gfx::ShareableBitmap front_bitmap, [[maybe_unused]] i32 back_bitmap_id, [[maybe_unused]] Gfx::ShareableBitmap back_bitmap) { }
 
     virtual void request_file(FileRequest) = 0;
 

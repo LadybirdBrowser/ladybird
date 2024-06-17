@@ -155,12 +155,6 @@ void ConnectionFromClient::set_viewport_size(u64 page_id, Web::DevicePixelSize c
         page->set_viewport_size(size);
 }
 
-void ConnectionFromClient::add_backing_store(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap const& front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap const& back_bitmap)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->add_backing_store(front_bitmap_id, front_bitmap, back_bitmap_id, back_bitmap);
-}
-
 void ConnectionFromClient::ready_to_paint(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
