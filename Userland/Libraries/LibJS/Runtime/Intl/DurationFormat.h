@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
+#include <LibLocale/Locale.h>
 
 namespace JS::Intl {
 
