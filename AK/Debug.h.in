@@ -110,10 +110,6 @@
 #    cmakedefine01 IDL_DEBUG
 #endif
 
-#ifndef ILBM_DEBUG
-#    cmakedefine01 ILBM_DEBUG
-#endif
-
 #ifndef IMAGE_DECODER_DEBUG
 #    cmakedefine01 IMAGE_DECODER_DEBUG
 #endif
