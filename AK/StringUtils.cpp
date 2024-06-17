@@ -5,7 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
+#include <AK/FloatingPointStringConversions.h>
 #include <AK/MemMem.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
@@ -13,14 +15,7 @@
 #include <AK/StringUtils.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
-
-#ifdef KERNEL
-#    include <Kernel/Library/StdLib.h>
-#else
-#    include <AK/ByteString.h>
-#    include <AK/FloatingPointStringConversions.h>
-#    include <string.h>
-#endif
+#include <string.h>
 
 namespace AK {
 
@@ -237,7 +232,6 @@ template Optional<u16> convert_to_uint_from_octal(StringView str, TrimWhitespace
 template Optional<u32> convert_to_uint_from_octal(StringView str, TrimWhitespace);
 template Optional<u64> convert_to_uint_from_octal(StringView str, TrimWhitespace);
 
-#ifndef KERNEL
 template<typename T>
 Optional<T> convert_to_floating_point(StringView str, TrimWhitespace trim_whitespace)
 {
@@ -252,7 +246,6 @@ Optional<T> convert_to_floating_point(StringView str, TrimWhitespace trim_whites
 
 template Optional<double> convert_to_floating_point(StringView str, TrimWhitespace);
 template Optional<float> convert_to_floating_point(StringView str, TrimWhitespace);
-#endif
 
 bool equals_ignoring_ascii_case(StringView a, StringView b)
 {
@@ -469,7 +462,6 @@ Optional<size_t> find_any_of(StringView haystack, StringView needles, SearchDire
     return {};
 }
 
-#ifndef KERNEL
 ByteString to_snakecase(StringView str)
 {
     auto should_insert_underscore = [&](auto i, auto current_char) {
@@ -589,7 +581,6 @@ ErrorOr<String> replace(String const& haystack, StringView needle, StringView re
     auto resulting_builder = replace_into_builder(source_bytes, needle, replacement, replace_mode, *maybe_first);
     return resulting_builder.to_string();
 }
-#endif
 
 // TODO: Benchmark against KMP (AK/MemMem.h) and switch over if it's faster for short strings too
 size_t count(StringView str, StringView needle)

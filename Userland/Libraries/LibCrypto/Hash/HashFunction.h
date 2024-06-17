@@ -54,9 +54,7 @@ public:
 
     virtual void reset() = 0;
 
-#ifndef KERNEL
     virtual ByteString class_name() const = 0;
-#endif
 
 protected:
     virtual ~HashFunction() = default;

@@ -6,19 +6,16 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
 #include <AK/Checked.h>
+#include <AK/FlyString.h>
 #include <AK/PrintfImplementation.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/UnicodeUtils.h>
+#include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
-
-#ifndef KERNEL
-#    include <AK/ByteString.h>
-#    include <AK/FlyString.h>
-#    include <AK/Utf16View.h>
-#endif
 
 namespace AK {
 
@@ -143,7 +140,6 @@ ErrorOr<ByteBuffer> StringBuilder::to_byte_buffer() const
     return ByteBuffer::copy(data(), length());
 }
 
-#ifndef KERNEL
 ByteString StringBuilder::to_byte_string() const
 {
     if (is_empty())
@@ -170,7 +166,6 @@ ErrorOr<FlyString> StringBuilder::to_fly_string() const
 {
     return FlyString::from_utf8(string_view());
 }
-#endif
 
 u8* StringBuilder::data()
 {
@@ -230,7 +225,6 @@ void StringBuilder::append_code_point(u32 code_point)
     }
 }
 
-#ifndef KERNEL
 ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
 {
     for (size_t i = 0; i < utf16_view.length_in_code_units();) {
@@ -246,7 +240,6 @@ void StringBuilder::append(Utf16View const& utf16_view)
 {
     MUST(try_append(utf16_view));
 }
-#endif
 
 ErrorOr<void> StringBuilder::try_append(Utf32View const& utf32_view)
 {

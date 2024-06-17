@@ -13,10 +13,6 @@
 #include <AK/StdLibExtraDetails.h>
 #include <AK/Types.h>
 
-#ifdef KERNEL
-#    error "Including AK/Math.h from the Kernel is never correct! Floating point is disabled."
-#endif
-
 namespace AK {
 
 template<FloatingPoint T>

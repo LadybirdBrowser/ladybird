@@ -14,11 +14,8 @@
 #include <AK/Forward.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
-
-#ifndef KERNEL
-#    include <stdio.h>
-#    include <string.h>
-#endif
+#include <stdio.h>
+#include <string.h>
 
 namespace AK {
 
@@ -225,7 +222,6 @@ public:
         char fill = ' ',
         SignMode sign_mode = SignMode::OnlyIfNeeded);
 
-#ifndef KERNEL
     ErrorOr<void> put_f80(
         long double value,
         u8 base = 10,
@@ -251,7 +247,6 @@ public:
         char fill = ' ',
         SignMode sign_mode = SignMode::OnlyIfNeeded,
         RealNumberDisplayMode = RealNumberDisplayMode::Default);
-#endif
 
     ErrorOr<void> put_hexdump(
         ReadonlyBytes,
@@ -267,7 +262,6 @@ public:
 private:
     StringBuilder& m_builder;
 
-#ifndef KERNEL
     ErrorOr<void> put_f64_with_precision(
         double value,
         u8 base,
@@ -280,7 +274,6 @@ private:
         char fill,
         SignMode sign_mode,
         RealNumberDisplayMode);
-#endif
 };
 
 class TypeErasedFormatParams {
@@ -532,7 +525,6 @@ struct Formatter<bool> : StandardFormatter {
     ErrorOr<void> format(FormatBuilder&, bool);
 };
 
-#ifndef KERNEL
 template<>
 struct Formatter<float> : StandardFormatter {
     ErrorOr<void> format(FormatBuilder&, float value);
@@ -558,7 +550,6 @@ struct Formatter<long double> : StandardFormatter {
 
     ErrorOr<void> format(FormatBuilder&, long double value);
 };
-#endif
 
 template<>
 struct Formatter<nullptr_t> : Formatter<FlatPtr> {
@@ -573,7 +564,6 @@ struct Formatter<nullptr_t> : Formatter<FlatPtr> {
 
 ErrorOr<void> vformat(StringBuilder&, StringView fmtstr, TypeErasedFormatParams&);
 
-#if !defined(KERNEL)
 void vout(FILE*, StringView fmtstr, TypeErasedFormatParams&, bool newline = false);
 
 template<typename... Parameters>
@@ -592,7 +582,7 @@ void outln(FILE* file, CheckedFormatString<Parameters...>&& fmtstr, Parameters c
 
 inline void outln(FILE* file) { fputc('\n', file); }
 
-#    ifndef AK_OS_ANDROID
+#ifndef AK_OS_ANDROID
 template<typename... Parameters>
 void out(CheckedFormatString<Parameters...>&& fmtstr, Parameters const&... parameters)
 {
@@ -614,7 +604,7 @@ template<typename... Parameters>
 void warnln(CheckedFormatString<Parameters...>&& fmtstr, Parameters const&... parameters) { outln(stderr, move(fmtstr), parameters...); }
 
 inline void warnln() { outln(stderr); }
-#    else  // v Android ^ No Android
+#else  // v Android ^ No Android
 enum class LogLevel {
     Debug,
     Info,
@@ -656,21 +646,19 @@ void warnln(CheckedFormatString<Parameters...>&& fmtstr, Parameters const&... pa
 inline void warnln() { warnln(""); }
 
 void set_log_tag_name(char const*);
-#    endif // AK_OS_ANDROID
+#endif // AK_OS_ANDROID
 
-#    define outln_if(flag, fmt, ...)       \
-        do {                               \
-            if constexpr (flag)            \
-                outln(fmt, ##__VA_ARGS__); \
-        } while (0)
+#define outln_if(flag, fmt, ...)       \
+    do {                               \
+        if constexpr (flag)            \
+            outln(fmt, ##__VA_ARGS__); \
+    } while (0)
 
-#    define warnln_if(flag, fmt, ...)       \
-        do {                                \
-            if constexpr (flag)             \
-                warnln(fmt, ##__VA_ARGS__); \
-        } while (0)
-
-#endif
+#define warnln_if(flag, fmt, ...)       \
+    do {                                \
+        if constexpr (flag)             \
+            warnln(fmt, ##__VA_ARGS__); \
+    } while (0)
 
 void vdbg(StringView fmtstr, TypeErasedFormatParams&, bool newline = false);
 
@@ -692,28 +680,6 @@ inline void dbgln() { dbgln(""); }
 
 void set_debug_enabled(bool);
 void set_rich_debug_enabled(bool);
-
-#ifdef KERNEL
-void vdmesgln(StringView fmtstr, TypeErasedFormatParams&);
-
-template<typename... Parameters>
-void dmesgln(CheckedFormatString<Parameters...>&& fmt, Parameters const&... parameters)
-{
-    VariadicFormatParams<AllowDebugOnlyFormatters::Yes, Parameters...> variadic_format_params { parameters... };
-    vdmesgln(fmt.view(), variadic_format_params);
-}
-
-void v_critical_dmesgln(StringView fmtstr, TypeErasedFormatParams&);
-
-// be very careful to not cause any allocations here, since we could be in
-// a very unstable situation
-template<typename... Parameters>
-void critical_dmesgln(CheckedFormatString<Parameters...>&& fmt, Parameters const&... parameters)
-{
-    VariadicFormatParams<AllowDebugOnlyFormatters::Yes, Parameters...> variadic_format_params { parameters... };
-    v_critical_dmesgln(fmt.view(), variadic_format_params);
-}
-#endif
 
 template<typename T>
 class FormatIfSupported {
@@ -765,16 +731,12 @@ template<>
 struct Formatter<Error> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Error const& error)
     {
-#if defined(AK_OS_SERENITY) && defined(KERNEL)
-        return Formatter<FormatString>::format(builder, "Error(errno={})"sv, error.code());
-#else
         if (error.is_syscall())
             return Formatter<FormatString>::format(builder, "{}: {} (errno={})"sv, error.string_literal(), strerror(error.code()), error.code());
         if (error.is_errno())
             return Formatter<FormatString>::format(builder, "{} (errno={})"sv, strerror(error.code()), error.code());
 
         return Formatter<FormatString>::format(builder, "{}"sv, error.string_literal());
-#endif
     }
 };
 
@@ -803,16 +765,11 @@ struct Formatter<Optional<T>> : Formatter<FormatString> {
 } // namespace AK
 
 #if USING_AK_GLOBALLY
-#    ifdef KERNEL
-using AK::critical_dmesgln;
-using AK::dmesgln;
-#    else
 using AK::out;
 using AK::outln;
 
 using AK::warn;
 using AK::warnln;
-#    endif
 
 using AK::dbg;
 using AK::dbgln;

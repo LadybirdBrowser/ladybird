@@ -9,11 +9,7 @@
 #include <AK/Vector.h>
 #include <LibTest/TestSuite.h>
 
-#ifdef KERNEL
-#    define TEST_MAIN test_main
-#else
-#    define TEST_MAIN main
-#endif
+#define TEST_MAIN main
 
 int TEST_MAIN(int argc, char** argv)
 {

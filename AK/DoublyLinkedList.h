@@ -134,7 +134,6 @@ public:
         return {};
     }
 
-#ifndef KERNEL
     template<typename U>
     void append(U&& value)
     {
@@ -146,7 +145,6 @@ public:
     {
         MUST(try_prepend(forward<U>(value)));
     }
-#endif
 
     [[nodiscard]] bool contains_slow(T const& value) const
     {

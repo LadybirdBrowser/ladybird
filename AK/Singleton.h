@@ -9,11 +9,7 @@
 #include <AK/Assertions.h>
 #include <AK/Atomic.h>
 #include <AK/Noncopyable.h>
-#ifdef KERNEL
-#    include <Kernel/Arch/Processor.h>
-#    include <Kernel/Library/ScopedCritical.h>
-#    include <Kernel/Locking/SpinlockProtected.h>
-#elif defined(AK_OS_WINDOWS)
+#ifdef AK_OS_WINDOWS
 // Forward declare to avoid pulling Windows.h into every file in existence.
 extern "C" __declspec(dllimport) void __stdcall Sleep(unsigned long);
 #    ifndef sched_yield
@@ -37,17 +33,6 @@ struct SingletonInstanceCreator {
     }
 };
 
-#ifdef KERNEL
-
-template<typename T, Kernel::LockRank Rank>
-struct SingletonInstanceCreator<Kernel::SpinlockProtected<T, Rank>> {
-    static Kernel::SpinlockProtected<T, Rank>* create()
-    {
-        return new Kernel::SpinlockProtected<T, Rank> {};
-    }
-};
-#endif
-
 template<typename T, T* (*InitFunction)() = SingletonInstanceCreator<T>::create>
 class Singleton {
     AK_MAKE_NONCOPYABLE(Singleton);
@@ -62,9 +47,6 @@ public:
         T* obj = obj_var.load(AK::memory_order_acquire);
         if (FlatPtr(obj) <= 0x1) {
             // If this is the first time, see if we get to initialize it
-#ifdef KERNEL
-            Kernel::ScopedCritical critical;
-#endif
             if constexpr (allow_create) {
                 if (obj == nullptr && obj_var.compare_exchange_strong(obj, (T*)0x1, AK::memory_order_acq_rel)) {
                     // We're the first one
@@ -75,11 +57,7 @@ public:
             }
             // Someone else was faster, wait until they're done
             while (obj == (T*)0x1) {
-#ifdef KERNEL
-                Kernel::Processor::wait_check();
-#else
                 sched_yield();
-#endif
                 obj = obj_var.load(AK::memory_order_acquire);
             }
             if constexpr (allow_create) {

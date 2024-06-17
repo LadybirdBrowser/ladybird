@@ -33,9 +33,7 @@
 #    define ERRORLN warnln
 #endif
 
-#if !defined(KERNEL)
-
-#    if defined(EXECINFO_BACKTRACE)
+#if defined(EXECINFO_BACKTRACE)
 namespace {
 ALWAYS_INLINE void dump_backtrace()
 {
@@ -74,39 +72,37 @@ ALWAYS_INLINE void dump_backtrace()
         } else {
             error_builder.append(sym);
         }
-#        if !defined(AK_OS_ANDROID)
+#    if !defined(AK_OS_ANDROID)
         error_builder.append('\n');
-#        endif
+#    endif
         error_builder.append('\0');
         PRINT_ERROR(error_builder.string_view().characters_without_null_termination());
     }
     free(syms);
 }
 }
-#    endif
+#endif
 
 extern "C" {
 
 void ak_verification_failed(char const* message)
 {
-#    if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID)
+#if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID)
     bool colorize_output = true;
-#    elif defined(AK_OS_WINDOWS)
+#elif defined(AK_OS_WINDOWS)
     bool colorize_output = false;
-#    else
+#else
     bool colorize_output = isatty(STDERR_FILENO) == 1;
-#    endif
+#endif
 
     if (colorize_output)
         ERRORLN("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
     else
         ERRORLN("VERIFICATION FAILED: {}", message);
 
-#    if defined(EXECINFO_BACKTRACE)
+#if defined(EXECINFO_BACKTRACE)
     dump_backtrace();
-#    endif
+#endif
     __builtin_trap();
 }
 }
-
-#endif

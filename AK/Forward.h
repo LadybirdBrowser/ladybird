@@ -122,17 +122,6 @@ class NonnullOwnPtr;
 template<typename T>
 class Optional;
 
-#ifdef KERNEL
-template<typename T>
-class NonnullLockRefPtr;
-
-template<typename T>
-struct LockRefPtrTraits;
-
-template<typename T, typename PtrTraits = LockRefPtrTraits<T>>
-class LockRefPtr;
-#endif
-
 template<typename T>
 class RefPtr;
 
@@ -209,11 +198,5 @@ using AK::Utf32View;
 using AK::Utf8CodePointIterator;
 using AK::Utf8View;
 using AK::Vector;
-
-#    ifdef KERNEL
-using AK::LockRefPtr;
-using AK::LockRefPtrTraits;
-using AK::NonnullLockRefPtr;
-#    endif
 
 #endif

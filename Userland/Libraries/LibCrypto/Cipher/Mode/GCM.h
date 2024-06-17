@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <AK/Memory.h>
 #include <AK/OwnPtr.h>
 #include <AK/StringBuilder.h>
@@ -13,10 +14,6 @@
 #include <LibCrypto/Authentication/GHash.h>
 #include <LibCrypto/Cipher/Mode/CTR.h>
 #include <LibCrypto/Verification.h>
-
-#ifndef KERNEL
-#    include <AK/ByteString.h>
-#endif
 
 namespace Crypto::Cipher {
 
@@ -43,7 +40,6 @@ public:
         m_ghash = Authentication::GHash(m_auth_key);
     }
 
-#ifndef KERNEL
     virtual ByteString class_name() const override
     {
         StringBuilder builder;
@@ -51,7 +47,6 @@ public:
         builder.append("_GCM"sv);
         return builder.to_byte_string();
     }
-#endif
 
     virtual size_t IV_length() const override
     {

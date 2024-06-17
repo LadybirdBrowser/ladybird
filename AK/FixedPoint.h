@@ -9,12 +9,10 @@
 #include <AK/Concepts.h>
 #include <AK/Format.h>
 #include <AK/IntegralMath.h>
+#include <AK/Math.h>
 #include <AK/NumericLimits.h>
 #include <AK/Types.h>
 
-#ifndef KERNEL
-#    include <AK/Math.h>
-#endif
 #ifndef __SIZEOF_INT128__
 #    include <AK/UFixedBigInt.h>
 #    include <AK/UFixedBigIntDivision.h>
@@ -45,13 +43,11 @@ public:
     {
     }
 
-#ifndef KERNEL
     template<FloatingPoint F>
     FixedPoint(F value)
         : m_value(round_to<Underlying>(value * (static_cast<Underlying>(1) << precision)))
     {
     }
-#endif
 
     template<size_t P, typename U>
     explicit constexpr FixedPoint(FixedPoint<P, U> const& other)
@@ -59,13 +55,11 @@ public:
     {
     }
 
-#ifndef KERNEL
     template<FloatingPoint F>
     explicit ALWAYS_INLINE operator F() const
     {
         return (F)m_value * pow<F>(0.5, precision);
     }
-#endif
 
     template<Integral I>
     explicit constexpr operator I() const

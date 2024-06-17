@@ -5,15 +5,12 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
-
-#ifndef KERNEL
-#    include <AK/ByteString.h>
-#    include <AK/Utf16View.h>
-#endif
+#include <AK/Utf16View.h>
 
 namespace AK {
 // Consume a number of characters
@@ -210,7 +207,6 @@ template ErrorOr<i32> GenericLexer::consume_decimal_integer<i32>();
 template ErrorOr<u64> GenericLexer::consume_decimal_integer<u64>();
 template ErrorOr<i64> GenericLexer::consume_decimal_integer<i64>();
 
-#ifndef KERNEL
 Optional<ByteString> GenericLexer::consume_and_unescape_string(char escape_char)
 {
     auto view = consume_quoted_string(escape_char);
@@ -292,6 +288,5 @@ auto GenericLexer::decode_single_or_paired_surrogate(bool combine_surrogate_pair
     retreat(6);
     return *high_surrogate;
 }
-#endif
 
 }

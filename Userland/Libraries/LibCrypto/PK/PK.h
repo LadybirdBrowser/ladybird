@@ -7,11 +7,8 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
 #include <LibCrypto/ASN1/DER.h>
-
-#ifndef KERNEL
-#    include <AK/ByteString.h>
-#endif
 
 namespace Crypto::PK {
 
@@ -95,9 +92,7 @@ public:
     virtual void sign(ReadonlyBytes in, Bytes& out) = 0;
     virtual void verify(ReadonlyBytes in, Bytes& out) = 0;
 
-#ifndef KERNEL
     virtual ByteString class_name() const = 0;
-#endif
 
     virtual size_t output_size() const = 0;
 

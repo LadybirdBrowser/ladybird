@@ -13,10 +13,6 @@
 #include <AK/Noncopyable.h>
 #include <AK/StdLibExtras.h>
 
-#ifdef KERNEL
-#    include <Kernel/Library/LockRefPtr.h>
-#endif
-
 namespace AK::Detail {
 
 template<typename T, typename Container = RawPtr<T>>
@@ -435,22 +431,6 @@ public:
     [[nodiscard]] NonnullRefPtr<T> take_first() { return *IntrusiveList<T, RefPtr<T>, member>::take_first(); }
     [[nodiscard]] NonnullRefPtr<T> take_last() { return *IntrusiveList<T, RefPtr<T>, member>::take_last(); }
 };
-
-#ifdef KERNEL
-// Specialise IntrusiveList for NonnullLockRefPtr
-// By default, intrusive lists cannot contain null entries anyway, so switch to LockRefPtr
-// and just make the user-facing functions deref the pointers.
-
-template<class T, SubstitutedIntrusiveListNode<T, NonnullLockRefPtr<T>> T::*member>
-class IntrusiveList<T, NonnullLockRefPtr<T>, member> : public IntrusiveList<T, LockRefPtr<T>, member> {
-public:
-    [[nodiscard]] NonnullLockRefPtr<T> first() const { return *IntrusiveList<T, LockRefPtr<T>, member>::first(); }
-    [[nodiscard]] NonnullLockRefPtr<T> last() const { return *IntrusiveList<T, LockRefPtr<T>, member>::last(); }
-
-    [[nodiscard]] NonnullLockRefPtr<T> take_first() { return *IntrusiveList<T, LockRefPtr<T>, member>::take_first(); }
-    [[nodiscard]] NonnullLockRefPtr<T> take_last() { return *IntrusiveList<T, LockRefPtr<T>, member>::take_last(); }
-};
-#endif
 
 }
 

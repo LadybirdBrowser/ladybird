@@ -6,13 +6,10 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <LibCrypto/Cipher/Mode/Mode.h>
-
-#ifndef KERNEL
-#    include <AK/ByteString.h>
-#endif
 
 namespace Crypto::Cipher {
 
@@ -28,7 +25,6 @@ public:
     {
     }
 
-#ifndef KERNEL
     virtual ByteString class_name() const override
     {
         StringBuilder builder;
@@ -36,7 +32,6 @@ public:
         builder.append("_CBC"sv);
         return builder.to_byte_string();
     }
-#endif
 
     virtual size_t IV_length() const override
     {

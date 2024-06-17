@@ -9,22 +9,17 @@
 
 #include <AK/Checked.h>
 #include <AK/Platform.h>
+#include <new>
+#include <stdlib.h>
 
-#if defined(KERNEL)
-#    include <Kernel/Heap/kmalloc.h>
-#else
-#    include <new>
-#    include <stdlib.h>
-
-#    define kcalloc calloc
-#    define kmalloc malloc
-#    define kmalloc_good_size malloc_good_size
+#define kcalloc calloc
+#define kmalloc malloc
+#define kmalloc_good_size malloc_good_size
 
 inline void kfree_sized(void* ptr, size_t)
 {
     free(ptr);
 }
-#endif
 
 #ifndef AK_OS_SERENITY
 #    include <AK/Types.h>

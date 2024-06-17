@@ -6,11 +6,9 @@
 
 #pragma once
 
-#ifndef KERNEL
-
-#    include <AK/ByteString.h>
-#    include <AK/StringView.h>
-#    include <cxxabi.h>
+#include <AK/ByteString.h>
+#include <AK/StringView.h>
+#include <cxxabi.h>
 
 namespace AK {
 
@@ -26,8 +24,6 @@ inline ByteString demangle(StringView name)
 
 }
 
-#    if USING_AK_GLOBALLY
+#if USING_AK_GLOBALLY
 using AK::demangle;
-#    endif
-
 #endif

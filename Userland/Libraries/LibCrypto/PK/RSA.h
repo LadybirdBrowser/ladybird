@@ -206,12 +206,10 @@ public:
     virtual void sign(ReadonlyBytes in, Bytes& out) override;
     virtual void verify(ReadonlyBytes in, Bytes& out) override;
 
-#ifndef KERNEL
     virtual ByteString class_name() const override
     {
         return "RSA";
     }
-#endif
 
     virtual size_t output_size() const override
     {
@@ -242,12 +240,11 @@ public:
     virtual void sign(ReadonlyBytes, Bytes&) override;
     virtual void verify(ReadonlyBytes, Bytes&) override;
 
-#ifndef KERNEL
     virtual ByteString class_name() const override
     {
         return "RSA_PKCS1-EME";
     }
-#endif
+
     virtual size_t output_size() const override
     {
         return m_public_key.length();

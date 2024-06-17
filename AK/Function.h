@@ -66,13 +66,8 @@ public:
     using FunctionType = Out(In...);
     using ReturnType = Out;
 
-#ifdef KERNEL
-    constexpr static auto AccommodateExcessiveAlignmentRequirements = false;
-    constexpr static size_t ExcessiveAlignmentThreshold = alignof(void*);
-#else
     constexpr static auto AccommodateExcessiveAlignmentRequirements = true;
     constexpr static size_t ExcessiveAlignmentThreshold = 16;
-#endif
 
     Function() = default;
     Function(nullptr_t)
@@ -261,18 +256,14 @@ private:
         }
         VERIFY(m_call_nesting_level == 0);
         using WrapperType = CallableWrapper<Callable>;
-#ifndef KERNEL
         if constexpr (alignof(Callable) > inline_alignment || sizeof(WrapperType) > inline_capacity) {
             *bit_cast<CallableWrapperBase**>(&m_storage) = new WrapperType(forward<Callable>(callable));
             m_kind = FunctionKind::Outline;
         } else {
-#endif
             static_assert(sizeof(WrapperType) <= inline_capacity);
             new (m_storage) WrapperType(forward<Callable>(callable));
             m_kind = FunctionKind::Inline;
-#ifndef KERNEL
         }
-#endif
         if (callable_kind == CallableKind::FunctionObject)
             m_size = sizeof(WrapperType);
         else
@@ -307,13 +298,8 @@ private:
     mutable Atomic<u16> m_call_nesting_level { 0 };
 
     static constexpr size_t inline_alignment = max(alignof(CallableWrapperBase), alignof(CallableWrapperBase*));
-#ifndef KERNEL
     // Empirically determined to fit most lambdas and functions.
     static constexpr size_t inline_capacity = 4 * sizeof(void*);
-#else
-    // FIXME: Try to decrease this.
-    static constexpr size_t inline_capacity = 6 * sizeof(void*);
-#endif
 
     alignas(inline_alignment) u8 m_storage[inline_capacity];
 };

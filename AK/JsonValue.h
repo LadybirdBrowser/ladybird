@@ -7,10 +7,6 @@
 
 #pragma once
 
-#ifdef KERNEL
-#    error "JsonValue does not propagate allocation failures, so it is not safe to use in the kernel."
-#endif
-
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
 #include <AK/Optional.h>

@@ -211,11 +211,6 @@ ErrorOr<JsonValue> JsonParser::parse_number()
     }
 
     auto fallback_to_double_parse = [&]() -> ErrorOr<JsonValue> {
-#ifdef KERNEL
-#    error JSONParser is currently not available for the Kernel because it disallows floating point. \
-       If you want to make this KERNEL compatible you can just make this fallback_to_double \
-       function fail with an error in KERNEL mode.
-#endif
         // FIXME: Since we know all the characters so far are ascii digits (and one . or e) we could
         //        use that in the floating point parser.
 

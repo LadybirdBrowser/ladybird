@@ -9,12 +9,9 @@
 #include <AK/Format.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
+#include <math.h>
 #include <stdarg.h>
-
-#ifndef KERNEL
-#    include <math.h>
-#    include <wchar.h>
-#endif
+#include <wchar.h>
 
 #ifdef AK_OS_SERENITY
 extern "C" size_t strlen(char const*);
@@ -162,7 +159,6 @@ ALWAYS_INLINE int print_decimal(PutChFunc putch, CharType*& bufptr, u64 number, 
 
     return field_width;
 }
-#ifndef KERNEL
 template<typename PutChFunc, typename CharType>
 ALWAYS_INLINE int print_double(PutChFunc putch, CharType*& bufptr, double number, bool always_sign, bool left_pad, bool zero_pad, u32 field_width, u32 precision, bool trailing_zeros)
 {
@@ -220,7 +216,6 @@ ALWAYS_INLINE int print_double(PutChFunc putch, CharType*& bufptr, double number
 
     return length;
 }
-#endif
 template<typename PutChFunc, typename CharType>
 ALWAYS_INLINE int print_octal_number(PutChFunc putch, CharType*& bufptr, u64 number, bool alternate_form, bool left_pad, bool zero_pad, u32 field_width, bool has_precision, u32 precision)
 {
@@ -349,14 +344,12 @@ struct PrintfImpl {
         // FIXME: Narrow characters should be converted to wide characters on the fly and vice versa.
         // https://pubs.opengroup.org/onlinepubs/9699919799/functions/printf.html
         // https://pubs.opengroup.org/onlinepubs/9699919799/functions/wprintf.html
-#ifndef KERNEL
         if (state.long_qualifiers) {
             wchar_t const* sp = NextArgument<wchar_t const*>()(ap);
             if (!sp)
                 sp = L"(null)";
             return print_string(m_putch, m_bufptr, sp, wcslen(sp), state.left_pad, state.field_width, state.dot, state.precision, state.has_precision);
         }
-#endif
         char const* sp = NextArgument<char const*>()(ap);
         if (!sp)
             sp = "(null)";
@@ -398,7 +391,6 @@ struct PrintfImpl {
     {
         return print_hex(m_putch, m_bufptr, NextArgument<u64>()(ap), false, false, state.left_pad, state.zero_pad, 16, false, 1);
     }
-#ifndef KERNEL
     ALWAYS_INLINE int format_g(ModifierState const& state, ArgumentListRefT ap) const
     {
         // FIXME: Exponent notation
@@ -408,7 +400,6 @@ struct PrintfImpl {
     {
         return print_double(m_putch, m_bufptr, NextArgument<double>()(ap), state.always_sign, state.left_pad, state.zero_pad, state.field_width, state.precision, true);
     }
-#endif
     ALWAYS_INLINE int format_o(ModifierState const& state, ArgumentListRefT ap) const
     {
         return print_octal_number(m_putch, m_bufptr, NextArgument<u32>()(ap), state.alternate_form, state.left_pad, state.zero_pad, state.field_width, state.has_precision, state.precision);
@@ -592,10 +583,8 @@ ALWAYS_INLINE int printf_internal(PutChFunc putch, IdentityType<CharType>* buffe
                 PRINTF_IMPL_DELEGATE_TO_IMPL(X);
                 PRINTF_IMPL_DELEGATE_TO_IMPL(c);
                 PRINTF_IMPL_DELEGATE_TO_IMPL(d);
-#ifndef KERNEL
                 PRINTF_IMPL_DELEGATE_TO_IMPL(f);
                 PRINTF_IMPL_DELEGATE_TO_IMPL(g);
-#endif
                 PRINTF_IMPL_DELEGATE_TO_IMPL(i);
                 PRINTF_IMPL_DELEGATE_TO_IMPL(n);
                 PRINTF_IMPL_DELEGATE_TO_IMPL(o);

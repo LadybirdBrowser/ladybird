@@ -6,12 +6,6 @@
 
 #pragma once
 
-#ifdef KERNEL
-#    error This file should not be included in the KERNEL, as doubles should not appear in the \
-           kernel code, although the conversion currently does not use any floating point \
-           computations.
-#endif
-
 #include <AK/Concepts.h>
 #include <AK/Types.h>
 
