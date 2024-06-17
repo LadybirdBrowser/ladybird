@@ -15,7 +15,6 @@
 #include <LibGfx/ImageFormats/JPEGLoader.h>
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
-#include <LibGfx/ImageFormats/TGALoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TinyVGLoader.h>
 #include <LibGfx/ImageFormats/WebPLoader.h>
@@ -53,38 +52,10 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
     return OwnPtr<ImageDecoderPlugin> {};
 }
 
-static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugin_with_known_mime_type(StringView mime_type, ReadonlyBytes bytes)
-{
-    struct ImagePluginWithMIMETypeInitializer {
-        bool (*validate_before_create)(ReadonlyBytes) = nullptr;
-        ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> (*create)(ReadonlyBytes) = nullptr;
-        StringView mime_type;
-    };
-
-    static constexpr ImagePluginWithMIMETypeInitializer s_initializers_with_mime_type[] = {
-        { TGAImageDecoderPlugin::validate_before_create, TGAImageDecoderPlugin::create, "image/x-targa"sv },
-    };
-
-    for (auto& plugin : s_initializers_with_mime_type) {
-        if (plugin.mime_type != mime_type)
-            continue;
-        auto validation_result = plugin.validate_before_create(bytes);
-        if (!validation_result)
-            continue;
-        return TRY(plugin.create(bytes));
-    }
-    return OwnPtr<ImageDecoderPlugin> {};
-}
-
-ErrorOr<RefPtr<ImageDecoder>> ImageDecoder::try_create_for_raw_bytes(ReadonlyBytes bytes, Optional<ByteString> mime_type)
+ErrorOr<RefPtr<ImageDecoder>> ImageDecoder::try_create_for_raw_bytes(ReadonlyBytes bytes, [[maybe_unused]] Optional<ByteString> mime_type)
 {
     if (auto plugin = TRY(probe_and_sniff_for_appropriate_plugin(bytes)); plugin)
         return adopt_ref_if_nonnull(new (nothrow) ImageDecoder(plugin.release_nonnull()));
-
-    if (mime_type.has_value()) {
-        if (OwnPtr<ImageDecoderPlugin> plugin = TRY(probe_and_sniff_for_appropriate_plugin_with_known_mime_type(mime_type.value(), bytes)); plugin)
-            return adopt_ref_if_nonnull(new (nothrow) ImageDecoder(plugin.release_nonnull()));
-    }
 
     return RefPtr<ImageDecoder> {};
 }

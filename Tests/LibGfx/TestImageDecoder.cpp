@@ -18,7 +18,6 @@
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/QMArithmeticDecoder.h>
-#include <LibGfx/ImageFormats/TGALoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <LibGfx/ImageFormats/TinyVGLoader.h>
@@ -724,42 +723,6 @@ TEST_CASE(test_png_malformed_frame)
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
     }
-}
-
-TEST_CASE(test_targa_bottom_left)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tga/buggie-bottom-left-uncompressed.tga"sv)));
-    EXPECT(Gfx::TGAImageDecoderPlugin::validate_before_create(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TGAImageDecoderPlugin::create(file->bytes()));
-
-    TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
-}
-
-TEST_CASE(test_targa_top_left)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tga/buggie-top-left-uncompressed.tga"sv)));
-    EXPECT(Gfx::TGAImageDecoderPlugin::validate_before_create(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TGAImageDecoderPlugin::create(file->bytes()));
-
-    TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
-}
-
-TEST_CASE(test_targa_bottom_left_compressed)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tga/buggie-bottom-left-compressed.tga"sv)));
-    EXPECT(Gfx::TGAImageDecoderPlugin::validate_before_create(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TGAImageDecoderPlugin::create(file->bytes()));
-
-    TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
-}
-
-TEST_CASE(test_targa_top_left_compressed)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tga/buggie-top-left-compressed.tga"sv)));
-    EXPECT(Gfx::TGAImageDecoderPlugin::validate_before_create(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TGAImageDecoderPlugin::create(file->bytes()));
-
-    TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
 }
 
 TEST_CASE(test_tiff_uncompressed)

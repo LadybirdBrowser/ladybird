@@ -38,7 +38,6 @@ set(FUZZER_TARGETS
     SHA512
     Tar
     TextDecoder
-    TGALoader
     TIFFLoader
     TTF
     TinyVGLoader
@@ -97,7 +96,6 @@ set(FUZZER_DEPENDENCIES_SHA384 LibCrypto)
 set(FUZZER_DEPENDENCIES_SHA512 LibCrypto)
 set(FUZZER_DEPENDENCIES_Tar LibArchive)
 set(FUZZER_DEPENDENCIES_TextDecoder LibTextCodec)
-set(FUZZER_DEPENDENCIES_TGALoader LibGfx)
 set(FUZZER_DEPENDENCIES_TIFFLoader LibGfx)
 set(FUZZER_DEPENDENCIES_TTF LibGfx)
 set(FUZZER_DEPENDENCIES_TinyVGLoader LibGfx)

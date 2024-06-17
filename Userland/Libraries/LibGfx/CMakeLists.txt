@@ -54,7 +54,6 @@ set(SOURCES
     ImageFormats/PNGLoader.cpp
     ImageFormats/PNGWriter.cpp
     ImageFormats/QMArithmeticDecoder.cpp
-    ImageFormats/TGALoader.cpp
     ImageFormats/TIFFLoader.cpp
     ImageFormats/TinyVGLoader.cpp
     ImageFormats/WebPLoader.cpp
