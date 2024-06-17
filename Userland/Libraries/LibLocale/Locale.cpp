@@ -491,7 +491,7 @@ String canonicalize_unicode_locale_id(StringView locale)
     return locale_data->to_string();
 }
 
-void canonicalize_unicode_extension_values(StringView key, String& value)
+String canonicalize_unicode_extension_values(StringView key, StringView value)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -507,7 +507,7 @@ void canonicalize_unicode_extension_values(StringView key, String& value)
     auto result = locale.getUnicodeKeywordValue<StringBuilder>(icu_string_piece(key), status);
     VERIFY(icu_success(status));
 
-    value = MUST(result.to_string());
+    return MUST(result.to_string());
 }
 
 StringView default_locale()
