@@ -17,16 +17,24 @@ enum class ListFormatType {
     Disjunction,
     Unit,
 };
+ListFormatType list_format_type_from_string(StringView);
+StringView list_format_type_to_string(ListFormatType);
 
-ListFormatType list_format_type_from_string(StringView list_format_type);
-StringView list_format_type_to_string(ListFormatType list_format_type);
+class ListFormat {
+public:
+    static NonnullOwnPtr<ListFormat> create(StringView locale, ListFormatType, Style);
+    virtual ~ListFormat() = default;
 
-struct ListFormatPart {
-    StringView type;
-    String value;
+    struct Partition {
+        StringView type;
+        String value;
+    };
+
+    virtual String format(ReadonlySpan<String> list) const = 0;
+    virtual Vector<Partition> format_to_parts(ReadonlySpan<String> list) const = 0;
+
+protected:
+    ListFormat() = default;
 };
-
-String format_list(StringView locale, ListFormatType, Style, ReadonlySpan<String> list);
-Vector<ListFormatPart> format_list_to_parts(StringView locale, ListFormatType, Style, ReadonlySpan<String> list);
 
 }

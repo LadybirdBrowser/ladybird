@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -52,7 +52,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ListFormatConstructor::construct(Functio
     auto locale_value = vm.argument(0);
     auto options_value = vm.argument(1);
 
-    // 2. Let listFormat be ? OrdinaryCreateFromConstructor(NewTarget, "%ListFormat.prototype%", « [[InitializedListFormat]], [[Locale]], [[Type]], [[Style]], [[Templates]] »).
+    // 2. Let listFormat be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.ListFormat.prototype%", « [[InitializedListFormat]], [[Locale]], [[Type]], [[Style]], [[Templates]] »).
     auto list_format = TRY(ordinary_create_from_constructor<ListFormat>(vm, new_target, &Intrinsics::intl_list_format_prototype));
 
     // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -70,29 +70,34 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ListFormatConstructor::construct(Functio
     // 7. Set opt.[[localeMatcher]] to matcher.
     opt.locale_matcher = matcher;
 
-    // 8. Let localeData be %ListFormat%.[[LocaleData]].
-
-    // 9. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]], requestedLocales, opt, %ListFormat%.[[RelevantExtensionKeys]], localeData).
+    // 8. Let r be ResolveLocale(%Intl.ListFormat%.[[AvailableLocales]], requestedLocales, opt, %Intl.ListFormat%.[[RelevantExtensionKeys]], %Intl.ListFormat%.[[LocaleData]]).
     auto result = resolve_locale(requested_locales, opt, {});
 
-    // 10. Set listFormat.[[Locale]] to r.[[locale]].
+    // 9. Set listFormat.[[Locale]] to r.[[Locale]].
     list_format->set_locale(move(result.locale));
 
-    // 11. Let type be ? GetOption(options, "type", string, « "conjunction", "disjunction", "unit" », "conjunction").
+    // 10. Let type be ? GetOption(options, "type", string, « "conjunction", "disjunction", "unit" », "conjunction").
     auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, { "conjunction"sv, "disjunction"sv, "unit"sv }, "conjunction"sv));
 
-    // 12. Set listFormat.[[Type]] to type.
+    // 11. Set listFormat.[[Type]] to type.
     list_format->set_type(type.as_string().utf8_string_view());
 
-    // 13. Let style be ? GetOption(options, "style", string, « "long", "short", "narrow" », "long").
+    // 12. Let style be ? GetOption(options, "style", string, « "long", "short", "narrow" », "long").
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));
 
-    // 14. Set listFormat.[[Style]] to style.
+    // 13. Set listFormat.[[Style]] to style.
     list_format->set_style(style.as_string().utf8_string_view());
 
-    // Note: The remaining steps are skipped in favor of deferring to LibUnicode.
+    // 14. Let resolvedLocaleData be r.[[LocaleData]].
+    // 15. Let dataLocaleTypes be resolvedLocaleData.[[<type>]].
+    // 16. Set listFormat.[[Templates]] to dataLocaleTypes.[[<style>]].
+    auto formatter = ::Locale::ListFormat::create(
+        list_format->locale(),
+        list_format->type(),
+        list_format->style());
+    list_format->set_formatter(move(formatter));
 
-    // 19. Return listFormat.
+    // 17. Return listFormat.
     return list_format;
 }
 

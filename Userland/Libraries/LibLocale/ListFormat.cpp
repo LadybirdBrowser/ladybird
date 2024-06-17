@@ -34,9 +34,8 @@ StringView list_format_type_to_string(ListFormatType list_format_type)
         return "disjunction"sv;
     case ListFormatType::Unit:
         return "unit"sv;
-    default:
-        VERIFY_NOT_REACHED();
     }
+    VERIFY_NOT_REACHED();
 }
 
 static constexpr UListFormatterType icu_list_format_type(ListFormatType type)
@@ -49,7 +48,6 @@ static constexpr UListFormatterType icu_list_format_type(ListFormatType type)
     case ListFormatType::Unit:
         return ULISTFMT_TYPE_UNITS;
     }
-
     VERIFY_NOT_REACHED();
 }
 
@@ -63,7 +61,6 @@ static constexpr UListFormatterWidth icu_list_format_width(Style style)
     case Style::Narrow:
         return ULISTFMT_WIDTH_NARROW;
     }
-
     VERIFY_NOT_REACHED();
 }
 
@@ -75,70 +72,88 @@ static constexpr StringView icu_list_format_field_to_string(i32 field)
     case ULISTFMT_ELEMENT_FIELD:
         return "element"sv;
     }
-
     VERIFY_NOT_REACHED();
 }
 
-struct FormatResult {
-    icu::FormattedList list;
-    icu::UnicodeString string;
-};
-
-static Optional<FormatResult> format_list_impl(StringView locale, ListFormatType type, Style style, ReadonlySpan<String> list)
-{
-    auto locale_data = LocaleData::for_locale(locale);
-    if (!locale_data.has_value())
-        return {};
-
-    UErrorCode status = U_ZERO_ERROR;
-
-    auto list_formatter = adopt_own(*icu::ListFormatter::createInstance(locale_data->locale(), icu_list_format_type(type), icu_list_format_width(style), status));
-    if (icu_failure(status))
-        return {};
-
-    auto icu_list = icu_string_list(list);
-
-    auto formatted_list = list_formatter->formatStringsToValue(icu_list.data(), static_cast<i32>(icu_list.size()), status);
-    if (icu_failure(status))
-        return {};
-
-    auto formatted_string = formatted_list.toString(status);
-    if (icu_failure(status))
-        return {};
-
-    return FormatResult { move(formatted_list), move(formatted_string) };
-}
-
-String format_list(StringView locale, ListFormatType type, Style style, ReadonlySpan<String> list)
-{
-    auto formatted = format_list_impl(locale, type, style, list);
-    if (!formatted.has_value())
-        return {};
-
-    return icu_string_to_string(formatted->string);
-}
-
-Vector<ListFormatPart> format_list_to_parts(StringView locale, ListFormatType type, Style style, ReadonlySpan<String> list)
-{
-    UErrorCode status = U_ZERO_ERROR;
-
-    auto formatted = format_list_impl(locale, type, style, list);
-    if (!formatted.has_value())
-        return {};
-
-    Vector<ListFormatPart> result;
-
-    icu::ConstrainedFieldPosition position;
-    position.constrainCategory(UFIELD_CATEGORY_LIST);
-
-    while (static_cast<bool>(formatted->list.nextPosition(position, status)) && icu_success(status)) {
-        auto type = icu_list_format_field_to_string(position.getField());
-        auto part = formatted->string.tempSubStringBetween(position.getStart(), position.getLimit());
-
-        result.empend(type, icu_string_to_string(part));
+class ListFormatImpl : public ListFormat {
+public:
+    ListFormatImpl(NonnullOwnPtr<icu::ListFormatter> formatter)
+        : m_formatter(move(formatter))
+    {
     }
 
-    return result;
+    virtual ~ListFormatImpl() override = default;
+
+    virtual String format(ReadonlySpan<String> list) const override
+    {
+        UErrorCode status = U_ZERO_ERROR;
+
+        auto formatted = format_list_impl(list);
+        if (!formatted.has_value())
+            return {};
+
+        auto formatted_string = formatted->toTempString(status);
+        if (icu_failure(status))
+            return {};
+
+        return icu_string_to_string(formatted_string);
+    }
+
+    virtual Vector<Partition> format_to_parts(ReadonlySpan<String> list) const override
+    {
+        UErrorCode status = U_ZERO_ERROR;
+
+        auto formatted = format_list_impl(list);
+        if (!formatted.has_value())
+            return {};
+
+        auto formatted_string = formatted->toTempString(status);
+        if (icu_failure(status))
+            return {};
+
+        Vector<Partition> result;
+
+        icu::ConstrainedFieldPosition position;
+        position.constrainCategory(UFIELD_CATEGORY_LIST);
+
+        while (static_cast<bool>(formatted->nextPosition(position, status)) && icu_success(status)) {
+            auto type = icu_list_format_field_to_string(position.getField());
+            auto part = formatted_string.tempSubStringBetween(position.getStart(), position.getLimit());
+
+            result.empend(type, icu_string_to_string(part));
+        }
+
+        return result;
+    }
+
+private:
+    Optional<icu::FormattedList> format_list_impl(ReadonlySpan<String> list) const
+    {
+        UErrorCode status = U_ZERO_ERROR;
+
+        auto icu_list = icu_string_list(list);
+
+        auto formatted_list = m_formatter->formatStringsToValue(icu_list.data(), static_cast<i32>(icu_list.size()), status);
+        if (icu_failure(status))
+            return {};
+
+        return formatted_list;
+    }
+
+    NonnullOwnPtr<icu::ListFormatter> m_formatter;
+};
+
+NonnullOwnPtr<ListFormat> ListFormat::create(StringView locale, ListFormatType type, Style style)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto locale_data = LocaleData::for_locale(locale);
+    VERIFY(locale_data.has_value());
+
+    auto formatter = adopt_own(*icu::ListFormatter::createInstance(locale_data->locale(), icu_list_format_type(type), icu_list_format_width(style), status));
+    VERIFY(icu_success(status));
+
+    return adopt_own(*new ListFormatImpl(move(formatter)));
 }
 
 }
