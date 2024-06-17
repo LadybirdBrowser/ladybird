@@ -247,7 +247,6 @@ write_cmake_config("ak_debug_gen") {
     "IMAGE_DECODER_DEBUG=",
     "IMAGE_LOADER_DEBUG=",
     "JOB_DEBUG=",
-    "JPEG2000_DEBUG=",
     "JS_BYTECODE_DEBUG=",
     "JS_MODULE_DEBUG=",
     "LEXER_DEBUG=",

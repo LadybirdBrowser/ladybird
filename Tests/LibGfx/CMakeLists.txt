@@ -9,7 +9,6 @@ set(TEST_SOURCES
     TestImageWriter.cpp
     TestMedianCut.cpp
     TestPainter.cpp
-    TestParseISOBMFF.cpp
     TestRect.cpp
     TestScalingFunctions.cpp
     TestWOFF.cpp
