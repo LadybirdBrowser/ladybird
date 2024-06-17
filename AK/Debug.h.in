@@ -206,10 +206,6 @@
 #    cmakedefine01 PNG_DEBUG
 #endif
 
-#ifndef PORTABLE_IMAGE_LOADER_DEBUG
-#    cmakedefine01 PORTABLE_IMAGE_LOADER_DEBUG
-#endif
-
 #ifndef PROMISE_DEBUG
 #    cmakedefine01 PROMISE_DEBUG
 #endif

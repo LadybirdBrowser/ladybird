@@ -13,7 +13,6 @@
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/ImageFormats/JPEGWriter.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
-#include <LibGfx/ImageFormats/PortableFormatWriter.h>
 #include <LibGfx/ImageFormats/WebPSharedLossless.h>
 #include <LibGfx/ImageFormats/WebPWriter.h>
 
@@ -149,7 +148,7 @@ static ErrorOr<OwnPtr<Core::MappedFile>> convert_image_profile(LoadedImage& imag
     return icc_file;
 }
 
-static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, bool ppm_ascii, u8 jpeg_quality, Optional<unsigned> webp_allowed_transforms)
+static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, u8 jpeg_quality, Optional<unsigned> webp_allowed_transforms)
 {
     auto stream = [out_path]() -> ErrorOr<NonnullOwnPtr<Core::OutputBufferedFile>> {
         auto output_stream = TRY(Core::File::open(out_path, Core::File::OpenMode::Write));
@@ -164,11 +163,6 @@ static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, bool pp
     }
     if (out_path.ends_with(".jpg"sv, CaseSensitivity::CaseInsensitive) || out_path.ends_with(".jpeg"sv, CaseSensitivity::CaseInsensitive)) {
         TRY(Gfx::JPEGWriter::encode(*TRY(stream()), *frame, { .icc_data = image.icc_data, .quality = jpeg_quality }));
-        return {};
-    }
-    if (out_path.ends_with(".ppm"sv, CaseSensitivity::CaseInsensitive)) {
-        auto const format = ppm_ascii ? Gfx::PortableFormatWriter::Options::Format::ASCII : Gfx::PortableFormatWriter::Options::Format::Raw;
-        TRY(Gfx::PortableFormatWriter::encode(*TRY(stream()), *frame, { .format = format }));
         return {};
     }
     if (out_path.ends_with(".webp"sv, CaseSensitivity::CaseInsensitive)) {
@@ -186,7 +180,7 @@ static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, bool pp
     } else if (out_path.ends_with(".png"sv, CaseSensitivity::CaseInsensitive)) {
         bytes = TRY(Gfx::PNGWriter::encode(*frame, { .icc_data = image.icc_data }));
     } else {
-        return Error::from_string_view("can only write .bmp, .gif, .jpg, .png, .ppm, and .webp"sv);
+        return Error::from_string_view("can only write .bmp, .gif, .jpg, .png, and .webp"sv);
     }
     TRY(TRY(stream())->write_until_depleted(bytes));
 
@@ -205,7 +199,6 @@ struct Options {
     StringView assign_color_profile_path;
     StringView convert_color_profile_path;
     bool strip_color_profile = false;
-    bool ppm_ascii = false;
     u8 quality = 75;
     Optional<unsigned> webp_allowed_transforms;
 };
@@ -266,7 +259,6 @@ static ErrorOr<Options> parse_options(Main::Arguments arguments)
     args_parser.add_option(options.assign_color_profile_path, "Load color profile from file and assign it to output image", "assign-color-profile", {}, "FILE");
     args_parser.add_option(options.convert_color_profile_path, "Load color profile from file and convert output image from current profile to loaded profile", "convert-to-color-profile", {}, "FILE");
     args_parser.add_option(options.strip_color_profile, "Do not write color profile to output", "strip-color-profile", {});
-    args_parser.add_option(options.ppm_ascii, "Convert to a PPM in ASCII", "ppm-ascii", {});
     args_parser.add_option(options.quality, "Quality used for the JPEG encoder, the default value is 75 on a scale from 0 to 100", "quality", {}, {});
     StringView webp_allowed_transforms = "default"sv;
     args_parser.add_option(webp_allowed_transforms, "Comma-separated list of allowed transforms (predictor,p,color,c,subtract-green,sg,color-indexing,ci) for WebP output (default: all allowed)", "webp-allowed-transforms", {}, {});
@@ -321,7 +313,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (options.no_output)
         return 0;
 
-    TRY(save_image(image, options.out_path, options.ppm_ascii, options.quality, options.webp_allowed_transforms));
+    TRY(save_image(image, options.out_path, options.quality, options.webp_allowed_transforms));
 
     return 0;
 }

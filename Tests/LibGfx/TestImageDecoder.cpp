@@ -16,11 +16,7 @@
 #include <LibGfx/ImageFormats/JPEG2000Loader.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
-#include <LibGfx/ImageFormats/PAMLoader.h>
-#include <LibGfx/ImageFormats/PBMLoader.h>
-#include <LibGfx/ImageFormats/PGMLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
-#include <LibGfx/ImageFormats/PPMLoader.h>
 #include <LibGfx/ImageFormats/QMArithmeticDecoder.h>
 #include <LibGfx/ImageFormats/TGALoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
@@ -694,54 +690,6 @@ TEST_CASE(test_jpeg2000_tag_tree)
     }
 }
 
-TEST_CASE(test_pam_rgb)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("pnm/2x1.pam"sv)));
-    EXPECT(Gfx::PAMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PAMImageDecoderPlugin::create(file->bytes()));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
-    EXPECT_EQ(frame.image->size(), Gfx::IntSize(2, 1));
-    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color('0', 'z', '0'));
-    EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color('0', '0', 'z'));
-}
-
-TEST_CASE(test_pam_cmyk)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("pnm/2x1-cmyk.pam"sv)));
-    EXPECT(Gfx::PAMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PAMImageDecoderPlugin::create(file->bytes()));
-
-    EXPECT_EQ(plugin_decoder->natural_frame_format(), Gfx::NaturalFrameFormat::CMYK);
-    auto cmyk_frame = TRY_OR_FAIL(plugin_decoder->cmyk_frame());
-    EXPECT_EQ(cmyk_frame->size(), Gfx::IntSize(2, 1));
-    EXPECT_EQ(cmyk_frame->begin()[0], (Gfx::CMYK { '0', 'z', '0', 'y' }));
-    EXPECT_EQ(cmyk_frame->begin()[1], (Gfx::CMYK { '0', '0', 'z', 'y' }));
-
-    auto frame = TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
-    EXPECT_EQ(frame.image->size(), Gfx::IntSize(2, 1));
-    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color('l', 'E', 'l'));
-    EXPECT_EQ(frame.image->get_pixel(1, 0), Gfx::Color('l', 'l', 'E'));
-}
-
-TEST_CASE(test_pbm)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("pnm/buggie-raw.pbm"sv)));
-    EXPECT(Gfx::PBMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PBMImageDecoderPlugin::create(file->bytes()));
-
-    TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
-}
-
-TEST_CASE(test_pgm)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("pnm/buggie-raw.pgm"sv)));
-    EXPECT(Gfx::PGMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PGMImageDecoderPlugin::create(file->bytes()));
-
-    TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
-}
-
 TEST_CASE(test_png)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/buggie.png"sv)));
@@ -776,15 +724,6 @@ TEST_CASE(test_png_malformed_frame)
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
     }
-}
-
-TEST_CASE(test_ppm)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("pnm/buggie-raw.ppm"sv)));
-    EXPECT(Gfx::PPMImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PPMImageDecoderPlugin::create(file->bytes()));
-
-    TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
 }
 
 TEST_CASE(test_targa_bottom_left)
