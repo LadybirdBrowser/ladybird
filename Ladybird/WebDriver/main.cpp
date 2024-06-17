@@ -45,6 +45,8 @@ static ErrorOr<pid_t> launch_browser(ByteString const& socket_path)
         arguments.append(certificate_args.last().view().characters_without_null_termination());
     }
 
+    arguments.append("--allow-popups");
+
     arguments.append("about:blank");
 
     return launch_process("Ladybird"sv, arguments.span());
