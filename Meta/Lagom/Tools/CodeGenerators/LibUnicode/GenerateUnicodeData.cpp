@@ -39,14 +39,6 @@ struct CaseFolding {
     Vector<u32> mapping { 0 };
 };
 
-// https://www.unicode.org/reports/tr44/#Character_Decomposition_Mappings
-struct CodePointDecomposition {
-    // `tag` is a string since it's used for codegen as an enum value.
-    ByteString tag { "Canonical"sv };
-    size_t decomposition_index { 0 };
-    size_t decomposition_size { 0 };
-};
-
 // https://www.unicode.org/reports/tr44/#PropList.txt
 using PropList = HashMap<ByteString, Vector<Unicode::CodePointRange>>;
 
@@ -89,7 +81,6 @@ struct CodePointData {
     u32 code_point { 0 };
     ByteString name;
     ByteString bidi_class;
-    Optional<CodePointDecomposition> decomposition_mapping;
     Optional<i8> numeric_value_decimal;
     Optional<i8> numeric_value_digit;
     Optional<i8> numeric_value_numeric;
@@ -119,17 +110,7 @@ struct CodePointBidiClass {
     ByteString bidi_class;
 };
 
-struct CodePointComposition {
-    u32 second_code_point { 0 };
-    u32 combined_code_point { 0 };
-};
-
 struct UnicodeData {
-    u32 code_points_with_decomposition_mapping { 0 };
-    Vector<u32> decomposition_mappings;
-    HashMap<u32, Vector<CodePointComposition>> composition_mappings;
-    Vector<ByteString> compatibility_tags;
-
     Vector<SpecialCasing> special_casing;
     u32 largest_special_casing_mapping_size { 0 };
     Vector<ByteString> conditions;
@@ -500,60 +481,11 @@ static ErrorOr<void> parse_normalization_props(Core::InputBufferedFile& file, Un
     return {};
 }
 
-static Optional<CodePointDecomposition> parse_decomposition_mapping(StringView string, UnicodeData& unicode_data)
-{
-    if (string.is_empty())
-        return {};
-
-    CodePointDecomposition mapping;
-
-    auto parts = string.split_view(' ');
-
-    VERIFY(parts.size() > 0);
-
-    if (parts.first().starts_with('<')) {
-        auto const tag = parts.take_first().trim("<>"sv);
-
-        mapping.tag = ByteString::formatted("{:c}{}", to_ascii_uppercase(tag[0]), tag.substring_view(1));
-
-        if (!unicode_data.compatibility_tags.contains_slow(mapping.tag))
-            unicode_data.compatibility_tags.append(mapping.tag);
-    }
-
-    mapping.decomposition_index = unicode_data.decomposition_mappings.size();
-    mapping.decomposition_size = parts.size();
-    for (auto part : parts) {
-        unicode_data.decomposition_mappings.append(AK::StringUtils::convert_to_uint_from_hex<u32>(part).value());
-    }
-
-    return mapping;
-}
-
-static void add_composition_mapping(u32 code_point, CodePointDecomposition& decomposition, UnicodeData& unicode_data, Vector<Unicode::CodePointRange> const& full_composition_exclusion_code_points)
-{
-    if (decomposition.decomposition_size != 2)
-        return;
-    if (decomposition.tag != "Canonical"sv)
-        return;
-    static Unicode::CodePointRangeComparator comparator {};
-    for (auto const& range : full_composition_exclusion_code_points) {
-        auto comparison = comparator(code_point, range);
-        if (comparison == 0)
-            return;
-        if (comparison < 0)
-            break;
-    }
-    u32 const first_code_point = unicode_data.decomposition_mappings[decomposition.decomposition_index];
-    u32 const second_code_point = unicode_data.decomposition_mappings[decomposition.decomposition_index + 1];
-    unicode_data.composition_mappings.ensure(first_code_point).append(CodePointComposition { .second_code_point = second_code_point, .combined_code_point = code_point });
-}
-
 static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeData& unicode_data)
 {
     Optional<u32> code_point_range_start;
 
     auto& assigned_code_points = unicode_data.prop_list.find("Assigned"sv)->value;
-    auto const& full_composition_exclusion_code_points = unicode_data.prop_list.find("Full_Composition_Exclusion"sv)->value;
     Optional<u32> assigned_code_point_range_start = 0;
     u32 previous_code_point = 0;
 
@@ -573,7 +505,6 @@ static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeDa
         data.name = segments[1];
         data.casing.canonical_combining_class = AK::StringUtils::convert_to_uint<u8>(segments[3]).value();
         data.bidi_class = segments[4];
-        data.decomposition_mapping = parse_decomposition_mapping(segments[5], unicode_data);
         data.numeric_value_decimal = AK::StringUtils::convert_to_int<i8>(segments[6]);
         data.numeric_value_digit = AK::StringUtils::convert_to_int<i8>(segments[7]);
         data.numeric_value_numeric = AK::StringUtils::convert_to_int<i8>(segments[8]);
@@ -625,10 +556,6 @@ static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeDa
             if (auto const& folding = unicode_data.case_folding[i]; folding.code_point == data.code_point)
                 data.casing.case_folding_indices.append(i);
         }
-
-        unicode_data.code_points_with_decomposition_mapping += data.decomposition_mapping.has_value();
-        if (data.decomposition_mapping.has_value())
-            add_composition_mapping(data.code_point, *data.decomposition_mapping, unicode_data, full_composition_exclusion_code_points);
 
         unicode_data.bidirectional_classes.set(data.bidi_class, AK::HashSetExistingEntryBehavior::Keep);
 
@@ -701,7 +628,6 @@ namespace Unicode {
     generate_enum("GraphemeBreakProperty"sv, {}, unicode_data.grapheme_break_props.keys());
     generate_enum("WordBreakProperty"sv, {}, unicode_data.word_break_props.keys());
     generate_enum("SentenceBreakProperty"sv, {}, unicode_data.sentence_break_props.keys());
-    generate_enum("CompatibilityFormattingTag"sv, "Canonical"sv, unicode_data.compatibility_tags);
     generate_enum("BidirectionalClass"sv, {}, unicode_data.bidirectional_classes.values());
 
     generator.append(R"~~~(
@@ -727,25 +653,6 @@ struct CaseFolding {
 
     u32 mapping[@case_folding_mapping_size@];
     u32 mapping_size { 0 };
-};
-
-struct CodePointDecompositionRaw {
-    u32 code_point { 0 };
-    CompatibilityFormattingTag tag { CompatibilityFormattingTag::Canonical };
-    size_t decomposition_index { 0 };
-    size_t decomposition_count { 0 };
-};
-
-struct CodePointDecomposition {
-    u32 code_point { 0 };
-    CompatibilityFormattingTag tag { CompatibilityFormattingTag::Canonical };
-    ReadonlySpan<u32> decomposition;
-};
-
-struct CodePointCompositionRaw {
-    u32 code_point { 0 };
-    u32 second_code_point { 0 };
-    u32 combined_code_point { 0 };
 };
 
 Optional<Locale> locale_from_string(StringView locale);
@@ -875,96 +782,6 @@ struct CodePointBidiClassComparator : public CodePointRangeComparator {
     }
 };
 
-)~~~");
-
-    generator.set("decomposition_mappings_size", ByteString::number(unicode_data.decomposition_mappings.size()));
-    generator.append("\nstatic constexpr Array<u32, @decomposition_mappings_size@> s_decomposition_mappings_data { ");
-    generator.append(ByteString::join(", "sv, unicode_data.decomposition_mappings, "{:#x}"sv));
-    generator.append(" };\n");
-
-    auto append_code_point_mappings = [&](StringView name, StringView mapping_type, u32 size, auto mapping_getter) {
-        generator.set("name", name);
-        generator.set("mapping_type", mapping_type);
-        generator.set("size", ByteString::number(size));
-
-        generator.append(R"~~~(
-static constexpr Array<@mapping_type@, @size@> s_@name@_mappings { {
-    )~~~");
-
-        constexpr size_t max_mappings_per_row = 20;
-        size_t mappings_in_current_row = 0;
-
-        for (auto const& data : unicode_data.code_point_data) {
-            auto mapping = mapping_getter(data);
-
-            if constexpr (requires { mapping.has_value(); }) {
-                if (!mapping.has_value())
-                    continue;
-            } else {
-                if (mapping.is_empty())
-                    continue;
-            }
-
-            if (mappings_in_current_row++ > 0)
-                generator.append(" ");
-
-            generator.set("code_point", ByteString::formatted("{:#x}", data.code_point));
-            generator.append("{ @code_point@");
-
-            if constexpr (IsSame<decltype(mapping), Optional<u32>> || IsSame<decltype(mapping), Optional<size_t>>) {
-                generator.set("mapping", ByteString::formatted("{:#x}", *mapping));
-                generator.append(", @mapping@ },");
-            } else if constexpr (IsSame<decltype(mapping), Optional<CodePointDecomposition>>) {
-                generator.set("tag", mapping->tag);
-                generator.set("start", ByteString::number(mapping->decomposition_index));
-                generator.set("size", ByteString::number(mapping->decomposition_size));
-                generator.append(", CompatibilityFormattingTag::@tag@, @start@, @size@ },");
-            } else {
-                append_list_and_size(mapping, "&s_@name@[{}]"sv);
-                generator.append(" },");
-            }
-
-            if (mappings_in_current_row == max_mappings_per_row) {
-                mappings_in_current_row = 0;
-                generator.append("\n    ");
-            }
-        }
-        generator.append(R"~~~(
-} };
-)~~~");
-    };
-
-    append_code_point_mappings("decomposition"sv, "CodePointDecompositionRaw"sv, unicode_data.code_points_with_decomposition_mapping, [](auto const& data) { return data.decomposition_mapping; });
-
-    size_t composition_mappings_size = 0;
-    for (auto const& entry : unicode_data.composition_mappings)
-        composition_mappings_size += entry.value.size();
-    generator.set("composition_mappings_size", ByteString::number(composition_mappings_size));
-    generator.append(R"~~~(
-static constexpr Array<CodePointCompositionRaw, @composition_mappings_size@> s_composition_mappings { {
-    )~~~");
-    constexpr size_t max_mappings_per_row = 40;
-    size_t mappings_in_current_row = 0;
-    auto first_code_points = unicode_data.composition_mappings.keys();
-    quick_sort(first_code_points);
-    for (auto const first_code_point : first_code_points) {
-        for (auto const& mapping : unicode_data.composition_mappings.find(first_code_point)->value) {
-            if (mappings_in_current_row++ > 0)
-                generator.append(" ");
-
-            generator.set("code_point", ByteString::formatted("{:#x}", first_code_point));
-            generator.set("second_code_point", ByteString::formatted("{:#x}", mapping.second_code_point));
-            generator.set("combined_code_point", ByteString::formatted("{:#x}", mapping.combined_code_point));
-            generator.append("{ @code_point@, @second_code_point@, @combined_code_point@ },");
-
-            if (mappings_in_current_row == max_mappings_per_row) {
-                mappings_in_current_row = 0;
-                generator.append("\n    ");
-            }
-        }
-    }
-    generator.append(R"~~~(
-} };
 )~~~");
 
     auto append_casing_table = [&](auto collection_snake, auto const& unique_properties) -> ErrorOr<void> {
@@ -1165,28 +982,6 @@ ReadonlySpan<CaseFolding> case_folding_mapping(u32 code_point)
         return {};
 
     return s_case_folding.span().slice(casing_table.case_folding_start_index, casing_table.case_folding_size);
-}
-
-Optional<CodePointDecomposition const> code_point_decomposition(u32 code_point)
-{
-    auto const* mapping = binary_search(s_decomposition_mappings, code_point, nullptr, CodePointComparator<CodePointDecompositionRaw> {});
-    if (mapping == nullptr)
-        return {};
-    return CodePointDecomposition { mapping->code_point, mapping->tag, ReadonlySpan<u32> { s_decomposition_mappings_data.data() + mapping->decomposition_index, mapping->decomposition_count } };
-}
-
-Optional<u32> code_point_composition(u32 first_code_point, u32 second_code_point)
-{
-    size_t mapping_index;
-    if (!binary_search(s_composition_mappings, first_code_point, &mapping_index, CodePointComparator<CodePointCompositionRaw> {}))
-        return {};
-    while (mapping_index > 0 && s_composition_mappings[mapping_index - 1].code_point == first_code_point)
-        mapping_index--;
-    for (; mapping_index < s_composition_mappings.size() && s_composition_mappings[mapping_index].code_point == first_code_point; ++mapping_index) {
-        if (s_composition_mappings[mapping_index].second_code_point == second_code_point)
-            return s_composition_mappings[mapping_index].combined_code_point;
-    }
-    return {};
 }
 
 Optional<BidirectionalClass> bidirectional_class(u32 code_point)
