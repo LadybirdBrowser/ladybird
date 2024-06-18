@@ -55,7 +55,6 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> sock
     , m_page_host(PageHost::create(*this))
 {
     m_input_event_queue_timer = Web::Platform::Timer::create_single_shot(0, [this] { process_next_input_event(); });
-    async_notify_process_information({ ::getpid() });
 }
 
 ConnectionFromClient::~ConnectionFromClient() = default;

@@ -34,13 +34,6 @@ void WebContentClient::unregister_view(u64 page_id)
     m_views.remove(page_id);
 }
 
-void WebContentClient::notify_process_information(WebView::ProcessHandle const& handle)
-{
-    dbgln_if(SPAM_DEBUG, "handle: WebContentClient::NotifyProcessInformation! pid={}", handle.pid);
-    ProcessManager::the().add_process(ProcessType::WebContent, handle.pid);
-    m_process_handle = handle;
-}
-
 void WebContentClient::did_paint(u64 page_id, Gfx::IntRect const& rect, i32 bitmap_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

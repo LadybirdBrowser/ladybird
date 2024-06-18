@@ -17,8 +17,6 @@
 
 endpoint WebContentClient
 {
-    notify_process_information(WebView::ProcessHandle handle) =|
-
     did_start_loading(u64 page_id, URL::URL url, bool is_redirect) =|
     did_finish_loading(u64 page_id, URL::URL url) =|
     did_request_navigate_back(u64 page_id) =|

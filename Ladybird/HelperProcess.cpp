@@ -48,6 +48,9 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
         if (!result.is_error()) {
             auto process = result.release_value();
 
+            if constexpr (requires { process.client->set_pid(pid_t {}); })
+                process.client->set_pid(process.process.pid());
+
             if (register_with_process_manager == RegisterWithProcessManager::Yes)
                 WebView::ProcessManager::the().add_process(WebView::process_type_from_name(server_name), process.process.pid());
 
