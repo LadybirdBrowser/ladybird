@@ -17,6 +17,7 @@ enum class Style;
 enum class Weekday;
 
 class NumberFormat;
+class Segmenter;
 
 struct CalendarPattern;
 struct Keyword;
