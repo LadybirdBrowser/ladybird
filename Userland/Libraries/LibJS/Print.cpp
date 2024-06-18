@@ -666,8 +666,6 @@ ErrorOr<void> print_intl_number_format(JS::PrintContext& print_context, JS::Intl
     TRY(print_type(print_context, "Intl.NumberFormat"sv));
     TRY(js_out(print_context, "\n  locale: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(number_format.vm(), number_format.locale()), seen_objects));
-    TRY(js_out(print_context, "\n  dataLocale: "));
-    TRY(print_value(print_context, JS::PrimitiveString::create(number_format.vm(), number_format.data_locale()), seen_objects));
     TRY(js_out(print_context, "\n  numberingSystem: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(number_format.vm(), number_format.numbering_system()), seen_objects));
     TRY(js_out(print_context, "\n  style: "));
@@ -875,8 +873,6 @@ ErrorOr<void> print_intl_duration_format(JS::PrintContext& print_context, JS::In
     TRY(print_type(print_context, "Intl.DurationFormat"sv));
     out("\n  locale: ");
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.locale()), seen_objects));
-    out("\n  dataLocale: ");
-    TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.data_locale()), seen_objects));
     out("\n  numberingSystem: ");
     TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), duration_format.numbering_system()), seen_objects));
     out("\n  style: ");

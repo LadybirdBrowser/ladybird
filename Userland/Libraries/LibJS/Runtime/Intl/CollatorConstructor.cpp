@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -199,8 +199,8 @@ JS_DEFINE_NATIVE_FUNCTION(CollatorConstructor::supported_locales_of)
     // 2. Let requestedLocales be ? CanonicalizeLocaleList(locales).
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
 
-    // 3. Return ? SupportedLocales(availableLocales, requestedLocales, options).
-    return TRY(supported_locales(vm, requested_locales, options));
+    // 3. Return ? FilterLocales(availableLocales, requestedLocales, options).
+    return TRY(filter_locales(vm, requested_locales, options));
 }
 
 }

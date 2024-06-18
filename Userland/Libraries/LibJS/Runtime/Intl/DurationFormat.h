@@ -57,9 +57,6 @@ public:
     void set_locale(String locale) { m_locale = move(locale); }
     String const& locale() const { return m_locale; }
 
-    void set_data_locale(String data_locale) { m_data_locale = move(data_locale); }
-    String const& data_locale() const { return m_data_locale; }
-
     void set_numbering_system(String numbering_system) { m_numbering_system = move(numbering_system); }
     String const& numbering_system() const { return m_numbering_system; }
 
@@ -173,7 +170,6 @@ private:
     static StringView display_to_string(Display);
 
     String m_locale;                    // [[Locale]]
-    String m_data_locale;               // [[DataLocale]]
     String m_numbering_system;          // [[NumberingSystem]]
     String m_hours_minutes_separator;   // [[HourMinutesSeparator]]
     String m_minutes_seconds_separator; // [[MinutesSecondsSeparator]]

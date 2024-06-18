@@ -1275,17 +1275,16 @@ static ThrowCompletionOr<String> transform_case(VM& vm, String const& string, Va
     }
     VERIFY(requested_locale.has_value());
 
-    // 4. Let noExtensionsLocale be the String value that is requestedLocale with any Unicode locale extension sequences (6.2.1) removed.
+    // 4. Let noExtensionsLocale be the String value that is requestedLocale with any Unicode locale extension sequences removed.
     requested_locale->remove_extension_type<Locale::LocaleExtension>();
     auto no_extensions_locale = requested_locale->to_string();
 
     // 5. Let availableLocales be a List with language tags that includes the languages for which the Unicode Character Database contains language sensitive case mappings. Implementations may add additional language tags if they support case mapping for additional locales.
-    // 6. Let locale be ! BestAvailableLocale(availableLocales, noExtensionsLocale).
-    auto locale = Intl::best_available_locale(no_extensions_locale);
+    // 6. Let match be LookupMatchingLocaleByPrefix(availableLocales, noExtensionsLocale).
+    auto match = Intl::lookup_matching_locale_by_prefix({ { no_extensions_locale } });
 
-    // 7. If locale is undefined, set locale to "und".
-    if (!locale.has_value())
-        locale = "und"sv;
+    // 7. If match is not undefined, let locale be match.[[locale]]; else let locale be "und".
+    StringView locale = match.has_value() ? match->locale : "und"sv;
 
     // 8. Let codePoints be StringToCodePoints(S).
 
@@ -1295,13 +1294,13 @@ static ThrowCompletionOr<String> transform_case(VM& vm, String const& string, Va
     // 9. If targetCase is lower, then
     case TargetCase::Lower:
         // a. Let newCodePoints be a List whose elements are the result of a lowercase transformation of codePoints according to an implementation-derived algorithm using locale or the Unicode Default Case Conversion algorithm.
-        new_code_points = MUST(string.to_lowercase(*locale));
+        new_code_points = MUST(string.to_lowercase(locale));
         break;
     // 10. Else,
     case TargetCase::Upper:
         // a. Assert: targetCase is upper.
         // b. Let newCodePoints be a List whose elements are the result of an uppercase transformation of codePoints according to an implementation-derived algorithm using locale or the Unicode Default Case Conversion algorithm.
-        new_code_points = MUST(string.to_uppercase(*locale));
+        new_code_points = MUST(string.to_uppercase(locale));
         break;
     default:
         VERIFY_NOT_REACHED();

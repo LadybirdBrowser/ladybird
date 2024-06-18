@@ -76,8 +76,8 @@ JS_DEFINE_NATIVE_FUNCTION(NumberFormatConstructor::supported_locales_of)
     // 2. Let requestedLocales be ? CanonicalizeLocaleList(locales).
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
 
-    // 3. Return ? SupportedLocales(availableLocales, requestedLocales, options).
-    return TRY(supported_locales(vm, requested_locales, options));
+    // 3. Return ? FilterLocales(availableLocales, requestedLocales, options).
+    return TRY(filter_locales(vm, requested_locales, options));
 }
 
 // 15.1.2 InitializeNumberFormat ( numberFormat, locales, options ), https://tc39.es/ecma402/#sec-initializenumberformat
@@ -118,8 +118,7 @@ ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM& vm, N
     // 11. Set numberFormat.[[Locale]] to r.[[locale]].
     number_format.set_locale(move(result.locale));
 
-    // 12. Set numberFormat.[[DataLocale]] to r.[[dataLocale]].
-    number_format.set_data_locale(move(result.data_locale));
+    // 12. Set numberFormat.[[LocaleData]] to r.[[LocaleData]].
 
     // 13. Set numberFormat.[[NumberingSystem]] to r.[[nu]].
     if (auto* resolved_numbering_system = result.nu.get_pointer<String>())

@@ -14,7 +14,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibLocale/Forward.h>
+#include <LibLocale/Locale.h>
 
 namespace JS::Intl {
 
@@ -31,9 +31,13 @@ struct LocaleOptions {
     Optional<LocaleKey> nu; // [[NumberingSystem]]
 };
 
-struct LocaleResult {
+struct MatchedLocale {
     String locale;
-    String data_locale;
+    Optional<::Locale::Extension> extension;
+};
+
+struct ResolvedLocale {
+    String locale;
     LocaleKey ca; // [[Calendar]]
     LocaleKey co; // [[Collation]]
     LocaleKey hc; // [[HourCycle]]
@@ -49,10 +53,11 @@ String canonicalize_unicode_locale_id(StringView locale);
 bool is_well_formed_currency_code(StringView currency);
 bool is_well_formed_unit_identifier(StringView unit_identifier);
 ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM&, Value locales);
-Optional<StringView> best_available_locale(StringView locale);
-String insert_unicode_extension_and_canonicalize(::Locale::LocaleID locale_id, ::Locale::LocaleExtension extension);
-LocaleResult resolve_locale(Vector<String> const& requested_locales, LocaleOptions const& options, ReadonlySpan<StringView> relevant_extension_keys);
-ThrowCompletionOr<Array*> supported_locales(VM&, Vector<String> const& requested_locales, Value options);
+Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> requested_locales);
+Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<String> requested_locales);
+String insert_unicode_extension_and_canonicalize(::Locale::LocaleID locale_id, Vector<String> attributes, Vector<::Locale::Keyword> keywords);
+ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOptions const& options, ReadonlySpan<StringView> relevant_extension_keys);
+ThrowCompletionOr<Array*> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options);
 ThrowCompletionOr<Object*> coerce_options_to_object(VM&, Value options);
 ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM& vm, Object const& options, PropertyKey const& property, ReadonlySpan<StringView> string_values, StringOrBoolean fallback);
 ThrowCompletionOr<Optional<int>> default_number_option(VM&, Value value, int minimum, int maximum, Optional<int> fallback);

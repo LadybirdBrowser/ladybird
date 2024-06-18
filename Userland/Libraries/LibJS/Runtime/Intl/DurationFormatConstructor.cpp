@@ -89,12 +89,12 @@ ThrowCompletionOr<NonnullGCPtr<Object>> DurationFormatConstructor::construct(Fun
     duration_format->set_locale(move(locale));
 
     // 12. Set durationFormat.[[DataLocale]] to r.[[dataLocale]].
-    duration_format->set_data_locale(move(result.data_locale));
+    // NOTE: The [[dataLocale]] internal slot no longer exists.
 
     // 13. Let dataLocale be durationFormat.[[DataLocale]].
     // 14. Let dataLocaleData be durationFormat.[[LocaleData]].[[<dataLocale>]].
     // 15. Let digitalFormat be dataLocaleData.[[DigitalFormat]].
-    auto digital_format = ::Locale::digital_format(duration_format->data_locale());
+    auto digital_format = ::Locale::digital_format(duration_format->locale());
 
     // 16. Let twoDigitHours be digitalFormat.[[TwoDigitHours]].
     // 17. Set durationFormat.[[TwoDigitHours]] to twoDigitHours.
@@ -172,8 +172,8 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatConstructor::supported_locales_of)
     // 2. Let requestedLocales be ? CanonicalizeLocaleList(locales).
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
 
-    // 3. Return ? SupportedLocales(availableLocales, requestedLocales, options).
-    return TRY(supported_locales(vm, requested_locales, options));
+    // 3. Return ? FilterLocales(availableLocales, requestedLocales, options).
+    return TRY(filter_locales(vm, requested_locales, options));
 }
 
 }

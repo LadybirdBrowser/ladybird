@@ -77,8 +77,8 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatConstructor::supported_locales_of)
     // 2. Let requestedLocales be ? CanonicalizeLocaleList(locales).
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
 
-    // 3. Return ? SupportedLocales(availableLocales, requestedLocales, options).
-    return TRY(supported_locales(vm, requested_locales, options));
+    // 3. Return ? FilterLocales(availableLocales, requestedLocales, options).
+    return TRY(filter_locales(vm, requested_locales, options));
 }
 
 // 11.1.2 CreateDateTimeFormat ( newTarget, locales, options, required, defaults ), https://tc39.es/ecma402/#sec-createdatetimeformat
@@ -160,10 +160,6 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
         date_time_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 23. Let dataLocale be r.[[dataLocale]].
-    auto data_locale = move(result.data_locale);
-
-    // Non-standard, the data locale is needed for LibUnicode lookups while formatting.
-    date_time_format->set_data_locale(data_locale);
 
     // 24. Let dataLocaleData be localeData.[[<dataLocale>]].
     Optional<::Locale::HourCycle> hour_cycle_value;
@@ -188,7 +184,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
 
         // c. If hc is null, set hc to dataLocaleData.[[hourCycle]].
         if (!hour_cycle_value.has_value())
-            hour_cycle_value = ::Locale::default_hour_cycle(data_locale);
+            hour_cycle_value = ::Locale::default_hour_cycle(date_time_format->locale());
     }
 
     // 28. Set dateTimeFormat.[[HourCycle]] to hc.
