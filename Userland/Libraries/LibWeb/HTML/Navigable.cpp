@@ -681,7 +681,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
-static WebIDL::ExceptionOr<Variant<Empty, JS::NonnullGCPtr<NavigationParams>, JS::NonnullGCPtr<NonFetchSchemeNavigationParams>>> create_navigation_params_by_fetching(JS::GCPtr<SessionHistoryEntry> entry, JS::GCPtr<Navigable> navigable, SourceSnapshotParams const& source_snapshot_params, TargetSnapshotParams const& target_snapshot_params, CSPNavigationType csp_navigation_type, Optional<String> navigation_id)
+static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation_params_by_fetching(JS::GCPtr<SessionHistoryEntry> entry, JS::GCPtr<Navigable> navigable, SourceSnapshotParams const& source_snapshot_params, TargetSnapshotParams const& target_snapshot_params, CSPNavigationType csp_navigation_type, Optional<String> navigation_id)
 {
     auto& vm = navigable->vm();
     auto& realm = navigable->active_window()->realm();
@@ -982,9 +982,14 @@ static WebIDL::ExceptionOr<Variant<Empty, JS::NonnullGCPtr<NavigationParams>, JS
     //       - locationURL is failure; or
     //       - locationURL is a URL whose scheme is a fetch scheme
     //     then return null.
-    if (response_holder->response()->is_network_error() || location_url.is_error() || (location_url.value().has_value() && Fetch::Infrastructure::is_fetch_scheme(location_url.value().value().scheme()))) {
+    if (response_holder->response()->is_network_error()) {
+        // AD-HOC: We pass the error message if we have one in NullWithError
+        if (response_holder->response()->network_error_message().has_value() && !response_holder->response()->network_error_message().value().is_null())
+            return response_holder->response()->network_error_message().value();
+        else
+            return Empty {};
+    } else if (location_url.is_error() || (location_url.value().has_value() && Fetch::Infrastructure::is_fetch_scheme(location_url.value().value().scheme())))
         return Empty {};
-    }
 
     // 22. Assert: locationURL is null and response is not a network error.
     VERIFY(!location_url.value().has_value());
@@ -1039,7 +1044,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     SourceSnapshotParams const& source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     Optional<String> navigation_id,
-    Variant<Empty, JS::NonnullGCPtr<NavigationParams>, JS::NonnullGCPtr<NonFetchSchemeNavigationParams>> navigation_params,
+    Navigable::NavigationParamsVariant navigation_params,
     CSPNavigationType csp_navigation_type,
     bool allow_POST,
     JS::SafeFunction<void()> completion_steps)
@@ -1124,7 +1129,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         }
 
         // 4. Otherwise, if navigationParams is null, then set failure to true.
-        if (navigation_params.has<Empty>()) {
+        if (navigation_params.has<Empty>() || navigation_params.has<NullWithError>()) {
             failure = true;
         }
 
@@ -1141,8 +1146,9 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         if (failure) {
             // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, and navTimingType.
             //    The inline content should indicate to the user the sort of error that occurred.
-            // FIXME: Add error message to generated error page
-            auto error_html = load_error_page(entry->url()).release_value_but_fixme_should_propagate_errors();
+            auto error_message = navigation_params.has<NullWithError>() ? navigation_params.get<NullWithError>() : "Unknown error"sv;
+
+            auto error_html = load_error_page(entry->url(), error_message).release_value_but_fixme_should_propagate_errors();
             entry->document_state()->set_document(create_document_for_inline_content(this, navigation_id, [error_html](auto& document) {
                 auto parser = HTML::HTMLParser::create(document, error_html, "utf-8"sv);
                 document.set_url(URL::URL("about:error"));
@@ -1427,7 +1433,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         history_entry->set_document_state(document_state);
 
         // 7. Let navigationParams be null.
-        Variant<Empty, JS::NonnullGCPtr<NavigationParams>, JS::NonnullGCPtr<NonFetchSchemeNavigationParams>> navigation_params = Empty {};
+        NavigationParamsVariant navigation_params = Empty {};
 
         // FIXME: 8. If response is non-null:
         if (response) {
