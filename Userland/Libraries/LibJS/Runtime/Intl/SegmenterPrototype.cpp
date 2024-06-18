@@ -70,7 +70,7 @@ JS_DEFINE_NATIVE_FUNCTION(SegmenterPrototype::segment)
     auto string = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 4. Return ! CreateSegmentsObject(segmenter, string).
-    return Segments::create(realm, segmenter, move(string));
+    return Segments::create(realm, segmenter->segmenter(), move(string));
 }
 
 }

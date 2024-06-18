@@ -31,7 +31,7 @@ describe("correct behavior", () => {
         expect(wordSegment0.segment).toBe("hello");
         expect(wordSegment0.index).toBe(0);
         expect(wordSegment0.input).toBe(string);
-        // FIXME: expect(wordSegment0.isWordLike).toBeTrue();
+        expect(wordSegment0.isWordLike).toBeTrue();
         const wordSegment5 = wordSegments.containing(5);
         expect(wordSegment5.segment).toBe(" ");
         expect(wordSegment5.index).toBe(5);
@@ -85,7 +85,7 @@ describe("correct behavior", () => {
             expect(segment.segment).toBe(expectedSegments[index].segment);
             expect(segment.index).toBe(expectedSegments[index].index);
             expect(segment.input).toBe(string);
-            // FIXME: expect(segment.isWordLike).toBe(expectedSegments[index].isWordLike);
+            expect(segment.isWordLike).toBe(expectedSegments[index].isWordLike);
             index++;
         }
         expect(index).toBe(expectedSegments.length);
@@ -139,6 +139,7 @@ describe("correct behavior", () => {
         for (const segment of segments) {
             expect(segment.segment).toBe(expectedSegments[index].segment);
             expect(segment.index).toBe(expectedSegments[index].index);
+            expect(segment.isWordLike).toBe(expectedSegments[index].isWordLike);
             expect(segment.input).toBe(string);
             index++;
         }
