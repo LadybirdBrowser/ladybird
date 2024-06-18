@@ -46,6 +46,8 @@ if (NOT ENABLE_FUZZERS)
     add_linker_flag_if_supported(LINKER:-Bsymbolic-non-weak-functions)
 endif()
 
+add_link_options(LINKER:--no-undefined)
+
 if (ENABLE_LAGOM_COVERAGE_COLLECTION)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND NOT ENABLE_FUZZERS)
         add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
