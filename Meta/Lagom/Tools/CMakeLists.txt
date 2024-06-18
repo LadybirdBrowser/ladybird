@@ -12,5 +12,4 @@ function(lagom_tool tool)
 endfunction()
 
 add_subdirectory(CodeGenerators)
-add_subdirectory(ConfigureComponents)
 add_subdirectory(IPCMagicLinter)
