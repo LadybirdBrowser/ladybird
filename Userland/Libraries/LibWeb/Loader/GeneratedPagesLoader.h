@@ -17,7 +17,7 @@ static String s_chrome_process_executable_path {};
 void set_chrome_process_command_line(StringView command_line);
 void set_chrome_process_executable_path(StringView executable_path);
 
-ErrorOr<String> load_error_page(URL::URL const&);
+ErrorOr<String> load_error_page(URL::URL const&, StringView error_message);
 
 ErrorOr<String> load_file_directory_page(URL::URL const&);
 

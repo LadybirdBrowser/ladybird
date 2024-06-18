@@ -26,7 +26,7 @@ void set_chrome_process_executable_path(StringView executable_path)
     s_chrome_process_executable_path = MUST(String::from_utf8(executable_path));
 }
 
-ErrorOr<String> load_error_page(URL::URL const& url)
+ErrorOr<String> load_error_page(URL::URL const& url, StringView error_message)
 {
     // Generate HTML error page from error template file
     // FIXME: Use an actual templating engine (our own one when it's built, preferably with a way to check these usages at compile time)
@@ -34,6 +34,7 @@ ErrorOr<String> load_error_page(URL::URL const& url)
     StringBuilder builder;
     SourceGenerator generator { builder };
     generator.set("failed_url", url.to_byte_string());
+    generator.set("error_message", escape_html_entities(error_message));
     generator.append(template_file->data());
     return TRY(String::from_utf8(generator.as_string_view()));
 }
