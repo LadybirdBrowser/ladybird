@@ -337,10 +337,8 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
 
             if (file_or_error.is_error()) {
                 log_failure(request, file_or_error.error());
-                if (error_callback) {
-                    auto status = file_or_error.error().code() == ENOENT ? 404u : 500u;
-                    error_callback(ByteString::formatted("{}", file_or_error.error()), status, {}, {});
-                }
+                if (error_callback)
+                    error_callback(ByteString::formatted("{}", file_or_error.error()), {}, {}, {});
                 return;
             }
 
@@ -357,7 +355,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             if (st_or_error.is_error()) {
                 log_failure(request, st_or_error.error());
                 if (error_callback)
-                    error_callback(ByteString::formatted("{}", st_or_error.error()), 500u, {}, {});
+                    error_callback(ByteString::formatted("{}", st_or_error.error()), {}, {}, {});
                 return;
             }
 
@@ -366,7 +364,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             if (maybe_file.is_error()) {
                 log_failure(request, maybe_file.error());
                 if (error_callback)
-                    error_callback(ByteString::formatted("{}", maybe_file.error()), 500u, {}, {});
+                    error_callback(ByteString::formatted("{}", maybe_file.error()), {}, {}, {});
                 return;
             }
 
@@ -375,7 +373,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             if (maybe_data.is_error()) {
                 log_failure(request, maybe_data.error());
                 if (error_callback)
-                    error_callback(ByteString::formatted("{}", maybe_data.error()), 500u, {}, {});
+                    error_callback(ByteString::formatted("{}", maybe_data.error()), {}, {}, {});
                 return;
             }
 
