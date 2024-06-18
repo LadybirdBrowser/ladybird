@@ -46,6 +46,7 @@ static ErrorOr<pid_t> launch_browser(ByteString const& socket_path)
     }
 
     arguments.append("--allow-popups");
+    arguments.append("--force-new-process");
 
     arguments.append("about:blank");
 
