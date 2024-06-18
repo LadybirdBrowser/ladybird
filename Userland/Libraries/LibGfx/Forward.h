@@ -11,7 +11,6 @@ namespace Gfx {
 class Bitmap;
 class CMYKBitmap;
 class ImmutableBitmap;
-class CharacterBitmap;
 class Color;
 
 template<typename T>
