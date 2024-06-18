@@ -1,6 +1,0 @@
-import("//Meta/Lagom/Tools/lagom_tool.gni")
-
-lagom_tool("StateMachineGenerator") {
-  sources = [ "main.cpp" ]
-  deps = [ "//Userland/Libraries/LibMain" ]
-}
