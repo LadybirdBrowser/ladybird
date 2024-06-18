@@ -301,6 +301,8 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         auto resource = Core::Resource::load_from_uri(url.serialize());
         if (resource.is_error()) {
             log_failure(request, resource.error());
+            if (error_callback)
+                error_callback(ByteString::formatted("{}", resource.error()), {}, {}, {});
             return;
         }
 
