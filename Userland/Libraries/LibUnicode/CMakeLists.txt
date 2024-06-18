@@ -6,7 +6,6 @@ set(SOURCES
     Emoji.cpp
     IDNA.cpp
     Normalize.cpp
-    Punycode.cpp
     Segmentation.cpp
     String.cpp
     UnicodeUtils.cpp

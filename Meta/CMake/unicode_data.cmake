@@ -3,7 +3,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/utils.cmake)
 set(UCD_VERSION "15.1.0")
 set(UCD_SHA256 "cb1c663d053926500cd501229736045752713a066bd75802098598b7a7056177")
 set(EMOJI_SHA256 "d876ee249aa28eaa76cfa6dfaa702847a8d13b062aa488d465d0395ee8137ed9")
-set(IDNA_SHA256 "402cbd285f1f952fcd0834b63541d54f69d3d8f1b8f8599bf71a1a14935f82c4")
 
 set(UCD_PATH "${SERENITY_CACHE_DIR}/UCD" CACHE PATH "Download location for UCD files")
 set(UCD_VERSION_FILE "${UCD_PATH}/version.txt")
@@ -67,9 +66,6 @@ set(EMOJI_SERENITY_PATH "${SerenityOS_SOURCE_DIR}/Base/home/anon/Documents/emoji
 set(EMOJI_FILE_LIST_PATH "${SerenityOS_SOURCE_DIR}/Meta/emoji-file-list.txt")
 set(EMOJI_INSTALL_PATH "${CMAKE_BINARY_DIR}/Root/home/anon/Documents/emoji.txt")
 
-set(IDNA_MAPPING_TABLE_URL "https://www.unicode.org/Public/idna/${UCD_VERSION}/IdnaMappingTable.txt")
-set(IDNA_MAPPING_TABLE_PATH "${UCD_PATH}/IdnaMappingTable.txt")
-
 if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     remove_path_if_version_changed("${UCD_VERSION}" "${UCD_VERSION_FILE}" "${UCD_PATH}")
 
@@ -93,12 +89,9 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${SENTENCE_BREAK_PROP_SOURCE}" "${SENTENCE_BREAK_PROP_PATH}")
 
         download_file("${EMOJI_TEST_URL}" "${EMOJI_TEST_PATH}" SHA256 "${EMOJI_SHA256}")
-
-        download_file("${IDNA_MAPPING_TABLE_URL}" "${IDNA_MAPPING_TABLE_PATH}" SHA256 "${IDNA_SHA256}")
     else()
         message(STATUS "Skipping download of ${UCD_ZIP_URL}, expecting the archive to have been extracted to ${UCD_ZIP_PATH}")
         message(STATUS "Skipping download of ${EMOJI_TEST_URL}, expecting the file to be at ${EMOJI_TEST_PATH}")
-        message(STATUS "Skipping download of ${IDNA_MAPPING_TABLE_URL}, expecting the file to be at  ${IDNA_MAPPING_TABLE_PATH}")
     endif()
 
 
@@ -107,9 +100,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
 
     set(EMOJI_DATA_HEADER EmojiData.h)
     set(EMOJI_DATA_IMPLEMENTATION EmojiData.cpp)
-
-    set(IDNA_DATA_HEADER IDNAData.h)
-    set(IDNA_DATA_IMPLEMENTATION IDNAData.cpp)
 
     if (SERENITYOS)
         set(EMOJI_INSTALL_ARG -i "${EMOJI_INSTALL_PATH}")
@@ -137,21 +127,11 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         # the generated emoji.txt file.
         dependencies "${EMOJI_RES_PATH}" "${EMOJI_SERENITY_PATH}" "${EMOJI_FILE_LIST_PATH}"
     )
-    invoke_generator(
-        "IDNAData"
-        Lagom::GenerateIDNAData
-        "${UCD_VERSION_FILE}"
-        "${IDNA_DATA_HEADER}"
-        "${IDNA_DATA_IMPLEMENTATION}"
-        arguments -m "${IDNA_MAPPING_TABLE_PATH}"
-    )
 
     set(UNICODE_DATA_SOURCES
         ${UNICODE_DATA_HEADER}
         ${UNICODE_DATA_IMPLEMENTATION}
         ${EMOJI_DATA_HEADER}
         ${EMOJI_DATA_IMPLEMENTATION}
-        ${IDNA_DATA_HEADER}
-        ${IDNA_DATA_IMPLEMENTATION}
     )
 endif()
