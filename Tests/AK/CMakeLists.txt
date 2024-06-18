@@ -1,7 +1,6 @@
 set(AK_TEST_SOURCES
     TestAllOf.cpp
     TestAnyOf.cpp
-    TestArbitrarySizedEnum.cpp
     TestArray.cpp
     TestAtomic.cpp
     TestBadge.cpp
