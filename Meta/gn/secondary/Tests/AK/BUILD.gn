@@ -3,7 +3,6 @@ import("//Tests/unittest.gni")
 tests = [
   "TestAllOf",
   "TestAnyOf",
-  "TestArbitrarySizedEnum",
   "TestArray",
   "TestAtomic",
   "TestBadge",

@@ -17,7 +17,6 @@ shared_library("AK") {
   sources = [
     "AllOf.h",
     "AnyOf.h",
-    "ArbitrarySizedEnum.h",
     "Array.h",
     "Assertions.cpp",
     "Assertions.h",
