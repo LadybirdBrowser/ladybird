@@ -29,17 +29,6 @@ struct CodePointRangeComparator {
     }
 };
 
-struct BlockName {
-    CodePointRange code_point_range {};
-    StringView display_name;
-};
-
-Optional<ByteString> code_point_display_name(u32 code_point);
-Optional<StringView> code_point_block_display_name(u32 code_point);
-Optional<StringView> code_point_abbreviation(u32 code_point);
-
-ReadonlySpan<BlockName> block_display_names();
-
 u32 canonical_combining_class(u32 code_point);
 
 // Note: The single code point case conversions only perform simple case folding.

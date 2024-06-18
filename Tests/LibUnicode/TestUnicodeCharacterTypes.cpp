@@ -330,15 +330,6 @@ TEST_CASE(script)
     }
 }
 
-TEST_CASE(block)
-{
-    for (u32 code_point = 0x0000; code_point <= 0x007F; ++code_point)
-        EXPECT_EQ("Basic Latin"sv, Unicode::code_point_block_display_name(code_point).value());
-
-    for (u32 code_point = 0x0370; code_point <= 0x03FF; ++code_point)
-        EXPECT_EQ("Greek and Coptic"sv, Unicode::code_point_block_display_name(code_point).value());
-}
-
 TEST_CASE(script_extension)
 {
     auto script = [](StringView name) {
@@ -388,38 +379,6 @@ TEST_CASE(script_extension)
 
     EXPECT(Unicode::code_point_has_script(0x101fd, script_inherited));
     EXPECT(Unicode::code_point_has_script_extension(0x101fd, script_inherited));
-}
-
-TEST_CASE(code_point_display_name)
-{
-    auto code_point_display_name = [](u32 code_point) {
-        auto name = Unicode::code_point_display_name(code_point);
-        VERIFY(name.has_value());
-        return name.release_value();
-    };
-
-    // Control code points.
-    EXPECT_EQ(code_point_display_name(0), "NULL"sv);
-    EXPECT_EQ(code_point_display_name(1), "START OF HEADING"sv);
-    EXPECT_EQ(code_point_display_name(0xa), "LINE FEED"sv);
-
-    // Ideographic code points (which already appeared in a range in UnicodeData.txt).
-    EXPECT_EQ(code_point_display_name(0x3400), "CJK UNIFIED IDEOGRAPH-3400"sv);
-    EXPECT_EQ(code_point_display_name(0x3401), "CJK UNIFIED IDEOGRAPH-3401"sv);
-    EXPECT_EQ(code_point_display_name(0x3402), "CJK UNIFIED IDEOGRAPH-3402"sv);
-    EXPECT_EQ(code_point_display_name(0x4dbf), "CJK UNIFIED IDEOGRAPH-4DBF"sv);
-
-    EXPECT_EQ(code_point_display_name(0x20000), "CJK UNIFIED IDEOGRAPH-20000"sv);
-    EXPECT_EQ(code_point_display_name(0x20001), "CJK UNIFIED IDEOGRAPH-20001"sv);
-    EXPECT_EQ(code_point_display_name(0x20002), "CJK UNIFIED IDEOGRAPH-20002"sv);
-    EXPECT_EQ(code_point_display_name(0x2a6df), "CJK UNIFIED IDEOGRAPH-2A6DF"sv);
-    EXPECT(!Unicode::code_point_display_name(0x2a6e0).has_value());
-
-    // Ideographic code points (which appeared individually in UnicodeData.txt and were coalesced into a range).
-    EXPECT_EQ(code_point_display_name(0x2f800), "CJK COMPATIBILITY IDEOGRAPH-2F800"sv);
-    EXPECT_EQ(code_point_display_name(0x2f801), "CJK COMPATIBILITY IDEOGRAPH-2F801"sv);
-    EXPECT_EQ(code_point_display_name(0x2f802), "CJK COMPATIBILITY IDEOGRAPH-2F802"sv);
-    EXPECT_EQ(code_point_display_name(0x2fa1d), "CJK COMPATIBILITY IDEOGRAPH-2FA1D"sv);
 }
 
 TEST_CASE(code_point_bidirectional_character_type)

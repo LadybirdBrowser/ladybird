@@ -65,11 +65,6 @@ struct Normalization {
 
 using NormalizationProps = HashMap<ByteString, Vector<Normalization>>;
 
-struct CodePointName {
-    Unicode::CodePointRange code_point_range;
-    size_t name { 0 };
-};
-
 struct CasingTable {
     bool operator==(CasingTable const& other) const
     {
@@ -93,7 +88,6 @@ struct CasingTable {
 struct CodePointData {
     u32 code_point { 0 };
     ByteString name;
-    Optional<size_t> abbreviation;
     ByteString bidi_class;
     Optional<CodePointDecomposition> decomposition_mapping;
     Optional<i8> numeric_value_decimal;
@@ -103,11 +97,6 @@ struct CodePointData {
     ByteString unicode_1_name;
     ByteString iso_comment;
     CasingTable casing;
-};
-
-struct BlockName {
-    Unicode::CodePointRange code_point_range;
-    size_t name { 0 };
 };
 
 using PropertyTable = Vector<bool>;
@@ -136,8 +125,6 @@ struct CodePointComposition {
 };
 
 struct UnicodeData {
-    UniqueStringStorage unique_strings;
-
     u32 code_points_with_decomposition_mapping { 0 };
     Vector<u32> decomposition_mappings;
     HashMap<u32, Vector<CodePointComposition>> composition_mappings;
@@ -153,10 +140,6 @@ struct UnicodeData {
     Vector<StringView> statuses;
 
     Vector<CodePointData> code_point_data;
-
-    HashMap<u32, size_t> code_point_abbreviations;
-    HashMap<u32, size_t> code_point_display_name_aliases;
-    Vector<CodePointName> code_point_display_names;
 
     // https://www.unicode.org/reports/tr44/#General_Category_Values
     PropList general_categories;
@@ -177,8 +160,6 @@ struct UnicodeData {
     };
     Vector<Alias> script_aliases;
     PropList script_extensions;
-
-    Vector<BlockName> block_display_names;
 
     // FIXME: We are not yet doing anything with this data. It will be needed for String.prototype.normalize.
     NormalizationProps normalization_props;
@@ -430,37 +411,6 @@ static ErrorOr<void> parse_alias_list(Core::InputBufferedFile& file, PropList co
     return {};
 }
 
-static ErrorOr<void> parse_name_aliases(Core::InputBufferedFile& file, UnicodeData& unicode_data)
-{
-    Array<u8, 1024> buffer;
-
-    while (TRY(file.can_read_line())) {
-        auto line = TRY(file.read_line(buffer));
-
-        if (line.is_empty() || line.starts_with('#'))
-            continue;
-
-        auto segments = line.split_view(';', SplitBehavior::KeepEmpty);
-        VERIFY(segments.size() == 3);
-
-        auto code_point = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[0].trim_whitespace());
-        auto alias = segments[1].trim_whitespace();
-        auto reason = segments[2].trim_whitespace();
-
-        if (reason == "abbreviation"sv) {
-            auto index = unicode_data.unique_strings.ensure(alias);
-            unicode_data.code_point_abbreviations.set(*code_point, index);
-        } else if (reason.is_one_of("correction"sv, "control"sv)) {
-            if (!unicode_data.code_point_display_name_aliases.contains(*code_point)) {
-                auto index = unicode_data.unique_strings.ensure(alias);
-                unicode_data.code_point_display_name_aliases.set(*code_point, index);
-            }
-        }
-    }
-
-    return {};
-}
-
 static ErrorOr<void> parse_value_alias_list(Core::InputBufferedFile& file, StringView desired_category, Vector<ByteString> const& value_list, Vector<Alias>& prop_aliases, bool primary_value_is_first = true, bool sanitize_alias = false)
 {
     TRY(file.seek(0, SeekMode::SetPosition));
@@ -550,68 +500,6 @@ static ErrorOr<void> parse_normalization_props(Core::InputBufferedFile& file, Un
     return {};
 }
 
-static void add_canonical_code_point_name(Unicode::CodePointRange range, StringView name, UnicodeData& unicode_data)
-{
-    // https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G142981
-    // FIXME: Implement the NR1 rules for Hangul syllables.
-
-    struct CodePointNameFormat {
-        Unicode::CodePointRange code_point_range;
-        StringView name;
-    };
-
-    // These code point ranges are the NR2 set of name replacements defined by Table 4-8.
-    constexpr Array<CodePointNameFormat, 16> s_ideographic_replacements { {
-        { { 0x3400, 0x4DBF }, "CJK UNIFIED IDEOGRAPH-{:X}"sv },
-        { { 0x4E00, 0x9FFF }, "CJK UNIFIED IDEOGRAPH-{:X}"sv },
-        { { 0xF900, 0xFA6D }, "CJK COMPATIBILITY IDEOGRAPH-{:X}"sv },
-        { { 0xFA70, 0xFAD9 }, "CJK COMPATIBILITY IDEOGRAPH-{:X}"sv },
-        { { 0x17000, 0x187F7 }, "TANGUT IDEOGRAPH-{:X}"sv },
-        { { 0x18B00, 0x18CD5 }, "KHITAN SMALL SCRIPT CHARACTER-{:X}"sv },
-        { { 0x18D00, 0x18D08 }, "TANGUT IDEOGRAPH-{:X}"sv },
-        { { 0x1B170, 0x1B2FB }, "NUSHU CHARACTER-{:X}"sv },
-        { { 0x20000, 0x2A6DF }, "CJK UNIFIED IDEOGRAPH-{:X}"sv },
-        { { 0x2A700, 0x2B739 }, "CJK UNIFIED IDEOGRAPH-{:X}"sv },
-        { { 0x2B740, 0x2B81D }, "CJK UNIFIED IDEOGRAPH-{:X}"sv },
-        { { 0x2B820, 0x2CEA1 }, "CJK UNIFIED IDEOGRAPH-{:X}"sv },
-        { { 0x2CEB0, 0x2EBE0 }, "CJK UNIFIED IDEOGRAPH-{:X}"sv },
-        { { 0x2F800, 0x2FA1D }, "CJK COMPATIBILITY IDEOGRAPH-{:X}"sv },
-        { { 0x30000, 0x3134A }, "CJK UNIFIED IDEOGRAPH-{:X}"sv },
-        { { 0x31350, 0x323AF }, "CJK UNIFIED IDEOGRAPH-{:X}"sv },
-    } };
-
-    auto it = find_if(s_ideographic_replacements.begin(), s_ideographic_replacements.end(),
-        [&](auto const& replacement) {
-            return replacement.code_point_range.first == range.first;
-        });
-
-    if (it != s_ideographic_replacements.end()) {
-        auto index = unicode_data.unique_strings.ensure(it->name);
-        unicode_data.code_point_display_names.append({ it->code_point_range, index });
-        return;
-    }
-
-    it = find_if(s_ideographic_replacements.begin(), s_ideographic_replacements.end(),
-        [&](auto const& replacement) {
-            return (replacement.code_point_range.first <= range.first) && (range.first <= replacement.code_point_range.last);
-        });
-
-    if (it != s_ideographic_replacements.end()) {
-        // Drop code points that will have been captured by a range defined by the ideographic replacements.
-        return;
-    }
-
-    if (auto alias = unicode_data.code_point_display_name_aliases.get(range.first); alias.has_value()) {
-        // NR4 states that control code points have a null string as their name. Our implementation
-        // uses the control code's alias as its display name.
-        unicode_data.code_point_display_names.append({ range, *alias });
-        return;
-    }
-
-    auto index = unicode_data.unique_strings.ensure(name);
-    unicode_data.code_point_display_names.append({ range, index });
-}
-
 static Optional<CodePointDecomposition> parse_decomposition_mapping(StringView string, UnicodeData& unicode_data)
 {
     if (string.is_empty())
@@ -660,29 +548,6 @@ static void add_composition_mapping(u32 code_point, CodePointDecomposition& deco
     unicode_data.composition_mappings.ensure(first_code_point).append(CodePointComposition { .second_code_point = second_code_point, .combined_code_point = code_point });
 }
 
-static ErrorOr<void> parse_block_display_names(Core::InputBufferedFile& file, UnicodeData& unicode_data)
-{
-    Array<u8, 1024> buffer;
-    while (TRY(file.can_read_line())) {
-        auto line = TRY(file.read_line(buffer));
-        if (line.is_empty() || line.starts_with('#'))
-            continue;
-
-        auto segments = line.split_view(';', SplitBehavior::KeepEmpty);
-        VERIFY(segments.size() == 2);
-
-        auto code_point_range = parse_code_point_range(segments[0].trim_whitespace());
-        auto display_name = segments[1].trim_whitespace();
-
-        auto index = unicode_data.unique_strings.ensure(display_name);
-        unicode_data.block_display_names.append({ code_point_range, index });
-    }
-
-    TRY(file.seek(0, SeekMode::SetPosition));
-
-    return {};
-}
-
 static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeData& unicode_data)
 {
     Optional<u32> code_point_range_start;
@@ -719,9 +584,6 @@ static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeDa
         data.casing.simple_lowercase_mapping = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[13]);
         data.casing.simple_titlecase_mapping = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[14]);
 
-        if (auto abbreviation = unicode_data.code_point_abbreviations.get(data.code_point); abbreviation.has_value())
-            data.abbreviation = *abbreviation;
-
         if (!assigned_code_point_range_start.has_value())
             assigned_code_point_range_start = data.code_point;
 
@@ -742,10 +604,8 @@ static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeDa
             data.name = data.name.substring(1, data.name.length() - 8);
             code_point_range_start.clear();
 
-            add_canonical_code_point_name(code_point_range, data.name, unicode_data);
             unicode_data.code_point_bidirectional_classes.append({ code_point_range, data.bidi_class });
         } else {
-            add_canonical_code_point_name({ data.code_point, data.code_point }, data.name, unicode_data);
             unicode_data.code_point_bidirectional_classes.append({ { data.code_point, data.code_point }, data.bidi_class });
 
             if ((data.code_point > 0) && (data.code_point - previous_code_point) != 1) {
@@ -905,7 +765,6 @@ static ErrorOr<void> generate_unicode_data_implementation(Core::InputBufferedFil
     StringBuilder builder;
     SourceGenerator generator { builder };
 
-    generator.set("string_index_type"sv, unicode_data.unique_strings.type_that_fits());
     generator.set("special_casing_size", ByteString::number(unicode_data.special_casing.size()));
     generator.set("case_folding_size", ByteString::number(unicode_data.case_folding.size()));
 
@@ -926,8 +785,6 @@ static ErrorOr<void> generate_unicode_data_implementation(Core::InputBufferedFil
 
 namespace Unicode {
 )~~~");
-
-    unicode_data.unique_strings.generate(generator);
 
     auto append_list_and_size = [&](auto const& list, StringView format) {
         if (list.is_empty()) {
@@ -998,40 +855,11 @@ struct CasingTable {
     u32 case_folding_size { 0 };
 };
 
-struct CodePointAbbreviation {
-    u32 code_point { 0 };
-    @string_index_type@ abbreviation { 0 };
-};
-
 template<typename MappingType>
 struct CodePointComparator {
     constexpr int operator()(u32 code_point, MappingType const& mapping)
     {
         return code_point - mapping.code_point;
-    }
-};
-
-struct BlockNameData {
-    CodePointRange code_point_range {};
-    @string_index_type@ display_name { 0 };
-};
-
-struct BlockNameComparator : public CodePointRangeComparator {
-    constexpr int operator()(u32 code_point, BlockNameData const& name)
-    {
-        return CodePointRangeComparator::operator()(code_point, name.code_point_range);
-    }
-};
-
-struct CodePointName {
-    CodePointRange code_point_range {};
-    @string_index_type@ display_name { 0 };
-};
-
-struct CodePointNameComparator : public CodePointRangeComparator {
-    constexpr int operator()(u32 code_point, CodePointName const& name)
-    {
-        return CodePointRangeComparator::operator()(code_point, name.code_point_range);
     }
 };
 
@@ -1106,7 +934,6 @@ static constexpr Array<@mapping_type@, @size@> s_@name@_mappings { {
 )~~~");
     };
 
-    append_code_point_mappings("abbreviation"sv, "CodePointAbbreviation"sv, unicode_data.code_point_abbreviations.size(), [](auto const& data) { return data.abbreviation; });
     append_code_point_mappings("decomposition"sv, "CodePointDecompositionRaw"sv, unicode_data.code_points_with_decomposition_mapping, [](auto const& data) { return data.decomposition_mapping; });
 
     size_t composition_mappings_size = 0;
@@ -1254,39 +1081,6 @@ static constexpr Array<@type@, @size@> @name@ { {
     TRY(append_code_point_tables("s_word_break_properties"sv, unicode_data.word_break_tables, append_property_table));
     TRY(append_code_point_tables("s_sentence_break_properties"sv, unicode_data.sentence_break_tables, append_property_table));
 
-    auto append_code_point_display_names = [&](StringView type, StringView name, auto const& display_names) {
-        constexpr size_t max_values_per_row = 30;
-        size_t values_in_current_row = 0;
-
-        generator.set("type", type);
-        generator.set("name", name);
-        generator.set("size", ByteString::number(display_names.size()));
-
-        generator.append(R"~~~(
-static constexpr Array<@type@, @size@> @name@ { {
-    )~~~");
-        for (auto const& display_name : display_names) {
-            if (values_in_current_row++ > 0)
-                generator.append(", ");
-
-            generator.set("first", ByteString::formatted("{:#x}", display_name.code_point_range.first));
-            generator.set("last", ByteString::formatted("{:#x}", display_name.code_point_range.last));
-            generator.set("name", ByteString::number(display_name.name));
-            generator.append("{ { @first@, @last@ }, @name@ }");
-
-            if (values_in_current_row == max_values_per_row) {
-                values_in_current_row = 0;
-                generator.append(",\n    ");
-            }
-        }
-        generator.append(R"~~~(
-} };
-)~~~");
-    };
-
-    append_code_point_display_names("BlockNameData"sv, "s_block_display_names"sv, unicode_data.block_display_names);
-    append_code_point_display_names("CodePointName"sv, "s_code_point_display_names"sv, unicode_data.code_point_display_names);
-
     {
         constexpr size_t max_bidi_classes_per_row = 20;
         size_t bidi_classes_in_current_row = 0;
@@ -1315,44 +1109,6 @@ static constexpr Array<BidiClassData, @size@> s_bidirectional_classes { {
     }
 
     generator.append(R"~~~(
-Optional<StringView> code_point_block_display_name(u32 code_point)
-{
-    if (auto const* entry = binary_search(s_block_display_names, code_point, nullptr, BlockNameComparator {}))
-        return decode_string(entry->display_name);
-
-    return {};
-}
-
-ReadonlySpan<BlockName> block_display_names()
-{
-    static auto display_names = []() {
-        Array<BlockName, s_block_display_names.size()> display_names;
-
-        for (size_t i = 0; i < s_block_display_names.size(); ++i) {
-            auto const& display_name = s_block_display_names[i];
-            display_names[i] = { display_name.code_point_range, decode_string(display_name.display_name) };
-        }
-
-        return display_names;
-    }();
-
-    return display_names.span();
-}
-
-Optional<ByteString> code_point_display_name(u32 code_point)
-{
-    if (auto const* entry = binary_search(s_code_point_display_names, code_point, nullptr, CodePointNameComparator {})) {
-        auto display_name = decode_string(entry->display_name);
-
-        if (display_name.ends_with("{:X}"sv))
-            return ByteString::formatted(display_name, code_point);
-
-        return display_name;
-    }
-
-    return {};
-}
-
 static CasingTable const& casing_table_for_code_point(u32 code_point)
 {
     auto stage1_index = code_point >> @CODE_POINT_TABLES_LSB_COUNT@;
@@ -1409,17 +1165,6 @@ ReadonlySpan<CaseFolding> case_folding_mapping(u32 code_point)
         return {};
 
     return s_case_folding.span().slice(casing_table.case_folding_start_index, casing_table.case_folding_size);
-}
-
-Optional<StringView> code_point_abbreviation(u32 code_point)
-{
-    auto const* mapping = binary_search(s_abbreviation_mappings, code_point, nullptr, CodePointComparator<CodePointAbbreviation> {});
-    if (mapping == nullptr)
-        return {};
-    if (mapping->abbreviation == 0)
-        return {};
-
-    return decode_string(mapping->abbreviation);
 }
 
 Optional<CodePointDecomposition const> code_point_decomposition(u32 code_point)
@@ -1842,10 +1587,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView derived_binary_prop_path;
     StringView prop_alias_path;
     StringView prop_value_alias_path;
-    StringView name_alias_path;
     StringView scripts_path;
     StringView script_extensions_path;
-    StringView blocks_path;
     StringView emoji_data_path;
     StringView normalization_path;
     StringView grapheme_break_path;
@@ -1864,10 +1607,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(derived_binary_prop_path, "Path to DerivedBinaryProperties.txt file", "derived-binary-prop-path", 'b', "derived-binary-prop-path");
     args_parser.add_option(prop_alias_path, "Path to PropertyAliases.txt file", "prop-alias-path", 'a', "prop-alias-path");
     args_parser.add_option(prop_value_alias_path, "Path to PropertyValueAliases.txt file", "prop-value-alias-path", 'v', "prop-value-alias-path");
-    args_parser.add_option(name_alias_path, "Path to NameAliases.txt file", "name-alias-path", 'm', "name-alias-path");
     args_parser.add_option(scripts_path, "Path to Scripts.txt file", "scripts-path", 'r', "scripts-path");
     args_parser.add_option(script_extensions_path, "Path to ScriptExtensions.txt file", "script-extensions-path", 'x', "script-extensions-path");
-    args_parser.add_option(blocks_path, "Path to Blocks.txt file", "blocks-path", 'k', "blocks-path");
     args_parser.add_option(emoji_data_path, "Path to emoji-data.txt file", "emoji-data-path", 'e', "emoji-data-path");
     args_parser.add_option(normalization_path, "Path to DerivedNormalizationProps.txt file", "normalization-path", 'n', "normalization-path");
     args_parser.add_option(grapheme_break_path, "Path to GraphemeBreakProperty.txt file", "grapheme-break-path", 'f', "grapheme-break-path");
@@ -1886,10 +1627,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto derived_binary_prop_file = TRY(open_file(derived_binary_prop_path, Core::File::OpenMode::Read));
     auto prop_alias_file = TRY(open_file(prop_alias_path, Core::File::OpenMode::Read));
     auto prop_value_alias_file = TRY(open_file(prop_value_alias_path, Core::File::OpenMode::Read));
-    auto name_alias_file = TRY(open_file(name_alias_path, Core::File::OpenMode::Read));
     auto scripts_file = TRY(open_file(scripts_path, Core::File::OpenMode::Read));
     auto script_extensions_file = TRY(open_file(script_extensions_path, Core::File::OpenMode::Read));
-    auto blocks_file = TRY(open_file(blocks_path, Core::File::OpenMode::Read));
     auto emoji_data_file = TRY(open_file(emoji_data_path, Core::File::OpenMode::Read));
     auto normalization_file = TRY(open_file(normalization_path, Core::File::OpenMode::Read));
     auto grapheme_break_file = TRY(open_file(grapheme_break_path, Core::File::OpenMode::Read));
@@ -1908,8 +1647,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     TRY(parse_alias_list(*prop_alias_file, unicode_data.prop_list, unicode_data.prop_aliases));
     TRY(parse_prop_list(*scripts_file, unicode_data.script_list));
     TRY(parse_prop_list(*script_extensions_file, unicode_data.script_extensions, true));
-    TRY(parse_block_display_names(*blocks_file, unicode_data));
-    TRY(parse_name_aliases(*name_alias_file, unicode_data));
     TRY(parse_prop_list(*grapheme_break_file, unicode_data.grapheme_break_props));
     TRY(parse_prop_list(*word_break_file, unicode_data.word_break_props));
     TRY(parse_prop_list(*sentence_break_file, unicode_data.sentence_break_props));
