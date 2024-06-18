@@ -14,7 +14,7 @@ namespace Ladybird {
 Settings::Settings()
     : m_search_engine(WebView::default_search_engine())
 {
-    m_qsettings = make<QSettings>("SerenityOS", "Ladybird", this);
+    m_qsettings = make<QSettings>("Ladybird", "Ladybird", this);
 
     auto default_search_engine = WebView::default_search_engine();
     auto default_search_engine_name = qstring_from_ak_string(default_search_engine.name);
