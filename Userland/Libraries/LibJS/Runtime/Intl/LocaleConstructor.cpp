@@ -111,15 +111,13 @@ static ThrowCompletionOr<String> apply_options_to_tag(VM& vm, StringView tag, Ob
 // 14.1.3 ApplyUnicodeExtensionToTag ( tag, options, relevantExtensionKeys ), https://tc39.es/ecma402/#sec-apply-unicode-extension-to-tag
 static LocaleAndKeys apply_unicode_extension_to_tag(StringView tag, LocaleAndKeys options, ReadonlySpan<StringView> relevant_extension_keys)
 {
-    // 1. Assert: Type(tag) is String.
-    // 2. Assert: tag matches the unicode_locale_id production.
     auto locale_id = ::Locale::parse_unicode_locale_id(tag);
     VERIFY(locale_id.has_value());
 
     Vector<String> attributes;
     Vector<::Locale::Keyword> keywords;
 
-    // 3. If tag contains a substring that is a Unicode locale extension sequence, then
+    // 1. If tag contains a substring that is a Unicode locale extension sequence, then
     for (auto& extension : locale_id->extensions) {
         if (!extension.has<::Locale::LocaleExtension>())
             continue;
@@ -134,7 +132,7 @@ static LocaleAndKeys apply_unicode_extension_to_tag(StringView tag, LocaleAndKey
 
         break;
     }
-    // 4. Else,
+    // 2. Else,
     //     a. Let attributes be a new empty List.
     //     b. Let keywords be a new empty List.
 
@@ -156,69 +154,67 @@ static LocaleAndKeys apply_unicode_extension_to_tag(StringView tag, LocaleAndKey
         VERIFY_NOT_REACHED();
     };
 
-    // 5. Let result be a new Record.
+    // 3. Let result be a new Record.
     LocaleAndKeys result {};
 
-    // 6. For each element key of relevantExtensionKeys, do
+    // 4. For each element key of relevantExtensionKeys, do
     for (auto const& key : relevant_extension_keys) {
-        // a. Let value be undefined.
-        Optional<String> value {};
-
         ::Locale::Keyword* entry = nullptr;
-        // b. If keywords contains an element whose [[Key]] is the same as key, then
+        Optional<String> value;
+
+        // a. If keywords contains an element whose [[Key]] is key, then
         if (auto it = keywords.find_if([&](auto const& k) { return key == k.key; }); it != keywords.end()) {
-            // i. Let entry be the element of keywords whose [[Key]] is the same as key.
+            // i. Let entry be the element of keywords whose [[Key]] is key.
             entry = &(*it);
 
             // ii. Let value be entry.[[Value]].
             value = entry->value;
         }
-        // c. Else,
+        // b. Else,
         //     i. Let entry be empty.
+        //     ii. Let value be undefined.
 
-        // d. Assert: options has a field [[<key>]].
-        // e. Let optionsValue be options.[[<key>]].
-        auto options_value = field_from_key(options, key);
+        // c. Assert: options has a field [[<key>]].
+        // d. Let overrideValue be options.[[<key>]].
+        auto override_value = field_from_key(options, key);
 
-        // f. If optionsValue is not undefined, then
-        if (options_value.has_value()) {
-            // i. Assert: Type(optionsValue) is String.
-            // ii. Let value be optionsValue.
-            value = options_value.release_value();
+        // e. If overrideValue is not undefined, then
+        if (override_value.has_value()) {
+            // i. Set value to CanonicalizeUValue(key, overrideValue).
+            value = ::Locale::canonicalize_unicode_extension_values(key, *override_value);
 
-            // iii. If entry is not empty, then
+            // ii. If entry is not empty, then
             if (entry != nullptr) {
                 // 1. Set entry.[[Value]] to value.
                 entry->value = *value;
             }
-            // iv. Else,
+            // iii. Else,
             else {
                 // 1. Append the Record { [[Key]]: key, [[Value]]: value } to keywords.
-                keywords.append({ MUST(String::from_utf8(key)), *value });
+                keywords.empend(MUST(String::from_utf8(key)), *value);
             }
         }
 
-        // g. Set result.[[<key>]] to value.
+        // f. Set result.[[<key>]] to value.
         field_from_key(result, key) = move(value);
     }
 
-    // 7. Let locale be the String value that is tag with any Unicode locale extension sequences removed.
+    // 5. Let locale be the String value that is tag with any Unicode locale extension sequences removed.
     locale_id->remove_extension_type<::Locale::LocaleExtension>();
     auto locale = locale_id->to_string();
 
-    // 8. Let newExtension be a Unicode BCP 47 U Extension based on attributes and keywords.
-    ::Locale::LocaleExtension new_extension { move(attributes), move(keywords) };
-
-    // 9. If newExtension is not the empty String, then
-    if (!new_extension.attributes.is_empty() || !new_extension.keywords.is_empty()) {
-        // a. Let locale be ! InsertUnicodeExtensionAndCanonicalize(locale, newExtension).
-        locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), move(new_extension));
+    // 6. If attributes is not empty or keywords is not empty, then
+    if (!attributes.is_empty() || !keywords.is_empty()) {
+        // a. Set result.[[locale]] to InsertUnicodeExtensionAndCanonicalize(locale, attributes, keywords).
+        result.locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), move(attributes), move(keywords));
+    }
+    // 7. Else,
+    else {
+        // a. Set result.[[locale]] to CanonicalizeUnicodeLocaleId(locale).
+        result.locale = canonicalize_unicode_locale_id(locale);
     }
 
-    // 10. Set result.[[locale]] to locale.
-    result.locale = move(locale);
-
-    // 11. Return result.
+    // 8. Return result.
     return result;
 }
 

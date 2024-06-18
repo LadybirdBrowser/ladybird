@@ -77,9 +77,6 @@ ThrowCompletionOr<NonnullGCPtr<Object>> PluralRulesConstructor::construct(Functi
     // 10. Set pluralRules.[[Locale]] to r.[[locale]].
     plural_rules->set_locale(move(result.locale));
 
-    // Non-standard, the data locale is used by our NumberFormat implementation.
-    plural_rules->set_data_locale(move(result.data_locale));
-
     // 11. Let t be ? GetOption(options, "type", string, « "cardinal", "ordinal" », "cardinal").
     auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, AK::Array { "cardinal"sv, "ordinal"sv }, "cardinal"sv));
 
@@ -114,8 +111,8 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesConstructor::supported_locales_of)
     // 2. Let requestedLocales be ? CanonicalizeLocaleList(locales).
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
 
-    // 3. Return ? SupportedLocales(availableLocales, requestedLocales, options).
-    return TRY(supported_locales(vm, requested_locales, options));
+    // 3. Return ? FilterLocales(availableLocales, requestedLocales, options).
+    return TRY(filter_locales(vm, requested_locales, options));
 }
 
 }

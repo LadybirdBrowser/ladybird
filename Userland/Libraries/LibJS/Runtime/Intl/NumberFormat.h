@@ -34,9 +34,6 @@ public:
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }
 
-    String const& data_locale() const { return m_data_locale; }
-    void set_data_locale(String data_locale) { m_data_locale = move(data_locale); }
-
     int min_integer_digits() const { return m_min_integer_digits; }
     void set_min_integer_digits(int min_integer_digits) { m_min_integer_digits = min_integer_digits; }
 
@@ -85,7 +82,6 @@ protected:
 
 private:
     String m_locale;                                                                             // [[Locale]]
-    String m_data_locale;                                                                        // [[DataLocale]]
     int m_min_integer_digits { 0 };                                                              // [[MinimumIntegerDigits]]
     Optional<int> m_min_fraction_digits {};                                                      // [[MinimumFractionDigits]]
     Optional<int> m_max_fraction_digits {};                                                      // [[MaximumFractionDigits]]
@@ -173,7 +169,6 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     String m_locale;                                                 // [[Locale]]
-    String m_data_locale;                                            // [[DataLocale]]
     String m_numbering_system;                                       // [[NumberingSystem]]
     ::Locale::NumberFormatStyle m_style;                             // [[Style]]
     Optional<String> m_currency;                                     // [[Currency]]

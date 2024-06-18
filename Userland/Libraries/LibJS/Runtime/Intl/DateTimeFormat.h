@@ -39,9 +39,6 @@ public:
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }
 
-    String const& data_locale() const { return m_data_locale; }
-    void set_data_locale(String data_locale) { m_data_locale = move(data_locale); }
-
     String const& calendar() const { return m_calendar; }
     void set_calendar(String calendar) { m_calendar = move(calendar); }
 
@@ -79,8 +76,6 @@ private:
     Optional<::Locale::DateTimeStyle> m_date_style; // [[DateStyle]]
     Optional<::Locale::DateTimeStyle> m_time_style; // [[TimeStyle]]
     GCPtr<NativeFunction> m_bound_format;           // [[BoundFormat]]
-
-    String m_data_locale;
 
     // Non-standard. Stores the ICU date-time formatter for the Intl object's formatting options.
     OwnPtr<::Locale::DateTimeFormat> m_formatter;

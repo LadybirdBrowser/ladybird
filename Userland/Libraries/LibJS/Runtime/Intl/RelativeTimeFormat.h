@@ -35,9 +35,6 @@ public:
     String const& locale() const { return m_locale; }
     void set_locale(String locale) { m_locale = move(locale); }
 
-    String const& data_locale() const { return m_data_locale; }
-    void set_data_locale(String data_locale) { m_data_locale = move(data_locale); }
-
     String const& numbering_system() const { return m_numbering_system; }
     void set_numbering_system(String numbering_system) { m_numbering_system = move(numbering_system); }
 
@@ -56,7 +53,6 @@ private:
     explicit RelativeTimeFormat(Object& prototype);
 
     String m_locale;                                                         // [[Locale]]
-    String m_data_locale;                                                    // [[DataLocale]]
     String m_numbering_system;                                               // [[NumberingSystem]]
     ::Locale::Style m_style { ::Locale::Style::Long };                       // [[Style]]
     ::Locale::NumericDisplay m_numeric { ::Locale::NumericDisplay::Always }; // [[Numeric]]

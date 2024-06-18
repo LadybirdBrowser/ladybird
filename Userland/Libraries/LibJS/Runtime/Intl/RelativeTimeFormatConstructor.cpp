@@ -92,7 +92,6 @@ ThrowCompletionOr<NonnullGCPtr<Object>> RelativeTimeFormatConstructor::construct
     relative_time_format->set_locale(locale);
 
     // 14. Set relativeTimeFormat.[[LocaleData]] to r.[[LocaleData]].
-    relative_time_format->set_data_locale(move(result.data_locale));
 
     // 15. Set relativeTimeFormat.[[NumberingSystem]] to r.[[nu]].
     if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
@@ -132,8 +131,8 @@ JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatConstructor::supported_locales_of)
     // 2. Let requestedLocales be ? CanonicalizeLocaleList(locales).
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
 
-    // 3. Return ? SupportedLocales(availableLocales, requestedLocales, options).
-    return TRY(supported_locales(vm, requested_locales, options));
+    // 3. Return ? FilterLocales(availableLocales, requestedLocales, options).
+    return TRY(filter_locales(vm, requested_locales, options));
 }
 
 }
