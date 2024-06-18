@@ -15,7 +15,6 @@ set(AK_SOURCES
     Hex.cpp
     JsonObject.cpp
     JsonParser.cpp
-    JsonPath.cpp
     JsonValue.cpp
     LexicalPath.cpp
     MemoryStream.cpp
