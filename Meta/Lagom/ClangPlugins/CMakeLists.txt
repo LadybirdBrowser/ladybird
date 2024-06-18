@@ -16,6 +16,11 @@ function(clang_plugin target_name)
     set_property(GLOBAL APPEND PROPERTY CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS -fplugin=${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lib${target_name}.so)
 
     add_lagom_library_install_rules(${target_name})
+
+    if (NOT WIN32 AND NOT APPLE)
+        target_link_options(${target_name} PRIVATE LINKER:-z,undefs)
+        target_link_options(${target_name} PRIVATE LINKER:--allow-shlib-undefined)
+    endif()
 endfunction()
 
 function(depend_on_clang_plugin target_name plugin_name)
