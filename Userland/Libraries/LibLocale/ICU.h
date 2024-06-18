@@ -16,6 +16,7 @@
 
 #include <unicode/locid.h>
 #include <unicode/stringpiece.h>
+#include <unicode/unistr.h>
 #include <unicode/utypes.h>
 #include <unicode/uversion.h>
 
@@ -24,7 +25,6 @@ class DateTimePatternGenerator;
 class LocaleDisplayNames;
 class NumberingSystem;
 class TimeZoneNames;
-class UnicodeString;
 U_NAMESPACE_END
 
 namespace Locale {
@@ -63,18 +63,25 @@ private:
     Optional<DigitalFormat> m_digital_format;
 };
 
-static constexpr bool icu_success(UErrorCode code)
+constexpr bool icu_success(UErrorCode code)
 {
     return static_cast<bool>(U_SUCCESS(code));
 }
 
-static constexpr bool icu_failure(UErrorCode code)
+constexpr bool icu_failure(UErrorCode code)
 {
     return static_cast<bool>(U_FAILURE(code));
 }
 
-icu::UnicodeString icu_string(StringView string);
-icu::StringPiece icu_string_piece(StringView string);
+ALWAYS_INLINE icu::StringPiece icu_string_piece(StringView string)
+{
+    return { string.characters_without_null_termination(), static_cast<i32>(string.length()) };
+}
+
+ALWAYS_INLINE icu::UnicodeString icu_string(StringView string)
+{
+    return icu::UnicodeString::fromUTF8(icu_string_piece(string));
+}
 
 Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings);
 
