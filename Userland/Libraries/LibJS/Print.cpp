@@ -863,8 +863,6 @@ ErrorOr<void> print_intl_segments(JS::PrintContext& print_context, JS::Intl::Seg
     TRY(print_type(print_context, "Segments"sv));
     out("\n  string: ");
     TRY(print_value(print_context, JS::PrimitiveString::create(segments.vm(), move(segments_string)), seen_objects));
-    out("\n  segmenter: ");
-    TRY(print_value(print_context, &segments.segments_segmenter(), seen_objects));
     return {};
 }
 

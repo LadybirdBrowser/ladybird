@@ -41,7 +41,7 @@ JS_DEFINE_NATIVE_FUNCTION(SegmentIteratorPrototype::next)
     auto iterator = TRY(typed_this_object(vm));
 
     // 3. Let segmenter be iterator.[[IteratingSegmenter]].
-    auto const& segmenter = iterator->iterating_segmenter();
+    auto& segmenter = iterator->iterating_segmenter();
 
     // 4. Let string be iterator.[[IteratedString]].
     auto const& string = iterator->iterated_string();
@@ -49,22 +49,25 @@ JS_DEFINE_NATIVE_FUNCTION(SegmentIteratorPrototype::next)
     // 5. Let startIndex be iterator.[[IteratedStringNextSegmentCodeUnitIndex]].
     auto start_index = iterator->iterated_string_next_segment_code_unit_index();
 
-    // 6. Let endIndex be ! FindBoundary(segmenter, string, startIndex, after).
-    auto end_index = find_boundary(segmenter, string, start_index, Direction::After);
+    // 6. Let len be the length of string.
+    auto length = string.length_in_code_units();
 
-    // 7. If endIndex is not finite, then
-    if (!Value(end_index).is_finite_number()) {
+    // 7. If startIndex ≥ len, then
+    if (start_index >= length) {
         // a. Return CreateIterResultObject(undefined, true).
         return create_iterator_result_object(vm, js_undefined(), true);
     }
 
-    // 8. Set iterator.[[IteratedStringNextSegmentCodeUnitIndex]] to endIndex.
-    iterator->set_iterated_string_next_segment_code_unit_index(end_index);
+    // 8. Let endIndex be FindBoundary(segmenter, string, startIndex, after).
+    auto end_index = find_boundary(segmenter, string, start_index, Direction::After);
 
-    // 9. Let segmentData be ! CreateSegmentDataObject(segmenter, string, startIndex, endIndex).
+    // 9. Set iterator.[[IteratedStringNextSegmentCodeUnitIndex]] to endIndex.
+    // NOTE: This is already handled by LibLocale.
+
+    // 10. Let segmentData be CreateSegmentDataObject(segmenter, string, startIndex, endIndex).
     auto segment_data = TRY(create_segment_data_object(vm, segmenter, string, start_index, end_index));
 
-    // 10. Return CreateIterResultObject(segmentData, false).
+    // 11. Return CreateIterResultObject(segmentData, false).
     return create_iterator_result_object(vm, segment_data, false);
 }
 

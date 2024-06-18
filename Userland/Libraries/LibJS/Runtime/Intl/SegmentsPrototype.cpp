@@ -38,10 +38,10 @@ JS_DEFINE_NATIVE_FUNCTION(SegmentsPrototype::containing)
     auto segments = TRY(typed_this_object(vm));
 
     // 3. Let segmenter be segments.[[SegmentsSegmenter]].
-    auto const& segmenter = segments->segments_segmenter();
+    auto& segmenter = segments->segments_segmenter();
 
     // 4. Let string be segments.[[SegmentsString]].
-    auto string = segments->segments_string();
+    auto const& string = segments->segments_string();
 
     // 5. Let len be the length of string.
     auto length = string.length_in_code_units();
@@ -50,16 +50,16 @@ JS_DEFINE_NATIVE_FUNCTION(SegmentsPrototype::containing)
     auto n = TRY(vm.argument(0).to_integer_or_infinity(vm));
 
     // 7. If n < 0 or n ≥ len, return undefined.
-    if (n < 0 || n >= length)
+    if (n < 0 || n >= static_cast<double>(length))
         return js_undefined();
 
-    // 8. Let startIndex be ! FindBoundary(segmenter, string, n, before).
-    auto start_index = find_boundary(segmenter, string, n, Direction::Before);
+    // 8. Let startIndex be FindBoundary(segmenter, string, n, before).
+    auto start_index = find_boundary(segmenter, string, static_cast<size_t>(n), Direction::Before);
 
-    // 9. Let endIndex be ! FindBoundary(segmenter, string, n, after).
-    auto end_index = find_boundary(segmenter, string, n, Direction::After);
+    // 9. Let endIndex be FindBoundary(segmenter, string, n, after).
+    auto end_index = find_boundary(segmenter, string, static_cast<size_t>(n), Direction::After);
 
-    // 10. Return ! CreateSegmentDataObject(segmenter, string, startIndex, endIndex).
+    // 10. Return CreateSegmentDataObject(segmenter, string, startIndex, endIndex).
     return TRY(create_segment_data_object(vm, segmenter, string, start_index, end_index));
 }
 
