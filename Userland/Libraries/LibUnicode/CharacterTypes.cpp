@@ -21,11 +21,7 @@
 
 namespace Unicode {
 
-Optional<ByteString> __attribute__((weak)) code_point_display_name(u32) { return {}; }
-Optional<StringView> __attribute__((weak)) code_point_block_display_name(u32) { return {}; }
-Optional<StringView> __attribute__((weak)) code_point_abbreviation(u32) { return {}; }
 u32 __attribute__((weak)) canonical_combining_class(u32) { return {}; }
-ReadonlySpan<BlockName> __attribute__((weak)) block_display_names() { return {}; }
 
 u32 __attribute__((weak)) to_unicode_lowercase(u32 code_point)
 {
