@@ -15,7 +15,6 @@
 #include <unicode/locdspnm.h>
 #include <unicode/numsys.h>
 #include <unicode/tznames.h>
-#include <unicode/unistr.h>
 
 namespace Locale {
 
@@ -114,16 +113,6 @@ icu::TimeZoneNames& LocaleData::time_zone_names()
     }
 
     return *m_time_zone_names;
-}
-
-icu::UnicodeString icu_string(StringView string)
-{
-    return icu::UnicodeString::fromUTF8(icu_string_piece(string));
-}
-
-icu::StringPiece icu_string_piece(StringView string)
-{
-    return { string.characters_without_null_termination(), static_cast<i32>(string.length()) };
 }
 
 Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings)
