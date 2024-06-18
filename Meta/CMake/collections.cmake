@@ -15,6 +15,11 @@ set(BUILD_TESTING_SAVE ${BUILD_TESTING})
 set(BUILD_TESTING OFF)
 set(BUILD_EXAMPLES OFF)
 
+# FIXME: https://github.com/apple/swift-collections/issues/440
+set(BUILD_SHARED_LIBS_SAVE ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)
+
 FetchContent_MakeAvailable(SwiftCollections)
 
+set(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_SAVE})
 set(BUILD_TESTING ${BUILD_TESTING_SAVE})
