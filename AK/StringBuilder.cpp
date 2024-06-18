@@ -9,7 +9,6 @@
 #include <AK/ByteString.h>
 #include <AK/Checked.h>
 #include <AK/FlyString.h>
-#include <AK/PrintfImplementation.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
@@ -120,14 +119,6 @@ void StringBuilder::append(char const* characters, size_t length)
 void StringBuilder::append(char ch)
 {
     MUST(try_append(ch));
-}
-
-void StringBuilder::appendvf(char const* fmt, va_list ap)
-{
-    printf_internal([this](char*&, char ch) {
-        append(ch);
-    },
-        nullptr, fmt, ap);
 }
 
 void StringBuilder::append_repeated(char ch, size_t n)

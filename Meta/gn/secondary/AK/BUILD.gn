@@ -131,7 +131,6 @@ shared_library("AK") {
     "Optional.h",
     "OwnPtr.h",
     "Platform.h",
-    "PrintfImplementation.h",
     "Ptr32.h",
     "Queue.h",
     "QuickSelect.h",
