@@ -12,7 +12,6 @@
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringFloatingPointConversions.h>
-#include <AK/kstdio.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -1210,7 +1209,7 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
 #ifdef AK_OS_ANDROID
     __android_log_write(ANDROID_LOG_DEBUG, s_log_tag_name, string.characters_without_null_termination());
 #else
-    dbgputstr(string.characters_without_null_termination(), string.length());
+    [[maybe_unused]] auto rc = write(STDERR_FILENO, string.characters_without_null_termination(), string.length());
 #endif
 }
 
