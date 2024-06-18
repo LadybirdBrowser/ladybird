@@ -105,8 +105,6 @@ shared_library("AK") {
     "JsonObjectSerializer.h",
     "JsonParser.cpp",
     "JsonParser.h",
-    "JsonPath.cpp",
-    "JsonPath.h",
     "JsonValue.cpp",
     "JsonValue.h",
     "LEB128.h",
