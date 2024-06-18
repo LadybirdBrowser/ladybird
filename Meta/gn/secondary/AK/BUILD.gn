@@ -209,7 +209,6 @@ shared_library("AK") {
     "Weakable.h",
     "kmalloc.cpp",
     "kmalloc.h",
-    "kstdio.h",
   ]
 }
 
