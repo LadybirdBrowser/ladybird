@@ -5113,63 +5113,94 @@ Vector<JS::Handle<DOM::Range>> Document::find_matching_text(String const& query,
     if (!document_element() || !document_element()->layout_node())
         return {};
 
-    struct TextPositionNode {
+    struct TextPosition {
         DOM::Text& dom_node;
         size_t start_offset { 0 };
     };
 
-    StringBuilder builder;
-    Vector<TextPositionNode> text_positions;
-    size_t current_start_position = 0;
-    String current_node_text;
-    document_element()->layout_node()->for_each_in_inclusive_subtree_of_type<Layout::TextNode>([&](auto const& text_node) {
-        auto& dom_node = const_cast<DOM::Text&>(text_node.dom_node());
-        if (text_positions.is_empty()) {
-            text_positions.empend(dom_node);
-        } else {
-            current_start_position += current_node_text.bytes_as_string_view().length();
-            text_positions.empend(dom_node, current_start_position);
-        }
+    struct TextBlock {
+        String text;
+        Vector<TextPosition> positions;
+    };
 
-        current_node_text = text_node.text_for_rendering();
-        builder.append(current_node_text);
-        return TraversalDecision::Continue;
-    });
+    auto gather_text_blocks = [&]() -> Vector<TextBlock> {
+        StringBuilder builder;
+        size_t current_start_position = 0;
+        Vector<TextPosition> text_positions;
+        Vector<TextBlock> text_blocks;
+        document_element()->layout_node()->for_each_in_inclusive_subtree([&](auto const& layout_node) {
+            if (layout_node.is_block_container()) {
+                if (!builder.is_empty()) {
+                    text_blocks.append({ builder.to_string_without_validation(), text_positions });
+                    current_start_position = 0;
+                    text_positions.clear_with_capacity();
+                    builder.clear();
+                }
+                return TraversalDecision::Continue;
+            }
 
-    if (text_positions.is_empty())
+            if (layout_node.is_text_node()) {
+                auto const& text_node = verify_cast<Layout::TextNode>(layout_node);
+                auto& dom_node = const_cast<DOM::Text&>(text_node.dom_node());
+                if (text_positions.is_empty()) {
+                    text_positions.empend(dom_node);
+                } else {
+                    text_positions.empend(dom_node, current_start_position);
+                }
+
+                auto const& current_node_text = text_node.text_for_rendering();
+                current_start_position += current_node_text.bytes_as_string_view().length();
+                builder.append(move(current_node_text));
+            }
+
+            return TraversalDecision::Continue;
+        });
+
+        if (!builder.is_empty())
+            text_blocks.append({ builder.to_string_without_validation(), text_positions });
+
+        return text_blocks;
+    };
+
+    auto text_blocks = gather_text_blocks();
+    if (text_blocks.is_empty())
         return {};
 
-    size_t offset = 0;
-    auto* match_start_position = &text_positions[0];
-    auto text = builder.to_string_without_validation();
     Vector<JS::Handle<DOM::Range>> matches;
-    while (true) {
-        auto match_index = case_sensitivity == CaseSensitivity::CaseInsensitive
-            ? text.find_byte_offset_ignoring_case(query, offset)
-            : text.find_byte_offset(query, offset);
-        if (!match_index.has_value())
-            break;
-
+    for (auto const& text_block : text_blocks) {
+        size_t offset = 0;
         size_t i = 0;
-        for (; i < text_positions.size() && match_index.value() > text_positions[i].start_offset; ++i)
-            match_start_position = &text_positions[i];
+        auto const& text = text_block.text;
+        auto* match_start_position = &text_block.positions[0];
+        while (true) {
+            auto match_index = case_sensitivity == CaseSensitivity::CaseInsensitive
+                ? text.find_byte_offset_ignoring_case(query, offset)
+                : text.find_byte_offset(query, offset);
+            if (!match_index.has_value())
+                break;
 
-        auto range = create_range();
-        auto start_position = match_index.value() - match_start_position->start_offset;
-        auto& start_dom_node = match_start_position->dom_node;
-        (void)range->set_start(start_dom_node, start_position);
+            for (; i < text_block.positions.size() - 1 && match_index.value() > text_block.positions[i + 1].start_offset; ++i)
+                match_start_position = &text_block.positions[i + 1];
 
-        auto* match_end_position = match_start_position;
-        for (; i < text_positions.size() && match_index.value() + query.bytes_as_string_view().length() > text_positions[i].start_offset; ++i)
-            match_end_position = &text_positions[i];
+            auto range = create_range();
+            auto start_position = match_index.value() - match_start_position->start_offset;
+            auto& start_dom_node = match_start_position->dom_node;
+            (void)range->set_start(start_dom_node, start_position);
 
-        auto& end_dom_node = match_end_position->dom_node;
-        auto end_position = match_index.value() - match_end_position->start_offset + query.bytes_as_string_view().length();
-        (void)range->set_end(end_dom_node, end_position);
+            auto* match_end_position = match_start_position;
+            for (; i < text_block.positions.size() - 1 && (match_index.value() + query.bytes_as_string_view().length() > text_block.positions[i + 1].start_offset); ++i)
+                match_end_position = &text_block.positions[i + 1];
 
-        matches.append(range);
-        offset = match_index.value() + query.bytes_as_string_view().length() + 1;
-        match_start_position = match_end_position;
+            auto& end_dom_node = match_end_position->dom_node;
+            auto end_position = match_index.value() + query.bytes_as_string_view().length() - match_end_position->start_offset;
+            (void)range->set_end(end_dom_node, end_position);
+
+            matches.append(range);
+            match_start_position = match_end_position;
+            offset = match_index.value() + query.bytes_as_string_view().length() + 1;
+            if (offset >= text.bytes_as_string_view().length())
+                break;
+        }
     }
 
     return matches;
