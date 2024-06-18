@@ -33,10 +33,11 @@ public:
 
     Function<void()> on_web_content_process_crash;
 
+    void set_pid(pid_t pid) { m_process_handle.pid = pid; }
+
 private:
     virtual void die() override;
 
-    virtual void notify_process_information(WebView::ProcessHandle const&) override;
     virtual void did_paint(u64 page_id, Gfx::IntRect const&, i32) override;
     virtual void did_finish_loading(u64 page_id, URL::URL const&) override;
     virtual void did_request_navigate_back(u64 page_id) override;
