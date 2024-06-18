@@ -116,8 +116,8 @@ double EasingStyleValue::Function::evaluate_at(double input_progress, bool befor
             auto x = input_progress;
 
             auto solve = [&](auto t) {
-                auto x = cubic_bezier_at(x1, x2, t);
-                auto y = cubic_bezier_at(y1, y2, t);
+                auto x = cubic_bezier_at(bezier.x1, bezier.x2, t);
+                auto y = cubic_bezier_at(bezier.y1, bezier.y2, t);
                 return CubicBezier::CachedSample { x, y, t };
             };
 
