@@ -77,16 +77,11 @@ add_cxx_compile_options(-Wno-invalid-offsetof)
 add_cxx_compile_options(-Wno-unknown-warning-option)
 add_cxx_compile_options(-Wno-unused-command-line-argument)
 
-
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "18")
     add_cxx_compile_options(-Wpadded-bitfield)
 endif()
 
-if (NOT CMAKE_HOST_SYSTEM_NAME MATCHES SerenityOS)
-    # FIXME: Something makes this go crazy and flag unused variables that aren't flagged as such when building with the toolchain.
-    #        Disable -Werror for now.
-    add_cxx_compile_options(-Werror)
-endif()
+add_cxx_compile_options(-Werror)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES "MSVC")
     # Clang's default constexpr-steps limit is 1048576(2^20), GCC doesn't have one
