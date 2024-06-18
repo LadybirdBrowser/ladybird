@@ -33,7 +33,6 @@ set(AK_SOURCES
     StringUtils.cpp
     StringView.cpp
     Time.cpp
-    UUID.cpp
     Utf16View.cpp
     Utf32View.cpp
     Utf8View.cpp
