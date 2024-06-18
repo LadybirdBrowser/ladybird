@@ -103,3 +103,8 @@ find_package(JPEG REQUIRED)
 target_include_directories(LibGfx PRIVATE ${JPEG_INCLUDE_DIRS})
 target_link_libraries(LibGfx PRIVATE ${JPEG_LIBRARIES})
 target_link_directories(LibGfx PRIVATE ${JPEG_LIBRARY_DIRS})
+
+find_package(PNG REQUIRED)
+target_include_directories(LibGfx PRIVATE ${PNG_INCLUDE_DIRS})
+target_link_libraries(LibGfx PRIVATE ${PNG_LIBRARIES})
+target_link_directories(LibGfx PRIVATE ${PNG_LIBRARY_DIRS})

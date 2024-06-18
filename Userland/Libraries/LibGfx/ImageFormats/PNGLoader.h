@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibGfx/ImageFormats/ImageDecoder.h>
-#include <LibGfx/ImageFormats/PNGShared.h>
 
 namespace Gfx {
 
@@ -30,12 +29,10 @@ public:
     virtual Optional<Metadata const&> metadata() override;
     virtual ErrorOr<Optional<ReadonlyBytes>> icc_data() override;
 
-    static void unfilter_scanline(PNG::FilterType filter, Bytes scanline_data, ReadonlyBytes previous_scanlines_data, u8 bytes_per_complete_pixel);
-
 private:
-    PNGImageDecoderPlugin(u8 const*, size_t);
-    bool ensure_image_data_chunk_was_decoded();
-    bool ensure_animation_frame_was_decoded(u32);
+    explicit PNGImageDecoderPlugin(ReadonlyBytes);
+
+    ErrorOr<bool> initialize();
 
     OwnPtr<PNGLoadingContext> m_context;
 };
