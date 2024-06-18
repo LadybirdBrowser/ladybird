@@ -45,7 +45,6 @@ shared_library("AK") {
     "CircularBuffer.cpp",
     "CircularBuffer.h",
     "CircularQueue.h",
-    "Complex.h",
     "Concepts.h",
     "ConstrainedStream.cpp",
     "ConstrainedStream.h",
