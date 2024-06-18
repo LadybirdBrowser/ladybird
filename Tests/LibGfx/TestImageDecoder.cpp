@@ -363,7 +363,10 @@ TEST_CASE(test_png_malformed_frame)
 
     for (auto test_input : test_inputs) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+        auto plugin_decoder_or_error = Gfx::PNGImageDecoderPlugin::create(file->bytes());
+        if (plugin_decoder_or_error.is_error())
+            continue;
+        auto plugin_decoder = plugin_decoder_or_error.release_value();
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
     }

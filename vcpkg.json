@@ -7,6 +7,10 @@
     },
     "icu",
     "libjpeg-turbo",
+    {
+      "name": "libpng",
+      "features": [ "apng" ]
+    },
     "skia",
     "sqlite3",
     "woff2"
@@ -23,6 +27,10 @@
     {
       "name": "libjpeg-turbo",
       "version": "3.0.2"
+    },
+    {
+      "name": "libpng",
+      "version": "1.6.43#1"
     },
     {
       "name": "skia",
