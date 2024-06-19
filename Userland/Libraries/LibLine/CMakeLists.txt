@@ -7,4 +7,4 @@ set(SOURCES
 )
 
 serenity_lib(LibLine line)
-target_link_libraries(LibLine PRIVATE LibCore LibUnicode)
+target_link_libraries(LibLine PRIVATE LibCore LibLocale)

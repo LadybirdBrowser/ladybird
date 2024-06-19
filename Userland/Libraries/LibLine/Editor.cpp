@@ -21,7 +21,7 @@
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Notifier.h>
-#include <LibUnicode/Segmentation.h>
+#include <LibLocale/Segmenter.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -1916,20 +1916,16 @@ StringMetrics Editor::actual_rendered_string_metrics(Utf32View const& view, RedB
 
     auto mask_it = masks.begin();
 
+    auto segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Grapheme);
     Vector<size_t> grapheme_breaks;
-    Unicode::for_each_grapheme_segmentation_boundary(view, [&](size_t offset) -> IterationDecision {
+
+    segmenter->for_each_boundary(view, [&](size_t offset) -> IterationDecision {
         if (offset >= view.length())
             return IterationDecision::Break;
 
         grapheme_breaks.append(offset);
         return IterationDecision::Continue;
     });
-
-    // In case Unicode data isn't available, default to using code points as grapheme boundaries.
-    if (grapheme_breaks.is_empty()) {
-        for (size_t i = 0; i < view.length(); ++i)
-            grapheme_breaks.append(i);
-    }
 
     for (size_t break_index = 0; break_index < grapheme_breaks.size(); ++break_index) {
         auto i = grapheme_breaks[break_index];
