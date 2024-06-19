@@ -203,11 +203,13 @@ CommandResult CommandExecutorSkia::draw_glyph_run(DrawGlyphRun const& command)
             auto const& code_point = glyph.code_point;
             auto top_left = point + Gfx::FloatPoint(glyph.font->glyph_left_bearing(code_point), 0);
             auto glyph_position = Gfx::GlyphRasterPosition::get_nearest_fit_for(top_left);
-            auto font_glyph = glyph.font->glyph(code_point, glyph_position.subpixel_offset);
-            if (font_glyph->is_color_bitmap()) {
+            auto maybe_font_glyph = glyph.font->glyph(code_point, glyph_position.subpixel_offset);
+            if (!maybe_font_glyph.has_value())
+                continue;
+            if (maybe_font_glyph->is_color_bitmap()) {
                 TODO();
             } else {
-                SkBitmap sk_bitmap = gfx_bitmap_to_skia_bitmap(*font_glyph->bitmap());
+                auto sk_bitmap = gfx_bitmap_to_skia_bitmap(*maybe_font_glyph->bitmap());
                 auto sk_image = SkImages::RasterFromBitmap(sk_bitmap);
                 auto const& blit_position = glyph_position.blit_position;
                 canvas.drawImage(sk_image, blit_position.x(), blit_position.y(), SkSamplingOptions(), &paint);
