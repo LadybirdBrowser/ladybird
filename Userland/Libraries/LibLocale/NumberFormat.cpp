@@ -12,6 +12,7 @@
 #include <LibLocale/ICU.h>
 #include <LibLocale/Locale.h>
 #include <LibLocale/NumberFormat.h>
+#include <LibLocale/PartitionRange.h>
 #include <math.h>
 
 #include <unicode/numberformatter.h>
@@ -491,14 +492,10 @@ static void apply_rounding_options(icu::number::LocalizedNumberFormatter& format
     formatter = formatter.roundingMode(icu_rounding_mode(rounding_options.mode));
 }
 
-// ICU does not contain a field enumeration for "literal" partitions. Define a custom field so that we may provide a
-// type for those partitions.
-static constexpr i32 LITERAL_FIELD = -1;
-
 static constexpr StringView icu_number_format_field_to_string(i32 field, NumberFormat::Value const& value, bool is_unit)
 {
     switch (field) {
-    case LITERAL_FIELD:
+    case PartitionRange::LITERAL_FIELD:
         return "literal"sv;
     case UNUM_INTEGER_FIELD:
         if (auto const* number = value.get_pointer<double>()) {
@@ -541,26 +538,6 @@ static constexpr StringView icu_number_format_field_to_string(i32 field, NumberF
     VERIFY_NOT_REACHED();
 }
 
-struct Range {
-    constexpr bool contains(i32 position) const
-    {
-        return start <= position && position < end;
-    }
-
-    constexpr bool operator<(Range const& other) const
-    {
-        if (start < other.start)
-            return true;
-        if (start == other.start)
-            return end > other.end;
-        return false;
-    }
-
-    i32 field { LITERAL_FIELD };
-    i32 start { 0 };
-    i32 end { 0 };
-};
-
 // ICU will give us overlapping partitions, e.g. for the formatted result "1,234", we will get the following parts:
 //
 //     part=","     type=group    start=1  end=2
@@ -571,18 +548,18 @@ struct Range {
 //     part="1"     type=integer  start=0  end=1
 //     part=","     type=group    start=1  end=2
 //     part="234"   type=integer  start=2  end=5
-static void flatten_partitions(Vector<Range>& partitions)
+static void flatten_partitions(Vector<PartitionRange>& partitions)
 {
     if (partitions.size() <= 1)
         return;
 
     quick_sort(partitions);
 
-    auto subtract_range = [&](auto const& first, auto const& second) -> Vector<Range> {
+    auto subtract_range = [&](auto const& first, auto const& second) -> Vector<PartitionRange> {
         if (second.start > first.end || first.start > second.end)
             return { first };
 
-        Vector<Range> result;
+        Vector<PartitionRange> result;
 
         if (second.start > first.start)
             result.empend(first.field, first.start, second.start);
@@ -827,17 +804,17 @@ private:
         if (icu_failure(status))
             return {};
 
-        Vector<Range> ranges;
-        ranges.empend(LITERAL_FIELD, 0, formatted_number.length());
+        Vector<PartitionRange> ranges;
+        ranges.empend(PartitionRange::LITERAL_FIELD, 0, formatted_number.length());
 
         icu::ConstrainedFieldPosition position;
-        Optional<Range> start_range;
-        Optional<Range> end_range;
+        Optional<PartitionRange> start_range;
+        Optional<PartitionRange> end_range;
 
         while (static_cast<bool>(formatted->nextPosition(position, status)) && icu_success(status)) {
             if (position.getCategory() == UFIELD_CATEGORY_NUMBER_RANGE_SPAN) {
                 auto& range = position.getField() == 0 ? start_range : end_range;
-                range = Range { position.getField(), position.getStart(), position.getLimit() };
+                range = PartitionRange { position.getField(), position.getStart(), position.getLimit() };
             } else {
                 ranges.empend(position.getField(), position.getStart(), position.getLimit());
             }
