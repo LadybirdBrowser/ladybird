@@ -158,6 +158,21 @@ static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
     return matrix;
 }
 
+static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
+{
+    switch (scaling_mode) {
+    case Gfx::ScalingMode::NearestNeighbor:
+        return SkSamplingOptions(SkFilterMode::kNearest);
+    case Gfx::ScalingMode::BilinearBlend:
+    case Gfx::ScalingMode::SmoothPixels:
+        return SkSamplingOptions(SkFilterMode::kLinear);
+    case Gfx::ScalingMode::BoxSampling:
+        return SkSamplingOptions(SkCubicResampler::Mitchell());
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 #define APPLY_PATH_CLIP_IF_NEEDED                                  \
     ScopeGuard restore_path_clip { [&] {                           \
         if (command.clip_paths.size() > 0)                         \
@@ -244,8 +259,7 @@ CommandResult CommandExecutorSkia::draw_scaled_bitmap(DrawScaledBitmap const& co
     auto image = SkImages::RasterFromBitmap(bitmap);
     auto& canvas = surface().canvas();
     SkPaint paint;
-    // FIXME: Account for scaling_mode
-    canvas.drawImageRect(image, src_rect, dst_rect, SkSamplingOptions(), &paint, SkCanvas::kStrict_SrcRectConstraint);
+    canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
     return CommandResult::Continue;
 }
 
@@ -259,8 +273,7 @@ CommandResult CommandExecutorSkia::draw_scaled_immutable_bitmap(DrawScaledImmuta
     auto image = SkImages::RasterFromBitmap(bitmap);
     auto& canvas = surface().canvas();
     SkPaint paint;
-    // FIXME: Account for scaling_mode
-    canvas.drawImageRect(image, src_rect, dst_rect, SkSamplingOptions(), &paint, SkCanvas::kStrict_SrcRectConstraint);
+    canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
     return CommandResult::Continue;
 }
 
