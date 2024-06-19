@@ -8,6 +8,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/FixedArray.h>
+#include <AK/Time.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
@@ -30,6 +31,8 @@ public:
         return bitmap;
     }
 
+    inline Duration timestamp() const { return m_timestamp; }
+
     inline Gfx::Size<u32> size() const { return m_size; }
     inline u32 width() const { return size().width(); }
     inline u32 height() const { return size().height(); }
@@ -38,14 +41,17 @@ public:
     inline CodingIndependentCodePoints& cicp() { return m_cicp; }
 
 protected:
-    VideoFrame(Gfx::Size<u32> size,
+    VideoFrame(Duration timestamp,
+        Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp)
-        : m_size(size)
+        : m_timestamp(timestamp)
+        , m_size(size)
         , m_bit_depth(bit_depth)
         , m_cicp(cicp)
     {
     }
 
+    Duration m_timestamp;
     Gfx::Size<u32> m_size;
     u8 m_bit_depth;
     CodingIndependentCodePoints m_cicp;
@@ -55,22 +61,25 @@ class SubsampledYUVFrame : public VideoFrame {
 
 public:
     static ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> try_create(
+        Duration timestamp,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         Subsampling subsampling);
 
     static ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> try_create_from_data(
+        Duration timestamp,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         Subsampling subsampling,
         ReadonlyBytes y_data, ReadonlyBytes u_data, ReadonlyBytes v_data);
 
     SubsampledYUVFrame(
+        Duration timestamp,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         Subsampling subsampling,
         u8* plane_y_data, u8* plane_u_data, u8* plane_v_data)
-        : VideoFrame(size, bit_depth, cicp)
+        : VideoFrame(timestamp, size, bit_depth, cicp)
         , m_subsampling(subsampling)
         , m_y_buffer(plane_y_data)
         , m_u_buffer(plane_u_data)

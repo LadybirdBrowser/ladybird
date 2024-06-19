@@ -11,6 +11,6 @@ extern "C" int LLVMFuzzerTestOneInput(u8 const* data, size_t size)
 {
     AK::set_debug_enabled(false);
     Media::Video::VP9::Decoder vp9_decoder;
-    (void)vp9_decoder.receive_sample({ data, size });
+    (void)vp9_decoder.receive_sample(Duration::zero(), { data, size });
     return 0;
 }

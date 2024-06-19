@@ -101,12 +101,14 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
     avcodec_free_context(&m_codec_context);
 }
 
-DecoderErrorOr<void> FFmpegVideoDecoder::receive_sample(ReadonlyBytes sample)
+DecoderErrorOr<void> FFmpegVideoDecoder::receive_sample(Duration timestamp, ReadonlyBytes sample)
 {
     VERIFY(sample.size() < NumericLimits<int>::max());
 
     m_packet->data = const_cast<u8*>(sample.data());
     m_packet->size = static_cast<int>(sample.size());
+    m_packet->pts = timestamp.to_microseconds();
+    m_packet->dts = m_packet->pts;
 
     auto result = avcodec_send_packet(m_codec_context, m_packet);
     switch (result) {
@@ -187,7 +189,8 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
 
         auto size = Gfx::Size<u32> { m_frame->width, m_frame->height };
 
-        auto frame = DECODER_TRY_ALLOC(SubsampledYUVFrame::try_create(size, bit_depth, cicp, subsampling));
+        auto timestamp = Duration::from_microseconds(m_frame->pts);
+        auto frame = DECODER_TRY_ALLOC(SubsampledYUVFrame::try_create(timestamp, size, bit_depth, cicp, subsampling));
 
         for (u32 plane = 0; plane < 3; plane++) {
             VERIFY(m_frame->linesize[plane] != 0);
