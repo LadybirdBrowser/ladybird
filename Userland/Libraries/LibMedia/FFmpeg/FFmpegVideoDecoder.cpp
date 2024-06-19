@@ -34,7 +34,7 @@ static AVPixelFormat negotiate_output_format(AVCodecContext*, AVPixelFormat cons
     return AV_PIX_FMT_NONE;
 }
 
-DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create(CodecID codec_id)
+DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create(CodecID codec_id, ReadonlyBytes codec_initialization_data)
 {
     AVCodecContext* codec_context = nullptr;
     AVPacket* packet = nullptr;
@@ -59,6 +59,18 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create
     codec_context->get_format = negotiate_output_format;
 
     codec_context->thread_count = static_cast<int>(min(Core::System::hardware_concurrency(), 4));
+
+    if (!codec_initialization_data.is_empty()) {
+        if (codec_initialization_data.size() > NumericLimits<int>::max())
+            return DecoderError::corrupted("Codec initialization data is too large"sv);
+
+        codec_context->extradata = static_cast<u8*>(av_malloc(codec_initialization_data.size() + AV_INPUT_BUFFER_PADDING_SIZE));
+        if (!codec_context->extradata)
+            return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate codec initialization data buffer for FFmpeg codec"sv);
+
+        memcpy(codec_context->extradata, codec_initialization_data.data(), codec_initialization_data.size());
+        codec_context->extradata_size = static_cast<int>(codec_initialization_data.size());
+    }
 
     if (avcodec_open2(codec_context, codec, nullptr) < 0)
         return DecoderError::format(DecoderErrorCategory::Unknown, "Unknown error occurred when opening FFmpeg codec {}", codec_id);

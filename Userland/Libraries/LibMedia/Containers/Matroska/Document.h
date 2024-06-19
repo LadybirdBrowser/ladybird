@@ -8,6 +8,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/FixedArray.h>
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
@@ -119,6 +120,12 @@ public:
     void set_language(FlyString const& language) { m_language = language; }
     FlyString codec_id() const { return m_codec_id; }
     void set_codec_id(FlyString const& codec_id) { m_codec_id = codec_id; }
+    ReadonlyBytes codec_private_data() const { return m_codec_private_data.span(); }
+    ErrorOr<void> set_codec_private_data(ReadonlyBytes codec_private_data)
+    {
+        m_codec_private_data = TRY(FixedArray<u8>::create(codec_private_data));
+        return {};
+    }
     double timestamp_scale() const { return m_timestamp_scale; }
     void set_timestamp_scale(double timestamp_scale) { m_timestamp_scale = timestamp_scale; }
     u64 codec_delay() const { return m_codec_delay; }
@@ -146,6 +153,7 @@ private:
     TrackType m_track_type { Invalid };
     FlyString m_language = "eng"_fly_string;
     FlyString m_codec_id;
+    FixedArray<u8> m_codec_private_data;
     double m_timestamp_scale { 1 };
     u64 m_codec_delay { 0 };
     u64 m_timestamp_offset { 0 };
