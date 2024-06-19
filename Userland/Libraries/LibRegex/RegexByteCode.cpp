@@ -713,10 +713,14 @@ ALWAYS_INLINE void OpCode_Compare::compare_char(MatchInput const& input, MatchSt
 
     bool equal;
     if (input.regex_options & AllFlags::Insensitive) {
-        if (input.view.unicode())
-            equal = Unicode::equals_ignoring_case(Utf32View { &input_view, 1 }, Utf32View { &ch1, 1 });
-        else
+        if (input.view.unicode()) {
+            auto lhs = String::from_code_point(input_view);
+            auto rhs = String::from_code_point(ch1);
+
+            equal = lhs.equals_ignoring_case(rhs);
+        } else {
             equal = to_ascii_lowercase(input_view) == to_ascii_lowercase(ch1);
+        }
     } else {
         equal = input_view == ch1;
     }

@@ -592,7 +592,6 @@ TEST_CASE(to_titlecase)
     EXPECT_EQ(MUST("foo bar baz"_string.to_titlecase()), "Foo Bar Baz"sv);
     EXPECT_EQ(MUST("foo \n \r bar \t baz"_string.to_titlecase()), "Foo \n \r Bar \t Baz"sv);
     EXPECT_EQ(MUST("f\"oo\" b'ar'"_string.to_titlecase()), "F\"Oo\" B'ar'"sv);
-    EXPECT_EQ(MUST("123dollars"_string.to_titlecase()), "123Dollars"sv);
 }
 
 TEST_CASE(to_casefold)

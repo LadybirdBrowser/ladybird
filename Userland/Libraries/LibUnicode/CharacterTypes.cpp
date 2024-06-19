@@ -1,148 +1,16 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/CharacterTypes.h>
-#include <AK/Platform.h>
-#include <AK/ScopeGuard.h>
-#include <AK/StringBuilder.h>
-#include <AK/Types.h>
-#include <AK/Utf16View.h>
-#include <AK/Utf32View.h>
-#include <AK/Utf8View.h>
 #include <LibUnicode/CharacterTypes.h>
-#include <LibUnicode/UnicodeUtils.h>
 
 #if ENABLE_UNICODE_DATA
 #    include <LibUnicode/UnicodeData.h>
 #endif
 
 namespace Unicode {
-
-u32 __attribute__((weak)) canonical_combining_class(u32) { return {}; }
-
-u32 __attribute__((weak)) to_unicode_lowercase(u32 code_point)
-{
-    return to_ascii_lowercase(code_point);
-}
-
-u32 __attribute__((weak)) to_unicode_uppercase(u32 code_point)
-{
-    return to_ascii_uppercase(code_point);
-}
-
-u32 __attribute__((weak)) to_unicode_titlecase(u32 code_point)
-{
-    return to_ascii_uppercase(code_point);
-}
-
-template<typename ViewType>
-class CasefoldStringComparator {
-public:
-    explicit CasefoldStringComparator(ViewType string)
-        : m_string(string)
-        , m_it(m_string.begin())
-    {
-    }
-
-    bool has_more_data() const
-    {
-        return !m_casefolded_code_points.is_empty() || (m_it != m_string.end());
-    }
-
-    size_t index() const
-    {
-        if constexpr (IsSame<ViewType, Utf8View>)
-            return m_string.byte_offset_of(m_it);
-        else if constexpr (IsSame<ViewType, Utf16View>)
-            return m_string.code_unit_offset_of(m_it);
-        else if constexpr (IsSame<ViewType, Utf32View>)
-            return m_string.iterator_offset(m_it);
-        else
-            static_assert(DependentFalse<ViewType>);
-    }
-
-    u32 next_code_point()
-    {
-        VERIFY(has_more_data());
-
-        if (m_casefolded_code_points.is_empty()) {
-            m_current_code_point = *m_it;
-            ++m_it;
-
-            m_casefolded_code_points = Unicode::Detail::casefold_code_point(m_current_code_point);
-            VERIFY(!m_casefolded_code_points.is_empty()); // Must at least contain the provided code point.
-        }
-
-        auto code_point = m_casefolded_code_points[0];
-        m_casefolded_code_points = m_casefolded_code_points.substring_view(1);
-
-        return code_point;
-    }
-
-private:
-    ViewType m_string;
-    typename ViewType::Iterator m_it;
-
-    u32 m_current_code_point { 0 };
-    Utf32View m_casefolded_code_points;
-};
-
-// https://www.unicode.org/versions/Unicode15.0.0/ch03.pdf#G34145
-template<typename ViewType>
-bool equals_ignoring_case(ViewType lhs, ViewType rhs)
-{
-    // A string X is a caseless match for a string Y if and only if:
-    //     toCasefold(X) = toCasefold(Y)
-
-    CasefoldStringComparator lhs_comparator { lhs };
-    CasefoldStringComparator rhs_comparator { rhs };
-
-    while (lhs_comparator.has_more_data() && rhs_comparator.has_more_data()) {
-        if (lhs_comparator.next_code_point() != rhs_comparator.next_code_point())
-            return false;
-    }
-
-    return !lhs_comparator.has_more_data() && !rhs_comparator.has_more_data();
-}
-
-template bool equals_ignoring_case(Utf8View, Utf8View);
-template bool equals_ignoring_case(Utf16View, Utf16View);
-template bool equals_ignoring_case(Utf32View, Utf32View);
-
-template<typename ViewType>
-Optional<size_t> find_ignoring_case(ViewType lhs, ViewType rhs)
-{
-    CasefoldStringComparator lhs_comparator { lhs };
-
-    while (lhs_comparator.has_more_data()) {
-        CasefoldStringComparator rhs_comparator { rhs };
-
-        auto saved_state = lhs_comparator;
-        auto matches = true;
-
-        while (lhs_comparator.has_more_data() && rhs_comparator.has_more_data()) {
-            if (lhs_comparator.next_code_point() != rhs_comparator.next_code_point()) {
-                matches = false;
-                break;
-            }
-        }
-
-        if (matches && !rhs_comparator.has_more_data())
-            return saved_state.index();
-
-        lhs_comparator = move(saved_state);
-        lhs_comparator.next_code_point();
-    }
-
-    return {};
-}
-
-template Optional<size_t> find_ignoring_case(Utf8View, Utf8View);
-template Optional<size_t> find_ignoring_case(Utf16View, Utf16View);
-template Optional<size_t> find_ignoring_case(Utf32View, Utf32View);
 
 Optional<GeneralCategory> __attribute__((weak)) general_category_from_string(StringView) { return {}; }
 bool __attribute__((weak)) code_point_has_general_category(u32, GeneralCategory) { return {}; }

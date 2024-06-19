@@ -1,18 +1,15 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Forward.h>
 #include <AK/Optional.h>
-#include <AK/Span.h>
-#include <AK/String.h>
+#include <AK/StringView.h>
 #include <AK/Types.h>
-#include <AK/Vector.h>
 #include <LibUnicode/Forward.h>
 
 namespace Unicode {
@@ -28,20 +25,6 @@ struct CodePointRangeComparator {
         return (code_point > range.last) - (code_point < range.first);
     }
 };
-
-u32 canonical_combining_class(u32 code_point);
-
-// Note: The single code point case conversions only perform simple case folding.
-// Use the full-string transformations for full case folding.
-u32 to_unicode_lowercase(u32 code_point);
-u32 to_unicode_uppercase(u32 code_point);
-u32 to_unicode_titlecase(u32 code_point);
-
-template<typename ViewType>
-bool equals_ignoring_case(ViewType, ViewType);
-
-template<typename ViewType>
-Optional<size_t> find_ignoring_case(ViewType, ViewType);
 
 Optional<GeneralCategory> general_category_from_string(StringView);
 bool code_point_has_general_category(u32 code_point, GeneralCategory general_category);

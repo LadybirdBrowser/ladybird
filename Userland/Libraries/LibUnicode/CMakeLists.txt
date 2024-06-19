@@ -8,7 +8,6 @@ set(SOURCES
     Normalize.cpp
     Segmentation.cpp
     String.cpp
-    UnicodeUtils.cpp
     ${UNICODE_DATA_SOURCES}
 )
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
