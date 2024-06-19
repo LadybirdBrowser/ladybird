@@ -9,6 +9,7 @@
 #include <LibLocale/ICU.h>
 #include <LibLocale/Locale.h>
 #include <LibLocale/NumberFormat.h>
+#include <LibLocale/PartitionRange.h>
 #include <LibLocale/RelativeTimeFormat.h>
 
 #include <unicode/decimfmt.h>
@@ -117,14 +118,10 @@ static constexpr UDateRelativeDateTimeFormatterStyle icu_relative_date_time_styl
     VERIFY_NOT_REACHED();
 }
 
-// ICU does not contain a field enumeration for "literal" partitions. Define a custom field so that we may provide a
-// type for those partitions.
-static constexpr i32 LITERAL_FIELD = -1;
-
 static constexpr StringView icu_relative_time_format_field_to_string(i32 field)
 {
     switch (field) {
-    case LITERAL_FIELD:
+    case PartitionRange::LITERAL_FIELD:
         return "literal"sv;
     case UNUM_INTEGER_FIELD:
         return "integer"sv;
@@ -137,12 +134,6 @@ static constexpr StringView icu_relative_time_format_field_to_string(i32 field)
     }
     VERIFY_NOT_REACHED();
 }
-
-struct Range {
-    i32 field { 0 };
-    i32 start { 0 };
-    i32 end { 0 };
-};
 
 class RelativeTimeFormatImpl : public RelativeTimeFormat {
 public:
@@ -178,7 +169,7 @@ public:
             return {};
 
         Vector<Partition> result;
-        Vector<Range> separators;
+        Vector<PartitionRange> separators;
 
         auto create_partition = [&](i32 field, i32 begin, i32 end, bool is_unit) {
             Partition partition;
@@ -201,7 +192,7 @@ public:
             }
 
             if (previous_end_index < position.getStart())
-                create_partition(LITERAL_FIELD, previous_end_index, position.getStart(), false);
+                create_partition(PartitionRange::LITERAL_FIELD, previous_end_index, position.getStart(), false);
 
             auto start = position.getStart();
 
@@ -223,7 +214,7 @@ public:
         }
 
         if (previous_end_index < formatted_time.length())
-            create_partition(LITERAL_FIELD, previous_end_index, formatted_time.length(), false);
+            create_partition(PartitionRange::LITERAL_FIELD, previous_end_index, formatted_time.length(), false);
 
         return result;
     }

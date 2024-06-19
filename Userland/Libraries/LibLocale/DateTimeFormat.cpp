@@ -15,6 +15,7 @@
 #include <LibLocale/ICU.h>
 #include <LibLocale/Locale.h>
 #include <LibLocale/NumberFormat.h>
+#include <LibLocale/PartitionRange.h>
 #include <stdlib.h>
 
 #include <unicode/calendar.h>
@@ -659,16 +660,6 @@ static bool is_formatted_range_actually_a_range(icu::FormattedDateInterval const
     return has_range;
 }
 
-struct Range {
-    constexpr bool contains(i32 position) const
-    {
-        return start <= position && position < end;
-    }
-
-    i32 start { 0 };
-    i32 end { 0 };
-};
-
 class DateTimeFormatImpl : public DateTimeFormat {
 public:
     DateTimeFormatImpl(icu::Locale& locale, icu::UnicodeString const& pattern, StringView time_zone_identifier, NonnullOwnPtr<icu::SimpleDateFormat> formatter)
@@ -765,8 +756,8 @@ public:
         i32 previous_end_index = 0;
 
         Vector<Partition> result;
-        Optional<Range> start_range;
-        Optional<Range> end_range;
+        Optional<PartitionRange> start_range;
+        Optional<PartitionRange> end_range;
 
         auto create_partition = [&](i32 field, i32 begin, i32 end) {
             Partition partition;
@@ -789,7 +780,7 @@ public:
 
             if (position.getCategory() == UFIELD_CATEGORY_DATE_INTERVAL_SPAN) {
                 auto& range = position.getField() == 0 ? start_range : end_range;
-                range = Range { position.getStart(), position.getLimit() };
+                range = PartitionRange { position.getField(), position.getStart(), position.getLimit() };
             } else if (position.getCategory() == UFIELD_CATEGORY_DATE) {
                 create_partition(position.getField(), position.getStart(), position.getLimit());
             }
