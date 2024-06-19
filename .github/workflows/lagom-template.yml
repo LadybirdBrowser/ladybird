@@ -72,8 +72,8 @@ jobs:
               echo "host_cxx=g++-13" >> "$GITHUB_OUTPUT"
             fi
           elif ${{ inputs.os_name == 'macOS' }} ; then
-            echo "host_cc=$(brew --prefix llvm@18)/bin/clang" >> "$GITHUB_OUTPUT"
-            echo "host_cxx=$(brew --prefix llvm@18)/bin/clang++" >> "$GITHUB_OUTPUT"
+            echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
+            echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set dynamic environment variables
