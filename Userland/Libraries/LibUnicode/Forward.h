@@ -13,11 +13,8 @@ namespace Unicode {
 enum class BidirectionalClass : u8;
 enum class EmojiGroup : u8;
 enum class GeneralCategory : u8;
-enum class GraphemeBreakProperty : u8;
 enum class Property : u8;
 enum class Script : u8;
-enum class SentenceBreakProperty : u8;
-enum class WordBreakProperty : u8;
 
 struct CurrencyCode;
 struct Emoji;

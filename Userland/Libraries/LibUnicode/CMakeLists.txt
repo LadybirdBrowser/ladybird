@@ -6,7 +6,6 @@ set(SOURCES
     Emoji.cpp
     IDNA.cpp
     Normalize.cpp
-    Segmentation.cpp
     String.cpp
     ${UNICODE_DATA_SOURCES}
 )
