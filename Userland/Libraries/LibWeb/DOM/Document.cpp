@@ -3049,9 +3049,14 @@ Vector<JS::Handle<HTML::Navigable>> const Document::descendant_navigables() cons
 // https://html.spec.whatwg.org/multipage/document-sequences.html#inclusive-descendant-navigables
 Vector<JS::Handle<HTML::Navigable>> Document::inclusive_descendant_navigables()
 {
+    // NOTE: This isn't in the spec, but if we don't have a navigable, we can't have descendants either.
+    auto document_node_navigable = navigable();
+    if (!document_node_navigable)
+        return {};
+
     // 1. Let navigables be « document's node navigable ».
     Vector<JS::Handle<HTML::Navigable>> navigables;
-    navigables.append(*navigable());
+    navigables.append(*document_node_navigable);
 
     // 2. Extend navigables with document's descendant navigables.
     navigables.extend(descendant_navigables());
@@ -3095,11 +3100,16 @@ Vector<JS::Handle<HTML::Navigable>> const Document::ancestor_navigables() const
 // https://html.spec.whatwg.org/multipage/document-sequences.html#inclusive-ancestor-navigables
 Vector<JS::Handle<HTML::Navigable>> Document::inclusive_ancestor_navigables()
 {
+    // NOTE: This isn't in the spec, but if we don't have a navigable, we can't have ancestors either.
+    auto document_node_navigable = navigable();
+    if (!document_node_navigable)
+        return {};
+
     // 1. Let navigables be document's ancestor navigables.
     auto navigables = ancestor_navigables();
 
     // 2. Append document's node navigable to navigables.
-    navigables.append(*navigable());
+    navigables.append(*document_node_navigable);
 
     // 3. Return navigables.
     return navigables;
