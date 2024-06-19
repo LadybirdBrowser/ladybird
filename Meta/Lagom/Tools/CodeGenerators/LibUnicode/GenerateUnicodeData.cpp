@@ -21,24 +21,6 @@
 #include <LibCore/ArgsParser.h>
 #include <LibUnicode/CharacterTypes.h>
 
-// https://www.unicode.org/reports/tr44/#SpecialCasing.txt
-struct SpecialCasing {
-    u32 index { 0 };
-    u32 code_point { 0 };
-    Vector<u32> lowercase_mapping;
-    Vector<u32> uppercase_mapping;
-    Vector<u32> titlecase_mapping;
-    ByteString locale;
-    ByteString condition;
-};
-
-// https://www.unicode.org/reports/tr44/#CaseFolding.txt
-struct CaseFolding {
-    u32 code_point { 0 };
-    StringView status { "Common"sv };
-    Vector<u32> mapping { 0 };
-};
-
 // https://www.unicode.org/reports/tr44/#PropList.txt
 using PropList = HashMap<ByteString, Vector<Unicode::CodePointRange>>;
 
@@ -57,25 +39,6 @@ struct Normalization {
 
 using NormalizationProps = HashMap<ByteString, Vector<Normalization>>;
 
-struct CasingTable {
-    bool operator==(CasingTable const& other) const
-    {
-        return canonical_combining_class == other.canonical_combining_class
-            && simple_lowercase_mapping == other.simple_lowercase_mapping
-            && simple_uppercase_mapping == other.simple_uppercase_mapping
-            && simple_titlecase_mapping == other.simple_titlecase_mapping
-            && special_casing_indices == other.special_casing_indices
-            && case_folding_indices == other.case_folding_indices;
-    }
-
-    u8 canonical_combining_class { 0 };
-    Optional<u32> simple_uppercase_mapping;
-    Optional<u32> simple_lowercase_mapping;
-    Optional<u32> simple_titlecase_mapping;
-    Vector<u32> special_casing_indices;
-    Vector<u32> case_folding_indices;
-};
-
 // https://www.unicode.org/reports/tr44/#UnicodeData.txt
 struct CodePointData {
     u32 code_point { 0 };
@@ -87,7 +50,6 @@ struct CodePointData {
     bool bidi_mirrored { false };
     ByteString unicode_1_name;
     ByteString iso_comment;
-    CasingTable casing;
 };
 
 using PropertyTable = Vector<bool>;
@@ -111,15 +73,6 @@ struct CodePointBidiClass {
 };
 
 struct UnicodeData {
-    Vector<SpecialCasing> special_casing;
-    u32 largest_special_casing_mapping_size { 0 };
-    Vector<ByteString> conditions;
-    Vector<ByteString> locales;
-
-    Vector<CaseFolding> case_folding;
-    u32 largest_case_folding_mapping_size { 0 };
-    Vector<StringView> statuses;
-
     Vector<CodePointData> code_point_data;
 
     // https://www.unicode.org/reports/tr44/#General_Category_Values
@@ -149,7 +102,6 @@ struct UnicodeData {
     PropList word_break_props;
     PropList sentence_break_props;
 
-    CodePointTables<CasingTable> casing_tables;
     CodePointTables<PropertyTable> general_category_tables;
     CodePointTables<PropertyTable> property_tables;
     CodePointTables<PropertyTable> script_tables;
@@ -178,125 +130,6 @@ static ByteString sanitize_entry(ByteString const& entry)
     }
 
     return builder.to_byte_string();
-}
-
-static ErrorOr<void> parse_special_casing(Core::InputBufferedFile& file, UnicodeData& unicode_data)
-{
-    Array<u8, 1024> buffer;
-
-    while (TRY(file.can_read_line())) {
-        auto line = TRY(file.read_line(buffer));
-
-        if (line.is_empty() || line.starts_with('#'))
-            continue;
-
-        if (auto index = line.find('#'); index.has_value())
-            line = line.substring_view(0, *index);
-
-        auto segments = line.split_view(';', SplitBehavior::KeepEmpty);
-        VERIFY(segments.size() == 5 || segments.size() == 6);
-
-        SpecialCasing casing {};
-        casing.code_point = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[0]).value();
-        casing.lowercase_mapping = parse_code_point_list(segments[1]);
-        casing.titlecase_mapping = parse_code_point_list(segments[2]);
-        casing.uppercase_mapping = parse_code_point_list(segments[3]);
-
-        if (auto condition = segments[4].trim_whitespace(); !condition.is_empty()) {
-            auto conditions = condition.split_view(' ', SplitBehavior::KeepEmpty);
-            VERIFY(conditions.size() == 1 || conditions.size() == 2);
-
-            if (conditions.size() == 2) {
-                casing.locale = conditions[0];
-                casing.condition = conditions[1];
-            } else if (all_of(conditions[0], is_ascii_lower_alpha)) {
-                casing.locale = conditions[0];
-            } else {
-                casing.condition = conditions[0];
-            }
-
-            if (!casing.locale.is_empty()) {
-                casing.locale = ByteString::formatted("{:c}{}", to_ascii_uppercase(casing.locale[0]), casing.locale.substring_view(1));
-
-                if (!unicode_data.locales.contains_slow(casing.locale))
-                    unicode_data.locales.append(casing.locale);
-            }
-
-            casing.condition = casing.condition.replace("_"sv, ""sv, ReplaceMode::All);
-
-            if (!casing.condition.is_empty() && !unicode_data.conditions.contains_slow(casing.condition))
-                unicode_data.conditions.append(casing.condition);
-        }
-
-        unicode_data.largest_special_casing_mapping_size = max(unicode_data.largest_special_casing_mapping_size, casing.lowercase_mapping.size());
-        unicode_data.largest_special_casing_mapping_size = max(unicode_data.largest_special_casing_mapping_size, casing.titlecase_mapping.size());
-        unicode_data.largest_special_casing_mapping_size = max(unicode_data.largest_special_casing_mapping_size, casing.uppercase_mapping.size());
-
-        unicode_data.special_casing.append(move(casing));
-    }
-
-    quick_sort(unicode_data.special_casing, [](auto const& lhs, auto const& rhs) {
-        if (lhs.code_point != rhs.code_point)
-            return lhs.code_point < rhs.code_point;
-        if (lhs.locale.is_empty() && !rhs.locale.is_empty())
-            return false;
-        if (!lhs.locale.is_empty() && rhs.locale.is_empty())
-            return true;
-        return lhs.locale < rhs.locale;
-    });
-
-    for (u32 i = 0; i < unicode_data.special_casing.size(); ++i)
-        unicode_data.special_casing[i].index = i;
-
-    return {};
-}
-
-static ErrorOr<void> parse_case_folding(Core::InputBufferedFile& file, UnicodeData& unicode_data)
-{
-    Array<u8, 1024> buffer;
-
-    while (TRY(file.can_read_line())) {
-        auto line = TRY(file.read_line(buffer));
-        if (line.is_empty() || line.starts_with('#'))
-            continue;
-
-        auto segments = line.split_view(';', SplitBehavior::KeepEmpty);
-        VERIFY(segments.size() == 4);
-
-        CaseFolding folding {};
-        folding.code_point = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[0]).value();
-        folding.mapping = parse_code_point_list(segments[2]);
-
-        switch (segments[1].trim_whitespace()[0]) {
-        case 'C':
-            folding.status = "Common"sv;
-            break;
-        case 'F':
-            folding.status = "Full"sv;
-            break;
-        case 'S':
-            folding.status = "Simple"sv;
-            break;
-        case 'T':
-            folding.status = "Special"sv;
-            break;
-        }
-
-        unicode_data.largest_case_folding_mapping_size = max(unicode_data.largest_case_folding_mapping_size, folding.mapping.size());
-
-        if (!unicode_data.statuses.contains_slow(folding.status))
-            unicode_data.statuses.append(folding.status);
-
-        unicode_data.case_folding.append(move(folding));
-    }
-
-    quick_sort(unicode_data.case_folding, [](auto const& lhs, auto const& rhs) {
-        if (lhs.code_point != rhs.code_point)
-            return lhs.code_point < rhs.code_point;
-        return lhs.status < rhs.status;
-    });
-
-    return {};
 }
 
 static ErrorOr<void> parse_prop_list(Core::InputBufferedFile& file, PropList& prop_list, bool multi_value_property = false, bool sanitize_property = false)
@@ -503,7 +336,6 @@ static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeDa
         CodePointData data {};
         data.code_point = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[0]).value();
         data.name = segments[1];
-        data.casing.canonical_combining_class = AK::StringUtils::convert_to_uint<u8>(segments[3]).value();
         data.bidi_class = segments[4];
         data.numeric_value_decimal = AK::StringUtils::convert_to_int<i8>(segments[6]);
         data.numeric_value_digit = AK::StringUtils::convert_to_int<i8>(segments[7]);
@@ -511,9 +343,6 @@ static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeDa
         data.bidi_mirrored = segments[9] == "Y"sv;
         data.unicode_1_name = segments[10];
         data.iso_comment = segments[11];
-        data.casing.simple_uppercase_mapping = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[12]);
-        data.casing.simple_lowercase_mapping = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[13]);
-        data.casing.simple_titlecase_mapping = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[14]);
 
         if (!assigned_code_point_range_start.has_value())
             assigned_code_point_range_start = data.code_point;
@@ -547,16 +376,6 @@ static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeDa
             }
         }
 
-        for (auto const& casing : unicode_data.special_casing) {
-            if (casing.code_point == data.code_point)
-                data.casing.special_casing_indices.append(casing.index);
-        }
-
-        for (size_t i = 0; i < unicode_data.case_folding.size(); ++i) {
-            if (auto const& folding = unicode_data.case_folding[i]; folding.code_point == data.code_point)
-                data.casing.case_folding_indices.append(i);
-        }
-
         unicode_data.bidirectional_classes.set(data.bidi_class, AK::HashSetExistingEntryBehavior::Keep);
 
         previous_code_point = data.code_point;
@@ -570,8 +389,6 @@ static ErrorOr<void> generate_unicode_data_header(Core::InputBufferedFile& file,
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
-    generator.set("special_casing_mapping_size", ByteString::number(unicode_data.largest_special_casing_mapping_size));
-    generator.set("case_folding_mapping_size", ByteString::number(unicode_data.largest_case_folding_mapping_size));
 
     auto generate_enum = [&](StringView name, StringView default_, auto values, Vector<Alias> aliases = {}) {
         quick_sort(values);
@@ -619,9 +436,6 @@ enum class @name@ : @underlying@ {)~~~");
 namespace Unicode {
 )~~~");
 
-    generate_enum("Locale"sv, "None"sv, unicode_data.locales);
-    generate_enum("Condition"sv, "None"sv, move(unicode_data.conditions));
-    generate_enum("CaseFoldingStatus"sv, {}, move(unicode_data.statuses));
     generate_enum("GeneralCategory"sv, {}, unicode_data.general_categories.keys(), unicode_data.general_category_aliases);
     generate_enum("Property"sv, {}, unicode_data.prop_list.keys(), unicode_data.prop_aliases);
     generate_enum("Script"sv, {}, unicode_data.script_list.keys(), unicode_data.script_aliases);
@@ -631,35 +445,6 @@ namespace Unicode {
     generate_enum("BidirectionalClass"sv, {}, unicode_data.bidirectional_classes.values());
 
     generator.append(R"~~~(
-struct SpecialCasing {
-    u32 code_point { 0 };
-
-    u32 lowercase_mapping[@special_casing_mapping_size@];
-    u32 lowercase_mapping_size { 0 };
-
-    u32 uppercase_mapping[@special_casing_mapping_size@];
-    u32 uppercase_mapping_size { 0 };
-
-    u32 titlecase_mapping[@special_casing_mapping_size@];
-    u32 titlecase_mapping_size { 0 };
-
-    Locale locale { Locale::None };
-    Condition condition { Condition::None };
-};
-
-struct CaseFolding {
-    u32 code_point { 0 };
-    CaseFoldingStatus status { CaseFoldingStatus::Common };
-
-    u32 mapping[@case_folding_mapping_size@];
-    u32 mapping_size { 0 };
-};
-
-Optional<Locale> locale_from_string(StringView locale);
-
-ReadonlySpan<SpecialCasing> special_case_mapping(u32 code_point);
-ReadonlySpan<CaseFolding> case_folding_mapping(u32 code_point);
-
 }
 )~~~");
 
@@ -671,9 +456,6 @@ static ErrorOr<void> generate_unicode_data_implementation(Core::InputBufferedFil
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
-
-    generator.set("special_casing_size", ByteString::number(unicode_data.special_casing.size()));
-    generator.set("case_folding_size", ByteString::number(unicode_data.case_folding.size()));
 
     generator.set("CODE_POINT_TABLES_LSB_COUNT", TRY(String::number(CODE_POINT_TABLES_LSB_COUNT)));
     generator.set("CODE_POINT_TABLES_LSB_MASK", TRY(String::formatted("{:#x}", CODE_POINT_TABLES_LSB_MASK)));
@@ -693,83 +475,7 @@ static ErrorOr<void> generate_unicode_data_implementation(Core::InputBufferedFil
 namespace Unicode {
 )~~~");
 
-    auto append_list_and_size = [&](auto const& list, StringView format) {
-        if (list.is_empty()) {
-            generator.append(", {}, 0");
-            return;
-        }
-
-        bool first = true;
-        generator.append(", {");
-        for (auto const& item : list) {
-            generator.append(first ? " "sv : ", "sv);
-            generator.append(ByteString::formatted(format, item));
-            first = false;
-        }
-        generator.append(ByteString::formatted(" }}, {}", list.size()));
-    };
-
     generator.append(R"~~~(
-static constexpr Array<SpecialCasing, @special_casing_size@> s_special_case { {)~~~");
-
-    for (auto const& casing : unicode_data.special_casing) {
-        generator.set("code_point", ByteString::formatted("{:#x}", casing.code_point));
-        generator.append(R"~~~(
-    { @code_point@)~~~");
-
-        constexpr auto format = "{:#x}"sv;
-        append_list_and_size(casing.lowercase_mapping, format);
-        append_list_and_size(casing.uppercase_mapping, format);
-        append_list_and_size(casing.titlecase_mapping, format);
-
-        generator.set("locale", casing.locale.is_empty() ? "None" : casing.locale);
-        generator.append(", Locale::@locale@");
-
-        generator.set("condition", casing.condition.is_empty() ? "None" : casing.condition);
-        generator.append(", Condition::@condition@");
-
-        generator.append(" },");
-    }
-
-    generator.append(R"~~~(
-} };
-
-static constexpr Array<CaseFolding, @case_folding_size@> s_case_folding { {)~~~");
-
-    for (auto const& folding : unicode_data.case_folding) {
-        generator.set("code_point", ByteString::formatted("{:#x}", folding.code_point));
-        generator.set("status", folding.status);
-        generator.append(R"~~~(
-    { @code_point@, CaseFoldingStatus::@status@)~~~");
-
-        append_list_and_size(folding.mapping, "{:#x}"sv);
-        generator.append(" },");
-    }
-
-    generator.append(R"~~~(
-} };
-
-struct CasingTable {
-    u8 canonical_combining_class { 0 };
-    i32 simple_uppercase_mapping { -1 };
-    i32 simple_lowercase_mapping { -1 };
-    i32 simple_titlecase_mapping { -1 };
-
-    u32 special_casing_start_index { 0 };
-    u32 special_casing_size { 0 };
-
-    u32 case_folding_start_index { 0 };
-    u32 case_folding_size { 0 };
-};
-
-template<typename MappingType>
-struct CodePointComparator {
-    constexpr int operator()(u32 code_point, MappingType const& mapping)
-    {
-        return code_point - mapping.code_point;
-    }
-};
-
 struct BidiClassData {
     CodePointRange code_point_range {};
     BidirectionalClass bidi_class {};
@@ -783,45 +489,6 @@ struct CodePointBidiClassComparator : public CodePointRangeComparator {
 };
 
 )~~~");
-
-    auto append_casing_table = [&](auto collection_snake, auto const& unique_properties) -> ErrorOr<void> {
-        generator.set("name", TRY(String::formatted("{}_unique_properties", collection_snake)));
-        generator.set("size", TRY(String::number(unique_properties.size())));
-
-        auto optional_code_point_to_string = [](auto const& code_point) -> ErrorOr<String> {
-            if (!code_point.has_value())
-                return "-1"_string;
-            return String::number(*code_point);
-        };
-        auto first_index_to_string = [](auto const& list) -> ErrorOr<String> {
-            if (list.is_empty())
-                return "0"_string;
-            return String::number(list.first());
-        };
-
-        generator.append(R"~~~(
-static constexpr Array<CasingTable, @size@> @name@ { {)~~~");
-
-        for (auto const& casing : unique_properties) {
-            generator.set("canonical_combining_class", TRY(String::number(casing.canonical_combining_class)));
-            generator.set("simple_uppercase_mapping", TRY(optional_code_point_to_string(casing.simple_uppercase_mapping)));
-            generator.set("simple_lowercase_mapping", TRY(optional_code_point_to_string(casing.simple_lowercase_mapping)));
-            generator.set("simple_titlecase_mapping", TRY(optional_code_point_to_string(casing.simple_titlecase_mapping)));
-            generator.set("special_casing_start_index", TRY(first_index_to_string(casing.special_casing_indices)));
-            generator.set("special_casing_size", TRY(String::number(casing.special_casing_indices.size())));
-            generator.set("case_folding_start_index", TRY(first_index_to_string(casing.case_folding_indices)));
-            generator.set("case_folding_size", TRY(String::number(casing.case_folding_indices.size())));
-
-            generator.append(R"~~~(
-    { @canonical_combining_class@, @simple_uppercase_mapping@, @simple_lowercase_mapping@, @simple_titlecase_mapping@, @special_casing_start_index@, @special_casing_size@, @case_folding_start_index@, @case_folding_size@ },)~~~");
-        }
-
-        generator.append(R"~~~(
-} };
-)~~~");
-
-        return {};
-    };
 
     auto append_property_table = [&](auto collection_snake, auto const& unique_properties) -> ErrorOr<void> {
         generator.set("name", TRY(String::formatted("{}_unique_properties", collection_snake)));
@@ -889,7 +556,6 @@ static constexpr Array<@type@, @size@> @name@ { {
         return {};
     };
 
-    TRY(append_code_point_tables("s_casings"sv, unicode_data.casing_tables, append_casing_table));
     TRY(append_code_point_tables("s_general_categories"sv, unicode_data.general_category_tables, append_property_table));
     TRY(append_code_point_tables("s_properties"sv, unicode_data.property_tables, append_property_table));
     TRY(append_code_point_tables("s_scripts"sv, unicode_data.script_tables, append_property_table));
@@ -926,64 +592,6 @@ static constexpr Array<BidiClassData, @size@> s_bidirectional_classes { {
     }
 
     generator.append(R"~~~(
-static CasingTable const& casing_table_for_code_point(u32 code_point)
-{
-    auto stage1_index = code_point >> @CODE_POINT_TABLES_LSB_COUNT@;
-    auto stage2_index = s_casings_stage1[stage1_index] + (code_point & @CODE_POINT_TABLES_LSB_MASK@);
-    auto unique_properties_index = s_casings_stage2[stage2_index];
-
-    return s_casings_unique_properties[unique_properties_index];
-}
-)~~~");
-
-    auto append_code_point_mapping_search = [&](StringView method, StringView mapping, Optional<StringView> const& fallback = {}) {
-        generator.set("method", method);
-        generator.set("mapping", mapping);
-        generator.append(R"~~~(
-u32 @method@(u32 code_point)
-{
-    auto const& casing_table = casing_table_for_code_point(code_point);
-    auto mapping = casing_table.@mapping@;
-)~~~");
-
-        if (fallback.has_value()) {
-            generator.set("fallback", *fallback);
-            generator.append(R"~~~(
-    return mapping == -1 ? @fallback@ : static_cast<u32>(mapping);)~~~");
-        } else {
-            generator.append(R"~~~(
-    return mapping;)~~~");
-        }
-
-        generator.append(R"~~~(
-}
-)~~~");
-    };
-
-    append_code_point_mapping_search("canonical_combining_class"sv, "canonical_combining_class"sv);
-    append_code_point_mapping_search("to_unicode_uppercase"sv, "simple_uppercase_mapping"sv, "code_point"sv);
-    append_code_point_mapping_search("to_unicode_lowercase"sv, "simple_lowercase_mapping"sv, "code_point"sv);
-    append_code_point_mapping_search("to_unicode_titlecase"sv, "simple_titlecase_mapping"sv, "code_point"sv);
-
-    generator.append(R"~~~(
-ReadonlySpan<SpecialCasing> special_case_mapping(u32 code_point)
-{
-    auto const& casing_table = casing_table_for_code_point(code_point);
-    if (casing_table.special_casing_size == 0)
-        return {};
-
-    return s_special_case.span().slice(casing_table.special_casing_start_index, casing_table.special_casing_size);
-}
-
-ReadonlySpan<CaseFolding> case_folding_mapping(u32 code_point)
-{
-    auto const& casing_table = casing_table_for_code_point(code_point);
-    if (casing_table.case_folding_size == 0)
-        return {};
-
-    return s_case_folding.span().slice(casing_table.case_folding_start_index, casing_table.case_folding_size);
-}
-
 Optional<BidirectionalClass> bidirectional_class(u32 code_point)
 {
     if (auto const* entry = binary_search(s_bidirectional_classes, code_point, nullptr, CodePointBidiClassComparator {}))
@@ -1035,8 +643,6 @@ bool code_point_has_@enum_snake@(u32 code_point, @enum_title@ @enum_snake@)
 
         return {};
     };
-
-    TRY(append_from_string("Locale"sv, "locale"sv, unicode_data.locales, {}));
 
     TRY(append_prop_search("GeneralCategory"sv, "general_category"sv, "s_general_categories"sv));
     TRY(append_from_string("GeneralCategory"sv, "general_category"sv, unicode_data.general_categories, unicode_data.general_category_aliases));
@@ -1188,22 +794,6 @@ static ErrorOr<void> normalize_script_extensions(PropList& script_extensions, Pr
     return {};
 }
 
-struct CasingMetadata {
-    using ConstIterator = typename Vector<CodePointData>::ConstIterator;
-
-    CasingMetadata(Vector<CodePointData> const& code_point_data)
-        : iterator(code_point_data.begin())
-        , end(code_point_data.end())
-    {
-    }
-
-    ConstIterator iterator;
-    ConstIterator const end;
-
-    Vector<size_t> current_block;
-    HashMap<decltype(current_block), size_t> unique_blocks;
-};
-
 struct PropertyMetadata {
     static ErrorOr<PropertyMetadata> create(PropList& property_list)
     {
@@ -1301,25 +891,6 @@ static ErrorOr<void> update_tables(u32 code_point, CodePointTables<T>& tables, a
 
 static ErrorOr<void> create_code_point_tables(UnicodeData& unicode_data)
 {
-    auto update_casing_tables = [&]<typename T>(u32 code_point, CodePointTables<T>& tables, CasingMetadata& metadata) -> ErrorOr<void> {
-        CasingTable casing {};
-
-        while (metadata.iterator != metadata.end) {
-            if (code_point < metadata.iterator->code_point)
-                break;
-
-            if (code_point == metadata.iterator->code_point) {
-                casing = move(metadata.iterator->casing);
-                break;
-            }
-
-            ++metadata.iterator;
-        }
-
-        TRY(update_tables(code_point, tables, metadata, casing));
-        return {};
-    };
-
     auto update_property_tables = [&]<typename T>(u32 code_point, CodePointTables<T>& tables, PropertyMetadata& metadata) -> ErrorOr<void> {
         static Unicode::CodePointRangeComparator comparator {};
 
@@ -1346,7 +917,6 @@ static ErrorOr<void> create_code_point_tables(UnicodeData& unicode_data)
         return {};
     };
 
-    CasingMetadata casing_metadata { unicode_data.code_point_data };
     auto general_category_metadata = TRY(PropertyMetadata::create(unicode_data.general_categories));
     auto property_metadata = TRY(PropertyMetadata::create(unicode_data.prop_list));
     auto script_metadata = TRY(PropertyMetadata::create(unicode_data.script_list));
@@ -1356,7 +926,6 @@ static ErrorOr<void> create_code_point_tables(UnicodeData& unicode_data)
     auto sentence_break_metadata = TRY(PropertyMetadata::create(unicode_data.sentence_break_props));
 
     for (u32 code_point = 0; code_point <= MAX_CODE_POINT; ++code_point) {
-        TRY(update_casing_tables(code_point, unicode_data.casing_tables, casing_metadata));
         TRY(update_property_tables(code_point, unicode_data.general_category_tables, general_category_metadata));
         TRY(update_property_tables(code_point, unicode_data.property_tables, property_metadata));
         TRY(update_property_tables(code_point, unicode_data.script_tables, script_metadata));
@@ -1374,8 +943,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView generated_header_path;
     StringView generated_implementation_path;
     StringView unicode_data_path;
-    StringView special_casing_path;
-    StringView case_folding_path;
     StringView derived_general_category_path;
     StringView prop_list_path;
     StringView derived_core_prop_path;
@@ -1394,8 +961,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(generated_header_path, "Path to the Unicode Data header file to generate", "generated-header-path", 'h', "generated-header-path");
     args_parser.add_option(generated_implementation_path, "Path to the Unicode Data implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
     args_parser.add_option(unicode_data_path, "Path to UnicodeData.txt file", "unicode-data-path", 'u', "unicode-data-path");
-    args_parser.add_option(special_casing_path, "Path to SpecialCasing.txt file", "special-casing-path", 's', "special-casing-path");
-    args_parser.add_option(case_folding_path, "Path to CaseFolding.txt file", "case-folding-path", 'o', "case-folding-path");
     args_parser.add_option(derived_general_category_path, "Path to DerivedGeneralCategory.txt file", "derived-general-category-path", 'g', "derived-general-category-path");
     args_parser.add_option(prop_list_path, "Path to PropList.txt file", "prop-list-path", 'p', "prop-list-path");
     args_parser.add_option(derived_core_prop_path, "Path to DerivedCoreProperties.txt file", "derived-core-prop-path", 'd', "derived-core-prop-path");
@@ -1415,8 +980,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto generated_implementation_file = TRY(open_file(generated_implementation_path, Core::File::OpenMode::Write));
     auto unicode_data_file = TRY(open_file(unicode_data_path, Core::File::OpenMode::Read));
     auto derived_general_category_file = TRY(open_file(derived_general_category_path, Core::File::OpenMode::Read));
-    auto special_casing_file = TRY(open_file(special_casing_path, Core::File::OpenMode::Read));
-    auto case_folding_file = TRY(open_file(case_folding_path, Core::File::OpenMode::Read));
     auto prop_list_file = TRY(open_file(prop_list_path, Core::File::OpenMode::Read));
     auto derived_core_prop_file = TRY(open_file(derived_core_prop_path, Core::File::OpenMode::Read));
     auto derived_binary_prop_file = TRY(open_file(derived_binary_prop_path, Core::File::OpenMode::Read));
@@ -1431,8 +994,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto sentence_break_file = TRY(open_file(sentence_break_path, Core::File::OpenMode::Read));
 
     UnicodeData unicode_data {};
-    TRY(parse_special_casing(*special_casing_file, unicode_data));
-    TRY(parse_case_folding(*case_folding_file, unicode_data));
     TRY(parse_prop_list(*derived_general_category_file, unicode_data.general_categories));
     TRY(parse_prop_list(*prop_list_file, unicode_data.prop_list));
     TRY(parse_prop_list(*derived_core_prop_file, unicode_data.prop_list));

@@ -1,57 +1,141 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#define AK_DONT_REPLACE_STD
+
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
-#include <LibUnicode/CharacterTypes.h>
-#include <LibUnicode/UnicodeUtils.h>
+#include <LibLocale/ICU.h>
+
+#include <unicode/bytestream.h>
+#include <unicode/casemap.h>
+#include <unicode/stringoptions.h>
 
 // This file contains definitions of AK::String methods which require UCD data.
 
 namespace AK {
 
+struct ResolvedLocale {
+    ByteString buffer;
+    char const* locale { nullptr };
+};
+
+static ResolvedLocale resolve_locale(Optional<StringView> const& locale)
+{
+    if (!locale.has_value())
+        return {};
+
+    ResolvedLocale resolved_locale;
+    resolved_locale.buffer = *locale;
+    resolved_locale.locale = resolved_locale.buffer.characters();
+
+    return resolved_locale;
+}
+
 ErrorOr<String> String::to_lowercase(Optional<StringView> const& locale) const
 {
-    StringBuilder builder;
-    TRY(Unicode::Detail::build_lowercase_string(code_points(), builder, locale));
+    UErrorCode status = U_ZERO_ERROR;
+
+    StringBuilder builder { bytes_as_string_view().length() };
+    icu::StringByteSink sink { &builder };
+
+    auto resolved_locale = resolve_locale(locale);
+
+    icu::CaseMap::utf8ToLower(resolved_locale.locale, 0, Locale::icu_string_piece(*this), sink, nullptr, status);
+    if (Locale::icu_failure(status))
+        return Error::from_string_literal("Unable to convert string to lowercase");
+
     return builder.to_string_without_validation();
 }
 
 ErrorOr<String> String::to_uppercase(Optional<StringView> const& locale) const
 {
-    StringBuilder builder;
-    TRY(Unicode::Detail::build_uppercase_string(code_points(), builder, locale));
+    UErrorCode status = U_ZERO_ERROR;
+
+    StringBuilder builder { bytes_as_string_view().length() };
+    icu::StringByteSink sink { &builder };
+
+    auto resolved_locale = resolve_locale(locale);
+
+    icu::CaseMap::utf8ToUpper(resolved_locale.locale, 0, Locale::icu_string_piece(*this), sink, nullptr, status);
+    if (Locale::icu_failure(status))
+        return Error::from_string_literal("Unable to convert string to uppercase");
+
     return builder.to_string_without_validation();
 }
 
 ErrorOr<String> String::to_titlecase(Optional<StringView> const& locale, TrailingCodePointTransformation trailing_code_point_transformation) const
 {
-    StringBuilder builder;
-    TRY(Unicode::Detail::build_titlecase_string(code_points(), builder, locale, trailing_code_point_transformation));
+    UErrorCode status = U_ZERO_ERROR;
+
+    StringBuilder builder { bytes_as_string_view().length() };
+    icu::StringByteSink sink { &builder };
+
+    auto resolved_locale = resolve_locale(locale);
+
+    u32 options = 0;
+    if (trailing_code_point_transformation == TrailingCodePointTransformation::PreserveExisting)
+        options |= U_TITLECASE_NO_LOWERCASE;
+
+    icu::CaseMap::utf8ToTitle(resolved_locale.locale, options, nullptr, Locale::icu_string_piece(*this), sink, nullptr, status);
+    if (Locale::icu_failure(status))
+        return Error::from_string_literal("Unable to convert string to titlecase");
+
     return builder.to_string_without_validation();
+}
+
+static ErrorOr<void> build_casefold_string(StringView string, StringBuilder& builder)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    icu::StringByteSink sink { &builder };
+
+    icu::CaseMap::utf8Fold(0, Locale::icu_string_piece(string), sink, nullptr, status);
+    if (Locale::icu_failure(status))
+        return Error::from_string_literal("Unable to casefold string");
+
+    return {};
 }
 
 ErrorOr<String> String::to_casefold() const
 {
-    StringBuilder builder;
-    TRY(Unicode::Detail::build_casefold_string(code_points(), builder));
+    StringBuilder builder { bytes_as_string_view().length() };
+    TRY(build_casefold_string(*this, builder));
+
     return builder.to_string_without_validation();
 }
 
 bool String::equals_ignoring_case(String const& other) const
 {
-    return Unicode::equals_ignoring_case(code_points(), other.code_points());
+    StringBuilder lhs_builder { bytes_as_string_view().length() };
+    if (build_casefold_string(*this, lhs_builder).is_error())
+        return false;
+
+    StringBuilder rhs_builder { other.bytes_as_string_view().length() };
+    if (build_casefold_string(other, rhs_builder).is_error())
+        return false;
+
+    return lhs_builder.string_view() == rhs_builder.string_view();
 }
 
 Optional<size_t> String::find_byte_offset_ignoring_case(StringView needle, size_t from_byte_offset) const
 {
-    auto haystack = code_points().substring_view(from_byte_offset);
+    auto haystack = bytes_as_string_view().substring_view(from_byte_offset);
+    if (haystack.is_empty())
+        return {};
 
-    if (auto index = Unicode::find_ignoring_case(haystack, Utf8View { needle }); index.has_value())
+    StringBuilder lhs_builder { haystack.length() };
+    if (build_casefold_string(haystack, lhs_builder).is_error())
+        return {};
+
+    StringBuilder rhs_builder { needle.length() };
+    if (build_casefold_string(needle, rhs_builder).is_error())
+        return false;
+
+    if (auto index = lhs_builder.string_view().find(rhs_builder.string_view()); index.has_value())
         return *index + from_byte_offset;
 
     return {};
