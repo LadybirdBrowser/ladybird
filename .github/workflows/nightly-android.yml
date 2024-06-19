@@ -60,8 +60,8 @@ jobs:
       - name: Assign Build Parameters
         id: 'build-parameters'
         run: |
-          echo "host_cc=$(brew --prefix llvm@18)/bin/clang" >> "$GITHUB_OUTPUT"
-          echo "host_cxx=$(brew --prefix llvm@18)/bin/clang++" >> "$GITHUB_OUTPUT"
+          echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
+          echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
 
       - name: Install NDK
         run: |
