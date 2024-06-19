@@ -701,7 +701,8 @@ DecoderErrorOr<NonnullOwnPtr<PlaybackManager>> PlaybackManager::create(NonnullOw
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "Selecting video track number {}", track.identifier());
 
     auto codec_id = TRY(demuxer->get_codec_id_for_track(track));
-    NonnullOwnPtr<VideoDecoder> decoder = TRY(FFmpeg::FFmpegVideoDecoder::try_create(codec_id));
+    auto codec_initialization_data = TRY(demuxer->get_codec_initialization_data_for_track(track));
+    NonnullOwnPtr<VideoDecoder> decoder = TRY(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
     auto frame_queue = DECODER_TRY_ALLOC(VideoFrameQueue::create());
     auto playback_manager = DECODER_TRY_ALLOC(try_make<PlaybackManager>(demuxer, track, move(decoder), move(frame_queue)));
 

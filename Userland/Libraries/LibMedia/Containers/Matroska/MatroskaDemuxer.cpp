@@ -104,6 +104,11 @@ DecoderErrorOr<CodecID> MatroskaDemuxer::get_codec_id_for_track(Track track)
     return get_codec_id_for_string(codec_id);
 }
 
+DecoderErrorOr<ReadonlyBytes> MatroskaDemuxer::get_codec_initialization_data_for_track(Track track)
+{
+    return TRY(m_reader.track_for_track_number(track.identifier()))->codec_private_data();
+}
+
 DecoderErrorOr<Optional<Duration>> MatroskaDemuxer::seek_to_most_recent_keyframe(Track track, Duration timestamp, Optional<Duration> earliest_available_sample)
 {
     // Removing the track status will cause us to start from the beginning.

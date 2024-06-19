@@ -15,7 +15,7 @@ namespace Media::FFmpeg {
 
 class FFmpegVideoDecoder final : public VideoDecoder {
 public:
-    static DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> try_create(CodecID);
+    static DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
     FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
     ~FFmpegVideoDecoder();
 

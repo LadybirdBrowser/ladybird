@@ -26,6 +26,8 @@ public:
 
     virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track track) = 0;
 
+    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track track) = 0;
+
     // Returns the timestamp of the keyframe that was seeked to.
     // The value is `Optional` to allow the demuxer to decide not to seek so that it can keep its position
     // in the case that the timestamp is closer to the current time than the nearest keyframe.
