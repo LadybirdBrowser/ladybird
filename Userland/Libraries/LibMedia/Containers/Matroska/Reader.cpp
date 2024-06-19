@@ -455,44 +455,44 @@ static DecoderErrorOr<TrackEntry::AudioTrack> parse_audio_track_information(Stre
     return audio_track;
 }
 
-static DecoderErrorOr<TrackEntry> parse_track_entry(Streamer& streamer)
+static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& streamer)
 {
-    TrackEntry track_entry;
+    auto track_entry = DECODER_TRY_ALLOC(try_make_ref_counted<TrackEntry>());
     TRY(parse_master_element(streamer, "Track"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case TRACK_NUMBER_ID:
-            track_entry.set_track_number(TRY_READ(streamer.read_u64()));
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackNumber attribute: {}", track_entry.track_number());
+            track_entry->set_track_number(TRY_READ(streamer.read_u64()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackNumber attribute: {}", track_entry->track_number());
             break;
         case TRACK_UID_ID:
-            track_entry.set_track_uid(TRY_READ(streamer.read_u64()));
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackUID attribute: {}", track_entry.track_uid());
+            track_entry->set_track_uid(TRY_READ(streamer.read_u64()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackUID attribute: {}", track_entry->track_uid());
             break;
         case TRACK_TYPE_ID:
-            track_entry.set_track_type(static_cast<TrackEntry::TrackType>(TRY_READ(streamer.read_u64())));
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackType attribute: {}", to_underlying(track_entry.track_type()));
+            track_entry->set_track_type(static_cast<TrackEntry::TrackType>(TRY_READ(streamer.read_u64())));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read TrackType attribute: {}", to_underlying(track_entry->track_type()));
             break;
         case TRACK_LANGUAGE_ID:
-            track_entry.set_language(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's Language attribute: {}", track_entry.language());
+            track_entry->set_language(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's Language attribute: {}", track_entry->language());
             break;
         case TRACK_CODEC_ID:
-            track_entry.set_codec_id(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecID attribute: {}", track_entry.codec_id());
+            track_entry->set_codec_id(DECODER_TRY_ALLOC(String::from_byte_string(TRY_READ(streamer.read_string()))));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecID attribute: {}", track_entry->codec_id());
             break;
         case TRACK_TIMESTAMP_SCALE_ID:
-            track_entry.set_timestamp_scale(TRY_READ(streamer.read_float()));
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's TrackTimestampScale attribute: {}", track_entry.timestamp_scale());
+            track_entry->set_timestamp_scale(TRY_READ(streamer.read_float()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's TrackTimestampScale attribute: {}", track_entry->timestamp_scale());
             break;
         case TRACK_OFFSET_ID:
-            track_entry.set_timestamp_offset(TRY_READ(streamer.read_variable_size_signed_integer()));
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's TrackOffset attribute: {}", track_entry.timestamp_offset());
+            track_entry->set_timestamp_offset(TRY_READ(streamer.read_variable_size_signed_integer()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's TrackOffset attribute: {}", track_entry->timestamp_offset());
             break;
         case TRACK_VIDEO_ID:
-            track_entry.set_video_track(TRY(parse_video_track_information(streamer)));
+            track_entry->set_video_track(TRY(parse_video_track_information(streamer)));
             break;
         case TRACK_AUDIO_ID:
-            track_entry.set_audio_track(TRY(parse_audio_track_information(streamer)));
+            track_entry->set_audio_track(TRY(parse_audio_track_information(streamer)));
             break;
         default:
             TRY_READ(streamer.read_unknown_element());
@@ -509,8 +509,8 @@ DecoderErrorOr<void> Reader::parse_tracks(Streamer& streamer)
     TRY(parse_master_element(streamer, "Tracks"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         if (element_id == TRACK_ENTRY_ID) {
             auto track_entry = TRY(parse_track_entry(streamer));
-            dbgln_if(MATROSKA_DEBUG, "Parsed track {}", track_entry.track_number());
-            DECODER_TRY_ALLOC(m_tracks.try_set(track_entry.track_number(), track_entry));
+            dbgln_if(MATROSKA_DEBUG, "Parsed track {}", track_entry->track_number());
+            DECODER_TRY_ALLOC(m_tracks.try_set(track_entry->track_number(), track_entry));
         } else {
             TRY_READ(streamer.read_unknown_element());
         }
@@ -540,13 +540,13 @@ DecoderErrorOr<void> Reader::for_each_track_of_type(TrackEntry::TrackType type, 
     });
 }
 
-DecoderErrorOr<TrackEntry> Reader::track_for_track_number(u64 track_number)
+DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::track_for_track_number(u64 track_number)
 {
     TRY(ensure_tracks_are_parsed());
     auto optional_track_entry = m_tracks.get(track_number);
     if (!optional_track_entry.has_value())
         return DecoderError::format(DecoderErrorCategory::Invalid, "No track found with number {}", track_number);
-    return optional_track_entry.release_value();
+    return *optional_track_entry.release_value();
 }
 
 DecoderErrorOr<size_t> Reader::track_count()
@@ -589,7 +589,7 @@ static DecoderErrorOr<Cluster> parse_cluster(Streamer& streamer, u64 timestamp_s
     return cluster;
 }
 
-static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry track)
+static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
 {
     Block block;
 
@@ -819,7 +819,7 @@ DecoderErrorOr<void> Reader::ensure_cues_are_parsed()
 
 DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator, Duration const& timestamp)
 {
-    auto const& cue_points = MUST(cue_points_for_track(iterator.m_track.track_number())).release_value();
+    auto const& cue_points = MUST(cue_points_for_track(iterator.m_track->track_number())).release_value();
 
     // Take a guess at where in the cues the timestamp will be and correct from there.
     auto duration = TRY(segment_information()).duration();
@@ -900,7 +900,7 @@ DecoderErrorOr<bool> Reader::has_cues_for_track(u64 track_number)
 
 DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterator iterator, Duration timestamp)
 {
-    if (TRY(has_cues_for_track(iterator.m_track.track_number()))) {
+    if (TRY(has_cues_for_track(iterator.m_track->track_number()))) {
         TRY(seek_to_cue_for_timestamp(iterator, timestamp));
         VERIFY(iterator.last_timestamp().has_value());
         return iterator;
@@ -908,7 +908,7 @@ DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterato
 
     if (!iterator.last_timestamp().has_value() || timestamp < iterator.last_timestamp().value()) {
         // If the timestamp is before the iterator's current position, then we need to start from the beginning of the Segment.
-        iterator = TRY(create_sample_iterator(iterator.m_track.track_number()));
+        iterator = TRY(create_sample_iterator(iterator.m_track->track_number()));
         TRY(search_clusters_for_keyframe_before_timestamp(iterator, timestamp));
         return iterator;
     }
@@ -948,7 +948,7 @@ DecoderErrorOr<Block> SampleIterator::next_block()
         } else if (element_id == SIMPLE_BLOCK_ID) {
             dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing new block.");
             auto candidate_block = TRY(parse_simple_block(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track));
-            if (candidate_block.track_number() == m_track.track_number())
+            if (candidate_block.track_number() == m_track->track_number())
                 block = move(candidate_block);
         } else {
             dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is skipping unknown element with ID {:#010x}.", element_id);
@@ -969,7 +969,7 @@ DecoderErrorOr<Block> SampleIterator::next_block()
 DecoderErrorOr<void> SampleIterator::seek_to_cue_point(CuePoint const& cue_point)
 {
     // This is a private function. The position getter can return optional, but the caller should already know that this track has a position.
-    auto const& cue_position = cue_point.position_for_track(m_track.track_number()).release_value();
+    auto const& cue_position = cue_point.position_for_track(m_track->track_number()).release_value();
     Streamer streamer { m_data };
     TRY_READ(streamer.seek_to_position(cue_position.cluster_position()));
 

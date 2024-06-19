@@ -136,7 +136,7 @@ DecoderErrorOr<Sample> MatroskaDemuxer::get_next_sample_for_track(Track track)
         status.block = TRY(status.iterator.next_block());
         status.frame_index = 0;
     }
-    auto cicp = TRY(m_reader.track_for_track_number(track.identifier())).video_track()->color_format.to_cicp();
+    auto cicp = TRY(m_reader.track_for_track_number(track.identifier()))->video_track()->color_format.to_cicp();
     return Sample(status.block->timestamp(), status.block->frame(status.frame_index++), Video::VideoSampleData(cicp));
 }
 
@@ -148,7 +148,7 @@ DecoderErrorOr<Duration> MatroskaDemuxer::duration()
 
 DecoderErrorOr<CodecID> MatroskaDemuxer::get_codec_id_for_track(Track track)
 {
-    auto codec_id = TRY(m_reader.track_for_track_number(track.identifier())).codec_id();
+    auto codec_id = TRY(m_reader.track_for_track_number(track.identifier()))->codec_id();
     return get_codec_id_for_string(codec_id);
 }
 
