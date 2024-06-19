@@ -35,7 +35,7 @@ TEST_CASE(vp9_malformed_frame)
     for (auto test_input : test_inputs) {
         auto file = MUST(Core::MappedFile::map(test_input));
         Media::Video::VP9::Decoder vp9_decoder;
-        auto maybe_decoder_error = vp9_decoder.receive_sample(file->bytes());
+        auto maybe_decoder_error = vp9_decoder.receive_sample(Duration::zero(), file->bytes());
         EXPECT(maybe_decoder_error.is_error());
     }
 }

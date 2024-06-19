@@ -215,7 +215,7 @@ void PlaybackManager::decode_and_queue_one_sample()
         auto sample = sample_result.release_value();
 
         // Submit the sample to the decoder.
-        auto decode_result = m_decoder->receive_sample(sample.data());
+        auto decode_result = m_decoder->receive_sample(sample.timestamp(), sample.data());
         if (decode_result.is_error()) {
             item_to_enqueue = FrameQueueItem::error_marker(decode_result.release_error(), sample.timestamp());
             break;
@@ -262,9 +262,9 @@ void PlaybackManager::decode_and_queue_one_sample()
             auto bitmap_result = decoded_frame->to_bitmap();
 
             if (bitmap_result.is_error())
-                item_to_enqueue = FrameQueueItem::error_marker(bitmap_result.release_error(), sample.timestamp());
+                item_to_enqueue = FrameQueueItem::error_marker(bitmap_result.release_error(), decoded_frame->timestamp());
             else
-                item_to_enqueue = FrameQueueItem::frame(bitmap_result.release_value(), sample.timestamp());
+                item_to_enqueue = FrameQueueItem::frame(bitmap_result.release_value(), decoded_frame->timestamp());
             break;
         }
     }

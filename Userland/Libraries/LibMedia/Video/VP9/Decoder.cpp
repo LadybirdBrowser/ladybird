@@ -25,12 +25,12 @@ Decoder::Decoder()
 {
 }
 
-DecoderErrorOr<void> Decoder::receive_sample(ReadonlyBytes chunk_data)
+DecoderErrorOr<void> Decoder::receive_sample(Duration timestamp, ReadonlyBytes chunk_data)
 {
     auto superframe_sizes = m_parser->parse_superframe_sizes(chunk_data);
 
     if (superframe_sizes.is_empty()) {
-        return decode_frame(chunk_data);
+        return decode_frame(timestamp, chunk_data);
     }
 
     size_t offset = 0;
@@ -41,14 +41,14 @@ DecoderErrorOr<void> Decoder::receive_sample(ReadonlyBytes chunk_data)
         if (checked_size.has_overflow() || checked_size.value() > chunk_data.size())
             return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Superframe size invalid"sv);
         auto frame_data = chunk_data.slice(offset, superframe_size);
-        TRY(decode_frame(frame_data));
+        TRY(decode_frame(timestamp, frame_data));
         offset = checked_size.value();
     }
 
     return {};
 }
 
-DecoderErrorOr<void> Decoder::decode_frame(ReadonlyBytes frame_data)
+DecoderErrorOr<void> Decoder::decode_frame(Duration timestamp, ReadonlyBytes frame_data)
 {
     // 1. The syntax elements for the coded frame are extracted as specified in sections 6 and 7. The syntax
     // tables include function calls indicating when the block decode processes should be triggered.
@@ -69,11 +69,11 @@ DecoderErrorOr<void> Decoder::decode_frame(ReadonlyBytes frame_data)
     if (frame_context.shows_a_frame()) {
         switch (frame_context.color_config.bit_depth) {
         case 8:
-            TRY(create_video_frame<u8>(frame_context));
+            TRY(create_video_frame<u8>(timestamp, frame_context));
             break;
         case 10:
         case 12:
-            TRY(create_video_frame<u16>(frame_context));
+            TRY(create_video_frame<u16>(timestamp, frame_context));
             break;
         }
     }
@@ -143,7 +143,7 @@ inline CodingIndependentCodePoints get_cicp_color_space(FrameContext const& fram
 }
 
 template<typename T>
-DecoderErrorOr<void> Decoder::create_video_frame(FrameContext const& frame_context)
+DecoderErrorOr<void> Decoder::create_video_frame(Duration timestamp, FrameContext const& frame_context)
 {
     // (8.9) Output process
 
@@ -162,6 +162,7 @@ DecoderErrorOr<void> Decoder::create_video_frame(FrameContext const& frame_conte
     auto output_uv_size = subsampling.subsampled_size(output_y_size);
 
     auto frame = DECODER_TRY_ALLOC(SubsampledYUVFrame::try_create(
+        timestamp,
         { output_y_size.width(), output_y_size.height() },
         frame_context.color_config.bit_depth, get_cicp_color_space(frame_context),
         subsampling));

@@ -28,7 +28,7 @@ public:
     Decoder();
     ~Decoder() override { }
     /* (8.1) General */
-    DecoderErrorOr<void> receive_sample(ReadonlyBytes) override;
+    DecoderErrorOr<void> receive_sample(Duration timestamp, ReadonlyBytes) override;
 
     DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
 
@@ -41,9 +41,9 @@ private:
     // Based on the maximum for TXSize.
     static constexpr size_t maximum_transform_size = 32ULL * 32ULL;
 
-    DecoderErrorOr<void> decode_frame(ReadonlyBytes);
+    DecoderErrorOr<void> decode_frame(Duration timestamp, ReadonlyBytes);
     template<typename T>
-    DecoderErrorOr<void> create_video_frame(FrameContext const&);
+    DecoderErrorOr<void> create_video_frame(Duration timestamp, FrameContext const&);
 
     DecoderErrorOr<void> allocate_buffers(FrameContext const&);
     Vector<u16>& get_output_buffer(u8 plane);
