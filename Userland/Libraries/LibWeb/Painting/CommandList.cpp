@@ -112,8 +112,6 @@ void CommandList::execute(CommandExecutor& executor)
 
     HashTable<u32> skipped_sample_corner_commands;
     size_t next_command_index = 0;
-    Vector<CommandExecutor&, 16> executor_stack;
-    CommandExecutor* current_executor = &executor;
     while (next_command_index < m_commands.size()) {
         if (m_commands[next_command_index].skip) {
             next_command_index++;
@@ -122,7 +120,7 @@ void CommandList::execute(CommandExecutor& executor)
 
         auto& command = m_commands[next_command_index++].command;
         auto bounding_rect = command_bounding_rectangle(command);
-        if (bounding_rect.has_value() && (bounding_rect->is_empty() || current_executor->would_be_fully_clipped_by_painter(*bounding_rect))) {
+        if (bounding_rect.has_value() && (bounding_rect->is_empty() || executor.would_be_fully_clipped_by_painter(*bounding_rect))) {
             if (command.has<SampleUnderCorners>()) {
                 auto const& sample_under_corners = command.get<SampleUnderCorners>();
                 skipped_sample_corner_commands.set(sample_under_corners.id);
@@ -142,9 +140,9 @@ void CommandList::execute(CommandExecutor& executor)
             }
         }
 
-#define HANDLE_COMMAND(command_type, executor_method)                            \
-    if (command.has<command_type>()) {                                           \
-        result = current_executor->executor_method(command.get<command_type>()); \
+#define HANDLE_COMMAND(command_type, executor_method)                   \
+    if (command.has<command_type>()) {                                  \
+        result = executor.executor_method(command.get<command_type>()); \
     }
 
         // clang-format off
@@ -181,12 +179,7 @@ void CommandList::execute(CommandExecutor& executor)
         else VERIFY_NOT_REACHED();
         // clang-format on
 
-        if (result == CommandResult::ContinueWithNestedExecutor) {
-            executor_stack.append(*current_executor);
-            current_executor = &current_executor->nested_executor();
-        } else if (result == CommandResult::ContinueWithParentExecutor) {
-            current_executor = &executor_stack.take_last();
-        } else if (result == CommandResult::SkipStackingContext) {
+        if (result == CommandResult::SkipStackingContext) {
             auto stacking_context_nesting_level = 1;
             while (next_command_index < m_commands.size()) {
                 if (m_commands[next_command_index].command.has<PushStackingContext>()) {

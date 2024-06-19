@@ -39,8 +39,6 @@ namespace Web::Painting {
 enum class CommandResult {
     Continue,
     SkipStackingContext,
-    ContinueWithNestedExecutor,
-    ContinueWithParentExecutor
 };
 
 class CommandExecutor {
@@ -82,7 +80,6 @@ public:
     virtual void prepare_to_execute([[maybe_unused]] size_t corner_clip_max_depth) { }
     virtual bool needs_update_immutable_bitmap_texture_cache() const = 0;
     virtual void update_immutable_bitmap_texture_cache(HashMap<u32, Gfx::ImmutableBitmap const*>&) = 0;
-    virtual CommandExecutor& nested_executor() { VERIFY_NOT_REACHED(); }
 };
 
 class CommandList {
