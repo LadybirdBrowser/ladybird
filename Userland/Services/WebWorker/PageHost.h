@@ -36,6 +36,7 @@ public:
     virtual void request_file(Web::FileRequest) override;
     virtual void schedule_repaint() override {};
     virtual bool is_ready_to_paint() const override { return true; }
+    virtual Web::PaintingCommandExecutorType painting_command_executor_type() const override { VERIFY_NOT_REACHED(); }
 
 private:
     explicit PageHost(ConnectionFromClient&);
