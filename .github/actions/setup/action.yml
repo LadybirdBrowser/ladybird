@@ -25,7 +25,7 @@ runs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
         sudo apt-get update
-        sudo apt-get install autoconf autoconf-archive automake build-essential cmake fonts-liberation2 zip curl tar ccache clang-18 clang++-18 lld-18 gcc-13 g++-13 libstdc++-13-dev ninja-build unzip qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev qt6-multimedia-dev libgl1-mesa-dev libpulse-dev libssl-dev libegl1-mesa-dev
+        sudo apt-get install autoconf autoconf-archive automake build-essential cmake libavcodec-dev fonts-liberation2 zip curl tar ccache clang-18 clang++-18 lld-18 gcc-13 g++-13 libstdc++-13-dev ninja-build unzip qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev qt6-multimedia-dev libgl1-mesa-dev libpulse-dev libssl-dev libegl1-mesa-dev
 
         sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
         sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
@@ -50,7 +50,7 @@ runs:
       run: |
         set -e
         brew update
-        brew install autoconf autoconf-archive automake coreutils bash ninja wabt ccache unzip qt llvm@18
+        brew install autoconf autoconf-archive automake coreutils bash ffmpeg ninja wabt ccache unzip qt llvm@18
 
     - name: 'Install vcpkg'
       shell: bash
