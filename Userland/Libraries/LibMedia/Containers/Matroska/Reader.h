@@ -35,7 +35,7 @@ public:
 
     DecoderErrorOr<void> for_each_track(TrackEntryCallback);
     DecoderErrorOr<void> for_each_track_of_type(TrackEntry::TrackType, TrackEntryCallback);
-    DecoderErrorOr<TrackEntry> track_for_track_number(u64);
+    DecoderErrorOr<NonnullRefPtr<TrackEntry>> track_for_track_number(u64);
     DecoderErrorOr<size_t> track_count();
 
     DecoderErrorOr<SampleIterator> create_sample_iterator(u64 track_number);
@@ -73,7 +73,7 @@ private:
 
     Optional<SegmentInformation> m_segment_information;
 
-    OrderedHashMap<u64, TrackEntry> m_tracks;
+    OrderedHashMap<u64, NonnullRefPtr<TrackEntry>> m_tracks;
 
     // The vectors must be sorted by timestamp at all times.
     HashMap<u64, Vector<CuePoint>> m_cues;
@@ -89,10 +89,10 @@ public:
 private:
     friend class Reader;
 
-    SampleIterator(RefPtr<Core::SharedMappedFile> file, ReadonlyBytes data, TrackEntry track, u64 timestamp_scale, size_t position)
+    SampleIterator(RefPtr<Core::SharedMappedFile> file, ReadonlyBytes data, TrackEntry& track, u64 timestamp_scale, size_t position)
         : m_file(move(file))
         , m_data(data)
-        , m_track(move(track))
+        , m_track(track)
         , m_segment_timestamp_scale(timestamp_scale)
         , m_position(position)
     {
@@ -102,7 +102,7 @@ private:
 
     RefPtr<Core::SharedMappedFile> m_file;
     ReadonlyBytes m_data;
-    TrackEntry m_track;
+    NonnullRefPtr<TrackEntry> m_track;
     u64 m_segment_timestamp_scale { 0 };
 
     // Must always point to an element ID or the end of the stream.

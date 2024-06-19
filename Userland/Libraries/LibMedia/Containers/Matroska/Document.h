@@ -46,7 +46,7 @@ private:
     Optional<double> m_duration_unscaled;
 };
 
-class TrackEntry {
+class TrackEntry : public RefCounted<TrackEntry> {
 public:
     enum TrackType : u8 {
         Invalid = 0,
