@@ -1205,7 +1205,7 @@ void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::
         Painting::CommandExecutorSkia painting_command_executor(target);
         painting_commands.execute(painting_command_executor);
     } else {
-        Web::Painting::CommandExecutorCPU painting_command_executor(target, painting_command_executor_type == PaintingCommandExecutorType::CPUWithExperimentalTransformSupport);
+        Web::Painting::CommandExecutorCPU painting_command_executor(target);
         painting_commands.execute(painting_command_executor);
     }
 }

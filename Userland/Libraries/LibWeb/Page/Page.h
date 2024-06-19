@@ -276,7 +276,6 @@ struct PaintOptions {
 
 enum class PaintingCommandExecutorType {
     CPU,
-    CPUWithExperimentalTransformSupport,
     GPU,
     Skia
 };

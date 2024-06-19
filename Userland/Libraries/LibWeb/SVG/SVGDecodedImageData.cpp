@@ -101,7 +101,6 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     auto painting_command_executor_type = m_page_client->painting_command_executor_type();
     switch (painting_command_executor_type) {
     case PaintingCommandExecutorType::CPU:
-    case PaintingCommandExecutorType::CPUWithExperimentalTransformSupport:
     case PaintingCommandExecutorType::GPU: { // GPU painter does not have any path rasterization support so we always fall back to CPU painter
         Painting::CommandExecutorCPU executor { *bitmap };
         painting_commands.execute(executor);

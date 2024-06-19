@@ -32,7 +32,6 @@
 namespace WebContent {
 
 static bool s_use_gpu_painter = false;
-static bool s_use_experimental_cpu_transform_support = false;
 static bool s_use_skia_painter = false;
 
 JS_DEFINE_ALLOCATOR(PageClient);
@@ -45,11 +44,6 @@ void PageClient::set_use_gpu_painter()
 void PageClient::set_use_skia_painter()
 {
     s_use_skia_painter = true;
-}
-
-void PageClient::set_use_experimental_cpu_transform_support()
-{
-    s_use_experimental_cpu_transform_support = true;
 }
 
 JS::NonnullGCPtr<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
@@ -734,8 +728,6 @@ Web::PaintingCommandExecutorType PageClient::painting_command_executor_type() co
         return Web::PaintingCommandExecutorType::GPU;
     if (s_use_skia_painter)
         return Web::PaintingCommandExecutorType::Skia;
-    if (s_use_experimental_cpu_transform_support)
-        return Web::PaintingCommandExecutorType::CPUWithExperimentalTransformSupport;
     return Web::PaintingCommandExecutorType::CPU;
 }
 

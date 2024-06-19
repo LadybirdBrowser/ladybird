@@ -5,7 +5,6 @@ source_set("Painting") {
     "//Userland/",  # For LibGfx needing LibGUI needing WindowServer types
   ]
   sources = [
-    "AffineCommandExecutorCPU.cpp",
     "AudioPaintable.cpp",
     "BackgroundPainting.cpp",
     "BorderPainting.cpp",
