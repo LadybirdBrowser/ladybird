@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibLocale/Segmenter.h>
 #include <LibWeb/Bindings/CharacterDataPrototype.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
@@ -21,6 +22,8 @@ CharacterData::CharacterData(Document& document, NodeType type, String const& da
     , m_data(data)
 {
 }
+
+CharacterData::~CharacterData() = default;
 
 void CharacterData::initialize(JS::Realm& realm)
 {
@@ -124,6 +127,10 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         static_cast<Layout::TextNode&>(*layout_node).invalidate_text_for_rendering();
 
     document().set_needs_layout();
+
+    if (m_segmenter)
+        m_segmenter->set_segmented_text(m_data);
+
     return {};
 }
 
@@ -146,6 +153,16 @@ WebIDL::ExceptionOr<void> CharacterData::delete_data(size_t offset, size_t count
 {
     // The deleteData(offset, count) method steps are to replace data with node this, offset offset, count count, and data the empty string.
     return replace_data(offset, count, String {});
+}
+
+Locale::Segmenter& CharacterData::segmenter()
+{
+    if (!m_segmenter) {
+        m_segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Grapheme);
+        m_segmenter->set_segmented_text(m_data);
+    }
+
+    return *m_segmenter;
 }
 
 }
