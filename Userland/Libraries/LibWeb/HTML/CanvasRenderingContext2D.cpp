@@ -10,7 +10,7 @@
 #include <LibGfx/Painter.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/Rect.h>
-#include <LibUnicode/Segmentation.h>
+#include <LibLocale/Segmenter.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
@@ -468,7 +468,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     for (auto c : text) {
         builder.append(Infra::is_ascii_whitespace(c) ? ' ' : c);
     }
-    auto replaced_text = builder.string_view();
+    auto replaced_text = MUST(builder.to_string());
 
     // 3. Let font be the current font of target, as given by that object's font attribute.
     auto font = current_font();
@@ -497,8 +497,6 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     size_t width = font->width(text.view());
     size_t height = font->pixel_size();
 
-    Utf8View replaced_text_view { replaced_text };
-
     // 6. If maxWidth was provided and the hypothetical width of the inline box in the hypothetical line box is greater than maxWidth CSS pixels, then change font to have a more condensed font (if one is available or if a reasonably readable one can be synthesized by applying a horizontal scale factor to the font) or a smaller font, and return to the previous step.
     // FIXME: Record the font size used for this piece of text, and actually retry with a smaller size if needed.
 
@@ -520,17 +518,19 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
 
     // 8. Let result be an array constructed by iterating over each glyph in the inline box from left to right (if any), adding to the array, for each glyph, the shape of the glyph as it is in the inline box, positioned on a coordinate space using CSS pixels with its origin is at the anchor point.
     PreparedText prepared_text { {}, physical_alignment, { 0, 0, static_cast<int>(width), static_cast<int>(height) } };
-    prepared_text.glyphs.ensure_capacity(replaced_text.length());
+    prepared_text.glyphs.ensure_capacity(replaced_text.bytes_as_string_view().length());
 
-    size_t previous_grapheme_boundary = 0;
-    Unicode::for_each_grapheme_segmentation_boundary(replaced_text_view, [&](auto boundary) {
+    auto segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Grapheme);
+
+    size_t previous_boundary = 0;
+    segmenter->for_each_boundary(replaced_text, [&](auto boundary) {
         if (boundary == 0)
             return IterationDecision::Continue;
 
-        auto glyph_view = replaced_text_view.substring_view(previous_grapheme_boundary, boundary - previous_grapheme_boundary);
-        auto glyph = String::from_utf8(glyph_view.as_string()).release_value_but_fixme_should_propagate_errors();
-
+        auto glyph = MUST(replaced_text.substring_from_byte_offset(previous_boundary, boundary - previous_boundary));
         prepared_text.glyphs.append({ move(glyph), { static_cast<int>(boundary), 0 } });
+
+        previous_boundary = boundary;
         return IterationDecision::Continue;
     });
 

@@ -6,7 +6,7 @@
 
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
-#include <LibUnicode/Segmentation.h>
+#include <LibLocale/Segmenter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
@@ -22,15 +22,15 @@ void EditEventHandler::handle_delete_character_after(JS::NonnullGCPtr<DOM::Posit
     auto& node = verify_cast<DOM::Text>(*cursor_position->node());
     auto& text = node.data();
 
-    auto next_grapheme_offset = Unicode::next_grapheme_segmentation_boundary(Utf8View { text }, cursor_position->offset());
-    if (!next_grapheme_offset.has_value()) {
+    auto next_offset = node.segmenter().next_boundary(cursor_position->offset());
+    if (!next_offset.has_value()) {
         // FIXME: Move to the next node and delete the first character there.
         return;
     }
 
     StringBuilder builder;
     builder.append(text.bytes_as_string_view().substring_view(0, cursor_position->offset()));
-    builder.append(text.bytes_as_string_view().substring_view(*next_grapheme_offset));
+    builder.append(text.bytes_as_string_view().substring_view(*next_offset));
     node.set_data(MUST(builder.to_string()));
 
     m_navigable->did_edit({});

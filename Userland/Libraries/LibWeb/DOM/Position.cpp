@@ -6,7 +6,7 @@
  */
 
 #include <AK/Utf8View.h>
-#include <LibUnicode/Segmentation.h>
+#include <LibLocale/Segmenter.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Text.h>
@@ -40,9 +40,8 @@ bool Position::increment_offset()
         return false;
 
     auto& node = verify_cast<DOM::Text>(*m_node);
-    auto text = Utf8View(node.data());
 
-    if (auto offset = Unicode::next_grapheme_segmentation_boundary(text, m_offset); offset.has_value()) {
+    if (auto offset = node.segmenter().next_boundary(m_offset); offset.has_value()) {
         m_offset = *offset;
         return true;
     }
@@ -57,9 +56,8 @@ bool Position::decrement_offset()
         return false;
 
     auto& node = verify_cast<DOM::Text>(*m_node);
-    auto text = Utf8View(node.data());
 
-    if (auto offset = Unicode::previous_grapheme_segmentation_boundary(text, m_offset); offset.has_value()) {
+    if (auto offset = node.segmenter().previous_boundary(m_offset); offset.has_value()) {
         m_offset = *offset;
         return true;
     }
