@@ -21,7 +21,7 @@ ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create(
     auto plane_y_array = TRY(FixedArray<u16>::create(plane_y));
     auto plane_u_array = TRY(FixedArray<u16>::create(plane_u));
     auto plane_v_array = TRY(FixedArray<u16>::create(plane_v));
-    return adopt_nonnull_own_or_enomem(new (nothrow) SubsampledYUVFrame(size, bit_depth, cicp, subsampling_horizontal, subsampling_vertical, plane_y_array, plane_u_array, plane_v_array));
+    return adopt_nonnull_own_or_enomem(new (nothrow) SubsampledYUVFrame(size, bit_depth, cicp, subsampling_horizontal, subsampling_vertical, move(plane_y_array), move(plane_u_array), move(plane_v_array)));
 }
 
 template<u32 subsampling_horizontal>
