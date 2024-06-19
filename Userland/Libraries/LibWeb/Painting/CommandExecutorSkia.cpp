@@ -39,17 +39,17 @@ private:
     sk_sp<SkSurface> surface;
 };
 
-static SkRect gfx_rect_to_skia_rect(auto rect)
+static SkRect to_skia_rect(auto rect)
 {
     return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
 }
 
-static SkColor gfx_color_to_skia_color(Gfx::Color color)
+static SkColor to_skia_color(Gfx::Color color)
 {
     return SkColorSetARGB(color.alpha(), color.red(), color.green(), color.blue());
 }
 
-static SkPath gfx_path_to_skia_path(Gfx::Path path)
+static SkPath to_skia_path(Gfx::Path path)
 {
     Optional<Gfx::FloatPoint> subpath_start_point;
     Optional<Gfx::FloatPoint> subpath_last_point;
@@ -102,7 +102,7 @@ static SkPath gfx_path_to_skia_path(Gfx::Path path)
     return path_builder.snapshot();
 }
 
-static SkRRect gfx_rrect_to_skia_rrect(auto rect, CornerRadii corner_radii)
+static SkRRect to_skia_rrect(auto rect, CornerRadii corner_radii)
 {
     SkRRect rrect;
     SkVector radii[4];
@@ -110,11 +110,11 @@ static SkRRect gfx_rrect_to_skia_rrect(auto rect, CornerRadii corner_radii)
     radii[1].set(corner_radii.top_right.horizontal_radius, corner_radii.top_right.vertical_radius);
     radii[2].set(corner_radii.bottom_right.horizontal_radius, corner_radii.bottom_right.vertical_radius);
     radii[3].set(corner_radii.bottom_left.horizontal_radius, corner_radii.bottom_left.vertical_radius);
-    rrect.setRectRadii(gfx_rect_to_skia_rect(rect), radii);
+    rrect.setRectRadii(to_skia_rect(rect), radii);
     return rrect;
 }
 
-static SkColorType gfx_bitmap_format_to_skia_color_type(Gfx::BitmapFormat format)
+static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
 {
     switch (format) {
     case Gfx::BitmapFormat::Invalid:
@@ -129,9 +129,9 @@ static SkColorType gfx_bitmap_format_to_skia_color_type(Gfx::BitmapFormat format
     }
 }
 
-static SkBitmap gfx_bitmap_to_skia_bitmap(Gfx::Bitmap const& bitmap)
+static SkBitmap to_skia_bitmap(Gfx::Bitmap const& bitmap)
 {
-    SkColorType color_type = gfx_bitmap_format_to_skia_color_type(bitmap.format());
+    SkColorType color_type = to_skia_color_type(bitmap.format());
     SkImageInfo image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, kUnpremul_SkAlphaType);
     SkBitmap sk_bitmap;
     sk_bitmap.setInfo(image_info);
@@ -143,7 +143,7 @@ static SkBitmap gfx_bitmap_to_skia_bitmap(Gfx::Bitmap const& bitmap)
     return sk_bitmap;
 }
 
-static SkMatrix gfx_affine_transform_to_skia_matrix(Gfx::AffineTransform const& affine_transform)
+static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
 {
     SkScalar affine[6];
     affine[0] = affine_transform.a();
@@ -158,15 +158,15 @@ static SkMatrix gfx_affine_transform_to_skia_matrix(Gfx::AffineTransform const& 
     return matrix;
 }
 
-#define APPLY_PATH_CLIP_IF_NEEDED                                           \
-    ScopeGuard restore_path_clip { [&] {                                    \
-        if (command.clip_paths.size() > 0)                                  \
-            surface().canvas().restore();                                   \
-    } };                                                                    \
-    if (command.clip_paths.size() > 0) {                                    \
-        surface().canvas().save();                                          \
-        for (auto const& path : command.clip_paths)                         \
-            surface().canvas().clipPath(gfx_path_to_skia_path(path), true); \
+#define APPLY_PATH_CLIP_IF_NEEDED                                  \
+    ScopeGuard restore_path_clip { [&] {                           \
+        if (command.clip_paths.size() > 0)                         \
+            surface().canvas().restore();                          \
+    } };                                                           \
+    if (command.clip_paths.size() > 0) {                           \
+        surface().canvas().save();                                 \
+        for (auto const& path : command.clip_paths)                \
+            surface().canvas().clipPath(to_skia_path(path), true); \
     }
 
 CommandExecutorSkia::CommandExecutorSkia(Gfx::Bitmap& bitmap)
@@ -189,7 +189,7 @@ CommandResult CommandExecutorSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
     auto& canvas = surface().canvas();
     SkPaint paint;
-    paint.setColorFilter(SkColorFilters::Blend(gfx_color_to_skia_color(command.color), SkBlendMode::kSrcIn));
+    paint.setColorFilter(SkColorFilters::Blend(to_skia_color(command.color), SkBlendMode::kSrcIn));
     auto const& glyphs = command.glyph_run->glyphs();
     for (auto const& glyph_or_emoji : glyphs) {
         auto transformed_glyph = glyph_or_emoji;
@@ -209,7 +209,7 @@ CommandResult CommandExecutorSkia::draw_glyph_run(DrawGlyphRun const& command)
             if (maybe_font_glyph->is_color_bitmap()) {
                 TODO();
             } else {
-                auto sk_bitmap = gfx_bitmap_to_skia_bitmap(*maybe_font_glyph->bitmap());
+                auto sk_bitmap = to_skia_bitmap(*maybe_font_glyph->bitmap());
                 auto sk_image = SkImages::RasterFromBitmap(sk_bitmap);
                 auto const& blit_position = glyph_position.blit_position;
                 canvas.drawImage(sk_image, blit_position.x(), blit_position.y(), SkSamplingOptions(), &paint);
@@ -231,16 +231,16 @@ CommandResult CommandExecutorSkia::fill_rect(FillRect const& command)
     auto const& rect = command.rect;
     auto& canvas = surface().canvas();
     SkPaint paint;
-    paint.setColor(gfx_color_to_skia_color(command.color));
-    canvas.drawRect(gfx_rect_to_skia_rect(rect), paint);
+    paint.setColor(to_skia_color(command.color));
+    canvas.drawRect(to_skia_rect(rect), paint);
     return CommandResult::Continue;
 }
 
 CommandResult CommandExecutorSkia::draw_scaled_bitmap(DrawScaledBitmap const& command)
 {
-    auto src_rect = gfx_rect_to_skia_rect(command.src_rect);
-    auto dst_rect = gfx_rect_to_skia_rect(command.dst_rect);
-    auto bitmap = gfx_bitmap_to_skia_bitmap(command.bitmap);
+    auto src_rect = to_skia_rect(command.src_rect);
+    auto dst_rect = to_skia_rect(command.dst_rect);
+    auto bitmap = to_skia_bitmap(command.bitmap);
     auto image = SkImages::RasterFromBitmap(bitmap);
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -253,9 +253,9 @@ CommandResult CommandExecutorSkia::draw_scaled_immutable_bitmap(DrawScaledImmuta
 {
     APPLY_PATH_CLIP_IF_NEEDED
 
-    auto src_rect = gfx_rect_to_skia_rect(command.src_rect);
-    auto dst_rect = gfx_rect_to_skia_rect(command.dst_rect);
-    auto bitmap = gfx_bitmap_to_skia_bitmap(command.bitmap->bitmap());
+    auto src_rect = to_skia_rect(command.src_rect);
+    auto dst_rect = to_skia_rect(command.dst_rect);
+    auto bitmap = to_skia_bitmap(command.bitmap->bitmap());
     auto image = SkImages::RasterFromBitmap(bitmap);
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -268,7 +268,7 @@ CommandResult CommandExecutorSkia::add_clip_rect(AddClipRect const& command)
 {
     auto& canvas = surface().canvas();
     auto const& rect = command.rect;
-    canvas.clipRect(gfx_rect_to_skia_rect(rect));
+    canvas.clipRect(to_skia_rect(rect));
     return CommandResult::Continue;
 }
 
@@ -315,10 +315,10 @@ CommandResult CommandExecutorSkia::push_stacking_context(PushStackingContext con
                              .translate(command.transform.origin)
                              .multiply(affine_transform)
                              .translate(-command.transform.origin);
-    auto matrix = gfx_affine_transform_to_skia_matrix(new_transform);
+    auto matrix = to_skia_matrix(new_transform);
 
     if (command.opacity < 1) {
-        auto source_paintable_rect = gfx_rect_to_skia_rect(command.source_paintable_rect);
+        auto source_paintable_rect = to_skia_rect(command.source_paintable_rect);
         SkRect dest;
         matrix.mapRect(&dest, source_paintable_rect);
         canvas.saveLayerAlphaf(&dest, command.opacity);
@@ -364,7 +364,7 @@ CommandResult CommandExecutorSkia::paint_linear_gradient(PaintLinearGradient con
     auto const& list = linear_gradient_data.color_stops.list;
     for (auto const& color_stop : linear_gradient_data.color_stops.list) {
         // FIXME: Account for ColorStop::transition_hint
-        colors.append(gfx_color_to_skia_color(color_stop.color));
+        colors.append(to_skia_color(color_stop.color));
         positions.append(color_stop.position);
     }
 
@@ -377,7 +377,7 @@ CommandResult CommandExecutorSkia::paint_linear_gradient(PaintLinearGradient con
     points[0] = SkPoint::Make(top.x(), top.y());
     points[1] = SkPoint::Make(bottom.x(), bottom.y());
 
-    auto center = gfx_rect_to_skia_rect(rect).center();
+    auto center = to_skia_rect(rect).center();
     SkMatrix matrix;
     matrix.setRotate(linear_gradient_data.gradient_angle, center.x(), center.y());
 
@@ -385,7 +385,7 @@ CommandResult CommandExecutorSkia::paint_linear_gradient(PaintLinearGradient con
 
     SkPaint paint;
     paint.setShader(shader);
-    surface().canvas().drawRect(gfx_rect_to_skia_rect(rect), paint);
+    surface().canvas().drawRect(to_skia_rect(rect), paint);
 
     return CommandResult::Continue;
 }
@@ -418,7 +418,7 @@ CommandResult CommandExecutorSkia::paint_outer_box_shadow(PaintOuterBoxShadow co
     auto const& spread_distance = outer_box_shadow_params.spread_distance;
     auto const& blur_radius = outer_box_shadow_params.blur_radius;
 
-    auto content_rrect = gfx_rrect_to_skia_rrect(outer_box_shadow_params.device_content_rect, outer_box_shadow_params.corner_radii);
+    auto content_rrect = to_skia_rrect(outer_box_shadow_params.device_content_rect, outer_box_shadow_params.corner_radii);
 
     auto shadow_rect = outer_box_shadow_params.device_content_rect;
     shadow_rect.inflate(spread_distance, spread_distance, spread_distance, spread_distance);
@@ -441,9 +441,9 @@ CommandResult CommandExecutorSkia::paint_outer_box_shadow(PaintOuterBoxShadow co
     canvas.save();
     canvas.clipRRect(content_rrect, SkClipOp::kDifference, true);
     SkPaint paint;
-    paint.setColor(gfx_color_to_skia_color(color));
+    paint.setColor(to_skia_color(color));
     paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_radius / 2));
-    auto shadow_rounded_rect = gfx_rrect_to_skia_rrect(shadow_rect, corner_radii);
+    auto shadow_rounded_rect = to_skia_rrect(shadow_rect, corner_radii);
     canvas.drawRRect(shadow_rounded_rect, paint);
     canvas.restore();
 
@@ -481,8 +481,8 @@ CommandResult CommandExecutorSkia::paint_inner_box_shadow(PaintInnerBoxShadow co
     add_spread_distance_to_corner_radius(inner_rect_corner_radii.bottom_right);
     add_spread_distance_to_corner_radius(inner_rect_corner_radii.bottom_left);
 
-    auto outer_rect = gfx_rrect_to_skia_rrect(outer_shadow_rect, corner_radii);
-    auto inner_rect = gfx_rrect_to_skia_rrect(inner_shadow_rect, inner_rect_corner_radii);
+    auto outer_rect = to_skia_rrect(outer_shadow_rect, corner_radii);
+    auto inner_rect = to_skia_rrect(inner_shadow_rect, inner_rect_corner_radii);
 
     SkPath outer_path;
     outer_path.addRRect(outer_rect);
@@ -496,10 +496,10 @@ CommandResult CommandExecutorSkia::paint_inner_box_shadow(PaintInnerBoxShadow co
 
     auto& canvas = surface().canvas();
     SkPaint path_paint;
-    path_paint.setColor(gfx_color_to_skia_color(color));
+    path_paint.setColor(to_skia_color(color));
     path_paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_radius / 2));
     canvas.save();
-    canvas.clipRRect(gfx_rrect_to_skia_rrect(device_content_rect, corner_radii), true);
+    canvas.clipRRect(to_skia_rrect(device_content_rect, corner_radii), true);
     canvas.drawPath(result_path, path_paint);
     canvas.restore();
 
@@ -519,7 +519,7 @@ CommandResult CommandExecutorSkia::fill_rect_with_rounded_corners(FillRectWithRo
 
     auto& canvas = surface().canvas();
     SkPaint paint;
-    paint.setColor(gfx_color_to_skia_color(command.color));
+    paint.setColor(to_skia_color(command.color));
 
     SkRRect rounded_rect;
     SkVector radii[4];
@@ -527,7 +527,7 @@ CommandResult CommandExecutorSkia::fill_rect_with_rounded_corners(FillRectWithRo
     radii[1].set(command.top_right_radius.horizontal_radius, command.top_right_radius.vertical_radius);
     radii[2].set(command.bottom_right_radius.horizontal_radius, command.bottom_right_radius.vertical_radius);
     radii[3].set(command.bottom_left_radius.horizontal_radius, command.bottom_left_radius.vertical_radius);
-    rounded_rect.setRectRadii(gfx_rect_to_skia_rect(rect), radii);
+    rounded_rect.setRectRadii(to_skia_rect(rect), radii);
     canvas.drawRRect(rounded_rect, paint);
 
     return CommandResult::Continue;
@@ -538,8 +538,8 @@ CommandResult CommandExecutorSkia::fill_path_using_color(FillPathUsingColor cons
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
-    paint.setColor(gfx_color_to_skia_color(command.color));
-    auto path = gfx_path_to_skia_path(command.path);
+    paint.setColor(to_skia_color(command.color));
+    auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     canvas.drawPath(path, paint);
     return CommandResult::Continue;
@@ -571,7 +571,7 @@ SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_s
         positions.ensure_capacity(color_stops.size());
 
         for (auto const& color_stop : linear_gradient_paint_style.color_stops()) {
-            colors.append(gfx_color_to_skia_color(color_stop.color));
+            colors.append(to_skia_color(color_stop.color));
             positions.append(color_stop.position);
         }
 
@@ -586,7 +586,7 @@ SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_s
 
 CommandResult CommandExecutorSkia::fill_path_using_paint_style(FillPathUsingPaintStyle const& command)
 {
-    auto path = gfx_path_to_skia_path(command.path);
+    auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
     paint.setAntiAlias(true);
@@ -602,8 +602,8 @@ CommandResult CommandExecutorSkia::stroke_path_using_color(StrokePathUsingColor 
     paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kStroke_Style);
     paint.setStrokeWidth(command.thickness);
-    paint.setColor(gfx_color_to_skia_color(command.color));
-    auto path = gfx_path_to_skia_path(command.path);
+    paint.setColor(to_skia_color(command.color));
+    auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     canvas.drawPath(path, paint);
     return CommandResult::Continue;
@@ -611,7 +611,7 @@ CommandResult CommandExecutorSkia::stroke_path_using_color(StrokePathUsingColor 
 
 CommandResult CommandExecutorSkia::stroke_path_using_paint_style(StrokePathUsingPaintStyle const& command)
 {
-    auto path = gfx_path_to_skia_path(command.path);
+    auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
     paint.setAntiAlias(true);
@@ -630,8 +630,8 @@ CommandResult CommandExecutorSkia::draw_ellipse(DrawEllipse const& command)
     paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kStroke_Style);
     paint.setStrokeWidth(command.thickness);
-    paint.setColor(gfx_color_to_skia_color(command.color));
-    canvas.drawOval(gfx_rect_to_skia_rect(rect), paint);
+    paint.setColor(to_skia_color(command.color));
+    canvas.drawOval(to_skia_rect(rect), paint);
     return CommandResult::Continue;
 }
 
@@ -641,8 +641,8 @@ CommandResult CommandExecutorSkia::fill_ellipse(FillEllipse const& command)
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
-    paint.setColor(gfx_color_to_skia_color(command.color));
-    canvas.drawOval(gfx_rect_to_skia_rect(rect), paint);
+    paint.setColor(to_skia_color(command.color));
+    canvas.drawOval(to_skia_rect(rect), paint);
     return CommandResult::Continue;
 }
 
@@ -653,7 +653,7 @@ CommandResult CommandExecutorSkia::draw_line(DrawLine const& command)
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setStrokeWidth(command.thickness);
-    paint.setColor(gfx_color_to_skia_color(command.color));
+    paint.setColor(to_skia_color(command.color));
     canvas.drawLine(from, to, paint);
     return CommandResult::Continue;
 }
@@ -662,7 +662,7 @@ CommandResult CommandExecutorSkia::apply_backdrop_filter(ApplyBackdropFilter con
 {
     auto& canvas = surface().canvas();
 
-    auto rect = gfx_rect_to_skia_rect(command.backdrop_region);
+    auto rect = to_skia_rect(command.backdrop_region);
     canvas.save();
     canvas.clipRect(rect);
     ScopeGuard guard = [&] { canvas.restore(); };
@@ -803,8 +803,8 @@ CommandResult CommandExecutorSkia::draw_rect(DrawRect const& command)
     SkPaint paint;
     paint.setStyle(SkPaint::kStroke_Style);
     paint.setStrokeWidth(1);
-    paint.setColor(gfx_color_to_skia_color(command.color));
-    canvas.drawRect(gfx_rect_to_skia_rect(rect), paint);
+    paint.setColor(to_skia_color(command.color));
+    canvas.drawRect(to_skia_rect(rect), paint);
     return CommandResult::Continue;
 }
 
@@ -822,7 +822,7 @@ CommandResult CommandExecutorSkia::paint_radial_gradient(PaintRadialGradient con
     auto const& list = linear_gradient_data.color_stops.list;
     for (auto const& color_stop : linear_gradient_data.color_stops.list) {
         // FIXME: Account for ColorStop::transition_hint
-        colors.append(gfx_color_to_skia_color(color_stop.color));
+        colors.append(to_skia_color(color_stop.color));
         positions.append(color_stop.position);
     }
 
@@ -833,7 +833,7 @@ CommandResult CommandExecutorSkia::paint_radial_gradient(PaintRadialGradient con
 
     SkPaint paint;
     paint.setShader(shader);
-    surface().canvas().drawRect(gfx_rect_to_skia_rect(rect), paint);
+    surface().canvas().drawRect(to_skia_rect(rect), paint);
 
     return CommandResult::Continue;
 }
@@ -855,7 +855,7 @@ void CommandExecutorSkia::prepare_to_execute(size_t)
 
 CommandResult CommandExecutorSkia::sample_under_corners(SampleUnderCorners const& command)
 {
-    auto rounded_rect = gfx_rrect_to_skia_rrect(command.border_rect, command.corner_radii);
+    auto rounded_rect = to_skia_rrect(command.border_rect, command.corner_radii);
     auto& canvas = surface().canvas();
     canvas.save();
     auto clip_op = command.corner_clip == CornerClip::Inside ? SkClipOp::kDifference : SkClipOp::kIntersect;
@@ -872,7 +872,7 @@ CommandResult CommandExecutorSkia::blit_corner_clipping(BlitCornerClipping const
 
 bool CommandExecutorSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const
 {
-    return surface().canvas().quickReject(gfx_rect_to_skia_rect(rect));
+    return surface().canvas().quickReject(to_skia_rect(rect));
 }
 
 }
