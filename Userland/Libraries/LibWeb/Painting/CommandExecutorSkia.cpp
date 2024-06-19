@@ -102,6 +102,17 @@ static SkPath to_skia_path(Gfx::Path const& path)
     return path_builder.snapshot();
 }
 
+static SkPathFillType to_skia_path_fill_type(Gfx::WindingRule winding_rule)
+{
+    switch (winding_rule) {
+    case Gfx::WindingRule::Nonzero:
+        return SkPathFillType::kWinding;
+    case Gfx::WindingRule::EvenOdd:
+        return SkPathFillType::kEvenOdd;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 static SkRRect to_skia_rrect(auto const& rect, CornerRadii const& corner_radii)
 {
     SkRRect rrect;
@@ -553,6 +564,7 @@ CommandResult CommandExecutorSkia::fill_path_using_color(FillPathUsingColor cons
     paint.setAntiAlias(true);
     paint.setColor(to_skia_color(command.color));
     auto path = to_skia_path(command.path);
+    path.setFillType(to_skia_path_fill_type(command.winding_rule));
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     canvas.drawPath(path, paint);
     return CommandResult::Continue;
@@ -601,6 +613,7 @@ CommandResult CommandExecutorSkia::fill_path_using_paint_style(FillPathUsingPain
 {
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
+    path.setFillType(to_skia_path_fill_type(command.winding_rule));
     auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
     paint.setAntiAlias(true);
     paint.setAlphaf(command.opacity);
