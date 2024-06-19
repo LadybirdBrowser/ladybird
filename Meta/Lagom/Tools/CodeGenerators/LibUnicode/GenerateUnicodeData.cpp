@@ -98,17 +98,10 @@ struct UnicodeData {
     // FIXME: We are not yet doing anything with this data. It will be needed for String.prototype.normalize.
     NormalizationProps normalization_props;
 
-    PropList grapheme_break_props;
-    PropList word_break_props;
-    PropList sentence_break_props;
-
     CodePointTables<PropertyTable> general_category_tables;
     CodePointTables<PropertyTable> property_tables;
     CodePointTables<PropertyTable> script_tables;
     CodePointTables<PropertyTable> script_extension_tables;
-    CodePointTables<PropertyTable> grapheme_break_tables;
-    CodePointTables<PropertyTable> word_break_tables;
-    CodePointTables<PropertyTable> sentence_break_tables;
 
     HashTable<ByteString> bidirectional_classes;
     Vector<CodePointBidiClass> code_point_bidirectional_classes;
@@ -439,9 +432,6 @@ namespace Unicode {
     generate_enum("GeneralCategory"sv, {}, unicode_data.general_categories.keys(), unicode_data.general_category_aliases);
     generate_enum("Property"sv, {}, unicode_data.prop_list.keys(), unicode_data.prop_aliases);
     generate_enum("Script"sv, {}, unicode_data.script_list.keys(), unicode_data.script_aliases);
-    generate_enum("GraphemeBreakProperty"sv, {}, unicode_data.grapheme_break_props.keys());
-    generate_enum("WordBreakProperty"sv, {}, unicode_data.word_break_props.keys());
-    generate_enum("SentenceBreakProperty"sv, {}, unicode_data.sentence_break_props.keys());
     generate_enum("BidirectionalClass"sv, {}, unicode_data.bidirectional_classes.values());
 
     generator.append(R"~~~(
@@ -560,9 +550,6 @@ static constexpr Array<@type@, @size@> @name@ { {
     TRY(append_code_point_tables("s_properties"sv, unicode_data.property_tables, append_property_table));
     TRY(append_code_point_tables("s_scripts"sv, unicode_data.script_tables, append_property_table));
     TRY(append_code_point_tables("s_script_extensions"sv, unicode_data.script_extension_tables, append_property_table));
-    TRY(append_code_point_tables("s_grapheme_break_properties"sv, unicode_data.grapheme_break_tables, append_property_table));
-    TRY(append_code_point_tables("s_word_break_properties"sv, unicode_data.word_break_tables, append_property_table));
-    TRY(append_code_point_tables("s_sentence_break_properties"sv, unicode_data.sentence_break_tables, append_property_table));
 
     {
         constexpr size_t max_bidi_classes_per_row = 20;
@@ -653,10 +640,6 @@ bool code_point_has_@enum_snake@(u32 code_point, @enum_title@ @enum_snake@)
     TRY(append_prop_search("Script"sv, "script"sv, "s_scripts"sv));
     TRY(append_prop_search("Script"sv, "script_extension"sv, "s_script_extensions"sv));
     TRY(append_from_string("Script"sv, "script"sv, unicode_data.script_list, unicode_data.script_aliases));
-
-    TRY(append_prop_search("GraphemeBreakProperty"sv, "grapheme_break_property"sv, "s_grapheme_break_properties"sv));
-    TRY(append_prop_search("WordBreakProperty"sv, "word_break_property"sv, "s_word_break_properties"sv));
-    TRY(append_prop_search("SentenceBreakProperty"sv, "sentence_break_property"sv, "s_sentence_break_properties"sv));
 
     TRY(append_from_string("BidirectionalClass"sv, "bidirectional_class"sv, unicode_data.bidirectional_classes, {}));
 
@@ -921,18 +904,12 @@ static ErrorOr<void> create_code_point_tables(UnicodeData& unicode_data)
     auto property_metadata = TRY(PropertyMetadata::create(unicode_data.prop_list));
     auto script_metadata = TRY(PropertyMetadata::create(unicode_data.script_list));
     auto script_extension_metadata = TRY(PropertyMetadata::create(unicode_data.script_extensions));
-    auto grapheme_break_metadata = TRY(PropertyMetadata::create(unicode_data.grapheme_break_props));
-    auto word_break_metadata = TRY(PropertyMetadata::create(unicode_data.word_break_props));
-    auto sentence_break_metadata = TRY(PropertyMetadata::create(unicode_data.sentence_break_props));
 
     for (u32 code_point = 0; code_point <= MAX_CODE_POINT; ++code_point) {
         TRY(update_property_tables(code_point, unicode_data.general_category_tables, general_category_metadata));
         TRY(update_property_tables(code_point, unicode_data.property_tables, property_metadata));
         TRY(update_property_tables(code_point, unicode_data.script_tables, script_metadata));
         TRY(update_property_tables(code_point, unicode_data.script_extension_tables, script_extension_metadata));
-        TRY(update_property_tables(code_point, unicode_data.grapheme_break_tables, grapheme_break_metadata));
-        TRY(update_property_tables(code_point, unicode_data.word_break_tables, word_break_metadata));
-        TRY(update_property_tables(code_point, unicode_data.sentence_break_tables, sentence_break_metadata));
     }
 
     return {};
@@ -953,9 +930,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView script_extensions_path;
     StringView emoji_data_path;
     StringView normalization_path;
-    StringView grapheme_break_path;
-    StringView word_break_path;
-    StringView sentence_break_path;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(generated_header_path, "Path to the Unicode Data header file to generate", "generated-header-path", 'h', "generated-header-path");
@@ -971,9 +945,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(script_extensions_path, "Path to ScriptExtensions.txt file", "script-extensions-path", 'x', "script-extensions-path");
     args_parser.add_option(emoji_data_path, "Path to emoji-data.txt file", "emoji-data-path", 'e', "emoji-data-path");
     args_parser.add_option(normalization_path, "Path to DerivedNormalizationProps.txt file", "normalization-path", 'n', "normalization-path");
-    args_parser.add_option(grapheme_break_path, "Path to GraphemeBreakProperty.txt file", "grapheme-break-path", 'f', "grapheme-break-path");
-    args_parser.add_option(word_break_path, "Path to WordBreakProperty.txt file", "word-break-path", 'w', "word-break-path");
-    args_parser.add_option(sentence_break_path, "Path to SentenceBreakProperty.txt file", "sentence-break-path", 'i', "sentence-break-path");
     args_parser.parse(arguments);
 
     auto generated_header_file = TRY(open_file(generated_header_path, Core::File::OpenMode::Write));
@@ -989,9 +960,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto script_extensions_file = TRY(open_file(script_extensions_path, Core::File::OpenMode::Read));
     auto emoji_data_file = TRY(open_file(emoji_data_path, Core::File::OpenMode::Read));
     auto normalization_file = TRY(open_file(normalization_path, Core::File::OpenMode::Read));
-    auto grapheme_break_file = TRY(open_file(grapheme_break_path, Core::File::OpenMode::Read));
-    auto word_break_file = TRY(open_file(word_break_path, Core::File::OpenMode::Read));
-    auto sentence_break_file = TRY(open_file(sentence_break_path, Core::File::OpenMode::Read));
 
     UnicodeData unicode_data {};
     TRY(parse_prop_list(*derived_general_category_file, unicode_data.general_categories));
@@ -1003,9 +971,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     TRY(parse_alias_list(*prop_alias_file, unicode_data.prop_list, unicode_data.prop_aliases));
     TRY(parse_prop_list(*scripts_file, unicode_data.script_list));
     TRY(parse_prop_list(*script_extensions_file, unicode_data.script_extensions, true));
-    TRY(parse_prop_list(*grapheme_break_file, unicode_data.grapheme_break_props));
-    TRY(parse_prop_list(*word_break_file, unicode_data.word_break_props));
-    TRY(parse_prop_list(*sentence_break_file, unicode_data.sentence_break_props));
 
     populate_general_category_unions(unicode_data.general_categories);
     TRY(parse_unicode_data(*unicode_data_file, unicode_data));
