@@ -39,17 +39,17 @@ private:
     sk_sp<SkSurface> surface;
 };
 
-static SkRect to_skia_rect(auto rect)
+static SkRect to_skia_rect(auto const& rect)
 {
     return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
 }
 
-static SkColor to_skia_color(Gfx::Color color)
+static SkColor to_skia_color(Gfx::Color const& color)
 {
     return SkColorSetARGB(color.alpha(), color.red(), color.green(), color.blue());
 }
 
-static SkPath to_skia_path(Gfx::Path path)
+static SkPath to_skia_path(Gfx::Path const& path)
 {
     Optional<Gfx::FloatPoint> subpath_start_point;
     Optional<Gfx::FloatPoint> subpath_last_point;
@@ -102,7 +102,7 @@ static SkPath to_skia_path(Gfx::Path path)
     return path_builder.snapshot();
 }
 
-static SkRRect to_skia_rrect(auto rect, CornerRadii corner_radii)
+static SkRRect to_skia_rrect(auto const& rect, CornerRadii const& corner_radii)
 {
     SkRRect rrect;
     SkVector radii[4];
