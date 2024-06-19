@@ -494,12 +494,16 @@ RefPtr<ResourceLoaderConnectorRequest> ResourceLoader::start_network_request(Loa
     auto proxy = ProxyMappings::the().proxy_for_url(request.url());
 
     HTTP::HeaderMap headers;
-    headers.set("User-Agent", m_user_agent.to_byte_string());
-    headers.set("Accept-Encoding", "gzip, deflate, br");
 
     for (auto const& it : request.headers()) {
         headers.set(it.key, it.value);
     }
+
+    if (!headers.contains("User-Agent"))
+        headers.set("User-Agent", m_user_agent.to_byte_string());
+
+    if (!headers.contains("Accept-Encoding"))
+        headers.set("Accept-Encoding", "gzip, deflate, br");
 
     auto protocol_request = m_connector->start_request(request.method(), request.url(), headers, request.body(), proxy);
     if (!protocol_request) {
