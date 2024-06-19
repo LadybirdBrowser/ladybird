@@ -176,7 +176,7 @@ DecoderErrorOr<void> Decoder::create_video_frame(FrameContext const& frame_conte
         { output_y_size.width(), output_y_size.height() },
         frame_context.color_config.bit_depth, get_cicp_color_space(frame_context),
         subsampling_x, subsampling_y,
-        output_buffers[0], output_buffers[1], output_buffers[2])));
+        move(output_buffers[0]), move(output_buffers[1]), move(output_buffers[2]))));
     m_video_frame_queue.enqueue(move(frame));
 
     return {};

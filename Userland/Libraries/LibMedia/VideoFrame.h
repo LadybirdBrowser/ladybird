@@ -63,7 +63,7 @@ public:
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         bool subsampling_horizontal, bool subsampling_vertical,
-        FixedArray<u16>& plane_y, FixedArray<u16>& plane_u, FixedArray<u16>& plane_v)
+        FixedArray<u16>&& plane_y, FixedArray<u16>&& plane_u, FixedArray<u16>&& plane_v)
         : VideoFrame(size, bit_depth, cicp)
         , m_subsampling_horizontal(subsampling_horizontal)
         , m_subsampling_vertical(subsampling_vertical)
