@@ -21,6 +21,10 @@ if (LINUX)
     add_compile_options(-D_FILE_OFFSET_BITS=64)
 endif()
 
+if (APPLE)
+    list(APPEND CMAKE_PREFIX_PATH /opt/homebrew)
+endif()
+
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     if (NOT MSVC)
         add_compile_options(-ggdb3)
