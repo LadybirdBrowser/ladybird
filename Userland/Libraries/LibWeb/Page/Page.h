@@ -209,8 +209,12 @@ private:
 
     Vector<JS::Handle<DOM::Document>> documents_in_active_window() const;
 
-    FindInPageResult perform_find_in_page_query(FindInPageQuery const&);
-    void update_find_in_page_selection();
+    enum class SearchDirection {
+        Forward,
+        Backward,
+    };
+    FindInPageResult perform_find_in_page_query(FindInPageQuery const&, Optional<SearchDirection> = {});
+    void update_find_in_page_selection(Vector<JS::Handle<DOM::Range>> matches);
 
     JS::NonnullGCPtr<PageClient> m_client;
 
@@ -254,7 +258,6 @@ private:
     // FIXME: Actually support pdf viewing
     bool m_pdf_viewer_supported { false };
     size_t m_find_in_page_match_index { 0 };
-    Vector<JS::NonnullGCPtr<DOM::Range>> m_find_in_page_matches;
     Optional<FindInPageQuery> m_last_find_in_page_query;
     URL::URL m_last_find_in_page_url;
 };

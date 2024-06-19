@@ -48,7 +48,6 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_top_level_traversable);
     visitor.visit(m_client);
-    visitor.visit(m_find_in_page_matches);
 }
 
 HTML::Navigable& Page::focused_navigable()
@@ -568,7 +567,7 @@ void Page::clear_selection()
     }
 }
 
-Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& query)
+Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& query, Optional<SearchDirection> direction)
 {
     VERIFY(top_level_traversable_is_initialized());
 
@@ -578,24 +577,32 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
         all_matches.extend(move(matches));
     }
 
-    m_find_in_page_matches.clear_with_capacity();
-    for (auto& match : all_matches)
-        m_find_in_page_matches.append(*match);
-
     if (auto active_document = top_level_traversable()->active_document()) {
         if (m_last_find_in_page_url.serialize(URL::ExcludeFragment::Yes) != active_document->url().serialize(URL::ExcludeFragment::Yes)) {
             m_last_find_in_page_url = top_level_traversable()->active_document()->url();
             m_find_in_page_match_index = 0;
         }
-    } else if (m_find_in_page_match_index >= m_find_in_page_matches.size()) {
-        m_find_in_page_match_index = 0;
     }
 
-    update_find_in_page_selection();
+    if (direction.has_value()) {
+        if (direction.value() == SearchDirection::Forward) {
+            if (m_find_in_page_match_index >= all_matches.size() - 1)
+                m_find_in_page_match_index = 0;
+            else
+                m_find_in_page_match_index++;
+        } else {
+            if (m_find_in_page_match_index == 0)
+                m_find_in_page_match_index = all_matches.size() - 1;
+            else
+                m_find_in_page_match_index--;
+        }
+    }
+
+    update_find_in_page_selection(all_matches);
 
     return Page::FindInPageResult {
         .current_match_index = m_find_in_page_match_index,
-        .total_match_count = m_find_in_page_matches.size(),
+        .total_match_count = all_matches.size(),
     };
 }
 
@@ -610,7 +617,7 @@ Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
 
     if (query.string.is_empty()) {
         m_last_find_in_page_query = {};
-        update_find_in_page_selection();
+        clear_selection();
         return {};
     }
 
@@ -622,13 +629,7 @@ Page::FindInPageResult Page::find_in_page_next_match()
     if (!(m_last_find_in_page_query.has_value() && top_level_traversable_is_initialized()))
         return {};
 
-    auto result = perform_find_in_page_query(*m_last_find_in_page_query);
-    if (m_find_in_page_match_index == *result.total_match_count - 1) {
-        m_find_in_page_match_index = 0;
-    } else {
-        m_find_in_page_match_index++;
-    }
-
+    auto result = perform_find_in_page_query(*m_last_find_in_page_query, SearchDirection::Forward);
     return result;
 }
 
@@ -637,24 +638,18 @@ Page::FindInPageResult Page::find_in_page_previous_match()
     if (!(m_last_find_in_page_query.has_value() && top_level_traversable_is_initialized()))
         return {};
 
-    auto result = perform_find_in_page_query(*m_last_find_in_page_query);
-    if (m_find_in_page_match_index == 0) {
-        m_find_in_page_match_index = *result.total_match_count - 1;
-    } else {
-        m_find_in_page_match_index--;
-    }
-
+    auto result = perform_find_in_page_query(*m_last_find_in_page_query, SearchDirection::Backward);
     return result;
 }
 
-void Page::update_find_in_page_selection()
+void Page::update_find_in_page_selection(Vector<JS::Handle<DOM::Range>> matches)
 {
     clear_selection();
 
-    if (m_find_in_page_matches.is_empty())
+    if (matches.is_empty())
         return;
 
-    auto current_range = m_find_in_page_matches[m_find_in_page_match_index];
+    auto current_range = matches[m_find_in_page_match_index];
     auto common_ancestor_container = current_range->common_ancestor_container();
     auto& document = common_ancestor_container->document();
     if (!document.window())
