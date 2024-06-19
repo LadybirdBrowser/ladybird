@@ -98,6 +98,12 @@ CodecID MatroskaDemuxer::get_codec_id_for_string(FlyString const& codec_id)
     return CodecID::Unknown;
 }
 
+DecoderErrorOr<CodecID> MatroskaDemuxer::get_codec_id_for_track(Track track)
+{
+    auto codec_id = TRY(m_reader.track_for_track_number(track.identifier()))->codec_id();
+    return get_codec_id_for_string(codec_id);
+}
+
 DecoderErrorOr<Optional<Duration>> MatroskaDemuxer::seek_to_most_recent_keyframe(Track track, Duration timestamp, Optional<Duration> earliest_available_sample)
 {
     // Removing the track status will cause us to start from the beginning.
@@ -144,12 +150,6 @@ DecoderErrorOr<Duration> MatroskaDemuxer::duration()
 {
     auto duration = TRY(m_reader.segment_information()).duration();
     return duration.value_or(Duration::zero());
-}
-
-DecoderErrorOr<CodecID> MatroskaDemuxer::get_codec_id_for_track(Track track)
-{
-    auto codec_id = TRY(m_reader.track_for_track_number(track.identifier()))->codec_id();
-    return get_codec_id_for_string(codec_id);
 }
 
 }
