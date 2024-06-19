@@ -80,6 +80,8 @@ public:
     virtual void schedule_repaint() override { }
     virtual bool is_ready_to_paint() const override { return true; }
 
+    virtual PaintingCommandExecutorType painting_command_executor_type() const override { return m_host_page->client().painting_command_executor_type(); }
+
 private:
     explicit SVGPageClient(Page& host_page)
         : m_host_page(host_page)

@@ -225,9 +225,6 @@ void PageClient::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& ta
 #ifdef HAS_ACCELERATED_GRAPHICS
     paint_options.accelerated_graphics_context = m_accelerated_graphics_context.ptr();
 #endif
-    paint_options.use_gpu_painter = s_use_gpu_painter;
-    paint_options.use_skia_painter = s_use_skia_painter;
-    paint_options.use_experimental_cpu_transform_support = s_use_experimental_cpu_transform_support;
     page().top_level_traversable()->paint(content_rect, target, paint_options);
 }
 
@@ -729,6 +726,17 @@ void PageClient::console_peer_did_misbehave(char const* reason)
 void PageClient::did_get_js_console_messages(i32 start_index, Vector<ByteString> message_types, Vector<ByteString> messages)
 {
     client().async_did_get_js_console_messages(m_id, start_index, move(message_types), move(messages));
+}
+
+Web::PaintingCommandExecutorType PageClient::painting_command_executor_type() const
+{
+    if (s_use_gpu_painter)
+        return Web::PaintingCommandExecutorType::GPU;
+    if (s_use_skia_painter)
+        return Web::PaintingCommandExecutorType::Skia;
+    if (s_use_experimental_cpu_transform_support)
+        return Web::PaintingCommandExecutorType::CPUWithExperimentalTransformSupport;
+    return Web::PaintingCommandExecutorType::CPU;
 }
 
 }

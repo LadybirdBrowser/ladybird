@@ -89,6 +89,8 @@ public:
 
     virtual double device_pixels_per_css_pixel() const override { return m_device_pixels_per_css_pixel; }
 
+    virtual Web::PaintingCommandExecutorType painting_command_executor_type() const override;
+
 private:
     PageClient(PageHost&, u64 id);
 
