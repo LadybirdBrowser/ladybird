@@ -83,8 +83,8 @@ private:
 class SampleIterator {
 public:
     DecoderErrorOr<Block> next_block();
-    Cluster const& current_cluster() { return *m_current_cluster; }
-    Optional<Duration> const& last_timestamp() { return m_last_timestamp; }
+    Cluster const& current_cluster() const { return *m_current_cluster; }
+    Optional<Duration> const& last_timestamp() const { return m_last_timestamp; }
 
 private:
     friend class Reader;
