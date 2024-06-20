@@ -85,6 +85,7 @@ public:
     DecoderErrorOr<Block> next_block();
     Cluster const& current_cluster() const { return *m_current_cluster; }
     Optional<Duration> const& last_timestamp() const { return m_last_timestamp; }
+    TrackEntry const& track() const { return *m_track; }
 
 private:
     friend class Reader;
