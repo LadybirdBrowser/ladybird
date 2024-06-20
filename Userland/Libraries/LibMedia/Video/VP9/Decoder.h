@@ -21,7 +21,7 @@
 
 namespace Media::Video::VP9 {
 
-class Decoder : public VideoDecoder {
+class Decoder final : public VideoDecoder {
     friend class Parser;
 
 public:
@@ -31,6 +31,8 @@ public:
     DecoderErrorOr<void> receive_sample(Duration timestamp, ReadonlyBytes) override;
 
     DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
+
+    void flush() override;
 
 private:
     typedef i32 Intermediate;

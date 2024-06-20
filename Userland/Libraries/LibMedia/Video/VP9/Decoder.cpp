@@ -208,6 +208,11 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> Decoder::get_decoded_frame()
     return m_video_frame_queue.dequeue();
 }
 
+void Decoder::flush()
+{
+    m_video_frame_queue.clear();
+}
+
 template<typename T>
 static inline i32 rounded_right_shift(T value, u8 bits)
 {
