@@ -22,6 +22,8 @@ public:
     DecoderErrorOr<void> receive_sample(Duration timestamp, ReadonlyBytes sample) override;
     DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
 
+    void flush() override;
+
 private:
     DecoderErrorOr<void> decode_single_sample(Duration timestamp, u8* data, int size);
 

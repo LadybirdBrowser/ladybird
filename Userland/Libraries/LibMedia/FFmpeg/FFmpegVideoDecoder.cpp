@@ -228,4 +228,9 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
     }
 }
 
+void FFmpegVideoDecoder::flush()
+{
+    avcodec_flush_buffers(m_codec_context);
+}
+
 }
