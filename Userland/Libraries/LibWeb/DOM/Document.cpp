@@ -5129,6 +5129,9 @@ Vector<JS::Handle<DOM::Range>> Document::find_matching_text(String const& query,
         Vector<TextPosition> text_positions;
         Vector<TextBlock> text_blocks;
         document_element()->layout_node()->for_each_in_inclusive_subtree([&](auto const& layout_node) {
+            if (layout_node.display().is_none() || !layout_node.paintable() || !layout_node.paintable()->is_visible())
+                return TraversalDecision::Continue;
+
             if (layout_node.is_block_container()) {
                 if (!builder.is_empty()) {
                     text_blocks.append({ builder.to_string_without_validation(), text_positions });
