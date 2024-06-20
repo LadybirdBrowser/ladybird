@@ -83,6 +83,10 @@ if (APPLE OR CMAKE_SYSTEM_NAME STREQUAL "GNU")
     list(APPEND SOURCES MachPort.cpp)
 endif()
 
+if (APPLE)
+    list(APPEND SOURCES IOSurface.cpp)
+endif()
+
 serenity_lib(LibCore core)
 target_link_libraries(LibCore PRIVATE LibCrypt LibTimeZone LibURL)
 target_link_libraries(LibCore PUBLIC LibCoreMinimal)
@@ -91,6 +95,7 @@ if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework CoreFoundation")
     target_link_libraries(LibCore PUBLIC "-framework CoreServices")
     target_link_libraries(LibCore PUBLIC "-framework Foundation")
+    target_link_libraries(LibCore PUBLIC "-framework IOSurface")
 endif()
 
 if (ANDROID)
