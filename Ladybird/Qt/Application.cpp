@@ -67,6 +67,13 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Web
     auto* window = new BrowserWindow(initial_urls, cookie_jar, web_content_options, webdriver_content_ipc_path, allow_popups, parent_tab, move(page_index));
     set_active_window(*window);
     window->show();
+    if (initial_urls.is_empty()) {
+        auto* tab = window->current_tab();
+        if (tab) {
+            tab->set_url_is_hidden(true);
+            tab->focus_location_editor();
+        }
+    }
     window->activateWindow();
     window->raise();
     return *window;
