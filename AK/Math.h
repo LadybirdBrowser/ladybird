@@ -1008,11 +1008,17 @@ constexpr T pow(T x, T y)
 template<Integral I, typename T>
 constexpr I clamp_to(T value)
 {
-    if (value >= static_cast<T>(NumericLimits<I>::max()))
-        return NumericLimits<I>::max();
+    constexpr auto max = static_cast<T>(NumericLimits<I>::max());
+    if constexpr (max > 0) {
+        if (value >= static_cast<T>(NumericLimits<I>::max()))
+            return NumericLimits<I>::max();
+    }
 
-    if (value <= static_cast<T>(NumericLimits<I>::min()))
-        return NumericLimits<I>::min();
+    constexpr auto min = static_cast<T>(NumericLimits<I>::min());
+    if constexpr (min <= 0) {
+        if (value <= static_cast<T>(NumericLimits<I>::min()))
+            return NumericLimits<I>::min();
+    }
 
     if constexpr (IsFloatingPoint<T>)
         return round_to<I>(value);

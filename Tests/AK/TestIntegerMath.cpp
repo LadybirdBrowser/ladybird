@@ -119,9 +119,11 @@ TEST_CASE(ceil_log2)
 
 TEST_CASE(clamp_to)
 {
+    EXPECT_EQ((AK::clamp_to<i32>(1000000u)), 1000000);
     EXPECT_EQ((AK::clamp_to<i32>(NumericLimits<u64>::max())), NumericLimits<i32>::max());
 
     EXPECT_EQ((AK::clamp_to<u32>(-10)), 0u);
+    EXPECT_EQ((AK::clamp_to<u32>(10)), 10u);
 
     EXPECT_EQ((AK::clamp_to<i32>(NumericLimits<i64>::min())), NumericLimits<i32>::min());
     EXPECT_EQ((AK::clamp_to<i32>(NumericLimits<i64>::max())), NumericLimits<i32>::max());
