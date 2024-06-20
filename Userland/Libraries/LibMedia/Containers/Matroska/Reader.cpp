@@ -7,6 +7,7 @@
 
 #include <AK/Debug.h>
 #include <AK/Function.h>
+#include <AK/Math.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
@@ -616,11 +617,13 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, Duration clu
     //     of that track. To get the timestamp in nanoseconds of the first frame in a Block or
     //     SimpleBlock, the formula becomes:
     //         `( ( Cluster\Timestamp + ( block timestamp * TrackTimestampScale ) ) * TimestampScale ) - CodecDelay`
-    Duration timestamp_offset = Duration::from_nanoseconds(static_cast<i64>(static_cast<double>(TRY_READ(streamer.read_i16()) * segment_timestamp_scale) * track.timestamp_scale()));
-    timestamp_offset -= Duration::from_nanoseconds(static_cast<i64>(track.codec_delay()));
+    auto raw_timestamp_offset = TRY_READ(streamer.read_i16());
+    Checked<i64> timestamp_offset_ns = AK::clamp_to<i64>(static_cast<double>(raw_timestamp_offset * AK::clamp_to<i64>(segment_timestamp_scale)) * track.timestamp_scale());
+    timestamp_offset_ns.saturating_sub(AK::clamp_to<i64>(track.codec_delay()));
     // This is only mentioned in the elements specification under TrackOffset.
     // https://www.matroska.org/technical/elements.html
-    timestamp_offset += Duration::from_nanoseconds(static_cast<i64>(track.timestamp_offset()));
+    timestamp_offset_ns.saturating_add(AK::clamp_to<i64>(track.timestamp_offset()));
+    Duration timestamp_offset = Duration::from_nanoseconds(timestamp_offset_ns.value());
     block.set_timestamp(cluster_timestamp + timestamp_offset);
 
     auto flags = TRY_READ(streamer.read_octet());
