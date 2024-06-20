@@ -6,6 +6,7 @@
 
 #include "MachPortServer.h"
 #include <AK/Debug.h>
+#include <LibCore/Platform/MachMessageTypes.h>
 #include <LibCore/Platform/ProcessStatisticsMach.h>
 
 namespace Ladybird {
@@ -55,8 +56,7 @@ ErrorOr<void> MachPortServer::allocate_server_port()
 void MachPortServer::thread_loop()
 {
     while (!m_should_stop.load(MemoryOrder::memory_order_acquire)) {
-
-        Core::Platform::ParentPortMessage message {};
+        Core::Platform::ReceivedMachMessage message {};
 
         // Get the pid of the child from the audit trailer so we can associate the port w/it
         mach_msg_options_t const options = MACH_RCV_MSG | MACH_RCV_TRAILER_TYPE(MACH_RCV_TRAILER_AUDIT) | MACH_RCV_TRAILER_ELEMENTS(MACH_RCV_TRAILER_AUDIT);
@@ -68,23 +68,38 @@ void MachPortServer::thread_loop()
             break;
         }
 
-        if (message.header.msgh_id != Core::Platform::SELF_TASK_PORT_MESSAGE_ID) {
-            dbgln("Received message with id {}, ignoring", message.header.msgh_id);
+        if (message.header.msgh_id == Core::Platform::BACKING_STORE_IOSURFACES_MESSAGE_ID) {
+            auto pid = static_cast<pid_t>(message.body.parent_iosurface.trailer.msgh_audit.val[5]);
+            auto const& backing_stores_message = message.body.parent_iosurface;
+            auto front_child_port = Core::MachPort::adopt_right(backing_stores_message.front_descriptor.name, Core::MachPort::PortRight::Send);
+            auto back_child_port = Core::MachPort::adopt_right(backing_stores_message.back_descriptor.name, Core::MachPort::PortRight::Send);
+            auto const& metadata = backing_stores_message.metadata;
+            if (on_receive_backing_stores)
+                on_receive_backing_stores({ .pid = pid,
+                    .page_id = metadata.page_id,
+                    .front_backing_store_id = metadata.front_backing_store_id,
+                    .back_backing_store_id = metadata.back_backing_store_id,
+                    .front_backing_store_port = move(front_child_port),
+                    .back_backing_store_port = move(back_child_port) });
             continue;
         }
 
-        if (MACH_MSGH_BITS_LOCAL(message.header.msgh_bits) != MACH_MSG_TYPE_MOVE_SEND) {
-            dbgln("Received message with invalid local port rights {}, ignoring", MACH_MSGH_BITS_LOCAL(message.header.msgh_bits));
+        if (message.header.msgh_id == Core::Platform::SELF_TASK_PORT_MESSAGE_ID) {
+            if (MACH_MSGH_BITS_LOCAL(message.header.msgh_bits) != MACH_MSG_TYPE_MOVE_SEND) {
+                dbgln("Received message with invalid local port rights {}, ignoring", MACH_MSGH_BITS_LOCAL(message.header.msgh_bits));
+                continue;
+            }
+
+            auto const& task_port_message = message.body.parent;
+            auto pid = static_cast<pid_t>(task_port_message.trailer.msgh_audit.val[5]);
+            auto child_port = Core::MachPort::adopt_right(task_port_message.port_descriptor.name, Core::MachPort::PortRight::Send);
+            dbgln_if(MACH_PORT_DEBUG, "Received child port {:x} from pid {}", child_port.port(), pid);
+            if (on_receive_child_mach_port)
+                on_receive_child_mach_port(pid, move(child_port));
             continue;
         }
 
-        auto pid = static_cast<pid_t>(message.trailer.msgh_audit.val[5]);
-        auto child_port = Core::MachPort::adopt_right(message.port_descriptor.name, Core::MachPort::PortRight::Send);
-        dbgln_if(MACH_PORT_DEBUG, "Received child port {:x} from pid {}", child_port.port(), pid);
-
-        if (on_receive_child_mach_port)
-            on_receive_child_mach_port(pid, move(child_port));
+        dbgln("Received message with id {}, ignoring", message.header.msgh_id);
     }
 }
-
 }

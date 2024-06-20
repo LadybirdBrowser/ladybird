@@ -26,7 +26,10 @@ class WebContentClient final
     IPC_CLIENT_CONNECTION(WebContentClient, "/tmp/session/%sid/portal/webcontent"sv);
 
 public:
+    static Optional<ViewImplementation&> view_for_pid_and_page_id(pid_t pid, u64 page_id);
+
     WebContentClient(NonnullOwnPtr<Core::LocalSocket>, ViewImplementation&);
+    ~WebContentClient();
 
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);

@@ -11,10 +11,27 @@
 
 namespace WebView {
 
+static HashTable<WebContentClient*> s_clients;
+
+Optional<ViewImplementation&> WebContentClient::view_for_pid_and_page_id(pid_t pid, u64 page_id)
+{
+    for (auto* client : s_clients) {
+        if (client->m_process_handle.pid == pid)
+            return client->view_for_page_id(page_id);
+    }
+    return {};
+}
+
 WebContentClient::WebContentClient(NonnullOwnPtr<Core::LocalSocket> socket, ViewImplementation& view)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(socket))
 {
+    s_clients.set(this);
     m_views.set(0, &view);
+}
+
+WebContentClient::~WebContentClient()
+{
+    s_clients.remove(this);
 }
 
 void WebContentClient::die()

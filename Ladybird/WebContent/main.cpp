@@ -138,7 +138,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 #if defined(AK_OS_MACOS)
     if (!mach_server_name.is_empty()) {
-        Core::Platform::register_with_mach_server(mach_server_name);
+        auto server_port = Core::Platform::register_with_mach_server(mach_server_name);
+        WebContent::BackingStoreManager::set_browser_mach_port(move(server_port));
     }
 #endif
 

@@ -12,6 +12,11 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/ViewImplementation.h>
 
+#ifdef AK_OS_MACOS
+#    include <LibCore/IOSurface.h>
+#    include <LibCore/MachPort.h>
+#endif
+
 namespace WebView {
 
 ViewImplementation::ViewImplementation()
@@ -396,6 +401,32 @@ void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i3
     m_client_state.back_bitmap.bitmap = back_bitmap.bitmap();
     m_client_state.back_bitmap.id = back_bitmap_id;
 }
+
+#ifdef AK_OS_MACOS
+void ViewImplementation::did_allocate_iosurface_backing_stores(i32 front_id, Core::MachPort&& front_port, i32 back_id, Core::MachPort&& back_port)
+{
+    if (m_client_state.has_usable_bitmap) {
+        // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
+        m_backup_bitmap = m_client_state.front_bitmap.bitmap;
+        m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
+    }
+    m_client_state.has_usable_bitmap = false;
+
+    auto front_iosurface = Core::IOSurfaceHandle::from_mach_port(move(front_port));
+    auto back_iosurface = Core::IOSurfaceHandle::from_mach_port(move(back_port));
+
+    auto front_size = Gfx::IntSize { front_iosurface.width(), front_iosurface.height() };
+    auto back_size = Gfx::IntSize { back_iosurface.width(), back_iosurface.height() };
+
+    auto front_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, front_size, front_size.width() * front_iosurface.bytes_per_element(), front_iosurface.data(), [handle = move(front_iosurface)] {});
+    auto back_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, back_size, back_size.width() * back_iosurface.bytes_per_element(), back_iosurface.data(), [handle = move(back_iosurface)] {});
+
+    m_client_state.front_bitmap.bitmap = front_bitmap.release_value_but_fixme_should_propagate_errors();
+    m_client_state.front_bitmap.id = front_id;
+    m_client_state.back_bitmap.bitmap = back_bitmap.release_value_but_fixme_should_propagate_errors();
+    m_client_state.back_bitmap.id = back_id;
+}
+#endif
 
 void ViewImplementation::handle_resize()
 {

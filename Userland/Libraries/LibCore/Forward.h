@@ -49,4 +49,8 @@ class UDPSocket;
 
 enum class TimerShouldFireWhenNotVisible;
 
+#ifdef AK_OS_MACH
+class MachPort;
+#endif
+
 }
