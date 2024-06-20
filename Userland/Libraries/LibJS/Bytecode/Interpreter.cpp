@@ -717,7 +717,13 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
 
     reg(Register::accumulator()) = initial_accumulator_value;
     reg(Register::return_value()) = {};
-    reg(Register::this_value()) = running_execution_context.this_value;
+
+    // NOTE: We only copy the `this` value from ExecutionContext if it's not already set.
+    //       If we are re-entering an async/generator context, the `this` value
+    //       may have already been cached by a ResolveThisBinding instruction,
+    //       and subsequent instructions expect this value to be set.
+    if (reg(Register::this_value()).is_empty())
+        reg(Register::this_value()) = running_execution_context.this_value;
 
     running_execution_context.executable = &executable;
 
