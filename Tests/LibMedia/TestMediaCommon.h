@@ -28,6 +28,8 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
     size_t frame_count = 0;
     NonnullOwnPtr<Media::VideoDecoder> decoder = create_decoder(iterator);
 
+    auto last_timestamp = Duration::min();
+
     while (frame_count <= expected_frame_count) {
         auto block_result = iterator.next_block();
         if (block_result.is_error() && block_result.error().category() == Media::DecoderErrorCategory::EndOfStream) {
@@ -45,6 +47,8 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
                         break;
                     VERIFY_NOT_REACHED();
                 }
+                EXPECT(last_timestamp <= frame_result.value()->timestamp());
+                last_timestamp = frame_result.value()->timestamp();
             }
             frame_count++;
         }
