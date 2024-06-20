@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibCore/Forward.h>
 #include <LibWeb/Page/Page.h>
 #include <WebContent/Forward.h>
 
@@ -13,11 +14,16 @@ namespace WebContent {
 
 class BackingStoreManager {
 public:
+#ifdef AK_OS_MACOS
+    static void set_browser_mach_port(Core::MachPort&&);
+#endif
+
     enum class WindowResizingInProgress {
         No,
         Yes
     };
     void resize_backing_stores_if_needed(WindowResizingInProgress window_resize_in_progress);
+    void reallocate_backing_stores(Gfx::IntSize);
     void restart_resize_timer();
 
     RefPtr<Gfx::Bitmap> back_bitmap() { return m_back_bitmap; }

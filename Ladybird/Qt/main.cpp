@@ -150,6 +150,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     mach_port_server->on_receive_child_mach_port = [](auto pid, auto port) {
         WebView::ProcessManager::the().add_process(pid, move(port));
     };
+    mach_port_server->on_receive_backing_stores = [](Ladybird::MachPortServer::BackingStoresMessage message) {
+        auto view = WebView::WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id);
+        view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
+    };
 #endif
 
     RefPtr<WebView::Database> database;

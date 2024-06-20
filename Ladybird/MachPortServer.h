@@ -31,6 +31,15 @@ public:
     bool is_initialized();
 
     Function<void(pid_t, Core::MachPort)> on_receive_child_mach_port;
+    struct BackingStoresMessage {
+        pid_t pid { -1 };
+        u64 page_id { 0 };
+        i32 front_backing_store_id { 0 };
+        i32 back_backing_store_id { 0 };
+        Core::MachPort front_backing_store_port;
+        Core::MachPort back_backing_store_port;
+    };
+    Function<void(BackingStoresMessage)> on_receive_backing_stores;
 
     ByteString const& server_port_name() const { return m_server_port_name; }
 

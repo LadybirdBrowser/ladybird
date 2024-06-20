@@ -13,6 +13,7 @@
 #include <AK/ByteString.h>
 #include <AK/Time.h>
 #include <LibCore/MachPort.h>
+#include <LibCore/Platform/MachMessageTypes.h>
 #include <LibCore/Platform/ProcessStatisticsMach.h>
 
 namespace Core::Platform {
@@ -75,17 +76,17 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
     return {};
 }
 
-void register_with_mach_server(ByteString const& server_name)
+MachPort register_with_mach_server(ByteString const& server_name)
 {
     auto server_port_or_error = Core::MachPort::look_up_from_bootstrap_server(server_name);
     if (server_port_or_error.is_error()) {
         dbgln("Failed to lookup server port: {}", server_port_or_error.error());
-        return;
+        VERIFY_NOT_REACHED();
     }
     auto server_port = server_port_or_error.release_value();
 
     // Send our own task port to the server so they can query statistics about us
-    ChildPortMessage message {};
+    MessageWithSelfTaskPort message {};
     message.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, MACH_MSGH_BITS_ZERO) | MACH_MSGH_BITS_COMPLEX;
     message.header.msgh_size = sizeof(message);
     message.header.msgh_remote_port = server_port.port();
@@ -101,8 +102,10 @@ void register_with_mach_server(ByteString const& server_name)
     auto const send_result = mach_msg(&message.header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, message.header.msgh_size, 0, MACH_PORT_NULL, timeout, MACH_PORT_NULL);
     if (send_result != KERN_SUCCESS) {
         dbgln("Failed to send message to server: {}", mach_error_string(send_result));
-        return;
+        VERIFY_NOT_REACHED();
     }
+
+    return server_port;
 }
 
 }
