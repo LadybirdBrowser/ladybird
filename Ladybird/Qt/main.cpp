@@ -66,11 +66,6 @@ static Vector<URL::URL> sanitize_urls(Vector<ByteString> const& raw_urls)
         if (auto url = WebView::sanitize_url(raw_url); url.has_value())
             sanitized_urls.append(url.release_value());
     }
-
-    if (sanitized_urls.is_empty()) {
-        auto new_tab_page = Ladybird::Settings::the()->new_tab_page();
-        sanitized_urls.append(ak_string_from_qstring(new_tab_page));
-    }
     return sanitized_urls;
 }
 

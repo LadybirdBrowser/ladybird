@@ -544,11 +544,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     QObject::connect(quit_action, &QAction::triggered, this, &QMainWindow::close);
 
     QObject::connect(m_new_tab_action, &QAction::triggered, this, [this] {
-        new_tab_from_url(ak_url_from_qstring(Settings::the()->new_tab_page()), Web::HTML::ActivateTab::Yes);
+        auto& tab = new_tab_from_url(ak_url_from_qstring(Settings::the()->new_tab_page()), Web::HTML::ActivateTab::Yes);
+        tab.set_url_is_hidden(true);
+        tab.focus_location_editor();
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [this] {
-        auto initial_urls = Vector<URL::URL> { ak_url_from_qstring(Settings::the()->new_tab_page()) };
-        (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window(initial_urls, m_cookie_jar, m_web_content_options, m_webdriver_content_ipc_path, m_allow_popups);
+        (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, m_cookie_jar, m_web_content_options, m_webdriver_content_ipc_path, m_allow_popups);
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
     QObject::connect(settings_action, &QAction::triggered, this, [this] {
@@ -616,8 +617,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     if (parent_tab) {
         new_child_tab(Web::HTML::ActivateTab::Yes, *parent_tab, AK::move(page_index));
     } else {
-        for (size_t i = 0; i < initial_urls.size(); ++i) {
-            new_tab_from_url(initial_urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No);
+        if (initial_urls.is_empty()) {
+            new_tab_from_url(ak_url_from_qstring(Settings::the()->new_tab_page()), Web::HTML::ActivateTab::Yes);
+        } else {
+            for (size_t i = 0; i < initial_urls.size(); ++i) {
+                new_tab_from_url(initial_urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No);
+            }
         }
     }
 
@@ -673,11 +678,9 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Tab& par
     }
 
     m_tabs_container->addTab(tab, "New Tab");
-    if (activate_tab == Web::HTML::ActivateTab::Yes) {
+    if (activate_tab == Web::HTML::ActivateTab::Yes)
         m_tabs_container->setCurrentWidget(tab);
-        if (m_tabs_container->count() != 1)
-            tab->set_url_is_hidden(true);
-    }
+
     initialize_tab(tab);
     return *tab;
 }
@@ -691,11 +694,9 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
     }
 
     m_tabs_container->addTab(tab, "New Tab");
-    if (activate_tab == Web::HTML::ActivateTab::Yes) {
+    if (activate_tab == Web::HTML::ActivateTab::Yes)
         m_tabs_container->setCurrentWidget(tab);
-        if (m_tabs_container->count() != 1)
-            tab->set_url_is_hidden(true);
-    }
+
     initialize_tab(tab);
 
     return *tab;
@@ -769,8 +770,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());
     create_close_button_for_tab(tab);
-
-    tab->focus_location_editor();
 
     tab->set_line_box_borders(m_show_line_box_borders_action->isChecked());
     tab->set_scripting(m_enable_scripting_action->isChecked());
