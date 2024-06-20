@@ -176,7 +176,7 @@ private:
     Duration m_last_present_in_media_time = Duration::zero();
 
     NonnullOwnPtr<Demuxer> m_demuxer;
-    Threading::Mutex m_demuxer_mutex;
+    Threading::Mutex m_decoder_mutex;
     Track m_selected_video_track;
 
     VideoFrameQueue m_frame_queue;

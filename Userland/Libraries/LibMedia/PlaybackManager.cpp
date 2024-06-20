@@ -92,7 +92,7 @@ Duration PlaybackManager::current_playback_time()
 Duration PlaybackManager::duration()
 {
     auto duration_result = ({
-        auto demuxer_locker = Threading::MutexLocker(m_demuxer_mutex);
+        auto demuxer_locker = Threading::MutexLocker(m_decoder_mutex);
         m_demuxer->duration();
     });
     if (duration_result.is_error()) {
@@ -168,7 +168,10 @@ void PlaybackManager::seek_to_timestamp(Duration target_timestamp, SeekMode seek
 
 DecoderErrorOr<Optional<Duration>> PlaybackManager::seek_demuxer_to_most_recent_keyframe(Duration timestamp, Optional<Duration> earliest_available_sample)
 {
-    return m_demuxer->seek_to_most_recent_keyframe(m_selected_video_track, timestamp, move(earliest_available_sample));
+    auto seeked_timestamp = TRY(m_demuxer->seek_to_most_recent_keyframe(m_selected_video_track, timestamp, move(earliest_available_sample)));
+    if (seeked_timestamp.has_value())
+        m_decoder->flush();
+    return seeked_timestamp;
 }
 
 Optional<FrameQueueItem> PlaybackManager::dequeue_one_frame()
@@ -202,46 +205,49 @@ void PlaybackManager::decode_and_queue_one_sample()
     FrameQueueItem item_to_enqueue;
 
     while (item_to_enqueue.is_empty()) {
-        // Get a sample to decode.
-        auto sample_result = [&]() {
-            // FIXME: Implement and use a class to enforce that this field is accessed through a mutex (like Kernel::MutexProtected).
-            Threading::MutexLocker demuxer_locker(m_demuxer_mutex);
-            return m_demuxer->get_next_sample_for_track(m_selected_video_track);
-        }();
-        if (sample_result.is_error()) {
-            item_to_enqueue = FrameQueueItem::error_marker(sample_result.release_error(), FrameQueueItem::no_timestamp);
-            break;
-        }
-        auto sample = sample_result.release_value();
-
-        // Submit the sample to the decoder.
-        auto decode_result = m_decoder->receive_sample(sample.timestamp(), sample.data());
-        if (decode_result.is_error()) {
-            item_to_enqueue = FrameQueueItem::error_marker(decode_result.release_error(), sample.timestamp());
-            break;
-        }
-
-        // Retrieve the last available frame to present.
         OwnPtr<VideoFrame> decoded_frame = nullptr;
-        while (true) {
-            auto frame_result = m_decoder->get_decoded_frame();
+        CodingIndependentCodePoints container_cicp;
 
-            if (frame_result.is_error()) {
-                if (frame_result.error().category() == DecoderErrorCategory::NeedsMoreInput) {
-                    break;
-                }
+        {
+            Threading::MutexLocker decoder_locker(m_decoder_mutex);
 
-                item_to_enqueue = FrameQueueItem::error_marker(frame_result.release_error(), sample.timestamp());
+            // Get a sample to decode.
+            auto sample_result = m_demuxer->get_next_sample_for_track(m_selected_video_track);
+            if (sample_result.is_error()) {
+                item_to_enqueue = FrameQueueItem::error_marker(sample_result.release_error(), FrameQueueItem::no_timestamp);
+                break;
+            }
+            auto sample = sample_result.release_value();
+            container_cicp = sample.auxiliary_data().get<Video::VideoSampleData>().container_cicp();
+
+            // Submit the sample to the decoder.
+            auto decode_result = m_decoder->receive_sample(sample.timestamp(), sample.data());
+            if (decode_result.is_error()) {
+                item_to_enqueue = FrameQueueItem::error_marker(decode_result.release_error(), sample.timestamp());
                 break;
             }
 
-            decoded_frame = frame_result.release_value();
+            // Retrieve the last available frame to present.
+            while (true) {
+                auto frame_result = m_decoder->get_decoded_frame();
+
+                if (frame_result.is_error()) {
+                    if (frame_result.error().category() == DecoderErrorCategory::NeedsMoreInput) {
+                        break;
+                    }
+
+                    item_to_enqueue = FrameQueueItem::error_marker(frame_result.release_error(), sample.timestamp());
+                    break;
+                }
+
+                decoded_frame = frame_result.release_value();
+            }
         }
 
         // Convert the frame for display.
         if (decoded_frame != nullptr) {
             auto& cicp = decoded_frame->cicp();
-            cicp.adopt_specified_values(sample.auxiliary_data().get<Video::VideoSampleData>().container_cicp());
+            cicp.adopt_specified_values(container_cicp);
             cicp.default_code_points_if_unspecified({ ColorPrimaries::BT709, TransferCharacteristics::BT709, MatrixCoefficients::BT709, VideoFullRangeFlag::Studio });
 
             // BT.601, BT.709 and BT.2020 have a similar transfer function to sRGB, so other applications
@@ -570,7 +576,7 @@ private:
         }
 
         {
-            Threading::MutexLocker demuxer_locker(manager().m_demuxer_mutex);
+            Threading::MutexLocker demuxer_locker(manager().m_decoder_mutex);
 
             auto demuxer_seek_result = manager().seek_demuxer_to_most_recent_keyframe(m_target_timestamp, earliest_available_sample);
             if (demuxer_seek_result.is_error()) {
