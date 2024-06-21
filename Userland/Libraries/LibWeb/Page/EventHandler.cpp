@@ -900,6 +900,8 @@ void EventHandler::handle_paste(String const& text)
         return;
 
     if (auto cursor_position = m_navigable->cursor_position()) {
+        if (!cursor_position->node()->is_editable())
+            return;
         active_document->update_layout();
         m_edit_event_handler->handle_insert(*cursor_position, text);
         cursor_position->set_offset(cursor_position->offset() + text.code_points().length());
