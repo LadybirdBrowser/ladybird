@@ -66,8 +66,17 @@ DecoderErrorOr<void> Decoder::decode_frame(ReadonlyBytes frame_data)
     // This is handled by update_reference_frames.
 
     // 4. The output process as specified in section 8.9 is invoked.
-    if (frame_context.shows_a_frame())
-        TRY(create_video_frame(frame_context));
+    if (frame_context.shows_a_frame()) {
+        switch (frame_context.color_config.bit_depth) {
+        case 8:
+            TRY(create_video_frame<u8>(frame_context));
+            break;
+        case 10:
+        case 12:
+            TRY(create_video_frame<u16>(frame_context));
+            break;
+        }
+    }
 
     // 5. The reference frame update process as specified in section 8.10 is invoked.
     TRY(update_reference_frames(frame_context));
@@ -133,6 +142,7 @@ inline CodingIndependentCodePoints get_cicp_color_space(FrameContext const& fram
     return { color_primaries, transfer_characteristics, matrix_coefficients, frame_context.color_config.color_range };
 }
 
+template<typename T>
 DecoderErrorOr<void> Decoder::create_video_frame(FrameContext const& frame_context)
 {
     // (8.9) Output process
@@ -146,37 +156,27 @@ DecoderErrorOr<void> Decoder::create_video_frame(FrameContext const& frame_conte
     //        sizes, as the spec seems to prefer that the halved sizes be ceiled.
     u32 decoded_y_width = frame_context.decoded_size(false).width();
     auto decoded_uv_width = frame_context.decoded_size(true).width();
-    Gfx::Size<u32> output_y_size = frame_context.size();
-    auto subsampling_x = frame_context.color_config.subsampling_x;
-    auto subsampling_y = frame_context.color_config.subsampling_y;
-    Gfx::Size<u32> output_uv_size = {
-        y_size_to_uv_size(subsampling_x, output_y_size.width()),
-        y_size_to_uv_size(subsampling_y, output_y_size.height()),
-    };
-    Array<FixedArray<u16>, 3> output_buffers = {
-        DECODER_TRY_ALLOC(FixedArray<u16>::create(output_y_size.width() * output_y_size.height())),
-        DECODER_TRY_ALLOC(FixedArray<u16>::create(output_uv_size.width() * output_uv_size.height())),
-        DECODER_TRY_ALLOC(FixedArray<u16>::create(output_uv_size.width() * output_uv_size.height())),
-    };
-    for (u8 plane = 0; plane < 3; plane++) {
-        auto& buffer = output_buffers[plane];
+
+    Subsampling subsampling { frame_context.color_config.subsampling_x, frame_context.color_config.subsampling_y };
+    auto output_y_size = frame_context.size().to_type<size_t>();
+    auto output_uv_size = subsampling.subsampled_size(output_y_size);
+
+    auto frame = DECODER_TRY_ALLOC(SubsampledYUVFrame::try_create(
+        { output_y_size.width(), output_y_size.height() },
+        frame_context.color_config.bit_depth, get_cicp_color_space(frame_context),
+        subsampling));
+    for (u32 plane = 0; plane < 3; plane++) {
+        auto* buffer = frame->get_plane_data<T>(plane);
         auto decoded_width = plane == 0 ? decoded_y_width : decoded_uv_width;
         auto output_size = plane == 0 ? output_y_size : output_uv_size;
-        auto const& decoded_buffer = get_output_buffer(plane);
+        auto const* decoded_buffer = get_output_buffer(plane).data();
 
         for (u32 row = 0; row < output_size.height(); row++) {
-            memcpy(
-                buffer.data() + row * output_size.width(),
-                decoded_buffer.data() + row * decoded_width,
-                output_size.width() * sizeof(*buffer.data()));
+            for (u32 column = 0; column < output_size.width(); column++)
+                buffer[row * output_size.width() + column] = static_cast<T>(decoded_buffer[row * decoded_width + column]);
         }
     }
 
-    auto frame = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) SubsampledYUVFrame(
-        { output_y_size.width(), output_y_size.height() },
-        frame_context.color_config.bit_depth, get_cicp_color_space(frame_context),
-        subsampling_x, subsampling_y,
-        move(output_buffers[0]), move(output_buffers[1]), move(output_buffers[2]))));
     m_video_frame_queue.enqueue(move(frame));
 
     return {};
@@ -907,7 +907,7 @@ DecoderErrorOr<void> Decoder::predict_inter_block(u8 plane, BlockContext const& 
 
     // A variable ref specifying the reference frame contents is set equal to FrameStore[ refIdx ].
     auto& reference_frame_buffer = reference_frame.frame_planes[plane];
-    auto reference_frame_width = y_size_to_uv_size(subsampling_x, reference_frame.size.width()) + MV_BORDER * 2;
+    auto reference_frame_width = Subsampling::subsampled_size(subsampling_x, reference_frame.size.width()) + MV_BORDER * 2;
 
     // The variable lastX is set equal to ( (RefFrameWidth[ refIdx ] + subX) >> subX) - 1.
     // The variable lastY is set equal to ( (RefFrameHeight[ refIdx ] + subY) >> subY) - 1.
@@ -1941,8 +1941,8 @@ DecoderErrorOr<void> Decoder::update_reference_frames(FrameContext const& frame_
                 auto height = frame_context.size().height();
                 auto stride = frame_context.decoded_size(plane > 0).width();
                 if (plane > 0) {
-                    width = y_size_to_uv_size(frame_context.color_config.subsampling_x, width);
-                    height = y_size_to_uv_size(frame_context.color_config.subsampling_y, height);
+                    width = Subsampling::subsampled_size(frame_context.color_config.subsampling_x, width);
+                    height = Subsampling::subsampled_size(frame_context.color_config.subsampling_y, height);
                 }
 
                 auto const& original_buffer = get_output_buffer(plane);

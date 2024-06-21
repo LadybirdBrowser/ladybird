@@ -42,6 +42,7 @@ private:
     static constexpr size_t maximum_transform_size = 32ULL * 32ULL;
 
     DecoderErrorOr<void> decode_frame(ReadonlyBytes);
+    template<typename T>
     DecoderErrorOr<void> create_video_frame(FrameContext const&);
 
     DecoderErrorOr<void> allocate_buffers(FrameContext const&);

@@ -13,6 +13,7 @@
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 
 #include "DecoderError.h"
+#include "Subsampling.h"
 
 namespace Media {
 
@@ -56,31 +57,59 @@ public:
     static ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> try_create(
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
-        bool subsampling_horizontal, bool subsampling_vertical,
-        Span<u16> plane_y, Span<u16> plane_u, Span<u16> plane_v);
+        Subsampling subsampling);
+
+    static ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> try_create_from_data(
+        Gfx::Size<u32> size,
+        u8 bit_depth, CodingIndependentCodePoints cicp,
+        Subsampling subsampling,
+        ReadonlyBytes y_data, ReadonlyBytes u_data, ReadonlyBytes v_data);
 
     SubsampledYUVFrame(
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
-        bool subsampling_horizontal, bool subsampling_vertical,
-        FixedArray<u16>&& plane_y, FixedArray<u16>&& plane_u, FixedArray<u16>&& plane_v)
+        Subsampling subsampling,
+        u8* plane_y_data, u8* plane_u_data, u8* plane_v_data)
         : VideoFrame(size, bit_depth, cicp)
-        , m_subsampling_horizontal(subsampling_horizontal)
-        , m_subsampling_vertical(subsampling_vertical)
-        , m_plane_y(move(plane_y))
-        , m_plane_u(move(plane_u))
-        , m_plane_v(move(plane_v))
+        , m_subsampling(subsampling)
+        , m_y_buffer(plane_y_data)
+        , m_u_buffer(plane_u_data)
+        , m_v_buffer(plane_v_data)
     {
+        VERIFY(m_y_buffer != nullptr);
+        VERIFY(m_u_buffer != nullptr);
+        VERIFY(m_v_buffer != nullptr);
     }
+
+    ~SubsampledYUVFrame();
 
     DecoderErrorOr<void> output_to_bitmap(Gfx::Bitmap& bitmap) override;
 
+    u8* get_raw_plane_data(u32 plane)
+    {
+        switch (plane) {
+        case 0:
+            return m_y_buffer;
+        case 1:
+            return m_u_buffer;
+        case 2:
+            return m_v_buffer;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    template<typename T>
+    T* get_plane_data(u32 plane)
+    {
+        VERIFY((IsSame<T, u8>) == (bit_depth() <= 8));
+        return reinterpret_cast<T*>(get_raw_plane_data(plane));
+    }
+
 protected:
-    bool m_subsampling_horizontal;
-    bool m_subsampling_vertical;
-    FixedArray<u16> m_plane_y;
-    FixedArray<u16> m_plane_u;
-    FixedArray<u16> m_plane_v;
+    Subsampling m_subsampling;
+    u8* m_y_buffer = nullptr;
+    u8* m_u_buffer = nullptr;
+    u8* m_v_buffer = nullptr;
 };
 
 }

@@ -130,9 +130,4 @@ inline u8 transform_size_to_sub_blocks(TransformSize transform_size)
     return 1 << transform_size;
 }
 
-inline u32 y_size_to_uv_size(bool subsampled, u32 size)
-{
-    return (size + subsampled) >> subsampled;
-}
-
 }
