@@ -43,25 +43,24 @@ Bitmap const* Emoji::emoji_for_code_point(u32 code_point)
 
 Bitmap const* Emoji::emoji_for_code_points(ReadonlySpan<u32> const& code_points)
 {
-    auto emoji = Unicode::find_emoji_for_code_points(code_points);
-    if (!emoji.has_value() || !emoji->image_path.has_value())
+    auto emoji_file = Unicode::emoji_image_for_code_points(code_points);
+    if (!emoji_file.has_value())
         return nullptr;
 
-    auto emoji_file = emoji->image_path.value();
-    if (auto it = s_emojis.find(emoji_file); it != s_emojis.end())
+    if (auto it = s_emojis.find(*emoji_file); it != s_emojis.end())
         return it->value.ptr();
 
-    auto emoji_path = LexicalPath::join(emoji_lookup_path(), emoji_file);
+    auto emoji_path = LexicalPath::join(emoji_lookup_path(), *emoji_file);
     auto bitmap_or_error = Bitmap::load_from_file(emoji_path.string());
 
     if (bitmap_or_error.is_error()) {
-        dbgln_if(EMOJI_DEBUG, "Generated emoji data has file {}, but could not load image: {}", emoji_file, bitmap_or_error.error());
-        s_emojis.set(emoji_file, nullptr);
+        dbgln_if(EMOJI_DEBUG, "Generated emoji data has file {}, but could not load image: {}", *emoji_file, bitmap_or_error.error());
+        s_emojis.set(*emoji_file, nullptr);
         return nullptr;
     }
 
     auto bitmap = bitmap_or_error.release_value();
-    s_emojis.set(emoji_file, bitmap);
+    s_emojis.set(*emoji_file, bitmap);
     return bitmap.ptr();
 }
 

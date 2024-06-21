@@ -12,7 +12,6 @@
 namespace Unicode {
 
 enum class BidiClass;
-enum class EmojiGroup : u8;
 
 struct CurrencyCode;
 struct Emoji;

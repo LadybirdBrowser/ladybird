@@ -14,9 +14,7 @@ string(REGEX REPLACE "([0-9]+\\.[0-9]+)\\.[0-9]+" "\\1" EMOJI_VERSION "${UCD_VER
 set(EMOJI_TEST_URL "https://www.unicode.org/Public/emoji/${EMOJI_VERSION}/emoji-test.txt")
 set(EMOJI_TEST_PATH "${UCD_PATH}/emoji-test.txt")
 set(EMOJI_RES_PATH "${SerenityOS_SOURCE_DIR}/Base/res/emoji")
-set(EMOJI_SERENITY_PATH "${SerenityOS_SOURCE_DIR}/Base/home/anon/Documents/emoji-serenity.txt")
 set(EMOJI_FILE_LIST_PATH "${SerenityOS_SOURCE_DIR}/Meta/emoji-file-list.txt")
-set(EMOJI_INSTALL_PATH "${CMAKE_BINARY_DIR}/Root/home/anon/Documents/emoji.txt")
 
 if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     remove_path_if_version_changed("${UCD_VERSION}" "${UCD_VERSION_FILE}" "${UCD_PATH}")
@@ -32,23 +30,19 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     set(EMOJI_DATA_HEADER EmojiData.h)
     set(EMOJI_DATA_IMPLEMENTATION EmojiData.cpp)
 
-    if (SERENITYOS)
-        set(EMOJI_INSTALL_ARG -i "${EMOJI_INSTALL_PATH}")
-    endif()
-
     invoke_generator(
         "EmojiData"
         Lagom::GenerateEmojiData
         "${UCD_VERSION_FILE}"
         "${EMOJI_DATA_HEADER}"
         "${EMOJI_DATA_IMPLEMENTATION}"
-        arguments "${EMOJI_INSTALL_ARG}" -e "${EMOJI_TEST_PATH}" -s "${EMOJI_SERENITY_PATH}" -f "${EMOJI_FILE_LIST_PATH}" -r "${EMOJI_RES_PATH}"
+        arguments "${EMOJI_INSTALL_ARG}" -f "${EMOJI_FILE_LIST_PATH}" -r "${EMOJI_RES_PATH}"
 
         # This will make this command only run when the modified time of the directory changes,
         # which only happens if files within it are added or deleted, but not when a file is modified.
         # This is fine for this use-case, because the contents of a file changing should not affect
         # the generated emoji.txt file.
-        dependencies "${EMOJI_RES_PATH}" "${EMOJI_SERENITY_PATH}" "${EMOJI_FILE_LIST_PATH}"
+        dependencies "${EMOJI_RES_PATH}" "${EMOJI_FILE_LIST_PATH}"
     )
 
     set(UNICODE_DATA_SOURCES
