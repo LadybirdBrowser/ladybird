@@ -6,10 +6,7 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
-#include <AK/Time.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
-#include <LibMedia/Sample.h>
 
 namespace Media::Video {
 
