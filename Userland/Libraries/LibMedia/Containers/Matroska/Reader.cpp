@@ -62,6 +62,7 @@ constexpr u32 COLOR_ENTRY_ID = 0x55B0;
 constexpr u32 PRIMARIES_ID = 0x55BB;
 constexpr u32 TRANSFER_CHARACTERISTICS_ID = 0x55BA;
 constexpr u32 MATRIX_COEFFICIENTS_ID = 0x55B1;
+constexpr u32 RANGE_ID = 0x55B9;
 constexpr u32 BITS_PER_CHANNEL_ID = 0x55B2;
 
 // Audio
@@ -384,6 +385,10 @@ static DecoderErrorOr<TrackEntry::ColorFormat> parse_video_color_information(Str
         case MATRIX_COEFFICIENTS_ID:
             color_format.matrix_coefficients = static_cast<MatrixCoefficients>(TRY_READ(streamer.read_u64()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's MatrixCoefficients attribute: {}", matrix_coefficients_to_string(color_format.matrix_coefficients));
+            break;
+        case RANGE_ID:
+            color_format.range = static_cast<TrackEntry::ColorRange>(TRY_READ(streamer.read_u64()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Colour's Range attribute: {}", to_underlying(color_format.range));
             break;
         case BITS_PER_CHANNEL_ID:
             color_format.bits_per_channel = TRY_READ(streamer.read_u64());
