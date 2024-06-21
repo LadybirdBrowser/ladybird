@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
+#include <LibWeb/UIEvents/MouseButton.h>
 
 namespace Web::Internals {
 
@@ -27,6 +28,7 @@ public:
     void commit_text();
 
     void click(double x, double y);
+    void middle_click(double x, double y);
     void move_pointer_to(double x, double y);
     void wheel(double x, double y, double delta_x, double delta_y);
 
@@ -37,6 +39,8 @@ public:
 private:
     explicit Internals(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
+
+    void click(double x, double y, UIEvents::MouseButton);
 };
 
 }
