@@ -9,10 +9,8 @@
 #include <AK/Forward.h>
 #include <AK/Memory.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Gradients.h>
 #include <LibGfx/GrayscaleBitmap.h>
@@ -22,10 +20,6 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
-#include <LibGfx/TextAlignment.h>
-#include <LibGfx/TextDirection.h>
-#include <LibGfx/TextElision.h>
-#include <LibGfx/TextWrapping.h>
 #include <LibGfx/WindingRule.h>
 
 namespace Gfx {
@@ -71,11 +65,8 @@ public:
     void draw_triangle_wave(IntPoint, IntPoint, Color color, int amplitude, int thickness = 1);
     void blit(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect, float opacity = 1.0f, bool apply_alpha = true);
     void blit_filtered(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect, Function<Color(Color)> const&, bool apply_alpha = true);
-    void draw_text(FloatRect const&, StringView, Font const&, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
-    void draw_text(IntRect const&, StringView, Font const&, TextAlignment = TextAlignment::TopLeft, Color = Color::Black, TextElision = TextElision::None, TextWrapping = TextWrapping::DontWrap);
     void draw_emoji(IntPoint, Gfx::Bitmap const&, Font const&);
     void draw_glyph(FloatPoint, u32, Font const&, Color);
-    void draw_glyph_or_emoji(FloatPoint, Utf8CodePointIterator&, Font const&, Color);
 
     enum class CornerOrientation {
         TopLeft,
@@ -142,12 +133,6 @@ protected:
     IntRect m_clip_origin;
     NonnullRefPtr<Gfx::Bitmap> m_target;
     Vector<State, 4> m_state_stack;
-
-private:
-    Vector<DirectionalRun> split_text_into_directional_runs(Utf8View const&, TextDirection initial_direction);
-    bool text_contains_bidirectional_text(Utf8View const&, TextDirection);
-    template<typename DrawGlyphFunction>
-    void do_draw_text(FloatRect const&, Utf8View const& text, Font const&, TextAlignment, TextElision, TextWrapping, DrawGlyphFunction);
 };
 
 class PainterStateSaver {

@@ -17,54 +17,8 @@
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/TextElision.h>
-#include <LibGfx/TextWrapping.h>
 
 namespace Gfx {
-
-// FIXME: This currently isn't an ideal way of doing things; ideally, TextLayout
-// would be doing the rendering by painting individual glyphs. However, this
-// would regress our Unicode bidirectional text support. Therefore, fixing this
-// requires:
-// - Moving the bidirectional algorithm either here, or some place TextLayout
-//   can access;
-// - Making TextLayout render the given text into something like a Vector<Line>
-//   where:
-//   using Line = Vector<DirectionalRun>;
-//   struct DirectionalRun {
-//       Utf32View glyphs;
-//       Vector<int> advance;
-//       TextDirection direction;
-//   };
-// - Either;
-//   a) Making TextLayout output these Lines directly using a given Painter, or
-//   b) Taking the Lines from TextLayout and painting each glyph.
-class TextLayout {
-public:
-    TextLayout(Gfx::Font const& font, Utf8View const& text, FloatRect const& rect)
-        : m_font(font)
-        , m_font_metrics(font.pixel_metrics())
-        , m_text(text)
-        , m_rect(rect)
-    {
-    }
-
-    Vector<ByteString, 32> lines(TextElision elision, TextWrapping wrapping) const
-    {
-        return wrap_lines(elision, wrapping);
-    }
-
-    FloatRect bounding_rect(TextWrapping) const;
-
-private:
-    Vector<ByteString, 32> wrap_lines(TextElision, TextWrapping) const;
-    ByteString elide_text_from_right(Utf8View) const;
-
-    Font const& m_font;
-    FontPixelMetrics m_font_metrics;
-    Utf8View m_text;
-    FloatRect m_rect;
-};
 
 inline bool should_paint_as_space(u32 code_point)
 {

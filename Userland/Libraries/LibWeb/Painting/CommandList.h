@@ -23,10 +23,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/TextAlignment.h>
-#include <LibGfx/TextDirection.h>
-#include <LibGfx/TextElision.h>
 #include <LibGfx/TextLayout.h>
-#include <LibGfx/TextWrapping.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
