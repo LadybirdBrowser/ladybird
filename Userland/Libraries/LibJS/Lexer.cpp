@@ -468,8 +468,7 @@ Optional<u32> Lexer::is_identifier_start(size_t& identifier_length) const
     if (is_ascii(code_point))
         return {};
 
-    static auto id_start_category = Unicode::property_from_string("ID_Start"sv);
-    if (id_start_category.has_value() && Unicode::code_point_has_property(code_point, *id_start_category))
+    if (Unicode::code_point_has_identifier_start_property(code_point))
         return code_point;
 
     return {};
@@ -503,8 +502,7 @@ Optional<u32> Lexer::is_identifier_middle(size_t& identifier_length) const
     if (is_ascii(code_point))
         return {};
 
-    static auto id_continue_category = Unicode::property_from_string("ID_Continue"sv);
-    if (id_continue_category.has_value() && Unicode::code_point_has_property(code_point, *id_continue_category))
+    if (Unicode::code_point_has_identifier_continue_property(code_point))
         return code_point;
 
     return {};

@@ -19,16 +19,12 @@ DrawGlyphOrEmoji prepare_draw_glyph_or_emoji(FloatPoint point, Utf8CodePointIter
     auto next_code_point = it.peek(1);
 
     ScopeGuard consume_variation_selector = [&, initial_it = it] {
-        static auto const variation_selector = Unicode::property_from_string("Variation_Selector"sv);
-        if (!variation_selector.has_value())
-            return;
-
         // If we advanced the iterator to consume an emoji sequence, don't look for another variation selector.
         if (initial_it != it)
             return;
 
         // Otherwise, discard one code point if it's a variation selector.
-        if (next_code_point.has_value() && Unicode::code_point_has_property(*next_code_point, *variation_selector))
+        if (next_code_point.has_value() && Unicode::code_point_has_variation_selector_property(*next_code_point))
             ++it;
     };
 

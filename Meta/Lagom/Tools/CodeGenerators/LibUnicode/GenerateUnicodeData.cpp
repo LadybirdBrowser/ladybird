@@ -24,21 +24,6 @@
 // https://www.unicode.org/reports/tr44/#PropList.txt
 using PropList = HashMap<ByteString, Vector<Unicode::CodePointRange>>;
 
-// https://www.unicode.org/reports/tr44/#DerivedNormalizationProps.txt
-enum class QuickCheck {
-    Yes,
-    No,
-    Maybe,
-};
-
-struct Normalization {
-    Unicode::CodePointRange code_point_range;
-    Vector<u32> value;
-    QuickCheck quick_check { QuickCheck::Yes };
-};
-
-using NormalizationProps = HashMap<ByteString, Vector<Normalization>>;
-
 // https://www.unicode.org/reports/tr44/#UnicodeData.txt
 struct CodePointData {
     u32 code_point { 0 };
@@ -79,27 +64,13 @@ struct UnicodeData {
     PropList general_categories;
     Vector<Alias> general_category_aliases;
 
-    // The Unicode standard defines additional properties (Any, Assigned, ASCII) which are not in
-    // any UCD file. Assigned code point ranges are derived as this generator is executed.
-    // https://unicode.org/reports/tr18/#General_Category_Property
-    PropList prop_list {
-        { "Any"sv, { { 0, 0x10ffff } } },
-        { "Assigned"sv, {} },
-        { "ASCII"sv, { { 0, 0x7f } } },
-    };
-    Vector<Alias> prop_aliases;
-
     PropList script_list {
         { "Unknown"sv, {} },
     };
     Vector<Alias> script_aliases;
     PropList script_extensions;
 
-    // FIXME: We are not yet doing anything with this data. It will be needed for String.prototype.normalize.
-    NormalizationProps normalization_props;
-
     CodePointTables<PropertyTable> general_category_tables;
-    CodePointTables<PropertyTable> property_tables;
     CodePointTables<PropertyTable> script_tables;
     CodePointTables<PropertyTable> script_extension_tables;
 
@@ -172,52 +143,6 @@ static ErrorOr<void> parse_prop_list(Core::InputBufferedFile& file, PropList& pr
     return {};
 }
 
-static ErrorOr<void> parse_alias_list(Core::InputBufferedFile& file, PropList const& prop_list, Vector<Alias>& prop_aliases)
-{
-    ByteString current_property;
-    Array<u8, 1024> buffer;
-
-    auto append_alias = [&](auto alias, auto property) {
-        // Note: The alias files contain lines such as "Hyphen = Hyphen", which we should just skip.
-        if (alias == property)
-            return;
-
-        // FIXME: We will, eventually, need to find where missing properties are located and parse them.
-        if (!prop_list.contains(property))
-            return;
-
-        prop_aliases.append({ property, alias });
-    };
-
-    while (TRY(file.can_read_line())) {
-        auto line = TRY(file.read_line(buffer));
-
-        if (line.is_empty() || line.starts_with('#')) {
-            if (line.ends_with("Properties"sv))
-                current_property = line.substring_view(2);
-            continue;
-        }
-
-        // Note: For now, we only care about Binary Property aliases for Unicode property escapes.
-        if (current_property != "Binary Properties"sv)
-            continue;
-
-        auto segments = line.split_view(';', SplitBehavior::KeepEmpty);
-        VERIFY((segments.size() == 2) || (segments.size() == 3));
-
-        auto alias = segments[0].trim_whitespace();
-        auto property = segments[1].trim_whitespace();
-        append_alias(alias, property);
-
-        if (segments.size() == 3) {
-            alias = segments[2].trim_whitespace();
-            append_alias(alias, property);
-        }
-    }
-
-    return {};
-}
-
 static ErrorOr<void> parse_value_alias_list(Core::InputBufferedFile& file, StringView desired_category, Vector<ByteString> const& value_list, Vector<Alias>& prop_aliases, bool primary_value_is_first = true, bool sanitize_alias = false)
 {
     TRY(file.seek(0, SeekMode::SetPosition));
@@ -264,57 +189,9 @@ static ErrorOr<void> parse_value_alias_list(Core::InputBufferedFile& file, Strin
     return {};
 }
 
-static ErrorOr<void> parse_normalization_props(Core::InputBufferedFile& file, UnicodeData& unicode_data)
-{
-    Array<u8, 1024> buffer;
-
-    while (TRY(file.can_read_line())) {
-        auto line = TRY(file.read_line(buffer));
-
-        if (line.is_empty() || line.starts_with('#'))
-            continue;
-
-        if (auto index = line.find('#'); index.has_value())
-            line = line.substring_view(0, *index);
-
-        auto segments = line.split_view(';', SplitBehavior::KeepEmpty);
-        VERIFY((segments.size() == 2) || (segments.size() == 3));
-
-        auto code_point_range = parse_code_point_range(segments[0].trim_whitespace());
-        auto property = segments[1].trim_whitespace().to_byte_string();
-
-        Vector<u32> value;
-        QuickCheck quick_check = QuickCheck::Yes;
-
-        if (segments.size() == 3) {
-            auto value_or_quick_check = segments[2].trim_whitespace();
-
-            if ((value_or_quick_check == "N"sv))
-                quick_check = QuickCheck::No;
-            else if ((value_or_quick_check == "M"sv))
-                quick_check = QuickCheck::Maybe;
-            else
-                value = parse_code_point_list(value_or_quick_check);
-        }
-
-        auto& normalizations = unicode_data.normalization_props.ensure(property);
-        normalizations.append({ code_point_range, move(value), quick_check });
-
-        auto& prop_list = unicode_data.prop_list.ensure(property);
-        prop_list.append(move(code_point_range));
-    }
-
-    return {};
-}
-
 static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeData& unicode_data)
 {
     Optional<u32> code_point_range_start;
-
-    auto& assigned_code_points = unicode_data.prop_list.find("Assigned"sv)->value;
-    Optional<u32> assigned_code_point_range_start = 0;
-    u32 previous_code_point = 0;
-
     Array<u8, 1024> buffer;
 
     while (TRY(file.can_read_line())) {
@@ -337,22 +214,15 @@ static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeDa
         data.unicode_1_name = segments[10];
         data.iso_comment = segments[11];
 
-        if (!assigned_code_point_range_start.has_value())
-            assigned_code_point_range_start = data.code_point;
-
         if (data.name.starts_with("<"sv) && data.name.ends_with(", First>"sv)) {
-            VERIFY(!code_point_range_start.has_value() && assigned_code_point_range_start.has_value());
+            VERIFY(!code_point_range_start.has_value());
             code_point_range_start = data.code_point;
 
             data.name = data.name.substring(1, data.name.length() - 9);
-
-            assigned_code_points.append({ *assigned_code_point_range_start, previous_code_point });
-            assigned_code_point_range_start.clear();
         } else if (data.name.starts_with("<"sv) && data.name.ends_with(", Last>"sv)) {
             VERIFY(code_point_range_start.has_value());
 
             Unicode::CodePointRange code_point_range { *code_point_range_start, data.code_point };
-            assigned_code_points.append(code_point_range);
 
             data.name = data.name.substring(1, data.name.length() - 8);
             code_point_range_start.clear();
@@ -360,18 +230,9 @@ static ErrorOr<void> parse_unicode_data(Core::InputBufferedFile& file, UnicodeDa
             unicode_data.code_point_bidirectional_classes.append({ code_point_range, data.bidi_class });
         } else {
             unicode_data.code_point_bidirectional_classes.append({ { data.code_point, data.code_point }, data.bidi_class });
-
-            if ((data.code_point > 0) && (data.code_point - previous_code_point) != 1) {
-                VERIFY(assigned_code_point_range_start.has_value());
-
-                assigned_code_points.append({ *assigned_code_point_range_start, previous_code_point });
-                assigned_code_point_range_start = data.code_point;
-            }
         }
 
         unicode_data.bidirectional_classes.set(data.bidi_class, AK::HashSetExistingEntryBehavior::Keep);
-
-        previous_code_point = data.code_point;
         unicode_data.code_point_data.append(move(data));
     }
 
@@ -430,7 +291,6 @@ namespace Unicode {
 )~~~");
 
     generate_enum("GeneralCategory"sv, {}, unicode_data.general_categories.keys(), unicode_data.general_category_aliases);
-    generate_enum("Property"sv, {}, unicode_data.prop_list.keys(), unicode_data.prop_aliases);
     generate_enum("Script"sv, {}, unicode_data.script_list.keys(), unicode_data.script_aliases);
     generate_enum("BidirectionalClass"sv, {}, unicode_data.bidirectional_classes.values());
 
@@ -460,7 +320,6 @@ static ErrorOr<void> generate_unicode_data_implementation(Core::InputBufferedFil
 #include <AK/StringView.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/UnicodeData.h>
-#include <LibUnicode/Normalize.h>
 
 namespace Unicode {
 )~~~");
@@ -547,7 +406,6 @@ static constexpr Array<@type@, @size@> @name@ { {
     };
 
     TRY(append_code_point_tables("s_general_categories"sv, unicode_data.general_category_tables, append_property_table));
-    TRY(append_code_point_tables("s_properties"sv, unicode_data.property_tables, append_property_table));
     TRY(append_code_point_tables("s_scripts"sv, unicode_data.script_tables, append_property_table));
     TRY(append_code_point_tables("s_script_extensions"sv, unicode_data.script_extension_tables, append_property_table));
 
@@ -633,9 +491,6 @@ bool code_point_has_@enum_snake@(u32 code_point, @enum_title@ @enum_snake@)
 
     TRY(append_prop_search("GeneralCategory"sv, "general_category"sv, "s_general_categories"sv));
     TRY(append_from_string("GeneralCategory"sv, "general_category"sv, unicode_data.general_categories, unicode_data.general_category_aliases));
-
-    TRY(append_prop_search("Property"sv, "property"sv, "s_properties"sv));
-    TRY(append_from_string("Property"sv, "property"sv, unicode_data.prop_list, unicode_data.prop_aliases));
 
     TRY(append_prop_search("Script"sv, "script"sv, "s_scripts"sv));
     TRY(append_prop_search("Script"sv, "script_extension"sv, "s_script_extensions"sv));
@@ -901,13 +756,11 @@ static ErrorOr<void> create_code_point_tables(UnicodeData& unicode_data)
     };
 
     auto general_category_metadata = TRY(PropertyMetadata::create(unicode_data.general_categories));
-    auto property_metadata = TRY(PropertyMetadata::create(unicode_data.prop_list));
     auto script_metadata = TRY(PropertyMetadata::create(unicode_data.script_list));
     auto script_extension_metadata = TRY(PropertyMetadata::create(unicode_data.script_extensions));
 
     for (u32 code_point = 0; code_point <= MAX_CODE_POINT; ++code_point) {
         TRY(update_property_tables(code_point, unicode_data.general_category_tables, general_category_metadata));
-        TRY(update_property_tables(code_point, unicode_data.property_tables, property_metadata));
         TRY(update_property_tables(code_point, unicode_data.script_tables, script_metadata));
         TRY(update_property_tables(code_point, unicode_data.script_extension_tables, script_extension_metadata));
     }
@@ -921,54 +774,30 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView generated_implementation_path;
     StringView unicode_data_path;
     StringView derived_general_category_path;
-    StringView prop_list_path;
-    StringView derived_core_prop_path;
-    StringView derived_binary_prop_path;
-    StringView prop_alias_path;
     StringView prop_value_alias_path;
     StringView scripts_path;
     StringView script_extensions_path;
-    StringView emoji_data_path;
-    StringView normalization_path;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(generated_header_path, "Path to the Unicode Data header file to generate", "generated-header-path", 'h', "generated-header-path");
     args_parser.add_option(generated_implementation_path, "Path to the Unicode Data implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
     args_parser.add_option(unicode_data_path, "Path to UnicodeData.txt file", "unicode-data-path", 'u', "unicode-data-path");
     args_parser.add_option(derived_general_category_path, "Path to DerivedGeneralCategory.txt file", "derived-general-category-path", 'g', "derived-general-category-path");
-    args_parser.add_option(prop_list_path, "Path to PropList.txt file", "prop-list-path", 'p', "prop-list-path");
-    args_parser.add_option(derived_core_prop_path, "Path to DerivedCoreProperties.txt file", "derived-core-prop-path", 'd', "derived-core-prop-path");
-    args_parser.add_option(derived_binary_prop_path, "Path to DerivedBinaryProperties.txt file", "derived-binary-prop-path", 'b', "derived-binary-prop-path");
-    args_parser.add_option(prop_alias_path, "Path to PropertyAliases.txt file", "prop-alias-path", 'a', "prop-alias-path");
     args_parser.add_option(prop_value_alias_path, "Path to PropertyValueAliases.txt file", "prop-value-alias-path", 'v', "prop-value-alias-path");
     args_parser.add_option(scripts_path, "Path to Scripts.txt file", "scripts-path", 'r', "scripts-path");
     args_parser.add_option(script_extensions_path, "Path to ScriptExtensions.txt file", "script-extensions-path", 'x', "script-extensions-path");
-    args_parser.add_option(emoji_data_path, "Path to emoji-data.txt file", "emoji-data-path", 'e', "emoji-data-path");
-    args_parser.add_option(normalization_path, "Path to DerivedNormalizationProps.txt file", "normalization-path", 'n', "normalization-path");
     args_parser.parse(arguments);
 
     auto generated_header_file = TRY(open_file(generated_header_path, Core::File::OpenMode::Write));
     auto generated_implementation_file = TRY(open_file(generated_implementation_path, Core::File::OpenMode::Write));
     auto unicode_data_file = TRY(open_file(unicode_data_path, Core::File::OpenMode::Read));
     auto derived_general_category_file = TRY(open_file(derived_general_category_path, Core::File::OpenMode::Read));
-    auto prop_list_file = TRY(open_file(prop_list_path, Core::File::OpenMode::Read));
-    auto derived_core_prop_file = TRY(open_file(derived_core_prop_path, Core::File::OpenMode::Read));
-    auto derived_binary_prop_file = TRY(open_file(derived_binary_prop_path, Core::File::OpenMode::Read));
-    auto prop_alias_file = TRY(open_file(prop_alias_path, Core::File::OpenMode::Read));
     auto prop_value_alias_file = TRY(open_file(prop_value_alias_path, Core::File::OpenMode::Read));
     auto scripts_file = TRY(open_file(scripts_path, Core::File::OpenMode::Read));
     auto script_extensions_file = TRY(open_file(script_extensions_path, Core::File::OpenMode::Read));
-    auto emoji_data_file = TRY(open_file(emoji_data_path, Core::File::OpenMode::Read));
-    auto normalization_file = TRY(open_file(normalization_path, Core::File::OpenMode::Read));
 
     UnicodeData unicode_data {};
     TRY(parse_prop_list(*derived_general_category_file, unicode_data.general_categories));
-    TRY(parse_prop_list(*prop_list_file, unicode_data.prop_list));
-    TRY(parse_prop_list(*derived_core_prop_file, unicode_data.prop_list));
-    TRY(parse_prop_list(*derived_binary_prop_file, unicode_data.prop_list));
-    TRY(parse_prop_list(*emoji_data_file, unicode_data.prop_list));
-    TRY(parse_normalization_props(*normalization_file, unicode_data));
-    TRY(parse_alias_list(*prop_alias_file, unicode_data.prop_list, unicode_data.prop_aliases));
     TRY(parse_prop_list(*scripts_file, unicode_data.script_list));
     TRY(parse_prop_list(*script_extensions_file, unicode_data.script_extensions, true));
 
