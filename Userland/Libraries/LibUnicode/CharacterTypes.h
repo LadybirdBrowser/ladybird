@@ -14,18 +14,6 @@
 
 namespace Unicode {
 
-struct CodePointRange {
-    u32 first { 0 };
-    u32 last { 0 };
-};
-
-struct CodePointRangeComparator {
-    constexpr int operator()(u32 code_point, CodePointRange const& range)
-    {
-        return (code_point > range.last) - (code_point < range.first);
-    }
-};
-
 Optional<GeneralCategory> general_category_from_string(StringView);
 bool code_point_has_general_category(u32 code_point, GeneralCategory general_category);
 

@@ -7,39 +7,14 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/Function.h>
-#include <AK/HashFunctions.h>
 #include <AK/HashMap.h>
-#include <AK/LexicalPath.h>
 #include <AK/NumericLimits.h>
 #include <AK/Optional.h>
 #include <AK/QuickSort.h>
 #include <AK/SourceGenerator.h>
 #include <AK/StringView.h>
-#include <AK/Traits.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
-#include <LibUnicode/CharacterTypes.h>
-
-template<typename T>
-concept IntegralOrEnum = Integral<T> || Enum<T>;
-
-template<IntegralOrEnum T>
-struct AK::Traits<Vector<T>> : public DefaultTraits<Vector<T>> {
-    static unsigned hash(Vector<T> const& list)
-    {
-        auto hash = int_hash(static_cast<u32>(list.size()));
-
-        for (auto value : list) {
-            if constexpr (Enum<T>)
-                hash = pair_int_hash(hash, to_underlying(value));
-            else
-                hash = pair_int_hash(hash, value);
-        }
-
-        return hash;
-    }
-};
 
 template<typename StorageType>
 class UniqueStorage {
@@ -421,34 +396,4 @@ static constexpr Array<ReadonlySpan<@type@>, @size@> @name@ { {
     generator.append(R"~~~(
 } };
 )~~~");
-}
-
-inline Vector<u32> parse_code_point_list(StringView list)
-{
-    Vector<u32> code_points;
-
-    auto segments = list.split_view(' ');
-    for (auto const& code_point : segments)
-        code_points.append(AK::StringUtils::convert_to_uint_from_hex<u32>(code_point).value());
-
-    return code_points;
-}
-
-inline Unicode::CodePointRange parse_code_point_range(StringView list)
-{
-    Unicode::CodePointRange code_point_range {};
-
-    if (list.contains(".."sv)) {
-        auto segments = list.split_view(".."sv);
-        VERIFY(segments.size() == 2);
-
-        auto begin = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[0]).value();
-        auto end = AK::StringUtils::convert_to_uint_from_hex<u32>(segments[1]).value();
-        code_point_range = { begin, end };
-    } else {
-        auto code_point = AK::StringUtils::convert_to_uint_from_hex<u32>(list).value();
-        code_point_range = { code_point, code_point };
-    }
-
-    return code_point_range;
 }
