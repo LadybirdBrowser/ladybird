@@ -222,19 +222,36 @@ void RecordingPainter::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color col
     });
 }
 
-void RecordingPainter::draw_text(Gfx::IntRect const& rect, String raw_text, Gfx::Font const& font, Gfx::TextAlignment alignment, Color color, Gfx::TextElision elision, Gfx::TextWrapping wrapping)
+void RecordingPainter::draw_text(Gfx::IntRect const& rect, String raw_text, Gfx::Font const& font, Gfx::TextAlignment alignment, Color color)
 {
     if (rect.is_empty())
         return;
-    append(DrawText {
-        .rect = state().translation.map(rect),
-        .raw_text = move(raw_text),
-        .alignment = alignment,
-        .color = color,
-        .elision = elision,
-        .wrapping = wrapping,
-        .font = font,
-    });
+
+    auto glyph_run = adopt_ref(*new Gfx::GlyphRun);
+    auto font_cascade_list = Gfx::FontCascadeList::create();
+    font_cascade_list->add(font);
+    float glyph_run_width = 0;
+    Gfx::for_each_glyph_position(
+        { 0, 0 }, raw_text.code_points(), font_cascade_list, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
+            glyph_run->append(glyph_or_emoji);
+            return IterationDecision::Continue;
+        },
+        Gfx::IncludeLeftBearing::No, glyph_run_width);
+
+    float baseline_x = 0;
+    if (alignment == Gfx::TextAlignment::CenterLeft) {
+        baseline_x = rect.x();
+    } else if (alignment == Gfx::TextAlignment::Center) {
+        baseline_x = static_cast<float>(rect.x()) + (static_cast<float>(rect.width()) - glyph_run_width) / 2.0f;
+    } else if (alignment == Gfx::TextAlignment::CenterRight) {
+        baseline_x = static_cast<float>(rect.right()) - glyph_run_width;
+    } else {
+        // Unimplemented alignment.
+        TODO();
+    }
+    auto metrics = font.pixel_metrics();
+    float baseline_y = static_cast<float>(rect.y()) + metrics.ascent + (static_cast<float>(rect.height()) - (metrics.ascent + metrics.descent)) / 2.0f;
+    draw_text_run(Gfx::IntPoint(roundf(baseline_x), roundf(baseline_y)), *glyph_run, color, rect, 1.0);
 }
 
 void RecordingPainter::draw_text_run(Gfx::IntPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale)
