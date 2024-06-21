@@ -7,7 +7,6 @@
 
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/GrayscaleBitmap.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/Layout/CheckBox.h>
