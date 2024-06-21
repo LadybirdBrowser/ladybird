@@ -246,11 +246,7 @@ static ErrorOr<Optional<String>> get_event_key_string(u32 code_point)
     auto is_non_control_character = [&]() {
         // A non-control character is any valid Unicode character except those that are part of the "Other, Control"
         // ("Cc") General Category.
-        static auto control_general_category = Unicode::general_category_from_string("Cc"sv);
-        if (!control_general_category.has_value())
-            return true;
-
-        return !Unicode::code_point_has_general_category(code_point, *control_general_category);
+        return !Unicode::code_point_has_control_general_category(code_point);
     };
 
     // A key string is a string containing a 0 or 1 non-control characters ("base" characters) followed by 0 or more

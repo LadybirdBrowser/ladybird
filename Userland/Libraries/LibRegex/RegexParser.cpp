@@ -1647,7 +1647,7 @@ bool ECMA262Parser::parse_atom_escape(ByteCode& stack, size_t& match_length_mini
                     compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
                 },
                 [&](Unicode::GeneralCategory general_category) {
-                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category });
+                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category.value() });
                 },
                 [&](Script script) {
                     if (script.is_extension)
@@ -1998,7 +1998,7 @@ bool ECMA262Parser::parse_nonempty_class_ranges(Vector<CompareTypeAndValuePair>&
             if (atom.is_property)
                 ranges.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)(atom.property.value()) });
             else if (atom.is_general_category)
-                ranges.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)(atom.general_category) });
+                ranges.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)(atom.general_category.value()) });
             else if (atom.is_script)
                 ranges.empend(CompareTypeAndValuePair { CharacterCompareType::Script, (ByteCodeValueType)(atom.script) });
             else if (atom.is_script_extension)
@@ -2335,7 +2335,7 @@ bool ECMA262Parser::parse_class_set_operand(Vector<regex::CompareTypeAndValuePai
                 compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
             },
             [&](Unicode::GeneralCategory general_category) {
-                compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category });
+                compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category.value() });
             },
             [&](Script script) {
                 if (script.is_extension)
@@ -2422,7 +2422,7 @@ bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& c
                     compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
                 },
                 [&](Unicode::GeneralCategory general_category) {
-                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category });
+                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category.value() });
                 },
                 [&](Script script) {
                     if (script.is_extension)

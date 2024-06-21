@@ -421,11 +421,7 @@ bool Lexer::is_whitespace() const
     auto code_point = current_code_point();
     if (code_point == NO_BREAK_SPACE || code_point == ZERO_WIDTH_NO_BREAK_SPACE)
         return true;
-
-    static auto space_separator_category = Unicode::general_category_from_string("Space_Separator"sv);
-    if (space_separator_category.has_value())
-        return Unicode::code_point_has_general_category(code_point, *space_separator_category);
-    return false;
+    return Unicode::code_point_has_space_separator_general_category(code_point);
 }
 
 // UnicodeEscapeSequence :: https://tc39.es/ecma262/#prod-UnicodeEscapeSequence

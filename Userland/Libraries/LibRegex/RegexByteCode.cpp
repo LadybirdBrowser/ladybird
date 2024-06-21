@@ -780,15 +780,11 @@ ALWAYS_INLINE void OpCode_Compare::compare_character_class(MatchInput const& inp
 bool OpCode_Compare::matches_character_class(CharClass character_class, u32 ch, bool insensitive)
 {
     constexpr auto is_space_or_line_terminator = [](u32 code_point) {
-        static auto space_separator = Unicode::general_category_from_string("Space_Separator"sv);
-        if (!space_separator.has_value())
-            return is_ascii_space(code_point);
-
         if ((code_point == 0x0a) || (code_point == 0x0d) || (code_point == 0x2028) || (code_point == 0x2029))
             return true;
         if ((code_point == 0x09) || (code_point == 0x0b) || (code_point == 0x0c) || (code_point == 0xfeff))
             return true;
-        return Unicode::code_point_has_general_category(code_point, *space_separator);
+        return Unicode::code_point_has_space_separator_general_category(code_point);
     };
 
     switch (character_class) {
