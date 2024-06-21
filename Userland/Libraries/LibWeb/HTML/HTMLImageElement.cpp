@@ -932,6 +932,33 @@ void HTMLImageElement::restart_the_animation()
     }
 }
 
+static bool is_supported_image_type(String const& type)
+{
+    if (type.is_empty())
+        return true;
+    if (!type.starts_with_bytes("image/"sv, CaseSensitivity::CaseInsensitive))
+        return false;
+    // FIXME: These should be derived from ImageDecoder
+    if (type.equals_ignoring_ascii_case("image/bmp"sv)
+        || type.equals_ignoring_ascii_case("image/gif"sv)
+        || type.equals_ignoring_ascii_case("image/vnd.microsoft.icon"sv)
+        || type.equals_ignoring_ascii_case("image/x-icon"sv)
+        || type.equals_ignoring_ascii_case("image/jpeg"sv)
+        || type.equals_ignoring_ascii_case("image/jpg"sv)
+        || type.equals_ignoring_ascii_case("image/pjpeg"sv)
+        || type.equals_ignoring_ascii_case("image/jxl"sv)
+        || type.equals_ignoring_ascii_case("image/png"sv)
+        || type.equals_ignoring_ascii_case("image/apng"sv)
+        || type.equals_ignoring_ascii_case("image/x-png"sv)
+        || type.equals_ignoring_ascii_case("image/tiff"sv)
+        || type.equals_ignoring_ascii_case("image/tinyvg"sv)
+        || type.equals_ignoring_ascii_case("image/webp"sv)
+        || type.equals_ignoring_ascii_case("image/svg+xml"sv))
+        return true;
+
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/images.html#update-the-source-set
 static void update_the_source_set(DOM::Element& element)
 {
@@ -1041,8 +1068,15 @@ static void update_the_source_set(DOM::Element& element)
         // 7. Parse child's sizes attribute, and let source set's source size be the returned value.
         source_set.m_source_size = parse_a_sizes_attribute(element.document(), child->get_attribute_value(HTML::AttributeNames::sizes));
 
-        // FIXME: 8. If child has a type attribute, and its value is an unknown or unsupported MIME type, continue to the next child.
+        // 8. If child has a type attribute, and its value is an unknown or unsupported MIME type, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::type)) {
+            auto mime_type = child->get_attribute_value(HTML::AttributeNames::type);
+            if (is<HTMLImageElement>(element)) {
+                if (!is_supported_image_type(mime_type))
+                    continue;
+            }
+
+            // FIXME: Implement this step for link elements
         }
 
         // FIXME: 9. If child has width or height attributes, set el's dimension attribute source to child.
