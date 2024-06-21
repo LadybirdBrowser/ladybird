@@ -196,6 +196,26 @@ Web::Layout::Viewport* PageClient::layout_root()
 
 void PageClient::paint_next_frame()
 {
+    while (!m_screenshot_tasks.is_empty()) {
+        auto task = m_screenshot_tasks.dequeue();
+        if (task.node_id.has_value()) {
+            auto* dom_node = Web::DOM::Node::from_unique_id(*task.node_id);
+            if (!dom_node || !dom_node->paintable_box()) {
+                client().async_did_take_screenshot(m_id, {});
+                continue;
+            }
+            auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
+            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
+            paint(rect, *bitmap, { .paint_overlay = Web::PaintOptions::PaintOverlay::No });
+            client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
+        } else {
+            Web::DevicePixelRect rect { { 0, 0 }, content_size() };
+            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
+            paint(rect, *bitmap);
+            client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
+        }
+    }
+
     if (!m_backing_stores.back_bitmap) {
         return;
     }
@@ -729,6 +749,12 @@ Web::PaintingCommandExecutorType PageClient::painting_command_executor_type() co
     if (s_use_skia_painter)
         return Web::PaintingCommandExecutorType::Skia;
     return Web::PaintingCommandExecutorType::CPU;
+}
+
+void PageClient::queue_screenshot_task(Optional<i32> node_id)
+{
+    m_screenshot_tasks.enqueue({ node_id });
+    page().top_level_traversable()->set_needs_display();
 }
 
 }
