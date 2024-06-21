@@ -8,13 +8,14 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Time.h>
-#include <LibMedia/Video/VideoSampleData.h>
+
+#include "VideoSampleData.h"
 
 namespace Media {
 
 class Sample final {
 public:
-    using AuxiliaryData = Variant<Video::VideoSampleData>;
+    using AuxiliaryData = Variant<VideoSampleData>;
 
     Sample(Duration timestamp, ReadonlyBytes data, AuxiliaryData auxiliary_data)
         : m_timestamp(timestamp)
