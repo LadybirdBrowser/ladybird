@@ -60,17 +60,12 @@ struct CodePointBidiClass {
 struct UnicodeData {
     Vector<CodePointData> code_point_data;
 
-    // https://www.unicode.org/reports/tr44/#General_Category_Values
-    PropList general_categories;
-    Vector<Alias> general_category_aliases;
-
     PropList script_list {
         { "Unknown"sv, {} },
     };
     Vector<Alias> script_aliases;
     PropList script_extensions;
 
-    CodePointTables<PropertyTable> general_category_tables;
     CodePointTables<PropertyTable> script_tables;
     CodePointTables<PropertyTable> script_extension_tables;
 
@@ -290,7 +285,6 @@ enum class @name@ : @underlying@ {)~~~");
 namespace Unicode {
 )~~~");
 
-    generate_enum("GeneralCategory"sv, {}, unicode_data.general_categories.keys(), unicode_data.general_category_aliases);
     generate_enum("Script"sv, {}, unicode_data.script_list.keys(), unicode_data.script_aliases);
     generate_enum("BidirectionalClass"sv, {}, unicode_data.bidirectional_classes.values());
 
@@ -405,7 +399,6 @@ static constexpr Array<@type@, @size@> @name@ { {
         return {};
     };
 
-    TRY(append_code_point_tables("s_general_categories"sv, unicode_data.general_category_tables, append_property_table));
     TRY(append_code_point_tables("s_scripts"sv, unicode_data.script_tables, append_property_table));
     TRY(append_code_point_tables("s_script_extensions"sv, unicode_data.script_extension_tables, append_property_table));
 
@@ -489,9 +482,6 @@ bool code_point_has_@enum_snake@(u32 code_point, @enum_title@ @enum_snake@)
         return {};
     };
 
-    TRY(append_prop_search("GeneralCategory"sv, "general_category"sv, "s_general_categories"sv));
-    TRY(append_from_string("GeneralCategory"sv, "general_category"sv, unicode_data.general_categories, unicode_data.general_category_aliases));
-
     TRY(append_prop_search("Script"sv, "script"sv, "s_scripts"sv));
     TRY(append_prop_search("Script"sv, "script_extension"sv, "s_script_extensions"sv));
     TRY(append_from_string("Script"sv, "script"sv, unicode_data.script_list, unicode_data.script_aliases));
@@ -559,29 +549,6 @@ static void sort_and_merge_code_point_ranges(Vector<Unicode::CodePointRange>& co
 
     auto all_code_points = flatten_code_point_ranges(code_points);
     code_points = form_code_point_ranges(all_code_points);
-}
-
-static void populate_general_category_unions(PropList& general_categories)
-{
-    // The Unicode standard defines General Category values which are not in any UCD file. These
-    // values are simply unions of other values.
-    // https://www.unicode.org/reports/tr44/#GC_Values_Table
-    auto populate_union = [&](auto alias, auto categories) {
-        auto& code_points = general_categories.ensure(alias);
-        for (auto const& category : categories)
-            code_points.extend(general_categories.find(category)->value);
-
-        sort_and_merge_code_point_ranges(code_points);
-    };
-
-    populate_union("LC"sv, Array { "Ll"sv, "Lu"sv, "Lt"sv });
-    populate_union("L"sv, Array { "Lu"sv, "Ll"sv, "Lt"sv, "Lm"sv, "Lo"sv });
-    populate_union("M"sv, Array { "Mn"sv, "Mc"sv, "Me"sv });
-    populate_union("N"sv, Array { "Nd"sv, "Nl"sv, "No"sv });
-    populate_union("P"sv, Array { "Pc"sv, "Pd"sv, "Ps"sv, "Pe"sv, "Pi"sv, "Pf"sv, "Po"sv });
-    populate_union("S"sv, Array { "Sm"sv, "Sc"sv, "Sk"sv, "So"sv });
-    populate_union("Z"sv, Array { "Zs"sv, "Zl"sv, "Zp"sv });
-    populate_union("C"sv, Array { "Cc"sv, "Cf"sv, "Cs"sv, "Co"sv, "Cn"sv });
 }
 
 static ErrorOr<void> normalize_script_extensions(PropList& script_extensions, PropList const& script_list, Vector<Alias> const& script_aliases)
@@ -755,12 +722,10 @@ static ErrorOr<void> create_code_point_tables(UnicodeData& unicode_data)
         return {};
     };
 
-    auto general_category_metadata = TRY(PropertyMetadata::create(unicode_data.general_categories));
     auto script_metadata = TRY(PropertyMetadata::create(unicode_data.script_list));
     auto script_extension_metadata = TRY(PropertyMetadata::create(unicode_data.script_extensions));
 
     for (u32 code_point = 0; code_point <= MAX_CODE_POINT; ++code_point) {
-        TRY(update_property_tables(code_point, unicode_data.general_category_tables, general_category_metadata));
         TRY(update_property_tables(code_point, unicode_data.script_tables, script_metadata));
         TRY(update_property_tables(code_point, unicode_data.script_extension_tables, script_extension_metadata));
     }
@@ -773,7 +738,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView generated_header_path;
     StringView generated_implementation_path;
     StringView unicode_data_path;
-    StringView derived_general_category_path;
     StringView prop_value_alias_path;
     StringView scripts_path;
     StringView script_extensions_path;
@@ -782,7 +746,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(generated_header_path, "Path to the Unicode Data header file to generate", "generated-header-path", 'h', "generated-header-path");
     args_parser.add_option(generated_implementation_path, "Path to the Unicode Data implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
     args_parser.add_option(unicode_data_path, "Path to UnicodeData.txt file", "unicode-data-path", 'u', "unicode-data-path");
-    args_parser.add_option(derived_general_category_path, "Path to DerivedGeneralCategory.txt file", "derived-general-category-path", 'g', "derived-general-category-path");
     args_parser.add_option(prop_value_alias_path, "Path to PropertyValueAliases.txt file", "prop-value-alias-path", 'v', "prop-value-alias-path");
     args_parser.add_option(scripts_path, "Path to Scripts.txt file", "scripts-path", 'r', "scripts-path");
     args_parser.add_option(script_extensions_path, "Path to ScriptExtensions.txt file", "script-extensions-path", 'x', "script-extensions-path");
@@ -791,19 +754,15 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto generated_header_file = TRY(open_file(generated_header_path, Core::File::OpenMode::Write));
     auto generated_implementation_file = TRY(open_file(generated_implementation_path, Core::File::OpenMode::Write));
     auto unicode_data_file = TRY(open_file(unicode_data_path, Core::File::OpenMode::Read));
-    auto derived_general_category_file = TRY(open_file(derived_general_category_path, Core::File::OpenMode::Read));
     auto prop_value_alias_file = TRY(open_file(prop_value_alias_path, Core::File::OpenMode::Read));
     auto scripts_file = TRY(open_file(scripts_path, Core::File::OpenMode::Read));
     auto script_extensions_file = TRY(open_file(script_extensions_path, Core::File::OpenMode::Read));
 
     UnicodeData unicode_data {};
-    TRY(parse_prop_list(*derived_general_category_file, unicode_data.general_categories));
     TRY(parse_prop_list(*scripts_file, unicode_data.script_list));
     TRY(parse_prop_list(*script_extensions_file, unicode_data.script_extensions, true));
 
-    populate_general_category_unions(unicode_data.general_categories);
     TRY(parse_unicode_data(*unicode_data_file, unicode_data));
-    TRY(parse_value_alias_list(*prop_value_alias_file, "gc"sv, unicode_data.general_categories.keys(), unicode_data.general_category_aliases));
     TRY(parse_value_alias_list(*prop_value_alias_file, "sc"sv, unicode_data.script_list.keys(), unicode_data.script_aliases, false));
     TRY(normalize_script_extensions(unicode_data.script_extensions, unicode_data.script_list, unicode_data.script_aliases));
 

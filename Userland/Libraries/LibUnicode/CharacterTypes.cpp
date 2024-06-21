@@ -37,8 +37,84 @@ struct AK::Traits<Unicode::PropertyName<PropertyType>> {
 
 namespace Unicode {
 
-Optional<GeneralCategory> __attribute__((weak)) general_category_from_string(StringView) { return {}; }
-bool __attribute__((weak)) code_point_has_general_category(u32, GeneralCategory) { return {}; }
+static constexpr GeneralCategory GENERAL_CATEGORY_CASED_LETTER = U_CHAR_CATEGORY_COUNT + 1;
+static constexpr GeneralCategory GENERAL_CATEGORY_LETTER = U_CHAR_CATEGORY_COUNT + 2;
+static constexpr GeneralCategory GENERAL_CATEGORY_MARK = U_CHAR_CATEGORY_COUNT + 3;
+static constexpr GeneralCategory GENERAL_CATEGORY_NUMBER = U_CHAR_CATEGORY_COUNT + 4;
+static constexpr GeneralCategory GENERAL_CATEGORY_PUNCTUATION = U_CHAR_CATEGORY_COUNT + 5;
+static constexpr GeneralCategory GENERAL_CATEGORY_SYMBOL = U_CHAR_CATEGORY_COUNT + 6;
+static constexpr GeneralCategory GENERAL_CATEGORY_SEPARATOR = U_CHAR_CATEGORY_COUNT + 7;
+static constexpr GeneralCategory GENERAL_CATEGORY_OTHER = U_CHAR_CATEGORY_COUNT + 8;
+static constexpr GeneralCategory GENERAL_CATEGORY_LIMIT = U_CHAR_CATEGORY_COUNT + 9;
+
+Optional<GeneralCategory> general_category_from_string(StringView general_category)
+{
+    static auto general_category_names = []() {
+        Array<PropertyName<GeneralCategory>, GENERAL_CATEGORY_LIMIT.value()> names;
+
+        auto set_names = [&](auto property, auto index, auto general_category) {
+            if (char const* name = u_getPropertyValueName(property, general_category, U_LONG_PROPERTY_NAME))
+                names[index.value()].long_name = StringView { name, strlen(name) };
+            if (char const* name = u_getPropertyValueName(property, general_category, U_SHORT_PROPERTY_NAME))
+                names[index.value()].short_name = StringView { name, strlen(name) };
+            if (char const* name = u_getPropertyValueName(property, general_category, ADDITIONAL_NAME))
+                names[index.value()].additional_name = StringView { name, strlen(name) };
+        };
+
+        for (GeneralCategory general_category = 0; general_category < U_CHAR_CATEGORY_COUNT; ++general_category)
+            set_names(UCHAR_GENERAL_CATEGORY, general_category, static_cast<UCharCategory>(general_category.value()));
+
+        set_names(UCHAR_GENERAL_CATEGORY_MASK, GENERAL_CATEGORY_CASED_LETTER, U_GC_LC_MASK);
+        set_names(UCHAR_GENERAL_CATEGORY_MASK, GENERAL_CATEGORY_LETTER, U_GC_L_MASK);
+        set_names(UCHAR_GENERAL_CATEGORY_MASK, GENERAL_CATEGORY_MARK, U_GC_M_MASK);
+        set_names(UCHAR_GENERAL_CATEGORY_MASK, GENERAL_CATEGORY_NUMBER, U_GC_N_MASK);
+        set_names(UCHAR_GENERAL_CATEGORY_MASK, GENERAL_CATEGORY_PUNCTUATION, U_GC_P_MASK);
+        set_names(UCHAR_GENERAL_CATEGORY_MASK, GENERAL_CATEGORY_SYMBOL, U_GC_S_MASK);
+        set_names(UCHAR_GENERAL_CATEGORY_MASK, GENERAL_CATEGORY_SEPARATOR, U_GC_Z_MASK);
+        set_names(UCHAR_GENERAL_CATEGORY_MASK, GENERAL_CATEGORY_OTHER, U_GC_C_MASK);
+
+        return names;
+    }();
+
+    if (auto index = find_index(general_category_names.begin(), general_category_names.end(), general_category); index != general_category_names.size())
+        return static_cast<GeneralCategory>(index);
+    return {};
+}
+
+bool code_point_has_general_category(u32 code_point, GeneralCategory general_category)
+{
+    auto icu_code_point = static_cast<UChar32>(code_point);
+    auto icu_general_category = static_cast<UCharCategory>(general_category.value());
+
+    if (general_category == GENERAL_CATEGORY_CASED_LETTER)
+        return (U_GET_GC_MASK(icu_code_point) & U_GC_LC_MASK) != 0;
+    if (general_category == GENERAL_CATEGORY_LETTER)
+        return (U_GET_GC_MASK(icu_code_point) & U_GC_L_MASK) != 0;
+    if (general_category == GENERAL_CATEGORY_MARK)
+        return (U_GET_GC_MASK(icu_code_point) & U_GC_M_MASK) != 0;
+    if (general_category == GENERAL_CATEGORY_NUMBER)
+        return (U_GET_GC_MASK(icu_code_point) & U_GC_N_MASK) != 0;
+    if (general_category == GENERAL_CATEGORY_PUNCTUATION)
+        return (U_GET_GC_MASK(icu_code_point) & U_GC_P_MASK) != 0;
+    if (general_category == GENERAL_CATEGORY_SYMBOL)
+        return (U_GET_GC_MASK(icu_code_point) & U_GC_S_MASK) != 0;
+    if (general_category == GENERAL_CATEGORY_SEPARATOR)
+        return (U_GET_GC_MASK(icu_code_point) & U_GC_Z_MASK) != 0;
+    if (general_category == GENERAL_CATEGORY_OTHER)
+        return (U_GET_GC_MASK(icu_code_point) & U_GC_C_MASK) != 0;
+
+    return u_charType(icu_code_point) == icu_general_category;
+}
+
+bool code_point_has_control_general_category(u32 code_point)
+{
+    return code_point_has_general_category(code_point, U_CONTROL_CHAR);
+}
+
+bool code_point_has_space_separator_general_category(u32 code_point)
+{
+    return code_point_has_general_category(code_point, U_SPACE_SEPARATOR);
+}
 
 static constexpr Property PROPERTY_ANY = UCHAR_BINARY_LIMIT + 1;
 static constexpr Property PROPERTY_ASCII = UCHAR_BINARY_LIMIT + 2;
