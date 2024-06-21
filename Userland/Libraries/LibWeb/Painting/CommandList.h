@@ -15,7 +15,6 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Gradients.h>
-#include <LibGfx/GrayscaleBitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Palette.h>
