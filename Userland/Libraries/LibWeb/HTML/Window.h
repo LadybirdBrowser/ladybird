@@ -162,6 +162,7 @@ public:
     WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features);
 
     [[nodiscard]] JS::NonnullGCPtr<Navigator> navigator();
+    [[nodiscard]] JS::NonnullGCPtr<CloseWatcherManager> close_watcher_manager();
 
     void alert(String const& message = {});
     bool confirm(Optional<String> const& message);
@@ -269,6 +270,7 @@ private:
     JS::GCPtr<CSS::Screen> m_screen;
     JS::GCPtr<Navigator> m_navigator;
     JS::GCPtr<Location> m_location;
+    JS::GCPtr<CloseWatcherManager> m_close_watcher_manager;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#window-navigation-api
     JS::GCPtr<Navigation> m_navigation;

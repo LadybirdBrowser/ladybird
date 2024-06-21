@@ -33,6 +33,7 @@
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/EventHandler.h>
@@ -129,6 +130,7 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pdf_viewer_mime_type_objects);
     visitor.visit(m_count_queuing_strategy_size_function);
     visitor.visit(m_byte_length_queuing_strategy_size_function);
+    visitor.visit(m_close_watcher_manager);
 }
 
 void Window::finalize()
@@ -971,6 +973,16 @@ JS::NonnullGCPtr<Navigator> Window::navigator()
     if (!m_navigator)
         m_navigator = heap().allocate<Navigator>(realm, realm);
     return JS::NonnullGCPtr { *m_navigator };
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#close-watcher-manager
+JS::NonnullGCPtr<CloseWatcherManager> Window::close_watcher_manager()
+{
+    auto& realm = this->realm();
+
+    if (!m_close_watcher_manager)
+        m_close_watcher_manager = heap().allocate<CloseWatcherManager>(realm, realm);
+    return JS::NonnullGCPtr { *m_close_watcher_manager };
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-alert
