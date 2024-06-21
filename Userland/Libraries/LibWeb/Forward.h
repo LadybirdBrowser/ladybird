@@ -344,6 +344,8 @@ class BrowsingContextGroup;
 class CanvasRenderingContext2D;
 class ClassicScript;
 class CloseEvent;
+class CloseWatcher;
+class CloseWatcherManager;
 class CustomElementDefinition;
 class CustomElementRegistry;
 class DecodedImageData;

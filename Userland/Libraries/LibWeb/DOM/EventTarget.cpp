@@ -22,6 +22,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/ErrorEvent.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -796,7 +797,9 @@ bool EventTarget::dispatch_event(Event& event)
     // FIXME: 3. Extend windows with the active window of each of document's ancestor navigables.
     // FIXME: 4. Extend windows with the active window of each of document's descendant navigables,
     //           filtered to include only those navigables whose active document's origin is same origin with document's origin.
-    // FIXME: 5. For each window in windows, set window's last activation timestamp to the current high resolution time.
+    // FIXME: 5. For each window in windows:
+    // FIXME: 5.1 Set window's last activation timestamp to the current high resolution time.
+    // FIXME: 5.2 Notify the close watcher manager about user activation given window.
 
     // FIXME: This is ad-hoc, but works for now.
     if (is_activation_triggering_input_event()) {
@@ -804,11 +807,15 @@ bool EventTarget::dispatch_event(Event& event)
         auto current_time = HighResolutionTime::relative_high_resolution_time(unsafe_shared_time, realm().global_object());
 
         if (is<HTML::Window>(this)) {
-            static_cast<HTML::Window*>(this)->set_last_activation_timestamp(current_time);
+            auto* window = static_cast<HTML::Window*>(this);
+            window->set_last_activation_timestamp(current_time);
+            window->close_watcher_manager()->notify_about_user_activation();
         } else if (is<DOM::Element>(this)) {
             auto const* element = static_cast<DOM::Element const*>(this);
-            if (auto window = element->document().window())
+            if (auto window = element->document().window()) {
                 window->set_last_activation_timestamp(current_time);
+                window->close_watcher_manager()->notify_about_user_activation();
+            }
         }
     }
 

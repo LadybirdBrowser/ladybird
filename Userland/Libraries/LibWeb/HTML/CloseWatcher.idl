@@ -1,0 +1,19 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+
+// https://html.spec.whatwg.org/multipage/interaction.html#closewatcher
+[Exposed=Window]
+interface CloseWatcher : EventTarget {
+  constructor(optional CloseWatcherOptions options = {});
+
+  undefined requestClose();
+  undefined close();
+  undefined destroy();
+
+  attribute EventHandler oncancel;
+  attribute EventHandler onclose;
+};
+
+dictionary CloseWatcherOptions {
+  AbortSignal signal;
+};

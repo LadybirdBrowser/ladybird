@@ -22,6 +22,8 @@ source_set("HTML") {
     "CanvasPattern.cpp",
     "CanvasRenderingContext2D.cpp",
     "CloseEvent.cpp",
+    "CloseWatcher.cpp",
+    "CloseWatcherManager.cpp",
     "DOMParser.cpp",
     "DOMStringMap.cpp",
     "DataTransfer.cpp",

@@ -8,6 +8,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
@@ -777,6 +778,9 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
             return focus_previous_element();
         return focus_next_element();
     }
+
+    if (key == UIEvents::KeyCode::Key_Escape)
+        return document->window()->close_watcher_manager()->process_close_watchers();
 
     auto& realm = document->realm();
 
