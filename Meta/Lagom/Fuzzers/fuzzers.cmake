@@ -39,7 +39,6 @@ set(FUZZER_TARGETS
     TTF
     TinyVGLoader
     URL
-    VP9Decoder
     WasmParser
     WAVLoader
     WebPLoader
@@ -94,7 +93,6 @@ set(FUZZER_DEPENDENCIES_TIFFLoader LibGfx)
 set(FUZZER_DEPENDENCIES_TTF LibGfx)
 set(FUZZER_DEPENDENCIES_TinyVGLoader LibGfx)
 set(FUZZER_DEPENDENCIES_URL LibURL)
-set(FUZZER_DEPENDENCIES_VP9Decoder LibMedia)
 set(FUZZER_DEPENDENCIES_WasmParser LibWasm)
 set(FUZZER_DEPENDENCIES_WAVLoader LibAudio)
 set(FUZZER_DEPENDENCIES_WebPLoader LibGfx)
