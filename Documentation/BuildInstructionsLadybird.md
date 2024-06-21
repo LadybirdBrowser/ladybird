@@ -56,7 +56,7 @@ Xcode 14 versions before 14.3 might crash while building ladybird. Xcode 14.3 or
 
 ```
 xcode-select --install
-brew install autoconf autoconf-archive automake cmake ninja ccache
+brew install autoconf autoconf-archive automake cmake ninja ccache pkg-config
 ```
 
 If you also plan to use the Qt chrome on macOS:
