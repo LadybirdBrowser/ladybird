@@ -455,11 +455,6 @@ lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibG
 
 lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress LibMain)
 
-find_package(SDL2 QUIET)
-if (SDL2_FOUND)
-    add_serenity_subdirectory(Meta/Lagom/Contrib/VideoPlayerSDL)
-endif()
-
 lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
 lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMain)
 lagom_utility(ttfdisasm SOURCES ../../Userland/Utilities/ttfdisasm.cpp LIBS LibGfx LibMain)
