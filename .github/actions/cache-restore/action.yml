@@ -76,14 +76,6 @@ runs:
         restore-keys: |
           TimeZoneData-${{ hashFiles('Meta/CMake/time_zone_data.cmake') }}
 
-    - name: 'UnicodeData cache'
-      uses: actions/cache@v4
-      with:
-          path: ${{ inputs.download_cache_path }}/UCD
-          key: UnicodeData-${{ hashFiles('Meta/CMake/unicode_data.cmake') }}-${{ steps.date-stamp.outputs.timestamp }}
-          restore-keys: |
-            UnicodeData-${{ hashFiles('Meta/CMake/unicode_data.cmake') }}
-
     - name: Export vcpkg GitHub Actions cache environment variables
       uses: actions/github-script@v7
       with:
