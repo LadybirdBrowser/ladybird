@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Format.h>
 #include <AK/StringView.h>
 
 namespace Media {
@@ -252,5 +253,49 @@ constexpr StringView video_full_range_flag_to_string(VideoFullRangeFlag video_fu
     }
     return "Unknown"sv;
 }
+
+}
+
+namespace AK {
+
+template<>
+struct Formatter<Media::ColorPrimaries> final : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Media::ColorPrimaries color_primaries)
+    {
+        return Formatter<StringView>::format(builder, Media::color_primaries_to_string(color_primaries));
+    }
+};
+
+template<>
+struct Formatter<Media::TransferCharacteristics> final : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Media::TransferCharacteristics transfer_characteristics)
+    {
+        return Formatter<StringView>::format(builder, Media::transfer_characteristics_to_string(transfer_characteristics));
+    }
+};
+
+template<>
+struct Formatter<Media::MatrixCoefficients> final : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Media::MatrixCoefficients matrix_coefficients)
+    {
+        return Formatter<StringView>::format(builder, Media::matrix_coefficients_to_string(matrix_coefficients));
+    }
+};
+
+template<>
+struct Formatter<Media::VideoFullRangeFlag> final : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Media::VideoFullRangeFlag range)
+    {
+        return Formatter<StringView>::format(builder, Media::video_full_range_flag_to_string(range));
+    }
+};
+
+template<>
+struct Formatter<Media::CodingIndependentCodePoints> final : Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, Media::CodingIndependentCodePoints cicp)
+    {
+        return Formatter<FormatString>::format(builder, "CICP {{ CP = {}, TC = {}, MC = {}, Range = {} }}"sv, cicp.color_primaries(), cicp.transfer_characteristics(), cicp.matrix_coefficients(), cicp.video_full_range_flag());
+    }
+};
 
 }
