@@ -8,7 +8,7 @@
 
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 
-namespace Media::Video {
+namespace Media {
 
 class VideoSampleData {
 public:

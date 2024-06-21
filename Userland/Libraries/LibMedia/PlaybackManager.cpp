@@ -218,7 +218,7 @@ void PlaybackManager::decode_and_queue_one_sample()
                 break;
             }
             auto sample = sample_result.release_value();
-            container_cicp = sample.auxiliary_data().get<Video::VideoSampleData>().container_cicp();
+            container_cicp = sample.auxiliary_data().get<VideoSampleData>().container_cicp();
 
             // Submit the sample to the decoder.
             auto decode_result = m_decoder->receive_sample(sample.timestamp(), sample.data());

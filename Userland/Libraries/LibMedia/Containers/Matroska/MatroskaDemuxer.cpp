@@ -148,7 +148,7 @@ DecoderErrorOr<Sample> MatroskaDemuxer::get_next_sample_for_track(Track track)
         status.frame_index = 0;
     }
     auto cicp = TRY(m_reader.track_for_track_number(track.identifier()))->video_track()->color_format.to_cicp();
-    return Sample(status.block->timestamp(), status.block->frame(status.frame_index++), Video::VideoSampleData(cicp));
+    return Sample(status.block->timestamp(), status.block->frame(status.frame_index++), VideoSampleData(cicp));
 }
 
 DecoderErrorOr<Duration> MatroskaDemuxer::duration()
