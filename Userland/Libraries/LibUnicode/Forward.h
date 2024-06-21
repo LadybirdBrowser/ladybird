@@ -11,7 +11,7 @@
 
 namespace Unicode {
 
-enum class BidirectionalClass : u8;
+enum class BidiClass;
 enum class EmojiGroup : u8;
 
 struct CurrencyCode;

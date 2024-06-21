@@ -2338,22 +2338,14 @@ bool Element::is_auto_directionality_form_associated_element() const
 // https://html.spec.whatwg.org/multipage/dom.html#auto-directionality
 Optional<Element::Directionality> Element::auto_directionality() const
 {
-    static auto bidirectional_class_L = Unicode::bidirectional_class_from_string("L"sv);
-    static auto bidirectional_class_AL = Unicode::bidirectional_class_from_string("AL"sv);
-    static auto bidirectional_class_R = Unicode::bidirectional_class_from_string("R"sv);
-
-    // AD-HOC: Assume 'ltr' if Unicode data generation is disabled.
-    if (!bidirectional_class_L.has_value())
-        return Directionality::Ltr;
-
     // https://html.spec.whatwg.org/multipage/dom.html#text-node-directionality
     auto text_node_directionality = [](Text const& text_node) -> Optional<Directionality> {
         // 1. If text's data does not contain a code point whose bidirectional character type is L, AL, or R, then return null.
         // 2. Let codePoint be the first code point in text's data whose bidirectional character type is L, AL, or R.
-        Optional<Unicode::BidirectionalClass> found_character_bidi_class;
+        Optional<Unicode::BidiClass> found_character_bidi_class;
         for (auto code_point : Utf8View(text_node.data())) {
             auto bidi_class = Unicode::bidirectional_class(code_point);
-            if (first_is_one_of(bidi_class, bidirectional_class_L, bidirectional_class_AL, bidirectional_class_R)) {
+            if (first_is_one_of(bidi_class, Unicode::BidiClass::LeftToRight, Unicode::BidiClass::RightToLeftArabic, Unicode::BidiClass::RightToLeft)) {
                 found_character_bidi_class = bidi_class;
                 break;
             }
@@ -2362,12 +2354,12 @@ Optional<Element::Directionality> Element::auto_directionality() const
             return {};
 
         // 3. If codePoint is of bidirectional character type AL or R, then return 'rtl'.
-        if (first_is_one_of(*found_character_bidi_class, bidirectional_class_AL, bidirectional_class_R))
+        if (first_is_one_of(*found_character_bidi_class, Unicode::BidiClass::RightToLeftArabic, Unicode::BidiClass::RightToLeft))
             return Directionality::Rtl;
 
         // 4. If codePoint is of bidirectional character type L, then return 'ltr'.
         // NOTE: codePoint should always be of bidirectional character type L by this point, so we can just return 'ltr' here.
-        VERIFY(*found_character_bidi_class == bidirectional_class_L);
+        VERIFY(*found_character_bidi_class == Unicode::BidiClass::LeftToRight);
         return Directionality::Ltr;
     };
 
@@ -2381,9 +2373,9 @@ Optional<Element::Directionality> Element::auto_directionality() const
         //    and there is no character of bidirectional character type L anywhere before it in the element's value, then return 'rtl'.
         for (auto code_point : Utf8View(value)) {
             auto bidi_class = Unicode::bidirectional_class(code_point);
-            if (bidi_class == bidirectional_class_L)
+            if (bidi_class == Unicode::BidiClass::LeftToRight)
                 break;
-            if (bidi_class == bidirectional_class_AL || bidi_class == bidirectional_class_R)
+            if (bidi_class == Unicode::BidiClass::RightToLeftArabic || bidi_class == Unicode::BidiClass::RightToLeft)
                 return Directionality::Rtl;
         }
 

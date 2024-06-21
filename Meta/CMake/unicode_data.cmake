@@ -10,9 +10,6 @@ set(UCD_VERSION_FILE "${UCD_PATH}/version.txt")
 set(UCD_ZIP_URL "https://www.unicode.org/Public/${UCD_VERSION}/ucd/UCD.zip")
 set(UCD_ZIP_PATH "${UCD_PATH}/UCD.zip")
 
-set(UNICODE_DATA_SOURCE "UnicodeData.txt")
-set(UNICODE_DATA_PATH "${UCD_PATH}/${UNICODE_DATA_SOURCE}")
-
 string(REGEX REPLACE "([0-9]+\\.[0-9]+)\\.[0-9]+" "\\1" EMOJI_VERSION "${UCD_VERSION}")
 set(EMOJI_TEST_URL "https://www.unicode.org/Public/emoji/${EMOJI_VERSION}/emoji-test.txt")
 set(EMOJI_TEST_PATH "${UCD_PATH}/emoji-test.txt")
@@ -26,17 +23,11 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
 
     if (ENABLE_NETWORK_DOWNLOADS)
         download_file("${UCD_ZIP_URL}" "${UCD_ZIP_PATH}" SHA256 "${UCD_SHA256}")
-        extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${UNICODE_DATA_SOURCE}" "${UNICODE_DATA_PATH}")
-
         download_file("${EMOJI_TEST_URL}" "${EMOJI_TEST_PATH}" SHA256 "${EMOJI_SHA256}")
     else()
         message(STATUS "Skipping download of ${UCD_ZIP_URL}, expecting the archive to have been extracted to ${UCD_ZIP_PATH}")
         message(STATUS "Skipping download of ${EMOJI_TEST_URL}, expecting the file to be at ${EMOJI_TEST_PATH}")
     endif()
-
-
-    set(UNICODE_DATA_HEADER UnicodeData.h)
-    set(UNICODE_DATA_IMPLEMENTATION UnicodeData.cpp)
 
     set(EMOJI_DATA_HEADER EmojiData.h)
     set(EMOJI_DATA_IMPLEMENTATION EmojiData.cpp)
@@ -45,14 +36,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         set(EMOJI_INSTALL_ARG -i "${EMOJI_INSTALL_PATH}")
     endif()
 
-    invoke_generator(
-        "UnicodeData"
-        Lagom::GenerateUnicodeData
-        "${UCD_VERSION_FILE}"
-        "${UNICODE_DATA_HEADER}"
-        "${UNICODE_DATA_IMPLEMENTATION}"
-        arguments -u "${UNICODE_DATA_PATH}"
-    )
     invoke_generator(
         "EmojiData"
         Lagom::GenerateEmojiData
@@ -69,8 +52,6 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
     )
 
     set(UNICODE_DATA_SOURCES
-        ${UNICODE_DATA_HEADER}
-        ${UNICODE_DATA_IMPLEMENTATION}
         ${EMOJI_DATA_HEADER}
         ${EMOJI_DATA_IMPLEMENTATION}
     )
