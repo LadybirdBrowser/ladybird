@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,7 +12,7 @@
 
 namespace Unicode {
 
-Optional<Emoji> __attribute__((weak)) find_emoji_for_code_points(ReadonlySpan<u32>) { return {}; }
+Optional<StringView> __attribute__((weak)) emoji_image_for_code_points(ReadonlySpan<u32>) { return {}; }
 
 // https://unicode.org/reports/tr51/#def_emoji_core_sequence
 static bool could_be_start_of_emoji_core_sequence(u32 code_point, Optional<u32> const& next_code_point, SequenceType type)
