@@ -21,7 +21,7 @@ if (${ENABLE_LAGOM_LADYBIRD} OR $CACHE{ENABLE_LAGOM_LADYBIRD})
 endif()
 
 # This is required for CMake (when invoked for a Lagom-only build) to
-# ignore any files downloading during the build, e.g. UnicodeData.txt.
+# ignore any files downloading during the build, e.g. public_suffix_list.dat.
 # https://cmake.org/cmake/help/latest/policy/CMP0058.html
 cmake_policy(SET CMP0058 NEW)
 

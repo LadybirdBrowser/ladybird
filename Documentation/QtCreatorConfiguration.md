@@ -15,7 +15,6 @@ First, make sure you have a working toolchain and can build and run Ladybird. Go
 * Edit the `ladybird.config` file (In Qt Creator, hit ^K or CMD+K on a Mac to open the search dialog, type the name of the file and hit return to open it)
 * Add the following `#define`s to the file:
     ```
-    #define ENABLE_UNICODE_DATA 1
     #define ENABLE_COMPILETIME_FORMAT_CHECK
     #define SANITIZE_PTRS 1
     ```
