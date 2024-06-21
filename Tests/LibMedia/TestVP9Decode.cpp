@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibMedia/Video/VP9/Decoder.h>
+#include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 
 #include "TestMediaCommon.h"
 
-static NonnullOwnPtr<Media::VideoDecoder> make_decoder(Media::Matroska::SampleIterator const&)
+static NonnullOwnPtr<Media::VideoDecoder> make_decoder(Media::Matroska::SampleIterator const& iterator)
 {
-    return make<Media::Video::VP9::Decoder>();
+    return MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(Media::CodecID::VP9, iterator.track().codec_private_data()));
 }
 
 TEST_CASE(webm_in_vp9)
@@ -21,23 +21,6 @@ TEST_CASE(webm_in_vp9)
 TEST_CASE(vp9_oob_blocks)
 {
     decode_video("./vp9_oob_blocks.webm"sv, 240, make_decoder);
-}
-
-TEST_CASE(vp9_malformed_frame)
-{
-    Array test_inputs = {
-        "./oss-fuzz-testcase-52630.vp9"sv,
-        "./oss-fuzz-testcase-53977.vp9"sv,
-        "./oss-fuzz-testcase-62054.vp9"sv,
-        "./oss-fuzz-testcase-63182.vp9"sv
-    };
-
-    for (auto test_input : test_inputs) {
-        auto file = MUST(Core::MappedFile::map(test_input));
-        Media::Video::VP9::Decoder vp9_decoder;
-        auto maybe_decoder_error = vp9_decoder.receive_sample(Duration::zero(), file->bytes());
-        EXPECT(maybe_decoder_error.is_error());
-    }
 }
 
 BENCHMARK_CASE(vp9_4k)
