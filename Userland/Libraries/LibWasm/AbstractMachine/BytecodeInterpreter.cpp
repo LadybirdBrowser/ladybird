@@ -840,15 +840,21 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         auto& args = instruction.arguments().get<Instruction::MemoryInitArgs>();
         auto& data_address = configuration.frame().module().datas()[args.data_index.value()];
         auto& data = *configuration.store().get(data_address);
+        auto memory_address = configuration.frame().module().memories()[args.memory_index.value()];
+        auto memory = configuration.store().get(memory_address);
         auto count = *configuration.stack().pop().get<Value>().to<u32>();
         auto source_offset = *configuration.stack().pop().get<Value>().to<u32>();
         auto destination_offset = *configuration.stack().pop().get<Value>().to<u32>();
 
+        Checked<size_t> source_position = source_offset;
+        source_position.saturating_add(count);
+        Checked<size_t> destination_position = destination_offset;
+        destination_position.saturating_add(count);
+        TRAP_IF_NOT(source_position <= data.data().size());
+        TRAP_IF_NOT(destination_position <= memory->data().size());
+
         if (count == 0)
             return;
-
-        TRAP_IF_NOT(source_offset + count > 0);
-        TRAP_IF_NOT(static_cast<size_t>(source_offset + count) <= data.size());
 
         Instruction synthetic_store_instruction {
             Instructions::i32_store8,
