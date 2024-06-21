@@ -48,12 +48,6 @@ CommandResult CommandExecutorGPU::draw_glyph_run(DrawGlyphRun const& command)
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::draw_text(DrawText const&)
-{
-    // FIXME
-    return CommandResult::Continue;
-}
-
 CommandResult CommandExecutorGPU::fill_rect(FillRect const& command)
 {
     // FIXME: Support clip paths

@@ -14,7 +14,6 @@ namespace Web::Painting {
 class CommandExecutorSkia : public CommandExecutor {
 public:
     CommandResult draw_glyph_run(DrawGlyphRun const&) override;
-    CommandResult draw_text(DrawText const&) override;
     CommandResult fill_rect(FillRect const&) override;
     CommandResult draw_scaled_bitmap(DrawScaledBitmap const&) override;
     CommandResult draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;

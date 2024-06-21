@@ -245,11 +245,6 @@ CommandResult CommandExecutorSkia::draw_glyph_run(DrawGlyphRun const& command)
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorSkia::draw_text(DrawText const&)
-{
-    return CommandResult::Continue;
-}
-
 CommandResult CommandExecutorSkia::fill_rect(FillRect const& command)
 {
     APPLY_PATH_CLIP_IF_NEEDED
