@@ -16,18 +16,6 @@ set(UNICODE_DATA_PATH "${UCD_PATH}/${UNICODE_DATA_SOURCE}")
 set(DERIVED_GENERAL_CATEGORY_SOURCE "extracted/DerivedGeneralCategory.txt")
 set(DERIVED_GENERAL_CATEGORY_PATH "${UCD_PATH}/${DERIVED_GENERAL_CATEGORY_SOURCE}")
 
-set(PROP_LIST_SOURCE "PropList.txt")
-set(PROP_LIST_PATH "${UCD_PATH}/${PROP_LIST_SOURCE}")
-
-set(DERIVED_CORE_PROP_SOURCE "DerivedCoreProperties.txt")
-set(DERIVED_CORE_PROP_PATH "${UCD_PATH}/${DERIVED_CORE_PROP_SOURCE}")
-
-set(DERIVED_BINARY_PROP_SOURCE "extracted/DerivedBinaryProperties.txt")
-set(DERIVED_BINARY_PROP_PATH "${UCD_PATH}/${DERIVED_BINARY_PROP_SOURCE}")
-
-set(PROP_ALIAS_SOURCE "PropertyAliases.txt")
-set(PROP_ALIAS_PATH "${UCD_PATH}/${PROP_ALIAS_SOURCE}")
-
 set(PROP_VALUE_ALIAS_SOURCE "PropertyValueAliases.txt")
 set(PROP_VALUE_ALIAS_PATH "${UCD_PATH}/${PROP_VALUE_ALIAS_SOURCE}")
 
@@ -36,12 +24,6 @@ set(SCRIPTS_PATH "${UCD_PATH}/${SCRIPTS_SOURCE}")
 
 set(SCRIPT_EXTENSIONS_SOURCE "ScriptExtensions.txt")
 set(SCRIPT_EXTENSIONS_PATH "${UCD_PATH}/${SCRIPT_EXTENSIONS_SOURCE}")
-
-set(EMOJI_DATA_SOURCE "emoji/emoji-data.txt")
-set(EMOJI_DATA_PATH "${UCD_PATH}/${EMOJI_DATA_SOURCE}")
-
-set(NORM_PROPS_SOURCE "DerivedNormalizationProps.txt")
-set(NORM_PROPS_PATH "${UCD_PATH}/${NORM_PROPS_SOURCE}")
 
 string(REGEX REPLACE "([0-9]+\\.[0-9]+)\\.[0-9]+" "\\1" EMOJI_VERSION "${UCD_VERSION}")
 set(EMOJI_TEST_URL "https://www.unicode.org/Public/emoji/${EMOJI_VERSION}/emoji-test.txt")
@@ -58,15 +40,9 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         download_file("${UCD_ZIP_URL}" "${UCD_ZIP_PATH}" SHA256 "${UCD_SHA256}")
         extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${UNICODE_DATA_SOURCE}" "${UNICODE_DATA_PATH}")
         extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${DERIVED_GENERAL_CATEGORY_SOURCE}" "${DERIVED_GENERAL_CATEGORY_PATH}")
-        extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${PROP_LIST_SOURCE}" "${PROP_LIST_PATH}")
-        extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${DERIVED_CORE_PROP_SOURCE}" "${DERIVED_CORE_PROP_PATH}")
-        extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${DERIVED_BINARY_PROP_SOURCE}" "${DERIVED_BINARY_PROP_PATH}")
-        extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${PROP_ALIAS_SOURCE}" "${PROP_ALIAS_PATH}")
         extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${PROP_VALUE_ALIAS_SOURCE}" "${PROP_VALUE_ALIAS_PATH}")
         extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${SCRIPTS_SOURCE}" "${SCRIPTS_PATH}")
         extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${SCRIPT_EXTENSIONS_SOURCE}" "${SCRIPT_EXTENSIONS_PATH}")
-        extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${EMOJI_DATA_SOURCE}" "${EMOJI_DATA_PATH}")
-        extract_path("${UCD_PATH}" "${UCD_ZIP_PATH}" "${NORM_PROPS_SOURCE}" "${NORM_PROPS_PATH}")
 
         download_file("${EMOJI_TEST_URL}" "${EMOJI_TEST_PATH}" SHA256 "${EMOJI_SHA256}")
     else()
@@ -91,7 +67,7 @@ if (ENABLE_UNICODE_DATABASE_DOWNLOAD)
         "${UCD_VERSION_FILE}"
         "${UNICODE_DATA_HEADER}"
         "${UNICODE_DATA_IMPLEMENTATION}"
-        arguments -u "${UNICODE_DATA_PATH}" -g "${DERIVED_GENERAL_CATEGORY_PATH}" -p "${PROP_LIST_PATH}" -d "${DERIVED_CORE_PROP_PATH}" -b "${DERIVED_BINARY_PROP_PATH}" -a "${PROP_ALIAS_PATH}" -v "${PROP_VALUE_ALIAS_PATH}" -r "${SCRIPTS_PATH}" -x "${SCRIPT_EXTENSIONS_PATH}" -e "${EMOJI_DATA_PATH}" -n "${NORM_PROPS_PATH}"
+        arguments -u "${UNICODE_DATA_PATH}" -g "${DERIVED_GENERAL_CATEGORY_PATH}" -v "${PROP_VALUE_ALIAS_PATH}" -r "${SCRIPTS_PATH}" -x "${SCRIPT_EXTENSIONS_PATH}"
     )
     invoke_generator(
         "EmojiData"

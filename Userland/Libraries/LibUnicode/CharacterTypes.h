@@ -31,6 +31,15 @@ bool code_point_has_general_category(u32 code_point, GeneralCategory general_cat
 
 Optional<Property> property_from_string(StringView);
 bool code_point_has_property(u32 code_point, Property property);
+
+bool code_point_has_emoji_property(u32 code_point);
+bool code_point_has_emoji_modifier_base_property(u32 code_point);
+bool code_point_has_emoji_presentation_property(u32 code_point);
+bool code_point_has_identifier_start_property(u32 code_point);
+bool code_point_has_identifier_continue_property(u32 code_point);
+bool code_point_has_regional_indicator_property(u32 code_point);
+bool code_point_has_variation_selector_property(u32 code_point);
+
 bool is_ecma262_property(Property);
 
 Optional<Script> script_from_string(StringView);

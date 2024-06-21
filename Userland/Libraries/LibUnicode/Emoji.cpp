@@ -10,15 +10,9 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Emoji.h>
 
-#if ENABLE_UNICODE_DATA
-#    include <LibUnicode/UnicodeData.h>
-#endif
-
 namespace Unicode {
 
 Optional<Emoji> __attribute__((weak)) find_emoji_for_code_points(ReadonlySpan<u32>) { return {}; }
-
-#if ENABLE_UNICODE_DATA
 
 // https://unicode.org/reports/tr51/#def_emoji_core_sequence
 static bool could_be_start_of_emoji_core_sequence(u32 code_point, Optional<u32> const& next_code_point, SequenceType type)
@@ -41,13 +35,13 @@ static bool could_be_start_of_emoji_core_sequence(u32 code_point, Optional<u32> 
     // https://unicode.org/reports/tr51/#def_emoji_character
     switch (type) {
     case SequenceType::Any:
-        if (code_point_has_property(code_point, Property::Emoji))
+        if (code_point_has_emoji_property(code_point))
             return true;
         break;
     case SequenceType::EmojiPresentation:
-        if (code_point_has_property(code_point, Property::Emoji_Presentation))
+        if (code_point_has_emoji_presentation_property(code_point))
             return true;
-        if (next_code_point == zero_width_joiner && code_point_has_property(code_point, Property::Emoji))
+        if (next_code_point == zero_width_joiner && code_point_has_emoji_property(code_point))
             return true;
         break;
     }
@@ -59,12 +53,12 @@ static bool could_be_start_of_emoji_core_sequence(u32 code_point, Optional<u32> 
 
     // https://unicode.org/reports/tr51/#def_emoji_modifier_sequence
     // emoji_modifier_sequence := emoji_modifier_base emoji_modifier
-    if (code_point_has_property(code_point, Property::Emoji_Modifier_Base))
+    if (code_point_has_emoji_modifier_base_property(code_point))
         return true;
 
     // https://unicode.org/reports/tr51/#def_emoji_flag_sequence
     // emoji_flag_sequence := regional_indicator regional_indicator
-    if (code_point_has_property(code_point, Property::Regional_Indicator))
+    if (code_point_has_regional_indicator_property(code_point))
         return true;
 
     return false;
@@ -78,18 +72,15 @@ static bool could_be_start_of_serenity_emoji(u32 code_point)
     return code_point >= first_custom_serenity_emoji_code_point;
 }
 
-#endif
-
 // https://unicode.org/reports/tr51/#def_emoji_sequence
 template<typename CodePointIterator>
-static bool could_be_start_of_emoji_sequence_impl(CodePointIterator const& it, [[maybe_unused]] SequenceType type)
+static bool could_be_start_of_emoji_sequence_impl(CodePointIterator const& it, SequenceType type)
 {
     // emoji_sequence := emoji_core_sequence | emoji_zwj_sequence | emoji_tag_sequence
 
     if (it.done())
         return false;
 
-#if ENABLE_UNICODE_DATA
     // The purpose of this method is to quickly filter out code points that cannot be the start of
     // an emoji. The emoji_core_sequence definition alone captures the start of all possible
     // emoji_zwj_sequence and emoji_tag_sequence emojis, because:
@@ -108,9 +99,6 @@ static bool could_be_start_of_emoji_sequence_impl(CodePointIterator const& it, [
     if (could_be_start_of_serenity_emoji(code_point))
         return true;
     return false;
-#else
-    return true;
-#endif
 }
 
 bool could_be_start_of_emoji_sequence(Utf8CodePointIterator const& it, SequenceType type)

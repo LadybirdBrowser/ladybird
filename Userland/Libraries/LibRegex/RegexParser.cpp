@@ -1644,7 +1644,7 @@ bool ECMA262Parser::parse_atom_escape(ByteCode& stack, size_t& match_length_mini
                 compares.empend(CompareTypeAndValuePair { CharacterCompareType::Inverse, 0 });
             property.visit(
                 [&](Unicode::Property property) {
-                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property });
+                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
                 },
                 [&](Unicode::GeneralCategory general_category) {
                     compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category });
@@ -1996,7 +1996,7 @@ bool ECMA262Parser::parse_nonempty_class_ranges(Vector<CompareTypeAndValuePair>&
                 ranges.empend(CompareTypeAndValuePair { CharacterCompareType::TemporaryInverse, 0 });
 
             if (atom.is_property)
-                ranges.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)(atom.property) });
+                ranges.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)(atom.property.value()) });
             else if (atom.is_general_category)
                 ranges.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)(atom.general_category) });
             else if (atom.is_script)
@@ -2332,7 +2332,7 @@ bool ECMA262Parser::parse_class_set_operand(Vector<regex::CompareTypeAndValuePai
             compares.empend(CompareTypeAndValuePair { CharacterCompareType::Inverse, 0 });
         property.visit(
             [&](Unicode::Property property) {
-                compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property });
+                compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
             },
             [&](Unicode::GeneralCategory general_category) {
                 compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category });
@@ -2419,7 +2419,7 @@ bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& c
                 compares.empend(CompareTypeAndValuePair { CharacterCompareType::Inverse, 0 });
             property.visit(
                 [&](Unicode::Property property) {
-                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property });
+                    compares.empend(CompareTypeAndValuePair { CharacterCompareType::Property, (ByteCodeValueType)property.value() });
                 },
                 [&](Unicode::GeneralCategory general_category) {
                     compares.empend(CompareTypeAndValuePair { CharacterCompareType::GeneralCategory, (ByteCodeValueType)general_category });
@@ -2476,8 +2476,6 @@ bool ECMA262Parser::parse_unicode_property_escape(PropertyEscape& property, bool
 
 DeprecatedFlyString ECMA262Parser::read_capture_group_specifier(bool take_starting_angle_bracket)
 {
-    static auto id_start_category = Unicode::property_from_string("ID_Start"sv);
-    static auto id_continue_category = Unicode::property_from_string("ID_Continue"sv);
     static constexpr u32 const REPLACEMENT_CHARACTER = 0xFFFD;
     constexpr u32 const ZERO_WIDTH_NON_JOINER { 0x200C };
     constexpr u32 const ZERO_WIDTH_JOINER { 0x200D };
@@ -2526,7 +2524,7 @@ DeprecatedFlyString ECMA262Parser::read_capture_group_specifier(bool take_starti
                 set_error(Error::InvalidNameForCaptureGroup);
                 return {};
             }
-        } else if (id_start_category.has_value() && !Unicode::code_point_has_property(code_point, *id_start_category)) {
+        } else if (!Unicode::code_point_has_identifier_start_property(code_point)) {
             set_error(Error::InvalidNameForCaptureGroup);
             return {};
         }
@@ -2569,7 +2567,7 @@ DeprecatedFlyString ECMA262Parser::read_capture_group_specifier(bool take_starti
                 return {};
             }
         } else if (code_point != ZERO_WIDTH_JOINER && code_point != ZERO_WIDTH_NON_JOINER) {
-            if (id_continue_category.has_value() && !Unicode::code_point_has_property(code_point, *id_continue_category)) {
+            if (!Unicode::code_point_has_identifier_continue_property(code_point)) {
                 set_error(Error::InvalidNameForCaptureGroup);
                 return {};
             }
