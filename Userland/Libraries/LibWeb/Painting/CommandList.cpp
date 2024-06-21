@@ -148,7 +148,6 @@ void CommandList::execute(CommandExecutor& executor)
         // clang-format off
         CommandResult result;
         HANDLE_COMMAND(DrawGlyphRun, draw_glyph_run)
-        else HANDLE_COMMAND(DrawText, draw_text)
         else HANDLE_COMMAND(FillRect, fill_rect)
         else HANDLE_COMMAND(DrawScaledBitmap, draw_scaled_bitmap)
         else HANDLE_COMMAND(DrawScaledImmutableBitmap, draw_scaled_immutable_bitmap)

@@ -47,13 +47,6 @@ CommandResult CommandExecutorCPU::draw_glyph_run(DrawGlyphRun const& command)
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorCPU::draw_text(DrawText const& command)
-{
-    auto& painter = this->painter();
-    painter.draw_text(command.rect, command.raw_text, command.font, command.alignment, command.color, command.elision, command.wrapping);
-    return CommandResult::Continue;
-}
-
 template<typename Callback>
 void apply_clip_paths_to_painter(Gfx::IntRect const& rect, Callback callback, Vector<Gfx::Path> const& clip_paths, Gfx::Painter& target_painter)
 {

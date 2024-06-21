@@ -49,19 +49,6 @@ struct DrawGlyphRun {
     void translate_by(Gfx::IntPoint const& offset);
 };
 
-struct DrawText {
-    Gfx::IntRect rect;
-    String raw_text;
-    Gfx::TextAlignment alignment;
-    Color color;
-    Gfx::TextElision elision;
-    Gfx::TextWrapping wrapping;
-    NonnullRefPtr<Gfx::Font> font;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
-    void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
-};
-
 struct FillRect {
     Gfx::IntRect rect;
     Color color;
@@ -369,7 +356,6 @@ struct BlitCornerClipping {
 
 using Command = Variant<
     DrawGlyphRun,
-    DrawText,
     FillRect,
     DrawScaledBitmap,
     DrawScaledImmutableBitmap,
