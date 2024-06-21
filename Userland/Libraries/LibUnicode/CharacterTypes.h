@@ -49,7 +49,32 @@ Optional<Script> script_from_string(StringView);
 bool code_point_has_script(u32 code_point, Script script);
 bool code_point_has_script_extension(u32 code_point, Script script);
 
-Optional<BidirectionalClass> bidirectional_class_from_string(StringView);
-Optional<BidirectionalClass> bidirectional_class(u32 code_point);
+enum class BidiClass {
+    ArabicNumber,             // AN
+    BlockSeparator,           // B
+    BoundaryNeutral,          // BN
+    CommonNumberSeparator,    // CS
+    DirNonSpacingMark,        // NSM
+    EuropeanNumber,           // EN
+    EuropeanNumberSeparator,  // ES
+    EuropeanNumberTerminator, // ET
+    FirstStrongIsolate,       // FSI
+    LeftToRight,              // L
+    LeftToRightEmbedding,     // LRE
+    LeftToRightIsolate,       // LRI
+    LeftToRightOverride,      // LRO
+    OtherNeutral,             // ON
+    PopDirectionalFormat,     // PDF
+    PopDirectionalIsolate,    // PDI
+    RightToLeft,              // R
+    RightToLeftArabic,        // AL
+    RightToLeftEmbedding,     // RLE
+    RightToLeftIsolate,       // RLI
+    RightToLeftOverride,      // RLO
+    SegmentSeparator,         // S
+    WhiteSpaceNeutral,        // WS
+};
+
+BidiClass bidirectional_class(u32 code_point);
 
 }

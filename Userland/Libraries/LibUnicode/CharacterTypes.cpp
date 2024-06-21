@@ -310,7 +310,67 @@ bool code_point_has_script_extension(u32 code_point, Script script)
     return static_cast<bool>(uscript_hasScript(icu_code_point, icu_script));
 }
 
-Optional<BidirectionalClass> __attribute__((weak)) bidirectional_class_from_string(StringView) { return {}; }
-Optional<BidirectionalClass> __attribute__((weak)) bidirectional_class(u32) { return {}; }
+static constexpr BidiClass char_direction_to_bidi_class(UCharDirection direction)
+{
+    switch (direction) {
+    case U_ARABIC_NUMBER:
+        return BidiClass::ArabicNumber;
+    case U_BLOCK_SEPARATOR:
+        return BidiClass::BlockSeparator;
+    case U_BOUNDARY_NEUTRAL:
+        return BidiClass::BoundaryNeutral;
+    case U_COMMON_NUMBER_SEPARATOR:
+        return BidiClass::CommonNumberSeparator;
+    case U_DIR_NON_SPACING_MARK:
+        return BidiClass::DirNonSpacingMark;
+    case U_EUROPEAN_NUMBER:
+        return BidiClass::EuropeanNumber;
+    case U_EUROPEAN_NUMBER_SEPARATOR:
+        return BidiClass::EuropeanNumberSeparator;
+    case U_EUROPEAN_NUMBER_TERMINATOR:
+        return BidiClass::EuropeanNumberTerminator;
+    case U_FIRST_STRONG_ISOLATE:
+        return BidiClass::FirstStrongIsolate;
+    case U_LEFT_TO_RIGHT:
+        return BidiClass::LeftToRight;
+    case U_LEFT_TO_RIGHT_EMBEDDING:
+        return BidiClass::LeftToRightEmbedding;
+    case U_LEFT_TO_RIGHT_ISOLATE:
+        return BidiClass::LeftToRightIsolate;
+    case U_LEFT_TO_RIGHT_OVERRIDE:
+        return BidiClass::LeftToRightOverride;
+    case U_OTHER_NEUTRAL:
+        return BidiClass::OtherNeutral;
+    case U_POP_DIRECTIONAL_FORMAT:
+        return BidiClass::PopDirectionalFormat;
+    case U_POP_DIRECTIONAL_ISOLATE:
+        return BidiClass::PopDirectionalIsolate;
+    case U_RIGHT_TO_LEFT:
+        return BidiClass::RightToLeft;
+    case U_RIGHT_TO_LEFT_ARABIC:
+        return BidiClass::RightToLeftArabic;
+    case U_RIGHT_TO_LEFT_EMBEDDING:
+        return BidiClass::RightToLeftEmbedding;
+    case U_RIGHT_TO_LEFT_ISOLATE:
+        return BidiClass::RightToLeftIsolate;
+    case U_RIGHT_TO_LEFT_OVERRIDE:
+        return BidiClass::RightToLeftOverride;
+    case U_SEGMENT_SEPARATOR:
+        return BidiClass::SegmentSeparator;
+    case U_WHITE_SPACE_NEUTRAL:
+        return BidiClass::WhiteSpaceNeutral;
+    case U_CHAR_DIRECTION_COUNT:
+        break;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+BidiClass bidirectional_class(u32 code_point)
+{
+    auto icu_code_point = static_cast<UChar32>(code_point);
+
+    auto direction = u_charDirection(icu_code_point);
+    return char_direction_to_bidi_class(direction);
+}
 
 }
