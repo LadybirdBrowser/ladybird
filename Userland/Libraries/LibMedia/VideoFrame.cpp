@@ -138,11 +138,8 @@ static ALWAYS_INLINE DecoderErrorOr<void> convert_to_bitmap_selecting_converter(
             return convert_to_bitmap_subsampled<subsampling_horizontal, subsampling_vertical>([](u16 y, u16 u, u16 v) { return ColorConverter::convert_simple_yuv_to_rgb<MatrixCoefficients::BT709, VideoFullRangeFlag::Studio>(y, u, v); }, width, height, plane_y, plane_u, plane_v, bitmap);
         case MatrixCoefficients::BT601:
             return convert_to_bitmap_subsampled<subsampling_horizontal, subsampling_vertical>([](u16 y, u16 u, u16 v) { return ColorConverter::convert_simple_yuv_to_rgb<MatrixCoefficients::BT601, VideoFullRangeFlag::Studio>(y, u, v); }, width, height, plane_y, plane_u, plane_v, bitmap);
-        case MatrixCoefficients::BT2020ConstantLuminance:
-        case MatrixCoefficients::BT2020NonConstantLuminance:
-            return convert_to_bitmap_subsampled<subsampling_horizontal, subsampling_vertical>([](u16 y, u16 u, u16 v) { return ColorConverter::convert_simple_yuv_to_rgb<MatrixCoefficients::BT2020ConstantLuminance, VideoFullRangeFlag::Studio>(y, u, v); }, width, height, plane_y, plane_u, plane_v, bitmap);
         default:
-            VERIFY_NOT_REACHED();
+            break;
         }
     }
 
