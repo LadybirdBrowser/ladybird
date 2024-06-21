@@ -78,9 +78,19 @@ void Internals::commit_text()
 
 void Internals::click(double x, double y)
 {
+    click(x, y, UIEvents::MouseButton::Primary);
+}
+
+void Internals::middle_click(double x, double y)
+{
+    click(x, y, UIEvents::MouseButton::Middle);
+}
+
+void Internals::click(double x, double y, UIEvents::MouseButton button)
+{
     auto& page = global_object().browsing_context()->page();
-    page.handle_mousedown({ x, y }, { x, y }, 1, 0, 0);
-    page.handle_mouseup({ x, y }, { x, y }, 1, 0, 0);
+    page.handle_mousedown({ x, y }, { x, y }, button, 0, 0);
+    page.handle_mouseup({ x, y }, { x, y }, button, 0, 0);
 }
 
 void Internals::move_pointer_to(double x, double y)

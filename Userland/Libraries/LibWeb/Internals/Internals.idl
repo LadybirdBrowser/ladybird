@@ -13,6 +13,7 @@ interface Internals {
     undefined commitText();
 
     undefined click(double x, double y);
+    undefined middleClick(double x, double y);
     undefined movePointerTo(double x, double y);
     undefined wheel(double x, double y, double deltaX, double deltaY);
 
