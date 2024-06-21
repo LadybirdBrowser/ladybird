@@ -60,8 +60,10 @@ ALWAYS_INLINE void interpolate_row(u32 const row, u32 const width, u16 const* pl
 template<u32 subsampling_horizontal, u32 subsampling_vertical, typename Convert>
 ALWAYS_INLINE DecoderErrorOr<void> convert_to_bitmap_subsampled(Convert convert, u32 const width, u32 const height, FixedArray<u16> const& plane_y, FixedArray<u16> const& plane_u, FixedArray<u16> const& plane_v, Gfx::Bitmap& bitmap)
 {
-    VERIFY(bitmap.width() >= 0 && static_cast<u32>(bitmap.width()) == width);
-    VERIFY(bitmap.height() >= 0 && static_cast<u32>(bitmap.height()) == height);
+    VERIFY(bitmap.width() >= 0);
+    VERIFY(bitmap.height() >= 0);
+    VERIFY(static_cast<u32>(bitmap.width()) == width);
+    VERIFY(static_cast<u32>(bitmap.height()) == height);
 
     auto temporary_buffer = DECODER_TRY_ALLOC(FixedArray<u16>::create(static_cast<size_t>(width) * 4));
 
