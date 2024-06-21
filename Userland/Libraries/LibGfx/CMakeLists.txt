@@ -66,7 +66,6 @@ set(SOURCES
     ShareableBitmap.cpp
     Size.cpp
     SystemTheme.cpp
-    TextDirection.cpp
     TextLayout.cpp
     Triangle.cpp
     VectorGraphic.cpp
