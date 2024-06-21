@@ -13,12 +13,12 @@ namespace Unicode {
 
 enum class BidirectionalClass : u8;
 enum class EmojiGroup : u8;
-enum class Script : u8;
 
 struct CurrencyCode;
 struct Emoji;
 
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, GeneralCategory, CastToUnderlying, Comparison, Increment);
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, Property, CastToUnderlying, Comparison, Increment);
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, Script, CastToUnderlying, Comparison, Increment);
 
 }
