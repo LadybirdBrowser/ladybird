@@ -278,6 +278,8 @@ bool EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint
             if (node.ptr() == m_mousedown_target) {
                 if (button == UIEvents::MouseButton::Primary) {
                     run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::click, screen_position, page_offset, client_offset, offset, {}, 1, button, modifiers).release_value_but_fixme_should_propagate_errors());
+                } else if (button == UIEvents::MouseButton::Middle) {
+                    run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::auxclick, screen_position, page_offset, client_offset, offset, {}, 1, button, modifiers).release_value_but_fixme_should_propagate_errors());
                 } else if (button == UIEvents::MouseButton::Secondary) {
                     // Allow the user to bypass custom context menus by holding shift, like Firefox.
                     if ((modifiers & UIEvents::Mod_Shift) == 0)

@@ -1,0 +1,1 @@
+auxclick event fired
