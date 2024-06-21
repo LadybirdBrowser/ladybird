@@ -15,6 +15,7 @@
 #include <LibGfx/Size.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/DecoderError.h>
+#include <LibMedia/Subsampling.h>
 
 #include "BooleanDecoder.h"
 #include "ContextStorage.h"
@@ -126,8 +127,8 @@ public:
     {
         if (uv) {
             return {
-                y_size_to_uv_size(color_config.subsampling_y, blocks_to_pixels(columns())),
-                y_size_to_uv_size(color_config.subsampling_y, blocks_to_pixels(rows())),
+                Subsampling::subsampled_size(color_config.subsampling_y, blocks_to_pixels(columns())),
+                Subsampling::subsampled_size(color_config.subsampling_y, blocks_to_pixels(rows())),
             };
         }
         return {
