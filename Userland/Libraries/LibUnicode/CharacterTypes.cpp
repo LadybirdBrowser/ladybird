@@ -4,13 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#define AK_DONT_REPLACE_STD
+
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
 #include <AK/Traits.h>
+#include <LibLocale/ICU.h>
 #include <LibUnicode/CharacterTypes.h>
 
 #include <unicode/uchar.h>
+#include <unicode/uscript.h>
 
 namespace Unicode {
 
@@ -262,9 +266,49 @@ bool is_ecma262_property(Property property)
     }
 }
 
-Optional<Script> __attribute__((weak)) script_from_string(StringView) { return {}; }
-bool __attribute__((weak)) code_point_has_script(u32, Script) { return {}; }
-bool __attribute__((weak)) code_point_has_script_extension(u32, Script) { return {}; }
+Optional<Script> script_from_string(StringView script)
+{
+    static auto script_names = []() {
+        Array<PropertyName<Script>, static_cast<size_t>(USCRIPT_CODE_LIMIT)> names;
+
+        for (Script script = 0; script < USCRIPT_CODE_LIMIT; ++script) {
+            auto icu_script = static_cast<UScriptCode>(script.value());
+
+            if (char const* name = uscript_getName(icu_script))
+                names[script.value()].long_name = StringView { name, strlen(name) };
+            if (char const* name = uscript_getShortName(icu_script))
+                names[script.value()].short_name = StringView { name, strlen(name) };
+            if (char const* name = u_getPropertyValueName(UCHAR_SCRIPT, icu_script, ADDITIONAL_NAME))
+                names[script.value()].additional_name = StringView { name, strlen(name) };
+        }
+
+        return names;
+    }();
+
+    if (auto index = find_index(script_names.begin(), script_names.end(), script); index != script_names.size())
+        return static_cast<Script>(index);
+    return {};
+}
+
+bool code_point_has_script(u32 code_point, Script script)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto icu_code_point = static_cast<UChar32>(code_point);
+    auto icu_script = static_cast<UScriptCode>(script.value());
+
+    if (auto result = uscript_getScript(icu_code_point, &status); Locale::icu_success(status))
+        return result == icu_script;
+    return false;
+}
+
+bool code_point_has_script_extension(u32 code_point, Script script)
+{
+    auto icu_code_point = static_cast<UChar32>(code_point);
+    auto icu_script = static_cast<UScriptCode>(script.value());
+
+    return static_cast<bool>(uscript_hasScript(icu_code_point, icu_script));
+}
 
 Optional<BidirectionalClass> __attribute__((weak)) bidirectional_class_from_string(StringView) { return {}; }
 Optional<BidirectionalClass> __attribute__((weak)) bidirectional_class(u32) { return {}; }
