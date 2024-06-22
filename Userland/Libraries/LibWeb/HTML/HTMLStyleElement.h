@@ -23,6 +23,9 @@ public:
     virtual void inserted() override;
     virtual void removed_from(Node*) override;
 
+    bool disabled();
+    void set_disabled(bool disabled);
+
     CSS::CSSStyleSheet* sheet();
     CSS::CSSStyleSheet const* sheet() const;
 
