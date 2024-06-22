@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "01f602195983451bc83e72f4214af2cbc495aa94",
+  "builtin-baseline": "f7423ee180c4b7f40d43402c2feb3859161ef625",
   "dependencies": [
     {
       "name": "fontconfig",
@@ -22,7 +22,7 @@
     },
     {
       "name": "icu",
-      "version": "74.2#1"
+      "version": "74.2#2"
     },
     {
       "name": "libjpeg-turbo",
