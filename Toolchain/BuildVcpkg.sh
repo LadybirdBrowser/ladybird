@@ -8,7 +8,17 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # shellcheck source=/dev/null
 . "${DIR}/../Meta/shell_include.sh"
 
-exit_if_running_as_root "Do not run BuildVcpkg.sh as root, parts of your Toolchain directory will become root-owned"
+# FIXME: Make the test262-runner CI use a non-root user
+ci=0
+if [[ "$1" == "--ci" ]]; then
+    echo "Running in CI mode, will not check for root user"
+    ci=1
+    shift
+fi
+
+if [ "$ci" -eq 0 ]; then
+    exit_if_running_as_root "Do not run BuildVcpkg.sh as root, parts of your Toolchain directory will become root-owned"
+fi
 
 GIT_REPO="https://github.com/microsoft/vcpkg.git"
 GIT_REV="01f602195983451bc83e72f4214af2cbc495aa94" # 2024.05.24
