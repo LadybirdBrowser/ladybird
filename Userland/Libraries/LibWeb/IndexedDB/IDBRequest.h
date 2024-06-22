@@ -20,6 +20,8 @@ public:
 
     void set_onsuccess(WebIDL::CallbackType*);
     WebIDL::CallbackType* onsuccess();
+    void set_onerror(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onerror();
 
 protected:
     explicit IDBRequest(JS::Realm&);

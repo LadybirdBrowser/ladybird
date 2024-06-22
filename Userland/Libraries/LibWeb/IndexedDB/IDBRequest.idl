@@ -11,7 +11,7 @@ interface IDBRequest : EventTarget {
 
     // Event handlers:
     attribute EventHandler onsuccess;
-    [FIXME] attribute EventHandler onerror;
+    attribute EventHandler onerror;
 };
 
 enum IDBRequestReadyState {
