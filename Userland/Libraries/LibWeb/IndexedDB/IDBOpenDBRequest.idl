@@ -4,6 +4,6 @@
 [Exposed=(Window,Worker)]
 interface IDBOpenDBRequest : IDBRequest {
     // Event handlers:
-    [FIXME] attribute EventHandler onblocked;
+    attribute EventHandler onblocked;
     [FIXME] attribute EventHandler onupgradeneeded;
 };
