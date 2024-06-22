@@ -4,12 +4,12 @@ on: [push]
 
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
+  VCPKG_ROOT: ${{ github.workspace }}/Toolchain/Tarballs/vcpkg
 
 jobs:
   run_and_update_results:
     runs-on: self-hosted
-    if: false
-    #if: always() && github.repository == 'LadybirdBrowser/ladybird' && github.ref == 'refs/heads/master'
+    if: always() && github.repository == 'LadybirdBrowser/ladybird' && github.ref == 'refs/heads/master'
 
     concurrency: libjs-test262
 
@@ -22,16 +22,16 @@ jobs:
       - name: Checkout LadybirdBrowser/ladybird
         uses: actions/checkout@v4
 
-      - name: Checkout SerenityOS/libjs-test262
+      - name: Checkout LadybirdBrowser/libjs-test262
         uses: actions/checkout@v4
         with:
-          repository: SerenityOS/libjs-test262
+          repository: LadybirdBrowser/libjs-test262
           path: libjs-test262
 
-      - name: Checkout SerenityOS/libjs-data
+      - name: Checkout LadybirdBrowser/libjs-data
         uses: actions/checkout@v4
         with:
-          repository: SerenityOS/libjs-data
+          repository: LadybirdBrowser/libjs-data
           path: libjs-data
 
       - name: Checkout tc39/test262
@@ -49,13 +49,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build unzip gcc-13 g++-13 jq wget
+          sudo apt-get install -y ninja-build unzip gcc-13 g++-13 jq wget curl zip tar autoconf autoconf-archive automake pkg-config libgl1-mesa-dev
           test -e /opt/wabt-1.0.35 || (
             cd /tmp
             wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
             sudo tar xf wabt-1.0.35-ubuntu-20.04.tar.gz -C /opt
             rm wabt-1.0.35-ubuntu-20.04.tar.gz
           )
+          # FIXME: Just use the setup action
+          ./Toolchain/BuildVcpkg.sh --ci
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -84,17 +86,21 @@ jobs:
           cp -R libjs-data/test262 libjs-data/wasm old-libjs-data
 
       - name: Build test262-runner, test-js and test-wasm
-        working-directory: libjs-test262
         run: |
+          # FIXME: Why does vcpkg need this?
+          #        Running as a normal user would make this a non-issue though
+          export HOME=${{ github.workspace }}/home
+          mkdir -p $HOME
           env PATH="/opt/wabt-1.0.35/bin:$PATH" \
-            cmake -GNinja -B Build \
+            CC=gcc-13 \
+            CXX=g++-13 \
+            cmake --preset CI -B libjs-test262/Build \
               -DCMAKE_C_COMPILER=gcc-13 \
               -DCMAKE_CXX_COMPILER=g++-13 \
               -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
               -DINCLUDE_WASM_SPEC_TESTS=ON \
-              -DLADYBIRD_SOURCE_DIR=${{ env.LADYBIRD_SOURCE_DIR }} \
-              -DSERENITY_CACHE_DIR=Build/caches
-          ninja -C Build test262-runner test-js test-wasm
+              -DENABLE_QT=OFF
+          ninja -C libjs-test262/Build test262-runner test-js test-wasm
 
       - name: Run test262 and test262-parser-tests
         working-directory: libjs-test262
@@ -109,7 +115,7 @@ jobs:
       - name: Run test-wasm
         working-directory: libjs-test262
         run: |
-          Build/bin/test-wasm --per-file Build/_deps/lagom-build/Userland/Libraries/LibWasm/Tests > ../libjs-data/wasm/per-file-master.json || true
+          Build/bin/test-wasm --per-file Build/Lagom/Userland/Libraries/LibWasm/Tests > ../libjs-data/wasm/per-file-master.json || true
           jq -nc -f /dev/stdin <<-EOF --slurpfile previous ../libjs-data/wasm/results.json --slurpfile details ../libjs-data/wasm/per-file-master.json > wasm-new-results.json
             \$details[0] as \$details | \$previous[0] + [{
               "commit_timestamp": $(git -C .. log -1 --format=%ct),
@@ -142,9 +148,9 @@ jobs:
       - name: Deploy to GitHub
         uses: JamesIves/github-pages-deploy-action@v4.6.1
         with:
-          git-config-name: BuggieBot
-          git-config-email: buggiebot@serenityos.org
+          git-config-name: LadybirdBot
+          git-config-email: ladybirdbot@ladybird.org
           branch: master
-          repository-name: SerenityOS/libjs-data
-          token: ${{ secrets.BUGGIEBOT_TOKEN }}
+          repository-name: LadybirdBrowser/libjs-data
+          token: ${{ secrets.LADYBIRD_BOT_TOKEN }}
           folder: libjs-data
