@@ -26,7 +26,17 @@ PREFIX_DIR="$DIR/Local/vcpkg"
 
 mkdir -p "$DIR/Tarballs"
 pushd "$DIR/Tarballs"
-    [ ! -d vcpkg ] && git clone $GIT_REPO
+    if [[ ! -d vcpkg ]]; then
+        git clone "${GIT_REPO}"
+    else
+        bootstrapped_vcpkg_version=$(git -C vcpkg rev-parse HEAD)
+
+        if [[ "${bootstrapped_vcpkg_version}" == "${GIT_REV}" ]]; then
+            exit 0
+        fi
+    fi
+
+    echo "Building vcpkg"
 
     cd vcpkg
     git fetch origin
