@@ -278,9 +278,18 @@ u64 Response::freshness_lifetime() const
     // If the max-age response directive (Section 5.2.2.1) is present, use its value, or
     for (auto const& directive : *elem) {
         if (directive.starts_with_bytes("max-age"sv)) {
-            auto equal_offset = directive.find_byte_offset('=').value();
-            auto const value = directive.bytes_as_string_view().substring_view(equal_offset);
-            return value.to_number<u64>().value();
+            auto equal_offset = directive.find_byte_offset('=');
+            if (!equal_offset.has_value()) {
+                dbgln("Bogus directive: '{}'", directive);
+                continue;
+            }
+            auto const value_string = directive.bytes_as_string_view().substring_view(equal_offset.value() + 1);
+            auto maybe_value = value_string.to_number<u64>();
+            if (!maybe_value.has_value()) {
+                dbgln("Bogus directive: '{}'", directive);
+                continue;
+            }
+            return maybe_value.value();
         }
     }
 
@@ -299,9 +308,18 @@ u64 Response::stale_while_revalidate_lifetime() const
 
     for (auto const& directive : *elem) {
         if (directive.starts_with_bytes("stale-while-revalidate"sv)) {
-            auto equal_offset = directive.find_byte_offset('=').value();
-            auto const value = directive.bytes_as_string_view().substring_view(equal_offset);
-            return value.to_number<u64>().value();
+            auto equal_offset = directive.find_byte_offset('=');
+            if (!equal_offset.has_value()) {
+                dbgln("Bogus directive: '{}'", directive);
+                continue;
+            }
+            auto const value_string = directive.bytes_as_string_view().substring_view(equal_offset.value() + 1);
+            auto maybe_value = value_string.to_number<u64>();
+            if (!maybe_value.has_value()) {
+                dbgln("Bogus directive: '{}'", directive);
+                continue;
+            }
+            return maybe_value.value();
         }
     }
 
