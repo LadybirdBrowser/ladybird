@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,6 +17,9 @@ class IDBRequest : public DOM::EventTarget {
 
 public:
     virtual ~IDBRequest() override;
+
+    void set_onsuccess(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onsuccess();
 
 protected:
     explicit IDBRequest(JS::Realm&);
