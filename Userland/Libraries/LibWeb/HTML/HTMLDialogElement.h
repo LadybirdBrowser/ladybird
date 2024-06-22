@@ -34,6 +34,7 @@ private:
     HTMLDialogElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
     void close_the_dialog(Optional<String> result);
 
@@ -41,6 +42,7 @@ private:
 
     String m_return_value;
     bool m_is_modal { false };
+    JS::GCPtr<CloseWatcher> m_close_watcher;
 };
 
 }
