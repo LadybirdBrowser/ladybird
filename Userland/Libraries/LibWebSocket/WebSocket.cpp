@@ -212,7 +212,7 @@ void WebSocket::send_client_handshake()
     }
 
     // 12. Additional headers
-    for (auto& header : m_connection.headers()) {
+    for (auto& header : m_connection.headers().headers()) {
         builder.appendff("{}: {}\r\n", header.name, header.value);
     }
 
