@@ -5,5 +5,5 @@
 interface IDBOpenDBRequest : IDBRequest {
     // Event handlers:
     attribute EventHandler onblocked;
-    [FIXME] attribute EventHandler onupgradeneeded;
+    attribute EventHandler onupgradeneeded;
 };
