@@ -39,4 +39,16 @@ WebIDL::CallbackType* IDBRequest::onsuccess()
     return event_handler_attribute(HTML::EventNames::success);
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbrequest-onerror
+void IDBRequest::set_onerror(WebIDL::CallbackType* event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::error, event_handler);
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbrequest-onerror
+WebIDL::CallbackType* IDBRequest::onerror()
+{
+    return event_handler_attribute(HTML::EventNames::error);
+}
+
 }
