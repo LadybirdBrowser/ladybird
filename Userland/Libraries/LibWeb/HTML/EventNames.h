@@ -105,6 +105,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(statechange)              \
     __ENUMERATE_HTML_EVENT(storage)                  \
     __ENUMERATE_HTML_EVENT(submit)                   \
+    __ENUMERATE_HTML_EVENT(success)                  \
     __ENUMERATE_HTML_EVENT(suspend)                  \
     __ENUMERATE_HTML_EVENT(timeupdate)               \
     __ENUMERATE_HTML_EVENT(toggle)                   \
