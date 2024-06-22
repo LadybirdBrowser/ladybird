@@ -226,6 +226,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
         dbgln_if(CSS_PARSER_DEBUG, "Expected qualified-name for attribute name, got: '{}'", attribute_tokens.peek_token().to_debug_string());
         return ParseError::SyntaxError;
     }
+    auto qualified_name = maybe_qualified_name.release_value();
 
     Selector::SimpleSelector simple_selector {
         .type = Selector::SimpleSelector::Type::Attribute,
@@ -236,8 +237,10 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
             // they are converted to lowercase, so we do that here too. If we want to be
             // correct with XML later, we'll need to keep the original case and then do
             // a case-insensitive compare later.
-            .qualified_name = maybe_qualified_name.release_value(),
-            .case_type = Selector::SimpleSelector::Attribute::CaseType::DefaultMatch,
+            .qualified_name = qualified_name,
+            .case_type = case_insensitive_html_attributes.contains_slow(qualified_name.name.lowercase_name)
+                ? Selector::SimpleSelector::Attribute::CaseType::CaseInsensitiveMatch
+                : Selector::SimpleSelector::Attribute::CaseType::DefaultMatch,
         }
     };
 

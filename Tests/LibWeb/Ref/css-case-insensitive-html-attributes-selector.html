@@ -1,0 +1,12 @@
+<!doctype html>
+<link rel="match" href="reference/css-case-insensitive-html-attributes-selector-ref.html" />
+<style>
+    div[type=one] { /* 'type' is a case-insensitive html attribute */
+        background: red;
+    }
+    div[test=two] { /* 'test' is NOT a case-insensitive html attribute */
+        background: green;
+    }
+</style>
+<div type="ONE">I have a red background</div>
+<div type="TWO">I don't have a green background</div>
