@@ -95,6 +95,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool debug_web_content = false;
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
+    bool enable_http_cache = false;
     bool new_window = false;
     bool force_new_process = false;
     bool allow_popups = false;
@@ -112,6 +113,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
+    args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
     args_parser.add_option(force_new_process, "Force creation of new browser/chrome process", "force-new-process");
@@ -174,6 +176,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         .wait_for_debugger = debug_web_content ? Ladybird::WaitForDebugger::Yes : Ladybird::WaitForDebugger::No,
         .log_all_js_exceptions = log_all_js_exceptions ? Ladybird::LogAllJSExceptions::Yes : Ladybird::LogAllJSExceptions::No,
         .enable_idl_tracing = enable_idl_tracing ? Ladybird::EnableIDLTracing::Yes : Ladybird::EnableIDLTracing::No,
+        .enable_http_cache = enable_http_cache ? Ladybird::EnableHTTPCache::Yes : Ladybird::EnableHTTPCache::No,
         .expose_internals_object = expose_internals_object ? Ladybird::ExposeInternalsObject::Yes : Ladybird::ExposeInternalsObject::No,
     };
 

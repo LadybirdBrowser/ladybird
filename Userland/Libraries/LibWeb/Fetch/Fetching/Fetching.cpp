@@ -58,6 +58,8 @@
 
 namespace Web::Fetch::Fetching {
 
+bool g_http_cache_enabled;
+
 #define TRY_OR_IGNORE(expression)                                                                    \
     ({                                                                                               \
         auto&& _temporary_result = (expression);                                                     \
@@ -1255,33 +1257,188 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     return main_fetch(realm, fetch_params, recursive);
 }
 
-struct CachedResponse {
-    Vector<Infrastructure::Header> headers;
+class CachedResponse : public RefCounted<CachedResponse> {
+public:
+    HTTP::HeaderMap headers;
     ByteBuffer body;
+    Infrastructure::Response::BodyInfo body_info;
     ByteBuffer method;
     URL::URL url;
     UnixDateTime current_age;
 };
 
-class CachePartition {
+class CachePartition : public RefCounted<CachePartition> {
 public:
-    // FIXME: Copy the headers... less
-    Optional<CachedResponse> select_response(URL::URL const& url, ReadonlyBytes method, Vector<Infrastructure::Header> const& headers) const
+    // https://httpwg.org/specs/rfc9111.html#constructing.responses.from.caches
+    JS::GCPtr<Infrastructure::Response> select_response(JS::Realm& realm, URL::URL const& url, ReadonlyBytes method, Vector<Infrastructure::Header> const& headers) const
     {
+        // When presented with a request, a cache MUST NOT reuse a stored response unless:
+
+        // - the presented target URI (Section 7.1 of [HTTP]) and that of the stored response match, and
         auto it = m_cache.find(url);
-        if (it == m_cache.end())
+        if (it == m_cache.end()) {
+            dbgln("\033[31;1mHTTP CACHE MISS!\033[0m {}", url);
             return {};
+        }
+        auto const& cached_response = *it->value;
 
-        auto const& cached_response = it->value;
+        // - the request method associated with the stored response allows it to be used for the presented request, and
+        if (method != cached_response.method) {
+            dbgln("\033[31;1mHTTP CACHE MISS!\033[0m (Bad method) {}", url);
+            return {};
+        }
 
-        // FIXME: Validate headers and method
-        (void)method;
+        // FIXME: - request header fields nominated by the stored response (if any) match those presented (see Section 4.1), and
         (void)headers;
-        return cached_response;
+
+        // FIXME: - the stored response does not contain the no-cache directive (Section 5.2.2.4), unless it is successfully validated (Section 4.3), and
+        //          the stored response is one of the following:
+        //          + fresh (see Section 4.2), or
+        //          + allowed to be served stale (see Section 4.2.4), or
+        //          + successfully validated (see Section 4.3).
+
+        dbgln("\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
+
+        auto [body, _] = MUST(extract_body(realm, ReadonlyBytes(cached_response.body)));
+        auto response = Infrastructure::Response::create(realm.vm());
+        response->set_body(body);
+        response->set_body_info(cached_response.body_info);
+        for (auto& [name, value] : cached_response.headers.headers()) {
+            response->header_list()->append(Infrastructure::Header::from_string_pair(name, value));
+        }
+        return response;
+    }
+
+    void store_response(Infrastructure::Request const& http_request, Infrastructure::Response const& response)
+    {
+        if (!is_cacheable(http_request, response))
+            return;
+
+        auto cached_response = adopt_ref(*new CachedResponse);
+        store_header_and_trailer_fields(response, cached_response->headers);
+        cached_response->body = response.body()->source().get<ByteBuffer>();
+        cached_response->body_info = response.body_info();
+        cached_response->method = MUST(ByteBuffer::copy(http_request.method()));
+        cached_response->url = http_request.current_url();
+        cached_response->current_age = UnixDateTime::now();
+        m_cache.set(http_request.current_url(), move(cached_response));
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#freshening.responses
+    void freshen_stored_responses_upon_validation(Infrastructure::Request const& http_request, Infrastructure::Response const& response)
+    {
+        auto it = m_cache.find(http_request.current_url());
+        if (it == m_cache.end())
+            return;
+
+        // For each stored response identified, the cache MUST update its header fields
+        // with the header fields provided in the 304 (Not Modified) response, as per Section 3.2.
+        auto& cached_response = *it->value;
+        update_stored_header_fields(response, cached_response.headers);
     }
 
 private:
-    HashMap<URL::URL, CachedResponse> m_cache;
+    // https://httpwg.org/specs/rfc9111.html#update
+    void update_stored_header_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
+    {
+        for (auto& header : *response.header_list()) {
+            auto name = StringView(header.name);
+            if (name.is_one_of_ignoring_ascii_case(
+                    "Connection"sv,
+                    "Proxy-Connection"sv,
+                    "Keep-Alive"sv,
+                    "TE"sv,
+                    "Transfer-Encoding"sv,
+                    "Upgrade"sv,
+                    "Content-Length"sv)) {
+                continue;
+            }
+            headers.set(ByteString::copy(header.name), ByteString::copy(header.value));
+        }
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#storing.fields
+    void store_header_and_trailer_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
+    {
+        // Caches MUST include all received response header fields — including unrecognized ones — when storing a response;
+        // this assures that new HTTP header fields can be successfully deployed. However, the following exceptions are made:
+
+        // - The Connection header field and fields whose names are listed in it are required by Section 7.6.1 of [HTTP]
+        //   to be removed before forwarding the message. This MAY be implemented by doing so before storage.
+
+        // - Likewise, some fields' semantics require them to be removed before forwarding the message, and this MAY be
+        //   implemented by doing so before storage; see Section 7.6.1 of [HTTP] for some examples.
+
+        // FIXME: - The no-cache (Section 5.2.2.4) and private (Section 5.2.2.7) cache directives can have arguments that
+        //          prevent storage of header fields by all caches and shared caches, respectively.
+
+        // FIXME: - Header fields that are specific to the proxy that a cache uses when forwarding a request MUST NOT be stored,
+        //          unless the cache incorporates the identity of the proxy into the cache key.
+        //          Effectively, this is limited to Proxy-Authenticate (Section 11.7.1 of [HTTP]), Proxy-Authentication-Info (Section 11.7.3 of [HTTP]), and Proxy-Authorization (Section 11.7.2 of [HTTP]).
+
+        for (auto& header : *response.header_list()) {
+            auto name = StringView(header.name);
+            if (name.is_one_of_ignoring_ascii_case(
+                    "Connection"sv,
+                    "Proxy-Connection"sv,
+                    "Keep-Alive"sv,
+                    "TE"sv,
+                    "Transfer-Encoding"sv,
+                    "Upgrade"sv)) {
+                continue;
+            }
+            headers.set(ByteString::copy(header.name), ByteString::copy(header.value));
+        }
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#response.cacheability
+    static bool is_cacheable(Infrastructure::Request const& request, Infrastructure::Response const& response)
+    {
+        // A cache MUST NOT store a response to a request unless:
+
+        // - AD-HOC: For now, we simply don't cache responses without a simple ByteBuffer body.
+        if (!response.body() || !response.body()->source().has<ByteBuffer>())
+            return false;
+
+        // - the request method is understood by the cache;
+        if (request.method() != "GET"sv.bytes() && request.method() != "HEAD"sv.bytes())
+            return false;
+
+        // - the response status code is final (see Section 15 of [HTTP]);
+        if (response.status() < 200)
+            return false;
+
+        // - if the response status code is 206 or 304,
+        //   or the must-understand cache directive (see Section 5.2.2.3) is present:
+        //       the cache understands the response status code;
+        if (response.status() == 206 || response.status() == 304) {
+            // FIXME: Implement must-understand cache directive
+        }
+
+        // - the no-store cache directive is not present in the response (see Section 5.2.2.5);
+        if (request.cache_mode() == Infrastructure::Request::CacheMode::NoStore)
+            return false;
+
+        // FIXME: - if the cache is shared: the private response directive is either not present
+        //          or allows a shared cache to store a modified response; see Section 5.2.2.7);
+
+        // FIXME: - if the cache is shared: the Authorization header field is not present in the
+        //          request (see Section 11.6.2 of [HTTP]) or a response directive is present
+        //          that explicitly allows shared caching (see Section 3.5); and
+
+        // FIXME: - the response contains at least one of the following:
+        //          + a public response directive (see Section 5.2.2.9);
+        //          + a private response directive, if the cache is not shared (see Section 5.2.2.7);
+        //          + an Expires header field (see Section 5.3);
+        //          + a max-age response directive (see Section 5.2.2.1);
+        //          + if the cache is shared: an s-maxage response directive (see Section 5.2.2.10);
+        //          + a cache extension that allows it to be cached (see Section 5.2.3); or
+        //          + a status code that is defined as heuristically cacheable (see Section 4.2.2).
+
+        return true;
+    }
+
+    HashMap<URL::URL, NonnullRefPtr<CachedResponse>> m_cache;
 };
 
 class HTTPCache {
@@ -1289,7 +1446,7 @@ public:
     CachePartition& get(Infrastructure::NetworkPartitionKey const& key)
     {
         return *m_cache.ensure(key, [] {
-            return make<CachePartition>();
+            return adopt_ref(*new CachePartition);
         });
     }
 
@@ -1300,18 +1457,21 @@ public:
     }
 
 private:
-    HashMap<Infrastructure::NetworkPartitionKey, NonnullOwnPtr<CachePartition>> m_cache;
+    HashMap<Infrastructure::NetworkPartitionKey, NonnullRefPtr<CachePartition>> m_cache;
 };
 
 // https://fetch.spec.whatwg.org/#determine-the-http-cache-partition
-static Optional<CachePartition> determine_the_http_cache_partition(Infrastructure::Request const& request)
+static RefPtr<CachePartition> determine_the_http_cache_partition(Infrastructure::Request const& request)
 {
+    if (!g_http_cache_enabled)
+        return nullptr;
+
     // 1. Let key be the result of determining the network partition key given request.
     auto key = Infrastructure::determine_the_network_partition_key(request);
 
     // 2. If key is null, then return null.
     if (!key.has_value())
-        return OptionalNone {};
+        return nullptr;
 
     // 3. Return the unique HTTP cache associated with key. [HTTP-CACHING]
     return HTTPCache::the().get(key.value());
@@ -1342,7 +1502,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
 
     // 6. Let httpCache be null.
     // (Typeless until we actually implement it, needed for checks below)
-    Optional<CachePartition> http_cache;
+    RefPtr<CachePartition> http_cache;
 
     // 7. Let the revalidatingFlag be unset.
     auto revalidating_flag = RefCountedFlag::create(false);
@@ -1588,7 +1748,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
         http_cache = determine_the_http_cache_partition(*http_request);
 
         // 24. If httpCache is null, then set httpRequest’s cache mode to "no-store".
-        if (!http_cache.has_value())
+        if (!http_cache)
             http_request->set_cache_mode(Infrastructure::Request::CacheMode::NoStore);
 
         // 25. If httpRequest’s cache mode is neither "no-store" nor "reload", then:
@@ -1598,15 +1758,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
             //    validation, as per the "Constructing Responses from Caches" chapter of HTTP Caching [HTTP-CACHING],
             //    if any.
             // NOTE: As mandated by HTTP, this still takes the `Vary` header into account.
-            auto raw_response = http_cache->select_response(http_request->url(), http_request->method(), *http_request->header_list());
+            stored_response = http_cache->select_response(realm, http_request->current_url(), http_request->method(), *http_request->header_list());
             // 2. If storedResponse is non-null, then:
-            if (raw_response.has_value()) {
-
-                // FIXME: Set more properties from the cached response
-                auto [body, _] = TRY(extract_body(realm, ReadonlyBytes(raw_response->body)));
-                stored_response = Infrastructure::Response::create(vm);
-                stored_response->set_body(body);
-
+            if (stored_response) {
                 // 1. If cache mode is "default", storedResponse is a stale-while-revalidate response,
                 //    and httpRequest’s client is non-null, then:
                 if (http_request->cache_mode() == Infrastructure::Request::CacheMode::Default
@@ -1649,12 +1803,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
 
                         // 1. If storedResponse’s header list contains `ETag`, then append (`If-None-Match`, `ETag`'s value) to httpRequest’s header list.
                         if (auto etag = stored_response->header_list()->get("ETag"sv.bytes()); etag.has_value()) {
-                            stored_response->header_list()->append(Infrastructure::Header::from_string_pair("If-None-Match"sv, *etag));
+                            http_request->header_list()->append(Infrastructure::Header::from_string_pair("If-None-Match"sv, *etag));
                         }
 
                         // 2. If storedResponse’s header list contains `Last-Modified`, then append (`If-Modified-Since`, `Last-Modified`'s value) to httpRequest’s header list.
                         if (auto last_modified = stored_response->header_list()->get("Last-Modified"sv.bytes()); last_modified.has_value()) {
-                            stored_response->header_list()->append(Infrastructure::Header::from_string_pair("If-Modified-Since"sv, *last_modified));
+                            http_request->header_list()->append(Infrastructure::Header::from_string_pair("If-Modified-Since"sv, *last_modified));
                         }
                     }
                     // 3. Otherwise, set response to storedResponse and set response’s cache state to "local".
@@ -1688,13 +1842,13 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
 
     auto returned_pending_response = PendingResponse::create(vm, request);
 
-    pending_forward_response->when_loaded([&realm, &vm, &fetch_params, request, response, stored_response, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, revalidating_flag, include_credentials, response_was_null = !response](JS::NonnullGCPtr<Infrastructure::Response> resolved_forward_response) mutable {
+    pending_forward_response->when_loaded([&realm, &vm, &fetch_params, request, response, stored_response, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, revalidating_flag, include_credentials, response_was_null = !response, http_cache](JS::NonnullGCPtr<Infrastructure::Response> resolved_forward_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
         if (response_was_null) {
             auto forward_response = resolved_forward_response;
 
             // NOTE: TRACE is omitted as it is a forbidden method in Fetch.
-            auto method_is_unsafe = StringView { http_request->method() }.is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv);
+            auto method_is_unsafe = !(StringView { http_request->method() }.is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv));
 
             // 3. If httpRequest’s method is unsafe and forwardResponse’s status is in the range 200 to 399, inclusive,
             //    invalidate appropriate stored responses in httpCache, as per the "Invalidation" chapter of HTTP
@@ -1706,9 +1860,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
 
             // 4. If the revalidatingFlag is set and forwardResponse’s status is 304, then:
             if (revalidating_flag->value() && forward_response->status() == 304) {
-                // FIXME: 1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
-                //           Stored Responses upon Validation" chapter of HTTP Caching.
+                dbgln("\033[34;1mHTTP CACHE REVALIDATE (304)\033[0m {}", http_request->current_url());
+                // 1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
+                //    Stored Responses upon Validation" chapter of HTTP Caching.
                 // NOTE: This updates the stored response in cache as well.
+                http_cache->freshen_stored_responses_upon_validation(*http_request, *forward_response);
 
                 // 2. Set response to storedResponse.
                 response = stored_response;
@@ -1723,11 +1879,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
                 // 1. Set response to forwardResponse.
                 response = forward_response;
 
-                // FIXME: 2. Store httpRequest and forwardResponse in httpCache, as per the "Storing Responses in Caches"
-                //           chapter of HTTP Caching.
+                // 2. Store httpRequest and forwardResponse in httpCache, as per the "Storing Responses in Caches" chapter of HTTP Caching.
                 // NOTE: If forwardResponse is a network error, this effectively caches the network error, which is
                 //       sometimes known as "negative caching".
                 // NOTE: The associated body info is stored in the cache alongside the response.
+                if (http_cache)
+                    http_cache->store_response(*http_request, *forward_response);
             }
         }
 
