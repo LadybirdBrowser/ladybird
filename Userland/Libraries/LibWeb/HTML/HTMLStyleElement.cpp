@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2021, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2021, the SerenityOS developers.
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -47,6 +48,33 @@ void HTMLStyleElement::removed_from(Node* old_parent)
 {
     m_style_element_utils.update_a_style_block(*this);
     Base::removed_from(old_parent);
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#dom-style-disabled
+bool HTMLStyleElement::disabled()
+{
+    // 1. If this does not have an associated CSS style sheet, return false.
+    if (!sheet())
+        return false;
+
+    // 2. If this's associated CSS style sheet's disabled flag is set, return true.
+    if (sheet()->disabled())
+        return true;
+
+    // 3. Return false.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#dom-style-disabled
+void HTMLStyleElement::set_disabled(bool disabled)
+{
+    // 1. If this does not have an associated CSS style sheet, return.
+    if (!sheet())
+        return;
+
+    // 2. If the given value is true, set this's associated CSS style sheet's disabled flag.
+    //    Otherwise, unset this's associated CSS style sheet's disabled flag.
+    sheet()->set_disabled(disabled);
 }
 
 // https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
