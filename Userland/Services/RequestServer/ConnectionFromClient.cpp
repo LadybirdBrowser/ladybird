@@ -284,7 +284,7 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
 }
 
 static i32 s_next_websocket_id = 1;
-Messages::RequestServer::WebsocketConnectResponse ConnectionFromClient::websocket_connect(URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HashMap<ByteString, ByteString> const& additional_request_headers)
+Messages::RequestServer::WebsocketConnectResponse ConnectionFromClient::websocket_connect(URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& additional_request_headers)
 {
     if (!url.is_valid()) {
         dbgln("WebSocket::Connect: Invalid URL requested: '{}'", url);
@@ -295,12 +295,7 @@ Messages::RequestServer::WebsocketConnectResponse ConnectionFromClient::websocke
     connection_info.set_origin(origin);
     connection_info.set_protocols(protocols);
     connection_info.set_extensions(extensions);
-
-    Vector<WebSocket::ConnectionInfo::Header> headers;
-    for (auto const& header : additional_request_headers) {
-        headers.append({ header.key, header.value });
-    }
-    connection_info.set_headers(headers);
+    connection_info.set_headers(additional_request_headers);
 
     auto id = ++s_next_websocket_id;
     auto connection = WebSocket::WebSocket::create(move(connection_info));

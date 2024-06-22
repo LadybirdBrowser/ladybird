@@ -102,12 +102,9 @@ void RequestClient::certificate_requested(i32 request_id)
     }
 }
 
-RefPtr<WebSocket> RequestClient::websocket_connect(const URL::URL& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HashMap<ByteString, ByteString> const& request_headers)
+RefPtr<WebSocket> RequestClient::websocket_connect(const URL::URL& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& request_headers)
 {
-    auto headers_or_error = request_headers.clone();
-    if (headers_or_error.is_error())
-        return nullptr;
-    auto connection_id = IPCProxy::websocket_connect(url, origin, protocols, extensions, headers_or_error.release_value());
+    auto connection_id = IPCProxy::websocket_connect(url, origin, protocols, extensions, request_headers);
     if (connection_id < 0)
         return nullptr;
     auto connection = WebSocket::create_from_id({}, *this, connection_id);
