@@ -460,15 +460,6 @@ lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMa
 lagom_utility(ttfdisasm SOURCES ../../Userland/Utilities/ttfdisasm.cpp LIBS LibGfx LibMain)
 lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibLocale LibMain LibTextCodec Threads::Threads)
 
-if (EMSCRIPTEN)
-    lagom_utility(libjs SOURCES Wasm/js_repl.cpp LIBS LibJS LibLocale LibTimeZone LibUnicode)
-    target_link_options(libjs PRIVATE
-        -sEXPORTED_FUNCTIONS=_initialize_repl,_execute
-        -sEXPORTED_RUNTIME_METHODS=allocateUTF8
-        -sERROR_ON_UNDEFINED_SYMBOLS=0
-        -sENVIRONMENT=web)
-endif()
-
 lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
 
 lagom_utility(tar SOURCES ../../Userland/Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
