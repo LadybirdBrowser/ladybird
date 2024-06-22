@@ -392,60 +392,6 @@ String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const& med
     return MUST(String::join(", "sv, media_queries));
 }
 
-bool is_media_feature_name(StringView name)
-{
-    // MEDIAQUERIES-4 - https://www.w3.org/TR/mediaqueries-4/#media-descriptor-table
-    if (name.equals_ignoring_ascii_case("any-hover"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("any-pointer"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("aspect-ratio"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("color"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("color-gamut"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("color-index"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("device-aspect-ratio"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("device-height"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("device-width"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("grid"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("height"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("hover"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("monochrome"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("orientation"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("overflow-block"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("overflow-inline"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("pointer"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("resolution"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("scan"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("update"sv))
-        return true;
-    if (name.equals_ignoring_ascii_case("width"sv))
-        return true;
-
-    // MEDIAQUERIES-5 - https://www.w3.org/TR/mediaqueries-5/#media-descriptor-table
-    if (name.equals_ignoring_ascii_case("prefers-color-scheme"sv))
-        return true;
-    // FIXME: Add other level 5 feature names
-
-    return false;
-}
-
 MediaQuery::MediaType media_type_from_string(StringView name)
 {
     if (name.equals_ignoring_ascii_case("all"sv))
