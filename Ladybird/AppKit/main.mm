@@ -86,6 +86,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool use_skia_painting = false;
     bool debug_web_content = false;
     bool log_all_js_exceptions = false;
+    bool enable_http_cache = false;
     bool new_window = false;
 
     Core::ArgsParser args_parser;
@@ -97,6 +98,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(debug_web_content, "Wait for debugger to attach to WebContent", "debug-web-content");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
+    args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
     args_parser.parse(arguments);
 
@@ -137,6 +139,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         .enable_skia_painting = use_skia_painting ? Ladybird::EnableSkiaPainting::Yes : Ladybird::EnableSkiaPainting::No,
         .wait_for_debugger = debug_web_content ? Ladybird::WaitForDebugger::Yes : Ladybird::WaitForDebugger::No,
         .log_all_js_exceptions = log_all_js_exceptions ? Ladybird::LogAllJSExceptions::Yes : Ladybird::LogAllJSExceptions::No,
+        .enable_http_cache = enable_http_cache ? Ladybird::EnableHTTPCache::Yes : Ladybird::EnableHTTPCache::No,
     };
 
     auto* delegate = [[ApplicationDelegate alloc] init:sanitize_urls(raw_urls)
