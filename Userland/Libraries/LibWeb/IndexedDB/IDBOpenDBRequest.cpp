@@ -39,4 +39,16 @@ WebIDL::CallbackType* IDBOpenDBRequest::onblocked()
     return event_handler_attribute(HTML::EventNames::blocked);
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbopendbrequest-onupgradeneeded
+void IDBOpenDBRequest::set_onupgradeneeded(WebIDL::CallbackType* event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::upgradeneeded, event_handler);
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbopendbrequest-onupgradeneeded
+WebIDL::CallbackType* IDBOpenDBRequest::onupgradeneeded()
+{
+    return event_handler_attribute(HTML::EventNames::upgradeneeded);
+}
+
 }

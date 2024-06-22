@@ -21,6 +21,8 @@ public:
 
     void set_onblocked(WebIDL::CallbackType*);
     WebIDL::CallbackType* onblocked();
+    void set_onupgradeneeded(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onupgradeneeded();
 
 protected:
     explicit IDBOpenDBRequest(JS::Realm&);
