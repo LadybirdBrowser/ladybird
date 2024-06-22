@@ -1026,11 +1026,13 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     auto current_url = document.url();
 
     // 21. If all of the following are true:
+    //  - event's classic history API state is null;
     //  - destination's is same document is true;
     //  - destination's URL equals currentURL with exclude fragments set to true; and
     //  - destination's URL's fragment is not identical to currentURL's fragment,
     //  then initialize event's hashChange to true. Otherwise, initialize it to false.
-    event_init.hash_change = (destination->same_document()
+    event_init.hash_change = (!classic_history_api_state.has_value()
+        && destination->same_document()
         && destination->raw_url().equals(current_url, URL::ExcludeFragment::Yes)
         && destination->raw_url().fragment() != current_url.fragment());
 
