@@ -242,10 +242,6 @@
 #    cmakedefine01 TLS_DEBUG
 #endif
 
-#ifndef TLS_SSL_KEYLOG_DEBUG
-#    cmakedefine01 TLS_SSL_KEYLOG_DEBUG
-#endif
-
 #ifndef TOKENIZER_TRACE_DEBUG
 #    cmakedefine01 TOKENIZER_TRACE_DEBUG
 #endif

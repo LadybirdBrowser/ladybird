@@ -18,19 +18,13 @@
 
 ErrorOr<int> serenity_main(Main::Arguments)
 {
-    if constexpr (TLS_SSL_KEYLOG_DEBUG)
-        TRY(Core::System::pledge("stdio inet accept thread unix cpath wpath rpath sendfd recvfd sigaction"));
-    else
-        TRY(Core::System::pledge("stdio inet accept thread unix rpath sendfd recvfd sigaction"));
+    TRY(Core::System::pledge("stdio inet accept thread unix rpath sendfd recvfd sigaction"));
 
 #ifdef SIGINFO
     signal(SIGINFO, [](int) { RequestServer::ConnectionCache::dump_jobs(); });
 #endif
 
-    if constexpr (TLS_SSL_KEYLOG_DEBUG)
-        TRY(Core::System::pledge("stdio inet accept thread unix cpath wpath rpath sendfd recvfd"));
-    else
-        TRY(Core::System::pledge("stdio inet accept thread unix rpath sendfd recvfd"));
+    TRY(Core::System::pledge("stdio inet accept thread unix rpath sendfd recvfd"));
 
     // Ensure the certificates are read out here.
     // FIXME: Allow specifying extra certificates on the command line, or in other configuration.
@@ -41,8 +35,6 @@ ErrorOr<int> serenity_main(Main::Arguments)
     TRY(Core::System::unveil("/tmp/portal/lookup", "rw"));
     TRY(Core::System::unveil("/etc/cacert.pem", "rw"));
     TRY(Core::System::unveil("/etc/timezone", "r"));
-    if constexpr (TLS_SSL_KEYLOG_DEBUG)
-        TRY(Core::System::unveil("/home/anon", "rwc"));
     TRY(Core::System::unveil(nullptr, nullptr));
 
     RequestServer::HttpProtocol::install();
