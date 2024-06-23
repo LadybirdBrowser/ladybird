@@ -348,12 +348,6 @@ add_serenity_subdirectory(Userland/Libraries/LibMain)
 # This is needed even if Lagom is not enabled because it is depended upon by code generators.
 add_serenity_subdirectory(Userland/Libraries/LibFileSystem)
 
-# LibTimeZone
-# This is needed even if Lagom is not enabled because it is depended upon by code generators.
-add_serenity_subdirectory(Userland/Libraries/LibTimeZone)
-# We need an install rule for LibTimeZone b/c it is a manual OBJECT library instead of serenity_lib
-install(TARGETS LibTimeZone EXPORT LagomTargets)
-
 # LibIDL
 # This is used by the BindingsGenerator so needs to always be built.
 add_serenity_subdirectory(Userland/Libraries/LibIDL)
@@ -401,6 +395,7 @@ set(lagom_standard_libraries
     Syntax
     TextCodec
     Threading
+    TimeZone
     TLS
     Unicode
     URL
