@@ -9,8 +9,8 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/CommandExecutorCPU.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/FilterPainting.h>
-#include <LibWeb/Painting/RecordingPainter.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {

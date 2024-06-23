@@ -58,10 +58,10 @@ void VideoPaintable::paint(PaintContext& context, PaintPhase phase) const
     if (phase != PaintPhase::Foreground)
         return;
 
-    RecordingPainterStateSaver saver { context.recording_painter() };
+    DisplayListRecorderStateSaver saver { context.display_list_recorder() };
 
     auto video_rect = context.rounded_device_rect(absolute_rect());
-    context.recording_painter().add_clip_rect(video_rect.to_type<int>());
+    context.display_list_recorder().add_clip_rect(video_rect.to_type<int>());
 
     ScopedCornerRadiusClip corner_clip { context, video_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
@@ -130,12 +130,12 @@ void VideoPaintable::paint(PaintContext& context, PaintPhase phase) const
 
     auto paint_frame = [&](auto const& frame) {
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame->rect(), video_rect.to_type<int>());
-        context.recording_painter().draw_scaled_bitmap(video_rect.to_type<int>(), *frame, frame->rect(), scaling_mode);
+        context.display_list_recorder().draw_scaled_bitmap(video_rect.to_type<int>(), *frame, frame->rect(), scaling_mode);
     };
 
     auto paint_transparent_black = [&]() {
         static constexpr auto transparent_black = Gfx::Color::from_argb(0x00'00'00'00);
-        context.recording_painter().fill_rect(video_rect.to_type<int>(), transparent_black);
+        context.display_list_recorder().fill_rect(video_rect.to_type<int>(), transparent_black);
     };
 
     auto paint_loaded_video_controls = [&]() {
@@ -211,8 +211,8 @@ void VideoPaintable::paint_placeholder_video_controls(PaintContext& context, Dev
     auto playback_button_is_hovered = mouse_position.has_value() && control_box_rect.contains(*mouse_position);
     auto playback_button_color = control_button_color(playback_button_is_hovered);
 
-    context.recording_painter().fill_ellipse(control_box_rect.to_type<int>(), control_box_color);
-    fill_triangle(context.recording_painter(), playback_button_location.to_type<int>(), play_button_coordinates, playback_button_color);
+    context.display_list_recorder().fill_ellipse(control_box_rect.to_type<int>(), control_box_color);
+    fill_triangle(context.display_list_recorder(), playback_button_location.to_type<int>(), play_button_coordinates, playback_button_color);
 }
 
 }

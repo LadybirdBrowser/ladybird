@@ -544,6 +544,7 @@ set(SOURCES
     Painting/CheckBoxPaintable.cpp
     Painting/ClippableAndScrollable.cpp
     Painting/DisplayList.cpp
+    Painting/DisplayListRecorder.cpp
     Painting/GradientPainting.cpp
     Painting/FilterPainting.cpp
     Painting/ImagePaintable.cpp
@@ -558,7 +559,6 @@ set(SOURCES
     Painting/PaintableBox.cpp
     Painting/PaintableFragment.cpp
     Painting/RadioButtonPaintable.cpp
-    Painting/RecordingPainter.cpp
     Painting/SVGForeignObjectPaintable.cpp
     Painting/SVGPathPaintable.cpp
     Painting/SVGGraphicsPaintable.cpp

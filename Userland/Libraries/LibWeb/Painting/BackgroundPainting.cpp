@@ -126,7 +126,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         clip_paths = compute_text_clip_paths(context, *layout_node.paintable());
     }
 
-    auto& painter = context.recording_painter();
+    auto& display_list_recorder = context.display_list_recorder();
 
     struct BackgroundBox {
         CSSPixelRect rect;
@@ -181,7 +181,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         }
     }
 
-    painter.fill_rect_with_rounded_corners(
+    display_list_recorder.fill_rect_with_rounded_corners(
         context.rounded_device_rect(color_box.rect).to_type<int>(),
         background_color,
         color_box.radii.top_left.as_corner(context),
@@ -217,14 +217,14 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
     for (auto& layer : background_layers->in_reverse()) {
         if (!layer_is_paintable(layer))
             continue;
-        RecordingPainterStateSaver state { painter };
+        DisplayListRecorderStateSaver state { display_list_recorder };
 
         // Clip
         auto clip_box = get_box(layer.clip);
 
         CSSPixelRect const& css_clip_rect = clip_box.rect;
         auto clip_rect = context.rounded_device_rect(css_clip_rect);
-        painter.add_clip_rect(clip_rect.to_type<int>());
+        display_list_recorder.add_clip_rect(clip_rect.to_type<int>());
         ScopedCornerRadiusClip corner_clip { context, clip_rect, clip_box.radii };
 
         if (layer.clip == CSS::BackgroundBox::BorderBox) {
@@ -452,7 +452,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
                     fill_rect = fill_rect->united(image_device_rect);
                 }
             });
-            painter.fill_rect(fill_rect->to_type<int>(), color.value(), clip_paths);
+            display_list_recorder.fill_rect(fill_rect->to_type<int>(), color.value(), clip_paths);
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
                 image.paint(context, image_device_rect, image_rendering, clip_paths);

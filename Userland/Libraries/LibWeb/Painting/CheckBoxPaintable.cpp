@@ -99,11 +99,11 @@ void CheckBoxPaintable::paint(PaintContext& context, PaintPhase phase) const
     // Little heuristic that smaller things look better with more smoothness.
     if (checkbox.checked() && !checkbox.indeterminate()) {
         auto background_color = enabled ? input_colors.accent : input_colors.mid_gray;
-        context.recording_painter().fill_rect_with_rounded_corners(checkbox_rect, modify_color(background_color), checkbox_radius);
+        context.display_list_recorder().fill_rect_with_rounded_corners(checkbox_rect, modify_color(background_color), checkbox_radius);
         auto tick_color = increase_contrast(input_colors.base, background_color);
         if (!enabled)
             tick_color = shade(tick_color, 0.5f);
-        context.recording_painter().fill_path({
+        context.display_list_recorder().fill_path({
             .path = check_mark_path(checkbox_rect),
             .color = tick_color,
             .translation = checkbox_rect.location().to_type<float>(),
@@ -111,14 +111,14 @@ void CheckBoxPaintable::paint(PaintContext& context, PaintPhase phase) const
     } else {
         auto background_color = input_colors.background_color(enabled);
         auto border_thickness = max(1, checkbox_rect.width() / 10);
-        context.recording_painter().fill_rect_with_rounded_corners(checkbox_rect, modify_color(input_colors.border_color(enabled)), checkbox_radius);
-        context.recording_painter().fill_rect_with_rounded_corners(checkbox_rect.shrunken(border_thickness, border_thickness, border_thickness, border_thickness),
+        context.display_list_recorder().fill_rect_with_rounded_corners(checkbox_rect, modify_color(input_colors.border_color(enabled)), checkbox_radius);
+        context.display_list_recorder().fill_rect_with_rounded_corners(checkbox_rect.shrunken(border_thickness, border_thickness, border_thickness, border_thickness),
             background_color, max(0, checkbox_radius - border_thickness));
         if (checkbox.indeterminate()) {
             int radius = 0.05 * checkbox_rect.width();
             auto dash_color = increase_contrast(input_colors.dark_gray, background_color);
             auto dash_rect = checkbox_rect.inflated(-0.4 * checkbox_rect.width(), -0.8 * checkbox_rect.height());
-            context.recording_painter().fill_rect_with_rounded_corners(dash_rect, dash_color, radius, radius, radius, radius);
+            context.display_list_recorder().fill_rect_with_rounded_corners(dash_rect, dash_color, radius, radius, radius, radius);
         }
     }
 }

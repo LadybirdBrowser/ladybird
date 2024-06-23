@@ -128,14 +128,14 @@ ScopedCornerRadiusClip::ScopedCornerRadiusClip(PaintContext& context, DevicePixe
     m_has_radius = corner_radii.has_any_radius();
     if (!m_has_radius)
         return;
-    m_context.recording_painter().sample_under_corners(m_id, corner_radii, border_rect.to_type<int>(), corner_clip);
+    m_context.display_list_recorder().sample_under_corners(m_id, corner_radii, border_rect.to_type<int>(), corner_clip);
 }
 
 ScopedCornerRadiusClip::~ScopedCornerRadiusClip()
 {
     if (!m_has_radius)
         return;
-    m_context.recording_painter().blit_corner_clipping(m_id);
+    m_context.display_list_recorder().blit_corner_clipping(m_id);
 }
 
 }

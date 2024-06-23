@@ -47,7 +47,7 @@ void ConicGradientStyleValue::paint(PaintContext& context, DevicePixelRect const
     VERIFY(m_resolved.has_value());
     auto destination_rect = dest_rect.to_type<int>();
     auto position = context.rounded_device_point(m_resolved->position).to_type<int>();
-    context.recording_painter().fill_rect_with_conic_gradient(destination_rect, m_resolved->data, position, clip_paths);
+    context.display_list_recorder().fill_rect_with_conic_gradient(destination_rect, m_resolved->data, position, clip_paths);
 }
 
 bool ConicGradientStyleValue::equals(StyleValue const& other) const

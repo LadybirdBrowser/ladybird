@@ -63,7 +63,7 @@ void ViewportPaintable::build_stacking_context_tree()
 void ViewportPaintable::paint_all_phases(PaintContext& context)
 {
     build_stacking_context_tree_if_needed();
-    context.recording_painter().translate(-context.device_viewport_rect().location().to_type<int>());
+    context.display_list_recorder().translate(-context.device_viewport_rect().location().to_type<int>());
     stacking_context()->paint(context);
 }
 

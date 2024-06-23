@@ -20,7 +20,7 @@ protected:
     explicit MediaPaintable(Layout::ReplacedBox const&);
 
     static Optional<DevicePixelPoint> mouse_position(PaintContext&, HTML::HTMLMediaElement const&);
-    static void fill_triangle(RecordingPainter& painter, Gfx::IntPoint location, Array<Gfx::IntPoint, 3> coordinates, Color color);
+    static void fill_triangle(DisplayListRecorder& painter, Gfx::IntPoint location, Array<Gfx::IntPoint, 3> coordinates, Color color);
 
     void paint_media_controls(PaintContext&, HTML::HTMLMediaElement const&, DevicePixelRect media_rect, Optional<DevicePixelPoint> const& mouse_position) const;
 

@@ -33,26 +33,26 @@ Layout::InlineNode const& InlinePaintable::layout_node() const
 void InlinePaintable::before_paint(PaintContext& context, PaintPhase) const
 {
     if (scroll_frame_id().has_value()) {
-        context.recording_painter().save();
-        context.recording_painter().set_scroll_frame_id(scroll_frame_id().value());
+        context.display_list_recorder().save();
+        context.display_list_recorder().set_scroll_frame_id(scroll_frame_id().value());
     }
     if (clip_rect().has_value()) {
-        context.recording_painter().save();
-        context.recording_painter().add_clip_rect(context.enclosing_device_rect(*clip_rect()).to_type<int>());
+        context.display_list_recorder().save();
+        context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(*clip_rect()).to_type<int>());
     }
 }
 
 void InlinePaintable::after_paint(PaintContext& context, PaintPhase) const
 {
     if (clip_rect().has_value())
-        context.recording_painter().restore();
+        context.display_list_recorder().restore();
     if (scroll_frame_id().has_value())
-        context.recording_painter().restore();
+        context.display_list_recorder().restore();
 }
 
 void InlinePaintable::paint(PaintContext& context, PaintPhase phase) const
 {
-    auto& painter = context.recording_painter();
+    auto& display_list_recorder = context.display_list_recorder();
 
     if (phase == PaintPhase::Background) {
         auto containing_block_position_in_absolute_coordinates = containing_block()->absolute_position();
@@ -141,9 +141,9 @@ void InlinePaintable::paint(PaintContext& context, PaintPhase phase) const
 
                 border_radii_data.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
                 borders_rect.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
-                paint_all_borders(context.recording_painter(), context.rounded_device_rect(borders_rect), border_radii_data.as_corners(context), outline_data->to_device_pixels(context));
+                paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(borders_rect), border_radii_data.as_corners(context), outline_data->to_device_pixels(context));
             } else {
-                paint_all_borders(context.recording_painter(), context.rounded_device_rect(borders_rect), border_radii_data.as_corners(context), borders_data.to_device_pixels(context));
+                paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(borders_rect), border_radii_data.as_corners(context), borders_data.to_device_pixels(context));
             }
 
             return IterationDecision::Continue;
@@ -172,7 +172,7 @@ void InlinePaintable::paint(PaintContext& context, PaintPhase phase) const
         //        would be none. Once we implement non-rectangular outlines for the `outline` CSS
         //        property, we can use that here instead.
         for_each_fragment([&](auto const& fragment, bool, bool) {
-            painter.draw_rect(context.enclosing_device_rect(fragment.absolute_rect()).template to_type<int>(), Color::Magenta);
+            display_list_recorder.draw_rect(context.enclosing_device_rect(fragment.absolute_rect()).template to_type<int>(), Color::Magenta);
             return IterationDecision::Continue;
         });
     }

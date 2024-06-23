@@ -24,7 +24,7 @@ class XMLDocumentBuilder;
 }
 
 namespace Web::Painting {
-class RecordingPainter;
+class DisplayListRecorder;
 class SVGGradientPaintStyle;
 using PaintStyle = RefPtr<SVGGradientPaintStyle>;
 }

@@ -94,9 +94,9 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     m_document->update_layout();
 
     Painting::DisplayList display_list;
-    Painting::RecordingPainter recording_painter(display_list);
+    Painting::DisplayListRecorder display_list_recorder(display_list);
 
-    m_document->navigable()->record_display_list(recording_painter, {});
+    m_document->navigable()->record_display_list(display_list_recorder, {});
 
     auto painting_command_executor_type = m_page_client->painting_command_executor_type();
     switch (painting_command_executor_type) {

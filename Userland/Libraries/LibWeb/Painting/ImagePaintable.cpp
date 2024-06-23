@@ -65,8 +65,8 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
         auto image_rect = context.rounded_device_rect(absolute_rect());
         if (m_renders_as_alt_text) {
             auto enclosing_rect = context.enclosing_device_rect(absolute_rect()).to_type<int>();
-            context.recording_painter().draw_rect(enclosing_rect, Gfx::Color::Black);
-            context.recording_painter().draw_text(enclosing_rect, m_alt_text, Platform::FontPlugin::the().default_font(), Gfx::TextAlignment::Center, computed_values().color());
+            context.display_list_recorder().draw_rect(enclosing_rect, Gfx::Color::Black);
+            context.display_list_recorder().draw_text(enclosing_rect, m_alt_text, Platform::FontPlugin::the().default_font(), Gfx::TextAlignment::Center, computed_values().color());
         } else if (auto bitmap = m_image_provider.current_image_bitmap(image_rect.size().to_type<int>())) {
             ScopedCornerRadiusClip corner_clip { context, image_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
             auto image_int_rect = image_rect.to_type<int>();
@@ -150,7 +150,7 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
                 (int)scaled_bitmap_height
             };
 
-            context.recording_painter().draw_scaled_immutable_bitmap(draw_rect.intersected(image_int_rect), *bitmap, bitmap_rect.intersected(bitmap_intersect), scaling_mode);
+            context.display_list_recorder().draw_scaled_immutable_bitmap(draw_rect.intersected(image_int_rect), *bitmap, bitmap_rect.intersected(bitmap_intersect), scaling_mode);
         }
     }
 }

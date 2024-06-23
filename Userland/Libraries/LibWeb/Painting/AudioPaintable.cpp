@@ -49,10 +49,10 @@ void AudioPaintable::paint(PaintContext& context, PaintPhase phase) const
     if (phase != PaintPhase::Foreground)
         return;
 
-    RecordingPainterStateSaver saver { context.recording_painter() };
+    DisplayListRecorderStateSaver saver { context.display_list_recorder() };
 
     auto audio_rect = context.rounded_device_rect(absolute_rect());
-    context.recording_painter().add_clip_rect(audio_rect.to_type<int>());
+    context.display_list_recorder().add_clip_rect(audio_rect.to_type<int>());
 
     ScopedCornerRadiusClip corner_clip { context, audio_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
