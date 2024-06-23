@@ -17,9 +17,9 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (!property_value_changed)
         return invalidation;
 
-    // NOTE: If the computed CSS display property changes, we have to rebuild the entire layout tree.
+    // NOTE: If the computed CSS display/content-visibility property changes, we have to rebuild the entire layout tree.
     //       In the future, we should figure out ways to rebuild a smaller part of the tree.
-    if (property_id == CSS::PropertyID::Display) {
+    if (property_id == CSS::PropertyID::Display || property_id == CSS::PropertyID::ContentVisibility) {
         return RequiredInvalidationAfterStyleChange::full();
     }
 

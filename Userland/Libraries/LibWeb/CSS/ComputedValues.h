@@ -100,6 +100,7 @@ public:
     static CSS::CaptionSide caption_side() { return CSS::CaptionSide::Top; }
     static CSS::Clear clear() { return CSS::Clear::None; }
     static CSS::Clip clip() { return CSS::Clip::make_auto(); }
+    static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
     static CSS::Cursor cursor() { return CSS::Cursor::Auto; }
     static CSS::WhiteSpace white_space() { return CSS::WhiteSpace::Normal; }
     static CSS::TextAlign text_align() { return CSS::TextAlign::Left; }
@@ -352,6 +353,7 @@ public:
     CSS::CaptionSide caption_side() const { return m_inherited.caption_side; }
     CSS::Clear clear() const { return m_noninherited.clear; }
     CSS::Clip clip() const { return m_noninherited.clip; }
+    CSS::ContentVisibility content_visibility() const { return m_inherited.content_visibility; }
     CSS::Cursor cursor() const { return m_inherited.cursor; }
     CSS::ContentData content() const { return m_noninherited.content; }
     CSS::PointerEvents pointer_events() const { return m_inherited.pointer_events; }
@@ -507,6 +509,7 @@ protected:
         Color color { InitialValues::color() };
         Optional<Color> accent_color {};
         Color webkit_text_fill_color { InitialValues::color() };
+        CSS::ContentVisibility content_visibility { InitialValues::content_visibility() };
         CSS::Cursor cursor { InitialValues::cursor() };
         CSS::ImageRendering image_rendering { InitialValues::image_rendering() };
         CSS::PointerEvents pointer_events { InitialValues::pointer_events() };
@@ -654,6 +657,7 @@ public:
     void set_color(Color color) { m_inherited.color = color; }
     void set_clip(CSS::Clip const& clip) { m_noninherited.clip = clip; }
     void set_content(ContentData const& content) { m_noninherited.content = content; }
+    void set_content_visibility(CSS::ContentVisibility content_visibility) { m_inherited.content_visibility = content_visibility; }
     void set_cursor(CSS::Cursor cursor) { m_inherited.cursor = cursor; }
     void set_image_rendering(CSS::ImageRendering value) { m_inherited.image_rendering = value; }
     void set_pointer_events(CSS::PointerEvents value) { m_inherited.pointer_events = value; }

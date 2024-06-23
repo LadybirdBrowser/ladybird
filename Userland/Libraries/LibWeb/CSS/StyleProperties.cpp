@@ -744,6 +744,12 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(u32 in
     return { {}, quote_nesting_level };
 }
 
+Optional<CSS::ContentVisibility> StyleProperties::content_visibility() const
+{
+    auto value = property(CSS::PropertyID::ContentVisibility);
+    return value_id_to_content_visibility(value->to_identifier());
+}
+
 Optional<CSS::Cursor> StyleProperties::cursor() const
 {
     auto value = property(CSS::PropertyID::Cursor);
