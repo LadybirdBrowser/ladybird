@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibGfx/Bitmap.h>
-#include <LibWeb/Painting/RecordingPainter.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::Painting {
 

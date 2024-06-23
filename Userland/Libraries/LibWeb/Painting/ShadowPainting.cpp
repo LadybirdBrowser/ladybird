@@ -569,10 +569,10 @@ void paint_box_shadow(PaintContext& context,
             auto shrinked_border_radii = border_radii;
             shrinked_border_radii.shrink(borders_data.top.width, borders_data.right.width, borders_data.bottom.width, borders_data.left.width);
             ScopedCornerRadiusClip corner_clipper { context, device_content_rect, shrinked_border_radii, CornerClip::Outside };
-            context.recording_painter().paint_inner_box_shadow_params(params);
+            context.display_list_recorder().paint_inner_box_shadow_params(params);
         } else {
             ScopedCornerRadiusClip corner_clipper { context, device_content_rect, border_radii, CornerClip::Inside };
-            context.recording_painter().paint_outer_box_shadow_params(params);
+            context.display_list_recorder().paint_outer_box_shadow_params(params);
         }
     }
 }
@@ -620,7 +620,7 @@ void paint_text_shadow(PaintContext& context, PaintableFragment const& fragment,
             draw_rect.y() + offset_y - margin
         };
 
-        context.recording_painter().paint_text_shadow(blur_radius, bounding_rect, text_rect, scaled_glyph_run, layer.color, fragment_baseline, draw_location);
+        context.display_list_recorder().paint_text_shadow(blur_radius, bounding_rect, text_rect, scaled_glyph_run, layer.color, fragment_baseline, draw_location);
     }
 }
 

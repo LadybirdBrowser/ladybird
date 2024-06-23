@@ -11,16 +11,16 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Rect.h>
-#include <LibWeb/Painting/RecordingPainter.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web {
 
 class PaintContext {
 public:
-    PaintContext(Painting::RecordingPainter& painter, Palette const& palette, double device_pixels_per_css_pixel);
+    PaintContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel);
 
-    Painting::RecordingPainter& recording_painter() const { return m_recording_painter; }
+    Painting::DisplayListRecorder& display_list_recorder() const { return m_display_list_recorder; }
     Palette const& palette() const { return m_palette; }
 
     bool should_show_line_box_borders() const { return m_should_show_line_box_borders; }
@@ -70,7 +70,7 @@ public:
     CSSPixelSize scale_to_css_size(DevicePixelSize) const;
     CSSPixelRect scale_to_css_rect(DevicePixelRect) const;
 
-    PaintContext clone(Painting::RecordingPainter& painter) const
+    PaintContext clone(Painting::DisplayListRecorder& painter) const
     {
         auto clone = PaintContext(painter, m_palette, m_device_pixels_per_css_pixel);
         clone.m_device_viewport_rect = m_device_viewport_rect;
@@ -87,7 +87,7 @@ public:
     u64 paint_generation_id() const { return m_paint_generation_id; }
 
 private:
-    Painting::RecordingPainter& m_recording_painter;
+    Painting::DisplayListRecorder& m_display_list_recorder;
     Palette m_palette;
     double m_device_pixels_per_css_pixel { 0 };
     DevicePixelRect m_device_viewport_rect;

@@ -82,9 +82,9 @@ RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CS
             return {};
         mask_bitmap = mask_bitmap_or_error.release_value();
         DisplayList display_list;
-        RecordingPainter recording_painter(display_list);
-        recording_painter.translate(-mask_rect.location().to_type<int>());
-        auto paint_context = context.clone(recording_painter);
+        DisplayListRecorder display_list_recorder(display_list);
+        display_list_recorder.translate(-mask_rect.location().to_type<int>());
+        auto paint_context = context.clone(display_list_recorder);
         paint_context.set_svg_transform(graphics_element.get_transform());
         paint_context.set_draw_svg_geometry_for_clip_path(is<SVGClipPaintable>(paintable));
         StackingContext::paint_node_as_stacking_context(paintable, paint_context);

@@ -1177,16 +1177,16 @@ JS::GCPtr<DOM::Node> TraversableNavigable::currently_focused_area()
 void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& target, Web::PaintOptions paint_options)
 {
     Painting::DisplayList display_list;
-    Painting::RecordingPainter recording_painter(display_list);
+    Painting::DisplayListRecorder display_list_recorder(display_list);
 
     Gfx::IntRect bitmap_rect { {}, content_rect.size().to_type<int>() };
-    recording_painter.fill_rect(bitmap_rect, Web::CSS::SystemColor::canvas());
+    display_list_recorder.fill_rect(bitmap_rect, Web::CSS::SystemColor::canvas());
 
     Web::HTML::Navigable::PaintConfig paint_config;
     paint_config.paint_overlay = paint_options.paint_overlay == Web::PaintOptions::PaintOverlay::Yes;
     paint_config.should_show_line_box_borders = paint_options.should_show_line_box_borders;
     paint_config.has_focus = paint_options.has_focus;
-    record_display_list(recording_painter, paint_config);
+    record_display_list(display_list_recorder, paint_config);
 
     auto painting_command_executor_type = page().client().painting_command_executor_type();
     if (painting_command_executor_type == PaintingCommandExecutorType::GPU) {

@@ -44,7 +44,7 @@ Optional<DevicePixelPoint> MediaPaintable::mouse_position(PaintContext& context,
     return {};
 }
 
-void MediaPaintable::fill_triangle(RecordingPainter& painter, Gfx::IntPoint location, Array<Gfx::IntPoint, 3> coordinates, Color color)
+void MediaPaintable::fill_triangle(DisplayListRecorder& painter, Gfx::IntPoint location, Array<Gfx::IntPoint, 3> coordinates, Color color)
 {
     Gfx::Path path;
     path.move_to((coordinates[0] + location).to_type<float>());
@@ -61,7 +61,7 @@ void MediaPaintable::fill_triangle(RecordingPainter& painter, Gfx::IntPoint loca
 void MediaPaintable::paint_media_controls(PaintContext& context, HTML::HTMLMediaElement const& media_element, DevicePixelRect media_rect, Optional<DevicePixelPoint> const& mouse_position) const
 {
     auto components = compute_control_bar_components(context, media_element, media_rect);
-    context.recording_painter().fill_rect(components.control_box_rect.to_type<int>(), control_box_color.with_alpha(0xd0));
+    context.display_list_recorder().fill_rect(components.control_box_rect.to_type<int>(), control_box_color.with_alpha(0xd0));
 
     paint_control_bar_playback_button(context, media_element, components, mouse_position);
     paint_control_bar_timeline(context, media_element, components);
@@ -155,7 +155,7 @@ void MediaPaintable::paint_control_bar_playback_button(PaintContext& context, HT
             { 0, static_cast<int>(playback_button_size) },
         } };
 
-        fill_triangle(context.recording_painter(), playback_button_location.to_type<int>(), play_button_coordinates, playback_button_color);
+        fill_triangle(context.display_list_recorder(), playback_button_location.to_type<int>(), play_button_coordinates, playback_button_color);
     } else {
         DevicePixelRect pause_button_left_rect {
             playback_button_location,
@@ -166,8 +166,8 @@ void MediaPaintable::paint_control_bar_playback_button(PaintContext& context, HT
             { playback_button_size / 3, playback_button_size }
         };
 
-        context.recording_painter().fill_rect(pause_button_left_rect.to_type<int>(), playback_button_color);
-        context.recording_painter().fill_rect(pause_button_right_rect.to_type<int>(), playback_button_color);
+        context.display_list_recorder().fill_rect(pause_button_left_rect.to_type<int>(), playback_button_color);
+        context.display_list_recorder().fill_rect(pause_button_right_rect.to_type<int>(), playback_button_color);
     }
 }
 
@@ -182,11 +182,11 @@ void MediaPaintable::paint_control_bar_timeline(PaintContext& context, HTML::HTM
 
     auto timeline_past_rect = components.timeline_rect;
     timeline_past_rect.set_width(timeline_button_offset_x);
-    context.recording_painter().fill_rect(timeline_past_rect.to_type<int>(), control_highlight_color.lightened());
+    context.display_list_recorder().fill_rect(timeline_past_rect.to_type<int>(), control_highlight_color.lightened());
 
     auto timeline_future_rect = components.timeline_rect;
     timeline_future_rect.take_from_left(timeline_button_offset_x);
-    context.recording_painter().fill_rect(timeline_future_rect.to_type<int>(), Color::Black);
+    context.display_list_recorder().fill_rect(timeline_future_rect.to_type<int>(), Color::Black);
 }
 
 void MediaPaintable::paint_control_bar_timestamp(PaintContext& context, Components const& components)
@@ -194,7 +194,7 @@ void MediaPaintable::paint_control_bar_timestamp(PaintContext& context, Componen
     if (components.timestamp_rect.is_empty())
         return;
 
-    context.recording_painter().draw_text(components.timestamp_rect.to_type<int>(), components.timestamp, *components.timestamp_font, Gfx::TextAlignment::CenterLeft, Color::White);
+    context.display_list_recorder().draw_text(components.timestamp_rect.to_type<int>(), components.timestamp, *components.timestamp_font, Gfx::TextAlignment::CenterLeft, Color::White);
 }
 
 void MediaPaintable::paint_control_bar_speaker(PaintContext& context, HTML::HTMLMediaElement const& media_element, Components const& components, Optional<DevicePixelPoint> const& mouse_position)
@@ -227,18 +227,18 @@ void MediaPaintable::paint_control_bar_speaker(PaintContext& context, HTML::HTML
     path.line_to(device_point(0, 11));
     path.line_to(device_point(0, 4));
     path.close();
-    context.recording_painter().fill_path({ .path = path, .color = speaker_button_color, .winding_rule = Gfx::WindingRule::EvenOdd });
+    context.display_list_recorder().fill_path({ .path = path, .color = speaker_button_color, .winding_rule = Gfx::WindingRule::EvenOdd });
 
     path.clear();
     path.move_to(device_point(13, 3));
     path.quadratic_bezier_curve_to(device_point(16, 7.5), device_point(13, 12));
     path.move_to(device_point(14, 0));
     path.quadratic_bezier_curve_to(device_point(20, 7.5), device_point(14, 15));
-    context.recording_painter().stroke_path({ .path = path, .color = speaker_button_color, .thickness = 1 });
+    context.display_list_recorder().stroke_path({ .path = path, .color = speaker_button_color, .thickness = 1 });
 
     if (media_element.muted()) {
-        context.recording_painter().draw_line(device_point(0, 0).to_type<int>(), device_point(20, 15).to_type<int>(), Color::Red, 2);
-        context.recording_painter().draw_line(device_point(0, 15).to_type<int>(), device_point(20, 0).to_type<int>(), Color::Red, 2);
+        context.display_list_recorder().draw_line(device_point(0, 0).to_type<int>(), device_point(20, 15).to_type<int>(), Color::Red, 2);
+        context.display_list_recorder().draw_line(device_point(0, 15).to_type<int>(), device_point(20, 0).to_type<int>(), Color::Red, 2);
     }
 }
 
@@ -252,11 +252,11 @@ void MediaPaintable::paint_control_bar_volume(PaintContext& context, HTML::HTMLM
 
     auto volume_lower_rect = components.volume_scrub_rect;
     volume_lower_rect.set_width(volume_button_offset_x);
-    context.recording_painter().fill_rect_with_rounded_corners(volume_lower_rect.to_type<int>(), control_highlight_color.lightened(), 4);
+    context.display_list_recorder().fill_rect_with_rounded_corners(volume_lower_rect.to_type<int>(), control_highlight_color.lightened(), 4);
 
     auto volume_higher_rect = components.volume_scrub_rect;
     volume_higher_rect.take_from_left(volume_button_offset_x);
-    context.recording_painter().fill_rect_with_rounded_corners(volume_higher_rect.to_type<int>(), Color::Black, 4);
+    context.display_list_recorder().fill_rect_with_rounded_corners(volume_higher_rect.to_type<int>(), Color::Black, 4);
 
     auto volume_button_rect = components.volume_scrub_rect;
     volume_button_rect.shrink(components.volume_scrub_rect.width() - components.volume_button_size, components.volume_scrub_rect.height() - components.volume_button_size);
@@ -264,7 +264,7 @@ void MediaPaintable::paint_control_bar_volume(PaintContext& context, HTML::HTMLM
 
     auto volume_is_hovered = rect_is_hovered(media_element, components.volume_rect, mouse_position, HTML::HTMLMediaElement::MouseTrackingComponent::Volume);
     auto volume_color = control_button_color(volume_is_hovered);
-    context.recording_painter().fill_ellipse(volume_button_rect.to_type<int>(), volume_color);
+    context.display_list_recorder().fill_ellipse(volume_button_rect.to_type<int>(), volume_color);
 }
 
 MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned button, unsigned)

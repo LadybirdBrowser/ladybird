@@ -66,7 +66,7 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
     auto svg_element_rect = svg_node->paintable_box()->absolute_rect();
 
     // FIXME: This should not be trucated to an int.
-    RecordingPainterStateSaver save_painter { context.recording_painter() };
+    DisplayListRecorderStateSaver save_painter { context.display_list_recorder() };
 
     auto offset = context.floored_device_point(svg_element_rect.location()).to_type<int>().to_type<float>();
     auto maybe_view_box = svg_node->dom_node().view_box();
@@ -98,7 +98,7 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
         // The raw geometry of each child element exclusive of rendering properties such as fill, stroke, stroke-width
         // within a clipPath conceptually defines a 1-bit mask (with the possible exception of anti-aliasing along
         // the edge of the geometry) which represents the silhouette of the graphics associated with that element.
-        context.recording_painter().fill_path({
+        context.display_list_recorder().fill_path({
             .path = closed_path(),
             .color = Color::Black,
             .winding_rule = to_gfx_winding_rule(graphics_element.clip_rule().value_or(SVG::ClipRule::Nonzero)),
@@ -116,7 +116,7 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
     auto fill_opacity = graphics_element.fill_opacity().value_or(1);
     auto winding_rule = to_gfx_winding_rule(graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero));
     if (auto paint_style = graphics_element.fill_paint_style(paint_context); paint_style.has_value()) {
-        context.recording_painter().fill_path({
+        context.display_list_recorder().fill_path({
             .path = closed_path(),
             .paint_style = *paint_style,
             .winding_rule = winding_rule,
@@ -124,7 +124,7 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
             .translation = offset,
         });
     } else if (auto fill_color = graphics_element.fill_color(); fill_color.has_value()) {
-        context.recording_painter().fill_path({
+        context.display_list_recorder().fill_path({
             .path = closed_path(),
             .color = fill_color->with_opacity(fill_opacity),
             .winding_rule = winding_rule,
@@ -138,7 +138,7 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
     float stroke_thickness = graphics_element.stroke_width().value_or(1) * viewbox_scale;
 
     if (auto paint_style = graphics_element.stroke_paint_style(paint_context); paint_style.has_value()) {
-        context.recording_painter().stroke_path({
+        context.display_list_recorder().stroke_path({
             .path = path,
             .paint_style = *paint_style,
             .thickness = stroke_thickness,
@@ -146,7 +146,7 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
             .translation = offset,
         });
     } else if (auto stroke_color = graphics_element.stroke_color(); stroke_color.has_value()) {
-        context.recording_painter().stroke_path({
+        context.display_list_recorder().stroke_path({
             .path = path,
             .color = stroke_color->with_opacity(stroke_opacity),
             .thickness = stroke_thickness,

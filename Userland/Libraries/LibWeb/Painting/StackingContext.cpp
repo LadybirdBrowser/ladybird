@@ -276,7 +276,7 @@ void StackingContext::paint(PaintContext& context) const
     if (opacity == 0.0f)
         return;
 
-    RecordingPainterStateSaver saver(context.recording_painter());
+    DisplayListRecorderStateSaver saver(context.display_list_recorder());
 
     auto to_device_pixels_scale = float(context.device_pixels_per_css_pixel());
     Gfx::IntRect source_paintable_rect;
@@ -295,7 +295,7 @@ void StackingContext::paint(PaintContext& context) const
         transform_origin = paintable_box().transform_origin().to_type<float>();
     }
 
-    RecordingPainter::PushStackingContextParams push_stacking_context_params {
+    DisplayListRecorder::PushStackingContextParams push_stacking_context_params {
         .opacity = opacity,
         .is_fixed_position = paintable().is_fixed_position(),
         .source_paintable_rect = source_paintable_rect,
@@ -322,13 +322,13 @@ void StackingContext::paint(PaintContext& context) const
         }
     }
 
-    context.recording_painter().save();
+    context.display_list_recorder().save();
     if (paintable().is_paintable_box() && paintable_box().scroll_frame_id().has_value())
-        context.recording_painter().set_scroll_frame_id(*paintable_box().scroll_frame_id());
-    context.recording_painter().push_stacking_context(push_stacking_context_params);
+        context.display_list_recorder().set_scroll_frame_id(*paintable_box().scroll_frame_id());
+    context.display_list_recorder().push_stacking_context(push_stacking_context_params);
     paint_internal(context);
-    context.recording_painter().pop_stacking_context();
-    context.recording_painter().restore();
+    context.display_list_recorder().pop_stacking_context();
+    context.display_list_recorder().restore();
 }
 
 TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const

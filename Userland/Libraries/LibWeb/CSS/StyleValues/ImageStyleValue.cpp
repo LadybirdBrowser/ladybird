@@ -14,8 +14,8 @@
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintContext.h>
-#include <LibWeb/Painting/RecordingPainter.h>
 #include <LibWeb/Platform/Timer.h>
 
 namespace Web::CSS {
@@ -137,7 +137,7 @@ void ImageStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_r
 {
     if (auto const* b = bitmap(m_current_frame_index, dest_rect.size().to_type<int>()); b != nullptr) {
         auto scaling_mode = to_gfx_scaling_mode(image_rendering, b->rect(), dest_rect.to_type<int>());
-        context.recording_painter().draw_scaled_immutable_bitmap(dest_rect.to_type<int>(), *b, b->rect(), scaling_mode, clip_paths);
+        context.display_list_recorder().draw_scaled_immutable_bitmap(dest_rect.to_type<int>(), *b, b->rect(), scaling_mode, clip_paths);
     }
 }
 

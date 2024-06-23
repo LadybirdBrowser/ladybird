@@ -50,23 +50,23 @@ void NestedBrowsingContextPaintable::paint(PaintContext& context, PaintPhase pha
         if (!hosted_paint_tree)
             return;
 
-        context.recording_painter().save();
+        context.display_list_recorder().save();
 
-        context.recording_painter().add_clip_rect(clip_rect.to_type<int>());
+        context.display_list_recorder().add_clip_rect(clip_rect.to_type<int>());
         auto absolute_device_rect = context.enclosing_device_rect(absolute_rect);
-        context.recording_painter().translate(absolute_device_rect.x().value(), absolute_device_rect.y().value());
+        context.display_list_recorder().translate(absolute_device_rect.x().value(), absolute_device_rect.y().value());
 
         HTML::Navigable::PaintConfig paint_config;
         paint_config.paint_overlay = context.should_paint_overlay();
         paint_config.should_show_line_box_borders = context.should_show_line_box_borders();
         paint_config.has_focus = context.has_focus();
-        const_cast<DOM::Document*>(hosted_document)->navigable()->record_display_list(context.recording_painter(), paint_config);
+        const_cast<DOM::Document*>(hosted_document)->navigable()->record_display_list(context.display_list_recorder(), paint_config);
 
-        context.recording_painter().restore();
+        context.display_list_recorder().restore();
 
         if constexpr (HIGHLIGHT_FOCUSED_FRAME_DEBUG) {
             if (layout_box().dom_node().content_navigable()->is_focused()) {
-                context.recording_painter().draw_rect(clip_rect.to_type<int>(), Color::Cyan);
+                context.display_list_recorder().draw_rect(clip_rect.to_type<int>(), Color::Cyan);
             }
         }
     }

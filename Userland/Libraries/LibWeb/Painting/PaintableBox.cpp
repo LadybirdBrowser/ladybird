@@ -333,7 +333,7 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
             border_radius_data.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
             borders_rect.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
 
-            paint_all_borders(context.recording_painter(), context.rounded_device_rect(borders_rect), border_radius_data.as_corners(context), outline_data->to_device_pixels(context));
+            paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(borders_rect), border_radius_data.as_corners(context), outline_data->to_device_pixels(context));
         }
     }
 
@@ -343,11 +343,11 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         int thumb_corner_radius = static_cast<int>(context.rounded_device_pixels(scrollbar_thumb_thickness / 2));
         if (auto thumb_rect = scroll_thumb_rect(ScrollDirection::Horizontal); thumb_rect.has_value()) {
             auto thumb_device_rect = context.enclosing_device_rect(thumb_rect.value());
-            context.recording_painter().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius);
+            context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius);
         }
         if (auto thumb_rect = scroll_thumb_rect(ScrollDirection::Vertical); thumb_rect.has_value()) {
             auto thumb_device_rect = context.enclosing_device_rect(thumb_rect.value());
-            context.recording_painter().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius);
+            context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius);
         }
     }
 
@@ -366,8 +366,8 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
 
         auto paint_inspector_rect = [&](CSSPixelRect const& rect, Color color) {
             auto device_rect = context.enclosing_device_rect(rect).to_type<int>();
-            context.recording_painter().fill_rect(device_rect, Color(color).with_alpha(100));
-            context.recording_painter().draw_rect(device_rect, Color(color));
+            context.display_list_recorder().fill_rect(device_rect, Color(color).with_alpha(100));
+            context.display_list_recorder().draw_rect(device_rect, Color(color));
         };
 
         paint_inspector_rect(margin_rect, Color::Yellow);
@@ -390,9 +390,9 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         size_text_rect.set_width(CSSPixels::nearest_value_for(font.width(size_text)) + 4);
         size_text_rect.set_height(CSSPixels::nearest_value_for(font.pixel_size()) + 4);
         auto size_text_device_rect = context.enclosing_device_rect(size_text_rect).to_type<int>();
-        context.recording_painter().fill_rect(size_text_device_rect, context.palette().color(Gfx::ColorRole::Tooltip));
-        context.recording_painter().draw_rect(size_text_device_rect, context.palette().threed_shadow1());
-        context.recording_painter().draw_text(size_text_device_rect, size_text, font, Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
+        context.display_list_recorder().fill_rect(size_text_device_rect, context.palette().color(Gfx::ColorRole::Tooltip));
+        context.display_list_recorder().draw_rect(size_text_device_rect, context.palette().threed_shadow1());
+        context.display_list_recorder().draw_text(size_text_device_rect, size_text, font, Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
     }
 }
 
@@ -414,7 +414,7 @@ void PaintableBox::paint_border(PaintContext& context) const
         .bottom = box_model().border.bottom == 0 ? CSS::BorderData() : computed_values().border_bottom(),
         .left = box_model().border.left == 0 ? CSS::BorderData() : computed_values().border_left(),
     };
-    paint_all_borders(context.recording_painter(), context.rounded_device_rect(absolute_border_box_rect()), normalized_border_radii_data().as_corners(context), borders_data.to_device_pixels(context));
+    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(absolute_border_box_rect()), normalized_border_radii_data().as_corners(context), borders_data.to_device_pixels(context));
 }
 
 void PaintableBox::paint_backdrop_filter(PaintContext& context) const
@@ -482,15 +482,15 @@ BorderRadiiData PaintableBox::normalized_border_radii_data(ShrinkRadiiForBorders
 void PaintableBox::apply_scroll_offset(PaintContext& context, PaintPhase) const
 {
     if (scroll_frame_id().has_value()) {
-        context.recording_painter().save();
-        context.recording_painter().set_scroll_frame_id(scroll_frame_id().value());
+        context.display_list_recorder().save();
+        context.display_list_recorder().set_scroll_frame_id(scroll_frame_id().value());
     }
 }
 
 void PaintableBox::reset_scroll_offset(PaintContext& context, PaintPhase) const
 {
     if (scroll_frame_id().has_value())
-        context.recording_painter().restore();
+        context.display_list_recorder().restore();
 }
 
 void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
@@ -501,8 +501,8 @@ void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase ph
     if (clip_rect().has_value()) {
         auto overflow_clip_rect = clip_rect().value();
         m_clipping_overflow = true;
-        context.recording_painter().save();
-        context.recording_painter().add_clip_rect(context.enclosing_device_rect(overflow_clip_rect).to_type<int>());
+        context.display_list_recorder().save();
+        context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(overflow_clip_rect).to_type<int>());
         auto const& border_radii_clips = this->border_radii_clips();
         m_corner_clipper_ids.resize(border_radii_clips.size());
         auto const& combined_transform = combined_css_transform();
@@ -514,7 +514,7 @@ void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase ph
             auto corner_clipper_id = context.allocate_corner_clipper_id();
             m_corner_clipper_ids[corner_clip_index] = corner_clipper_id;
             auto rect = corner_clip.rect.translated(-combined_transform.translation().to_type<CSSPixels>());
-            context.recording_painter().sample_under_corners(corner_clipper_id, corner_clip.radii.as_corners(context), context.rounded_device_rect(rect).to_type<int>(), CornerClip::Outside);
+            context.display_list_recorder().sample_under_corners(corner_clipper_id, corner_clip.radii.as_corners(context), context.rounded_device_rect(rect).to_type<int>(), CornerClip::Outside);
         }
     }
 }
@@ -534,9 +534,9 @@ void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase ph
                 continue;
             auto corner_clipper_id = m_corner_clipper_ids[corner_clip_index];
             m_corner_clipper_ids[corner_clip_index] = corner_clipper_id;
-            context.recording_painter().blit_corner_clipping(corner_clipper_id);
+            context.display_list_recorder().blit_corner_clipping(corner_clipper_id);
         }
-        context.recording_painter().restore();
+        context.display_list_recorder().restore();
     }
 }
 
@@ -572,12 +572,12 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
 
     auto cursor_device_rect = context.rounded_device_rect(cursor_rect).to_type<int>();
 
-    context.recording_painter().draw_rect(cursor_device_rect, paintable.computed_values().color());
+    context.display_list_recorder().draw_rect(cursor_device_rect, paintable.computed_values().color());
 }
 
 void paint_text_decoration(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
 {
-    auto& painter = context.recording_painter();
+    auto& painter = context.display_list_recorder();
     auto& font = fragment.layout_node().first_available_font();
     auto fragment_box = fragment.absolute_rect();
     CSSPixels glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
@@ -652,14 +652,14 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
 
 void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment, PaintPhase phase)
 {
-    auto& painter = context.recording_painter();
+    auto& painter = context.display_list_recorder();
 
     if (phase == PaintPhase::Foreground) {
         auto fragment_absolute_rect = fragment.absolute_rect();
         auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
 
         if (paintable.document().inspected_layout_node() == &paintable.layout_node())
-            context.recording_painter().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Magenta);
+            context.display_list_recorder().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Magenta);
 
         auto text = paintable.text_for_rendering();
 
@@ -670,7 +670,7 @@ void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, 
         auto selection_rect = context.enclosing_device_rect(fragment.selection_rect(paintable.layout_node().first_available_font())).to_type<int>();
         if (!selection_rect.is_empty()) {
             painter.fill_rect(selection_rect, CSS::SystemColor::highlight());
-            RecordingPainterStateSaver saver(painter);
+            DisplayListRecorderStateSaver saver(painter);
             painter.add_clip_rect(selection_rect);
             painter.draw_text_run(baseline_start.to_type<int>(), fragment.glyph_run(), CSS::SystemColor::highlight_text(), fragment_absolute_device_rect.to_type<int>(), scale);
         }
@@ -699,12 +699,12 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         should_clip_overflow = true;
     }
     if (should_clip_overflow) {
-        context.recording_painter().save();
+        context.display_list_recorder().save();
         // FIXME: Handle overflow-x and overflow-y being different values.
         auto clip_box_with_enclosing_scroll_frame_offset = clip_box;
         if (enclosing_scroll_frame_offset().has_value())
             clip_box_with_enclosing_scroll_frame_offset.translate_by(enclosing_scroll_frame_offset().value());
-        context.recording_painter().add_clip_rect(context.rounded_device_rect(clip_box_with_enclosing_scroll_frame_offset).to_type<int>());
+        context.display_list_recorder().add_clip_rect(context.rounded_device_rect(clip_box_with_enclosing_scroll_frame_offset).to_type<int>());
 
         auto border_radii = normalized_border_radii_data(ShrinkRadiiForBorders::Yes);
         CornerRadii corner_radii {
@@ -715,12 +715,12 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         };
         if (corner_radii.has_any_radius()) {
             corner_clip_id = context.allocate_corner_clipper_id();
-            context.recording_painter().sample_under_corners(*corner_clip_id, corner_radii, context.rounded_device_rect(clip_box).to_type<int>(), CornerClip::Outside);
+            context.display_list_recorder().sample_under_corners(*corner_clip_id, corner_radii, context.rounded_device_rect(clip_box).to_type<int>(), CornerClip::Outside);
         }
 
-        context.recording_painter().save();
+        context.display_list_recorder().save();
         auto scroll_offset = context.rounded_device_point(this->scroll_offset());
-        context.recording_painter().translate(-scroll_offset.to_type<int>());
+        context.display_list_recorder().translate(-scroll_offset.to_type<int>());
     }
 
     // Text shadows
@@ -737,8 +737,8 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         auto fragment_absolute_rect = fragment.absolute_rect();
         auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
         if (context.should_show_line_box_borders()) {
-            context.recording_painter().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Green);
-            context.recording_painter().draw_line(
+            context.display_list_recorder().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Green);
+            context.display_list_recorder().draw_line(
                 context.rounded_device_point(fragment_absolute_rect.top_left().translated(0, fragment.baseline())).to_type<int>(),
                 context.rounded_device_point(fragment_absolute_rect.top_right().translated(-1, fragment.baseline())).to_type<int>(), Color::Red);
         }
@@ -747,12 +747,12 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
     }
 
     if (should_clip_overflow) {
-        context.recording_painter().restore();
+        context.display_list_recorder().restore();
         if (corner_clip_id.has_value()) {
-            context.recording_painter().blit_corner_clipping(*corner_clip_id);
+            context.display_list_recorder().blit_corner_clipping(*corner_clip_id);
             corner_clip_id = {};
         }
-        context.recording_painter().restore();
+        context.display_list_recorder().restore();
     }
 }
 

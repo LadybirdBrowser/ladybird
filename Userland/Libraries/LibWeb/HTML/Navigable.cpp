@@ -2092,7 +2092,7 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
     }));
 }
 
-void Navigable::record_display_list(Painting::RecordingPainter& recording_painter, PaintConfig config)
+void Navigable::record_display_list(Painting::DisplayListRecorder& display_list_recorder, PaintConfig config)
 {
     auto document = active_document();
     if (!document)
@@ -2104,12 +2104,12 @@ void Navigable::record_display_list(Painting::RecordingPainter& recording_painte
 
     auto background_color = document->background_color();
 
-    recording_painter.fill_rect(bitmap_rect, background_color);
+    display_list_recorder.fill_rect(bitmap_rect, background_color);
     if (!document->paintable()) {
         VERIFY_NOT_REACHED();
     }
 
-    Web::PaintContext context(recording_painter, page.palette(), page.client().device_pixels_per_css_pixel());
+    Web::PaintContext context(display_list_recorder, page.palette(), page.client().device_pixels_per_css_pixel());
     context.set_device_viewport_rect(viewport_rect);
     context.set_should_show_line_box_borders(config.should_show_line_box_borders);
     context.set_should_paint_overlay(config.paint_overlay);
@@ -2136,8 +2136,8 @@ void Navigable::record_display_list(Painting::RecordingPainter& recording_painte
             auto scroll_offset = context.rounded_device_point(scrollable_frame->offset).to_type<int>();
             scroll_offsets_by_frame_id[scrollable_frame->id] = scroll_offset;
         }
-        recording_painter.display_list().apply_scroll_offsets(scroll_offsets_by_frame_id);
-        recording_painter.display_list().mark_unnecessary_commands();
+        display_list_recorder.display_list().apply_scroll_offsets(scroll_offsets_by_frame_id);
+        display_list_recorder.display_list().mark_unnecessary_commands();
     }
 
     m_needs_repaint = false;
