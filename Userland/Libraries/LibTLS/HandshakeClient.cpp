@@ -151,15 +151,6 @@ bool TLSv12::compute_master_secret_from_pre_master_secret(size_t length)
         print_buffer(m_context.master_key);
     }
 
-    if constexpr (TLS_SSL_KEYLOG_DEBUG) {
-        auto file = MUST(Core::File::open("/home/anon/ssl_keylog"sv, Core::File::OpenMode::Append | Core::File::OpenMode::Write));
-        MUST(file->write_until_depleted("CLIENT_RANDOM "sv));
-        MUST(file->write_until_depleted(encode_hex({ m_context.local_random, 32 })));
-        MUST(file->write_until_depleted(" "sv));
-        MUST(file->write_until_depleted(encode_hex(m_context.master_key)));
-        MUST(file->write_until_depleted("\n"sv));
-    }
-
     expand_key();
     return true;
 }

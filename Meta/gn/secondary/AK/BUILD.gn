@@ -268,7 +268,6 @@ write_cmake_config("ak_debug_gen") {
     "TIFF_DEBUG=",
     "TIME_ZONE_DEBUG=",
     "TLS_DEBUG=",
-    "TLS_SSL_KEYLOG_DEBUG=",
     "TOKENIZER_TRACE_DEBUG=",
     "URL_PARSER_DEBUG=",
     "UTF8_DEBUG=",
