@@ -97,12 +97,13 @@ void Range::set_associated_selection(Badge<Selection::Selection>, JS::GCPtr<Sele
 
 void Range::update_associated_selection()
 {
-    if (!m_associated_selection)
-        return;
-    if (auto* viewport = m_associated_selection->document()->paintable()) {
+    if (auto* viewport = m_start_container->document().paintable()) {
         viewport->recompute_selection_states();
         viewport->set_needs_display();
     }
+
+    if (!m_associated_selection)
+        return;
 
     // https://w3c.github.io/selection-api/#selectionchange-event
     // When the selection is dissociated with its range, associated with a new range or the associated range's boundary
