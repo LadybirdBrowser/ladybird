@@ -616,6 +616,7 @@ set(SOURCES
     Streams/WritableStreamDefaultWriter.cpp
     SVG/AttributeNames.cpp
     SVG/AttributeParser.cpp
+    SVG/SVGAElement.cpp
     SVG/SVGAnimatedLength.cpp
     SVG/SVGAnimatedNumber.cpp
     SVG/SVGAnimatedRect.cpp
