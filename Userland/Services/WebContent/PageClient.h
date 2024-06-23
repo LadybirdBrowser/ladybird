@@ -87,7 +87,7 @@ public:
 
     virtual double device_pixels_per_css_pixel() const override { return m_device_pixels_per_css_pixel; }
 
-    virtual Web::PaintingCommandExecutorType painting_command_executor_type() const override;
+    virtual Web::DisplayListPlayerType display_list_player_type() const override;
 
     void queue_screenshot_task(Optional<i32> node_id);
 

@@ -76,7 +76,7 @@ void DisplayList::mark_unnecessary_commands()
     VERIFY(sample_blit_ranges.is_empty());
 }
 
-void DisplayList::execute(CommandExecutor& executor)
+void DisplayList::execute(DisplayListPlayer& executor)
 {
     executor.prepare_to_execute(m_corner_clip_max_depth);
 

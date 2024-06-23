@@ -539,11 +539,11 @@ set(SOURCES
     Painting/BordersData.cpp
     Painting/CanvasPaintable.cpp
     Painting/Command.cpp
-    Painting/CommandExecutorCPU.cpp
-    Painting/CommandExecutorSkia.cpp
     Painting/CheckBoxPaintable.cpp
     Painting/ClippableAndScrollable.cpp
     Painting/DisplayList.cpp
+    Painting/DisplayListPlayerCPU.cpp
+    Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListRecorder.cpp
     Painting/GradientPainting.cpp
     Painting/FilterPainting.cpp
@@ -760,7 +760,7 @@ target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibI
 
 if (HAS_ACCELERATED_GRAPHICS)
     target_link_libraries(LibWeb PRIVATE ${ACCEL_GFX_LIBS})
-    target_sources(LibWeb PRIVATE Painting/CommandExecutorGPU.cpp)
+    target_sources(LibWeb PRIVATE Painting/DisplayListPlayerGPU.cpp)
     target_link_libraries(LibWeb PRIVATE LibAccelGfx)
     target_compile_definitions(LibWeb PRIVATE HAS_ACCELERATED_GRAPHICS)
 endif()

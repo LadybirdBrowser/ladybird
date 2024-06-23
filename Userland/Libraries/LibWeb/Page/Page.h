@@ -278,7 +278,7 @@ struct PaintOptions {
 #endif
 };
 
-enum class PaintingCommandExecutorType {
+enum class DisplayListPlayerType {
     CPU,
     GPU,
     Skia
@@ -378,7 +378,7 @@ public:
     virtual void schedule_repaint() = 0;
     virtual bool is_ready_to_paint() const = 0;
 
-    virtual PaintingCommandExecutorType painting_command_executor_type() const = 0;
+    virtual DisplayListPlayerType display_list_player_type() const = 0;
 
 protected:
     virtual ~PageClient() = default;

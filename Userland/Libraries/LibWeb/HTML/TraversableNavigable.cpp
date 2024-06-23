@@ -17,12 +17,12 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/CommandExecutorCPU.h>
-#include <LibWeb/Painting/CommandExecutorSkia.h>
+#include <LibWeb/Painting/DisplayListPlayerCPU.h>
+#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 #ifdef HAS_ACCELERATED_GRAPHICS
-#    include <LibWeb/Painting/CommandExecutorGPU.h>
+#    include <LibWeb/Painting/DisplayListPlayerGPU.h>
 #endif
 
 namespace Web::HTML {
@@ -1188,11 +1188,11 @@ void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::
     paint_config.has_focus = paint_options.has_focus;
     record_display_list(display_list_recorder, paint_config);
 
-    auto painting_command_executor_type = page().client().painting_command_executor_type();
-    if (painting_command_executor_type == PaintingCommandExecutorType::GPU) {
+    auto display_list_player_type = page().client().display_list_player_type();
+    if (display_list_player_type == DisplayListPlayerType::GPU) {
 #ifdef HAS_ACCELERATED_GRAPHICS
-        Web::Painting::CommandExecutorGPU painting_command_executor(*paint_options.accelerated_graphics_context, target);
-        display_list.execute(painting_command_executor);
+        Web::Painting::DisplayListPlayerGPU player(*paint_options.accelerated_graphics_context, target);
+        display_list.execute(player);
 #else
         static bool has_warned_about_configuration = false;
 
@@ -1201,12 +1201,12 @@ void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::
             has_warned_about_configuration = true;
         }
 #endif
-    } else if (painting_command_executor_type == PaintingCommandExecutorType::Skia) {
-        Painting::CommandExecutorSkia painting_command_executor(target);
-        display_list.execute(painting_command_executor);
+    } else if (display_list_player_type == DisplayListPlayerType::Skia) {
+        Painting::DisplayListPlayerSkia player(target);
+        display_list.execute(player);
     } else {
-        Web::Painting::CommandExecutorCPU painting_command_executor(target);
-        display_list.execute(painting_command_executor);
+        Web::Painting::DisplayListPlayerCPU player(target);
+        display_list.execute(player);
     }
 }
 
