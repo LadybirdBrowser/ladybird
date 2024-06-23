@@ -5,7 +5,6 @@
  */
 
 #include "GeneratorUtil.h"
-#include <AK/AnyOf.h>
 #include <AK/ByteString.h>
 #include <AK/QuickSort.h>
 #include <AK/SourceGenerator.h>
@@ -14,7 +13,6 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Directory.h>
 #include <LibFileSystem/FileSystem.h>
-#include <LibUnicode/Emoji.h>
 
 struct Emoji {
     size_t image_path { 0 };
