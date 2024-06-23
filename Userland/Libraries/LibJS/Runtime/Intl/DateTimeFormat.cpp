@@ -27,7 +27,7 @@ void DateTimeFormat::visit_edges(Cell::Visitor& visitor)
 }
 
 // 11.5.5 FormatDateTimePattern ( dateTimeFormat, patternParts, x, rangeFormatOptions ), https://tc39.es/ecma402/#sec-formatdatetimepattern
-ThrowCompletionOr<Vector<::Locale::DateTimeFormat::Partition>> format_date_time_pattern(VM& vm, DateTimeFormat& date_time_format, double time)
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> format_date_time_pattern(VM& vm, DateTimeFormat& date_time_format, double time)
 {
     // 1. Let x be TimeClip(x).
     time = time_clip(time);
@@ -40,7 +40,7 @@ ThrowCompletionOr<Vector<::Locale::DateTimeFormat::Partition>> format_date_time_
 }
 
 // 11.5.6 PartitionDateTimePattern ( dateTimeFormat, x ), https://tc39.es/ecma402/#sec-partitiondatetimepattern
-ThrowCompletionOr<Vector<::Locale::DateTimeFormat::Partition>> partition_date_time_pattern(VM& vm, DateTimeFormat& date_time_format, double time)
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_pattern(VM& vm, DateTimeFormat& date_time_format, double time)
 {
     // 1. Let patternParts be PartitionPattern(dateTimeFormat.[[Pattern]]).
     // 2. Let result be ? FormatDateTimePattern(dateTimeFormat, patternParts, x, undefined).
@@ -107,7 +107,7 @@ ThrowCompletionOr<NonnullGCPtr<Array>> format_date_time_to_parts(VM& vm, DateTim
 }
 
 // 11.5.9 PartitionDateTimeRangePattern ( dateTimeFormat, x, y ), https://tc39.es/ecma402/#sec-partitiondatetimerangepattern
-ThrowCompletionOr<Vector<::Locale::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM& vm, DateTimeFormat& date_time_format, double start, double end)
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM& vm, DateTimeFormat& date_time_format, double start, double end)
 {
     // 1. Let x be TimeClip(x).
     start = time_clip(start);

@@ -16,8 +16,8 @@
 #include <LibJS/Runtime/Intl/NumberFormatFunction.h>
 #include <LibJS/Runtime/Intl/PluralRules.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibLocale/DisplayNames.h>
 #include <LibUnicode/CurrencyCode.h>
+#include <LibUnicode/DisplayNames.h>
 #include <math.h>
 #include <stdlib.h>
 
@@ -61,11 +61,11 @@ StringView NumberFormatBase::computed_rounding_priority_string() const
 Value NumberFormat::use_grouping_to_value(VM& vm) const
 {
     switch (m_use_grouping) {
-    case ::Locale::Grouping::Always:
-    case ::Locale::Grouping::Auto:
-    case ::Locale::Grouping::Min2:
-        return PrimitiveString::create(vm, ::Locale::grouping_to_string(m_use_grouping));
-    case ::Locale::Grouping::False:
+    case Unicode::Grouping::Always:
+    case Unicode::Grouping::Auto:
+    case Unicode::Grouping::Min2:
+        return PrimitiveString::create(vm, Unicode::grouping_to_string(m_use_grouping));
+    case Unicode::Grouping::False:
         return Value(false);
     default:
         VERIFY_NOT_REACHED();
@@ -76,15 +76,15 @@ void NumberFormat::set_use_grouping(StringOrBoolean const& use_grouping)
 {
     use_grouping.visit(
         [this](StringView grouping) {
-            m_use_grouping = ::Locale::grouping_from_string(grouping);
+            m_use_grouping = Unicode::grouping_from_string(grouping);
         },
         [this](bool grouping) {
             VERIFY(!grouping);
-            m_use_grouping = ::Locale::Grouping::False;
+            m_use_grouping = Unicode::Grouping::False;
         });
 }
 
-::Locale::RoundingOptions NumberFormatBase::rounding_options() const
+Unicode::RoundingOptions NumberFormatBase::rounding_options() const
 {
     return {
         .type = m_rounding_type,
@@ -99,7 +99,7 @@ void NumberFormat::set_use_grouping(StringOrBoolean const& use_grouping)
     };
 }
 
-::Locale::DisplayOptions NumberFormat::display_options() const
+Unicode::DisplayOptions NumberFormat::display_options() const
 {
     return {
         .style = m_style,
@@ -132,7 +132,7 @@ String format_numeric_to_string(NumberFormatBase const& intl_object, Mathematica
 }
 
 // 15.5.4 PartitionNumberPattern ( numberFormat, x ), https://tc39.es/ecma402/#sec-partitionnumberpattern
-Vector<::Locale::NumberFormat::Partition> partition_number_pattern(NumberFormat const& number_format, MathematicalValue const& number)
+Vector<Unicode::NumberFormat::Partition> partition_number_pattern(NumberFormat const& number_format, MathematicalValue const& number)
 {
     return number_format.formatter().format_to_parts(number.to_value());
 }
@@ -232,7 +232,7 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
 }
 
 // 15.5.19 PartitionNumberRangePattern ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-partitionnumberrangepattern
-ThrowCompletionOr<Vector<::Locale::NumberFormat::Partition>> partition_number_range_pattern(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
+ThrowCompletionOr<Vector<Unicode::NumberFormat::Partition>> partition_number_range_pattern(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
 {
     // 1. If x is NaN or y is NaN, throw a RangeError exception.
     if (start.is_nan())

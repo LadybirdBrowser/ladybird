@@ -8,7 +8,7 @@
 
 #include <AK/Types.h>
 
-namespace Locale {
+namespace Unicode {
 
 struct PartitionRange {
     // ICU does not contain a field enumeration for "literal" partitions. Define a custom field so that we may provide

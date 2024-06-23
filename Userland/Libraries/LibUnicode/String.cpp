@@ -8,7 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
-#include <LibLocale/ICU.h>
+#include <LibUnicode/ICU.h>
 
 #include <unicode/bytestream.h>
 #include <unicode/casemap.h>
@@ -44,8 +44,8 @@ ErrorOr<String> String::to_lowercase(Optional<StringView> const& locale) const
 
     auto resolved_locale = resolve_locale(locale);
 
-    icu::CaseMap::utf8ToLower(resolved_locale.locale, 0, Locale::icu_string_piece(*this), sink, nullptr, status);
-    if (Locale::icu_failure(status))
+    icu::CaseMap::utf8ToLower(resolved_locale.locale, 0, Unicode::icu_string_piece(*this), sink, nullptr, status);
+    if (Unicode::icu_failure(status))
         return Error::from_string_literal("Unable to convert string to lowercase");
 
     return builder.to_string_without_validation();
@@ -60,8 +60,8 @@ ErrorOr<String> String::to_uppercase(Optional<StringView> const& locale) const
 
     auto resolved_locale = resolve_locale(locale);
 
-    icu::CaseMap::utf8ToUpper(resolved_locale.locale, 0, Locale::icu_string_piece(*this), sink, nullptr, status);
-    if (Locale::icu_failure(status))
+    icu::CaseMap::utf8ToUpper(resolved_locale.locale, 0, Unicode::icu_string_piece(*this), sink, nullptr, status);
+    if (Unicode::icu_failure(status))
         return Error::from_string_literal("Unable to convert string to uppercase");
 
     return builder.to_string_without_validation();
@@ -80,8 +80,8 @@ ErrorOr<String> String::to_titlecase(Optional<StringView> const& locale, Trailin
     if (trailing_code_point_transformation == TrailingCodePointTransformation::PreserveExisting)
         options |= U_TITLECASE_NO_LOWERCASE;
 
-    icu::CaseMap::utf8ToTitle(resolved_locale.locale, options, nullptr, Locale::icu_string_piece(*this), sink, nullptr, status);
-    if (Locale::icu_failure(status))
+    icu::CaseMap::utf8ToTitle(resolved_locale.locale, options, nullptr, Unicode::icu_string_piece(*this), sink, nullptr, status);
+    if (Unicode::icu_failure(status))
         return Error::from_string_literal("Unable to convert string to titlecase");
 
     return builder.to_string_without_validation();
@@ -93,8 +93,8 @@ static ErrorOr<void> build_casefold_string(StringView string, StringBuilder& bui
 
     icu::StringByteSink sink { &builder };
 
-    icu::CaseMap::utf8Fold(0, Locale::icu_string_piece(string), sink, nullptr, status);
-    if (Locale::icu_failure(status))
+    icu::CaseMap::utf8Fold(0, Unicode::icu_string_piece(string), sink, nullptr, status);
+    if (Unicode::icu_failure(status))
         return Error::from_string_literal("Unable to casefold string");
 
     return {};

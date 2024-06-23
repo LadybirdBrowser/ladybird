@@ -22,7 +22,7 @@ add_library(webworker STATIC ${WEBWORKER_SOURCES})
 target_include_directories(webworker PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
 target_include_directories(webworker PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
 target_include_directories(webworker PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
-target_link_libraries(webworker PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibProtocol LibWeb LibWebView LibLocale LibImageDecoderClient LibMain LibURL)
+target_link_libraries(webworker PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibProtocol LibWeb LibWebView LibUnicode LibImageDecoderClient LibMain LibURL)
 
 if (HAS_FONTCONFIG)
     target_link_libraries(webworker PRIVATE Fontconfig::Fontconfig)

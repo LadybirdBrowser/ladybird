@@ -14,17 +14,17 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibLocale/DateTimeFormat.h>
+#include <LibUnicode/DateTimeFormat.h>
 
 namespace JS::Intl {
 
 class DateTimeFormat final
     : public Object
-    , public ::Locale::CalendarPattern {
+    , public Unicode::CalendarPattern {
     JS_OBJECT(DateTimeFormat, Object);
     JS_DECLARE_ALLOCATOR(DateTimeFormat);
 
-    using Patterns = ::Locale::CalendarPattern;
+    using Patterns = Unicode::CalendarPattern;
 
 public:
     static constexpr auto relevant_extension_keys()
@@ -49,48 +49,48 @@ public:
     void set_time_zone(String time_zone) { m_time_zone = move(time_zone); }
 
     bool has_date_style() const { return m_date_style.has_value(); }
-    Optional<::Locale::DateTimeStyle> const& date_style() const { return m_date_style; }
-    StringView date_style_string() const { return ::Locale::date_time_style_to_string(*m_date_style); }
-    void set_date_style(StringView style) { m_date_style = ::Locale::date_time_style_from_string(style); }
+    Optional<Unicode::DateTimeStyle> const& date_style() const { return m_date_style; }
+    StringView date_style_string() const { return Unicode::date_time_style_to_string(*m_date_style); }
+    void set_date_style(StringView style) { m_date_style = Unicode::date_time_style_from_string(style); }
 
     bool has_time_style() const { return m_time_style.has_value(); }
-    Optional<::Locale::DateTimeStyle> const& time_style() const { return m_time_style; }
-    StringView time_style_string() const { return ::Locale::date_time_style_to_string(*m_time_style); }
-    void set_time_style(StringView style) { m_time_style = ::Locale::date_time_style_from_string(style); }
+    Optional<Unicode::DateTimeStyle> const& time_style() const { return m_time_style; }
+    StringView time_style_string() const { return Unicode::date_time_style_to_string(*m_time_style); }
+    void set_time_style(StringView style) { m_time_style = Unicode::date_time_style_from_string(style); }
 
     NativeFunction* bound_format() const { return m_bound_format; }
     void set_bound_format(NativeFunction* bound_format) { m_bound_format = bound_format; }
 
-    ::Locale::DateTimeFormat const& formatter() const { return *m_formatter; }
-    void set_formatter(NonnullOwnPtr<::Locale::DateTimeFormat> formatter) { m_formatter = move(formatter); }
+    Unicode::DateTimeFormat const& formatter() const { return *m_formatter; }
+    void set_formatter(NonnullOwnPtr<Unicode::DateTimeFormat> formatter) { m_formatter = move(formatter); }
 
 private:
     DateTimeFormat(Object& prototype);
 
     virtual void visit_edges(Visitor&) override;
 
-    String m_locale;                                // [[Locale]]
-    String m_calendar;                              // [[Calendar]]
-    String m_numbering_system;                      // [[NumberingSystem]]
-    String m_time_zone;                             // [[TimeZone]]
-    Optional<::Locale::DateTimeStyle> m_date_style; // [[DateStyle]]
-    Optional<::Locale::DateTimeStyle> m_time_style; // [[TimeStyle]]
-    GCPtr<NativeFunction> m_bound_format;           // [[BoundFormat]]
+    String m_locale;                               // [[Locale]]
+    String m_calendar;                             // [[Calendar]]
+    String m_numbering_system;                     // [[NumberingSystem]]
+    String m_time_zone;                            // [[TimeZone]]
+    Optional<Unicode::DateTimeStyle> m_date_style; // [[DateStyle]]
+    Optional<Unicode::DateTimeStyle> m_time_style; // [[TimeStyle]]
+    GCPtr<NativeFunction> m_bound_format;          // [[BoundFormat]]
 
     // Non-standard. Stores the ICU date-time formatter for the Intl object's formatting options.
-    OwnPtr<::Locale::DateTimeFormat> m_formatter;
+    OwnPtr<Unicode::DateTimeFormat> m_formatter;
 };
 
-ThrowCompletionOr<Vector<::Locale::DateTimeFormat::Partition>> format_date_time_pattern(VM&, DateTimeFormat&, double time);
-ThrowCompletionOr<Vector<::Locale::DateTimeFormat::Partition>> partition_date_time_pattern(VM&, DateTimeFormat&, double time);
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> format_date_time_pattern(VM&, DateTimeFormat&, double time);
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_pattern(VM&, DateTimeFormat&, double time);
 ThrowCompletionOr<String> format_date_time(VM&, DateTimeFormat&, double time);
 ThrowCompletionOr<NonnullGCPtr<Array>> format_date_time_to_parts(VM&, DateTimeFormat&, double time);
-ThrowCompletionOr<Vector<::Locale::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM&, DateTimeFormat&, double start, double end);
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM&, DateTimeFormat&, double start, double end);
 ThrowCompletionOr<String> format_date_time_range(VM&, DateTimeFormat&, double start, double end);
 ThrowCompletionOr<NonnullGCPtr<Array>> format_date_time_range_to_parts(VM&, DateTimeFormat&, double start, double end);
 
 template<typename Callback>
-ThrowCompletionOr<void> for_each_calendar_field(VM& vm, ::Locale::CalendarPattern& pattern, Callback&& callback)
+ThrowCompletionOr<void> for_each_calendar_field(VM& vm, Unicode::CalendarPattern& pattern, Callback&& callback)
 {
     constexpr auto narrow_short_long = AK::Array { "narrow"sv, "short"sv, "long"sv };
     constexpr auto two_digit_numeric = AK::Array { "2-digit"sv, "numeric"sv };

@@ -11,13 +11,13 @@
 #include <AK/HashTable.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
-#include <LibLocale/ICU.h>
-#include <LibLocale/Locale.h>
+#include <LibUnicode/ICU.h>
+#include <LibUnicode/Locale.h>
 
 #include <unicode/localebuilder.h>
 #include <unicode/locid.h>
 
-namespace Locale {
+namespace Unicode {
 
 static bool is_key(StringView key)
 {

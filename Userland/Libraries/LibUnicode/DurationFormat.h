@@ -8,7 +8,7 @@
 
 #include <AK/String.h>
 
-namespace Locale {
+namespace Unicode {
 
 struct DigitalFormat {
     String hours_minutes_separator { ":"_string };

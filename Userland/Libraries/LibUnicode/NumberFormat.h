@@ -11,10 +11,10 @@
 #include <AK/StringView.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibLocale/Forward.h>
-#include <LibLocale/PluralRules.h>
+#include <LibUnicode/Forward.h>
+#include <LibUnicode/PluralRules.h>
 
-namespace Locale {
+namespace Unicode {
 
 enum class NumberFormatStyle {
     Decimal,

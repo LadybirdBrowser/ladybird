@@ -84,10 +84,10 @@ ThrowCompletionOr<NonnullGCPtr<Object>> PluralRulesConstructor::construct(Functi
     plural_rules->set_type(type.as_string().utf8_string_view());
 
     // 13. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3, "standard").
-    TRY(set_number_format_digit_options(vm, plural_rules, *options, 0, 3, ::Locale::Notation::Standard));
+    TRY(set_number_format_digit_options(vm, plural_rules, *options, 0, 3, Unicode::Notation::Standard));
 
     // Non-standard, create an ICU number formatter for this Intl object.
-    auto formatter = ::Locale::NumberFormat::create(
+    auto formatter = Unicode::NumberFormat::create(
         plural_rules->locale(),
         {},
         {},

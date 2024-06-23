@@ -10,7 +10,7 @@
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 
-namespace Locale {
+namespace Unicode {
 
 Vector<String> available_keyword_values(StringView locale, StringView key);
 

@@ -1,6 +1,9 @@
 set(TEST_SOURCES
+    TestDisplayNames.cpp
     TestEmoji.cpp
     TestIDNA.cpp
+    TestLocale.cpp
+    TestSegmenter.cpp
     TestUnicodeCharacterTypes.cpp
     TestUnicodeNormalization.cpp
 )

@@ -6,17 +6,17 @@
 
 #define AK_DONT_REPLACE_STD
 
-#include <LibLocale/ICU.h>
-#include <LibLocale/Locale.h>
-#include <LibLocale/NumberFormat.h>
-#include <LibLocale/PartitionRange.h>
-#include <LibLocale/RelativeTimeFormat.h>
+#include <LibUnicode/ICU.h>
+#include <LibUnicode/Locale.h>
+#include <LibUnicode/NumberFormat.h>
+#include <LibUnicode/PartitionRange.h>
+#include <LibUnicode/RelativeTimeFormat.h>
 
 #include <unicode/decimfmt.h>
 #include <unicode/numfmt.h>
 #include <unicode/reldatefmt.h>
 
-namespace Locale {
+namespace Unicode {
 
 Optional<TimeUnit> time_unit_from_string(StringView time_unit)
 {

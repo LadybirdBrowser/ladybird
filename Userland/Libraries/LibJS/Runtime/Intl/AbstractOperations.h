@@ -14,7 +14,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibLocale/Locale.h>
+#include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
@@ -33,7 +33,7 @@ struct LocaleOptions {
 
 struct MatchedLocale {
     String locale;
-    Optional<::Locale::Extension> extension;
+    Optional<Unicode::Extension> extension;
 };
 
 struct ResolvedLocale {
@@ -55,7 +55,7 @@ bool is_well_formed_unit_identifier(StringView unit_identifier);
 ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM&, Value locales);
 Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> requested_locales);
 Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<String> requested_locales);
-String insert_unicode_extension_and_canonicalize(::Locale::LocaleID locale_id, Vector<String> attributes, Vector<::Locale::Keyword> keywords);
+String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale_id, Vector<String> attributes, Vector<Unicode::Keyword> keywords);
 ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOptions const& options, ReadonlySpan<StringView> relevant_extension_keys);
 ThrowCompletionOr<Array*> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options);
 ThrowCompletionOr<Object*> coerce_options_to_object(VM&, Value options);

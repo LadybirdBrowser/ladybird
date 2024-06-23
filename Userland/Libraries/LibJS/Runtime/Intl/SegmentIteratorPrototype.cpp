@@ -62,7 +62,7 @@ JS_DEFINE_NATIVE_FUNCTION(SegmentIteratorPrototype::next)
     auto end_index = find_boundary(segmenter, string, start_index, Direction::After);
 
     // 9. Set iterator.[[IteratedStringNextSegmentCodeUnitIndex]] to endIndex.
-    // NOTE: This is already handled by LibLocale.
+    // NOTE: This is already handled by LibUnicode.
 
     // 10. Let segmentData be CreateSegmentDataObject(segmenter, string, startIndex, endIndex).
     auto segment_data = TRY(create_segment_data_object(vm, segmenter, string, start_index, end_index));

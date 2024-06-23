@@ -9,15 +9,15 @@
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
-#include <LibLocale/DurationFormat.h>
-#include <LibLocale/ICU.h>
-#include <LibLocale/NumberFormat.h>
+#include <LibUnicode/DurationFormat.h>
+#include <LibUnicode/ICU.h>
+#include <LibUnicode/NumberFormat.h>
 
 #include <unicode/measfmt.h>
 #include <unicode/measunit.h>
 #include <unicode/measure.h>
 
-namespace Locale {
+namespace Unicode {
 
 static constexpr bool is_not_ascii_digit(u32 code_point)
 {

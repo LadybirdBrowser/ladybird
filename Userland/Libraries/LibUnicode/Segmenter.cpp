@@ -8,15 +8,15 @@
 
 #include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
-#include <LibLocale/ICU.h>
-#include <LibLocale/Locale.h>
-#include <LibLocale/Segmenter.h>
+#include <LibUnicode/ICU.h>
+#include <LibUnicode/Locale.h>
+#include <LibUnicode/Segmenter.h>
 
 #include <unicode/brkiter.h>
 #include <unicode/utext.h>
 #include <unicode/utf8.h>
 
-namespace Locale {
+namespace Unicode {
 
 SegmenterGranularity segmenter_granularity_from_string(StringView segmenter_granularity)
 {

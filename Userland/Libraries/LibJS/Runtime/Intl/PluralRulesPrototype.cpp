@@ -9,7 +9,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/PluralRulesPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibLocale/PluralRules.h>
+#include <LibUnicode/PluralRules.h>
 
 namespace JS::Intl {
 
@@ -48,7 +48,7 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select)
 
     // 4. Return ! ResolvePlural(pr, n).[[PluralCategory]].
     auto plurality = resolve_plural(plural_rules, number);
-    return PrimitiveString::create(vm, ::Locale::plural_category_to_string(plurality));
+    return PrimitiveString::create(vm, Unicode::plural_category_to_string(plurality));
 }
 
 // 16.3.4 Intl.PluralRules.prototype.selectRange ( start, end ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.selectrange
@@ -75,7 +75,7 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select_range)
 
     // 6. Return ? ResolvePluralRange(pr, x, y).
     auto plurality = TRY(resolve_plural_range(vm, plural_rules, x, y));
-    return PrimitiveString::create(vm, ::Locale::plural_category_to_string(plurality));
+    return PrimitiveString::create(vm, Unicode::plural_category_to_string(plurality));
 }
 
 // 16.3.5 Intl.PluralRules.prototype.resolvedOptions ( ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.resolvedoptions
@@ -93,8 +93,8 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::resolved_options)
     // 4. Let pluralCategories be a List of Strings containing all possible results of PluralRuleSelect for the selected locale pr.[[Locale]].
     auto available_categories = plural_rules->formatter().available_plural_categories();
 
-    auto plural_categories = Array::create_from<::Locale::PluralCategory>(realm, available_categories, [&](auto category) {
-        return PrimitiveString::create(vm, ::Locale::plural_category_to_string(category));
+    auto plural_categories = Array::create_from<Unicode::PluralCategory>(realm, available_categories, [&](auto category) {
+        return PrimitiveString::create(vm, Unicode::plural_category_to_string(category));
     });
 
     // 5. For each row of Table 16, except the header row, in table order, do

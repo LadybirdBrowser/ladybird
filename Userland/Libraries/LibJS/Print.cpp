@@ -740,7 +740,7 @@ ErrorOr<void> print_intl_date_time_format(JS::PrintContext& print_context, JS::I
     TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.numbering_system()), seen_objects));
     if (date_time_format.hour_cycle.has_value()) {
         TRY(js_out(print_context, "\n  hourCycle: "));
-        TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), ::Locale::hour_cycle_to_string(*date_time_format.hour_cycle)), seen_objects));
+        TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), Unicode::hour_cycle_to_string(*date_time_format.hour_cycle)), seen_objects));
     }
     TRY(js_out(print_context, "\n  timeZone: "));
     TRY(print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), date_time_format.time_zone()), seen_objects));
@@ -768,7 +768,7 @@ ErrorOr<void> print_intl_date_time_format(JS::PrintContext& print_context, JS::I
             if (print_value(print_context, JS::Value(*option), seen_objects).is_error())
                 return JS::throw_completion(JS::js_null());
         } else {
-            auto name = Locale::calendar_pattern_style_to_string(*option);
+            auto name = Unicode::calendar_pattern_style_to_string(*option);
             if (print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), name), seen_objects).is_error())
                 return JS::throw_completion(JS::js_null());
         }

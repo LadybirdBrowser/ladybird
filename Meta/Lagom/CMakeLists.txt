@@ -394,7 +394,6 @@ set(lagom_standard_libraries
     IPC
     JS
     Line
-    Locale
     Media
     Protocol
     Regex
@@ -437,9 +436,6 @@ foreach(lib IN LISTS lagom_standard_libraries)
     add_serenity_subdirectory("Userland/Libraries/Lib${lib}")
 endforeach()
 
-# FIXME: Why is this not in LibLocale/CMakeLists.txt?
-target_link_libraries(LibLocale PRIVATE LibTimeZone)
-
 if (ENABLE_FUZZERS)
     add_subdirectory(Fuzzers)
 endif()
@@ -460,7 +456,7 @@ lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress Li
 lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
 lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMain)
 lagom_utility(ttfdisasm SOURCES ../../Userland/Utilities/ttfdisasm.cpp LIBS LibGfx LibMain)
-lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibLocale LibMain LibTextCodec Threads::Threads)
+lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec Threads::Threads)
 
 lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
 
@@ -513,7 +509,6 @@ if (BUILD_TESTING)
         LibCrypto
         LibCompress
         LibGfx
-        LibLocale
         LibMedia
         LibTest
         LibTextCodec

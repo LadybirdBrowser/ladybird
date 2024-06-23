@@ -84,7 +84,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
     // 1. If type is "language", then
     if (type == DisplayNames::Type::Language) {
         // a. If code does not match the unicode_language_id production, throw a RangeError exception.
-        if (!::Locale::parse_unicode_language_id(code).has_value())
+        if (!Unicode::parse_unicode_language_id(code).has_value())
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "language"sv);
 
         // b. If IsStructurallyValidLanguageTag(code) is false, throw a RangeError exception.
@@ -99,7 +99,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
     // 2. If type is "region", then
     if (type == DisplayNames::Type::Region) {
         // a. If code does not match the unicode_region_subtag production, throw a RangeError exception.
-        if (!::Locale::is_unicode_region_subtag(code))
+        if (!Unicode::is_unicode_region_subtag(code))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "region"sv);
 
         // b. Return the ASCII-uppercase of code.
@@ -109,7 +109,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
     // 3. If type is "script", then
     if (type == DisplayNames::Type::Script) {
         // a. If code does not match the unicode_script_subtag production, throw a RangeError exception.
-        if (!::Locale::is_unicode_script_subtag(code))
+        if (!Unicode::is_unicode_script_subtag(code))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "script"sv);
 
         // Assert: The length of code is 4, and every code unit of code represents an ASCII letter (0x0041 through 0x005A and 0x0061 through 0x007A, both inclusive).
@@ -125,7 +125,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
     // 4. If type is "calendar", then
     if (type == DisplayNames::Type::Calendar) {
         // a. If code does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
-        if (!::Locale::is_type_identifier(code))
+        if (!Unicode::is_type_identifier(code))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "calendar"sv);
 
         // b. If code uses any of the backwards compatibility syntax described in Unicode Technical Standard #35 LDML § 3.3 BCP 47 Conformance, throw a RangeError exception.

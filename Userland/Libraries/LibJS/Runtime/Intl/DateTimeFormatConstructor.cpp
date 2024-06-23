@@ -12,8 +12,8 @@
 #include <LibJS/Runtime/Intl/DateTimeFormat.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
-#include <LibLocale/DateTimeFormat.h>
-#include <LibLocale/Locale.h>
+#include <LibUnicode/DateTimeFormat.h>
+#include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
@@ -108,7 +108,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
     // 8. If calendar is not undefined, then
     if (!calendar.is_undefined()) {
         // a. If calendar cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-        if (!::Locale::is_type_identifier(calendar.as_string().utf8_string_view()))
+        if (!Unicode::is_type_identifier(calendar.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, calendar, "calendar"sv);
     }
 
@@ -121,7 +121,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
     // 11. If numberingSystem is not undefined, then
     if (!numbering_system.is_undefined()) {
         // a. If numberingSystem cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-        if (!::Locale::is_type_identifier(numbering_system.as_string().utf8_string_view()))
+        if (!Unicode::is_type_identifier(numbering_system.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
     }
 
@@ -162,7 +162,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
     // 23. Let dataLocale be r.[[dataLocale]].
 
     // 24. Let dataLocaleData be localeData.[[<dataLocale>]].
-    Optional<::Locale::HourCycle> hour_cycle_value;
+    Optional<Unicode::HourCycle> hour_cycle_value;
     Optional<bool> hour12_value;
 
     // 25. If hour12 is true, then
@@ -170,7 +170,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
     // 26. Else if hour12 is false, then
     //     a. Let hc be dataLocaleData.[[hourCycle24]].
     if (hour12.is_boolean()) {
-        // NOTE: We let LibLocale figure out the appropriate hour cycle.
+        // NOTE: We let LibUnicode figure out the appropriate hour cycle.
         hour12_value = hour12.as_bool();
     }
     // 27. Else,
@@ -180,11 +180,11 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
 
         // b. Let hc be r.[[hc]].
         if (auto* resolved_hour_cycle = result.hc.get_pointer<String>())
-            hour_cycle_value = ::Locale::hour_cycle_from_string(*resolved_hour_cycle);
+            hour_cycle_value = Unicode::hour_cycle_from_string(*resolved_hour_cycle);
 
         // c. If hc is null, set hc to dataLocaleData.[[hourCycle]].
         if (!hour_cycle_value.has_value())
-            hour_cycle_value = ::Locale::default_hour_cycle(date_time_format->locale());
+            hour_cycle_value = Unicode::default_hour_cycle(date_time_format->locale());
     }
 
     // 28. Set dateTimeFormat.[[HourCycle]] to hc.
@@ -250,7 +250,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
         time_zone = MUST(String::formatted("GMT{}", time_zone));
 
     // 36. Let formatOptions be a new Record.
-    ::Locale::CalendarPattern format_options {};
+    Unicode::CalendarPattern format_options {};
 
     // 37. Set formatOptions.[[hourCycle]] to hc.
     format_options.hour_cycle = hour_cycle_value;
@@ -288,7 +288,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
 
             // d. Set formatOptions.[[<prop>]] to value.
             if (!value.is_undefined()) {
-                option = ::Locale::calendar_pattern_style_from_string(value.as_string().utf8_string_view());
+                option = Unicode::calendar_pattern_style_from_string(value.as_string().utf8_string_view());
 
                 // e. If value is not undefined, then
                 //     i. Set hasExplicitFormatComponents to true.
@@ -338,7 +338,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
 
         // d. Let styles be dataLocaleData.[[styles]].[[<resolvedCalendar>]].
         // e. Let bestFormat be DateTimeStyleFormat(dateStyle, timeStyle, styles).
-        auto formatter = ::Locale::DateTimeFormat::create_for_date_and_time_style(
+        auto formatter = Unicode::DateTimeFormat::create_for_date_and_time_style(
             date_time_format->locale(),
             time_zone,
             format_options.hour_cycle,
@@ -390,7 +390,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
             // i. For each property name prop of « "year", "month", "day" », do
             auto set_property_value = [&](auto& value) {
                 // 1. Set formatOptions.[[<prop>]] to "numeric".
-                value = ::Locale::CalendarPatternStyle::Numeric;
+                value = Unicode::CalendarPatternStyle::Numeric;
             };
 
             set_property_value(format_options.year);
@@ -403,7 +403,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
             // i. For each property name prop of « "hour", "minute", "second" », do
             auto set_property_value = [&](auto& value) {
                 // 1. Set formatOptions.[[<prop>]] to "numeric".
-                value = ::Locale::CalendarPatternStyle::Numeric;
+                value = Unicode::CalendarPatternStyle::Numeric;
             };
 
             set_property_value(format_options.hour);
@@ -416,7 +416,7 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
         //     i. Let bestFormat be BasicFormatMatcher(formatOptions, formats).
         // h. Else,
         //     i. Let bestFormat be BestFitFormatMatcher(formatOptions, formats).
-        auto formatter = ::Locale::DateTimeFormat::create_for_pattern_options(
+        auto formatter = Unicode::DateTimeFormat::create_for_pattern_options(
             date_time_format->locale(),
             time_zone,
             format_options);

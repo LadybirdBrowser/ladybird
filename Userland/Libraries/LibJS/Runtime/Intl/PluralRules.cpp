@@ -17,13 +17,13 @@ PluralRules::PluralRules(Object& prototype)
 }
 
 // 16.5.4 ResolvePlural ( pluralRules, n ), https://tc39.es/ecma402/#sec-resolveplural
-::Locale::PluralCategory resolve_plural(PluralRules const& plural_rules, Value number)
+Unicode::PluralCategory resolve_plural(PluralRules const& plural_rules, Value number)
 {
     // 1. If n is not a finite Number, then
     if (!number.is_finite_number()) {
         // a. Let s be ! ToString(n).
         // b. Return the Record { [[PluralCategory]]: "other", [[FormattedString]]: s }.
-        return ::Locale::PluralCategory::Other;
+        return Unicode::PluralCategory::Other;
     }
 
     // 2. Let locale be pluralRules.[[Locale]].
@@ -37,7 +37,7 @@ PluralRules::PluralRules(Object& prototype)
 }
 
 // 16.5.6 ResolvePluralRange ( pluralRules, x, y ), https://tc39.es/ecma402/#sec-resolveplural
-ThrowCompletionOr<::Locale::PluralCategory> resolve_plural_range(VM& vm, PluralRules const& plural_rules, Value start, Value end)
+ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM& vm, PluralRules const& plural_rules, Value start, Value end)
 {
     // 1. If x is NaN or y is NaN, throw a RangeError exception.
     if (start.is_nan())

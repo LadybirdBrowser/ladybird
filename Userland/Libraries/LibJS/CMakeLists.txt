@@ -271,10 +271,10 @@ set(SOURCES
 )
 
 serenity_lib(LibJS js)
-target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibUnicode LibTimeZone)
+target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibTimeZone)
 
-# Link LibLocale publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.
-target_link_libraries(LibJS PUBLIC LibLocale)
+# Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.
+target_link_libraries(LibJS PUBLIC LibUnicode)
 
 # TODO: This is probably also needed on RISC-V.
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "i.86.*")

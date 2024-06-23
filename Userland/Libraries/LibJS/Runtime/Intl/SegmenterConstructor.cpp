@@ -83,7 +83,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> SegmenterConstructor::construct(Function
     // 12. Set segmenter.[[SegmenterGranularity]] to granularity.
     segmenter->set_segmenter_granularity(granularity.as_string().utf8_string_view());
 
-    auto locale_segmenter = ::Locale::Segmenter::create(segmenter->locale(), segmenter->segmenter_granularity());
+    auto locale_segmenter = Unicode::Segmenter::create(segmenter->locale(), segmenter->segmenter_granularity());
     segmenter->set_segmenter(move(locale_segmenter));
 
     // 13. Return segmenter.

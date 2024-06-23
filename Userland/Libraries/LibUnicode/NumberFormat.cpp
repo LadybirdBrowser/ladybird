@@ -9,17 +9,17 @@
 #include <AK/CharacterTypes.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf8View.h>
-#include <LibLocale/ICU.h>
-#include <LibLocale/Locale.h>
-#include <LibLocale/NumberFormat.h>
-#include <LibLocale/PartitionRange.h>
+#include <LibUnicode/ICU.h>
+#include <LibUnicode/Locale.h>
+#include <LibUnicode/NumberFormat.h>
+#include <LibUnicode/PartitionRange.h>
 #include <math.h>
 
 #include <unicode/numberformatter.h>
 #include <unicode/numberrangeformatter.h>
 #include <unicode/plurrule.h>
 
-namespace Locale {
+namespace Unicode {
 
 NumberFormatStyle number_format_style_from_string(StringView number_format_style)
 {

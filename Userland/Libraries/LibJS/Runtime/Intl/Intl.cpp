@@ -21,11 +21,11 @@
 #include <LibJS/Runtime/Intl/SegmenterConstructor.h>
 #include <LibJS/Runtime/Intl/SingleUnitIdentifiers.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
-#include <LibLocale/DateTimeFormat.h>
-#include <LibLocale/Locale.h>
-#include <LibLocale/NumberFormat.h>
-#include <LibLocale/UnicodeKeywords.h>
 #include <LibTimeZone/TimeZone.h>
+#include <LibUnicode/DateTimeFormat.h>
+#include <LibUnicode/Locale.h>
+#include <LibUnicode/NumberFormat.h>
+#include <LibUnicode/UnicodeKeywords.h>
 
 namespace JS::Intl {
 
@@ -124,22 +124,22 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
     // 2. If key is "calendar", then
     if (key == "calendar"sv) {
         // a. Let list be ! AvailableCanonicalCalendars( ).
-        list = ::Locale::available_calendars().span();
+        list = Unicode::available_calendars().span();
     }
     // 3. Else if key is "collation", then
     else if (key == "collation"sv) {
         // a. Let list be ! AvailableCanonicalCollations( ).
-        list = ::Locale::available_collations().span();
+        list = Unicode::available_collations().span();
     }
     // 4. Else if key is "currency", then
     else if (key == "currency"sv) {
         // a. Let list be ! AvailableCanonicalCurrencies( ).
-        list = ::Locale::available_currencies().span();
+        list = Unicode::available_currencies().span();
     }
     // 5. Else if key is "numberingSystem", then
     else if (key == "numberingSystem"sv) {
         // a. Let list be ! AvailableCanonicalNumberingSystems( ).
-        list = ::Locale::available_number_systems().span();
+        list = Unicode::available_number_systems().span();
     }
     // 6. Else if key is "timeZone", then
     else if (key == "timeZone"sv) {

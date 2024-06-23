@@ -9,7 +9,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/ListFormat.h>
 #include <LibJS/Runtime/Iterator.h>
-#include <LibLocale/ListFormat.h>
+#include <LibUnicode/ListFormat.h>
 
 namespace JS::Intl {
 
@@ -22,7 +22,7 @@ ListFormat::ListFormat(Object& prototype)
 }
 
 // 13.5.2 CreatePartsFromList ( listFormat, list ), https://tc39.es/ecma402/#sec-createpartsfromlist
-Vector<::Locale::ListFormat::Partition> create_parts_from_list(ListFormat const& list_format, ReadonlySpan<String> list)
+Vector<Unicode::ListFormat::Partition> create_parts_from_list(ListFormat const& list_format, ReadonlySpan<String> list)
 {
     return list_format.formatter().format_to_parts(list);
 }

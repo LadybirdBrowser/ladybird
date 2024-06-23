@@ -11,7 +11,7 @@
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibLocale/NumberFormat.h>
+#include <LibUnicode/NumberFormat.h>
 
 namespace JS::Intl {
 
@@ -61,7 +61,7 @@ public:
     bool is_negative_zero() const;
     bool is_nan() const;
 
-    ::Locale::NumberFormat::Value to_value() const;
+    Unicode::NumberFormat::Value to_value() const;
 
 private:
     using ValueType = Variant<double, String, Symbol>;

@@ -20,7 +20,7 @@ Segmenter::Segmenter(Object& prototype)
 }
 
 // 18.7.1 CreateSegmentDataObject ( segmenter, string, startIndex, endIndex ), https://tc39.es/ecma402/#sec-createsegmentdataobject
-ThrowCompletionOr<NonnullGCPtr<Object>> create_segment_data_object(VM& vm, ::Locale::Segmenter const& segmenter, Utf16View const& string, size_t start_index, size_t end_index)
+ThrowCompletionOr<NonnullGCPtr<Object>> create_segment_data_object(VM& vm, Unicode::Segmenter const& segmenter, Utf16View const& string, size_t start_index, size_t end_index)
 {
     auto& realm = *vm.current_realm();
 
@@ -55,7 +55,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> create_segment_data_object(VM& vm, ::Loc
     auto granularity = segmenter.segmenter_granularity();
 
     // 11. If granularity is "word", then
-    if (granularity == ::Locale::SegmenterGranularity::Word) {
+    if (granularity == Unicode::SegmenterGranularity::Word) {
         // a. Let isWordLike be a Boolean value indicating whether the segment in string is "word-like" according to locale segmenter.[[Locale]].
         auto is_word_like = segmenter.is_current_boundary_word_like();
 
@@ -68,7 +68,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> create_segment_data_object(VM& vm, ::Loc
 }
 
 // 18.8.1 FindBoundary ( segmenter, string, startIndex, direction ), https://tc39.es/ecma402/#sec-findboundary
-size_t find_boundary(::Locale::Segmenter& segmenter, Utf16View const& string, size_t start_index, Direction direction)
+size_t find_boundary(Unicode::Segmenter& segmenter, Utf16View const& string, size_t start_index, Direction direction)
 {
     // 1. Let len be the length of string.
     auto length = string.length_in_code_units();
@@ -83,7 +83,7 @@ size_t find_boundary(::Locale::Segmenter& segmenter, Utf16View const& string, si
     if (direction == Direction::Before) {
         // a. Search string for the last segmentation boundary that is preceded by at most startIndex code units from
         //    the beginning, using locale locale and text element granularity granularity.
-        auto boundary = segmenter.previous_boundary(start_index, ::Locale::Segmenter::Inclusive::Yes);
+        auto boundary = segmenter.previous_boundary(start_index, Unicode::Segmenter::Inclusive::Yes);
 
         // b. If a boundary is found, return the count of code units in string preceding it.
         if (boundary.has_value())

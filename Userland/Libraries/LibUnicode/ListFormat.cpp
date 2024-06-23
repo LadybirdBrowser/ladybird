@@ -7,12 +7,12 @@
 #define AK_DONT_REPLACE_STD
 
 #include <AK/NonnullOwnPtr.h>
-#include <LibLocale/ICU.h>
-#include <LibLocale/ListFormat.h>
+#include <LibUnicode/ICU.h>
+#include <LibUnicode/ListFormat.h>
 
 #include <unicode/listformatter.h>
 
-namespace Locale {
+namespace Unicode {
 
 ListFormatType list_format_type_from_string(StringView list_format_type)
 {
