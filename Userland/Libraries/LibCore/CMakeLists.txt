@@ -14,6 +14,10 @@ set(SOURCES
 
 serenity_lib(LibCoreMinimal coreminimal)
 
+if (LAGOM_TOOLS_ONLY)
+    return()
+endif()
+
 set(SOURCES
     AnonymousBuffer.cpp
     Command.cpp
