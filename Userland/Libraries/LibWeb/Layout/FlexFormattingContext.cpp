@@ -603,6 +603,15 @@ void FlexFormattingContext::determine_flex_base_size_and_hypothetical_main_size(
         //    in this calculation use fit-content as the flex item’s cross size.
         //    The flex base size is the item’s resulting main size.
 
+        if (auto* size = item.used_flex_basis->get_pointer<CSS::Size>()) {
+            if (size->is_fit_content())
+                return calculate_fit_content_main_size(item);
+            if (size->is_max_content())
+                return calculate_max_content_main_size(item);
+            if (size->is_min_content())
+                return calculate_min_content_main_size(item);
+        }
+
         // NOTE: If the flex item has a definite main size, just use that as the flex base size.
         if (has_definite_main_size(item))
             return inner_main_size(item);
