@@ -28,7 +28,7 @@
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/Command.h>
-#include <LibWeb/Painting/CommandList.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/PaintStyle.h>
@@ -135,10 +135,10 @@ public:
 
     void draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a_p2, Color color, int amplitude, int thickness);
 
-    RecordingPainter(CommandList& commands_list);
+    RecordingPainter(DisplayList&);
     ~RecordingPainter();
 
-    CommandList& commands_list() { return m_command_list; }
+    DisplayList& display_list() { return m_command_list; }
 
     void append(Command&& command);
 
@@ -158,7 +158,7 @@ private:
     Vector<CornerClipState> m_corner_clip_state_stack;
 
     Vector<State> m_state_stack;
-    CommandList& m_command_list;
+    DisplayList& m_command_list;
 };
 
 class RecordingPainterStateSaver {

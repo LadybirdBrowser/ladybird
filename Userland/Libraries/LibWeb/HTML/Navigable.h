@@ -183,7 +183,7 @@ public:
         bool should_show_line_box_borders { false };
         bool has_focus { false };
     };
-    void record_painting_commands(Painting::RecordingPainter&, PaintConfig);
+    void record_display_list(Painting::RecordingPainter& recording_painter, PaintConfig);
 
     Page& page() { return m_page; }
     Page const& page() const { return m_page; }

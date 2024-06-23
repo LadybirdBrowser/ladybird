@@ -541,9 +541,9 @@ set(SOURCES
     Painting/Command.cpp
     Painting/CommandExecutorCPU.cpp
     Painting/CommandExecutorSkia.cpp
-    Painting/CommandList.cpp
     Painting/CheckBoxPaintable.cpp
     Painting/ClippableAndScrollable.cpp
+    Painting/DisplayList.cpp
     Painting/GradientPainting.cpp
     Painting/FilterPainting.cpp
     Painting/ImagePaintable.cpp

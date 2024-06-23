@@ -1176,8 +1176,8 @@ JS::GCPtr<DOM::Node> TraversableNavigable::currently_focused_area()
 
 void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& target, Web::PaintOptions paint_options)
 {
-    Painting::CommandList painting_commands;
-    Painting::RecordingPainter recording_painter(painting_commands);
+    Painting::DisplayList display_list;
+    Painting::RecordingPainter recording_painter(display_list);
 
     Gfx::IntRect bitmap_rect { {}, content_rect.size().to_type<int>() };
     recording_painter.fill_rect(bitmap_rect, Web::CSS::SystemColor::canvas());
@@ -1186,13 +1186,13 @@ void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::
     paint_config.paint_overlay = paint_options.paint_overlay == Web::PaintOptions::PaintOverlay::Yes;
     paint_config.should_show_line_box_borders = paint_options.should_show_line_box_borders;
     paint_config.has_focus = paint_options.has_focus;
-    record_painting_commands(recording_painter, paint_config);
+    record_display_list(recording_painter, paint_config);
 
     auto painting_command_executor_type = page().client().painting_command_executor_type();
     if (painting_command_executor_type == PaintingCommandExecutorType::GPU) {
 #ifdef HAS_ACCELERATED_GRAPHICS
         Web::Painting::CommandExecutorGPU painting_command_executor(*paint_options.accelerated_graphics_context, target);
-        painting_commands.execute(painting_command_executor);
+        display_list.execute(painting_command_executor);
 #else
         static bool has_warned_about_configuration = false;
 
@@ -1203,10 +1203,10 @@ void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::
 #endif
     } else if (painting_command_executor_type == PaintingCommandExecutorType::Skia) {
         Painting::CommandExecutorSkia painting_command_executor(target);
-        painting_commands.execute(painting_command_executor);
+        display_list.execute(painting_command_executor);
     } else {
         Web::Painting::CommandExecutorCPU painting_command_executor(target);
-        painting_commands.execute(painting_command_executor);
+        display_list.execute(painting_command_executor);
     }
 }
 

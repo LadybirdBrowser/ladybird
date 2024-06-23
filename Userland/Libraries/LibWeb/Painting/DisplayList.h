@@ -77,7 +77,7 @@ public:
     virtual void update_immutable_bitmap_texture_cache(HashMap<u32, Gfx::ImmutableBitmap const*>&) = 0;
 };
 
-class CommandList {
+class DisplayList {
 public:
     void append(Command&& command, Optional<i32> scroll_frame_id);
 
