@@ -1,0 +1,14 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x36 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 200x20 flex-container(row) [FFC] children: not-inline
+      SVGSVGBox <svg> at (8,8) content-size 20x20 flex-item [SVG] children: not-inline
+        SVGGeometryBox <rect> at (8,8) content-size 10x10 children: not-inline
+      BlockContainer <div> at (28,8) content-size 100x20 flex-item [BFC] children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x36]
+    PaintableBox (Box<BODY>) [8,8 200x20]
+      SVGSVGPaintable (SVGSVGBox<svg>) [8,8 20x20]
+        SVGPathPaintable (SVGGeometryBox<rect>) [8,8 10x10]
+      PaintableWithLines (BlockContainer<DIV>) [28,8 100x20]
