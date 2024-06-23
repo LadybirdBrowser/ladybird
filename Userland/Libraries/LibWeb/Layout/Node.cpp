@@ -613,6 +613,10 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (overflow_y.has_value())
         computed_values.set_overflow_y(overflow_y.value());
 
+    auto content_visibility = computed_style.content_visibility();
+    if (content_visibility.has_value())
+        computed_values.set_content_visibility(content_visibility.value());
+
     auto cursor = computed_style.cursor();
     if (cursor.has_value())
         computed_values.set_cursor(cursor.value());

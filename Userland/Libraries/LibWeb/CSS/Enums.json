@@ -101,6 +101,11 @@
     "right",
     "both"
   ],
+  "content-visibility": [
+    "visible",
+    "auto",
+    "hidden"
+  ],
   "cursor": [
     "auto",
     "default",

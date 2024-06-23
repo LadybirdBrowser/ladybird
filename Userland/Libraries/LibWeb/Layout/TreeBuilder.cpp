@@ -371,15 +371,23 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     auto shadow_root = is<DOM::Element>(dom_node) ? verify_cast<DOM::Element>(dom_node).shadow_root() : nullptr;
 
+    auto element_has_content_visibility_hidden = [&dom_node]() {
+        if (is<DOM::Element>(dom_node)) {
+            auto& element = static_cast<DOM::Element&>(dom_node);
+            return element.computed_css_values()->content_visibility() == CSS::ContentVisibility::Hidden;
+        }
+        return false;
+    }();
+
     // Add node for the ::before pseudo-element.
-    if (is<DOM::Element>(dom_node) && layout_node->can_have_children()) {
+    if (is<DOM::Element>(dom_node) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
         auto& element = static_cast<DOM::Element&>(dom_node);
         push_parent(verify_cast<NodeWithStyle>(*layout_node));
         create_pseudo_element_if_needed(element, CSS::Selector::PseudoElement::Type::Before, AppendOrPrepend::Prepend);
         pop_parent();
     }
 
-    if ((dom_node.has_children() || shadow_root) && layout_node->can_have_children()) {
+    if ((dom_node.has_children() || shadow_root) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
         push_parent(verify_cast<NodeWithStyle>(*layout_node));
         if (shadow_root) {
             for (auto* node = shadow_root->first_child(); node; node = node->next_sibling()) {
@@ -411,7 +419,12 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     }
 
     if (is<HTML::HTMLSlotElement>(dom_node)) {
-        auto slottables = static_cast<HTML::HTMLSlotElement&>(dom_node).assigned_nodes_internal();
+        auto& slot_element = static_cast<HTML::HTMLSlotElement&>(dom_node);
+
+        if (slot_element.computed_css_values()->content_visibility() == CSS::ContentVisibility::Hidden)
+            return;
+
+        auto slottables = slot_element.assigned_nodes_internal();
         push_parent(verify_cast<NodeWithStyle>(*layout_node));
 
         for (auto const& slottable : slottables)
@@ -499,7 +512,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     }
 
     // Add nodes for the ::after pseudo-element.
-    if (is<DOM::Element>(dom_node) && layout_node->can_have_children()) {
+    if (is<DOM::Element>(dom_node) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
         auto& element = static_cast<DOM::Element&>(dom_node);
         push_parent(verify_cast<NodeWithStyle>(*layout_node));
         create_pseudo_element_if_needed(element, CSS::Selector::PseudoElement::Type::After, AppendOrPrepend::Append);
