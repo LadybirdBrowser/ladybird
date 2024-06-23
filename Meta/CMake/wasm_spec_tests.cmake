@@ -33,9 +33,4 @@ if(INCLUDE_WASM_SPEC_TESTS)
         endforeach()
         file(REMOVE testsuite-main)
     endif()
-
-    # FIXME: Install these into usr/Tests/LibWasm
-    if (SERENITYOS)
-        install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Tests/ DESTINATION home/anon/Tests/wasm-tests)
-    endif()
 endif()
