@@ -24,7 +24,5 @@
 /Userland/Utilities/gzip.cpp @timschumi
 /Userland/Utilities/lzcat.cpp @timschumi
 /Userland/Utilities/tar.cpp @timschumi
-/Userland/Utilities/unzip.cpp @timschumi
 /Userland/Utilities/wasm.cpp @alimpfard
 /Userland/Utilities/xzcat.cpp @timschumi
-/Userland/Utilities/zip.cpp @timschumi
