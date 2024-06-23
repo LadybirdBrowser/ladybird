@@ -16,6 +16,7 @@
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGGeometryBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
+#include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGGElement.h>
@@ -154,6 +155,8 @@ static bool is_container_element(Node const& node)
     auto* dom_node = node.dom_node();
     if (!dom_node)
         return false;
+    if (is<SVG::SVGAElement>(dom_node))
+        return true;
     if (is<SVG::SVGUseElement>(dom_node))
         return true;
     if (is<SVG::SVGSymbolElement>(dom_node))

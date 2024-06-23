@@ -12,6 +12,7 @@
 namespace Web::SVG::TagNames {
 
 #define ENUMERATE_SVG_GRAPHICS_TAGS \
+    __ENUMERATE_SVG_TAG(a)          \
     __ENUMERATE_SVG_TAG(circle)     \
     __ENUMERATE_SVG_TAG(ellipse)    \
     __ENUMERATE_SVG_TAG(g)          \

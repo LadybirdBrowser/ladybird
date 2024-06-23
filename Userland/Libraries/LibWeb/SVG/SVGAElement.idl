@@ -1,0 +1,22 @@
+#import <HTML/HTMLHyperlinkElementUtils.idl>
+#import <SVG/SVGURIReference.idl>
+
+[Exposed=Window]
+interface SVGAElement : SVGGraphicsElement {
+
+    [FIXME, SameObject] readonly attribute SVGAnimatedString target;
+    [FIXME] attribute DOMString download;
+    [FIXME] attribute USVString ping;
+    [FIXME] attribute DOMString rel;
+    [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+    [FIXME] attribute DOMString hreflang;
+    [FIXME] attribute DOMString type;
+
+    [FIXME] attribute DOMString text;
+
+    [FIXME] attribute DOMString referrerPolicy;
+
+};
+
+// FIXME: SVGAElement includes SVGURIReference;
+// FIXME: SVGAElement includes HTMLHyperlinkElementUtils;
