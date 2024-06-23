@@ -1,26 +1,25 @@
 /*
- * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/MaybeOwned.h>
-#include <LibGfx/ScalingMode.h>
+#include <LibGfx/Bitmap.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::Painting {
 
-class CommandExecutorCPU : public CommandExecutor {
+class DisplayListPlayerSkia : public DisplayListPlayer {
 public:
     CommandResult draw_glyph_run(DrawGlyphRun const&) override;
     CommandResult fill_rect(FillRect const&) override;
     CommandResult draw_scaled_bitmap(DrawScaledBitmap const&) override;
     CommandResult draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
+    CommandResult add_clip_rect(AddClipRect const&) override;
     CommandResult save(Save const&) override;
     CommandResult restore(Restore const&) override;
-    CommandResult add_clip_rect(AddClipRect const&) override;
     CommandResult push_stacking_context(PushStackingContext const&) override;
     CommandResult pop_stacking_context(PopStackingContext const&) override;
     CommandResult paint_linear_gradient(PaintLinearGradient const&) override;
@@ -53,26 +52,14 @@ public:
     bool needs_update_immutable_bitmap_texture_cache() const override { return false; }
     void update_immutable_bitmap_texture_cache(HashMap<u32, Gfx::ImmutableBitmap const*>&) override {};
 
-    CommandExecutorCPU(Gfx::Bitmap& bitmap);
-    ~CommandExecutorCPU();
+    DisplayListPlayerSkia(Gfx::Bitmap& bitmap);
+    virtual ~DisplayListPlayerSkia() override;
 
 private:
-    Gfx::Bitmap& m_target_bitmap;
+    class SkiaSurface;
+    SkiaSurface& surface() const;
 
-    Vector<RefPtr<BorderRadiusCornerClipper>> m_corner_clippers_stack;
-
-    struct StackingContext {
-        MaybeOwned<Gfx::Painter> painter;
-        float opacity;
-        Gfx::IntRect destination;
-        Gfx::ScalingMode scaling_mode;
-        Optional<StackingContextMask> mask = {};
-    };
-
-    [[nodiscard]] Gfx::Painter const& painter() const { return *stacking_contexts.last().painter; }
-    [[nodiscard]] Gfx::Painter& painter() { return *stacking_contexts.last().painter; }
-
-    Vector<StackingContext> stacking_contexts;
+    OwnPtr<SkiaSurface> m_surface;
 };
 
 }

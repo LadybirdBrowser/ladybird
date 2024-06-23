@@ -15,8 +15,8 @@ source_set("Painting") {
     "CheckBoxPaintable.cpp",
     "ClippableAndScrollable.cpp",
     "Command.cpp",
-    "CommandExecutorCPU.cpp",
     "DisplayList.cpp",
+    "DisplayListPlayerCPU.cpp",
     "DisplayListRecorder.cpp",
     "FilterPainting.cpp",
     "GradientPainting.cpp",
@@ -48,7 +48,7 @@ source_set("Painting") {
   ]
 
   if (current_os == "linux" || current_os == "mac") {
-    sources += [ "CommandExecutorGPU.cpp" ]
+    sources += [ "DisplayListPlayerGPU.cpp" ]
     public_deps = [ "//Userland/Libraries/LibAccelGfx" ]
   }
 }

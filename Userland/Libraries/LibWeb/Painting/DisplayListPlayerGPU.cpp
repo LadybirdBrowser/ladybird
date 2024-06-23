@@ -6,11 +6,11 @@
 
 #include <LibAccelGfx/GlyphAtlas.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
-#include <LibWeb/Painting/CommandExecutorGPU.h>
+#include <LibWeb/Painting/DisplayListPlayerGPU.h>
 
 namespace Web::Painting {
 
-CommandExecutorGPU::CommandExecutorGPU(AccelGfx::Context& context, Gfx::Bitmap& bitmap)
+DisplayListPlayerGPU::DisplayListPlayerGPU(AccelGfx::Context& context, Gfx::Bitmap& bitmap)
     : m_target_bitmap(bitmap)
     , m_context(context)
 {
@@ -24,14 +24,14 @@ CommandExecutorGPU::CommandExecutorGPU(AccelGfx::Context& context, Gfx::Bitmap& 
         .transform = {} });
 }
 
-CommandExecutorGPU::~CommandExecutorGPU()
+DisplayListPlayerGPU::~DisplayListPlayerGPU()
 {
     m_context.activate();
     VERIFY(m_stacking_contexts.size() == 1);
     painter().flush(m_target_bitmap);
 }
 
-CommandResult CommandExecutorGPU::draw_glyph_run(DrawGlyphRun const& command)
+CommandResult DisplayListPlayerGPU::draw_glyph_run(DrawGlyphRun const& command)
 {
     Vector<Gfx::DrawGlyphOrEmoji> transformed_glyph_run;
     auto const& glyphs = command.glyph_run->glyphs();
@@ -48,7 +48,7 @@ CommandResult CommandExecutorGPU::draw_glyph_run(DrawGlyphRun const& command)
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::fill_rect(FillRect const& command)
+CommandResult DisplayListPlayerGPU::fill_rect(FillRect const& command)
 {
     // FIXME: Support clip paths
     painter().fill_rect(command.rect, command.color);
@@ -70,38 +70,38 @@ static AccelGfx::Painter::ScalingMode to_accelgfx_scaling_mode(Gfx::ScalingMode 
     }
 }
 
-CommandResult CommandExecutorGPU::draw_scaled_bitmap(DrawScaledBitmap const& command)
+CommandResult DisplayListPlayerGPU::draw_scaled_bitmap(DrawScaledBitmap const& command)
 {
     painter().draw_scaled_bitmap(command.dst_rect, command.bitmap, command.src_rect, to_accelgfx_scaling_mode(command.scaling_mode));
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
+CommandResult DisplayListPlayerGPU::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
 {
     // TODO: Support clip paths
     painter().draw_scaled_immutable_bitmap(command.dst_rect, command.bitmap, command.src_rect, to_accelgfx_scaling_mode(command.scaling_mode));
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::save(Save const&)
+CommandResult DisplayListPlayerGPU::save(Save const&)
 {
     painter().save();
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::restore(Restore const&)
+CommandResult DisplayListPlayerGPU::restore(Restore const&)
 {
     painter().restore();
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::add_clip_rect(AddClipRect const& command)
+CommandResult DisplayListPlayerGPU::add_clip_rect(AddClipRect const& command)
 {
     painter().set_clip_rect(command.rect);
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::push_stacking_context(PushStackingContext const& command)
+CommandResult DisplayListPlayerGPU::push_stacking_context(PushStackingContext const& command)
 {
     if (command.source_paintable_rect.is_empty())
         return CommandResult::SkipStackingContext;
@@ -151,7 +151,7 @@ CommandResult CommandExecutorGPU::push_stacking_context(PushStackingContext cons
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::pop_stacking_context(PopStackingContext const&)
+CommandResult DisplayListPlayerGPU::pop_stacking_context(PopStackingContext const&)
 {
     auto stacking_context = m_stacking_contexts.take_last();
     VERIFY(stacking_context.stacking_context_depth == 0);
@@ -163,7 +163,7 @@ CommandResult CommandExecutorGPU::pop_stacking_context(PopStackingContext const&
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::paint_linear_gradient(PaintLinearGradient const& command)
+CommandResult DisplayListPlayerGPU::paint_linear_gradient(PaintLinearGradient const& command)
 {
     // FIXME: Support clip paths
     auto const& linear_gradient_data = command.linear_gradient_data;
@@ -171,19 +171,19 @@ CommandResult CommandExecutorGPU::paint_linear_gradient(PaintLinearGradient cons
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::paint_outer_box_shadow(PaintOuterBoxShadow const&)
+CommandResult DisplayListPlayerGPU::paint_outer_box_shadow(PaintOuterBoxShadow const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::paint_inner_box_shadow(PaintInnerBoxShadow const&)
+CommandResult DisplayListPlayerGPU::paint_inner_box_shadow(PaintInnerBoxShadow const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::paint_text_shadow(PaintTextShadow const& command)
+CommandResult DisplayListPlayerGPU::paint_text_shadow(PaintTextShadow const& command)
 {
     auto text_shadow_canvas = AccelGfx::Canvas::create(command.shadow_bounding_rect.size());
     auto text_shadow_painter = AccelGfx::Painter::create(m_context, text_shadow_canvas);
@@ -206,7 +206,7 @@ CommandResult CommandExecutorGPU::paint_text_shadow(PaintTextShadow const& comma
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::fill_rect_with_rounded_corners(FillRectWithRoundedCorners const& command)
+CommandResult DisplayListPlayerGPU::fill_rect_with_rounded_corners(FillRectWithRoundedCorners const& command)
 {
     // FIXME: Support clip paths
     painter().fill_rect_with_rounded_corners(
@@ -218,37 +218,37 @@ CommandResult CommandExecutorGPU::fill_rect_with_rounded_corners(FillRectWithRou
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::fill_path_using_color(FillPathUsingColor const&)
+CommandResult DisplayListPlayerGPU::fill_path_using_color(FillPathUsingColor const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::fill_path_using_paint_style(FillPathUsingPaintStyle const&)
+CommandResult DisplayListPlayerGPU::fill_path_using_paint_style(FillPathUsingPaintStyle const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::stroke_path_using_color(StrokePathUsingColor const&)
+CommandResult DisplayListPlayerGPU::stroke_path_using_color(StrokePathUsingColor const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::stroke_path_using_paint_style(StrokePathUsingPaintStyle const&)
+CommandResult DisplayListPlayerGPU::stroke_path_using_paint_style(StrokePathUsingPaintStyle const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::draw_ellipse(DrawEllipse const&)
+CommandResult DisplayListPlayerGPU::draw_ellipse(DrawEllipse const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::fill_ellipse(FillEllipse const& command)
+CommandResult DisplayListPlayerGPU::fill_ellipse(FillEllipse const& command)
 {
     auto horizontal_radius = static_cast<float>(command.rect.width() / 2);
     auto vertical_radius = static_cast<float>(command.rect.height() / 2);
@@ -261,44 +261,44 @@ CommandResult CommandExecutorGPU::fill_ellipse(FillEllipse const& command)
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::draw_line(DrawLine const& command)
+CommandResult DisplayListPlayerGPU::draw_line(DrawLine const& command)
 {
     // FIXME: Pass line style and alternate color once AccelGfx::Painter supports it
     painter().draw_line(command.from, command.to, command.thickness, command.color);
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::apply_backdrop_filter(ApplyBackdropFilter const&)
+CommandResult DisplayListPlayerGPU::apply_backdrop_filter(ApplyBackdropFilter const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::draw_rect(DrawRect const&)
+CommandResult DisplayListPlayerGPU::draw_rect(DrawRect const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::paint_radial_gradient(PaintRadialGradient const&)
+CommandResult DisplayListPlayerGPU::paint_radial_gradient(PaintRadialGradient const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::paint_conic_gradient(PaintConicGradient const&)
+CommandResult DisplayListPlayerGPU::paint_conic_gradient(PaintConicGradient const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::draw_triangle_wave(DrawTriangleWave const&)
+CommandResult DisplayListPlayerGPU::draw_triangle_wave(DrawTriangleWave const&)
 {
     // FIXME
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::sample_under_corners(SampleUnderCorners const& command)
+CommandResult DisplayListPlayerGPU::sample_under_corners(SampleUnderCorners const& command)
 {
     m_corner_clippers.resize(command.id + 1);
     m_corner_clippers[command.id] = make<BorderRadiusCornerClipper>();
@@ -354,7 +354,7 @@ CommandResult CommandExecutorGPU::sample_under_corners(SampleUnderCorners const&
     return CommandResult::Continue;
 }
 
-CommandResult CommandExecutorGPU::blit_corner_clipping(BlitCornerClipping const& command)
+CommandResult DisplayListPlayerGPU::blit_corner_clipping(BlitCornerClipping const& command)
 {
     auto const& corner_clipper = *m_corner_clippers[command.id];
     auto const& corner_sample_canvas = *corner_clipper.corners_sample_canvas;
@@ -372,23 +372,23 @@ CommandResult CommandExecutorGPU::blit_corner_clipping(BlitCornerClipping const&
     return CommandResult::Continue;
 }
 
-bool CommandExecutorGPU::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const
+bool DisplayListPlayerGPU::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const
 {
     auto translation = painter().transform().translation().to_type<int>();
     return !painter().clip_rect().intersects(rect.translated(translation));
 }
 
-void CommandExecutorGPU::prepare_glyph_texture(HashMap<Gfx::Font const*, HashTable<u32>> const& unique_glyphs)
+void DisplayListPlayerGPU::prepare_glyph_texture(HashMap<Gfx::Font const*, HashTable<u32>> const& unique_glyphs)
 {
     AccelGfx::GlyphAtlas::the().update(unique_glyphs);
 }
 
-void CommandExecutorGPU::prepare_to_execute([[maybe_unused]] size_t corner_clip_max_depth)
+void DisplayListPlayerGPU::prepare_to_execute([[maybe_unused]] size_t corner_clip_max_depth)
 {
     m_context.activate();
 }
 
-void CommandExecutorGPU::update_immutable_bitmap_texture_cache(HashMap<u32, Gfx::ImmutableBitmap const*>& immutable_bitmaps)
+void DisplayListPlayerGPU::update_immutable_bitmap_texture_cache(HashMap<u32, Gfx::ImmutableBitmap const*>& immutable_bitmaps)
 {
     painter().update_immutable_bitmap_texture_cache(immutable_bitmaps);
 }

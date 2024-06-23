@@ -26,7 +26,7 @@
 #include <WebContent/WebDriverConnection.h>
 
 #ifdef HAS_ACCELERATED_GRAPHICS
-#    include <LibWeb/Painting/CommandExecutorGPU.h>
+#    include <LibWeb/Painting/DisplayListPlayerGPU.h>
 #endif
 
 namespace WebContent {
@@ -722,13 +722,13 @@ void PageClient::did_get_js_console_messages(i32 start_index, Vector<ByteString>
     client().async_did_get_js_console_messages(m_id, start_index, move(message_types), move(messages));
 }
 
-Web::PaintingCommandExecutorType PageClient::painting_command_executor_type() const
+Web::DisplayListPlayerType PageClient::display_list_player_type() const
 {
     if (s_use_gpu_painter)
-        return Web::PaintingCommandExecutorType::GPU;
+        return Web::DisplayListPlayerType::GPU;
     if (s_use_skia_painter)
-        return Web::PaintingCommandExecutorType::Skia;
-    return Web::PaintingCommandExecutorType::CPU;
+        return Web::DisplayListPlayerType::Skia;
+    return Web::DisplayListPlayerType::CPU;
 }
 
 }

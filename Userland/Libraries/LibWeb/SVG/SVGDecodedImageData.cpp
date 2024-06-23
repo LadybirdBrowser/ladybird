@@ -15,8 +15,8 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/CommandExecutorCPU.h>
-#include <LibWeb/Painting/CommandExecutorSkia.h>
+#include <LibWeb/Painting/DisplayListPlayerCPU.h>
+#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/PaintContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -98,16 +98,16 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
 
     m_document->navigable()->record_display_list(display_list_recorder, {});
 
-    auto painting_command_executor_type = m_page_client->painting_command_executor_type();
+    auto painting_command_executor_type = m_page_client->display_list_player_type();
     switch (painting_command_executor_type) {
-    case PaintingCommandExecutorType::CPU:
-    case PaintingCommandExecutorType::GPU: { // GPU painter does not have any path rasterization support so we always fall back to CPU painter
-        Painting::CommandExecutorCPU executor { *bitmap };
+    case DisplayListPlayerType::CPU:
+    case DisplayListPlayerType::GPU: { // GPU painter does not have any path rasterization support so we always fall back to CPU painter
+        Painting::DisplayListPlayerCPU executor { *bitmap };
         display_list.execute(executor);
         break;
     }
-    case PaintingCommandExecutorType::Skia: {
-        Painting::CommandExecutorSkia executor { *bitmap };
+    case DisplayListPlayerType::Skia: {
+        Painting::DisplayListPlayerSkia executor { *bitmap };
         display_list.execute(executor);
         break;
     }
