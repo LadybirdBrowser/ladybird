@@ -1,0 +1,39 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x67 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x51 flex-container(row) [FFC] children: not-inline
+      BlockContainer <div.min-content> at (8,8) content-size 27.640625x51 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x17] baseline: 13.296875
+            "foo"
+        frag 1 from TextNode start: 4, length: 3, rect: [8,25 27.640625x17] baseline: 13.296875
+            "bar"
+        frag 2 from TextNode start: 8, length: 3, rect: [8,42 27.203125x17] baseline: 13.296875
+            "baz"
+        TextNode <#text>
+      BlockContainer <div.max-content> at (35.640625,8) content-size 98x51 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [35.640625,8 98x17] baseline: 13.296875
+            "foo bar baz"
+        TextNode <#text>
+      BlockContainer <div.fit-content> at (133.640625,8) content-size 98x51 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 11, rect: [133.640625,8 98x17] baseline: 13.296875
+            "foo bar baz"
+        TextNode <#text>
+      BlockContainer <div.auto> at (231.640625,8) content-size 0x51 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [231.640625,8 27.15625x17] baseline: 13.296875
+            "foo"
+        frag 1 from TextNode start: 4, length: 3, rect: [231.640625,25 27.640625x17] baseline: 13.296875
+            "bar"
+        frag 2 from TextNode start: 8, length: 3, rect: [231.640625,42 27.203125x17] baseline: 13.296875
+            "baz"
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x67]
+    PaintableBox (Box<BODY>) [8,8 784x51]
+      PaintableWithLines (BlockContainer<DIV>.min-content) [8,8 27.640625x51]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.max-content) [35.640625,8 98x51]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.fit-content) [133.640625,8 98x51]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.auto) [231.640625,8 0x51] overflow: [231.640625,8 27.640625x51]
+        TextPaintable (TextNode<#text>)
