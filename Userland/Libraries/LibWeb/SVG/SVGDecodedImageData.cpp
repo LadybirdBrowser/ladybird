@@ -93,22 +93,22 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout();
 
-    Painting::CommandList painting_commands;
-    Painting::RecordingPainter recording_painter(painting_commands);
+    Painting::DisplayList display_list;
+    Painting::RecordingPainter recording_painter(display_list);
 
-    m_document->navigable()->record_painting_commands(recording_painter, {});
+    m_document->navigable()->record_display_list(recording_painter, {});
 
     auto painting_command_executor_type = m_page_client->painting_command_executor_type();
     switch (painting_command_executor_type) {
     case PaintingCommandExecutorType::CPU:
     case PaintingCommandExecutorType::GPU: { // GPU painter does not have any path rasterization support so we always fall back to CPU painter
         Painting::CommandExecutorCPU executor { *bitmap };
-        painting_commands.execute(executor);
+        display_list.execute(executor);
         break;
     }
     case PaintingCommandExecutorType::Skia: {
         Painting::CommandExecutorSkia executor { *bitmap };
-        painting_commands.execute(executor);
+        display_list.execute(executor);
         break;
     }
     default:

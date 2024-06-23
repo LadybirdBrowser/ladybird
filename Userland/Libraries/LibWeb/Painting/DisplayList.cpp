@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Painting/CommandList.h>
+#include <LibWeb/Painting/DisplayList.h>
 
 namespace Web::Painting {
 
-void CommandList::append(Command&& command, Optional<i32> scroll_frame_id)
+void DisplayList::append(Command&& command, Optional<i32> scroll_frame_id)
 {
     m_commands.append({ scroll_frame_id, move(command) });
 }
@@ -24,7 +24,7 @@ static Optional<Gfx::IntRect> command_bounding_rectangle(Command const& command)
         });
 }
 
-void CommandList::apply_scroll_offsets(Vector<Gfx::IntPoint> const& offsets_by_frame_id)
+void DisplayList::apply_scroll_offsets(Vector<Gfx::IntPoint> const& offsets_by_frame_id)
 {
     for (auto& command_with_scroll_id : m_commands) {
         if (command_with_scroll_id.scroll_frame_id.has_value()) {
@@ -39,7 +39,7 @@ void CommandList::apply_scroll_offsets(Vector<Gfx::IntPoint> const& offsets_by_f
     }
 }
 
-void CommandList::mark_unnecessary_commands()
+void DisplayList::mark_unnecessary_commands()
 {
     // The pair sample_under_corners and blit_corner_clipping commands is not needed if there are no painting commands
     // in between them that produce visible output.
@@ -76,7 +76,7 @@ void CommandList::mark_unnecessary_commands()
     VERIFY(sample_blit_ranges.is_empty());
 }
 
-void CommandList::execute(CommandExecutor& executor)
+void DisplayList::execute(CommandExecutor& executor)
 {
     executor.prepare_to_execute(m_corner_clip_max_depth);
 

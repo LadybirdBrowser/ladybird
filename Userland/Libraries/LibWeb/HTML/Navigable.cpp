@@ -2092,7 +2092,7 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
     }));
 }
 
-void Navigable::record_painting_commands(Painting::RecordingPainter& recording_painter, PaintConfig config)
+void Navigable::record_display_list(Painting::RecordingPainter& recording_painter, PaintConfig config)
 {
     auto document = active_document();
     if (!document)
@@ -2136,8 +2136,8 @@ void Navigable::record_painting_commands(Painting::RecordingPainter& recording_p
             auto scroll_offset = context.rounded_device_point(scrollable_frame->offset).to_type<int>();
             scroll_offsets_by_frame_id[scrollable_frame->id] = scroll_offset;
         }
-        recording_painter.commands_list().apply_scroll_offsets(scroll_offsets_by_frame_id);
-        recording_painter.commands_list().mark_unnecessary_commands();
+        recording_painter.display_list().apply_scroll_offsets(scroll_offsets_by_frame_id);
+        recording_painter.display_list().mark_unnecessary_commands();
     }
 
     m_needs_repaint = false;
