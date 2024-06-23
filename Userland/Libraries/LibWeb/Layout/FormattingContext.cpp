@@ -1767,12 +1767,19 @@ CSSPixels FormattingContext::calculate_stretch_fit_height(Box const& box, Availa
 
 bool FormattingContext::should_treat_width_as_auto(Box const& box, AvailableSpace const& available_space)
 {
-    if (box.computed_values().width().is_auto())
+    auto const& computed_width = box.computed_values().width();
+    if (computed_width.is_auto())
         return true;
-    if (box.computed_values().width().contains_percentage()) {
+    if (computed_width.contains_percentage()) {
         if (available_space.width.is_max_content())
             return true;
         if (available_space.width.is_indefinite())
+            return true;
+    }
+    // AD-HOC: If the box has a preferred aspect ratio and no natural height,
+    //         we treat the width as auto, since it can't be resolved through the ratio.
+    if (computed_width.is_min_content() || computed_width.is_max_content() || computed_width.is_fit_content()) {
+        if (box.has_preferred_aspect_ratio() && !box.has_natural_height())
             return true;
     }
     return false;
