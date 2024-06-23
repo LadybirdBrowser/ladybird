@@ -10,8 +10,8 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
 #include <AK/Traits.h>
-#include <LibLocale/ICU.h>
 #include <LibUnicode/CharacterTypes.h>
+#include <LibUnicode/ICU.h>
 
 #include <unicode/uchar.h>
 #include <unicode/uscript.h>
@@ -297,7 +297,7 @@ bool code_point_has_script(u32 code_point, Script script)
     auto icu_code_point = static_cast<UChar32>(code_point);
     auto icu_script = static_cast<UScriptCode>(script.value());
 
-    if (auto result = uscript_getScript(icu_code_point, &status); Locale::icu_success(status))
+    if (auto result = uscript_getScript(icu_code_point, &status); icu_success(status))
         return result == icu_script;
     return false;
 }

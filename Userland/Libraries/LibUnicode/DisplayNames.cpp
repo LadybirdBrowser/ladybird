@@ -7,8 +7,8 @@
 #define AK_DONT_REPLACE_STD
 
 #include <AK/Array.h>
-#include <LibLocale/DisplayNames.h>
-#include <LibLocale/ICU.h>
+#include <LibUnicode/DisplayNames.h>
+#include <LibUnicode/ICU.h>
 
 #include <unicode/dtptngen.h>
 #include <unicode/localebuilder.h>
@@ -16,7 +16,7 @@
 #include <unicode/tznames.h>
 #include <unicode/udatpg.h>
 
-namespace Locale {
+namespace Unicode {
 
 LanguageDisplay language_display_from_string(StringView language_display)
 {

@@ -12,9 +12,9 @@
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
-#include <LibLocale/Forward.h>
+#include <LibUnicode/Forward.h>
 
-namespace Locale {
+namespace Unicode {
 
 enum class DateTimeStyle {
     Full,

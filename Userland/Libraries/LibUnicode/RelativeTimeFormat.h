@@ -11,9 +11,9 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
-#include <LibLocale/Forward.h>
+#include <LibUnicode/Forward.h>
 
-namespace Locale {
+namespace Unicode {
 
 // These are just the subset of fields in the CLDR required for ECMA-402.
 enum class TimeUnit {

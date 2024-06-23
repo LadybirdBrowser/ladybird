@@ -63,16 +63,16 @@ bool MathematicalValue::is_nan() const
     return m_value.get<Symbol>() == Symbol::NotANumber;
 }
 
-::Locale::NumberFormat::Value MathematicalValue::to_value() const
+Unicode::NumberFormat::Value MathematicalValue::to_value() const
 {
     return m_value.visit(
-        [](double value) -> ::Locale::NumberFormat::Value {
+        [](double value) -> Unicode::NumberFormat::Value {
             return value;
         },
-        [](String const& value) -> ::Locale::NumberFormat::Value {
+        [](String const& value) -> Unicode::NumberFormat::Value {
             return value;
         },
-        [](auto symbol) -> ::Locale::NumberFormat::Value {
+        [](auto symbol) -> Unicode::NumberFormat::Value {
             switch (symbol) {
             case Symbol::PositiveInfinity:
                 return js_infinity().as_double();

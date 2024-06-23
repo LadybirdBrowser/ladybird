@@ -6,7 +6,7 @@
  */
 
 #include <AK/Utf8View.h>
-#include <LibLocale/Segmenter.h>
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Text.h>

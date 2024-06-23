@@ -12,9 +12,9 @@
 #include <AK/StringView.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibLocale/Forward.h>
+#include <LibUnicode/Forward.h>
 
-namespace Locale {
+namespace Unicode {
 
 struct LanguageID {
     String to_string() const;

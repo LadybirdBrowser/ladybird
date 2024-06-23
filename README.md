@@ -25,7 +25,7 @@ At the moment, many core library support components are inherited from SerenityO
 - LibHTTP: HTTP/1.1 client
 - LibGfx: 2D Graphics Library, Image Decoding and Rendering
 - LibArchive: Archive file format support
-- LibUnicode, LibLocale: Unicode and locale support
+- LibUnicode: Unicode and locale support
 - LibAudio, LibMedia: Audio and video playback
 - LibCore: Event loop, OS abstraction layer
 - LibIPC: Inter-process communication

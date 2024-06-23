@@ -755,7 +755,7 @@ find_package(unofficial-skia CONFIG REQUIRED)
 
 serenity_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibLocale LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibWasm LibXML LibIDL LibURL LibTLS unofficial::skia::skia)
+target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibWasm LibXML LibIDL LibURL LibTLS unofficial::skia::skia)
 
 if (HAS_ACCELERATED_GRAPHICS)
     target_link_libraries(LibWeb PRIVATE ${ACCEL_GFX_LIBS})

@@ -12,7 +12,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
-#include <LibLocale/DurationFormat.h>
+#include <LibUnicode/DurationFormat.h>
 
 #include <unicode/locid.h>
 #include <unicode/stringpiece.h>
@@ -27,7 +27,7 @@ class NumberingSystem;
 class TimeZoneNames;
 U_NAMESPACE_END
 
-namespace Locale {
+namespace Unicode {
 
 class LocaleData {
 public:

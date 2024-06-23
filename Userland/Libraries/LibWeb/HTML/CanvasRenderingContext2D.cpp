@@ -10,7 +10,7 @@
 #include <LibGfx/Painter.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/Rect.h>
-#include <LibLocale/Segmenter.h>
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
@@ -520,7 +520,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     PreparedText prepared_text { {}, physical_alignment, { 0, 0, static_cast<int>(width), static_cast<int>(height) } };
     prepared_text.glyphs.ensure_capacity(replaced_text.bytes_as_string_view().length());
 
-    auto segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Grapheme);
+    auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
 
     size_t previous_boundary = 0;
     segmenter->for_each_boundary(replaced_text, [&](auto boundary) {

@@ -9,10 +9,10 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
-#include <LibLocale/Locale.h>
 #include <LibTimeZone/TimeZone.h>
+#include <LibUnicode/Locale.h>
 
-namespace Locale {
+namespace Unicode {
 
 enum class LanguageDisplay {
     Standard,

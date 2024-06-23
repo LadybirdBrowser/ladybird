@@ -8,7 +8,7 @@
 
 #include <AK/StringView.h>
 
-namespace Locale {
+namespace Unicode {
 
 enum class PluralForm {
     Cardinal,

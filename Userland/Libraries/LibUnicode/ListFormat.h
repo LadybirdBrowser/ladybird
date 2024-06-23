@@ -8,9 +8,9 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibLocale/Locale.h>
+#include <LibUnicode/Locale.h>
 
-namespace Locale {
+namespace Unicode {
 
 enum class ListFormatType {
     Conjunction,

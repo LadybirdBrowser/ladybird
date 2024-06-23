@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibLocale/PluralRules.h>
+#include <LibUnicode/PluralRules.h>
 
-namespace Locale {
+namespace Unicode {
 
 PluralForm plural_form_from_string(StringView plural_form)
 {

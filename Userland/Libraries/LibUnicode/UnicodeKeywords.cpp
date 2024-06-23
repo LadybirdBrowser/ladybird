@@ -8,9 +8,9 @@
 
 #include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
-#include <LibLocale/DateTimeFormat.h>
-#include <LibLocale/ICU.h>
-#include <LibLocale/UnicodeKeywords.h>
+#include <LibUnicode/DateTimeFormat.h>
+#include <LibUnicode/ICU.h>
+#include <LibUnicode/UnicodeKeywords.h>
 
 #include <unicode/calendar.h>
 #include <unicode/coll.h>
@@ -18,7 +18,7 @@
 #include <unicode/numsys.h>
 #include <unicode/ucurr.h>
 
-namespace Locale {
+namespace Unicode {
 
 template<typename Filter>
 static Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration, Filter&& filter)

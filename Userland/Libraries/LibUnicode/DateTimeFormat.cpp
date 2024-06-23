@@ -11,11 +11,11 @@
 #include <AK/GenericLexer.h>
 #include <AK/StringBuilder.h>
 #include <AK/TypeCasts.h>
-#include <LibLocale/DateTimeFormat.h>
-#include <LibLocale/ICU.h>
-#include <LibLocale/Locale.h>
-#include <LibLocale/NumberFormat.h>
-#include <LibLocale/PartitionRange.h>
+#include <LibUnicode/DateTimeFormat.h>
+#include <LibUnicode/ICU.h>
+#include <LibUnicode/Locale.h>
+#include <LibUnicode/NumberFormat.h>
+#include <LibUnicode/PartitionRange.h>
 #include <stdlib.h>
 
 #include <unicode/calendar.h>
@@ -27,7 +27,7 @@
 #include <unicode/timezone.h>
 #include <unicode/ucal.h>
 
-namespace Locale {
+namespace Unicode {
 
 DateTimeStyle date_time_style_from_string(StringView style)
 {

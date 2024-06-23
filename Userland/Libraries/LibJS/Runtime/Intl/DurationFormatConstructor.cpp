@@ -11,7 +11,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/DurationFormat.h>
 #include <LibJS/Runtime/Intl/DurationFormatConstructor.h>
-#include <LibLocale/DurationFormat.h>
+#include <LibUnicode/DurationFormat.h>
 
 namespace JS::Intl {
 
@@ -70,7 +70,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> DurationFormatConstructor::construct(Fun
     // 7. If numberingSystem is not undefined, then
     if (!numbering_system.is_undefined()) {
         // a. If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
-        if (!::Locale::is_type_identifier(numbering_system.as_string().utf8_string_view()))
+        if (!Unicode::is_type_identifier(numbering_system.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
     }
 
@@ -94,7 +94,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> DurationFormatConstructor::construct(Fun
     // 13. Let dataLocale be durationFormat.[[DataLocale]].
     // 14. Let dataLocaleData be durationFormat.[[LocaleData]].[[<dataLocale>]].
     // 15. Let digitalFormat be dataLocaleData.[[DigitalFormat]].
-    auto digital_format = ::Locale::digital_format(duration_format->locale());
+    auto digital_format = Unicode::digital_format(duration_format->locale());
 
     // 16. Let twoDigitHours be digitalFormat.[[TwoDigitHours]].
     // 17. Set durationFormat.[[TwoDigitHours]] to twoDigitHours.

@@ -10,13 +10,13 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
-#include <LibLocale/Segmenter.h>
+#include <LibUnicode/Segmenter.h>
 
 template<size_t N>
 static void test_grapheme_segmentation(StringView string, size_t const (&expected_boundaries)[N])
 {
     Vector<size_t> boundaries;
-    auto segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Grapheme);
+    auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
 
     segmenter->for_each_boundary(MUST(String::from_utf8(string)), [&](auto boundary) {
         boundaries.append(boundary);
@@ -28,7 +28,7 @@ static void test_grapheme_segmentation(StringView string, size_t const (&expecte
 
 TEST_CASE(grapheme_segmentation)
 {
-    auto segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Grapheme);
+    auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
 
     segmenter->for_each_boundary(String {}, [&](auto i) {
         dbgln("{}", i);
@@ -80,7 +80,7 @@ template<size_t N>
 static void test_word_segmentation(StringView string, size_t const (&expected_boundaries)[N])
 {
     Vector<size_t> boundaries;
-    auto segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Word);
+    auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
 
     segmenter->for_each_boundary(MUST(String::from_utf8(string)), [&](auto boundary) {
         boundaries.append(boundary);
@@ -92,7 +92,7 @@ static void test_word_segmentation(StringView string, size_t const (&expected_bo
 
 TEST_CASE(word_segmentation)
 {
-    auto segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Word);
+    auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
 
     segmenter->for_each_boundary(String {}, [&](auto) {
         VERIFY_NOT_REACHED();

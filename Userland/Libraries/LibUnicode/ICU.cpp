@@ -9,14 +9,14 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Utf16View.h>
-#include <LibLocale/ICU.h>
+#include <LibUnicode/ICU.h>
 
 #include <unicode/dtptngen.h>
 #include <unicode/locdspnm.h>
 #include <unicode/numsys.h>
 #include <unicode/tznames.h>
 
-namespace Locale {
+namespace Unicode {
 
 static HashMap<String, OwnPtr<LocaleData>> s_locale_cache;
 

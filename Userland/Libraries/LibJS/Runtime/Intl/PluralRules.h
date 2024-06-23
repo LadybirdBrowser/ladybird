@@ -10,7 +10,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Intl/NumberFormat.h>
 #include <LibJS/Runtime/Object.h>
-#include <LibLocale/PluralRules.h>
+#include <LibUnicode/PluralRules.h>
 
 namespace JS::Intl {
 
@@ -21,17 +21,17 @@ class PluralRules final : public NumberFormatBase {
 public:
     virtual ~PluralRules() override = default;
 
-    ::Locale::PluralForm type() const { return m_type; }
-    StringView type_string() const { return ::Locale::plural_form_to_string(m_type); }
-    void set_type(StringView type) { m_type = ::Locale::plural_form_from_string(type); }
+    Unicode::PluralForm type() const { return m_type; }
+    StringView type_string() const { return Unicode::plural_form_to_string(m_type); }
+    void set_type(StringView type) { m_type = Unicode::plural_form_from_string(type); }
 
 private:
     explicit PluralRules(Object& prototype);
 
-    ::Locale::PluralForm m_type { ::Locale::PluralForm::Cardinal }; // [[Type]]
+    Unicode::PluralForm m_type { Unicode::PluralForm::Cardinal }; // [[Type]]
 };
 
-::Locale::PluralCategory resolve_plural(PluralRules const&, Value number);
-ThrowCompletionOr<::Locale::PluralCategory> resolve_plural_range(VM&, PluralRules const&, Value start, Value end);
+Unicode::PluralCategory resolve_plural(PluralRules const&, Value number);
+ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM&, PluralRules const&, Value start, Value end);
 
 }

@@ -11,7 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 
-namespace Locale {
+namespace Unicode {
 
 enum class SegmenterGranularity {
     Grapheme,

@@ -10,7 +10,7 @@
 #include <LibJS/Runtime/Intl/DateTimeFormatFunction.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibLocale/DateTimeFormat.h>
+#include <LibUnicode/DateTimeFormat.h>
 
 namespace JS::Intl {
 
@@ -180,15 +180,15 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::resolved_options)
     MUST(options->create_data_property_or_throw(vm.names.timeZone, PrimitiveString::create(vm, date_time_format->time_zone())));
 
     if (date_time_format->hour_cycle.has_value()) {
-        MUST(options->create_data_property_or_throw(vm.names.hourCycle, PrimitiveString::create(vm, ::Locale::hour_cycle_to_string(*date_time_format->hour_cycle))));
+        MUST(options->create_data_property_or_throw(vm.names.hourCycle, PrimitiveString::create(vm, Unicode::hour_cycle_to_string(*date_time_format->hour_cycle))));
 
         switch (*date_time_format->hour_cycle) {
-        case ::Locale::HourCycle::H11:
-        case ::Locale::HourCycle::H12:
+        case Unicode::HourCycle::H11:
+        case Unicode::HourCycle::H12:
             MUST(options->create_data_property_or_throw(vm.names.hour12, Value(true)));
             break;
-        case ::Locale::HourCycle::H23:
-        case ::Locale::HourCycle::H24:
+        case Unicode::HourCycle::H23:
+        case Unicode::HourCycle::H24:
             MUST(options->create_data_property_or_throw(vm.names.hour12, Value(false)));
             break;
         }
@@ -204,7 +204,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::resolved_options)
             if constexpr (IsIntegral<ValueType>) {
                 MUST(options->create_data_property_or_throw(property, Value(*option)));
             } else {
-                auto name = ::Locale::calendar_pattern_style_to_string(*option);
+                auto name = Unicode::calendar_pattern_style_to_string(*option);
                 MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, name)));
             }
 
