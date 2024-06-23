@@ -572,8 +572,41 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
     VERIFY(top_level_traversable_is_initialized());
 
     Vector<JS::Handle<DOM::Range>> all_matches;
-    for (auto const& document : documents_in_active_window()) {
+
+    auto find_current_match_index = [this, &direction](auto& document, auto& matches) -> size_t {
+        // Always return the first match if there is no active query.
+        if (!m_last_find_in_page_query.has_value())
+            return 0;
+
+        auto selection = document.get_selection();
+        if (!selection)
+            return 0;
+
+        auto range = selection->range();
+        if (!range)
+            return 0;
+
+        for (size_t i = 0; i < matches.size(); ++i) {
+            auto boundary_comparison_or_error = matches[i]->compare_boundary_points(DOM::Range::HowToCompareBoundaryPoints::START_TO_START, *range);
+            if (!boundary_comparison_or_error.is_error() && boundary_comparison_or_error.value() >= 0) {
+                // If the match occurs after the current selection then we don't need to increment the match index later on.
+                if (boundary_comparison_or_error.value() && direction == SearchDirection::Forward)
+                    direction = {};
+
+                return i;
+            }
+        }
+
+        return 0;
+    };
+
+    for (auto document : documents_in_active_window()) {
         auto matches = document->find_matching_text(query.string, query.case_sensitivity);
+        if (document == top_level_traversable()->active_document()) {
+            auto new_match_index = find_current_match_index(*document, matches);
+            m_find_in_page_match_index = new_match_index + all_matches.size();
+        }
+
         all_matches.extend(move(matches));
     }
 
@@ -611,17 +644,18 @@ Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
     if (!top_level_traversable_is_initialized())
         return {};
 
-    m_find_in_page_match_index = 0;
-    m_last_find_in_page_query = query;
-    m_last_find_in_page_url = top_level_traversable()->active_document()->url();
-
     if (query.string.is_empty()) {
         m_last_find_in_page_query = {};
         clear_selection();
         return {};
     }
 
-    return perform_find_in_page_query(query);
+    auto result = perform_find_in_page_query(query);
+
+    m_last_find_in_page_query = query;
+    m_last_find_in_page_url = top_level_traversable()->active_document()->url();
+
+    return result;
 }
 
 Page::FindInPageResult Page::find_in_page_next_match()
