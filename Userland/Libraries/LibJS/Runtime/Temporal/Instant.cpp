@@ -279,7 +279,7 @@ ThrowCompletionOr<String> temporal_instant_to_string(VM& vm, Instant& instant, V
     // 4. If outputTimeZone is undefined, then
     if (output_time_zone.is_undefined()) {
         // a. Set outputTimeZone to ! CreateTemporalTimeZone("UTC").
-        output_time_zone = MUST_OR_THROW_OOM(create_temporal_time_zone(vm, "UTC"sv));
+        output_time_zone = MUST_OR_THROW_OOM(create_temporal_time_zone(vm, "UTC"_string));
     }
 
     // 5. Let isoCalendar be ! GetISO8601Calendar().

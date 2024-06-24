@@ -227,7 +227,7 @@ ThrowCompletionOr<ZonedDateTime*> to_temporal_zoned_date_time(VM& vm, Value item
         }
 
         // j. Let timeZone be ! CreateTemporalTimeZone(timeZoneName).
-        time_zone = MUST_OR_THROW_OOM(create_temporal_time_zone(vm, *time_zone_name));
+        time_zone = MUST_OR_THROW_OOM(create_temporal_time_zone(vm, time_zone_name.release_value()));
 
         // k. Let calendar be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
         auto temporal_calendar_like = result.calendar.has_value()

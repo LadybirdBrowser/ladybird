@@ -4,6 +4,7 @@ set(TEST_SOURCES
     TestIDNA.cpp
     TestLocale.cpp
     TestSegmenter.cpp
+    TestTimeZone.cpp
     TestUnicodeCharacterTypes.cpp
     TestUnicodeNormalization.cpp
 )

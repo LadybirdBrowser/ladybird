@@ -27,6 +27,7 @@
 #include <LibTimeZone/TimeZone.h>
 #include <LibUnicode/DisplayNames.h>
 #include <LibUnicode/Locale.h>
+#include <LibUnicode/TimeZone.h>
 
 namespace JS {
 
@@ -1159,7 +1160,7 @@ ByteString time_zone_string(double time)
         if (auto name = Unicode::time_zone_display_name(Unicode::default_locale(), tz_name, maybe_offset->in_dst, time); name.has_value())
             tz_name = name.release_value();
     } else {
-        tz_name = MUST(String::from_utf8(TimeZone::current_time_zone()));
+        tz_name = Unicode::current_time_zone();
     }
 
     // 10. Return the string-concatenation of offsetSign, offsetHour, offsetMin, and tzName.

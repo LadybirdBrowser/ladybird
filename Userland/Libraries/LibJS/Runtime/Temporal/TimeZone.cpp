@@ -61,7 +61,7 @@ ThrowCompletionOr<String> canonicalize_time_zone_name(VM& vm, StringView time_zo
 }
 
 // 11.6.1 CreateTemporalTimeZone ( identifier [ , newTarget ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtemporaltimezone
-ThrowCompletionOr<TimeZone*> create_temporal_time_zone(VM& vm, StringView identifier, FunctionObject const* new_target)
+ThrowCompletionOr<TimeZone*> create_temporal_time_zone(VM& vm, String identifier, FunctionObject const* new_target)
 {
     auto& realm = *vm.current_realm();
 
@@ -89,7 +89,7 @@ ThrowCompletionOr<TimeZone*> create_temporal_time_zone(VM& vm, StringView identi
         VERIFY(MUST_OR_THROW_OOM(canonicalize_time_zone_name(vm, identifier)) == identifier);
 
         // b. Set object.[[Identifier]] to identifier.
-        object->set_identifier(TRY_OR_THROW_OOM(vm, String::from_utf8(identifier)));
+        object->set_identifier(move(identifier));
 
         // c. Set object.[[OffsetNanoseconds]] to undefined.
         // NOTE: No-op.
@@ -318,15 +318,15 @@ ThrowCompletionOr<Object*> to_temporal_time_zone(VM& vm, Value temporal_time_zon
         }
 
         // c. Return ! CreateTemporalTimeZone(name).
-        return MUST_OR_THROW_OOM(create_temporal_time_zone(vm, name));
+        return MUST_OR_THROW_OOM(create_temporal_time_zone(vm, move(name)));
     }
 
     // 5. If parseResult.[[Z]] is true, return ! CreateTemporalTimeZone("UTC").
     if (parse_result.z)
-        return MUST_OR_THROW_OOM(create_temporal_time_zone(vm, "UTC"sv));
+        return MUST_OR_THROW_OOM(create_temporal_time_zone(vm, "UTC"_string));
 
     // 6. Return ! CreateTemporalTimeZone(parseResult.[[OffsetString]]).
-    return MUST_OR_THROW_OOM(create_temporal_time_zone(vm, *parse_result.offset_string));
+    return MUST_OR_THROW_OOM(create_temporal_time_zone(vm, parse_result.offset_string.release_value()));
 }
 
 // 11.5.19 GetOffsetNanosecondsFor ( timeZoneRec, instant ), https://tc39.es/proposal-temporal/#sec-temporal-getoffsetnanosecondsfor
