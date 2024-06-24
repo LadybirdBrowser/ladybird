@@ -26,7 +26,7 @@ sudo pacman -S --needed base-devel cmake ffmpeg libgl ninja qt6-base qt6-tools q
 
 On Fedora or derivatives:
 ```
-sudo dnf install cmake libglvnd-devel ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts curl zip unzip tar autoconf-archive
+sudo dnf install cmake libglvnd-devel ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts curl zip unzip tar autoconf-archive libavcodec-free-devel
 ```
 
 On openSUSE:
