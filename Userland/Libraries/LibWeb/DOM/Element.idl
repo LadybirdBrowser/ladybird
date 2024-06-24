@@ -20,6 +20,15 @@ dictionary ScrollIntoViewOptions : ScrollOptions {
     ScrollLogicalPosition inline = "nearest";
 };
 
+// https://drafts.csswg.org/cssom-view-1/#dictdef-checkvisibilityoptions
+dictionary CheckVisibilityOptions {
+    boolean checkOpacity = false;
+    boolean checkVisibilityCSS = false;
+    boolean contentVisibilityAuto = false;
+    boolean opacityProperty = false;
+    boolean visibilityProperty = false;
+};
+
 // https://dom.spec.whatwg.org/#element
 [Exposed=Window]
 interface Element : Node {
@@ -74,7 +83,7 @@ interface Element : Node {
     DOMRectList getClientRects();
     DOMRect getBoundingClientRect();
 
-    [FIXME] boolean checkVisibility(optional CheckVisibilityOptions options = {});
+    boolean checkVisibility(optional CheckVisibilityOptions options = {});
 
     undefined scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
     undefined scroll(optional ScrollToOptions options = {});
