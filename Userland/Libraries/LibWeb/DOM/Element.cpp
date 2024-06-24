@@ -2344,6 +2344,54 @@ void Element::scroll_by(HTML::ScrollToOptions options)
     scroll(options);
 }
 
+// https://drafts.csswg.org/cssom-view-1/#dom-element-checkvisibility
+bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
+{
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    document().update_layout();
+
+    // 1. If this does not have an associated box, return false.
+    if (!paintable_box())
+        return false;
+
+    // 2. If an ancestor of this in the flat tree has content-visibility: hidden, return false.
+    for (auto* element = parent_element(); element; element = element->parent_element()) {
+        if (element->computed_css_values()->content_visibility() == CSS::ContentVisibility::Hidden)
+            return false;
+    }
+
+    // AD-HOC: Since the rest of the steps use the options, we can return early if we haven't been given any options.
+    if (!options.has_value())
+        return true;
+
+    // 3. If either the opacityProperty or the checkOpacity dictionary members of options are true, and this, or an ancestor of this in the flat tree, has a computed opacity value of 0, return false.
+    if (options->opacity_property || options->check_opacity) {
+        for (auto* element = this; element; element = element->parent_element()) {
+            if (element->computed_css_values()->opacity() == 0.0f)
+                return false;
+        }
+    }
+
+    // 4. If either the visibilityProperty or the checkVisibilityCSS dictionary members of options are true, and this is invisible, return false.
+    if (options->visibility_property || options->check_visibility_css) {
+        if (computed_css_values()->visibility() == CSS::Visibility::Hidden)
+            return false;
+    }
+
+    // 5. If the contentVisibilityAuto dictionary member of options is true and an ancestor of this in the flat tree skips its contents due to content-visibility: auto, return false.
+    // FIXME: Currently we do not skip any content if content-visibility is auto: https://drafts.csswg.org/css-contain-2/#proximity-to-the-viewport
+    auto const skipped_contents_due_to_content_visibility_auto = false;
+    if (options->content_visibility_auto && skipped_contents_due_to_content_visibility_auto) {
+        for (auto* element = this; element; element = element->parent_element()) {
+            if (element->computed_css_values()->content_visibility() == CSS::ContentVisibility::Auto)
+                return false;
+        }
+    }
+
+    // 6. Return true.
+    return true;
+}
+
 bool Element::id_reference_exists(String const& id_reference) const
 {
     return document().get_element_by_id(id_reference);
