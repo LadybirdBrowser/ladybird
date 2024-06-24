@@ -20,36 +20,6 @@
 
 namespace Unicode {
 
-template<typename Filter>
-static Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration, Filter&& filter)
-{
-    UErrorCode status = U_ZERO_ERROR;
-    Vector<String> result;
-
-    if (!enumeration)
-        return {};
-
-    while (true) {
-        i32 length = 0;
-        auto const* keyword = enumeration->next(&length, status);
-
-        if (icu_failure(status) || keyword == nullptr)
-            break;
-
-        if (!filter(keyword))
-            continue;
-
-        result.append(MUST(String::from_utf8({ keyword, static_cast<size_t>(length) })));
-    }
-
-    return result;
-}
-
-static Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration)
-{
-    return icu_string_enumeration_to_list(move(enumeration), [](char const*) { return true; });
-}
-
 Vector<String> available_keyword_values(StringView locale, StringView key)
 {
     if (key == "ca"sv)
