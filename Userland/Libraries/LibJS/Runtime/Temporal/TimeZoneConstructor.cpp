@@ -65,7 +65,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> TimeZoneConstructor::construct(FunctionO
     }
 
     // 4. Return ? CreateTemporalTimeZone(identifier, NewTarget).
-    return *TRY(create_temporal_time_zone(vm, identifier, &new_target));
+    return *TRY(create_temporal_time_zone(vm, move(identifier), &new_target));
 }
 
 // 11.3.2 Temporal.TimeZone.from ( item ), https://tc39.es/proposal-temporal/#sec-temporal.timezone.from

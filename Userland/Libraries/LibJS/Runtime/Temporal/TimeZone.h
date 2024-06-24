@@ -39,7 +39,7 @@ private:
 
 bool is_available_time_zone_name(StringView time_zone);
 ThrowCompletionOr<String> canonicalize_time_zone_name(VM&, StringView time_zone);
-ThrowCompletionOr<TimeZone*> create_temporal_time_zone(VM&, StringView identifier, FunctionObject const* new_target = nullptr);
+ThrowCompletionOr<TimeZone*> create_temporal_time_zone(VM&, String identifier, FunctionObject const* new_target = nullptr);
 ISODateTime get_iso_parts_from_epoch(VM&, Crypto::SignedBigInteger const& epoch_nanoseconds);
 BigInt* get_named_time_zone_next_transition(VM&, StringView time_zone_identifier, BigInt const& epoch_nanoseconds);
 BigInt* get_named_time_zone_previous_transition(VM&, StringView time_zone_identifier, BigInt const& epoch_nanoseconds);

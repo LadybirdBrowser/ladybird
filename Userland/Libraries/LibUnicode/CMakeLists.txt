@@ -17,6 +17,7 @@ set(SOURCES
     RelativeTimeFormat.cpp
     Segmenter.cpp
     String.cpp
+    TimeZone.cpp
     UnicodeKeywords.cpp
     ${UNICODE_DATA_SOURCES}
 )

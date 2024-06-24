@@ -687,7 +687,7 @@ ThrowCompletionOr<RelativeTo> to_relative_temporal_object(VM& vm, Object const& 
             }
 
             // ii. Let timeZone be ! CreateTemporalTimeZone(timeZoneName).
-            time_zone = MUST_OR_THROW_OOM(create_temporal_time_zone(vm, *time_zone_name));
+            time_zone = MUST_OR_THROW_OOM(create_temporal_time_zone(vm, time_zone_name.release_value()));
 
             // iii. If result.[[TimeZone]].[[Z]] is true, then
             if (result.time_zone.z) {

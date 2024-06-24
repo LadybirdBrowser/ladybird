@@ -13,6 +13,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibTimeZone/TimeZone.h>
+#include <LibUnicode/TimeZone.h>
 #include <time.h>
 
 namespace JS {
@@ -464,9 +465,9 @@ Vector<TimeZoneIdentifier> available_named_time_zone_identifiers()
 }
 
 // 21.4.1.24 SystemTimeZoneIdentifier ( ), https://tc39.es/ecma262/#sec-systemtimezoneidentifier
-StringView system_time_zone_identifier()
+String system_time_zone_identifier()
 {
-    return TimeZone::current_time_zone();
+    return Unicode::current_time_zone();
 }
 
 // 21.4.1.25 LocalTime ( t ), https://tc39.es/ecma262/#sec-localtime

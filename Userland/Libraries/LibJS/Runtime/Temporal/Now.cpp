@@ -158,7 +158,7 @@ TimeZone* system_time_zone(VM& vm)
 
     // 2. Return ! CreateTemporalTimeZone(identifier).
     // FIXME: Propagate possible OOM error
-    return MUST(create_temporal_time_zone(vm, identifier));
+    return MUST(create_temporal_time_zone(vm, move(identifier)));
 }
 
 // 2.3.2 SystemUTCEpochNanoseconds ( ), https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
