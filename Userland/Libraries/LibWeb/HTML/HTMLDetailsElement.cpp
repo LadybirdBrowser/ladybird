@@ -185,9 +185,8 @@ void HTMLDetailsElement::update_shadow_tree_style()
             display: block;
         )~~~"_string));
     } else {
-        // FIXME: Should be `display: block` but we do not support `content-visibility: hidden`.
         MUST(m_descendants_slot->set_attribute(HTML::AttributeNames::style, R"~~~(
-            display: none;
+            display: block;
             content-visibility: hidden;
         )~~~"_string));
     }
