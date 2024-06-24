@@ -39,6 +39,23 @@
 #    define AK_IS_ARCH_RISCV64() 0
 #endif
 
+#if defined(__ppc64__) || defined(__PPC64__)
+#    define AK_IS_ARCH_PPC64() 1
+#else
+#    define AK_IS_ARCH_PPC64() 0
+#endif
+#if defined(__ppc64le__) || defined(__PPC64LE__)
+#    define AK_IS_ARCH_PPC64LE() 1
+#else
+#    define AK_IS_ARCH_PPC64LE() 0
+#endif
+
+#if defined(__ppc__) || defined(__PPC__) || defined(__powerpc__) || defined(__powerpc) || defined(__POWERPC__)
+#    define AK_IS_ARCH_PPC() 1
+#else
+#    define AK_IS_ARCH_PPC() 0
+#endif
+
 #ifdef __wasm32__
 #    define AK_IS_ARCH_WASM32() 1
 #else
