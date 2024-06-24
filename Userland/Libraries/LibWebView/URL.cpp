@@ -62,7 +62,7 @@ Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engi
     }
 
     ByteString url_with_scheme = url;
-    if (!(url_with_scheme.starts_with("about:"sv) || url_with_scheme.contains("://"sv)))
+    if (!(url_with_scheme.starts_with("about:"sv) || url_with_scheme.contains("://"sv) || url_with_scheme.starts_with("data:"sv)))
         url_with_scheme = ByteString::formatted("https://{}"sv, url_with_scheme);
 
     auto result = URL::create_with_url_or_path(url_with_scheme);

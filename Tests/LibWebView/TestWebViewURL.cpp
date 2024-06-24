@@ -17,6 +17,14 @@ static void compare_url_parts(StringView url, WebView::URLParts const& expected)
     EXPECT_EQ(result->remainder, expected.remainder);
 }
 
+static bool is_sanitized_url_the_same(StringView url)
+{
+    auto sanitized_url = WebView::sanitize_url(url);
+    if (!sanitized_url.has_value())
+        return false;
+    return sanitized_url->to_string().value() == url;
+}
+
 TEST_CASE(invalid_url)
 {
     EXPECT(!WebView::break_url_into_parts(""sv).has_value());
@@ -82,17 +90,18 @@ TEST_CASE(http_url)
 
 TEST_CASE(about_url)
 {
-    auto is_sanitized_url_the_same = [](StringView url) {
-        auto sanitized_url = WebView::sanitize_url(url);
-        if (!sanitized_url.has_value())
-            return false;
-        return sanitized_url->to_string().value() == url;
-    };
-
     EXPECT(!is_sanitized_url_the_same("about"sv));
     EXPECT(!is_sanitized_url_the_same("about blabla:"sv));
     EXPECT(!is_sanitized_url_the_same("blabla about:"sv));
 
     EXPECT(is_sanitized_url_the_same("about:about"sv));
     EXPECT(is_sanitized_url_the_same("about:version"sv));
+}
+
+TEST_CASE(data_url)
+{
+    EXPECT(is_sanitized_url_the_same("data:text/html"sv));
+
+    EXPECT(!is_sanitized_url_the_same("data text/html"sv));
+    EXPECT(!is_sanitized_url_the_same("text/html data:"sv));
 }
