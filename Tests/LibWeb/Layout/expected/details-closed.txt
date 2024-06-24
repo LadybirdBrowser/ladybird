@@ -8,6 +8,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             "I'm a summary"
         TextNode <#text>
         ListItemMarkerBox <(anonymous)> at (8,8) content-size 12x17 children: not-inline
+      BlockContainer <slot> at (8,25) content-size 784x0 children: not-inline
       BlockContainer <(anonymous)> at (8,25) content-size 784x0 children: inline
         TextNode <#text>
 
@@ -19,4 +20,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (ListItemBox<SUMMARY>) [32,8 760x17]
         TextPaintable (TextNode<#text>)
         MarkerPaintable (ListItemMarkerBox(anonymous)) [8,8 12x17]
+      PaintableWithLines (BlockContainer<SLOT>) [8,25 784x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,25 784x0]
