@@ -10,7 +10,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 
-#if (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_LIBC_GLIBC) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_SOLARIS) || defined(AK_OS_HAIKU)
+#if (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID) && defined(AK_LIBC_GLIBC)) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_SOLARIS) || defined(AK_OS_HAIKU)
 #    define EXECINFO_BACKTRACE
 #endif
 
