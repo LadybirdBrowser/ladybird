@@ -31,6 +31,29 @@ public:
         return my_drawing_state().line_width;
     }
 
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-setlinedash
+    void set_line_dash(Vector<double> segments)
+    {
+        // 1. If any value in segments is not finite (e.g. an Infinity or a NaN value), or if any value is negative (less than zero), then return (without throwing an exception; user agents could show a message on a developer console, though, as that would be helpful for debugging).
+        for (auto const& segment : segments) {
+            if (!isfinite(segment) || segment < 0)
+                return;
+        }
+
+        // 2. If the number of elements in segments is odd, then let segments be the concatenation of two copies of segments.
+        if (segments.size() % 2 == 1)
+            segments.extend(segments);
+
+        // 3. Let the object's dash list be segments.
+        my_drawing_state().dash_list = segments;
+    }
+
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getlinedash
+    Vector<double> get_line_dash()
+    {
+        return my_drawing_state().dash_list;
+    }
+
 protected:
     CanvasPathDrawingStyles() = default;
 

@@ -9,7 +9,7 @@ interface mixin CanvasPathDrawingStyles {
     [FIXME] attribute CanvasLineJoin lineJoin;
     [FIXME] attribute unrestricted double miterLimit;
 
-    [FIXME] undefined setLineDash(sequence<unrestricted double> segments);
-    [FIXME] sequence<unrestricted double> getLineDash();
+    undefined setLineDash(sequence<unrestricted double> segments);
+    sequence<unrestricted double> getLineDash();
     [FIXME] attribute unrestricted double lineDashOffset;
 };
