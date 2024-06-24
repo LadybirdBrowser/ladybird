@@ -5,14 +5,11 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/Backtrace.h>
 #include <AK/Format.h>
 #include <AK/Platform.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
-
-#if (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_LIBC_GLIBC) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_SOLARIS) || defined(AK_OS_HAIKU)
-#    define EXECINFO_BACKTRACE
-#endif
 
 #if defined(AK_OS_ANDROID) && (__ANDROID_API__ >= 33)
 #    include <android/log.h>
@@ -22,9 +19,8 @@
 #    define PRINT_ERROR(s) (void)fputs((s), stderr)
 #endif
 
-#if defined(EXECINFO_BACKTRACE)
+#if defined(AK_HAS_BACKTRACE_HEADER)
 #    include <cxxabi.h>
-#    include <execinfo.h>
 #endif
 
 #if defined(AK_OS_SERENITY)
@@ -33,7 +29,7 @@
 #    define ERRORLN warnln
 #endif
 
-#if defined(EXECINFO_BACKTRACE)
+#if defined(AK_HAS_BACKTRACE_HEADER)
 namespace {
 ALWAYS_INLINE void dump_backtrace()
 {
@@ -100,7 +96,7 @@ void ak_verification_failed(char const* message)
     else
         ERRORLN("VERIFICATION FAILED: {}", message);
 
-#if defined(EXECINFO_BACKTRACE)
+#if defined(AK_HAS_BACKTRACE_HEADER)
     dump_backtrace();
 #endif
     __builtin_trap();
