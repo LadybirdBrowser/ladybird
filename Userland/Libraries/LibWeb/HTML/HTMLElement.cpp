@@ -13,7 +13,9 @@
 #include <LibWeb/DOM/LiveNodeList.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/DOMStringMap.h>
+#include <LibWeb/HTML/ElementInternals.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
@@ -60,6 +62,7 @@ void HTMLElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_dataset);
     visitor.visit(m_labels);
+    visitor.visit(m_attached_internals);
 }
 
 JS::NonnullGCPtr<DOMStringMap> HTMLElement::dataset()
@@ -606,6 +609,40 @@ TokenizedFeature::NoOpener HTMLElement::get_an_elements_noopener(StringView targ
 
     // 3. Return false.
     return TokenizedFeature::NoOpener::No;
+}
+
+WebIDL::ExceptionOr<JS::NonnullGCPtr<ElementInternals>> HTMLElement::attach_internals()
+{
+    // 1. If this's is value is not null, then throw a "NotSupportedError" DOMException.
+    if (is_value().has_value())
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to a customized build-in element"_fly_string);
+
+    // 2. Let definition be the result of looking up a custom element definition given this's node document, its namespace, its local name, and null as the is value.
+    auto definition = document().lookup_custom_element_definition(namespace_uri(), local_name(), is_value());
+
+    // 3. If definition is null, then throw an "NotSupportedError" DOMException.
+    if (!definition)
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to an element that is not a custom element"_fly_string);
+
+    // 4. If definition's disable internals is true, then throw a "NotSupportedError" DOMException.
+    if (definition->disable_internals())
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals are disabled for this custom element"_fly_string);
+
+    // 5. If this's attached internals is non-null, then throw an "NotSupportedError" DOMException.
+    if (m_attached_internals)
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals already attached"_fly_string);
+
+    // 6. If this's custom element state is not "precustomized" or "custom", then throw a "NotSupportedError" DOMException.
+    if (!first_is_one_of(custom_element_state(), DOM::CustomElementState::Precustomized, DOM::CustomElementState::Custom))
+        return WebIDL::NotSupportedError::create(realm(), "Custom element is in an invalid state to attach ElementInternals"_fly_string);
+
+    // 7. Set this's attached internals to a new ElementInternals instance whose target element is this.
+    auto internals = ElementInternals::create(realm(), *this);
+
+    m_attached_internals = internals;
+
+    // 8. Return this's attached internals.
+    return { internals };
 }
 
 void HTMLElement::did_receive_focus()

@@ -352,6 +352,7 @@ class DecodedImageData;
 class DocumentState;
 class DOMParser;
 class DOMStringMap;
+class ElementInternals;
 class ErrorEvent;
 class EventHandler;
 class EventLoop;

@@ -1,0 +1,44 @@
+#import <DOM/ShadowRoot.idl>
+
+// https://html.spec.whatwg.org/multipage/custom-elements.html#elementinternals
+[Exposed=Window]
+interface ElementInternals {
+    // Shadow root access
+    readonly attribute ShadowRoot? shadowRoot;
+
+    // Form-associated custom elements
+    [FIXME] undefined setFormValue((File or USVString or FormData)? value,
+                            optional (File or USVString or FormData)? state);
+
+    [FIXME] readonly attribute HTMLFormElement? form;
+
+    [FIXME] undefined setValidity(optional ValidityStateFlags flags = {},
+                          optional DOMString message,
+                          optional HTMLElement anchor);
+    [FIXME] readonly attribute boolean willValidate;
+    [FIXME] readonly attribute ValidityState validity;
+    [FIXME] readonly attribute DOMString validationMessage;
+    [FIXME] boolean checkValidity();
+    [FIXME] boolean reportValidity();
+
+    [FIXME] readonly attribute NodeList labels;
+
+    // Custom state pseudo-class
+    [FIXME, SameObject] readonly attribute CustomStateSet states;
+};
+
+// Accessibility semantics
+// ElementInternals includes ARIAMixin;
+
+dictionary ValidityStateFlags {
+    boolean valueMissing = false;
+    boolean typeMismatch = false;
+    boolean patternMismatch = false;
+    boolean tooLong = false;
+    boolean tooShort = false;
+    boolean rangeUnderflow = false;
+    boolean rangeOverflow = false;
+    boolean stepMismatch = false;
+    boolean badInput = false;
+    boolean customError = false;
+};

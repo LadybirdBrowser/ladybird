@@ -273,6 +273,7 @@ set(SOURCES
     HTML/DOMParser.cpp
     HTML/DOMStringMap.cpp
     HTML/DataTransfer.cpp
+    HTML/ElementInternals.cpp
     HTML/ErrorEvent.cpp
     HTML/EventHandler.cpp
     HTML/EventSource.cpp

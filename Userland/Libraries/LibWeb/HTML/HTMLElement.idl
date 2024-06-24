@@ -1,5 +1,6 @@
 #import <CSS/ElementCSSInlineStyle.idl>
 #import <HTML/DOMStringMap.idl>
+#import <HTML/ElementInternals.idl>
 #import <DOM/Element.idl>
 #import <DOM/EventHandler.idl>
 
@@ -28,7 +29,7 @@ interface HTMLElement : Element {
     [LegacyNullToEmptyString, CEReactions] attribute DOMString innerText;
     [LegacyNullToEmptyString, CEReactions] attribute DOMString outerText;
 
-    [FIXME] ElementInternals attachInternals();
+    ElementInternals attachInternals();
 
     // The popover API
     [FIXME] undefined showPopover();

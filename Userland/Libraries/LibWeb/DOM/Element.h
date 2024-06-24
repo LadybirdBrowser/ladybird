@@ -405,6 +405,8 @@ protected:
 
     virtual bool id_reference_exists(String const&) const override;
 
+    CustomElementState custom_element_state() const { return m_custom_element_state; }
+
 private:
     void make_html_uppercased_qualified_name();
 

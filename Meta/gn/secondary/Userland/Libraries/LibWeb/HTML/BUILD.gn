@@ -30,6 +30,7 @@ source_set("HTML") {
     "Dates.cpp",
     "DecodedImageData.cpp",
     "DocumentState.cpp",
+    "ElementInternals.cpp",
     "ErrorEvent.cpp",
     "EventHandler.cpp",
     "EventNames.cpp",

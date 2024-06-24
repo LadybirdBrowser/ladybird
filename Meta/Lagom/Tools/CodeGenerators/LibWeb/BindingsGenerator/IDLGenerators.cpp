@@ -48,6 +48,7 @@ static bool is_platform_object(Type const& type)
         "DocumentType"sv,
         "DOMRectReadOnly"sv,
         "DynamicsCompressorNode"sv,
+        "ElementInternals"sv,
         "EventTarget"sv,
         "FileList"sv,
         "FontFace"sv,
