@@ -1,5 +1,5 @@
 set(TEST_SOURCES
-    TestTimeZone.cpp
+    TestTimeZoneDeprecated.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
