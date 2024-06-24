@@ -23,6 +23,7 @@ class CloseWatcher final : public DOM::EventTarget {
 
 public:
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<CloseWatcher>> construct_impl(JS::Realm&, CloseWatcherOptions const& = {});
+    [[nodiscard]] static JS::NonnullGCPtr<CloseWatcher> establish(HTML::Window&);
 
     bool request_close();
     void close();
@@ -38,7 +39,6 @@ public:
 
 private:
     CloseWatcher(JS::Realm&);
-    [[nodiscard]] static JS::NonnullGCPtr<CloseWatcher> establish(HTML::Window&);
 
     virtual void initialize(JS::Realm&) override;
 

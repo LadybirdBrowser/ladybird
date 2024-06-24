@@ -10,7 +10,6 @@
 /Userland/Libraries/LibCrypto @alimpfard
 /Userland/Libraries/LibHTTP @alimpfard
 /Userland/Libraries/LibJS/Runtime/Intl @trflynn89
-/Userland/Libraries/LibLocale @trflynn89
 /Userland/Libraries/LibRegex @alimpfard
 /Userland/Libraries/LibTLS @alimpfard
 /Userland/Libraries/LibTimeZone @trflynn89

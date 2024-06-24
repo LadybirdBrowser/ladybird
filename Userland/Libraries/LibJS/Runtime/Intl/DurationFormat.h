@@ -12,7 +12,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
-#include <LibLocale/Locale.h>
+#include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
@@ -36,9 +36,9 @@ public:
         TwoDigit,
         Fractional,
     };
-    static_assert(to_underlying(ValueStyle::Long) == to_underlying(::Locale::Style::Long));
-    static_assert(to_underlying(ValueStyle::Short) == to_underlying(::Locale::Style::Short));
-    static_assert(to_underlying(ValueStyle::Narrow) == to_underlying(::Locale::Style::Narrow));
+    static_assert(to_underlying(ValueStyle::Long) == to_underlying(Unicode::Style::Long));
+    static_assert(to_underlying(ValueStyle::Short) == to_underlying(Unicode::Style::Short));
+    static_assert(to_underlying(ValueStyle::Narrow) == to_underlying(Unicode::Style::Narrow));
 
     enum class Display {
         Auto,

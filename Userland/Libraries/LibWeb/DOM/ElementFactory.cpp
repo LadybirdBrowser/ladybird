@@ -84,6 +84,7 @@
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/SVG/SVGCircleElement.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGDefsElement.h>
@@ -482,6 +483,8 @@ static JS::GCPtr<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document&
         return realm.heap().allocate<SVG::SVGUseElement>(realm, document, move(qualified_name));
     if (local_name == SVG::TagNames::script)
         return realm.heap().allocate<SVG::SVGScriptElement>(realm, document, move(qualified_name));
+    if (local_name == SVG::TagNames::a)
+        return realm.heap().allocate<SVG::SVGAElement>(realm, document, move(qualified_name));
 
     return nullptr;
 }

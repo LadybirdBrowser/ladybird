@@ -10,7 +10,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/RelativeTimeFormat.h>
 #include <LibJS/Runtime/Intl/RelativeTimeFormatConstructor.h>
-#include <LibLocale/Locale.h>
+#include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
@@ -75,7 +75,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> RelativeTimeFormatConstructor::construct
     // 9. If numberingSystem is not undefined, then
     if (!numbering_system.is_undefined()) {
         // a. If numberingSystem cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-        if (!::Locale::is_type_identifier(numbering_system.as_string().utf8_string_view()))
+        if (!Unicode::is_type_identifier(numbering_system.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
     }
 
@@ -111,7 +111,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> RelativeTimeFormatConstructor::construct
 
     // 20. Let relativeTimeFormat.[[NumberFormat]] be ! Construct(%Intl.NumberFormat%, « locale »).
     // 21. Let relativeTimeFormat.[[PluralRules]] be ! Construct(%Intl.PluralRules%, « locale »).
-    auto formatter = ::Locale::RelativeTimeFormat::create(
+    auto formatter = Unicode::RelativeTimeFormat::create(
         relative_time_format->locale(),
         relative_time_format->style());
     relative_time_format->set_formatter(move(formatter));

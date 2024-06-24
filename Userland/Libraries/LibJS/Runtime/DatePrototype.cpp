@@ -24,9 +24,9 @@
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibLocale/DisplayNames.h>
-#include <LibLocale/Locale.h>
 #include <LibTimeZone/TimeZone.h>
+#include <LibUnicode/DisplayNames.h>
+#include <LibUnicode/Locale.h>
 
 namespace JS {
 
@@ -1156,7 +1156,7 @@ ByteString time_zone_string(double time)
 
     // Most implementations seem to prefer the long-form display name of the time zone. Not super important, but we may as well match that behavior.
     if (auto maybe_offset = TimeZone::get_time_zone_offset(tz_name, AK::UnixDateTime::from_milliseconds_since_epoch(time)); maybe_offset.has_value()) {
-        if (auto name = Locale::time_zone_display_name(Locale::default_locale(), tz_name, maybe_offset->in_dst, time); name.has_value())
+        if (auto name = Unicode::time_zone_display_name(Unicode::default_locale(), tz_name, maybe_offset->in_dst, time); name.has_value())
             tz_name = name.release_value();
     } else {
         tz_name = MUST(String::from_utf8(TimeZone::current_time_zone()));

@@ -9,7 +9,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/NumberFormatConstructor.h>
-#include <LibLocale/Locale.h>
+#include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
@@ -104,7 +104,7 @@ ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM& vm, N
     // 7. If numberingSystem is not undefined, then
     if (!numbering_system.is_undefined()) {
         // a. If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
-        if (!::Locale::is_type_identifier(numbering_system.as_string().utf8_string_view()))
+        if (!Unicode::is_type_identifier(numbering_system.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, numbering_system, "numberingSystem"sv);
     }
 
@@ -134,7 +134,7 @@ ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM& vm, N
     int default_max_fraction_digits = 0;
 
     // 16. If style is "currency", then
-    if (style == ::Locale::NumberFormatStyle::Currency) {
+    if (style == Unicode::NumberFormatStyle::Currency) {
         // a. Let currency be numberFormat.[[Currency]].
         auto const& currency = number_format.currency();
 
@@ -156,7 +156,7 @@ ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM& vm, N
         //     i. Let mxfdDefault be 0.
         // c. Else,
         //     i. Let mxfdDefault be 3.
-        default_max_fraction_digits = style == ::Locale::NumberFormatStyle::Percent ? 0 : 3;
+        default_max_fraction_digits = style == Unicode::NumberFormatStyle::Percent ? 0 : 3;
     }
 
     // 18. Let notation be ? GetOption(options, "notation", string, « "standard", "scientific", "engineering", "compact" », "standard").
@@ -175,7 +175,7 @@ ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM& vm, N
     auto default_use_grouping = "auto"sv;
 
     // 23. If notation is "compact", then
-    if (number_format.notation() == ::Locale::Notation::Compact) {
+    if (number_format.notation() == Unicode::Notation::Compact) {
         // a. Set numberFormat.[[CompactDisplay]] to compactDisplay.
         number_format.set_compact_display(compact_display.as_string().utf8_string_view());
 
@@ -209,7 +209,7 @@ ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM& vm, N
     number_format.set_sign_display(sign_display.as_string().utf8_string_view());
 
     // Non-standard, create an ICU number formatter for this Intl object.
-    auto formatter = ::Locale::NumberFormat::create(
+    auto formatter = Unicode::NumberFormat::create(
         number_format.locale(),
         number_format.numbering_system(),
         number_format.display_options(),
@@ -221,7 +221,7 @@ ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM& vm, N
 }
 
 // 15.1.3 SetNumberFormatDigitOptions ( intlObj, options, mnfdDefault, mxfdDefault, notation ), https://tc39.es/ecma402/#sec-setnfdigitoptions
-ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase& intl_object, Object const& options, int default_min_fraction_digits, int default_max_fraction_digits, ::Locale::Notation notation)
+ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase& intl_object, Object const& options, int default_min_fraction_digits, int default_max_fraction_digits, Unicode::Notation notation)
 {
     // 1. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21, 1).
     auto min_integer_digits = TRY(get_number_option(vm, options, vm.names.minimumIntegerDigits, 1, 21, 1));
@@ -299,7 +299,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
         need_significant_digits = has_significant_digits;
 
         // b. If hasSd is true, or hasFd is false and notation is "compact", then
-        if (has_significant_digits || (!has_fraction_digits && notation == ::Locale::Notation::Compact)) {
+        if (has_significant_digits || (!has_fraction_digits && notation == Unicode::Notation::Compact)) {
             // i. Set needFd to false.
             need_fraction_digits = false;
         }
@@ -378,7 +378,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
         intl_object.set_max_significant_digits(2);
 
         // e. Set intlObj.[[RoundingType]] to morePrecision.
-        intl_object.set_rounding_type(::Locale::RoundingType::MorePrecision);
+        intl_object.set_rounding_type(Unicode::RoundingType::MorePrecision);
 
         // f. Set intlObj.[[ComputedRoundingPriority]] to "morePrecision".
         intl_object.set_computed_rounding_priority(NumberFormatBase::ComputedRoundingPriority::MorePrecision);
@@ -386,7 +386,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
     // 27. Else if roundingPriority is "morePrecision", then
     else if (rounding_priority == "morePrecision"sv) {
         // a. Set intlObj.[[RoundingType]] to morePrecision.
-        intl_object.set_rounding_type(::Locale::RoundingType::MorePrecision);
+        intl_object.set_rounding_type(Unicode::RoundingType::MorePrecision);
 
         // b. Set intlObj.[[ComputedRoundingPriority]] to "morePrecision".
         intl_object.set_computed_rounding_priority(NumberFormatBase::ComputedRoundingPriority::MorePrecision);
@@ -394,7 +394,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
     // 28. Else if roundingPriority is "lessPrecision", then
     else if (rounding_priority == "lessPrecision"sv) {
         // a. Set intlObj.[[RoundingType]] to lessPrecision.
-        intl_object.set_rounding_type(::Locale::RoundingType::LessPrecision);
+        intl_object.set_rounding_type(Unicode::RoundingType::LessPrecision);
 
         // b. Set intlObj.[[ComputedRoundingPriority]] to "lessPrecision".
         intl_object.set_computed_rounding_priority(NumberFormatBase::ComputedRoundingPriority::LessPrecision);
@@ -402,7 +402,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
     // 29. Else if hasSd is true, then
     else if (has_significant_digits) {
         // a. Set intlObj.[[RoundingType]] to significantDigits.
-        intl_object.set_rounding_type(::Locale::RoundingType::SignificantDigits);
+        intl_object.set_rounding_type(Unicode::RoundingType::SignificantDigits);
 
         // b. Set intlObj.[[ComputedRoundingPriority]] to "auto".
         intl_object.set_computed_rounding_priority(NumberFormatBase::ComputedRoundingPriority::Auto);
@@ -410,7 +410,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
     // 30. Else,
     else {
         // a. Set intlObj.[[RoundingType]] to fractionDigits.
-        intl_object.set_rounding_type(::Locale::RoundingType::FractionDigits);
+        intl_object.set_rounding_type(Unicode::RoundingType::FractionDigits);
 
         // b. Set intlObj.[[ComputedRoundingPriority]] to "auto".
         intl_object.set_computed_rounding_priority(NumberFormatBase::ComputedRoundingPriority::Auto);
@@ -419,7 +419,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
     // 31. If roundingIncrement is not 1, then
     if (rounding_increment != 1) {
         // a. If intlObj.[[RoundingType]] is not fractionDigits, throw a TypeError exception.
-        if (intl_object.rounding_type() != ::Locale::RoundingType::FractionDigits)
+        if (intl_object.rounding_type() != Unicode::RoundingType::FractionDigits)
             return vm.throw_completion<TypeError>(ErrorType::IntlInvalidRoundingIncrementForRoundingType, *rounding_increment, intl_object.rounding_type_string());
 
         // b. If intlObj.[[MaximumFractionDigits]] is not equal to intlObj.[[MinimumFractionDigits]], throw a RangeError exception.
@@ -448,7 +448,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     // 6. If currency is undefined, then
     if (currency.is_undefined()) {
         // a. If style is "currency", throw a TypeError exception.
-        if (intl_object.style() == ::Locale::NumberFormatStyle::Currency)
+        if (intl_object.style() == Unicode::NumberFormatStyle::Currency)
             return vm.throw_completion<TypeError>(ErrorType::IntlOptionUndefined, "currency"sv, "style"sv, style);
     }
     // 7. Else,
@@ -468,7 +468,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     // 11. If unit is undefined, then
     if (unit.is_undefined()) {
         // a. If style is "unit", throw a TypeError exception.
-        if (intl_object.style() == ::Locale::NumberFormatStyle::Unit)
+        if (intl_object.style() == Unicode::NumberFormatStyle::Unit)
             return vm.throw_completion<TypeError>(ErrorType::IntlOptionUndefined, "unit"sv, "style"sv, style);
     }
     // 12. Else,
@@ -480,7 +480,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     auto unit_display = TRY(get_option(vm, options, vm.names.unitDisplay, OptionType::String, { "short"sv, "narrow"sv, "long"sv }, "short"sv));
 
     // 14. If style is "currency", then
-    if (intl_object.style() == ::Locale::NumberFormatStyle::Currency) {
+    if (intl_object.style() == Unicode::NumberFormatStyle::Currency) {
         // a. Set intlObj.[[Currency]] to the ASCII-uppercase of currency.
         intl_object.set_currency(MUST(currency.as_string().utf8_string().to_uppercase()));
 
@@ -492,7 +492,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     }
 
     // 15. If style is "unit", then
-    if (intl_object.style() == ::Locale::NumberFormatStyle::Unit) {
+    if (intl_object.style() == Unicode::NumberFormatStyle::Unit) {
         // a. Set intlObj.[[Unit]] to unit.
         intl_object.set_unit(unit.as_string().utf8_string());
 

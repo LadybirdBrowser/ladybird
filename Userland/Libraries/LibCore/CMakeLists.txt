@@ -2,13 +2,11 @@
 # LibCore to depend on generated sources.
 set(SOURCES
     ArgsParser.cpp
-    ConfigFile.cpp
     Directory.cpp
     DirectoryEntry.cpp
     DirIterator.cpp
     Environment.cpp
     File.cpp
-    SessionManagement.cpp
     StandardPaths.cpp
     System.cpp
     Version.cpp
@@ -16,9 +14,14 @@ set(SOURCES
 
 serenity_lib(LibCoreMinimal coreminimal)
 
+if (LAGOM_TOOLS_ONLY)
+    return()
+endif()
+
 set(SOURCES
     AnonymousBuffer.cpp
     Command.cpp
+    ConfigFile.cpp
     DateTime.cpp
     ElapsedTimer.cpp
     Event.cpp
@@ -37,6 +40,7 @@ set(SOURCES
     ResourceImplementation.cpp
     ResourceImplementationFile.cpp
     SecretString.cpp
+    SessionManagement.cpp
     Socket.cpp
     SOCKSProxyClient.cpp
     SystemServerTakeover.cpp

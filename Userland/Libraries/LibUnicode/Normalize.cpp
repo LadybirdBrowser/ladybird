@@ -8,7 +8,7 @@
 #define AK_DONT_REPLACE_STD
 
 #include <AK/StringBuilder.h>
-#include <LibLocale/ICU.h>
+#include <LibUnicode/ICU.h>
 #include <LibUnicode/Normalize.h>
 
 #include <unicode/normalizer2.h>
@@ -63,7 +63,7 @@ String normalize(StringView string, NormalizationForm form)
         break;
     }
 
-    if (Locale::icu_failure(status))
+    if (icu_failure(status))
         return MUST(String::from_utf8(string));
 
     VERIFY(normalizer);
@@ -71,8 +71,8 @@ String normalize(StringView string, NormalizationForm form)
     StringBuilder builder { string.length() };
     icu::StringByteSink sink { &builder };
 
-    normalizer->normalizeUTF8(0, Locale::icu_string_piece(string), sink, nullptr, status);
-    if (Locale::icu_failure(status))
+    normalizer->normalizeUTF8(0, icu_string_piece(string), sink, nullptr, status);
+    if (icu_failure(status))
         return MUST(String::from_utf8(string));
 
     return MUST(builder.to_string());

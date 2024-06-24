@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/IPv4Address.h>
+#include <AK/IPv6Address.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <string.h>
@@ -21,6 +22,7 @@ public:
     enum class Type {
         Invalid,
         IPv4,
+        IPv6,
         Local
     };
 
@@ -31,9 +33,22 @@ public:
     {
     }
 
+    SocketAddress(IPv6Address const& address)
+        : m_type(Type::IPv6)
+        , m_ipv6_address(address)
+    {
+    }
+
     SocketAddress(IPv4Address const& address, u16 port)
         : m_type(Type::IPv4)
         , m_ipv4_address(address)
+        , m_port(port)
+    {
+    }
+
+    SocketAddress(IPv6Address const& address, u16 port)
+        : m_type(Type::IPv6)
+        , m_ipv6_address(address)
         , m_port(port)
     {
     }
@@ -49,6 +64,7 @@ public:
     Type type() const { return m_type; }
     bool is_valid() const { return m_type != Type::Invalid; }
     IPv4Address ipv4_address() const { return m_ipv4_address; }
+    IPv6Address ipv6_address() const { return m_ipv6_address; }
     u16 port() const { return m_port; }
 
     ByteString to_byte_string() const
@@ -56,6 +72,8 @@ public:
         switch (m_type) {
         case Type::IPv4:
             return ByteString::formatted("{}:{}", m_ipv4_address, m_port);
+        case Type::IPv6:
+            return ByteString::formatted("[{}]:{}", m_ipv6_address, m_port);
         case Type::Local:
             return m_local_address;
         default:
@@ -74,13 +92,25 @@ public:
         return address;
     }
 
+    sockaddr_in6 to_sockaddr_in6() const
+    {
+        VERIFY(type() == Type::IPv6);
+        sockaddr_in6 address {};
+        memset(&address, 0, sizeof(address));
+        address.sin6_family = AF_INET6;
+        address.sin6_port = htons(port());
+        auto ipv6_addr = ipv6_address();
+        memcpy(&address.sin6_addr, &ipv6_addr.to_in6_addr_t(), sizeof(address.sin6_addr));
+        return address;
+    }
+
     sockaddr_in to_sockaddr_in() const
     {
         VERIFY(type() == Type::IPv4);
         sockaddr_in address {};
         address.sin_family = AF_INET;
-        address.sin_addr.s_addr = m_ipv4_address.to_in_addr_t();
-        address.sin_port = htons(m_port);
+        address.sin_port = htons(port());
+        address.sin_addr.s_addr = ipv4_address().to_in_addr_t();
         return address;
     }
 
@@ -90,6 +120,7 @@ public:
 private:
     Type m_type { Type::Invalid };
     IPv4Address m_ipv4_address;
+    IPv6Address m_ipv6_address;
     u16 m_port { 0 };
     ByteString m_local_address;
 };

@@ -7,7 +7,7 @@
 
 #define AK_DONT_REPLACE_STD
 
-#include <LibLocale/ICU.h>
+#include <LibUnicode/ICU.h>
 #include <LibUnicode/IDNA.h>
 
 #include <unicode/idna.h>
@@ -31,14 +31,14 @@ ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& options)
     UErrorCode status = U_ZERO_ERROR;
 
     auto idna = adopt_own_if_nonnull(icu::IDNA::createUTS46Instance(icu_options, status));
-    if (Locale::icu_failure(status))
+    if (icu_failure(status))
         return Error::from_string_literal("Unable to create an IDNA instance");
 
     StringBuilder builder { domain_name.as_string().length() };
     icu::StringByteSink sink { &builder };
 
     icu::IDNAInfo info;
-    idna->nameToASCII_UTF8(Locale::icu_string_piece(domain_name.as_string()), sink, info, status);
+    idna->nameToASCII_UTF8(icu_string_piece(domain_name.as_string()), sink, info, status);
 
     auto errors = info.getErrors();
 
@@ -53,7 +53,7 @@ ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& options)
         errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
     }
 
-    if (Locale::icu_failure(status) || errors != 0)
+    if (icu_failure(status) || errors != 0)
         return Error::from_string_literal("Unable to convert domain to ASCII");
 
     return builder.to_string();

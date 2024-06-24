@@ -49,6 +49,7 @@ runs:
       shell: bash
       run: |
         set -e
+        sudo xcode-select --switch /Applications/Xcode_15.4.app
         brew update
         brew install autoconf autoconf-archive automake coreutils bash ninja wabt ccache unzip qt llvm@18
 

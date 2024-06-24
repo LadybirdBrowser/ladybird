@@ -21,12 +21,22 @@ if [ "$ci" -eq 0 ]; then
 fi
 
 GIT_REPO="https://github.com/microsoft/vcpkg.git"
-GIT_REV="01f602195983451bc83e72f4214af2cbc495aa94" # 2024.05.24
+GIT_REV="f7423ee180c4b7f40d43402c2feb3859161ef625" # 2024.06.15
 PREFIX_DIR="$DIR/Local/vcpkg"
 
 mkdir -p "$DIR/Tarballs"
 pushd "$DIR/Tarballs"
-    [ ! -d vcpkg ] && git clone $GIT_REPO
+    if [[ ! -d vcpkg ]]; then
+        git clone "${GIT_REPO}"
+    else
+        bootstrapped_vcpkg_version=$(git -C vcpkg rev-parse HEAD)
+
+        if [[ "${bootstrapped_vcpkg_version}" == "${GIT_REV}" ]]; then
+            exit 0
+        fi
+    fi
+
+    echo "Building vcpkg"
 
     cd vcpkg
     git fetch origin

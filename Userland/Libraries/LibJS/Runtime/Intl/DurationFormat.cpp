@@ -735,7 +735,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
     }
 
     // 5. Perform ! CreateDataPropertyOrThrow(lfOpts, "style", listStyle).
-    auto locale_list_style = ::Locale::style_to_string(static_cast<::Locale::Style>(list_style));
+    auto locale_list_style = Unicode::style_to_string(static_cast<Unicode::Style>(list_style));
     MUST(list_format_options->create_data_property_or_throw(vm.names.style, PrimitiveString::create(vm, locale_list_style)));
 
     // 6. Let lf be ! Construct(%ListFormat%, « durationFormat.[[Locale]], lfOpts »).
@@ -925,7 +925,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                 MUST(number_format_options->create_data_property_or_throw(vm.names.unit, PrimitiveString::create(vm, number_format_unit)));
 
                 // 8. Perform ! CreateDataPropertyOrThrow(nfOpts, "unitDisplay", style).
-                auto locale_style = ::Locale::style_to_string(static_cast<::Locale::Style>(style));
+                auto locale_style = Unicode::style_to_string(static_cast<Unicode::Style>(style));
                 MUST(number_format_options->create_data_property_or_throw(vm.names.unitDisplay, PrimitiveString::create(vm, locale_style)));
 
                 // 9. Let nf be ! Construct(%NumberFormat%, « durationFormat.[[Locale]], nfOpts »).

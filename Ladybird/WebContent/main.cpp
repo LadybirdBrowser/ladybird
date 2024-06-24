@@ -61,6 +61,10 @@ namespace Web::WebIDL {
 extern bool g_enable_idl_tracing;
 }
 
+namespace Web::Fetch::Fetching {
+extern bool g_http_cache_enabled;
+}
+
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
@@ -101,6 +105,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
+    bool enable_http_cache = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(command_line, "Chrome process command line", "command-line", 0, "command_line");
@@ -115,6 +120,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
+    args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
 
     args_parser.parse(arguments);
 
@@ -134,6 +140,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     if (use_skia_painter) {
         WebContent::PageClient::set_use_skia_painter();
+    }
+
+    if (enable_http_cache) {
+        Web::Fetch::Fetching::g_http_cache_enabled = true;
     }
 
 #if defined(AK_OS_MACOS)

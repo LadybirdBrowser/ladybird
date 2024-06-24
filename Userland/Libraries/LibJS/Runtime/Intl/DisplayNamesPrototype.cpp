@@ -9,7 +9,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/DisplayNames.h>
 #include <LibJS/Runtime/Intl/DisplayNamesPrototype.h>
-#include <LibLocale/DisplayNames.h>
+#include <LibUnicode/DisplayNames.h>
 
 namespace JS::Intl {
 
@@ -57,22 +57,22 @@ JS_DEFINE_NATIVE_FUNCTION(DisplayNamesPrototype::of)
 
     switch (display_names->type()) {
     case DisplayNames::Type::Language:
-        result = ::Locale::language_display_name(display_names->locale(), code_string, display_names->language_display());
+        result = Unicode::language_display_name(display_names->locale(), code_string, display_names->language_display());
         break;
     case DisplayNames::Type::Region:
-        result = ::Locale::region_display_name(display_names->locale(), code_string);
+        result = Unicode::region_display_name(display_names->locale(), code_string);
         break;
     case DisplayNames::Type::Script:
-        result = ::Locale::script_display_name(display_names->locale(), code_string);
+        result = Unicode::script_display_name(display_names->locale(), code_string);
         break;
     case DisplayNames::Type::Currency:
-        result = ::Locale::currency_display_name(display_names->locale(), code_string, display_names->style());
+        result = Unicode::currency_display_name(display_names->locale(), code_string, display_names->style());
         break;
     case DisplayNames::Type::Calendar:
-        result = ::Locale::calendar_display_name(display_names->locale(), code_string);
+        result = Unicode::calendar_display_name(display_names->locale(), code_string);
         break;
     case DisplayNames::Type::DateTimeField:
-        result = ::Locale::date_time_field_display_name(display_names->locale(), code_string, display_names->style());
+        result = Unicode::date_time_field_display_name(display_names->locale(), code_string, display_names->style());
         break;
     default:
         VERIFY_NOT_REACHED();

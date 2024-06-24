@@ -25,42 +25,42 @@ RelativeTimeFormat::RelativeTimeFormat(Object& prototype)
 }
 
 // 17.5.1 SingularRelativeTimeUnit ( unit ), https://tc39.es/ecma402/#sec-singularrelativetimeunit
-ThrowCompletionOr<::Locale::TimeUnit> singular_relative_time_unit(VM& vm, StringView unit)
+ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM& vm, StringView unit)
 {
     // 1. If unit is "seconds", return "second".
     if (unit == "seconds"sv)
-        return ::Locale::TimeUnit::Second;
+        return Unicode::TimeUnit::Second;
     // 2. If unit is "minutes", return "minute".
     if (unit == "minutes"sv)
-        return ::Locale::TimeUnit::Minute;
+        return Unicode::TimeUnit::Minute;
     // 3. If unit is "hours", return "hour".
     if (unit == "hours"sv)
-        return ::Locale::TimeUnit::Hour;
+        return Unicode::TimeUnit::Hour;
     // 4. If unit is "days", return "day".
     if (unit == "days"sv)
-        return ::Locale::TimeUnit::Day;
+        return Unicode::TimeUnit::Day;
     // 5. If unit is "weeks", return "week".
     if (unit == "weeks"sv)
-        return ::Locale::TimeUnit::Week;
+        return Unicode::TimeUnit::Week;
     // 6. If unit is "months", return "month".
     if (unit == "months"sv)
-        return ::Locale::TimeUnit::Month;
+        return Unicode::TimeUnit::Month;
     // 7. If unit is "quarters", return "quarter".
     if (unit == "quarters"sv)
-        return ::Locale::TimeUnit::Quarter;
+        return Unicode::TimeUnit::Quarter;
     // 8. If unit is "years", return "year".
     if (unit == "years"sv)
-        return ::Locale::TimeUnit::Year;
+        return Unicode::TimeUnit::Year;
 
     // 9. If unit is not one of "second", "minute", "hour", "day", "week", "month", "quarter", or "year", throw a RangeError exception.
     // 10. Return unit.
-    if (auto time_unit = ::Locale::time_unit_from_string(unit); time_unit.has_value())
+    if (auto time_unit = Unicode::time_unit_from_string(unit); time_unit.has_value())
         return *time_unit;
     return vm.throw_completion<RangeError>(ErrorType::IntlInvalidUnit, unit);
 }
 
 // 17.5.2 PartitionRelativeTimePattern ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-PartitionRelativeTimePattern
-ThrowCompletionOr<Vector<::Locale::RelativeTimeFormat::Partition>> partition_relative_time_pattern(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
+ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_relative_time_pattern(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
 {
     // 1. If value is NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
     if (!Value(value).is_finite_number())
@@ -76,7 +76,7 @@ ThrowCompletionOr<Vector<::Locale::RelativeTimeFormat::Partition>> partition_rel
 ThrowCompletionOr<String> format_relative_time(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
 {
     // 1. Let parts be ? PartitionRelativeTimePattern(relativeTimeFormat, value, unit).
-    auto time_unit = TRY([&]() -> ThrowCompletionOr<::Locale::TimeUnit> {
+    auto time_unit = TRY([&]() -> ThrowCompletionOr<Unicode::TimeUnit> {
         // NOTE: We short-circuit PartitionRelativeTimePattern as we do not need individual partitions. But we must still
         //       perform the NaN/Infinity sanity checks and unit parsing from its first steps.
 

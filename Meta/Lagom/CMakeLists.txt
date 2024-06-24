@@ -334,26 +334,12 @@ if (Backtrace_FOUND AND NOT "${Backtrace_LIBRARIES}" STREQUAL "")
     target_include_directories(AK PRIVATE ${Backtrace_INCLUDE_DIRS})
 endif()
 
-add_serenity_subdirectory(Userland/Libraries/LibUnicode)
-add_serenity_subdirectory(Userland/Libraries/LibURL)
-
-# LibCore
+# LibCoreMinimal
 add_serenity_subdirectory(Userland/Libraries/LibCore)
-target_link_libraries(LibCore PRIVATE Threads::Threads)
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
     # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
-    target_link_libraries(LibCore PRIVATE rt)
     target_link_libraries(LibCoreMinimal PRIVATE rt)
 endif()
-if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
-    # Solaris has socket and networking related functions in two extra libraries
-    target_link_libraries(LibCore PRIVATE nsl socket)
-endif()
-if (HAIKU)
-    # Haiku has networking related functions in the network library
-    target_link_libraries(LibCore PRIVATE network)
-endif()
-target_link_libraries(LibCore PRIVATE LibURL)
 
 # LibMain
 add_serenity_subdirectory(Userland/Libraries/LibMain)
@@ -408,7 +394,6 @@ set(lagom_standard_libraries
     IPC
     JS
     Line
-    Locale
     Media
     Protocol
     Regex
@@ -417,12 +402,28 @@ set(lagom_standard_libraries
     TextCodec
     Threading
     TLS
+    Unicode
+    URL
     Wasm
     Web
     WebSocket
     WebView
     XML
 )
+
+target_link_libraries(LibCore PRIVATE LibURL Threads::Threads)
+if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
+    # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
+    target_link_libraries(LibCore PRIVATE rt)
+endif()
+if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
+    # Solaris has socket and networking related functions in two extra libraries
+    target_link_libraries(LibCore PRIVATE nsl socket)
+endif()
+if (HAIKU)
+    # Haiku has networking related functions in the network library
+    target_link_libraries(LibCore PRIVATE network)
+endif()
 
 compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestClient.ipc Userland/Services/RequestServer/RequestClientEndpoint.h)
 compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestServer.ipc Userland/Services/RequestServer/RequestServerEndpoint.h)
@@ -434,9 +435,6 @@ compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverServe
 foreach(lib IN LISTS lagom_standard_libraries)
     add_serenity_subdirectory("Userland/Libraries/Lib${lib}")
 endforeach()
-
-# FIXME: Why is this not in LibLocale/CMakeLists.txt?
-target_link_libraries(LibLocale PRIVATE LibTimeZone)
 
 if (ENABLE_FUZZERS)
     add_subdirectory(Fuzzers)
@@ -458,7 +456,7 @@ lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress Li
 lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
 lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMain)
 lagom_utility(ttfdisasm SOURCES ../../Userland/Utilities/ttfdisasm.cpp LIBS LibGfx LibMain)
-lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibLocale LibMain LibTextCodec Threads::Threads)
+lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec Threads::Threads)
 
 lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
 
@@ -511,7 +509,6 @@ if (BUILD_TESTING)
         LibCrypto
         LibCompress
         LibGfx
-        LibLocale
         LibMedia
         LibTest
         LibTextCodec

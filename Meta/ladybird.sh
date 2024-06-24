@@ -127,7 +127,6 @@ build_cmake() {
 }
 
 build_vcpkg() {
-    echo "Building vcpkg"
     ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildVcpkg.sh )
 }
 
@@ -136,10 +135,7 @@ ensure_toolchain() {
         build_cmake
     fi
 
-    # FIXME: Add a version check if needed.
-    if [ ! -x "${LADYBIRD_SOURCE_DIR}/Toolchain/Local/vcpkg/bin/vcpkg" ]; then
-        build_vcpkg
-    fi
+    build_vcpkg
 }
 
 run_gdb() {

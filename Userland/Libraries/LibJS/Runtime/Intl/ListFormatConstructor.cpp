@@ -91,7 +91,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ListFormatConstructor::construct(Functio
     // 14. Let resolvedLocaleData be r.[[LocaleData]].
     // 15. Let dataLocaleTypes be resolvedLocaleData.[[<type>]].
     // 16. Set listFormat.[[Templates]] to dataLocaleTypes.[[<style>]].
-    auto formatter = ::Locale::ListFormat::create(
+    auto formatter = Unicode::ListFormat::create(
         list_format->locale(),
         list_format->type(),
         list_format->style());

@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/Bindings/HTMLDialogElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/HTML/CloseWatcher.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 
@@ -28,13 +31,24 @@ void HTMLDialogElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDialogElement);
 }
 
+void HTMLDialogElement::visit_edges(JS::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+
+    visitor.visit(m_close_watcher);
+}
+
 void HTMLDialogElement::removed_from(Node* old_parent)
 {
     HTMLElement::removed_from(old_parent);
 
-    // FIXME: 1. If removedNode's close watcher is not null, then:
-    //           1. Destroy removedNode's close watcher.
-    //           2. Set removedNode's close watcher to null.
+    // 1. If removedNode's close watcher is not null, then:
+    if (m_close_watcher) {
+        // 1.1. Destroy removedNode's close watcher.
+        m_close_watcher->destroy();
+        // 1.2. Set removedNode's close watcher to null.
+        m_close_watcher = nullptr;
+    }
 
     // 2. If removedNode's node document's top layer contains removedNode, then remove an element from the top layer
     //    immediately given removedNode.
@@ -93,10 +107,31 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     if (!document().top_layer_elements().contains(*this))
         document().add_an_element_to_the_top_layer(*this);
 
-    // FIXME: 9. Set this's close watcher to the result of establishing a close watcher given this's relevant global object, with:
-    //            - cancelAction being to return the result of firing an event named cancel at this, with the cancelable
-    //              attribute initialized to true.
-    //            - closeAction being to close the dialog given this and null.
+    // 9. Set this's close watcher to the result of establishing a close watcher given this's relevant global object
+    m_close_watcher = CloseWatcher::establish(*document().window());
+    // - cancelAction given canPreventClose being to return the result of firing an event named cancel at this, with the cancelable attribute initialized to canPreventClose.
+    auto cancel_callback_function = JS::NativeFunction::create(
+        realm(), [this](JS::VM& vm) {
+            auto& event = verify_cast<DOM::Event>(vm.argument(0).as_object());
+            bool can_prevent_close = event.cancelable();
+            auto should_continue = dispatch_event(DOM::Event::create(realm(), HTML::EventNames::cancel, { .cancelable = can_prevent_close }));
+            if (!should_continue)
+                event.prevent_default();
+            return JS::js_undefined();
+        },
+        0, "", &realm());
+    auto cancel_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*cancel_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+    m_close_watcher->add_event_listener_without_options(HTML::EventNames::cancel, DOM::IDLEventListener::create(realm(), cancel_callback));
+    // - closeAction being to close the dialog given this and null.
+    auto close_callback_function = JS::NativeFunction::create(
+        realm(), [this](JS::VM&) {
+            close_the_dialog({});
+
+            return JS::js_undefined();
+        },
+        0, "", &realm());
+    auto close_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*close_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+    m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
 
     // FIXME: 10. Set this's previously focused element to the focused element.
 
@@ -165,9 +200,13 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result)
         dispatch_event(close_event);
     });
 
-    // FIXME: 9. If subject's close watcher is not null, then:
-    //           1. Destroy subject's close watcher.
-    //           2. Set subject's close watcher to null.
+    // 9. If subject's close watcher is not null, then:
+    if (m_close_watcher) {
+        // 9.1 Destroy subject's close watcher.
+        m_close_watcher->destroy();
+        // 9.2 Set subject's close watcher to null.
+        m_close_watcher = nullptr;
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-focusing-steps

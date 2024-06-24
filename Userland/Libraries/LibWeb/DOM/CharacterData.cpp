@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibLocale/Segmenter.h>
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CharacterDataPrototype.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
@@ -155,10 +155,10 @@ WebIDL::ExceptionOr<void> CharacterData::delete_data(size_t offset, size_t count
     return replace_data(offset, count, String {});
 }
 
-Locale::Segmenter& CharacterData::segmenter()
+Unicode::Segmenter& CharacterData::segmenter()
 {
     if (!m_segmenter) {
-        m_segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Grapheme);
+        m_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
         m_segmenter->set_segmented_text(m_data);
     }
 

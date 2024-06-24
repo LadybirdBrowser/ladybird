@@ -889,7 +889,10 @@
     ],
     "valid-identifiers": [
       "auto",
-      "content"
+      "content",
+      "fit-content",
+      "max-content",
+      "min-content"
     ],
     "percentages-resolve-to": "length"
   },

@@ -21,7 +21,7 @@
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Notifier.h>
-#include <LibLocale/Segmenter.h>
+#include <LibUnicode/Segmenter.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -1916,7 +1916,7 @@ StringMetrics Editor::actual_rendered_string_metrics(Utf32View const& view, RedB
 
     auto mask_it = masks.begin();
 
-    auto segmenter = Locale::Segmenter::create(Locale::SegmenterGranularity::Grapheme);
+    auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
     Vector<size_t> grapheme_breaks;
 
     segmenter->for_each_boundary(view, [&](size_t offset) -> IterationDecision {

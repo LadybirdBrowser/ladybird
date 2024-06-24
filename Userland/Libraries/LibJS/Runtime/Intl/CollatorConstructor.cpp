@@ -10,7 +10,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/Collator.h>
 #include <LibJS/Runtime/Intl/CollatorConstructor.h>
-#include <LibLocale/Locale.h>
+#include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
 
@@ -51,7 +51,7 @@ static ThrowCompletionOr<NonnullGCPtr<Collator>> initialize_collator(VM& vm, Col
     // 11. If collation is not undefined, then
     if (!collation.is_undefined()) {
         // a. If collation does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
-        if (!::Locale::is_type_identifier(collation.as_string().utf8_string_view()))
+        if (!Unicode::is_type_identifier(collation.as_string().utf8_string_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, collation, "collation"sv);
 
         // 12. Set opt.[[co]] to collation.
