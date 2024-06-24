@@ -12,9 +12,11 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Vector.h>
 #include <LibUnicode/DurationFormat.h>
 
 #include <unicode/locid.h>
+#include <unicode/strenum.h>
 #include <unicode/stringpiece.h>
 #include <unicode/unistr.h>
 #include <unicode/utypes.h>
@@ -87,5 +89,35 @@ Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings);
 
 String icu_string_to_string(icu::UnicodeString const& string);
 String icu_string_to_string(UChar const*, i32 length);
+
+template<typename Filter>
+Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration, Filter&& filter)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    Vector<String> result;
+
+    if (!enumeration)
+        return {};
+
+    while (true) {
+        i32 length = 0;
+        auto const* keyword = enumeration->next(&length, status);
+
+        if (icu_failure(status) || keyword == nullptr)
+            break;
+
+        if (!filter(keyword))
+            continue;
+
+        result.append(MUST(String::from_utf8({ keyword, static_cast<size_t>(length) })));
+    }
+
+    return result;
+}
+
+ALWAYS_INLINE Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enumeration)
+{
+    return icu_string_enumeration_to_list(move(enumeration), [](char const*) { return true; });
+}
 
 }
