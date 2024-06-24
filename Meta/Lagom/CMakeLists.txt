@@ -329,9 +329,16 @@ install(TARGETS LibC LibCrypt NoCoverage EXPORT LagomTargets)
 add_serenity_subdirectory(AK)
 lagom_lib(AK ak SOURCES ${AK_SOURCES})
 find_package(Backtrace)
-if (Backtrace_FOUND AND NOT "${Backtrace_LIBRARIES}" STREQUAL "")
-    target_link_libraries(AK PRIVATE ${Backtrace_LIBRARIES})
-    target_include_directories(AK PRIVATE ${Backtrace_INCLUDE_DIRS})
+configure_file(../../AK/Backtrace.h.in AK/Backtrace.h @ONLY)
+if (Backtrace_FOUND)
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30)
+        target_link_libraries(AK PRIVATE Backtrace::Backtrace)
+    else()
+        target_include_directories(AK PRIVATE ${Backtrace_INCLUDE_DIRS})
+        target_link_libraries(AK PRIVATE ${Backtrace_LIBRARIES})
+    endif()
+else()
+    message(WARNING "Backtrace not found, stack traces will be unavailable")
 endif()
 
 # LibCoreMinimal
@@ -361,6 +368,7 @@ install(
 )
 install(FILES
     ${Lagom_BINARY_DIR}/AK/Debug.h
+    ${Lagom_BINARY_DIR}/AK/Backtrace.h
     COMPONENT Lagom_Development
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/AK"
 )
