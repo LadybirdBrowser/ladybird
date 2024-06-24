@@ -1,5 +1,3 @@
-include(woff2)
-
 set(SOURCES
     AffineTransform.cpp
     AntiAliasingPainter.cpp
@@ -74,11 +72,6 @@ set(SOURCES
 serenity_lib(LibGfx gfx)
 target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL)
 
-# Third-party
-target_include_directories(LibGfx PRIVATE ${WOFF2_INCLUDE_DIRS})
-target_link_libraries(LibGfx PRIVATE ${WOFF2_LIBRARIES})
-target_link_directories(LibGfx PRIVATE ${WOFF2_LIBRARY_DIRS})
-
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
 list(TRANSFORM generated_sources PREPEND "ImageFormats/")
 
@@ -98,12 +91,11 @@ add_dependencies(LibGfx generate_tiff_files_handler)
 list(TRANSFORM generated_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
 install(FILES ${generated_sources} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibGfx/ImageFormats")
 
-find_package(JPEG REQUIRED)
-target_include_directories(LibGfx PRIVATE ${JPEG_INCLUDE_DIRS})
-target_link_libraries(LibGfx PRIVATE ${JPEG_LIBRARIES})
-target_link_directories(LibGfx PRIVATE ${JPEG_LIBRARY_DIRS})
+# Third-party
+find_package(PkgConfig)
 
+pkg_check_modules(WOFF2 REQUIRED IMPORTED_TARGET libwoff2dec)
+find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
-target_include_directories(LibGfx PRIVATE ${PNG_INCLUDE_DIRS})
-target_link_libraries(LibGfx PRIVATE ${PNG_LIBRARIES})
-target_link_directories(LibGfx PRIVATE ${PNG_LIBRARY_DIRS})
+
+target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG)

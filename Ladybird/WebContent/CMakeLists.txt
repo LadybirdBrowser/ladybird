@@ -40,6 +40,10 @@ if (HAVE_PULSEAUDIO)
     target_compile_definitions(webcontent PUBLIC HAVE_PULSEAUDIO=1)
 endif()
 
+if (HAS_FONTCONFIG)
+    target_link_libraries(webcontent PRIVATE Fontconfig::Fontconfig)
+endif()
+
 if (HAS_ACCELERATED_GRAPHICS)
     target_compile_definitions(webcontent PUBLIC HAS_ACCELERATED_GRAPHICS)
     target_link_libraries(webcontent PUBLIC LibAccelGfx)
@@ -71,10 +75,6 @@ if (ENABLE_QT)
     endif()
 else()
     add_executable(WebContent main.cpp)
-endif()
-
-if (HAS_FONTCONFIG)
-    target_link_libraries(webcontent PRIVATE Fontconfig::Fontconfig)
 endif()
 
 target_link_libraries(WebContent PRIVATE webcontent LibURL)
