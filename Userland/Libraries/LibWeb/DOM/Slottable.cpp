@@ -61,7 +61,7 @@ JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFla
         return nullptr;
 
     // 2. Let shadow be slottable’s parent’s shadow root.
-    auto* shadow = parent->shadow_root_internal();
+    auto shadow = parent->shadow_root();
 
     // 3. If shadow is null, then return null.
     if (shadow == nullptr)

@@ -97,7 +97,7 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     }
     ++indent;
     if (is<DOM::Element>(node)) {
-        if (auto* shadow_root = static_cast<DOM::Element const&>(node).shadow_root_internal()) {
+        if (auto shadow_root = static_cast<DOM::Element const&>(node).shadow_root()) {
             dump_tree(builder, *shadow_root);
         }
     }

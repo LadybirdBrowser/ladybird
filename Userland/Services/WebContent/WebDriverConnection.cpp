@@ -1018,7 +1018,7 @@ Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get
     auto* element = TRY(get_known_connected_element(element_id));
 
     // 4. Let shadow root be element's shadow root.
-    auto* shadow_root = element->shadow_root_internal();
+    auto shadow_root = element->shadow_root();
 
     // 5. If shadow root is null, return error with error code no such shadow root.
     if (!shadow_root)

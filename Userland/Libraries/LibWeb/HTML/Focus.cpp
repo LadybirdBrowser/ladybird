@@ -241,7 +241,7 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
     //    context's DOM anchor, then set old focus target to that currently focused area of a top-level browsing
     //    context.
     if (is_shadow_host(old_focus_target)) {
-        auto* shadow_root = static_cast<DOM::Element*>(old_focus_target)->shadow_root_internal();
+        auto shadow_root = static_cast<DOM::Element*>(old_focus_target)->shadow_root();
         if (shadow_root->delegates_focus()) {
             auto top_level_traversable = old_focus_target->document().browsing_context()->top_level_traversable();
             if (auto currently_focused_area = top_level_traversable->currently_focused_area()) {

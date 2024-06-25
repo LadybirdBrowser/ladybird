@@ -97,7 +97,7 @@ void HTMLProgressElement::removed_from(DOM::Node*)
 
 void HTMLProgressElement::create_shadow_tree_if_needed()
 {
-    if (shadow_root_internal())
+    if (shadow_root())
         return;
 
     auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
