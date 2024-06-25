@@ -400,6 +400,9 @@ public:
     bool is_fully_active() const;
     bool is_active() const;
 
+    [[nodiscard]] bool allow_declarative_shadow_roots() const;
+    void set_allow_declarative_shadow_roots(bool);
+
     JS::NonnullGCPtr<HTML::History> history();
     JS::NonnullGCPtr<HTML::History> history() const;
 
@@ -929,6 +932,9 @@ private:
     // instead they generate boxes as if they were siblings of the root element.
     OrderedHashTable<JS::NonnullGCPtr<Element>> m_top_layer_elements;
     OrderedHashTable<JS::NonnullGCPtr<Element>> m_top_layer_pending_removals;
+
+    // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
+    bool m_allow_declarative_shadow_roots { false };
 };
 
 template<>
