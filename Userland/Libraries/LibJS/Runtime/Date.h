@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -35,8 +35,8 @@ private:
 
 // 21.4.1.22 Time Zone Identifier Record, https://tc39.es/ecma262/#sec-time-zone-identifier-record
 struct TimeZoneIdentifier {
-    StringView identifier;         // [[Identifier]]
-    StringView primary_identifier; // [[PrimaryIdentifier]]
+    String identifier;         // [[Identifier]]
+    String primary_identifier; // [[PrimaryIdentifier]]
 };
 
 // https://tc39.es/ecma262/#eqn-HoursPerDay
@@ -75,7 +75,6 @@ u16 ms_from_time(double);
 Crypto::SignedBigInteger get_utc_epoch_nanoseconds(i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second, u16 millisecond, u16 microsecond, u16 nanosecond);
 Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringView time_zone_identifier, i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second, u16 millisecond, u16 microsecond, u16 nanosecond);
 i64 get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds);
-Vector<TimeZoneIdentifier> available_named_time_zone_identifiers();
 String system_time_zone_identifier();
 double local_time(double time);
 double utc_time(double time);

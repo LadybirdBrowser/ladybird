@@ -47,7 +47,7 @@ describe("normal behavior", () => {
             ["Etc/GMT+12", "Etc/GMT+12"],
             ["Etc/GMT-12", "Etc/GMT-12"],
             ["Europe/London", "Europe/London"],
-            ["Europe/Isle_of_Man", "Europe/London"],
+            ["Australia/Canberra", "Australia/Sydney"],
         ];
         for (const [arg, expected] of values) {
             expect(new Temporal.TimeZone(arg).id).toBe(expected);

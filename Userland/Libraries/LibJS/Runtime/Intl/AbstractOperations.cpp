@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/Intl/SingleUnitIdentifiers.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibUnicode/TimeZone.h>
 #include <LibUnicode/UnicodeKeywords.h>
 
 namespace JS::Intl {
@@ -136,6 +137,79 @@ bool is_well_formed_currency_code(StringView currency)
 
     // 4. Return true.
     return true;
+}
+
+// 6.5.1 AvailableNamedTimeZoneIdentifiers ( ), https://tc39.es/ecma402/#sup-availablenamedtimezoneidentifiers
+Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
+{
+    // It is recommended that the result of AvailableNamedTimeZoneIdentifiers remains the same for the lifetime of the surrounding agent.
+    static auto named_time_zone_identifiers = []() {
+        // 1. Let identifiers be a List containing the String value of each Zone or Link name in the IANA Time Zone Database.
+        auto const& identifiers = Unicode::available_time_zones();
+
+        // 2. Assert: No element of identifiers is an ASCII-case-insensitive match for any other element.
+        // 3. Assert: Every element of identifiers identifies a Zone or Link name in the IANA Time Zone Database.
+        // 4. Sort identifiers according to lexicographic code unit order.
+        // NOTE: All of the above is handled by LibUnicode.
+
+        // 5. Let result be a new empty List.
+        Vector<TimeZoneIdentifier> result;
+        result.ensure_capacity(identifiers.size());
+
+        bool found_utc = false;
+
+        // 6. For each element identifier of identifiers, do
+        for (auto const& identifier : identifiers) {
+            // a. Let primary be identifier.
+            auto primary = identifier;
+
+            // b. If identifier is a Link name and identifier is not "UTC", then
+            if (identifier != "UTC"sv) {
+                if (auto resolved = Unicode::resolve_primary_time_zone(identifier); resolved.has_value() && identifier != resolved) {
+                    // i. Set primary to the Zone name that identifier resolves to, according to the rules for resolving Link
+                    //    names in the IANA Time Zone Database.
+                    primary = resolved.release_value();
+
+                    // ii. NOTE: An implementation may need to resolve identifier iteratively.
+                }
+            }
+
+            // c. If primary is one of "Etc/UTC", "Etc/GMT", or "GMT", set primary to "UTC".
+            if (primary.is_one_of("Etc/UTC"sv, "Etc/GMT"sv, "GMT"sv))
+                primary = "UTC"_string;
+
+            // d. Let record be the Time Zone Identifier Record { [[Identifier]]: identifier, [[PrimaryIdentifier]]: primary }.
+            TimeZoneIdentifier record { .identifier = identifier, .primary_identifier = primary };
+
+            // e. Append record to result.
+            result.unchecked_append(move(record));
+
+            if (!found_utc && identifier == "UTC"sv && primary == "UTC"sv)
+                found_utc = true;
+        }
+
+        // 7. Assert: result contains a Time Zone Identifier Record r such that r.[[Identifier]] is "UTC" and r.[[PrimaryIdentifier]] is "UTC".
+        VERIFY(found_utc);
+
+        // 8. Return result.
+        return result;
+    }();
+
+    return named_time_zone_identifiers;
+}
+
+// 6.5.2 GetAvailableNamedTimeZoneIdentifier ( timeZoneIdentifier ), https://tc39.es/ecma402/#sec-getavailablenamedtimezoneidentifier
+Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(StringView time_zone_identifier)
+{
+    // 1. For each element record of AvailableNamedTimeZoneIdentifiers(), do
+    for (auto const& record : available_named_time_zone_identifiers()) {
+        // a. If record.[[Identifier]] is an ASCII-case-insensitive match for timeZoneIdentifier, return record.
+        if (record.identifier.equals_ignoring_ascii_case(time_zone_identifier))
+            return record;
+    }
+
+    // 2. Return EMPTY.
+    return {};
 }
 
 // 6.6.1 IsWellFormedUnitIdentifier ( unitIdentifier ), https://tc39.es/ecma402/#sec-iswellformedunitidentifier

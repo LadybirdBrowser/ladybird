@@ -12,6 +12,7 @@
 #include <AK/Time.h>
 #include <LibCore/DateTime.h>
 #include <LibTimeZone/TimeZone.h>
+#include <LibUnicode/TimeZone.h>
 #include <errno.h>
 #include <time.h>
 
@@ -19,6 +20,7 @@ namespace Core {
 
 static Optional<StringView> parse_time_zone_name(GenericLexer& lexer)
 {
+    auto const& time_zones = Unicode::available_time_zones();
     auto start_position = lexer.tell();
 
     Optional<StringView> canonicalized_time_zone;
@@ -26,8 +28,12 @@ static Optional<StringView> parse_time_zone_name(GenericLexer& lexer)
     lexer.ignore_until([&](auto) {
         auto time_zone = lexer.input().substring_view(start_position, lexer.tell() - start_position + 1);
 
-        canonicalized_time_zone = TimeZone::canonicalize_time_zone(time_zone);
-        return canonicalized_time_zone.has_value();
+        auto it = time_zones.find_if([&](auto const& candidate) { return time_zone.equals_ignoring_ascii_case(candidate); });
+        if (it == time_zones.end())
+            return false;
+
+        canonicalized_time_zone = *it;
+        return true;
     });
 
     if (canonicalized_time_zone.has_value())

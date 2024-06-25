@@ -124,13 +124,13 @@ describe("correct behavior", () => {
     });
 
     test("timeZone", () => {
-        const en = new Intl.DateTimeFormat("en", { timeZone: "EST" });
-        expect(en.resolvedOptions().timeZone).toBe("EST");
+        const en = new Intl.DateTimeFormat("en", { timeZone: "EST5EDT" });
+        expect(en.resolvedOptions().timeZone).toBe("EST5EDT");
 
         const el = new Intl.DateTimeFormat("el", { timeZone: "UTC" });
         expect(el.resolvedOptions().timeZone).toBe("UTC");
 
-        ["UTC", "EST", "+01:02", "-20:30", "+00:00"].forEach(timeZone => {
+        ["UTC", "EST5EDT", "+01:02", "-20:30", "+00:00"].forEach(timeZone => {
             const en = new Intl.DateTimeFormat("en", { timeZone: timeZone });
             expect(en.resolvedOptions().timeZone).toBe(timeZone);
 

@@ -231,15 +231,17 @@ ThrowCompletionOr<NonnullGCPtr<DateTimeFormat>> create_date_time_format(VM& vm, 
         // g. Set timeZone to FormatOffsetTimeZoneIdentifier(offsetMinutes).
         time_zone = format_offset_time_zone_identifier(offset_minutes);
     }
-    // 33. Else if IsValidTimeZoneName(timeZone) is true, then
-    else if (Temporal::is_available_time_zone_name(time_zone)) {
-        // a. Set timeZone to CanonicalizeTimeZoneName(timeZone).
-        time_zone = MUST(Temporal::canonicalize_time_zone_name(vm, time_zone));
-    }
-    // 34. Else,
+    // 33. Else
     else {
-        // a. Throw a RangeError exception.
-        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, time_zone, vm.names.timeZone);
+        // a. Let timeZoneIdentifierRecord be GetAvailableNamedTimeZoneIdentifier(timeZone).
+        auto time_zone_identifier_record = get_available_named_time_zone_identifier(time_zone);
+
+        // b. If timeZoneIdentifierRecord is EMPTY, throw a RangeError exception.
+        if (!time_zone_identifier_record.has_value())
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, time_zone, vm.names.timeZone);
+
+        // c. Set timeZone to timeZoneIdentifierRecord.[[PrimaryIdentifier]].
+        time_zone = time_zone_identifier_record->primary_identifier;
     }
 
     // 35. Set dateTimeFormat.[[TimeZone]] to timeZone.

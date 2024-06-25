@@ -1,11 +1,13 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/CollatorConstructor.h>
@@ -21,7 +23,6 @@
 #include <LibJS/Runtime/Intl/SegmenterConstructor.h>
 #include <LibJS/Runtime/Intl/SingleUnitIdentifiers.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
-#include <LibTimeZone/TimeZone.h>
 #include <LibUnicode/DateTimeFormat.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/NumberFormat.h>
@@ -82,32 +83,25 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::get_canonical_locales)
     return Array::create_from(realm, marked_locale_list);
 }
 
-// 6.5.4 AvailableCanonicalTimeZones ( ), https://tc39.es/ecma402/#sec-availablecanonicaltimezones
-static Vector<StringView> available_canonical_time_zones()
+// 6.5.4 AvailablePrimaryTimeZoneIdentifiers ( ), https://tc39.es/ecma402/#sec-availableprimarytimezoneidentifiers
+static Vector<String> available_primary_time_zone_identifiers()
 {
-    // 1. Let names be a List of all supported Zone and Link names in the IANA Time Zone Database.
-    auto names = TimeZone::all_time_zones();
+    // 1. Let records be AvailableNamedTimeZoneIdentifiers().
+    auto const& records = available_named_time_zone_identifiers();
 
     // 2. Let result be a new empty List.
-    Vector<StringView> result;
+    Vector<String> result;
 
-    // 3. For each element name of names, do
-    for (auto const& name : names) {
-        // a. Assert: IsValidTimeZoneName( name ) is true.
-        // b. Let canonical be ! CanonicalizeTimeZoneName( name ).
-        auto canonical = TimeZone::canonicalize_time_zone(name.name).value();
-
-        // c. If result does not contain an element equal to canonical, then
-        if (!result.contains_slow(canonical)) {
-            // i. Append canonical to the end of result.
-            result.append(canonical);
+    // 3. For each element timeZoneIdentifierRecord of records, do
+    for (auto const& time_zone_identifier_record : records) {
+        // a. If timeZoneIdentifierRecord.[[Identifier]] is timeZoneIdentifierRecord.[[PrimaryIdentifier]], then
+        if (time_zone_identifier_record.identifier == time_zone_identifier_record.primary_identifier) {
+            // i. Append timeZoneIdentifierRecord.[[Identifier]] to result.
+            result.append(time_zone_identifier_record.identifier);
         }
     }
 
-    // 4. Sort result in order as if an Array of the same values had been sorted using %Array.prototype.sort% using undefined as comparefn.
-    quick_sort(result);
-
-    // 5. Return result.
+    // 4. Return result.
     return result;
 }
 
@@ -143,8 +137,8 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
     }
     // 6. Else if key is "timeZone", then
     else if (key == "timeZone"sv) {
-        // a. Let list be ! AvailableCanonicalTimeZones( ).
-        static auto const time_zones = available_canonical_time_zones();
+        // a. Let list be ! AvailablePrimaryTimeZoneIdentifiers( ).
+        static auto const time_zones = available_primary_time_zone_identifiers();
         list = time_zones.span();
     }
     // 7. Else if key is "unit", then

@@ -41,3 +41,17 @@ TEST_CASE(current_time_zone)
         EXPECT_EQ(Unicode::current_time_zone(), "UTC"sv);
     }
 }
+
+TEST_CASE(available_time_zones)
+{
+    auto const& time_zones = Unicode::available_time_zones();
+    EXPECT(time_zones.contains_slow("UTC"sv));
+    EXPECT(!time_zones.contains_slow("EAT"sv));
+}
+
+TEST_CASE(resolve_primary_time_zone)
+{
+    EXPECT_EQ(Unicode::resolve_primary_time_zone("UTC"sv), "Etc/UTC"sv);
+    EXPECT_EQ(Unicode::resolve_primary_time_zone("Asia/Katmandu"sv), "Asia/Kathmandu"sv);
+    EXPECT_EQ(Unicode::resolve_primary_time_zone("Australia/Canberra"sv), "Australia/Sydney"sv);
+}
