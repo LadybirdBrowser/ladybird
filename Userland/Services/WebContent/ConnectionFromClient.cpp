@@ -687,7 +687,7 @@ void ConnectionFromClient::clone_dom_node(u64 page_id, i32 node_id)
         return;
     }
 
-    auto dom_node_clone = dom_node->clone_node(nullptr, true);
+    auto dom_node_clone = MUST(dom_node->clone_node(nullptr, true));
     dom_node->parent_node()->insert_before(dom_node_clone, dom_node->next_sibling());
 
     async_did_finish_editing_dom_node(page_id, dom_node_clone->unique_id());

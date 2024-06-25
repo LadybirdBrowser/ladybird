@@ -130,7 +130,7 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(Element* to_clone) con
 
     if (to_clone && is_valid_reference_element(to_clone)) {
         // The ‘use’ element references another element, a copy of which is rendered in place of the ‘use’ in the document.
-        auto cloned_reference_node = to_clone->clone_node(nullptr, true);
+        auto cloned_reference_node = MUST(to_clone->clone_node(nullptr, true));
         shadow_root()->append_child(cloned_reference_node).release_value_but_fixme_should_propagate_errors();
     }
 }

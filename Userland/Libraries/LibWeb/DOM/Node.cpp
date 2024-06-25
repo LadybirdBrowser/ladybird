@@ -817,7 +817,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::replace_child(JS::NonnullGCPtr
 }
 
 // https://dom.spec.whatwg.org/#concept-node-clone
-JS::NonnullGCPtr<Node> Node::clone_node(Document* document, bool clone_children)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::clone_node(Document* document, bool clone_children)
 {
     // 1. If document is not given, let document be node’s node document.
     if (!document)
@@ -898,18 +898,37 @@ JS::NonnullGCPtr<Node> Node::clone_node(Document* document, bool clone_children)
     // FIXME: 4. Set copy’s node document and document to copy, if copy is a document, and set copy’s node document to document otherwise.
 
     // 5. Run any cloning steps defined for node in other applicable specifications and pass copy, node, document and the clone children flag if set, as parameters.
-    cloned(*copy, clone_children);
+    TRY(cloned(*copy, clone_children));
 
     // 6. If the clone children flag is set, clone all the children of node and append them to copy, with document as specified and the clone children flag being set.
     if (clone_children) {
-        for_each_child([&](auto& child) {
-            MUST(copy->append_child(child.clone_node(document, true)));
-            return IterationDecision::Continue;
-        });
+        for (auto child = first_child(); child; child = child->next_sibling()) {
+            TRY(copy->append_child(TRY(child->clone_node(document, true))));
+        }
+    }
+
+    // 7. If node is a shadow host whose shadow root’s clonable is true:
+    if (is_element() && static_cast<Element const&>(*this).is_shadow_host() && static_cast<Element const&>(*this).shadow_root()->clonable()) {
+        // 1. Assert: copy is not a shadow host.
+        VERIFY(!copy->is_element() || !static_cast<Element const&>(*copy).is_shadow_host());
+
+        // 2. Run attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable,
+        //    node’s shadow root’s delegates focus, and node’s shadow root’s slot assignment.
+        auto& node_shadow_root = *static_cast<Element const&>(*this).shadow_root();
+        TRY(static_cast<Element&>(*copy).attach_a_shadow_root(node_shadow_root.mode(), true, node_shadow_root.serializable(), node_shadow_root.delegates_focus(), node_shadow_root.slot_assignment()));
+
+        // 3. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
+        static_cast<Element&>(*copy).shadow_root()->set_declarative(node_shadow_root.declarative());
+
+        // 4. For each child child of node’s shadow root, in tree order:
+        //    append the result of cloning child with document and the clone children flag set, to copy’s shadow root.
+        for (auto child = node_shadow_root.first_child(); child; child = child->next_sibling()) {
+            TRY(static_cast<Element&>(*copy).shadow_root()->append_child(TRY(child->clone_node(document, true))));
+        }
     }
 
     // 7. Return copy.
-    return *copy;
+    return JS::NonnullGCPtr { *copy };
 }
 
 // https://dom.spec.whatwg.org/#dom-node-clonenode

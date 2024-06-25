@@ -46,21 +46,21 @@ void HTMLTemplateElement::adopted_from(DOM::Document&)
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#the-template-element:concept-node-clone-ext
-void HTMLTemplateElement::cloned(Node& copy, bool clone_children)
+WebIDL::ExceptionOr<void> HTMLTemplateElement::cloned(Node& copy, bool clone_children)
 {
+    // 1. If the clone children flag is not set in the calling clone algorithm, return.
     if (!clone_children)
-        return;
+        return {};
 
+    // 2. Let copied contents be the result of cloning all the children of node's template contents,
+    //    with document set to copy's template contents's node document, and with the clone children flag set.
+    // 3. Append copied contents to copy's template contents.
     auto& template_clone = verify_cast<HTMLTemplateElement>(copy);
-
-    content()->for_each_child([&](auto& child) {
-        auto cloned_child = child.clone_node(&template_clone.content()->document(), true);
-
-        // FIXME: Should this use TreeNode::append_child instead?
-        MUST(template_clone.content()->append_child(cloned_child));
-
-        return IterationDecision::Continue;
-    });
+    for (auto child = content()->first_child(); child; child = child->next_sibling()) {
+        auto cloned_child = TRY(child->clone_node(&template_clone.content()->document(), true));
+        TRY(template_clone.content()->append_child(cloned_child));
+    }
+    return {};
 }
 
 void HTMLTemplateElement::set_template_contents(JS::NonnullGCPtr<DOM::DocumentFragment> contents)
