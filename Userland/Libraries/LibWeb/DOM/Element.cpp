@@ -593,25 +593,33 @@ DOMTokenList* Element::class_list()
     return m_class_list;
 }
 
-// https://dom.spec.whatwg.org/#dom-element-attachshadow
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ShadowRoot>> Element::attach_shadow(ShadowRootInit init)
+// https://dom.spec.whatwg.org/#valid-shadow-host-name
+bool is_valid_shadow_host_name(FlyString const& name)
 {
-    // 1. If this’s namespace is not the HTML namespace, then throw a "NotSupportedError" DOMException.
+    // A valid shadow host name is:
+    // - a valid custom element name
+    // - "article", "aside", "blockquote", "body", "div", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "main", "nav", "p", "section", or "span"
+    if (!HTML::is_valid_custom_element_name(name)
+        && !name.is_one_of("article", "aside", "blockquote", "body", "div", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "main", "nav", "p", "section", "span")) {
+        return false;
+    }
+    return true;
+}
+
+// https://dom.spec.whatwg.org/#concept-attach-a-shadow-root
+WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment)
+{
+    // 1. If element’s namespace is not the HTML namespace, then throw a "NotSupportedError" DOMException.
     if (namespace_uri() != Namespace::HTML)
         return WebIDL::NotSupportedError::create(realm(), "Element's namespace is not the HTML namespace"_fly_string);
 
-    // 2. If this’s local name is not one of the following:
-    //    - a valid custom element name
-    //    - "article", "aside", "blockquote", "body", "div", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "main", "nav", "p", "section", or "span"
-    if (!HTML::is_valid_custom_element_name(local_name())
-        && !local_name().is_one_of("article", "aside", "blockquote", "body", "div", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "main", "nav", "p", "section", "span")) {
-        // then throw a "NotSupportedError" DOMException.
-        return WebIDL::NotSupportedError::create(realm(), MUST(String::formatted("Element '{}' cannot be a shadow host", local_name())));
-    }
+    // 2. If element’s local name is not a valid shadow host name, then throw a "NotSupportedError" DOMException.
+    if (!is_valid_shadow_host_name(local_name()))
+        return WebIDL::NotSupportedError::create(realm(), "Element's local name is not a valid shadow host name"_fly_string);
 
-    // 3. If this’s local name is a valid custom element name, or this’s is value is not null, then:
+    // 3. If element’s local name is a valid custom element name, or element’s is value is not null, then:
     if (HTML::is_valid_custom_element_name(local_name()) || m_is_value.has_value()) {
-        // 1. Let definition be the result of looking up a custom element definition given this’s node document, its namespace, its local name, and its is value.
+        // 1. Let definition be the result of looking up a custom element definition given element’s node document, its namespace, its local name, and its is value.
         auto definition = document().lookup_custom_element_definition(namespace_uri(), local_name(), m_is_value);
 
         // 2. If definition is not null and definition’s disable shadow is true, then throw a "NotSupportedError" DOMException.
@@ -619,28 +627,66 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ShadowRoot>> Element::attach_shadow(ShadowR
             return WebIDL::NotSupportedError::create(realm(), "Cannot attach a shadow root to a custom element that has disabled shadow roots"_fly_string);
     }
 
-    // 4. If this is a shadow host, then throw an "NotSupportedError" DOMException.
-    if (is_shadow_host())
-        return WebIDL::NotSupportedError::create(realm(), "Element already is a shadow host"_fly_string);
+    // 4. If element is a shadow host, then:
+    if (is_shadow_host()) {
+        // 1. Let currentShadowRoot be element’s shadow root.
+        auto current_shadow_root = shadow_root();
 
-    // 5. Let shadow be a new shadow root whose node document is this’s node document, host is this, and mode is init["mode"].
-    auto shadow = heap().allocate<ShadowRoot>(realm(), document(), *this, init.mode);
+        // 2. If any of the following are true:
+        // - currentShadowRoot’s declarative is false; or
+        // - currentShadowRoot’s mode is not mode,
+        // then throw a "NotSupportedError" DOMException.
+        if (!current_shadow_root->declarative() || current_shadow_root->mode() != mode) {
+            return WebIDL::NotSupportedError::create(realm(), "Element already is a shadow host"_fly_string);
+        }
 
-    // 6. Set shadow’s delegates focus to init["delegatesFocus"].
-    shadow->set_delegates_focus(init.delegates_focus);
+        // 3. Otherwise:
+        //    1. Remove all of currentShadowRoot’s children, in tree order.
+        current_shadow_root->remove_all_children();
 
-    // 7. If this’s custom element state is "precustomized" or "custom", then set shadow’s available to element internals to true.
+        //    2. Set currentShadowRoot’s declarative to false.
+        current_shadow_root->set_declarative(false);
+
+        //    3. Return.
+        return {};
+    }
+
+    // 5. Let shadow be a new shadow root whose node document is element’s node document, host is this, and mode is mode.
+    auto shadow = heap().allocate<ShadowRoot>(realm(), document(), *this, mode);
+
+    // 6. Set shadow’s delegates focus to delegatesFocus".
+    shadow->set_delegates_focus(delegates_focus);
+
+    // 7. If element’s custom element state is "precustomized" or "custom", then set shadow’s available to element internals to true.
     if (m_custom_element_state == CustomElementState::Precustomized || m_custom_element_state == CustomElementState::Custom)
         shadow->set_available_to_element_internals(true);
 
-    // 8. Set shadow’s slot assignment to init["slotAssignment"].
-    shadow->set_slot_assignment(init.slot_assignment);
+    // 8. Set shadow’s slot assignment to slotAssignment.
+    shadow->set_slot_assignment(slot_assignment);
 
-    // 9. Set this’s shadow root to shadow.
+    // 9. Set shadow’s declarative to false.
+    shadow->set_declarative(false);
+
+    // 10. Set shadow’s clonable to clonable.
+    shadow->set_clonable(clonable);
+
+    // 11. Set shadow’s serializable to serializable.
+    shadow->set_serializable(serializable);
+
+    // 12. Set element’s shadow root to shadow.
     set_shadow_root(shadow);
 
-    // 10. Return shadow.
-    return shadow;
+    return {};
+}
+
+// https://dom.spec.whatwg.org/#dom-element-attachshadow
+WebIDL::ExceptionOr<JS::NonnullGCPtr<ShadowRoot>> Element::attach_shadow(ShadowRootInit init)
+{
+    // 1. Run attach a shadow root with this, init["mode"], init["clonable"], init["serializable"], init["delegatesFocus"], and init["slotAssignment"].
+    TRY(attach_a_shadow_root(init.mode, init.clonable, init.serializable, init.delegates_focus, init.slot_assignment));
+
+    // 2. Return this’s shadow root.
+    return JS::NonnullGCPtr { *shadow_root() };
 }
 
 // https://dom.spec.whatwg.org/#dom-element-shadowroot

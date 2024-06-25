@@ -25,6 +25,15 @@ public:
     bool delegates_focus() const { return m_delegates_focus; }
     void set_delegates_focus(bool delegates_focus) { m_delegates_focus = delegates_focus; }
 
+    [[nodiscard]] bool declarative() const { return m_declarative; }
+    void set_declarative(bool declarative) { m_declarative = declarative; }
+
+    [[nodiscard]] bool clonable() const { return m_clonable; }
+    void set_clonable(bool clonable) { m_clonable = clonable; }
+
+    [[nodiscard]] bool serializable() const { return m_serializable; }
+    void set_serializable(bool serializable) { m_serializable = serializable; }
+
     void set_onslotchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onslotchange();
 
@@ -67,6 +76,15 @@ private:
     Bindings::SlotAssignmentMode m_slot_assignment { Bindings::SlotAssignmentMode::Named };
     bool m_delegates_focus { false };
     bool m_available_to_element_internals { false };
+
+    // https://dom.spec.whatwg.org/#shadowroot-declarative
+    bool m_declarative { false };
+
+    // https://dom.spec.whatwg.org/#shadowroot-clonable
+    bool m_clonable { false };
+
+    // https://dom.spec.whatwg.org/#shadowroot-serializable
+    bool m_serializable { false };
 
     JS::GCPtr<CSS::StyleSheetList> m_style_sheets;
     mutable JS::GCPtr<WebIDL::ObservableArray> m_adopted_style_sheets;

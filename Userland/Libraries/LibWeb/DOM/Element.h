@@ -33,6 +33,8 @@ struct ShadowRootInit {
     Bindings::ShadowRootMode mode;
     bool delegates_focus = false;
     Bindings::SlotAssignmentMode slot_assignment { Bindings::SlotAssignmentMode::Named };
+    bool clonable = false;
+    bool serializable = false;
 };
 
 // https://w3c.github.io/csswg-drafts/cssom-view-1/#dictdef-scrollintoviewoptions
@@ -126,6 +128,7 @@ public:
     DOMTokenList* class_list();
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<ShadowRoot>> attach_shadow(ShadowRootInit init);
+    WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment);
     JS::GCPtr<ShadowRoot> shadow_root() const;
 
     WebIDL::ExceptionOr<bool> matches(StringView selectors) const;
