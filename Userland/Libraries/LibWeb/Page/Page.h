@@ -206,6 +206,7 @@ public:
     FindInPageResult find_in_page(FindInPageQuery const&);
     FindInPageResult find_in_page_next_match();
     FindInPageResult find_in_page_previous_match();
+    Optional<FindInPageQuery> last_find_in_page_query() const { return m_last_find_in_page_query; }
 
 private:
     explicit Page(JS::NonnullGCPtr<PageClient>);

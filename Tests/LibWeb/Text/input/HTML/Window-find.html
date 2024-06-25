@@ -1,0 +1,40 @@
+<script src="../include.js"></script>
+<div id="textContainer">
+    <div style="display: none">This is hidden</div>
+    <div style="visibility: hidden">This is also hidden</div>
+    <span>this is a test</span>
+</div>
+<script>
+    function windowFindTest(string) {
+        const result = window.find(string);
+        const selection = window.getSelection();
+        if (result && selection && selection.rangeCount === 1) {
+            const range = selection.getRangeAt(0);
+            println(`window.find("${string}"): ${result}, selection from: ${range.startOffset} to ${range.endOffset}`);
+        } else {
+            println(`window.find("${string}"): ${result}`);
+        }
+    }
+
+    function testBody() {
+        println(`window.find(): ${window.find()}`);
+        windowFindTest("this");
+        windowFindTest("this");
+        windowFindTest("A");
+        windowFindTest("t");
+        windowFindTest("t");
+        windowFindTest("t");
+        document.getElementById("textContainer").remove();
+    }
+
+    test(() => {
+        // This hides the test output until the test is complete.
+        const testOutputTextContainer = document.getElementById("out");
+        try {
+            testOutputTextContainer.style.display = "none";
+            testBody();
+        } finally {
+            testOutputTextContainer.style.display = "block";
+        }
+    });
+</script>

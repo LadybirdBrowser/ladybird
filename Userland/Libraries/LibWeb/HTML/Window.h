@@ -233,6 +233,8 @@ public:
     [[nodiscard]] Vector<FlyString> supported_property_names() const override;
     [[nodiscard]] WebIDL::ExceptionOr<JS::Value> named_item_value(FlyString const&) const override;
 
+    bool find(String const& string);
+
 private:
     explicit Window(JS::Realm&);
 
