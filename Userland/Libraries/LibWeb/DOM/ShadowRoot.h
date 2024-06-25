@@ -46,6 +46,8 @@ public:
     WebIDL::ExceptionOr<String> inner_html() const;
     WebIDL::ExceptionOr<void> set_inner_html(StringView);
 
+    WebIDL::ExceptionOr<void> set_html_unsafe(StringView);
+
     WebIDL::ExceptionOr<String> get_html(GetHTMLOptions const&) const;
 
     CSS::StyleSheetList& style_sheets();

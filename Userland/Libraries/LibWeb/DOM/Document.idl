@@ -56,6 +56,9 @@ interface Document : Node {
     [CEReactions] undefined write(DOMString... text);
     [CEReactions] undefined writeln(DOMString... text);
 
+    // FIXME: static Document parseHTMLUnsafe((TrustedHTML or DOMString) html);
+    static Document parseHTMLUnsafe(DOMString html);
+
     attribute DOMString cookie;
 
     // https://html.spec.whatwg.org/#Document-partial

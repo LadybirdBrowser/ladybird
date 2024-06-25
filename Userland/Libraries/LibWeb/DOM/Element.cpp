@@ -1499,7 +1499,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::DocumentFragment>> Element::parse_frag
     }
 
     // 3. Let new children be the result of invoking algorithm given markup, with context set to context.
-    auto new_children = algorithm(*this, markup);
+    auto new_children = algorithm(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No);
 
     // 4. Let fragment be a new DocumentFragment whose node document is context's node document.
     auto fragment = realm().heap().allocate<DOM::DocumentFragment>(realm(), document());
@@ -2646,6 +2646,22 @@ WebIDL::ExceptionOr<String> Element::get_html(GetHTMLOptions const& options) con
         *this,
         options.serializable_shadow_roots ? HTML::HTMLParser::SerializableShadowRoots::Yes : HTML::HTMLParser::SerializableShadowRoots::No,
         options.shadow_roots);
+}
+
+// https://html.spec.whatwg.org/#dom-element-sethtmlunsafe
+WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
+{
+    // FIXME: 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, html, "Element setHTMLUnsafe", and "script".
+
+    // 2. Let target be this's template contents if this is a template element; otherwise this.
+    DOM::Node* target = this;
+    if (is<HTML::HTMLTemplateElement>(*this))
+        target = verify_cast<HTML::HTMLTemplateElement>(*this).content().ptr();
+
+    // 3. Unsafe set HTML given target, this, and compliantHTML. FIXME: Use compliantHTML.
+    TRY(target->unsafely_set_html(*this, html));
+
+    return {};
 }
 
 }

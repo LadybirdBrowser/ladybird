@@ -189,6 +189,8 @@ public:
     WebIDL::ExceptionOr<String> inner_html() const;
     WebIDL::ExceptionOr<void> set_inner_html(StringView);
 
+    WebIDL::ExceptionOr<void> set_html_unsafe(StringView);
+
     WebIDL::ExceptionOr<String> get_html(GetHTMLOptions const&) const;
 
     WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, String const&);

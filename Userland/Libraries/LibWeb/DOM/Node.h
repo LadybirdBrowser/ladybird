@@ -252,6 +252,8 @@ public:
 
     WebIDL::ExceptionOr<String> serialize_fragment(DOMParsing::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
+    WebIDL::ExceptionOr<void> unsafely_set_html(Element&, StringView);
+
     void replace_all(JS::GCPtr<Node>);
     void string_replace_all(String const&);
 
