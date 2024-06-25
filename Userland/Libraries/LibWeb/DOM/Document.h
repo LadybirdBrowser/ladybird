@@ -676,6 +676,9 @@ public:
 
     Vector<JS::Handle<DOM::Range>> find_matching_text(String const&, CaseSensitivity);
 
+    void parse_html_from_a_string(StringView);
+    static JS::NonnullGCPtr<Document> parse_html_unsafe(JS::VM&, StringView);
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

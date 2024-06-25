@@ -5222,4 +5222,40 @@ void Document::set_allow_declarative_shadow_roots(bool allow)
     m_allow_declarative_shadow_roots = allow;
 }
 
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#parse-html-from-a-string
+void Document::parse_html_from_a_string(StringView html)
+{
+    // 1. Set document's type to "html".
+    set_document_type(DOM::Document::Type::HTML);
+
+    // 2. Create an HTML parser parser, associated with document.
+    // 3. Place html into the input stream for parser. The encoding confidence is irrelevant.
+    // FIXME: We don't have the concept of encoding confidence yet.
+    auto parser = HTML::HTMLParser::create(*this, html, "UTF-8"sv);
+
+    // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
+    // FIXME: This is to match the default URL. Instead, pass in this's relevant global object's associated Document's URL.
+    parser->run("about:blank"sv);
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
+JS::NonnullGCPtr<Document> Document::parse_html_unsafe(JS::VM& vm, StringView html)
+{
+    auto& realm = *vm.current_realm();
+    // FIXME: 1. Let compliantHTML to the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
+
+    // 2. Let document be a new Document, whose content type is "text/html".
+    JS::NonnullGCPtr<DOM::Document> document = Document::create(realm);
+    document->set_content_type("text/html"_string);
+
+    // 3. Set document's allow declarative shadow roots to true.
+    document->set_allow_declarative_shadow_roots(true);
+
+    // 4. Parse HTML from a string given document and compliantHTML. // FIXME: Use compliantHTML.
+    document->parse_html_from_a_string(html);
+
+    // 5. Return document.
+    return document;
+}
+
 }

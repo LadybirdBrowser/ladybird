@@ -59,8 +59,11 @@ public:
     static void the_end(JS::NonnullGCPtr<DOM::Document>, JS::GCPtr<HTMLParser> = nullptr);
 
     DOM::Document& document();
-
-    static Vector<JS::Handle<DOM::Node>> parse_html_fragment(DOM::Element& context_element, StringView);
+    enum class AllowDeclarativeShadowRoots {
+        No,
+        Yes,
+    };
+    static Vector<JS::Handle<DOM::Node>> parse_html_fragment(DOM::Element& context_element, StringView, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No);
     enum class SerializableShadowRoots {
         No,
         Yes,

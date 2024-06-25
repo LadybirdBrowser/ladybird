@@ -39,25 +39,19 @@ void DOMParser::initialize(JS::Realm& realm)
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-domparser-parsefromstring
 JS::NonnullGCPtr<DOM::Document> DOMParser::parse_from_string(StringView string, Bindings::DOMParserSupportedType type)
 {
-    // 1. Let document be a new Document, whose content type is type and url is this's relevant global object's associated Document's URL.
+    // FIXME: 1. Let compliantString to the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, string, "DOMParser parseFromString", and "script".
+
+    // 2. Let document be a new Document, whose content type is type and url is this's relevant global object's associated Document's URL.
     JS::GCPtr<DOM::Document> document;
 
-    // 2. Switch on type:
+    // 3. Switch on type:
     if (type == Bindings::DOMParserSupportedType::Text_Html) {
         // -> "text/html"
-        // 1. Set document's type to "html".
         document = HTML::HTMLDocument::create(realm(), verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document().url());
         document->set_content_type(Bindings::idl_enum_to_string(type));
-        document->set_document_type(DOM::Document::Type::HTML);
 
-        // 2. Create an HTML parser parser, associated with document.
-        // 3. Place string into the input stream for parser. The encoding confidence is irrelevant.
-        // FIXME: We don't have the concept of encoding confidence yet.
-        auto parser = HTMLParser::create(*document, string, "UTF-8"sv);
-
-        // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
-        // FIXME: This is to match the default URL. Instead, pass in this's relevant global object's associated Document's URL.
-        parser->run("about:blank"sv);
+        // 1. Parse HTML from a string given document and compliantString. FIXME: Use compliantString.
+        document->parse_html_from_a_string(string);
     } else {
         // -> Otherwise
         document = DOM::XMLDocument::create(realm(), verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document().url());
@@ -67,7 +61,7 @@ JS::NonnullGCPtr<DOM::Document> DOMParser::parse_from_string(StringView string, 
         // 1. Create an XML parser parse, associated with document, and with XML scripting support disabled.
         XML::Parser parser(string, { .resolve_external_resource = resolve_xml_resource });
         XMLDocumentBuilder builder { *document, XMLScriptingSupport::Disabled };
-        // 2. Parse string using parser.
+        // 2. Parse compliantString using parser. FIXME: Use compliantString.
         auto result = parser.parse_with_listener(builder);
         // 3. If the previous step resulted in an XML well-formedness or XML namespace well-formedness error, then:
         if (result.is_error() || builder.has_error()) {

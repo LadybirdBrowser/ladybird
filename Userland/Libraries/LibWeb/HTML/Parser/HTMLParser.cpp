@@ -4266,7 +4266,7 @@ DOM::Document& HTMLParser::document()
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-html-fragments
-Vector<JS::Handle<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& context_element, StringView markup)
+Vector<JS::Handle<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& context_element, StringView markup, AllowDeclarativeShadowRoots allow_declarative_shadow_roots)
 {
     // 1. Create a new Document node, and mark it as being an HTML document.
     auto temp_document = DOM::Document::create(context_element.realm());
@@ -4279,12 +4279,16 @@ Vector<JS::Handle<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& cont
     //    Otherwise, leave the Document in no-quirks mode.
     temp_document->set_quirks_mode(context_element.document().mode());
 
-    // 3. Create a new HTML parser, and associate it with the just created Document node.
+    // 3. If allowDeclarativeShadowRoots is true, then set Document's allow declarative shadow roots to true.
+    if (allow_declarative_shadow_roots == AllowDeclarativeShadowRoots::Yes)
+        temp_document->set_allow_declarative_shadow_roots(true);
+
+    // 4. Create a new HTML parser, and associate it with the just created Document node.
     auto parser = HTMLParser::create(*temp_document, markup, "utf-8"sv);
     parser->m_context_element = JS::make_handle(context_element);
     parser->m_parsing_fragment = true;
 
-    // 4. Set the state of the HTML parser's tokenization stage as follows, switching on the context element:
+    // 5. Set the state of the HTML parser's tokenization stage as follows, switching on the context element:
     // - title
     // - textarea
     if (context_element.local_name().is_one_of(HTML::TagNames::title, HTML::TagNames::textarea)) {
@@ -4321,37 +4325,37 @@ Vector<JS::Handle<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& cont
         // Leave the tokenizer in the data state.
     }
 
-    // 5. Let root be a new html element with no attributes.
+    // 6. Let root be a new html element with no attributes.
     auto root = create_element(context_element.document(), HTML::TagNames::html, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
 
-    // 6. Append the element root to the Document node created above.
+    // 7. Append the element root to the Document node created above.
     MUST(temp_document->append_child(root));
 
-    // 7. Set up the parser's stack of open elements so that it contains just the single element root.
+    // 8. Set up the parser's stack of open elements so that it contains just the single element root.
     parser->m_stack_of_open_elements.push(root);
 
-    // 8. If the context element is a template element,
+    // 9. If the context element is a template element,
     if (context_element.local_name() == HTML::TagNames::template_) {
         // push "in template" onto the stack of template insertion modes so that it is the new current template insertion mode.
         parser->m_stack_of_template_insertion_modes.append(InsertionMode::InTemplate);
     }
 
-    // FIXME: 9. Create a start tag token whose name is the local name of context and whose attributes are the attributes of context.
+    // FIXME: 10. Create a start tag token whose name is the local name of context and whose attributes are the attributes of context.
     //           Let this start tag token be the start tag token of the context node, e.g. for the purposes of determining if it is an HTML integration point.
 
-    // 10. Reset the parser's insertion mode appropriately.
+    // 11. Reset the parser's insertion mode appropriately.
     parser->reset_the_insertion_mode_appropriately();
 
-    // 11. Set the parser's form element pointer to the nearest node to the context element that is a form element
+    // 12. Set the parser's form element pointer to the nearest node to the context element that is a form element
     //     (going straight up the ancestor chain, and including the element itself, if it is a form element), if any.
     //     (If there is no such form element, the form element pointer keeps its initial value, null.)
     parser->m_form_element = context_element.first_ancestor_of_type<HTMLFormElement>();
 
-    // 12. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
-    // 13. Start the parser and let it run until it has consumed all the characters just inserted into the input stream.
+    // 13. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
+    // 14. Start the parser and let it run until it has consumed all the characters just inserted into the input stream.
     parser->run(context_element.document().url());
 
-    // 14. Return the child nodes of root, in tree order.
+    // 15. Return the child nodes of root, in tree order.
     Vector<JS::Handle<DOM::Node>> children;
     while (JS::GCPtr<DOM::Node> child = root->first_child()) {
         MUST(root->remove_child(*child));

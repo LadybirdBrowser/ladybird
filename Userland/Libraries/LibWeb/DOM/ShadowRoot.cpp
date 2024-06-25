@@ -107,6 +107,17 @@ WebIDL::ExceptionOr<String> ShadowRoot::get_html(GetHTMLOptions const& options) 
         options.shadow_roots);
 }
 
+// https://html.spec.whatwg.org/#dom-shadowroot-sethtmlunsafe
+WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(StringView html)
+{
+    // FIXME: 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, html, "ShadowRoot setHTMLUnsafe", and "script".
+
+    // 3. Unsafe set HTML given this, this's shadow host, and compliantHTML. FIXME: Use compliantHTML.
+    TRY(unsafely_set_html(*this->host(), html));
+
+    return {};
+}
+
 CSS::StyleSheetList& ShadowRoot::style_sheets()
 {
     if (!m_style_sheets)
