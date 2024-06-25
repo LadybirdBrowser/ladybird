@@ -1352,17 +1352,17 @@ void Node::string_replace_all(String const& string)
     replace_all(node);
 }
 
-// https://w3c.github.io/DOM-Parsing/#dfn-fragment-serializing-algorithm
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-serializing-algorithm-steps
 WebIDL::ExceptionOr<String> Node::serialize_fragment(DOMParsing::RequireWellFormed require_well_formed, FragmentSerializationMode fragment_serialization_mode) const
 {
     // 1. Let context document be the value of node's node document.
     auto const& context_document = document();
 
-    // 2. If context document is an HTML document, return an HTML serialization of node.
+    // 2. If context document is an HTML document, return the result of HTML fragment serialization algorithm with node, false, and « ».
     if (context_document.is_html_document())
-        return HTML::HTMLParser::serialize_html_fragment(*this, fragment_serialization_mode);
+        return HTML::HTMLParser::serialize_html_fragment(*this, HTML::HTMLParser::SerializableShadowRoots::No, {}, fragment_serialization_mode);
 
-    // 3. Otherwise, context document is an XML document; return an XML serialization of node passing the flag require well-formed.
+    // 3. Return the XML serialization of node given require well-formed.
     return DOMParsing::serialize_node_to_xml_string(*this, require_well_formed);
 }
 

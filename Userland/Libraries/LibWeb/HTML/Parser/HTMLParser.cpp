@@ -4411,7 +4411,7 @@ static String escape_string(StringView string, AttributeMode attribute_mode)
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#html-fragment-serialisation-algorithm
-String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentSerializationMode fragment_serialization_mode)
+String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableShadowRoots serializable_shadow_roots, Vector<JS::Handle<DOM::ShadowRoot>> const& shadow_roots, DOM::FragmentSerializationMode fragment_serialization_mode)
 {
     // NOTE: Steps in this function are jumbled a bit to accommodate the Element.outerHTML API.
     //       When called with FragmentSerializationMode::Outer, we will serialize the element itself,
@@ -4421,8 +4421,8 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
     StringBuilder builder;
 
     auto serialize_element = [&](DOM::Element const& element) {
-        // 1. If current node is an element in the HTML namespace, the MathML namespace, or the SVG namespace, then let tagname be current node's local name.
-        //    Otherwise, let tagname be current node's qualified name.
+        // If current node is an element in the HTML namespace, the MathML namespace, or the SVG namespace, then let tagname be current node's local name.
+        // Otherwise, let tagname be current node's qualified name.
         FlyString tag_name;
 
         if (element.namespace_uri().has_value() && element.namespace_uri()->is_one_of(Namespace::HTML, Namespace::MathML, Namespace::SVG))
@@ -4430,22 +4430,27 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
         else
             tag_name = element.qualified_name();
 
-        // 2. Append a U+003C LESS-THAN SIGN character (<), followed by tagname.
+        // Append a U+003C LESS-THAN SIGN character (<), followed by tagname.
         builder.append('<');
         builder.append(tag_name);
 
-        // 3. If current node's is value is not null, and the element does not have an is attribute in its attribute list,
-        //    then append the string " is="", followed by current node's is value escaped as described below in attribute mode,
-        //    followed by a U+0022 QUOTATION MARK character (").
+        // If current node's is value is not null, and the element does not have an is attribute in its attribute list,
+        // then append the string " is="",
+        // followed by current node's is value escaped as described below in attribute mode,
+        // followed by a U+0022 QUOTATION MARK character (").
         if (element.is_value().has_value() && !element.has_attribute(AttributeNames::is)) {
             builder.append(" is=\""sv);
             builder.append(escape_string(element.is_value().value(), AttributeMode::Yes));
             builder.append('"');
         }
 
-        // 4. For each attribute that the element has, append a U+0020 SPACE character, the attribute's serialized name as described below, a U+003D EQUALS SIGN character (=),
-        //    a U+0022 QUOTATION MARK character ("), the attribute's value, escaped as described below in attribute mode, and a second U+0022 QUOTATION MARK character (").
-        //    NOTE: The order of attributes is implementation-defined. The only constraint is that the order must be stable.
+        // For each attribute that the element has,
+        // append a U+0020 SPACE character,
+        // the attribute's serialized name as described below,
+        // a U+003D EQUALS SIGN character (=),
+        // a U+0022 QUOTATION MARK character ("),
+        // the attribute's value, escaped as described below in attribute mode,
+        // and a second U+0022 QUOTATION MARK character (").
         element.for_each_attribute([&](auto const& attribute) {
             builder.append(' ');
 
@@ -4472,16 +4477,20 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
             builder.append('"');
         });
 
-        // 5. Append a U+003E GREATER-THAN SIGN character (>).
+        // Append a U+003E GREATER-THAN SIGN character (>).
         builder.append('>');
 
-        // 6. If current node serializes as void, then continue on to the next child node at this point.
+        // If current node serializes as void, then continue on to the next child node at this point.
         if (element.serializes_as_void())
             return IterationDecision::Continue;
 
-        // 7. Append the value of running the HTML fragment serialization algorithm on the current node element (thus recursing into this algorithm for that element),
-        //    followed by a U+003C LESS-THAN SIGN character (<), a U+002F SOLIDUS character (/), tagname again, and finally a U+003E GREATER-THAN SIGN character (>).
-        builder.append(serialize_html_fragment(element));
+        // Append the value of running the HTML fragment serialization algorithm with current node,
+        // serializableShadowRoots, and shadowRoots (thus recursing into this algorithm for that node),
+        // followed by a U+003C LESS-THAN SIGN character (<),
+        // a U+002F SOLIDUS character (/),
+        // tagname again,
+        // and finally a U+003E GREATER-THAN SIGN character (>).
+        builder.append(serialize_html_fragment(element, serializable_shadow_roots, shadow_roots));
         builder.append("</"sv);
         builder.append(tag_name);
         builder.append('>');
@@ -4510,9 +4519,53 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
         //    (NOTE: This is out of order of the spec to avoid another dynamic cast. The second step just creates a string builder, so it shouldn't matter)
         if (is<HTML::HTMLTemplateElement>(element))
             actual_node = verify_cast<HTML::HTMLTemplateElement>(element).content();
+
+        // 4. If current node is a shadow host, then:
+        if (element.is_shadow_host()) {
+            // 1. Let shadow be current node's shadow root.
+            auto shadow = element.shadow_root();
+
+            // 2. If one of the following is true:
+            //    - serializableShadowRoots is true and shadow's serializable is true; or
+            //    - shadowRoots contains shadow,
+            if ((serializable_shadow_roots == SerializableShadowRoots::Yes && shadow->serializable())
+                || shadow_roots.find_first_index_if([&](auto& entry) { return entry == shadow; }).has_value()) {
+                // then:
+                // 1. Append "<template shadowrootmode="".
+                builder.append("<template shadowrootmode=\""sv);
+
+                // 2. If shadow's mode is "open", then append "open". Otherwise, append "closed".
+                builder.append(shadow->mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv);
+
+                // 3. Append """.
+                builder.append('"');
+
+                // 4. If shadow's delegates focus is set, then append " shadowrootdelegatesfocus=""".
+                if (shadow->delegates_focus())
+                    builder.append(" shadowrootdelegatesfocus=\"\""sv);
+
+                // 5. If shadow's serializable is set, then append " shadowrootserializable=""".
+                if (shadow->serializable())
+                    builder.append(" shadowrootserializable=\"\""sv);
+
+                // 6. If shadow's clonable is set, then append " shadowrootclonable=""".
+                if (shadow->clonable())
+                    builder.append(" shadowrootclonable=\"\""sv);
+
+                // 7. Append ">".
+                builder.append('>');
+
+                // 8. Append the value of running the HTML fragment serialization algorithm with shadow,
+                //    serializableShadowRoots, and shadowRoots (thus recursing into this algorithm for that element).
+                builder.append(serialize_html_fragment(*shadow, serializable_shadow_roots, shadow_roots));
+
+                // 9. Append "</template>".
+                builder.append("</template>"sv);
+            }
+        }
     }
 
-    // 4. For each child node of the node, in tree order, run the following steps:
+    // 5. For each child node of the node, in tree order, run the following steps:
     actual_node->for_each_child([&](DOM::Node& current_node) {
         // 1. Let current node be the child node being processed.
 
@@ -4533,8 +4586,8 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
             if (is<DOM::Element>(parent)) {
                 auto& parent_element = verify_cast<DOM::Element>(*parent);
 
-                // 1. If the parent of current node is a style, script, xmp, iframe, noembed, noframes, or plaintext element,
-                //    or if the parent of current node is a noscript element and scripting is enabled for the node, then append the value of current node's data IDL attribute literally.
+                // If the parent of current node is a style, script, xmp, iframe, noembed, noframes, or plaintext element,
+                // or if the parent of current node is a noscript element and scripting is enabled for the node, then append the value of current node's data IDL attribute literally.
                 if (parent_element.local_name().is_one_of(HTML::TagNames::style, HTML::TagNames::script, HTML::TagNames::xmp, HTML::TagNames::iframe, HTML::TagNames::noembed, HTML::TagNames::noframes, HTML::TagNames::plaintext)
                     || (parent_element.local_name() == HTML::TagNames::noscript && !parent_element.is_scripting_disabled())) {
                     builder.append(text_node.data());
@@ -4542,7 +4595,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
                 }
             }
 
-            // 2. Otherwise, append the value of current node's data IDL attribute, escaped as described below.
+            // Otherwise, append the value of current node's data IDL attribute, escaped as described below.
             builder.append(escape_string(text_node.data(), AttributeMode::No));
         }
 
@@ -4550,8 +4603,8 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
             // -> If current node is a Comment
             auto& comment_node = verify_cast<DOM::Comment>(current_node);
 
-            // 1. Append the literal string "<!--" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS),
-            //    followed by the value of current node's data IDL attribute, followed by the literal string "-->" (U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS, U+003E GREATER-THAN SIGN).
+            // Append the literal string "<!--" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS),
+            // followed by the value of current node's data IDL attribute, followed by the literal string "-->" (U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS, U+003E GREATER-THAN SIGN).
             builder.append("<!--"sv);
             builder.append(comment_node.data());
             builder.append("-->"sv);
@@ -4562,8 +4615,8 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
             // -> If current node is a ProcessingInstruction
             auto& processing_instruction_node = verify_cast<DOM::ProcessingInstruction>(current_node);
 
-            // 1. Append the literal string "<?" (U+003C LESS-THAN SIGN, U+003F QUESTION MARK), followed by the value of current node's target IDL attribute,
-            //    followed by a single U+0020 SPACE character, followed by the value of current node's data IDL attribute, followed by a single U+003E GREATER-THAN SIGN character (>).
+            // Append the literal string "<?" (U+003C LESS-THAN SIGN, U+003F QUESTION MARK), followed by the value of current node's target IDL attribute,
+            // followed by a single U+0020 SPACE character, followed by the value of current node's data IDL attribute, followed by a single U+003E GREATER-THAN SIGN character (>).
             builder.append("<?"sv);
             builder.append(processing_instruction_node.target());
             builder.append(' ');
@@ -4576,9 +4629,9 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
             // -> If current node is a DocumentType
             auto& document_type_node = verify_cast<DOM::DocumentType>(current_node);
 
-            // 1. Append the literal string "<!DOCTYPE" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+0044 LATIN CAPITAL LETTER D, U+004F LATIN CAPITAL LETTER O,
-            //    U+0043 LATIN CAPITAL LETTER C, U+0054 LATIN CAPITAL LETTER T, U+0059 LATIN CAPITAL LETTER Y, U+0050 LATIN CAPITAL LETTER P, U+0045 LATIN CAPITAL LETTER E),
-            //    followed by a space (U+0020 SPACE), followed by the value of current node's name IDL attribute, followed by the literal string ">" (U+003E GREATER-THAN SIGN).
+            // Append the literal string "<!DOCTYPE" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+0044 LATIN CAPITAL LETTER D, U+004F LATIN CAPITAL LETTER O,
+            // U+0043 LATIN CAPITAL LETTER C, U+0054 LATIN CAPITAL LETTER T, U+0059 LATIN CAPITAL LETTER Y, U+0050 LATIN CAPITAL LETTER P, U+0045 LATIN CAPITAL LETTER E),
+            // followed by a space (U+0020 SPACE), followed by the value of current node's name IDL attribute, followed by the literal string ">" (U+003E GREATER-THAN SIGN).
             builder.append("<!DOCTYPE "sv);
             builder.append(document_type_node.name());
             builder.append('>');
@@ -4588,7 +4641,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, DOM::FragmentS
         return IterationDecision::Continue;
     });
 
-    // 5. Return s.
+    // 6. Return s.
     return MUST(builder.to_string());
 }
 
