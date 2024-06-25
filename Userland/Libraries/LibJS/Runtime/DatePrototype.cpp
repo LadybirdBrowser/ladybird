@@ -24,7 +24,6 @@
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibTimeZone/TimeZone.h>
 #include <LibUnicode/DisplayNames.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/TimeZone.h>
@@ -1114,6 +1113,7 @@ ByteString time_zone_string(double time)
     auto system_time_zone_identifier = JS::system_time_zone_identifier();
 
     double offset_nanoseconds { 0 };
+    auto in_dst = Unicode::TimeZoneOffset::InDST::No;
 
     // 2. If IsTimeZoneOffsetString(systemTimeZoneIdentifier) is true, then
     if (is_time_zone_offset_string(system_time_zone_identifier)) {
@@ -1124,7 +1124,10 @@ ByteString time_zone_string(double time)
     else {
         // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(tv) × 10^6)).
         auto time_bigint = Crypto::SignedBigInteger { time }.multiplied_by(Crypto::UnsignedBigInteger { 1'000'000 });
-        offset_nanoseconds = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, time_bigint);
+        auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, time_bigint);
+
+        offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
+        in_dst = offset.in_dst;
     }
 
     // 4. Let offset be 𝔽(truncate(offsetNs / 106)).
@@ -1153,15 +1156,11 @@ ByteString time_zone_string(double time)
     auto offset_hour = hour_from_time(offset);
 
     // 9. Let tzName be an implementation-defined string that is either the empty String or the string-concatenation of the code unit 0x0020 (SPACE), the code unit 0x0028 (LEFT PARENTHESIS), an implementation-defined timezone name, and the code unit 0x0029 (RIGHT PARENTHESIS).
-    String tz_name;
+    auto tz_name = Unicode::current_time_zone();
 
     // Most implementations seem to prefer the long-form display name of the time zone. Not super important, but we may as well match that behavior.
-    if (auto maybe_offset = TimeZone::get_time_zone_offset(tz_name, AK::UnixDateTime::from_milliseconds_since_epoch(time)); maybe_offset.has_value()) {
-        if (auto name = Unicode::time_zone_display_name(Unicode::default_locale(), tz_name, maybe_offset->in_dst, time); name.has_value())
-            tz_name = name.release_value();
-    } else {
-        tz_name = Unicode::current_time_zone();
-    }
+    if (auto name = Unicode::time_zone_display_name(Unicode::default_locale(), tz_name, in_dst, time); name.has_value())
+        tz_name = name.release_value();
 
     // 10. Return the string-concatenation of offsetSign, offsetHour, offsetMin, and tzName.
     return ByteString::formatted("{}{:02}{:02} ({})", offset_sign, offset_hour, offset_min, tz_name);

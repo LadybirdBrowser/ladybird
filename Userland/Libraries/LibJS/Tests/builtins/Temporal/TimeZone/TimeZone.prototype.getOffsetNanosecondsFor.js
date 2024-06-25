@@ -4,7 +4,7 @@ describe("correct behavior", () => {
     });
 
     test("basic functionality", () => {
-        // Adapted from TestTimeZone.cpp's TEST_CASE(get_time_zone_offset).
+        // Adapted from TestTimeZone.cpp's TEST_CASE(time_zone_offset).
 
         function offset(sign, hours, minutes, seconds) {
             return sign * (hours * 3600 + minutes * 60 + seconds) * 1_000_000_000;
@@ -16,19 +16,19 @@ describe("correct behavior", () => {
             expect(actualOffset).toBe(expectedOffset);
         }
 
-        testOffset("America/Chicago", -2717647201, offset(-1, 5, 50, 36)); // Sunday, November 18, 1883 5:59:59 PM
-        testOffset("America/Chicago", -2717647200, offset(-1, 6, 0, 0)); // Sunday, November 18, 1883 6:00:00 PM
-        testOffset("America/Chicago", -1067810460, offset(-1, 6, 0, 0)); // Sunday, March 1, 1936 1:59:00 AM
-        testOffset("America/Chicago", -1067810400, offset(-1, 5, 0, 0)); // Sunday, March 1, 1936 2:00:00 AM
-        testOffset("America/Chicago", -1045432860, offset(-1, 5, 0, 0)); // Sunday, November 15, 1936 1:59:00 AM
-        testOffset("America/Chicago", -1045432800, offset(-1, 6, 0, 0)); // Sunday, November 15, 1936 2:00:00 AM
+        testOffset("America/Chicago", -2717647201, offset(-1, 5, 50, 36)); // November 18, 1883 5:59:59 PM UTC
+        testOffset("America/Chicago", -2717647200, offset(-1, 6, 0, 0)); // November 18, 1883 6:00:00 PM UTC
+        testOffset("America/Chicago", -1067788860, offset(-1, 6, 0, 0)); // March 1, 1936 1:59:00 AM Chicago (March 1, 1936 7:59:00 AM UTC)
+        testOffset("America/Chicago", -1067788800, offset(-1, 5, 0, 0)); // March 1, 1936 3:00:00 AM Chicago (March 1, 1936 8:00:00 AM UTC)
+        testOffset("America/Chicago", -1045414860, offset(-1, 5, 0, 0)); // November 15, 1936 1:59:00 AM Chicago (November 15, 1936 6:59:00 AM UTC)
+        testOffset("America/Chicago", -1045411200, offset(-1, 6, 0, 0)); // November 15, 1936 2:00:00 AM Chicago (November 15, 1936 8:00:00 AM UTC)
 
-        testOffset("Europe/London", -3852662401, offset(-1, 0, 1, 15)); // Tuesday, November 30, 1847 11:59:59 PM
-        testOffset("Europe/London", -3852662400, offset(+1, 0, 0, 0)); // Wednesday, December 1, 1847 12:00:00 AM
-        testOffset("Europe/London", -37238401, offset(+1, 0, 0, 0)); // Saturday, October 26, 1968 11:59:59 PM
-        testOffset("Europe/London", -37238400, offset(+1, 1, 0, 0)); // Sunday, October 27, 1968 12:00:00 AM
-        testOffset("Europe/London", 57722399, offset(+1, 1, 0, 0)); // Sunday, October 31, 1971 1:59:59 AM
-        testOffset("Europe/London", 57722400, offset(+1, 0, 0, 0)); // Sunday, October 31, 1971 2:00:00 AM
+        testOffset("Europe/London", -3852662326, offset(-1, 0, 1, 15)); // November 30, 1847 11:59:59 PM London (December 1, 1847 12:01:14 AM UTC)
+        testOffset("Europe/London", -3852662325, offset(+1, 0, 0, 0)); // December 1, 1847 12:01:15 AM London (December 1, 1847 12:01:15 AM UTC)
+        testOffset("Europe/London", -59004001, offset(+1, 0, 0, 0)); // February 18, 1968 1:59:59 AM London (February 18, 1968 1:59:59 AM UTC)
+        testOffset("Europe/London", -59004000, offset(+1, 1, 0, 0)); // February 18, 1968 3:00:00 AM London (February 18, 1968 2:00:00 AM UTC)
+        testOffset("Europe/London", 57722399, offset(+1, 1, 0, 0)); // October 31, 1971 1:59:59 AM UTC
+        testOffset("Europe/London", 57722400, offset(+1, 0, 0, 0)); // October 31, 1971 2:00:00 AM UTC
 
         testOffset("UTC", -1641846268, offset(+1, 0, 0, 0));
         testOffset("UTC", 0, offset(+1, 0, 0, 0));

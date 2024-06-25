@@ -544,7 +544,7 @@ if (BUILD_TESTING)
         lagom_test(../../Tests/LibCore/TestLibCorePromise.cpp LIBS LibThreading)
     endif()
 
-    lagom_test(../../Tests/LibCore/TestLibCoreDateTime.cpp LIBS LibTimeZone)
+    lagom_test(../../Tests/LibCore/TestLibCoreDateTime.cpp LIBS LibUnicode)
 
     # RegexLibC test POSIX <regex.h> and contains many Serenity extensions
     # It is therefore not reasonable to run it on Lagom, and we only run the Regex test
