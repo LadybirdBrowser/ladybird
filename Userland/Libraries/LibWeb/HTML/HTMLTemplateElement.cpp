@@ -63,4 +63,9 @@ void HTMLTemplateElement::cloned(Node& copy, bool clone_children)
     });
 }
 
+void HTMLTemplateElement::set_template_contents(JS::NonnullGCPtr<DOM::DocumentFragment> contents)
+{
+    m_content = contents;
+}
+
 }
