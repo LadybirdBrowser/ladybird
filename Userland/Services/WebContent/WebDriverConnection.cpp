@@ -1802,7 +1802,10 @@ Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_scre
     auto root_rect = calculate_absolute_rect_of_element(m_page_client->page(), *document->document_element());
 
     auto encoded_string = TRY(Web::WebDriver::capture_element_screenshot(
-        [&](auto const& rect, auto& bitmap) { m_page_client->paint(rect.template to_type<Web::DevicePixels>(), bitmap); },
+        [&](auto const& rect, auto& bitmap) {
+            auto backing_store = Web::Painting::BitmapBackingStore(bitmap);
+            m_page_client->paint(rect.template to_type<Web::DevicePixels>(), backing_store);
+        },
         m_page_client->page(),
         *document->document_element(),
         root_rect));
@@ -1835,7 +1838,10 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
     auto element_rect = calculate_absolute_rect_of_element(m_page_client->page(), *element);
 
     auto encoded_string = TRY(Web::WebDriver::capture_element_screenshot(
-        [&](auto const& rect, auto& bitmap) { m_page_client->paint(rect.template to_type<Web::DevicePixels>(), bitmap); },
+        [&](auto const& rect, auto& bitmap) {
+            auto backing_store = Web::Painting::BitmapBackingStore(bitmap);
+            m_page_client->paint(rect.template to_type<Web::DevicePixels>(), backing_store);
+        },
         m_page_client->page(),
         *element,
         element_rect));

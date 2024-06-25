@@ -44,7 +44,7 @@ public:
     ErrorOr<void> connect_to_webdriver(ByteString const& webdriver_ipc_path);
 
     virtual void paint_next_frame() override;
-    virtual void paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap&, Web::PaintOptions = {}) override;
+    virtual void paint(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore&, Web::PaintOptions = {}) override;
 
     void set_palette_impl(Gfx::PaletteImpl&);
     void set_viewport_size(Web::DevicePixelSize const&);

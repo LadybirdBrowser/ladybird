@@ -76,7 +76,7 @@ public:
     virtual CSS::PreferredMotion preferred_motion() const override { return m_host_page->client().preferred_motion(); }
     virtual void request_file(FileRequest) override { }
     virtual void paint_next_frame() override { }
-    virtual void paint(DevicePixelRect const&, Gfx::Bitmap&, Web::PaintOptions = {}) override { }
+    virtual void paint(DevicePixelRect const&, Painting::BackingStore&, Web::PaintOptions = {}) override { }
     virtual void schedule_repaint() override { }
     virtual bool is_ready_to_paint() const override { return true; }
 

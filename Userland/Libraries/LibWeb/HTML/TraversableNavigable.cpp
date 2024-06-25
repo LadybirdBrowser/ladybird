@@ -1174,8 +1174,10 @@ JS::GCPtr<DOM::Node> TraversableNavigable::currently_focused_area()
     return candidate;
 }
 
-void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& target, Web::PaintOptions paint_options)
+void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Painting::BackingStore& backing_store, Web::PaintOptions paint_options)
 {
+    auto& target = backing_store.bitmap();
+
     Painting::DisplayList display_list;
     Painting::DisplayListRecorder display_list_recorder(display_list);
 
