@@ -275,7 +275,7 @@ void Node::invalidate_style()
         node.m_needs_style_update = true;
         if (node.has_children())
             node.m_child_needs_style_update = true;
-        if (auto* shadow_root = node.is_element() ? static_cast<DOM::Element&>(node).shadow_root_internal() : nullptr) {
+        if (auto shadow_root = node.is_element() ? static_cast<DOM::Element&>(node).shadow_root() : nullptr) {
             node.m_child_needs_style_update = true;
             shadow_root->m_needs_style_update = true;
             if (shadow_root->has_children())
@@ -462,7 +462,7 @@ void Node::insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, boo
             auto& element = static_cast<DOM::Element&>(*this);
 
             auto is_named_shadow_host = element.is_shadow_host()
-                && element.shadow_root_internal()->slot_assignment() == Bindings::SlotAssignmentMode::Named;
+                && element.shadow_root()->slot_assignment() == Bindings::SlotAssignmentMode::Named;
 
             if (is_named_shadow_host && node_to_insert->is_slottable())
                 assign_a_slot(node_to_insert->as_slottable());
@@ -914,7 +914,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::clone_node(Document* document,
 
         // 2. Run attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable,
         //    node’s shadow root’s delegates focus, and node’s shadow root’s slot assignment.
-        auto& node_shadow_root = *static_cast<Element const&>(*this).shadow_root();
+        auto& node_shadow_root = *static_cast<Element&>(*this).shadow_root();
         TRY(static_cast<Element&>(*copy).attach_a_shadow_root(node_shadow_root.mode(), true, node_shadow_root.serializable(), node_shadow_root.delegates_focus(), node_shadow_root.slot_assignment()));
 
         // 3. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
@@ -1260,7 +1260,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
             element->serialize_pseudo_elements_as_json(children);
 
             if (element->is_shadow_host())
-                add_child(*element->shadow_root_internal());
+                add_child(*element->shadow_root());
         }
 
         MUST(children.finish());

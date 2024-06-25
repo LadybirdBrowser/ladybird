@@ -675,7 +675,6 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 
     // 12. Set element’s shadow root to shadow.
     set_shadow_root(shadow);
-
     return {};
 }
 
@@ -690,7 +689,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ShadowRoot>> Element::attach_shadow(ShadowR
 }
 
 // https://dom.spec.whatwg.org/#dom-element-shadowroot
-JS::GCPtr<ShadowRoot> Element::shadow_root() const
+JS::GCPtr<ShadowRoot> Element::shadow_root_for_bindings() const
 {
     // 1. Let shadow be this’s shadow root.
     auto shadow = m_shadow_root;

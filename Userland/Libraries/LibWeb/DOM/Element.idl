@@ -54,7 +54,7 @@ interface Element : Node {
     [CEReactions] Attr removeAttributeNode(Attr attr);
 
     ShadowRoot attachShadow(ShadowRootInit init);
-    readonly attribute ShadowRoot? shadowRoot;
+    [ImplementedAs=shadow_root_for_bindings] readonly attribute ShadowRoot? shadowRoot;
 
     boolean matches(DOMString selectors);
     Element? closest(DOMString selectors);

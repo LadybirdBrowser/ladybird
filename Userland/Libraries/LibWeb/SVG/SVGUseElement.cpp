@@ -126,12 +126,12 @@ JS::GCPtr<DOM::Element> SVGUseElement::referenced_element()
 // https://svgwg.org/svg2-draft/struct.html#UseShadowTree
 void SVGUseElement::clone_element_tree_as_our_shadow_tree(Element* to_clone) const
 {
-    shadow_root()->remove_all_children();
+    const_cast<DOM::ShadowRoot&>(*shadow_root()).remove_all_children();
 
     if (to_clone && is_valid_reference_element(to_clone)) {
         // The ‘use’ element references another element, a copy of which is rendered in place of the ‘use’ in the document.
         auto cloned_reference_node = MUST(to_clone->clone_node(nullptr, true));
-        shadow_root()->append_child(cloned_reference_node).release_value_but_fixme_should_propagate_errors();
+        const_cast<DOM::ShadowRoot&>(*shadow_root()).append_child(cloned_reference_node).release_value_but_fixme_should_propagate_errors();
     }
 }
 
@@ -177,7 +177,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGUseElement::height() const
 // https://svgwg.org/svg2-draft/struct.html#TermInstanceRoot
 JS::GCPtr<SVGElement> SVGUseElement::instance_root() const
 {
-    return shadow_root()->first_child_of_type<SVGElement>();
+    return const_cast<DOM::ShadowRoot&>(*shadow_root()).first_child_of_type<SVGElement>();
 }
 
 JS::GCPtr<SVGElement> SVGUseElement::animated_instance_root() const

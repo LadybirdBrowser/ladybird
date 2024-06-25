@@ -1175,7 +1175,7 @@ void Document::update_layout()
 
     if (needs_full_style_update || node.child_needs_style_update()) {
         if (node.is_element()) {
-            if (auto* shadow_root = static_cast<DOM::Element&>(node).shadow_root_internal()) {
+            if (auto shadow_root = static_cast<DOM::Element&>(node).shadow_root()) {
                 if (needs_full_style_update || shadow_root->needs_style_update() || shadow_root->child_needs_style_update()) {
                     auto subtree_invalidation = update_style_recursively(*shadow_root, style_computer);
                     if (!is_display_none)

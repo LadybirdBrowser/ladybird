@@ -100,7 +100,7 @@ inline TraversalDecision Node::for_each_shadow_including_inclusive_descendant(Ca
         return TraversalDecision::Break;
     for (auto* child = first_child(); child; child = child->next_sibling()) {
         if (child->is_element()) {
-            if (JS::GCPtr<ShadowRoot> shadow_root = static_cast<Element*>(child)->shadow_root_internal()) {
+            if (auto shadow_root = static_cast<Element*>(child)->shadow_root()) {
                 if (shadow_root->for_each_shadow_including_inclusive_descendant(callback) == TraversalDecision::Break)
                     return TraversalDecision::Break;
             }

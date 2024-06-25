@@ -503,7 +503,7 @@ void HTMLSelectElement::computed_css_values_changed()
 
 void HTMLSelectElement::create_shadow_tree_if_needed()
 {
-    if (shadow_root_internal())
+    if (shadow_root())
         return;
 
     auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);

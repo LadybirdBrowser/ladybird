@@ -129,7 +129,7 @@ public:
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<ShadowRoot>> attach_shadow(ShadowRootInit init);
     WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment);
-    JS::GCPtr<ShadowRoot> shadow_root() const;
+    JS::GCPtr<ShadowRoot> shadow_root_for_bindings() const;
 
     WebIDL::ExceptionOr<bool> matches(StringView selectors) const;
     WebIDL::ExceptionOr<DOM::Element const*> closest(StringView selectors) const;
@@ -195,8 +195,8 @@ public:
     JS::NonnullGCPtr<HTMLCollection> get_elements_by_class_name(StringView);
 
     bool is_shadow_host() const;
-    ShadowRoot* shadow_root_internal() { return m_shadow_root.ptr(); }
-    ShadowRoot const* shadow_root_internal() const { return m_shadow_root.ptr(); }
+    JS::GCPtr<ShadowRoot> shadow_root() { return m_shadow_root; }
+    JS::GCPtr<ShadowRoot const> shadow_root() const { return m_shadow_root; }
     void set_shadow_root(JS::GCPtr<ShadowRoot>);
 
     void set_custom_properties(Optional<CSS::Selector::PseudoElement::Type>, HashMap<FlyString, CSS::StyleProperty> custom_properties);
