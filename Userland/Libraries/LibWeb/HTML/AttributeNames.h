@@ -224,6 +224,10 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(scheme)                     \
     __ENUMERATE_HTML_ATTRIBUTE(scrolling)                  \
     __ENUMERATE_HTML_ATTRIBUTE(selected)                   \
+    __ENUMERATE_HTML_ATTRIBUTE(shadowrootclonable)         \
+    __ENUMERATE_HTML_ATTRIBUTE(shadowrootdelegatesfocus)   \
+    __ENUMERATE_HTML_ATTRIBUTE(shadowrootmode)             \
+    __ENUMERATE_HTML_ATTRIBUTE(shadowrootserializable)     \
     __ENUMERATE_HTML_ATTRIBUTE(shape)                      \
     __ENUMERATE_HTML_ATTRIBUTE(size)                       \
     __ENUMERATE_HTML_ATTRIBUTE(sizes)                      \

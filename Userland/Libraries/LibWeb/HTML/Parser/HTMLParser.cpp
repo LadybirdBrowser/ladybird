@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
  *
@@ -10,6 +10,7 @@
 #include <AK/SourceLocation.h>
 #include <AK/Utf32View.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -21,6 +22,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/QualifiedName.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -33,6 +35,7 @@
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
+#include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -614,6 +617,7 @@ DOM::Element& HTMLParser::node_before_current_node()
 // https://html.spec.whatwg.org/multipage/parsing.html#appropriate-place-for-inserting-a-node
 HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_inserting_node(JS::GCPtr<DOM::Element> override_target)
 {
+    // 1. If there was an override target specified, then let target be the override target.
     auto& target = override_target ? *override_target.ptr() : current_node();
     HTMLParser::AdjustedInsertionLocation adjusted_insertion_location;
 
@@ -657,9 +661,12 @@ HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_ins
         adjusted_insertion_location = { target, nullptr };
     }
 
+    // 3. If the adjusted insertion location is inside a template element,
+    //    let it instead be inside the template element's template contents, after its last child (if any).
     if (is<HTMLTemplateElement>(*adjusted_insertion_location.parent))
-        return { verify_cast<HTMLTemplateElement>(*adjusted_insertion_location.parent).content().ptr(), nullptr };
+        adjusted_insertion_location = { verify_cast<HTMLTemplateElement>(*adjusted_insertion_location.parent).content().ptr(), nullptr };
 
+    // 4. Return the adjusted insertion location.
     return adjusted_insertion_location;
 }
 
@@ -754,43 +761,30 @@ JS::NonnullGCPtr<DOM::Element> HTMLParser::create_element_for(HTMLToken const& t
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-foreign-element
-JS::NonnullGCPtr<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken const& token, Optional<FlyString> const& namespace_)
+JS::NonnullGCPtr<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken const& token, Optional<FlyString> const& namespace_, OnlyAddToElementStack only_add_to_element_stack)
 {
+    // 1. Let the adjusted insertion location be the appropriate place for inserting a node.
     auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
 
-    // NOTE: adjusted_insertion_location.parent will be non-null, however, it uses RP to be able to default-initialize HTMLParser::AdjustedInsertionLocation.
+    // 2. Let element be the result of creating an element for the token in the given namespace,
+    //    with the intended parent being the element in which the adjusted insertion location finds itself.
     auto element = create_element_for(token, namespace_, *adjusted_insertion_location.parent);
 
-    auto pre_insertion_validity = adjusted_insertion_location.parent->ensure_pre_insertion_validity(*element, adjusted_insertion_location.insert_before_sibling);
-
-    // NOTE: If it's not possible to insert the element at the adjusted insertion location, the element is simply dropped.
-    if (!pre_insertion_validity.is_exception()) {
-        // 1. If the parser was not created as part of the HTML fragment parsing algorithm, then push a new element queue onto element's relevant agent's custom element reactions stack.
-        if (!m_parsing_fragment) {
-            auto& vm = main_thread_event_loop().vm();
-            auto& custom_data = verify_cast<Bindings::WebEngineCustomData>(*vm.custom_data());
-            custom_data.custom_element_reactions_stack.element_queue_stack.append({});
-        }
-
-        // 2. Insert element at the adjusted insertion location.
-        adjusted_insertion_location.parent->insert_before(*element, adjusted_insertion_location.insert_before_sibling);
-
-        // 3. If the parser was not created as part of the HTML fragment parsing algorithm, then pop the element queue from element's relevant agent's custom element reactions stack, and invoke custom element reactions in that queue.
-        if (!m_parsing_fragment) {
-            auto& vm = main_thread_event_loop().vm();
-            auto& custom_data = verify_cast<Bindings::WebEngineCustomData>(*vm.custom_data());
-            auto queue = custom_data.custom_element_reactions_stack.element_queue_stack.take_last();
-            Bindings::invoke_custom_element_reactions(queue);
-        }
+    // 3. If onlyAddToElementStack is false, then run insert an element at the adjusted insertion location with element.
+    if (only_add_to_element_stack == OnlyAddToElementStack::No) {
+        insert_an_element_at_the_adjusted_insertion_location(element);
     }
 
+    // 4. Push element onto the stack of open elements so that it is the new current node.
     m_stack_of_open_elements.push(element);
+
+    // 5. Return element.
     return element;
 }
 
 JS::NonnullGCPtr<DOM::Element> HTMLParser::insert_html_element(HTMLToken const& token)
 {
-    return insert_foreign_element(token, Namespace::HTML);
+    return insert_foreign_element(token, Namespace::HTML, OnlyAddToElementStack::No);
 }
 
 void HTMLParser::handle_before_head(HTMLToken& token)
@@ -931,29 +925,138 @@ void HTMLParser::handle_in_head(HTMLToken& token)
         goto AnythingElse;
     }
 
+    // -> A start tag whose tag name is "template"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::template_) {
-        (void)insert_html_element(token);
+        // Let template start tag be the start tag.
+        auto const& template_start_tag = token;
+
+        // Insert a marker at the end of the list of active formatting elements.
         m_list_of_active_formatting_elements.add_marker();
+
+        // Set the frameset-ok flag to "not ok".
         m_frameset_ok = false;
+
+        // Switch the insertion mode to "in template".
         m_insertion_mode = InsertionMode::InTemplate;
+
+        // Push "in template" onto the stack of template insertion modes so that it is the new current template insertion mode.
         m_stack_of_template_insertion_modes.append(InsertionMode::InTemplate);
+
+        // Let the adjusted insertion location be the appropriate place for inserting a node.
+        auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
+
+        // Let intended parent be the element in which the adjusted insertion location finds itself.
+        auto& intended_parent = adjusted_insertion_location.parent;
+
+        // Let document be intended parent's node document.
+        auto& document = intended_parent->document();
+
+        Optional<Bindings::ShadowRootMode> shadowrootmode = {};
+        {
+            auto shadowrootmode_attribute_value = template_start_tag.attribute(HTML::AttributeNames::shadowrootmode);
+            if (shadowrootmode_attribute_value.has_value()) {
+                if (shadowrootmode_attribute_value.value() == "open"sv) {
+                    shadowrootmode = Bindings::ShadowRootMode::Open;
+                } else if (shadowrootmode_attribute_value.value() == "closed"sv) {
+                    shadowrootmode = Bindings::ShadowRootMode::Closed;
+                }
+            }
+        }
+
+        // If any of the following are false:
+        // - template start tag's shadowrootmode is not in the none state;
+        // - Document's allow declarative shadow roots is true; or
+        // - the adjusted current node is not the topmost element in the stack of open elements,
+        if (!shadowrootmode.has_value()
+            || !document.allow_declarative_shadow_roots()
+            || &adjusted_current_node() == &m_stack_of_open_elements.first()) {
+            // then insert an HTML element for the token.
+            (void)insert_html_element(token);
+        }
+
+        // Otherwise:
+        else {
+            // 1. Let declarative shadow host element be adjusted current node.
+            auto& declarative_shadow_host_element = adjusted_current_node();
+
+            // 2. Let template be the result of insert a foreign element for template start tag, with HTML namespace and true.
+            auto template_ = insert_foreign_element(template_start_tag, Namespace::HTML, OnlyAddToElementStack::Yes);
+
+            // 3. Let mode be template start tag's shadowrootmode attribute's value.
+            auto mode = shadowrootmode.value();
+
+            // 4. Let clonable be true if template start tag has a shadowrootclonable attribute; otherwise false.
+            auto clonable = template_start_tag.attribute(HTML::AttributeNames::shadowrootclonable).has_value();
+
+            // 5. Let serializable be true if template start tag has a shadowrootserializable attribute; otherwise false.
+            auto serializable = template_start_tag.attribute(HTML::AttributeNames::shadowrootserializable).has_value();
+
+            // 6. Let delegatesFocus be true if template start tag has a shadowrootdelegatesfocus attribute; otherwise false.
+            auto delegates_focus = template_start_tag.attribute(HTML::AttributeNames::shadowrootdelegatesfocus).has_value();
+
+            // 7. If declarative shadow host element is a shadow host, then insert an element at the adjusted insertion location with template.
+            if (declarative_shadow_host_element.is_shadow_host()) {
+                // FIXME: We do manual "insert before" instead of "insert an element at the adjusted insertion location" here
+                //        Otherwise, two template elements in a row will cause the second to try to insert into itself.
+                //        This might be a spec bug(?)
+                adjusted_insertion_location.parent->insert_before(*template_, adjusted_insertion_location.insert_before_sibling);
+            }
+
+            // 8. Otherwise:
+            else {
+                // 1. Attach a shadow root with declarative shadow host element, mode, clonable, serializable, delegatesFocus, and "named".
+                //    If an exception is thrown, then catch it, report the exception, insert an element at the adjusted insertion location with template, and return.
+                auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named);
+                if (result.is_error()) {
+                    report_exception(Bindings::dom_exception_to_throw_completion(vm(), result.release_error()), realm());
+                    insert_an_element_at_the_adjusted_insertion_location(template_);
+                    return;
+                }
+
+                // 2. Let shadow be declarative shadow host element's shadow root.
+                auto& shadow = *declarative_shadow_host_element.shadow_root();
+
+                // 3. Set shadow's declarative to true.
+                shadow.set_declarative(true);
+
+                // 4. Set template's template contents property to shadow.
+                verify_cast<HTMLTemplateElement>(*template_).set_template_contents(shadow);
+
+                // 5. Set shadow's available to element internals to true.
+                shadow.set_available_to_element_internals(true);
+            }
+        }
+
         return;
     }
 
+    // -> An end tag whose tag name is "template"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_) {
+        // If there is no template element on the stack of open elements, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.contains(HTML::TagNames::template_)) {
             log_parse_error();
             return;
         }
 
+        // Otherwise, run these steps:
+
+        // 1. Generate all implied end tags thoroughly.
         generate_all_implied_end_tags_thoroughly();
 
+        // 2. If the current node is not a template element, then this is a parse error.
         if (current_node().local_name() != HTML::TagNames::template_)
             log_parse_error();
 
+        // 3. Pop elements from the stack of open elements until a template element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::template_);
+
+        // 4. Clear the list of active formatting elements up to the last marker.
         m_list_of_active_formatting_elements.clear_up_to_the_last_marker();
+
+        // 5. Pop the current template insertion mode off the stack of template insertion modes.
         m_stack_of_template_insertion_modes.take_last();
+
+        // 6. Reset the insertion mode appropriately.
         reset_the_insertion_mode_appropriately();
         return;
     }
@@ -2486,7 +2589,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         adjust_foreign_attributes(token);
 
         // Insert a foreign element for the token, with MathML namespace and false.
-        (void)insert_foreign_element(token, Namespace::MathML);
+        (void)insert_foreign_element(token, Namespace::MathML, OnlyAddToElementStack::No);
 
         // If the token has its self-closing flag set, pop the current node off the stack of open elements and acknowledge the token's self-closing flag.
         if (token.is_self_closing()) {
@@ -2509,7 +2612,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // FIXME: We are not setting the 'onlyAddToElementStack' flag here.
         // Insert a foreign element for the token, with SVG namespace and false.
-        (void)insert_foreign_element(token, Namespace::SVG);
+        (void)insert_foreign_element(token, Namespace::SVG, OnlyAddToElementStack::No);
 
         // If the token has its self-closing flag set, pop the current node off the stack of open elements and acknowledge the token's self-closing flag.
         if (token.is_self_closing()) {
@@ -3947,8 +4050,8 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         // Adjust foreign attributes for the token. (This fixes the use of namespaced attributes, in particular XLink in SVG.)
         adjust_foreign_attributes(token);
 
-        // Insert a foreign element for the token, in the same namespace as the adjusted current node.
-        (void)insert_foreign_element(token, adjusted_current_node().namespace_uri());
+        // Insert a foreign element for the token, with adjusted current node's namespace and false.
+        (void)insert_foreign_element(token, adjusted_current_node().namespace_uri(), OnlyAddToElementStack::No);
 
         // If the token has its self-closing flag set, then run the appropriate steps from the following list:
         if (token.is_self_closing()) {
@@ -4765,6 +4868,35 @@ void HTMLParser::abort()
     m_document->update_readiness(DocumentReadyState::Complete);
 
     m_aborted = true;
+}
+
+// https://html.spec.whatwg.org/multipage/parsing.html#insert-an-element-at-the-adjusted-insertion-location
+void HTMLParser::insert_an_element_at_the_adjusted_insertion_location(JS::NonnullGCPtr<DOM::Element> element)
+{
+    // 1. Let the adjusted insertion location be the appropriate place for inserting a node.
+    auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
+
+    // 2. If it is not possible to insert element at the adjusted insertion location, abort these steps.
+    if (!adjusted_insertion_location.parent)
+        return;
+
+    // 3. If the parser was not created as part of the HTML fragment parsing algorithm,
+    //    then push a new element queue onto element's relevant agent's custom element reactions stack.
+    if (!m_parsing_fragment) {
+        auto& custom_data = verify_cast<Bindings::WebEngineCustomData>(*relevant_agent(*element).custom_data());
+        custom_data.custom_element_reactions_stack.element_queue_stack.append({});
+    }
+
+    // 4. Insert element at the adjusted insertion location.
+    adjusted_insertion_location.parent->insert_before(element, adjusted_insertion_location.insert_before_sibling);
+
+    // 5. If the parser was not created as part of the HTML fragment parsing algorithm,
+    //    then pop the element queue from element's relevant agent's custom element reactions stack, and invoke custom element reactions in that queue.
+    if (!m_parsing_fragment) {
+        auto& custom_data = verify_cast<Bindings::WebEngineCustomData>(*relevant_agent(*element).custom_data());
+        auto queue = custom_data.custom_element_reactions_stack.element_queue_stack.take_last();
+        Bindings::invoke_custom_element_reactions(queue);
+    }
 }
 
 }

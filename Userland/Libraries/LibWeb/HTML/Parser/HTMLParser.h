@@ -130,9 +130,15 @@ private:
 
     AdjustedInsertionLocation find_appropriate_place_for_inserting_node(JS::GCPtr<DOM::Element> override_target = nullptr);
 
+    void insert_an_element_at_the_adjusted_insertion_location(JS::NonnullGCPtr<DOM::Element>);
+
     DOM::Text* find_character_insertion_node();
     void flush_character_insertions();
-    JS::NonnullGCPtr<DOM::Element> insert_foreign_element(HTMLToken const&, Optional<FlyString> const& namespace_);
+    enum class OnlyAddToElementStack {
+        No,
+        Yes,
+    };
+    JS::NonnullGCPtr<DOM::Element> insert_foreign_element(HTMLToken const&, Optional<FlyString> const& namespace_, OnlyAddToElementStack);
     JS::NonnullGCPtr<DOM::Element> insert_html_element(HTMLToken const&);
     DOM::Element& current_node();
     DOM::Element& adjusted_current_node();
