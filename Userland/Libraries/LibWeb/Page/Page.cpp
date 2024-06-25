@@ -619,15 +619,21 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
 
     if (direction.has_value()) {
         if (direction.value() == SearchDirection::Forward) {
-            if (m_find_in_page_match_index >= all_matches.size() - 1)
+            if (m_find_in_page_match_index >= all_matches.size() - 1) {
+                if (query.wrap_around == WrapAround::No)
+                    return {};
                 m_find_in_page_match_index = 0;
-            else
+            } else {
                 m_find_in_page_match_index++;
+            }
         } else {
-            if (m_find_in_page_match_index == 0)
+            if (m_find_in_page_match_index == 0) {
+                if (query.wrap_around == WrapAround::No)
+                    return {};
                 m_find_in_page_match_index = all_matches.size() - 1;
-            else
+            } else {
                 m_find_in_page_match_index--;
+            }
         }
     }
 
