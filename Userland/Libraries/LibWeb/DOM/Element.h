@@ -184,6 +184,8 @@ public:
 
     CSS::StyleSheetList& document_or_shadow_root_style_sheets();
 
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::DocumentFragment>> parse_fragment(StringView markup);
+
     WebIDL::ExceptionOr<String> inner_html() const;
     WebIDL::ExceptionOr<void> set_inner_html(StringView);
 

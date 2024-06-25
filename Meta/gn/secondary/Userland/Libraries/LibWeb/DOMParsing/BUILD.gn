@@ -1,8 +1,5 @@
 source_set("DOMParsing") {
   configs += [ "//Userland/Libraries/LibWeb:configs" ]
   deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
-  sources = [
-    "InnerHTML.cpp",
-    "XMLSerializer.cpp",
-  ]
+  sources = [ "XMLSerializer.cpp" ]
 }

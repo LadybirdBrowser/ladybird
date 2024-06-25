@@ -193,7 +193,6 @@ set(SOURCES
     DOM/Text.cpp
     DOM/TreeWalker.cpp
     DOM/XMLDocument.cpp
-    DOMParsing/InnerHTML.cpp
     DOMParsing/XMLSerializer.cpp
     DOMURL/DOMURL.cpp
     DOMURL/URLSearchParams.cpp

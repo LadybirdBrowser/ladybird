@@ -9,7 +9,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/DOMParsing/InnerHTML.h>
+#include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/BlockContainer.h>
 
@@ -61,16 +61,35 @@ EventTarget* ShadowRoot::get_parent(Event const& event)
     return host();
 }
 
-// https://w3c.github.io/DOM-Parsing/#dom-innerhtml-innerhtml
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
 WebIDL::ExceptionOr<String> ShadowRoot::inner_html() const
 {
     return serialize_fragment(DOMParsing::RequireWellFormed::Yes);
 }
 
-// https://w3c.github.io/DOM-Parsing/#dom-innerhtml-innerhtml
-WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(StringView markup)
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
+WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(StringView value)
 {
-    TRY(DOMParsing::inner_html_setter(*this, markup));
+    // FIXME: 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, the given value, "ShadowRoot innerHTML", and "script".
+
+    // 2. Let context be this's host.
+    auto context = this->host();
+
+    // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString. FIXME: Use compliantString instead of markup.
+    auto fragment = TRY(verify_cast<Element>(*context).parse_fragment(value));
+
+    // 4. Replace all with fragment within this.
+    this->replace_all(fragment);
+
+    // NOTE: We don't invalidate style & layout for <template> elements since they don't affect rendering.
+    if (!is<HTML::HTMLTemplateElement>(*this)) {
+        this->set_needs_style_update(true);
+
+        if (this->is_connected()) {
+            // NOTE: Since the DOM has changed, we have to rebuild the layout tree.
+            this->document().invalidate_layout();
+        }
+    }
 
     set_needs_style_update(true);
     return {};

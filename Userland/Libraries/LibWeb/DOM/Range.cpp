@@ -18,7 +18,6 @@
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
-#include <LibWeb/DOMParsing/InnerHTML.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -1179,57 +1178,48 @@ JS::NonnullGCPtr<Geometry::DOMRect> Range::get_bounding_client_rect() const
     return Geometry::DOMRect::construct_impl(realm(), 0, 0, 0, 0).release_value_but_fixme_should_propagate_errors();
 }
 
-// https://w3c.github.io/DOM-Parsing/#dom-range-createcontextualfragment
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::create_contextual_fragment(String const& fragment)
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
+WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::create_contextual_fragment(String const& string)
 {
-    // 1. Let node be the context object's start node.
+    // FIXME: Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, string, and "Range createContextualFragment".
+
+    // 2. Let node be this's start node.
     JS::NonnullGCPtr<Node> node = *start_container();
 
-    // Let element be as follows, depending on node's interface:
-    JS::GCPtr<Element> element;
-    switch (static_cast<NodeType>(node->node_type())) {
-    case NodeType::DOCUMENT_NODE:
-    case NodeType::DOCUMENT_FRAGMENT_NODE:
-        element = nullptr;
-        break;
-    case NodeType::ELEMENT_NODE:
-        element = static_cast<DOM::Element&>(*node);
-        break;
-    case NodeType::TEXT_NODE:
-    case NodeType::COMMENT_NODE:
-        element = node->parent_element();
-        break;
-    case NodeType::DOCUMENT_TYPE_NODE:
-    case NodeType::PROCESSING_INSTRUCTION_NODE:
-        // [DOM4] prevents this case.
-        VERIFY_NOT_REACHED();
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    // 3. Let element be null.
+    JS::GCPtr<Element> element = nullptr;
 
-    // 2. If either element is null or the following are all true:
+    auto node_type = static_cast<NodeType>(node->node_type());
+    // 4. If node implements Element, set element to node.
+    if (node_type == NodeType::ELEMENT_NODE)
+        element = static_cast<DOM::Element&>(*node);
+    // 5. Otherwise, if node implements Text or Comment node, set element to node's parent element.
+    else if (first_is_one_of(node_type, NodeType::TEXT_NODE, NodeType::COMMENT_NODE))
+        element = node->parent_element();
+
+    // 6. If either element is null or all of the following are true:
     //    - element's node document is an HTML document,
-    //    - element's local name is "html", and
+    //    - element's local name is "html"; and
     //    - element's namespace is the HTML namespace;
     if (!element || is<HTML::HTMLHtmlElement>(*element)) {
-        // let element be a new Element with
-        // - "body" as its local name,
-        // - The HTML namespace as its namespace, and
-        // - The context object's node document as its node document.
+        // then set element to the result of creating an element given this's node document,
+        // body, and the HTML namespace.
         element = TRY(DOM::create_element(node->document(), HTML::TagNames::body, Namespace::HTML));
     }
 
-    // 3. Let fragment node be the result of invoking the fragment parsing algorithm with fragment as markup, and element as the context element.
-    auto fragment_node = TRY(DOMParsing::parse_fragment(fragment, *element));
+    // 7. Let fragment node be the result of invoking the fragment parsing algorithm steps with element and compliantString. FIXME: Use compliantString.
+    auto fragment_node = TRY(element->parse_fragment(string));
 
-    // 4. Unmark all scripts in fragment node as "already started" and as "parser-inserted".
+    // 8. For each script of fragment node's script element descendants:
     fragment_node->for_each_in_subtree_of_type<HTML::HTMLScriptElement>([&](HTML::HTMLScriptElement& script_element) {
+        // 8.1 Set scripts already started to false.
         script_element.unmark_as_already_started({});
+        // 8.2 Set scripts parser document to null.
         script_element.unmark_as_parser_inserted({});
         return TraversalDecision::Continue;
     });
 
-    // 5. Return the value of fragment node.
+    // 5. Return fragment node.
     return fragment_node;
 }
 
