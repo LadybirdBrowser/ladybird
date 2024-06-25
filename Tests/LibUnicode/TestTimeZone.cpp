@@ -49,6 +49,18 @@ TEST_CASE(available_time_zones)
     EXPECT(!time_zones.contains_slow("EAT"sv));
 }
 
+TEST_CASE(available_time_zones_in_region)
+{
+    {
+        auto time_zones = Unicode::available_time_zones_in_region("AD"sv);
+        EXPECT_EQ(time_zones, to_array({ "Europe/Andorra"_string }));
+    }
+    {
+        auto time_zones = Unicode::available_time_zones_in_region("ES"sv);
+        EXPECT_EQ(time_zones, to_array({ "Africa/Ceuta"_string, "Atlantic/Canary"_string, "Europe/Madrid"_string }));
+    }
+}
+
 TEST_CASE(resolve_primary_time_zone)
 {
     EXPECT_EQ(Unicode::resolve_primary_time_zone("UTC"sv), "Etc/UTC"sv);

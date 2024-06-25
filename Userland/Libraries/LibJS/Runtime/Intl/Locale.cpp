@@ -8,9 +8,9 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/Locale.h>
-#include <LibTimeZone/TimeZone.h>
 #include <LibUnicode/DateTimeFormat.h>
 #include <LibUnicode/Locale.h>
+#include <LibUnicode/TimeZone.h>
 #include <LibUnicode/UnicodeKeywords.h>
 
 namespace JS::Intl {
@@ -142,12 +142,11 @@ NonnullGCPtr<Array> time_zones_of_locale(VM& vm, StringView region)
     // 3. Let region be the substring of locale corresponding to the unicode_region_subtag production of the unicode_language_id.
 
     // 4. Let list be a List of unique canonical time zone identifiers, which must be String values indicating a canonical Zone name of the IANA Time Zone Database, ordered as if an Array of the same values had been sorted using %Array.prototype.sort% using undefined as comparefn, of those in common use in region. If no time zones are commonly used in region, let list be a new empty List.
-    auto list = TimeZone::time_zones_in_region(region);
-    quick_sort(list);
+    auto list = Unicode::available_time_zones_in_region(region);
 
     // 5. Return ! CreateArrayFromList( list ).
-    return Array::create_from<StringView>(realm, list, [&vm](auto value) {
-        return PrimitiveString::create(vm, String::from_utf8(value).release_value());
+    return Array::create_from<String>(realm, list, [&vm](auto value) {
+        return PrimitiveString::create(vm, value);
     });
 }
 

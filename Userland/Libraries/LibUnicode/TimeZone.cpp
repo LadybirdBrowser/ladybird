@@ -76,24 +76,33 @@ static constexpr bool is_legacy_non_iana_time_zone(StringView time_zone)
     return legacy_zones.contains_slow(time_zone);
 }
 
+static Vector<String> icu_available_time_zones(Optional<ByteString> const& region)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    char const* icu_region = region.has_value() ? region->characters() : nullptr;
+
+    auto time_zone_enumerator = adopt_own_if_nonnull(icu::TimeZone::createTimeZoneIDEnumeration(UCAL_ZONE_TYPE_ANY, icu_region, nullptr, status));
+    if (icu_failure(status))
+        return { "UTC"_string };
+
+    auto time_zones = icu_string_enumeration_to_list(move(time_zone_enumerator), [](char const* zone) {
+        return !is_legacy_non_iana_time_zone({ zone, strlen(zone) });
+    });
+
+    quick_sort(time_zones);
+    return time_zones;
+}
+
 Vector<String> const& available_time_zones()
 {
-    static auto time_zones = []() -> Vector<String> {
-        UErrorCode status = U_ZERO_ERROR;
-
-        auto time_zone_enumerator = adopt_own_if_nonnull(icu::TimeZone::createEnumeration(status));
-        if (icu_failure(status))
-            return { "UTC"_string };
-
-        auto time_zones = icu_string_enumeration_to_list(move(time_zone_enumerator), [](char const* zone) {
-            return !is_legacy_non_iana_time_zone({ zone, strlen(zone) });
-        });
-
-        quick_sort(time_zones);
-        return time_zones;
-    }();
-
+    static auto time_zones = icu_available_time_zones({});
     return time_zones;
+}
+
+Vector<String> available_time_zones_in_region(StringView region)
+{
+    return icu_available_time_zones(region);
 }
 
 Optional<String> resolve_primary_time_zone(StringView time_zone)
