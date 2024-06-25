@@ -37,6 +37,11 @@ struct ShadowRootInit {
     bool serializable = false;
 };
 
+struct GetHTMLOptions {
+    bool serializable_shadow_roots { false };
+    Vector<JS::Handle<ShadowRoot>> shadow_roots {};
+};
+
 // https://w3c.github.io/csswg-drafts/cssom-view-1/#dictdef-scrollintoviewoptions
 struct ScrollIntoViewOptions : public HTML::ScrollOptions {
     Bindings::ScrollLogicalPosition block { Bindings::ScrollLogicalPosition::Start };

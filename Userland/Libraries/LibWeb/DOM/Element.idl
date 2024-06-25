@@ -3,7 +3,6 @@
 #import <DOM/Attr.idl>
 #import <DOM/ChildNode.idl>
 #import <DOM/DOMTokenList.idl>
-#import <DOM/InnerHTML.idl>
 #import <DOM/NamedNodeMap.idl>
 #import <DOM/Node.idl>
 #import <DOM/NodeList.idl>
@@ -94,10 +93,24 @@ interface Element : Node {
     readonly attribute long clientHeight;
     readonly attribute double currentCSSZoom;
 
-    // https://w3c.github.io/DOM-Parsing/#extensions-to-the-element-interface
+    // https://html.spec.whatwg.org/#dom-parsing-and-serialization
+    [FIXME, CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
+    [FIXME] DOMString getHTML(optional GetHTMLOptions options = {});
+
+    // FIXME: [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) innerHTML;
+    [CEReactions, LegacyNullToEmptyString] attribute DOMString innerHTML;
+
+    // FIXME: [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) outerHTML;
     [CEReactions, LegacyNullToEmptyString] attribute DOMString outerHTML;
+
+    // FIXME: [CEReactions] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or DOMString) string);
     [CEReactions] undefined insertAdjacentHTML(DOMString position, DOMString text);
 
+};
+
+dictionary GetHTMLOptions {
+    boolean serializableShadowRoots = false;
+    sequence<ShadowRoot> shadowRoots = [];
 };
 
 dictionary ShadowRootInit {
@@ -110,7 +123,6 @@ dictionary ShadowRootInit {
 
 Element includes ParentNode;
 Element includes ChildNode;
-Element includes InnerHTML;
 // https://www.w3.org/TR/wai-aria-1.2/#idl_element
 Element includes ARIAMixin;
 Element includes Slottable;
