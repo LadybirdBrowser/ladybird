@@ -88,7 +88,7 @@ if (APPLE)
 endif()
 
 serenity_lib(LibCore core)
-target_link_libraries(LibCore PRIVATE LibCrypt LibTimeZone LibURL)
+target_link_libraries(LibCore PRIVATE LibCrypt LibUnicode LibURL)
 target_link_libraries(LibCore PUBLIC LibCoreMinimal)
 
 if (APPLE)

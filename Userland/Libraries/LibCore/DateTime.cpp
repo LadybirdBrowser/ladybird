@@ -11,7 +11,6 @@
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <LibCore/DateTime.h>
-#include <LibTimeZone/TimeZone.h>
 #include <LibUnicode/TimeZone.h>
 #include <errno.h>
 #include <time.h>
@@ -44,8 +43,8 @@ static Optional<StringView> parse_time_zone_name(GenericLexer& lexer)
 
 static void apply_time_zone_offset(StringView time_zone, UnixDateTime& time)
 {
-    if (auto offset = TimeZone::get_time_zone_offset(time_zone, time); offset.has_value())
-        time -= Duration::from_seconds(offset->seconds);
+    if (auto offset = Unicode::time_zone_offset(time_zone, time); offset.has_value())
+        time -= offset->offset;
 }
 
 DateTime DateTime::now()

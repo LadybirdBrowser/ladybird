@@ -118,4 +118,25 @@ Optional<String> resolve_primary_time_zone(StringView time_zone)
     return icu_string_to_string(iana_id);
 }
 
+Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime time)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto icu_time_zone = adopt_own_if_nonnull(icu::TimeZone::createTimeZone(icu_string(time_zone)));
+    if (!icu_time_zone || *icu_time_zone == icu::TimeZone::getUnknown())
+        return {};
+
+    i32 raw_offset = 0;
+    i32 dst_offset = 0;
+
+    icu_time_zone->getOffset(static_cast<UDate>(time.milliseconds_since_epoch()), 0, raw_offset, dst_offset, status);
+    if (icu_failure(status))
+        return {};
+
+    return TimeZoneOffset {
+        .offset = Duration::from_milliseconds(raw_offset + dst_offset),
+        .in_dst = dst_offset == 0 ? TimeZoneOffset::InDST::No : TimeZoneOffset::InDST::Yes,
+    };
+}
+
 }

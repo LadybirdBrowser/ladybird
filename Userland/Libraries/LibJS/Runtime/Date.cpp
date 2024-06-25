@@ -13,8 +13,6 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
-#include <LibTimeZone/TimeZone.h>
-#include <LibUnicode/TimeZone.h>
 #include <time.h>
 
 namespace JS {
@@ -390,31 +388,27 @@ Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringVie
     auto local_nanoseconds = get_utc_epoch_nanoseconds(year, month, day, hour, minute, second, millisecond, microsecond, nanosecond);
     auto local_time = UnixDateTime::from_nanoseconds_since_epoch(clip_bigint_to_sane_time(local_nanoseconds));
 
-    // FIXME: LibTimeZone does not behave exactly as the spec expects. It does not consider repeated or skipped time points.
-    auto offset = TimeZone::get_time_zone_offset(time_zone_identifier, local_time);
+    // FIXME: LibUnicode does not behave exactly as the spec expects. It does not consider repeated or skipped time points.
+    auto offset = Unicode::time_zone_offset(time_zone_identifier, local_time);
 
     // Can only fail if the time zone identifier is invalid, which cannot be the case here.
     VERIFY(offset.has_value());
 
-    return { local_nanoseconds.minus(Crypto::SignedBigInteger { offset->seconds }.multiplied_by(s_one_billion_bigint)) };
+    return { local_nanoseconds.minus(Crypto::SignedBigInteger { offset->offset.to_nanoseconds() }) };
 }
 
 // 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds
-i64 get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds)
+Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
-    // Only called with validated time zone identifier as argument.
-    auto time_zone = TimeZone::time_zone_from_string(time_zone_identifier);
-    VERIFY(time_zone.has_value());
-
     // Since UnixDateTime::from_seconds_since_epoch() and UnixDateTime::from_nanoseconds_since_epoch() both take an i64, converting to
     // seconds first gives us a greater range. The TZDB doesn't have sub-second offsets.
     auto seconds = epoch_nanoseconds.divided_by(s_one_billion_bigint).quotient;
     auto time = UnixDateTime::from_seconds_since_epoch(clip_bigint_to_sane_time(seconds));
 
-    auto offset = TimeZone::get_time_zone_offset(*time_zone, time);
+    auto offset = Unicode::time_zone_offset(time_zone_identifier, time);
     VERIFY(offset.has_value());
 
-    return offset->seconds * 1'000'000'000;
+    return offset.release_value();
 }
 
 // 21.4.1.24 SystemTimeZoneIdentifier ( ), https://tc39.es/ecma262/#sec-systemtimezoneidentifier
@@ -455,7 +449,8 @@ double local_time(double time)
     else {
         // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(t) × 10^6)).
         auto time_bigint = Crypto::SignedBigInteger { time }.multiplied_by(s_one_million_bigint);
-        offset_nanoseconds = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, time_bigint);
+        auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, time_bigint);
+        offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
     }
 
     // 4. Let offsetMs be truncate(offsetNs / 10^6).
@@ -497,13 +492,14 @@ double utc_time(double time)
             // ii. Let possibleInstantsBefore be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, ℝ(YearFromTime(tBefore)), ℝ(MonthFromTime(tBefore)) + 1, ℝ(DateFromTime(tBefore)), ℝ(HourFromTime(tBefore)), ℝ(MinFromTime(tBefore)), ℝ(SecFromTime(tBefore)), ℝ(msFromTime(tBefore)), 0, 0), where tBefore is the largest integral Number < t for which possibleInstantsBefore is not empty (i.e., tBefore represents the last local time before the transition).
             // iii. Let disambiguatedInstant be the last element of possibleInstantsBefore.
 
-            // FIXME: This branch currently cannot be reached with our implementation, because LibTimeZone does not handle skipped time points.
-            //        When GetNamedTimeZoneEpochNanoseconds is updated to use a LibTimeZone API which does handle them, implement these steps.
+            // FIXME: This branch currently cannot be reached with our implementation, because LibUnicode does not handle skipped time points.
+            //        When GetNamedTimeZoneEpochNanoseconds is updated to use a LibUnicode API which does handle them, implement these steps.
             VERIFY_NOT_REACHED();
         }
 
         // e. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, disambiguatedInstant).
-        offset_nanoseconds = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, disambiguated_instant);
+        auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, disambiguated_instant);
+        offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
     }
 
     // 4. Let offsetMs be truncate(offsetNs / 10^6).
