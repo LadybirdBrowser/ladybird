@@ -45,7 +45,8 @@ interface Range : AbstractRange {
 
     stringifier;
 
-    // Extensions from the DOM Parsing specification:
-    [CEReactions, NewObject] DocumentFragment createContextualFragment(DOMString fragment);
+    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
+    // FIXME: [CEReactions, NewObject] DocumentFragment createContextualFragment((TrustedHTML or DOMString) string);
+    [CEReactions, NewObject] DocumentFragment createContextualFragment(DOMString string);
 
 };

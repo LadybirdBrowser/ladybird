@@ -28,7 +28,6 @@
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
-#include <LibWeb/DOMParsing/InnerHTML.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -49,6 +48,7 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
+#include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -754,13 +754,38 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
     return nullptr;
 }
 
-WebIDL::ExceptionOr<void> Element::set_inner_html(StringView markup)
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
+WebIDL::ExceptionOr<void> Element::set_inner_html(StringView value)
 {
-    TRY(DOMParsing::inner_html_setter(*this, markup));
+    // FIXME: 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, the given value, "Element innerHTML", and "script".
+
+    // 2. Let context be this.
+    DOM::Node* context = this;
+
+    // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString. FIXME: Use compliantString.
+    auto fragment = TRY(verify_cast<Element>(*context).parse_fragment(value));
+
+    // 4. If context is a template element, then set context to the template element's template contents (a DocumentFragment).
+    if (is<HTML::HTMLTemplateElement>(*context))
+        context = verify_cast<HTML::HTMLTemplateElement>(*context).content();
+
+    // 5. Replace all with fragment within context.
+    context->replace_all(fragment);
+
+    // NOTE: We don't invalidate style & layout for <template> elements since they don't affect rendering.
+    if (!is<HTML::HTMLTemplateElement>(*context)) {
+        context->set_needs_style_update(true);
+
+        if (context->is_connected()) {
+            // NOTE: Since the DOM has changed, we have to rebuild the layout tree.
+            context->document().invalidate_layout();
+        }
+    }
+
     return {};
 }
 
-// https://w3c.github.io/DOM-Parsing/#dom-innerhtml-innerhtml
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
 WebIDL::ExceptionOr<String> Element::inner_html() const
 {
     return serialize_fragment(DOMParsing::RequireWellFormed::Yes);
@@ -1462,6 +1487,32 @@ bool Element::is_actually_disabled() const
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
+WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::DocumentFragment>> Element::parse_fragment(StringView markup)
+{
+    // 1. Let algorithm be the HTML fragment parsing algorithm.
+    auto algorithm = HTML::HTMLParser::parse_html_fragment;
+
+    // FIXME: 2. If context's node document is an XML document, then set algorithm to the XML fragment parsing algorithm.
+    if (document().is_xml_document()) {
+        dbgln("FIXME: Handle fragment parsing of XML documents");
+    }
+
+    // 3. Let new children be the result of invoking algorithm given markup, with context set to context.
+    auto new_children = algorithm(*this, markup);
+
+    // 4. Let fragment be a new DocumentFragment whose node document is context's node document.
+    auto fragment = realm().heap().allocate<DOM::DocumentFragment>(realm(), document());
+
+    // 5. Append each Node in new children to fragment (in tree order).
+    for (auto& child : new_children) {
+        // I don't know if this can throw here, but let's be safe.
+        (void)TRY(fragment->append_child(*child));
+    }
+
+    return fragment;
+}
+
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
 WebIDL::ExceptionOr<String> Element::outer_html() const
 {
@@ -1471,23 +1522,25 @@ WebIDL::ExceptionOr<String> Element::outer_html() const
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
 WebIDL::ExceptionOr<void> Element::set_outer_html(String const& value)
 {
-    // 1. Let parent be this's parent.
+    // 1. FIXME: Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, the given value, "Element outerHTML", and "script".
+
+    // 2. Let parent be this's parent.
     auto* parent = this->parent();
 
-    // 2. If parent is null, return. There would be no way to obtain a reference to the nodes created even if the remaining steps were run.
+    // 3. If parent is null, return. There would be no way to obtain a reference to the nodes created even if the remaining steps were run.
     if (!parent)
         return {};
 
-    // 3. If parent is a Document, throw a "NoModificationAllowedError" DOMException.
+    // 4. If parent is a Document, throw a "NoModificationAllowedError" DOMException.
     if (parent->is_document())
         return WebIDL::NoModificationAllowedError::create(realm(), "Cannot set outer HTML on document"_fly_string);
 
-    // 4. If parent is a DocumentFragment, set parent to the result of creating an element given this's node document, body, and the HTML namespace.
+    // 5. If parent is a DocumentFragment, set parent to the result of creating an element given this's node document, body, and the HTML namespace.
     if (parent->is_document_fragment())
         parent = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
 
-    // 5. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and the given value.
-    auto fragment = TRY(DOMParsing::parse_fragment(value, verify_cast<Element>(*parent)));
+    // 6. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and compliantString. FIXME: Use compliantString.
+    auto fragment = TRY(verify_cast<Element>(*parent).parse_fragment(value));
 
     // 6. Replace this with fragment within this's parent.
     TRY(parent->replace_child(fragment, *this));
@@ -1538,7 +1591,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     }
 
     // 4. Let fragment be the result of invoking the fragment parsing algorithm steps with context and string.
-    auto fragment = TRY(DOMParsing::parse_fragment(string, verify_cast<Element>(*context)));
+    auto fragment = TRY(verify_cast<Element>(*context).parse_fragment(string));
 
     // 5. Use the first matching item from this list:
 
