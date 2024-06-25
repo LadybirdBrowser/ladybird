@@ -1712,4 +1712,26 @@ Window::NamedObjects Window::named_objects(StringView name)
     return objects;
 }
 
+bool Window::find(String const& string)
+{
+    if (string.is_empty())
+        return false;
+
+    auto& page = this->page();
+    Optional<Page::FindInPageResult> result;
+    if (auto last_query = page.last_find_in_page_query(); last_query.has_value() && last_query->string == string) {
+        result = page.find_in_page_next_match();
+    } else {
+        Page::FindInPageQuery query {
+            string,
+            CaseSensitivity::CaseInsensitive,
+            Page::WrapAround::No,
+        };
+
+        result = page.find_in_page(query);
+    }
+
+    return result.has_value() && result->total_match_count.has_value() && *result->total_match_count > 0;
+}
+
 }

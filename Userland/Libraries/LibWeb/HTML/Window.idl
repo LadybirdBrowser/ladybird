@@ -113,6 +113,9 @@ interface Window : EventTarget {
 
     undefined captureEvents();
     undefined releaseEvents();
+
+    // This function is non-standard.
+    boolean find(optional DOMString string = "");
 };
 Window includes AnimationFrameProvider;
 Window includes GlobalEventHandlers;
