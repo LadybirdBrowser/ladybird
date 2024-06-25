@@ -1,0 +1,43 @@
+<div id="basicOpen">
+<template shadowrootmode="open">open</template>
+</div>
+<div id="basicClosed">
+<template shadowrootmode="closed">closed</template>
+</div>
+<div id="redundant">
+<template shadowrootmode="open">open</template>
+<template shadowrootmode="open">also open</template>
+</div>
+<div id="basicOpenClonable">
+<template shadowrootmode="open" shadowrootclonable>open</template>
+</div>
+<div id="basicOpenSerializable">
+<template shadowrootmode="open" shadowrootserializable>open</template>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(basicOpen.shadowRoot);
+        println(basicOpen.childElementCount);
+
+        println(basicClosed.shadowRoot);
+        println(basicClosed.childElementCount);
+
+        println(redundant.shadowRoot);
+        println(redundant.childElementCount);
+
+        let clonedUnclonable = basicOpen.cloneNode();
+        println(clonedUnclonable.shadowRoot);
+        println(clonedUnclonable.childElementCount);
+
+        let clonedClonable = basicOpenClonable.cloneNode();
+        println(clonedClonable.shadowRoot);
+        println(clonedClonable.childElementCount);
+
+        println(basicOpen.getHTML({ serializableShadowRoots: true}));
+        println(basicOpen.getHTML({ shadowRoots: [ basicOpen.shadowRoot ]}));
+        println(basicOpenSerializable.getHTML({ serializableShadowRoots: true}));
+        println(basicOpenSerializable.getHTML({ serializableShadowRoots: false}));
+        println(basicOpenSerializable.getHTML({ shadowRoots: [ basicOpenSerializable.shadowRoot ]}));
+    });
+</script>
