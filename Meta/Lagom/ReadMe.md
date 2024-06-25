@@ -17,7 +17,7 @@ Lagom is used by the Serenity project in the following ways:
 - [ECMA 262 spec tests](https://serenityos.github.io/libjs-website/test262) for LibJS are run per-commit and tracked on [LibJS website](https://serenityos.github.io/libjs-website/).
 - [Wasm spec tests](https://serenityos.github.io/libjs-website/wasm) for LibWasm are run per-commit and tracked on [LibJS website](https://serenityos.github.io/libjs-website/).
 - [A Wasm LibJS Repl](https://serenityos.github.io/libjs-website/repl) using an Emscripten build of Lagom is hosted on [LibJS website](https://serenityos.github.io/libjs-website/).
-- [The LibJS Repl](../../.github/workflows/serenity-js-artifacts.yml) is built per-commit for Linux and macOS for use by the [esvu](https://github.com/devsnek/esvu) project.
+- [The LibJS Repl](../../.github/workflows/ladybird-js-artifacts.yml) is built per-commit for Linux and macOS for use by the [esvu](https://github.com/devsnek/esvu) project.
 
 ## Using Lagom in an External Project
 It is possible to use Lagom for your own projects outside of Serenity too!
