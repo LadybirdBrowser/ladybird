@@ -51,9 +51,6 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
         m_front_bitmap_id = m_next_bitmap_id++;
         m_back_bitmap_id = m_next_bitmap_id++;
 
-        m_front_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, size, size.width() * front_iosurface.bytes_per_element(), front_iosurface.data(), [handle = move(front_iosurface)] {}).release_value();
-        m_back_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, size, size.width() * back_iosurface.bytes_per_element(), back_iosurface.data(), [handle = move(back_iosurface)] {}).release_value();
-
         Core::Platform::BackingStoreMetadata metadata;
         metadata.page_id = m_page_client.m_id;
         metadata.front_backing_store_id = m_front_bitmap_id;
@@ -86,6 +83,9 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
             VERIFY_NOT_REACHED();
         }
 
+        m_front_store = make<Web::Painting::IOSurfaceBackingStore>(move(front_iosurface));
+        m_back_store = make<Web::Painting::IOSurfaceBackingStore>(move(back_iosurface));
+
         return;
     }
 #endif
@@ -93,10 +93,13 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     m_front_bitmap_id = m_next_bitmap_id++;
     m_back_bitmap_id = m_next_bitmap_id++;
 
-    m_front_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, size).release_value();
-    m_back_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, size).release_value();
+    auto front_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, size).release_value();
+    auto back_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, size).release_value();
 
-    m_page_client.page_did_allocate_backing_stores(m_front_bitmap_id, m_front_bitmap->to_shareable_bitmap(), m_back_bitmap_id, m_back_bitmap->to_shareable_bitmap());
+    m_front_store = make<Web::Painting::BitmapBackingStore>(front_bitmap);
+    m_back_store = make<Web::Painting::BitmapBackingStore>(back_bitmap);
+
+    m_page_client.page_did_allocate_backing_stores(m_front_bitmap_id, front_bitmap->to_shareable_bitmap(), m_back_bitmap_id, back_bitmap->to_shareable_bitmap());
 }
 
 void BackingStoreManager::resize_backing_stores_if_needed(WindowResizingInProgress window_resize_in_progress)
@@ -114,18 +117,18 @@ void BackingStoreManager::resize_backing_stores_if_needed(WindowResizingInProgre
     } else {
         // If we're not in the middle of a resize, we can shrink the backing store size to match the viewport size.
         minimum_needed_size = viewport_size;
-        m_front_bitmap.clear();
-        m_back_bitmap.clear();
+        m_front_store.clear();
+        m_back_store.clear();
     }
 
-    if (!m_front_bitmap || !m_back_bitmap || !m_front_bitmap->size().contains(minimum_needed_size.to_type<int>())) {
+    if (!m_front_store || !m_back_store || !m_front_store->size().contains(minimum_needed_size.to_type<int>())) {
         reallocate_backing_stores(minimum_needed_size.to_type<int>());
     }
 }
 
 void BackingStoreManager::swap_back_and_front()
 {
-    swap(m_front_bitmap, m_back_bitmap);
+    swap(m_front_store, m_back_store);
     swap(m_front_bitmap_id, m_back_bitmap_id);
 }
 

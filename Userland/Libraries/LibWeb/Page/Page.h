@@ -304,7 +304,7 @@ public:
     virtual CSS::PreferredContrast preferred_contrast() const = 0;
     virtual CSS::PreferredMotion preferred_motion() const = 0;
     virtual void paint_next_frame() = 0;
-    virtual void paint(DevicePixelRect const&, Gfx::Bitmap&, PaintOptions = {}) = 0;
+    virtual void paint(DevicePixelRect const&, Painting::BackingStore&, PaintOptions = {}) = 0;
     virtual void page_did_change_title(ByteString const&) { }
     virtual void page_did_change_url(URL::URL const&) { }
     virtual void page_did_request_navigate_back() { }

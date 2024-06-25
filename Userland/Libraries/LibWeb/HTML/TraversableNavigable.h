@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
+#include <WebContent/BackingStoreManager.h>
 
 namespace Web::HTML {
 
@@ -85,7 +86,7 @@ public:
 
     [[nodiscard]] JS::GCPtr<DOM::Node> currently_focused_area();
 
-    void paint(Web::DevicePixelRect const&, Gfx::Bitmap&, Web::PaintOptions);
+    void paint(Web::DevicePixelRect const&, Painting::BackingStore&, Web::PaintOptions);
 
 private:
     TraversableNavigable(JS::NonnullGCPtr<Page>);

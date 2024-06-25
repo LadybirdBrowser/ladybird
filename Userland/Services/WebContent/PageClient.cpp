@@ -199,22 +199,24 @@ void PageClient::paint_next_frame()
             }
             auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
-            paint(rect, *bitmap, { .paint_overlay = Web::PaintOptions::PaintOverlay::No });
+            auto backing_store = Web::Painting::BitmapBackingStore(*bitmap);
+            paint(rect, backing_store, { .paint_overlay = Web::PaintOptions::PaintOverlay::No });
             client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
         } else {
             Web::DevicePixelRect rect { { 0, 0 }, content_size() };
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
-            paint(rect, *bitmap);
+            auto backing_store = Web::Painting::BitmapBackingStore(*bitmap);
+            paint(rect, backing_store);
             client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
         }
     }
 
-    auto back_bitmap = m_backing_store_manager.back_bitmap();
-    if (!back_bitmap)
+    auto back_store = m_backing_store_manager.back_store();
+    if (!back_store)
         return;
 
     auto viewport_rect = page().css_to_device_rect(page().top_level_traversable()->viewport_rect());
-    paint(viewport_rect, *back_bitmap);
+    paint(viewport_rect, *back_store);
 
     m_backing_store_manager.swap_back_and_front();
 
@@ -222,7 +224,7 @@ void PageClient::paint_next_frame()
     client().async_did_paint(m_id, viewport_rect.to_type<int>(), m_backing_store_manager.front_id());
 }
 
-void PageClient::paint(Web::DevicePixelRect const& content_rect, Gfx::Bitmap& target, Web::PaintOptions paint_options)
+void PageClient::paint(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore& target, Web::PaintOptions paint_options)
 {
     paint_options.should_show_line_box_borders = m_should_show_line_box_borders;
     paint_options.has_focus = m_has_focus;

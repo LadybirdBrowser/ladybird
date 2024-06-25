@@ -114,6 +114,11 @@ size_t IOSurfaceHandle::bytes_per_element() const
     return IOSurfaceGetBytesPerElement(m_ref_wrapper->ref);
 }
 
+size_t IOSurfaceHandle::bytes_per_row() const
+{
+    return IOSurfaceGetBytesPerRow(m_ref_wrapper->ref);
+}
+
 void* IOSurfaceHandle::data() const
 {
     return IOSurfaceGetBaseAddress(m_ref_wrapper->ref);

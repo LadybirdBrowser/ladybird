@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <AK/Noncopyable.h>
+#include <AK/OwnPtr.h>
 #include <LibCore/MachPort.h>
 
 namespace Core {
@@ -27,6 +28,7 @@ public:
     size_t width() const;
     size_t height() const;
     size_t bytes_per_element() const;
+    size_t bytes_per_row() const;
     void* data() const;
 
     ~IOSurfaceHandle();
