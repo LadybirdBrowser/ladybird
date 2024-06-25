@@ -2583,4 +2583,16 @@ CSS::StyleSheetList& Element::document_or_shadow_root_style_sheets()
     return document().style_sheets();
 }
 
+// https://html.spec.whatwg.org/#dom-element-gethtml
+WebIDL::ExceptionOr<String> Element::get_html(GetHTMLOptions const& options) const
+{
+    // Element's getHTML(options) method steps are to return the result
+    // of HTML fragment serialization algorithm with this,
+    // options["serializableShadowRoots"], and options["shadowRoots"].
+    return HTML::HTMLParser::serialize_html_fragment(
+        *this,
+        options.serializable_shadow_roots ? HTML::HTMLParser::SerializableShadowRoots::Yes : HTML::HTMLParser::SerializableShadowRoots::No,
+        options.shadow_roots);
+}
+
 }
