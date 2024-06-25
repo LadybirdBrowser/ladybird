@@ -140,7 +140,7 @@ public:
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> replace_child(JS::NonnullGCPtr<Node> node, JS::NonnullGCPtr<Node> child);
 
-    JS::NonnullGCPtr<Node> clone_node(Document* document = nullptr, bool clone_children = false);
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> clone_node(Document* document = nullptr, bool clone_children = false);
     WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> clone_node_binding(bool deep);
 
     // NOTE: This is intended for the JS bindings.
@@ -198,7 +198,7 @@ public:
     virtual void removed_from(Node*);
     virtual void children_changed() { }
     virtual void adopted_from(Document&) { }
-    virtual void cloned(Node&, bool) {};
+    virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) { return {}; }
 
     Layout::Node const* layout_node() const { return m_layout_node; }
     Layout::Node* layout_node() { return m_layout_node; }

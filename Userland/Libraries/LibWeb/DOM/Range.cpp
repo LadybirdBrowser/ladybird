@@ -633,7 +633,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
     // 4. If original start node is original end node and it is a CharacterData node, then:
     if (original_start_node.ptr() == original_end_node.ptr() && is<CharacterData>(*original_start_node)) {
         // 1. Let clone be a clone of original start node.
-        auto clone = original_start_node->clone_node();
+        auto clone = TRY(original_start_node->clone_node());
 
         // 2. Set the data of clone to the result of substringing data with node original start node,
         //    offset original start offset, and count original end offset minus original start offset.
@@ -723,7 +723,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
     // 15. If first partially contained child is a CharacterData node, then:
     if (first_partially_contained_child && is<CharacterData>(*first_partially_contained_child)) {
         // 1. Let clone be a clone of original start node.
-        auto clone = original_start_node->clone_node();
+        auto clone = TRY(original_start_node->clone_node());
 
         // 2. Set the data of clone to the result of substringing data with node original start node, offset original start offset,
         //    and count original start node’s length minus original start offset.
@@ -739,7 +739,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
     // 16. Otherwise, if first partially contained child is not null:
     else if (first_partially_contained_child) {
         // 1. Let clone be a clone of first partially contained child.
-        auto clone = first_partially_contained_child->clone_node();
+        auto clone = TRY(first_partially_contained_child->clone_node());
 
         // 2. Append clone to fragment.
         TRY(fragment->append_child(clone));
@@ -762,7 +762,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
     // 18. If last partially contained child is a CharacterData node, then:
     if (last_partially_contained_child && is<CharacterData>(*last_partially_contained_child)) {
         // 1. Let clone be a clone of original end node.
-        auto clone = original_end_node->clone_node();
+        auto clone = TRY(original_end_node->clone_node());
 
         // 2. Set the data of clone to the result of substringing data with node original end node, offset 0, and count original end offset.
         auto result = TRY(static_cast<CharacterData const&>(*original_end_node).substring_data(0, original_end_offset));
@@ -777,7 +777,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
     // 19. Otherwise, if last partially contained child is not null:
     else if (last_partially_contained_child) {
         // 1. Let clone be a clone of last partially contained child.
-        auto clone = last_partially_contained_child->clone_node();
+        auto clone = TRY(last_partially_contained_child->clone_node());
 
         // 2. Append clone to fragment.
         TRY(fragment->append_child(clone));
@@ -962,7 +962,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
     // 4. If original start node is original end node and it is a CharacterData node, then:
     if (original_start_node.ptr() == original_end_node.ptr() && is<CharacterData>(*original_start_node)) {
         // 1. Let clone be a clone of original start node.
-        auto clone = original_start_node->clone_node();
+        auto clone = TRY(original_start_node->clone_node());
 
         // 2. Set the data of clone to the result of substringing data with node original start node,
         //    offset original start offset, and count original end offset minus original start offset.
@@ -1027,7 +1027,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
     // 13. If first partially contained child is a CharacterData node, then:
     if (first_partially_contained_child && is<CharacterData>(*first_partially_contained_child)) {
         // 1. Let clone be a clone of original start node.
-        auto clone = original_start_node->clone_node();
+        auto clone = TRY(original_start_node->clone_node());
 
         // 2. Set the data of clone to the result of substringing data with node original start node, offset original start offset,
         //    and count original start node’s length minus original start offset.
@@ -1040,7 +1040,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
     // 14. Otherwise, if first partially contained child is not null:
     else if (first_partially_contained_child) {
         // 1. Let clone be a clone of first partially contained child.
-        auto clone = first_partially_contained_child->clone_node();
+        auto clone = TRY(first_partially_contained_child->clone_node());
 
         // 2. Append clone to fragment.
         TRY(fragment->append_child(clone));
@@ -1058,7 +1058,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
     // 15. For each contained child in contained children.
     for (auto& contained_child : contained_children) {
         // 1. Let clone be a clone of contained child with the clone children flag set.
-        auto clone = contained_child->clone_node(nullptr, true);
+        auto clone = TRY(contained_child->clone_node(nullptr, true));
 
         // 2. Append clone to fragment.
         TRY(fragment->append_child(move(clone)));
@@ -1067,7 +1067,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
     // 16. If last partially contained child is a CharacterData node, then:
     if (last_partially_contained_child && is<CharacterData>(*last_partially_contained_child)) {
         // 1. Let clone be a clone of original end node.
-        auto clone = original_end_node->clone_node();
+        auto clone = TRY(original_end_node->clone_node());
 
         // 2. Set the data of clone to the result of substringing data with node original end node, offset 0, and count original end offset.
         auto result = TRY(static_cast<CharacterData const&>(*original_end_node).substring_data(0, original_end_offset));
@@ -1079,7 +1079,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
     // 17. Otherwise, if last partially contained child is not null:
     else if (last_partially_contained_child) {
         // 1. Let clone be a clone of last partially contained child.
-        auto clone = last_partially_contained_child->clone_node();
+        auto clone = TRY(last_partially_contained_child->clone_node());
 
         // 2. Append clone to fragment.
         TRY(fragment->append_child(clone));
