@@ -16,7 +16,7 @@ interface ShadowRoot : DocumentFragment {
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
 
     [FIXME, CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
-    [FIXME] DOMString getHTML(optional GetHTMLOptions options = {});
+    DOMString getHTML(optional GetHTMLOptions options = {});
 
     // FIXME: [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) innerHTML;
     [CEReactions, LegacyNullToEmptyString] attribute DOMString innerHTML;

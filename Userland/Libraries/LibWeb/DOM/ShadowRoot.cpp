@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOMParsing/InnerHTML.h>
+#include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/BlockContainer.h>
 
 namespace Web::DOM {
@@ -73,6 +74,18 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(StringView markup)
 
     set_needs_style_update(true);
     return {};
+}
+
+// https://html.spec.whatwg.org/#dom-element-gethtml
+WebIDL::ExceptionOr<String> ShadowRoot::get_html(GetHTMLOptions const& options) const
+{
+    // ShadowRoot's getHTML(options) method steps are to return the result
+    // of HTML fragment serialization algorithm with this,
+    // options["serializableShadowRoots"], and options["shadowRoots"].
+    return HTML::HTMLParser::serialize_html_fragment(
+        *this,
+        options.serializable_shadow_roots ? HTML::HTMLParser::SerializableShadowRoots::Yes : HTML::HTMLParser::SerializableShadowRoots::No,
+        options.shadow_roots);
 }
 
 CSS::StyleSheetList& ShadowRoot::style_sheets()
