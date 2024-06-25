@@ -12,6 +12,7 @@
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibUnicode/Locale.h>
@@ -51,6 +52,8 @@ using StringOrBoolean = Variant<StringView, bool>;
 bool is_structurally_valid_language_tag(StringView locale);
 String canonicalize_unicode_locale_id(StringView locale);
 bool is_well_formed_currency_code(StringView currency);
+Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers();
+Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(StringView time_zone_identifier);
 bool is_well_formed_unit_identifier(StringView unit_identifier);
 ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM&, Value locales);
 Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> requested_locales);

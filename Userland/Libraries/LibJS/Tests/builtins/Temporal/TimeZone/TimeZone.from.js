@@ -26,7 +26,7 @@ describe("normal behavior", () => {
             ["Etc/GMT+12", "Etc/GMT+12"],
             ["Etc/GMT-12", "Etc/GMT-12"],
             ["Europe/London", "Europe/London"],
-            ["Europe/Isle_of_Man", "Europe/London"],
+            ["Australia/Canberra", "Australia/Sydney"],
             ["1970-01-01T00:00:00+01", "+01:00"],
             ["1970-01-01T00:00:00.000000000+01", "+01:00"],
             ["1970-01-01T00:00:00.000000000+01:00:00", "+01:00"],

@@ -12,7 +12,7 @@ describe("correct behavior", () => {
             ["Etc/UTC", "UTC"],
             ["Etc/GMT", "UTC"],
             ["Europe/London", "Europe/London"],
-            ["Europe/Isle_of_Man", "Europe/London"],
+            ["Australia/Canberra", "Australia/Sydney"],
             ["+00:00", "+00:00"],
             ["+00:00:00", "+00:00"],
             ["+00:00:00.000", "+00:00"],

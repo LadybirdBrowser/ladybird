@@ -20,7 +20,7 @@
 #include <LibJS/Runtime/Temporal/TimeZoneConstructor.h>
 #include <LibJS/Runtime/Temporal/TimeZoneMethods.h>
 #include <LibJS/Runtime/Temporal/ZonedDateTime.h>
-#include <LibTimeZone/TimeZone.h>
+#include <LibUnicode/TimeZone.h>
 
 namespace JS::Temporal {
 
@@ -36,28 +36,45 @@ TimeZone::TimeZone(Object& prototype)
 bool is_available_time_zone_name(StringView time_zone)
 {
     // 1. Let timeZones be AvailableTimeZones().
+    auto const& time_zones = Unicode::available_time_zones();
+
     // 2. For each String candidate in timeZones, do
-    //     a. If timeZone is an ASCII-case-insensitive match for candidate, return true.
+    for (auto const& candidate : time_zones) {
+        // a. If timeZone is an ASCII-case-insensitive match for candidate, return true.
+        if (time_zone.equals_ignoring_ascii_case(candidate))
+            return true;
+    }
+
     // 3. Return false.
-    // NOTE: When LibTimeZone is built without ENABLE_TIME_ZONE_DATA, this only recognizes 'UTC',
-    // which matches the minimum requirements of the Temporal spec.
-    return ::TimeZone::time_zone_from_string(time_zone).has_value();
+    return false;
 }
 
 // 6.4.2 CanonicalizeTimeZoneName ( timeZone ), https://tc39.es/ecma402/#sec-canonicalizetimezonename
 // 11.1.2 CanonicalizeTimeZoneName ( timeZone ), https://tc39.es/proposal-temporal/#sec-canonicalizetimezonename
 // 15.1.2 CanonicalizeTimeZoneName ( timeZone ), https://tc39.es/proposal-temporal/#sup-canonicalizetimezonename
-ThrowCompletionOr<String> canonicalize_time_zone_name(VM& vm, StringView time_zone)
+ThrowCompletionOr<String> canonicalize_time_zone_name(VM&, StringView time_zone)
 {
-    // 1. Let ianaTimeZone be the String value of the Zone or Link name of the IANA Time Zone Database that is an ASCII-case-insensitive match of timeZone as described in 6.1.
-    // 2. If ianaTimeZone is a Link name, let ianaTimeZone be the String value of the corresponding Zone name as specified in the file backward of the IANA Time Zone Database.
-    auto iana_time_zone = ::TimeZone::canonicalize_time_zone(time_zone);
+    auto const& time_zones = Unicode::available_time_zones();
+
+    // 1. Let ianaTimeZone be the String value of the Zone or Link name of the IANA Time Zone Database that is an
+    //    ASCII-case-insensitive match of timeZone as described in 6.1.
+    auto it = time_zones.find_if([&](auto const& candidate) {
+        return time_zone.equals_ignoring_ascii_case(candidate);
+    });
+    VERIFY(it != time_zones.end());
+
+    // 2. If ianaTimeZone is a Link name, let ianaTimeZone be the String value of the corresponding Zone name as specified
+    //    in the file backward of the IANA Time Zone Database.
+    auto iana_time_zone = Unicode::resolve_primary_time_zone(*it).value_or_lazy_evaluated([&]() {
+        return MUST(String::from_utf8(time_zone));
+    });
 
     // 3. If ianaTimeZone is one of "Etc/UTC", "Etc/GMT", or "GMT", return "UTC".
-    // NOTE: This is already done in canonicalize_time_zone().
+    if (iana_time_zone.is_one_of("Etc/UTC"sv, "Etc/GMT"sv, "GMT"sv))
+        return "UTC"_string;
 
     // 4. Return ianaTimeZone.
-    return TRY_OR_THROW_OOM(vm, String::from_utf8(*iana_time_zone));
+    return iana_time_zone;
 }
 
 // 11.6.1 CreateTemporalTimeZone ( identifier [ , newTarget ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtemporaltimezone

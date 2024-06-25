@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibTimeZone/TimeZone.h>
 #include <LibUnicode/TimeZone.h>
@@ -416,58 +417,25 @@ i64 get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Cryp
     return offset->seconds * 1'000'000'000;
 }
 
-// 21.4.1.23 AvailableNamedTimeZoneIdentifiers ( ), https://tc39.es/ecma262/#sec-time-zone-identifier-record
-Vector<TimeZoneIdentifier> available_named_time_zone_identifiers()
-{
-    // 1. If the implementation does not include local political rules for any time zones, then
-    //     a. Return « the Time Zone Identifier Record { [[Identifier]]: "UTC", [[PrimaryIdentifier]]: "UTC" } ».
-    // NOTE: This step is not applicable as LibTimeZone will always return at least UTC, even if the TZDB is disabled.
-
-    // 2. Let identifiers be the List of unique available named time zone identifiers.
-    auto identifiers = TimeZone::all_time_zones();
-
-    // 3. Sort identifiers into the same order as if an Array of the same values had been sorted using %Array.prototype.sort% with undefined as comparefn.
-    // NOTE: LibTimeZone provides the identifiers already sorted.
-
-    // 4. Let result be a new empty List.
-    Vector<TimeZoneIdentifier> result;
-    result.ensure_capacity(identifiers.size());
-
-    bool found_utc = false;
-
-    // 5. For each element identifier of identifiers, do
-    for (auto identifier : identifiers) {
-        // a. Let primary be identifier.
-        auto primary = identifier.name;
-
-        // b. If identifier is a non-primary time zone identifier in this implementation and identifier is not "UTC", then
-        if (identifier.is_link == TimeZone::IsLink::Yes && identifier.name != "UTC"sv) {
-            // i. Set primary to the primary time zone identifier associated with identifier.
-            // ii. NOTE: An implementation may need to resolve identifier iteratively to obtain the primary time zone identifier.
-            primary = TimeZone::canonicalize_time_zone(identifier.name).value();
-        }
-
-        // c. Let record be the Time Zone Identifier Record { [[Identifier]]: identifier, [[PrimaryIdentifier]]: primary }.
-        TimeZoneIdentifier record { .identifier = identifier.name, .primary_identifier = primary };
-
-        // d. Append record to result.
-        result.unchecked_append(record);
-
-        if (!found_utc && identifier.name == "UTC"sv && primary == "UTC"sv)
-            found_utc = true;
-    }
-
-    // 6. Assert: result contains a Time Zone Identifier Record r such that r.[[Identifier]] is "UTC" and r.[[PrimaryIdentifier]] is "UTC".
-    VERIFY(found_utc);
-
-    // 7. Return result.
-    return result;
-}
-
 // 21.4.1.24 SystemTimeZoneIdentifier ( ), https://tc39.es/ecma262/#sec-systemtimezoneidentifier
 String system_time_zone_identifier()
 {
-    return Unicode::current_time_zone();
+    // 1. If the implementation only supports the UTC time zone, return "UTC".
+
+    // 2. Let systemTimeZoneString be the String representing the host environment's current time zone, either a primary
+    //    time zone identifier or an offset time zone identifier.
+    auto system_time_zone_string = Unicode::current_time_zone();
+
+    if (!is_time_zone_offset_string(system_time_zone_string)) {
+        auto time_zone_identifier = Intl::get_available_named_time_zone_identifier(system_time_zone_string);
+        if (!time_zone_identifier.has_value())
+            return "UTC"_string;
+
+        system_time_zone_string = time_zone_identifier->primary_identifier;
+    }
+
+    // 3. Return systemTimeZoneString.
+    return system_time_zone_string;
 }
 
 // 21.4.1.25 LocalTime ( t ), https://tc39.es/ecma262/#sec-localtime
