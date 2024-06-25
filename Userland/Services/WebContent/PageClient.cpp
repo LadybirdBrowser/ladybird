@@ -665,9 +665,6 @@ ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_p
     VERIFY(!m_webdriver);
     m_webdriver = TRY(WebDriverConnection::connect(*this, webdriver_ipc_path));
 
-    if (m_owner.on_webdriver_connection)
-        m_owner.on_webdriver_connection(*m_webdriver);
-
     return {};
 }
 
