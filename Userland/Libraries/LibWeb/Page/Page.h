@@ -190,9 +190,14 @@ public:
 
     void clear_selection();
 
+    enum class WrapAround {
+        Yes,
+        No,
+    };
     struct FindInPageQuery {
         String string {};
         CaseSensitivity case_sensitivity { CaseSensitivity::CaseInsensitive };
+        WrapAround wrap_around { WrapAround::Yes };
     };
     struct FindInPageResult {
         size_t current_match_index { 0 };
