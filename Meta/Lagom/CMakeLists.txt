@@ -395,7 +395,6 @@ set(lagom_standard_libraries
     Syntax
     TextCodec
     Threading
-    TimeZone
     TLS
     Unicode
     URL
@@ -508,7 +507,6 @@ if (BUILD_TESTING)
         LibTest
         LibTextCodec
         LibTTF
-        LibTimeZone
         LibUnicode
         LibURL
         LibWeb
