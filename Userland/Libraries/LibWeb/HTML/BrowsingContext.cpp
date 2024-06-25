@@ -246,6 +246,9 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     // about base URL: creatorBaseURL
     document->set_about_base_url(creator_base_url);
 
+    // allow declarative shadow roots: true
+    document->set_allow_declarative_shadow_roots(true);
+
     // 16. If creator is non-null, then:
     if (creator) {
         // 1. Set document's referrer to the serialization of creator's URL.

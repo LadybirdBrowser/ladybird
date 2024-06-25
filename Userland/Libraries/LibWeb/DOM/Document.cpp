@@ -288,7 +288,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(
     //     URL: creationURL
     //     current document readiness: "loading"
     //     about base URL: navigationParams's about base URL
-    //     FIXME: allow declarative shadow roots: true
+    //     allow declarative shadow roots: true
     auto document = HTML::HTMLDocument::create(window->realm());
     document->m_type = type;
     document->m_content_type = move(content_type);
@@ -300,6 +300,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(
     document->set_url(*creation_url);
     document->m_readiness = HTML::DocumentReadyState::Loading;
     document->m_about_base_url = navigation_params.about_base_url;
+    document->set_allow_declarative_shadow_roots(true);
 
     document->m_window = window;
 
@@ -5207,6 +5208,18 @@ Vector<JS::Handle<DOM::Range>> Document::find_matching_text(String const& query,
     }
 
     return matches;
+}
+
+// https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
+bool Document::allow_declarative_shadow_roots() const
+{
+    return m_allow_declarative_shadow_roots;
+}
+
+// https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
+void Document::set_allow_declarative_shadow_roots(bool allow)
+{
+    m_allow_declarative_shadow_roots = allow;
 }
 
 }
