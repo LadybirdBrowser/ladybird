@@ -1,6 +1,6 @@
 #import <DOM/DocumentFragment.idl>
 #import <DOM/DocumentOrShadowRoot.idl>
-#import <DOM/InnerHTML.idl>
+#import <DOM/Element.idl>
 
 // https://dom.spec.whatwg.org/#shadowroot
 [Exposed=Window]
@@ -12,9 +12,16 @@ interface ShadowRoot : DocumentFragment {
     readonly attribute boolean serializable;
     readonly attribute Element host;
     attribute EventHandler onslotchange;
+
+    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
+
+    [FIXME, CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
+    [FIXME] DOMString getHTML(optional GetHTMLOptions options = {});
+
+    // FIXME: [CEReactions] attribute (TrustedHTML or [LegacyNullToEmptyString] DOMString) innerHTML;
+    [CEReactions, LegacyNullToEmptyString] attribute DOMString innerHTML;
 };
 
-ShadowRoot includes InnerHTML;
 ShadowRoot includes DocumentOrShadowRoot;
 
 enum ShadowRootMode { "open", "closed" };

@@ -1,4 +1,0 @@
-// https://w3c.github.io/DOM-Parsing/#the-innerhtml-mixin
-interface mixin InnerHTML {
-    [LegacyNullToEmptyString, CEReactions] attribute DOMString innerHTML;
-};
