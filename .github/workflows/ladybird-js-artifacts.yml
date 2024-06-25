@@ -87,6 +87,6 @@ jobs:
       - name: Upload js package
         uses: actions/upload-artifact@v4
         with:
-          name: serenity-js-${{ matrix.package_type }}
+          name: ladybird-js-${{ matrix.package_type }}
           path: Build/ladybird-js*.tar.gz
           retention-days: 7
