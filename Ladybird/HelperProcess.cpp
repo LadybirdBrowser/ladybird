@@ -160,14 +160,7 @@ ErrorOr<IPC::File> connect_new_request_server_client(Protocol::RequestClient& cl
         return Error::from_string_literal("Failed to connect to RequestServer");
 
     auto socket = new_socket->take_client_socket();
-
-    // FIXME: IPC::Files transferred over the wire are always set O_CLOEXEC during decoding.
-    //        Perhaps we should add an option to IPC::File to allow the receiver to decide whether to
-    //        make it O_CLOEXEC or not. Or an attribute in the .ipc file?
-    auto fd = socket.fd();
-    auto fd_flags = MUST(Core::System::fcntl(fd, F_GETFD));
-    fd_flags &= ~FD_CLOEXEC;
-    MUST(Core::System::fcntl(fd, F_SETFD, fd_flags));
+    TRY(socket.clear_close_on_exec());
 
     return socket;
 }
