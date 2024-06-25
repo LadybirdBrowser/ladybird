@@ -205,7 +205,7 @@ DecoderErrorOr<void> Reader::parse_initial_data()
 
     m_segment_contents_size = TRY_READ(streamer.read_variable_size_integer());
     m_segment_contents_position = streamer.position();
-    dbgln_if(true, "Segment is at {} with size {}, available size is {}", m_segment_contents_position, m_segment_contents_size, m_data.size() - m_segment_contents_position);
+    dbgln_if(MATROSKA_TRACE_DEBUG, "Segment is at {} with size {}, available size is {}", m_segment_contents_position, m_segment_contents_size, m_data.size() - m_segment_contents_position);
     m_segment_contents_size = min(m_segment_contents_size, m_data.size() - m_segment_contents_position);
     return {};
 }
