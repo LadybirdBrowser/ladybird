@@ -11,7 +11,7 @@
 
 namespace WebView {
 
-static HashTable<WebContentClient*> s_clients;
+HashTable<WebContentClient*> WebContentClient::s_clients;
 
 Optional<ViewImplementation&> WebContentClient::view_for_pid_and_page_id(pid_t pid, u64 page_id)
 {

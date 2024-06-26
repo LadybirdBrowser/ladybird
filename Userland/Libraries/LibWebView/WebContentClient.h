@@ -28,6 +28,11 @@ class WebContentClient final
 public:
     static Optional<ViewImplementation&> view_for_pid_and_page_id(pid_t pid, u64 page_id);
 
+    template<CallableAs<IterationDecision, WebContentClient&> Callback>
+    static void for_each_client(Callback callback);
+
+    static size_t client_count() { return s_clients.size(); }
+
     WebContentClient(NonnullOwnPtr<Core::LocalSocket>, ViewImplementation&);
     ~WebContentClient();
 
@@ -121,6 +126,17 @@ private:
     HashMap<u64, ViewImplementation*> m_views;
 
     ProcessHandle m_process_handle;
+
+    static HashTable<WebContentClient*> s_clients;
 };
+
+template<CallableAs<IterationDecision, WebContentClient&> Callback>
+void WebContentClient::for_each_client(Callback callback)
+{
+    for (auto& it : s_clients) {
+        if (callback(*it) == IterationDecision::Break)
+            return;
+    }
+}
 
 }
