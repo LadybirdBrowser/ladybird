@@ -14,5 +14,9 @@ target_link_libraries(LibMedia PRIVATE LibCore LibIPC LibGfx LibThreading)
 
 # Third-party
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
-target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC)
+
+pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec)
+target_link_libraries(LibMedia PRIVATE PkgConfig::FFMPEG)
+if (NOT APPLE)
+    target_link_options(LibMedia PRIVATE "-Wl,-Bsymbolic")
+endif()

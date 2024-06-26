@@ -1,6 +1,10 @@
 {
   "builtin-baseline": "f7423ee180c4b7f40d43402c2feb3859161ef625",
-  "dependencies": [
+   "dependencies": [
+    {
+      "name": "ffmpeg",
+      "features": [ "avcodec" ]
+    },
     {
       "name": "fontconfig",
       "platform": "linux | freebsd | openbsd"
@@ -16,6 +20,10 @@
     "woff2"
   ],
   "overrides": [
+    {
+      "name": "ffmpeg",
+      "version": "6.1.1#7"
+    },
     {
       "name": "fontconfig",
       "version": "2.14.2#1"
