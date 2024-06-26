@@ -5166,6 +5166,9 @@ Vector<JS::Handle<DOM::Range>> Document::find_matching_text(String const& query,
         return text_blocks;
     };
 
+    // Ensure the layout tree exists before searching for text matches.
+    update_layout();
+
     auto text_blocks = gather_text_blocks();
     if (text_blocks.is_empty())
         return {};
