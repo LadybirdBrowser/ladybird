@@ -124,4 +124,9 @@ void* IOSurfaceHandle::data() const
     return IOSurfaceGetBaseAddress(m_ref_wrapper->ref);
 }
 
+void* IOSurfaceHandle::core_foundation_pointer() const
+{
+    return m_ref_wrapper->ref;
+}
+
 }

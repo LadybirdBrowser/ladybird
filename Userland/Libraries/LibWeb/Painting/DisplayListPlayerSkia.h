@@ -9,7 +9,23 @@
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
+#ifdef AK_OS_MACOS
+#    include <LibCore/IOSurface.h>
+#    include <LibCore/MetalContext.h>
+#endif
+
 namespace Web::Painting {
+
+class SkiaBackendContext {
+    AK_MAKE_NONCOPYABLE(SkiaBackendContext);
+    AK_MAKE_NONMOVABLE(SkiaBackendContext);
+
+public:
+    SkiaBackendContext() {};
+    virtual ~SkiaBackendContext() {};
+
+    virtual void flush_and_submit() {};
+};
 
 class DisplayListPlayerSkia : public DisplayListPlayer {
 public:
@@ -52,7 +68,13 @@ public:
     bool needs_update_immutable_bitmap_texture_cache() const override { return false; }
     void update_immutable_bitmap_texture_cache(HashMap<u32, Gfx::ImmutableBitmap const*>&) override {};
 
-    DisplayListPlayerSkia(Gfx::Bitmap& bitmap);
+    DisplayListPlayerSkia(Gfx::Bitmap&);
+
+#ifdef AK_OS_MACOS
+    static OwnPtr<SkiaBackendContext> create_metal_context(Core::MetalContext const&);
+    DisplayListPlayerSkia(SkiaBackendContext&, Core::MetalTexture&);
+#endif
+
     virtual ~DisplayListPlayerSkia() override;
 
 private:
@@ -60,6 +82,7 @@ private:
     SkiaSurface& surface() const;
 
     OwnPtr<SkiaSurface> m_surface;
+    Function<void()> m_flush_context;
 };
 
 }

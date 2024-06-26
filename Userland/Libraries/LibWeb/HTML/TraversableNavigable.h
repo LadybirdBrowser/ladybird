@@ -12,7 +12,12 @@
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <WebContent/BackingStoreManager.h>
+
+#ifdef AK_OS_MACOS
+#    include <LibCore/MetalContext.h>
+#endif
 
 namespace Web::HTML {
 
@@ -124,6 +129,11 @@ private:
     JS::NonnullGCPtr<SessionHistoryTraversalQueue> m_session_history_traversal_queue;
 
     String m_window_handle;
+
+#ifdef AK_OS_MACOS
+    OwnPtr<Web::Painting::SkiaBackendContext> m_skia_backend_context;
+    OwnPtr<Core::MetalContext> m_metal_context;
+#endif
 };
 
 struct BrowsingContextAndDocument {
