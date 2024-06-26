@@ -10,17 +10,11 @@
 #include <LibCore/Process.h>
 #include <LibWebView/ProcessManager.h>
 
-enum class RegisterWithProcessManager {
-    No,
-    Yes,
-};
-
 template<typename ClientType, typename... ClientArguments>
 static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     StringView server_name,
     ReadonlySpan<ByteString> candidate_server_paths,
     Vector<ByteString> arguments,
-    RegisterWithProcessManager register_with_process_manager,
     Ladybird::EnableCallgrindProfiling enable_callgrind_profiling,
     ClientArguments&&... client_arguments)
 {
@@ -51,8 +45,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             if constexpr (requires { process.client->set_pid(pid_t {}); })
                 process.client->set_pid(process.process.pid());
 
-            if (register_with_process_manager == RegisterWithProcessManager::Yes)
-                WebView::ProcessManager::the().add_process(WebView::process_type_from_name(server_name), process.process.pid());
+            WebView::ProcessManager::the().add_process(WebView::process_type_from_name(server_name), process.process.pid());
 
             if (enable_callgrind_profiling == Ladybird::EnableCallgrindProfiling::Yes) {
                 dbgln();
@@ -117,7 +110,7 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     arguments.append("--image-decoder-socket"sv);
     arguments.append(ByteString::number(image_decoder_socket.fd()));
 
-    return launch_server_process<WebView::WebContentClient>("WebContent"sv, candidate_web_content_paths, move(arguments), RegisterWithProcessManager::No, web_content_options.enable_callgrind_profiling, view);
+    return launch_server_process<WebView::WebContentClient>("WebContent"sv, candidate_web_content_paths, move(arguments), web_content_options.enable_callgrind_profiling, view);
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(ReadonlySpan<ByteString> candidate_image_decoder_paths)
@@ -128,7 +121,7 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
         arguments.append(server.value());
     }
 
-    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, arguments, RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
+    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, arguments, Ladybird::EnableCallgrindProfiling::No);
 }
 
 ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, NonnullRefPtr<Protocol::RequestClient> request_client)
@@ -140,7 +133,7 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Rea
         ByteString::number(socket.fd()),
     };
 
-    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
+    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), Ladybird::EnableCallgrindProfiling::No);
 }
 
 ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(ReadonlySpan<ByteString> candidate_request_server_paths, StringView serenity_resource_root, Vector<ByteString> const& certificates)
@@ -160,7 +153,7 @@ ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(Re
         arguments.append(server.value());
     }
 
-    return launch_server_process<Protocol::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments), RegisterWithProcessManager::Yes, Ladybird::EnableCallgrindProfiling::No);
+    return launch_server_process<Protocol::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments), Ladybird::EnableCallgrindProfiling::No);
 }
 
 ErrorOr<IPC::File> connect_new_request_server_client(Protocol::RequestClient& client)
