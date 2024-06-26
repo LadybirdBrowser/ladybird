@@ -11,7 +11,7 @@
 namespace Browser {
 
 static constexpr StringView default_homepage_url = "resource://html/misc/welcome.html"sv;
-static constexpr StringView default_new_tab_url = "about:blank"sv;
+static constexpr StringView default_new_tab_url = "about:newtab"sv;
 static constexpr StringView default_color_scheme = "auto"sv;
 static constexpr bool default_enable_content_filters = true;
 static constexpr bool default_show_bookmarks_bar = true;
