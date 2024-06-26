@@ -22,6 +22,7 @@ class WebViewBridge;
 - (instancetype)init;
 
 - (ErrorOr<void>)launchRequestServer:(Vector<ByteString> const&)certificates;
+- (ErrorOr<void>)launchImageDecoder;
 - (ErrorOr<NonnullRefPtr<WebView::WebContentClient>>)launchWebContent:(Ladybird::WebViewBridge&)web_view_bridge;
 - (ErrorOr<IPC::File>)launchWebWorker;
 

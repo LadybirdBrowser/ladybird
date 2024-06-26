@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <Ladybird/Qt/BrowserWindow.h>
+#include <LibImageDecoderClient/Client.h>
 #include <LibProtocol/RequestClient.h>
 #include <LibURL/URL.h>
 #include <QApplication>
@@ -27,6 +28,9 @@ public:
     Function<void(URL::URL)> on_open_file;
     RefPtr<Protocol::RequestClient> request_server_client;
 
+    NonnullRefPtr<ImageDecoderClient::Client> image_decoder_client() const { return *m_image_decoder_client; }
+    ErrorOr<void> initialize_image_decoder();
+
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, WebContentOptions const&, StringView webdriver_content_ipc_path, bool allow_popups, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
     void show_task_manager_window();
@@ -38,6 +42,8 @@ public:
 private:
     TaskManagerWindow* m_task_manager_window { nullptr };
     BrowserWindow* m_active_window { nullptr };
+
+    RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
 };
 
 }

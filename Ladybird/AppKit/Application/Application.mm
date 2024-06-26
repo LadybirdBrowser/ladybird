@@ -41,6 +41,11 @@
     return m_application_bridge->launch_request_server(certificates);
 }
 
+- (ErrorOr<void>)launchImageDecoder
+{
+    return m_application_bridge->launch_image_decoder();
+}
+
 - (ErrorOr<NonnullRefPtr<WebView::WebContentClient>>)launchWebContent:(Ladybird::WebViewBridge&)web_view_bridge
 {
     return m_application_bridge->launch_web_content(web_view_bridge);

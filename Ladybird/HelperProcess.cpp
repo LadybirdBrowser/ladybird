@@ -77,6 +77,7 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     WebView::ViewImplementation& view,
     ReadonlySpan<ByteString> candidate_web_content_paths,
     Ladybird::WebContentOptions const& web_content_options,
+    IPC::File image_decoder_socket,
     Optional<IPC::File> request_server_socket)
 {
     Vector<ByteString> arguments {
@@ -112,6 +113,9 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
         arguments.append("--request-server-socket"sv);
         arguments.append(ByteString::number(request_server_socket->fd()));
     }
+
+    arguments.append("--image-decoder-socket"sv);
+    arguments.append(ByteString::number(image_decoder_socket.fd()));
 
     return launch_server_process<WebView::WebContentClient>("WebContent"sv, candidate_web_content_paths, move(arguments), RegisterWithProcessManager::No, web_content_options.enable_callgrind_profiling, view);
 }
@@ -160,6 +164,22 @@ ErrorOr<IPC::File> connect_new_request_server_client(Protocol::RequestClient& cl
         return Error::from_string_literal("Failed to connect to RequestServer");
 
     auto socket = new_socket->take_client_socket();
+    TRY(socket.clear_close_on_exec());
+
+    return socket;
+}
+
+ErrorOr<IPC::File> connect_new_image_decoder_client(ImageDecoderClient::Client& client)
+{
+    auto new_socket = client.send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(1);
+    if (!new_socket)
+        return Error::from_string_literal("Failed to connect to ImageDecoder");
+
+    auto sockets = new_socket->take_sockets();
+    if (sockets.size() != 1)
+        return Error::from_string_literal("Failed to connect to ImageDecoder");
+
+    auto socket = sockets.take_last();
     TRY(socket.clear_close_on_exec());
 
     return socket;

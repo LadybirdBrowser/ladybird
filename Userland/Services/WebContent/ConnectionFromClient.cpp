@@ -104,6 +104,12 @@ void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString const& w
     }
 }
 
+void ConnectionFromClient::connect_to_image_decoder(IPC::File const& image_decoder_socket)
+{
+    if (on_image_decoder_connection)
+        on_image_decoder_connection(image_decoder_socket);
+}
+
 void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffer const& theme_buffer)
 {
     auto page = this->page(page_id);

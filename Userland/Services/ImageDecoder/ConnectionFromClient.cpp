@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/IDAllocator.h>
 #include <ImageDecoder/ConnectionFromClient.h>
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
 #include <LibGfx/Bitmap.h>
@@ -13,9 +14,13 @@
 
 namespace ImageDecoder {
 
+static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
+static IDAllocator s_client_ids;
+
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(socket), 1)
+    : IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(socket), s_client_ids.allocate())
 {
+    s_connections.set(client_id(), *this);
 }
 
 void ConnectionFromClient::die()
@@ -25,8 +30,49 @@ void ConnectionFromClient::die()
     }
     m_pending_jobs.clear();
 
-    Threading::quit_background_thread();
-    Core::EventLoop::current().quit(0);
+    auto client_id = this->client_id();
+    s_connections.remove(client_id);
+    s_client_ids.deallocate(client_id);
+
+    if (s_connections.is_empty()) {
+        Threading::quit_background_thread();
+        Core::EventLoop::current().quit(0);
+    }
+}
+
+ErrorOr<IPC::File> ConnectionFromClient::connect_new_client()
+{
+    int socket_fds[2] {};
+    if (auto err = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds); err.is_error())
+        return err.release_error();
+
+    auto client_socket_or_error = Core::LocalSocket::adopt_fd(socket_fds[0]);
+    if (client_socket_or_error.is_error()) {
+        close(socket_fds[0]);
+        close(socket_fds[1]);
+        return client_socket_or_error.release_error();
+    }
+
+    auto client_socket = client_socket_or_error.release_value();
+    // Note: A ref is stored in the static s_connections map
+    auto client = adopt_ref(*new ConnectionFromClient(move(client_socket)));
+
+    return IPC::File::adopt_fd(socket_fds[1]);
+}
+
+Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)
+{
+    Vector<IPC::File> files;
+    files.ensure_capacity(count);
+    for (size_t i = 0; i < count; ++i) {
+        auto file_or_error = connect_new_client();
+        if (file_or_error.is_error()) {
+            dbgln("Failed to connect new client: {}", file_or_error.error());
+            return Vector<IPC::File> {};
+        }
+        files.unchecked_append(file_or_error.release_value());
+    }
+    return files;
 }
 
 static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<Gfx::ShareableBitmap>& bitmaps, Vector<u32>& durations)

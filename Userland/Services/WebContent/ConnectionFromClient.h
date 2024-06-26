@@ -45,6 +45,8 @@ public:
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
 
+    Function<void(IPC::File const&)> on_image_decoder_connection;
+
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>);
 
@@ -54,6 +56,7 @@ private:
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
     virtual void set_window_handle(u64 page_id, String const& handle) override;
     virtual void connect_to_webdriver(u64 page_id, ByteString const& webdriver_ipc_path) override;
+    virtual void connect_to_image_decoder(IPC::File const& image_decoder_socket) override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer const&) override;
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> const&, u32) override;
     virtual void load_url(u64 page_id, URL::URL const&) override;
