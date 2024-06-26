@@ -69,6 +69,7 @@
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RevertStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -5879,6 +5880,70 @@ RefPtr<GridAutoFlowStyleValue> Parser::parse_grid_auto_flow_value(TokenStream<Co
     return GridAutoFlowStyleValue::create(axis.value_or(GridAutoFlowStyleValue::Axis::Row), dense.value_or(GridAutoFlowStyleValue::Dense::No));
 }
 
+// https://drafts.csswg.org/css-overflow/#propdef-scrollbar-gutter
+RefPtr<StyleValue> Parser::parse_scrollbar_gutter_value(TokenStream<ComponentValue>& tokens)
+{
+    // auto | stable && both-edges?
+    if (!tokens.has_next_token())
+        return nullptr;
+
+    auto transaction = tokens.begin_transaction();
+
+    auto parse_stable = [&]() -> Optional<bool> {
+        auto transaction = tokens.begin_transaction();
+        auto token = tokens.next_token();
+        if (!token.is(Token::Type::Ident))
+            return {};
+        auto const& ident = token.token().ident();
+        if (ident.equals_ignoring_ascii_case("auto"sv)) {
+            transaction.commit();
+            return false;
+        } else if (ident.equals_ignoring_ascii_case("stable"sv)) {
+            transaction.commit();
+            return true;
+        }
+        return {};
+    };
+
+    auto parse_both_edges = [&]() -> Optional<bool> {
+        auto transaction = tokens.begin_transaction();
+        auto token = tokens.next_token();
+        if (!token.is(Token::Type::Ident))
+            return {};
+        auto const& ident = token.token().ident();
+        if (ident.equals_ignoring_ascii_case("both-edges"sv)) {
+            transaction.commit();
+            return true;
+        }
+        return {};
+    };
+
+    Optional<bool> stable;
+    Optional<bool> both_edges;
+    if (stable = parse_stable(); stable.has_value()) {
+        if (stable.value())
+            both_edges = parse_both_edges();
+    } else if (both_edges = parse_both_edges(); both_edges.has_value()) {
+        stable = parse_stable();
+        if (!stable.has_value() || !stable.value())
+            return nullptr;
+    }
+
+    if (tokens.has_next_token())
+        return nullptr;
+
+    transaction.commit();
+
+    ScrollbarGutter gutter_value;
+    if (both_edges.has_value())
+        gutter_value = ScrollbarGutter::BothEdges;
+    else if (stable.has_value() && stable.value())
+        gutter_value = ScrollbarGutter::Stable;
+    else
+        gutter_value = ScrollbarGutter::Auto;
+    return ScrollbarGutterStyleValue::create(gutter_value);
+}
+
 RefPtr<StyleValue> Parser::parse_grid_auto_track_sizes(TokenStream<ComponentValue>& tokens)
 {
     // https://www.w3.org/TR/css-grid-2/#auto-tracks
@@ -6471,6 +6536,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue>> Parser::parse_css_value(Property
         return ParseError::SyntaxError;
     case PropertyID::Quotes:
         if (auto parsed_value = parse_quotes_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::ScrollbarGutter:
+        if (auto parsed_value = parse_scrollbar_gutter_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::TextDecoration:
