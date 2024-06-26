@@ -403,7 +403,7 @@ void WebContentView::paintEvent(QPaintEvent*)
     }
 
     if (bitmap) {
-        QImage q_image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), QImage::Format_RGB32);
+        QImage q_image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
         painter.drawImage(QPoint(0, 0), q_image, QRect(0, 0, bitmap_size.width(), bitmap_size.height()));
 
         if (bitmap_size.width() < width()) {

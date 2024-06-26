@@ -1288,7 +1288,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
     static constexpr size_t BITS_PER_COMPONENT = 8;
     static constexpr size_t BITS_PER_PIXEL = 32;
-    static constexpr size_t COMPONENTS_PER_PIXEL = 4;
 
     auto* context = [[NSGraphicsContext currentContext] CGContext];
     CGContextSaveGState(context);
@@ -1309,7 +1308,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         bitmap_size.height(),
         BITS_PER_COMPONENT,
         BITS_PER_PIXEL,
-        COMPONENTS_PER_PIXEL * bitmap.width(),
+        bitmap.pitch(),
         CGColorSpaceCreateDeviceRGB(),
         kCGBitmapByteOrder32Little | kCGImageAlphaFirst,
         provider,
