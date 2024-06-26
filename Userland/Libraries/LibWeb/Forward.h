@@ -181,6 +181,7 @@ class ResolutionStyleValue;
 class RevertStyleValue;
 class Screen;
 class ScreenOrientation;
+class ScrollbarGutterStyleValue;
 class Selector;
 class ShadowStyleValue;
 class ShorthandStyleValue;

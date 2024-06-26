@@ -146,6 +146,7 @@ right: auto
 row-gap: auto
 rx: auto
 ry: auto
+scrollbar-gutter: auto
 scrollbar-width: auto
 stop-color: rgb(0, 0, 0)
 stop-opacity: 1

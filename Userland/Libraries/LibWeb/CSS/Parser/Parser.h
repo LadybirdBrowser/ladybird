@@ -320,6 +320,7 @@ private:
     RefPtr<StyleValue> parse_place_items_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_place_self_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_quotes_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_scrollbar_gutter_value(TokenStream<ComponentValue>&);
     enum class AllowInsetKeyword {
         No,
         Yes,
