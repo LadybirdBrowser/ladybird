@@ -285,10 +285,13 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             }
 
             u128 bits = 0;
-            (void)argument.as_bigint().big_integer().unsigned_value().export_data({ bit_cast<u8*>(&bits), sizeof(bits) });
+            auto bytes = argument.as_bigint().big_integer().unsigned_value().export_data({ bit_cast<u8*>(&bits), sizeof(bits) });
             VERIFY(!argument.as_bigint().big_integer().is_negative());
 
-            arguments.append(Wasm::Value(bits));
+            if constexpr (AK::HostIsLittleEndian)
+                arguments.append(Wasm::Value(bits << (128 - bytes * 8)));
+            else
+                arguments.append(Wasm::Value(bits >> (128 - bytes * 8)));
             break;
         }
         case Wasm::ValueType::Kind::FunctionReference:
