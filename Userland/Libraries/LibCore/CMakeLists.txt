@@ -85,6 +85,7 @@ endif()
 
 if (APPLE)
     list(APPEND SOURCES IOSurface.cpp)
+    list(APPEND SOURCES MetalContext.mm)
 endif()
 
 serenity_lib(LibCore core)
@@ -96,6 +97,7 @@ if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework CoreServices")
     target_link_libraries(LibCore PUBLIC "-framework Foundation")
     target_link_libraries(LibCore PUBLIC "-framework IOSurface")
+    target_link_libraries(LibCore PUBLIC "-framework Metal")
 endif()
 
 if (ANDROID)

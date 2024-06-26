@@ -18,7 +18,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerCPU.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 #ifdef HAS_ACCELERATED_GRAPHICS
@@ -33,6 +32,10 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
     : Navigable(page)
     , m_session_history_traversal_queue(vm().heap().allocate_without_realm<SessionHistoryTraversalQueue>())
 {
+#ifdef AK_OS_MACOS
+    m_metal_context = Core::get_metal_context();
+    m_skia_backend_context = Web::Painting::DisplayListPlayerSkia::create_metal_context(*m_metal_context);
+#endif
 }
 
 TraversableNavigable::~TraversableNavigable() = default;
@@ -1174,10 +1177,8 @@ JS::GCPtr<DOM::Node> TraversableNavigable::currently_focused_area()
     return candidate;
 }
 
-void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Painting::BackingStore& backing_store, Web::PaintOptions paint_options)
+void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Painting::BackingStore& target, Web::PaintOptions paint_options)
 {
-    auto& target = backing_store.bitmap();
-
     Painting::DisplayList display_list;
     Painting::DisplayListRecorder display_list_recorder(display_list);
 
@@ -1193,7 +1194,7 @@ void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Paint
     auto display_list_player_type = page().client().display_list_player_type();
     if (display_list_player_type == DisplayListPlayerType::GPU) {
 #ifdef HAS_ACCELERATED_GRAPHICS
-        Web::Painting::DisplayListPlayerGPU player(*paint_options.accelerated_graphics_context, target);
+        Web::Painting::DisplayListPlayerGPU player(*paint_options.accelerated_graphics_context, target.bitmap());
         display_list.execute(player);
 #else
         static bool has_warned_about_configuration = false;
@@ -1204,10 +1205,19 @@ void TraversableNavigable::paint(Web::DevicePixelRect const& content_rect, Paint
         }
 #endif
     } else if (display_list_player_type == DisplayListPlayerType::Skia) {
-        Painting::DisplayListPlayerSkia player(target);
+#ifdef AK_OS_MACOS
+        if (m_metal_context && m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
+            auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
+            auto texture = m_metal_context->create_texture_from_iosurface(iosurface_backing_store.iosurface_handle());
+            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, *texture);
+            display_list.execute(player);
+            return;
+        }
+#endif
+        Web::Painting::DisplayListPlayerSkia player(target.bitmap());
         display_list.execute(player);
     } else {
-        Web::Painting::DisplayListPlayerCPU player(target);
+        Web::Painting::DisplayListPlayerCPU player(target.bitmap());
         display_list.execute(player);
     }
 }

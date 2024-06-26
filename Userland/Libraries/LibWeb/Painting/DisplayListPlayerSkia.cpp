@@ -17,6 +17,8 @@
 #include <core/SkSurface.h>
 #include <effects/SkGradientShader.h>
 #include <effects/SkImageFilters.h>
+#include <gpu/GrDirectContext.h>
+#include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
 
 #include <LibGfx/Filters/StackBlurFilter.h>
@@ -24,7 +26,73 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
+#ifdef AK_OS_MACOS
+#    define FixedPoint FixedPointMacOS
+#    define Duration DurationMacOS
+#    include <gpu/GrBackendSurface.h>
+#    include <gpu/ganesh/mtl/GrMtlBackendContext.h>
+#    include <gpu/ganesh/mtl/GrMtlDirectContext.h>
+#    undef FixedPoint
+#    undef Duration
+#endif
+
 namespace Web::Painting {
+
+#ifdef AK_OS_MACOS
+class SkiaMetalBackendContext final : public SkiaBackendContext {
+    AK_MAKE_NONCOPYABLE(SkiaMetalBackendContext);
+    AK_MAKE_NONMOVABLE(SkiaMetalBackendContext);
+
+public:
+    SkiaMetalBackendContext(sk_sp<GrDirectContext> context)
+        : m_context(move(context))
+    {
+    }
+
+    ~SkiaMetalBackendContext() override {};
+
+    sk_sp<SkSurface> wrap_metal_texture(Core::MetalTexture& metal_texture)
+    {
+        GrMtlTextureInfo mtl_info;
+        mtl_info.fTexture = sk_ret_cfp(metal_texture.texture());
+        auto backend_render_target = GrBackendRenderTarget(metal_texture.width(), metal_texture.height(), mtl_info);
+        return SkSurfaces::WrapBackendRenderTarget(m_context.get(), backend_render_target, kTopLeft_GrSurfaceOrigin, kBGRA_8888_SkColorType, nullptr, nullptr);
+    }
+
+    void flush_and_submit() override
+    {
+        m_context->flush();
+        m_context->submit(GrSyncCpu::kYes);
+    }
+
+private:
+    sk_sp<GrDirectContext> m_context;
+};
+
+OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_metal_context(Core::MetalContext const& metal_context)
+{
+    GrMtlBackendContext backend_context;
+    backend_context.fDevice.retain((GrMTLHandle)metal_context.device());
+    backend_context.fQueue.retain((GrMTLHandle)metal_context.queue());
+    sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeMetal(backend_context);
+    return make<SkiaMetalBackendContext>(ctx);
+}
+
+DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Core::MetalTexture& metal_texture)
+{
+    auto image_info = SkImageInfo::Make(metal_texture.width(), metal_texture.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+    VERIFY(is<SkiaMetalBackendContext>(context));
+    auto surface = static_cast<SkiaMetalBackendContext&>(context).wrap_metal_texture(metal_texture);
+    if (!surface) {
+        dbgln("Failed to create Skia surface from Metal texture");
+        VERIFY_NOT_REACHED();
+    }
+    m_surface = make<SkiaSurface>(surface);
+    m_flush_context = [&context] mutable {
+        context.flush_and_submit();
+    };
+}
+#endif
 
 class DisplayListPlayerSkia::SkiaSurface {
 public:
@@ -38,6 +106,21 @@ public:
 private:
     sk_sp<SkSurface> surface;
 };
+
+DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::Bitmap& bitmap)
+{
+    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
+    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+    auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch());
+    VERIFY(surface);
+    m_surface = make<SkiaSurface>(surface);
+}
+
+DisplayListPlayerSkia::~DisplayListPlayerSkia()
+{
+    if (m_flush_context)
+        m_flush_context();
+}
 
 static SkRect to_skia_rect(auto const& rect)
 {
@@ -194,17 +277,6 @@ static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
         for (auto const& path : command.clip_paths)                \
             surface().canvas().clipPath(to_skia_path(path), true); \
     }
-
-DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::Bitmap& bitmap)
-{
-    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
-    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.width() * 4);
-    VERIFY(surface);
-    m_surface = make<SkiaSurface>(surface);
-}
-
-DisplayListPlayerSkia::~DisplayListPlayerSkia() = default;
 
 DisplayListPlayerSkia::SkiaSurface& DisplayListPlayerSkia::surface() const
 {

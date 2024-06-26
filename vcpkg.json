@@ -9,9 +9,21 @@
     "libjpeg-turbo",
     {
       "name": "libpng",
-      "features": [ "apng" ]
+      "features": [
+        "apng"
+      ]
     },
-    "skia",
+    {
+      "name": "skia",
+      "platform": "osx",
+      "features": [
+        "metal"
+      ]
+    },
+    {
+      "name": "skia",
+      "platform": "linux | freebsd | openbsd"
+    },
     "sqlite3",
     "woff2"
   ],
