@@ -22,6 +22,7 @@ public:
     ~ApplicationBridge();
 
     ErrorOr<void> launch_request_server(Vector<ByteString> const& certificates);
+    ErrorOr<void> launch_image_decoder();
     ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content(WebViewBridge&);
     ErrorOr<IPC::File> launch_web_worker();
 

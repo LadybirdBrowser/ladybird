@@ -549,8 +549,11 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
             request_server_socket = AK::move(socket);
         }
 
+        auto image_decoder = static_cast<Ladybird::Application*>(QApplication::instance())->image_decoder_client();
+        auto image_decoder_socket = connect_new_image_decoder_client(*image_decoder).release_value_but_fixme_should_propagate_errors();
+
         auto candidate_web_content_paths = get_paths_for_helper_process("WebContent"sv).release_value_but_fixme_should_propagate_errors();
-        auto new_client = launch_web_content_process(*this, candidate_web_content_paths, m_web_content_options, AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
+        auto new_client = launch_web_content_process(*this, candidate_web_content_paths, m_web_content_options, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
 
         m_client_state.client = new_client;
     } else {

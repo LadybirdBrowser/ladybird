@@ -136,6 +136,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
     TRY([application launchRequestServer:certificates]);
 
+    TRY([application launchImageDecoder]);
+
     StringBuilder command_line_builder;
     command_line_builder.join(' ', arguments.strings);
     Ladybird::WebContentOptions web_content_options {

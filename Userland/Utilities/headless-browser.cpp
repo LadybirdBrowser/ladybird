@@ -43,6 +43,7 @@
 #include <LibGfx/StandardCursor.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibIPC/File.h>
+#include <LibImageDecoderClient/Client.h>
 #include <LibProtocol/RequestClient.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Cookie/Cookie.h>
@@ -65,14 +66,18 @@ public:
     static ErrorOr<NonnullOwnPtr<HeadlessWebContentView>> create(Core::AnonymousBuffer theme, Gfx::IntSize const& window_size, String const& command_line, StringView web_driver_ipc_path, Ladybird::IsLayoutTestMode is_layout_test_mode = Ladybird::IsLayoutTestMode::No, Vector<ByteString> const& certificates = {}, StringView resources_folder = {})
     {
         RefPtr<Protocol::RequestClient> request_client;
+        RefPtr<ImageDecoderClient::Client> image_decoder_client;
 
         auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
         request_client = TRY(launch_request_server_process(request_server_paths, resources_folder, certificates));
 
+        auto image_decoder_paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
+        image_decoder_client = TRY(launch_image_decoder_process(image_decoder_paths));
+
         auto database = TRY(WebView::Database::create());
         auto cookie_jar = TRY(WebView::CookieJar::create(*database));
 
-        auto view = TRY(adopt_nonnull_own_or_enomem(new (nothrow) HeadlessWebContentView(move(database), move(cookie_jar), request_client)));
+        auto view = TRY(adopt_nonnull_own_or_enomem(new (nothrow) HeadlessWebContentView(move(database), move(cookie_jar), image_decoder_client, request_client)));
 
         Ladybird::WebContentOptions web_content_options {
             .command_line = command_line,
@@ -81,9 +86,10 @@ public:
         };
 
         auto request_server_socket = TRY(connect_new_request_server_client(*request_client));
+        auto image_decoder_socket = TRY(connect_new_image_decoder_client(*image_decoder_client));
 
         auto candidate_web_content_paths = TRY(get_paths_for_helper_process("WebContent"sv));
-        view->m_client_state.client = TRY(launch_web_content_process(*view, candidate_web_content_paths, web_content_options, move(request_server_socket)));
+        view->m_client_state.client = TRY(launch_web_content_process(*view, candidate_web_content_paths, web_content_options, move(image_decoder_socket), move(request_server_socket)));
 
         view->client().async_update_system_theme(0, move(theme));
 
@@ -145,10 +151,11 @@ public:
     }
 
 private:
-    HeadlessWebContentView(NonnullRefPtr<WebView::Database> database, NonnullOwnPtr<WebView::CookieJar> cookie_jar, RefPtr<Protocol::RequestClient> request_client = nullptr)
+    HeadlessWebContentView(NonnullRefPtr<WebView::Database> database, NonnullOwnPtr<WebView::CookieJar> cookie_jar, RefPtr<ImageDecoderClient::Client> image_decoder_client, RefPtr<Protocol::RequestClient> request_client)
         : m_database(move(database))
         , m_cookie_jar(move(cookie_jar))
         , m_request_client(move(request_client))
+        , m_image_decoder_client(move(image_decoder_client))
     {
         on_get_cookie = [this](auto const& url, auto source) {
             return m_cookie_jar->get_cookie(url, source);
@@ -178,6 +185,7 @@ private:
     NonnullRefPtr<WebView::Database> m_database;
     NonnullOwnPtr<WebView::CookieJar> m_cookie_jar;
     RefPtr<Protocol::RequestClient> m_request_client;
+    RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
 };
 
 static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebContentView& view, URL::URL url, int screenshot_timeout)

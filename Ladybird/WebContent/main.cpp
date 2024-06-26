@@ -14,7 +14,6 @@
 #include <LibCore/LocalServer.h>
 #include <LibCore/Process.h>
 #include <LibCore/Resource.h>
-#include <LibCore/System.h>
 #include <LibCore/SystemServerTakeover.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Bytecode/Interpreter.h>
@@ -28,9 +27,7 @@
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
-#include <LibWeb/WebSockets/WebSocket.h>
 #include <LibWebView/RequestServerAdapter.h>
-#include <LibWebView/WebSocketClientAdapter.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebDriverConnection.h>
@@ -52,6 +49,8 @@
 static ErrorOr<void> load_content_filters();
 static ErrorOr<void> load_autoplay_allowlist();
 static ErrorOr<void> initialize_lagom_networking(int request_server_socket);
+static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
+static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
 
 namespace JS {
 extern bool g_log_all_js_exceptions;
@@ -79,7 +78,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     platform_init();
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
-    Web::Platform::ImageCodecPlugin::install(*new Ladybird::ImageCodecPlugin);
 
     Web::Platform::AudioCodecPlugin::install_creation_hook([](auto loader) {
 #if defined(HAVE_QT_MULTIMEDIA)
@@ -97,6 +95,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView mach_server_name {};
     Vector<ByteString> certificates;
     int request_server_socket { -1 };
+    int image_decoder_socket { -1 };
     bool is_layout_test_mode = false;
     bool expose_internals_object = false;
     bool use_lagom_networking = false;
@@ -111,6 +110,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(command_line, "Chrome process command line", "command-line", 0, "command_line");
     args_parser.add_option(executable_path, "Chrome process executable path", "executable-path", 0, "executable_path");
     args_parser.add_option(request_server_socket, "File descriptor of the socket for the RequestServer connection", "request-server-socket", 'r', "request_server_socket");
+    args_parser.add_option(image_decoder_socket, "File descriptor of the socket for the ImageDecoder connection", "image-decoder-socket", 'i', "image_decoder_socket");
     args_parser.add_option(is_layout_test_mode, "Is layout test mode", "layout-test-mode");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(use_lagom_networking, "Enable Lagom servers for networking", "use-lagom-networking");
@@ -160,6 +160,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #endif
         TRY(initialize_lagom_networking(request_server_socket));
 
+    TRY(initialize_image_decoder(image_decoder_socket));
+
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
 
     Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode));
@@ -184,6 +186,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
     auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(move(webcontent_socket)));
+
+    webcontent_client->on_image_decoder_connection = [&](auto& socket_file) {
+        auto maybe_error = reinitialize_image_decoder(socket_file);
+        if (maybe_error.is_error())
+            dbgln("Failed to reinitialize image decoder: {}", maybe_error.error());
+    };
 
     return event_loop.exec();
 }
@@ -244,5 +252,29 @@ ErrorOr<void> initialize_lagom_networking(int request_server_socket)
     auto new_client = TRY(try_make_ref_counted<Protocol::RequestClient>(move(socket)));
 
     Web::ResourceLoader::initialize(TRY(WebView::RequestServerAdapter::try_create(move(new_client))));
+    return {};
+}
+
+ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
+{
+    auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket));
+    TRY(socket->set_blocking(true));
+
+    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(move(socket)));
+
+    Web::Platform::ImageCodecPlugin::install(*new Ladybird::ImageCodecPlugin(move(new_client)));
+
+    return {};
+}
+
+ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket)
+{
+    auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket.take_fd()));
+    TRY(socket->set_blocking(true));
+
+    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(move(socket)));
+
+    static_cast<Ladybird::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
+
     return {};
 }

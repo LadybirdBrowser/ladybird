@@ -14,10 +14,12 @@ namespace Ladybird {
 
 class ImageCodecPlugin final : public Web::Platform::ImageCodecPlugin {
 public:
-    ImageCodecPlugin() = default;
+    explicit ImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client>);
     virtual ~ImageCodecPlugin() override;
 
     virtual NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(Web::Platform::DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected) override;
+
+    void set_client(NonnullRefPtr<ImageDecoderClient::Client>);
 
 private:
     RefPtr<ImageDecoderClient::Client> m_client;
