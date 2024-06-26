@@ -4,100 +4,12 @@
     <meta charset="UTF-8">
     <title>New Tab</title>
     <style>
-        body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        main {
-            text-align: center;
-            display: block;
-            width: 100%;
-
-            /* Adjust this as more buttons are added */
-            max-width: 480px;
-        }
-
-        img {
-            image-rendering: pixelated;
-        }
-
-        input[type=search] {
-            width: 100%;
-            padding: 5px;
-        }
-
-        #search-buttons {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        button:hover {
-            cursor: pointer;
+        /* FIXME: We should be able to remove the HTML style when "color-scheme" is supported */
+        @media (prefers-color-scheme: dark) {
+            html {
+                background-color: rgb(20, 20, 20);
+            }
         }
     </style>
 </head>
-<body>
-    <main>
-        <br>
-        <img src="resource://icons/32x32/app-browser.png" width="64" height="64"><br><br>
-        <form>
-            <input type="search" name="q" id="user_query"><br><br>
-            <div id="search-buttons">
-                <button type="button" onclick="search('bing')">Bing</button>
-                <button type="button" onclick="search('duckduckgo')">DuckDuckGo</button>
-                <button type="button" onclick="search('github')">GitHub</button>
-                <button type="button" onclick="search('google')">Google</button>
-                <button type="button" onclick="search('wiby')">Wiby</button>
-                <button type="button" onclick="search('wikipedia')">Wikipedia</button>
-                <button type="button" onclick="search('yandex')">Yandex</button>
-            </div>
-        </form>
-        <br><br>
-        <p>Your user agent is: <b><span id="ua"></span></b></p>
-        <p>This page loaded in <b><span id="loadtime"></span></b> ms</p>
-    </main>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            document.getElementById("ua").innerHTML = navigator.userAgent;
-            document.getElementById("loadtime").innerHTML = performance.now();
-        });
-
-        function search(searchEngine) {
-            let query = document.getElementById("user_query").value;
-
-            if (!query) {
-                return;
-            }
-
-            let url;
-            if (searchEngine == "bing") {
-                url = new URL("https://www.bing.com/search");
-                url.searchParams.set("q", query);
-            } else if (searchEngine == "duckduckgo") {
-                url = new URL("https://duckduckgo.com");
-                url.searchParams.set("q", query);
-            } else if (searchEngine == "github") {
-                url = new URL("https://github.com/search");
-                url.searchParams.set("q", query);
-            } else if (searchEngine == "google") {
-                url = new URL("https://google.com/search");
-                url.searchParams.set("q", query);
-            } else if (searchEngine == "wiby") {
-                url = new URL("https://wiby.me");
-                url.searchParams.set("q", query);
-            } else if (searchEngine == "wikipedia") {
-                url = new URL("https://en.wikipedia.org/w/index.php?title=Special:Search");
-                url.searchParams.set("search", query);
-            } else if (searchEngine == "yandex") {
-                url = new URL("https://yandex.com/search");
-                url.searchParams.set("text", query);
-            }
-            window.location.href = url.toString();
-        }
-    </script>
-</body>
 </html>
