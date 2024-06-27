@@ -38,7 +38,7 @@ AutoComplete::AutoComplete(QWidget* parent)
     });
 }
 
-ErrorOr<void> AutoComplete::parse_google_autocomplete(Vector<JsonValue> const& json)
+ErrorOr<Vector<String>> AutoComplete::parse_google_autocomplete(Vector<JsonValue> const& json)
 {
     if (json.size() != 5)
         return Error::from_string_view("Invalid JSON, expected 5 elements in array"sv);
@@ -54,26 +54,28 @@ ErrorOr<void> AutoComplete::parse_google_autocomplete(Vector<JsonValue> const& j
     if (query != m_query)
         return Error::from_string_view("Invalid JSON, query does not match"sv);
 
-    for (auto& suggestion : suggestions_array) {
-        m_auto_complete_model->add(TRY(String::from_byte_string(suggestion.as_string())));
-    }
+    Vector<String> results;
+    results.ensure_capacity(suggestions_array.size());
+    for (auto& suggestion : suggestions_array)
+        results.unchecked_append(MUST(String::from_byte_string(suggestion.as_string())));
 
-    return {};
+    return results;
 }
 
-ErrorOr<void> AutoComplete::parse_duckduckgo_autocomplete(Vector<JsonValue> const& json)
+ErrorOr<Vector<String>> AutoComplete::parse_duckduckgo_autocomplete(Vector<JsonValue> const& json)
 {
+    Vector<String> results;
     for (auto const& suggestion : json) {
         auto maybe_value = suggestion.as_object().get("phrase"sv);
         if (!maybe_value.has_value())
             continue;
-        m_auto_complete_model->add(TRY(String::from_byte_string(maybe_value->as_string())));
+        results.append(MUST(String::from_byte_string(maybe_value->as_string())));
     }
 
-    return {};
+    return results;
 }
 
-ErrorOr<void> AutoComplete::parse_yahoo_autocomplete(JsonObject const& json)
+ErrorOr<Vector<String>> AutoComplete::parse_yahoo_autocomplete(JsonObject const& json)
 {
     if (!json.get("q"sv).has_value() || !json.get("q"sv)->is_string())
         return Error::from_string_view("Invalid JSON, expected \"q\" to be a string"sv);
@@ -86,6 +88,8 @@ ErrorOr<void> AutoComplete::parse_yahoo_autocomplete(JsonObject const& json)
     if (query != m_query)
         return Error::from_string_view("Invalid JSON, query does not match"sv);
 
+    Vector<String> results;
+    results.ensure_capacity(suggestions_object.size());
     for (auto& suggestion_object : suggestions_object) {
         if (!suggestion_object.is_object())
             return Error::from_string_view("Invalid JSON, expected value to be an object"sv);
@@ -94,10 +98,10 @@ ErrorOr<void> AutoComplete::parse_yahoo_autocomplete(JsonObject const& json)
         if (!suggestion.get("k"sv).has_value() || !suggestion.get("k"sv)->is_string())
             return Error::from_string_view("Invalid JSON, expected \"k\" to be a string"sv);
 
-        m_auto_complete_model->add(TRY(String::from_byte_string(suggestion.get("k"sv)->as_string())));
-    };
+        results.unchecked_append(MUST(String::from_byte_string(suggestion.get("k"sv)->as_string())));
+    }
 
-    return {};
+    return results;
 }
 
 ErrorOr<void> AutoComplete::got_network_response(QNetworkReply* reply)
@@ -109,16 +113,23 @@ ErrorOr<void> AutoComplete::got_network_response(QNetworkReply* reply)
     auto json = TRY(parser.parse());
 
     auto engine_name = Settings::the()->autocomplete_engine().name;
-    if (engine_name == "Google")
-        return parse_google_autocomplete(json.as_array().values());
+    Vector<String> results;
+    if (engine_name == "Google") {
+        results = TRY(parse_google_autocomplete(json.as_array().values()));
+    } else if (engine_name == "DuckDuckGo") {
+        results = TRY(parse_duckduckgo_autocomplete(json.as_array().values()));
+    } else if (engine_name == "Yahoo")
+        results = TRY(parse_yahoo_autocomplete(json.as_object()));
+    else {
+        return Error::from_string_view("Invalid engine name"sv);
+    }
 
-    if (engine_name == "DuckDuckGo")
-        return parse_duckduckgo_autocomplete(json.as_array().values());
+    if (results.is_empty()) {
+        results.append(m_query);
+    }
 
-    if (engine_name == "Yahoo")
-        return parse_yahoo_autocomplete(json.as_object());
-
-    return Error::from_string_view("Invalid engine name"sv);
+    m_auto_complete_model->replace_suggestions(move(results));
+    return {};
 }
 
 String AutoComplete::auto_complete_url_from_query(StringView query)
@@ -137,9 +148,6 @@ void AutoComplete::get_search_suggestions(String search_string)
     m_query = move(search_string);
     if (m_reply)
         m_reply->abort();
-
-    m_auto_complete_model->clear();
-    m_auto_complete_model->add(m_query);
 
     QNetworkRequest request { QUrl(qstring_from_ak_string(auto_complete_url_from_query(m_query))) };
     m_reply = m_manager->get(request);

@@ -45,6 +45,13 @@ public:
         endResetModel();
     }
 
+    void replace_suggestions(Vector<String> suggestions)
+    {
+        beginInsertRows({}, m_suggestions.size(), m_suggestions.size());
+        m_suggestions = suggestions;
+        endInsertRows();
+    }
+
 private:
     AK::Vector<String> m_suggestions;
 };
@@ -71,9 +78,9 @@ private:
 
     ErrorOr<void> got_network_response(QNetworkReply* reply);
 
-    ErrorOr<void> parse_google_autocomplete(Vector<JsonValue> const&);
-    ErrorOr<void> parse_duckduckgo_autocomplete(Vector<JsonValue> const&);
-    ErrorOr<void> parse_yahoo_autocomplete(JsonObject const&);
+    ErrorOr<Vector<String>> parse_google_autocomplete(Vector<JsonValue> const&);
+    ErrorOr<Vector<String>> parse_duckduckgo_autocomplete(Vector<JsonValue> const&);
+    ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonObject const&);
 
     QNetworkAccessManager* m_manager;
     AutoCompleteModel* m_auto_complete_model;
