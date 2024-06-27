@@ -124,8 +124,11 @@ ErrorOr<void> AutoComplete::got_network_response(QNetworkReply* reply)
         return Error::from_string_view("Invalid engine name"sv);
     }
 
+    constexpr size_t MAX_AUTOCOMPLETE_RESULTS = 6;
     if (results.is_empty()) {
         results.append(m_query);
+    } else if (results.size() > MAX_AUTOCOMPLETE_RESULTS) {
+        results.shrink(MAX_AUTOCOMPLETE_RESULTS);
     }
 
     m_auto_complete_model->replace_suggestions(move(results));
