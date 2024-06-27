@@ -244,10 +244,10 @@ struct ThreadData {
         return *data;
     }
 
-    static ThreadData& for_thread(pthread_t thread_id)
+    static ThreadData* for_thread(pthread_t thread_id)
     {
         pthread_rwlock_rdlock(&*s_thread_data_lock);
-        auto& result = *s_thread_data.get(thread_id).value();
+        auto result = s_thread_data.get(thread_id).value_or(nullptr);
         pthread_rwlock_unlock(&*s_thread_data_lock);
         return result;
     }
@@ -656,7 +656,10 @@ intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int millise
 void EventLoopManagerUnix::unregister_timer(intptr_t timer_id)
 {
     auto* timer = bit_cast<EventLoopTimer*>(timer_id);
-    auto& thread_data = ThreadData::for_thread(timer->owner_thread);
+    auto thread_data_ptr = ThreadData::for_thread(timer->owner_thread);
+    if (!thread_data_ptr)
+        return;
+    auto& thread_data = *thread_data_ptr;
     auto expected = false;
     if (timer->is_being_deleted.compare_exchange_strong(expected, true, AK::MemoryOrder::memory_order_acq_rel)) {
         if (timer->is_scheduled())
@@ -682,8 +685,11 @@ void EventLoopManagerUnix::register_notifier(Notifier& notifier)
 
 void EventLoopManagerUnix::unregister_notifier(Notifier& notifier)
 {
-    auto& thread_data = ThreadData::for_thread(notifier.owner_thread());
+    auto thread_data_ptr = ThreadData::for_thread(notifier.owner_thread());
+    if (!thread_data_ptr)
+        return;
 
+    auto& thread_data = *thread_data_ptr;
     auto it = thread_data.notifier_by_ptr.find(&notifier);
     VERIFY(it != thread_data.notifier_by_ptr.end());
 
