@@ -1387,7 +1387,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 {
     [[self window] makeFirstResponder:self];
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseDown, event, self, [self scrollView], Web::UIEvents::MouseButton::Primary);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseDown, event, self, [self scrollView], Web::UIEvents::MouseButton::Secondary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
