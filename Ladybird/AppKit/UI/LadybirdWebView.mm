@@ -1403,6 +1403,35 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
+- (void)otherMouseDown:(NSEvent*)event
+{
+    if (event.buttonNumber != 2)
+        return;
+
+    [[self window] makeFirstResponder:self];
+
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseDown, event, self, [self scrollView], Web::UIEvents::MouseButton::Middle);
+    m_web_view_bridge->enqueue_input_event(move(mouse_event));
+}
+
+- (void)otherMouseUp:(NSEvent*)event
+{
+    if (event.buttonNumber != 2)
+        return;
+
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseUp, event, self, [self scrollView], Web::UIEvents::MouseButton::Middle);
+    m_web_view_bridge->enqueue_input_event(move(mouse_event));
+}
+
+- (void)otherMouseDragged:(NSEvent*)event
+{
+    if (event.buttonNumber != 2)
+        return;
+
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseMove, event, self, [self scrollView], Web::UIEvents::MouseButton::Middle);
+    m_web_view_bridge->enqueue_input_event(move(mouse_event));
+}
+
 - (BOOL)performKeyEquivalent:(NSEvent*)event
 {
     if ([event window] != [self window]) {
