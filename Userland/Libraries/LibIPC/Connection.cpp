@@ -9,31 +9,15 @@
 #include <LibIPC/Connection.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Stub.h>
-#include <sys/select.h>
 
 namespace IPC {
-
-struct CoreEventLoopDeferredInvoker final : public DeferredInvoker {
-    virtual ~CoreEventLoopDeferredInvoker() = default;
-
-    virtual void schedule(Function<void()> callback) override
-    {
-        Core::deferred_invoke(move(callback));
-    }
-};
 
 ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Core::LocalSocket> socket, u32 local_endpoint_magic)
     : m_local_stub(local_stub)
     , m_socket(move(socket))
     , m_local_endpoint_magic(local_endpoint_magic)
-    , m_deferred_invoker(make<CoreEventLoopDeferredInvoker>())
 {
     m_responsiveness_timer = Core::Timer::create_single_shot(3000, [this] { may_have_become_unresponsive(); });
-}
-
-void ConnectionBase::set_deferred_invoker(NonnullOwnPtr<DeferredInvoker> deferred_invoker)
-{
-    m_deferred_invoker = move(deferred_invoker);
 }
 
 ErrorOr<void> ConnectionBase::post_message(Message const& message)
@@ -116,8 +100,8 @@ ErrorOr<Vector<u8>> ConnectionBase::read_as_much_as_possible_from_socket_without
     bool should_shut_down = false;
     auto schedule_shutdown = [this, &should_shut_down]() {
         should_shut_down = true;
-        m_deferred_invoker->schedule([strong_this = NonnullRefPtr(*this)] {
-            strong_this->shutdown();
+        deferred_invoke([this] {
+            shutdown();
         });
     };
 
@@ -180,8 +164,8 @@ ErrorOr<void> ConnectionBase::drain_messages_from_peer()
     }
 
     if (!m_unprocessed_messages.is_empty()) {
-        m_deferred_invoker->schedule([strong_this = NonnullRefPtr(*this)] {
-            strong_this->handle_messages();
+        deferred_invoke([this] {
+            handle_messages();
         });
     }
     return {};
