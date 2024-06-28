@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/DedicatedWorkerHost.h>
 #include <WebWorker/PageHost.h>

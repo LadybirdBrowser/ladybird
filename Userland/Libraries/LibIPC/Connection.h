@@ -7,16 +7,11 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
+#include <AK/Forward.h>
 #include <AK/Queue.h>
-#include <AK/Try.h>
-#include <LibCore/Event.h>
-#include <LibCore/EventLoop.h>
-#include <LibCore/Socket.h>
-#include <LibCore/Timer.h>
+#include <LibCore/EventReceiver.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
-#include <LibIPC/Message.h>
 
 namespace IPC {
 
@@ -24,9 +19,9 @@ class ConnectionBase : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ConnectionBase);
 
 public:
-    virtual ~ConnectionBase() override = default;
+    virtual ~ConnectionBase() override;
 
-    bool is_open() const { return m_socket->is_open(); }
+    [[nodiscard]] bool is_open() const;
     ErrorOr<void> post_message(Message const&);
 
     void shutdown();
@@ -70,12 +65,6 @@ public:
     Connection(IPC::Stub& local_stub, NonnullOwnPtr<Core::LocalSocket> socket)
         : ConnectionBase(local_stub, move(socket), LocalEndpoint::static_magic())
     {
-        m_socket->on_ready_to_read = [this] {
-            NonnullRefPtr protect = *this;
-            // FIXME: Do something about errors.
-            (void)drain_messages_from_peer();
-            handle_messages();
-        };
     }
 
     template<typename MessageType>
