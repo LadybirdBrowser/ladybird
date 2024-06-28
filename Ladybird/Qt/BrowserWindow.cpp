@@ -1156,8 +1156,10 @@ bool BrowserWindow::eventFilter(QObject* obj, QEvent* event)
         if (mouse_event->button() == Qt::MouseButton::MiddleButton) {
             if (obj == m_tabs_container) {
                 auto const tab_index = m_tabs_container->tabBar()->tabAt(mouse_event->pos());
-                close_tab(tab_index);
-                return true;
+                if (tab_index != -1) {
+                    close_tab(tab_index);
+                    return true;
+                }
             }
         }
     }
