@@ -12,18 +12,11 @@
 #include <AK/Try.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/Notifier.h>
 #include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
-#include <errno.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 namespace IPC {
 
@@ -46,13 +39,14 @@ protected:
 
     virtual void may_have_become_unresponsive() { }
     virtual void did_become_responsive() { }
-    virtual void try_parse_messages(Vector<u8> const& bytes, size_t& index) = 0;
     virtual void shutdown_with_error(Error const&);
+    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, Queue<IPC::File>&) = 0;
 
     OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id);
     void wait_for_socket_to_become_readable();
     ErrorOr<Vector<u8>> read_as_much_as_possible_from_socket_without_blocking();
     ErrorOr<void> drain_messages_from_peer();
+    void try_parse_messages(Vector<u8> const& bytes, size_t& index);
 
     ErrorOr<void> post_message(MessageBuffer);
     void handle_messages();
@@ -116,33 +110,17 @@ protected:
         return {};
     }
 
-    virtual void try_parse_messages(Vector<u8> const& bytes, size_t& index) override
+    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes bytes, Queue<IPC::File>& fds) override
     {
-        u32 message_size = 0;
-        for (; index + sizeof(message_size) < bytes.size(); index += message_size) {
-            memcpy(&message_size, bytes.data() + index, sizeof(message_size));
-            if (message_size == 0 || bytes.size() - index - sizeof(uint32_t) < message_size)
-                break;
-            index += sizeof(message_size);
-            auto remaining_bytes = ReadonlyBytes { bytes.data() + index, message_size };
+        auto local_message = LocalEndpoint::decode_message(bytes, fds);
+        if (!local_message.is_error())
+            return local_message.release_value();
 
-            auto local_message = LocalEndpoint::decode_message(remaining_bytes, m_unprocessed_fds);
-            if (!local_message.is_error()) {
-                m_unprocessed_messages.append(local_message.release_value());
-                continue;
-            }
+        auto peer_message = PeerEndpoint::decode_message(bytes, fds);
+        if (!peer_message.is_error())
+            return peer_message.release_value();
 
-            auto peer_message = PeerEndpoint::decode_message(remaining_bytes, m_unprocessed_fds);
-            if (!peer_message.is_error()) {
-                m_unprocessed_messages.append(peer_message.release_value());
-                continue;
-            }
-
-            dbgln("Failed to parse a message");
-            dbgln("Local endpoint error: {}", local_message.error());
-            dbgln("Peer endpoint error: {}", peer_message.error());
-            break;
-        }
+        return nullptr;
     }
 };
 

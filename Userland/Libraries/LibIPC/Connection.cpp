@@ -194,4 +194,25 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
     return {};
 }
 
+void ConnectionBase::try_parse_messages(Vector<u8> const& bytes, size_t& index)
+{
+    u32 message_size = 0;
+    for (; index + sizeof(message_size) < bytes.size(); index += message_size) {
+        memcpy(&message_size, bytes.data() + index, sizeof(message_size));
+        if (message_size == 0 || bytes.size() - index - sizeof(uint32_t) < message_size)
+            break;
+        index += sizeof(message_size);
+        auto remaining_bytes = ReadonlyBytes { bytes.data() + index, message_size };
+
+        if (auto message = try_parse_message(remaining_bytes, m_unprocessed_fds)) {
+            m_unprocessed_messages.append(message.release_nonnull());
+            continue;
+        }
+
+        dbgln("Failed to parse IPC message:");
+        dbgln("{:hex-dump}", remaining_bytes);
+        break;
+    }
+}
+
 }
