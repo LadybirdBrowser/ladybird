@@ -142,7 +142,8 @@ struct PaintTextShadow {
     int blur_radius;
     Gfx::IntRect shadow_bounding_rect;
     Gfx::IntRect text_rect;
-    Vector<Gfx::DrawGlyphOrEmoji> glyph_run;
+    NonnullRefPtr<Gfx::GlyphRun> glyph_run;
+    double glyph_run_scale { 1 };
     Color color;
     int fragment_baseline;
     Gfx::IntPoint draw_location;
