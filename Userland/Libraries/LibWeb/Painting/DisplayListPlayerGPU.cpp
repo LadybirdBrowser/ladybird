@@ -190,7 +190,7 @@ CommandResult DisplayListPlayerGPU::paint_text_shadow(PaintTextShadow const& com
     text_shadow_painter->clear(command.color.with_alpha(0));
 
     Gfx::FloatRect const shadow_location { command.draw_location, command.shadow_bounding_rect.size() };
-    Gfx::IntPoint const baseline_start(command.text_rect.x(), command.text_rect.y() + command.fragment_baseline);
+    Gfx::IntPoint const baseline_start(command.text_rect.x(), command.text_rect.y());
     text_shadow_painter->translate(baseline_start.to_type<float>());
     text_shadow_painter->draw_glyph_run(command.glyph_run->glyphs(), command.color);
     if (command.blur_radius == 0) {
