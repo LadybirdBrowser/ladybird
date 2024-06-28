@@ -1,0 +1,18 @@
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const properties = Object.getOwnPropertyNames(window);
+        const constructors = properties.filter(prop => {
+            try {
+                const value = window[prop];
+                return typeof value === 'function' && !!value.prototype;
+            } catch (e) {
+                return false;
+            }
+        });
+        constructors.sort();
+
+        for (const c of constructors)
+            println(c);
+    });
+</script>
