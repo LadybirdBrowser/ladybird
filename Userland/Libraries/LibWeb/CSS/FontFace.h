@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/Font/VectorFont.h>
+#include <LibGfx/Font/Typeface.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/FontFacePrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -104,8 +104,8 @@ private:
     Vector<ParsedFontFace::Source> m_urls;                   // [[Urls]]
     ByteBuffer m_binary_data;                                // [[Data]]
 
-    RefPtr<Gfx::VectorFont> m_parsed_font;
-    RefPtr<Core::Promise<NonnullRefPtr<Gfx::VectorFont>>> m_font_load_promise;
+    RefPtr<Gfx::Typeface> m_parsed_font;
+    RefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> m_font_load_promise;
 
     // https://drafts.csswg.org/css-font-loading/#css-connected
     bool m_is_css_connected { false };

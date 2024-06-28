@@ -10,7 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
-#include <LibGfx/Font/VectorFont.h>
+#include <LibGfx/Font/Typeface.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
@@ -238,7 +238,7 @@ public:
     virtual ~FontLoader() override;
 
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
-    RefPtr<Gfx::VectorFont> vector_font() const { return m_vector_font; }
+    RefPtr<Gfx::Typeface> vector_font() const { return m_vector_font; }
 
     virtual void resource_did_load() override;
     virtual void resource_did_fail() override;
@@ -247,12 +247,12 @@ public:
     void start_loading_next_url();
 
 private:
-    ErrorOr<NonnullRefPtr<Gfx::VectorFont>> try_load_font();
+    ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_font();
 
     StyleComputer& m_style_computer;
     FlyString m_family_name;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
-    RefPtr<Gfx::VectorFont> m_vector_font;
+    RefPtr<Gfx::Typeface> m_vector_font;
     Vector<URL::URL> m_urls;
     Function<void(FontLoader const&)> m_on_load;
     Function<void()> m_on_fail;

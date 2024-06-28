@@ -39,9 +39,9 @@ struct ScaledGlyphMetrics {
     float left_side_bearing;
 };
 
-class VectorFont : public RefCounted<VectorFont> {
+class Typeface : public RefCounted<Typeface> {
 public:
-    virtual ~VectorFont();
+    virtual ~Typeface();
     virtual ScaledFontMetrics metrics(float x_scale, float y_scale) const = 0;
     virtual ScaledGlyphMetrics glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const = 0;
     virtual float glyph_advance(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const = 0;
@@ -63,7 +63,7 @@ public:
     [[nodiscard]] NonnullRefPtr<ScaledFont> scaled_font(float point_size) const;
 
 protected:
-    VectorFont();
+    Typeface();
 
 private:
     mutable HashMap<float, NonnullRefPtr<ScaledFont>> m_scaled_fonts;

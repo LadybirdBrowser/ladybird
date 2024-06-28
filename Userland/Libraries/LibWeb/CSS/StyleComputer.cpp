@@ -21,7 +21,7 @@
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibGfx/Font/OpenType/Font.h>
 #include <LibGfx/Font/ScaledFont.h>
-#include <LibGfx/Font/VectorFont.h>
+#include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Font.h>
 #include <LibGfx/Font/WOFF2/Font.h>
 #include <LibWeb/Animations/AnimationEffect.h>
@@ -162,7 +162,7 @@ void FontLoader::start_loading_next_url()
     set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
 }
 
-ErrorOr<NonnullRefPtr<Gfx::VectorFont>> FontLoader::try_load_font()
+ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
     auto const& mime_type = resource()->mime_type();
@@ -197,7 +197,7 @@ ErrorOr<NonnullRefPtr<Gfx::VectorFont>> FontLoader::try_load_font()
 
 struct StyleComputer::MatchingFontCandidate {
     FontFaceKey key;
-    Variant<FontLoaderList*, Gfx::VectorFont const*> loader_or_typeface;
+    Variant<FontLoaderList*, Gfx::Typeface const*> loader_or_typeface;
 
     [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size) const
     {
@@ -210,7 +210,7 @@ struct StyleComputer::MatchingFontCandidate {
             return font_list;
         }
 
-        font_list->add(loader_or_typeface.get<Gfx::VectorFont const*>()->scaled_font(point_size));
+        font_list->add(loader_or_typeface.get<Gfx::Typeface const*>()->scaled_font(point_size));
         return font_list;
     }
 };
@@ -1853,7 +1853,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FontFa
         if (font_key_and_loader.key.family_name.equals_ignoring_ascii_case(key.family_name))
             matching_family_fonts.empend(font_key_and_loader.key, const_cast<FontLoaderList*>(&font_key_and_loader.value));
     }
-    Gfx::FontDatabase::the().for_each_typeface_with_family_name(key.family_name, [&](Gfx::VectorFont const& typeface) {
+    Gfx::FontDatabase::the().for_each_typeface_with_family_name(key.family_name, [&](Gfx::Typeface const& typeface) {
         matching_family_fonts.empend(
             FontFaceKey {
                 .family_name = typeface.family(),

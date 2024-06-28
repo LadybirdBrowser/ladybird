@@ -10,7 +10,7 @@
 #include <AK/HashMap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/Font/VectorFont.h>
+#include <LibGfx/Font/Typeface.h>
 
 namespace Gfx {
 
@@ -23,7 +23,7 @@ struct GlyphIndexWithSubpixelOffset {
 
 class ScaledFont final : public Gfx::Font {
 public:
-    ScaledFont(NonnullRefPtr<VectorFont>, float point_width, float point_height, unsigned dpi_x = DEFAULT_DPI, unsigned dpi_y = DEFAULT_DPI);
+    ScaledFont(NonnullRefPtr<Typeface>, float point_width, float point_height, unsigned dpi_x = DEFAULT_DPI, unsigned dpi_y = DEFAULT_DPI);
     u32 glyph_id_for_code_point(u32 code_point) const { return m_font->glyph_id_for_code_point(code_point); }
     ScaledFontMetrics metrics() const { return m_font->metrics(m_x_scale, m_y_scale); }
     ScaledGlyphMetrics glyph_metrics(u32 glyph_id) const { return m_font->glyph_metrics(glyph_id, m_x_scale, m_y_scale, m_point_width, m_point_height); }
@@ -58,7 +58,7 @@ public:
     virtual bool has_color_bitmaps() const override { return m_font->has_color_bitmaps(); }
 
 private:
-    NonnullRefPtr<VectorFont> m_font;
+    NonnullRefPtr<Typeface> m_font;
     float m_x_scale { 0.0f };
     float m_y_scale { 0.0f };
     float m_point_width { 0.0f };

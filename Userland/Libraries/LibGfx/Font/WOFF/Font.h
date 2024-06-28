@@ -13,11 +13,11 @@
 #include <AK/RefCounted.h>
 #include <LibCore/MappedFile.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/Font/VectorFont.h>
+#include <LibGfx/Font/Typeface.h>
 
 namespace WOFF {
 
-class Font : public Gfx::VectorFont {
+class Font : public Gfx::Typeface {
     AK_MAKE_NONCOPYABLE(Font);
 
 public:
@@ -43,14 +43,14 @@ public:
     virtual bool has_color_bitmaps() const override { return m_input_font->has_color_bitmaps(); }
 
 private:
-    Font(NonnullRefPtr<Gfx::VectorFont const> input_font, ByteBuffer input_font_buffer)
+    Font(NonnullRefPtr<Gfx::Typeface const> input_font, ByteBuffer input_font_buffer)
         : m_input_font_buffer(move(input_font_buffer))
         , m_input_font(move(input_font))
     {
     }
 
     ByteBuffer m_input_font_buffer;
-    NonnullRefPtr<Gfx::VectorFont const> m_input_font;
+    NonnullRefPtr<Gfx::Typeface const> m_input_font;
 };
 
 }
