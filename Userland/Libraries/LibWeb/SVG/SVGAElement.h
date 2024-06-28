@@ -17,9 +17,11 @@ class SVGAElement final : public SVGGraphicsElement {
 public:
     virtual ~SVGAElement() override;
 
-    SVGAElement(DOM::Document&, DOM::QualifiedName);
-
     virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+
+private:
+    SVGAElement(DOM::Document&, DOM::QualifiedName);
+    virtual void initialize(JS::Realm&) override;
 };
 
 }

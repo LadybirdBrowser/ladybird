@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Bindings/SVGAElementPrototype.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/SVG/SVGAElement.h>
 
@@ -17,6 +18,12 @@ SVGAElement::SVGAElement(DOM::Document& document, DOM::QualifiedName qualified_n
 }
 
 SVGAElement::~SVGAElement() = default;
+
+void SVGAElement::initialize(JS::Realm& realm)
+{
+    Base::initialize(realm);
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAElement);
+}
 
 JS::GCPtr<Layout::Node> SVGAElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
 {
