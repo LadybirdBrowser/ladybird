@@ -27,21 +27,11 @@
 
 namespace IPC {
 
-// NOTE: This is an abstraction to allow using IPC::Connection without a Core::EventLoop.
-// FIXME: It's not particularly nice, think of something nicer.
-struct DeferredInvoker {
-    virtual ~DeferredInvoker() = default;
-    virtual void schedule(Function<void()>) = 0;
-};
-
 class ConnectionBase : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ConnectionBase);
 
 public:
     virtual ~ConnectionBase() override = default;
-
-    void set_deferred_invoker(NonnullOwnPtr<DeferredInvoker>);
-    DeferredInvoker& deferred_invoker() { return *m_deferred_invoker; }
 
     bool is_open() const { return m_socket->is_open(); }
     ErrorOr<void> post_message(Message const&);
@@ -78,8 +68,6 @@ protected:
     ByteBuffer m_unprocessed_bytes;
 
     u32 m_local_endpoint_magic { 0 };
-
-    NonnullOwnPtr<DeferredInvoker> m_deferred_invoker;
 };
 
 template<typename LocalEndpoint, typename PeerEndpoint>
