@@ -197,7 +197,7 @@ ErrorOr<NonnullRefPtr<Gfx::VectorFont>> FontLoader::try_load_font()
 
 struct StyleComputer::MatchingFontCandidate {
     FontFaceKey key;
-    Variant<FontLoaderList*, Gfx::Typeface const*> loader_or_typeface;
+    Variant<FontLoaderList*, Gfx::VectorFont const*> loader_or_typeface;
 
     [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size) const
     {
@@ -210,8 +210,7 @@ struct StyleComputer::MatchingFontCandidate {
             return font_list;
         }
 
-        if (auto font = loader_or_typeface.get<Gfx::Typeface const*>()->get_font(point_size))
-            font_list->add(*font);
+        font_list->add(loader_or_typeface.get<Gfx::VectorFont const*>()->scaled_font(point_size));
         return font_list;
     }
 };
@@ -1854,7 +1853,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FontFa
         if (font_key_and_loader.key.family_name.equals_ignoring_ascii_case(key.family_name))
             matching_family_fonts.empend(font_key_and_loader.key, const_cast<FontLoaderList*>(&font_key_and_loader.value));
     }
-    Gfx::FontDatabase::the().for_each_typeface_with_family_name(key.family_name, [&](Gfx::Typeface const& typeface) {
+    Gfx::FontDatabase::the().for_each_typeface_with_family_name(key.family_name, [&](Gfx::VectorFont const& typeface) {
         matching_family_fonts.empend(
             FontFaceKey {
                 .family_name = typeface.family(),
