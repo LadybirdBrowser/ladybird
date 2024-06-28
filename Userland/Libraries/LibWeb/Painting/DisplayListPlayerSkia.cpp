@@ -38,6 +38,19 @@
 
 namespace Web::Painting {
 
+class DisplayListPlayerSkia::SkiaSurface {
+public:
+    SkCanvas& canvas() const { return *surface->getCanvas(); }
+
+    SkiaSurface(sk_sp<SkSurface> surface)
+        : surface(move(surface))
+    {
+    }
+
+private:
+    sk_sp<SkSurface> surface;
+};
+
 #ifdef AK_OS_MACOS
 class SkiaMetalBackendContext final : public SkiaBackendContext {
     AK_MAKE_NONCOPYABLE(SkiaMetalBackendContext);
@@ -93,19 +106,6 @@ DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Core::
     };
 }
 #endif
-
-class DisplayListPlayerSkia::SkiaSurface {
-public:
-    SkCanvas& canvas() const { return *surface->getCanvas(); }
-
-    SkiaSurface(sk_sp<SkSurface> surface)
-        : surface(move(surface))
-    {
-    }
-
-private:
-    sk_sp<SkSurface> surface;
-};
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::Bitmap& bitmap)
 {
