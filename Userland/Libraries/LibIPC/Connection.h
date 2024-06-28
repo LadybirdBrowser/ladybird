@@ -114,7 +114,3 @@ protected:
 };
 
 }
-
-template<typename LocalEndpoint, typename PeerEndpoint>
-struct AK::Formatter<IPC::Connection<LocalEndpoint, PeerEndpoint>> : Formatter<Core::EventReceiver> {
-};
