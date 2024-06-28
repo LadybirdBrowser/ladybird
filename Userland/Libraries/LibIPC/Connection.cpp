@@ -5,9 +5,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/System.h>
+#include <AK/Vector.h>
+#include <LibCore/Socket.h>
+#include <LibCore/Timer.h>
 #include <LibIPC/Connection.h>
-#include <LibIPC/File.h>
+#include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
 
 namespace IPC {
@@ -18,6 +20,19 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Core::LocalS
     , m_local_endpoint_magic(local_endpoint_magic)
 {
     m_responsiveness_timer = Core::Timer::create_single_shot(3000, [this] { may_have_become_unresponsive(); });
+    m_socket->on_ready_to_read = [this] {
+        NonnullRefPtr protect = *this;
+        // FIXME: Do something about errors.
+        (void)drain_messages_from_peer();
+        handle_messages();
+    };
+}
+
+ConnectionBase::~ConnectionBase() = default;
+
+bool ConnectionBase::is_open() const
+{
+    return m_socket->is_open();
 }
 
 ErrorOr<void> ConnectionBase::post_message(Message const& message)

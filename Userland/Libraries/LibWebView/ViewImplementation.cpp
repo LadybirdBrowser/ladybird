@@ -8,6 +8,7 @@
 #include <AK/String.h>
 #include <LibCore/DateTime.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/ViewImplementation.h>
