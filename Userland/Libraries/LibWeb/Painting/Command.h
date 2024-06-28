@@ -145,7 +145,6 @@ struct PaintTextShadow {
     NonnullRefPtr<Gfx::GlyphRun> glyph_run;
     double glyph_run_scale { 1 };
     Color color;
-    int fragment_baseline;
     Gfx::IntPoint draw_location;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return { draw_location, shadow_bounding_rect.size() }; }

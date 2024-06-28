@@ -344,7 +344,7 @@ void DisplayListRecorder::paint_inner_box_shadow_params(PaintBoxShadowParams par
     append(PaintInnerBoxShadow { .box_shadow_params = params });
 }
 
-void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const& glyph_run, double glyph_run_scale, Color color, int fragment_baseline, Gfx::IntPoint draw_location)
+void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const& glyph_run, double glyph_run_scale, Color color, Gfx::IntPoint draw_location)
 {
     append(PaintTextShadow {
         .blur_radius = blur_radius,
@@ -353,7 +353,6 @@ void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect boundi
         .glyph_run = glyph_run,
         .glyph_run_scale = glyph_run_scale,
         .color = color,
-        .fragment_baseline = fragment_baseline,
         .draw_location = state().translation.map(draw_location) });
 }
 

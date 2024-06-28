@@ -610,7 +610,7 @@ void paint_text_shadow(PaintContext& context, PaintableFragment const& fragment,
             draw_rect.y() + offset_y - margin
         };
 
-        context.display_list_recorder().paint_text_shadow(blur_radius, bounding_rect, text_rect, fragment.glyph_run(), context.device_pixels_per_css_pixel(), layer.color, fragment_baseline, draw_location);
+        context.display_list_recorder().paint_text_shadow(blur_radius, bounding_rect, text_rect.translated(0, fragment_baseline), fragment.glyph_run(), context.device_pixels_per_css_pixel(), layer.color, draw_location);
     }
 }
 

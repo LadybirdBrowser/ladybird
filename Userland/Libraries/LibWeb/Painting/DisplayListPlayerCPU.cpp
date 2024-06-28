@@ -270,7 +270,7 @@ CommandResult DisplayListPlayerCPU::paint_text_shadow(PaintTextShadow const& com
 
     Gfx::Painter shadow_painter { *shadow_bitmap };
     // FIXME: "Spread" the shadow somehow.
-    Gfx::IntPoint const baseline_start(command.text_rect.x(), command.text_rect.y() + command.fragment_baseline);
+    Gfx::IntPoint const baseline_start(command.text_rect.x(), command.text_rect.y());
     shadow_painter.translate(baseline_start);
     auto const& glyphs = command.glyph_run->glyphs();
     for (auto const& glyph_or_emoji : glyphs) {
