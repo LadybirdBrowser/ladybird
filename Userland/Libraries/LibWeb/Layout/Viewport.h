@@ -19,12 +19,28 @@ public:
     explicit Viewport(DOM::Document&, NonnullRefPtr<CSS::StyleProperties>);
     virtual ~Viewport() override;
 
+    struct TextPosition {
+        JS::NonnullGCPtr<DOM::Text> dom_node;
+        size_t start_offset { 0 };
+    };
+    struct TextBlock {
+        String text;
+        Vector<TextPosition> positions;
+    };
+    Vector<TextBlock> const& text_blocks();
+
     const DOM::Document& dom_node() const { return static_cast<const DOM::Document&>(*Node::dom_node()); }
+
+    virtual void visit_edges(Visitor&) override;
 
 private:
     virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
 
+    void update_text_blocks();
+
     virtual bool is_viewport() const override { return true; }
+
+    Optional<Vector<TextBlock>> m_text_blocks;
 };
 
 template<>
