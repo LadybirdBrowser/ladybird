@@ -24,7 +24,7 @@ FontDatabase& FontDatabase::the()
 }
 
 struct FontDatabase::Private {
-    HashMap<FlyString, Vector<NonnullRefPtr<VectorFont>>, AK::ASCIICaseInsensitiveFlyStringTraits> typeface_by_family;
+    HashMap<FlyString, Vector<NonnullRefPtr<Typeface>>, AK::ASCIICaseInsensitiveFlyStringTraits> typeface_by_family;
 };
 
 void FontDatabase::load_all_fonts_from_uri(StringView uri)
@@ -47,7 +47,7 @@ void FontDatabase::load_all_fonts_from_uri(StringView uri)
             if (auto font_or_error = OpenType::Font::try_load_from_resource(resource); !font_or_error.is_error()) {
                 auto font = font_or_error.release_value();
                 auto& family = m_private->typeface_by_family.ensure(font->family(), [] {
-                    return Vector<NonnullRefPtr<VectorFont>> {};
+                    return Vector<NonnullRefPtr<Typeface>> {};
                 });
                 family.append(font);
             }
@@ -55,7 +55,7 @@ void FontDatabase::load_all_fonts_from_uri(StringView uri)
             if (auto font_or_error = WOFF::Font::try_load_from_resource(resource); !font_or_error.is_error()) {
                 auto font = font_or_error.release_value();
                 auto& family = m_private->typeface_by_family.ensure(font->family(), [] {
-                    return Vector<NonnullRefPtr<VectorFont>> {};
+                    return Vector<NonnullRefPtr<Typeface>> {};
                 });
                 family.append(font);
             }
@@ -94,7 +94,7 @@ RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, FlyString const& va
     return nullptr;
 }
 
-void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_name, Function<void(VectorFont const&)> callback)
+void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)> callback)
 {
     auto it = m_private->typeface_by_family.find(family_name);
     if (it == m_private->typeface_by_family.end())

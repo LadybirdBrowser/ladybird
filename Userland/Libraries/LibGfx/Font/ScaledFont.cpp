@@ -10,7 +10,7 @@
 
 namespace Gfx {
 
-ScaledFont::ScaledFont(NonnullRefPtr<VectorFont> font, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y)
+ScaledFont::ScaledFont(NonnullRefPtr<Typeface> font, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y)
     : m_font(move(font))
     , m_point_width(point_width)
     , m_point_height(point_height)

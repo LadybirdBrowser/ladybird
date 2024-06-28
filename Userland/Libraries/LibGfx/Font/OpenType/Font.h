@@ -17,7 +17,7 @@
 #include <LibGfx/Font/OpenType/Cmap.h>
 #include <LibGfx/Font/OpenType/Glyf.h>
 #include <LibGfx/Font/OpenType/Tables.h>
-#include <LibGfx/Font/VectorFont.h>
+#include <LibGfx/Font/Typeface.h>
 
 namespace OpenType {
 
@@ -45,7 +45,7 @@ struct FontOptions {
     u32 skip_tables { 0 };
 };
 
-class Font : public Gfx::VectorFont {
+class Font : public Gfx::Typeface {
     AK_MAKE_NONCOPYABLE(Font);
 
 public:

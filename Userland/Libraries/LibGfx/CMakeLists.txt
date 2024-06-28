@@ -20,7 +20,7 @@ set(SOURCES
     Font/OpenType/Hinting/Opcodes.cpp
     Font/OpenType/Tables.cpp
     Font/ScaledFont.cpp
-    Font/VectorFont.cpp
+    Font/Typeface.cpp
     Font/WOFF/Font.cpp
     Font/WOFF2/Font.cpp
     GradientPainting.cpp

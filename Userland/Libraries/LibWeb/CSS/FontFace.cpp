@@ -6,7 +6,7 @@
 
 #include <LibCore/Promise.h>
 #include <LibGfx/Font/OpenType/Font.h>
-#include <LibGfx/Font/VectorFont.h>
+#include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Font.h>
 #include <LibGfx/Font/WOFF2/Font.h>
 #include <LibJS/Heap/Heap.h>
@@ -26,9 +26,9 @@
 
 namespace Web::CSS {
 
-static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::VectorFont>>> load_vector_font(ByteBuffer const& data)
+static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_font(ByteBuffer const& data)
 {
-    auto promise = Core::Promise<NonnullRefPtr<Gfx::VectorFont>>::construct();
+    auto promise = Core::Promise<NonnullRefPtr<Gfx::Typeface>>::construct();
 
     // FIXME: 'Asynchronously' shouldn't mean 'later on the main thread'.
     //        Can we defer this to a background thread?
