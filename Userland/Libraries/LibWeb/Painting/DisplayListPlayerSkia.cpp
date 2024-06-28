@@ -597,8 +597,21 @@ CommandResult DisplayListPlayerSkia::paint_inner_box_shadow(PaintInnerBoxShadow 
     return CommandResult::Continue;
 }
 
-CommandResult DisplayListPlayerSkia::paint_text_shadow(PaintTextShadow const&)
+CommandResult DisplayListPlayerSkia::paint_text_shadow(PaintTextShadow const& command)
 {
+    auto& canvas = surface().canvas();
+    auto blur_image_filter = SkImageFilters::Blur(command.blur_radius, command.blur_radius, nullptr);
+    SkPaint blur_paint;
+    blur_paint.setImageFilter(blur_image_filter);
+    canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &blur_paint, nullptr, 0));
+    draw_glyph_run({
+        .glyph_run = command.glyph_run,
+        .color = command.color,
+        .rect = command.text_rect,
+        .translation = command.draw_location.to_type<float>() + command.text_rect.location().to_type<float>(),
+        .scale = command.glyph_run_scale,
+    });
+    canvas.restore();
     return CommandResult::Continue;
 }
 
