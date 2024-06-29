@@ -1,12 +1,4 @@
-/AK/CircularBuffer.* @timschumi
-/AK/MaybeOwned.h @timschumi
-/AK/*Stream.* @timschumi
 /Lagom/Tools/CodeGenerators/LibWeb @AtkinsSJ
-/Tests/LibCompress @timschumi
-/Userland/Libraries/LibArchive @timschumi
-/Userland/Libraries/LibCompress @timschumi
-/Userland/Libraries/LibCore/File.* @timschumi
-/Userland/Libraries/LibCore/Socket.* @timschumi
 /Userland/Libraries/LibCrypto @alimpfard
 /Userland/Libraries/LibHTTP @alimpfard
 /Userland/Libraries/LibJS/Runtime/Intl @trflynn89
@@ -21,8 +13,4 @@
 /Userland/Libraries/LibXML @alimpfard
 /Userland/Services/RequestServer @alimpfard
 /Userland/Services/WebDriver @trflynn89
-/Userland/Utilities/gzip.cpp @timschumi
-/Userland/Utilities/lzcat.cpp @timschumi
-/Userland/Utilities/tar.cpp @timschumi
 /Userland/Utilities/wasm.cpp @alimpfard
-/Userland/Utilities/xzcat.cpp @timschumi
