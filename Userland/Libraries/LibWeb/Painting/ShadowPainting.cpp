@@ -579,7 +579,11 @@ void paint_box_shadow(PaintContext& context,
 
 void paint_text_shadow(PaintContext& context, PaintableFragment const& fragment, Vector<ShadowData> const& shadow_layers)
 {
-    if (shadow_layers.is_empty() || fragment.glyph_run().is_empty())
+    if (shadow_layers.is_empty())
+        return;
+
+    auto glyph_run = fragment.glyph_run();
+    if (!glyph_run || glyph_run->glyphs().is_empty())
         return;
 
     auto fragment_width = context.enclosing_device_pixels(fragment.width()).value();
@@ -610,7 +614,7 @@ void paint_text_shadow(PaintContext& context, PaintableFragment const& fragment,
             draw_rect.y() + offset_y - margin
         };
 
-        context.display_list_recorder().paint_text_shadow(blur_radius, bounding_rect, text_rect.translated(0, fragment_baseline), fragment.glyph_run(), context.device_pixels_per_css_pixel(), layer.color, draw_location);
+        context.display_list_recorder().paint_text_shadow(blur_radius, bounding_rect, text_rect.translated(0, fragment_baseline), *glyph_run, context.device_pixels_per_css_pixel(), layer.color, draw_location);
     }
 }
 

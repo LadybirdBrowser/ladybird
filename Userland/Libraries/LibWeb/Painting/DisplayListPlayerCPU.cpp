@@ -30,18 +30,19 @@ CommandResult DisplayListPlayerCPU::draw_glyph_run(DrawGlyphRun const& command)
 {
     auto& painter = this->painter();
     auto const& glyphs = command.glyph_run->glyphs();
-    for (auto& glyph_or_emoji : glyphs) {
+    auto const& font = command.glyph_run->font();
+    auto scaled_font = font.with_size(font.point_size() * static_cast<float>(command.scale));
+    for (auto const& glyph_or_emoji : glyphs) {
         auto transformed_glyph = glyph_or_emoji;
         transformed_glyph.visit([&](auto& glyph) {
             glyph.position = glyph.position.scaled(command.scale).translated(command.translation);
-            glyph.font = glyph.font->with_size(glyph.font->point_size() * static_cast<float>(command.scale));
         });
         if (glyph_or_emoji.has<Gfx::DrawGlyph>()) {
             auto& glyph = transformed_glyph.get<Gfx::DrawGlyph>();
-            painter.draw_glyph(glyph.position, glyph.code_point, *glyph.font, command.color);
+            painter.draw_glyph(glyph.position, glyph.code_point, *scaled_font, command.color);
         } else {
             auto& emoji = transformed_glyph.get<Gfx::DrawEmoji>();
-            painter.draw_emoji(emoji.position.to_type<int>(), *emoji.emoji, *emoji.font);
+            painter.draw_emoji(emoji.position.to_type<int>(), *emoji.emoji, *scaled_font);
         }
     }
     return CommandResult::Continue;
@@ -273,18 +274,19 @@ CommandResult DisplayListPlayerCPU::paint_text_shadow(PaintTextShadow const& com
     Gfx::IntPoint const baseline_start(command.text_rect.x(), command.text_rect.y());
     shadow_painter.translate(baseline_start);
     auto const& glyphs = command.glyph_run->glyphs();
+    auto const& font = command.glyph_run->font();
+    auto scaled_font = font.with_size(font.point_size() * static_cast<float>(command.glyph_run_scale));
     for (auto const& glyph_or_emoji : glyphs) {
         auto transformed_glyph = glyph_or_emoji;
         transformed_glyph.visit([&](auto& glyph) {
             glyph.position = glyph.position.scaled(command.glyph_run_scale);
-            glyph.font = glyph.font->with_size(glyph.font->point_size() * static_cast<float>(command.glyph_run_scale));
         });
         if (glyph_or_emoji.has<Gfx::DrawGlyph>()) {
             auto& glyph = transformed_glyph.get<Gfx::DrawGlyph>();
-            shadow_painter.draw_glyph(glyph.position, glyph.code_point, *glyph.font, command.color);
+            shadow_painter.draw_glyph(glyph.position, glyph.code_point, *scaled_font, command.color);
         } else {
             auto& emoji = transformed_glyph.get<Gfx::DrawEmoji>();
-            shadow_painter.draw_emoji(emoji.position.to_type<int>(), *emoji.emoji, *emoji.font);
+            shadow_painter.draw_emoji(emoji.position.to_type<int>(), *emoji.emoji, *scaled_font);
         }
     }
 

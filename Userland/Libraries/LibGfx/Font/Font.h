@@ -120,6 +120,8 @@ public:
     virtual Optional<Glyph> glyph(u32 code_point, GlyphSubpixelOffset) const = 0;
     virtual bool contains_glyph(u32 code_point) const = 0;
 
+    virtual bool append_glyph_path_to(Gfx::Path&, u32 glyph_id) const = 0;
+    virtual u32 glyph_id_for_code_point(u32 code_point) const = 0;
     virtual float glyph_left_bearing(u32 code_point) const = 0;
     virtual float glyph_width(u32 code_point) const = 0;
     virtual float glyph_or_emoji_width(Utf8CodePointIterator&) const = 0;

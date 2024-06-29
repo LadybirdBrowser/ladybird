@@ -33,7 +33,6 @@ enum class IncludeLeftBearing {
 struct DrawGlyph {
     FloatPoint position;
     u32 code_point;
-    NonnullRefPtr<Font const> font;
 
     void translate_by(FloatPoint const& delta)
     {
@@ -44,7 +43,6 @@ struct DrawGlyph {
 struct DrawEmoji {
     FloatPoint position;
     Gfx::Bitmap const* emoji;
-    NonnullRefPtr<Font const> font;
 
     void translate_by(FloatPoint const& delta)
     {
@@ -56,28 +54,30 @@ using DrawGlyphOrEmoji = Variant<DrawGlyph, DrawEmoji>;
 
 class GlyphRun : public RefCounted<GlyphRun> {
 public:
-    GlyphRun() = default;
-    GlyphRun(Vector<Gfx::DrawGlyphOrEmoji>&& glyphs)
+    GlyphRun(Vector<Gfx::DrawGlyphOrEmoji>&& glyphs, NonnullRefPtr<Font> font)
         : m_glyphs(move(glyphs))
+        , m_font(move(font))
     {
     }
 
+    [[nodiscard]] Font const& font() const { return m_font; }
     [[nodiscard]] Vector<Gfx::DrawGlyphOrEmoji> const& glyphs() const { return m_glyphs; }
+    [[nodiscard]] Vector<Gfx::DrawGlyphOrEmoji>& glyphs() { return m_glyphs; }
     [[nodiscard]] bool is_empty() const { return m_glyphs.is_empty(); }
 
     void append(Gfx::DrawGlyphOrEmoji glyph) { m_glyphs.append(glyph); }
 
 private:
     Vector<Gfx::DrawGlyphOrEmoji> m_glyphs;
+    NonnullRefPtr<Font> m_font;
 };
 
 Variant<DrawGlyph, DrawEmoji> prepare_draw_glyph_or_emoji(FloatPoint point, Utf8CodePointIterator& it, Font const& font);
 
 template<typename Callback>
-void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, FontCascadeList const& font_list, Callback callback, IncludeLeftBearing include_left_bearing = IncludeLeftBearing::No, Optional<float&> width = {})
+void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Callback callback, IncludeLeftBearing include_left_bearing = IncludeLeftBearing::No, Optional<float&> width = {})
 {
-    auto const& space_glyph_font = font_list.font_for_code_point(' ');
-    float space_width = space_glyph_font.glyph_width(' ');
+    auto space_width = font.glyph_width(' ');
 
     u32 last_code_point = 0;
 
@@ -85,9 +85,8 @@ void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, FontCas
     for (auto code_point_iterator = string.begin(); code_point_iterator != string.end(); ++code_point_iterator) {
         auto it = code_point_iterator; // The callback function will advance the iterator, so create a copy for this lookup.
         auto code_point = *code_point_iterator;
-        RefPtr<Gfx::Font const> font = font_list.font_for_code_point(code_point);
 
-        point.set_y(baseline_start.y() - font->pixel_metrics().ascent);
+        point.set_y(baseline_start.y() - font.pixel_metrics().ascent);
 
         if (should_paint_as_space(code_point)) {
             point.translate_by(space_width, 0);
@@ -95,15 +94,15 @@ void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, FontCas
             continue;
         }
 
-        auto kerning = font->glyphs_horizontal_kerning(last_code_point, code_point);
+        auto kerning = font.glyphs_horizontal_kerning(last_code_point, code_point);
         if (kerning != 0.0f)
             point.translate_by(kerning, 0);
 
-        auto glyph_width = font->glyph_or_emoji_width(it);
-        auto glyph_or_emoji = prepare_draw_glyph_or_emoji(point, code_point_iterator, *font);
+        auto glyph_width = font.glyph_or_emoji_width(it);
+        auto glyph_or_emoji = prepare_draw_glyph_or_emoji(point, code_point_iterator, font);
         if (include_left_bearing == IncludeLeftBearing::Yes) {
             if (glyph_or_emoji.has<DrawGlyph>())
-                glyph_or_emoji.get<DrawGlyph>().position += FloatPoint(font->glyph_left_bearing(code_point), 0);
+                glyph_or_emoji.get<DrawGlyph>().position += FloatPoint(font.glyph_left_bearing(code_point), 0);
         }
 
         callback(glyph_or_emoji);

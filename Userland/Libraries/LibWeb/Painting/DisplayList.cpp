@@ -86,11 +86,12 @@ void DisplayList::execute(DisplayListPlayer& executor)
             auto& command = command_with_scroll_id.command;
             if (command.has<DrawGlyphRun>()) {
                 auto scale = command.get<DrawGlyphRun>().scale;
+                auto const& font = command.get<DrawGlyphRun>().glyph_run->font();
+                auto scaled_font = font.with_size(font.point_size() * static_cast<float>(scale));
                 for (auto const& glyph_or_emoji : command.get<DrawGlyphRun>().glyph_run->glyphs()) {
                     if (glyph_or_emoji.has<Gfx::DrawGlyph>()) {
                         auto const& glyph = glyph_or_emoji.get<Gfx::DrawGlyph>();
-                        auto font = glyph.font->with_size(glyph.font->point_size() * static_cast<float>(scale));
-                        unique_glyphs.ensure(font, [] { return HashTable<u32> {}; }).set(glyph.code_point);
+                        unique_glyphs.ensure(scaled_font, [] { return HashTable<u32> {}; }).set(glyph.code_point);
                     }
                 }
             }

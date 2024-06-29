@@ -198,7 +198,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         Vector<Gfx::DrawGlyphOrEmoji> glyph_run;
         float glyph_run_width = 0;
         Gfx::for_each_glyph_position(
-            { 0, 0 }, chunk.view, text_node.computed_values().font_list(), [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
+            { 0, 0 }, chunk.view, chunk.font, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
                 glyph_run.append(glyph_or_emoji);
                 return IterationDecision::Continue;
             },
@@ -212,7 +212,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         Item item {
             .type = Item::Type::Text,
             .node = &text_node,
-            .glyph_run = move(glyph_run),
+            .glyph_run = adopt_ref(*new Gfx::GlyphRun(move(glyph_run), chunk.font)),
             .offset_in_node = chunk.start,
             .length_in_node = chunk.length,
             .width = chunk_width,
@@ -321,7 +321,7 @@ void InlineLevelIterator::enter_text_node(Layout::TextNode const& text_node)
         .do_respect_linebreaks = do_respect_linebreaks,
         .is_first_chunk = true,
         .is_last_chunk = false,
-        .chunk_iterator = TextNode::ChunkIterator { text_node.text_for_rendering(), do_wrap_lines, do_respect_linebreaks },
+        .chunk_iterator = TextNode::ChunkIterator { text_node.text_for_rendering(), do_wrap_lines, do_respect_linebreaks, text_node.computed_values().font_list() },
     };
     m_text_node_context->next_chunk = m_text_node_context->chunk_iterator.next();
 }

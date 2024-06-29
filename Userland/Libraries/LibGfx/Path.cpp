@@ -167,10 +167,8 @@ void Path::text(Utf8View text, Font const& font)
     }
 
     auto& scaled_font = static_cast<ScaledFont const&>(font);
-    auto font_list = Gfx::FontCascadeList::create();
-    font_list->add(scaled_font);
     for_each_glyph_position(
-        last_point(), text, font_list, [&](DrawGlyphOrEmoji glyph_or_emoji) {
+        last_point(), text, scaled_font, [&](DrawGlyphOrEmoji glyph_or_emoji) {
             if (glyph_or_emoji.has<DrawGlyph>()) {
                 auto& glyph = glyph_or_emoji.get<DrawGlyph>();
                 move_to(glyph.position);
@@ -208,13 +206,10 @@ Path Path::place_text_along(Utf8View text, Font const& font) const
         return lines[line_index].a();
     };
 
-    auto font_list = Gfx::FontCascadeList::create();
-    font_list->add(font);
     auto& scaled_font = static_cast<Gfx::ScaledFont const&>(font);
-
     Gfx::Path result_path;
     Gfx::for_each_glyph_position(
-        {}, text, font_list, [&](Gfx::DrawGlyphOrEmoji glyph_or_emoji) {
+        {}, text, font, [&](Gfx::DrawGlyphOrEmoji glyph_or_emoji) {
             auto* glyph = glyph_or_emoji.get_pointer<Gfx::DrawGlyph>();
             if (!glyph)
                 return;

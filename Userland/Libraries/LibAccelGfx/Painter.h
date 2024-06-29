@@ -70,7 +70,7 @@ public:
     void draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const&, Gfx::IntRect const& src_rect, ScalingMode = ScalingMode::NearestNeighbor);
     void draw_scaled_immutable_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitmap const&, Gfx::FloatRect const& src_rect, ScalingMode = ScalingMode::NearestNeighbor);
 
-    void draw_glyph_run(Span<Gfx::DrawGlyphOrEmoji const> glyph_run, Color const& color);
+    void draw_glyph_run(Span<Gfx::DrawGlyphOrEmoji const> glyph_run, Gfx::Font const&, Color const& color);
 
     void set_clip_rect(Gfx::IntRect);
     void clear_clip_rect();

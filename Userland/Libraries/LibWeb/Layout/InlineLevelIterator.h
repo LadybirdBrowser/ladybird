@@ -32,7 +32,7 @@ public:
         };
         Type type {};
         JS::GCPtr<Layout::Node const> node {};
-        Vector<Gfx::DrawGlyphOrEmoji> glyph_run {};
+        RefPtr<Gfx::GlyphRun> glyph_run {};
         size_t offset_in_node { 0 };
         size_t length_in_node { 0 };
         CSSPixels width { 0.0f };
