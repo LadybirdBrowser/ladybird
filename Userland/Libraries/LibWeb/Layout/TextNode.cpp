@@ -391,11 +391,12 @@ void TextNode::compute_text_for_rendering()
     m_text_for_rendering = MUST(builder.to_string());
 }
 
-TextNode::ChunkIterator::ChunkIterator(StringView text, bool wrap_lines, bool respect_linebreaks)
+TextNode::ChunkIterator::ChunkIterator(StringView text, bool wrap_lines, bool respect_linebreaks, Gfx::FontCascadeList const& font_cascade_list)
     : m_wrap_lines(wrap_lines)
     , m_respect_linebreaks(respect_linebreaks)
     , m_utf8_view(text)
     , m_iterator(m_utf8_view.begin())
+    , m_font_cascade_list(font_cascade_list)
 {
 }
 
@@ -406,16 +407,22 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next()
 
     auto start_of_chunk = m_iterator;
 
+    Gfx::Font const& font = m_font_cascade_list.font_for_code_point(*m_iterator);
     while (m_iterator != m_utf8_view.end()) {
+        if (&font != &m_font_cascade_list.font_for_code_point(*m_iterator)) {
+            if (auto result = try_commit_chunk(start_of_chunk, m_iterator, false, font); result.has_value())
+                return result.release_value();
+        }
+
         if (m_respect_linebreaks && *m_iterator == '\n') {
             // Newline encountered, and we're supposed to preserve them.
             // If we have accumulated some code points in the current chunk, commit them now and continue with the newline next time.
-            if (auto result = try_commit_chunk(start_of_chunk, m_iterator, false); result.has_value())
+            if (auto result = try_commit_chunk(start_of_chunk, m_iterator, false, font); result.has_value())
                 return result.release_value();
 
             // Otherwise, commit the newline!
             ++m_iterator;
-            auto result = try_commit_chunk(start_of_chunk, m_iterator, true);
+            auto result = try_commit_chunk(start_of_chunk, m_iterator, true, font);
             VERIFY(result.has_value());
             return result.release_value();
         }
@@ -424,12 +431,12 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next()
             if (is_ascii_space(*m_iterator)) {
                 // Whitespace encountered, and we're allowed to break on whitespace.
                 // If we have accumulated some code points in the current chunk, commit them now and continue with the whitespace next time.
-                if (auto result = try_commit_chunk(start_of_chunk, m_iterator, false); result.has_value())
+                if (auto result = try_commit_chunk(start_of_chunk, m_iterator, false, font); result.has_value())
                     return result.release_value();
 
                 // Otherwise, commit the whitespace!
                 ++m_iterator;
-                if (auto result = try_commit_chunk(start_of_chunk, m_iterator, false); result.has_value())
+                if (auto result = try_commit_chunk(start_of_chunk, m_iterator, false, font); result.has_value())
                     return result.release_value();
                 continue;
             }
@@ -440,14 +447,14 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next()
 
     if (start_of_chunk != m_utf8_view.end()) {
         // Try to output whatever's left at the end of the text node.
-        if (auto result = try_commit_chunk(start_of_chunk, m_utf8_view.end(), false); result.has_value())
+        if (auto result = try_commit_chunk(start_of_chunk, m_utf8_view.end(), false, font); result.has_value())
             return result.release_value();
     }
 
     return {};
 }
 
-Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(Utf8View::Iterator const& start, Utf8View::Iterator const& end, bool has_breaking_newline) const
+Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(Utf8View::Iterator const& start, Utf8View::Iterator const& end, bool has_breaking_newline, Gfx::Font const& font) const
 {
     auto byte_offset = m_utf8_view.byte_offset_of(start);
     auto byte_length = m_utf8_view.byte_offset_of(end) - byte_offset;
@@ -456,6 +463,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(Utf8View::It
         auto chunk_view = m_utf8_view.substring_view(byte_offset, byte_length);
         return Chunk {
             .view = chunk_view,
+            .font = font,
             .start = byte_offset,
             .length = byte_length,
             .has_breaking_newline = has_breaking_newline,

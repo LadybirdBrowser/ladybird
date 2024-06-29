@@ -227,12 +227,10 @@ void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, G
     if (rect.is_empty())
         return;
 
-    auto glyph_run = adopt_ref(*new Gfx::GlyphRun);
-    auto font_cascade_list = Gfx::FontCascadeList::create();
-    font_cascade_list->add(font);
+    auto glyph_run = adopt_ref(*new Gfx::GlyphRun({}, font));
     float glyph_run_width = 0;
     Gfx::for_each_glyph_position(
-        { 0, 0 }, raw_text.code_points(), font_cascade_list, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
+        { 0, 0 }, raw_text.code_points(), font, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
             glyph_run->append(glyph_or_emoji);
             return IterationDecision::Continue;
         },

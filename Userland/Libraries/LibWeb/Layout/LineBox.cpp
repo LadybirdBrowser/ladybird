@@ -15,16 +15,16 @@
 
 namespace Web::Layout {
 
-void LineBox::add_fragment(Node const& layout_node, int start, int length, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, CSSPixels border_box_top, CSSPixels border_box_bottom, Vector<Gfx::DrawGlyphOrEmoji> glyph_run)
+void LineBox::add_fragment(Node const& layout_node, int start, int length, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, CSSPixels border_box_top, CSSPixels border_box_bottom, RefPtr<Gfx::GlyphRun> glyph_run)
 {
     bool text_align_is_justify = layout_node.computed_values().text_align() == CSS::TextAlign::Justify;
-    if (!text_align_is_justify && !m_fragments.is_empty() && &m_fragments.last().layout_node() == &layout_node) {
+    if (glyph_run && !text_align_is_justify && !m_fragments.is_empty() && &m_fragments.last().layout_node() == &layout_node && &m_fragments.last().m_glyph_run->font() == &glyph_run->font()) {
         auto const fragment_width = m_fragments.last().width();
         // The fragment we're adding is from the last Layout::Node on the line.
         // Expand the last fragment instead of adding a new one with the same Layout::Node.
         m_fragments.last().m_length = (start - m_fragments.last().m_start) + length;
         m_fragments.last().set_width(m_fragments.last().width() + content_width);
-        for (auto& glyph : glyph_run) {
+        for (auto& glyph : glyph_run->glyphs()) {
             glyph.visit([&](auto& glyph) { glyph.position.translate_by(fragment_width.to_float(), 0); });
             m_fragments.last().m_glyph_run->append(glyph);
         }

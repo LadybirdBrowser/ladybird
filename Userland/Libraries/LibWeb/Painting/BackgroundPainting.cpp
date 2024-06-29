@@ -62,11 +62,15 @@ static Vector<Gfx::Path> compute_text_clip_paths(PaintContext& context, Paintabl
 {
     Vector<Gfx::Path> text_clip_paths;
     auto add_text_clip_path = [&](PaintableFragment const& fragment) {
+        auto glyph_run = fragment.glyph_run();
+        if (!glyph_run || glyph_run->glyphs().is_empty())
+            return;
         // Scale to the device pixels.
         Gfx::Path glyph_run_path;
-        for (auto glyph : fragment.glyph_run().glyphs()) {
+        auto const& font = fragment.glyph_run()->font();
+        auto scaled_font = font.with_size(font.point_size() * static_cast<float>(context.device_pixels_per_css_pixel()));
+        for (auto glyph : fragment.glyph_run()->glyphs()) {
             glyph.visit([&](auto& glyph) {
-                glyph.font = glyph.font->with_size(glyph.font->point_size() * static_cast<float>(context.device_pixels_per_css_pixel()));
                 glyph.position = glyph.position.scaled(context.device_pixels_per_css_pixel());
             });
 
@@ -75,13 +79,12 @@ static Vector<Gfx::Path> compute_text_clip_paths(PaintContext& context, Paintabl
 
                 // Get the path for the glyph.
                 Gfx::Path glyph_path;
-                auto const& scaled_font = static_cast<Gfx::ScaledFont const&>(*draw_glyph.font);
-                auto glyph_id = scaled_font.glyph_id_for_code_point(draw_glyph.code_point);
-                scaled_font.append_glyph_path_to(glyph_path, glyph_id);
+                auto glyph_id = scaled_font->glyph_id_for_code_point(draw_glyph.code_point);
+                scaled_font->append_glyph_path_to(glyph_path, glyph_id);
 
                 // Transform the path to the fragment's position.
                 // FIXME: Record glyphs and use Painter::draw_glyphs() instead to avoid this duplicated code.
-                auto top_left = draw_glyph.position + Gfx::FloatPoint(scaled_font.glyph_left_bearing(draw_glyph.code_point), 0);
+                auto top_left = draw_glyph.position + Gfx::FloatPoint(scaled_font->glyph_left_bearing(draw_glyph.code_point), 0);
                 auto glyph_position = Gfx::GlyphRasterPosition::get_nearest_fit_for(top_left);
                 auto transform = Gfx::AffineTransform {}.translate(glyph_position.blit_position.to_type<float>());
                 glyph_run_path.append_path(glyph_path.copy_transformed(transform));

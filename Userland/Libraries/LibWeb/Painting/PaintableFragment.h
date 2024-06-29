@@ -38,7 +38,7 @@ public:
 
     CSSPixelRect const absolute_rect() const;
 
-    Gfx::GlyphRun const& glyph_run() const { return *m_glyph_run; }
+    RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
 
     CSSPixelRect selection_rect(Gfx::Font const&) const;
 
@@ -57,7 +57,7 @@ private:
     int m_start;
     int m_length;
     Painting::BorderRadiiData m_border_radii_data;
-    NonnullRefPtr<Gfx::GlyphRun> m_glyph_run;
+    RefPtr<Gfx::GlyphRun> m_glyph_run;
     Vector<ShadowData> m_shadows;
 };
 

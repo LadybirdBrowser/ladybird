@@ -36,15 +36,16 @@ CommandResult DisplayListPlayerGPU::draw_glyph_run(DrawGlyphRun const& command)
     Vector<Gfx::DrawGlyphOrEmoji> transformed_glyph_run;
     auto const& glyphs = command.glyph_run->glyphs();
     transformed_glyph_run.ensure_capacity(glyphs.size());
+    auto const& font = command.glyph_run->font();
+    auto scaled_font = font.with_size(font.point_size() * static_cast<float>(command.scale));
     for (auto& glyph : glyphs) {
         auto transformed_glyph = glyph;
         transformed_glyph.visit([&](auto& glyph) {
             glyph.position = glyph.position.scaled(command.scale).translated(command.translation);
-            glyph.font = glyph.font->with_size(glyph.font->point_size() * static_cast<float>(command.scale));
         });
         transformed_glyph_run.append(transformed_glyph);
     }
-    painter().draw_glyph_run(transformed_glyph_run, command.color);
+    painter().draw_glyph_run(transformed_glyph_run, scaled_font, command.color);
     return CommandResult::Continue;
 }
 
@@ -192,7 +193,7 @@ CommandResult DisplayListPlayerGPU::paint_text_shadow(PaintTextShadow const& com
     Gfx::FloatRect const shadow_location { command.draw_location, command.shadow_bounding_rect.size() };
     Gfx::IntPoint const baseline_start(command.text_rect.x(), command.text_rect.y());
     text_shadow_painter->translate(baseline_start.to_type<float>());
-    text_shadow_painter->draw_glyph_run(command.glyph_run->glyphs(), command.color);
+    text_shadow_painter->draw_glyph_run(command.glyph_run->glyphs(), command.glyph_run->font(), command.color);
     if (command.blur_radius == 0) {
         painter().blit_canvas(shadow_location, *text_shadow_canvas);
         return CommandResult::Continue;

@@ -289,19 +289,20 @@ CommandResult DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
     SkPaint paint;
     paint.setColorFilter(SkColorFilters::Blend(to_skia_color(command.color), SkBlendMode::kSrcIn));
     auto const& glyphs = command.glyph_run->glyphs();
+    auto const& font = command.glyph_run->font();
+    auto scaled_font = font.with_size(font.point_size() * static_cast<float>(command.scale));
     for (auto const& glyph_or_emoji : glyphs) {
         auto transformed_glyph = glyph_or_emoji;
         transformed_glyph.visit([&](auto& glyph) {
             glyph.position = glyph.position.scaled(command.scale).translated(command.translation);
-            glyph.font = glyph.font->with_size(glyph.font->point_size() * static_cast<float>(command.scale));
         });
         if (transformed_glyph.has<Gfx::DrawGlyph>()) {
             auto& glyph = transformed_glyph.get<Gfx::DrawGlyph>();
             auto const& point = glyph.position;
             auto const& code_point = glyph.code_point;
-            auto top_left = point + Gfx::FloatPoint(glyph.font->glyph_left_bearing(code_point), 0);
+            auto top_left = point + Gfx::FloatPoint(scaled_font->glyph_left_bearing(code_point), 0);
             auto glyph_position = Gfx::GlyphRasterPosition::get_nearest_fit_for(top_left);
-            auto maybe_font_glyph = glyph.font->glyph(code_point, glyph_position.subpixel_offset);
+            auto maybe_font_glyph = scaled_font->glyph(code_point, glyph_position.subpixel_offset);
             if (!maybe_font_glyph.has_value())
                 continue;
             if (maybe_font_glyph->is_color_bitmap()) {

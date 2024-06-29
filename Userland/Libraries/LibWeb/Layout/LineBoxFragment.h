@@ -19,14 +19,14 @@ class LineBoxFragment {
     friend class LineBox;
 
 public:
-    LineBoxFragment(Node const& layout_node, int start, int length, CSSPixelPoint offset, CSSPixelSize size, CSSPixels border_box_top, Vector<Gfx::DrawGlyphOrEmoji> glyphs)
+    LineBoxFragment(Node const& layout_node, int start, int length, CSSPixelPoint offset, CSSPixelSize size, CSSPixels border_box_top, RefPtr<Gfx::GlyphRun> glyph_run)
         : m_layout_node(layout_node)
         , m_start(start)
         , m_length(length)
         , m_offset(offset)
         , m_size(size)
         , m_border_box_top(border_box_top)
-        , m_glyph_run(adopt_ref(*new Gfx::GlyphRun(move(glyphs))))
+        , m_glyph_run(move(glyph_run))
     {
     }
 
@@ -59,7 +59,7 @@ public:
 
     bool is_atomic_inline() const;
 
-    Gfx::GlyphRun const& glyph_run() const { return *m_glyph_run; }
+    RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
 
 private:
     JS::NonnullGCPtr<Node const> m_layout_node;
@@ -69,7 +69,7 @@ private:
     CSSPixelSize m_size;
     CSSPixels m_border_box_top { 0 };
     CSSPixels m_baseline { 0 };
-    NonnullRefPtr<Gfx::GlyphRun> m_glyph_run;
+    RefPtr<Gfx::GlyphRun> m_glyph_run;
 };
 
 }

@@ -407,7 +407,7 @@ void Painter::draw_scaled_bitmap(Gfx::FloatRect const& dst_rect, Gfx::Bitmap con
     GL::delete_texture(texture);
 }
 
-void Painter::draw_glyph_run(Span<Gfx::DrawGlyphOrEmoji const> glyph_run, Color const& color)
+void Painter::draw_glyph_run(Span<Gfx::DrawGlyphOrEmoji const> glyph_run, Gfx::Font const& font, Color const& color)
 {
     bind_target_canvas();
 
@@ -420,7 +420,6 @@ void Painter::draw_glyph_run(Span<Gfx::DrawGlyphOrEmoji const> glyph_run, Color 
         if (glyph_or_emoji.has<Gfx::DrawGlyph>()) {
             auto const& glyph = glyph_or_emoji.get<Gfx::DrawGlyph>();
 
-            auto const& font = *glyph.font;
             auto code_point = glyph.code_point;
             auto point = glyph.position;
 

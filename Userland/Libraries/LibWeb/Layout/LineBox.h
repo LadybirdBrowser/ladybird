@@ -20,7 +20,7 @@ public:
     CSSPixels bottom() const { return m_bottom; }
     CSSPixels baseline() const { return m_baseline; }
 
-    void add_fragment(Node const& layout_node, int start, int length, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, CSSPixels border_box_top, CSSPixels border_box_bottom, Vector<Gfx::DrawGlyphOrEmoji> = {});
+    void add_fragment(Node const& layout_node, int start, int length, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, CSSPixels border_box_top, CSSPixels border_box_bottom, RefPtr<Gfx::GlyphRun> glyph_run = {});
 
     Vector<LineBoxFragment> const& fragments() const { return m_fragments; }
     Vector<LineBoxFragment>& fragments() { return m_fragments; }
