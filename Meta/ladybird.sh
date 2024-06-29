@@ -161,6 +161,13 @@ run_gdb() {
     if [ "$PASS_ARG_TO_GDB" != "" ]; then
         GDB_ARGS+=( "$PASS_ARG_TO_GDB" )
     fi
+    if [ "$LAGOM_EXECUTABLE" = "ladybird" ]; then
+        if [ "$(uname -s)" = "Darwin" ]; then
+            LAGOM_EXECUTABLE="Ladybird.app"
+        else
+            LAGOM_EXECUTABLE="Ladybird"
+        fi
+    fi
     gdb "$BUILD_DIR/bin/$LAGOM_EXECUTABLE" "${GDB_ARGS[@]}"
 }
 
