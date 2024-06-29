@@ -37,7 +37,7 @@
 }
 
 @property (nonatomic, strong) NSMutableArray<TabController*>* managed_tabs;
-@property (nonatomic, strong) Tab* active_tab;
+@property (nonatomic, weak) Tab* active_tab;
 
 @property (nonatomic, strong) TaskManagerController* task_manager_controller;
 

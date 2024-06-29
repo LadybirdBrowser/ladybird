@@ -292,23 +292,43 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
 - (void)setWebViewCallbacks
 {
-    m_web_view_bridge->on_did_layout = [self](auto content_size) {
+    // We need to make sure that these callbacks don't cause reference cycles.
+    // By default, capturing self will copy a strong reference to self in ARC.
+    __weak LadybirdWebView* weak_self = self;
+
+    m_web_view_bridge->on_did_layout = [weak_self](auto content_size) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         auto inverse_device_pixel_ratio = m_web_view_bridge->inverse_device_pixel_ratio();
         [[self documentView] setFrameSize:NSMakeSize(content_size.width() * inverse_device_pixel_ratio, content_size.height() * inverse_device_pixel_ratio)];
     };
 
-    m_web_view_bridge->on_ready_to_paint = [self]() {
+    m_web_view_bridge->on_ready_to_paint = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self setNeedsDisplay:YES];
     };
 
-    m_web_view_bridge->on_new_web_view = [self](auto activate_tab, auto, auto) {
+    m_web_view_bridge->on_new_web_view = [weak_self](auto activate_tab, auto, auto) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return String {};
+        }
         // FIXME: Create a child tab that re-uses the ConnectionFromClient of the parent tab
         return [self.observer onCreateNewTab:"about:blank"sv activateTab:activate_tab];
     };
 
-    m_web_view_bridge->on_request_web_content = [self]() {
+    m_web_view_bridge->on_request_web_content = [weak_self]() {
         Application* application = NSApp;
-        return [application launchWebContent:*m_web_view_bridge].release_value_but_fixme_should_propagate_errors();
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            VERIFY_NOT_REACHED();
+        }
+        return [application launchWebContent:*(self->m_web_view_bridge)].release_value_but_fixme_should_propagate_errors();
     };
 
     m_web_view_bridge->on_request_worker_agent = []() {
@@ -316,15 +336,27 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         return [application launchWebWorker].release_value_but_fixme_should_propagate_errors();
     };
 
-    m_web_view_bridge->on_activate_tab = [self]() {
+    m_web_view_bridge->on_activate_tab = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [[self window] orderFront:nil];
     };
 
-    m_web_view_bridge->on_close = [self]() {
+    m_web_view_bridge->on_close = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [[self window] close];
     };
 
-    m_web_view_bridge->on_load_start = [self](auto const& url, bool is_redirect) {
+    m_web_view_bridge->on_load_start = [weak_self](auto const& url, bool is_redirect) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.observer onLoadStart:url isRedirect:is_redirect];
 
         if (_status_label != nil) {
@@ -332,28 +364,52 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
     };
 
-    m_web_view_bridge->on_load_finish = [self](auto const& url) {
+    m_web_view_bridge->on_load_finish = [weak_self](auto const& url) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.observer onLoadFinish:url];
     };
 
-    m_web_view_bridge->on_url_change = [self](auto const& url) {
+    m_web_view_bridge->on_url_change = [weak_self](auto const& url) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.observer onURLChange:url];
     };
 
-    m_web_view_bridge->on_navigation_buttons_state_changed = [self](auto back_enabled, auto forward_enabled) {
+    m_web_view_bridge->on_navigation_buttons_state_changed = [weak_self](auto back_enabled, auto forward_enabled) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.observer onBackNavigationEnabled:back_enabled
                       forwardNavigationEnabled:forward_enabled];
     };
 
-    m_web_view_bridge->on_title_change = [self](auto const& title) {
+    m_web_view_bridge->on_title_change = [weak_self](auto const& title) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.observer onTitleChange:title];
     };
 
-    m_web_view_bridge->on_favicon_change = [self](auto const& bitmap) {
+    m_web_view_bridge->on_favicon_change = [weak_self](auto const& bitmap) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.observer onFaviconChange:bitmap];
     };
 
-    m_web_view_bridge->on_finish_handling_key_event = [self](auto const& key_event) {
+    m_web_view_bridge->on_finish_handling_key_event = [weak_self](auto const& key_event) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         NSEvent* event = Ladybird::key_event_to_ns_event(key_event);
 
         self.event_being_redispatched = event;
@@ -361,7 +417,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         self.event_being_redispatched = nil;
     };
 
-    m_web_view_bridge->on_cursor_change = [self](auto cursor) {
+    m_web_view_bridge->on_cursor_change = [weak_self](auto cursor) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         if (cursor == Gfx::StandardCursor::Hidden) {
             if (!m_hidden_cursor.has_value()) {
                 m_hidden_cursor.emplace();
@@ -440,31 +500,59 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
     };
 
-    m_web_view_bridge->on_zoom_level_changed = [self]() {
+    m_web_view_bridge->on_zoom_level_changed = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self updateViewportRect:Ladybird::WebViewBridge::ForResize::Yes];
     };
 
-    m_web_view_bridge->on_navigate_back = [self]() {
+    m_web_view_bridge->on_navigate_back = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self navigateBack];
     };
 
-    m_web_view_bridge->on_navigate_forward = [self]() {
+    m_web_view_bridge->on_navigate_forward = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self navigateForward];
     };
 
-    m_web_view_bridge->on_refresh = [self]() {
+    m_web_view_bridge->on_refresh = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self reload];
     };
 
-    m_web_view_bridge->on_enter_tooltip_area = [self](auto, auto const& tooltip) {
+    m_web_view_bridge->on_enter_tooltip_area = [weak_self](auto, auto const& tooltip) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         self.toolTip = Ladybird::string_to_ns_string(tooltip);
     };
 
-    m_web_view_bridge->on_leave_tooltip_area = [self]() {
+    m_web_view_bridge->on_leave_tooltip_area = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         self.toolTip = nil;
     };
 
-    m_web_view_bridge->on_link_hover = [self](auto const& url) {
+    m_web_view_bridge->on_link_hover = [weak_self](auto const& url) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         auto* url_string = Ladybird::string_to_ns_string(url.serialize());
         [self.status_label setStringValue:url_string];
         [self.status_label sizeToFit];
@@ -473,11 +561,19 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [self updateStatusLabelPosition];
     };
 
-    m_web_view_bridge->on_link_unhover = [self]() {
+    m_web_view_bridge->on_link_unhover = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.status_label setHidden:YES];
     };
 
-    m_web_view_bridge->on_link_click = [self](auto const& url, auto const& target, unsigned modifiers) {
+    m_web_view_bridge->on_link_click = [weak_self](auto const& url, auto const& target, unsigned modifiers) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         if (modifiers == Web::UIEvents::KeyModifier::Mod_Super) {
             [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::No];
         } else if (target == "_blank"sv) {
@@ -487,11 +583,19 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
     };
 
-    m_web_view_bridge->on_link_middle_click = [self](auto url, auto, unsigned) {
+    m_web_view_bridge->on_link_middle_click = [weak_self](auto url, auto, unsigned) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.observer onCreateNewTab:url activateTab:Web::HTML::ActivateTab::No];
     };
 
-    m_web_view_bridge->on_context_menu_request = [self](auto position) {
+    m_web_view_bridge->on_context_menu_request = [weak_self](auto position) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         auto* search_selected_text_menu_item = [self.page_context_menu itemWithTag:CONTEXT_MENU_SEARCH_SELECTED_TEXT_TAG];
 
         auto selected_text = self.observer
@@ -513,7 +617,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [NSMenu popUpContextMenu:self.page_context_menu withEvent:event forView:self];
     };
 
-    m_web_view_bridge->on_link_context_menu_request = [self](auto const& url, auto position) {
+    m_web_view_bridge->on_link_context_menu_request = [weak_self](auto const& url, auto position) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         TemporaryChange change_url { m_context_menu_url, url };
 
         auto* copy_link_menu_item = [self.link_context_menu itemWithTag:CONTEXT_MENU_COPY_LINK_TAG];
@@ -534,7 +642,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [NSMenu popUpContextMenu:self.link_context_menu withEvent:event forView:self];
     };
 
-    m_web_view_bridge->on_image_context_menu_request = [self](auto const& url, auto position, auto const& bitmap) {
+    m_web_view_bridge->on_image_context_menu_request = [weak_self](auto const& url, auto position, auto const& bitmap) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         TemporaryChange change_url { m_context_menu_url, url };
         TemporaryChange change_bitmap { m_context_menu_bitmap, bitmap };
 
@@ -542,7 +654,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [NSMenu popUpContextMenu:self.image_context_menu withEvent:event forView:self];
     };
 
-    m_web_view_bridge->on_media_context_menu_request = [self](auto position, auto const& menu) {
+    m_web_view_bridge->on_media_context_menu_request = [weak_self](auto position, auto const& menu) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         TemporaryChange change_url { m_context_menu_url, menu.media_url };
 
         auto* context_menu = menu.is_video ? self.video_context_menu : self.audio_context_menu;
@@ -573,7 +689,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [NSMenu popUpContextMenu:context_menu withEvent:event forView:self];
     };
 
-    m_web_view_bridge->on_request_alert = [self](auto const& message) {
+    m_web_view_bridge->on_request_alert = [weak_self](auto const& message) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         auto* ns_message = Ladybird::string_to_ns_string(message);
 
         self.dialog = [[NSAlert alloc] init];
@@ -586,7 +706,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                             }];
     };
 
-    m_web_view_bridge->on_request_confirm = [self](auto const& message) {
+    m_web_view_bridge->on_request_confirm = [weak_self](auto const& message) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         auto* ns_message = Ladybird::string_to_ns_string(message);
 
         self.dialog = [[NSAlert alloc] init];
@@ -601,7 +725,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                             }];
     };
 
-    m_web_view_bridge->on_request_prompt = [self](auto const& message, auto const& default_) {
+    m_web_view_bridge->on_request_prompt = [weak_self](auto const& message, auto const& default_) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         auto* ns_message = Ladybird::string_to_ns_string(message);
         auto* ns_default = Ladybird::string_to_ns_string(default_);
 
@@ -629,7 +757,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                             }];
     };
 
-    m_web_view_bridge->on_request_set_prompt_text = [self](auto const& message) {
+    m_web_view_bridge->on_request_set_prompt_text = [weak_self](auto const& message) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         if (self.dialog == nil || [self.dialog accessoryView] == nil) {
             return;
         }
@@ -640,8 +772,9 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [input setStringValue:ns_message];
     };
 
-    m_web_view_bridge->on_request_accept_dialog = [self]() {
-        if (self.dialog == nil) {
+    m_web_view_bridge->on_request_accept_dialog = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil || self.dialog == nil) {
             return;
         }
 
@@ -649,8 +782,9 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                      returnCode:NSModalResponseOK];
     };
 
-    m_web_view_bridge->on_request_dismiss_dialog = [self]() {
-        if (self.dialog == nil) {
+    m_web_view_bridge->on_request_dismiss_dialog = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil || self.dialog == nil) {
             return;
         }
 
@@ -658,7 +792,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                      returnCode:NSModalResponseCancel];
     };
 
-    m_web_view_bridge->on_request_color_picker = [self](Color current_color) {
+    m_web_view_bridge->on_request_color_picker = [weak_self](Color current_color) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         auto* panel = [NSColorPanel sharedColorPanel];
         [panel setColor:Ladybird::gfx_color_to_ns_color(current_color)];
         [panel setShowsAlpha:NO];
@@ -674,7 +812,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [panel makeKeyAndOrderFront:nil];
     };
 
-    m_web_view_bridge->on_request_file_picker = [self](auto const& accepted_file_types, auto allow_multiple_files) {
+    m_web_view_bridge->on_request_file_picker = [weak_self](auto const& accepted_file_types, auto allow_multiple_files) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         auto* panel = [NSOpenPanel openPanel];
         [panel setCanChooseFiles:YES];
         [panel setCanChooseDirectories:NO];
@@ -750,7 +892,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     self.select_dropdown = [[NSMenu alloc] initWithTitle:@"Select Dropdown"];
     [self.select_dropdown setDelegate:self];
 
-    m_web_view_bridge->on_request_select_dropdown = [self](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) {
+    m_web_view_bridge->on_request_select_dropdown = [weak_self](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.select_dropdown removeAllItems];
         self.select_dropdown.minimumWidth = minimum_width;
 
@@ -814,12 +960,20 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [delegate cookieJar].update_cookie(cookie);
     };
 
-    m_web_view_bridge->on_restore_window = [self]() {
+    m_web_view_bridge->on_restore_window = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [[self window] setIsMiniaturized:NO];
         [[self window] orderFront:nil];
     };
 
-    m_web_view_bridge->on_reposition_window = [self](auto const& position) {
+    m_web_view_bridge->on_reposition_window = [weak_self](auto const& position) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return Gfx::IntPoint {};
+        }
         auto frame = [[self window] frame];
         frame.origin = Ladybird::gfx_point_to_ns_point(position);
         [[self window] setFrame:frame display:YES];
@@ -827,7 +981,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         return Ladybird::ns_point_to_gfx_point([[self window] frame].origin);
     };
 
-    m_web_view_bridge->on_resize_window = [self](auto const& size) {
+    m_web_view_bridge->on_resize_window = [weak_self](auto const& size) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return Gfx::IntSize {};
+        }
         auto frame = [[self window] frame];
         frame.size = Ladybird::gfx_size_to_ns_size(size);
         [[self window] setFrame:frame display:YES];
@@ -835,20 +993,32 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         return Ladybird::ns_size_to_gfx_size([[self window] frame].size);
     };
 
-    m_web_view_bridge->on_maximize_window = [self]() {
+    m_web_view_bridge->on_maximize_window = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return Gfx::IntRect {};
+        }
         auto frame = [[NSScreen mainScreen] frame];
         [[self window] setFrame:frame display:YES];
 
         return Ladybird::ns_rect_to_gfx_rect([[self window] frame]);
     };
 
-    m_web_view_bridge->on_minimize_window = [self]() {
+    m_web_view_bridge->on_minimize_window = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return Gfx::IntRect {};
+        }
         [[self window] setIsMiniaturized:YES];
 
         return Ladybird::ns_rect_to_gfx_rect([[self window] frame]);
     };
 
-    m_web_view_bridge->on_fullscreen_window = [self]() {
+    m_web_view_bridge->on_fullscreen_window = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return Gfx::IntRect {};
+        }
         if (([[self window] styleMask] & NSWindowStyleMaskFullScreen) == 0) {
             [[self window] toggleFullScreen:nil];
         }
@@ -856,7 +1026,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         return Ladybird::ns_rect_to_gfx_rect([[self window] frame]);
     };
 
-    m_web_view_bridge->on_received_source = [self](auto const& url, auto const& source) {
+    m_web_view_bridge->on_received_source = [weak_self](auto const& url, auto const& source) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         auto html = WebView::highlight_source(url, source);
 
         [self.observer onCreateNewTab:html
@@ -864,11 +1038,19 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                           activateTab:Web::HTML::ActivateTab::Yes];
     };
 
-    m_web_view_bridge->on_theme_color_change = [self](auto color) {
+    m_web_view_bridge->on_theme_color_change = [weak_self](auto color) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         self.backgroundColor = Ladybird::gfx_color_to_ns_color(color);
     };
 
-    m_web_view_bridge->on_find_in_page = [self](auto current_match_index, auto const& total_match_count) {
+    m_web_view_bridge->on_find_in_page = [weak_self](auto current_match_index, auto const& total_match_count) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.observer onFindInPageResult:current_match_index + 1
                           totalMatchCount:total_match_count];
     };
@@ -888,7 +1070,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             copy_data_to_clipboard(data, pasteboard_type);
     };
 
-    m_web_view_bridge->on_audio_play_state_changed = [self](auto play_state) {
+    m_web_view_bridge->on_audio_play_state_changed = [weak_self](auto play_state) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
         [self.observer onAudioPlayStateChange:play_state];
     };
 }
