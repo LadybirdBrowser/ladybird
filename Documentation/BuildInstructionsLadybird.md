@@ -6,7 +6,26 @@ Qt6 development packages and a C++23 capable compiler are required. g++-13 or cl
 
 NOTE: In all of the below lists of packages, the Qt6 multimedia package is not needed if your Linux system supports PulseAudio.
 
-On Debian/Ubuntu required packages include, but are not limited to:
+---
+
+### On Debian/Ubuntu:
+
+##### For C++23 capable compiler: 
+
+- `clang` installation steps:
+
+```bash
+# Add LLVM GPG signing key
+sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
+
+# Verify the GPG key, and append it to the sources list for apt
+echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-18 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+
+# Update apt package list and install clang
+sudo apt update -y && sudo apt install clang-18 -y
+```
+
+##### Required packages include, but are not limited to:
 
 ```
 sudo apt install autoconf autoconf-archive automake build-essential cmake libavcodec-dev libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2 zip unzip curl tar
@@ -17,6 +36,8 @@ For Ubuntu 20.04 and above, ensure that the Qt6 Wayland packages are available:
 ```
 sudo apt install qt6-wayland
 ```
+
+---
 
 On Arch Linux/Manjaro:
 
