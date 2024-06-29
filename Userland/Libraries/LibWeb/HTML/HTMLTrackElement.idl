@@ -1,12 +1,22 @@
 #import <HTML/HTMLElement.idl>
 
+// https://html.spec.whatwg.org/multipage/media.html#attr-track-kind
+[MissingValueDefault=subtitles, InvalidValueDefault=metadata]
+enum TrackKindAttribute {
+    "subtitles",
+    "captions",
+    "descriptions",
+    "chapters",
+    "metadata"
+};
+
 // https://html.spec.whatwg.org/multipage/media.html#htmltrackelement
 [Exposed=Window]
 interface HTMLTrackElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [FIXME, CEReactions] attribute DOMString kind;
+    [CEReactions, Enumerated=TrackKindAttribute, Reflect] attribute DOMString kind;
     [CEReactions, Reflect] attribute DOMString src;
     [CEReactions, Reflect] attribute DOMString srclang;
     [CEReactions, Reflect] attribute DOMString label;
