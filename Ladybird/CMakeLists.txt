@@ -34,6 +34,17 @@ function(create_ladybird_bundle target_name)
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E create_symlink "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" "${bundle_dir}/Contents/lib"
         )
+
+        if (NOT CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND codesign -s - -v -f --entitlements "${LADYBIRD_SOURCE_DIR}/Meta/debug.plist" "${bundle_dir}"
+            )
+        else()
+            add_custom_target(apply-debug-entitlements
+                COMMAND codesign -s - -v -f --entitlements "${LADYBIRD_SOURCE_DIR}/Meta/debug.plist" "${bundle_dir}"
+                USES_TERMINAL
+            )
+        endif()
     endif()
 
     if (APPLE)
