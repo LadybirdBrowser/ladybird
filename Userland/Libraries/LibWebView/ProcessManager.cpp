@@ -12,8 +12,6 @@
 
 namespace WebView {
 
-static sig_atomic_t s_received_sigchld = 0;
-
 ProcessType process_type_from_name(StringView name)
 {
     if (name == "Chrome"sv)
@@ -49,96 +47,74 @@ StringView process_name_from_type(ProcessType type)
 }
 
 ProcessManager::ProcessManager()
+    : on_process_exited([](Process&&) {})
 {
-}
-
-ProcessManager::~ProcessManager()
-{
-}
-
-ProcessManager& ProcessManager::the()
-{
-    static ProcessManager s_the;
-    return s_the;
-}
-
-void ProcessManager::initialize()
-{
-    // FIXME: Should we change this to call EventLoop::register_signal?
-    //        Note that only EventLoopImplementationUnix has a working register_signal
-
-    struct sigaction action { };
-    action.sa_flags = SA_RESTART;
-    action.sa_sigaction = [](int, auto*, auto) {
-        s_received_sigchld = 1;
-    };
-
-    MUST(Core::System::sigaction(SIGCHLD, &action, nullptr));
-
-    the().add_process(WebView::ProcessType::Chrome, getpid());
-#ifdef AK_OS_MACH
-    auto self_send_port = mach_task_self();
-    auto res = mach_port_mod_refs(mach_task_self(), self_send_port, MACH_PORT_RIGHT_SEND, +1);
-    VERIFY(res == KERN_SUCCESS);
-    the().add_process(getpid(), Core::MachPort::adopt_right(self_send_port, Core::MachPort::PortRight::Send));
-#endif
-}
-
-ProcessInfo* ProcessManager::find_process(pid_t pid)
-{
-    if (auto existing_process = m_statistics.processes.find_if([&](auto& info) { return info->pid == pid; }); !existing_process.is_end())
-        return verify_cast<ProcessInfo>(existing_process->ptr());
-
-    return nullptr;
-}
-
-void ProcessManager::add_process(ProcessType type, pid_t pid)
-{
-    Threading::MutexLocker locker { m_lock };
-    if (auto* existing_process = find_process(pid)) {
-        existing_process->type = type;
-        return;
-    }
-    m_statistics.processes.append(make<ProcessInfo>(type, pid));
-}
-
-#if defined(AK_OS_MACH)
-void ProcessManager::add_process(pid_t pid, Core::MachPort&& port)
-{
-    Threading::MutexLocker locker { m_lock };
-    if (auto* existing_process = find_process(pid)) {
-        existing_process->child_task_port = move(port);
-        return;
-    }
-    m_statistics.processes.append(make<ProcessInfo>(pid, move(port)));
-}
-#endif
-
-void ProcessManager::remove_process(pid_t pid)
-{
-    Threading::MutexLocker locker { m_lock };
-    m_statistics.processes.remove_first_matching([&](auto const& info) {
-        if (info->pid == pid) {
-            return true;
-        }
-        return false;
-    });
-}
-
-void ProcessManager::update_all_processes()
-{
-    if (s_received_sigchld) {
-        s_received_sigchld = 0;
+    m_signal_handle = Core::EventLoop::register_signal(SIGCHLD, [this](int) {
         auto result = Core::System::waitpid(-1, WNOHANG);
         while (!result.is_error() && result.value().pid > 0) {
             auto& [pid, status] = result.value();
             if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                remove_process(pid);
+                if (auto process = remove_process(pid); process.has_value())
+                    on_process_exited(process.release_value());
             }
             result = Core::System::waitpid(-1, WNOHANG);
         }
-    }
+    });
 
+    add_process(Process(WebView::ProcessType::Chrome, nullptr, Core::Process::current()));
+
+#ifdef AK_OS_MACH
+    auto self_send_port = mach_task_self();
+    auto res = mach_port_mod_refs(mach_task_self(), self_send_port, MACH_PORT_RIGHT_SEND, +1);
+    VERIFY(res == KERN_SUCCESS);
+    set_process_mach_port(getpid(), Core::MachPort::adopt_right(self_send_port, Core::MachPort::PortRight::Send));
+#endif
+}
+
+ProcessManager::~ProcessManager()
+{
+    Core::EventLoop::unregister_signal(m_signal_handle);
+}
+
+Optional<Process&> ProcessManager::find_process(pid_t pid)
+{
+    return m_processes.get(pid);
+}
+
+void ProcessManager::add_process(WebView::Process&& process)
+{
+    Threading::MutexLocker locker { m_lock };
+
+    auto pid = process.pid();
+    auto result = m_processes.set(pid, move(process));
+    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+    m_statistics.processes.append(make<Core::Platform::ProcessInfo>(pid));
+}
+
+#if defined(AK_OS_MACH)
+void ProcessManager::set_process_mach_port(pid_t pid, Core::MachPort&& port)
+{
+    Threading::MutexLocker locker { m_lock };
+    for (auto const& info : m_statistics.processes) {
+        if (info->pid == pid) {
+            info->child_task_port = move(port);
+            return;
+        }
+    }
+}
+#endif
+
+Optional<Process> ProcessManager::remove_process(pid_t pid)
+{
+    Threading::MutexLocker locker { m_lock };
+    m_statistics.processes.remove_first_matching([&](auto const& info) {
+        return (info->pid == pid);
+    });
+    return m_processes.take(pid);
+}
+
+void ProcessManager::update_all_process_statistics()
+{
     Threading::MutexLocker locker { m_lock };
     (void)update_process_statistics(m_statistics);
 }
@@ -198,12 +174,13 @@ String ProcessManager::generate_html()
                 <tbody>
     )"sv);
 
-    m_statistics.for_each_process<ProcessInfo>([&](auto const& process) {
+    m_statistics.for_each_process([&](auto const& process) {
         builder.append("<tr>"sv);
         builder.append("<td>"sv);
-        builder.append(WebView::process_name_from_type(process.type));
-        if (process.title.has_value())
-            builder.appendff(" - {}", escape_html_entities(*process.title));
+        auto& process_handle = this->find_process(process.pid).value();
+        builder.append(WebView::process_name_from_type(process_handle.type()));
+        if (process_handle.title().has_value())
+            builder.appendff(" - {}", escape_html_entities(*process_handle.title()));
         builder.append("</td>"sv);
         builder.append("<td>"sv);
         builder.append(MUST(String::number(process.pid)));

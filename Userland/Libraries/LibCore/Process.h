@@ -74,6 +74,7 @@ public:
     }
 
     static ErrorOr<Process> spawn(ProcessSpawnOptions const& options);
+    static Process current();
 
     // FIXME: Make the following 2 functions return Process instance or delete them.
     static ErrorOr<pid_t> spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);

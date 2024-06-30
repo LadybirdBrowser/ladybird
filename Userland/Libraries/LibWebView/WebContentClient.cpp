@@ -5,7 +5,7 @@
  */
 
 #include "WebContentClient.h"
-#include "ProcessManager.h"
+#include "Application.h"
 #include "ViewImplementation.h"
 #include <LibWeb/Cookie/ParsedCookie.h>
 
@@ -36,8 +36,7 @@ WebContentClient::~WebContentClient()
 
 void WebContentClient::die()
 {
-    VERIFY(on_web_content_process_crash);
-    on_web_content_process_crash();
+    // Intentionally empty. Restart is handled at another level.
 }
 
 void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
@@ -49,6 +48,9 @@ void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 void WebContentClient::unregister_view(u64 page_id)
 {
     m_views.remove(page_id);
+    if (m_views.is_empty()) {
+        on_web_content_process_crash = nullptr;
+    }
 }
 
 void WebContentClient::did_paint(u64 page_id, Gfx::IntRect const& rect, i32 bitmap_id)
@@ -59,8 +61,8 @@ void WebContentClient::did_paint(u64 page_id, Gfx::IntRect const& rect, i32 bitm
 
 void WebContentClient::did_start_loading(u64 page_id, URL::URL const& url, bool is_redirect)
 {
-    if (auto* process = WebView::ProcessManager::the().find_process(m_process_handle.pid))
-        process->title.clear();
+    if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
+        process->set_title(OptionalNone {});
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->set_url({}, url);
@@ -143,8 +145,8 @@ void WebContentClient::did_layout(u64 page_id, Gfx::IntSize content_size)
 
 void WebContentClient::did_change_title(u64 page_id, ByteString const& title)
 {
-    if (auto* process = WebView::ProcessManager::the().find_process(m_process_handle.pid))
-        process->title = MUST(String::from_byte_string(title));
+    if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
+        process->set_title(MUST(String::from_byte_string(title)));
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (!view->on_title_change)

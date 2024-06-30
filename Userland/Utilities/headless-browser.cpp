@@ -51,6 +51,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/Database.h>
 #include <LibWebView/URL.h>
@@ -631,7 +632,7 @@ static ErrorOr<int> run_tests(HeadlessWebContentView& view, StringView test_root
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
-    Core::EventLoop event_loop;
+    WebView::Application app(arguments.argc, arguments.argv);
 
     int screenshot_timeout = 1;
     StringView raw_url;
@@ -704,8 +705,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     }
 
     if (web_driver_ipc_path.is_empty()) {
-        auto timer = TRY(load_page_for_screenshot_and_exit(event_loop, *view, url.value(), screenshot_timeout));
-        return event_loop.exec();
+        auto timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), *view, url.value(), screenshot_timeout));
+        return app.exec();
     }
 
     return 0;

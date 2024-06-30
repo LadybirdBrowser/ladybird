@@ -17,6 +17,7 @@
 #include <LibCore/System.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibMain/Main.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/ChromeProcess.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/Database.h>
@@ -76,8 +77,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Ladybird::Application app(arguments.argc, arguments.argv);
 
     Core::EventLoopManager::install(*new Ladybird::EventLoopManagerQt);
-    Core::EventLoop event_loop;
-    static_cast<Ladybird::EventLoopImplementationQt&>(event_loop.impl()).set_main_loop();
+    WebView::Application webview_app(arguments.argc, arguments.argv);
+    static_cast<Ladybird::EventLoopImplementationQt&>(Core::EventLoop::current().impl()).set_main_loop();
 
     TRY(handle_attached_debugger());
 
@@ -142,17 +143,15 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         window.view().load(file_url);
     };
 
-    WebView::ProcessManager::initialize();
-
 #if defined(AK_OS_MACOS)
     auto mach_port_server = make<Ladybird::MachPortServer>();
     set_mach_server_name(mach_port_server->server_port_name());
-    mach_port_server->on_receive_child_mach_port = [](auto pid, auto port) {
-        WebView::ProcessManager::the().add_process(pid, move(port));
+    mach_port_server->on_receive_child_mach_port = [&webview_app](auto pid, auto port) {
+        webview_app.set_process_mach_port(pid, move(port));
     };
     mach_port_server->on_receive_backing_stores = [](Ladybird::MachPortServer::BackingStoresMessage message) {
-        auto view = WebView::WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id);
-        view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
+        if (auto view = WebView::WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id); view.has_value())
+            view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
     };
 #endif
 
@@ -204,5 +203,5 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     window.show();
 
-    return event_loop.exec();
+    return webview_app.exec();
 }

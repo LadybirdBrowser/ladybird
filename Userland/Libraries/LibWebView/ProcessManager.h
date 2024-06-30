@@ -12,7 +12,8 @@
 #include <LibCore/Platform/ProcessStatistics.h>
 #include <LibThreading/Mutex.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/ProcessInfo.h>
+#include <LibWebView/Process.h>
+#include <LibWebView/ProcessType.h>
 
 namespace WebView {
 
@@ -20,26 +21,29 @@ ProcessType process_type_from_name(StringView);
 StringView process_name_from_type(ProcessType type);
 
 class ProcessManager {
+    AK_MAKE_NONCOPYABLE(ProcessManager);
+
 public:
-    static ProcessManager& the();
-    static void initialize();
-
-    void add_process(WebView::ProcessType, pid_t);
-    void remove_process(pid_t);
-    ProcessInfo* find_process(pid_t);
-
-#if defined(AK_OS_MACH)
-    void add_process(pid_t, Core::MachPort&&);
-#endif
-
-    void update_all_processes();
-    String generate_html();
-
-private:
     ProcessManager();
     ~ProcessManager();
 
+    void add_process(Process&&);
+    Optional<Process> remove_process(pid_t);
+    Optional<Process&> find_process(pid_t);
+
+#if defined(AK_OS_MACH)
+    void set_process_mach_port(pid_t, Core::MachPort&&);
+#endif
+
+    void update_all_process_statistics();
+    String generate_html();
+
+    Function<void(Process&&)> on_process_exited;
+
+private:
     Core::Platform::ProcessStatistics m_statistics;
+    HashMap<pid_t, Process> m_processes;
+    int m_signal_handle { -1 };
     Threading::Mutex m_lock;
 };
 
