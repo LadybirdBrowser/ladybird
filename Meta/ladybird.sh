@@ -142,6 +142,14 @@ run_gdb() {
     local GDB_ARGS=()
     local PASS_ARG_TO_GDB=""
     local LAGOM_EXECUTABLE=""
+    local GDB=gdb
+    if ! command -v "$GDB" > /dev/null 2>&1; then
+      GDB=lldb
+      if ! command -v "$GDB" > /dev/null 2>&1; then
+        die "Please install gdb or lldb!"
+      fi
+    fi
+
     for arg in "${CMD_ARGS[@]}"; do
         if [ "$PASS_ARG_TO_GDB" != "" ]; then
             GDB_ARGS+=( "$PASS_ARG_TO_GDB" "$arg" )
@@ -168,7 +176,7 @@ run_gdb() {
             LAGOM_EXECUTABLE="Ladybird"
         fi
     fi
-    gdb "$BUILD_DIR/bin/$LAGOM_EXECUTABLE" "${GDB_ARGS[@]}"
+    "$GDB" "$BUILD_DIR/bin/$LAGOM_EXECUTABLE" "${GDB_ARGS[@]}"
 }
 
 build_and_run_lagom_target() {
