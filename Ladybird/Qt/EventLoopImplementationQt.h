@@ -35,12 +35,15 @@ public:
     virtual void did_post_event() override;
     static bool event_target_received_event(Badge<EventLoopImplementationQtEventTarget>, QEvent* event);
 
-    // FIXME: These APIs only exist for obscure use-cases inside SerenityOS. Try to get rid of them.
-    virtual int register_signal(int, Function<void(int)>) override { return 0; }
-    virtual void unregister_signal(int) override { }
+    virtual int register_signal(int, Function<void(int)>) override;
+    virtual void unregister_signal(int) override;
 
 private:
+    static void handle_signal(int);
+
     NonnullOwnPtr<EventLoopImplementationQtEventTarget> m_main_thread_event_target;
+    QSocketNotifier* m_signal_socket_notifier { nullptr };
+    int m_signal_socket_fds[2] = { -1, -1 };
 };
 
 class QtEventLoopManagerEvent final : public QEvent {
