@@ -20,8 +20,6 @@ struct ProcessInfo {
     {
     }
 
-    virtual ~ProcessInfo() = default;
-
     pid_t pid { 0 };
 
     u64 memory_usage_bytes { 0 };
@@ -30,12 +28,6 @@ struct ProcessInfo {
     u64 time_spent_in_process { 0 };
 
 #if defined(AK_OS_MACH)
-    ProcessInfo(pid_t pid, Core::MachPort&& port)
-        : pid(pid)
-        , child_task_port(move(port))
-    {
-    }
-
     Core::MachPort child_task_port;
 #endif
 };

@@ -5,7 +5,7 @@
  */
 
 #include "TaskManagerWindow.h"
-#include <LibWebView/ProcessManager.h>
+#include <LibWebView/Application.h>
 #include <QVBoxLayout>
 
 namespace Ladybird {
@@ -41,9 +41,8 @@ void TaskManagerWindow::hideEvent(QHideEvent*)
 
 void TaskManagerWindow::update_statistics()
 {
-
-    WebView::ProcessManager::the().update_all_processes();
-    m_web_view->load_html(WebView::ProcessManager::the().generate_html());
+    WebView::Application::the().update_process_statistics();
+    m_web_view->load_html(WebView::Application::the().generate_process_statistics_html());
 }
 
 }

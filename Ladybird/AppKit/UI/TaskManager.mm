@@ -6,7 +6,7 @@
 
 #include <AK/String.h>
 #include <LibCore/Timer.h>
-#include <LibWebView/ProcessManager.h>
+#include <LibWebView/Application.h>
 
 #import <UI/LadybirdWebView.h>
 #import <UI/TaskManager.h>
@@ -77,8 +77,8 @@ static constexpr CGFloat const WINDOW_HEIGHT = 400;
 
 - (void)updateStatistics
 {
-    WebView::ProcessManager::the().update_all_processes();
-    [self.web_view loadHTML:WebView::ProcessManager::the().generate_html()];
+    WebView::Application::the().update_process_statistics();
+    [self.web_view loadHTML:WebView::Application::the().generate_process_statistics_html()];
 }
 
 @end

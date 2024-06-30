@@ -64,6 +64,13 @@ struct ArgvList {
     }
 };
 
+Process Process::current()
+{
+    auto p = Process { getpid() };
+    p.m_should_disown = false;
+    return p;
+}
+
 ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
 {
 #define CHECK(invocation)                  \

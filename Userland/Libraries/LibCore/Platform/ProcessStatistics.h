@@ -15,11 +15,11 @@
 namespace Core::Platform {
 
 struct ProcessStatistics {
-    template<typename ProcessInfoType, typename Callback>
+    template<typename Callback>
     void for_each_process(Callback&& callback)
     {
         for (auto& process : processes)
-            callback(verify_cast<ProcessInfoType>(*process));
+            callback(*process);
     }
 
     u64 total_time_scheduled { 0 };

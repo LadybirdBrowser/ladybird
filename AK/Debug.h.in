@@ -290,6 +290,10 @@
 #    cmakedefine01 WEBGL_CONTEXT_DEBUG
 #endif
 
+#ifndef WEBVIEW_PROCESS_DEBUG
+#    cmakedefine01 WEBVIEW_PROCESS_DEBUG
+#endif
+
 #ifndef WEB_FETCH_DEBUG
 #    cmakedefine01 WEB_FETCH_DEBUG
 #endif

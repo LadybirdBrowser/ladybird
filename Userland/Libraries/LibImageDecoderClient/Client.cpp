@@ -20,9 +20,6 @@ void Client::die()
         promise->reject(Error::from_string_literal("ImageDecoder disconnected"));
     }
     m_pending_decoded_images.clear();
-
-    if (on_death)
-        on_death();
 }
 
 NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes encoded_data, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
