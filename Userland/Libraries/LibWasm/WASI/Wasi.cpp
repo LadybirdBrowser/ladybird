@@ -909,7 +909,20 @@ ErrorOr<HostFunction> Implementation::function_by_name(StringView name)
 namespace ABI {
 
 template<typename T>
-auto CompatibleValueType = IsOneOf<T, i8, i16, i32>
+struct HostTypeImpl {
+    using Type = T;
+};
+
+template<Enum T>
+struct HostTypeImpl<T> {
+    using Type = UnderlyingType<T>;
+};
+
+template<typename T>
+using HostType = typename HostTypeImpl<T>::Type;
+
+template<typename T>
+auto CompatibleValueType = IsOneOf<HostType<T>, i8, i16, i32, u8, u16>
     ? Wasm::ValueType(Wasm::ValueType::I32)
     : Wasm::ValueType(Wasm::ValueType::I64);
 
