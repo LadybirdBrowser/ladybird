@@ -107,10 +107,17 @@ add_custom_target(run
     VERBATIM
 )
 
-add_custom_target(debug-ladybird
-    COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" gdb -ex "set follow-fork-mode child" "$<TARGET_FILE:ladybird>"
-    USES_TERMINAL
-)
+if (APPLE)
+    add_custom_target(debug-ladybird
+        COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" lldb "$<TARGET_BUNDLE_DIR:ladybird>"
+        USES_TERMINAL
+    )
+else()
+    add_custom_target(debug-ladybird
+        COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" gdb "$<TARGET_FILE:ladybird>"
+        USES_TERMINAL
+    )
+endif()
 
 add_subdirectory(ImageDecoder)
 add_subdirectory(RequestServer)
