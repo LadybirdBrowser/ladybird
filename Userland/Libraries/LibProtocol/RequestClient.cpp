@@ -19,8 +19,7 @@ RequestClient::~RequestClient() = default;
 void RequestClient::die()
 {
     // FIXME: Gracefully handle this, or relaunch and reconnect to RequestServer.
-    warnln("\033[31;1mLost connection to RequestServer\033[0m");
-    VERIFY_NOT_REACHED();
+    warnln("\033[31;1m {} Lost connection to RequestServer\033[0m", getpid());
 }
 
 void RequestClient::ensure_connection(URL::URL const& url, ::RequestServer::CacheLevel cache_level)
