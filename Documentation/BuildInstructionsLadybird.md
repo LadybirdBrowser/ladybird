@@ -204,8 +204,22 @@ After running Ladybird as suggested above with `./Meta/ladybird.sh run ladybird`
 
 Now breakpoints, stepping and variable inspection will work.
 
-### Debugging with Xcode on macOS
+### Debugging with Xcode or Instruments on macOS
 
+If all you want to do is use Instruments, then an Xcode project is not required.
+
+Simply run the `ladybird.sh` script as normal, and then make sure to codesign the Ladybird binary with the proper entitlements to allow Instruments to attach to it.
+
+```
+./Meta/ladybird.sh build
+ ninja -C build/ladybird apply-debug-entitlements
+ # or
+ codesign -s - -v -f --entitlements Meta/debug.plist Build/ladybird/bin/Ladybird.app
+```
+
+Now you can open the Instruments app and point it to the Ladybird app bundle.
+
+If you want to use Xcode itself for debugging, you will need to generate an Xcode project.
 The `ladybird.sh` build script does not know how to generate Xcode projects, so creating the project must be done manually.
 
 ```
