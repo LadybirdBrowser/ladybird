@@ -715,8 +715,8 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
         auto const& wheel_event = static_cast<QWheelEvent const&>(event);
 
         if (auto pixel_delta = -wheel_event.pixelDelta(); !pixel_delta.isNull()) {
-            wheel_delta_x = pixel_delta.x();
-            wheel_delta_y = pixel_delta.y();
+            wheel_delta_x = static_cast<float>(pixel_delta.x()) * static_cast<float>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
+            wheel_delta_y = static_cast<float>(pixel_delta.y()) * static_cast<float>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
         } else {
             auto angle_delta = -wheel_event.angleDelta();
             float delta_x = -static_cast<float>(angle_delta.x()) / 120.0f;
