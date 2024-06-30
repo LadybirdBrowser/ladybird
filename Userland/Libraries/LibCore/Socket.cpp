@@ -19,6 +19,9 @@ ErrorOr<int> Socket::create_fd(SocketDomain domain, SocketType type)
     case SocketDomain::Inet:
         socket_domain = AF_INET;
         break;
+    case SocketDomain::Inet6:
+        socket_domain = AF_INET6;
+        break;
     case SocketDomain::Local:
         socket_domain = AF_LOCAL;
         break;
@@ -48,7 +51,7 @@ ErrorOr<int> Socket::create_fd(SocketDomain domain, SocketType type)
 #endif
 }
 
-ErrorOr<IPv4Address> Socket::resolve_host(ByteString const& host, SocketType type)
+ErrorOr<Variant<IPv4Address, IPv6Address>> Socket::resolve_host(ByteString const& host, SocketType type)
 {
     int socket_type;
     switch (type) {
@@ -71,6 +74,13 @@ ErrorOr<IPv4Address> Socket::resolve_host(ByteString const& host, SocketType typ
     auto const results = TRY(Core::System::getaddrinfo(host.characters(), nullptr, hints));
 
     for (auto const& result : results.addresses()) {
+        if (result.ai_family == AF_INET6) {
+            auto* socket_address = bit_cast<struct sockaddr_in6*>(result.ai_addr);
+            auto address = IPv6Address { socket_address->sin6_addr.s6_addr };
+
+            return address;
+        }
+
         if (result.ai_family == AF_INET) {
             auto* socket_address = bit_cast<struct sockaddr_in*>(result.ai_addr);
             NetworkOrdered<u32> const network_ordered_address { socket_address->sin_addr.s_addr };
@@ -78,7 +88,7 @@ ErrorOr<IPv4Address> Socket::resolve_host(ByteString const& host, SocketType typ
         }
     }
 
-    return Error::from_string_literal("Could not resolve to IPv4 address");
+    return Error::from_string_literal("Could not resolve to IPv4 or IPv6 address");
 }
 
 ErrorOr<void> Socket::connect_local(int fd, ByteString const& path)
@@ -96,8 +106,13 @@ ErrorOr<void> Socket::connect_local(int fd, ByteString const& path)
 
 ErrorOr<void> Socket::connect_inet(int fd, SocketAddress const& address)
 {
-    auto addr = address.to_sockaddr_in();
-    return System::connect(fd, bit_cast<struct sockaddr*>(&addr), sizeof(addr));
+    if (address.type() == SocketAddress::Type::IPv6) {
+        auto addr = address.to_sockaddr_in6();
+        return System::connect(fd, bit_cast<struct sockaddr*>(&addr), sizeof(addr));
+    } else {
+        auto addr = address.to_sockaddr_in();
+        return System::connect(fd, bit_cast<struct sockaddr*>(&addr), sizeof(addr));
+    }
 }
 
 ErrorOr<Bytes> PosixSocketHelper::read(Bytes buffer, int flags)
@@ -200,14 +215,19 @@ void PosixSocketHelper::setup_notifier()
 ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(ByteString const& host, u16 port)
 {
     auto ip_address = TRY(resolve_host(host, SocketType::Stream));
-    return connect(SocketAddress { ip_address, port });
+
+    return ip_address.visit([port](auto address) { return connect(SocketAddress { address, port }); });
 }
 
 ErrorOr<NonnullOwnPtr<TCPSocket>> TCPSocket::connect(SocketAddress const& address)
 {
     auto socket = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TCPSocket()));
 
-    auto fd = TRY(create_fd(SocketDomain::Inet, SocketType::Stream));
+    auto socket_domain = SocketDomain::Inet6;
+    if (address.type() == SocketAddress::Type::IPv4)
+        socket_domain = SocketDomain::Inet;
+
+    auto fd = TRY(create_fd(socket_domain, SocketType::Stream));
     socket->m_helper.set_fd(fd);
 
     TRY(connect_inet(fd, address));
@@ -242,14 +262,19 @@ ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
 ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(ByteString const& host, u16 port, Optional<Duration> timeout)
 {
     auto ip_address = TRY(resolve_host(host, SocketType::Datagram));
-    return connect(SocketAddress { ip_address, port }, timeout);
+
+    return ip_address.visit([port, timeout](auto address) { return connect(SocketAddress { address, port }, timeout); });
 }
 
 ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(SocketAddress const& address, Optional<Duration> timeout)
 {
     auto socket = TRY(adopt_nonnull_own_or_enomem(new (nothrow) UDPSocket()));
 
-    auto fd = TRY(create_fd(SocketDomain::Inet, SocketType::Datagram));
+    auto socket_domain = SocketDomain::Inet6;
+    if (address.type() == SocketAddress::Type::IPv4)
+        socket_domain = SocketDomain::Inet;
+
+    auto fd = TRY(create_fd(socket_domain, SocketType::Datagram));
     socket->m_helper.set_fd(fd);
     if (timeout.has_value()) {
         TRY(socket->m_helper.set_receive_timeout(timeout.value()));
@@ -258,6 +283,7 @@ ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(SocketAddress const& addres
     TRY(connect_inet(fd, address));
 
     socket->setup_notifier();
+
     return socket;
 }
 
