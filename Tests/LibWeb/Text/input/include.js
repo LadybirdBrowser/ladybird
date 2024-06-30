@@ -1,5 +1,7 @@
 var __outputElement = null;
 let __alreadyCalledTest = false;
+const testTimeoutMilliseconds = 10000;
+
 function __preventMultipleTestFunctions() {
     if (__alreadyCalledTest) {
         throw new Error("You must only call test() or asyncTest() once per page");
@@ -44,6 +46,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function test(f) {
     __preventMultipleTestFunctions();
+    setTimeout(() => {
+        println(`Test timed out after ${testTimeoutMilliseconds}ms`);
+        internals.signalTextTestIsDone();
+    }, testTimeoutMilliseconds);
     document.addEventListener("DOMContentLoaded", f);
     window.addEventListener("load", () => {
         internals.signalTextTestIsDone();
@@ -55,6 +61,10 @@ function asyncTest(f) {
         __preventMultipleTestFunctions();
         internals.signalTextTestIsDone();
     };
+    setTimeout(() => {
+        println(`Test timed out after ${testTimeoutMilliseconds}ms`);
+        internals.signalTextTestIsDone();
+    }, testTimeoutMilliseconds);
     document.addEventListener("DOMContentLoaded", () => {
         f(done);
     });
