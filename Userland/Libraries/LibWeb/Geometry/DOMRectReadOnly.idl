@@ -1,25 +1,25 @@
 // https://drafts.fxtf.org/geometry/#domrectreadonly
 [Exposed=(Window, Worker), Serializable]
 interface DOMRectReadOnly {
-
-    constructor(optional double x = 0, optional double y = 0, optional double width = 0, optional double height = 0);
+    constructor(optional unrestricted double x = 0, optional unrestricted double y = 0,
+        optional unrestricted double width = 0, optional unrestricted double height = 0);
 
     [NewObject] static DOMRectReadOnly fromRect(optional DOMRectInit other = {});
 
-    readonly attribute double x;
-    readonly attribute double y;
-    readonly attribute double width;
-    readonly attribute double height;
+    readonly attribute unrestricted double x;
+    readonly attribute unrestricted double y;
+    readonly attribute unrestricted double width;
+    readonly attribute unrestricted double height;
 
-    readonly attribute double top;
-    readonly attribute double right;
-    readonly attribute double bottom;
-    readonly attribute double left;
+    readonly attribute unrestricted double top;
+    readonly attribute unrestricted double right;
+    readonly attribute unrestricted double bottom;
+    readonly attribute unrestricted double left;
 
     [Default] object toJSON();
-
 };
 
+// https://drafts.fxtf.org/geometry/#dictdef-domrectinit
 dictionary DOMRectInit {
     unrestricted double x = 0;
     unrestricted double y = 0;

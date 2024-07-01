@@ -3,14 +3,13 @@
 // https://drafts.fxtf.org/geometry/#dompoint
 [Exposed=(Window,Worker), Serializable, LegacyWindowAlias=SVGRect]
 interface DOMRect : DOMRectReadOnly {
-
-    constructor(optional double x = 0, optional double y = 0, optional double width = 0, optional double height = 0);
+    constructor(optional unrestricted double x = 0, optional unrestricted double y = 0,
+        optional unrestricted double width = 0, optional unrestricted double height = 0);
 
     [NewObject] static DOMRect fromRect(optional DOMRectInit other = {});
 
-    attribute double x;
-    attribute double y;
-    attribute double width;
-    attribute double height;
-
+    attribute unrestricted double x;
+    attribute unrestricted double y;
+    attribute unrestricted double width;
+    attribute unrestricted double height;
 };
