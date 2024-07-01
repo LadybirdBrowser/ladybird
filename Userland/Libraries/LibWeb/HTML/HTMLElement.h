@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
@@ -77,8 +78,23 @@ public:
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<ElementInternals>> attach_internals();
 
+    enum class PopoverVisibilityState {
+        Hidden,
+        Showing,
+    };
+    PopoverVisibilityState popover_visibility_state() const { return m_popover_visibility_state; }
+
     WebIDL::ExceptionOr<void> set_popover(Optional<String> value);
     Optional<StringView> popover() const;
+
+    WebIDL::ExceptionOr<void> show_popover_for_bindings();
+    WebIDL::ExceptionOr<void> hide_popover_for_bindings();
+    WebIDL::ExceptionOr<bool> toggle_popover(Optional<bool> force);
+
+    WebIDL::ExceptionOr<void> show_popover(bool throw_exceptions, JS::GCPtr<HTMLElement> invoker);
+    WebIDL::ExceptionOr<void> hide_popover(bool focus_previous_element, bool fire_events, bool throw_exceptions);
+
+    WebIDL::ExceptionOr<bool> check_popover_validity(bool expected_to_be_showing, bool throw_exception, JS::GCPtr<DOM::Document>);
 
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
@@ -117,6 +133,17 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#click-in-progress-flag
     bool m_click_in_progress { false };
+
+    // Popover API
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-visibility-state
+    PopoverVisibilityState m_popover_visibility_state { PopoverVisibilityState::Hidden };
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-invoker
+    JS::GCPtr<HTMLElement> m_popover_invoker;
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-showing-or-hiding
+    bool m_popover_showing_or_hiding { false };
 };
 
 }

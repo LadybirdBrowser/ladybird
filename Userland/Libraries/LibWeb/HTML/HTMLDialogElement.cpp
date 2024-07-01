@@ -93,7 +93,9 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     if (!is_connected())
         return WebIDL::InvalidStateError::create(realm(), "Dialog not connected"_fly_string);
 
-    // FIXME: 4. If this is in the popover showing state, then throw an "InvalidStateError" DOMException.
+    // 4. If this is in the popover showing state, then throw an "InvalidStateError" DOMException.
+    if (popover_visibility_state() == PopoverVisibilityState::Showing)
+        return WebIDL::InvalidStateError::create(realm(), "Dialog not connected"_fly_string);
 
     // 5. Add an open attribute to this, whose value is the empty string.
     TRY(set_attribute(AttributeNames::open, {}));

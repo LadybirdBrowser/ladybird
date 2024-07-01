@@ -4,6 +4,12 @@
 #import <DOM/Element.idl>
 #import <DOM/EventHandler.idl>
 
+[InvalidValueDefault=manual]
+enum PopoverState {
+    "auto",
+    "manual"
+};
+
 // https://html.spec.whatwg.org/multipage/semantics.html#htmlelement
 [Exposed=Window]
 interface HTMLElement : Element {
@@ -32,9 +38,9 @@ interface HTMLElement : Element {
     ElementInternals attachInternals();
 
     // The popover API
-    [FIXME] undefined showPopover();
-    [FIXME] undefined hidePopover();
-    [FIXME] boolean togglePopover(optional boolean force);
+    [ImplementedAs=show_popover_for_bindings] undefined showPopover();
+    [ImplementedAs=hide_popover_for_bindings] undefined hidePopover();
+    boolean togglePopover(optional boolean force);
     [CEReactions] attribute DOMString? popover;
 
     // https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlelement-interface

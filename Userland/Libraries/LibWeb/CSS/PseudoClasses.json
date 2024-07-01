@@ -98,6 +98,9 @@
   "open": {
     "argument": ""
   },
+  "popover-open": {
+    "argument": ""
+  },
   "paused": {
     "argument": ""
   },
