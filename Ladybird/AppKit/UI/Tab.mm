@@ -339,7 +339,12 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 {
     [[self tabController] onTitleChange:title];
 
-    self.title = Ladybird::string_to_ns_string(title);
+    NSString* converted_title = Ladybird::string_to_ns_string(title);
+    if (converted_title == nil) {
+        NSLog(@"Error converting title to NSString!");
+        converted_title = @"";
+    }
+    self.title = converted_title;
     [self updateTabTitleAndFavicon];
 }
 
