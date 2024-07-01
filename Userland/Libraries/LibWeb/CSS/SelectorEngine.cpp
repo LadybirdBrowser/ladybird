@@ -542,6 +542,15 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::Open:
     case CSS::PseudoClass::Closed:
         return matches_open_state_pseudo_class(element, pseudo_class.type == CSS::PseudoClass::Open);
+    case CSS::PseudoClass::Modal: {
+        // https://drafts.csswg.org/selectors/#modal-state
+        if (is<HTML::HTMLDialogElement>(element)) {
+            auto const& dialog_element = static_cast<HTML::HTMLDialogElement const&>(element);
+            return dialog_element.is_modal();
+        }
+        // FIXME: fullscreen elements are also modal.
+        return false;
+    }
     }
 
     return false;
