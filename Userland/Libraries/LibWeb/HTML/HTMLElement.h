@@ -77,6 +77,9 @@ public:
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<ElementInternals>> attach_internals();
 
+    WebIDL::ExceptionOr<void> set_popover(Optional<String> value);
+    Optional<StringView> popover() const;
+
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
 

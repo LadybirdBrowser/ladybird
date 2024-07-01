@@ -645,6 +645,34 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ElementInternals>> HTMLElement::attach_inte
     return { internals };
 }
 
+// https://html.spec.whatwg.org/multipage/popover.html#dom-popover
+Optional<StringView> HTMLElement::popover() const
+{
+    // FIXME: This should probably be `Reflect` in the IDL.
+    // The popover IDL attribute must reflect the popover attribute, limited to only known values.
+    auto value = get_attribute(HTML::AttributeNames::popover);
+
+    if (!value.has_value())
+        return {};
+
+    if (value.value().is_empty() || value.value().equals_ignoring_case("auto"_string))
+        return "auto"sv;
+
+    return "manual"sv;
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#dom-popover
+WebIDL::ExceptionOr<void> HTMLElement::set_popover(Optional<String> value)
+{
+    // FIXME: This should probably be `Reflect` in the IDL.
+    // The popover IDL attribute must reflect the popover attribute, limited to only known values.
+    if (value.has_value())
+        return set_attribute(HTML::AttributeNames::popover, value.value());
+
+    remove_attribute(HTML::AttributeNames::popover);
+    return {};
+}
+
 void HTMLElement::did_receive_focus()
 {
     if (m_content_editable_state != ContentEditableState::True)
