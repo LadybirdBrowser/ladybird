@@ -379,7 +379,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     if (tooltip) {
         [button setToolTip:tooltip];
     }
-    [button setBordered:NO];
+
+    [button setBordered:YES];
 
     return button;
 }
