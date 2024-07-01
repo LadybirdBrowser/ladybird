@@ -57,7 +57,6 @@ struct Proxy {
 struct JobData {
     Function<void(Core::BufferedSocketBase&)> start {};
     Function<void(Core::NetworkJob::Error)> fail {};
-    Function<Vector<TLS::Certificate>()> provide_client_certificates {};
     struct TimingInfo {
 #if REQUESTSERVER_DEBUG
         bool valid { true };
@@ -69,10 +68,9 @@ struct JobData {
 #endif
     } timing_info {};
 
-    JobData(Function<void(Core::BufferedSocketBase&)> start, Function<void(Core::NetworkJob::Error)> fail, Function<Vector<TLS::Certificate>()> provide_client_certificates, TimingInfo timing_info)
+    JobData(Function<void(Core::BufferedSocketBase&)> start, Function<void(Core::NetworkJob::Error)> fail, TimingInfo timing_info)
         : start(move(start))
         , fail(move(fail))
-        , provide_client_certificates(move(provide_client_certificates))
         , timing_info(move(timing_info))
     {
     }
@@ -80,7 +78,6 @@ struct JobData {
     JobData(JobData&& other)
         : start(move(other.start))
         , fail(move(other.fail))
-        , provide_client_certificates(move(other.provide_client_certificates))
         , timing_info(move(other.timing_info))
     {
 #if REQUESTSERVER_DEBUG
@@ -106,16 +103,6 @@ struct JobData {
         return JobData {
             [job](auto& socket) { job->start(socket); },
             [job](auto error) { job->fail(error); },
-            [job] {
-                if constexpr (requires { job->on_certificate_requested; }) {
-                    if (job->on_certificate_requested)
-                        return job->on_certificate_requested();
-                } else {
-                    // "use" `job`, otherwise clang gets sad.
-                    (void)job;
-                }
-                return Vector<TLS::Certificate> {};
-            },
             {
 #if REQUESTSERVER_DEBUG
                 .timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise),
@@ -155,7 +142,7 @@ struct ConnectionKey {
     bool operator==(ConnectionKey const&) const = default;
 };
 
-};
+}
 
 template<>
 struct AK::Traits<RequestServer::ConnectionCache::ConnectionKey> : public AK::DefaultTraits<RequestServer::ConnectionCache::ConnectionKey> {
@@ -172,7 +159,7 @@ struct InferredServerProperties {
 };
 
 extern Threading::RWLockProtected<HashMap<ConnectionKey, NonnullOwnPtr<Vector<NonnullOwnPtr<Connection<Core::TCPSocket, Core::Socket>>>>>> g_tcp_connection_cache;
-extern Threading::RWLockProtected<HashMap<ConnectionKey, NonnullOwnPtr<Vector<NonnullOwnPtr<Connection<TLS::TLSv12>>>>>> g_tls_connection_cache;
+extern Threading::RWLockProtected<HashMap<ConnectionKey, NonnullOwnPtr<Vector<NonnullOwnPtr<Connection<TLS::WolfTLS>>>>>> g_tls_connection_cache;
 extern Threading::RWLockProtected<HashMap<ByteString, InferredServerProperties>> g_inferred_server_properties;
 
 void request_did_finish(URL::URL const&, Core::Socket const*);
@@ -196,29 +183,7 @@ ErrorOr<void> recreate_socket_if_needed(T& connection, URL::URL const& url)
             return {};
         };
 
-        if constexpr (IsSame<TLS::TLSv12, SocketType>) {
-            TLS::Options options;
-            options.set_alert_handler([&connection](TLS::AlertDescription alert) {
-                Core::NetworkJob::Error reason;
-                if (alert == TLS::AlertDescription::HANDSHAKE_FAILURE)
-                    reason = Core::NetworkJob::Error::ProtocolFailed;
-                else if (alert == TLS::AlertDescription::DECRYPT_ERROR)
-                    reason = Core::NetworkJob::Error::ConnectionFailed;
-                else
-                    reason = Core::NetworkJob::Error::TransmissionFailed;
-
-                if (connection.job_data->fail)
-                    connection.job_data->fail(reason);
-            });
-            options.set_certificate_provider([&connection]() -> Vector<TLS::Certificate> {
-                if (connection.job_data->provide_client_certificates)
-                    return connection.job_data->provide_client_certificates();
-                return {};
-            });
-            TRY(set_socket(TRY((connection.proxy.template tunnel<SocketType, SocketStorageType>(url, move(options))))));
-        } else {
-            TRY(set_socket(TRY((connection.proxy.template tunnel<SocketType, SocketStorageType>(url)))));
-        }
+        TRY(set_socket(TRY((connection.proxy.template tunnel<SocketType, SocketStorageType>(url)))));
         dbgln_if(REQUESTSERVER_DEBUG, "Creating a new socket for {} -> {}", url, connection.socket.ptr());
     }
     return {};

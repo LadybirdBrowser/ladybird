@@ -13,10 +13,10 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 
+namespace Crypto::Authentication {
+
 constexpr static auto IPAD = 0x36;
 constexpr static auto OPAD = 0x5c;
-
-namespace Crypto::Authentication {
 
 template<typename HashT>
 class HMAC {

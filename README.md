@@ -21,7 +21,8 @@ At the moment, many core library support components are inherited from SerenityO
 - LibWeb: Web rendering engine
 - LibJS: JavaScript engine
 - LibWasm: WebAssembly implementation
-- LibCrypto/LibTLS: Cryptography primitives and Transport Layer Security
+- LibCrypto: Cryptography primitives
+- LibTLS: Some certificate parsing primitives
 - LibHTTP: HTTP/1.1 client
 - LibGfx: 2D Graphics Library, Image Decoding and Rendering
 - LibArchive: Archive file format support
