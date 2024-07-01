@@ -35,7 +35,7 @@ interface HTMLElement : Element {
     [FIXME] undefined showPopover();
     [FIXME] undefined hidePopover();
     [FIXME] boolean togglePopover(optional boolean force);
-    [FIXME, CEReactions] attribute DOMString? popover;
+    [CEReactions] attribute DOMString? popover;
 
     // https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlelement-interface
     readonly attribute Element? offsetParent;

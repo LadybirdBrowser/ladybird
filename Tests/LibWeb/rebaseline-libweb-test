@@ -17,4 +17,4 @@ expected_dir=$(echo $input_dir | sed s/input/expected/)
 test_name=$(basename $t .html)
 cd $LADYBIRD_SOURCE_DIR/Build/ladybird
 mkdir -p $expected_dir
-./bin/headless-browser $mode_flag --layout-test-mode $input_dir/$test_name.html > $expected_dir/$test_name.txt
+./bin/Ladybird.app/Contents/MacOS/headless-browser $mode_flag --layout-test-mode $LADYBIRD_SOURCE_DIR/Tests/LibWeb/$input_dir/$test_name.html > $LADYBIRD_SOURCE_DIR/Tests/LibWeb/$expected_dir/$test_name.txt
