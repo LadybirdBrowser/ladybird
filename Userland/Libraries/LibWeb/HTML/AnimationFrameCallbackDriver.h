@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 struct AnimationFrameCallbackDriver {
-    using Callback = Function<void(i32)>;
+    using Callback = Function<void(double)>;
 
     AnimationFrameCallbackDriver()
     {
