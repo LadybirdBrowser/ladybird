@@ -305,10 +305,10 @@ CommandResult DisplayListPlayerCPU::fill_rect_with_rounded_corners(FillRectWithR
         aa_painter.fill_rect_with_rounded_corners(
             command.rect,
             command.color,
-            command.top_left_radius,
-            command.top_right_radius,
-            command.bottom_right_radius,
-            command.bottom_left_radius);
+            command.corner_radii.top_left,
+            command.corner_radii.top_right,
+            command.corner_radii.bottom_right,
+            command.corner_radii.bottom_left);
     };
     if (command.clip_paths.is_empty()) {
         paint_op(painter());

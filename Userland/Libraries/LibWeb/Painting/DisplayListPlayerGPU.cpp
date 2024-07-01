@@ -212,10 +212,10 @@ CommandResult DisplayListPlayerGPU::fill_rect_with_rounded_corners(FillRectWithR
     // FIXME: Support clip paths
     painter().fill_rect_with_rounded_corners(
         command.rect, command.color,
-        { static_cast<float>(command.top_left_radius.horizontal_radius), static_cast<float>(command.top_left_radius.vertical_radius) },
-        { static_cast<float>(command.top_right_radius.horizontal_radius), static_cast<float>(command.top_right_radius.vertical_radius) },
-        { static_cast<float>(command.bottom_left_radius.horizontal_radius), static_cast<float>(command.bottom_left_radius.vertical_radius) },
-        { static_cast<float>(command.bottom_right_radius.horizontal_radius), static_cast<float>(command.bottom_right_radius.vertical_radius) });
+        { static_cast<float>(command.corner_radii.top_left.horizontal_radius), static_cast<float>(command.corner_radii.top_left.vertical_radius) },
+        { static_cast<float>(command.corner_radii.top_right.horizontal_radius), static_cast<float>(command.corner_radii.top_right.vertical_radius) },
+        { static_cast<float>(command.corner_radii.bottom_left.horizontal_radius), static_cast<float>(command.corner_radii.bottom_left.vertical_radius) },
+        { static_cast<float>(command.corner_radii.bottom_right.horizontal_radius), static_cast<float>(command.corner_radii.bottom_right.vertical_radius) });
     return CommandResult::Continue;
 }
 

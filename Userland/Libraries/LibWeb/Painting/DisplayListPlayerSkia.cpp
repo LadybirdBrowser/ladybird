@@ -626,13 +626,7 @@ CommandResult DisplayListPlayerSkia::fill_rect_with_rounded_corners(FillRectWith
     SkPaint paint;
     paint.setColor(to_skia_color(command.color));
 
-    SkRRect rounded_rect;
-    SkVector radii[4];
-    radii[0].set(command.top_left_radius.horizontal_radius, command.top_left_radius.vertical_radius);
-    radii[1].set(command.top_right_radius.horizontal_radius, command.top_right_radius.vertical_radius);
-    radii[2].set(command.bottom_right_radius.horizontal_radius, command.bottom_right_radius.vertical_radius);
-    radii[3].set(command.bottom_left_radius.horizontal_radius, command.bottom_left_radius.vertical_radius);
-    rounded_rect.setRectRadii(to_skia_rect(rect), radii);
+    auto rounded_rect = to_skia_rrect(rect, command.corner_radii);
     canvas.drawRRect(rounded_rect, paint);
 
     return CommandResult::Continue;
