@@ -698,6 +698,10 @@ CommandResult DisplayListPlayerSkia::fill_path_using_paint_style(FillPathUsingPa
 
 CommandResult DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& command)
 {
+    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
+    if (!command.thickness)
+        return CommandResult::Continue;
+
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -712,6 +716,10 @@ CommandResult DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColo
 
 CommandResult DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintStyle const& command)
 {
+    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
+    if (!command.thickness)
+        return CommandResult::Continue;
+
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());
@@ -725,6 +733,10 @@ CommandResult DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsi
 
 CommandResult DisplayListPlayerSkia::draw_ellipse(DrawEllipse const& command)
 {
+    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
+    if (!command.thickness)
+        return CommandResult::Continue;
+
     auto const& rect = command.rect;
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -749,6 +761,10 @@ CommandResult DisplayListPlayerSkia::fill_ellipse(FillEllipse const& command)
 
 CommandResult DisplayListPlayerSkia::draw_line(DrawLine const& command)
 {
+    // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
+    if (!command.thickness)
+        return CommandResult::Continue;
+
     auto from = SkPoint::Make(command.from.x(), command.from.y());
     auto to = SkPoint::Make(command.to.x(), command.to.y());
     auto& canvas = surface().canvas();
