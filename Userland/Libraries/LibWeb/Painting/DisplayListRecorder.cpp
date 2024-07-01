@@ -367,10 +367,12 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rec
     append(FillRectWithRoundedCorners {
         .rect = state().translation.map(rect),
         .color = color,
-        .top_left_radius = top_left_radius,
-        .top_right_radius = top_right_radius,
-        .bottom_left_radius = bottom_left_radius,
-        .bottom_right_radius = bottom_right_radius,
+        .corner_radii = {
+            .top_left = top_left_radius,
+            .top_right = top_right_radius,
+            .bottom_right = bottom_right_radius,
+            .bottom_left = bottom_left_radius,
+        },
         .clip_paths = clip_paths,
     });
 }
