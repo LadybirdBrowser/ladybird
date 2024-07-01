@@ -143,11 +143,10 @@ static SkPath to_skia_path(Gfx::Path const& path)
     };
     for (auto const& segment : path) {
         auto point = segment.point();
-        subpath_last_point = point;
         switch (segment.command()) {
         case Gfx::PathSegment::Command::MoveTo: {
-            if (subpath_start_point.has_value())
-                close_subpath_if_needed(subpath_start_point.value());
+            if (subpath_start_point.has_value() && subpath_last_point.has_value())
+                close_subpath_if_needed(subpath_last_point.value());
             subpath_start_point = point;
             path_builder.moveTo({ point.x(), point.y() });
             break;
@@ -178,6 +177,7 @@ static SkPath to_skia_path(Gfx::Path const& path)
         default:
             VERIFY_NOT_REACHED();
         }
+        subpath_last_point = point;
     }
 
     close_subpath_if_needed(subpath_last_point);
