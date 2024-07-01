@@ -13,6 +13,8 @@
 
 endpoint WebContentServer
 {
+    close_server() =|
+
     get_window_handle(u64 page_id) => (String handle)
     set_window_handle(u64 page_id, String handle) =|
 

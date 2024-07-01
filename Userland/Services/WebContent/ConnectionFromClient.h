@@ -53,6 +53,7 @@ private:
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;
 
+    virtual void close_server() override;
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
     virtual void set_window_handle(u64 page_id, String const& handle) override;
     virtual void connect_to_webdriver(u64 page_id, ByteString const& webdriver_ipc_path) override;
