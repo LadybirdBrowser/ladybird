@@ -895,6 +895,45 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
         }
     }
 
+    // FIXME: Implement scroll by line and by page instead of approximating the behavior of other browsers.
+    auto arrow_key_scroll_distance = 100;
+    auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
+
+    switch (key) {
+    case UIEvents::KeyCode::Key_Up:
+    case UIEvents::KeyCode::Key_Down:
+        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_Ctrl)
+            break;
+        if (modifiers)
+            key == UIEvents::KeyCode::Key_Up ? document->scroll_to_the_beginning_of_the_document() : document->window()->scroll_by(0, INT64_MAX);
+        else
+            document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
+        return true;
+    case UIEvents::KeyCode::Key_Left:
+    case UIEvents::KeyCode::Key_Right:
+        if (modifiers > UIEvents::KeyModifier::Mod_Alt && modifiers != (UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_AltGr))
+            break;
+        if (modifiers)
+            document->page().traverse_the_history_by_delta(key == UIEvents::KeyCode::Key_Left ? -1 : 1);
+        else
+            document->window()->scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+        return true;
+    case UIEvents::KeyCode::Key_PageUp:
+    case UIEvents::KeyCode::Key_PageDown:
+        if (modifiers > UIEvents::KeyModifier::Mod_None)
+            break;
+        document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
+        return true;
+    case UIEvents::KeyCode::Key_Home:
+        document->scroll_to_the_beginning_of_the_document();
+        return true;
+    case UIEvents::KeyCode::Key_End:
+        document->window()->scroll_by(0, INT64_MAX);
+        return true;
+    default:
+        break;
+    }
+
     // FIXME: Work out and implement the difference between this and keydown.
     return !fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point);
 }
