@@ -211,6 +211,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(ping)                       \
     __ENUMERATE_HTML_ATTRIBUTE(placeholder)                \
     __ENUMERATE_HTML_ATTRIBUTE(playsinline)                \
+    __ENUMERATE_HTML_ATTRIBUTE(popover)                    \
     __ENUMERATE_HTML_ATTRIBUTE(poster)                     \
     __ENUMERATE_HTML_ATTRIBUTE(preload)                    \
     __ENUMERATE_HTML_ATTRIBUTE(readonly)                   \
