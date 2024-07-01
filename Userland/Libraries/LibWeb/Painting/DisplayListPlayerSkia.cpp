@@ -40,15 +40,15 @@ namespace Web::Painting {
 
 class DisplayListPlayerSkia::SkiaSurface {
 public:
-    SkCanvas& canvas() const { return *surface->getCanvas(); }
+    SkCanvas& canvas() const { return *m_surface->getCanvas(); }
 
     SkiaSurface(sk_sp<SkSurface> surface)
-        : surface(move(surface))
+        : m_surface(move(surface))
     {
     }
 
 private:
-    sk_sp<SkSurface> surface;
+    sk_sp<SkSurface> m_surface;
 };
 
 #ifdef AK_OS_MACOS
