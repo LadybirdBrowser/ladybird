@@ -2,7 +2,7 @@
 
 ## Setup
 
-First, make sure you have a working toolchain and can build and run Ladybird. Go [here](BuildInstructions.md) for instructions for setting that up.
+First, make sure you have a working toolchain and can build and run Ladybird. Go [here](BuildInstructionsLadybird.md) for instructions for setting that up.
 
 * Install [Qt Creator](https://www.qt.io/offline-installers). You don't need the entire Qt setup, just click 'Qt Creator' on the left side, and install that.
 * Open Qt Creator, select `File -> New File or Project...`
