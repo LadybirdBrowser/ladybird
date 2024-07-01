@@ -196,6 +196,8 @@ public:
 
     virtual ~TCPSocket() override { close(); }
 
+    int fd() { return m_helper.fd(); }
+
 private:
     explicit TCPSocket(PreventSIGPIPE prevent_sigpipe = PreventSIGPIPE::Yes)
         : Socket(prevent_sigpipe)
