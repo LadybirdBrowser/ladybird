@@ -82,6 +82,11 @@ Optional<PageClient const&> ConnectionFromClient::page(u64 index, SourceLocation
     return {};
 }
 
+void ConnectionFromClient::close_server()
+{
+    shutdown();
+}
+
 Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_window_handle(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
