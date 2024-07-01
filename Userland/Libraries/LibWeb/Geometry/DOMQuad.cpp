@@ -62,12 +62,14 @@ JS::NonnullGCPtr<DOMQuad> DOMQuad::from_quad(JS::VM& vm, DOMQuadInit const& othe
 // https://drafts.fxtf.org/geometry/#dom-domquad-getbounds
 JS::NonnullGCPtr<DOMRect> DOMQuad::get_bounds() const
 {
+    // The NaN-safe minimum of a non-empty list of unrestricted double values is NaN if any member of the list is NaN, or the minimum of the list otherwise.
     auto nan_safe_minimum = [](double a, double b, double c, double d) -> double {
         if (isnan(a) || isnan(b) || isnan(c) || isnan(d))
             return NAN;
         return min(a, min(b, min(c, d)));
     };
 
+    // Analogously, the NaN-safe maximum of a non-empty list of unrestricted double values is NaN if any member of the list is NaN, or the maximum of the list otherwise.
     auto nan_safe_maximum = [](double a, double b, double c, double d) -> double {
         if (isnan(a) || isnan(b) || isnan(c) || isnan(d))
             return NAN;
