@@ -99,6 +99,9 @@ public:
     String const& platform() const { return m_platform; }
     void set_platform(String platform) { m_platform = move(platform); }
 
+    bool enable_do_not_track() const { return m_enable_do_not_track; }
+    void set_enable_do_not_track(bool enable) { m_enable_do_not_track = enable; }
+
     void clear_cache();
     void evict_from_cache(LoadRequest const&);
 
@@ -116,6 +119,7 @@ private:
     NonnullRefPtr<ResourceLoaderConnector> m_connector;
     String m_user_agent;
     String m_platform;
+    bool m_enable_do_not_track { false };
     Optional<JS::GCPtr<Page>> m_page {};
 };
 

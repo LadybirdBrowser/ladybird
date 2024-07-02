@@ -81,6 +81,7 @@ endpoint WebContentServer
     set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme color_scheme) =|
     set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast contrast) =|
     set_preferred_motion(u64 page_id, Web::CSS::PreferredMotion motion) =|
+    set_enable_do_not_track(u64 page_id, bool enable) =|
     set_has_focus(u64 page_id, bool has_focus) =|
     set_is_scripting_enabled(u64 page_id, bool is_scripting_enabled) =|
     set_device_pixels_per_css_pixel(u64 page_id, float device_pixels_per_css_pixel) =|

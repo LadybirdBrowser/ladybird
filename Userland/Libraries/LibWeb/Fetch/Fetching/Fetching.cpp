@@ -1689,6 +1689,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
         // NOTE: `Accept` and `Accept-Language` are already included (unless fetch() is used, which does not include
         //       the latter by default), and `Accept-Charset` is a waste of bytes. See HTTP header layer division for
         //       more details.
+        if (ResourceLoader::the().enable_do_not_track() && !http_request->header_list()->contains("DNT"sv.bytes())) {
+            auto header = Infrastructure::Header::from_string_pair("DNT"sv, "1"sv);
+            http_request->header_list()->append(move(header));
+        }
 
         // 21. If includeCredentials is true, then:
         if (include_credentials == IncludeCredentials::Yes) {
