@@ -170,11 +170,11 @@ void WebContentClient::did_change_url(u64 page_id, URL::URL const& url)
     }
 }
 
-void WebContentClient::did_enter_tooltip_area(u64 page_id, Gfx::IntPoint content_position, ByteString const& title)
+void WebContentClient::did_enter_tooltip_area(u64 page_id, ByteString const& title)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_enter_tooltip_area)
-            view->on_enter_tooltip_area(view->to_widget_position(content_position), title);
+            view->on_enter_tooltip_area(title);
     }
 }
 
