@@ -50,6 +50,8 @@ public:
     [[nodiscard]] JS::NonnullGCPtr<Clipboard::Clipboard> clipboard();
     [[nodiscard]] JS::NonnullGCPtr<UserActivation> user_activation();
 
+    Optional<FlyString> do_not_track() const;
+
     static WebIDL::Long max_touch_points();
 
     virtual ~Navigator() override;

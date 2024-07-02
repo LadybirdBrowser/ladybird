@@ -21,6 +21,9 @@ interface Navigator {
 
     // https://html.spec.whatwg.org/multipage/interaction.html#useractivation
     [SameObject] readonly attribute UserActivation userActivation;
+
+    // https://www.w3.org/TR/tracking-dnt/#dom-navigator-donottrack
+    readonly attribute DOMString? doNotTrack;
 };
 
 // NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation
