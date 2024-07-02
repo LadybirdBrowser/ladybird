@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Filiph Sandström <filiph.sandstrom@filfatstudios.com>
  * Copyright (c) 2023, Cameron Youell <cameronyouell@gmail.com>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -111,6 +112,17 @@ void Settings::set_enable_search(bool enable)
 {
     m_qsettings->setValue("enable_search", enable);
     emit enable_search_changed(enable);
+}
+
+bool Settings::enable_do_not_track()
+{
+    return m_qsettings->value("enable_do_not_track", false).toBool();
+}
+
+void Settings::set_enable_do_not_track(bool enable)
+{
+    m_qsettings->setValue("enable_do_not_track", enable);
+    emit enable_do_not_track_changed(enable);
 }
 
 bool Settings::show_menubar()
