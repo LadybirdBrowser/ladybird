@@ -60,7 +60,7 @@ String highlight_source(URL::URL const& url, StringView source)
         previous_position = end_position;
     };
 
-    for (auto token = tokenizer.next_token(); token.has_value() && !token->is_end_of_file(); token = tokenizer.next_token()) {
+    for (auto token = tokenizer.next_token(); token.has_value(); token = tokenizer.next_token()) {
         if (token->is_comment()) {
             append_source(token->start_position().byte_offset);
             append_source(token->end_position().byte_offset, "comment"sv);
@@ -83,6 +83,8 @@ String highlight_source(URL::URL const& url, StringView source)
             append_source(token->end_position().byte_offset);
         } else {
             append_source(token->end_position().byte_offset);
+            if (token->is_end_of_file())
+                break;
         }
     }
 
