@@ -754,11 +754,19 @@ set(GENERATED_SOURCES
     Worker/WebWorkerServerEndpoint.h
 )
 
-find_package(unofficial-skia CONFIG REQUIRED)
-
 serenity_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibWasm LibXML LibIDL LibURL LibTLS unofficial::skia::skia)
+find_package(unofficial-skia CONFIG)
+if(unofficial-skia_FOUND)
+    set(SKIA_LIBRARIES unofficial::skia::skia)
+else()
+    find_package(PkgConfig)
+    pkg_check_modules(SKIA skia=124 REQUIRED)
+    target_include_directories(LibWeb PRIVATE ${SKIA_INCLUDE_DIRS})
+    target_link_directories(LibWeb PRIVATE ${SKIA_LIBRARY_DIRS})
+endif()
+
+target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibWasm LibXML LibIDL LibURL LibTLS ${SKIA_LIBRARIES})
 
 generate_js_bindings(LibWeb)
 
