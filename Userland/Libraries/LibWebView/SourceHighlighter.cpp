@@ -86,6 +86,7 @@ String highlight_source(URL::URL const& url, StringView source)
         }
     }
 
+    append_source(source.length());
     builder.append(R"~~~(
 </pre>
 </body>
