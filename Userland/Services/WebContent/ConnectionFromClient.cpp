@@ -928,6 +928,11 @@ void ConnectionFromClient::set_preferred_motion(u64 page_id, Web::CSS::Preferred
         page->set_preferred_motion(motion);
 }
 
+void ConnectionFromClient::set_enable_do_not_track(u64, bool enable)
+{
+    Web::ResourceLoader::the().set_enable_do_not_track(enable);
+}
+
 void ConnectionFromClient::set_has_focus(u64 page_id, bool has_focus)
 {
     if (auto page = this->page(page_id); page.has_value())

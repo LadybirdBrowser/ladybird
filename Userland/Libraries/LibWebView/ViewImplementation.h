@@ -66,6 +66,8 @@ public:
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
 
+    void set_enable_do_not_track(bool);
+
     ByteString selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
     void select_all();

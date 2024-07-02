@@ -169,6 +169,11 @@ void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
     client().async_set_preferred_motion(page_id(), motion);
 }
 
+void ViewImplementation::set_enable_do_not_track(bool enable)
+{
+    client().async_set_enable_do_not_track(page_id(), enable);
+}
+
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());
