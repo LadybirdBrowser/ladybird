@@ -32,18 +32,18 @@ public:
     String product() const { return "Gecko"_string; }
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-productsub
-    String product_sub() const { return "20030107"_string; } // Compatibility mode "Chrome"
+    String product_sub() const;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-useragent
     String user_agent() const;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-vendor
-    String vendor() const { return "Google Inc."_string; } // Compatibility mode "Chrome"
+    String vendor() const;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-vendorsub
     String vendor_sub() const { return String {}; }
 
-    // NOTE: If the navigator compatibility mode is Gecko, then the user agent must also support the following partial interface:
+    // FIXME: If the navigator compatibility mode is Gecko, then the user agent must also support the following partial interface:
     //       bool taint_enabled()
     //       ByteString oscpu()
 };

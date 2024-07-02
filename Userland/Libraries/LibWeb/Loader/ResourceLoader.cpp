@@ -20,7 +20,6 @@
 #include <LibWeb/Loader/ProxyMappings.h>
 #include <LibWeb/Loader/Resource.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -60,6 +59,7 @@ ResourceLoader::ResourceLoader(NonnullRefPtr<ResourceLoaderConnector> connector)
     : m_connector(move(connector))
     , m_user_agent(MUST(String::from_utf8(default_user_agent)))
     , m_platform(MUST(String::from_utf8(default_platform)))
+    , m_navigator_compatibility_mode(default_navigator_compatibility_mode)
 {
 }
 
