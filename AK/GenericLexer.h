@@ -218,12 +218,11 @@ public:
     }
 
 protected:
+    Result<u32, UnicodeEscapeError> decode_code_point();
+    Result<u32, UnicodeEscapeError> decode_single_or_paired_surrogate(bool combine_surrogate_pairs = true);
+
     StringView m_input;
     size_t m_index { 0 };
-
-private:
-    Result<u32, UnicodeEscapeError> decode_code_point();
-    Result<u32, UnicodeEscapeError> decode_single_or_paired_surrogate(bool combine_surrogate_pairs);
 };
 
 class LineTrackingLexer : public GenericLexer {
