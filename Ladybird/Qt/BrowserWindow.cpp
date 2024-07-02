@@ -97,6 +97,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
         });
     }
 
+    QObject::connect(Settings::the(), &Settings::enable_do_not_track_changed, this, [this](bool enable) {
+        for_each_tab([enable](auto& tab) {
+            tab.set_enable_do_not_track(enable);
+        });
+    });
+
     m_hamburger_menu = new HamburgerMenu(this);
 
     if (!Settings::the()->show_menubar())
@@ -776,6 +782,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
     tab->set_block_popups(m_block_pop_ups_action->isChecked());
     tab->set_same_origin_policy(m_enable_same_origin_policy_action->isChecked());
     tab->set_user_agent_string(user_agent_string());
+    tab->set_enable_do_not_track(Settings::the()->enable_do_not_track());
 }
 
 void BrowserWindow::activate_tab(int index)

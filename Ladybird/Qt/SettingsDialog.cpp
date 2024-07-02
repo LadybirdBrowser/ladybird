@@ -50,6 +50,12 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
         close();
     });
 
+    m_enable_do_not_track = new QCheckBox(this);
+    m_enable_do_not_track->setChecked(Settings::the()->enable_do_not_track());
+    QObject::connect(m_enable_do_not_track, &QCheckBox::stateChanged, this, [&](int state) {
+        Settings::the()->set_enable_do_not_track(state == Qt::Checked);
+    });
+
     setup_search_engines();
 
     m_layout->addRow(new QLabel("Page on New Tab", this), m_new_tab_page);
@@ -57,6 +63,7 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
     m_layout->addRow(new QLabel("Search Engine", this), m_search_engine_dropdown);
     m_layout->addRow(new QLabel("Enable Autocomplete", this), m_enable_autocomplete);
     m_layout->addRow(new QLabel("Autocomplete Engine", this), m_autocomplete_engine_dropdown);
+    m_layout->addRow(new QLabel("Send web sites a \"Do Not Track\" request", this), m_enable_do_not_track);
 
     setWindowTitle("Settings");
     setLayout(m_layout);

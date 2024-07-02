@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Filiph Sandström <filiph.sandstrom@filfatstudios.com>
  * Copyright (c) 2023, Cameron Youell <cameronyouell@gmail.com>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -58,6 +59,9 @@ public:
     bool enable_search();
     void set_enable_search(bool enable);
 
+    bool enable_do_not_track();
+    void set_enable_do_not_track(bool enable);
+
     bool show_menubar();
     void set_show_menubar(bool show_menubar);
 
@@ -65,6 +69,7 @@ signals:
     void show_menubar_changed(bool show_menubar);
     void enable_search_changed(bool enable);
     void search_engine_changed(WebView::SearchEngine engine);
+    void enable_do_not_track_changed(bool enable);
 
 protected:
     Settings();

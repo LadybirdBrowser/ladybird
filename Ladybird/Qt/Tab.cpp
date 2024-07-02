@@ -997,4 +997,9 @@ void Tab::set_user_agent_string(ByteString const& user_agent)
     debug_request("clear-cache");
 }
 
+void Tab::set_enable_do_not_track(bool enable)
+{
+    m_view->set_enable_do_not_track(enable);
+}
+
 }
