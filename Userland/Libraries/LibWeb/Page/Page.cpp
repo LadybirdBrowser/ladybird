@@ -710,6 +710,26 @@ void Page::update_find_in_page_selection(Vector<JS::Handle<DOM::Range>> matches)
     }
 }
 
+bool Page::did_send_screenshot(Optional<i32> node_id)
+{
+    if (!node_id.has_value()) {
+        return exchange(m_did_send_whole_page_screenshot, false);
+    }
+
+    return m_did_send_screenshot_node_ids.remove(node_id.value());
+}
+
+void Page::set_did_send_screenshot(Optional<i32> node_id)
+{
+    dbgln("did send screenshot for node id: {}", node_id.value_or(-1));
+    if (!node_id.has_value()) {
+        m_did_send_whole_page_screenshot = true;
+        return;
+    }
+
+    m_did_send_screenshot_node_ids.set(node_id.value());
+}
+
 }
 
 template<>

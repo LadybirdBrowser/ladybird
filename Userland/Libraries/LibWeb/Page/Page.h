@@ -208,6 +208,9 @@ public:
     FindInPageResult find_in_page_previous_match();
     Optional<FindInPageQuery> last_find_in_page_query() const { return m_last_find_in_page_query; }
 
+    bool did_send_screenshot(Optional<i32> node_id);
+    void set_did_send_screenshot(Optional<i32> node_id);
+
 private:
     explicit Page(JS::NonnullGCPtr<PageClient>);
     virtual void visit_edges(Visitor&) override;
@@ -267,6 +270,9 @@ private:
     size_t m_find_in_page_match_index { 0 };
     Optional<FindInPageQuery> m_last_find_in_page_query;
     URL::URL m_last_find_in_page_url;
+
+    bool m_did_send_whole_page_screenshot { false };
+    HashTable<i32> m_did_send_screenshot_node_ids;
 };
 
 struct PaintOptions {

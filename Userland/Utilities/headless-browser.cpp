@@ -57,6 +57,7 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
+#include <stdio.h>
 
 constexpr int DEFAULT_TIMEOUT_MS = 30000; // 30sec
 
@@ -576,9 +577,9 @@ static ErrorOr<int> run_tests(HeadlessWebContentView& view, StringView test_root
 
         out("{}/{}: {}", i + 1, tests.size(), LexicalPath::relative_path(test.input_path, test_root_path));
 
-        if (is_tty)
-            fflush(stdout);
-        else
+        fflush(stdout);
+
+        if (!is_tty)
             outln("");
 
         if (s_skipped_tests.contains_slow(test.input_path.bytes_as_string_view())) {
@@ -624,6 +625,7 @@ static ErrorOr<int> run_tests(HeadlessWebContentView& view, StringView test_root
             outln("GC graph dumped to {}", path.value());
         }
     }
+    fflush(stdout);
 
     if (timeout_count == 0 && fail_count == 0)
         return 0;

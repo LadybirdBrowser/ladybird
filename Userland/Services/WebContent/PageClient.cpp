@@ -190,10 +190,12 @@ Web::Layout::Viewport* PageClient::layout_root()
 void PageClient::paint_next_frame()
 {
     while (!m_screenshot_tasks.is_empty()) {
+        dbgln("taking screenshot");
         auto task = m_screenshot_tasks.dequeue();
         if (task.node_id.has_value()) {
             auto* dom_node = Web::DOM::Node::from_unique_id(*task.node_id);
             if (!dom_node || !dom_node->paintable_box()) {
+                page().set_did_send_screenshot(task.node_id);
                 client().async_did_take_screenshot(m_id, {});
                 continue;
             }
@@ -201,12 +203,14 @@ void PageClient::paint_next_frame()
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
             auto backing_store = Web::Painting::BitmapBackingStore(*bitmap);
             paint(rect, backing_store, { .paint_overlay = Web::PaintOptions::PaintOverlay::No });
+            page().set_did_send_screenshot(task.node_id);
             client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
         } else {
             Web::DevicePixelRect rect { { 0, 0 }, content_size() };
             auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
             auto backing_store = Web::Painting::BitmapBackingStore(*bitmap);
             paint(rect, backing_store);
+            page().set_did_send_screenshot(task.node_id);
             client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
         }
     }
@@ -751,6 +755,8 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
 void PageClient::queue_screenshot_task(Optional<i32> node_id)
 {
     m_screenshot_tasks.enqueue({ node_id });
+    // schedule_repaint();
+    // Web::HTML::main_thread_event_loop().schedule();
     page().top_level_traversable()->set_needs_display();
 }
 }

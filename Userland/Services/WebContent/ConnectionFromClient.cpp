@@ -11,6 +11,7 @@
 
 #include <AK/JsonObject.h>
 #include <AK/QuickSort.h>
+#include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/SystemTheme.h>
@@ -755,19 +756,34 @@ void ConnectionFromClient::get_dom_node_html(u64 page_id, i32 node_id)
 void ConnectionFromClient::take_document_screenshot(u64 page_id)
 {
     auto page = this->page(page_id);
-    if (!page.has_value())
+    if (!page.has_value()) {
+        dbgln("ConnectionFromClient::take_document_screenshot: No page with ID {}", page_id);
         return;
+    }
 
+    // page->schedule_repaint();
     page->queue_screenshot_task({});
+    Core::deferred_invoke([page] {
+        Core::EventLoop::current().spin_until([page]() mutable -> bool { return page->page().did_send_screenshot({}); });
+    });
 }
 
 void ConnectionFromClient::take_dom_node_screenshot(u64 page_id, i32 node_id)
 {
     auto page = this->page(page_id);
-    if (!page.has_value())
+    if (!page.has_value()) {
+        dbgln("ConnectionFromClient::take_dom_node_screenshot: No page with ID {}", page_id);
         return;
+    }
 
+    // page->schedule_repaint();
     page->queue_screenshot_task(node_id);
+    // Core::EventLoop::current().wake();
+    Core::deferred_invoke([page, node_id] mutable -> void {
+        Core::EventLoop::current().spin_until([page, node_id] mutable -> bool {
+            return page->page().did_send_screenshot(node_id);
+        });
+    });
 }
 
 Messages::WebContentServer::DumpGcGraphResponse ConnectionFromClient::dump_gc_graph(u64)
