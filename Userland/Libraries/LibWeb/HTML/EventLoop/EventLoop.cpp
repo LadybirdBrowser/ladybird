@@ -207,6 +207,8 @@ void EventLoop::process()
     //         loop processing.
     for_each_fully_active_document_in_docs([&](DOM::Document& document) {
         auto navigable = document.navigable();
+        if (navigable && !navigable->has_a_rendering_opportunity() && navigable->needs_repaint())
+            schedule();
         if (navigable && navigable->has_a_rendering_opportunity())
             return;
         auto* browsing_context = document.browsing_context();
