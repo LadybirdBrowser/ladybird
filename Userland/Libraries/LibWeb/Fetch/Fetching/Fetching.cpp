@@ -1907,49 +1907,53 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
             && include_credentials == IncludeCredentials::Yes
             && request->window().has<JS::GCPtr<HTML::EnvironmentSettingsObject>>()) {
             // 1. Needs testing: multiple `WWW-Authenticate` headers, missing, parsing issues.
-            // (Red box in the spec, no-op)
 
-            // 2. If request’s body is non-null, then:
-            if (!request->body().has<Empty>()) {
-                // 1. If request’s body’s source is null, then return a network error.
-                if (request->body().get<JS::NonnullGCPtr<Infrastructure::Body>>()->source().has<Empty>()) {
-                    returned_pending_response->resolve(Infrastructure::Response::network_error(vm, "Request has body but no body source"_string));
-                    return;
+            // FIXME: I believe if WWW-Authenticate is missing, we continue as normal without re-requesting.
+            //        That is what would happen anyway if the user cancelled the username/password request.
+            //        No-op for now on multiple WWW-Authenticate headers and parsing issues
+            if (response->header_list()->contains("WWW-Authenticate"sv.bytes())) {
+                // 2. If request’s body is non-null, then:
+                if (!request->body().has<Empty>()) {
+                    // 1. If request’s body’s source is null, then return a network error.
+                    if (request->body().get<JS::NonnullGCPtr<Infrastructure::Body>>()->source().has<Empty>()) {
+                        returned_pending_response->resolve(Infrastructure::Response::network_error(vm, "Request has body but no body source"_string));
+                        return;
+                    }
+
+                    // 2. Set request’s body to the body of the result of safely extracting request’s body’s source.
+                    auto const& source = request->body().get<JS::NonnullGCPtr<Infrastructure::Body>>()->source();
+                    // NOTE: BodyInitOrReadableBytes is a superset of Body::SourceType
+                    auto converted_source = source.has<ByteBuffer>()
+                        ? BodyInitOrReadableBytes { source.get<ByteBuffer>() }
+                        : BodyInitOrReadableBytes { source.get<JS::Handle<FileAPI::Blob>>() };
+                    auto [body, _] = TRY_OR_IGNORE(safely_extract_body(realm, converted_source));
+                    request->set_body(move(body));
                 }
 
-                // 2. Set request’s body to the body of the result of safely extracting request’s body’s source.
-                auto const& source = request->body().get<JS::NonnullGCPtr<Infrastructure::Body>>()->source();
-                // NOTE: BodyInitOrReadableBytes is a superset of Body::SourceType
-                auto converted_source = source.has<ByteBuffer>()
-                    ? BodyInitOrReadableBytes { source.get<ByteBuffer>() }
-                    : BodyInitOrReadableBytes { source.get<JS::Handle<FileAPI::Blob>>() };
-                auto [body, _] = TRY_OR_IGNORE(safely_extract_body(realm, converted_source));
-                request->set_body(move(body));
-            }
+                // 3. If request’s use-URL-credentials flag is unset or isAuthenticationFetch is true, then:
+                if (!request->use_url_credentials() || is_authentication_fetch == IsAuthenticationFetch::Yes) {
+                    // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
+                    if (fetch_params.is_canceled()) {
+                        returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(vm, fetch_params));
+                        return;
+                    }
 
-            // 3. If request’s use-URL-credentials flag is unset or isAuthenticationFetch is true, then:
-            if (!request->use_url_credentials() || is_authentication_fetch == IsAuthenticationFetch::Yes) {
-                // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
-                if (fetch_params.is_canceled()) {
-                    returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(vm, fetch_params));
-                    return;
+                    // FIXME: 2. Let username and password be the result of prompting the end user for a username and password,
+                    //           respectively, in request’s window.
+                    dbgln("Fetch: Username/password prompt is not implemented, using empty strings. This request will probably fail.");
+                    auto username = ByteString::empty();
+                    auto password = ByteString::empty();
+
+                    // 3. Set the username given request’s current URL and username.
+                    MUST(request->current_url().set_username(username));
+
+                    // 4. Set the password given request’s current URL and password.
+                    MUST(request->current_url().set_password(password));
                 }
 
-                // FIXME: 2. Let username and password be the result of prompting the end user for a username and password,
-                //           respectively, in request’s window.
-                dbgln("Fetch: Username/password prompt is not implemented, using empty strings. This request will probably fail.");
-                auto username = ByteString::empty();
-                auto password = ByteString::empty();
-
-                // 3. Set the username given request’s current URL and username.
-                MUST(request->current_url().set_username(username));
-
-                // 4. Set the password given request’s current URL and password.
-                MUST(request->current_url().set_password(password));
+                // 4. Set response to the result of running HTTP-network-or-cache fetch given fetchParams and true.
+                inner_pending_response = TRY_OR_IGNORE(http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes));
             }
-
-            // 4. Set response to the result of running HTTP-network-or-cache fetch given fetchParams and true.
-            inner_pending_response = TRY_OR_IGNORE(http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes));
         }
 
         inner_pending_response->when_loaded([&realm, &vm, &fetch_params, request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch](JS::NonnullGCPtr<Infrastructure::Response> response) {
