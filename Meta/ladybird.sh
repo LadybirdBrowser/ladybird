@@ -2,6 +2,7 @@
 
 set -e
 
+BUILD_PRESET=${BUILD_PRESET:-default}
 ARG0=$0
 print_help() {
     NAME=$(basename "$ARG0")
@@ -69,7 +70,7 @@ get_top_dir() {
 }
 
 create_build_dir() {
-    cmake --preset default "${CMAKE_ARGS[@]}" -S "$LADYBIRD_SOURCE_DIR" -B "$BUILD_DIR"
+    cmake --preset "$BUILD_PRESET" "${CMAKE_ARGS[@]}" -S "$LADYBIRD_SOURCE_DIR" -B "$BUILD_DIR"
 }
 
 cmd_with_target() {
@@ -94,7 +95,7 @@ ensure_target() {
 
 run_tests() {
     local TEST_NAME="$1"
-    local CTEST_ARGS=("--preset" "default" "--output-on-failure" "--test-dir" "$BUILD_DIR")
+    local CTEST_ARGS=("--preset" "$BUILD_PRESET" "--output-on-failure" "--test-dir" "$BUILD_DIR")
     if [ -n "$TEST_NAME" ]; then
         if [ "$TEST_NAME" = "WPT" ]; then
             CTEST_ARGS+=("-C" "Integration")
