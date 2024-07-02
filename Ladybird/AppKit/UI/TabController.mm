@@ -421,7 +421,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         auto* button = [self create_button:NSImageNameRefreshTemplate
                                with_action:@selector(reload:)
                               with_tooltip:@"Reload page"];
-        [button setEnabled:NO];
+        [button setEnabled:YES];
 
         _reload_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_RELOAD_IDENTIFIER];
         [_reload_toolbar_item setView:button];
