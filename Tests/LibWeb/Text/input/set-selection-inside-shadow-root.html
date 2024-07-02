@@ -1,0 +1,21 @@
+<script src="include.js"></script>
+<div id="root"></div>
+<script>
+    function printSelectionDetails(selection) {
+        println(`Selection range count: ${selection.rangeCount}`);
+        if (selection.rangeCount > 0)
+            println(`Selection start offset: ${selection.getRangeAt(0).startOffset}, end offset: ${selection.getRangeAt(0).endOffset}`);
+    }
+
+    test(() => {
+        const rootElement = document.getElementById("root");
+        const shadowRoot = rootElement.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = "This is some text";
+        const selection = window.getSelection();
+        selection.setBaseAndExtent(shadowRoot, 0, shadowRoot, 1);
+        println(`Selection range count: ${selection.rangeCount}`);
+        println(`Selection start offset: ${selection.getRangeAt(0).startOffset}, end offset: ${selection.getRangeAt(0).endOffset}`);
+
+        shadowRoot.innerHTML = "";
+    });
+</script>
