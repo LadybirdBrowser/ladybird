@@ -546,15 +546,22 @@ bool EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSPixelPoi
         }
         if (m_in_mouse_selection) {
             auto hit = paint_root()->hit_test(position, Painting::HitTestType::TextCursor);
+            auto should_set_cursor_position = true;
             if (start_index.has_value() && hit.has_value() && hit->dom_node()) {
-                m_navigable->set_cursor_position(DOM::Position::create(realm, *hit->dom_node(), *start_index));
                 if (auto selection = document.get_selection()) {
                     auto anchor_node = selection->anchor_node();
-                    if (anchor_node)
-                        (void)selection->set_base_and_extent(*anchor_node, selection->anchor_offset(), *hit->paintable->dom_node(), hit->index_in_node);
-                    else
+                    if (anchor_node) {
+                        if (&anchor_node->root() == &hit->dom_node()->root())
+                            (void)selection->set_base_and_extent(*anchor_node, selection->anchor_offset(), *hit->paintable->dom_node(), hit->index_in_node);
+                        else
+                            should_set_cursor_position = false;
+                    } else {
                         (void)selection->set_base_and_extent(*hit->paintable->dom_node(), hit->index_in_node, *hit->paintable->dom_node(), hit->index_in_node);
+                    }
                 }
+                if (should_set_cursor_position)
+                    m_navigable->set_cursor_position(DOM::Position::create(realm, *hit->dom_node(), *start_index));
+
                 document.navigable()->set_needs_display();
             }
         }
