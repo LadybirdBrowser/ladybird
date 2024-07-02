@@ -9,6 +9,7 @@
 
 #include "TransformationStyleValue.h"
 #include <AK/StringBuilder.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
 namespace Web::CSS {
 
@@ -18,7 +19,22 @@ String TransformationStyleValue::to_string() const
     builder.append(CSS::to_string(m_properties.transform_function));
     builder.append('(');
     for (size_t i = 0; i < m_properties.values.size(); ++i) {
-        builder.append(m_properties.values[i]->to_string());
+        auto const& value = m_properties.values[i];
+
+        // https://www.w3.org/TR/css-transforms-2/#individual-transforms
+        // A <percentage> is equivalent to a <number>, for example scale: 100% is equivalent to scale: 1.
+        // Numbers are used during serialization of specified and computed values.
+        if ((m_properties.transform_function == CSS::TransformFunction::Scale
+                || m_properties.transform_function == CSS::TransformFunction::Scale3d
+                || m_properties.transform_function == CSS::TransformFunction::ScaleX
+                || m_properties.transform_function == CSS::TransformFunction::ScaleY
+                || m_properties.transform_function == CSS::TransformFunction::ScaleZ)
+            && value->is_percentage()) {
+            builder.append(MUST(String::number(value->as_percentage().percentage().as_fraction())));
+        } else {
+            builder.append(value->to_string());
+        }
+
         if (i != m_properties.values.size() - 1)
             builder.append(", "sv);
     }
