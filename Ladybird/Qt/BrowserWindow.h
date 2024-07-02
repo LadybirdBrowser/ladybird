@@ -173,6 +173,8 @@ private:
 
     ByteString user_agent_string() const { return m_user_agent_string; }
     void set_user_agent_string(ByteString const& user_agent_string) { m_user_agent_string = user_agent_string; }
+    ByteString navigator_compatibility_mode() const { return m_navigator_compatibility_mode; }
+    void set_navigator_compatibility_mode(ByteString const& navigator_compatibility_mode) { m_navigator_compatibility_mode = navigator_compatibility_mode; }
 
     QScreen* m_current_screen;
     double m_device_pixel_ratio { 0 };
@@ -200,6 +202,7 @@ private:
     QAction* m_enable_same_origin_policy_action { nullptr };
 
     ByteString m_user_agent_string {};
+    ByteString m_navigator_compatibility_mode {};
 
     SettingsDialog* m_settings_dialog { nullptr };
 

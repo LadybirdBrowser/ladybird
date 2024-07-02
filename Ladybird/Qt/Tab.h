@@ -72,6 +72,7 @@ public:
     void set_same_origin_policy(bool);
     void set_scripting(bool);
     void set_user_agent_string(ByteString const&);
+    void set_navigator_compatibility_mode(ByteString const&);
 
     void set_enable_do_not_track(bool);
 

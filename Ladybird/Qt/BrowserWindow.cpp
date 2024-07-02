@@ -497,6 +497,30 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
         }
     });
 
+    auto* navigator_compatibility_mode_menu = debug_menu->addMenu("Navigator Compatibility Mode");
+    navigator_compatibility_mode_menu->setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"sv));
+
+    auto* navigator_compatibility_mode_group = new QActionGroup(this);
+
+    auto add_navigator_compatibility_mode = [this, &navigator_compatibility_mode_group, &navigator_compatibility_mode_menu](auto name, auto const& compatibility_mode) {
+        auto* action = new QAction(qstring_from_ak_string(name), this);
+        action->setCheckable(true);
+        navigator_compatibility_mode_group->addAction(action);
+        navigator_compatibility_mode_menu->addAction(action);
+        QObject::connect(action, &QAction::triggered, this, [this, compatibility_mode] {
+            for_each_tab([compatibility_mode](auto& tab) {
+                tab.set_navigator_compatibility_mode(compatibility_mode);
+            });
+            set_navigator_compatibility_mode(compatibility_mode);
+        });
+        return action;
+    };
+    auto* chrome_compatibility_mode = add_navigator_compatibility_mode("Chrome"_string, "chrome"sv.to_byte_string());
+    chrome_compatibility_mode->setChecked(true);
+    add_navigator_compatibility_mode("Gecko"_string, "gecko"sv.to_byte_string());
+    add_navigator_compatibility_mode("WebKit"_string, "webkit"sv.to_byte_string());
+    set_navigator_compatibility_mode("chrome");
+
     debug_menu->addSeparator();
 
     m_enable_scripting_action = new QAction("Enable Scripting", this);
@@ -782,6 +806,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
     tab->set_block_popups(m_block_pop_ups_action->isChecked());
     tab->set_same_origin_policy(m_enable_same_origin_policy_action->isChecked());
     tab->set_user_agent_string(user_agent_string());
+    tab->set_navigator_compatibility_mode(navigator_compatibility_mode());
     tab->set_enable_do_not_track(Settings::the()->enable_do_not_track());
 }
 
