@@ -99,6 +99,24 @@ WebContentView::WebContentView(QWidget* window, WebContentOptions const& web_con
         update_cursor(cursor);
     };
 
+    on_request_tooltip_override = [this](auto position, auto const& tooltip) {
+        m_tooltip_override = true;
+        if (m_tooltip_hover_timer.isActive())
+            m_tooltip_hover_timer.stop();
+
+        auto tooltip_without_carriage_return = tooltip.contains("\r"sv)
+            ? tooltip.replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All)
+            : tooltip;
+        QToolTip::showText(
+            mapToGlobal(QPoint(position.x(), position.y())),
+            qstring_from_ak_string(tooltip_without_carriage_return),
+            this);
+    };
+
+    on_stop_tooltip_override = [this]() {
+        m_tooltip_override = false;
+    };
+
     on_enter_tooltip_area = [this](auto const& tooltip) {
         m_tooltip_text = tooltip.contains("\r"sv)
             ? tooltip.replace("\r\n"sv, "\n"sv, ReplaceMode::All).replace("\r"sv, "\n"sv, ReplaceMode::All)
@@ -332,9 +350,11 @@ void WebContentView::keyReleaseEvent(QKeyEvent* event)
 
 void WebContentView::mouseMoveEvent(QMouseEvent* event)
 {
-    if (QToolTip::isVisible())
-        QToolTip::hideText();
-    m_tooltip_hover_timer.start(600);
+    if (!m_tooltip_override) {
+        if (QToolTip::isVisible())
+            QToolTip::hideText();
+        m_tooltip_hover_timer.start(600);
+    }
 
     enqueue_native_event(Web::MouseEvent::Type::MouseMove, *event);
 }

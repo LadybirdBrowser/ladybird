@@ -170,6 +170,22 @@ void WebContentClient::did_change_url(u64 page_id, URL::URL const& url)
     }
 }
 
+void WebContentClient::did_request_tooltip_override(u64 page_id, Gfx::IntPoint position, ByteString const& title)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_request_tooltip_override)
+            view->on_request_tooltip_override(view->to_widget_position(position), title);
+    }
+}
+
+void WebContentClient::did_stop_tooltip_override(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_stop_tooltip_override)
+            view->on_stop_tooltip_override();
+    }
+}
+
 void WebContentClient::did_enter_tooltip_area(u64 page_id, ByteString const& title)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
