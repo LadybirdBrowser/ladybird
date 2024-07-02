@@ -13,6 +13,7 @@
 #include <AK/Forward.h>
 #include <AK/Span.h>
 #include <LibCore/File.h>
+#include <LibCore/Socket.h>
 
 namespace Core {
 
