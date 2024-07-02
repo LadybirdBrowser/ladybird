@@ -532,7 +532,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [self reload];
     };
 
-    m_web_view_bridge->on_enter_tooltip_area = [weak_self](auto, auto const& tooltip) {
+    m_web_view_bridge->on_enter_tooltip_area = [weak_self](auto const& tooltip) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return;

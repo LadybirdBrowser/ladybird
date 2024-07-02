@@ -351,7 +351,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<E
                 set_volume(media_element, *cached_layout_boxes.volume_scrub_rect, position);
 
                 auto volume = static_cast<u8>(media_element.volume() * 100.0);
-                browsing_context().page().client().page_did_enter_tooltip_area(position, ByteString::formatted("{}%", volume));
+                browsing_context().page().client().page_did_enter_tooltip_area(ByteString::formatted("{}%", volume));
             }
 
             break;

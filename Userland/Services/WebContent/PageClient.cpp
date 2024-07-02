@@ -318,10 +318,9 @@ Gfx::IntRect PageClient::page_did_request_fullscreen_window()
     return client().did_request_fullscreen_window(m_id);
 }
 
-void PageClient::page_did_enter_tooltip_area(Web::CSSPixelPoint content_position, ByteString const& title)
+void PageClient::page_did_enter_tooltip_area(ByteString const& title)
 {
-    auto device_position = page().css_to_device_point(content_position);
-    client().async_did_enter_tooltip_area(m_id, { device_position.x(), device_position.y() }, title);
+    client().async_did_enter_tooltip_area(m_id, title);
 }
 
 void PageClient::page_did_leave_tooltip_area()
