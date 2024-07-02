@@ -119,6 +119,8 @@ private:
     virtual Gfx::IntRect page_did_request_maximize_window() override;
     virtual Gfx::IntRect page_did_request_minimize_window() override;
     virtual Gfx::IntRect page_did_request_fullscreen_window() override;
+    virtual void page_did_request_tooltip_override(Web::CSSPixelPoint, ByteString const&) override;
+    virtual void page_did_stop_tooltip_override() override;
     virtual void page_did_enter_tooltip_area(ByteString const&) override;
     virtual void page_did_leave_tooltip_area() override;
     virtual void page_did_hover_link(URL::URL const&) override;

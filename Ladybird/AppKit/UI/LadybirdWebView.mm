@@ -532,6 +532,22 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [self reload];
     };
 
+    m_web_view_bridge->on_request_tooltip_override = [weak_self](auto, auto const& tooltip) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+        self.toolTip = Ladybird::string_to_ns_string(tooltip);
+    };
+
+    m_web_view_bridge->on_stop_tooltip_override = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+        self.toolTip = nil;
+    };
+
     m_web_view_bridge->on_enter_tooltip_area = [weak_self](auto const& tooltip) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
