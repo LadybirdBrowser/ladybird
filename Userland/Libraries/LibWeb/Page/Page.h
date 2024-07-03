@@ -42,10 +42,6 @@
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 
-#ifdef HAS_ACCELERATED_GRAPHICS
-#    include <LibAccelGfx/Context.h>
-#endif
-
 namespace Web {
 
 class PageClient;
@@ -278,15 +274,10 @@ struct PaintOptions {
     PaintOverlay paint_overlay { PaintOverlay::Yes };
     bool should_show_line_box_borders { false };
     bool has_focus { false };
-
-#ifdef HAS_ACCELERATED_GRAPHICS
-    AccelGfx::Context* accelerated_graphics_context { nullptr };
-#endif
 };
 
 enum class DisplayListPlayerType {
     CPU,
-    GPU,
     Skia
 };
 

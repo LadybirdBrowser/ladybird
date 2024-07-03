@@ -20,10 +20,6 @@
 #include <LibWeb/Painting/DisplayListPlayerCPU.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
-#ifdef HAS_ACCELERATED_GRAPHICS
-#    include <LibWeb/Painting/DisplayListPlayerGPU.h>
-#endif
-
 namespace Web::HTML {
 
 JS_DEFINE_ALLOCATOR(TraversableNavigable);
@@ -1192,19 +1188,7 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
     record_display_list(display_list_recorder, paint_config);
 
     auto display_list_player_type = page().client().display_list_player_type();
-    if (display_list_player_type == DisplayListPlayerType::GPU) {
-#ifdef HAS_ACCELERATED_GRAPHICS
-        Painting::DisplayListPlayerGPU player(*paint_options.accelerated_graphics_context, target.bitmap());
-        display_list.execute(player);
-#else
-        static bool has_warned_about_configuration = false;
-
-        if (!has_warned_about_configuration) {
-            warnln("\033[31;1mConfigured to use GPU painter, but current platform does not have accelerated graphics\033[0m");
-            has_warned_about_configuration = true;
-        }
-#endif
-    } else if (display_list_player_type == DisplayListPlayerType::Skia) {
+    if (display_list_player_type == DisplayListPlayerType::Skia) {
 #ifdef AK_OS_MACOS
         if (m_metal_context && m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
             auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);

@@ -94,9 +94,5 @@ executable("WebContent") {
     deps += [ ":generate_moc" ]
   }
 
-  if (current_os == "linux" || current_os == "mac") {
-    cflags_cc = [ "-DHAS_ACCELERATED_GRAPHICS" ]
-    deps += [ "//Userland/Libraries/LibAccelGfx" ]
-  }
   output_dir = "$root_out_dir/libexec"
 }

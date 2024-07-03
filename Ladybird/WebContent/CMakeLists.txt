@@ -1,4 +1,3 @@
-include(accelerated_graphics)
 include(fontconfig)
 
 set(WEBCONTENT_SOURCE_DIR ${LADYBIRD_SOURCE_DIR}/Userland/Services/WebContent/)
@@ -42,11 +41,6 @@ endif()
 
 if (HAS_FONTCONFIG)
     target_link_libraries(webcontent PRIVATE Fontconfig::Fontconfig)
-endif()
-
-if (HAS_ACCELERATED_GRAPHICS)
-    target_compile_definitions(webcontent PUBLIC HAS_ACCELERATED_GRAPHICS)
-    target_link_libraries(webcontent PUBLIC LibAccelGfx)
 endif()
 
 if (ENABLE_QT)
