@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <LibAccelGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
@@ -16,10 +15,6 @@
 #include <LibWeb/PixelUnits.h>
 #include <WebContent/BackingStoreManager.h>
 #include <WebContent/Forward.h>
-
-#ifdef HAS_ACCELERATED_GRAPHICS
-#    include <LibAccelGfx/Context.h>
-#endif
 
 namespace WebContent {
 
@@ -32,7 +27,6 @@ public:
 
     virtual ~PageClient() override;
 
-    static void set_use_gpu_painter();
     static void set_use_skia_painter();
 
     virtual void schedule_repaint() override;
@@ -203,10 +197,6 @@ private:
     Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::NoPreference };
 
     RefPtr<WebDriverConnection> m_webdriver;
-
-#ifdef HAS_ACCELERATED_GRAPHICS
-    OwnPtr<AccelGfx::Context> m_accelerated_graphics_context;
-#endif
 
     BackingStoreManager m_backing_store_manager;
 

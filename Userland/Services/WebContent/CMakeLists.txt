@@ -1,5 +1,3 @@
-include(accelerated_graphics)
-
 compile_ipc(WebContentServer.ipc WebContentServerEndpoint.h)
 compile_ipc(WebContentClient.ipc WebContentClientEndpoint.h)
 
@@ -26,8 +24,3 @@ set(GENERATED_SOURCES
 
 serenity_bin(WebContent)
 target_link_libraries(WebContent PRIVATE LibCore LibFileSystem LibIPC LibGfx LibAudio LibImageDecoderClient LibJS LibWebView LibWeb LibUnicode LibMain LibURL)
-
-if (HAS_ACCELERATED_GRAPHICS)
-    target_compile_definitions(WebContent PRIVATE HAS_ACCELERATED_GRAPHICS)
-    target_link_libraries(WebContent PRIVATE LibAccelGfx)
-endif()

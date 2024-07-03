@@ -15,11 +15,6 @@ enum class EnableCallgrindProfiling {
     Yes
 };
 
-enum class EnableGPUPainting {
-    No,
-    Yes
-};
-
 enum class EnableSkiaPainting {
     No,
     Yes
@@ -64,7 +59,6 @@ struct WebContentOptions {
     String command_line;
     String executable_path;
     EnableCallgrindProfiling enable_callgrind_profiling { EnableCallgrindProfiling::No };
-    EnableGPUPainting enable_gpu_painting { EnableGPUPainting::No };
     EnableSkiaPainting enable_skia_painting { EnableSkiaPainting::No };
     IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
     UseLagomNetworking use_lagom_networking { UseLagomNetworking::Yes };

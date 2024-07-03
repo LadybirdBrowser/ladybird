@@ -25,21 +25,11 @@
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebDriverConnection.h>
 
-#ifdef HAS_ACCELERATED_GRAPHICS
-#    include <LibWeb/Painting/DisplayListPlayerGPU.h>
-#endif
-
 namespace WebContent {
 
-static bool s_use_gpu_painter = false;
 static bool s_use_skia_painter = false;
 
 JS_DEFINE_ALLOCATOR(PageClient);
-
-void PageClient::set_use_gpu_painter()
-{
-    s_use_gpu_painter = true;
-}
 
 void PageClient::set_use_skia_painter()
 {
@@ -58,17 +48,6 @@ PageClient::PageClient(PageHost& owner, u64 id)
     , m_backing_store_manager(*this)
 {
     setup_palette();
-
-#ifdef HAS_ACCELERATED_GRAPHICS
-    if (s_use_gpu_painter) {
-        auto context = AccelGfx::Context::create();
-        if (context.is_error()) {
-            dbgln("Failed to create AccelGfx context: {}", context.error());
-            VERIFY_NOT_REACHED();
-        }
-        m_accelerated_graphics_context = context.release_value();
-    }
-#endif
 }
 
 PageClient::~PageClient() = default;
@@ -233,9 +212,6 @@ void PageClient::paint(Web::DevicePixelRect const& content_rect, Web::Painting::
 {
     paint_options.should_show_line_box_borders = m_should_show_line_box_borders;
     paint_options.has_focus = m_has_focus;
-#ifdef HAS_ACCELERATED_GRAPHICS
-    paint_options.accelerated_graphics_context = m_accelerated_graphics_context.ptr();
-#endif
     page().top_level_traversable()->paint(content_rect, target, paint_options);
 }
 
@@ -756,8 +732,6 @@ void PageClient::did_get_js_console_messages(i32 start_index, Vector<ByteString>
 
 Web::DisplayListPlayerType PageClient::display_list_player_type() const
 {
-    if (s_use_gpu_painter)
-        return Web::DisplayListPlayerType::GPU;
     if (s_use_skia_painter)
         return Web::DisplayListPlayerType::Skia;
     return Web::DisplayListPlayerType::CPU;

@@ -359,7 +359,6 @@ if (current_os != "mac") {
   bundle_data("ladybird_bundle_libs") {
     public_deps = [
       "//AK",
-      "//Userland/Libraries/LibAccelGfx",
       "//Userland/Libraries/LibAudio",
       "//Userland/Libraries/LibCompress",
       "//Userland/Libraries/LibCore",
@@ -389,7 +388,6 @@ if (current_os != "mac") {
       "//Userland/Libraries/LibXML",
     ]
     sources = [
-      "$root_out_dir/lib/liblagom-accelgfx.dylib",
       "$root_out_dir/lib/liblagom-ak.dylib",
       "$root_out_dir/lib/liblagom-audio.dylib",
       "$root_out_dir/lib/liblagom-compress.dylib",

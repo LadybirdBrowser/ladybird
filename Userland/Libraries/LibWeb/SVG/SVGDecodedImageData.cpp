@@ -100,8 +100,7 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
 
     auto painting_command_executor_type = m_page_client->display_list_player_type();
     switch (painting_command_executor_type) {
-    case DisplayListPlayerType::CPU:
-    case DisplayListPlayerType::GPU: { // GPU painter does not have any path rasterization support so we always fall back to CPU painter
+    case DisplayListPlayerType::CPU: {
         Painting::DisplayListPlayerCPU executor { *bitmap };
         display_list.execute(executor);
         break;
