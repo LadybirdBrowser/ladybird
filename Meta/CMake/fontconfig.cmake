@@ -1,4 +1,4 @@
-if (NOT APPLE)
+if (NOT APPLE AND NOT ANDROID)
     find_package(Fontconfig REQUIRED)
     set(HAS_FONTCONFIG ON CACHE BOOL "" FORCE)
     add_compile_definitions(USE_FONTCONFIG=1)

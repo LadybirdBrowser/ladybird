@@ -206,6 +206,10 @@ ErrorOr<Vector<String>> StandardPaths::font_directories()
         "/System/Library/Fonts"_string,
         "/Library/Fonts"_string,
         TRY(String::formatted("{}/Library/Fonts"sv, home_directory())),
+#    elif defined(AK_OS_ANDROID)
+        // FIXME: We should be using the ASystemFontIterator NDK API here.
+        // There is no guarantee that this will continue to exist on future versions of Android.
+        "/system/fonts"_string,
 #    else
         TRY(String::formatted("{}/fonts"sv, data_directory())),
         TRY(String::formatted("{}/X11/fonts"sv, data_directory())),
