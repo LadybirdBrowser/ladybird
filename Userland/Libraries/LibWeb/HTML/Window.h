@@ -64,6 +64,7 @@ public:
     using WindowOrWorkerGlobalScopeMixin::create_image_bitmap;
     using WindowOrWorkerGlobalScopeMixin::fetch;
     using WindowOrWorkerGlobalScopeMixin::queue_microtask;
+    using WindowOrWorkerGlobalScopeMixin::report_error;
     using WindowOrWorkerGlobalScopeMixin::set_interval;
     using WindowOrWorkerGlobalScopeMixin::set_timeout;
     using WindowOrWorkerGlobalScopeMixin::structured_clone;
