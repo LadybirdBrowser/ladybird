@@ -200,7 +200,7 @@ def make_description(input_path: Path, name: str, out_path: Path) -> WastDescrip
     return parse(description)
 
 
-def gen_value(value: WasmValue) -> str:
+def gen_value(value: WasmValue, as_arg=False) -> str:
     def unsigned_to_signed(uint: int, bits: int) -> int:
         max_value = 2**bits
         if uint >= 2 ** (bits - 1):
@@ -221,7 +221,13 @@ def gen_value(value: WasmValue) -> str:
         f = struct.unpack("d", b)[0]
         return f
 
-    def float_to_str(f: float) -> str:
+    def float_to_str(f: float, preserve_nan_sign=False) -> str:
+        if math.isnan(f) and preserve_nan_sign:
+            f_bytes = struct.pack("d", f)
+            # -NaN does not preserve the sign bit in JavaScript land, so if
+            # we want to preserve NaN "sign", we pass in raw bytes
+            return f"new Uint8Array({list(f_bytes)})"
+
         if math.isnan(f) and math.copysign(1.0, f) < 0:
             return "-NaN"
         elif math.isnan(f):
@@ -234,8 +240,6 @@ def gen_value(value: WasmValue) -> str:
 
     if value.value.startswith("nan"):
         return "NaN"
-    elif value.value.startswith("-nan"):
-        return "-NaN"
     elif value.value == "inf":
         return "Infinity"
     elif value.value == "-inf":
@@ -247,9 +251,9 @@ def gen_value(value: WasmValue) -> str:
         case "i64":
             return str(unsigned_to_signed(int(value.value), 64)) + "n"
         case "f32":
-            return float_to_str(int_to_float_bitcast(int(value.value)))
+            return float_to_str(int_to_float_bitcast(int(value.value)), as_arg)
         case "f64":
-            return float_to_str(int_to_float64_bitcast(int(value.value)))
+            return float_to_str(int_to_float64_bitcast(int(value.value)), as_arg)
         case "externref" | "funcref" | "v128":
             return value.value
         case _:
@@ -257,7 +261,7 @@ def gen_value(value: WasmValue) -> str:
 
 
 def gen_args(args: list[WasmValue]) -> str:
-    return ",".join(gen_value(arg) for arg in args)
+    return ",".join(gen_value(arg, True) for arg in args)
 
 
 def gen_module_command(command: ModuleCommand, ctx: Context):
