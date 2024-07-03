@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.25)
 
+if (VCPKG_TARGET_ANDROID)
+    # If we are building for Android, we must load vcpkg_android.cmake before the project() declaration.
+    # This ensures that the CMAKE_TOOLCHAIN_FILE is set correctly.
+    # (we cannot set CMAKE_TOOLCHAIN_FILE from Gradle, unfortunately, so this is the only place we can do it.)
+    include("Ladybird/Android/vcpkg_android.cmake")
+endif()
+
 project(ladybird
         VERSION 0.1.0
         LANGUAGES C CXX

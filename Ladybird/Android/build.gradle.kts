@@ -7,6 +7,7 @@ plugins {
 
 var buildDir = layout.buildDirectory.get()
 var cacheDir = System.getenv("SERENITY_CACHE_DIR") ?: "$buildDir/caches"
+var sourceDir = layout.projectDirectory.dir("../../").toString()
 
 task<Exec>("buildLagomTools") {
     commandLine = listOf("./BuildLagomTools.sh")
@@ -36,7 +37,9 @@ android {
                 cppFlags += "-std=c++23"
                 arguments += listOf(
                     "-DLagomTools_DIR=$buildDir/lagom-tools-install/share/LagomTools",
-                    "-DSERENITY_CACHE_DIR=$cacheDir"
+                    "-DSERENITY_CACHE_DIR=$cacheDir",
+                    "-DVCPKG_ROOT=$sourceDir/Toolchain/Tarballs/vcpkg",
+                    "-DVCPKG_TARGET_ANDROID=ON"
                 )
             }
         }
