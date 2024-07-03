@@ -37,8 +37,10 @@ static ErrorOr<NonnullRefPtr<Protocol::RequestClient>> bind_request_server_servi
     return bind_service<Protocol::RequestClient>(&bind_request_server_java);
 }
 
-template ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>, Error>
-bind_service<ImageDecoderClient::Client>(void (*)(int));
+static ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> bind_image_decoder_service()
+{
+    return bind_service<ImageDecoderClient::Client>(&bind_image_decoder_java);
+}
 
 static ErrorOr<void> load_content_filters();
 
@@ -49,7 +51,9 @@ ErrorOr<int> service_main(int ipc_socket)
     Core::EventLoop event_loop;
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
-    Web::Platform::ImageCodecPlugin::install(*new Ladybird::ImageCodecPlugin);
+
+    auto image_decoder_client = TRY(bind_image_decoder_service());
+    Web::Platform::ImageCodecPlugin::install(*new Ladybird::ImageCodecPlugin(move(image_decoder_client)));
 
     Web::Platform::AudioCodecPlugin::install_creation_hook([](auto loader) {
         (void)loader;
