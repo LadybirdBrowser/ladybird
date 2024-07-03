@@ -1,0 +1,16 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        window.onerror = (message, filename, lineno, colno, error) => {
+            println(`message = ${message}`);
+            println(`filename = ${filename}`);
+            println(`lineno = ${lineno}`);
+            println(`colno = ${colno}`);
+            println(`error = ${error}`);
+
+            return true;
+        };
+
+        window.reportError(new Error('Reporting an Error!'));
+    });
+</script>
