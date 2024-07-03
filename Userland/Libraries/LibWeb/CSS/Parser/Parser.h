@@ -238,7 +238,8 @@ private:
     Optional<TimeOrCalculated> parse_time(TokenStream<ComponentValue>&);
     Optional<TimePercentage> parse_time_percentage(TokenStream<ComponentValue>&);
 
-    Optional<Color> parse_rgb_or_hsl_color(StringView function_name, Vector<ComponentValue> const&);
+    Optional<Color> parse_rgb_color(Vector<ComponentValue> const&);
+    Optional<Color> parse_hsl_color(Vector<ComponentValue> const&);
     Optional<Color> parse_color(ComponentValue const&);
     Optional<LengthOrCalculated> parse_source_size_value(TokenStream<ComponentValue>&);
     Optional<Ratio> parse_ratio(TokenStream<ComponentValue>&);
