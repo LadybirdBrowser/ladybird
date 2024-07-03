@@ -21,6 +21,15 @@ public:
     DOM::Element const& dom_node() const { return verify_cast<DOM::Element>(*Node::dom_node()); }
     DOM::Element& dom_node() { return verify_cast<DOM::Element>(*Node::dom_node()); }
 
+    Optional<CSSPixels> intrinsic_width() const { return m_intrinsic_width; }
+    Optional<CSSPixels> intrinsic_height() const { return m_intrinsic_height; }
+
+    bool has_intrinsic_width() const { return intrinsic_width().has_value(); }
+    bool has_intrinsic_height() const { return intrinsic_height().has_value(); }
+
+    void set_intrinsic_width(Optional<CSSPixels> width) { m_intrinsic_width = width; }
+    void set_intrinsic_height(Optional<CSSPixels> height) { m_intrinsic_height = height; }
+
     virtual void prepare_for_replaced_layout() { }
 
     virtual bool can_have_children() const override { return false; }

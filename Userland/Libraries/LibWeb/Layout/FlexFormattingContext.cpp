@@ -642,7 +642,15 @@ void FlexFormattingContext::determine_flex_base_size_and_hypothetical_main_size(
     //         - using stretch-fit main size if the flex basis is indefinite and there is no cross size to resolve the ratio against.
     //         - in response to cross size min/max constraints.
     if (item.box->has_natural_aspect_ratio()) {
-        if (!item.used_flex_basis_is_definite && !has_definite_cross_size(item)) {
+        auto has_intrinsic_dimensions = false;
+        if (item.box->is_replaced_box()) {
+            auto box = dynamic_cast<ReplacedBox*>(item.box.ptr());
+            if (box->has_intrinsic_height() || box->has_intrinsic_width()) {
+                has_intrinsic_dimensions = true;
+            }
+        }
+
+        if (!item.used_flex_basis_is_definite && !has_definite_cross_size(item) && !has_intrinsic_dimensions) {
             item.flex_base_size = inner_main_size(m_flex_container_state);
         }
         item.flex_base_size = adjust_main_size_through_aspect_ratio_for_cross_size_min_max_constraints(child_box, item.flex_base_size, computed_cross_min_size(child_box), computed_cross_max_size(child_box));

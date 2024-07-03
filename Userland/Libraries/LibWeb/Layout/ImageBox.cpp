@@ -32,8 +32,12 @@ void ImageBox::visit_edges(JS::Cell::Visitor& visitor)
 
 void ImageBox::prepare_for_replaced_layout()
 {
-    set_natural_width(m_image_provider.intrinsic_width());
-    set_natural_height(m_image_provider.intrinsic_height());
+    auto intrinsic_width = m_image_provider.intrinsic_width();
+    auto intrinsic_height = m_image_provider.intrinsic_height();
+    set_intrinsic_width(intrinsic_width);
+    set_intrinsic_height(intrinsic_height);
+    set_natural_width(intrinsic_width);
+    set_natural_height(intrinsic_height);
     set_natural_aspect_ratio(m_image_provider.intrinsic_aspect_ratio());
 
     if (renders_as_alt_text()) {
