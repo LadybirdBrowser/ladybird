@@ -35,6 +35,19 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
         m_skia_backend_context = Painting::DisplayListPlayerSkia::create_metal_context(*m_metal_context);
     }
 #endif
+
+#ifdef USE_VULKAN
+    auto display_list_player_type = page->client().display_list_player_type();
+    if (display_list_player_type == DisplayListPlayerType::Skia) {
+        auto maybe_vulkan_context = Core::create_vulkan_context();
+        if (!maybe_vulkan_context.is_error()) {
+            auto vulkan_context = maybe_vulkan_context.release_value();
+            m_skia_backend_context = Painting::DisplayListPlayerSkia::create_vulkan_context(vulkan_context);
+        } else {
+            dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
+        }
+    }
+#endif
 }
 
 TraversableNavigable::~TraversableNavigable() = default;
@@ -1201,6 +1214,15 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
             return;
         }
 #endif
+
+#ifdef USE_VULKAN
+        if (m_skia_backend_context) {
+            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, target.bitmap());
+            display_list.execute(player);
+            return;
+        }
+#endif
+
         Painting::DisplayListPlayerSkia player(target.bitmap());
         display_list.execute(player);
     } else {

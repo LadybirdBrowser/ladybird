@@ -26,6 +26,13 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
+#ifdef USE_VULKAN
+#    include <gpu/ganesh/vk/GrVkDirectContext.h>
+#    include <gpu/vk/GrVkBackendContext.h>
+#    include <gpu/vk/VulkanBackendContext.h>
+#    include <gpu/vk/VulkanExtensions.h>
+#endif
+
 #ifdef AK_OS_MACOS
 #    define FixedPoint FixedPointMacOS
 #    define Duration DurationMacOS
@@ -47,9 +54,85 @@ public:
     {
     }
 
+    void read_into_bitmap(Gfx::Bitmap& bitmap)
+    {
+        auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+        SkPixmap pixmap(image_info, bitmap.begin(), bitmap.pitch());
+        m_surface->readPixels(pixmap, 0, 0);
+    }
+
 private:
     sk_sp<SkSurface> m_surface;
 };
+
+#ifdef USE_VULKAN
+class SkiaVulkanBackendContext final : public SkiaBackendContext {
+    AK_MAKE_NONCOPYABLE(SkiaVulkanBackendContext);
+    AK_MAKE_NONMOVABLE(SkiaVulkanBackendContext);
+
+public:
+    SkiaVulkanBackendContext(sk_sp<GrDirectContext> context, NonnullOwnPtr<skgpu::VulkanExtensions> extensions)
+        : m_context(move(context))
+        , m_extensions(move(extensions))
+    {
+    }
+
+    ~SkiaVulkanBackendContext() override {};
+
+    void flush_and_submit() override
+    {
+        m_context->flush();
+        m_context->submit(GrSyncCpu::kYes);
+    }
+
+    sk_sp<SkSurface> create_surface(int width, int height)
+    {
+        auto image_info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+        return SkSurfaces::RenderTarget(m_context.get(), skgpu::Budgeted::kYes, image_info);
+    }
+
+    skgpu::VulkanExtensions const* extensions() const { return m_extensions.ptr(); }
+
+private:
+    sk_sp<GrDirectContext> m_context;
+    NonnullOwnPtr<skgpu::VulkanExtensions> m_extensions;
+};
+
+OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_vulkan_context(Core::VulkanContext& vulkan_context)
+{
+    GrVkBackendContext backend_context;
+
+    backend_context.fInstance = vulkan_context.instance;
+    backend_context.fDevice = vulkan_context.logical_device;
+    backend_context.fQueue = vulkan_context.graphics_queue;
+    backend_context.fPhysicalDevice = vulkan_context.physical_device;
+    backend_context.fMaxAPIVersion = vulkan_context.api_version;
+    backend_context.fGetProc = [](char const* proc_name, VkInstance instance, VkDevice device) {
+        if (device != VK_NULL_HANDLE) {
+            return vkGetDeviceProcAddr(device, proc_name);
+        }
+        return vkGetInstanceProcAddr(instance, proc_name);
+    };
+
+    auto extensions = make<skgpu::VulkanExtensions>();
+    backend_context.fVkExtensions = extensions.ptr();
+
+    sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context);
+    VERIFY(ctx);
+    return make<SkiaVulkanBackendContext>(ctx, move(extensions));
+}
+
+DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Gfx::Bitmap& bitmap)
+{
+    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
+    auto surface = static_cast<SkiaVulkanBackendContext&>(context).create_surface(bitmap.width(), bitmap.height());
+    m_surface = make<SkiaSurface>(surface);
+    m_flush_context = [&bitmap, &surface = m_surface, &context] {
+        context.flush_and_submit();
+        surface->read_into_bitmap(bitmap);
+    };
+}
+#endif
 
 #ifdef AK_OS_MACOS
 class SkiaMetalBackendContext final : public SkiaBackendContext {
