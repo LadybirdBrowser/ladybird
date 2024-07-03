@@ -14,6 +14,10 @@
 #    include <LibCore/MetalContext.h>
 #endif
 
+#ifdef USE_VULKAN
+#    include <LibCore/VulkanContext.h>
+#endif
+
 namespace Web::Painting {
 
 class SkiaBackendContext {
@@ -69,6 +73,11 @@ public:
     void update_immutable_bitmap_texture_cache(HashMap<u32, Gfx::ImmutableBitmap const*>&) override {};
 
     DisplayListPlayerSkia(Gfx::Bitmap&);
+
+#ifdef USE_VULKAN
+    static OwnPtr<SkiaBackendContext> create_vulkan_context(Core::VulkanContext&);
+    DisplayListPlayerSkia(SkiaBackendContext&, Gfx::Bitmap&);
+#endif
 
 #ifdef AK_OS_MACOS
     static OwnPtr<SkiaBackendContext> create_metal_context(Core::MetalContext const&);

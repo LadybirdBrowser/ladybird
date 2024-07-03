@@ -1,4 +1,5 @@
 include(libweb_generators)
+include(vulkan)
 
 set(SOURCES
     Animations/Animatable.cpp

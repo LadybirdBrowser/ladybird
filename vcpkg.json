@@ -22,7 +22,10 @@
     },
     {
       "name": "skia",
-      "platform": "linux | freebsd | openbsd"
+      "platform": "linux | freebsd | openbsd",
+      "features": [
+        "vulkan"
+      ]
     },
     "sqlite3",
     "woff2"

@@ -1,0 +1,7 @@
+if (NOT APPLE)
+    find_package(Vulkan QUIET)
+    if (Vulkan_FOUND)
+        set(HAS_VULKAN ON CACHE BOOL "" FORCE)
+        add_compile_definitions(USE_VULKAN=1)
+    endif()
+endif()

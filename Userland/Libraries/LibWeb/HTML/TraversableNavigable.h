@@ -19,6 +19,10 @@
 #    include <LibCore/MetalContext.h>
 #endif
 
+#ifdef USE_VULKAN
+#    include <LibCore/VulkanContext.h>
+#endif
+
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#traversable-navigable
@@ -130,8 +134,9 @@ private:
 
     String m_window_handle;
 
-#ifdef AK_OS_MACOS
     OwnPtr<Web::Painting::SkiaBackendContext> m_skia_backend_context;
+
+#ifdef AK_OS_MACOS
     OwnPtr<Core::MetalContext> m_metal_context;
 #endif
 };
