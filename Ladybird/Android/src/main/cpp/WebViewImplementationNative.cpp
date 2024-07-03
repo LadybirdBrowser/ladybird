@@ -69,7 +69,7 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
     // Software bitmaps only for now!
     VERIFY((info.flags & ANDROID_BITMAP_FLAGS_IS_HARDWARE) == 0);
 
-    auto android_bitmap = MUST(Gfx::Bitmap::create_wrapper(to_gfx_bitmap_format(info.format), { info.width, info.height }, 1, info.stride, android_bitmap_raw));
+    auto android_bitmap = MUST(Gfx::Bitmap::create_wrapper(to_gfx_bitmap_format(info.format), { info.width, info.height }, info.stride, android_bitmap_raw));
     Gfx::Painter painter(android_bitmap);
     if (auto* bitmap = m_client_state.has_usable_bitmap ? m_client_state.front_bitmap.bitmap.ptr() : m_backup_bitmap.ptr())
         painter.blit({ 0, 0 }, *bitmap, bitmap->rect());
