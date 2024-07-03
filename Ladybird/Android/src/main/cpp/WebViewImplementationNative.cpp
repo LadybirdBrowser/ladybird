@@ -93,8 +93,7 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
 
 void WebViewImplementationNative::set_viewport_geometry(int w, int h)
 {
-    m_viewport_rect = { { 0, 0 }, { w, h } };
-    client().async_set_viewport_rect(0, m_viewport_rect);
+    m_viewport_size = { w, h };
     handle_resize();
 }
 

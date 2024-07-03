@@ -15,7 +15,7 @@ class WebViewImplementationNative : public WebView::ViewImplementation {
 public:
     WebViewImplementationNative(jobject thiz);
 
-    virtual Web::DevicePixelRect viewport_rect() const override { return m_viewport_rect; }
+    virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint p) const override { return p; }
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint p) const override { return p; }
     virtual void update_zoom() override { }
@@ -38,6 +38,6 @@ public:
 
 private:
     jobject m_java_instance = nullptr;
-    Web::DevicePixelRect m_viewport_rect;
+    Web::DevicePixelSize m_viewport_size;
 };
 }
