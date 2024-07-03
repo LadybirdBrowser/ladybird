@@ -34,7 +34,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                cppFlags += "-std=c++23"
+                // FIXME: Use -std=c++23 once the Android NDK's clang supports that.
+                cppFlags += "-std=c++2b"
                 arguments += listOf(
                     "-DLagomTools_DIR=$buildDir/lagom-tools-install/share/LagomTools",
                     "-DSERENITY_CACHE_DIR=$cacheDir",
