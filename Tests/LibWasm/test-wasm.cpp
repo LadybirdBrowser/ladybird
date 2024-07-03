@@ -256,7 +256,17 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     for (auto& param : type->parameters()) {
         auto argument = vm.argument(index++);
         double double_value = 0;
-        if (!argument.is_bigint())
+        if (argument.is_object()) {
+            auto object = MUST(argument.to_object(vm));
+            // Uint8Array allows for raw bytes to be passed into Wasm. This is
+            // particularly useful for preserving the sign bit of a NaN
+            if (!is<JS::Uint8Array>(*object))
+                return vm.throw_completion<JS::TypeError>("Expected a Uint8Array object"sv);
+            auto& array = static_cast<JS::Uint8Array&>(*object);
+            if (array.array_length().length() != 8)
+                return vm.throw_completion<JS::TypeError>("Expected a Uint8Array of size 8"sv);
+            memcpy(&double_value, array.data().data(), sizeof(double));
+        } else if (!argument.is_bigint())
             double_value = TRY(argument.to_double(vm));
         switch (param.kind()) {
         case Wasm::ValueType::Kind::I32:
