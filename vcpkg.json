@@ -27,6 +27,10 @@
         "vulkan"
       ]
     },
+    {
+      "name": "skia",
+      "platform": "android"
+    },
     "sqlite3",
     "woff2"
   ],
