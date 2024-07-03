@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>.
+ * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
+ * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,7 +8,12 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/HashMap.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
+
+namespace Web::CSS {
+class CSSTransition;
+}
 
 namespace Web::Animations {
 
@@ -25,6 +31,12 @@ struct GetAnimationsOptions {
 // https://www.w3.org/TR/web-animations-1/#animatable
 class Animatable {
 public:
+    struct TransitionAttributes {
+        double delay;
+        double duration;
+        CSS::EasingStyleValue::Function timing_function;
+    };
+
     virtual ~Animatable() = default;
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<Animation>> animate(Optional<JS::Handle<JS::Object>> keyframes, Variant<Empty, double, KeyframeAnimationOptions> options = {});
@@ -39,6 +51,16 @@ public:
     JS::GCPtr<Animations::Animation> cached_animation_name_animation(Optional<CSS::Selector::PseudoElement::Type>) const;
     void set_cached_animation_name_animation(JS::GCPtr<Animations::Animation> value, Optional<CSS::Selector::PseudoElement::Type>);
 
+    JS::GCPtr<CSS::CSSStyleDeclaration const> cached_transition_property_source() const { return m_cached_transition_property_source; }
+    void set_cached_transition_property_source(JS::GCPtr<CSS::CSSStyleDeclaration const> value) { m_cached_transition_property_source = value; }
+
+    void add_transitioned_properties(Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions);
+    Optional<TransitionAttributes const&> property_transition_attributes(CSS::PropertyID) const;
+    void set_transition(CSS::PropertyID, JS::NonnullGCPtr<CSS::CSSTransition>);
+    void remove_transition(CSS::PropertyID);
+    JS::GCPtr<CSS::CSSTransition> property_transition(CSS::PropertyID) const;
+    void clear_transitions();
+
 protected:
     void visit_edges(JS::Cell::Visitor&);
 
@@ -48,6 +70,11 @@ private:
 
     Array<JS::GCPtr<CSS::CSSStyleDeclaration const>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount) + 1> m_cached_animation_name_source;
     Array<JS::GCPtr<Animations::Animation>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount) + 1> m_cached_animation_name_animation;
+
+    HashMap<CSS::PropertyID, size_t> m_transition_attribute_indices;
+    Vector<TransitionAttributes> m_transition_attributes;
+    JS::GCPtr<CSS::CSSStyleDeclaration const> m_cached_transition_property_source;
+    HashMap<CSS::PropertyID, JS::NonnullGCPtr<CSS::CSSTransition>> m_associated_transitions;
 };
 
 }
