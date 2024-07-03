@@ -32,6 +32,7 @@ public:
     virtual Web::CSS::PreferredContrast preferred_contrast() const override;
     virtual Web::CSS::PreferredMotion preferred_motion() const override;
     virtual void paint_next_frame() override {};
+    virtual void process_screenshot_requests() override {};
     virtual void paint(Web::DevicePixelRect const&, Web::Painting::BackingStore&, Web::PaintOptions = {}) override;
     virtual void request_file(Web::FileRequest) override;
     virtual void schedule_repaint() override {};

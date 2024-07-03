@@ -187,7 +187,7 @@ Web::Layout::Viewport* PageClient::layout_root()
     return document->layout_node();
 }
 
-void PageClient::paint_next_frame()
+void PageClient::process_screenshot_requests()
 {
     while (!m_screenshot_tasks.is_empty()) {
         auto task = m_screenshot_tasks.dequeue();
@@ -210,6 +210,11 @@ void PageClient::paint_next_frame()
             client().async_did_take_screenshot(m_id, bitmap->to_shareable_bitmap());
         }
     }
+}
+
+void PageClient::paint_next_frame()
+{
+    process_screenshot_requests();
 
     auto back_store = m_backing_store_manager.back_store();
     if (!back_store)
