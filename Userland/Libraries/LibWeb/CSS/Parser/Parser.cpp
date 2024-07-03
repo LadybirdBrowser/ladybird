@@ -2559,6 +2559,229 @@ Optional<Color> Parser::parse_hsl_color(Vector<ComponentValue> const& component_
     return Color::from_hsla(h_val, s_val, l_val, alpha_val);
 }
 
+Optional<Color> Parser::parse_hwb_color(Vector<ComponentValue> const& component_values)
+{
+    float h_val = 0.0;
+    float w_val = 0.0;
+    float b_val = 0.0;
+
+    auto tokens = TokenStream { component_values };
+
+    tokens.skip_whitespace();
+    auto const& hue = tokens.next_token();
+
+    if (!hue.is(Token::Type::Number)
+        && !hue.is(Token::Type::Dimension))
+        return {};
+
+    if (hue.is(Token::Type::Number)) {
+        h_val = fmod(hue.token().number_value(), 360.0);
+    } else {
+        auto numeric_value = hue.token().dimension_value();
+        auto unit_string = hue.token().dimension_unit();
+        auto angle_type = Angle::unit_from_name(unit_string);
+
+        if (!angle_type.has_value())
+            return {};
+
+        auto angle = Angle { numeric_value, angle_type.release_value() };
+
+        h_val = fmod(angle.to_degrees(), 360);
+    }
+
+    tokens.skip_whitespace();
+    auto const& whiteness = tokens.next_token();
+    if (whiteness.is(Token::Type::Number)) {
+        w_val = whiteness.token().number_value() / 100.0;
+    } else if (whiteness.is(Token::Type::Percentage)) {
+        w_val = whiteness.token().percentage() / 100.0;
+    } else {
+        return {};
+    }
+
+    tokens.skip_whitespace();
+    auto const& blackness = tokens.next_token();
+    if (blackness.is(Token::Type::Number)) {
+        b_val = blackness.token().number_value() / 100.0;
+    } else if (blackness.is(Token::Type::Percentage)) {
+        b_val = blackness.token().percentage() / 100.0;
+    } else {
+        return {};
+    }
+
+    float alpha_val = 1.0;
+    tokens.skip_whitespace();
+    if (tokens.has_next_token()) {
+        auto const& separator = tokens.next_token();
+        if (!separator.is_delim('/'))
+            return {};
+
+        tokens.skip_whitespace();
+        auto const& alpha = tokens.next_token();
+
+        if (alpha.is(Token::Type::Number))
+            alpha_val = alpha.token().number_value();
+        else if (alpha.is(Token::Type::Percentage))
+            alpha_val = alpha.token().percentage() / 100.0;
+        else
+            return {};
+
+        tokens.skip_whitespace();
+        if (tokens.has_next_token())
+            return {}; // should have consumed all arguments.
+    }
+
+    if (w_val + b_val >= 1.0) {
+        u8 gray = clamp(llroundf((w_val / (w_val + b_val)) * 255), 0, 255);
+        return Color(gray, gray, gray, clamp(llroundf(alpha_val * 255), 0, 255));
+    }
+
+    float value = 1 - b_val;
+    float saturation = 1 - (w_val / value);
+    return Color::from_hsv(h_val, saturation, value).with_opacity(alpha_val);
+}
+
+Optional<Color> Parser::parse_oklab_color(Vector<ComponentValue> const& component_values)
+{
+    float L_val = 0.0;
+    float a_val = 0.0;
+    float b_val = 0.0;
+
+    auto tokens = TokenStream { component_values };
+
+    tokens.skip_whitespace();
+    auto const& lightness = tokens.next_token();
+    if (lightness.is(Token::Type::Number)) {
+        L_val = lightness.token().number_value();
+    } else if (lightness.is(Token::Type::Percentage)) {
+        L_val = lightness.token().percentage() / 100.0;
+    } else {
+        return {};
+    }
+    L_val = clamp(L_val, 0.0, 1.0);
+
+    tokens.skip_whitespace();
+    auto const& a = tokens.next_token();
+    if (a.is(Token::Type::Number)) {
+        a_val = a.token().number_value();
+    } else if (a.is(Token::Type::Percentage)) {
+        a_val = a.token().percentage() / 100.0 * 0.4;
+    } else {
+        return {};
+    }
+
+    tokens.skip_whitespace();
+    auto const& b = tokens.next_token();
+    if (b.is(Token::Type::Number)) {
+        b_val = b.token().number_value();
+    } else if (a.is(Token::Type::Percentage)) {
+        b_val = b.token().percentage() / 100.0 * 0.4;
+    } else {
+        return {};
+    }
+
+    float alpha_val = 1.0;
+    tokens.skip_whitespace();
+    if (tokens.has_next_token()) {
+        auto const& separator = tokens.next_token();
+        if (!separator.is_delim('/'))
+            return {};
+
+        tokens.skip_whitespace();
+        auto const& alpha = tokens.next_token();
+
+        if (alpha.is(Token::Type::Number))
+            alpha_val = alpha.token().number_value();
+        else if (alpha.is(Token::Type::Percentage))
+            alpha_val = alpha.token().percentage() / 100.0;
+        else
+            return {};
+
+        tokens.skip_whitespace();
+        if (tokens.has_next_token())
+            return {}; // should have consumed all arguments.
+    }
+
+    return Color::from_oklab(L_val, a_val, b_val, alpha_val);
+}
+
+Optional<Color> Parser::parse_oklch_color(Vector<ComponentValue> const& component_values)
+{
+    float L_val = 0.0;
+    float c_val = 0.0;
+    float h_val = 0.0;
+
+    auto tokens = TokenStream { component_values };
+
+    tokens.skip_whitespace();
+    auto const& lightness = tokens.next_token();
+    if (lightness.is(Token::Type::Number)) {
+        L_val = lightness.token().number_value();
+    } else if (lightness.is(Token::Type::Percentage)) {
+        L_val = lightness.token().percentage() / 100.0;
+    } else {
+        return {};
+    }
+    L_val = clamp(L_val, 0.0, 1.0);
+
+    tokens.skip_whitespace();
+    auto const& chroma = tokens.next_token();
+    if (chroma.is(Token::Type::Number)) {
+        c_val = chroma.token().number_value();
+    } else if (chroma.is(Token::Type::Percentage)) {
+        c_val = chroma.token().percentage() / 100.0 * 0.4;
+    } else {
+        return {};
+    }
+    c_val = max(c_val, 0.0);
+
+    tokens.skip_whitespace();
+    auto const& hue = tokens.next_token();
+
+    if (!hue.is(Token::Type::Number)
+        && !hue.is(Token::Type::Dimension))
+        return {};
+
+    if (hue.is(Token::Type::Number)) {
+        h_val = hue.token().number_value() * AK::Pi<float> / 180;
+    } else {
+        auto numeric_value = hue.token().dimension_value();
+        auto unit_string = hue.token().dimension_unit();
+        auto angle_type = Angle::unit_from_name(unit_string);
+
+        if (!angle_type.has_value())
+            return {};
+
+        auto angle = Angle { numeric_value, angle_type.release_value() };
+
+        h_val = angle.to_radians();
+    }
+
+    float alpha_val = 1.0;
+    tokens.skip_whitespace();
+    if (tokens.has_next_token()) {
+        auto const& separator = tokens.next_token();
+        if (!separator.is_delim('/'))
+            return {};
+
+        tokens.skip_whitespace();
+        auto const& alpha = tokens.next_token();
+
+        if (alpha.is(Token::Type::Number))
+            alpha_val = alpha.token().number_value();
+        else if (alpha.is(Token::Type::Percentage))
+            alpha_val = alpha.token().percentage() / 100.0;
+        else
+            return {};
+
+        tokens.skip_whitespace();
+        if (tokens.has_next_token())
+            return {}; // should have consumed all arguments.
+    }
+
+    return Color::from_oklab(L_val, c_val * cos(h_val), c_val * sin(h_val), alpha_val);
+}
+
 Optional<Color> Parser::parse_color(ComponentValue const& component_value)
 {
     // https://www.w3.org/TR/css-color-4/
@@ -2584,6 +2807,12 @@ Optional<Color> Parser::parse_color(ComponentValue const& component_value)
             return parse_rgb_color(values);
         if (function_name.equals_ignoring_ascii_case("hsl"sv) || function_name.equals_ignoring_ascii_case("hsla"sv))
             return parse_hsl_color(values);
+        if (function_name.equals_ignoring_ascii_case("hwb"sv))
+            return parse_hwb_color(values);
+        if (function_name.equals_ignoring_ascii_case("oklab"sv))
+            return parse_oklab_color(values);
+        if (function_name.equals_ignoring_ascii_case("oklch"sv))
+            return parse_oklch_color(values);
 
         return {};
     }
