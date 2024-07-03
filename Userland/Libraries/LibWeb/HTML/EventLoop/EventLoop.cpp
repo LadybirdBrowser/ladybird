@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -335,6 +336,13 @@ void EventLoop::process()
             }
         }
     });
+
+    // FIXME: Not in the spec: If there is a screenshot request queued, process it now.
+    //        This prevents tests deadlocking on screenshot requests on macOS.
+    for (auto& document : docs) {
+        if (document->page().top_level_traversable()->needs_repaint())
+            document->page().client().process_screenshot_requests();
+    }
 
     // 13. If all of the following are true
     // - this is a window event loop
