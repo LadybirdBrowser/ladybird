@@ -1,0 +1,19 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        class MyEventTarget extends EventTarget {
+            derivedClassMethod() {
+                println("derived class method present and invoked!");
+            }
+        }
+        let instance = new MyEventTarget();
+        if (instance.__proto__ !== MyEventTarget.prototype) {
+            println("Derived class MyEventTarget has incorrect prototype.");
+        }
+        try {
+            instance.derivedClassMethod();
+        } catch (e) {
+            println(e);
+        }
+    });
+</script>
