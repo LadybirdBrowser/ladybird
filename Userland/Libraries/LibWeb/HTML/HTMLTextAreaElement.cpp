@@ -209,6 +209,7 @@ void HTMLTextAreaElement::set_custom_validity(String const& error)
     dbgln("(STUBBED) HTMLTextAreaElement::set_custom_validity(\"{}\"). Called on: {}", error, debug_description());
 }
 
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
 WebIDL::UnsignedLong HTMLTextAreaElement::selection_start() const
 {
@@ -216,25 +217,28 @@ WebIDL::UnsignedLong HTMLTextAreaElement::selection_start() const
 
     // 2. If there is no selection, return the code unit offset within the relevant value to the character that
     //    immediately follows the text entry cursor.
-    if (auto navigable = document().navigable()) {
-        if (auto cursor = navigable->cursor_position())
-            return cursor->offset();
-    }
+    // NOTE: There does not appear to be a concept of selection state (in the spec) after the first selection is made.
+    //       Before it we can check if the values have been cached, but 
 
-    // FIXME: 3. Return the code unit offset within the relevant value to the character that immediately follows the start of
+    // 3. Return the code unit offset within the relevant value to the character that immediately follows the start of
     //           the selection.
-    return 0;
+    return m_cached_selection_start;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionstart-2
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_start(WebIDL::UnsignedLong)
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_start(WebIDL::UnsignedLong value)
 {
-    // 1. If this element is an input element, and selectionStart does not apply to this element, throw an
+    // 1. If this element is an input element, and selectionStart does not apply to this element, throw an 
     //    "InvalidStateError" DOMException.
 
-    // FIXME: 2. Let end be the value of this element's selectionEnd attribute.
-    // FIXME: 3. If end is less than the given value, set end to the given value.
-    // FIXME: 4. Set the selection range with the given value, end, and the value of this element's selectionDirection attribute.
+    // 2. Let end be the value of this element's selectionEnd attribute.
+
+    // 3. If end is less than the given value, set end to the given value.
+    if (m_cached_selection_end < value)
+        cache_selection_state(value, value, m_cached_selection_direction);
+    // 4. Set the selection range with the given value, end, and the value of this element's selectionDirection attribute.
+    else
+        cache_selection_state(value, m_cached_selection_end, m_cached_selection_direction);
     return {};
 }
 
@@ -245,24 +249,68 @@ WebIDL::UnsignedLong HTMLTextAreaElement::selection_end() const
 
     // 2. If there is no selection, return the code unit offset within the relevant value to the character that
     //    immediately follows the text entry cursor.
-    if (auto navigable = document().navigable()) {
-        if (auto cursor = navigable->cursor_position())
-            return cursor->offset();
-    }
 
-    // FIXME: 3. Return the code unit offset within the relevant value to the character that immediately follows the end of
-    //           the selection.
-    return 0;
+    // 3. Return the code unit offset within the relevant value to the character that immediately follows the end of
+    //    the selection.
+    return m_cached_selection_end;
+    
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionend-3
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_end(WebIDL::UnsignedLong)
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_end(WebIDL::UnsignedLong value)
 {
-    // 1. If this element is an input element, and selectionEnd does not apply to this element, throw an
+    // FIXME: 1. If this element is an input element, and selectionEnd does not apply to this element, throw an
     //    "InvalidStateError" DOMException.
 
-    // FIXME: 2. Set the selection range with the value of this element's selectionStart attribute, the given value, and the
+    // 2. Set the selection range with the value of this element's selectionStart attribute, the given value, and the
     //           value of this element's selectionDirection attribute.
+    cache_selection_state(m_cached_selection_start, value, m_cached_selection_direction);
+    dbgln("SETTER selection_end({})", value);
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, Optional<String> direction)
+{
+    // 1. If this element is an input element, and setSelectionRange() does not apply to this element, throw an "InvalidStateError" DOMException.
+
+    // 2. Set the selection range with start, end, and direction.
+
+    // 1. If start is null, set start to 0.
+    if (!start.has_value())
+        start = 0;
+
+    // 2. If end is null, set end to 0.
+    if (!end.has_value())
+        end = 0;
+
+    // 3. Set the selection of the text control to the sequence of code units within the relevant value starting with 
+    //    the code unit at the startth position (in logical order) and ending with the code unit at the (end-1)th position.
+    auto length = text_length();
+    //    Arguments greater than the length of the relevant value point at the end of the text control. 
+    end =  min(end.value(), length);
+    //    If end is less than or equal to start then the start of the selection and the end of the selection must both be placed 
+    //    immediately before the character with offset end. 
+    start = min(start.value(), length);
+    // FIXME: In UAs where there is no concept of an empty selection, this must set the cursor to be just before the character with offset end.
+
+    // 4. If direction is not identical to either "backward" or "forward", or if the direction argument was not given, set direction to "none".
+    auto _direction = TextAreaSelectionDirection::None;
+    if (direction.has_value()) {
+        if (direction.value() == "forward")
+            _direction = TextAreaSelectionDirection::Forward;
+        else if (direction.value() == "backward")
+            _direction = TextAreaSelectionDirection::Backward;
+    }
+    // 5. Set the selection direction of the text control to direction.
+    if (!cache_selection_state(start.value(), end.value(), _direction))
+        // 6. If the previous steps caused the selection of the text control to be modified (in either extent or direction), then queue an element
+        //    task on the user interaction task source given the element to fire an event named select at the element, with the bubbles attribute 
+        //    initialized to true.
+        queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
+            auto select_event = DOM::Event::create(realm(), HTML::EventNames::select, { .bubbles = true });
+            dispatch_event(select_event);
+        });
     return {};
 }
 
@@ -457,4 +505,14 @@ void HTMLTextAreaElement::queue_firing_input_event()
     });
 }
 
+bool HTMLTextAreaElement::cache_selection_state(unsigned start, unsigned end, TextAreaSelectionDirection direction)
+{
+    if (m_has_cached_selection && m_cached_selection_start == start && m_cached_selection_end == end && m_cached_selection_direction == direction)
+        return false;
+    m_cached_selection_start = start;
+    m_cached_selection_end = end;
+    m_cached_selection_direction = direction;
+    m_has_cached_selection = true;
+    return true;
+}
 }

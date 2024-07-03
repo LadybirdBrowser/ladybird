@@ -141,6 +141,18 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-api-value
     mutable Optional<String> m_api_value;
+
+    enum TextAreaSelectionDirection {
+        None,
+        Forward,
+        Backward
+    };
+    bool cache_selection_state(unsigned start, unsigned end, TextAreaSelectionDirection direction);
+    WebIDL::UnsignedLong m_cached_selection_start { 0 };
+    WebIDL::UnsignedLong m_cached_selection_end { 0 };
+    TextAreaSelectionDirection m_cached_selection_direction { None };
+
+    bool m_has_cached_selection { false };
 };
 
 }

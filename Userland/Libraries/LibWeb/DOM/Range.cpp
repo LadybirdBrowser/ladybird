@@ -1,4 +1,4 @@
-/*
+/*range.cpp
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022-2023, Andreas Kling <kling@serenityos.org>
@@ -117,6 +117,10 @@ void Range::update_associated_selection()
         auto event = DOM::Event::create(document->realm(), HTML::EventNames::selectionchange, event_init);
         document->dispatch_event(event);
     }));
+
+    // FIXME: When an input or textarea element provide a text selection and its selection changes (in either extent or direction), 
+    // the user agent must queue a task on the user interaction task source to fire an event named selectionchange, which 
+    // bubbles but is not cancelable, at the element.
 }
 
 // https://dom.spec.whatwg.org/#concept-range-root
