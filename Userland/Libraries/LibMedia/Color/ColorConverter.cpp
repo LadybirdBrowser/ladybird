@@ -76,19 +76,20 @@ DecoderErrorOr<ColorConverter> ColorConverter::create(u8 bit_depth, CodingIndepe
 
     // https://kdashg.github.io/misc/colors/from-coeffs.html
     switch (input_cicp.matrix_coefficients()) {
-    case MatrixCoefficients::BT709:
-        color_conversion_matrix = {
-            1.0f, 0.0f, 0.78740f, 0.0f,       // y
-            1.0f, -0.09366f, -0.23406f, 0.0f, // u
-            1.0f, 0.92780f, 0.0f, 0.0f,       // v
-            0.0f, 0.0f, 0.0f, 1.0f,           // w
-        };
-        break;
+    case MatrixCoefficients::BT470BG:
     case MatrixCoefficients::BT601:
         color_conversion_matrix = {
             1.0f, 0.0f, 0.70100f, 0.0f,       // y
             1.0f, -0.17207f, -0.35707f, 0.0f, // u
             1.0f, 0.88600f, 0.0f, 0.0f,       // v
+            0.0f, 0.0f, 0.0f, 1.0f,           // w
+        };
+        break;
+    case MatrixCoefficients::BT709:
+        color_conversion_matrix = {
+            1.0f, 0.0f, 0.78740f, 0.0f,       // y
+            1.0f, -0.09366f, -0.23406f, 0.0f, // u
+            1.0f, 0.92780f, 0.0f, 0.0f,       // v
             0.0f, 0.0f, 0.0f, 1.0f,           // w
         };
         break;
