@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
-if (NOT APPLE AND NOT LAGOM_USE_LINKER)
+if (NOT APPLE AND NOT ANDROID AND NOT LAGOM_USE_LINKER)
     find_program(LLD_LINKER NAMES "ld.lld")
     if (LLD_LINKER)
         message(STATUS "Using LLD to link Lagom.")
