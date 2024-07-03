@@ -16,7 +16,9 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerCPU.h>
+#ifdef ENABLE_SKIA
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#endif
 #include <LibWeb/Painting/PaintContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -106,11 +108,13 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
         display_list.execute(executor);
         break;
     }
+#ifdef ENABLE_SKIA
     case DisplayListPlayerType::Skia: {
         Painting::DisplayListPlayerSkia executor { *bitmap };
         display_list.execute(executor);
         break;
     }
+#endif
     default:
         VERIFY_NOT_REACHED();
     }

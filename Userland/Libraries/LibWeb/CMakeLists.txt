@@ -544,7 +544,6 @@ set(SOURCES
     Painting/ClippableAndScrollable.cpp
     Painting/DisplayList.cpp
     Painting/DisplayListPlayerCPU.cpp
-    Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListRecorder.cpp
     Painting/GradientPainting.cpp
     Painting/FilterPainting.cpp
@@ -753,17 +752,22 @@ set(GENERATED_SOURCES
     Worker/WebWorkerServerEndpoint.h
 )
 
-find_package(unofficial-skia CONFIG REQUIRED)
-
 serenity_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibWasm LibXML LibIDL LibURL LibTLS unofficial::skia::skia)
+target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibWasm LibXML LibIDL LibURL LibTLS)
 
 if (HAS_ACCELERATED_GRAPHICS)
     target_link_libraries(LibWeb PRIVATE ${ACCEL_GFX_LIBS})
     target_sources(LibWeb PRIVATE Painting/DisplayListPlayerGPU.cpp)
     target_link_libraries(LibWeb PRIVATE LibAccelGfx)
     target_compile_definitions(LibWeb PRIVATE HAS_ACCELERATED_GRAPHICS)
+endif()
+
+if (ENABLE_SKIA)
+    find_package(unofficial-skia CONFIG REQUIRED)
+    target_link_libraries(LibWeb PRIVATE unofficial::skia::skia)
+    target_sources(LibWeb PRIVATE Painting/DisplayListPlayerSkia.cpp)
+    target_compile_definitions(LibWeb PRIVATE ENABLE_SKIA)
 endif()
 
 generate_js_bindings(LibWeb)

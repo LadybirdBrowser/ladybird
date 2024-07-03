@@ -71,6 +71,8 @@ if (ENABLE_QT)
     find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
 endif()
 
+serenity_option(ENABLE_SKIA ON CACHE BOOL "Enable ladybird Skia painting backend")
+
 include(CTest) # for BUILD_TESTING option, default ON
 
 add_subdirectory(Ladybird)

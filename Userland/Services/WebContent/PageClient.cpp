@@ -32,7 +32,9 @@
 namespace WebContent {
 
 static bool s_use_gpu_painter = false;
+#ifdef ENABLE_SKIA
 static bool s_use_skia_painter = false;
+#endif
 
 JS_DEFINE_ALLOCATOR(PageClient);
 
@@ -43,7 +45,11 @@ void PageClient::set_use_gpu_painter()
 
 void PageClient::set_use_skia_painter()
 {
+#ifdef ENABLE_SKIA
     s_use_skia_painter = true;
+#else
+    warnln("Skia painter is not available in this build.");
+#endif
 }
 
 JS::NonnullGCPtr<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
@@ -743,8 +749,10 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
 {
     if (s_use_gpu_painter)
         return Web::DisplayListPlayerType::GPU;
+#ifdef ENABLE_SKIA
     if (s_use_skia_painter)
         return Web::DisplayListPlayerType::Skia;
+#endif
     return Web::DisplayListPlayerType::CPU;
 }
 

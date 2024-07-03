@@ -12,7 +12,9 @@
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
+#ifdef ENABLE_SKIA
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#endif
 #include <WebContent/BackingStoreManager.h>
 
 #ifdef AK_OS_MACOS

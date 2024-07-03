@@ -31,3 +31,7 @@ if (HAS_ACCELERATED_GRAPHICS)
     target_compile_definitions(WebContent PRIVATE HAS_ACCELERATED_GRAPHICS)
     target_link_libraries(WebContent PRIVATE LibAccelGfx)
 endif()
+
+if (ENABLE_SKIA)
+    target_compile_definitions(WebContent PRIVATE ENABLE_SKIA)
+endif()

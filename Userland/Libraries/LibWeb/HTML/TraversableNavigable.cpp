@@ -34,7 +34,9 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
 {
 #ifdef AK_OS_MACOS
     m_metal_context = Core::get_metal_context();
+#ifdef ENABLE_SKIA
     m_skia_backend_context = Painting::DisplayListPlayerSkia::create_metal_context(*m_metal_context);
+#endif
 #endif
 }
 
@@ -1204,6 +1206,7 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
             has_warned_about_configuration = true;
         }
 #endif
+#ifdef ENABLE_SKIA
     } else if (display_list_player_type == DisplayListPlayerType::Skia) {
 #ifdef AK_OS_MACOS
         if (m_metal_context && m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
@@ -1216,6 +1219,7 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
 #endif
         Painting::DisplayListPlayerSkia player(target.bitmap());
         display_list.execute(player);
+#endif
     } else {
         Painting::DisplayListPlayerCPU player(target.bitmap());
         display_list.execute(player);
