@@ -10,10 +10,13 @@
 #include <AK/Types.h>
 #include <LibCrypto/Checksum/CRC32.h>
 
+#ifdef __ARM_ACLE
+#    include <arm_acle.h>
+#endif
+
 namespace Crypto::Checksum {
 
-#if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32)
-
+#if __ARM_ARCH >= 8 && defined(__ARM_FEATURE_CRC32) && defined(__ARM_ACLE)
 void CRC32::update(ReadonlyBytes span)
 {
     // FIXME: Does this require runtime checking on rpi?
@@ -23,21 +26,21 @@ void CRC32::update(ReadonlyBytes span)
     size_t size = span.size();
 
     while (size > 0 && (reinterpret_cast<FlatPtr>(data) & 7) != 0) {
-        m_state = __builtin_arm_crc32b(m_state, *data);
+        m_state = __crc32b(m_state, *data);
         ++data;
         --size;
     }
 
     auto* data64 = reinterpret_cast<u64 const*>(data);
     while (size >= 8) {
-        m_state = __builtin_arm_crc32d(m_state, *data64);
+        m_state = __crc32d(m_state, *data64);
         ++data64;
         size -= 8;
     }
 
     data = reinterpret_cast<u8 const*>(data64);
     while (size > 0) {
-        m_state = __builtin_arm_crc32b(m_state, *data);
+        m_state = __crc32b(m_state, *data);
         ++data;
         --size;
     }
