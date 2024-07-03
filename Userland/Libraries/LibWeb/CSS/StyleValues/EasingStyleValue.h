@@ -91,7 +91,7 @@ public:
     bool properties_equal(EasingStyleValue const& other) const { return m_function == other.m_function; }
 
 private:
-    EasingStyleValue(Function function)
+    EasingStyleValue(Function const& function)
         : StyleValueWithDefaultOperators(Type::Easing)
         , m_function(function)
     {
