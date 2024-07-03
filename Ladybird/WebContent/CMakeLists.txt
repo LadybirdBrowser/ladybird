@@ -30,9 +30,10 @@ else()
     set_target_properties(webcontent PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
 endif()
 
-target_include_directories(webcontent PUBLIC ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
-target_include_directories(webcontent PUBLIC ${LADYBIRD_SOURCE_DIR}/Userland/)
-target_include_directories(webcontent PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/..)
+target_include_directories(webcontent PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Userland/Services/>)
+target_include_directories(webcontent PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Userland/>)
+target_include_directories(webcontent PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/..>)
+
 target_link_libraries(webcontent PUBLIC LibAudio LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibWeb LibWebSocket LibProtocol LibWebView LibImageDecoderClient)
 
 if (HAVE_PULSEAUDIO)
