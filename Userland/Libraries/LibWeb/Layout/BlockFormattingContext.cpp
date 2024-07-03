@@ -656,6 +656,26 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     if (box.is_replaced_box() || box.display().is_flex_inside())
         compute_height(box, available_space);
 
+    // Before we insert the children of a list item we need to know the location of the marker.
+    // If we do not do this then left-floating elements inside the list item will push the marker to the right,
+    // in some cases even causing it to overlap with the non-floating content of the list.
+    CSSPixels left_space_before_children_formatted;
+    if (is<ListItemBox>(box)) {
+        auto const& li_box = static_cast<ListItemBox const&>(box);
+
+        // We need to ensure that our height and width are final before we calculate our left offset.
+        // Otherwise, the y at which we calculate the intrusion by floats might be incorrect.
+        ensure_sizes_correct_for_left_offset_calculation(li_box);
+
+        auto list_item_state = m_state.get(li_box);
+        auto marker_state = m_state.get(*li_box.marker());
+
+        auto offset_y = max(CSSPixels(0), (li_box.marker()->computed_values().line_height() - marker_state.content_height()) / 2);
+        auto space_used_before_children_formatted = intrusion_by_floats_into_box(list_item_state, offset_y);
+
+        left_space_before_children_formatted = space_used_before_children_formatted.left;
+    }
+
     if (independent_formatting_context) {
         // This box establishes a new formatting context. Pass control to it.
         independent_formatting_context->run(box, layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
@@ -699,8 +719,9 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     compute_inset(box);
 
+    // Now that our children are formatted we place the ListItemBox with the left space we remembered.
     if (is<ListItemBox>(box)) {
-        layout_list_item_marker(static_cast<ListItemBox const&>(box));
+        layout_list_item_marker(static_cast<ListItemBox const&>(box), left_space_before_children_formatted);
     }
 
     bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.offset.y() + box_state.content_height() + box_state.margin_box_bottom());
@@ -1073,14 +1094,13 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
         independent_formatting_context->parent_context_did_dimension_child_root_box();
 }
 
-void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_item_box)
+void BlockFormattingContext::ensure_sizes_correct_for_left_offset_calculation(ListItemBox const& list_item_box)
 {
     if (!list_item_box.marker())
         return;
 
     auto& marker = *list_item_box.marker();
     auto& marker_state = m_state.get_mutable(marker);
-    auto& list_item_state = m_state.get_mutable(list_item_box);
 
     CSSPixels image_width = 0;
     CSSPixels image_height = 0;
@@ -1089,7 +1109,7 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
         image_height = list_style_image->natural_height().value_or(0);
     }
 
-    CSSPixels default_marker_width = max(4, marker.first_available_font().pixel_size_rounded_up() - 4);
+    auto default_marker_width = max(4, marker.first_available_font().pixel_size_rounded_up() - 4);
 
     auto marker_text = marker.text().value_or("");
     if (marker_text.is_empty()) {
@@ -1100,7 +1120,18 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
     }
 
     marker_state.set_content_height(max(image_height, marker.first_available_font().pixel_size_rounded_up() + 1));
+}
 
+void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_item_box, CSSPixels const& left_space_before_list_item_elements_formatted)
+{
+    if (!list_item_box.marker())
+        return;
+
+    auto& marker = *list_item_box.marker();
+    auto& marker_state = m_state.get_mutable(marker);
+    auto& list_item_state = m_state.get_mutable(list_item_box);
+
+    auto default_marker_width = max(4, marker.first_available_font().pixel_size_rounded_up() - 4);
     auto final_marker_width = marker_state.content_width() + default_marker_width;
 
     if (marker.list_style_position() == CSS::ListStylePosition::Inside) {
@@ -1109,8 +1140,8 @@ void BlockFormattingContext::layout_list_item_marker(ListItemBox const& list_ite
     }
 
     auto offset_y = max(CSSPixels(0), (marker.computed_values().line_height() - marker_state.content_height()) / 2);
-    auto space_and_containing_margin = intrusion_by_floats_into_box(list_item_state, offset_y);
-    marker_state.set_content_offset({ space_and_containing_margin.left - final_marker_width, offset_y });
+
+    marker_state.set_content_offset({ left_space_before_list_item_elements_formatted - final_marker_width, offset_y });
 
     if (marker_state.content_height() > list_item_state.content_height())
         list_item_state.set_content_height(marker_state.content_height());
