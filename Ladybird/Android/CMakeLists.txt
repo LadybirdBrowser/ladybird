@@ -9,5 +9,5 @@ add_library(ladybird SHARED
 )
 target_link_libraries(ladybird PRIVATE LibArchive jnigraphics android)
 
-include(Ladybird/cmake/AndroidExtras.cmake)
+include(../cmake/AndroidExtras.cmake)
 create_ladybird_bundle(ladybird)
