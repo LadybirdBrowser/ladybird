@@ -19,6 +19,10 @@ namespace Web {
 #    define CPU_STRING "x86"
 #elif ARCH(RISCV64)
 #    define CPU_STRING "RISC-V 64"
+#elif ARCH(PPC64) || ARCH(PPC64LE)
+#    define CPU_STRING "PowerPC 64"
+#elif ARCH(PPC)
+#    define CPU_STRING "PowerPC"
 #else
 #    error Unknown architecture
 #endif
