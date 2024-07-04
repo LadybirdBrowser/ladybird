@@ -29,8 +29,11 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
     , m_session_history_traversal_queue(vm().heap().allocate_without_realm<SessionHistoryTraversalQueue>())
 {
 #ifdef AK_OS_MACOS
-    m_metal_context = Core::get_metal_context();
-    m_skia_backend_context = Painting::DisplayListPlayerSkia::create_metal_context(*m_metal_context);
+    auto display_list_player_type = page->client().display_list_player_type();
+    if (display_list_player_type == DisplayListPlayerType::Skia) {
+        m_metal_context = Core::get_metal_context();
+        m_skia_backend_context = Painting::DisplayListPlayerSkia::create_metal_context(*m_metal_context);
+    }
 #endif
 }
 
