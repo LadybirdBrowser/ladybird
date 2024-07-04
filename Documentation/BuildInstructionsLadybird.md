@@ -42,17 +42,17 @@ sudo apt install qt6-wayland
 On Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed base-devel cmake ffmpeg libgl ninja qt6-base qt6-tools qt6-wayland qt6-multimedia ccache ttf-liberation curl unzip zip tar autoconf-archive
+sudo pacman -S --needed automake base-devel cmake ffmpeg libgl ninja qt6-base qt6-tools qt6-wayland qt6-multimedia ccache ttf-liberation curl unzip zip tar autoconf-archive
 ```
 
 On Fedora or derivatives:
 ```
-sudo dnf install cmake libglvnd-devel ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts curl zip unzip tar autoconf-archive libavcodec-free-devel
+sudo dnf install automake cmake libglvnd-devel ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts curl zip unzip tar autoconf-archive libavcodec-free-devel
 ```
 
 On openSUSE:
 ```
-sudo zypper install cmake libglvnd-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts curl zip unzip tar
+sudo zypper install automake cmake libglvnd-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts curl zip unzip tar
 ```
 
 On NixOS or with Nix:
