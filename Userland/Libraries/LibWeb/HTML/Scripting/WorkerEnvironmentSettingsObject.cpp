@@ -7,15 +7,20 @@
 
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <WebWorker/DedicatedWorkerHost.h>
 
 namespace Web::HTML {
 
 JS_DEFINE_ALLOCATOR(WorkerEnvironmentSettingsObject);
 
 // https://html.spec.whatwg.org/multipage/workers.html#set-up-a-worker-environment-settings-object
-JS::NonnullGCPtr<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(JS::NonnullGCPtr<Page> page, NonnullOwnPtr<JS::ExecutionContext> execution_context /* FIXME: null or an environment reservedEnvironment, a URL topLevelCreationURL, and an origin topLevelOrigin */)
+JS::NonnullGCPtr<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(JS::NonnullGCPtr<Page> page, NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& outside_settings, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
 {
-    // 1. FIXME: Let inherited origin be outside settings's origin.
+    (void)unsafe_worker_creation_time;
+
+    // 1. Let inherited origin be outside settings's origin.
+    auto inherited_origin = outside_settings.origin;
 
     // 2. Let realm be the value of execution context's Realm component.
     auto realm = execution_context->realm;
@@ -28,9 +33,13 @@ JS::NonnullGCPtr<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObjec
     // NOTE: See the functions defined for this class.
     auto settings_object = realm->heap().allocate<WorkerEnvironmentSettingsObject>(*realm, move(execution_context), worker);
     settings_object->target_browsing_context = nullptr;
+    settings_object->m_origin = move(inherited_origin);
 
     // FIXME: 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level creation URL to null, target browsing context to null, and active service worker to null.
-    // FIXME: 6. If worker global scope is a DedicatedWorkerGlobalScope object, then set settings object's top-level origin to outside settings's top-level origin.
+    // 6. If worker global scope is a DedicatedWorkerGlobalScope object, then set settings object's top-level origin to outside settings's top-level origin.
+    if (is<WebWorker::DedicatedWorkerHost>(worker)) {
+        settings_object->top_level_origin = outside_settings.top_level_origin;
+    }
     // FIXME: 7. Otherwise, set settings object's top-level origin to an implementation-defined value.
 
     // 8. Set realm's [[HostDefined]] field to settings object.
