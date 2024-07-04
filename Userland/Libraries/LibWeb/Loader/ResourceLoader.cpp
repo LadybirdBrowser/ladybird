@@ -192,6 +192,12 @@ static void log_failure(LoadRequest const& request, ErrorType const& error)
     dbgln("ResourceLoader: Failed load of: \"{}\", \033[31;1mError: {}\033[0m, Duration: {}ms", url_for_logging, error, load_time_ms);
 }
 
+static void log_filtered_request(LoadRequest const& request)
+{
+    auto url_for_logging = sanitized_url_for_logging(request.url());
+    dbgln("ResourceLoader: Filtered request to: \"{}\"", url_for_logging);
+}
+
 static bool should_block_request(LoadRequest const& request)
 {
     auto const& url = request.url();
@@ -211,7 +217,7 @@ static bool should_block_request(LoadRequest const& request)
     }
 
     if (ContentFilter::the().is_filtered(url)) {
-        log_failure(request, "URL was filtered"sv);
+        log_filtered_request(request);
         return true;
     }
 
