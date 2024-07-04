@@ -18,3 +18,5 @@ static constexpr bool TODO = false;
 #define TODO() VERIFY(TODO)         /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
 #define TODO_AARCH64() VERIFY(TODO) /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
 #define TODO_RISCV64() VERIFY(TODO) /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
+#define TODO_PPC64() VERIFY(TODO)   /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
+#define TODO_PPC() VERIFY(TODO)     /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
