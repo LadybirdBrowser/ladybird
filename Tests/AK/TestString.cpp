@@ -63,27 +63,37 @@ TEST_CASE(copy_assignment)
 
 TEST_CASE(short_strings)
 {
+    /** NOTE: make sure that the test strings' first character has an even ASCII code.
+     *        This is important for the odd pointer address checks (this is to
+     *        test if the ShortString structs are endian agnostic). */
 #ifdef AK_ARCH_64_BIT
-    auto string1 = MUST(String::from_utf8("abcdefg"sv));
+    auto string1 = MUST(String::from_utf8("foo bar"sv));
     EXPECT_EQ(string1.is_short_string(), true);
     EXPECT_EQ(string1.bytes().size(), 7u);
-    EXPECT_EQ(string1.bytes_as_string_view(), "abcdefg"sv);
+    EXPECT_EQ(string1.bytes_as_string_view(), "foo bar"sv);
+    // check for odd "pointer" value, i.e. short string flag
+    EXPECT_EQ(*((uintptr_t*)&string1) % 2UL, 1U);
 
-    auto string2 = "abcdefg"_string;
+    auto string2 = "foo bar"_string;
     EXPECT_EQ(string2.is_short_string(), true);
     EXPECT_EQ(string2.bytes().size(), 7u);
     EXPECT_EQ(string2, string1);
-
+    // check for odd "pointer" value, i.e. short string flag
+    EXPECT_EQ(*((uintptr_t*)&string2) % 2UL, 1U);
 #else
-    auto string1 = MUST(String::from_utf8("abc"sv));
+    auto string1 = MUST(String::from_utf8("foo"sv));
     EXPECT_EQ(string1.is_short_string(), true);
     EXPECT_EQ(string1.bytes().size(), 3u);
-    EXPECT_EQ(string1.bytes_as_string_view(), "abc"sv);
+    EXPECT_EQ(string1.bytes_as_string_view(), "foo"sv);
+    // check for odd "pointer" value, i.e. short string flag
+    EXPECT_EQ(*((uintptr_t*)&string1) % 2U, 1U);
 
-    auto string2 = "abc"_string;
+    auto string2 = "foo"_string;
     EXPECT_EQ(string2.is_short_string(), true);
     EXPECT_EQ(string2.bytes().size(), 3u);
     EXPECT_EQ(string2, string1);
+    // check for odd "pointer" value, i.e. short string flag
+    EXPECT_EQ(*((uintptr_t*)&string2) % 2U, 1U);
 #endif
 }
 
