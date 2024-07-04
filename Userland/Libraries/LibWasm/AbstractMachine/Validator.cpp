@@ -1939,6 +1939,13 @@ VALIDATE_INSTRUCTION(structured_end)
 
     auto& last_frame = m_frames.last();
 
+    // If this is true, then the `if` had no else. In that case, validate that the
+    // empty else block produces the correct type.
+    if (last_frame.kind == FrameKind::If) {
+        bool is_constant = false;
+        TRY(validate(Instruction(Instructions::structured_else), stack, is_constant));
+    }
+
     auto& results = last_frame.type.results();
     for (size_t i = 1; i <= results.size(); ++i)
         TRY(stack.take(results[results.size() - i]));
