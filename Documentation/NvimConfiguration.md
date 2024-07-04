@@ -1,16 +1,65 @@
-# NVim Project Configuration
+# Neovim Project Configuration
 
-NVim can be configured to use the [COC-clangd](https://github.com/clangd/coc-clangd)
+There are two documented ways to support clangd in Neovim for the Ladybird
+project:
+
+1. With [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) (assumes existing setup)
+2. With [coc.nvim](https://github.com/neoclide/coc.nvim) (from scratch, potentially out of date)
+
+For both setups, make sure you ran `./Meta/ladybird.sh run ladybird` at least 
+once. Additionally, clangd should be configured with the following (in the
+`.clangd` file at the root of the project):
+
+```yaml
+CompileFlags:
+  CompilationDatabase: Build/ladybird
+
+Diagnostics:
+  UnusedIncludes: None
+  MissingIncludes: None
+```
+
+## With nvim-lspconfig
+
+> Note: This guide assumes Lua is being used, but can easily be adapted to 
+> VimScript.
+
+If you have an [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig), setup
+already, registering clangd is similar to other LSPs:
+```lua
+require('lspconfig').clangd.setup {
+  -- If you have an on_attach function, this is where you'd put it. If not, 
+  -- you can delete this line.
+  -- on_attach = ...,
+
+  -- This is where you'd put capabilities (i.e. if you're useing nvim-cmp)
+  -- capabilities = ...,
+
+  -- If you have another clangd installation, put it here. Note that we use 
+  -- clangd version 18 for the Ladybird project.
+  -- cmd = { '/path/to/clangd' },
+}
+```
+
+A base `setup` call should be enough to register the LSP, but if false-negative
+LSP errors occur upon opening Neovim, make sure your clangd installation is at
+least version 18.
+
+## With coc.nvim
+
+> Note: This guide assumes VimScript is being used, but can easily be adapted to
+> Lua. It also starts from scratch.
+
+Neovim can be configured to use the [coc-clangd](https://github.com/clangd/coc-clangd)
 plugin to provide code-completion as well as inline
 [git blame](https://github.com/f-person/git-blame.nvim) using [vim-plug](https://github.com/junegunn/vim-plug).
+Formatting can also be configured with [formatter.nvim](https://github.com/mhartington/formatter.nvim).
 
-Make sure you ran `Meta/ladybird.sh run ladybird` at least once already.
-
-# Install vim-plug
+### Install vim-plug
 
 See [https://github.com/junegunn/vim-plug](https://github.com/junegunn/vim-plug).
 
-# Install coc.nvim
+### Install coc.nvim
 
 The config file for neovim is at `~/.config/nvim/init.vim` or if
 set `$XDG_CONFIG_HOME/nvim/init.vim`.
@@ -23,7 +72,7 @@ Plug 'neoclide/coc.nvim', { 'branch': 'release' }
 
 Run `:PlugInstall` inside nvim.
 
-# Install coc-clangd via CocInstall
+### Install coc-clangd via CocInstall
 
 ```vim
 :CocInstall coc-clangd
@@ -36,7 +85,7 @@ In case you have not installed clangd already install it with
 
 This will install a separate version of clangd just for neovim.
 
-# Configure coc-clangd in coc-settings.json
+### Configure coc-clangd in coc-settings.json
 
 Use the following settings to ensure that coc-clangd works out of the box.
 
@@ -66,12 +115,12 @@ conflicts.
 
 > **Note**: `clangd.inlayHints.sep` breaks on `clangd 15.0.6`.
 
-# Formatting
+### Formatting
 For code formatting the formatter plugin can be used.
 ```vim
 Plug 'mhartington/formatter.nvim'
 ```
-### Configuration
+#### Configuration
 To use the formatter plugin one needs to opt-in to specific formatters. An example lua configuration which uses clang-format for cpp files:
 ```lua
 require("formatter").setup{
@@ -83,7 +132,7 @@ require("formatter").setup{
 }
 ```
 
-# Install git blame (Optional)
+### Install git blame (Optional)
 
 ```vim
 Plug 'f-person/git-blame.nvim'
@@ -91,7 +140,7 @@ Plug 'f-person/git-blame.nvim'
 
 Run `:PlugInstall` inside nvim.
 
-# Configure your init.vim
+### Configure your init.vim
 
 The config file for neovim is at `~/.config/nvim/init.vim` or if
 set `$XDG_CONFIG_HOME/nvim/init.vim`.
@@ -174,17 +223,3 @@ endfunction
 nmap <silent>gs :CocCommand clangd.switchSourceHeader vsplit<CR>
 "END: coc
 ```
-
-# Configure .clangd
-
-> **Note**: Every time a new source is added or the compilation commands get adjusted
-(through CMake) you need to rerun `./Meta/ladybird.sh rebuild`.
-
-Link `ln -s /path/to/ladybird/Build/ladybird/compile_commands.json /path/to/ladybird/compile_commands.json`.
-
-Create `/path/to/ladybird/.clangd` (replace `/path/to/ladybird`
-with your ladybird directory) with content of the clangd section in the
-[VSCodeConfiguration.md](./VSCodeConfiguration.md).
-
-> **Note**: You can add a `Remove` part, where you can remove unwanted flags
-such as those that aren't supported by the current version of clang.
