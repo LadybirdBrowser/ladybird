@@ -28,8 +28,7 @@ install_llvm_key() {
 ### Install packages
 
 apt update -y
-apt install -y build-essential cmake ninja-build ccache shellcheck libgl1-mesa-dev qt6-base-dev qt6-tools-dev-tools qt6-wayland qt6-multimedia-dev
-
+apt install -y lsb-release git python3 autoconf autoconf-archive automake build-essential cmake libavcodec-dev libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev qt6-wayland ccache fonts-liberation2 zip unzip curl tar
 ### Ensure new enough host compiler is available
 
 VERSION="0.0.0"
