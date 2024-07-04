@@ -652,8 +652,8 @@ struct Convert {
     template<typename Lhs>
     ResultT operator()(Lhs lhs) const
     {
-        auto signed_interpretation = bit_cast<MakeSigned<Lhs>>(lhs);
-        return static_cast<ResultT>(signed_interpretation);
+        auto interpretation = bit_cast<Lhs>(lhs);
+        return static_cast<ResultT>(interpretation);
     }
 
     static StringView name() { return "convert"sv; }
@@ -688,7 +688,7 @@ struct Demote {
             return nanf(""); // FIXME: Ensure canonical NaN remains canonical
 
         if (isinf(lhs))
-            return __builtin_huge_valf();
+            return copysignf(__builtin_huge_valf(), lhs);
 
         return static_cast<float>(lhs);
     }

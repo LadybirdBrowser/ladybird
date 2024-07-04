@@ -519,10 +519,10 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         configuration.stack().push(Value(ValueType { ValueType::I64 }, instruction.arguments().get<i64>()));
         return;
     case Instructions::f32_const.value():
-        configuration.stack().push(Value(ValueType { ValueType::F32 }, static_cast<double>(instruction.arguments().get<float>())));
+        configuration.stack().push(Value(Value::AnyValueType(instruction.arguments().get<float>())));
         return;
     case Instructions::f64_const.value():
-        configuration.stack().push(Value(ValueType { ValueType::F64 }, instruction.arguments().get<double>()));
+        configuration.stack().push(Value(Value::AnyValueType(instruction.arguments().get<double>())));
         return;
     case Instructions::block.value(): {
         size_t arity = 0;
