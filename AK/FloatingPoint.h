@@ -25,9 +25,15 @@ union FloatExtractor<f128> {
     static constexpr int exponent_bits = 15;
     static constexpr unsigned exponent_max = 32767;
     struct [[gnu::packed]] {
+#    if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        ComponentType sign : 1;
+        ComponentType exponent : 15;
+        ComponentType mantissa : 112;
+#    else
         ComponentType mantissa : 112;
         ComponentType exponent : 15;
         ComponentType sign : 1;
+#    endif
     };
     f128 d;
 };
@@ -51,9 +57,15 @@ union FloatExtractor<f80> {
         // However, since all bit-fiddling float code assumes IEEE floats, it cannot handle this properly.
         // If we pretend that 80-bit floats are IEEE floats with 64-bit mantissas, almost everything works correctly
         // and we just need a few special cases.
+#    if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        ComponentType sign : 1;
+        ComponentType exponent : 15;
+        ComponentType mantissa : 64;
+#    else
         ComponentType mantissa : 64;
         ComponentType exponent : 15;
         ComponentType sign : 1;
+#    endif
     };
     f80 d;
 };
@@ -76,9 +88,15 @@ union FloatExtractor<f64> {
         //        very intuitive and portable behaviour on windows, but it doesn't
         //        work with the msvc ABI.
         //        See <https://github.com/llvm/llvm-project/issues/24757>
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        ComponentType sign : 1;
+        ComponentType exponent : 11;
+        ComponentType mantissa : 52;
+#else
         ComponentType mantissa : 52;
         ComponentType exponent : 11;
         ComponentType sign : 1;
+#endif
     };
     f64 d;
 };
@@ -93,9 +111,15 @@ union FloatExtractor<f32> {
     static constexpr int exponent_bits = 8;
     static constexpr ComponentType exponent_max = 255;
     struct [[gnu::packed]] {
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        ComponentType sign : 1;
+        ComponentType exponent : 8;
+        ComponentType mantissa : 23;
+#else
         ComponentType mantissa : 23;
         ComponentType exponent : 8;
         ComponentType sign : 1;
+#endif
     };
     f32 d;
 };
