@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<link rel="match" href="reference/css-color-functions-ref.html" />
+<div style="background-color: rgb(10, 20, 30);">
+    <p>legacy rgb with numbers</p>
+</div>
+<div style="background-color: rgb(10%, 20%, 30%);">
+    <p>legacy rgb with percentages</p>
+</div>
+<div style="background-color: rgba(10, 20, 30, 0.5);">
+    <p>legacy rgba with numbers and number alpha</p>
+</div>
+<div style="background-color: rgba(10, 20, 30, 50%);">
+    <p>legacy rgba with numbers and percentage alpha</p>
+</div>
+<div style="background-color: rgba(10%, 20%, 30%, 0.5);">
+    <p>legacy rgba with percentages and number alpha</p>
+</div>
+<div style="background-color: rgba(10%, 20%, 30%, 50%);">
+    <p>legacy rgba with percentages and percentage alpha</p>
+</div>
+<div style="background-color: hsl(120, 100%, 50%);">
+    <p>legacy hsl with number hue</p>
+</div>
+<div style="background-color: hsl(120deg, 100%, 50%);">
+    <p>legacy hsl with degree hue</p>
+</div>
+<div style="background-color: hsla(120, 100%, 50%, 0.5);">
+    <p>legacy hsla with number alpha</p>
+</div>
+<div style="background-color: hsla(120, 100%, 50%, 50%);">
+    <p>legacy hsla with percentage alpha</p>
+</div>
+<div style="background-color: rgba(-20, 0, 300, 1.5);">
+    <p>legacy rgba with out-of-range numbers (should be clamped)</p>
+</div>
+<div style="background-color: rgba(-20%, 0%, 300%, -50%);">
+    <p>legacy rgba with out-of-range percentages (should be clamped)</p>
+</div>
+<div style="background-color: rgb(10 20% 30);">
+    <p>modern rgb with mixed types</p>
+</div>
+<div style="background-color: rgb(10 20% 30 / 0.5);">
+    <p>modern rgb with alpha</p>
+</div>
+<div style="background-color: rgba(10 20% 30);">
+    <p>modern rgba without alpha</p>
+</div>
+<div style="background-color: hsl(120 30% 50%);">
+    <p>modern hsl</p>
+</div>
+<div style="background-color: hsl(120 30% 50% / 50%);">
+    <p>modern hsl with alpha</p>
+</div>
+<div style="background-color: hsla(120 30% 50%);">
+    <p>modern hsla without alpha</p>
+</div>
+<div style="background-color: hsl(120 30 50);">
+    <p>modern hsl with numbers</p>
+</div>
+<div style="background-color: hsl(400 -30% 120%);">
+    <p>modern hsl with out-of-range values (should be clamped/wrapped)</p>
+</div>
+<div style="background-color: hwb(120 30% 50%);">
+    <p>hwb with percentages</p>
+</div>
+<div style="background-color: hwb(120 30% 50% / 0.5);">
+    <p>hwb with percentages and alpha</p>
+</div>
+<div style="background-color: hwb(120grad 30 50);">
+    <p>hwb with numbers/angle</p>
+</div>
+<div style="background-color: hwb(120 30 50% / 50%);">
+    <p>hwb with mixed-type values and percentage alpha</p>
+</div>
+<div style="background-color: oklab(0.2 0 0.1 / 0.5);">
+    <p>oklab with numbers and alpha</p>
+</div>
+<div style="background-color: oklab(4 0 0.1);">
+    <p>oklab with out-of-range lightness (should be clamped)</p>
+</div>
+<div style="background-color: oklab(20% 70% -80% / 50%);">
+    <p>oklab with percentages and alpha</p>
+</div>
+<div style="background-color: oklch(0.5 0.1 20 / 0.5);">
+    <p>oklch with numbers</p>
+</div>
+<div style="background-color: oklch(50% 10% 20deg / 50%);">
+    <p>oklch with percentages and angle hue </p>
+</div>
