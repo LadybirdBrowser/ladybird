@@ -164,6 +164,14 @@ public:
     u32 initial_quote_nesting_level() const { return m_initial_quote_nesting_level; }
     void set_initial_quote_nesting_level(u32 value) { m_initial_quote_nesting_level = value; }
 
+    // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
+    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
+    bool is_out_of_flow() const { return is_floating() || is_absolutely_positioned(); }
+
+    // An element is called in-flow if it is not out-of-flow.
+    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
+    bool is_in_flow() const { return !is_out_of_flow(); }
+
 protected:
     Node(DOM::Document&, DOM::Node*);
 
