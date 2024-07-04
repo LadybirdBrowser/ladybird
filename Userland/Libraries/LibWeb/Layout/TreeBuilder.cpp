@@ -42,9 +42,7 @@ TreeBuilder::TreeBuilder() = default;
 static bool has_inline_or_in_flow_block_children(Layout::Node const& layout_node)
 {
     for (auto child = layout_node.first_child(); child; child = child->next_sibling()) {
-        if (child->is_inline())
-            return true;
-        if (!child->is_floating() && !child->is_absolutely_positioned())
+        if (child->is_inline() || child->is_in_flow())
             return true;
     }
     return false;
@@ -57,7 +55,7 @@ static bool has_in_flow_block_children(Layout::Node const& layout_node)
     for (auto child = layout_node.first_child(); child; child = child->next_sibling()) {
         if (child->is_inline())
             continue;
-        if (!child->is_floating() && !child->is_absolutely_positioned())
+        if (child->is_in_flow())
             return true;
     }
     return false;
@@ -98,9 +96,7 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
         return layout_parent;
     }
 
-    bool is_out_of_flow = layout_node.is_absolutely_positioned() || layout_node.is_floating();
-
-    if (is_out_of_flow
+    if (layout_node.is_out_of_flow()
         && !layout_parent.display().is_flex_inside()
         && !layout_parent.display().is_grid_inside()
         && layout_parent.last_child()->is_anonymous()
@@ -115,7 +111,7 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
         return layout_parent;
     }
 
-    if (is_out_of_flow) {
+    if (layout_node.is_out_of_flow()) {
         // Block is out-of-flow, it can have inline siblings if necessary.
         return layout_parent;
     }
@@ -128,7 +124,7 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
         for (JS::GCPtr<Layout::Node> child = layout_parent.first_child(); child; child = next) {
             next = child->next_sibling();
             // NOTE: We let out-of-flow children stay in the parent, to preserve tree structure.
-            if (child->is_floating() || child->is_absolutely_positioned())
+            if (child->is_out_of_flow())
                 continue;
             layout_parent.remove_child(*child);
             children.append(*child);
