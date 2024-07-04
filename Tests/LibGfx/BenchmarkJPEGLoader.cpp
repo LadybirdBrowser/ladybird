@@ -8,11 +8,7 @@
 #include <LibGfx/ImageFormats/JPEGLoader.h>
 #include <LibTest/TestCase.h>
 
-#ifdef AK_OS_SERENITY
-#    define TEST_INPUT(x) ("/usr/Tests/LibGfx/test-inputs/" x)
-#else
-#    define TEST_INPUT(x) ("test-inputs/" x)
-#endif
+#define TEST_INPUT(x) ("test-inputs/" x)
 
 auto small_image = Core::File::open(TEST_INPUT("jpg/rgb24.jpg"sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();
 auto big_image = Core::File::open(TEST_INPUT("jpg/big_image.jpg"sv), Core::File::OpenMode::Read).release_value()->read_until_eof().release_value();

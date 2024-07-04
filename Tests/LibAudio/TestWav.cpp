@@ -39,12 +39,7 @@ static void run_test(StringView file_name, int const num_samples, int const chan
     auto out_file = TRY_OR_FAIL(FileSystem::TempFile::create_temp_file());
     auto out_path = out_file->path();
 
-// This makes sure that the tests will run both on target and in Lagom.
-#ifdef AK_OS_SERENITY
-    ByteString in_path = ByteString::formatted("/usr/Tests/LibAudio/WAV/{}", file_name);
-#else
     ByteString in_path = ByteString::formatted("WAV/{}", file_name);
-#endif
 
     auto loader = TRY_OR_FAIL(Audio::Loader::create(in_path));
 

@@ -16,11 +16,7 @@
 #include <LibGfx/ImageFormats/WebPLoader.h>
 #include <LibTest/TestCase.h>
 
-#ifdef AK_OS_SERENITY
-#    define TEST_INPUT(x) ("/usr/Tests/LibGfx/test-inputs/" x)
-#else
-#    define TEST_INPUT(x) ("test-inputs/" x)
-#endif
+#define TEST_INPUT(x) ("test-inputs/" x)
 
 TEST_CASE(png)
 {
