@@ -52,7 +52,7 @@ sudo dnf install automake cmake libglvnd-devel ninja-build qt6-qtbase-devel qt6-
 
 On openSUSE:
 ```
-sudo zypper install automake cmake libglvnd-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts curl zip unzip tar
+sudo zypper install automake cmake libglvnd-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts curl zip unzip tar autoconf-archive ffmpeg-7-libavcodec-devel
 ```
 
 On NixOS or with Nix:
