@@ -134,12 +134,6 @@ static ByteString sanitized_url_for_logging(URL::URL const& url)
     return url.to_byte_string();
 }
 
-static void emit_signpost(ByteString const& message, int id)
-{
-    (void)message;
-    (void)id;
-}
-
 static void store_response_cookies(Page& page, URL::URL const& url, ByteString const& set_cookie_entry)
 {
     auto cookie = Cookie::parse_cookie(set_cookie_entry);
@@ -169,7 +163,6 @@ static void log_request_start(LoadRequest const& request)
 {
     auto url_for_logging = sanitized_url_for_logging(request.url());
 
-    emit_signpost(ByteString::formatted("Starting load: {}", url_for_logging), request.id());
     dbgln_if(SPAM_DEBUG, "ResourceLoader: Starting load of: \"{}\"", url_for_logging);
 }
 
@@ -178,7 +171,6 @@ static void log_success(LoadRequest const& request)
     auto url_for_logging = sanitized_url_for_logging(request.url());
     auto load_time_ms = request.load_time().to_milliseconds();
 
-    emit_signpost(ByteString::formatted("Finished load: {}", url_for_logging), request.id());
     dbgln_if(SPAM_DEBUG, "ResourceLoader: Finished load of: \"{}\", Duration: {}ms", url_for_logging, load_time_ms);
 }
 
@@ -188,7 +180,6 @@ static void log_failure(LoadRequest const& request, ErrorType const& error)
     auto url_for_logging = sanitized_url_for_logging(request.url());
     auto load_time_ms = request.load_time().to_milliseconds();
 
-    emit_signpost(ByteString::formatted("Failed load: {}", url_for_logging), request.id());
     dbgln("ResourceLoader: Failed load of: \"{}\", \033[31;1mError: {}\033[0m, Duration: {}ms", url_for_logging, error, load_time_ms);
 }
 
