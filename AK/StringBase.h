@@ -14,26 +14,29 @@ namespace AK::Detail {
 
 class StringData;
 
-static constexpr size_t MAX_SHORT_STRING_BYTE_COUNT = sizeof(StringData*) - 1;
+static constexpr size_t MAX_SHORT_STRING_BYTE_COUNT = sizeof(StringData*) - sizeof(u8);
 
 struct ShortString {
     ReadonlyBytes bytes() const;
     size_t byte_count() const;
 
     // NOTE: This is the byte count shifted left 1 step and or'ed with a 1 (the SHORT_STRING_FLAG)
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
     u8 byte_count_and_short_string_flag { 0 };
     u8 storage[MAX_SHORT_STRING_BYTE_COUNT] = { 0 };
+#else
+    u8 storage[MAX_SHORT_STRING_BYTE_COUNT] = { 0 };
+    u8 byte_count_and_short_string_flag { 0 };
+#endif
 };
 
-static_assert(HostIsLittleEndian, "Order of fields in ShortString assumes LE.");
-static_assert(sizeof(ShortString) >= sizeof(StringData*));
-static_assert(__builtin_offsetof(ShortString, byte_count_and_short_string_flag) == 0);
+static_assert(sizeof(ShortString) == sizeof(StringData*));
 
 class StringBase {
 public:
     // Creates an empty (zero-length) String.
     constexpr StringBase()
-        : StringBase(ShortString { SHORT_STRING_FLAG, {} })
+        : StringBase(ShortString { .byte_count_and_short_string_flag = SHORT_STRING_FLAG })
     {
     }
 
