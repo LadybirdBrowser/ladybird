@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!-- FIXME: Some colors/channels are off by 1, likely from accumulated rounding errors -->
+<!-- Affected cases are labeled with "Expected: #blahblah" -->
+
+<div style="background-color: #0a141e;">
+    <p>legacy rgb with numbers</p>
+</div>
+<div style="background-color: #1a334d;">
+    <p>legacy rgb with percentages</p>
+</div>
+<div style="background-color: #84898e;">
+    <p>legacy rgba with numbers and number alpha</p>
+</div>
+<div style="background-color: #84898e;">
+    <p>legacy rgba with numbers and percentage alpha</p>
+</div>
+<div style="background-color: #8c98a5;"> <!-- Expected: #8c99a6 -->
+    <p>legacy rgba with percentages and number alpha</p>
+</div>
+<div style="background-color: #8c99a6;">
+    <p>legacy rgba with percentages and percentage alpha</p>
+</div>
+<div style="background-color: #00ff00;">
+    <p>legacy hsl with number hue</p>
+</div>
+<div style="background-color: #00ff00;">
+    <p>legacy hsl with degree hue</p>
+</div>
+<div style="background-color: #7fff7f;">
+    <p>legacy hsla with number alpha</p>
+</div>
+<div style="background-color: #7fff7f;">
+    <p>legacy hsla with percentage alpha</p>
+</div>
+<div style="background-color: #0000ff;">
+    <p>legacy rgba with out-of-range numbers (should be clamped)</p>
+</div>
+<div style="background-color: #ffffff;">
+    <p>legacy rgba with out-of-range percentages (should be clamped)</p>
+</div>
+<div style="background-color: #0a331e;">
+    <p>modern rgb with mixed types</p>
+</div>
+<div style="background-color: #84988e;"> <!-- Expected: #84998e -->
+    <p>modern rgb with alpha</p>
+</div>
+<div style="background-color: #0a331e;">
+    <p>modern rgba without alpha</p>
+</div>
+<div style="background-color: #59a659;">
+    <p>modern hsl</p>
+</div>
+<div style="background-color: #abd2ab;"> <!-- Expected: #acd2ac -->
+    <p>modern hsl with alpha</p>
+</div>
+<div style="background-color: #59a659;">
+    <p>modern hsla without alpha</p>
+</div>
+<div style="background-color: #59a659;">
+    <p>modern hsl with numbers</p>
+</div>
+<div style="background-color: #ffffff;">
+    <p>modern hsl with out-of-range values (should be clamped/wrapped)</p>
+</div>
+<div style="background-color: #4c7f4c;"> <!-- Expected: #4d804d -->
+    <p>hwb with percentages</p>
+</div>
+<div style="background-color: #a5bfa5;"> <!-- Expected: #a6bfa6 -->
+    <p>hwb with percentages and alpha</p>
+</div>
+<div style="background-color: #567f4c;"> <!-- Expected: #57804d -->
+    <p>hwb with numbers/angle</p>
+</div>
+<div style="background-color: #a5bfa5;"> <!-- Expected: #a6bfa6 -->
+    <p>hwb with mixed-type values and percentage alpha</p>
+</div>
+<div style="background-color: #92877f;"> <!-- Expected: #93877f -->
+    <p>oklab with numbers and alpha</p>
+</div>
+<div style="background-color: #fffdb0;">
+    <p>oklab with out-of-range lightness (should be clamped)</p>
+</div>
+<div style="background-color: #a77fce;"> <!-- Expected: #a87fce -->
+    <p>oklab with percentages and alpha</p>
+</div>
+<div style="background-color: #c9a4a4;"> <!-- Expected: #c9a4a5 -->
+    <p>oklch with numbers</p>
+</div>
+<div style="background-color: #bbacac;"> <!-- Expected: #bcacac -->
+    <p>oklch with percentages and angle hue </p>
+</div>
