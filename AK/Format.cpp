@@ -888,7 +888,12 @@ ErrorOr<void> Formatter<T>::format(FormatBuilder& builder, T value)
         m_mode = Mode::String;
 
         Formatter<StringView> formatter { *this };
-        return formatter.format(builder, StringView { reinterpret_cast<char const*>(&value), 1 });
+
+        // convert value to single byte, important for big-endian because the LSB is the last byte.
+        VERIFY(value >= 0 && value <= 127);
+        char const c = (value & 0x7f);
+
+        return formatter.format(builder, StringView { &c, 1 });
     }
 
     if (m_precision.has_value())
