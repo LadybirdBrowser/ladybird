@@ -176,8 +176,6 @@ static constexpr auto max_representable_power_of_ten_in_u64 = 19;
 static_assert(1e19 <= static_cast<double>(NumericLimits<u64>::max()));
 static_assert(1e20 >= static_cast<double>(NumericLimits<u64>::max()));
 
-static_assert(HostIsLittleEndian, "Float parsing currently assumes little endian, this fact is only used in fast parsing of 8 digits at a time"
-                                  "\nyou _should_ only need to change read eight_digits to make this big endian compatible.");
 constexpr u64 read_eight_digits(char const* string)
 {
     u64 val;
@@ -206,40 +204,57 @@ constexpr static u32 eight_digits_to_value(u64 value)
 {
     // THIS DOES ABSOLUTELY ASSUME has_eight_digits is true
 
-    // This trick is based on https://johnnylee-sde.github.io/Fast-numeric-string-to-int/
-    // FIXME: fast_float uses a slightly different version, but that is far harder
-    //        to understand and does not seem to improve performance substantially.
-    //        See https://github.com/fastfloat/fast_float/pull/28
+    if constexpr (AK::HostIsLittleEndian) {
+        // This trick is based on https://johnnylee-sde.github.io/Fast-numeric-string-to-int/
+        // FIXME: fast_float uses a slightly different version, but that is far harder
+        //        to understand and does not seem to improve performance substantially.
+        //        See https://github.com/fastfloat/fast_float/pull/28
 
-    // First convert the digits to their respectively numbers (0x30 -> 0x00 etc.)
-    value -= 0x3030303030303030;
+        // First convert the digits to their respectively numbers (0x30 -> 0x00 etc.)
+        value -= 0x3030303030303030;
 
-    // Because of little endian the first number will in fact be the least significant
-    // bits of value i.e. "12345678" -> 0x0807060504030201
-    // This means that we need to shift/multiply each digit with 8 - the byte it is in
-    // So the eight need to go down, and the 01 need to be multiplied with 10000000
+        // Because of little endian the first number will in fact be the least significant
+        // bits of value i.e. "12345678" -> 0x0807060504030201
+        // This means that we need to shift/multiply each digit with 8 - the byte it is in
+        // So the eight need to go down, and the 01 need to be multiplied with 10000000
 
-    // We effectively multiply by 10 and then shift those values to the right (2^8 = 256)
-    // We then shift the values back down, this leads to 4 digits pairs in the 2 byte parts
-    // The values between are "garbage" which we will ignore
-    value = (value * (256 * 10 + 1)) >> 8;
-    // So with our example this gives 0x$$4e$$38$$22$$0c, where $$ is garbage/ignored
-    // In decimal this gives              78  56  34  12
+        // We effectively multiply by 10 and then shift those values to the right (2^8 = 256)
+        // We then shift the values back down, this leads to 4 digits pairs in the 2 byte parts
+        // The values between are "garbage" which we will ignore
+        value = (value * (256 * 10 + 1)) >> 8;
+        // So with our example this gives 0x$$4e$$38$$22$$0c, where $$ is garbage/ignored
+        // In decimal this gives              78  56  34  12
 
-    // Now we keep performing the same trick twice more
-    // First * 100 and shift of 16 (2^16 = 65536) and then shift back
-    value = ((value & 0x00FF00FF00FF00FF) * (65536 * 100 + 1)) >> 16;
+        // Now we keep performing the same trick twice more
+        // First * 100 and shift of 16 (2^16 = 65536) and then shift back
+        value = ((value & 0x00FF00FF00FF00FF) * (65536 * 100 + 1)) >> 16;
 
-    // Again with our example this gives 0x$$$$162e$$$$04d2
-    //                                         5678    1234
+        // Again with our example this gives 0x$$$$162e$$$$04d2
+        //                                         5678    1234
 
-    // And finally with * 10000 and shift of 32 (2^32 = 4294967296)
-    value = ((value & 0x0000FFFF0000FFFF) * (4294967296 * 10000 + 1)) >> 32;
+        // And finally with * 10000 and shift of 32 (2^32 = 4294967296)
+        value = ((value & 0x0000FFFF0000FFFF) * (4294967296 * 10000 + 1)) >> 32;
 
-    // With the example this gives 0x$$$$$$$$00bc614e
-    //                                       12345678
-    // Now we just truncate to the lower part
-    return u32(value);
+        // With the example this gives 0x$$$$$$$$00bc614e
+        //                                       12345678
+
+        // Now we just truncate to the lower part
+        return u32(value);
+    } else {
+        value -= 0x3030303030303030;
+
+        value = (value & 0x0fL)
+            + ((value & (0x0fL << 8)) >> 8) * 10
+            + ((value & (0x0fL << 16)) >> 16) * 100
+            + ((value & (0x0fL << 24)) >> 24) * 1000
+            + ((value & (0x0fL << 32)) >> 32) * 10000
+            + ((value & (0x0fL << 40)) >> 40) * 100000
+            + ((value & (0x0fL << 48)) >> 48) * 1000000
+            + ((value & (0x0fL << 56)) >> 56) * 10000000;
+
+        // Now we just truncate to the lower part
+        return u32(value);
+    }
 }
 
 template<typename IsDoneCallback, typename Has8CharsLeftCallback>

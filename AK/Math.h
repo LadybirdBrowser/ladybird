@@ -8,6 +8,7 @@
 
 #include <AK/BuiltinWrappers.h>
 #include <AK/Concepts.h>
+#include <AK/Endian.h>
 #include <AK/FloatingPoint.h>
 #include <AK/NumericLimits.h>
 #include <AK/StdLibExtraDetails.h>
@@ -765,14 +766,21 @@ constexpr T log2(T x)
 
     // FIXME: Handle denormalized numbers separately
 
-    FloatExtractor<T> mantissa_ext {
-        .mantissa = ext.mantissa,
-        .exponent = FloatExtractor<T>::exponent_bias,
-        .sign = ext.sign
-    };
-
     // (1 <= mantissa < 2)
-    T m = mantissa_ext.d;
+    T m;
+    if constexpr (HostIsLittleEndian) {
+        m = ((FloatExtractor<T>) {
+                 .mantissa = ext.mantissa,
+                 .exponent = FloatExtractor<T>::exponent_bias,
+                 .sign = ext.sign })
+                .d;
+    } else {
+        m = ((FloatExtractor<T>) {
+                 .sign = ext.sign,
+                 .exponent = FloatExtractor<T>::exponent_bias,
+                 .mantissa = ext.mantissa })
+                .d;
+    }
 
     // This is a reconstruction of one of Sun's algorithms
     // They use a transformation to lower the problem space,
