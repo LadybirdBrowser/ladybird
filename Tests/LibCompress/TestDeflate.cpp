@@ -14,11 +14,7 @@
 #include <LibCore/File.h>
 #include <cstring>
 
-#ifdef AK_OS_SERENITY
-#    define TEST_INPUT(x) ("/usr/Tests/LibCompress/deflate-test-files/" x)
-#else
-#    define TEST_INPUT(x) ("deflate-test-files/" x)
-#endif
+#define TEST_INPUT(x) ("deflate-test-files/" x)
 
 TEST_CASE(canonical_code_simple)
 {

@@ -544,22 +544,15 @@ static bool g_in_assert = false;
 // FIXME: Use a SIGABRT handler here instead of overriding internal libc assertion handlers.
 //        Fixing this will likely require updating the test driver as well to pull the assertion failure
 //        message out of stderr rather than from the json object printed to stdout.
-#ifdef AK_OS_SERENITY
-void __assertion_failed(char const* assertion)
-{
-    handle_failed_assert(assertion);
-}
-#else
-#    ifdef ASSERT_FAIL_HAS_INT /* Set by CMake */
+#ifdef ASSERT_FAIL_HAS_INT /* Set by CMake */
 extern "C" __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function)
-#    else
+#else
 extern "C" __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, unsigned int line, char const* function)
-#    endif
+#endif
 {
     auto full_message = ByteString::formatted("{}:{}: {}: Assertion `{}' failed.", file, line, function, assertion);
     handle_failed_assert(full_message.characters());
 }
-#endif
 
 constexpr int exit_wrong_arguments = 2;
 constexpr int exit_stdout_setup_failed = 1;

@@ -21,18 +21,14 @@
 //        current session ID is 0, and AudioServer's socket address depends on the current sid.
 //        If we can fix that, this test can run on CI.
 //        https://github.com/SerenityOS/serenity/issues/20538
-#if defined(AK_OS_SERENITY)
-#    define STREAM_TEST BENCHMARK_CASE
-#else
-#    define STREAM_TEST TEST_CASE
-#endif
+#define STREAM_TEST TEST_CASE
 
 STREAM_TEST(create_and_destroy_playback_stream)
 {
     Core::EventLoop event_loop;
 
     bool has_implementation = false;
-#if defined(AK_OS_SERENITY) || defined(HAVE_PULSEAUDIO) || defined(AK_OS_MACOS)
+#if defined(HAVE_PULSEAUDIO) || defined(AK_OS_MACOS)
     has_implementation = true;
 #endif
 
