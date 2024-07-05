@@ -946,7 +946,7 @@
   },
   "font": {
     "inherited": true,
-    "initial": "normal medium sans-serif",
+    "initial": "normal medium serif",
     "longhands": [
       "font-family",
       "font-size",
@@ -960,7 +960,7 @@
   "font-family": {
     "animation-type": "discrete",
     "inherited": true,
-    "initial": "sans-serif",
+    "initial": "serif",
     "valid-types": [
       "custom-ident",
       "string"
