@@ -64,6 +64,17 @@ void TextTrack::set_language(String language)
     m_language = language;
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-id
+String TextTrack::id()
+{
+    return m_id;
+}
+
+void TextTrack::set_id(String id)
+{
+    m_id = id;
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#handler-texttrack-oncuechange
 void TextTrack::set_oncuechange(WebIDL::CallbackType* event_handler)
 {

@@ -13,7 +13,7 @@ interface TextTrack : EventTarget {
     readonly attribute DOMString label;
     readonly attribute DOMString language;
 
-    [FIXME] readonly attribute DOMString id;
+    readonly attribute DOMString id;
     [FIXME] readonly attribute DOMString inBandMetadataTrackDispatchType;
 
     [FIXME] attribute TextTrackMode mode;
