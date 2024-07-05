@@ -29,6 +29,12 @@ void HTMLTrackElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTrackElement);
 }
 
+void HTMLTrackElement::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_track);
+}
+
 void HTMLTrackElement::attribute_changed(FlyString const& name, Optional<String> const& value)
 {
     HTMLElement::attribute_changed(name, value);
