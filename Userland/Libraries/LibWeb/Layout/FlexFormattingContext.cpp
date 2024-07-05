@@ -1231,8 +1231,7 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
         }
 
         // 12.2.
-        // CSS-FLEXBOX-2: Account for gap between items.
-        CSSPixels space_between_items = main_gap();
+        CSSPixels space_between_items = 0;
         CSSPixels initial_offset = 0;
         auto number_of_items = flex_line.items.size();
 
@@ -1334,6 +1333,7 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
         CSSPixels cursor_offset = initial_offset;
 
         auto place_item = [&](FlexItem& item) {
+            // CSS-FLEXBOX-2: Account for gap between items.
             auto amount_of_main_size_used = item.main_size.value()
                 + item.margins.main_before
                 + item.borders.main_before
@@ -1341,7 +1341,8 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
                 + item.margins.main_after
                 + item.borders.main_after
                 + item.padding.main_after
-                + space_between_items;
+                + space_between_items
+                + main_gap();
 
             if (is_direction_reverse() && flex_region_render_cursor == FlexRegionRenderCursor::Right) {
                 item.main_offset = cursor_offset - item.main_size.value() - item.margins.main_after - item.borders.main_after - item.padding.main_after;

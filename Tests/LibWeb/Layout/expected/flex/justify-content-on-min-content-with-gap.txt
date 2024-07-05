@@ -1,0 +1,64 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x120 children: not-inline
+      Box <div.container> at (8,8) content-size 160x40 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.box> at (8,8) content-size 40x40 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.box> at (68,8) content-size 40x40 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.box> at (128,8) content-size 40x40 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,48) content-size 784x0 children: inline
+        TextNode <#text>
+      Box <div.container> at (8,48) content-size 160x40 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.box> at (8,48) content-size 40x40 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.box> at (68,48) content-size 40x40 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.box> at (128,48) content-size 40x40 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,88) content-size 784x0 children: inline
+        TextNode <#text>
+      Box <div.container> at (8,88) content-size 160x40 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.box> at (8,88) content-size 40x40 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.box> at (68,88) content-size 40x40 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.box> at (128,88) content-size 40x40 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,128) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x120]
+      PaintableBox (Box<DIV>.container) [8,8 160x40]
+        PaintableWithLines (BlockContainer<DIV>.box) [8,8 40x40]
+        PaintableWithLines (BlockContainer<DIV>.box) [68,8 40x40]
+        PaintableWithLines (BlockContainer<DIV>.box) [128,8 40x40]
+      PaintableWithLines (BlockContainer(anonymous)) [8,48 784x0]
+      PaintableBox (Box<DIV>.container) [8,48 160x40]
+        PaintableWithLines (BlockContainer<DIV>.box) [8,48 40x40]
+        PaintableWithLines (BlockContainer<DIV>.box) [68,48 40x40]
+        PaintableWithLines (BlockContainer<DIV>.box) [128,48 40x40]
+      PaintableWithLines (BlockContainer(anonymous)) [8,88 784x0]
+      PaintableBox (Box<DIV>.container) [8,88 160x40]
+        PaintableWithLines (BlockContainer<DIV>.box) [8,88 40x40]
+        PaintableWithLines (BlockContainer<DIV>.box) [68,88 40x40]
+        PaintableWithLines (BlockContainer<DIV>.box) [128,88 40x40]
+      PaintableWithLines (BlockContainer(anonymous)) [8,128 784x0]
