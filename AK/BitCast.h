@@ -11,7 +11,7 @@
 namespace AK {
 
 template<typename T, typename U>
-[[nodiscard]] constexpr inline T bit_cast(U const& a)
+[[nodiscard]] constexpr ALWAYS_INLINE T bit_cast(U const& a)
 {
 #if (__has_builtin(__builtin_bit_cast))
     return __builtin_bit_cast(T, a);

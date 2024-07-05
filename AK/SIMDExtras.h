@@ -261,12 +261,11 @@ ALWAYS_INLINE static T byte_reverse_impl(T a, IndexSequence<Idx...>)
     //        Hence this giant conditional
     using BytesVector = Conditional<sizeof(T) == 2, u8x2, Conditional<sizeof(T) == 4, u8x4, Conditional<sizeof(T) == 8, u8x8, Conditional<sizeof(T) == 16, u8x16, Conditional<sizeof(T) == 32, u8x32, void>>>>>;
     static_assert(sizeof(BytesVector) == sizeof(T));
-    // Note: Using __builtin_bit_cast instead of bit_cast to avoid a psabi warning from bit_cast
-    auto tmp = __builtin_shufflevector(
-        __builtin_bit_cast(BytesVector, a),
-        __builtin_bit_cast(BytesVector, a),
-        N - 1 - Idx...);
-    return __builtin_bit_cast(T, tmp);
+    return bit_cast<T>(
+        __builtin_shufflevector(
+            bit_cast<BytesVector>(a),
+            bit_cast<BytesVector>(a),
+            N - 1 - Idx...));
 }
 
 template<SIMDVector T, size_t... Idx>
