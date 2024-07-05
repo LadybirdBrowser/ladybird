@@ -793,9 +793,14 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
     m_placeholder_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     m_placeholder_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Placeholder);
+
+    // https://www.w3.org/TR/css-ui-4/#input-rules
     MUST(m_placeholder_element->set_attribute(HTML::AttributeNames::style, R"~~~(
         width: 100%;
         height: 1lh;
+        align-items: center;
+        text-overflow: clip;
+        white-space: nowrap;
     )~~~"_string));
     MUST(element->append_child(*m_placeholder_element));
 
@@ -804,10 +809,14 @@ void HTMLInputElement::create_text_input_shadow_tree()
     m_placeholder_text_node->set_editable_text_node_owner(Badge<HTMLInputElement> {}, *this);
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
+    // https://www.w3.org/TR/css-ui-4/#input-rules
     m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     MUST(m_inner_text_element->set_attribute(HTML::AttributeNames::style, R"~~~(
         width: 100%;
         height: 1lh;
+        align-items: center;
+        text-overflow: clip;
+        white-space: nowrap;
     )~~~"_string));
     MUST(element->append_child(*m_inner_text_element));
 
