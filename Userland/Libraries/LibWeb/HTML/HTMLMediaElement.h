@@ -105,6 +105,7 @@ public:
 
     JS::NonnullGCPtr<AudioTrackList> audio_tracks() const { return *m_audio_tracks; }
     JS::NonnullGCPtr<VideoTrackList> video_tracks() const { return *m_video_tracks; }
+    JS::NonnullGCPtr<TextTrackList> text_tracks() const { return *m_text_tracks; }
 
     WebIDL::ExceptionOr<void> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode);
 
@@ -259,6 +260,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-videotracks
     JS::GCPtr<VideoTrackList> m_video_tracks;
+
+    // https://html.spec.whatwg.org/multipage/media.html#dom-media-texttracks
+    JS::GCPtr<TextTrackList> m_text_tracks;
 
     // https://html.spec.whatwg.org/multipage/media.html#media-data
     ByteBuffer m_media_data;
