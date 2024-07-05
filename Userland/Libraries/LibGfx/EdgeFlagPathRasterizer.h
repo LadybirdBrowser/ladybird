@@ -21,7 +21,7 @@ namespace Detail {
 static auto constexpr coverage_lut = [] {
     Array<u8, 256> coverage_lut {};
     for (u32 sample = 0; sample <= 255; sample++)
-        coverage_lut[sample] = popcount(sample);
+        coverage_lut[sample] = AK::popcount(sample);
     return coverage_lut;
 }();
 
