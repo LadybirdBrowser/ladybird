@@ -34,7 +34,7 @@ void TrackEvent::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TrackEvent);
 }
 
-Variant<Empty, JS::Handle<VideoTrack>, JS::Handle<AudioTrack>> TrackEvent::track() const
+Variant<Empty, JS::Handle<VideoTrack>, JS::Handle<AudioTrack>, JS::Handle<TextTrack>> TrackEvent::track() const
 {
     // FIXME: This is a bit awkward. When creating a nullable union, our IDL generator creates a type of
     //        Optional<Variant<...>>, using an empty Optional to represent null. But when retrieving the

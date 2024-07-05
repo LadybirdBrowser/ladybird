@@ -1,5 +1,6 @@
 #import <DOM/Event.idl>
 #import <HTML/AudioTrack.idl>
+#import <HTML/TextTrack.idl>
 #import <HTML/VideoTrack.idl>
 
 // https://html.spec.whatwg.org/multipage/media.html#trackevent
@@ -7,11 +8,9 @@
 interface TrackEvent : Event {
     constructor(DOMString type, optional TrackEventInit eventInitDict = {});
 
-    // FIXME: Should be: (VideoTrack or AudioTrack or TextTrack)?
-    readonly attribute (VideoTrack or AudioTrack)? track;
+    readonly attribute (VideoTrack or AudioTrack or TextTrack)? track;
 };
 
 dictionary TrackEventInit : EventInit {
-    // FIXME: Should be: (VideoTrack or AudioTrack or TextTrack)?
-    (VideoTrack or AudioTrack)? track = null;
+    (VideoTrack or AudioTrack or TextTrack)? track = null;
 };
