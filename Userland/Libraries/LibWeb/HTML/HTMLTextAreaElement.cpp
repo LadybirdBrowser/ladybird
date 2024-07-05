@@ -209,7 +209,6 @@ void HTMLTextAreaElement::set_custom_validity(String const& error)
     dbgln("(STUBBED) HTMLTextAreaElement::set_custom_validity(\"{}\"). Called on: {}", error, debug_description());
 }
 
-
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
 WebIDL::UnsignedLong HTMLTextAreaElement::selection_start() const
 {
@@ -218,7 +217,7 @@ WebIDL::UnsignedLong HTMLTextAreaElement::selection_start() const
     // 2. If there is no selection, return the code unit offset within the relevant value to the character that
     //    immediately follows the text entry cursor.
     // NOTE: There does not appear to be a concept of selection state (in the spec) after the first selection is made.
-    //       Before it we can check if the values have been cached, but 
+    //       Before it we can check if the values have been cached, but
 
     // 3. Return the code unit offset within the relevant value to the character that immediately follows the start of
     //           the selection.
@@ -228,7 +227,7 @@ WebIDL::UnsignedLong HTMLTextAreaElement::selection_start() const
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionstart-2
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_start(WebIDL::UnsignedLong value)
 {
-    // 1. If this element is an input element, and selectionStart does not apply to this element, throw an 
+    // 1. If this element is an input element, and selectionStart does not apply to this element, throw an
     //    "InvalidStateError" DOMException.
 
     // 2. Let end be the value of this element's selectionEnd attribute.
@@ -253,7 +252,6 @@ WebIDL::UnsignedLong HTMLTextAreaElement::selection_end() const
     // 3. Return the code unit offset within the relevant value to the character that immediately follows the end of
     //    the selection.
     return m_cached_selection_end;
-    
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionend-3
@@ -284,13 +282,13 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_range(Optional<WebI
     if (!end.has_value())
         end = 0;
 
-    // 3. Set the selection of the text control to the sequence of code units within the relevant value starting with 
+    // 3. Set the selection of the text control to the sequence of code units within the relevant value starting with
     //    the code unit at the startth position (in logical order) and ending with the code unit at the (end-1)th position.
     auto length = text_length();
-    //    Arguments greater than the length of the relevant value point at the end of the text control. 
-    end =  min(end.value(), length);
-    //    If end is less than or equal to start then the start of the selection and the end of the selection must both be placed 
-    //    immediately before the character with offset end. 
+    //    Arguments greater than the length of the relevant value point at the end of the text control.
+    end = min(end.value(), length);
+    //    If end is less than or equal to start then the start of the selection and the end of the selection must both be placed
+    //    immediately before the character with offset end.
     start = min(start.value(), length);
     // FIXME: In UAs where there is no concept of an empty selection, this must set the cursor to be just before the character with offset end.
 
@@ -305,7 +303,7 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_range(Optional<WebI
     // 5. Set the selection direction of the text control to direction.
     if (!cache_selection_state(start.value(), end.value(), _direction))
         // 6. If the previous steps caused the selection of the text control to be modified (in either extent or direction), then queue an element
-        //    task on the user interaction task source given the element to fire an event named select at the element, with the bubbles attribute 
+        //    task on the user interaction task source given the element to fire an event named select at the element, with the bubbles attribute
         //    initialized to true.
         queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
             auto select_event = DOM::Event::create(realm(), HTML::EventNames::select, { .bubbles = true });

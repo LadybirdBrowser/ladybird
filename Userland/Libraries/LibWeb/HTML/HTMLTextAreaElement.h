@@ -90,6 +90,8 @@ public:
     WebIDL::UnsignedLong selection_end() const;
     WebIDL::ExceptionOr<void> set_selection_end(WebIDL::UnsignedLong);
 
+    WebIDL::ExceptionOr<void> set_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, Optional<String> direction);
+
     WebIDL::Long max_length() const;
     WebIDL::ExceptionOr<void> set_max_length(WebIDL::Long);
 

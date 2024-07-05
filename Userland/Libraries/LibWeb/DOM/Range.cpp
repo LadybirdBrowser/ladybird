@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "AK/Format.h"
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/RangePrototype.h>
 #include <LibWeb/DOM/Comment.h>
@@ -21,6 +22,8 @@
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
@@ -118,9 +121,20 @@ void Range::update_associated_selection()
         document->dispatch_event(event);
     }));
 
-    // FIXME: When an input or textarea element provide a text selection and its selection changes (in either extent or direction), 
-    // the user agent must queue a task on the user interaction task source to fire an event named selectionchange, which 
+    // When an input or textarea element provide a text selection and its selection changes (in either extent or direction),
+    // the user agent must queue a task on the user interaction task source to fire an event named selectionchange, which
     // bubbles but is not cancelable, at the element.
+    if (auto* element = m_associated_selection->document()->focused_element()) {
+        if (is<HTML::HTMLInputElement>(element) || is<HTML::HTMLTextAreaElement>(element)) {
+            queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(*element), JS::create_heap_function(element->heap(), [element] {
+                EventInit event_init;
+                event_init.bubbles = true;
+                event_init.cancelable = false;
+                auto event = DOM::Event::create(element->realm(), HTML::EventNames::selectionchange, event_init);
+                element->dispatch_event(event);
+            }));
+        }
+    }
 }
 
 // https://dom.spec.whatwg.org/#concept-range-root
