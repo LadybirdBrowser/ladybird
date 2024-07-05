@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
  *
@@ -97,11 +97,11 @@ void CanvasRenderingContext2D::fill_rect(float x, float y, float width, float he
 
 void CanvasRenderingContext2D::clear_rect(float x, float y, float width, float height)
 {
-    draw_clipped([&](auto& painter) {
-        auto rect = drawing_state().transform.map(Gfx::FloatRect(x, y, width, height));
-        painter.underlying_painter().clear_rect(enclosing_int_rect(rect), Color());
-        return rect;
-    });
+    if (auto* painter = this->painter()) {
+        auto rect = Gfx::FloatRect(x, y, width, height);
+        painter->clear_rect(rect, Color::Transparent);
+        did_draw(rect);
+    }
 }
 
 void CanvasRenderingContext2D::stroke_rect(float x, float y, float width, float height)
@@ -154,21 +154,20 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
         return {};
 
     // 6. Paint the region of the image argument specified by the source rectangle on the region of the rendering context's output bitmap specified by the destination rectangle, after applying the current transformation matrix to the destination rectangle.
-    draw_clipped([&](auto& painter) {
-        auto scaling_mode = Gfx::ScalingMode::NearestNeighbor;
-        if (drawing_state().image_smoothing_enabled) {
-            // FIXME: Honor drawing_state().image_smoothing_quality
-            scaling_mode = Gfx::ScalingMode::BilinearBlend;
-        }
+    auto scaling_mode = Gfx::ScalingMode::NearestNeighbor;
+    if (drawing_state().image_smoothing_enabled) {
+        // FIXME: Honor drawing_state().image_smoothing_quality
+        scaling_mode = Gfx::ScalingMode::BilinearBlend;
+    }
 
-        painter.underlying_painter().draw_scaled_bitmap_with_transform(destination_rect.to_rounded<int>(), *bitmap, source_rect, drawing_state().transform, drawing_state().global_alpha, scaling_mode);
+    if (auto* painter = this->painter()) {
+        painter->draw_bitmap(destination_rect, *bitmap, source_rect.to_rounded<int>(), scaling_mode, drawing_state().global_alpha);
+        did_draw(destination_rect);
+    }
 
-        // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
-        if (image_is_not_origin_clean(image))
-            m_origin_clean = false;
-
-        return destination_rect;
-    });
+    // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
+    if (image_is_not_origin_clean(image))
+        m_origin_clean = false;
 
     return {};
 }
@@ -181,23 +180,15 @@ void CanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
     canvas_element().paintable()->set_needs_display();
 }
 
-Gfx::DeprecatedPainter* CanvasRenderingContext2D::painter()
+Gfx::Painter* CanvasRenderingContext2D::painter()
 {
     if (!canvas_element().bitmap()) {
         if (!canvas_element().create_bitmap())
             return nullptr;
         canvas_element().document().invalidate_display_list();
-        m_painter = make<Gfx::DeprecatedPainter>(*canvas_element().bitmap());
+        m_painter = Gfx::Painter::create(*canvas_element().bitmap());
     }
     return m_painter.ptr();
-}
-
-Optional<Gfx::AntiAliasingPainter> CanvasRenderingContext2D::antialiased_painter()
-{
-    auto painter = this->painter();
-    if (painter)
-        return Gfx::AntiAliasingPainter { *painter };
-    return {};
 }
 
 Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y, Optional<double> max_width)
@@ -271,15 +262,19 @@ void CanvasRenderingContext2D::begin_path()
 
 void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
 {
-    draw_clipped([&](auto& painter) {
-        auto& drawing_state = this->drawing_state();
-        if (auto color = drawing_state.stroke_style.as_color(); color.has_value()) {
-            painter.stroke_path(path, color->with_opacity(drawing_state.global_alpha), drawing_state.line_width);
-        } else {
-            painter.stroke_path(path, drawing_state.stroke_style.to_gfx_paint_style(), drawing_state.line_width, drawing_state.global_alpha);
-        }
-        return path.bounding_box();
-    });
+    auto* painter = this->painter();
+    if (!painter)
+        return;
+
+    auto& state = drawing_state();
+
+    if (auto color = state.stroke_style.as_color(); color.has_value()) {
+        painter->stroke_path(path, color->with_opacity(state.global_alpha), state.line_width);
+    } else {
+        painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.line_width, state.global_alpha);
+    }
+
+    did_draw(path.bounding_box());
 }
 
 void CanvasRenderingContext2D::stroke()
@@ -305,17 +300,20 @@ static Gfx::WindingRule parse_fill_rule(StringView fill_rule)
 
 void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
 {
-    draw_clipped([&, this](auto& painter) mutable {
-        auto path_to_fill = path;
-        path_to_fill.close_all_subpaths();
-        auto& drawing_state = this->drawing_state();
-        if (auto color = drawing_state.fill_style.as_color(); color.has_value()) {
-            painter.fill_path(path_to_fill, color->with_opacity(drawing_state.global_alpha), winding_rule);
-        } else {
-            painter.fill_path(path_to_fill, drawing_state.fill_style.to_gfx_paint_style(), drawing_state.global_alpha, winding_rule);
-        }
-        return path_to_fill.bounding_box();
-    });
+    auto* painter = this->painter();
+    if (!painter)
+        return;
+
+    auto path_to_fill = path;
+    path_to_fill.close_all_subpaths();
+    auto& state = this->drawing_state();
+    if (auto color = state.fill_style.as_color(); color.has_value()) {
+        painter->fill_path(path_to_fill, color->with_opacity(state.global_alpha), winding_rule);
+    } else {
+        painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.global_alpha, winding_rule);
+    }
+
+    did_draw(path_to_fill.bounding_box());
 }
 
 void CanvasRenderingContext2D::fill(StringView fill_rule)
@@ -381,20 +379,21 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
 
 void CanvasRenderingContext2D::put_image_data(ImageData const& image_data, float x, float y)
 {
-    draw_clipped([&](auto& painter) {
-        painter.underlying_painter().blit(Gfx::IntPoint(x, y), image_data.bitmap(), image_data.bitmap().rect());
-        return Gfx::FloatRect(x, y, image_data.width(), image_data.height());
-    });
+    if (auto* painter = this->painter()) {
+        auto dst_rect = Gfx::FloatRect(x, y, image_data.width(), image_data.height());
+        painter->draw_bitmap(dst_rect, image_data.bitmap(), image_data.bitmap().rect(), Gfx::ScalingMode::NearestNeighbor, 1.0f);
+        did_draw(dst_rect);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#reset-the-rendering-context-to-its-default-state
 void CanvasRenderingContext2D::reset_to_default_state()
 {
-    auto painter = this->painter();
+    auto* bitmap = canvas_element().bitmap();
 
     // 1. Clear canvas's bitmap to transparent black.
-    if (painter)
-        painter->clear_rect(painter->target().rect(), Color::Transparent);
+    if (bitmap)
+        bitmap->fill(Gfx::Color::Transparent);
 
     // 2. Empty the list of subpaths in context's current default path.
     path().clear();
@@ -405,8 +404,8 @@ void CanvasRenderingContext2D::reset_to_default_state()
     // 4. Reset everything that drawing state consists of to their initial values.
     reset_drawing_state();
 
-    if (painter)
-        did_draw(painter->target().rect().to_type<float>());
+    if (bitmap)
+        did_draw(bitmap->rect().to_type<float>());
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-measuretext

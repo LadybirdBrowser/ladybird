@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -10,9 +10,9 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <LibGfx/AffineTransform.h>
-#include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/PathClipper.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -99,6 +99,8 @@ public:
     HTMLCanvasElement& canvas_element();
     HTMLCanvasElement const& canvas_element() const;
 
+    [[nodiscard]] Gfx::Painter* painter();
+
 private:
     explicit CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&);
 
@@ -118,25 +120,9 @@ private:
 
     void did_draw(Gfx::FloatRect const&);
 
-    template<typename TDrawFunction>
-    void draw_clipped(TDrawFunction draw_function)
-    {
-        auto painter = this->antialiased_painter();
-        if (!painter.has_value())
-            return;
-        Gfx::ScopedPathClip clipper(painter->underlying_painter(), drawing_state().clip);
-        auto draw_rect = draw_function(*painter);
-        if (drawing_state().clip.has_value())
-            draw_rect.intersect(drawing_state().clip->path.bounding_box());
-        did_draw(draw_rect);
-    }
-
     RefPtr<Gfx::Font const> current_font();
 
     PreparedText prepare_text(ByteString const& text, float max_width = INFINITY);
-
-    Gfx::DeprecatedPainter* painter();
-    Optional<Gfx::AntiAliasingPainter> antialiased_painter();
 
     Gfx::Path rect_path(float x, float y, float width, float height);
 
@@ -147,7 +133,7 @@ private:
     void clip_internal(Gfx::Path&, Gfx::WindingRule);
 
     JS::NonnullGCPtr<HTMLCanvasElement> m_element;
-    OwnPtr<Gfx::DeprecatedPainter> m_painter;
+    OwnPtr<Gfx::Painter> m_painter;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
     bool m_origin_clean { true };

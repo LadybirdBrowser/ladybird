@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Debug.h>
+#include <LibGfx/Painter.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 
@@ -71,6 +72,8 @@ public:
 
         // 2. Reset the current transformation matrix to the identity matrix.
         my_drawing_state().transform = {};
+        if (auto* painter = static_cast<IncludingClass&>(*this).painter())
+            painter->set_transform({});
 
         // 3. Invoke the transform(a, b, c, d, e, f) method with the same arguments.
         transform(a, b, c, d, e, f);
@@ -88,7 +91,10 @@ public:
             return {};
 
         // 3. Reset the current transformation matrix to matrix.
-        my_drawing_state().transform = { static_cast<float>(matrix->a()), static_cast<float>(matrix->b()), static_cast<float>(matrix->c()), static_cast<float>(matrix->d()), static_cast<float>(matrix->e()), static_cast<float>(matrix->f()) };
+        auto transform = Gfx::AffineTransform { static_cast<float>(matrix->a()), static_cast<float>(matrix->b()), static_cast<float>(matrix->c()), static_cast<float>(matrix->d()), static_cast<float>(matrix->e()), static_cast<float>(matrix->f()) };
+        my_drawing_state().transform = transform;
+        if (auto* painter = static_cast<IncludingClass&>(*this).painter())
+            painter->set_transform(transform);
         return {};
     }
 
@@ -97,6 +103,8 @@ public:
     {
         // The resetTransform() method, when invoked, must reset the current transformation matrix to the identity matrix.
         my_drawing_state().transform = {};
+        if (auto* painter = static_cast<IncludingClass&>(*this).painter())
+            painter->set_transform({});
     }
 
 protected:
