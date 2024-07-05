@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 struct TrackEventInit : public DOM::EventInit {
-    using TrackType = Optional<Variant<JS::Handle<VideoTrack>, JS::Handle<AudioTrack>>>;
+    using TrackType = Optional<Variant<JS::Handle<VideoTrack>, JS::Handle<AudioTrack>, JS::Handle<TextTrack>>>;
     TrackType track;
 };
 
@@ -28,7 +28,7 @@ public:
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<TrackEvent>> construct_impl(JS::Realm&, FlyString const& event_name, TrackEventInit);
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-trackevent-track
-    Variant<Empty, JS::Handle<VideoTrack>, JS::Handle<AudioTrack>> track() const;
+    Variant<Empty, JS::Handle<VideoTrack>, JS::Handle<AudioTrack>, JS::Handle<TextTrack>> track() const;
 
 private:
     TrackEvent(JS::Realm&, FlyString const& event_name, TrackEventInit event_init);
