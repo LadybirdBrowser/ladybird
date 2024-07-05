@@ -48,6 +48,12 @@ void HTMLTrackElement::attribute_changed(FlyString const& name, Optional<String>
     } else if (name.equals_ignoring_ascii_case("srclang"sv)) {
         m_track->set_language(value.value_or({}));
     }
+
+    // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-id
+    // For tracks that correspond to track elements, the track's identifier is the value of the element's id attribute, if any.
+    if (name.equals_ignoring_ascii_case("id"sv)) {
+        m_track->set_id(value.value_or({}));
+    }
 }
 
 }

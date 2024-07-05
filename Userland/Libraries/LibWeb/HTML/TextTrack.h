@@ -33,6 +33,9 @@ public:
     String language();
     void set_language(String);
 
+    String id();
+    void set_id(String);
+
     void set_oncuechange(WebIDL::CallbackType*);
     WebIDL::CallbackType* oncuechange();
 
@@ -44,6 +47,8 @@ private:
     Bindings::TextTrackKind m_kind { Bindings::TextTrackKind::Subtitles };
     String m_label {};
     String m_language {};
+
+    String m_id {};
 };
 
 Bindings::TextTrackKind text_track_kind_from_string(String);
