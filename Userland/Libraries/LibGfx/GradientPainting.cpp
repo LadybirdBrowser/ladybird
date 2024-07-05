@@ -5,9 +5,9 @@
  */
 
 #include <AK/Math.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Gradients.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Painter.h>
 
 #if defined(AK_COMPILER_GCC)
 #    pragma GCC optimize("O3")
@@ -122,7 +122,7 @@ public:
         return color;
     }
 
-    void paint_into_physical_rect(Painter& painter, IntRect rect, auto location_transform)
+    void paint_into_physical_rect(DeprecatedPainter& painter, IntRect rect, auto location_transform)
     {
         auto clipped_rect = rect.intersected(painter.clip_rect());
         auto start_offset = clipped_rect.location() - rect.location();
@@ -171,7 +171,7 @@ struct Gradient {
     {
     }
 
-    void paint(Painter& painter, IntRect rect)
+    void paint(DeprecatedPainter& painter, IntRect rect)
     {
         m_gradient_line.paint_into_physical_rect(painter, rect, m_transform_function);
     }
@@ -271,7 +271,7 @@ static auto create_radial_gradient(IntRect const& physical_rect, ReadonlySpan<Co
     };
 }
 
-void Painter::fill_rect_with_linear_gradient(IntRect const& rect, ReadonlySpan<ColorStop> color_stops, float angle, Optional<float> repeat_length)
+void DeprecatedPainter::fill_rect_with_linear_gradient(IntRect const& rect, ReadonlySpan<ColorStop> color_stops, float angle, Optional<float> repeat_length)
 {
     auto a_rect = to_physical(rect);
     if (a_rect.intersected(clip_rect()).is_empty())
@@ -285,7 +285,7 @@ static FloatPoint pixel_center(IntPoint point)
     return point.to_type<float>().translated(0.5f, 0.5f);
 }
 
-void Painter::fill_rect_with_conic_gradient(IntRect const& rect, ReadonlySpan<ColorStop> color_stops, IntPoint center, float start_angle, Optional<float> repeat_length)
+void DeprecatedPainter::fill_rect_with_conic_gradient(IntRect const& rect, ReadonlySpan<ColorStop> color_stops, IntPoint center, float start_angle, Optional<float> repeat_length)
 {
     auto a_rect = to_physical(rect);
     if (a_rect.intersected(clip_rect()).is_empty())
@@ -296,7 +296,7 @@ void Painter::fill_rect_with_conic_gradient(IntRect const& rect, ReadonlySpan<Co
     conic_gradient.paint(*this, a_rect);
 }
 
-void Painter::fill_rect_with_radial_gradient(IntRect const& rect, ReadonlySpan<ColorStop> color_stops, IntPoint center, IntSize size, Optional<float> repeat_length, Optional<float> rotation_angle)
+void DeprecatedPainter::fill_rect_with_radial_gradient(IntRect const& rect, ReadonlySpan<ColorStop> color_stops, IntPoint center, IntSize size, Optional<float> repeat_length, Optional<float> rotation_angle)
 {
     auto a_rect = to_physical(rect);
     if (a_rect.intersected(clip_rect()).is_empty())

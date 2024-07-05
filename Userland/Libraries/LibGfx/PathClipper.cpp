@@ -5,7 +5,7 @@
  */
 
 #include <LibGfx/AntiAliasingPainter.h>
-#include <LibGfx/Painter.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/PathClipper.h>
 
 namespace Gfx {
@@ -13,7 +13,7 @@ namespace Gfx {
 // FIXME: This pretty naive, we should be able to cut down the allocations here
 // (especially for the paint style which is a bit sad).
 
-ErrorOr<PathClipper> PathClipper::create(Painter& painter, ClipPath const& clip_path)
+ErrorOr<PathClipper> PathClipper::create(DeprecatedPainter& painter, ClipPath const& clip_path)
 {
     auto bounding_box = enclosing_int_rect(clip_path.path.bounding_box());
     IntRect actual_save_rect {};
@@ -31,7 +31,7 @@ ErrorOr<PathClipper> PathClipper::create(Painter& painter, ClipPath const& clip_
     return PathClipper(move(saved_clip_region), bounding_box, clip_path);
 }
 
-ErrorOr<void> PathClipper::apply_clip(Painter& painter)
+ErrorOr<void> PathClipper::apply_clip(DeprecatedPainter& painter)
 {
     painter.restore();
     if (!m_saved_clip_region)

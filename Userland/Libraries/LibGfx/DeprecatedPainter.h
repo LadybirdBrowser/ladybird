@@ -36,10 +36,10 @@ ALWAYS_INLINE static Color color_for_format(BitmapFormat format, ARGB32 value)
     }
 }
 
-class Painter {
+class DeprecatedPainter {
 public:
-    explicit Painter(Gfx::Bitmap&);
-    ~Painter() = default;
+    explicit DeprecatedPainter(Gfx::Bitmap&);
+    ~DeprecatedPainter() = default;
 
     void clear_rect(IntRect const&, Color);
     void fill_rect(IntRect const&, Color);
@@ -132,13 +132,13 @@ protected:
     Vector<State, 4> m_state_stack;
 };
 
-class PainterStateSaver {
+class DeprecatedPainterStateSaver {
 public:
-    explicit PainterStateSaver(Painter&);
-    ~PainterStateSaver();
+    explicit DeprecatedPainterStateSaver(DeprecatedPainter&);
+    ~DeprecatedPainterStateSaver();
 
 private:
-    Painter& m_painter;
+    DeprecatedPainter& m_painter;
 };
 
 }

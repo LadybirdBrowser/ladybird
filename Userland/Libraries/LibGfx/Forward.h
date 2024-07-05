@@ -26,7 +26,7 @@ template<typename T>
 class Line;
 
 class AntiAliasingPainter;
-class Painter;
+class DeprecatedPainter;
 class Palette;
 class PaletteImpl;
 class Path;

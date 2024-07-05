@@ -18,7 +18,7 @@ namespace Gfx {
 
 class AntiAliasingPainter {
 public:
-    explicit AntiAliasingPainter(Painter& painter)
+    explicit AntiAliasingPainter(DeprecatedPainter& painter)
         : m_underlying_painter(painter)
     {
     }
@@ -78,7 +78,7 @@ public:
 
     void fill_rect_with_rounded_corners(IntRect const&, Color, CornerRadius top_left, CornerRadius top_right, CornerRadius bottom_right, CornerRadius bottom_left, BlendMode blend_mode = BlendMode::Normal);
 
-    Gfx::Painter& underlying_painter() { return m_underlying_painter; }
+    Gfx::DeprecatedPainter& underlying_painter() { return m_underlying_painter; }
 
 private:
     struct Range {
@@ -96,7 +96,7 @@ private:
     void draw_anti_aliased_line(FloatPoint, FloatPoint, Color, float thickness, LineStyle, Color, LineLengthMode);
     void draw_dotted_line(IntPoint, IntPoint, Gfx::Color, int thickness);
 
-    Painter& m_underlying_painter;
+    DeprecatedPainter& m_underlying_painter;
     AffineTransform m_transform;
 };
 

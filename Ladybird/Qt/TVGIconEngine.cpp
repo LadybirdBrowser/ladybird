@@ -8,7 +8,7 @@
 #include "StringUtils.h"
 #include <AK/MemoryStream.h>
 #include <AK/String.h>
-#include <LibGfx/Painter.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <QFile>
 #include <QImage>
 #include <QPainter>
@@ -33,7 +33,7 @@ QPixmap TVGIconEngine::pixmap(QSize const& size, QIcon::Mode mode, QIcon::State 
     if (QPixmapCache::find(key, &pixmap))
         return pixmap;
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { size.width(), size.height() }));
-    Gfx::Painter painter { *bitmap };
+    Gfx::DeprecatedPainter painter { *bitmap };
     m_image_data->draw_into(painter, bitmap->rect());
     for (auto const& filter : m_filters) {
         if (filter->mode() == mode) {

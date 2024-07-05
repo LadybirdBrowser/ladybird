@@ -6,8 +6,8 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Font/ScaledFont.h>
-#include <LibGfx/Painter.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
@@ -943,7 +943,7 @@ RefPtr<Gfx::Bitmap> PaintableBox::calculate_mask(PaintContext& context, CSSPixel
     if (maybe_bitmap.is_error())
         return {};
     auto bitmap = maybe_bitmap.release_value();
-    Gfx::Painter painter(*bitmap);
+    Gfx::DeprecatedPainter painter(*bitmap);
     Gfx::AntiAliasingPainter aa_painter(painter);
     aa_painter.fill_path(path, Color::Black);
     return bitmap;

@@ -6,13 +6,13 @@
 
 #include <LibTest/TestCase.h>
 
-#include <LibGfx/Painter.h>
+#include <LibGfx/DeprecatedPainter.h>
 
 TEST_CASE(draw_scaled_bitmap_with_transform)
 {
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { 40, 30 }));
     bitmap->fill(Gfx::Color::White);
-    Gfx::Painter painter(bitmap);
+    Gfx::DeprecatedPainter painter(bitmap);
 
     auto source_bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { 1, 1 }));
     source_bitmap->fill(Gfx::Color::Black);
@@ -49,7 +49,7 @@ TEST_CASE(draw_scaled_bitmap_with_transform)
 TEST_CASE(draw_rect_rough_bounds)
 {
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { 10, 10 }));
-    Gfx::Painter painter(*bitmap);
+    Gfx::DeprecatedPainter painter(*bitmap);
     painter.draw_rect(Gfx::IntRect(0, 0, 1, 1), Color::Black, true);
     painter.draw_rect(Gfx::IntRect(9, 9, 1, 1), Color::Black, true);
 }

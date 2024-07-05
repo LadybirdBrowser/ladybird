@@ -7,8 +7,8 @@
 #include <LibTest/TestCase.h>
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Font/FontDatabase.h>
-#include <LibGfx/Painter.h>
 #include <stdio.h>
 
 BENCHMARK_CASE(diagonal_lines)
@@ -17,7 +17,7 @@ BENCHMARK_CASE(diagonal_lines)
     int const bitmap_size = 2000;
 
     auto bitmap = TRY_OR_FAIL(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { bitmap_size, bitmap_size }));
-    Gfx::Painter painter(bitmap);
+    Gfx::DeprecatedPainter painter(bitmap);
 
     for (int run = 0; run < run_count; run++) {
         for (int i = 0; i < bitmap_size; i++) {
@@ -33,7 +33,7 @@ BENCHMARK_CASE(fill)
     int const bitmap_size = 2000;
 
     auto bitmap = TRY_OR_FAIL(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { bitmap_size, bitmap_size }));
-    Gfx::Painter painter(bitmap);
+    Gfx::DeprecatedPainter painter(bitmap);
 
     for (int run = 0; run < run_count; run++) {
         painter.fill_rect(bitmap->rect(), Color::Blue);
@@ -46,7 +46,7 @@ BENCHMARK_CASE(fill_with_gradient)
     int const bitmap_size = 2000;
 
     auto bitmap = TRY_OR_FAIL(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { bitmap_size, bitmap_size }));
-    Gfx::Painter painter(bitmap);
+    Gfx::DeprecatedPainter painter(bitmap);
 
     for (int run = 0; run < run_count; run++) {
         painter.fill_rect_with_gradient(bitmap->rect(), Color::Blue, Color::Red);

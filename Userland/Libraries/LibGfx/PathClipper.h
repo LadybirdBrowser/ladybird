@@ -20,8 +20,8 @@ struct ClipPath {
 
 class PathClipper {
 public:
-    static ErrorOr<PathClipper> create(Painter&, ClipPath const& clip_path);
-    ErrorOr<void> apply_clip(Painter& painter);
+    static ErrorOr<PathClipper> create(DeprecatedPainter&, ClipPath const& clip_path);
+    ErrorOr<void> apply_clip(DeprecatedPainter& painter);
 
 private:
     PathClipper(RefPtr<Bitmap const> saved_clip_region, IntRect bounding_box, ClipPath const& clip_path)
@@ -41,7 +41,7 @@ class ScopedPathClip {
     AK_MAKE_NONCOPYABLE(ScopedPathClip);
 
 public:
-    ScopedPathClip(Painter& painter, Optional<ClipPath> const& clip_path)
+    ScopedPathClip(DeprecatedPainter& painter, Optional<ClipPath> const& clip_path)
         : m_painter(painter)
     {
         if (clip_path.has_value()) {
@@ -60,7 +60,7 @@ public:
     }
 
 private:
-    Painter& m_painter;
+    DeprecatedPainter& m_painter;
     Optional<PathClipper> m_path_clipper;
 };
 
