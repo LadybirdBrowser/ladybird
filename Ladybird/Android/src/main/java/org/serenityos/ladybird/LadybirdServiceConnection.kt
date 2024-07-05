@@ -35,9 +35,11 @@ class LadybirdServiceConnection(
         init.data.putString("PATH", resourceDir)
         service!!.send(init)
 
+        val parcel = ParcelFileDescriptor.adoptFd(ipcFd)
         val msg = Message.obtain(null, MSG_TRANSFER_SOCKET)
-        msg.data.putParcelable("IPC_SOCKET", ParcelFileDescriptor.adoptFd(ipcFd))
+        msg.data.putParcelable("IPC_SOCKET", parcel)
         service!!.send(msg)
+        parcel.detachFd()
     }
 
     override fun onServiceDisconnected(className: ComponentName) {
