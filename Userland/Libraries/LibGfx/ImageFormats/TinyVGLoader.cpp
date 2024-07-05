@@ -12,9 +12,9 @@
 #include <AK/Variant.h>
 #include <LibCore/File.h>
 #include <LibGfx/AntiAliasingPainter.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/ImageFormats/TinyVGLoader.h>
 #include <LibGfx/Line.h>
-#include <LibGfx/Painter.h>
 #include <LibGfx/Point.h>
 
 namespace Gfx {
@@ -472,7 +472,7 @@ ErrorOr<NonnullRefPtr<TinyVGDecodedImageData>> TinyVGDecodedImageData::decode(St
     return TRY(adopt_nonnull_ref_or_enomem(new (nothrow) TinyVGDecodedImageData({ header.width, header.height }, move(draw_commands))));
 }
 
-void TinyVGDecodedImageData::draw_transformed(Painter& painter, AffineTransform transform) const
+void TinyVGDecodedImageData::draw_transformed(DeprecatedPainter& painter, AffineTransform transform) const
 {
     // FIXME: Correctly handle non-uniform scales.
     auto scale = max(transform.x_scale(), transform.y_scale());

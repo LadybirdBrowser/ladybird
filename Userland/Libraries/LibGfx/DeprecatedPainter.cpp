@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Painter.h"
+#include "DeprecatedPainter.h"
 #include "Bitmap.h"
 #include "Font/Font.h"
 #include <AK/Assertions.h>
@@ -42,7 +42,7 @@ ALWAYS_INLINE Color get_pixel(Gfx::Bitmap const& bitmap, int x, int y)
     return bitmap.get_pixel(x, y);
 }
 
-Painter::Painter(Gfx::Bitmap& bitmap)
+DeprecatedPainter::DeprecatedPainter(Gfx::Bitmap& bitmap)
     : m_target(bitmap)
 {
     VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRx8888 || bitmap.format() == Gfx::BitmapFormat::BGRA8888);
@@ -51,7 +51,7 @@ Painter::Painter(Gfx::Bitmap& bitmap)
     m_clip_origin = state().clip_rect;
 }
 
-void Painter::clear_rect(IntRect const& a_rect, Color color)
+void DeprecatedPainter::clear_rect(IntRect const& a_rect, Color color)
 {
     auto rect = a_rect.translated(translation()).intersected(clip_rect());
     if (rect.is_empty())
@@ -68,7 +68,7 @@ void Painter::clear_rect(IntRect const& a_rect, Color color)
     }
 }
 
-void Painter::fill_physical_rect(IntRect const& physical_rect, Color color)
+void DeprecatedPainter::fill_physical_rect(IntRect const& physical_rect, Color color)
 {
     // Callers must do clipping.
     ARGB32* dst = target().scanline(physical_rect.top()) + physical_rect.left();
@@ -82,7 +82,7 @@ void Painter::fill_physical_rect(IntRect const& physical_rect, Color color)
     }
 }
 
-void Painter::fill_rect(IntRect const& a_rect, Color color)
+void DeprecatedPainter::fill_rect(IntRect const& a_rect, Color color)
 {
     if (color.alpha() == 0)
         return;
@@ -100,7 +100,7 @@ void Painter::fill_rect(IntRect const& a_rect, Color color)
     fill_physical_rect(rect, color);
 }
 
-void Painter::fill_rect(IntRect const& rect, PaintStyle const& paint_style)
+void DeprecatedPainter::fill_rect(IntRect const& rect, PaintStyle const& paint_style)
 {
     auto a_rect = rect.translated(translation());
     auto clipped_rect = a_rect.intersected(clip_rect());
@@ -117,7 +117,7 @@ void Painter::fill_rect(IntRect const& rect, PaintStyle const& paint_style)
     });
 }
 
-void Painter::fill_rect_with_gradient(Orientation orientation, IntRect const& a_rect, Color gradient_start, Color gradient_end)
+void DeprecatedPainter::fill_rect_with_gradient(Orientation orientation, IntRect const& a_rect, Color gradient_start, Color gradient_end)
 {
     if (gradient_start == gradient_end) {
         fill_rect(a_rect, gradient_start);
@@ -126,17 +126,17 @@ void Painter::fill_rect_with_gradient(Orientation orientation, IntRect const& a_
     return fill_rect_with_linear_gradient(a_rect, Array { ColorStop { gradient_start, 0 }, ColorStop { gradient_end, 1 } }, orientation == Orientation::Horizontal ? 90.0f : 0.0f);
 }
 
-void Painter::fill_rect_with_gradient(IntRect const& a_rect, Color gradient_start, Color gradient_end)
+void DeprecatedPainter::fill_rect_with_gradient(IntRect const& a_rect, Color gradient_start, Color gradient_end)
 {
     return fill_rect_with_gradient(Orientation::Horizontal, a_rect, gradient_start, gradient_end);
 }
 
-void Painter::fill_rect_with_rounded_corners(IntRect const& a_rect, Color color, int radius)
+void DeprecatedPainter::fill_rect_with_rounded_corners(IntRect const& a_rect, Color color, int radius)
 {
     return fill_rect_with_rounded_corners(a_rect, color, radius, radius, radius, radius);
 }
 
-void Painter::fill_rect_with_rounded_corners(IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius)
+void DeprecatedPainter::fill_rect_with_rounded_corners(IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius)
 {
     // Fasttrack for rects without any border radii
     if (!top_left_radius && !top_right_radius && !bottom_right_radius && !bottom_left_radius)
@@ -220,7 +220,7 @@ void Painter::fill_rect_with_rounded_corners(IntRect const& a_rect, Color color,
         fill_rounded_corner(bottom_right_corner, bottom_right_radius, color, CornerOrientation::BottomRight);
 }
 
-void Painter::fill_rounded_corner(IntRect const& a_rect, int radius, Color color, CornerOrientation orientation)
+void DeprecatedPainter::fill_rounded_corner(IntRect const& a_rect, int radius, Color color, CornerOrientation orientation)
 {
     // Care about clipping
     auto translated_a_rect = a_rect.translated(translation());
@@ -323,7 +323,7 @@ static void on_each_ellipse_point(IntRect const& rect, Function<void(IntPoint)>&
     }
 }
 
-void Painter::fill_ellipse(IntRect const& a_rect, Color color)
+void DeprecatedPainter::fill_ellipse(IntRect const& a_rect, Color color)
 {
     auto rect = a_rect.translated(translation()).intersected(clip_rect());
     if (rect.is_empty())
@@ -356,7 +356,7 @@ static void for_each_pixel_around_rect_clockwise(RectType const& rect, Callback 
         callback(rect.left(), y);
 }
 
-void Painter::draw_rect(IntRect const& a_rect, Color color, bool rough)
+void DeprecatedPainter::draw_rect(IntRect const& a_rect, Color color, bool rough)
 {
     IntRect rect = a_rect.translated(translation());
     auto clipped_rect = rect.intersected(clip_rect());
@@ -460,7 +460,7 @@ static void do_blit_with_opacity(BlitState& state)
     }
 }
 
-void Painter::blit_with_opacity(IntPoint position, Gfx::Bitmap const& source, IntRect const& src_rect, float opacity, bool apply_alpha)
+void DeprecatedPainter::blit_with_opacity(IntPoint position, Gfx::Bitmap const& source, IntRect const& src_rect, float opacity, bool apply_alpha)
 {
     if (opacity >= 1.0f && !(source.has_alpha_channel() && apply_alpha))
         return blit(position, source, src_rect);
@@ -501,7 +501,7 @@ void Painter::blit_with_opacity(IntPoint position, Gfx::Bitmap const& source, In
     }
 }
 
-void Painter::blit_filtered(IntPoint position, Gfx::Bitmap const& source, IntRect const& src_rect, Function<Color(Color)> const& filter, bool apply_alpha)
+void DeprecatedPainter::blit_filtered(IntPoint position, Gfx::Bitmap const& source, IntRect const& src_rect, Function<Color(Color)> const& filter, bool apply_alpha)
 {
     IntRect safe_src_rect = src_rect.intersected(source.rect());
     auto dst_rect = IntRect(position, safe_src_rect.size()).translated(translation());
@@ -537,14 +537,14 @@ void Painter::blit_filtered(IntPoint position, Gfx::Bitmap const& source, IntRec
     }
 }
 
-void Painter::blit(IntPoint position, Gfx::Bitmap const& source, IntRect const& src_rect, float opacity, bool apply_alpha)
+void DeprecatedPainter::blit(IntPoint position, Gfx::Bitmap const& source, IntRect const& src_rect, float opacity, bool apply_alpha)
 {
     if (opacity < 1.0f || (source.has_alpha_channel() && apply_alpha))
         return blit_with_opacity(position, source, src_rect, opacity, apply_alpha);
 
     auto safe_src_rect = src_rect.intersected(source.rect());
 
-    // If we get here, the Painter might have a scale factor, but the source bitmap has the same scale factor.
+    // If we get here, the DeprecatedPainter might have a scale factor, but the source bitmap has the same scale factor.
     // We need to transform from logical to physical coordinates, but we can just copy pixels without resampling.
     auto dst_rect = IntRect(position, safe_src_rect.size()).translated(translation());
     auto clipped_rect = dst_rect.intersected(clip_rect());
@@ -790,12 +790,12 @@ ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect con
     }
 }
 
-void Painter::draw_scaled_bitmap(IntRect const& a_dst_rect, Gfx::Bitmap const& source, IntRect const& a_src_rect, float opacity, ScalingMode scaling_mode)
+void DeprecatedPainter::draw_scaled_bitmap(IntRect const& a_dst_rect, Gfx::Bitmap const& source, IntRect const& a_src_rect, float opacity, ScalingMode scaling_mode)
 {
     draw_scaled_bitmap(a_dst_rect, source, FloatRect { a_src_rect }, opacity, scaling_mode);
 }
 
-void Painter::draw_scaled_bitmap(IntRect const& a_dst_rect, Gfx::Bitmap const& source, FloatRect const& a_src_rect, float opacity, ScalingMode scaling_mode)
+void DeprecatedPainter::draw_scaled_bitmap(IntRect const& a_dst_rect, Gfx::Bitmap const& source, FloatRect const& a_src_rect, float opacity, ScalingMode scaling_mode)
 {
     IntRect int_src_rect = enclosing_int_rect(a_src_rect);
     if (a_src_rect == int_src_rect && a_dst_rect.size() == int_src_rect.size())
@@ -836,7 +836,7 @@ void Painter::draw_scaled_bitmap(IntRect const& a_dst_rect, Gfx::Bitmap const& s
     }
 }
 
-void Painter::set_pixel(IntPoint p, Color color, bool blend)
+void DeprecatedPainter::set_pixel(IntPoint p, Color color, bool blend)
 {
     auto point = p;
     point.translate_by(state().translation);
@@ -847,7 +847,7 @@ void Painter::set_pixel(IntPoint p, Color color, bool blend)
     set_physical_pixel(point, color, blend);
 }
 
-void Painter::set_physical_pixel(IntPoint physical_point, Color color, bool blend)
+void DeprecatedPainter::set_physical_pixel(IntPoint physical_point, Color color, bool blend)
 {
     // This function should only be called after translation, clipping, etc has been handled elsewhere
     // if not use set_pixel().
@@ -858,7 +858,7 @@ void Painter::set_physical_pixel(IntPoint physical_point, Color color, bool blen
         dst = color_for_format(target().format(), dst).blend(color).value();
 }
 
-Optional<Color> Painter::get_pixel(IntPoint p)
+Optional<Color> DeprecatedPainter::get_pixel(IntPoint p)
 {
     auto point = p;
     point.translate_by(state().translation);
@@ -867,7 +867,7 @@ Optional<Color> Painter::get_pixel(IntPoint p)
     return target().get_pixel(point);
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Painter::get_region_bitmap(IntRect const& region, BitmapFormat format, Optional<IntRect&> actual_region)
+ErrorOr<NonnullRefPtr<Bitmap>> DeprecatedPainter::get_region_bitmap(IntRect const& region, BitmapFormat format, Optional<IntRect&> actual_region)
 {
     auto bitmap_region = region.translated(state().translation).intersected(target().rect());
     if (actual_region.has_value())
@@ -875,21 +875,21 @@ ErrorOr<NonnullRefPtr<Bitmap>> Painter::get_region_bitmap(IntRect const& region,
     return target().cropped(bitmap_region, format);
 }
 
-ALWAYS_INLINE void Painter::set_physical_pixel(u32& pixel, Color color)
+ALWAYS_INLINE void DeprecatedPainter::set_physical_pixel(u32& pixel, Color color)
 {
     // This always sets a single physical pixel, independent of scale().
     // This should only be called by routines that already handle scale.
     pixel = color.value();
 }
 
-ALWAYS_INLINE void Painter::fill_physical_scanline(int y, int x, int width, Color color)
+ALWAYS_INLINE void DeprecatedPainter::fill_physical_scanline(int y, int x, int width, Color color)
 {
     // This always draws a single physical scanline, independent of scale().
     // This should only be called by routines that already handle scale.
     fast_u32_fill(target().scanline(y) + x, color.value(), width);
 }
 
-void Painter::draw_physical_pixel(IntPoint physical_position, Color color, int thickness)
+void DeprecatedPainter::draw_physical_pixel(IntPoint physical_position, Color color, int thickness)
 {
     // This always draws a single physical pixel, independent of scale().
     // This should only be called by routines that already handle scale
@@ -907,7 +907,7 @@ void Painter::draw_physical_pixel(IntPoint physical_position, Color color, int t
     fill_physical_rect(rect, color);
 }
 
-void Painter::draw_line(IntPoint a_p1, IntPoint a_p2, Color color, int thickness, LineStyle style, Color alternate_color)
+void DeprecatedPainter::draw_line(IntPoint a_p1, IntPoint a_p2, Color color, int thickness, LineStyle style, Color alternate_color)
 {
     if (clip_rect().is_empty())
         return;
@@ -1059,7 +1059,7 @@ void Painter::draw_line(IntPoint a_p1, IntPoint a_p2, Color color, int thickness
     }
 }
 
-void Painter::draw_triangle_wave(IntPoint a_p1, IntPoint a_p2, Color color, int amplitude, int thickness)
+void DeprecatedPainter::draw_triangle_wave(IntPoint a_p1, IntPoint a_p2, Color color, int amplitude, int thickness)
 {
     // FIXME: Support more than horizontal waves
     VERIFY(a_p1.y() == a_p2.y());
@@ -1099,7 +1099,7 @@ static bool can_approximate_bezier_curve(FloatPoint p1, FloatPoint p2, FloatPoin
     return error <= tolerance;
 }
 
-void Painter::for_each_line_segment_on_bezier_curve(FloatPoint control_point, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>& callback)
+void DeprecatedPainter::for_each_line_segment_on_bezier_curve(FloatPoint control_point, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>& callback)
 {
     struct SegmentDescriptor {
         FloatPoint control_point;
@@ -1133,12 +1133,12 @@ void Painter::for_each_line_segment_on_bezier_curve(FloatPoint control_point, Fl
     }
 }
 
-void Painter::for_each_line_segment_on_bezier_curve(FloatPoint control_point, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>&& callback)
+void DeprecatedPainter::for_each_line_segment_on_bezier_curve(FloatPoint control_point, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>&& callback)
 {
     for_each_line_segment_on_bezier_curve(control_point, p1, p2, callback);
 }
 
-void Painter::for_each_line_segment_on_cubic_bezier_curve(FloatPoint control_point_0, FloatPoint control_point_1, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>&& callback)
+void DeprecatedPainter::for_each_line_segment_on_cubic_bezier_curve(FloatPoint control_point_0, FloatPoint control_point_1, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>&& callback)
 {
     for_each_line_segment_on_cubic_bezier_curve(control_point_0, control_point_1, p1, p2, callback);
 }
@@ -1165,7 +1165,7 @@ static bool can_approximate_cubic_bezier_curve(FloatPoint p1, FloatPoint p2, Flo
 }
 
 // static
-void Painter::for_each_line_segment_on_cubic_bezier_curve(FloatPoint control_point_0, FloatPoint control_point_1, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>& callback)
+void DeprecatedPainter::for_each_line_segment_on_cubic_bezier_curve(FloatPoint control_point_0, FloatPoint control_point_1, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>& callback)
 {
     struct ControlPair {
         FloatPoint control_point_0;
@@ -1205,36 +1205,36 @@ void Painter::for_each_line_segment_on_cubic_bezier_curve(FloatPoint control_poi
     }
 }
 
-void Painter::add_clip_rect(IntRect const& rect)
+void DeprecatedPainter::add_clip_rect(IntRect const& rect)
 {
     state().clip_rect.intersect(rect.translated(translation()));
     state().clip_rect.intersect(target().rect()); // FIXME: This shouldn't be necessary?
 }
 
-void Painter::clear_clip_rect()
+void DeprecatedPainter::clear_clip_rect()
 {
     state().clip_rect = m_clip_origin;
 }
 
-PainterStateSaver::PainterStateSaver(Painter& painter)
+DeprecatedPainterStateSaver::DeprecatedPainterStateSaver(DeprecatedPainter& painter)
     : m_painter(painter)
 {
     m_painter.save();
 }
 
-PainterStateSaver::~PainterStateSaver()
+DeprecatedPainterStateSaver::~DeprecatedPainterStateSaver()
 {
     m_painter.restore();
 }
 
-void Painter::stroke_path(Path const& path, Color color, int thickness)
+void DeprecatedPainter::stroke_path(Path const& path, Color color, int thickness)
 {
     if (thickness <= 0)
         return;
     fill_path(path.stroke_to_fill(thickness), color);
 }
 
-void Painter::draw_scaled_bitmap_with_transform(IntRect const& dst_rect, Bitmap const& bitmap, FloatRect const& src_rect, AffineTransform const& transform, float opacity, ScalingMode scaling_mode)
+void DeprecatedPainter::draw_scaled_bitmap_with_transform(IntRect const& dst_rect, Bitmap const& bitmap, FloatRect const& src_rect, AffineTransform const& transform, float opacity, ScalingMode scaling_mode)
 {
     if (transform.is_identity_or_translation_or_scale()) {
         draw_scaled_bitmap(transform.map(dst_rect.to_type<float>()).to_rounded<int>(), bitmap, src_rect, opacity, scaling_mode);
@@ -1250,7 +1250,7 @@ void Painter::draw_scaled_bitmap_with_transform(IntRect const& dst_rect, Bitmap 
         //   - Set or blend (depending on alpha values) one pixel in the canvas.
         //   - Loop.
 
-        // FIXME: Painter should have an affine transform as part of its state and handle all of this instead.
+        // FIXME: DeprecatedPainter should have an affine transform as part of its state and handle all of this instead.
 
         if (opacity == 0.0f)
             return;

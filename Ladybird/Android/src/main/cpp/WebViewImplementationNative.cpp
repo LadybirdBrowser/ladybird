@@ -8,7 +8,7 @@
 #include "JNIHelpers.h"
 #include <LibWebView/WebContentClient.h>
 #include <Userland/Libraries/LibGfx/Bitmap.h>
-#include <Userland/Libraries/LibGfx/Painter.h>
+#include <Userland/Libraries/LibGfx/DeprecatedPainter.h>
 #include <Userland/Libraries/LibWeb/Crypto/Crypto.h>
 #include <Userland/Libraries/LibWebView/ViewImplementation.h>
 #include <android/bitmap.h>
@@ -70,7 +70,7 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
     VERIFY((info.flags & ANDROID_BITMAP_FLAGS_IS_HARDWARE) == 0);
 
     auto android_bitmap = MUST(Gfx::Bitmap::create_wrapper(to_gfx_bitmap_format(info.format), Gfx::AlphaType::Premultiplied, { info.width, info.height }, info.stride, android_bitmap_raw));
-    Gfx::Painter painter(android_bitmap);
+    Gfx::DeprecatedPainter painter(android_bitmap);
     if (auto* bitmap = m_client_state.has_usable_bitmap ? m_client_state.front_bitmap.bitmap.ptr() : m_backup_bitmap.ptr())
         painter.blit({ 0, 0 }, *bitmap, bitmap->rect());
     else

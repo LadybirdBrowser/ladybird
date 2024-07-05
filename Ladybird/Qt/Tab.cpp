@@ -12,8 +12,8 @@
 #include "Settings.h"
 #include "StringUtils.h"
 #include <AK/TemporaryChange.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/ImageFormats/BMPWriter.h>
-#include <LibGfx/Painter.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>

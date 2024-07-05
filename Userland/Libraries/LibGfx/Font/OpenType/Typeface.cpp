@@ -14,12 +14,12 @@
 #include <LibCore/MappedFile.h>
 #include <LibCore/Resource.h>
 #include <LibGfx/AntiAliasingPainter.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Font/OpenType/Cmap.h>
 #include <LibGfx/Font/OpenType/Glyf.h>
 #include <LibGfx/Font/OpenType/Tables.h>
 #include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
-#include <LibGfx/Painter.h>
 #include <math.h>
 #include <sys/mman.h>
 

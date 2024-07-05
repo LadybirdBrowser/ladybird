@@ -13,8 +13,8 @@
 #include <AK/Function.h>
 #include <AK/NumericLimits.h>
 #include <LibGfx/AntiAliasingPainter.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Line.h>
-#include <LibGfx/Painter.h>
 
 namespace Gfx {
 
@@ -279,7 +279,7 @@ void AntiAliasingPainter::draw_ellipse(IntRect const& a_rect, Color color, int t
     auto outer_rect = a_rect;
     outer_rect.set_location({ 0, 0 });
     auto inner_rect = outer_rect.shrunken(thickness * 2, thickness * 2);
-    Painter painter { outline_ellipse_bitmap };
+    DeprecatedPainter painter { outline_ellipse_bitmap };
     AntiAliasingPainter aa_painter { painter };
     aa_painter.fill_ellipse(outer_rect, color_no_alpha);
     aa_painter.fill_ellipse(inner_rect, color_no_alpha, BlendMode::AlphaSubtract);
@@ -580,7 +580,7 @@ void AntiAliasingPainter::fill_rect_with_rounded_corners(IntRect const& a_rect, 
     }
 
     auto fill_corner = [&](auto const& ellipse_center, auto const& corner_point, CornerRadius const& corner) {
-        PainterStateSaver save { m_underlying_painter };
+        DeprecatedPainterStateSaver save { m_underlying_painter };
         m_underlying_painter.add_clip_rect(IntRect::from_two_points(ellipse_center, corner_point));
         fill_ellipse(IntRect::centered_at(ellipse_center, { corner.horizontal_radius * 2, corner.vertical_radius * 2 }), color, blend_mode);
     };

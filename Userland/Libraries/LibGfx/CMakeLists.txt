@@ -7,6 +7,7 @@ set(SOURCES
     CMYKBitmap.cpp
     Color.cpp
     DeltaE.cpp
+    DeprecatedPainter.cpp
     EdgeFlagPathRasterizer.cpp
     FontCascadeList.cpp
     Font/Emoji.cpp
@@ -54,7 +55,6 @@ set(SOURCES
     ImageFormats/AVIFLoader.cpp
     ImmutableBitmap.cpp
     MedianCut.cpp
-    Painter.cpp
     Palette.cpp
     Path.cpp
     PathClipper.cpp

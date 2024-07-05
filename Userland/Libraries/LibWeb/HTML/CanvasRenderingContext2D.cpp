@@ -7,7 +7,7 @@
  */
 
 #include <AK/OwnPtr.h>
-#include <LibGfx/Painter.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/Rect.h>
 #include <LibUnicode/Segmenter.h>
@@ -181,13 +181,13 @@ void CanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
     canvas_element().paintable()->set_needs_display();
 }
 
-Gfx::Painter* CanvasRenderingContext2D::painter()
+Gfx::DeprecatedPainter* CanvasRenderingContext2D::painter()
 {
     if (!canvas_element().bitmap()) {
         if (!canvas_element().create_bitmap())
             return nullptr;
         canvas_element().document().invalidate_display_list();
-        m_painter = make<Gfx::Painter>(*canvas_element().bitmap());
+        m_painter = make<Gfx::DeprecatedPainter>(*canvas_element().bitmap());
     }
     return m_painter.ptr();
 }
@@ -359,7 +359,7 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     auto source_rect_intersected = source_rect.intersected(bitmap.rect());
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
-    // FIXME: Can't use a Gfx::Painter + blit() here as it doesn't support ImageData bitmap's RGBA8888 format.
+    // FIXME: Can't use a Gfx::DeprecatedPainter + blit() here as it doesn't support ImageData bitmap's RGBA8888 format.
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
     //       might result in a loss of precision, but is according to spec.
     //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context

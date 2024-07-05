@@ -5,7 +5,7 @@
  */
 
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/Painter.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibTest/TestCase.h>
 
 // Scaling modes which use linear interpolation should use premultiplied alpha.
@@ -22,7 +22,7 @@ TEST_CASE(test_painter_scaling_uses_premultiplied_alpha)
         auto scaled_bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 5, 5 }));
         scaled_bitmap->fill(Color::Transparent);
 
-        Gfx::Painter painter(scaled_bitmap);
+        Gfx::DeprecatedPainter painter(scaled_bitmap);
         painter.draw_scaled_bitmap(scaled_bitmap->rect(), src_bitmap, src_bitmap->rect(), 1.0f, scaling_mode);
 
         auto top_left_pixel = scaled_bitmap->get_pixel(0, 0);

@@ -6,10 +6,10 @@
  */
 
 #include <AK/Vector.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
-#include <LibGfx/Painter.h>
 #include <png.h>
 
 namespace Gfx {
@@ -203,7 +203,7 @@ ErrorOr<bool> PNGImageDecoderPlugin::initialize()
 static ErrorOr<NonnullRefPtr<Bitmap>> render_animation_frame(AnimationFrame const& prev_animation_frame, AnimationFrame const& animation_frame, Bitmap const& decoded_frame_bitmap)
 {
     auto rendered_bitmap = TRY(prev_animation_frame.bitmap->clone());
-    Painter painter(rendered_bitmap);
+    DeprecatedPainter painter(rendered_bitmap);
 
     auto frame_rect = animation_frame.rect();
     switch (prev_animation_frame.dispose_op) {

@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Painter.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/VectorGraphic.h>
 
 namespace Gfx {
 
-void VectorGraphic::draw_into(Painter& painter, IntRect const& dest, AffineTransform transform) const
+void VectorGraphic::draw_into(DeprecatedPainter& painter, IntRect const& dest, AffineTransform transform) const
 {
     // Apply the transform then center within destination rectangle (this ignores any translation from the transform):
     // This allows you to easily rotate or flip the image before painting.
@@ -27,7 +27,7 @@ void VectorGraphic::draw_into(Painter& painter, IntRect const& dest, AffineTrans
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> VectorGraphic::bitmap(IntSize size, AffineTransform transform) const
 {
     auto bitmap = TRY(Bitmap::create(Gfx::BitmapFormat::BGRA8888, size));
-    Painter painter { *bitmap };
+    DeprecatedPainter painter { *bitmap };
     draw_into(painter, IntRect { {}, size }, transform);
     return bitmap;
 }

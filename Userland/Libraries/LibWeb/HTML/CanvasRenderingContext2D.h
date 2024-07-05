@@ -135,7 +135,7 @@ private:
 
     PreparedText prepare_text(ByteString const& text, float max_width = INFINITY);
 
-    Gfx::Painter* painter();
+    Gfx::DeprecatedPainter* painter();
     Optional<Gfx::AntiAliasingPainter> antialiased_painter();
 
     Gfx::Path rect_path(float x, float y, float width, float height);
@@ -147,7 +147,7 @@ private:
     void clip_internal(Gfx::Path&, Gfx::WindingRule);
 
     JS::NonnullGCPtr<HTMLCanvasElement> m_element;
-    OwnPtr<Gfx::Painter> m_painter;
+    OwnPtr<Gfx::DeprecatedPainter> m_painter;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
     bool m_origin_clean { true };

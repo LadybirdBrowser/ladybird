@@ -8,8 +8,8 @@
 #include <AK/StringBuilder.h>
 #include <AK/TypeCasts.h>
 #include <LibGfx/BoundingBox.h>
+#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Font/ScaledFont.h>
-#include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
 
@@ -332,13 +332,13 @@ void Path::segmentize_path()
             break;
         }
         case PathSegment::QuadraticBezierCurveTo: {
-            Painter::for_each_line_segment_on_bezier_curve(segment.through(), cursor, segment.point(), [&](FloatPoint p0, FloatPoint p1) {
+            DeprecatedPainter::for_each_line_segment_on_bezier_curve(segment.through(), cursor, segment.point(), [&](FloatPoint p0, FloatPoint p1) {
                 add_line(p0, p1);
             });
             break;
         }
         case PathSegment::CubicBezierCurveTo: {
-            Painter::for_each_line_segment_on_cubic_bezier_curve(segment.through_0(), segment.through_1(), cursor, segment.point(), [&](FloatPoint p0, FloatPoint p1) {
+            DeprecatedPainter::for_each_line_segment_on_cubic_bezier_curve(segment.through_0(), segment.through_1(), cursor, segment.point(), [&](FloatPoint p0, FloatPoint p1) {
                 add_line(p0, p1);
             });
             break;
