@@ -170,7 +170,10 @@ size_t ALooperEventLoopImplementation::pump(Core::EventLoopImplementation::PumpM
     auto num_events = Core::ThreadEventQueue::current().process();
 
     int timeout_ms = mode == Core::EventLoopImplementation::PumpMode::WaitForEvents ? -1 : 0;
-    auto ret = ALooper_pollAll(timeout_ms, nullptr, nullptr, nullptr);
+    int ret;
+    do {
+        ret = ALooper_pollOnce(timeout_ms, nullptr, nullptr, nullptr);
+    } while (ret == ALOOPER_POLL_CALLBACK);
 
     // We don't expect any non-callback FDs to be ready
     VERIFY(ret <= 0);
