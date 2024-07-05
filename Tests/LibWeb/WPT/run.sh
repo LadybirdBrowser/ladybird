@@ -83,6 +83,7 @@ python3 ./wpt/wpt run ladybird \
                   --manifest ./MANIFEST.json \
                   --webdriver-arg="--certificate=${PWD}/wpt/tools/certs/cacert.pem" \
                   --webdriver-arg="--certificate=${LADYBIRD_SOURCE_DIR}/Build/lagom/cacert.pem" \
+                  --webdriver-arg="--enable-qt-networking" \
                   --log-raw "${wpt_run_log_filename}"
 
 # Update expectations metadata files if requested
