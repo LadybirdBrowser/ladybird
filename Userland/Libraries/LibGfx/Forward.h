@@ -27,6 +27,7 @@ class Line;
 
 class AntiAliasingPainter;
 class DeprecatedPainter;
+class Painter;
 class Palette;
 class PaletteImpl;
 class Path;

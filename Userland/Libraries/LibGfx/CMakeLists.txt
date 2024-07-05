@@ -58,6 +58,8 @@ set(SOURCES
     Palette.cpp
     Path.cpp
     PathClipper.cpp
+    Painter.cpp
+    PainterSkia.cpp
     Point.cpp
     Rect.cpp
     ShareableBitmap.cpp
@@ -72,6 +74,9 @@ serenity_lib(LibGfx gfx)
 
 find_package(harfbuzz REQUIRED)
 target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL ${SKIA_LIBRARIES} harfbuzz)
+
+find_package(unofficial-skia CONFIG REQUIRED)
+target_link_libraries(LibGfx PRIVATE unofficial::skia::skia)
 
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
 list(TRANSFORM generated_sources PREPEND "ImageFormats/")
