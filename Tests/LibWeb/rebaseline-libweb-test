@@ -15,6 +15,17 @@ fi
 input_dir=$(dirname $t)
 expected_dir=$(echo $input_dir | sed s/input/expected/)
 test_name=$(basename $t .html)
+
 cd $LADYBIRD_SOURCE_DIR/Build/ladybird
+
+if [[ -f ./bin/headless-browser ]]; then
+    ladybird_headless_binary=./bin/headless-browser
+elif [[ -f ./bin/Ladybird.app/Contents/MacOS/headless-browser ]]; then
+    ladybird_headless_binary=./bin/Ladybird.app/Contents/MacOS/headless-browser
+else
+    echo "ERR: Could not find headless-browser binary" >&2
+    exit 1
+fi
+
 mkdir -p $expected_dir
-./bin/Ladybird.app/Contents/MacOS/headless-browser $mode_flag --layout-test-mode $LADYBIRD_SOURCE_DIR/Tests/LibWeb/$input_dir/$test_name.html > $LADYBIRD_SOURCE_DIR/Tests/LibWeb/$expected_dir/$test_name.txt
+$ladybird_headless_binary $mode_flag --layout-test-mode $LADYBIRD_SOURCE_DIR/Tests/LibWeb/$input_dir/$test_name.html > $LADYBIRD_SOURCE_DIR/Tests/LibWeb/$expected_dir/$test_name.txt
