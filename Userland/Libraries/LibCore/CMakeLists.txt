@@ -82,7 +82,6 @@ else()
 endif()
 
 if (HAS_VULKAN)
-    include_directories(${Vulkan_INCLUDE_DIR})
     list(APPEND SOURCES VulkanContext.cpp)
 endif()
 
@@ -112,5 +111,5 @@ if (ANDROID)
 endif()
 
 if (HAS_VULKAN)
-    target_link_libraries(LibCore PUBLIC ${Vulkan_LIBRARIES})
+    target_link_libraries(LibCore PUBLIC Vulkan::Vulkan Vulkan::Headers)
 endif()

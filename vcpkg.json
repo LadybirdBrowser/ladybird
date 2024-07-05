@@ -32,7 +32,15 @@
       "platform": "android"
     },
     "sqlite3",
-    "woff2"
+    "woff2",
+    {
+      "name": "vulkan",
+      "platform": "!android"
+    },
+    {
+      "name": "vulkan-headers",
+      "platform": "!android"
+    }
   ],
   "overrides": [
     {

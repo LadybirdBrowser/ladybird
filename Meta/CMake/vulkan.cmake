@@ -1,6 +1,7 @@
 if (NOT APPLE)
+    find_package(VulkanHeaders CONFIG QUIET)
     find_package(Vulkan QUIET)
-    if (Vulkan_FOUND)
+    if (VulkanHeaders_FOUND AND Vulkan_FOUND)
         set(HAS_VULKAN ON CACHE BOOL "" FORCE)
         add_compile_definitions(USE_VULKAN=1)
     endif()
