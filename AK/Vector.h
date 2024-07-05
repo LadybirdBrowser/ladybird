@@ -53,6 +53,10 @@ private:
     static constexpr bool CanBePlacedInsideVector = Detail::CanBePlacedInsideVectorHelper<StorageType, contains_reference>::template value<U>;
 
 public:
+    template<typename U, size_t inline_capacity_u>
+    requires(!IsRvalueReference<U>)
+    friend class Vector;
+
     using ValueType = T;
     Vector()
     {
@@ -314,15 +318,16 @@ public:
         MUST(try_prepend(values, count));
     }
 
-    // FIXME: What about assigning from a vector with lower inline capacity?
-    Vector& operator=(Vector&& other)
+    template<class U, size_t inline_capacity_u>
+    requires(inline_capacity_u <= inline_capacity)
+    Vector& operator=(Vector<U, inline_capacity_u>&& other)
     {
-        if (this != &other) {
+        if (reinterpret_cast<void*>(this) != reinterpret_cast<void*>(&other)) {
             clear();
             m_size = other.m_size;
             m_capacity = other.m_capacity;
             m_outline_buffer = other.m_outline_buffer;
-            if constexpr (inline_capacity > 0) {
+            if constexpr (inline_capacity_u > 0) {
                 if (!m_outline_buffer) {
                     for (size_t i = 0; i < m_size; ++i) {
                         new (&inline_buffer()[i]) StorageType(move(other.inline_buffer()[i]));
