@@ -48,19 +48,9 @@ DrawGlyphOrEmoji prepare_draw_glyph_or_emoji(FloatPoint point, Utf8CodePointIter
         };
     }
 
-    // If that failed, but we have a text glyph fallback, draw that.
-    if (font_contains_glyph) {
-        return DrawGlyph {
-            .position = point,
-            .code_point = code_point,
-        };
-    }
-
-    // No suitable glyph found, draw a replacement character.
-    dbgln_if(EMOJI_DEBUG, "Failed to find a glyph or emoji for code_point {}", code_point);
     return DrawGlyph {
         .position = point,
-        .code_point = 0xFFFD,
+        .code_point = code_point,
     };
 }
 
