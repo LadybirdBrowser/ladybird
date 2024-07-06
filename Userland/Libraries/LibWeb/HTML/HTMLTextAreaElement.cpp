@@ -67,16 +67,21 @@ void HTMLTextAreaElement::visit_edges(Cell::Visitor& visitor)
 
 void HTMLTextAreaElement::did_receive_focus()
 {
-    auto navigable = document().navigable();
-    if (!navigable)
-        return;
     if (!m_text_node)
         return;
+    m_text_node->invalidate_style();
+    auto navigable = document().navigable();
+    if (!navigable) {
+        return;
+    }
     navigable->set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
 
 void HTMLTextAreaElement::did_lose_focus()
 {
+    if (m_text_node)
+        m_text_node->invalidate_style();
+
     // The change event fires when the value is committed, if that makes sense for the control,
     // or else when the control loses focus
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
