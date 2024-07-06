@@ -1098,16 +1098,21 @@ void HTMLInputElement::update_slider_thumb_element()
 
 void HTMLInputElement::did_receive_focus()
 {
-    auto navigable = document().navigable();
-    if (!navigable)
-        return;
     if (!m_text_node)
         return;
+    m_text_node->invalidate_style();
+    auto navigable = document().navigable();
+    if (!navigable) {
+        return;
+    }
     navigable->set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
 
 void HTMLInputElement::did_lose_focus()
 {
+    if (m_text_node)
+        m_text_node->invalidate_style();
+
     commit_pending_changes();
 }
 
