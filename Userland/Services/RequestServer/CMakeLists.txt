@@ -19,5 +19,4 @@ set(GENERATED_SOURCES
 )
 
 serenity_bin(RequestServer)
-
 target_link_libraries(RequestServer PRIVATE LibCore LibCrypto LibIPC LibHTTP LibMain LibTLS LibWebSocket LibURL LibThreading)

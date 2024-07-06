@@ -33,7 +33,6 @@
     },
     "sqlite3",
     "woff2",
-    "wolfssl",
     {
       "name": "vulkan",
       "platform": "!android"
@@ -71,10 +70,6 @@
     {
       "name": "woff2",
       "version": "1.0.2#4"
-    },
-    {
-      "name": "wolfssl",
-      "version": "5.7.0#1"
     }
   ]
 }

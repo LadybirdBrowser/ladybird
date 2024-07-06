@@ -12,7 +12,7 @@
 namespace RequestServer::ConnectionCache {
 
 Threading::RWLockProtected<HashMap<ConnectionKey, NonnullOwnPtr<Vector<NonnullOwnPtr<Connection<Core::TCPSocket, Core::Socket>>>>>> g_tcp_connection_cache {};
-Threading::RWLockProtected<HashMap<ConnectionKey, NonnullOwnPtr<Vector<NonnullOwnPtr<Connection<TLS::WolfTLS>>>>>> g_tls_connection_cache {};
+Threading::RWLockProtected<HashMap<ConnectionKey, NonnullOwnPtr<Vector<NonnullOwnPtr<Connection<TLS::TLSv12>>>>>> g_tls_connection_cache {};
 Threading::RWLockProtected<HashMap<ByteString, InferredServerProperties>> g_inferred_server_properties;
 
 void request_did_finish(URL::URL const& url, Core::Socket const* socket)
@@ -121,7 +121,7 @@ void request_did_finish(URL::URL const& url, Core::Socket const* socket)
         }
     };
 
-    if (is<Core::BufferedSocket<TLS::WolfTLS>>(socket))
+    if (is<Core::BufferedSocket<TLS::TLSv12>>(socket))
         fire_off_next_job(g_tls_connection_cache);
     else if (is<Core::BufferedSocket<Core::Socket>>(socket))
         fire_off_next_job(g_tcp_connection_cache);
