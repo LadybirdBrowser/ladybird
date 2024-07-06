@@ -239,19 +239,24 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     auto_color_scheme->setCheckable(true);
     color_scheme_group->addAction(auto_color_scheme);
     color_scheme_menu->addAction(auto_color_scheme);
-    QObject::connect(auto_color_scheme, &QAction::triggered, this, &BrowserWindow::enable_auto_color_scheme);
-
+    QObject::connect(auto_color_scheme, &QAction::triggered, this, [this] {
+        set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Auto);
+    });
     auto* light_color_scheme = new QAction("&Light", this);
     light_color_scheme->setCheckable(true);
     color_scheme_group->addAction(light_color_scheme);
     color_scheme_menu->addAction(light_color_scheme);
-    QObject::connect(light_color_scheme, &QAction::triggered, this, &BrowserWindow::enable_light_color_scheme);
+    QObject::connect(light_color_scheme, &QAction::triggered, this, [this] {
+        set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Light);
+    });
 
     auto* dark_color_scheme = new QAction("&Dark", this);
     dark_color_scheme->setCheckable(true);
     color_scheme_group->addAction(dark_color_scheme);
     color_scheme_menu->addAction(dark_color_scheme);
-    QObject::connect(dark_color_scheme, &QAction::triggered, this, &BrowserWindow::enable_dark_color_scheme);
+    QObject::connect(dark_color_scheme, &QAction::triggered, this, [this] {
+        set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Dark);
+    });
 
     auto_color_scheme->setChecked(true);
 
@@ -808,6 +813,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
     tab->set_user_agent_string(user_agent_string());
     tab->set_navigator_compatibility_mode(navigator_compatibility_mode());
     tab->set_enable_do_not_track(Settings::the()->enable_do_not_track());
+    tab->view().set_preferred_color_scheme(m_preferred_color_scheme);
 }
 
 void BrowserWindow::activate_tab(int index)
@@ -982,27 +988,6 @@ void BrowserWindow::open_previous_tab()
     m_tabs_container->setCurrentIndex(next_index);
 }
 
-void BrowserWindow::enable_auto_color_scheme()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Auto);
-    });
-}
-
-void BrowserWindow::enable_light_color_scheme()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Light);
-    });
-}
-
-void BrowserWindow::enable_dark_color_scheme()
-{
-    for_each_tab([](auto& tab) {
-        tab.view().set_preferred_color_scheme(Web::CSS::PreferredColorScheme::Dark);
-    });
-}
-
 void BrowserWindow::enable_auto_contrast()
 {
     for_each_tab([](auto& tab) {
@@ -1125,6 +1110,14 @@ void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web:
         height = 600;
 
     setGeometry(x.value().value(), y.value().value(), width.value().value(), height.value().value());
+}
+
+void BrowserWindow::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)
+{
+    m_preferred_color_scheme = color_scheme;
+    for_each_tab([color_scheme](auto& tab) {
+        tab.view().set_preferred_color_scheme(color_scheme);
+    });
 }
 
 void BrowserWindow::copy_selected_text()

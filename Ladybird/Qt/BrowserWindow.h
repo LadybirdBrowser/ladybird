@@ -117,9 +117,6 @@ public slots:
     void open_next_tab();
     void open_previous_tab();
     void open_file();
-    void enable_auto_color_scheme();
-    void enable_light_color_scheme();
-    void enable_dark_color_scheme();
     void enable_auto_contrast();
     void enable_less_contrast();
     void enable_more_contrast();
@@ -178,6 +175,9 @@ private:
 
     QScreen* m_current_screen;
     double m_device_pixel_ratio { 0 };
+
+    Web::CSS::PreferredColorScheme m_preferred_color_scheme;
+    void set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme);
 
     QTabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };
