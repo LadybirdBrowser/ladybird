@@ -223,7 +223,9 @@ void HTMLMeterElement::update_meter_value_element()
     }
     // Finally, if the optimum point is higher than the high boundary, then the situation is reversed; the region between the high boundary and the maximum value must be treated as the optimum region, the region from the high boundary down to the low boundary must be treated as a suboptimal region, and the remaining region must be treated as an even less good region.
     else {
-        if (value >= low && value <= high)
+        if (value >= high && value <= max)
+            m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterOptimumValue);
+        else if (value >= low && value <= high)
             m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterSuboptimumValue);
         else
             m_meter_value_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::MeterEvenLessGoodValue);
