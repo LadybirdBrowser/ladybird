@@ -431,6 +431,12 @@ private:
 };
 
 template<typename T>
+constexpr bool operator==(Checked<T> const& a, Checked<T> const& b)
+{
+    return a.value() == b.value();
+}
+
+template<typename T>
 constexpr Checked<T> operator+(Checked<T> const& a, Checked<T> const& b)
 {
     Checked<T> c { a };
