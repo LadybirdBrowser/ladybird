@@ -337,6 +337,21 @@ Variant<JS::Handle<WebIDL::CallbackType>, JS::Value> CustomElementRegistry::get(
     return JS::js_undefined();
 }
 
+// https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-getname
+Optional<String> CustomElementRegistry::get_name(JS::Handle<WebIDL::CallbackType> const& constructor) const
+{
+    // 1. If this CustomElementRegistry contains an entry with constructor constructor, then return that entry's name.
+    auto existing_definition_iterator = m_custom_element_definitions.find_if([&constructor](auto const& definition) {
+        return definition->constructor().callback == constructor.cell()->callback;
+    });
+
+    if (!existing_definition_iterator.is_end())
+        return (*existing_definition_iterator)->name();
+
+    // 2. Return null.
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-whendefined
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> CustomElementRegistry::when_defined(String const& name)
 {
