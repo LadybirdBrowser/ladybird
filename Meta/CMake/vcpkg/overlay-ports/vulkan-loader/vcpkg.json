@@ -1,0 +1,19 @@
+{
+  "name": "vulkan-loader",
+  "version": "1.3.280.0",
+  "description": "Vulkan Development Tools",
+  "homepage": "https://github.com/KhronosGroup/Vulkan-Loader",
+  "license": null,
+  "supports": "!android",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "vulkan-headers"
+  ]
+}
