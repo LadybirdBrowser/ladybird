@@ -191,7 +191,7 @@ build_and_run_lagom_target() {
     build_target "${lagom_target}"
 
     if [ "$lagom_target" = "ladybird" ] && [ "$(uname -s)" = "Darwin" ]; then
-        open --wait-apps --stdout "$(tty)" --stderr "$(tty)" "$BUILD_DIR/bin/Ladybird.app" --args "${lagom_args[@]}"
+        "$BUILD_DIR/bin/Ladybird.app/Contents/MacOS/Ladybird" "${lagom_args[@]}"
     else
         local lagom_bin="$lagom_target"
         if [ "$lagom_bin" = "ladybird" ]; then
