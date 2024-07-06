@@ -711,6 +711,19 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
+    if (property_id == CSS::PropertyID::Float) {
+        auto ident = value.to_identifier();
+
+        // FIXME: Honor writing-mode, direction and text-orientation.
+        if (ident == CSS::ValueID::InlineStart) {
+            set_longhand_property(CSS::PropertyID::Float, IdentifierStyleValue::create(CSS::ValueID::Left));
+            return;
+        } else if (ident == CSS::ValueID::InlineEnd) {
+            set_longhand_property(CSS::PropertyID::Float, IdentifierStyleValue::create(CSS::ValueID::Right));
+            return;
+        }
+    }
+
     if (property_is_shorthand(property_id)) {
         // ShorthandStyleValue was handled already.
         // That means if we got here, that `value` must be a CSS-wide keyword, which we should apply to our longhand properties.
