@@ -329,14 +329,12 @@ struct Minimum {
     auto operator()(Lhs lhs, Rhs rhs) const
     {
         if constexpr (IsFloatingPoint<Lhs> || IsFloatingPoint<Rhs>) {
-            if (isnan(lhs))
-                return lhs;
-            if (isnan(rhs))
-                return rhs;
-            if (isinf(lhs))
-                return lhs > 0 ? rhs : lhs;
-            if (isinf(rhs))
-                return rhs > 0 ? lhs : rhs;
+            if (isnan(lhs) || isnan(rhs)) {
+                return isnan(lhs) ? lhs : rhs;
+            }
+            if (lhs == 0 && rhs == 0) {
+                return signbit(lhs) ? lhs : rhs;
+            }
         }
         return min(lhs, rhs);
     }
@@ -349,14 +347,12 @@ struct Maximum {
     auto operator()(Lhs lhs, Rhs rhs) const
     {
         if constexpr (IsFloatingPoint<Lhs> || IsFloatingPoint<Rhs>) {
-            if (isnan(lhs))
-                return lhs;
-            if (isnan(rhs))
-                return rhs;
-            if (isinf(lhs))
-                return lhs > 0 ? lhs : rhs;
-            if (isinf(rhs))
-                return rhs > 0 ? rhs : lhs;
+            if (isnan(lhs) || isnan(rhs)) {
+                return isnan(lhs) ? lhs : rhs;
+            }
+            if (lhs == 0 && rhs == 0) {
+                return signbit(lhs) ? rhs : lhs;
+            }
         }
         return max(lhs, rhs);
     }
