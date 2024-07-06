@@ -44,15 +44,13 @@ void WebSocketImplSerenity::connect(ConnectionInfo const& connection_info)
     auto socket_result = [&]() -> ErrorOr<NonnullOwnPtr<Core::BufferedSocketBase>> {
         auto host = TRY(connection_info.url().serialized_host()).to_byte_string();
         if (connection_info.is_secure()) {
-            auto result = TLS::WolfTLS::connect(host, connection_info.url().port_or_default());
-            if (result.is_error()) {
-                Core::deferred_invoke([this] {
-                    on_connection_error();
-                });
-                return result.release_error();
-            }
+            TLS::Options options;
+            options.set_alert_handler([this](auto) {
+                on_connection_error();
+            });
 
-            return TRY(Core::BufferedSocket<TLS::WolfTLS>::create(result.release_value()));
+            return TRY(Core::BufferedSocket<TLS::TLSv12>::create(
+                TRY(TLS::TLSv12::connect(host, connection_info.url().port_or_default(), move(options)))));
         }
 
         return TRY(Core::BufferedTCPSocket::create(

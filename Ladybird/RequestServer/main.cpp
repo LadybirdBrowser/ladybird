@@ -48,8 +48,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     // Ensure the certificates are read out here.
     if (certificates.is_empty())
         certificates.append(TRY(find_certificates(serenity_resource_root)));
-
-    TLS::WolfTLS::install_certificate_store_paths(move(certificates));
+    DefaultRootCACertificates::set_default_certificate_paths(certificates.span());
+    [[maybe_unused]] auto& certs = DefaultRootCACertificates::the();
 
     Core::EventLoop event_loop;
 
