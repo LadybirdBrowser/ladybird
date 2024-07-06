@@ -221,9 +221,11 @@ def gen_value(value: WasmValue, as_arg=False) -> str:
         f = struct.unpack("d", b)[0]
         return f
 
-    def float_to_str(f: float, preserve_nan_sign=False) -> str:
+    def float_to_str(bits: int, *, double=False, preserve_nan_sign=False) -> str:
+        f = int_to_float64_bitcast(bits) if double else int_to_float_bitcast(bits)
+
         if math.isnan(f) and preserve_nan_sign:
-            f_bytes = struct.pack("d", f)
+            f_bytes = bits.to_bytes(8 if double else 4, byteorder="little")
             # -NaN does not preserve the sign bit in JavaScript land, so if
             # we want to preserve NaN "sign", we pass in raw bytes
             return f"new Uint8Array({list(f_bytes)})"
@@ -251,9 +253,11 @@ def gen_value(value: WasmValue, as_arg=False) -> str:
         case "i64":
             return str(unsigned_to_signed(int(value.value), 64)) + "n"
         case "f32":
-            return float_to_str(int_to_float_bitcast(int(value.value)), as_arg)
+            return float_to_str(
+                int(value.value), double=False, preserve_nan_sign=as_arg
+            )
         case "f64":
-            return float_to_str(int_to_float64_bitcast(int(value.value)), as_arg)
+            return float_to_str(int(value.value), double=True, preserve_nan_sign=as_arg)
         case "externref" | "funcref" | "v128":
             return value.value
         case _:

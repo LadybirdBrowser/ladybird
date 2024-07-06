@@ -259,13 +259,13 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         if (argument.is_object()) {
             auto object = MUST(argument.to_object(vm));
             // Uint8Array allows for raw bytes to be passed into Wasm. This is
-            // particularly useful for preserving the sign bit of a NaN
+            // particularly useful for NaN bit patterns
             if (!is<JS::Uint8Array>(*object))
                 return vm.throw_completion<JS::TypeError>("Expected a Uint8Array object"sv);
             auto& array = static_cast<JS::Uint8Array&>(*object);
-            if (array.array_length().length() != 8)
-                return vm.throw_completion<JS::TypeError>("Expected a Uint8Array of size 8"sv);
-            memcpy(&double_value, array.data().data(), sizeof(double));
+            if (array.array_length().length() > 8)
+                return vm.throw_completion<JS::TypeError>("Expected a Uint8Array of size <= 8"sv);
+            memcpy(&double_value, array.data().data(), array.array_length().length());
         } else if (!argument.is_bigint())
             double_value = TRY(argument.to_double(vm));
         switch (param.kind()) {
@@ -281,7 +281,17 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             }
             break;
         case Wasm::ValueType::Kind::F32:
-            arguments.append(Wasm::Value(static_cast<float>(double_value)));
+            // double_value should contain up to 8 bytes of information,
+            // if we were passed a Uint8Array. If the expected arg is a
+            // float, we were probably passed a Uint8Array of size 4. So
+            // we copy those bytes into a float value.
+            if (argument.is_object()) {
+                float float_value = 0;
+                memcpy(&float_value, &double_value, sizeof(float));
+                arguments.append(Wasm::Value(float_value));
+            } else {
+                arguments.append(Wasm::Value(static_cast<float>(double_value)));
+            }
             break;
         case Wasm::ValueType::Kind::F64:
             arguments.append(Wasm::Value(static_cast<double>(double_value)));
