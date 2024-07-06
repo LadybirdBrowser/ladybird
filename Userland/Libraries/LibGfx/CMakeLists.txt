@@ -52,6 +52,7 @@ set(SOURCES
     ImageFormats/WebPSharedLossless.cpp
     ImageFormats/WebPWriter.cpp
     ImageFormats/WebPWriterLossless.cpp
+    ImageFormats/AVIFLoader.cpp
     ImmutableBitmap.cpp
     MedianCut.cpp
     Painter.cpp
@@ -96,5 +97,6 @@ find_package(PkgConfig)
 pkg_check_modules(WOFF2 REQUIRED IMPORTED_TARGET libwoff2dec)
 find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
+find_package(LIBAVIF REQUIRED)
 
-target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG)
+target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif)
