@@ -159,11 +159,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     auto cookie_jar = database ? TRY(WebView::CookieJar::create(*database)) : WebView::CookieJar::create();
 
-    // NOTE: WebWorker *always* needs a request server connection, even if WebContent uses Qt Networking
     // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
-    auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
-    auto protocol_client = TRY(launch_request_server_process(request_server_paths, s_serenity_resource_root, certificates));
-    app.request_server_client = move(protocol_client);
+    if (!enable_qt_networking) {
+        auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
+        auto protocol_client = TRY(launch_request_server_process(request_server_paths, s_serenity_resource_root, certificates));
+        app.request_server_client = move(protocol_client);
+    }
 
     TRY(app.initialize_image_decoder());
 

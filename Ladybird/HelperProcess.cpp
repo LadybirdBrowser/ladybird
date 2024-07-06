@@ -122,14 +122,16 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
     return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, arguments, Ladybird::EnableCallgrindProfiling::No);
 }
 
-ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, NonnullRefPtr<Protocol::RequestClient> request_client)
+ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, RefPtr<Protocol::RequestClient> request_client)
 {
-    auto socket = TRY(connect_new_request_server_client(move(request_client)));
-
-    Vector<ByteString> arguments {
-        "--request-server-socket"sv,
-        ByteString::number(socket.fd()),
-    };
+    Vector<ByteString> arguments;
+    if (request_client) {
+        auto socket = TRY(connect_new_request_server_client(*request_client));
+        arguments.append("--request-server-socket"sv);
+        arguments.append(ByteString::number(socket.fd()));
+        arguments.append("--use-lagom-networking"sv);
+        return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), Ladybird::EnableCallgrindProfiling::No);
+    }
 
     return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), Ladybird::EnableCallgrindProfiling::No);
 }
