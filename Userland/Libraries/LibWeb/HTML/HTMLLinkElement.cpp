@@ -584,6 +584,11 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(JS::N
         auto process_body_error = JS::create_heap_function(realm.heap(), [](JS::Value) {
         });
 
+        // Check for failed favicon response
+        if (!Fetch::Infrastructure::is_ok_status(response->status()) || !response->body()) {
+            return;
+        }
+
         // 3. Use response's unsafe response as an icon as if it had been declared using the icon keyword.
         if (auto body = response->unsafe_response()->body())
             body->fully_read(realm, process_body, process_body_error, global);
