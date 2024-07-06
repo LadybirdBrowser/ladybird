@@ -14,6 +14,12 @@
       ]
     },
     {
+      "name": "libavif",
+      "features": [
+        "dav1d"
+      ]
+    },
+    {
       "name": "skia",
       "platform": "osx",
       "features": [
@@ -58,6 +64,10 @@
     {
       "name": "libpng",
       "version": "1.6.43#1"
+    },
+    {
+      "name": "libavif",
+      "version": "1.0.4#1"
     },
     {
       "name": "skia",
