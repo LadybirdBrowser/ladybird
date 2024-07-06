@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Format.h>
 #include <AK/Vector.h>
 #include <LibCore/VulkanContext.h>
 
@@ -25,7 +26,9 @@ ErrorOr<VkInstance> create_instance(uint32_t api_version)
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
 
-    if (vkCreateInstance(&create_info, nullptr, &instance) != VK_SUCCESS) {
+    auto result = vkCreateInstance(&create_info, nullptr, &instance);
+    if (result != VK_SUCCESS) {
+        dbgln("vkCreateInstance returned {}", to_underlying(result));
         return Error::from_string_view("Application instance creation failed"sv);
     }
 
