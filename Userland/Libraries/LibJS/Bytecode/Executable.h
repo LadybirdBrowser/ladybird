@@ -31,6 +31,7 @@ struct PropertyLookupCache {
 
 struct GlobalVariableCache : public PropertyLookupCache {
     u64 environment_serial_number { 0 };
+    Optional<u32> environment_binding_index;
 };
 
 struct SourceRecord {

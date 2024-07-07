@@ -245,11 +245,19 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
     auto& binding_object = interpreter.global_object();
     auto& declarative_record = interpreter.global_declarative_environment();
 
-    // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
     auto& shape = binding_object.shape();
-    if (cache.environment_serial_number == declarative_record.environment_serial_number()
-        && &shape == cache.shape) {
-        return binding_object.get_direct(cache.property_offset.value());
+    if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
+
+        // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
+        //               we can use the cached property offset.
+        if (&shape == cache.shape) {
+            return binding_object.get_direct(cache.property_offset.value());
+        }
+
+        // OPTIMIZATION: For global lexical bindings, if the global declarative environment hasn't changed,
+        //               we can use the cached environment binding index.
+        if (cache.environment_binding_index.has_value())
+            return declarative_record.get_binding_value_direct(vm, cache.environment_binding_index.value());
     }
 
     cache.environment_serial_number = declarative_record.environment_serial_number();
@@ -266,8 +274,9 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         }
     }
 
-    if (TRY(declarative_record.has_binding(identifier))) {
-        // TODO: Cache offset of binding value
+    Optional<size_t> offset;
+    if (TRY(declarative_record.has_binding(identifier, &offset))) {
+        cache.environment_binding_index = static_cast<u32>(offset.value());
         return TRY(declarative_record.get_binding_value(vm, identifier, vm.in_strict_mode()));
     }
 
