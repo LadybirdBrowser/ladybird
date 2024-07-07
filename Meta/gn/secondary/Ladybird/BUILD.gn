@@ -210,7 +210,6 @@ foreach(file, _emoji) {
 fonts = [ "//Base/res/fonts/SerenitySans-Regular.ttf" ]
 
 icons_16x16 = [
-  "//Base/res/icons/16x16/app-browser.png",
   "//Base/res/icons/16x16/app-system-monitor.png",
   "//Base/res/icons/16x16/audio-volume-high.png",
   "//Base/res/icons/16x16/audio-volume-muted.png",
@@ -242,12 +241,15 @@ icons_16x16 = [
 ]
 
 icons_32x32 = [
-  "//Base/res/icons/32x32/app-browser.png",
   "//Base/res/icons/32x32/app-system-monitor.png",
   "//Base/res/icons/32x32/filetype-folder.png",
   "//Base/res/icons/32x32/filetype-unknown.png",
   "//Base/res/icons/32x32/msgbox-warning.png",
 ]
+
+icons_48x48 = [ "//Base/res/icons/48x48/app-browser.png" ]
+
+icons_128x128 = [ "//Base/res/icons/128x128/app-browser.png" ]
 
 icons_browser = [
   "//Base/res/icons/browser/clear-cache.png",
@@ -299,6 +301,16 @@ if (current_os != "mac") {
   copy("ladybird_copy_icons_32x32") {
     sources = icons_32x32
     outputs = [ "$root_out_dir/share/Lagom/icons/32x32/{{source_file_part}}" ]
+  }
+
+  copy("ladybird_copy_icons_48x48") {
+    sources = icons_48x48
+    outputs = [ "$root_out_dir/share/Lagom/icons/48x48/{{source_file_part}}" ]
+  }
+
+  copy("ladybird_copy_icons_128x128") {
+    sources = icons_128x128
+    outputs = [ "$root_out_dir/share/Lagom/icons/128x128/{{source_file_part}}" ]
   }
 
   copy("ladybird_copy_icons_browser") {

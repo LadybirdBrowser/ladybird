@@ -43,7 +43,7 @@ Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv* env, jobjec
 
     dbgln("Set resource dir to {}", s_serenity_resource_root);
 
-    auto file_or_error = Core::System::open(MUST(String::formatted("{}/res/icons/16x16/app-browser.png", s_serenity_resource_root)), O_RDONLY);
+    auto file_or_error = Core::System::open(MUST(String::formatted("{}/res/icons/48x48/app-browser.png", s_serenity_resource_root)), O_RDONLY);
     if (file_or_error.is_error()) {
         dbgln("No resource files, extracting assets...");
         MUST(extract_tar_archive(MUST(String::formatted("{}/ladybird-assets.tar", s_serenity_resource_root)), s_serenity_resource_root));
