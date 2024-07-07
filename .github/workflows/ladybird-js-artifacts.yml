@@ -50,8 +50,10 @@ jobs:
       - name: Create build directory Ubuntu
         run: |
           cmake --preset CI -B Build \
+            -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=gcc-13 \
-            -DCMAKE_CXX_COMPILER=g++-13
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os == 'ubuntu-22.04' }}
         env:
           CCACHE_DIR: ${{ env.SERENITY_CCACHE_DIR }}
@@ -64,7 +66,8 @@ jobs:
         run: |
           cmake --preset CI -B Build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0"
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
+            -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os == 'macos-14' }}
         env:
           CCACHE_DIR: ${{ env.SERENITY_CCACHE_DIR }}

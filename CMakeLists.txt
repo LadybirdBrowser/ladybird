@@ -71,7 +71,7 @@ if (ANDROID AND ENABLE_QT)
     set(ENABLE_QT OFF CACHE BOOL "" FORCE)
 endif()
 
-if (ENABLE_QT)
+if (ENABLE_QT AND ENABLE_GUI_TARGETS)
     set(CMAKE_AUTOMOC ON)
     set(CMAKE_AUTORCC ON)
     set(CMAKE_AUTOUIC ON)
@@ -80,7 +80,9 @@ endif()
 
 include(CTest) # for BUILD_TESTING option, default ON
 
-add_subdirectory(Ladybird)
+if (ENABLE_GUI_TARGETS)
+    add_subdirectory(Ladybird)
+endif()
 
 add_custom_target(lint-shell-scripts
         COMMAND "${ladybird_SOURCE_DIR}/Meta/lint-shell-scripts.sh"
