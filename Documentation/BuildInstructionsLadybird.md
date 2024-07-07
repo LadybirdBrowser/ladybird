@@ -28,7 +28,7 @@ sudo apt update -y && sudo apt install clang-18 -y
 ##### Required packages include, but are not limited to:
 
 ```
-sudo apt install autoconf autoconf-archive automake build-essential cmake libavcodec-dev libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2 zip unzip curl tar libssl-dev libx11-dev libxrandr-dev
+sudo apt install autoconf autoconf-archive automake build-essential cmake libavcodec-dev libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2 zip unzip curl tar libssl-dev
 ```
 
 For Ubuntu 20.04 and above, ensure that the Qt6 Wayland packages are available:
