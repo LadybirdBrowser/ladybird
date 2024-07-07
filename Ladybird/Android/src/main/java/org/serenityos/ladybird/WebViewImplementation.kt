@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.graphics.Bitmap
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 import java.net.URL
 
@@ -49,6 +50,10 @@ class WebViewImplementation(private val view: WebView) {
         nativeSetDevicePixelRatio(nativeInstance, ratio)
     }
 
+    fun mouseEvent(eventType: Int, x: Float, y: Float, rawX: Float, rawY: Float) {
+        nativeMouseEvent(nativeInstance, eventType, x, y, rawX, rawY)
+    }
+
     // Functions called from native code
     fun bindWebContentService(ipcFd: Int) {
         val connector = LadybirdServiceConnection(ipcFd, resourceDir)
@@ -82,6 +87,7 @@ class WebViewImplementation(private val view: WebView) {
     private external fun nativeSetViewportGeometry(instance: Long, w: Int, h: Int)
     private external fun nativeSetDevicePixelRatio(instance: Long, ratio: Float)
     private external fun nativeLoadURL(instance: Long, url: String)
+    private external fun nativeMouseEvent(instance: Long, eventType: Int, x: Float, y: Float, rawX: Float, rawY: Float)
 
     companion object {
         /*
