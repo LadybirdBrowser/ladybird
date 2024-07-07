@@ -203,7 +203,7 @@ Vector<String> query_fontconfig_for_fallback_fonts(String const& font_family)
     VERIFY(config);
 
     FcPattern* pattern = FcPatternCreate();
-    FcPatternAddString(pattern, FC_FAMILY, reinterpret_cast<const FcChar8*>(font_family.to_byte_string().characters()));
+    FcPatternAddString(pattern, FC_FAMILY, reinterpret_cast<FcChar8 const*>(font_family.to_byte_string().characters()));
     VERIFY(pattern);
 
     auto success = FcConfigSubstitute(config, pattern, FcMatchPattern);
@@ -225,7 +225,7 @@ Vector<String> query_fontconfig_for_fallback_fonts(String const& font_family)
     FcFontSet* font_set = FcFontSort(config, pattern, FcTrue, nullptr, &result);
     if (font_set) {
         for (auto i = 0; i < font_set->nfont; i++) {
-            FcChar8 *family;
+            FcChar8* family;
             if (FcPatternGetString(font_set->fonts[i], FC_FAMILY, 0, &family) == FcResultMatch) {
                 auto const* family_cstring = reinterpret_cast<char const*>(family);
                 if (auto string = String::from_utf8(StringView { family_cstring, strlen(family_cstring) }); !string.is_error()) {

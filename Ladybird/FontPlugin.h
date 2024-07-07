@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
-#include <AK/HashMap.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
 namespace Ladybird {
