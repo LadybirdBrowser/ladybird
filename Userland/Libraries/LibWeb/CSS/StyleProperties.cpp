@@ -175,7 +175,6 @@ NonnullRefPtr<Gfx::Font const> StyleProperties::font_fallback(bool monospace, bo
     return Platform::FontPlugin::the().default_font();
 }
 
-// FIXME: This implementation is almost identical to compute_line_height(Layout::Node) below. Maybe they can be combined somehow.
 CSSPixels StyleProperties::compute_line_height(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
     auto line_height = property(CSS::PropertyID::LineHeight);
@@ -217,49 +216,6 @@ CSSPixels StyleProperties::compute_line_height(CSSPixelRect const& viewport_rect
     }
 
     return font_metrics.line_height;
-}
-
-CSSPixels StyleProperties::compute_line_height(Layout::Node const& layout_node) const
-{
-    auto line_height = property(CSS::PropertyID::LineHeight);
-
-    if (line_height->is_identifier() && line_height->to_identifier() == ValueID::Normal)
-        return CSSPixels::nearest_value_for(layout_node.first_available_font().pixel_metrics().line_spacing());
-
-    if (line_height->is_length()) {
-        auto line_height_length = line_height->as_length().length();
-        if (!line_height_length.is_auto())
-            return line_height_length.to_px(layout_node);
-    }
-
-    if (line_height->is_number())
-        return Length(line_height->as_number().number(), Length::Type::Em).to_px(layout_node);
-
-    if (line_height->is_percentage()) {
-        // Percentages are relative to 1em. https://www.w3.org/TR/css-inline-3/#valdef-line-height-percentage
-        auto& percentage = line_height->as_percentage().percentage();
-        return Length(percentage.as_fraction(), Length::Type::Em).to_px(layout_node);
-    }
-
-    if (line_height->is_calculated()) {
-        if (line_height->as_calculated().resolves_to_number()) {
-            auto resolved = line_height->as_calculated().resolve_number();
-            if (!resolved.has_value()) {
-                dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height->as_calculated().to_string());
-                return CSSPixels::nearest_value_for(layout_node.first_available_font().pixel_metrics().line_spacing());
-            }
-            return Length(resolved.value(), Length::Type::Em).to_px(layout_node);
-        }
-
-        auto resolved = line_height->as_calculated().resolve_length(layout_node);
-        if (!resolved.has_value()) {
-            dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height->as_calculated().to_string());
-            return CSSPixels::nearest_value_for(layout_node.first_available_font().pixel_metrics().line_spacing());
-        }
-        return resolved->to_px(layout_node);
-    }
-
-    return CSSPixels::nearest_value_for(layout_node.first_available_font().pixel_metrics().line_spacing());
 }
 
 Optional<int> StyleProperties::z_index() const
