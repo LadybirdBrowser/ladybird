@@ -168,6 +168,8 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#concept-submit-button
     virtual bool is_submit_button() const override;
 
+    bool is_single_line() const;
+
     virtual void reset_algorithm() override;
 
     virtual void form_associated_element_was_inserted() override;

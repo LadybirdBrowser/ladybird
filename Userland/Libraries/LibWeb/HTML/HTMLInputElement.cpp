@@ -2116,6 +2116,21 @@ bool HTMLInputElement::is_submit_button() const
         || type_state() == TypeAttributeState::ImageButton;
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#text-(type=text)-state-and-search-state-(type=search)
+// https://html.spec.whatwg.org/multipage/input.html#password-state-(type=password)
+// "one line plain text edit control"
+bool HTMLInputElement::is_single_line() const
+{
+    // NOTE: For web compatibility reasons, we consider other types
+    //       in addition to Text, Search, and Password as single line inputs.
+    return type_state() == TypeAttributeState::Text
+        || type_state() == TypeAttributeState::Search
+        || type_state() == TypeAttributeState::Password
+        || type_state() == TypeAttributeState::Email
+        || type_state() == TypeAttributeState::Telephone
+        || type_state() == TypeAttributeState::Number;
+}
+
 bool HTMLInputElement::has_activation_behavior() const
 {
     return true;
