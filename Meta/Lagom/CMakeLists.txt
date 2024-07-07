@@ -389,13 +389,10 @@ set(lagom_standard_libraries
     Compress
     Crypto
     Diff
-    Gfx
     HTTP
-    ImageDecoderClient
     IPC
     JS
     Line
-    Media
     Protocol
     Regex
     RIFF
@@ -406,11 +403,19 @@ set(lagom_standard_libraries
     Unicode
     URL
     Wasm
-    Web
     WebSocket
-    WebView
     XML
 )
+
+if (ENABLE_GUI_TARGETS)
+    list(APPEND lagom_standard_libraries
+        Gfx
+        ImageDecoderClient
+        Media
+        WebView
+        Web
+    )
+endif()
 
 target_link_libraries(LibCore PRIVATE LibURL Threads::Threads)
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
@@ -450,15 +455,16 @@ endif()
 lagom_utility(abench SOURCES ../../Userland/Utilities/abench.cpp LIBS LibMain LibFileSystem LibAudio)
 lagom_utility(aconv SOURCES ../../Userland/Utilities/aconv.cpp LIBS LibMain LibFileSystem LibAudio)
 
-lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
+if (ENABLE_GUI_TARGETS)
+    lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
+    lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
+    lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMain)
+    lagom_utility(ttfdisasm SOURCES ../../Userland/Utilities/ttfdisasm.cpp LIBS LibGfx LibMain)
+endif()
 
-lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress LibMain)
-
-lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
-lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMain)
-lagom_utility(ttfdisasm SOURCES ../../Userland/Utilities/ttfdisasm.cpp LIBS LibGfx LibMain)
 lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec Threads::Threads)
 
+lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress LibMain)
 lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
 
 lagom_utility(tar SOURCES ../../Userland/Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
@@ -509,17 +515,22 @@ if (BUILD_TESTING)
         AK
         LibCrypto
         LibCompress
-        LibGfx
-        LibMedia
         LibTest
         LibTextCodec
-        LibTTF
         LibUnicode
         LibURL
-        LibWeb
-        LibWebView
         LibXML
     )
+
+    if (ENABLE_GUI_TARGETS)
+        list(APPEND TEST_DIRECTORIES
+            LibGfx
+            LibMedia
+            LibTTF
+            LibWeb
+            LibWebView
+        )
+    endif()
 
     if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
         list(APPEND TEST_DIRECTORIES ClangPlugins)
