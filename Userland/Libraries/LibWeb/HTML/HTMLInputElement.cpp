@@ -127,6 +127,14 @@ void HTMLInputElement::adjust_computed_style(CSS::StyleProperties& style)
         if (style.property(CSS::PropertyID::Width)->has_auto())
             style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(size(), CSS::Length::Type::Ch)));
     }
+
+    // NOTE: The following line-height check is done for web compatability and usability reasons.
+    // FIXME: The "normal" line-height value should be calculated but assume 1.0 for now.
+    double normal_line_height = 1.0;
+    double current_line_height = style.line_height().to_double();
+
+    if (is_single_line() && current_line_height < normal_line_height)
+        style.set_property(CSS::PropertyID::LineHeight, CSS::IdentifierStyleValue::create(CSS::ValueID::Normal));
 }
 
 void HTMLInputElement::set_checked(bool checked, ChangeSource change_source)
