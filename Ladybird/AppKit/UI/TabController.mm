@@ -355,15 +355,26 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)setUserAgentSpoof:(NSMenuItem*)sender
 {
     ByteString const user_agent_name = [[sender title] UTF8String];
-    ByteString user_agent = "";
+    WebView::UserAgent user_agent;
     if (user_agent_name == "Disabled"sv) {
-        user_agent = Web::default_user_agent;
+        user_agent = WebView::UserAgent {
+            .name = "default"sv,
+            .user_agent = Web::default_user_agent,
+            .sec_user_agent = Web::default_sec_user_agent,
+            .platform = Web::default_os,
+            .support_client_hints = Web::default_enable_client_hints,
+            .is_mobile = Web::default_is_mobile
+        };
     } else {
         user_agent = WebView::user_agents.get(user_agent_name).value();
     }
     m_settings.user_agent_name = user_agent_name;
 
-    [self debugRequest:"spoof-user-agent" argument:user_agent];
+    [self debugRequest:"spoof-user-agent" argument:user_agent.user_agent];
+    [self debugRequest:"client-hints-enabled" argument:user_agent.support_client_hints ? "on" : "off"];
+    [self debugRequest:"client-hints-platform" argument:user_agent.platform];
+    [self debugRequest:"client-hints-user-agent" argument:user_agent.sec_user_agent];
+    [self debugRequest:"client-hints-is-mobile" argument:user_agent.is_mobile ? "yes" : "no"];
     [self debugRequest:"clear-cache" argument:""]; // clear the cache to ensure requests are re-done with the new user agent
 }
 

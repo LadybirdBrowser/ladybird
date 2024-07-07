@@ -97,6 +97,11 @@ public:
     String const& user_agent() const { return m_user_agent; }
     void set_user_agent(String user_agent) { m_user_agent = move(user_agent); }
 
+    void set_enable_client_hints(bool enable_client_hints) { m_enable_client_hints = enable_client_hints; }
+    void set_client_hints_user_agent(String user_agent) { m_sec_user_agent = move(user_agent); }
+    void set_is_mobile(bool is_mobile) { m_is_mobile = is_mobile; }
+    void set_os(String os) { m_os = move(os); }
+
     String const& platform() const { return m_platform; }
     void set_platform(String platform) { m_platform = move(platform); }
 
@@ -122,7 +127,13 @@ private:
     HashTable<NonnullRefPtr<ResourceLoaderConnectorRequest>> m_active_requests;
     NonnullRefPtr<ResourceLoaderConnector> m_connector;
     String m_user_agent;
+    String m_sec_user_agent;
     String m_platform;
+    String m_os;
+    String m_browser_name;
+    String m_browser_version;
+    bool m_is_mobile;
+    bool m_enable_client_hints;
     NavigatorCompatibilityMode m_navigator_compatibility_mode;
     bool m_enable_do_not_track { false };
     Optional<JS::GCPtr<Page>> m_page {};

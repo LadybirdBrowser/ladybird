@@ -44,6 +44,7 @@
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWebView/Attribute.h>
+// #include <LibWebView/UserAgent.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
@@ -356,6 +357,26 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
 
     if (request == "clear-cache") {
         Web::ResourceLoader::the().clear_cache();
+        return;
+    }
+
+    if (request == "client-hints-enabled") {
+        Web::ResourceLoader::the().set_enable_client_hints(argument == "on");
+        return;
+    }
+
+    if (request == "client-hints-user-agent") {
+        Web::ResourceLoader::the().set_client_hints_user_agent(MUST(String::from_byte_string(argument)));
+        return;
+    }
+
+    if (request == "client-hints-is-mobile") {
+        Web::ResourceLoader::the().set_is_mobile(argument == "yes");
+        return;
+    }
+
+    if (request == "client-hints-platform") {
+        Web::ResourceLoader::the().set_os(MUST(String::from_byte_string(argument)));
         return;
     }
 

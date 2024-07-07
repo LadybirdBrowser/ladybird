@@ -58,7 +58,13 @@ ErrorOr<NonnullRefPtr<ResourceLoader>> ResourceLoader::try_create(NonnullRefPtr<
 ResourceLoader::ResourceLoader(NonnullRefPtr<ResourceLoaderConnector> connector)
     : m_connector(move(connector))
     , m_user_agent(MUST(String::from_utf8(default_user_agent)))
+    , m_sec_user_agent(MUST(String::from_utf8(default_sec_user_agent)))
     , m_platform(MUST(String::from_utf8(default_platform)))
+    , m_os(MUST(String::from_utf8(default_os)))
+    , m_browser_name(MUST(String::from_utf8(browser_name)))
+    , m_browser_version(MUST(String::from_utf8(browser_major_version)))
+    , m_is_mobile(default_is_mobile)
+    , m_enable_client_hints(default_enable_client_hints)
     , m_navigator_compatibility_mode(default_navigator_compatibility_mode)
 {
 }
@@ -501,6 +507,13 @@ RefPtr<ResourceLoaderConnectorRequest> ResourceLoader::start_network_request(Loa
 
     if (!headers.contains("Accept-Encoding"))
         headers.set("Accept-Encoding", "gzip, deflate, br");
+
+    if (m_enable_client_hints) {
+        // TODO: These values should mirror the spoofed user agent
+        headers.set("sec-ch-ua", ByteString::formatted("{}, \"{}\";v=\"{}\"", m_sec_user_agent.to_byte_string(), m_browser_name.to_byte_string(), m_browser_version.to_byte_string()));
+        headers.set("sec-ch-ua-mobile", ByteString::formatted("?{}", m_is_mobile ? 1 : 0));
+        headers.set("sec-ch-ua-platform", m_os.to_byte_string());
+    }
 
     auto protocol_request = m_connector->start_request(request.method(), request.url(), headers, request.body(), proxy);
     if (!protocol_request) {

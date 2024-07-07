@@ -169,7 +169,8 @@ private:
     void set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height);
 
     ByteString user_agent_string() const { return m_user_agent_string; }
-    void set_user_agent_string(ByteString const& user_agent_string) { m_user_agent_string = user_agent_string; }
+    void set_user_agent_string(ByteString const& user_agent_name);
+
     ByteString navigator_compatibility_mode() const { return m_navigator_compatibility_mode; }
     void set_navigator_compatibility_mode(ByteString const& navigator_compatibility_mode) { m_navigator_compatibility_mode = navigator_compatibility_mode; }
 

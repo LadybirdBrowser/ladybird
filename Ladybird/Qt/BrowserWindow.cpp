@@ -482,8 +482,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     set_user_agent_string(Web::default_user_agent);
     auto* disable_spoofing = add_user_agent("Disabled"sv, Web::default_user_agent);
     disable_spoofing->setChecked(true);
-    for (auto const& user_agent : WebView::user_agents)
-        add_user_agent(user_agent.key, user_agent.value.to_byte_string());
+    for (auto const& user_agent : WebView::user_agents) {
+        add_user_agent(user_agent.key, user_agent.value.user_agent.to_byte_string());
+    }
 
     auto* custom_user_agent_action = new QAction("Custom...", this);
     custom_user_agent_action->setCheckable(true);
@@ -1110,6 +1111,12 @@ void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web:
         height = 600;
 
     setGeometry(x.value().value(), y.value().value(), width.value().value(), height.value().value());
+}
+
+void BrowserWindow::set_user_agent_string(ByteString const& user_agent_name)
+{
+    auto user_agent = WebView::user_agents.get(user_agent_name).value();
+    m_user_agent_string = user_agent.user_agent;
 }
 
 void BrowserWindow::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)

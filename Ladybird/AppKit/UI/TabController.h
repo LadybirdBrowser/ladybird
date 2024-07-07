@@ -14,6 +14,7 @@
 struct TabSettings {
     BOOL should_show_line_box_borders { NO };
     BOOL scripting_enabled { YES };
+    BOOL client_hints_enabled { YES };
     BOOL block_popups { YES };
     BOOL same_origin_policy_enabled { NO };
     ByteString user_agent_name { "Disabled"sv };

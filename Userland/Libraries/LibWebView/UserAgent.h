@@ -11,6 +11,15 @@
 
 namespace WebView {
 
-extern HashMap<StringView, StringView> const user_agents;
+struct UserAgent {
+    StringView name;
+    StringView user_agent;
+    StringView sec_user_agent;
+    StringView platform;
+    bool support_client_hints;
+    bool is_mobile;
+};
+
+extern HashMap<StringView, UserAgent> const user_agents;
 
 }
