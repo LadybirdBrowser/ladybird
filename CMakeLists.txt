@@ -83,11 +83,14 @@ include(CTest) # for BUILD_TESTING option, default ON
 add_subdirectory(Ladybird)
 
 add_custom_target(lint-shell-scripts
-        COMMAND "${ladybird_SOURCE_DIR}/Meta/lint-shell-scripts.sh"
-        USES_TERMINAL
+    COMMAND "${ladybird_SOURCE_DIR}/Meta/lint-shell-scripts.sh"
+    USES_TERMINAL
 )
 
-add_custom_target(check-style
-        COMMAND "${ladybird_SOURCE_DIR}/Meta/check-style.sh"
+find_package(Python3 COMPONENTS Interpreter)
+if (Python3_FOUND)
+    add_custom_target(check-style
+        COMMAND ${Python3_EXECUTABLE} "${ladybird_SOURCE_DIR}/Meta/check-style.py"
         USES_TERMINAL
-)
+    )
+endif()
