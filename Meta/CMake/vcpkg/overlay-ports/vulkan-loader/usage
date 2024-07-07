@@ -1,2 +1,0 @@
-The package @PORT@ provides the vulkan loader.
-Please be aware of https://github.com/KhronosGroup/Vulkan-Loader/blob/main/docs/LoaderApplicationInterface.md#bundling-the-loader-with-an-application
