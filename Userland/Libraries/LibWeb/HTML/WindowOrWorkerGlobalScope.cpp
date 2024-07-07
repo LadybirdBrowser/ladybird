@@ -783,22 +783,30 @@ void WindowOrWorkerGlobalScopeMixin::report_error(JS::Value e)
     auto error_value = e;
 
     // 5. Let urlString be the result of applying the URL serializer to the URL record that corresponds to the resource from which script was obtained.
-    // FIXME: Use the URL of the current running script.
-    auto url_string = String {};
+    // NOTE: urlString is set below once we have determined whether we are dealing with a script or a module.
+    String url_string;
+    auto script_or_module_filename = [](auto const& script_or_module) {
+        return MUST(String::from_utf8(script_or_module->filename()));
+    };
 
     // 6. If script is a classic script and script's muted errors is true, then set message to "Script error.",
     //    urlString to the empty string, line and col to 0, and errorValue to null.
     script_or_module.visit(
-        [&](const JS::NonnullGCPtr<JS::Script>& js_script) {
+        [&](JS::NonnullGCPtr<JS::Script> const& js_script) {
             if (verify_cast<ClassicScript>(js_script->host_defined())->muted_errors() == ClassicScript::MutedErrors::Yes) {
                 message = "Script error."_string;
                 url_string = String {};
                 line = 0;
                 col = 0;
                 error_value = JS::js_null();
+            } else {
+                url_string = script_or_module_filename(js_script);
             }
         },
-        [](auto const&) {});
+        [&](JS::NonnullGCPtr<JS::Module> const& js_module) {
+            url_string = script_or_module_filename(js_module);
+        },
+        [](Empty) {});
 
     // 7. Let notHandled be true.
     auto not_handled = true;
