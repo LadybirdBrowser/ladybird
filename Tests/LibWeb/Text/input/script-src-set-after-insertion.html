@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<head></head>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        const el = document.createElement("script");
+        el.onload = () => {
+            done();
+        };
+        document.head.appendChild(el);
+        el.setAttribute("src", "script-src-set-after-insertion.js");
+    });
+</script>
