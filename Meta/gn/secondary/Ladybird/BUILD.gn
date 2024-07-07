@@ -249,7 +249,10 @@ icons_32x32 = [
 
 icons_48x48 = [ "//Base/res/icons/48x48/app-browser.png" ]
 
-icons_128x128 = [ "//Base/res/icons/128x128/app-browser.png" ]
+icons_128x128 = [
+  "//Base/res/icons/128x128/app-browser.png",
+  "//Base/res/icons/128x128/app-browser-dark.png",
+]
 
 icons_browser = [
   "//Base/res/icons/browser/clear-cache.png",
