@@ -47,6 +47,7 @@ set(48x48_ICONS
 )
 set(128x128_ICONS
     app-browser.png
+    app-browser-dark.png
 )
 set(BROWSER_ICONS
     clear-cache.png
