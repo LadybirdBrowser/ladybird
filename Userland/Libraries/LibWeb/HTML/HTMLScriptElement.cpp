@@ -58,6 +58,16 @@ void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<String
         m_crossorigin = cors_setting_attribute_from_keyword(value);
     } else if (name == HTML::AttributeNames::referrerpolicy) {
         m_referrer_policy = ReferrerPolicy::from_string(value.value_or(""_string)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+    } else if (name == HTML::AttributeNames::src) {
+        bool old_src_is_set = m_src_is_set;
+        m_src_is_set = value.has_value();
+        // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model
+        // When a script element el that is not parser-inserted experiences one of the events listed in the following list, the user agent must immediately prepare the script element el:
+        // - [...]
+        // - The script element is connected and has a src attribute set where previously the element had no such attribute.
+        if (!is_parser_inserted() && is_connected() && !old_src_is_set && m_src_is_set) {
+            prepare_script();
+        }
     }
 }
 
