@@ -155,6 +155,7 @@ void ReadableByteStreamController::pull_steps(JS::NonnullGCPtr<ReadRequest> read
             .byte_offset = 0,
             .byte_length = *m_auto_allocate_chunk_size,
             .bytes_filled = 0,
+            .minimum_fill = 1,
             .element_size = 1,
             .view_constructor = *realm.intrinsics().uint8_array_constructor(),
             .reader_type = ReaderType::Default,
