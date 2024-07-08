@@ -108,14 +108,6 @@ public:
         case ValueType::Kind::F64:
             m_value = bit_cast<double>(raw_value);
             break;
-        case ValueType::Kind::NullFunctionReference:
-            VERIFY(raw_value == 0);
-            m_value = Reference { Reference::Null { ValueType(ValueType::Kind::FunctionReference) } };
-            break;
-        case ValueType::Kind::NullExternReference:
-            VERIFY(raw_value == 0);
-            m_value = Reference { Reference::Null { ValueType(ValueType::Kind::ExternReference) } };
-            break;
         case ValueType::Kind::V128:
             m_value = u128(0ull, bit_cast<u64>(raw_value));
             break;
@@ -184,7 +176,7 @@ public:
                 return type.ref().visit(
                     [](Reference::Func const&) { return ValueType::Kind::FunctionReference; },
                     [](Reference::Null const& null_type) {
-                        return null_type.type.kind() == ValueType::ExternReference ? ValueType::Kind::NullExternReference : ValueType::Kind::NullFunctionReference;
+                        return null_type.type.kind();
                     },
                     [](Reference::Extern const&) { return ValueType::Kind::ExternReference; });
             }));
