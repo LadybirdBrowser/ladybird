@@ -78,10 +78,11 @@ input[type=range]::-webkit-slider-runnable-track, input[type=range]::-webkit-sli
     display: block;
 }
 input[type=range]::-webkit-slider-runnable-track {
+    position: relative;
     height: 4px;
     width: 100%;
     margin-top: 6px;
-    background-color: AccentColor;
+    background-color: Background;
     border: 1px solid rgba(0, 0, 0, 0.5);
 }
 input[type=range]::-webkit-slider-thumb {
@@ -90,8 +91,9 @@ input[type=range]::-webkit-slider-thumb {
     height: 16px;
     transform: translateX(-50%);
     border-radius: 50%;
-    background-color: Background;
+    background-color: AccentColor;
     outline: 1px solid rgba(0, 0, 0, 0.5);
+    z-index: 1;
 }
 
 /* Custom <meter> styles */

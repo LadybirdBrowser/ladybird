@@ -321,6 +321,8 @@ private:
     String m_last_src_value;
 
     bool m_has_uncommitted_changes { false };
+
+    JS::GCPtr<DOM::Element> m_range_progress_element;
 };
 
 }
