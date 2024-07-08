@@ -358,7 +358,9 @@ bool Request::cross_origin_embedder_policy_allows_credentials() const
     if (m_client == nullptr)
         return true;
 
-    // FIXME: 3. If request’s client’s policy container’s embedder policy’s value is not "credentialless", then return true.
+    // 3. If request’s client’s policy container’s embedder policy’s value is not "credentialless", then return true.
+    if (m_policy_container.has<HTML::PolicyContainer>() && m_policy_container.get<HTML::PolicyContainer>().embedder_policy.value != HTML::EmbedderPolicyValue::Credentialless)
+        return true;
 
     // 4. If request’s origin is same origin with request’s current URL’s origin and request does not have a redirect-tainted origin, then return true.
     // 5. Return false.
