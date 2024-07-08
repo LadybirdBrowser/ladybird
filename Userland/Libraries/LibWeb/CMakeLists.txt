@@ -267,12 +267,13 @@ set(SOURCES
     HTML/CustomElements/CustomElementName.cpp
     HTML/CustomElements/CustomElementReactionNames.cpp
     HTML/CustomElements/CustomElementRegistry.cpp
+    HTML/DataTransfer.cpp
     HTML/Dates.cpp
     HTML/DecodedImageData.cpp
     HTML/DocumentState.cpp
     HTML/DOMParser.cpp
     HTML/DOMStringMap.cpp
-    HTML/DataTransfer.cpp
+    HTML/DragEvent.cpp
     HTML/ElementInternals.cpp
     HTML/ErrorEvent.cpp
     HTML/EventHandler.cpp

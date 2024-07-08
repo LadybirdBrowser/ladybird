@@ -76,6 +76,7 @@ Document
 DocumentFragment
 DocumentTimeline
 DocumentType
+DragEvent
 DynamicsCompressorNode
 Element
 ElementInternals
