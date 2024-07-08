@@ -64,7 +64,7 @@ static StringView s_current_test_path;
 
 class HeadlessWebContentView final : public WebView::ViewImplementation {
 public:
-    static ErrorOr<NonnullOwnPtr<HeadlessWebContentView>> create(Core::AnonymousBuffer theme, Gfx::IntSize const& window_size, String const& command_line, StringView web_driver_ipc_path, Ladybird::IsLayoutTestMode is_layout_test_mode = Ladybird::IsLayoutTestMode::No, Vector<ByteString> const& certificates = {}, StringView resources_folder = {})
+    static ErrorOr<NonnullOwnPtr<HeadlessWebContentView>> create(Core::AnonymousBuffer theme, Gfx::IntSize const& window_size, String const& command_line, StringView web_driver_ipc_path, Ladybird::IsLayoutTestMode is_layout_test_mode = Ladybird::IsLayoutTestMode::No, Vector<ByteString> const& certificates = {}, StringView resources_folder = {}, Ladybird::EnableSkiaPainting enable_skia_painting = Ladybird::EnableSkiaPainting::No)
     {
         RefPtr<Protocol::RequestClient> request_client;
         RefPtr<ImageDecoderClient::Client> image_decoder_client;
@@ -83,6 +83,7 @@ public:
         Ladybird::WebContentOptions web_content_options {
             .command_line = command_line,
             .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
+            .enable_skia_painting = enable_skia_painting,
             .is_layout_test_mode = is_layout_test_mode,
         };
 
@@ -643,6 +644,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool dump_text = false;
     bool dump_gc_graph = false;
     bool is_layout_test_mode = false;
+    bool enable_skia_painting = false;
     StringView test_root_path;
     ByteString test_glob;
     Vector<ByteString> certificates;
@@ -663,6 +665,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(web_driver_ipc_path, "Path to the WebDriver IPC socket", "webdriver-ipc-path", 0, "path");
     args_parser.add_option(is_layout_test_mode, "Enable layout test mode", "layout-test-mode");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
+    args_parser.add_option(enable_skia_painting, "Enable Skia painting", "enable-skia-painting");
     args_parser.add_positional_argument(raw_url, "URL to open", "url", Core::ArgsParser::Required::No);
     args_parser.parse(arguments);
 
@@ -681,7 +684,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     StringBuilder command_line_builder;
     command_line_builder.join(' ', arguments.strings);
-    auto view = TRY(HeadlessWebContentView::create(move(theme), window_size, MUST(command_line_builder.to_string()), web_driver_ipc_path, is_layout_test_mode ? Ladybird::IsLayoutTestMode::Yes : Ladybird::IsLayoutTestMode::No, certificates, resources_folder));
+    auto view = TRY(HeadlessWebContentView::create(move(theme), window_size, MUST(command_line_builder.to_string()), web_driver_ipc_path, is_layout_test_mode ? Ladybird::IsLayoutTestMode::Yes : Ladybird::IsLayoutTestMode::No, certificates, resources_folder, enable_skia_painting ? Ladybird::EnableSkiaPainting::Yes : Ladybird::EnableSkiaPainting::No));
 
     if (!test_root_path.is_empty()) {
         test_glob = ByteString::formatted("*{}*", test_glob);
