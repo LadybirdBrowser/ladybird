@@ -308,12 +308,6 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             }
             arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Extern { static_cast<u64>(double_value) } }));
             break;
-        case Wasm::ValueType::Kind::NullFunctionReference:
-            arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::FunctionReference) } }));
-            break;
-        case Wasm::ValueType::Kind::NullExternReference:
-            arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::ExternReference) } }));
-            break;
         }
     }
 

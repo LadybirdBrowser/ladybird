@@ -412,10 +412,9 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
         auto number = TRY(value.to_double(vm));
         return Wasm::Value { static_cast<float>(number) };
     }
-    case Wasm::ValueType::FunctionReference:
-    case Wasm::ValueType::NullFunctionReference: {
+    case Wasm::ValueType::FunctionReference: {
         if (value.is_null())
-            return Wasm::Value { Wasm::ValueType(Wasm::ValueType::NullExternReference), 0ull };
+            return Wasm::Value { Wasm::ValueType(Wasm::ValueType::FunctionReference), 0ull };
 
         if (value.is_function()) {
             auto& function = value.as_function();
@@ -429,7 +428,6 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Exported function");
     }
     case Wasm::ValueType::ExternReference:
-    case Wasm::ValueType::NullExternReference:
         TODO();
     case Wasm::ValueType::V128:
         return vm.throw_completion<JS::TypeError>("Cannot convert a vector value to a javascript value"sv);
@@ -453,11 +451,8 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value)
     case Wasm::ValueType::FunctionReference:
         // FIXME: What's the name of a function reference that isn't exported?
         return create_native_function(vm, wasm_value.to<Wasm::Reference::Func>().value().address, "FIXME_IHaveNoIdeaWhatThisShouldBeCalled");
-    case Wasm::ValueType::NullFunctionReference:
-        return JS::js_null();
     case Wasm::ValueType::V128:
     case Wasm::ValueType::ExternReference:
-    case Wasm::ValueType::NullExternReference:
         TODO();
     }
     VERIFY_NOT_REACHED();
