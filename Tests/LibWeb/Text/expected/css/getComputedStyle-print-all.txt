@@ -1,4 +1,5 @@
 -webkit-appearance: auto
+-webkit-text-fill-color: rgb(0, 0, 0)
 accent-color: auto
 align-content: normal
 align-items: normal
@@ -85,7 +86,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 1479px
+height: 1496px
 image-rendering: auto
 inline-size: auto
 inset-block-end: auto

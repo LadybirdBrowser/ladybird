@@ -506,6 +506,8 @@ RefPtr<StyleValue const> ResolvedCSSStyleDeclaration::style_value_for_property(L
         auto left = style_value_for_property(layout_node, PropertyID::PaddingLeft);
         return style_value_for_sided_shorthand(top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull());
     }
+    case PropertyID::WebkitTextFillColor:
+        return ColorStyleValue::create(layout_node.computed_values().webkit_text_fill_color());
     case PropertyID::Invalid:
         return IdentifierStyleValue::create(ValueID::Invalid);
     case PropertyID::Custom:
