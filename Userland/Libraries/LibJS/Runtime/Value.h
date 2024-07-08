@@ -435,8 +435,11 @@ public:
         // For x86_64 and riscv64 the top 16 bits should be sign extending the "real" top bit (47th).
         // So first shift the top 16 bits away then using the right shift it sign extends the top 16 bits.
         return static_cast<FlatPtr>((static_cast<i64>(encoded << 16)) >> 16);
-#elif ARCH(AARCH64)
+#elif ARCH(AARCH64) || ARCH(PPC64) || ARCH(PPC64LE)
         // For AArch64 the top 16 bits of the pointer should be zero.
+        // For PPC64: all 64 bits can be used for pointers, however on Linux only
+        //            the lower 43 bits are used for user-space addresses, so
+        //            masking off the top 16 bits should match the rest of LibJS.
         return static_cast<FlatPtr>(encoded & 0xffff'ffff'ffffULL);
 #else
 #    error "Unknown architecture. Don't know whether pointers need to be sign-extended."
