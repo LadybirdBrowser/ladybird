@@ -14,5 +14,3 @@ foreach(source IN LISTS TEST_SOURCES)
 endforeach()
 
 target_link_libraries(TestFetchURL PRIVATE LibURL)
-
-install(FILES tokenizer-test.html DESTINATION usr/Tests/LibWeb)
