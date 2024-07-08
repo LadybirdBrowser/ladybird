@@ -355,6 +355,7 @@ class DecodedImageData;
 class DocumentState;
 class DOMParser;
 class DOMStringMap;
+class DragEvent;
 class ElementInternals;
 class ErrorEvent;
 class EventHandler;
