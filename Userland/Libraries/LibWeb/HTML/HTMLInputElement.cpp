@@ -982,6 +982,10 @@ void HTMLInputElement::create_range_input_shadow_tree()
     slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderRunnableTrack);
     MUST(shadow_root->append_child(slider_runnable_track));
 
+    m_range_progress_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    m_range_progress_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::RangeProgress);
+    MUST(slider_runnable_track->append_child(*m_range_progress_element));
+
     m_slider_thumb = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     m_slider_thumb->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderThumb);
     MUST(slider_runnable_track->append_child(*m_slider_thumb));
@@ -1086,14 +1090,19 @@ void HTMLInputElement::user_interaction_did_change_input_value()
 
 void HTMLInputElement::update_slider_thumb_element()
 {
-    if (!m_slider_thumb)
-        return;
-
     double value = value_as_number();
+    if (isnan(value))
+        value = 0;
+
     double minimum = *min();
     double maximum = *max();
     double position = (value - minimum) / (maximum - minimum) * 100;
-    MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
+
+    if (m_slider_thumb)
+        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
+
+    if (m_range_progress_element)
+        MUST(m_range_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
 }
 
 void HTMLInputElement::did_receive_focus()

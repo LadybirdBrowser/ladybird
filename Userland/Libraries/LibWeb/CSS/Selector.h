@@ -39,6 +39,7 @@ public:
             Selection,
             SliderRunnableTrack,
             SliderThumb,
+            RangeProgress,
             Backdrop,
 
             // Keep this last.

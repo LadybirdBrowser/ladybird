@@ -441,6 +441,8 @@ StringView Selector::PseudoElement::name(Selector::PseudoElement::Type pseudo_el
         return "-webkit-slider-runnable-track"sv;
     case Selector::PseudoElement::Type::SliderThumb:
         return "-webkit-slider-thumb"sv;
+    case Selector::PseudoElement::Type::RangeProgress:
+        return "-moz-range-progress"sv;
     case Selector::PseudoElement::Type::Backdrop:
         return "backdrop"sv;
     case Selector::PseudoElement::Type::KnownPseudoElementCount:
@@ -485,6 +487,8 @@ Optional<Selector::PseudoElement> Selector::PseudoElement::from_string(FlyString
         return Selector::PseudoElement { Selector::PseudoElement::Type::SliderRunnableTrack };
     } else if (name.equals_ignoring_ascii_case("-webkit-slider-thumb"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::SliderThumb };
+    } else if (name.equals_ignoring_ascii_case("-moz-range-progress"sv)) {
+        return Selector::PseudoElement { Selector::PseudoElement::Type::RangeProgress };
     }
     return {};
 }
