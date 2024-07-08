@@ -1,0 +1,68 @@
+<script src="../include.js"></script>
+<script>
+    const CHUNK1 = "This -⌄";
+    const CHUNK2 = " will not be processed as one chunk";
+    const CHUNK3 = "This ->";
+    const CHUNK4 = " will be processed as one chunk";
+    const CHUNK5 = "WHF!";
+
+    // A read is fulfilled when there are N or more elements available in the stream.
+    // We start off by allowing a read to be fulfilled with 1 element available.
+    let minElementsAvailable = 1;
+    let pullCount = 0;
+    const readableStream = new ReadableStream({
+        start(controller) {
+
+        },
+        pull(controller) {
+            ++pullCount;
+            const encoder = new TextEncoder();
+            if (pullCount === 1) {
+                controller.enqueue(encoder.encode(CHUNK1));
+            } else if (pullCount === 2) {
+                controller.enqueue(encoder.encode(CHUNK2));
+            } else if (pullCount === 3) {
+                controller.enqueue(encoder.encode(CHUNK3));
+            } else if (pullCount === 4) {
+                controller.enqueue(encoder.encode(CHUNK4));
+                // FIXME: Move/remove this controller.close() when we resolve the FIXME right below.
+                controller.close();
+            }
+            // FIXME: This should have been fulfilled since we are closing the controller at this point, currently we do not.
+            //} else if (pullCount === 5) {
+                // controller.enqueue(encoder.encode(CHUNK5));
+                // controller.close();
+            //}
+
+            // Now a read will only be fulfilled when at least 8 elements is available in the stream.
+            if (pullCount === 2) {
+                minElementsAvailable = 8;
+            }
+        },
+        type: "bytes",
+    });
+
+    async function readStream(stream) {
+        const reader = stream.getReader({ mode: "byob" });
+
+        let buffer = new ArrayBuffer(200);
+        let offset = 0;
+        let byteLength = 40;
+        while (true) {
+            let result = await reader.read(new Uint8Array(buffer, offset, byteLength), { min: minElementsAvailable });
+            if (result.done) {
+                println("Stream closed");
+                break;
+            }
+            println(new TextDecoder().decode(result.value));
+
+            buffer = result.value.buffer;
+            offset += result.value.byteLength;
+        }
+    }
+
+    asyncTest(async done => {
+        await readStream(readableStream);
+        done();
+    });
+</script>

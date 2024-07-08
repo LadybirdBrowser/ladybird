@@ -107,7 +107,7 @@ private:
 JS_DEFINE_ALLOCATOR(BYOBReaderReadIntoRequest);
 
 // https://streams.spec.whatwg.org/#byob-reader-read
-JS::NonnullGCPtr<JS::Promise> ReadableStreamBYOBReader::read(JS::Handle<WebIDL::ArrayBufferView>& view)
+JS::NonnullGCPtr<JS::Promise> ReadableStreamBYOBReader::read(JS::Handle<WebIDL::ArrayBufferView>& view, ReadableStreamBYOBReaderReadOptions options)
 {
     auto& realm = this->realm();
 
@@ -129,16 +129,42 @@ JS::NonnullGCPtr<JS::Promise> ReadableStreamBYOBReader::read(JS::Handle<WebIDL::
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
-    // 4. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
+    // 4. If options["min"] is 0, return a promise rejected with a TypeError exception.
+    if (options.min == 0) {
+        WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "options[\"min\'] cannot have a value of 0."sv };
+        return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
+    }
+
+    // 5. If view has a [[TypedArrayName]] internal slot,
+    if (view->is_typed_array_base()) {
+        auto const& typed_array = *view->bufferable_object().get<JS::NonnullGCPtr<JS::TypedArrayBase>>();
+
+        // 1. If options["min"] > view.[[ArrayLength]], return a promise rejected with a RangeError exception.
+        if (options.min > typed_array.array_length().length()) {
+            WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::RangeError, "options[\"min\"] cannot be larger than the length of the view."sv };
+            return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
+        }
+    }
+
+    // 6. Otherwise (i.e., it is a DataView),
+    if (view->is_data_view()) {
+        // 1. If options["min"] > view.[[ByteLength]], return a promise rejected with a RangeError exception.
+        if (options.min > view->byte_length()) {
+            WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::RangeError, "options[\"min\"] cannot be larger than the length of the view."sv };
+            return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
+        }
+    }
+
+    // 7. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
         WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read from an empty stream"sv };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
-    // 5. Let promise be a new promise.
+    // 8. Let promise be a new promise.
     auto promise_capability = WebIDL::create_promise(realm);
 
-    // 6. Let readIntoRequest be a new read-into request with the following items:
+    // 9. Let readIntoRequest be a new read-into request with the following items:
     //    chunk steps, given chunk
     //        Resolve promise with «[ "value" → chunk, "done" → false ]».
     //    close steps, given chunk
@@ -147,10 +173,10 @@ JS::NonnullGCPtr<JS::Promise> ReadableStreamBYOBReader::read(JS::Handle<WebIDL::
     //        Reject promise with e.
     auto read_into_request = heap().allocate_without_realm<BYOBReaderReadIntoRequest>(realm, promise_capability);
 
-    // 7. Perform ! ReadableStreamBYOBReaderRead(this, view, readIntoRequest).
-    readable_stream_byob_reader_read(*this, *view, *read_into_request);
+    // 10. Perform ! ReadableStreamBYOBReaderRead(this, view, options["min"], readIntoRequest).
+    readable_stream_byob_reader_read(*this, *view, options.min, *read_into_request);
 
-    // 8. Return promise.
+    // 11. Return promise.
     return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise_capability->promise()) };
 }
 }

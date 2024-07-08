@@ -1133,7 +1133,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         auto read_into_request = realm.heap().allocate_without_realm<ByteStreamTeeBYOBReadRequest>(realm, stream, params, cancel_promise, *byob_branch, *other_branch, for_branch2);
 
         // 5. Perform ! ReadableStreamBYOBReaderRead(reader, view, 1, readIntoRequest).
-        readable_stream_byob_reader_read(params->reader.get<JS::NonnullGCPtr<ReadableStreamBYOBReader>>(), view, read_into_request);
+        readable_stream_byob_reader_read(params->reader.get<JS::NonnullGCPtr<ReadableStreamBYOBReader>>(), view, 1, read_into_request);
     });
 
     // 17. Let pull1Algorithm be the following steps:
@@ -1656,34 +1656,36 @@ void readable_byte_stream_controller_fill_head_pull_into_descriptor(ReadableByte
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-fill-pull-into-descriptor-from-queue
 bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(ReadableByteStreamController& controller, PullIntoDescriptor& pull_into_descriptor)
 {
-    // 1. Let elementSize be pullIntoDescriptor.[[elementSize]].
-    auto element_size = pull_into_descriptor.element_size;
-
-    // 2. Let currentAlignedBytes be pullIntoDescriptor’s bytes filled − (pullIntoDescriptor’s bytes filled mod elementSize).
-    auto current_aligned_bytes = pull_into_descriptor.bytes_filled - (pull_into_descriptor.bytes_filled % pull_into_descriptor.element_size);
-
-    // 3. Let maxBytesToCopy be min(controller.[[queueTotalSize]], pullIntoDescriptor’s byte length − pullIntoDescriptor’s bytes filled).
+    // 1. Let maxBytesToCopy be min(controller.[[queueTotalSize]], pullIntoDescriptor’s byte length − pullIntoDescriptor’s bytes filled).
     auto max_bytes_to_copy = min(controller.queue_total_size(), pull_into_descriptor.byte_length - pull_into_descriptor.bytes_filled);
 
-    // 4. Let maxBytesFilled be pullIntoDescriptor’s bytes filled + maxBytesToCopy.
+    // 2. Let maxBytesFilled be pullIntoDescriptor’s bytes filled + maxBytesToCopy.
     u64 max_bytes_filled = pull_into_descriptor.bytes_filled + max_bytes_to_copy;
 
-    // 5. Let maxAlignedBytes be maxBytesFilled − (maxBytesFilled mod elementSize).
-    auto max_aligned_bytes = max_bytes_filled - (max_bytes_filled % element_size);
-
-    // 6. Let totalBytesToCopyRemaining be maxBytesToCopy.
+    // 3. Let totalBytesToCopyRemaining be maxBytesToCopy.
     auto total_bytes_to_copy_remaining = max_bytes_to_copy;
 
-    // 7. Let ready be false.
+    // 4. Let ready be false.
     bool ready = false;
 
-    // 8. If maxAlignedBytes > currentAlignedBytes,
-    if (max_aligned_bytes > current_aligned_bytes) {
+    // 5. Assert: pullIntoDescriptor’s bytes filled < pullIntoDescriptor’s minimum fill.
+    VERIFY(pull_into_descriptor.bytes_filled < pull_into_descriptor.minimum_fill);
+
+    // 6. Let remainderBytes be the remainder after dividing maxBytesFilled by pullIntoDescriptor’s element size.
+    auto remainder_bytes = max_bytes_filled % pull_into_descriptor.element_size;
+
+    // 7. Let maxAlignedBytes be maxBytesFilled − remainderBytes.
+    auto max_aligned_bytes = max_bytes_filled - remainder_bytes;
+
+    // 8. If maxAlignedBytes ≥ pullIntoDescriptor’s minimum fill,
+    if (max_aligned_bytes >= pull_into_descriptor.minimum_fill) {
         // 1. Set totalBytesToCopyRemaining to maxAlignedBytes − pullIntoDescriptor’s bytes filled.
         total_bytes_to_copy_remaining = max_aligned_bytes - pull_into_descriptor.bytes_filled;
 
         // 2. Set ready to true.
         ready = true;
+
+        // NOTE: A descriptor for a read() request that is not yet filled up to its minimum length will stay at the head of the queue, so the underlying source can keep filling it.
     }
 
     // 9. Let queue be controller.[[queue]].
@@ -1735,8 +1737,8 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
         // 2. Assert: pullIntoDescriptor’s bytes filled > 0.
         VERIFY(pull_into_descriptor.bytes_filled > 0);
 
-        // 3. Assert: pullIntoDescriptor’s bytes filled < pullIntoDescriptor’s element size.
-        VERIFY(pull_into_descriptor.bytes_filled < pull_into_descriptor.element_size);
+        // 3. Assert: pullIntoDescriptor’s bytes filled < pullIntoDescriptor’s minimum fill.
+        VERIFY(pull_into_descriptor.bytes_filled < pull_into_descriptor.minimum_fill);
     }
 
     // 12. Return ready.
@@ -1789,7 +1791,7 @@ JS::Value readable_byte_stream_controller_convert_pull_into_descriptor(JS::Realm
     // 3. Assert: bytesFilled ≤ pullIntoDescriptor’s byte length.
     VERIFY(bytes_filled <= pull_into_descriptor.byte_length);
 
-    // 4. Assert: bytesFilled mod elementSize is 0.
+    // 4. Assert: the remainder after dividing bytesFilled by elementSize is 0.
     VERIFY(bytes_filled % element_size == 0);
 
     // 5. Let buffer be ! TransferArrayBuffer(pullIntoDescriptor’s buffer).
@@ -1800,7 +1802,7 @@ JS::Value readable_byte_stream_controller_convert_pull_into_descriptor(JS::Realm
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-pull-into
-void readable_byte_stream_controller_pull_into(ReadableByteStreamController& controller, WebIDL::ArrayBufferView& view, ReadIntoRequest& read_into_request)
+void readable_byte_stream_controller_pull_into(ReadableByteStreamController& controller, WebIDL::ArrayBufferView& view, u64 min, ReadIntoRequest& read_into_request)
 {
     auto& vm = controller.vm();
     auto& realm = controller.realm();
@@ -1832,7 +1834,16 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
         }
     }
 
-    // 5. Let byteOffset be view.[[ByteOffset]].
+    // 5. Let minimumFill be min × elementSize.
+    u64 minimum_fill = min * element_size;
+
+    // 6. Assert: minimumFill ≥ 0 and minimumFill ≤ view.[[ByteLength]].
+    VERIFY(minimum_fill <= view.byte_length());
+
+    // 7. Assert: the remainder after dividing minimumFill by elementSize is 0.
+    VERIFY(minimum_fill % element_size == 0);
+
+    // 8. Let byteOffset be view.[[ByteOffset]].
     auto byte_offset = view.byte_offset();
 
     // 6. Let byteLength be view.[[ByteLength]].
@@ -1862,6 +1873,7 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
         .byte_offset = byte_offset,
         .byte_length = byte_length,
         .bytes_filled = 0,
+        .minimum_fill = minimum_fill,
         .element_size = element_size,
         .view_constructor = *ctor,
         .reader_type = ReaderType::Byob,
@@ -1935,7 +1947,7 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-byob-reader-read
-void readable_stream_byob_reader_read(ReadableStreamBYOBReader& reader, WebIDL::ArrayBufferView& view, ReadIntoRequest& read_into_request)
+void readable_stream_byob_reader_read(ReadableStreamBYOBReader& reader, WebIDL::ArrayBufferView& view, u64 min, ReadIntoRequest& read_into_request)
 {
     // 1. Let stream be reader.[[stream]].
     auto stream = reader.stream();
@@ -1952,7 +1964,7 @@ void readable_stream_byob_reader_read(ReadableStreamBYOBReader& reader, WebIDL::
     }
     // 5. Otherwise, perform ! ReadableByteStreamControllerPullInto(stream.[[controller]], view, readIntoRequest).
     else {
-        readable_byte_stream_controller_pull_into(*stream->controller()->get<JS::NonnullGCPtr<ReadableByteStreamController>>(), view, read_into_request);
+        readable_byte_stream_controller_pull_into(*stream->controller()->get<JS::NonnullGCPtr<ReadableByteStreamController>>(), view, min, read_into_request);
     }
 }
 
@@ -2261,8 +2273,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
     }
 
     // 4. If pullIntoDescriptor’s bytes filled < pullIntoDescriptor’s minimum fill, return.
-    // FIXME: Support minimum fill.
-    if (pull_into_descriptor.bytes_filled < pull_into_descriptor.element_size)
+    if (pull_into_descriptor.bytes_filled < pull_into_descriptor.minimum_fill)
         return {};
 
     // NOTE: A descriptor for a read() request that is not yet filled up to its minimum length will stay at the head of the queue, so the underlying source can keep filling it.
@@ -2722,8 +2733,8 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_close(ReadableByteStre
         // 1. Let firstPendingPullInto be controller.[[pendingPullIntos]][0].
         auto& first_pending_pull_into = controller.pending_pull_intos().first();
 
-        // 2. If firstPendingPullInto’s bytes filled > 0,
-        if (first_pending_pull_into.bytes_filled > 0) {
+        // 2. If the remainder after dividing firstPendingPullInto’s bytes filled by firstPendingPullInto’s element size is not 0,
+        if (first_pending_pull_into.bytes_filled % first_pending_pull_into.element_size != 0) {
             // 1. Let e be a new TypeError exception.
             auto error = JS::TypeError::create(realm, "Cannot close controller in the middle of processing a write request"sv);
 
@@ -3454,8 +3465,8 @@ void readable_byte_stream_controller_commit_pull_into_descriptor(ReadableStream&
 
     // 4. If stream.[[state]] is "closed",
     if (stream.is_closed()) {
-        // 1. Assert: pullIntoDescriptor’s bytes filled is 0.
-        VERIFY(pull_into_descriptor.bytes_filled == 0);
+        // 1. Assert: the remainder after dividing pullIntoDescriptor’s bytes filled by pullIntoDescriptor’s element size is 0.
+        VERIFY(pull_into_descriptor.bytes_filled % pull_into_descriptor.element_size == 0);
 
         // 2. Set done to true.
         done = true;
