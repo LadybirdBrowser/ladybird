@@ -275,6 +275,7 @@ set(SOURCES
     HTML/DOMStringMap.cpp
     HTML/DragEvent.cpp
     HTML/ElementInternals.cpp
+    HTML/EmbedderPolicy.cpp
     HTML/ErrorEvent.cpp
     HTML/EventHandler.cpp
     HTML/EventSource.cpp

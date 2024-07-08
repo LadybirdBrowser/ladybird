@@ -357,6 +357,7 @@ class DOMParser;
 class DOMStringMap;
 class DragEvent;
 class ElementInternals;
+struct EmbedderPolicy;
 class ErrorEvent;
 class EventHandler;
 class EventLoop;

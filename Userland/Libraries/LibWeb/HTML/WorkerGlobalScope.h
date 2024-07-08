@@ -136,6 +136,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-embedder-policy
     // A WorkerGlobalScope object has an associated embedder policy (an embedder policy).
+    EmbedderPolicy m_embedder_policy;
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-module-map
     // A WorkerGlobalScope object has an associated module map. It is a module map, initially empty.

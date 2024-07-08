@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibIPC/Forward.h>
+#include <LibWeb/HTML/EmbedderPolicy.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
@@ -18,7 +19,8 @@ struct PolicyContainer {
     // FIXME: A CSP list, which is a CSP list. It is initially empty.
 
     // https://html.spec.whatwg.org/multipage/origin.html#policy-container-embedder-policy
-    // FIXME: An embedder policy, which is an embedder policy. It is initially a new embedder policy.
+    // An embedder policy, which is an embedder policy. It is initially a new embedder policy.
+    EmbedderPolicy embedder_policy {};
 
     // https://html.spec.whatwg.org/multipage/origin.html#policy-container-referrer-policy
     // A referrer policy, which is a referrer policy. It is initially the default referrer policy.
