@@ -8,6 +8,7 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/SVG/SVGAnimatedString.h>
 
 namespace Web::SVG {
 
@@ -30,6 +31,8 @@ public:
     void focus();
     void blur();
 
+    JS::NonnullGCPtr<SVGAnimatedString> class_name();
+
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
 
@@ -48,6 +51,8 @@ private:
     virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
 
     virtual bool is_svg_element() const final { return true; }
+
+    JS::GCPtr<SVGAnimatedString> m_class_name_animated_string;
 };
 
 }

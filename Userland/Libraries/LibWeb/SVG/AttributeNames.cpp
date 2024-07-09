@@ -22,6 +22,9 @@ void initialize_strings()
     ENUMERATE_SVG_ATTRIBUTES(__ENUMERATE_SVG_ATTRIBUTE)
 #undef __ENUMERATE_SVG_ATTRIBUTE
 
+    // NOTE: Special cases for C++ keywords.
+    class_ = "class"_fly_string;
+
     // NOTE: Special case for attributes with ':' in them.
     xlink_href = "xlink:href"_fly_string;
 
