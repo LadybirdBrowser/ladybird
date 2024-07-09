@@ -11,7 +11,9 @@
 
 namespace Web::SVG {
 
-class SVGElement : public DOM::Element {
+class SVGElement
+    : public DOM::Element
+    , public HTML::GlobalEventHandlers {
     WEB_PLATFORM_OBJECT(SVGElement, DOM::Element);
 
 public:
@@ -42,6 +44,9 @@ protected:
     JS::NonnullGCPtr<SVGAnimatedLength> svg_animated_length_for_property(CSS::PropertyID) const;
 
 private:
+    // ^HTML::GlobalEventHandlers
+    virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
+
     virtual bool is_svg_element() const final { return true; }
 };
 
