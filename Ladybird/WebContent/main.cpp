@@ -161,7 +161,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode));
 
-    TRY(Web::Bindings::initialize_main_thread_vm());
+    TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window));
 
     if (log_all_js_exceptions) {
         JS::g_log_all_js_exceptions = true;

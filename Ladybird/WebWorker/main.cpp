@@ -66,7 +66,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #endif
         TRY(initialize_lagom_networking(request_server_socket));
 
-    TRY(Web::Bindings::initialize_main_thread_vm());
+    TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Worker));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>());
 

@@ -24,7 +24,8 @@ namespace Web::HTML {
 
 JS_DEFINE_ALLOCATOR(EventLoop);
 
-EventLoop::EventLoop()
+EventLoop::EventLoop(Type type)
+    : m_type(type)
 {
     m_task_queue = heap().allocate_without_realm<TaskQueue>(*this);
     m_microtask_queue = heap().allocate_without_realm<TaskQueue>(*this);
