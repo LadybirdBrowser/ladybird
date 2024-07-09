@@ -35,6 +35,8 @@
     ByteString m_navigator_compatibility_mode;
 
     WebView::SearchEngine m_search_engine;
+
+    BOOL m_allow_popups;
 }
 
 @property (nonatomic, strong) NSMutableArray<TabController*>* managed_tabs;
@@ -62,6 +64,7 @@
               withCookieJar:(NonnullOwnPtr<WebView::CookieJar>)cookie_jar
           webContentOptions:(Ladybird::WebContentOptions const&)web_content_options
     webdriverContentIPCPath:(StringView)webdriver_content_ipc_path
+                allowPopups:(BOOL)allow_popups
 {
     if (self = [super init]) {
         [NSApp setMainMenu:[[NSMenu alloc] init]];
@@ -95,6 +98,8 @@
         m_preferred_motion = Web::CSS::PreferredMotion::Auto;
         m_navigator_compatibility_mode = "chrome";
         m_search_engine = WebView::default_search_engine();
+
+        m_allow_popups = allow_popups;
 
         // Reduce the tooltip delay, as the default delay feels quite long.
         [[NSUserDefaults standardUserDefaults] setObject:@100 forKey:@"NSInitialToolTipDelay"];
@@ -199,7 +204,7 @@
 - (nonnull TabController*)createNewTab:(Web::HTML::ActivateTab)activate_tab
                                fromTab:(nullable Tab*)tab
 {
-    auto* controller = [[TabController alloc] init];
+    auto* controller = [[TabController alloc] init:!m_allow_popups];
     [controller showWindow:nil];
 
     if (tab) {

@@ -28,7 +28,8 @@
                 newTabPageURL:(URL::URL)new_tab_page_url
                 withCookieJar:(NonnullOwnPtr<WebView::CookieJar>)cookie_jar
             webContentOptions:(Ladybird::WebContentOptions const&)web_content_options
-      webdriverContentIPCPath:(StringView)webdriver_content_ipc_path;
+      webdriverContentIPCPath:(StringView)webdriver_content_ipc_path
+                  allowPopups:(BOOL)allow_popups;
 
 - (nonnull TabController*)createNewTab:(Optional<URL::URL> const&)url
                                fromTab:(nullable Tab*)tab
