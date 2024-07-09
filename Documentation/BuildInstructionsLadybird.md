@@ -121,7 +121,14 @@ The simplest way to build and run ladybird is via the ladybird.sh script:
 ./Meta/ladybird.sh gdb ladybird
 ```
 
-The above commands will build Ladybird with one of the following browser chromes, depending on the platform:
+The above commands will build a Release version of Ladybird. To instead build a Debug version, run the
+`Meta/ladybird.sh` script with the value of the `BUILD_PRESET` environment variable set to `Debug`, like this:
+
+```bash
+BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird
+```
+
+Either way, Ladybird will be built with one of the following browser chromes, depending on the platform:
 * [Android UI](https://developer.android.com/develop/ui) - The native chrome on Android.
 * [AppKit](https://developer.apple.com/documentation/appkit?language=objc) - The native chrome on macOS.
 * [Qt](https://doc.qt.io/qt-6/) - The chrome used on all other platforms.
