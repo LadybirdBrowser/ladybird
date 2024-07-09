@@ -24,19 +24,6 @@ Clangd has the best support for modern compilers, especially if configured as no
 The official clangd extension can be used for C++ comprehension. It is recommended in general, as it is most likely to work on all platforms.
 
 clangd uses ``compile_commands.json`` files to understand the project. CMake will generate these in Build/ladybird.
-Depending on which configuration you use most, set the CompilationDatabase configuration item in the below ``.clangd`` file accordingly. It goes at the root of your checkout (``ladybird/.clangd``):
-
-```yaml
-CompileFlags:
-  CompilationDatabase: Build/ladybird
-  
-Diagnostics:
-  UnusedIncludes: None
-  MissingIncludes: None
-```
-
-The UnusedIncludes and MissingIncludes flags are used to disable the [Include Cleaner](https://clangd.llvm.org/design/include-cleaner) feature of newer clangd releases.
-It can be re-enabled if you don't mind the noisy inlay hints and problems in the problem view.
 
 Run ``./Meta/ladybird.sh run ladybird`` at least once to generate the ``compile_commands.json`` file.
 
