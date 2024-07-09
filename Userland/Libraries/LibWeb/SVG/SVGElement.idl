@@ -9,6 +9,9 @@
 interface SVGElement : Element {
 
     [SameObject] readonly attribute SVGAnimatedString className;
+
+    [FIXME] readonly attribute SVGSVGElement? ownerSVGElement;
+    [FIXME] readonly attribute SVGElement? viewportElement;
 };
 
 SVGElement includes GlobalEventHandlers;
