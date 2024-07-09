@@ -7,17 +7,7 @@ project:
 2. With [coc.nvim](https://github.com/neoclide/coc.nvim) (from scratch, potentially out of date)
 
 For both setups, make sure you ran `./Meta/ladybird.sh run ladybird` at least 
-once. Additionally, clangd should be configured with the following (in the
-`.clangd` file at the root of the project):
-
-```yaml
-CompileFlags:
-  CompilationDatabase: Build/ladybird
-
-Diagnostics:
-  UnusedIncludes: None
-  MissingIncludes: None
-```
+once.
 
 ## With nvim-lspconfig
 

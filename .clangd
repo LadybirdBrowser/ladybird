@@ -1,0 +1,6 @@
+CompileFlags:
+  CompilationDatabase: Build/ladybird
+
+Diagnostics:
+  UnusedIncludes: None
+  MissingIncludes: None
