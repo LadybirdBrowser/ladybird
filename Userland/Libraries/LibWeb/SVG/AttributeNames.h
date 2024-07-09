@@ -17,6 +17,7 @@ namespace Web::SVG::AttributeNames {
     E(baseFrequency)                \
     E(baseProfile)                  \
     E(calcMode)                     \
+    E(class_)                       \
     E(clipPathUnits)                \
     E(contentScriptType)            \
     E(contentStyleType)             \

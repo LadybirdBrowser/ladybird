@@ -1,0 +1,8 @@
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" id="svg-element" class="demo class"></svg>
+<script>
+    test(() => {
+        const svgElement = document.getElementById("svg-element");
+        println(`svg.className = '${svgElement.className.baseVal}'`);
+    });
+</script>
