@@ -212,7 +212,7 @@ public:
     {
         bool is_negative_zero = bit_cast<u64>(value) == NEGATIVE_ZERO_BITS;
         if (value >= NumericLimits<i32>::min() && value <= NumericLimits<i32>::max() && trunc(value) == value && !is_negative_zero) {
-            VERIFY(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
+            ASSERT(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
             m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         } else {
             if (isnan(value)) [[unlikely]]
@@ -232,7 +232,7 @@ public:
         if (value > NumericLimits<i32>::max()) {
             m_value.as_double = static_cast<double>(value);
         } else {
-            VERIFY(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
+            ASSERT(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
             m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         }
     }
@@ -242,7 +242,7 @@ public:
         if (value > NumericLimits<i32>::max()) {
             m_value.as_double = static_cast<double>(value);
         } else {
-            VERIFY(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
+            ASSERT(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
             m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         }
     }
@@ -463,7 +463,7 @@ private:
 
     Value(u64 tag, u64 val)
     {
-        VERIFY(!(tag & val));
+        ASSERT(!(tag & val));
         m_value.encoded = tag | val;
     }
 
@@ -476,7 +476,7 @@ private:
             return;
         }
 
-        VERIFY((tag & 0x8000000000000000ul) == 0x8000000000000000ul);
+        ASSERT((tag & 0x8000000000000000ul) == 0x8000000000000000ul);
 
         if constexpr (sizeof(PointerType*) < sizeof(u64)) {
             m_value.encoded = tag | reinterpret_cast<u32>(ptr);
