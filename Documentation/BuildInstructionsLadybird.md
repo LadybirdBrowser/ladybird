@@ -120,7 +120,7 @@ Xcode 14 versions before 14.3 might crash while building ladybird. Xcode 14.3 or
 
 ```
 xcode-select --install
-brew install autoconf autoconf-archive automake ccache cmake ffmpeg nasm ninja pkg-config
+brew install autoconf autoconf-archive automake ccache cmake ffmpeg nasm ninja pkg-config shellcheck
 ```
 
 If you wish to use clang from homebrew instead:
