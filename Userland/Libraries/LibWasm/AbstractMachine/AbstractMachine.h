@@ -348,18 +348,21 @@ private:
 
 class HostFunction {
 public:
-    explicit HostFunction(AK::Function<Result(Configuration&, Vector<Value>&)> function, FunctionType const& type)
+    explicit HostFunction(AK::Function<Result(Configuration&, Vector<Value>&)> function, FunctionType const& type, ByteString name)
         : m_function(move(function))
         , m_type(type)
+        , m_name(move(name))
     {
     }
 
     auto& function() { return m_function; }
     auto& type() const { return m_type; }
+    auto& name() const { return m_name; }
 
 private:
     AK::Function<Result(Configuration&, Vector<Value>&)> m_function;
     FunctionType m_type;
+    ByteString m_name;
 };
 
 using FunctionInstance = Variant<WasmFunction, HostFunction>;

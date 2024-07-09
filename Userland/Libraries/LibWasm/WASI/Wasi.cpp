@@ -971,7 +971,8 @@ struct InvocationOf<impl> {
             FunctionType {
                 move(arguments_types),
                 { ValueType(ValueType::I32) },
-            });
+            },
+            function_name);
     }
 };
 
