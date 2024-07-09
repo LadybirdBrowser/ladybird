@@ -97,6 +97,10 @@ public:
 
     PolicyContainer policy_container() const { return m_policy_container; }
 
+    bool is_closing() const { return m_closing; }
+
+    void close();
+
 protected:
     explicit WorkerGlobalScope(JS::Realm&, JS::NonnullGCPtr<Web::Page>);
 
@@ -142,6 +146,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-cross-origin-isolated-capability
     bool m_cross_origin_isolated_capability { false };
+
+    // https://html.spec.whatwg.org/multipage/workers.html#dom-workerglobalscope-closing
+    bool m_closing { false };
 
     // https://drafts.csswg.org/css-font-loading/#font-source
     JS::GCPtr<CSS::FontFaceSet> m_fonts;

@@ -70,6 +70,18 @@ void WorkerGlobalScope::set_internal_port(JS::NonnullGCPtr<MessagePort> port)
     m_internal_port->set_worker_event_target(*this);
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#close-a-worker
+void WorkerGlobalScope::close()
+{
+    // 1. Discard any tasks that have been added to workerGlobal's relevant agent's event loop's task queues.
+    relevant_settings_object(*this).responsible_event_loop().task_queue().remove_tasks_matching([](HTML::Task const&) {
+        return true;
+    });
+
+    // 2. Set workerGlobal's closing flag to true. (This prevents any further tasks from being queued.)
+    m_closing = true;
+}
+
 // https://html.spec.whatwg.org/multipage/workers.html#importing-scripts-and-libraries
 WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const& urls, PerformTheFetchHook perform_fetch)
 {
