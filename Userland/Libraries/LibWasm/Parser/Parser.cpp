@@ -1413,10 +1413,8 @@ ParseResult<Module> Module::parse(Stream& stream)
         return with_eof_check(stream, ParseError::InvalidModuleVersion);
 
     Vector<AnySection> sections;
-    for (;;) {
+    while (!stream.is_eof()) {
         auto section_id_or_error = stream.read_value<u8>();
-        if (stream.is_eof())
-            break;
         if (section_id_or_error.is_error())
             return with_eof_check(stream, ParseError::ExpectedIndex);
 
@@ -1472,7 +1470,7 @@ ParseResult<Module> Module::parse(Stream& stream)
         default:
             return with_eof_check(stream, ParseError::InvalidIndex);
         }
-        if (!section_stream.is_eof())
+        if (section_stream.remaining() != 0)
             return ParseError::SectionSizeMismatch;
     }
 
