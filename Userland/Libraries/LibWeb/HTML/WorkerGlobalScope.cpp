@@ -5,7 +5,6 @@
  */
 
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/DedicatedWorkerExposedInterfaces.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WorkerGlobalScopePrototype.h>
 #include <LibWeb/CSS/FontFaceSet.h>
@@ -31,15 +30,10 @@ WorkerGlobalScope::WorkerGlobalScope(JS::Realm& realm, JS::NonnullGCPtr<Web::Pag
 
 WorkerGlobalScope::~WorkerGlobalScope() = default;
 
-void WorkerGlobalScope::initialize_web_interfaces(Badge<WorkerEnvironmentSettingsObject>)
+void WorkerGlobalScope::initialize_web_interfaces_impl()
 {
     auto& realm = this->realm();
     Base::initialize(realm);
-
-    // FIXME: Handle shared worker
-    add_dedicated_worker_exposed_interfaces(*this);
-
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WorkerGlobalScope);
 
     WindowOrWorkerGlobalScopeMixin::initialize(realm);
 
@@ -71,7 +65,7 @@ void WorkerGlobalScope::set_internal_port(JS::NonnullGCPtr<MessagePort> port)
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#close-a-worker
-void WorkerGlobalScope::close()
+void WorkerGlobalScope::close_a_worker()
 {
     // 1. Discard any tasks that have been added to workerGlobal's relevant agent's event loop's task queues.
     relevant_settings_object(*this).responsible_event_loop().task_queue().remove_tasks_matching([](HTML::Task const&) {
@@ -145,11 +139,6 @@ JS::NonnullGCPtr<WorkerNavigator> WorkerGlobalScope::navigator() const
     // The navigator attribute of the WorkerGlobalScope interface must return an instance of the WorkerNavigator interface,
     // which represents the identity and state of the user agent (the client).
     return *m_navigator;
-}
-
-WebIDL::ExceptionOr<void> WorkerGlobalScope::post_message(JS::Value message, StructuredSerializeOptions const& options)
-{
-    return m_internal_port->post_message(message, options);
 }
 
 #undef __ENUMERATE
