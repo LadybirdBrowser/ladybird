@@ -10,7 +10,7 @@ NOTE: In all of the below lists of packages, the Qt6 multimedia package is not n
 
 ### On Debian/Ubuntu:
 
-##### For C++23 capable compiler: 
+##### For C++23 capable compiler:
 
 - `clang` installation steps:
 
@@ -28,7 +28,7 @@ sudo apt update -y && sudo apt install clang-18 -y
 ##### Required packages include, but are not limited to:
 
 ```
-sudo apt install autoconf autoconf-archive automake build-essential cmake libavcodec-dev libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2 zip unzip curl tar libssl-dev
+sudo apt install autoconf autoconf-archive automake build-essential cmake libavcodec-dev libgl1-mesa-dev nasm ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2 zip unzip curl tar libssl-dev
 ```
 
 For Ubuntu 20.04 and above, ensure that the Qt6 Wayland packages are available:
@@ -42,17 +42,17 @@ sudo apt install qt6-wayland
 On Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed automake base-devel cmake ffmpeg libgl ninja qt6-base qt6-tools qt6-wayland qt6-multimedia ccache ttf-liberation curl unzip zip tar autoconf-archive
+sudo pacman -S --needed automake base-devel cmake ffmpeg libgl nasm ninja qt6-base qt6-tools qt6-wayland qt6-multimedia ccache ttf-liberation curl unzip zip tar autoconf-archive
 ```
 
 On Fedora or derivatives:
 ```
-sudo dnf install automake cmake libglvnd-devel ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts curl zip unzip tar autoconf-archive libavcodec-free-devel
+sudo dnf install automake cmake libglvnd-devel nasm ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts curl zip unzip tar autoconf-archive libavcodec-free-devel
 ```
 
 On openSUSE:
 ```
-sudo zypper install automake cmake libglvnd-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts curl zip unzip tar autoconf-archive ffmpeg-7-libavcodec-devel gcc13 gcc13-c++
+sudo zypper install automake cmake libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts curl zip unzip tar autoconf-archive ffmpeg-7-libavcodec-devel gcc13 gcc13-c++
 ```
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
 
@@ -78,7 +78,7 @@ Xcode 14 versions before 14.3 might crash while building ladybird. Xcode 14.3 or
 
 ```
 xcode-select --install
-brew install autoconf autoconf-archive automake cmake ffmpeg ninja ccache pkg-config
+brew install autoconf autoconf-archive automake cmake ffmpeg nasm ninja ccache pkg-config
 ```
 
 If you also plan to use the Qt chrome on macOS:
