@@ -59,7 +59,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
     JS::GCPtr<DOM::HTMLCollection> mutable m_rows;
     JS::GCPtr<DOM::HTMLCollection> mutable m_t_bodies;

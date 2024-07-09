@@ -17,7 +17,7 @@ class SVGElement : public DOM::Element {
 public:
     virtual bool requires_svg_container() const override { return true; }
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
     virtual void children_changed() override;
     virtual void inserted() override;

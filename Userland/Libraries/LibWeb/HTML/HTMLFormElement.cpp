@@ -622,9 +622,9 @@ WebIDL::ExceptionOr<void> HTMLFormElement::set_action(String const& value)
     return set_attribute(AttributeNames::action, value);
 }
 
-void HTMLFormElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLFormElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    HTMLElement::attribute_changed(name, value);
+    HTMLElement::attribute_changed(name, old_value, value);
     if (name == HTML::AttributeNames::rel) {
         if (m_rel_list)
             m_rel_list->associated_attribute_changed(value.value_or(String {}));

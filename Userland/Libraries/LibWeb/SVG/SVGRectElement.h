@@ -18,7 +18,7 @@ class SVGRectElement final : public SVGGeometryElement {
 public:
     virtual ~SVGRectElement() override = default;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 

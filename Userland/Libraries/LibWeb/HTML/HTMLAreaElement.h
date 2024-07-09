@@ -29,7 +29,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     // ^DOM::Element
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
     virtual i32 default_tab_index_value() const override;
 
     // ^HTML::HTMLHyperlinkElementUtils

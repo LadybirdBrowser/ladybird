@@ -41,9 +41,9 @@ JS::NonnullGCPtr<HTML::DOMStringMap> SVGElement::dataset()
     return *m_dataset;
 }
 
-void SVGElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void SVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    Base::attribute_changed(name, value);
+    Base::attribute_changed(name, old_value, value);
 
     update_use_elements_that_reference_this();
 }

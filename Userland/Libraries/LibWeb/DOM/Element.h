@@ -161,7 +161,7 @@ public:
     virtual void attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
 
     void run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& value);
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value);
 
     CSS::RequiredInvalidationAfterStyleChange recompute_style();
 

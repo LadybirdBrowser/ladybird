@@ -37,9 +37,9 @@ void SVGGraphicsElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGraphicsElement);
 }
 
-void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    SVGElement::attribute_changed(name, value);
+    SVGElement::attribute_changed(name, old_value, value);
     if (name == "transform"sv) {
         auto transform_list = AttributeParser::parse_transform(value.value_or(String {}));
         if (transform_list.has_value())

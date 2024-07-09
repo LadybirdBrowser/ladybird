@@ -358,9 +358,9 @@ bool HTMLElement::cannot_navigate() const
     return !is<HTML::HTMLAnchorElement>(this) && !is_connected();
 }
 
-void HTMLElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    Element::attribute_changed(name, value);
+    Element::attribute_changed(name, old_value, value);
 
     if (name == HTML::AttributeNames::contenteditable) {
         if (!value.has_value()) {

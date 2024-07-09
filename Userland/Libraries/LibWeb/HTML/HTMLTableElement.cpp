@@ -102,9 +102,9 @@ void HTMLTableElement::apply_presentational_hints(CSS::StyleProperties& style) c
     });
 }
 
-void HTMLTableElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLTableElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    Base::attribute_changed(name, value);
+    Base::attribute_changed(name, old_value, value);
     if (name == HTML::AttributeNames::cellpadding) {
         if (value.has_value())
             m_padding = max(0, parse_integer(value.value()).value_or(0));
