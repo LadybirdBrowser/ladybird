@@ -32,6 +32,7 @@
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
     Web::CSS::PreferredContrast m_preferred_contrast;
     Web::CSS::PreferredMotion m_preferred_motion;
+    ByteString m_navigator_compatibility_mode;
 
     WebView::SearchEngine m_search_engine;
 }
@@ -92,6 +93,7 @@
         m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Auto;
         m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
         m_preferred_motion = Web::CSS::PreferredMotion::Auto;
+        m_navigator_compatibility_mode = "chrome";
         m_search_engine = WebView::default_search_engine();
 
         // Reduce the tooltip delay, as the default delay feels quite long.
@@ -663,6 +665,23 @@
     [spoof_user_agent_menu_item setSubmenu:spoof_user_agent_menu];
 
     [submenu addItem:spoof_user_agent_menu_item];
+
+    auto* navigator_compatibility_mode_menu = [[NSMenu alloc] init];
+    auto add_navigator_compatibility_mode = [navigator_compatibility_mode_menu](ByteString name) {
+        [navigator_compatibility_mode_menu addItem:[[NSMenuItem alloc] initWithTitle:Ladybird::string_to_ns_string(name)
+                                                                              action:@selector(setNavigatorCompatibilityMode:)
+                                                                       keyEquivalent:@""]];
+    };
+    add_navigator_compatibility_mode("Chrome");
+    add_navigator_compatibility_mode("Gecko");
+    add_navigator_compatibility_mode("WebKit");
+
+    auto* navigator_compatibility_mode_menu_item = [[NSMenuItem alloc] initWithTitle:@"Navigator Compatibility Mode"
+                                                                              action:nil
+                                                                       keyEquivalent:@""];
+    [navigator_compatibility_mode_menu_item setSubmenu:navigator_compatibility_mode_menu];
+
+    [submenu addItem:navigator_compatibility_mode_menu_item];
     [submenu addItem:[NSMenuItem separatorItem]];
 
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Enable Scripting"
