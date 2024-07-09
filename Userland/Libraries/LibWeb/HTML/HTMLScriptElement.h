@@ -135,8 +135,6 @@ private:
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
 
     size_t m_source_line_number { 1 };
-
-    bool m_src_is_set = false;
 };
 
 }
