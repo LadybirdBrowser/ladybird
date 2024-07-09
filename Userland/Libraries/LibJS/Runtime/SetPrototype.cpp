@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/KeyedCollections.h>
 #include <LibJS/Runtime/SetIterator.h>
 #include <LibJS/Runtime/SetPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -62,12 +63,11 @@ JS_DEFINE_NATIVE_FUNCTION(SetPrototype::add)
     // 2. Perform ? RequireInternalSlot(S, [[SetData]]).
     auto set = TRY(typed_this_object(vm));
 
-    // 4. If value is -0𝔽, set value to +0𝔽.
-    if (value.is_negative_zero())
-        value = Value(0);
+    // 3. Set value to CanonicalizeKeyedCollectionKey(value).
+    value = canonicalize_keyed_collection_key(value);
 
-    // 3. For each element e of S.[[SetData]], do
-    //     a. If e is not empty and SameValueZero(e, value) is true, then
+    // 4. For each element e of S.[[SetData]], do
+    //     a. If e is not empty and SameValue(e, value) is true, then
     //         i. Return S.
     // 5. Append value to S.[[SetData]].
     set->set_add(value);
@@ -100,11 +100,14 @@ JS_DEFINE_NATIVE_FUNCTION(SetPrototype::delete_)
     // 2. Perform ? RequireInternalSlot(S, [[SetData]]).
     auto set = TRY(typed_this_object(vm));
 
-    // 3. For each element e of S.[[SetData]], do
-    //     a. If e is not empty and SameValueZero(e, value) is true, then
+    // 3. Set value to CanonicalizeKeyedCollectionKey(value).
+    value = canonicalize_keyed_collection_key(value);
+
+    // 4. For each element e of S.[[SetData]], do
+    //     a. If e is not empty and SameValue(e, value) is true, then
     //         i. Replace the element of S.[[SetData]] whose value is e with an element whose value is empty.
     //         ii. Return true.
-    // 4. Return false.
+    // 5. Return false.
     return Value(set->set_remove(value));
 }
 
@@ -165,9 +168,12 @@ JS_DEFINE_NATIVE_FUNCTION(SetPrototype::has)
     // 2. Perform ? RequireInternalSlot(S, [[SetData]]).
     auto set = TRY(typed_this_object(vm));
 
-    // 3. For each element e of S.[[SetData]], do
-    //     a. If e is not empty and SameValueZero(e, value) is true, return true.
-    // 4. Return false.
+    // 3. Set value to CanonicalizeKeyedCollectionKey(value).
+    value = canonicalize_keyed_collection_key(value);
+
+    // 4. For each element e of S.[[SetData]], do
+    //     a. If e is not empty and SameValue(e, value) is true, return true.
+    // 5. Return false.
     return Value(set->set_has(value));
 }
 
