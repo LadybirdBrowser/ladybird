@@ -28,9 +28,9 @@ void SVGLinearGradientElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGLinearGradientElement);
 }
 
-void SVGLinearGradientElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void SVGLinearGradientElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    SVGGradientElement::attribute_changed(name, value);
+    SVGGradientElement::attribute_changed(name, old_value, value);
 
     // FIXME: Should allow for `<number-percentage> | <length>` for x1, x2, y1, y2
     if (name == SVG::AttributeNames::x1) {

@@ -28,9 +28,9 @@ void SVGClipPathElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGClipPathElement);
 }
 
-void SVGClipPathElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void SVGClipPathElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    SVGElement::attribute_changed(name, value);
+    SVGElement::attribute_changed(name, old_value, value);
     if (name == AttributeNames::clipPathUnits)
         m_clip_path_units = AttributeParser::parse_units(value.value_or(String {}));
 }

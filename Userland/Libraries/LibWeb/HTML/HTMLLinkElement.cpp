@@ -128,9 +128,9 @@ bool HTMLLinkElement::has_loaded_icon() const
     return m_relationship & Relationship::Icon && resource() && resource()->is_loaded() && resource()->has_encoded_data();
 }
 
-void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    HTMLElement::attribute_changed(name, value);
+    HTMLElement::attribute_changed(name, old_value, value);
 
     // 4.6.7 Link types - https://html.spec.whatwg.org/multipage/links.html#linkTypes
     if (name == HTML::AttributeNames::rel) {

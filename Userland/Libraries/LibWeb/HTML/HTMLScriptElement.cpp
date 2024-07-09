@@ -50,9 +50,9 @@ void HTMLScriptElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_preparation_time_document);
 }
 
-void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    Base::attribute_changed(name, value);
+    Base::attribute_changed(name, old_value, value);
 
     if (name == HTML::AttributeNames::crossorigin) {
         m_crossorigin = cors_setting_attribute_from_keyword(value);
