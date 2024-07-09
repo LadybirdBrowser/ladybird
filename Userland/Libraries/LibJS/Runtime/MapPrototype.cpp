@@ -7,6 +7,7 @@
 #include <AK/HashMap.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/KeyedCollections.h>
 #include <LibJS/Runtime/MapIterator.h>
 #include <LibJS/Runtime/MapPrototype.h>
 
@@ -66,11 +67,14 @@ JS_DEFINE_NATIVE_FUNCTION(MapPrototype::delete_)
     // 2. Perform ? RequireInternalSlot(M, [[MapData]]).
     auto map = TRY(typed_this_object(vm));
 
+    // 3. Set key to CanonicalizeKeyedCollectionKey(key).
+    key = canonicalize_keyed_collection_key(key);
+
     // 3. For each Record { [[Key]], [[Value]] } p of M.[[MapData]], do
-    //    a. If p.[[Key]] is not empty and SameValueZero(p.[[Key]], key) is true, then
-    //        i. Set p.[[Key]] to empty.
-    //        ii. Set p.[[Value]] to empty.
-    //        iii. Return true.
+    //     a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, then
+    //         i. Set p.[[Key]] to empty.
+    //         ii. Set p.[[Value]] to empty.
+    //         iii. Return true.
     // 4. Return false.
     return Value(map->map_remove(key));
 }
@@ -131,11 +135,13 @@ JS_DEFINE_NATIVE_FUNCTION(MapPrototype::get)
     // 2. Perform ? RequireInternalSlot(M, [[MapData]]).
     auto map = TRY(typed_this_object(vm));
 
+    // 3. Set key to CanonicalizeKeyedCollectionKey(key).
+    key = canonicalize_keyed_collection_key(key);
+
     // 3. For each Record { [[Key]], [[Value]] } p of M.[[MapData]], do
-    //    a. If p.[[Key]] is not empty and SameValueZero(p.[[Key]], key) is true, return p.[[Value]].
-    auto result = map->map_get(key);
-    if (result.has_value())
-        return result.value();
+    //    a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, return p.[[Value]].
+    if (auto result = map->map_get(key); result.has_value())
+        return result.release_value();
 
     // 4. Return undefined.
     return js_undefined();
@@ -150,8 +156,11 @@ JS_DEFINE_NATIVE_FUNCTION(MapPrototype::has)
     // 2. Perform ? RequireInternalSlot(M, [[MapData]]).
     auto map = TRY(typed_this_object(vm));
 
+    // 3. Set key to CanonicalizeKeyedCollectionKey(key).
+    key = canonicalize_keyed_collection_key(key);
+
     // 3. For each Record { [[Key]], [[Value]] } p of M.[[MapData]], do
-    //    a. If p.[[Key]] is not empty and SameValueZero(p.[[Key]], key) is true, return true.
+    //    a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, return true.
     // 4. Return false.
     return map->map_has(key);
 }
@@ -178,14 +187,13 @@ JS_DEFINE_NATIVE_FUNCTION(MapPrototype::set)
     // 2. Perform ? RequireInternalSlot(M, [[MapData]]).
     auto map = TRY(typed_this_object(vm));
 
-    // 4. If key is -0𝔽, set key to +0𝔽.
-    if (key.is_negative_zero())
-        key = Value(0);
+    // 3. Set key to CanonicalizeKeyedCollectionKey(key).
+    key = canonicalize_keyed_collection_key(key);
 
-    // 3. For each Record { [[Key]], [[Value]] } p of M.[[MapData]], do
-    //    a. If p.[[Key]] is not empty and SameValueZero(p.[[Key]], key) is true, then
-    //        i. Set p.[[Value]] to value.
-    //        ii. Return M.
+    // 4. For each Record { [[Key]], [[Value]] } p of M.[[MapData]], do
+    //     a. If p.[[Key]] is not empty and SameValue(p.[[Key]], key) is true, then
+    //         i. Set p.[[Value]] to value.
+    //         ii. Return M.
     // 5. Let p be the Record { [[Key]]: key, [[Value]]: value }.
     // 6. Append p to M.[[MapData]].
     map->map_set(key, value);
