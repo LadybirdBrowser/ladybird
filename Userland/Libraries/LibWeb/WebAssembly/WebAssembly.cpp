@@ -219,7 +219,8 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
 
                             return Wasm::Result { move(wasm_values) };
                         },
-                        type
+                        type,
+                        ByteString::formatted("func{}", resolved_imports.size()),
                     };
                     auto address = cache.abstract_machine().store().allocate(move(host_function));
                     dbgln("Resolved to {}", address->value());
@@ -448,9 +449,20 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value)
         return JS::Value(wasm_value.to<double>().value());
     case Wasm::ValueType::F32:
         return JS::Value(static_cast<double>(wasm_value.to<float>().value()));
-    case Wasm::ValueType::FunctionReference:
-        // FIXME: What's the name of a function reference that isn't exported?
-        return create_native_function(vm, wasm_value.to<Wasm::Reference::Func>().value().address, "FIXME_IHaveNoIdeaWhatThisShouldBeCalled");
+    case Wasm::ValueType::FunctionReference: {
+        auto address = wasm_value.to<Wasm::Reference::Func>().value().address;
+        auto& cache = get_cache(realm);
+        auto* function = cache.abstract_machine().store().get(address);
+        auto name = function->visit(
+            [&](Wasm::WasmFunction& wasm_function) {
+                auto index = *wasm_function.module().functions().find_first_index(address);
+                return ByteString::formatted("func{}", index);
+            },
+            [](Wasm::HostFunction& host_function) {
+                return host_function.name();
+            });
+        return create_native_function(vm, address, name);
+    }
     case Wasm::ValueType::V128:
     case Wasm::ValueType::ExternReference:
         TODO();

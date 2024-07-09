@@ -142,7 +142,8 @@ private:
                 // Noop, this just needs to exist.
                 return Wasm::Result { Vector<Wasm::Value> {} };
             },
-            type });
+            type,
+            "__TEST" });
     }
 
     static HashMap<Wasm::Linker::Name, Wasm::ExternValue> s_spec_test_namespace;
