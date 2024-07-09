@@ -28,6 +28,8 @@ public:
 
     virtual void die() override;
 
+    virtual void close_worker() override;
+
     void request_file(Web::FileRequest);
 
     PageHost& page_host() { return *m_page_host; }

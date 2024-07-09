@@ -11,6 +11,16 @@
 
 namespace WebWorker {
 
+void ConnectionFromClient::close_worker()
+{
+    async_did_close_worker();
+
+    // FIXME: Invoke a worker shutdown operation that implements the spec
+    m_worker_host = nullptr;
+
+    die();
+}
+
 void ConnectionFromClient::die()
 {
     // FIXME: When handling multiple workers in the same process,
