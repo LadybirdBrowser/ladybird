@@ -76,7 +76,7 @@ HTML::Script* active_script()
         });
 }
 
-ErrorOr<void> initialize_main_thread_vm()
+ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 {
     VERIFY(!s_main_thread_vm);
 
@@ -90,7 +90,7 @@ ErrorOr<void> initialize_main_thread_vm()
     s_main_thread_vm->ref();
 
     auto& custom_data = verify_cast<WebEngineCustomData>(*s_main_thread_vm->custom_data());
-    custom_data.event_loop = s_main_thread_vm->heap().allocate_without_realm<HTML::EventLoop>();
+    custom_data.event_loop = s_main_thread_vm->heap().allocate_without_realm<HTML::EventLoop>(type);
 
     // These strings could potentially live on the VM similar to CommonPropertyNames.
     DOM::MutationType::initialize_strings();

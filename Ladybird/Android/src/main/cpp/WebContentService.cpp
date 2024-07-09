@@ -68,7 +68,7 @@ ErrorOr<int> service_main(int ipc_socket)
     Web::HTML::Window::set_internals_object_exposed(is_layout_test_mode);
     Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode));
 
-    TRY(Web::Bindings::initialize_main_thread_vm());
+    TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window));
 
     auto maybe_content_filter_error = load_content_filters();
     if (maybe_content_filter_error.is_error())

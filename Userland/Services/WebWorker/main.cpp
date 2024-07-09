@@ -36,7 +36,7 @@ ErrorOr<int> serenity_main(Main::Arguments)
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPluginSerenity);
 
     Web::ResourceLoader::initialize(TRY(WebView::RequestServerAdapter::try_create()));
-    TRY(Web::Bindings::initialize_main_thread_vm());
+    TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Worker));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>());
 
