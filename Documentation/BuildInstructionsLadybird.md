@@ -136,6 +136,13 @@ cmake --preset default -DENABLE_QT=ON
 
 To re-disable the Qt chrome, run the above command with `-DENABLE_QT=OFF`.
 
+On macOS, to build with clang from homebrew:
+
+```
+brew install llvm
+CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
+```
+
 ### Resource files
 
 Ladybird requires resource files from the ladybird/Base/res directory in order to properly load
