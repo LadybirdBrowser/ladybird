@@ -165,13 +165,13 @@ public:
 
     T* operator->() const
     {
-        VERIFY(m_ptr);
+        ASSERT(m_ptr);
         return m_ptr;
     }
 
     T& operator*() const
     {
-        VERIFY(m_ptr);
+        ASSERT(m_ptr);
         return *m_ptr;
     }
 
