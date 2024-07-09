@@ -876,6 +876,24 @@ inline void fast_typed_array_set_element(TypedArrayBase& typed_array, u32 index,
     *slot = value;
 }
 
+Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property_identifier, Executable const& executable)
+{
+    VERIFY(base_value.is_nullish());
+
+    if (base_identifier.has_value())
+        return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefinedWithPropertyAndName, executable.get_identifier(property_identifier), base_value, executable.get_identifier(base_identifier.value()));
+    return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefinedWithProperty, executable.get_identifier(property_identifier), base_value);
+}
+
+Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
+{
+    VERIFY(base_value.is_nullish());
+
+    if (base_identifier.has_value())
+        return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefinedWithPropertyAndName, property, base_value, executable.get_identifier(base_identifier.value()));
+    return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefinedWithProperty, property, base_value);
+}
+
 template<typename BaseType, typename PropertyType>
 ALWAYS_INLINE Completion throw_null_or_undefined_property_access(VM& vm, Value base_value, BaseType const& base_identifier, PropertyType const& property_identifier)
 {
@@ -898,8 +916,7 @@ ALWAYS_INLINE Completion throw_null_or_undefined_property_access(VM& vm, Value b
     return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefined);
 }
 
-template<typename BaseType, typename PropertyType>
-ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> base_object_for_get(VM& vm, Value base_value, BaseType const& base_identifier, PropertyType const& property_identifier)
+ALWAYS_INLINE GCPtr<Object> base_object_for_get_impl(VM& vm, Value base_value)
 {
     if (base_value.is_object()) [[likely]]
         return base_value.as_object();
@@ -917,8 +934,25 @@ ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> base_object_for_get(VM& vm
     if (base_value.is_symbol())
         return realm.intrinsics().symbol_prototype();
 
+    return nullptr;
+}
+
+ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> base_object_for_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property_identifier, Executable const& executable)
+{
+    if (auto base_object = base_object_for_get_impl(vm, base_value))
+        return NonnullGCPtr { *base_object };
+
     // NOTE: At this point this is guaranteed to throw (null or undefined).
-    return throw_null_or_undefined_property_access(vm, base_value, base_identifier, property_identifier);
+    return throw_null_or_undefined_property_get(vm, base_value, base_identifier, property_identifier, executable);
+}
+
+ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> base_object_for_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
+{
+    if (auto base_object = base_object_for_get_impl(vm, base_value))
+        return NonnullGCPtr { *base_object };
+
+    // NOTE: At this point this is guaranteed to throw (null or undefined).
+    return throw_null_or_undefined_property_get(vm, base_value, base_identifier, property, executable);
 }
 
 enum class GetByIdMode {
@@ -927,7 +961,7 @@ enum class GetByIdMode {
 };
 
 template<GetByIdMode mode = GetByIdMode::Normal>
-inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<DeprecatedFlyString const&> const& base_identifier, DeprecatedFlyString const& property, Value base_value, Value this_value, PropertyLookupCache& cache)
+inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property, Value base_value, Value this_value, PropertyLookupCache& cache, Executable const& executable)
 {
     if constexpr (mode == GetByIdMode::Length) {
         if (base_value.is_string()) {
@@ -935,7 +969,7 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<DeprecatedFlyString c
         }
     }
 
-    auto base_obj = TRY(base_object_for_get(vm, base_value, base_identifier, property));
+    auto base_obj = TRY(base_object_for_get(vm, base_value, base_identifier, property, executable));
 
     if constexpr (mode == GetByIdMode::Length) {
         // OPTIMIZATION: Fast path for the magical "length" property on Array objects.
@@ -965,7 +999,7 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<DeprecatedFlyString c
     }
 
     CacheablePropertyMetadata cacheable_metadata;
-    auto value = TRY(base_obj->internal_get(property, this_value, &cacheable_metadata));
+    auto value = TRY(base_obj->internal_get(executable.get_identifier(property), this_value, &cacheable_metadata));
 
     if (cacheable_metadata.type == CacheablePropertyMetadata::Type::OwnProperty) {
         cache = {};
@@ -982,7 +1016,7 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<DeprecatedFlyString c
     return value;
 }
 
-inline ThrowCompletionOr<Value> get_by_value(VM& vm, Optional<DeprecatedFlyString const&> const& base_identifier, Value base_value, Value property_key_value)
+inline ThrowCompletionOr<Value> get_by_value(VM& vm, Optional<IdentifierTableIndex> base_identifier, Value base_value, Value property_key_value, Executable const& executable)
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
     if (base_value.is_object() && property_key_value.is_int32() && property_key_value.as_i32() >= 0) {
@@ -1044,7 +1078,7 @@ inline ThrowCompletionOr<Value> get_by_value(VM& vm, Optional<DeprecatedFlyStrin
         }
     }
 
-    auto object = TRY(base_object_for_get(vm, base_value, base_identifier, property_key_value));
+    auto object = TRY(base_object_for_get(vm, base_value, base_identifier, property_key_value, executable));
 
     auto property_key = TRY(property_key_value.to_property_key(vm));
 
@@ -2309,13 +2343,10 @@ ThrowCompletionOr<void> SetVariableBinding::execute_impl(Bytecode::Interpreter& 
 
 ThrowCompletionOr<void> GetById::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto base_identifier = interpreter.current_executable().get_identifier(m_base_identifier);
-    auto const& property_identifier = interpreter.current_executable().get_identifier(m_property);
-
     auto base_value = interpreter.get(base());
     auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
 
-    interpreter.set(dst(), TRY(get_by_id(interpreter.vm(), base_identifier, property_identifier, base_value, base_value, cache)));
+    interpreter.set(dst(), TRY(get_by_id(interpreter.vm(), m_base_identifier, m_property, base_value, base_value, cache, interpreter.current_executable())));
     return {};
 }
 
@@ -2324,18 +2355,17 @@ ThrowCompletionOr<void> GetByIdWithThis::execute_impl(Bytecode::Interpreter& int
     auto base_value = interpreter.get(m_base);
     auto this_value = interpreter.get(m_this_value);
     auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
-    interpreter.set(dst(), TRY(get_by_id(interpreter.vm(), {}, interpreter.current_executable().get_identifier(m_property), base_value, this_value, cache)));
+    interpreter.set(dst(), TRY(get_by_id(interpreter.vm(), {}, m_property, base_value, this_value, cache, interpreter.current_executable())));
     return {};
 }
 
 ThrowCompletionOr<void> GetLength::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto base_identifier = interpreter.current_executable().get_identifier(m_base_identifier);
-
     auto base_value = interpreter.get(base());
-    auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
+    auto& executable = interpreter.current_executable();
+    auto& cache = executable.property_lookup_caches[m_cache_index];
 
-    interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Length>(interpreter.vm(), base_identifier, interpreter.vm().names.length.as_string(), base_value, base_value, cache)));
+    interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Length>(interpreter.vm(), m_base_identifier, *executable.length_identifier, base_value, base_value, cache, executable)));
     return {};
 }
 
@@ -2343,8 +2373,9 @@ ThrowCompletionOr<void> GetLengthWithThis::execute_impl(Bytecode::Interpreter& i
 {
     auto base_value = interpreter.get(m_base);
     auto this_value = interpreter.get(m_this_value);
-    auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
-    interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Length>(interpreter.vm(), {}, interpreter.vm().names.length.as_string(), base_value, this_value, cache)));
+    auto& executable = interpreter.current_executable();
+    auto& cache = executable.property_lookup_caches[m_cache_index];
+    interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Length>(interpreter.vm(), {}, *executable.length_identifier, base_value, this_value, cache, executable)));
     return {};
 }
 
@@ -2699,9 +2730,7 @@ void Await::execute_impl(Bytecode::Interpreter& interpreter) const
 
 ThrowCompletionOr<void> GetByValue::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto base_identifier = interpreter.current_executable().get_identifier(m_base_identifier);
-
-    interpreter.set(dst(), TRY(get_by_value(interpreter.vm(), base_identifier, interpreter.get(m_base), interpreter.get(m_property))));
+    interpreter.set(dst(), TRY(get_by_value(interpreter.vm(), m_base_identifier, interpreter.get(m_base), interpreter.get(m_property), interpreter.current_executable())));
     return {};
 }
 
