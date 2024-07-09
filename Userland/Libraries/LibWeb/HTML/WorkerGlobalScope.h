@@ -18,16 +18,13 @@
 #include <LibWeb/HTML/WorkerNavigator.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
-// FIXME: message/messageerror belong on subclasses only
-#define ENUMERATE_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(E)           \
-    E(onerror, HTML::EventNames::error)                           \
-    E(onlanguagechange, HTML::EventNames::languagechange)         \
-    E(ononline, HTML::EventNames::online)                         \
-    E(onoffline, HTML::EventNames::offline)                       \
-    E(onrejectionhandled, HTML::EventNames::rejectionhandled)     \
-    E(onunhandledrejection, HTML::EventNames::unhandledrejection) \
-    E(onmessage, HTML::EventNames::message)                       \
-    E(onmessageerror, HTML::EventNames::messageerror)
+#define ENUMERATE_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(E)       \
+    E(onerror, HTML::EventNames::error)                       \
+    E(onlanguagechange, HTML::EventNames::languagechange)     \
+    E(ononline, HTML::EventNames::online)                     \
+    E(onoffline, HTML::EventNames::offline)                   \
+    E(onrejectionhandled, HTML::EventNames::rejectionhandled) \
+    E(onunhandledrejection, HTML::EventNames::unhandledrejection)
 
 namespace Web::HTML {
 
@@ -76,8 +73,6 @@ public:
     ENUMERATE_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
 
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, StructuredSerializeOptions const&);
-
     JS::NonnullGCPtr<CSS::FontFaceSet> fonts();
 
     // Non-IDL public methods
@@ -91,7 +86,7 @@ public:
 
     void set_internal_port(JS::NonnullGCPtr<MessagePort> port);
 
-    void initialize_web_interfaces(Badge<WorkerEnvironmentSettingsObject>);
+    void initialize_web_interfaces(Badge<WorkerEnvironmentSettingsObject>) { initialize_web_interfaces_impl(); }
 
     Web::Page* page() { return m_page.ptr(); }
 
@@ -99,20 +94,24 @@ public:
 
     bool is_closing() const { return m_closing; }
 
-    void close();
-
 protected:
     explicit WorkerGlobalScope(JS::Realm&, JS::NonnullGCPtr<Web::Page>);
 
+    virtual void initialize_web_interfaces_impl();
+
+    void close_a_worker();
+
+    virtual void finalize() override;
+
+    JS::GCPtr<MessagePort> m_internal_port;
+
 private:
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual void finalize() override;
 
     JS::GCPtr<WorkerLocation> m_location;
     JS::GCPtr<WorkerNavigator> m_navigator;
 
     JS::NonnullGCPtr<Web::Page> m_page;
-    JS::GCPtr<MessagePort> m_internal_port;
 
     // FIXME: Add all these internal slots
 
