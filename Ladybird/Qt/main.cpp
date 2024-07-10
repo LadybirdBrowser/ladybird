@@ -99,6 +99,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool new_window = false;
     bool force_new_process = false;
     bool allow_popups = false;
+    bool use_default_settings = false;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("The Ladybird web browser :^)");
@@ -117,7 +118,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
     args_parser.add_option(force_new_process, "Force creation of new browser/chrome process", "force-new-process");
     args_parser.add_option(allow_popups, "Disable popup blocking by default", "allow-popups");
+    args_parser.add_option(use_default_settings, "Use browser default settings", "use-default-settings");
     args_parser.parse(arguments);
+
+    Ladybird::Settings::set_use_default_settings(use_default_settings);
 
     WebView::ChromeProcess chrome_process;
     if (!force_new_process && TRY(chrome_process.connect(raw_urls, new_window)) == WebView::ChromeProcess::ProcessDisposition::ExitProcess) {

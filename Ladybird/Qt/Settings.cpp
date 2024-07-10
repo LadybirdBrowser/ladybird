@@ -9,13 +9,23 @@
 #include "Settings.h"
 #include "StringUtils.h"
 #include <Ladybird/DefaultSettings.h>
+#include <QTemporaryFile>
 
 namespace Ladybird {
+
+bool Settings::s_use_default_settings = false;
+OwnPtr<Settings> Settings::s_the = nullptr;
 
 Settings::Settings()
     : m_search_engine(WebView::default_search_engine())
 {
-    m_qsettings = make<QSettings>("Ladybird", "Ladybird", this);
+    if (s_use_default_settings) {
+        QTemporaryFile temporary_file;
+        temporary_file.open();
+        m_qsettings = make<QSettings>(temporary_file.fileName());
+    } else {
+        m_qsettings = make<QSettings>("Ladybird", "Ladybird", this);
+    }
 
     auto default_search_engine = WebView::default_search_engine();
     auto default_search_engine_name = qstring_from_ak_string(default_search_engine.name);
@@ -27,6 +37,12 @@ Settings::Settings()
         m_search_engine = search_engine.release_value();
     else
         set_search_engine(move(default_search_engine));
+}
+
+void Settings::set_use_default_settings(bool use_default_settings)
+{
+    VERIFY(!s_the);
+    s_use_default_settings = use_default_settings;
 }
 
 Optional<QPoint> Settings::last_position()

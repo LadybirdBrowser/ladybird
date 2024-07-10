@@ -26,9 +26,13 @@ public:
 
     static Settings* the()
     {
-        static Settings instance;
-        return &instance;
+        if (!s_the)
+            s_the = adopt_own(*new Settings());
+
+        return s_the;
     }
+
+    static void set_use_default_settings(bool use_default_settings);
 
     Optional<QPoint> last_position();
     void set_last_position(QPoint const& last_position);
@@ -77,6 +81,9 @@ protected:
 private:
     OwnPtr<QSettings> m_qsettings;
     WebView::SearchEngine m_search_engine;
+
+    static bool s_use_default_settings;
+    static OwnPtr<Settings> s_the;
 };
 
 }
