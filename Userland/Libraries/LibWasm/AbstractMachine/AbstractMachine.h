@@ -410,7 +410,7 @@ public:
     {
         MemoryInstance instance { type };
 
-        if (!instance.grow(type.limits().min() * Constants::page_size))
+        if (!instance.grow(type.limits().min() * Constants::page_size, GrowType::No))
             return Error::from_string_literal("Failed to grow to requested size");
 
         return { move(instance) };
@@ -426,7 +426,12 @@ public:
         Yes,
     };
 
-    bool grow(size_t size_to_grow, InhibitGrowCallback inhibit_callback = InhibitGrowCallback::No)
+    enum class GrowType {
+        No,
+        Yes,
+    };
+
+    bool grow(size_t size_to_grow, GrowType grow_type = GrowType::Yes, InhibitGrowCallback inhibit_callback = InhibitGrowCallback::No)
     {
         if (size_to_grow == 0)
             return true;
@@ -449,6 +454,14 @@ public:
         //       See [this issue](https://github.com/WebAssembly/spec/issues/1635) for more details.
         if (inhibit_callback == InhibitGrowCallback::No && successful_grow_hook)
             successful_grow_hook();
+
+        if (grow_type == GrowType::Yes) {
+            // Grow the memory's type. We do this when encountering a `memory.grow`.
+            //
+            // See relevant spec link:
+            // https://www.w3.org/TR/wasm-core-2/#growing-memories%E2%91%A0
+            m_type = MemoryType { Limits(m_type.limits().min() + size_to_grow / Constants::page_size, m_type.limits().max()) };
+        }
 
         return true;
     }
