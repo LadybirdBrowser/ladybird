@@ -2553,11 +2553,14 @@ void Document::run_the_resize_steps()
     //    fire an event named resize at the Window object associated with doc.
 
     auto viewport_size = viewport_rect().size().to_type<int>();
+    bool is_initial_size = !m_last_viewport_size.has_value();
+
     if (m_last_viewport_size == viewport_size)
         return;
     m_last_viewport_size = viewport_size;
 
-    window()->dispatch_event(DOM::Event::create(realm(), UIEvents::EventNames::resize));
+    if (!is_initial_size)
+        window()->dispatch_event(DOM::Event::create(realm(), UIEvents::EventNames::resize));
 
     schedule_layout_update();
 }
