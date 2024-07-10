@@ -1548,12 +1548,24 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<2, Operators::Negate>>(configuration);
     case Instructions::f64x2_abs.value():
         return unary_operation<u128, u128, Operators::VectorFloatUnaryOp<2, Operators::Absolute>>(configuration);
-    case Instructions::v128_not.value():
     case Instructions::v128_and.value():
-    case Instructions::v128_andnot.value():
+        return binary_numeric_operation<u128, u128, Operators::BitAnd>(configuration);
     case Instructions::v128_or.value():
+        return binary_numeric_operation<u128, u128, Operators::BitOr>(configuration);
     case Instructions::v128_xor.value():
-    case Instructions::v128_bitselect.value():
+        return binary_numeric_operation<u128, u128, Operators::BitXor>(configuration);
+    case Instructions::v128_not.value():
+        return unary_operation<u128, u128, Operators::BitNot>(configuration);
+    case Instructions::v128_andnot.value():
+        return binary_numeric_operation<u128, u128, Operators::BitAndNot>(configuration);
+    case Instructions::v128_bitselect.value(): {
+        auto mask = *configuration.stack().pop().get<Value>().to<u128>();
+        auto false_vector = *configuration.stack().pop().get<Value>().to<u128>();
+        auto true_vector = *configuration.stack().pop().get<Value>().to<u128>();
+        u128 result = (true_vector & mask) | (false_vector & ~mask);
+        configuration.stack().push(Value(result));
+        return;
+    }
     case Instructions::v128_any_true.value():
     case Instructions::v128_load8_lane.value():
     case Instructions::v128_load16_lane.value():
