@@ -96,6 +96,20 @@ struct BitShiftRight {
     static StringView name() { return ">>"sv; }
 };
 
+struct BitAndNot {
+    template<typename Lhs, typename Rhs>
+    auto operator()(Lhs lhs, Rhs rhs) const { return lhs & ~rhs; }
+
+    static StringView name() { return "andnot"sv; }
+};
+
+struct BitNot {
+    template<typename Lhs>
+    auto operator()(Lhs lhs) const { return ~lhs; }
+
+    static StringView name() { return "~"sv; }
+};
+
 struct BitRotateLeft {
     template<typename Lhs, typename Rhs>
     auto operator()(Lhs lhs, Rhs rhs) const
