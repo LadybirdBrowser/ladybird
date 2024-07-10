@@ -113,6 +113,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(is_layout_test_mode, "Is layout test mode", "layout-test-mode");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(use_lagom_networking, "Enable Lagom servers for networking", "use-lagom-networking");
+    args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(use_skia_painter, "Enable Skia painter", "use-skia-painting");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
@@ -150,7 +151,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 #if defined(HAVE_QT)
     if (!use_lagom_networking)
-        Web::ResourceLoader::initialize(Ladybird::RequestManagerQt::create());
+        Web::ResourceLoader::initialize(Ladybird::RequestManagerQt::create(certificates));
     else
 #endif
         TRY(initialize_lagom_networking(request_server_socket));
