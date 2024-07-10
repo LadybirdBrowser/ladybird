@@ -545,23 +545,13 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         return;
     }
     case Instructions::loop.value(): {
-        size_t arity = 0;
-        size_t parameter_count = 0;
         auto& args = instruction.arguments().get<Instruction::StructuredInstructionArgs>();
-        switch (args.block_type.kind()) {
-        case BlockType::Empty:
-            break;
-        case BlockType::Type:
-            arity = 1;
-            break;
-        case BlockType::Index: {
+        size_t arity = 0;
+        if (args.block_type.kind() == BlockType::Index) {
             auto& type = configuration.frame().module().types()[args.block_type.type_index().value()];
             arity = type.parameters().size();
-            parameter_count = type.parameters().size();
         }
-        }
-
-        configuration.stack().entries().insert(configuration.stack().size() - parameter_count, Label(arity, ip.value() + 1));
+        configuration.stack().entries().insert(configuration.stack().size() - arity, Label(arity, ip.value() + 1));
         return;
     }
     case Instructions::if_.value(): {
