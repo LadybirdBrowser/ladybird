@@ -996,7 +996,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
         display: block;
         position: absolute;
         height: 100%;
-        background-color: AccentColor;
+        background-color: -libweb-palette-accent;
     )~~~"_string));
     MUST(slider_runnable_track->append_child(*m_range_progress_element));
 

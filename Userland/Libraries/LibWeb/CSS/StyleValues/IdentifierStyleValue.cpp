@@ -51,6 +51,7 @@ bool IdentifierStyleValue::is_color(ValueID value_id)
     case ValueID::Infobackground:
     case ValueID::Infotext:
     case ValueID::LibwebLink:
+    case ValueID::LibwebPaletteAccent:
     case ValueID::LibwebPaletteActiveLink:
     case ValueID::LibwebPaletteActiveWindowBorder1:
     case ValueID::LibwebPaletteActiveWindowBorder2:
@@ -289,6 +290,8 @@ Color IdentifierStyleValue::to_color(Optional<Layout::NodeWithStyle const&> node
         return palette.color(ColorRole::RubberBandBorder);
     case CSS::ValueID::LibwebPaletteLink:
         return palette.color(ColorRole::Link);
+    case CSS::ValueID::LibwebPaletteAccent:
+        return palette.color(ColorRole::Accent);
     case CSS::ValueID::LibwebPaletteActiveLink:
         return palette.color(ColorRole::ActiveLink);
     case CSS::ValueID::LibwebPaletteVisitedLink:

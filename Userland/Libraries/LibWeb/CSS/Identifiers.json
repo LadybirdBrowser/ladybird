@@ -3,6 +3,7 @@
   "-libweb-left",
   "-libweb-right",
   "-libweb-link",
+  "-libweb-palette-accent",
   "-libweb-palette-active-link",
   "-libweb-palette-active-window-border1",
   "-libweb-palette-active-window-border2",
