@@ -443,7 +443,18 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
                 // FIXME: This is all rather strange. Find a better solution.
                 if (!did_focus_something || paintable->dom_node()->is_editable()) {
                     auto& realm = document->realm();
-                    document->set_cursor_position(DOM::Position::create(realm, *paintable->dom_node(), result->index_in_node));
+
+                    unsigned index = result->index_in_node;
+
+                    // Make sure index is still valid (may have been changed by event handlers)
+                    auto dom_node = paintable->dom_node();
+                    auto value = dom_node->node_value();
+                    if (value.has_value()) {
+                        unsigned max_index = (unsigned)value.value().bytes().size();
+                        index = min(index, max_index);
+                    }
+
+                    document->set_cursor_position(DOM::Position::create(realm, *paintable->dom_node(), index));
                     if (auto selection = document->get_selection()) {
                         auto anchor_node = selection->anchor_node();
                         if (anchor_node && modifiers & UIEvents::KeyModifier::Mod_Shift) {
