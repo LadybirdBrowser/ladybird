@@ -58,10 +58,10 @@ The build process requires at least python3.7; openSUSE Leap only features Pytho
 
 On NixOS or with Nix:
 ```console
-nix develop .#ladybird
+nix develop
 
 # With a custom entrypoint, for example your favorite shell
-nix develop .#ladybird --command bash
+nix develop --command bash
 ```
 
 On NixOS or with Nix using your host `nixpkgs` and the legacy `nix-shell` tool:
