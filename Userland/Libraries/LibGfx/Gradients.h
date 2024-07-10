@@ -16,7 +16,11 @@ struct ColorStop {
     Color color;
     float position = AK::NaN<float>;
     Optional<float> transition_hint = {};
+
+    bool operator==(ColorStop const&) const = default;
 };
+
+float color_stop_step(ColorStop const& previous_stop, ColorStop const& next_stop, float position);
 
 class GradientLine;
 
