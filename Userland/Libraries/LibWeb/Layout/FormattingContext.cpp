@@ -974,7 +974,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
                 - margin_top.to_px(box, width_of_containing_block)
                 - box.computed_values().border_top().width
                 - box.computed_values().padding().top().to_px(box, width_of_containing_block)
-                - height.to_px(box)
+                - apply_min_max_height_constraints(height).to_px(box)
                 - box.computed_values().padding().bottom().to_px(box, width_of_containing_block)
                 - box.computed_values().border_bottom().width
                 - margin_bottom.to_px(box, width_of_containing_block)
