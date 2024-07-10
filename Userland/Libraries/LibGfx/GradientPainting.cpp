@@ -18,7 +18,7 @@ namespace Gfx {
 // Note: This file implements the CSS/Canvas gradients for LibWeb according to the spec.
 // Please do not make ad-hoc changes that may break spec compliance!
 
-static float color_stop_step(ColorStop const& previous_stop, ColorStop const& next_stop, float position)
+float color_stop_step(ColorStop const& previous_stop, ColorStop const& next_stop, float position)
 {
     if (position < previous_stop.position)
         return 0;

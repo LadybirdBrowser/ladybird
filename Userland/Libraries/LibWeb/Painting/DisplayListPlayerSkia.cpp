@@ -525,6 +525,53 @@ CommandResult DisplayListPlayerSkia::pop_stacking_context(PopStackingContext con
     return CommandResult::Continue;
 }
 
+static ColorStopList replace_transition_hints_with_normal_color_stops(ColorStopList const& color_stop_list)
+{
+    ColorStopList stops_with_replaced_transition_hints;
+
+    auto const& first_color_stop = color_stop_list.first();
+    // First color stop in the list should never have transition hint value
+    VERIFY(!first_color_stop.transition_hint.has_value());
+    stops_with_replaced_transition_hints.empend(first_color_stop.color, first_color_stop.position);
+
+    // This loop replaces transition hints with five regular points, calculated using the
+    // formula defined in the spec. After rendering using linear interpolation, this will
+    // produce a result close enough to that obtained if the color of each point were calculated
+    // using the non-linear formula from the spec.
+    for (size_t i = 1; i < color_stop_list.size(); i++) {
+        auto const& color_stop = color_stop_list[i];
+        if (!color_stop.transition_hint.has_value()) {
+            stops_with_replaced_transition_hints.empend(color_stop.color, color_stop.position);
+            continue;
+        }
+
+        auto const& previous_color_stop = color_stop_list[i - 1];
+        auto const& next_color_stop = color_stop_list[i];
+
+        auto distance_between_stops = next_color_stop.position - previous_color_stop.position;
+        auto transition_hint = color_stop.transition_hint.value();
+
+        Array<float, 5> const transition_hint_relative_sampling_positions = {
+            transition_hint * 0.33f,
+            transition_hint * 0.66f,
+            transition_hint,
+            transition_hint + (1 - transition_hint) * 0.33f,
+            transition_hint + (1 - transition_hint) * 0.66f,
+        };
+
+        for (auto const& transition_hint_relative_sampling_position : transition_hint_relative_sampling_positions) {
+            auto position = previous_color_stop.position + transition_hint_relative_sampling_position * distance_between_stops;
+            auto value = color_stop_step(previous_color_stop, next_color_stop, position);
+            auto color = previous_color_stop.color.interpolate(next_color_stop.color, value);
+            stops_with_replaced_transition_hints.empend(color, position);
+        }
+
+        stops_with_replaced_transition_hints.empend(color_stop.color, color_stop.position);
+    }
+
+    return stops_with_replaced_transition_hints;
+}
+
 CommandResult DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& command)
 {
     APPLY_PATH_CLIP_IF_NEEDED
@@ -532,15 +579,21 @@ CommandResult DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient c
     auto const& linear_gradient_data = command.linear_gradient_data;
 
     // FIXME: Account for repeat length
+
+    auto const& color_stop_list = linear_gradient_data.color_stops.list;
+    VERIFY(!color_stop_list.is_empty());
+
+    auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
+
     Vector<SkColor> colors;
-    colors.ensure_capacity(linear_gradient_data.color_stops.list.size());
     Vector<SkScalar> positions;
-    positions.ensure_capacity(linear_gradient_data.color_stops.list.size());
-    auto const& list = linear_gradient_data.color_stops.list;
-    for (auto const& color_stop : linear_gradient_data.color_stops.list) {
-        // FIXME: Account for ColorStop::transition_hint
-        colors.append(to_skia_color(color_stop.color));
-        positions.append(color_stop.position);
+
+    for (size_t stop_index = 0; stop_index < stops_with_replaced_transition_hints.size(); stop_index++) {
+        auto const& stop = stops_with_replaced_transition_hints[stop_index];
+        if (stop_index > 0 && stop == stops_with_replaced_transition_hints[stop_index - 1])
+            continue;
+        colors.append(to_skia_color(stop.color));
+        positions.append(stop.position);
     }
 
     auto const& rect = command.gradient_rect;
@@ -556,7 +609,7 @@ CommandResult DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient c
     SkMatrix matrix;
     matrix.setRotate(linear_gradient_data.gradient_angle, center.x(), center.y());
 
-    auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), list.size(), SkTileMode::kClamp, 0, &matrix);
+    auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), positions.size(), SkTileMode::kClamp, 0, &matrix);
 
     SkPaint paint;
     paint.setShader(shader);
@@ -1012,24 +1065,28 @@ CommandResult DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient c
 {
     APPLY_PATH_CLIP_IF_NEEDED
 
-    auto const& linear_gradient_data = command.radial_gradient_data;
+    auto const& radial_gradient_data = command.radial_gradient_data;
 
-    // FIXME: Account for repeat length
+    auto const& color_stop_list = radial_gradient_data.color_stops.list;
+    VERIFY(!color_stop_list.is_empty());
+
+    auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
+
     Vector<SkColor> colors;
-    colors.ensure_capacity(linear_gradient_data.color_stops.list.size());
     Vector<SkScalar> positions;
-    positions.ensure_capacity(linear_gradient_data.color_stops.list.size());
-    auto const& list = linear_gradient_data.color_stops.list;
-    for (auto const& color_stop : linear_gradient_data.color_stops.list) {
-        // FIXME: Account for ColorStop::transition_hint
-        colors.append(to_skia_color(color_stop.color));
-        positions.append(color_stop.position);
+
+    for (size_t stop_index = 0; stop_index < stops_with_replaced_transition_hints.size(); stop_index++) {
+        auto const& stop = stops_with_replaced_transition_hints[stop_index];
+        if (stop_index > 0 && stop == stops_with_replaced_transition_hints[stop_index - 1])
+            continue;
+        colors.append(to_skia_color(stop.color));
+        positions.append(stop.position);
     }
 
     auto const& rect = command.rect;
     auto center = SkPoint::Make(command.center.x(), command.center.y());
     auto radius = command.size.height();
-    auto shader = SkGradientShader::MakeRadial(center, radius, colors.data(), positions.data(), list.size(), SkTileMode::kClamp, 0);
+    auto shader = SkGradientShader::MakeRadial(center, radius, colors.data(), positions.data(), positions.size(), SkTileMode::kClamp, 0);
 
     SkPaint paint;
     paint.setShader(shader);
