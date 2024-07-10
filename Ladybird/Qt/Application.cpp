@@ -77,10 +77,10 @@ ErrorOr<void> Application::initialize_image_decoder()
     return {};
 }
 
-void Application::show_task_manager_window()
+void Application::show_task_manager_window(WebContentOptions const& web_content_options)
 {
     if (!m_task_manager_window) {
-        m_task_manager_window = new TaskManagerWindow(nullptr);
+        m_task_manager_window = new TaskManagerWindow(nullptr, web_content_options);
     }
     m_task_manager_window->show();
     m_task_manager_window->activateWindow();
