@@ -1104,10 +1104,7 @@ void HTMLInputElement::user_interaction_did_change_input_value()
 
 void HTMLInputElement::update_slider_thumb_element()
 {
-    double value = value_as_number();
-    if (isnan(value))
-        value = 0;
-
+    double value = convert_string_to_number(value_sanitization_algorithm(m_value)).value_or(0);
     double minimum = *min();
     double maximum = *max();
     double position = (value - minimum) / (maximum - minimum) * 100;
@@ -1380,7 +1377,7 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
             // The default value is the minimum plus half the difference between the minimum and the maximum, unless the maximum is less than the minimum, in which case the default value is the minimum.
             auto minimum = *min();
             auto maximum = *max();
-            if (maximum > minimum)
+            if (maximum < minimum)
                 return JS::number_to_string(minimum);
             return JS::number_to_string(minimum + (maximum - minimum) / 2);
         }
