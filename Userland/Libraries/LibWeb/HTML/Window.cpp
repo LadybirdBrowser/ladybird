@@ -1023,6 +1023,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
     // 3. Let targetOrigin be options["targetOrigin"].
     Variant<String, Origin> target_origin = options.target_origin;
 
+    dbgln("targetOrigin: >{}<", options.target_origin);
     // 4. If targetOrigin is a single U+002F SOLIDUS character (/), then set targetOrigin to incumbentSettings's origin.
     if (options.target_origin == "/"sv) {
         target_origin = incumbent_settings.origin();
