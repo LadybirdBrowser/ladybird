@@ -28,6 +28,7 @@ interface Node : EventTarget {
     //        However, we only apply it to setters, so this works as a stop gap.
     //        Replace this with something like a special cased [LegacyNullToEmptyString].
     [LegacyNullToEmptyString, CEReactions] attribute DOMString? textContent;
+    [CEReactions] undefined normalize();
 
     [CEReactions] Node appendChild(Node node);
     [ImplementedAs=pre_insert, CEReactions] Node insertBefore(Node node, Node? child);
