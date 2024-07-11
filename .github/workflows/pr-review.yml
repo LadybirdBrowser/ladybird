@@ -1,0 +1,13 @@
+name: Add Reviewed-By notes for PRs
+on: pull_request_review
+jobs:
+  review:
+    name: Add Reviewed-By notes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: fregante/setup-git-user@v2
+      - run: |
+          git fetch origin "refs/notes/*:refs/notes/*"
+          git notes append -m "Reviewed-By: ${GITHUB_ACTOR}"
+          git push origin "refs/notes/*"
