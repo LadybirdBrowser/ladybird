@@ -48,8 +48,6 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    void set_event_characteristics();
-
     double m_delta_x { 0 };
     double m_delta_y { 0 };
     double m_delta_z { 0 };
