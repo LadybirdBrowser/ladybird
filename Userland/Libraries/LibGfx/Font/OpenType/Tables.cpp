@@ -235,7 +235,15 @@ String Name::string_for_id(NameId id) const
         return decoder.to_utf8(m_string_data.slice(offset, length)).release_value_but_fixme_should_propagate_errors();
     }
 
-    return String::from_utf8(m_string_data.slice(offset, length)).release_value_but_fixme_should_propagate_errors();
+    auto maybe_name = String::from_utf8(m_string_data.slice(offset, length));
+    if (maybe_name.is_error()) {
+        // FIXME: https://github.com/LadybirdBrowser/ladybird/issues/75
+        // This seems related to fonts that don't have a Latin script name in their family field.
+        // Perhaps we shouldn't be assuming these are UTF-8 encoded?
+        dbgln("OpenType::Name: Failed to decode name string as UTF-8");
+        return String {};
+    }
+    return maybe_name.release_value();
 }
 
 ErrorOr<Kern> Kern::from_slice(ReadonlyBytes slice)
