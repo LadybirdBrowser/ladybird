@@ -316,12 +316,19 @@ def gen_invoke(
     *,
     fail_msg: str | None = None,
 ):
+    if not ctx.has_unclosed:
+        print(f'describe("inline (line {line}))", () => {{\nlet _test = test;\n')
     module = "module"
     if invoke.module is not None:
         module = f'namedModules["{invoke.module}"]'
+    utf8 = (
+        str(invoke.field.encode("utf8"))[2:-1]
+        .replace("\\'", "'")
+        .replace("`", "${'`'}")
+    )
     print(
-        f"""_test("execution of {ctx.current_module_name}: {escape(invoke.field)} (line {line})", () => {{
-let _field = {module}.getExport("{escape(invoke.field)}");
+        f"""_test(`execution of {ctx.current_module_name}: {utf8} (line {line})`, () => {{
+let _field = {module}.getExport(decodeURIComponent(escape(`{utf8}`)));
 expect(_field).not.toBeUndefined();"""
     )
     if fail_msg is not None:
@@ -331,6 +338,8 @@ expect(_field).not.toBeUndefined();"""
     if result is not None:
         print(f"expect(_result).toBe({gen_value(result)});")
     print("});")
+    if not ctx.has_unclosed:
+        print("});")
 
 
 def gen_get(line: int, get: Get, result: WasmValue | None, ctx: Context):
