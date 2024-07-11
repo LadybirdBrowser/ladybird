@@ -11,6 +11,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/BlockContainer.h>
@@ -24,6 +25,7 @@
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/Selection/Selection.h>
 
 namespace Web::Painting {
 
@@ -843,11 +845,17 @@ Optional<HitTestResult> PaintableBox::hit_test(CSSPixelPoint position, HitTestTy
 {
     Optional<HitTestResult> result;
     (void)PaintableBox::hit_test(position, type, [&](HitTestResult candidate) {
-        VERIFY(!result.has_value());
-        if (!candidate.paintable->visible_for_hit_testing())
-            return TraversalDecision::Continue;
-        result = move(candidate);
-        return TraversalDecision::Break;
+        if (candidate.paintable->visible_for_hit_testing()) {
+            if (!result.has_value()
+                || candidate.vertical_distance.value_or(CSSPixels::max_integer_value) < result->vertical_distance.value_or(CSSPixels::max_integer_value)
+                || candidate.horizontal_distance.value_or(CSSPixels::max_integer_value) < result->horizontal_distance.value_or(CSSPixels::max_integer_value)) {
+                result = move(candidate);
+            }
+        }
+
+        if (result.has_value() && (type == HitTestType::Exact || (result->vertical_distance == 0 && result->horizontal_distance == 0)))
+            return TraversalDecision::Break;
+        return TraversalDecision::Continue;
     });
     return result;
 }
@@ -872,7 +880,6 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
             return TraversalDecision::Break;
     }
 
-    Optional<HitTestResult> last_good_candidate;
     for (auto const& fragment : fragments()) {
         if (fragment.paintable().stacking_context())
             continue;
@@ -880,33 +887,62 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
         if (fragment_absolute_rect.contains(position_adjusted_by_scroll_offset)) {
             if (fragment.paintable().hit_test(position, type, callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;
-            HitTestResult hit_test_result { const_cast<Paintable&>(fragment.paintable()), fragment.text_index_at(position_adjusted_by_scroll_offset.x()) };
+            HitTestResult hit_test_result { const_cast<Paintable&>(fragment.paintable()), fragment.text_index_at(position_adjusted_by_scroll_offset.x()), 0, 0 };
             if (callback(hit_test_result) == TraversalDecision::Break)
                 return TraversalDecision::Break;
-        }
+        } else if (type == HitTestType::TextCursor) {
+            auto const* common_ancestor_parent = [&]() -> DOM::Node const* {
+                auto selection = document().get_selection();
+                if (!selection)
+                    return nullptr;
+                auto range = selection->range();
+                if (!range)
+                    return nullptr;
+                auto common_ancestor = range->common_ancestor_container();
+                if (common_ancestor->parent())
+                    return common_ancestor->parent();
+                return common_ancestor;
+            }();
 
-        // If we reached this point, the position is not within the fragment. However, the fragment start or end might be the place to place the cursor.
-        // This determines whether the fragment is a good candidate for the position. The last such good fragment is chosen.
-        // The best candidate is either the end of the line above, the beginning of the line below, or the beginning or end of the current line.
-        // We arbitrarily choose to consider the end of the line above and ignore the beginning of the line below.
-        // If we knew the direction of selection, we could make a better choice.
-        if (fragment_absolute_rect.bottom() - 1 <= position_adjusted_by_scroll_offset.y()) { // fully below the fragment
-            last_good_candidate = HitTestResult { const_cast<Paintable&>(fragment.paintable()), fragment.start() + fragment.length() };
-        } else if (fragment_absolute_rect.top() <= position_adjusted_by_scroll_offset.y()) { // vertically within the fragment
-            if (position_adjusted_by_scroll_offset.x() < fragment_absolute_rect.left()) {    // left of the fragment
-                if (!last_good_candidate.has_value()) {                                      // first fragment of the line
-                    last_good_candidate = HitTestResult { const_cast<Paintable&>(fragment.paintable()), fragment.start() };
+            auto const* fragment_dom_node = fragment.layout_node().dom_node();
+            if (common_ancestor_parent && fragment_dom_node && common_ancestor_parent->is_ancestor_of(*fragment_dom_node)) {
+                // If we reached this point, the position is not within the fragment. However, the fragment start or end might be
+                // the place to place the cursor. To determine the best place, we first find the closest fragment horizontally to
+                // the cursor. If we could not find one, then find for the closest vertically above the cursor.
+                // If we knew the direction of selection, we would look above if selecting upward.
+                if (fragment_absolute_rect.bottom() - 1 <= position_adjusted_by_scroll_offset.y()) { // fully below the fragment
+                    HitTestResult hit_test_result {
+                        .paintable = const_cast<Paintable&>(fragment.paintable()),
+                        .index_in_node = fragment.start() + fragment.length(),
+                        .vertical_distance = position_adjusted_by_scroll_offset.y() - fragment_absolute_rect.bottom(),
+                    };
+                    if (callback(hit_test_result) == TraversalDecision::Break)
+                        return TraversalDecision::Break;
+                } else if (fragment_absolute_rect.top() <= position_adjusted_by_scroll_offset.y()) { // vertically within the fragment
+                    if (position_adjusted_by_scroll_offset.x() < fragment_absolute_rect.left()) {
+                        HitTestResult hit_test_result {
+                            .paintable = const_cast<Paintable&>(fragment.paintable()),
+                            .index_in_node = fragment.start(),
+                            .vertical_distance = 0,
+                            .horizontal_distance = fragment_absolute_rect.left() - position_adjusted_by_scroll_offset.x(),
+                        };
+                        if (callback(hit_test_result) == TraversalDecision::Break)
+                            return TraversalDecision::Break;
+                    } else if (position_adjusted_by_scroll_offset.x() > fragment_absolute_rect.right()) {
+                        HitTestResult hit_test_result {
+                            .paintable = const_cast<Paintable&>(fragment.paintable()),
+                            .index_in_node = fragment.start() + fragment.length(),
+                            .vertical_distance = 0,
+                            .horizontal_distance = position_adjusted_by_scroll_offset.x() - fragment_absolute_rect.right(),
+                        };
+                        if (callback(hit_test_result) == TraversalDecision::Break)
+                            return TraversalDecision::Break;
+                    }
                 }
-            } else { // right of the fragment
-                last_good_candidate = HitTestResult { const_cast<Paintable&>(fragment.paintable()), fragment.start() + fragment.length() };
             }
         }
     }
 
-    if (type == HitTestType::TextCursor && last_good_candidate.has_value()) {
-        if (callback(last_good_candidate.value()) == TraversalDecision::Break)
-            return TraversalDecision::Break;
-    }
     if (!stacking_context() && is_visible() && absolute_border_box_rect().contains(position_adjusted_by_scroll_offset.x(), position_adjusted_by_scroll_offset.y())) {
         if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
