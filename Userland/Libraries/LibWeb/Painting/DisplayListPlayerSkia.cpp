@@ -205,6 +205,11 @@ DisplayListPlayerSkia::~DisplayListPlayerSkia()
         m_flush_context();
 }
 
+static SkPoint to_skia_point(auto const& point)
+{
+    return SkPoint::Make(point.x(), point.y());
+}
+
 static SkRect to_skia_rect(auto const& rect)
 {
     return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
@@ -602,8 +607,8 @@ CommandResult DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient c
     auto top = rect.center().translated(0, length / 2);
 
     Array<SkPoint, 2> points;
-    points[0] = SkPoint::Make(top.x(), top.y());
-    points[1] = SkPoint::Make(bottom.x(), bottom.y());
+    points[0] = to_skia_point(top);
+    points[1] = to_skia_point(bottom);
 
     auto center = to_skia_rect(rect).center();
     SkMatrix matrix;
@@ -796,8 +801,8 @@ SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_s
         end_point.translate_by(bounding_rect.location());
 
         Array<SkPoint, 2> points;
-        points[0] = SkPoint::Make(start_point.x(), start_point.y());
-        points[1] = SkPoint::Make(end_point.x(), end_point.y());
+        points[0] = to_skia_point(start_point);
+        points[1] = to_skia_point(end_point);
 
         auto const& color_stops = linear_gradient_paint_style.color_stops();
 
@@ -901,8 +906,8 @@ CommandResult DisplayListPlayerSkia::draw_line(DrawLine const& command)
     if (!command.thickness)
         return CommandResult::Continue;
 
-    auto from = SkPoint::Make(command.from.x(), command.from.y());
-    auto to = SkPoint::Make(command.to.x(), command.to.y());
+    auto from = to_skia_point(command.from);
+    auto to = to_skia_point(command.to);
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setStrokeWidth(command.thickness);
@@ -1084,7 +1089,7 @@ CommandResult DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient c
     }
 
     auto const& rect = command.rect;
-    auto center = SkPoint::Make(command.center.x(), command.center.y());
+    auto center = to_skia_point(command.center);
     auto radius = command.size.height();
     auto shader = SkGradientShader::MakeRadial(center, radius, colors.data(), positions.data(), positions.size(), SkTileMode::kClamp, 0);
 
