@@ -314,6 +314,11 @@ _test.skip = test.skip;
 
 
 def gen_invalid(invalid: AssertInvalid, ctx: Context):
+    # TODO: Remove this once the multiple memories proposal is standardized.
+    # We support the multiple memories proposal, so spec-tests that check that
+    # we don't do not make any sense to include right now.
+    if invalid.message == "multiple memories":
+        return
     if ctx.has_unclosed:
         print("});")
         ctx.has_unclosed = False
