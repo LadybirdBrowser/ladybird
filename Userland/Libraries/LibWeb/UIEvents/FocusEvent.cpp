@@ -18,7 +18,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<FocusEvent>> FocusEvent::construct_impl(JS:
 }
 
 FocusEvent::FocusEvent(JS::Realm& realm, FlyString const& event_name, FocusEventInit const& event_init)
-    : UIEvent(realm, event_name)
+    : UIEvent(realm, event_name, event_init)
 {
     set_related_target(const_cast<DOM::EventTarget*>(event_init.related_target.ptr()));
 }
