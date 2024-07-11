@@ -1,0 +1,8 @@
+Document fragment initial text: 12, child nodes: 3
+Element initial text: 34, child nodes: 2
+Element text after document.normalize(): 34, child nodes: 2
+Document fragment text after documentFragment.normalize(): 1234, child nodes: 2
+Text node 1 data: 12
+Text node 2 data: 2
+Text node 3 data: 34
+Text node 4 data: 4

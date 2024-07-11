@@ -212,6 +212,114 @@ void Node::set_text_content(Optional<String> const& maybe_content)
     document().bump_dom_tree_version();
 }
 
+// https://dom.spec.whatwg.org/#dom-node-normalize
+WebIDL::ExceptionOr<void> Node::normalize()
+{
+    auto contiguous_exclusive_text_nodes_excluding_self = [](Node& node) {
+        // https://dom.spec.whatwg.org/#contiguous-exclusive-text-nodes
+        // The contiguous exclusive Text nodes of a node node are node, node’s previous sibling exclusive Text node, if any,
+        // and its contiguous exclusive Text nodes, and node’s next sibling exclusive Text node, if any,
+        // and its contiguous exclusive Text nodes, avoiding any duplicates.
+        // NOTE: The callers of this method require node itself to be excluded.
+        Vector<Text*> nodes;
+
+        auto* current_node = node.previous_sibling();
+        while (current_node) {
+            if (!current_node->is_text())
+                break;
+
+            nodes.append(static_cast<Text*>(current_node));
+            current_node = current_node->previous_sibling();
+        }
+
+        // Reverse the order of the nodes so that they are in tree order.
+        nodes.reverse();
+
+        current_node = node.next_sibling();
+        while (current_node) {
+            if (!current_node->is_text())
+                break;
+
+            nodes.append(static_cast<Text*>(current_node));
+            current_node = current_node->next_sibling();
+        }
+
+        return nodes;
+    };
+
+    // The normalize() method steps are to run these steps for each descendant exclusive Text node node of this
+    Vector<Text&> descendant_exclusive_text_nodes;
+    for_each_in_inclusive_subtree_of_type<Text>([&](Text const& node) {
+        if (!node.is_cdata_section())
+            descendant_exclusive_text_nodes.append(const_cast<Text&>(node));
+
+        return TraversalDecision::Continue;
+    });
+
+    for (auto& node : descendant_exclusive_text_nodes) {
+        // 1. Let length be node’s length.
+        auto& character_data = static_cast<CharacterData&>(node);
+        auto length = character_data.length_in_utf16_code_units();
+
+        // 2. If length is zero, then remove node and continue with the next exclusive Text node, if any.
+        if (length == 0) {
+            if (node.parent())
+                node.remove();
+            continue;
+        }
+
+        // 3. Let data be the concatenation of the data of node’s contiguous exclusive Text nodes (excluding itself), in tree order.
+        StringBuilder data;
+        for (auto const& text_node : contiguous_exclusive_text_nodes_excluding_self(node))
+            data.append(text_node->data());
+
+        // 4. Replace data with node node, offset length, count 0, and data data.
+        TRY(character_data.replace_data(length, 0, MUST(data.to_string())));
+
+        // 5. Let currentNode be node’s next sibling.
+        auto* current_node = node.next_sibling();
+
+        // 6. While currentNode is an exclusive Text node:
+        while (current_node && is<Text>(*current_node)) {
+            // 1. For each live range whose start node is currentNode, add length to its start offset and set its start node to node.
+            for (auto& range : Range::live_ranges()) {
+                if (range->start_container() == current_node)
+                    TRY(range->set_start(node, range->start_offset() + length));
+            }
+
+            // 2. For each live range whose end node is currentNode, add length to its end offset and set its end node to node.
+            for (auto& range : Range::live_ranges()) {
+                if (range->end_container() == current_node)
+                    TRY(range->set_end(node, range->end_offset() + length));
+            }
+
+            // 3. For each live range whose start node is currentNode’s parent and start offset is currentNode’s index, set its start node to node and its start offset to length.
+            for (auto& range : Range::live_ranges()) {
+                if (range->start_container() == current_node->parent() && range->start_offset() == current_node->index())
+                    TRY(range->set_start(node, length));
+            }
+
+            // 4. For each live range whose end node is currentNode’s parent and end offset is currentNode’s index, set its end node to node and its end offset to length.
+            for (auto& range : Range::live_ranges()) {
+                if (range->end_container() == current_node->parent() && range->end_offset() == current_node->index())
+                    TRY(range->set_end(node, length));
+            }
+
+            // 5. Add currentNode’s length to length.
+            length += static_cast<Text&>(*current_node).length();
+
+            // 6. Set currentNode to its next sibling.
+            current_node = current_node->next_sibling();
+        }
+
+        // 7. Remove node’s contiguous exclusive Text nodes (excluding itself), in tree order.
+        for (auto const& text_node : contiguous_exclusive_text_nodes_excluding_self(node))
+            text_node->remove();
+    }
+
+    return {};
+}
+
 // https://dom.spec.whatwg.org/#dom-node-nodevalue
 Optional<String> Node::node_value() const
 {
