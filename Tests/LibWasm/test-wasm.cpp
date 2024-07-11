@@ -199,6 +199,30 @@ TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
     return JS::Value(lhs_array.viewed_array_buffer()->buffer() == rhs_array.viewed_array_buffer()->buffer());
 }
 
+TESTJS_GLOBAL_FUNCTION(is_canonical_nan32, isCanonicalNaN32)
+{
+    auto value = TRY(vm.argument(0).to_u32(vm));
+    return value == 0x7FC00000 || value == 0xFFC00000;
+}
+
+TESTJS_GLOBAL_FUNCTION(is_canonical_nan64, isCanonicalNaN64)
+{
+    auto value = TRY(vm.argument(0).to_bigint_uint64(vm));
+    return value == 0x7FF8000000000000 || value == 0xFFF8000000000000;
+}
+
+TESTJS_GLOBAL_FUNCTION(is_arithmetic_nan32, isArithmeticNaN32)
+{
+    auto value = bit_cast<float>(TRY(vm.argument(0).to_u32(vm)));
+    return isnan(value);
+}
+
+TESTJS_GLOBAL_FUNCTION(is_arithmetic_nan64, isArithmeticNaN64)
+{
+    auto value = bit_cast<double>(TRY(vm.argument(0).to_bigint_uint64(vm)));
+    return isnan(value);
+}
+
 void WebAssemblyModule::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
@@ -257,17 +281,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     for (auto& param : type->parameters()) {
         auto argument = vm.argument(index++);
         double double_value = 0;
-        if (argument.is_object()) {
-            auto object = MUST(argument.to_object(vm));
-            // Uint8Array allows for raw bytes to be passed into Wasm. This is
-            // particularly useful for NaN bit patterns
-            if (!is<JS::Uint8Array>(*object))
-                return vm.throw_completion<JS::TypeError>("Expected a Uint8Array object"sv);
-            auto& array = static_cast<JS::Uint8Array&>(*object);
-            if (array.array_length().length() > 8)
-                return vm.throw_completion<JS::TypeError>("Expected a Uint8Array of size <= 8"sv);
-            memcpy(&double_value, array.data().data(), array.array_length().length());
-        } else if (!argument.is_bigint())
+        if (!argument.is_bigint())
             double_value = TRY(argument.to_double(vm));
         switch (param.kind()) {
         case Wasm::ValueType::Kind::I32:
@@ -282,20 +296,15 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             }
             break;
         case Wasm::ValueType::Kind::F32:
-            // double_value should contain up to 8 bytes of information,
-            // if we were passed a Uint8Array. If the expected arg is a
-            // float, we were probably passed a Uint8Array of size 4. So
-            // we copy those bytes into a float value.
-            if (argument.is_object()) {
-                float float_value = 0;
-                memcpy(&float_value, &double_value, sizeof(float));
-                arguments.append(Wasm::Value(float_value));
-            } else {
-                arguments.append(Wasm::Value(static_cast<float>(double_value)));
-            }
+            arguments.append(Wasm::Value(bit_cast<float>(static_cast<u32>(double_value))));
             break;
         case Wasm::ValueType::Kind::F64:
-            arguments.append(Wasm::Value(static_cast<double>(double_value)));
+            if (argument.is_bigint()) {
+                auto value = TRY(argument.to_bigint_uint64(vm));
+                arguments.append(Wasm::Value(param, bit_cast<double>(value)));
+            } else {
+                arguments.append(Wasm::Value(param, double_value));
+            }
             break;
         case Wasm::ValueType::Kind::V128: {
             if (!argument.is_bigint()) {
@@ -344,7 +353,9 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
 
     auto to_js_value = [&](Wasm::Value const& value) {
         return value.value().visit(
-            [](auto const& value) { return JS::Value(static_cast<double>(value)); },
+            // For floating point values, we're testing with their bit representation, so we bit_cast them
+            [](f32 value) { return JS::Value(static_cast<double>(bit_cast<u32>(value))); },
+            [&](f64 value) { return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { bit_cast<u64>(value) } })); },
             [](i32 value) { return JS::Value(static_cast<double>(value)); },
             [&](i64 value) { return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { value })); },
             [&](u128 value) {

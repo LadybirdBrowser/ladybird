@@ -1,5 +1,4 @@
 import json
-import math
 import sys
 import struct
 import subprocess
@@ -87,6 +86,19 @@ Command = Union[
     AssertInvalid,
     Register,
 ]
+
+
+@dataclass
+class ArithmeticNan:
+    num_bits: int
+
+
+@dataclass
+class CanonicalNan:
+    num_bits: int
+
+
+GeneratedValue = Union[str, ArithmeticNan, CanonicalNan]
 
 
 @dataclass
@@ -200,7 +212,7 @@ def make_description(input_path: Path, name: str, out_path: Path) -> WastDescrip
     return parse(description)
 
 
-def gen_value(value: WasmValue, as_arg=False) -> str:
+def gen_value_arg(value: WasmValue) -> str:
     def unsigned_to_signed(uint: int, bits: int) -> int:
         max_value = 2**bits
         if uint >= 2 ** (bits - 1):
@@ -221,30 +233,15 @@ def gen_value(value: WasmValue, as_arg=False) -> str:
         f = struct.unpack("d", b)[0]
         return f
 
-    def float_to_str(bits: int, *, double=False, preserve_nan_sign=False) -> str:
+    def float_to_str(bits: int, *, double=False) -> str:
         f = int_to_float64_bitcast(bits) if double else int_to_float_bitcast(bits)
-
-        if math.isnan(f) and preserve_nan_sign:
-            f_bytes = bits.to_bytes(8 if double else 4, byteorder="little")
-            # -NaN does not preserve the sign bit in JavaScript land, so if
-            # we want to preserve NaN "sign", we pass in raw bytes
-            return f"new Uint8Array({list(f_bytes)})"
-
-        if math.isnan(f) and math.copysign(1.0, f) < 0:
-            return "-NaN"
-        elif math.isnan(f):
-            return "NaN"
-        elif math.isinf(f) and math.copysign(1.0, f) < 0:
-            return "-Infinity"
-        elif math.isinf(f):
-            return "Infinity"
         return str(f)
 
     if value.value.startswith("nan"):
-        return "NaN"
-    elif value.value == "inf":
+        raise GenerateException("Should not get indeterminate nan value as an argument")
+    if value.value == "inf":
         return "Infinity"
-    elif value.value == "-inf":
+    if value.value == "-inf":
         return "-Infinity"
 
     match value.kind:
@@ -253,19 +250,33 @@ def gen_value(value: WasmValue, as_arg=False) -> str:
         case "i64":
             return str(unsigned_to_signed(int(value.value), 64)) + "n"
         case "f32":
-            return float_to_str(
-                int(value.value), double=False, preserve_nan_sign=as_arg
-            )
+            return str(int(value.value)) + f" /* {float_to_str(int(value.value))} */"
         case "f64":
-            return float_to_str(int(value.value), double=True, preserve_nan_sign=as_arg)
+            return (
+                str(int(value.value))
+                + f"n /* {float_to_str(int(value.value), double=True)} */"
+            )
         case "externref" | "funcref" | "v128":
             return value.value
         case _:
             raise GenerateException(f"Not implemented: {value.kind}")
 
 
+def gen_value_result(value: WasmValue) -> GeneratedValue:
+    if (value.kind == "f32" or value.kind == "f64") and value.value.startswith("nan"):
+        num_bits = int(value.kind[1:])
+        match value.value:
+            case "nan:canonical":
+                return CanonicalNan(num_bits)
+            case "nan:arithmetic":
+                return ArithmeticNan(num_bits)
+            case _:
+                raise GenerateException(f"Unknown indeterminate nan: {value.value}")
+    return gen_value_arg(value)
+
+
 def gen_args(args: list[WasmValue]) -> str:
-    return ",".join(gen_value(arg, True) for arg in args)
+    return ",".join(gen_value_arg(arg) for arg in args)
 
 
 def gen_module_command(command: ModuleCommand, ctx: Context):
@@ -336,7 +347,18 @@ expect(_field).not.toBeUndefined();"""
     else:
         print(f"let _result = {module}.invoke(_field, {gen_args(invoke.args)});")
     if result is not None:
-        print(f"expect(_result).toBe({gen_value(result)});")
+        gen_result = gen_value_result(result)
+        match gen_result:
+            case str():
+                print(f"expect(_result).toBe({gen_result});")
+            case ArithmeticNan():
+                print(
+                    f"expect(isArithmeticNaN{gen_result.num_bits}(_result)).toBe(true);"
+                )
+            case CanonicalNan():
+                print(
+                    f"expect(isCanonicalNaN{gen_result.num_bits}(_result)).toBe(true);"
+                )
     print("});")
     if not ctx.has_unclosed:
         print("});")
@@ -351,7 +373,7 @@ def gen_get(line: int, get: Get, result: WasmValue | None, ctx: Context):
 let _field = {module}.getExport("{get.field}");"""
     )
     if result is not None:
-        print(f"expect(_field).toBe({gen_value(result)});")
+        print(f"expect(_field).toBe({gen_value_result(result)});")
     print("});")
 
 
