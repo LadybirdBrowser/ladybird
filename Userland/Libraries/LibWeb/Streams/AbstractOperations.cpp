@@ -5222,9 +5222,8 @@ void transform_stream_error_writable_and_unblock_write(TransformStream& stream, 
     // 2. Perform ! WritableStreamDefaultControllerErrorIfNeeded(stream.[[writable]].[[controller]], e).
     writable_stream_default_controller_error_if_needed(*stream.writable()->controller(), error);
 
-    // 3. If stream.[[backpressure]] is true, perform ! TransformStreamSetBackpressure(stream, false).
-    if (stream.backpressure().has_value() && *stream.backpressure())
-        transform_stream_set_backpressure(stream, false);
+    // 3. Perform ! TransformStreamUnblockWrite(stream).
+    transform_stream_unblock_write(stream);
 }
 
 //  https://streams.spec.whatwg.org/#transform-stream-set-backpressure
