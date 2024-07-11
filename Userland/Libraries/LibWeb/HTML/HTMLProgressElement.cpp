@@ -7,12 +7,14 @@
  */
 
 #include <LibWeb/Bindings/HTMLProgressElementPrototype.h>
+#include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/HTMLProgressElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
 
@@ -117,6 +119,19 @@ void HTMLProgressElement::update_progress_value_element()
 {
     if (m_progress_value_element)
         MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position() * 100))));
+}
+
+void HTMLProgressElement::computed_css_values_changed()
+{
+    auto palette = document().page().palette();
+    auto accent_color = palette.color(ColorRole::Accent).to_string();
+
+    auto accent_color_property = computed_css_values()->property(CSS::PropertyID::AccentColor);
+    if (accent_color_property->has_color())
+        accent_color = accent_color_property->to_string();
+
+    if (m_progress_value_element)
+        MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
 }
 
 }

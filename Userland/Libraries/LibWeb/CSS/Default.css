@@ -91,7 +91,6 @@ input[type=range]::-webkit-slider-thumb {
     height: 16px;
     transform: translateX(-50%);
     border-radius: 50%;
-    background-color: AccentColor;
     outline: 1px solid rgba(0, 0, 0, 0.5);
     z-index: 1;
 }
@@ -133,9 +132,6 @@ progress::-webkit-progress-bar, progress::-webkit-progress-value {
 progress::-webkit-progress-bar {
     background-color: Background;
     border: 1px solid rgba(0, 0, 0, 0.5);
-}
-progress::-webkit-progress-value {
-    background-color: AccentColor;
 }
 
 /* 15.3.1 Hidden elements
