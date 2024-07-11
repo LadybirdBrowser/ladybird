@@ -1098,6 +1098,28 @@ CommandResult DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient c
 CommandResult DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& command)
 {
     APPLY_PATH_CLIP_IF_NEEDED
+
+    auto const& conic_gradient_data = command.conic_gradient_data;
+
+    auto const& color_stop_list = conic_gradient_data.color_stops.list;
+    VERIFY(!color_stop_list.is_empty());
+
+    Vector<SkColor> colors;
+    Vector<SkScalar> positions;
+    for (auto const& stop : color_stop_list) {
+        colors.append(to_skia_color(stop.color));
+        positions.append(stop.position);
+    }
+
+    auto const& rect = command.rect;
+    auto center = command.position.translated(rect.location());
+    // FIXME: Account for repeat length and start angle
+    auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), positions.data(), positions.size());
+
+    SkPaint paint;
+    paint.setShader(shader);
+    surface().canvas().drawRect(to_skia_rect(rect), paint);
+
     return CommandResult::Continue;
 }
 
