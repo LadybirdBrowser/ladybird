@@ -1089,7 +1089,7 @@ CommandResult DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient c
     }
 
     auto const& rect = command.rect;
-    auto center = to_skia_point(command.center);
+    auto center = to_skia_point(command.center.translated(command.rect.location()));
     auto radius = command.size.height();
     auto shader = SkGradientShader::MakeRadial(center, radius, colors.data(), positions.data(), positions.size(), SkTileMode::kClamp, 0);
 
