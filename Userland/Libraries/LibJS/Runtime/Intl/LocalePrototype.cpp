@@ -117,12 +117,14 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::base_name)
     __JS_ENUMERATE(calendar)                   \
     __JS_ENUMERATE(case_first)                 \
     __JS_ENUMERATE(collation)                  \
+    __JS_ENUMERATE(first_day_of_week)          \
     __JS_ENUMERATE(hour_cycle)                 \
     __JS_ENUMERATE(numbering_system)
 
 // 14.3.7 get Intl.Locale.prototype.calendar, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.calendar
 // 14.3.8 get Intl.Locale.prototype.caseFirst, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.caseFirst
 // 14.3.9 get Intl.Locale.prototype.collation, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.collation
+// 1.4.10 get Intl.Locale.prototype.firstDayOfWeek, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.firstDayOfWeek
 // 14.3.10 get Intl.Locale.prototype.hourCycle, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.hourCycle
 // 14.3.12 get Intl.Locale.prototype.numberingSystem, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numberingSystem
 #define __JS_ENUMERATE(keyword)                                       \
@@ -135,17 +137,6 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::base_name)
     }
 JS_ENUMERATE_LOCALE_KEYWORD_PROPERTIES
 #undef __JS_ENUMERATE
-
-// 1.4.10 get Intl.Locale.prototype.firstDayOfWeek, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.firstDayOfWeek
-JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::first_day_of_week)
-{
-    // 1. Let loc be the this value.
-    // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-    auto locale_object = TRY(typed_this_object(vm));
-
-    // 3. Return loc.[[FirstDayOfWeek]].
-    return locale_object->has_first_day_of_week() ? Value { locale_object->first_day_of_week() } : js_undefined();
-}
 
 // 14.3.11 get Intl.Locale.prototype.numeric, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numeric
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::numeric)
