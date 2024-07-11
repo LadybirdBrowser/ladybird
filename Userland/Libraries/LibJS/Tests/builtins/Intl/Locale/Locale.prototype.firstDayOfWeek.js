@@ -6,7 +6,7 @@ describe("errors", () => {
     });
 
     test("invalid options", () => {
-        [100, Infinity, NaN, "hello", 152n, true].forEach(value => {
+        [123456789, "a", "longerthan8chars"].forEach(value => {
             expect(() => {
                 new Intl.Locale("en", { firstDayOfWeek: value }).firstDayOfWeek;
             }).toThrowWithMessage(
@@ -15,29 +15,31 @@ describe("errors", () => {
             );
         });
     });
-
-    // FIXME: Spec issue: It is not yet clear if the following invalid values should throw. For now, this tests our
-    //        existing workaround behavior, which returns "undefined" for invalid extensions.
-    //        https://github.com/tc39/proposal-intl-locale-info/issues/78
-    test("invalid extensions", () => {
-        [100, Infinity, NaN, "hello", 152n, true].forEach(value => {
-            expect(new Intl.Locale(`en-u-fw-${value}`).firstDayOfWeek).toBeUndefined();
-        });
-    });
 });
 
 describe("normal behavior", () => {
-    test("valid options", () => {
+    test("standard options", () => {
         expect(new Intl.Locale("en").firstDayOfWeek).toBeUndefined();
 
-        ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].forEach((day, index) => {
-            expect(new Intl.Locale(`en-u-fw-${day}`).firstDayOfWeek).toBe(index + 1);
-            expect(new Intl.Locale("en", { firstDayOfWeek: day }).firstDayOfWeek).toBe(index + 1);
-            expect(new Intl.Locale("en", { firstDayOfWeek: index + 1 }).firstDayOfWeek).toBe(
-                index + 1
-            );
+        ["sun", "mon", "tue", "wed", "thu", "fri", "sat", "sun"].forEach((day, index) => {
+            expect(new Intl.Locale(`en-u-fw-${day}`).firstDayOfWeek).toBe(day);
+
+            expect(new Intl.Locale("en", { firstDayOfWeek: day }).firstDayOfWeek).toBe(day);
+            expect(new Intl.Locale("en", { firstDayOfWeek: index }).firstDayOfWeek).toBe(day);
+
             expect(new Intl.Locale("en-u-fw-mon", { firstDayOfWeek: day }).firstDayOfWeek).toBe(
-                index + 1
+                day
+            );
+            expect(new Intl.Locale("en-u-fw-mon", { firstDayOfWeek: index }).firstDayOfWeek).toBe(
+                day
+            );
+        });
+    });
+
+    test("non-standard options", () => {
+        [100, Infinity, NaN, "hello", 152n, true].forEach(value => {
+            expect(new Intl.Locale("en", { firstDayOfWeek: value }).firstDayOfWeek).toBe(
+                value.toString()
             );
         });
     });

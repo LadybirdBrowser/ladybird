@@ -302,82 +302,74 @@ ThrowCompletionOr<NonnullGCPtr<Object>> LocaleConstructor::construct(FunctionObj
     // 18. Set opt.[[co]] to collation.
     opt.co = TRY(get_string_option(vm, *options, vm.names.collation, Unicode::is_type_identifier));
 
-    // 19. Let fw be ? GetOption(options, "firstDayOfWeek", "string", « "mon", "tue", "wed", "thu", "fri", "sat", "sun", "0", "1", "2", "3", "4", "5", "6", "7" », undefined).
-    auto first_day_of_week = TRY(get_string_option(vm, *options, vm.names.firstDayOfWeek, nullptr, AK::Array { "mon"sv, "tue"sv, "wed"sv, "thu"sv, "fri"sv, "sat"sv, "sun"sv, "0"sv, "1"sv, "2"sv, "3"sv, "4"sv, "5"sv, "6"sv, "7"sv }));
+    // 19. Let fw be ? Let fw be ? GetOption(options, "firstDayOfWeek", "string", undefined, undefined).
+    auto first_day_of_week = TRY(get_string_option(vm, *options, vm.names.firstDayOfWeek, nullptr));
 
-    // 20. Let firstDay be undefined.
-    Optional<String> first_day_string;
-
-    // 21. If fw is not undefined, then
+    // 20. If fw is not undefined, then
     if (first_day_of_week.has_value()) {
-        // a. Set firstDay to !WeekdayToString(fw).
-        first_day_string = MUST(String::from_utf8(weekday_to_string(*first_day_of_week)));
+        // a. Set fw to !WeekdayToString(fw).
+        first_day_of_week = MUST(String::from_utf8(weekday_to_string(*first_day_of_week)));
+
+        // b. If fw does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.
+        if (!Unicode::is_type_identifier(*first_day_of_week))
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, *first_day_of_week, vm.names.firstDayOfWeek);
     }
 
-    // 22. Set opt.[[fw]] to firstDay.
-    opt.fw = move(first_day_string);
+    // 21. Set opt.[[fw]] to firstDay.
+    opt.fw = move(first_day_of_week);
 
-    // 23. Let hc be ? GetOption(options, "hourCycle", string, « "h11", "h12", "h23", "h24" », undefined).
-    // 24. Set opt.[[hc]] to hc.
+    // 22. Let hc be ? GetOption(options, "hourCycle", string, « "h11", "h12", "h23", "h24" », undefined).
+    // 23. Set opt.[[hc]] to hc.
     opt.hc = TRY(get_string_option(vm, *options, vm.names.hourCycle, nullptr, AK::Array { "h11"sv, "h12"sv, "h23"sv, "h24"sv }));
 
-    // 25. Let kf be ? GetOption(options, "caseFirst", string, « "upper", "lower", "false" », undefined).
-    // 26. Set opt.[[kf]] to kf.
+    // 24. Let kf be ? GetOption(options, "caseFirst", string, « "upper", "lower", "false" », undefined).
+    // 25. Set opt.[[kf]] to kf.
     opt.kf = TRY(get_string_option(vm, *options, vm.names.caseFirst, nullptr, AK::Array { "upper"sv, "lower"sv, "false"sv }));
 
-    // 27. Let kn be ? GetOption(options, "numeric", boolean, empty, undefined).
+    // 26. Let kn be ? GetOption(options, "numeric", boolean, empty, undefined).
     auto kn = TRY(get_option(vm, *options, vm.names.numeric, OptionType::Boolean, {}, Empty {}));
 
-    // 28. If kn is not undefined, set kn to ! ToString(kn).
-    // 29. Set opt.[[kn]] to kn.
+    // 27. If kn is not undefined, set kn to ! ToString(kn).
+    // 28. Set opt.[[kn]] to kn.
     if (!kn.is_undefined())
         opt.kn = TRY(kn.to_string(vm));
 
-    // 30. Let numberingSystem be ? GetOption(options, "numberingSystem", string, empty, undefined).
-    // 31. If numberingSystem is not undefined, then
+    // 29. Let numberingSystem be ? GetOption(options, "numberingSystem", string, empty, undefined).
+    // 30. If numberingSystem is not undefined, then
     //     a. If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
-    // 32. Set opt.[[nu]] to numberingSystem.
+    // 31. Set opt.[[nu]] to numberingSystem.
     opt.nu = TRY(get_string_option(vm, *options, vm.names.numberingSystem, Unicode::is_type_identifier));
 
-    // 33. Let r be ! ApplyUnicodeExtensionToTag(tag, opt, relevantExtensionKeys).
+    // 32. Let r be ! ApplyUnicodeExtensionToTag(tag, opt, relevantExtensionKeys).
     auto result = apply_unicode_extension_to_tag(tag, move(opt), relevant_extension_keys);
 
-    // 34. Set locale.[[Locale]] to r.[[locale]].
+    // 33. Set locale.[[Locale]] to r.[[locale]].
     locale->set_locale(move(result.locale));
 
-    // 35. Set locale.[[Calendar]] to r.[[ca]].
+    // 34. Set locale.[[Calendar]] to r.[[ca]].
     if (result.ca.has_value())
         locale->set_calendar(result.ca.release_value());
 
-    // 36. Set locale.[[Collation]] to r.[[co]].
+    // 35. Set locale.[[Collation]] to r.[[co]].
     if (result.co.has_value())
         locale->set_collation(result.co.release_value());
 
-    // 37. Let firstDay be undefined.
-    Optional<u8> first_day_numeric;
+    // 36. Set locale.[[FirstDayOfWeek]] to r.[[fw]].
+    if (result.fw.has_value())
+        locale->set_first_day_of_week(result.fw.release_value());
 
-    // 38. If r.[[fw]] is not undefined, then
-    if (result.fw.has_value()) {
-        // a. Set firstDay to ! WeekdayToNumber(r.[[fw]]).
-        first_day_numeric = weekday_to_number(*result.fw);
-    }
-
-    // 39. Set locale.[[FirstDayOfWeek]] to firstDay.
-    if (first_day_numeric.has_value())
-        locale->set_first_day_of_week(*first_day_numeric);
-
-    // 40. Set locale.[[HourCycle]] to r.[[hc]].
+    // 37. Set locale.[[HourCycle]] to r.[[hc]].
     if (result.hc.has_value())
         locale->set_hour_cycle(result.hc.release_value());
 
-    // 41. If relevantExtensionKeys contains "kf", then
+    // 38. If relevantExtensionKeys contains "kf", then
     if (relevant_extension_keys.span().contains_slow("kf"sv)) {
         // a. Set locale.[[CaseFirst]] to r.[[kf]].
         if (result.kf.has_value())
             locale->set_case_first(result.kf.release_value());
     }
 
-    // 42. If relevantExtensionKeys contains "kn", then
+    // 39. If relevantExtensionKeys contains "kn", then
     if (relevant_extension_keys.span().contains_slow("kn"sv)) {
         // a. If SameValue(r.[[kn]], "true") is true or r.[[kn]] is the empty String, then
         if (result.kn.has_value() && (result.kn == "true"sv || result.kn->is_empty())) {
@@ -391,11 +383,11 @@ ThrowCompletionOr<NonnullGCPtr<Object>> LocaleConstructor::construct(FunctionObj
         }
     }
 
-    // 43. Set locale.[[NumberingSystem]] to r.[[nu]].
+    // 40. Set locale.[[NumberingSystem]] to r.[[nu]].
     if (result.nu.has_value())
         locale->set_numbering_system(result.nu.release_value());
 
-    // 44. Return locale.
+    // 41. Return locale.
     return locale;
 }
 

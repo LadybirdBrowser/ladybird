@@ -55,8 +55,8 @@ public:
     void set_collation(String collation) { m_collation = move(collation); }
 
     bool has_first_day_of_week() const { return m_first_day_of_week.has_value(); }
-    u8 first_day_of_week() const { return m_first_day_of_week.value(); }
-    void set_first_day_of_week(u8 first_day_of_week) { m_first_day_of_week = first_day_of_week; }
+    String const& first_day_of_week() const { return m_first_day_of_week.value(); }
+    void set_first_day_of_week(String first_day_of_week) { m_first_day_of_week = move(first_day_of_week); }
 
     bool has_hour_cycle() const { return m_hour_cycle.has_value(); }
     String const& hour_cycle() const { return m_hour_cycle.value(); }
@@ -72,14 +72,14 @@ public:
 private:
     explicit Locale(Object& prototype);
 
-    String m_locale;                     // [[Locale]]
-    Optional<String> m_calendar;         // [[Calendar]]
-    Optional<String> m_case_first;       // [[CaseFirst]]
-    Optional<String> m_collation;        // [[Collation]]
-    Optional<u8> m_first_day_of_week;    // [[FirstDayOfWeek]]
-    Optional<String> m_hour_cycle;       // [[HourCycle]]
-    Optional<String> m_numbering_system; // [[NumberingSystem]]
-    bool m_numeric { false };            // [[Numeric]]
+    String m_locale;                      // [[Locale]]
+    Optional<String> m_calendar;          // [[Calendar]]
+    Optional<String> m_case_first;        // [[CaseFirst]]
+    Optional<String> m_collation;         // [[Collation]]
+    Optional<String> m_first_day_of_week; // [[FirstDayOfWeek]]
+    Optional<String> m_hour_cycle;        // [[HourCycle]]
+    Optional<String> m_numbering_system;  // [[NumberingSystem]]
+    bool m_numeric { false };             // [[Numeric]]
 };
 
 // Table 1: WeekInfo Record Fields, https://tc39.es/proposal-intl-locale-info/#table-locale-weekinfo-record
@@ -95,8 +95,8 @@ NonnullGCPtr<Array> hour_cycles_of_locale(VM&, Locale const& locale);
 NonnullGCPtr<Array> numbering_systems_of_locale(VM&, Locale const&);
 NonnullGCPtr<Array> time_zones_of_locale(VM&, StringView region);
 StringView character_direction_of_locale(Locale const&);
-Optional<u8> weekday_to_number(StringView);
-StringView weekday_to_string(StringView);
+StringView weekday_to_string(StringView weekday);
+Optional<u8> string_to_weekday_value(StringView weekday);
 WeekInfo week_info_of_locale(Locale const&);
 
 }
