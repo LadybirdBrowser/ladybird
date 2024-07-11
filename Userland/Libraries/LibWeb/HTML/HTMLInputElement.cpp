@@ -998,7 +998,6 @@ void HTMLInputElement::create_range_input_shadow_tree()
         display: block;
         position: absolute;
         height: 100%;
-        background-color: AccentColor;
     )~~~"_string));
     MUST(slider_runnable_track->append_child(*m_range_progress_element));
 
@@ -1085,6 +1084,21 @@ void HTMLInputElement::create_range_input_shadow_tree()
         0, "", &realm());
     auto mousedown_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mousedown_callback_function, Bindings::host_defined_environment_settings_object(realm()));
     add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), mousedown_callback));
+}
+
+void HTMLInputElement::computed_css_values_changed()
+{
+    auto palette = document().page().palette();
+    auto accent_color = palette.color(ColorRole::Accent).to_string();
+
+    auto accent_color_property = computed_css_values()->property(CSS::PropertyID::AccentColor);
+    if (accent_color_property->has_color())
+        accent_color = accent_color_property->to_string();
+
+    if (m_range_progress_element)
+        MUST(m_range_progress_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
+    if (m_slider_thumb)
+        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
 }
 
 void HTMLInputElement::user_interaction_did_change_input_value()
