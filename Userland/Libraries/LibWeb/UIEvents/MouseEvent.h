@@ -77,8 +77,6 @@ protected:
 private:
     virtual bool is_mouse_event() const override { return true; }
 
-    void set_event_characteristics();
-
     double m_screen_x { 0 };
     double m_screen_y { 0 };
     double m_page_x { 0 };

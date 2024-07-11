@@ -1354,6 +1354,9 @@ void Document::set_hovered_node(Node* node)
     // https://w3c.github.io/uievents/#mouseout
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
         UIEvents::MouseEventInit mouse_event_init {};
+        mouse_event_init.bubbles = true;
+        mouse_event_init.cancelable = true;
+        mouse_event_init.composed = true;
         mouse_event_init.related_target = m_hovered_node;
         auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseout, mouse_event_init);
         old_hovered_node->dispatch_event(event);
@@ -1373,6 +1376,9 @@ void Document::set_hovered_node(Node* node)
     // https://w3c.github.io/uievents/#mouseover
     if (m_hovered_node && m_hovered_node != old_hovered_node) {
         UIEvents::MouseEventInit mouse_event_init {};
+        mouse_event_init.bubbles = true;
+        mouse_event_init.cancelable = true;
+        mouse_event_init.composed = true;
         mouse_event_init.related_target = old_hovered_node;
         auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseover, mouse_event_init);
         m_hovered_node->dispatch_event(event);
