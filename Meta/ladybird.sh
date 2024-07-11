@@ -3,6 +3,7 @@
 set -e
 
 BUILD_PRESET=${BUILD_PRESET:-default}
+
 ARG0=$0
 print_help() {
     NAME=$(basename "$ARG0")
@@ -99,8 +100,17 @@ cmd_with_target() {
         LADYBIRD_SOURCE_DIR="$(get_top_dir)"
         export LADYBIRD_SOURCE_DIR
     fi
-    BUILD_DIR="$LADYBIRD_SOURCE_DIR/Build/ladybird"
-    CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/ladybird-install")
+
+    declare -A BUILD_DIRECTORIES
+
+    # Note: Keep in sync with buildDir defaults in CMakePresets.json
+    BUILD_DIRECTORIES["default"]="$LADYBIRD_SOURCE_DIR/Build/ladybird"
+    BUILD_DIRECTORIES["Debug"]="$LADYBIRD_SOURCE_DIR/Build/ladybird-debug"
+    BUILD_DIRECTORIES["Sanitizer"]="$LADYBIRD_SOURCE_DIR/Build/ladybird-sanitizers"
+
+    BUILD_DIR="${BUILD_DIRECTORIES[${BUILD_PRESET}]}"
+
+    CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/ladybird-install-${BUILD_PRESET}")
 
     export PATH="$LADYBIRD_SOURCE_DIR/Toolchain/Local/cmake/bin:$LADYBIRD_SOURCE_DIR/Toolchain/Local/vcpkg/bin:$PATH"
     export VCPKG_ROOT="$LADYBIRD_SOURCE_DIR/Toolchain/Tarballs/vcpkg"
@@ -203,6 +213,12 @@ build_and_run_lagom_target() {
 
     if [ -z "$lagom_target" ]; then
         lagom_target="ladybird"
+    fi
+
+    # FIXME: Find some way to centralize these b/w CMakePresets.json, CI files, Documentation and here.
+    if [ "$BUILD_PRESET" = "Sanitizer" ]; then
+        export ASAN_OPTIONS=${ASAN_OPTIONS:-"strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1"}
+        export UBSAN_OPTIONS=${UBSAN_OPTIONS:-"print_stacktrace=1:print_summary=1:halt_on_error=1"}
     fi
 
     build_target "${lagom_target}"
