@@ -197,6 +197,8 @@ public:
     bool step_applies() const;
     bool step_up_or_down_applies() const;
 
+    virtual bool is_child_node_selectable(DOM::Node*) const override;
+
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
 
