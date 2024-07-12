@@ -778,9 +778,11 @@ void HTMLInputElement::create_button_input_shadow_tree()
 {
     auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
-
+    auto text_container = MUST(DOM::create_element(document(), HTML::TagNames::span, Namespace::HTML));
+    MUST(text_container->set_attribute(HTML::AttributeNames::style, "display: inline-block; pointer-events: none;"_string));
     m_text_node = heap().allocate<DOM::Text>(realm(), document(), value());
-    MUST(shadow_root->append_child(*m_text_node));
+    MUST(text_container->append_child(*m_text_node));
+    MUST(shadow_root->append_child(*text_container));
 }
 
 void HTMLInputElement::create_text_input_shadow_tree()
