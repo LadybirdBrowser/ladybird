@@ -19,7 +19,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
-#include <LibGfx/Font/OpenType/Font.h>
+#include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Font.h>
@@ -167,7 +167,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
     auto const& mime_type = resource()->mime_type();
     if (mime_type == "font/ttf"sv || mime_type == "application/x-font-ttf"sv) {
-        if (auto result = OpenType::Font::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+        if (auto result = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
             return result;
         }
     }
@@ -183,7 +183,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
     }
 
     // We don't have the luxury of knowing the MIME type, so we have to try all formats.
-    auto ttf = OpenType::Font::try_load_from_externally_owned_memory(resource()->encoded_data());
+    auto ttf = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!ttf.is_error())
         return ttf.release_value();
     auto woff = WOFF::Font::try_load_from_externally_owned_memory(resource()->encoded_data());

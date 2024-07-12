@@ -45,13 +45,13 @@ struct FontOptions {
     u32 skip_tables { 0 };
 };
 
-class Font : public Gfx::Typeface {
-    AK_MAKE_NONCOPYABLE(Font);
+class Typeface : public Gfx::Typeface {
+    AK_MAKE_NONCOPYABLE(Typeface);
 
 public:
     using Options = FontOptions;
-    static ErrorOr<NonnullRefPtr<Font>> try_load_from_resource(Core::Resource const&, unsigned index = 0);
-    static ErrorOr<NonnullRefPtr<Font>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, Options options = {});
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, unsigned index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, Options options = {});
 
     virtual Gfx::ScaledFontMetrics metrics(float x_scale, float y_scale) const override;
     virtual Gfx::ScaledGlyphMetrics glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const override;
@@ -108,9 +108,9 @@ private:
 
     EmbeddedBitmapData embedded_bitmap_data_for_glyph(u32 glyph_id) const;
 
-    static ErrorOr<NonnullRefPtr<Font>> try_load_from_offset(ReadonlyBytes, u32 offset, Options options);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_offset(ReadonlyBytes, u32 offset, Options options);
 
-    Font(
+    Typeface(
         Head&& head,
         Optional<Name>&& name,
         Hhea&& hhea,
