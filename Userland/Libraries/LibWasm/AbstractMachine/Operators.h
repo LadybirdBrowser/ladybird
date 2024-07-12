@@ -289,8 +289,11 @@ struct VectorCmpOp {
         auto result = bit_cast<Native128ByteVectorOf<ElementType, SetSign>>(c1);
         auto other = bit_cast<Native128ByteVectorOf<ElementType, SetSign>>(c2);
         Op op;
-        for (size_t i = 0; i < VectorSize; ++i)
-            result[i] = op(result[i], other[i]) ? static_cast<MakeUnsigned<ElementType>>(-1) : 0;
+        for (size_t i = 0; i < VectorSize; ++i) {
+            SetSign<ElementType> lhs = result[i];
+            SetSign<ElementType> rhs = other[i];
+            result[i] = op(lhs, rhs) ? static_cast<MakeUnsigned<ElementType>>(-1) : 0;
+        }
         return bit_cast<u128>(result);
     }
 
