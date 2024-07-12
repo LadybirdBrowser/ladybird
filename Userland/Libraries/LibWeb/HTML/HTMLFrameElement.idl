@@ -11,7 +11,7 @@ interface HTMLFrameElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString src;
     [CEReactions, Reflect=frameborder] attribute DOMString frameBorder;
     [CEReactions, Reflect=longdesc] attribute DOMString longDesc;
-    [FIXME, CEReactions] attribute boolean noResize;
+    [CEReactions, Reflect=onresize] attribute boolean noResize;
     [FIXME] readonly attribute Document? contentDocument;
     [FIXME] readonly attribute WindowProxy? contentWindow;
 
