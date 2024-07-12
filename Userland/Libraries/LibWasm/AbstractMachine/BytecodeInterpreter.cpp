@@ -1467,9 +1467,9 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::f32x4_ge.value():
         return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<4, Operators::GreaterThanOrEquals>>(configuration);
     case Instructions::f32x4_min.value():
-        return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<4, Operators::Minimum>>(configuration);
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<4, Operators::Minimum>>(configuration);
     case Instructions::f32x4_max.value():
-        return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<4, Operators::Maximum>>(configuration);
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<4, Operators::Maximum>>(configuration);
     case Instructions::f64x2_eq.value():
         return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<2, Operators::Equals>>(configuration);
     case Instructions::f64x2_ne.value():
@@ -1483,9 +1483,9 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::f64x2_ge.value():
         return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<2, Operators::GreaterThanOrEquals>>(configuration);
     case Instructions::f64x2_min.value():
-        return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<2, Operators::Minimum>>(configuration);
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<2, Operators::Minimum>>(configuration);
     case Instructions::f64x2_max.value():
-        return binary_numeric_operation<u128, u128, Operators::VectorFloatCmpOp<2, Operators::Maximum>>(configuration);
+        return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<2, Operators::Maximum>>(configuration);
     case Instructions::f32x4_div.value():
         return binary_numeric_operation<u128, u128, Operators::VectorFloatBinaryOp<4, Operators::Divide>>(configuration);
     case Instructions::f32x4_mul.value():
