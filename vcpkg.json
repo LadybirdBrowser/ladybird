@@ -19,6 +19,14 @@
         "dav1d"
       ]
     },
+    {
+      "name": "libwebp",
+      "features": [
+        "anim",
+        "libwebpmux",
+        "simd"
+      ]
+    },
     "simdutf",
     {
       "name": "skia",
@@ -69,6 +77,10 @@
     {
       "name": "libavif",
       "version": "1.0.4#1"
+    },
+    {
+      "name": "libwebp",
+      "version": "1.4.0#1"
     },
     {
       "name": "simdutf",
