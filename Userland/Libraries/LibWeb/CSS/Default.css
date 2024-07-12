@@ -52,6 +52,15 @@ button, input[type=submit], input[type=button], input[type=reset], select {
     cursor: default;
 }
 
+button:disabled, input[type=submit]:disabled, input[type=button]:disabled, input[type=reset]:disabled, select:disabled {
+    /* FIXME: There isn't a <system-color> keyword for this, so this is a slightly lightened
+     *        version of our light ButtonFace color. Once we support `color-scheme: dark`
+     *        we'll need to use a different color for that.
+     */
+    background-color: #e5e0d7;
+    color: GrayText;
+}
+
 input[type=image] {
     cursor: pointer;
 }
