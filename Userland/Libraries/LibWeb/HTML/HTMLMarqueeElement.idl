@@ -13,7 +13,7 @@ interface HTMLMarqueeElement : HTMLElement {
     [CEReactions, Reflect] attribute unsigned long hspace;
     [FIXME, CEReactions] attribute long loop;
     [CEReactions] attribute unsigned long scrollAmount;
-    [FIXME, CEReactions] attribute unsigned long scrollDelay;
+    [CEReactions] attribute unsigned long scrollDelay;
     [FIXME, CEReactions] attribute boolean trueSpeed;
     [CEReactions, Reflect] attribute unsigned long vspace;
     [CEReactions, Reflect] attribute DOMString width;
