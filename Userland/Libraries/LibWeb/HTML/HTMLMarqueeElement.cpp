@@ -60,4 +60,21 @@ WebIDL::ExceptionOr<void> HTMLMarqueeElement::set_scroll_amount(WebIDL::Unsigned
     return set_attribute(HTML::AttributeNames::scrollamount, MUST(String::number(value)));
 }
 
+// https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrolldelay
+WebIDL::UnsignedLong HTMLMarqueeElement::scroll_delay()
+{
+    // The scrollDelay IDL attribute must reflect the scrolldelay content attribute. The default value is 85.
+    if (auto scroll_delay_string = get_attribute(HTML::AttributeNames::scrolldelay); scroll_delay_string.has_value()) {
+        if (auto scroll_delay = parse_non_negative_integer(*scroll_delay_string); scroll_delay.has_value())
+            return *scroll_delay;
+    }
+    return 85;
+}
+
+// https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrolldelay
+WebIDL::ExceptionOr<void> HTMLMarqueeElement::set_scroll_delay(WebIDL::UnsignedLong value)
+{
+    return set_attribute(HTML::AttributeNames::scrolldelay, MUST(String::number(value)));
+}
+
 }
