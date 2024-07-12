@@ -199,16 +199,26 @@ TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
     return JS::Value(lhs_array.viewed_array_buffer()->buffer() == rhs_array.viewed_array_buffer()->buffer());
 }
 
+bool _is_canonical_nan32(u32 value)
+{
+    return value == 0x7FC00000 || value == 0xFFC00000;
+}
+
+bool _is_canonical_nan64(u64 value)
+{
+    return value == 0x7FF8000000000000 || value == 0xFFF8000000000000;
+}
+
 TESTJS_GLOBAL_FUNCTION(is_canonical_nan32, isCanonicalNaN32)
 {
     auto value = TRY(vm.argument(0).to_u32(vm));
-    return value == 0x7FC00000 || value == 0xFFC00000;
+    return _is_canonical_nan32(value);
 }
 
 TESTJS_GLOBAL_FUNCTION(is_canonical_nan64, isCanonicalNaN64)
 {
     auto value = TRY(vm.argument(0).to_bigint_uint64(vm));
-    return value == 0x7FF8000000000000 || value == 0xFFF8000000000000;
+    return _is_canonical_nan64(value);
 }
 
 TESTJS_GLOBAL_FUNCTION(is_arithmetic_nan32, isArithmeticNaN32)
@@ -221,6 +231,47 @@ TESTJS_GLOBAL_FUNCTION(is_arithmetic_nan64, isArithmeticNaN64)
 {
     auto value = bit_cast<double>(TRY(vm.argument(0).to_bigint_uint64(vm)));
     return isnan(value);
+}
+
+TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
+{
+    auto expected = TRY(vm.argument(0).to_object(vm));
+    if (!is<JS::Array>(*expected))
+        return vm.throw_completion<JS::TypeError>("Expected an Array"sv);
+    auto& expected_array = static_cast<JS::Array&>(*expected);
+    auto got = TRY(vm.argument(1).to_object(vm));
+    if (!is<JS::TypedArrayBase>(*got))
+        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
+    auto& got_array = static_cast<JS::TypedArrayBase&>(*got);
+    auto element_size = 128 / TRY(TRY(expected_array.get("length")).to_u32(vm));
+    size_t i = 0;
+    for (auto it = expected_array.indexed_properties().begin(false); it != expected_array.indexed_properties().end(); ++it) {
+        auto got_value = TRY(got_array.get(i++));
+        u64 got = got_value.is_bigint() ? TRY(got_value.to_bigint_uint64(vm)) : (u64)TRY(got_value.to_index(vm));
+        auto expect = TRY(expected_array.get(it.index()));
+        if (expect.is_string()) {
+            if (element_size != 32 && element_size != 64)
+                return vm.throw_completion<JS::TypeError>("Expected element of size 32 or 64"sv);
+            auto string = expect.as_string().utf8_string();
+            if (string == "nan:canonical") {
+                auto is_canonical = element_size == 32 ? _is_canonical_nan32(got) : _is_canonical_nan64(got);
+                if (!is_canonical)
+                    return false;
+                continue;
+            }
+            if (string == "nan:arithmetic") {
+                auto is_arithmetic = element_size == 32 ? isnan(bit_cast<float>((u32)got)) : isnan(bit_cast<double>((u64)got));
+                if (!is_arithmetic)
+                    return false;
+                continue;
+            }
+            return vm.throw_completion<JS::TypeError>(ByteString::formatted("Bad SIMD float expectation: {}"sv, string));
+        }
+        u64 expect_value = expect.is_bigint() ? TRY(expect.to_bigint_uint64(vm)) : (u64)TRY(expect.to_index(vm));
+        if (got != expect_value)
+            return false;
+    }
+    return true;
 }
 
 void WebAssemblyModule::initialize(JS::Realm& realm)
@@ -281,7 +332,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     for (auto& param : type->parameters()) {
         auto argument = vm.argument(index++);
         double double_value = 0;
-        if (!argument.is_bigint())
+        if (!argument.is_bigint() && !argument.is_object())
             double_value = TRY(argument.to_double(vm));
         switch (param.kind()) {
         case Wasm::ValueType::Kind::I32:
@@ -307,21 +358,14 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             }
             break;
         case Wasm::ValueType::Kind::V128: {
-            if (!argument.is_bigint()) {
-                if (argument.is_number())
-                    argument = JS::BigInt::create(vm, Crypto::SignedBigInteger { TRY(argument.to_double(vm)) });
-                else
-                    argument = TRY(argument.to_bigint(vm));
-            }
-
+            auto object = MUST(argument.to_object(vm));
+            if (!is<JS::TypedArrayBase>(*object))
+                return vm.throw_completion<JS::TypeError>("Expected typed array"sv);
+            auto& array = static_cast<JS::TypedArrayBase&>(*object);
             u128 bits = 0;
-            auto bytes = argument.as_bigint().big_integer().unsigned_value().export_data({ bit_cast<u8*>(&bits), sizeof(bits) });
-            VERIFY(!argument.as_bigint().big_integer().is_negative());
-
-            if constexpr (AK::HostIsLittleEndian)
-                arguments.append(Wasm::Value(bits << (128 - bytes * 8)));
-            else
-                arguments.append(Wasm::Value(bits >> (128 - bytes * 8)));
+            auto* ptr = bit_cast<u8*>(&bits);
+            memcpy(ptr, array.viewed_array_buffer()->buffer().data(), 16);
+            arguments.append(Wasm::Value(bits));
             break;
         }
         case Wasm::ValueType::Kind::FunctionReference:
@@ -359,8 +403,10 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             [](i32 value) { return JS::Value(static_cast<double>(value)); },
             [&](i64 value) { return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { value })); },
             [&](u128 value) {
-                auto unsigned_bigint_value = Crypto::UnsignedBigInteger::import_data(bit_cast<u8 const*>(&value), sizeof(value));
-                return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger(move(unsigned_bigint_value), false)));
+                // FIXME: remove the MUST here
+                auto buf = MUST(JS::ArrayBuffer::create(*vm.current_realm(), 16));
+                memcpy(buf->buffer().data(), value.bytes().data(), 16);
+                return JS::Value(buf);
             },
             [](Wasm::Reference const& reference) {
                 return reference.ref().visit(

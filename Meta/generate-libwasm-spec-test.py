@@ -16,9 +16,18 @@ class GenerateException(Exception):
 
 
 @dataclass
-class WasmValue:
-    kind: Literal["i32", "i64", "f32", "f64", "externref", "funcref", "v128"]
+class WasmPrimitiveValue:
+    kind: Literal["i32", "i64", "f32", "f64", "externref", "funcref"]
     value: str
+
+
+@dataclass
+class WasmVector:
+    lanes: list[str]
+    num_bits: int
+
+
+WasmValue = Union[WasmPrimitiveValue, WasmVector]
 
 
 @dataclass
@@ -98,7 +107,13 @@ class CanonicalNan:
     num_bits: int
 
 
-GeneratedValue = Union[str, ArithmeticNan, CanonicalNan]
+@dataclass
+class GeneratedVector:
+    repr: str
+    num_bits: int
+
+
+GeneratedValue = Union[str, ArithmeticNan, CanonicalNan, GeneratedVector]
 
 
 @dataclass
@@ -117,33 +132,14 @@ def parse_value(arg: dict[str, str]) -> WasmValue:
     type_ = arg["type"]
     match type_:
         case "i32" | "i64" | "f32" | "f64" | "externref" | "funcref":
-            payload = arg["value"]
+            return WasmPrimitiveValue(type_, arg["value"])
         case "v128":
-
-            def reverse_endianness(hex_str):
-                if len(hex_str) % 2 != 0:
-                    hex_str = "0" + hex_str
-                bytes_list = [hex_str[i:i + 2] for i in range(0, len(hex_str), 2)]
-                reversed_hex_str = "".join(bytes_list[::-1])
-                return reversed_hex_str
-
-            size = int(arg["lane_type"][1:]) // 4
-            parts = []
-            for raw_val in arg["value"]:
-                match raw_val:
-                    case "nan:canonical":
-                        hex_repr = "7fc".ljust(size, "0")
-                    case "nan:arithmetic":
-                        hex_repr = "7ff".ljust(size, "0")
-                    case "nan:signaling":
-                        hex_repr = "7ff8".ljust(size, "0")
-                    case _:
-                        hex_repr = hex(int(raw_val))[2:].zfill(size)
-                parts.append(hex_repr)
-            payload = "0x" + reverse_endianness("".join(reversed(parts))) + "n"
+            if not isinstance(arg["value"], list):
+                raise ParseException("Got unknown type for Wasm value")
+            num_bits = int(arg["lane_type"][1:])
+            return WasmVector(arg["value"], num_bits)
         case _:
             raise ParseException(f"Unknown value type: {type_}")
-    return WasmValue(type_, payload)
 
 
 def parse_args(raw_args: list[dict[str, str]]) -> list[WasmValue]:
@@ -212,7 +208,19 @@ def make_description(input_path: Path, name: str, out_path: Path) -> WastDescrip
     return parse(description)
 
 
+def gen_vector(vec: WasmVector, *, array=False) -> str:
+    addition = "n" if vec.num_bits == 64 else ""
+    vals = ", ".join(v + addition if v.isdigit() else f'"{v}"' for v in vec.lanes)
+    if not array:
+        type_ = "BigUint64Array" if vec.num_bits == 64 else f"Uint{vec.num_bits}Array"
+        return f"new {type_}([{vals}])"
+    return f"[{vals}]"
+
+
 def gen_value_arg(value: WasmValue) -> str:
+    if isinstance(value, WasmVector):
+        return gen_vector(value)
+
     def unsigned_to_signed(uint: int, bits: int) -> int:
         max_value = 2**bits
         if uint >= 2 ** (bits - 1):
@@ -263,6 +271,9 @@ def gen_value_arg(value: WasmValue) -> str:
 
 
 def gen_value_result(value: WasmValue) -> GeneratedValue:
+    if isinstance(value, WasmVector):
+        return GeneratedVector(gen_vector(value, array=True), value.num_bits)
+
     if (value.kind == "f32" or value.kind == "f64") and value.value.startswith("nan"):
         num_bits = int(value.kind[1:])
         match value.value:
@@ -319,6 +330,12 @@ expect(() => parseWebAssemblyModule(content, globalImportObject)).toThrow(Error,
     )
 
 
+def gen_pretty_expect(expr: str, got: str, expect: str):
+    print(
+        f"if (!{expr}) {{ expect().fail(`Failed with ${{{got}}}, expected {expect}`); }}"
+    )
+
+
 def gen_invoke(
     line: int,
     invoke: Invoke,
@@ -352,12 +369,26 @@ expect(_field).not.toBeUndefined();"""
             case str():
                 print(f"expect(_result).toBe({gen_result});")
             case ArithmeticNan():
-                print(
-                    f"expect(isArithmeticNaN{gen_result.num_bits}(_result)).toBe(true);"
+                gen_pretty_expect(
+                    f"isArithmeticNaN{gen_result.num_bits}(_result)",
+                    "_result",
+                    "nan:arithmetic",
                 )
             case CanonicalNan():
-                print(
-                    f"expect(isCanonicalNaN{gen_result.num_bits}(_result)).toBe(true);"
+                gen_pretty_expect(
+                    f"isCanonicalNaN{gen_result.num_bits}(_result)",
+                    "_result",
+                    "nan:canonical",
+                )
+            case GeneratedVector():
+                if gen_result.num_bits == 64:
+                    array = "new BigUint64Array(_result)"
+                else:
+                    array = f"new Uint{gen_result.num_bits}Array(_result)"
+                gen_pretty_expect(
+                    f"testSIMDVector({gen_result.repr}, {array})",
+                    array,
+                    gen_result.repr,
                 )
     print("});")
     if not ctx.has_unclosed:
