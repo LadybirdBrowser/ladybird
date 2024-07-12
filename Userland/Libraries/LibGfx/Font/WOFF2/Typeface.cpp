@@ -6,7 +6,7 @@
 
 #define AK_DONT_REPLACE_STD
 #include <LibGfx/Font/OpenType/Typeface.h>
-#include <LibGfx/Font/WOFF2/Font.h>
+#include <LibGfx/Font/WOFF2/Typeface.h>
 #include <woff2/decode.h>
 
 namespace WOFF2 {
@@ -54,7 +54,7 @@ private:
     ByteBuffer& m_buffer;
 };
 
-ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_externally_owned_memory(ReadonlyBytes bytes)
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_externally_owned_memory(ReadonlyBytes bytes)
 {
     auto ttf_buffer = TRY(ByteBuffer::create_uninitialized(0));
     auto output = WOFF2ByteBufferOut { ttf_buffer };
@@ -63,7 +63,7 @@ ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_externally_owned_memory(Readonl
         return Error::from_string_literal("Failed to convert the WOFF2 font to TTF");
     }
     auto input_font = TRY(OpenType::Typeface::try_load_from_externally_owned_memory(ttf_buffer.bytes()));
-    return adopt_ref(*new Font(input_font, move(ttf_buffer)));
+    return adopt_ref(*new Typeface(input_font, move(ttf_buffer)));
 }
 
 }

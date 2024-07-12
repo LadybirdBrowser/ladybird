@@ -17,11 +17,11 @@
 
 namespace WOFF2 {
 
-class Font : public Gfx::Typeface {
-    AK_MAKE_NONCOPYABLE(Font);
+class Typeface : public Gfx::Typeface {
+    AK_MAKE_NONCOPYABLE(Typeface);
 
 public:
-    static ErrorOr<NonnullRefPtr<Font>> try_load_from_externally_owned_memory(ReadonlyBytes);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes);
 
     virtual Gfx::ScaledFontMetrics metrics(float x_scale, float y_scale) const override { return m_input_font->metrics(x_scale, y_scale); }
     virtual Gfx::ScaledGlyphMetrics glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const override { return m_input_font->glyph_metrics(glyph_id, x_scale, y_scale, point_width, point_height); }
@@ -44,7 +44,7 @@ public:
     virtual bool has_color_bitmaps() const override { return m_input_font->has_color_bitmaps(); }
 
 private:
-    Font(NonnullRefPtr<Gfx::Typeface> input_font, ByteBuffer input_font_buffer)
+    Typeface(NonnullRefPtr<Gfx::Typeface> input_font, ByteBuffer input_font_buffer)
         : m_input_font_buffer(move(input_font_buffer))
         , m_input_font(move(input_font))
     {
