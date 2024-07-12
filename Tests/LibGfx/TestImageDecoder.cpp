@@ -923,7 +923,7 @@ TEST_CASE(test_webp_extended_lossless_animated)
         EXPECT_EQ(frame.image->get_pixel(500, 700), Gfx::Color::Yellow);
 
         // This one isn't the same in all frames.
-        EXPECT_EQ(frame.image->get_pixel(500, 0), (frame_index == 2 || frame_index == 6) ? Gfx::Color::Black : Gfx::Color(255, 255, 255, 0));
+        EXPECT_EQ(frame.image->get_pixel(500, 0), (frame_index == 2 || frame_index == 6) ? Gfx::Color::Black : Gfx::Color(0, 0, 0, 0));
     }
 }
 
