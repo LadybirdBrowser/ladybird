@@ -16,6 +16,6 @@ interface HTMLFrameElement : HTMLElement {
     [FIXME] readonly attribute WindowProxy? contentWindow;
 
     [CEReactions, LegacyNullToEmptyString, Reflect=marginheight] attribute DOMString marginHeight;
-    [FIXME, CEReactions, LegacyNullToEmptyString] attribute DOMString marginWidth;
+    [CEReactions, LegacyNullToEmptyString, Reflect=marginwidth] attribute DOMString marginWidth;
 
 };
