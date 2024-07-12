@@ -65,7 +65,9 @@ jobs:
 
       - name: Install NDK
         run: |
-          yes | ${ANDROID_SDK_ROOT}/tools/bin/sdkmanager "ndk;26.1.10909125"
+          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --licenses
+          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;32.0.0" "platforms;android-34"
+          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager "ndk;26.1.10909125"
 
       - name: Start Android Emulator
         run: |
@@ -73,7 +75,8 @@ jobs:
           echo "y" | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install 'system-images;android-30;google_apis;x86_64'
 
           # Create emulator
-          echo "no" | ${ANDROID_HOME}/tools/bin/avdmanager create avd -n xamarin_android_emulator -k 'system-images;android-30;google_apis;x86_64' --force
+          echo "no" | ${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager create avd -n xamarin_android_emulator -k 'system-images;android-30;google_apis;x86_64' --force
+
 
           ${ANDROID_HOME}/emulator/emulator -list-avds
 
