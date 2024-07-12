@@ -14,6 +14,10 @@
 
 namespace Web::Fetch::Fetching {
 
+// https://fetch.spec.whatwg.org/#document-accept-header-value
+// The document `Accept` header value is `text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`.
+constexpr auto document_accept_header_value = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"sv;
+
 #define ENUMERATE_BOOL_PARAMS                     \
     __ENUMERATE_BOOL_PARAM(IncludeCredentials)    \
     __ENUMERATE_BOOL_PARAM(IsAuthenticationFetch) \
