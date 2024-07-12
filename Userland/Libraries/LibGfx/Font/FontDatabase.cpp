@@ -11,7 +11,7 @@
 #include <LibCore/Resource.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
-#include <LibGfx/Font/OpenType/Font.h>
+#include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/WOFF/Font.h>
 
@@ -44,7 +44,7 @@ void FontDatabase::load_all_fonts_from_uri(StringView uri)
         auto path = LexicalPath(uri.bytes_as_string_view());
         if (path.has_extension(".ttf"sv)) {
             // FIXME: What about .otf
-            if (auto font_or_error = OpenType::Font::try_load_from_resource(resource); !font_or_error.is_error()) {
+            if (auto font_or_error = OpenType::Typeface::try_load_from_resource(resource); !font_or_error.is_error()) {
                 auto font = font_or_error.release_value();
                 auto& family = m_private->typeface_by_family.ensure(font->family(), [] {
                     return Vector<NonnullRefPtr<Typeface>> {};

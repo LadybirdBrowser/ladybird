@@ -7,8 +7,8 @@
 #include <AK/Format.h>
 #include <AK/Utf8View.h>
 #include <LibCore/ArgsParser.h>
-#include <LibGfx/Font/OpenType/Font.h>
 #include <LibGfx/Font/OpenType/Hinting/Opcodes.h>
+#include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibMain/Main.h>
 
 using namespace OpenType::Hinting;
@@ -169,7 +169,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.parse(arguments);
 
     auto resource = TRY(Core::Resource::load_from_filesystem(font_path));
-    auto font = TRY(OpenType::Font::try_load_from_resource(resource));
+    auto font = TRY(OpenType::Typeface::try_load_from_resource(resource));
 
     if (dump_font_program)
         print_disassembly("Font program"sv, font->font_program(), !no_color);

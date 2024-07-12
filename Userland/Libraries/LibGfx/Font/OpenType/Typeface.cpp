@@ -15,9 +15,9 @@
 #include <LibCore/Resource.h>
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/Font/OpenType/Cmap.h>
-#include <LibGfx/Font/OpenType/Font.h>
 #include <LibGfx/Font/OpenType/Glyf.h>
 #include <LibGfx/Font/OpenType/Tables.h>
+#include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/Painter.h>
 #include <math.h>
@@ -150,7 +150,7 @@ float be_fword(u8 const* ptr)
     return (float)be_i16(ptr) / (float)(1 << 14);
 }
 
-ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_resource(Core::Resource const& resource, unsigned index)
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, unsigned index)
 {
     auto font = TRY(try_load_from_externally_owned_memory(resource.data(), { .index = index }));
     font->m_resource = resource;
@@ -163,7 +163,7 @@ static ErrorOr<Tag> read_tag(ReadonlyBytes buffer)
     return stream.read_value<Tag>();
 }
 
-ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_externally_owned_memory(ReadonlyBytes buffer, Options options)
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_externally_owned_memory(ReadonlyBytes buffer, Options options)
 {
     auto tag = TRY(read_tag(buffer));
     if (tag == HeaderTag_FontCollection) {
@@ -211,7 +211,7 @@ static ErrorOr<void> for_each_table_record(ReadonlyBytes buffer, u32 offset, Fun
 }
 
 // FIXME: "loca" and "glyf" are not available for CFF fonts.
-ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_offset(ReadonlyBytes buffer, u32 offset, Options options)
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_offset(ReadonlyBytes buffer, u32 offset, Options options)
 {
     Optional<ReadonlyBytes> opt_head_slice = {};
     Optional<ReadonlyBytes> opt_name_slice = {};
@@ -331,7 +331,7 @@ ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_offset(ReadonlyBytes buffer, u3
     if (opt_prep_slice.has_value())
         prep = Prep(opt_prep_slice.value());
 
-    return adopt_ref(*new Font(
+    return adopt_ref(*new Typeface(
         move(head),
         move(name),
         move(hhea),
@@ -349,7 +349,7 @@ ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_offset(ReadonlyBytes buffer, u3
         move(gpos)));
 }
 
-Gfx::ScaledFontMetrics Font::metrics([[maybe_unused]] float x_scale, float y_scale) const
+Gfx::ScaledFontMetrics Typeface::metrics([[maybe_unused]] float x_scale, float y_scale) const
 {
     i16 raw_ascender;
     i16 raw_descender;
@@ -379,7 +379,7 @@ Gfx::ScaledFontMetrics Font::metrics([[maybe_unused]] float x_scale, float y_sca
     };
 }
 
-Font::EmbeddedBitmapData Font::embedded_bitmap_data_for_glyph(u32 glyph_id) const
+Typeface::EmbeddedBitmapData Typeface::embedded_bitmap_data_for_glyph(u32 glyph_id) const
 {
     if (!has_color_bitmaps())
         return Empty {};
@@ -414,7 +414,7 @@ Font::EmbeddedBitmapData Font::embedded_bitmap_data_for_glyph(u32 glyph_id) cons
     return Empty {};
 }
 
-float Font::glyph_advance(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const
+float Typeface::glyph_advance(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const
 {
     if (has_color_bitmaps())
         return glyph_metrics(glyph_id, x_scale, y_scale, point_width, point_height).advance_width;
@@ -429,7 +429,7 @@ float Font::glyph_advance(u32 glyph_id, float x_scale, float y_scale, float poin
     return static_cast<float>(horizontal_metrics.advance_width) * x_scale;
 }
 
-Gfx::ScaledGlyphMetrics Font::glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const
+Gfx::ScaledGlyphMetrics Typeface::glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const
 {
     auto embedded_bitmap_metrics = embedded_bitmap_data_for_glyph(glyph_id).visit(
         [&](EmbeddedBitmapWithFormat17 const& data) -> Optional<Gfx::ScaledGlyphMetrics> {
@@ -474,7 +474,7 @@ Gfx::ScaledGlyphMetrics Font::glyph_metrics(u32 glyph_id, float x_scale, float y
     };
 }
 
-float Font::glyphs_horizontal_kerning(u32 left_glyph_id, u32 right_glyph_id, float x_scale) const
+float Typeface::glyphs_horizontal_kerning(u32 left_glyph_id, u32 right_glyph_id, float x_scale) const
 {
     if (!m_gpos.has_value() && !m_kern.has_value())
         return 0.0f;
@@ -503,7 +503,7 @@ float Font::glyphs_horizontal_kerning(u32 left_glyph_id, u32 right_glyph_id, flo
     return 0.0f;
 }
 
-Font::AscenderAndDescender Font::resolve_ascender_and_descender() const
+Typeface::AscenderAndDescender Typeface::resolve_ascender_and_descender() const
 {
     i16 ascender = 0;
     i16 descender = 0;
@@ -518,7 +518,7 @@ Font::AscenderAndDescender Font::resolve_ascender_and_descender() const
     return { ascender, descender };
 }
 
-Optional<Glyf::Glyph> Font::extract_and_append_glyph_path_to(Gfx::Path& path, u32 glyph_id, i16 ascender, i16 descender, float x_scale, float y_scale) const
+Optional<Glyf::Glyph> Typeface::extract_and_append_glyph_path_to(Gfx::Path& path, u32 glyph_id, i16 ascender, i16 descender, float x_scale, float y_scale) const
 {
     if (!m_loca.has_value() || !m_glyf.has_value()) {
         return {};
@@ -552,13 +552,13 @@ Optional<Glyf::Glyph> Font::extract_and_append_glyph_path_to(Gfx::Path& path, u3
     return {};
 }
 
-bool Font::append_glyph_path_to(Gfx::Path& path, u32 glyph_id, float x_scale, float y_scale) const
+bool Typeface::append_glyph_path_to(Gfx::Path& path, u32 glyph_id, float x_scale, float y_scale) const
 {
     auto ascender_and_descender = resolve_ascender_and_descender();
     return extract_and_append_glyph_path_to(path, glyph_id, ascender_and_descender.ascender, ascender_and_descender.descender, x_scale, y_scale).has_value();
 }
 
-RefPtr<Gfx::Bitmap> Font::rasterize_glyph(u32 glyph_id, float x_scale, float y_scale, Gfx::GlyphSubpixelOffset subpixel_offset) const
+RefPtr<Gfx::Bitmap> Typeface::rasterize_glyph(u32 glyph_id, float x_scale, float y_scale, Gfx::GlyphSubpixelOffset subpixel_offset) const
 {
     if (auto bitmap = color_bitmap(glyph_id))
         return bitmap;
@@ -579,17 +579,17 @@ RefPtr<Gfx::Bitmap> Font::rasterize_glyph(u32 glyph_id, float x_scale, float y_s
     return bitmap;
 }
 
-u32 Font::glyph_count() const
+u32 Typeface::glyph_count() const
 {
     return m_maxp.num_glyphs();
 }
 
-u16 Font::units_per_em() const
+u16 Typeface::units_per_em() const
 {
     return m_head.units_per_em();
 }
 
-String Font::family() const
+String Typeface::family() const
 {
     if (!m_name.has_value())
         return {};
@@ -605,7 +605,7 @@ String Font::family() const
     return *m_family;
 }
 
-String Font::variant() const
+String Typeface::variant() const
 {
     if (!m_name.has_value())
         return {};
@@ -616,7 +616,7 @@ String Font::variant() const
     return m_name->subfamily_name();
 }
 
-u16 Font::weight() const
+u16 Typeface::weight() const
 {
     if (!m_weight.has_value()) {
         m_weight = [&]() -> u16 {
@@ -631,7 +631,7 @@ u16 Font::weight() const
     return *m_weight;
 }
 
-u16 Font::width() const
+u16 Typeface::width() const
 {
     if (!m_width.has_value()) {
         m_width = [&]() -> u16 {
@@ -643,7 +643,7 @@ u16 Font::width() const
     return *m_width;
 }
 
-u8 Font::slope() const
+u8 Typeface::slope() const
 {
     if (!m_slope.has_value()) {
         m_slope = [&]() -> u8 {
@@ -665,28 +665,28 @@ u8 Font::slope() const
     return *m_slope;
 }
 
-bool Font::is_fixed_width() const
+bool Typeface::is_fixed_width() const
 {
     // FIXME: Read this information from the font file itself.
     // FIXME: Although, it appears some application do similar hacks
     return glyph_metrics(glyph_id_for_code_point('.'), 1, 1, 1, 1).advance_width == glyph_metrics(glyph_id_for_code_point('X'), 1, 1, 1, 1).advance_width;
 }
 
-Optional<ReadonlyBytes> Font::font_program() const
+Optional<ReadonlyBytes> Typeface::font_program() const
 {
     if (m_fpgm.has_value())
         return m_fpgm->program_data();
     return {};
 }
 
-Optional<ReadonlyBytes> Font::control_value_program() const
+Optional<ReadonlyBytes> Typeface::control_value_program() const
 {
     if (m_prep.has_value())
         return m_prep->program_data();
     return {};
 }
 
-Optional<ReadonlyBytes> Font::glyph_program(u32 glyph_id) const
+Optional<ReadonlyBytes> Typeface::glyph_program(u32 glyph_id) const
 {
     if (!m_loca.has_value() || !m_glyf.has_value()) {
         return {};
@@ -699,12 +699,12 @@ Optional<ReadonlyBytes> Font::glyph_program(u32 glyph_id) const
     return glyph->program();
 }
 
-u32 Font::glyph_id_for_code_point(u32 code_point) const
+u32 Typeface::glyph_id_for_code_point(u32 code_point) const
 {
     return glyph_page(code_point / GlyphPage::glyphs_per_page).glyph_ids[code_point % GlyphPage::glyphs_per_page];
 }
 
-Font::GlyphPage const& Font::glyph_page(size_t page_index) const
+Typeface::GlyphPage const& Typeface::glyph_page(size_t page_index) const
 {
     if (page_index == 0) {
         if (!m_glyph_page_zero) {
@@ -724,7 +724,7 @@ Font::GlyphPage const& Font::glyph_page(size_t page_index) const
     return *glyph_page_ptr;
 }
 
-void Font::populate_glyph_page(GlyphPage& glyph_page, size_t page_index) const
+void Typeface::populate_glyph_page(GlyphPage& glyph_page, size_t page_index) const
 {
     u32 first_code_point = page_index * GlyphPage::glyphs_per_page;
     for (size_t i = 0; i < GlyphPage::glyphs_per_page; ++i) {
@@ -732,12 +732,12 @@ void Font::populate_glyph_page(GlyphPage& glyph_page, size_t page_index) const
         glyph_page.glyph_ids[i] = m_cmap->glyph_id_for_code_point(code_point);
     }
 }
-bool Font::has_color_bitmaps() const
+bool Typeface::has_color_bitmaps() const
 {
     return m_cblc.has_value() && m_cbdt.has_value();
 }
 
-RefPtr<Gfx::Bitmap> Font::color_bitmap(u32 glyph_id) const
+RefPtr<Gfx::Bitmap> Typeface::color_bitmap(u32 glyph_id) const
 {
     return embedded_bitmap_data_for_glyph(glyph_id).visit(
         [&](EmbeddedBitmapWithFormat17 const& data) -> RefPtr<Gfx::Bitmap> {
