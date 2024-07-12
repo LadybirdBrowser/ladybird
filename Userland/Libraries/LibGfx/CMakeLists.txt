@@ -47,8 +47,6 @@ set(SOURCES
     ImageFormats/TIFFLoader.cpp
     ImageFormats/TinyVGLoader.cpp
     ImageFormats/WebPLoader.cpp
-    ImageFormats/WebPLoaderLossless.cpp
-    ImageFormats/WebPLoaderLossy.cpp
     ImageFormats/WebPSharedLossless.cpp
     ImageFormats/WebPWriter.cpp
     ImageFormats/WebPWriterLossless.cpp
@@ -98,5 +96,7 @@ pkg_check_modules(WOFF2 REQUIRED IMPORTED_TARGET libwoff2dec)
 find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
 find_package(LIBAVIF REQUIRED)
+find_package(WebP REQUIRED)
 
-target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif)
+target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
+            WebP::webpdemux WebP::libwebpmux)

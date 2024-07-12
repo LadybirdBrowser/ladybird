@@ -649,8 +649,8 @@ TEST_CASE(test_webp_simple_lossy)
 
     // While VP8 YUV contents are defined bit-exact, the YUV->RGB conversion isn't.
     // So pixels changing by 1 or so below is fine if you change code.
-    EXPECT_EQ(frame.image->get_pixel(120, 232), Gfx::Color(0xf2, 0xef, 0xf0, 255));
-    EXPECT_EQ(frame.image->get_pixel(198, 202), Gfx::Color(0x7b, 0xaa, 0xd5, 255));
+    EXPECT_EQ(frame.image->get_pixel(120, 232), Gfx::Color(0xf1, 0xef, 0xf0, 255));
+    EXPECT_EQ(frame.image->get_pixel(198, 202), Gfx::Color(0x7a, 0xaa, 0xd5, 255));
 }
 
 TEST_CASE(test_webp_simple_lossless)
@@ -723,7 +723,7 @@ TEST_CASE(test_webp_extended_lossy_alpha_horizontal_filter)
     // While VP8 YUV contents are defined bit-exact, the YUV->RGB conversion isn't.
     // So pixels changing by 1 or so below is fine if you change code.
     // The important component in this test is alpha, and that shouldn't change even by 1 as it's losslessly compressed and doesn't use YUV.
-    EXPECT_EQ(frame.image->get_pixel(131, 131), Gfx::Color(0x8f, 0x51, 0x2f, 0x4b));
+    EXPECT_EQ(frame.image->get_pixel(131, 131), Gfx::Color(0x8f, 0x50, 0x33, 0x4b));
 }
 
 TEST_CASE(test_webp_extended_lossy_alpha_vertical_filter)
@@ -739,7 +739,7 @@ TEST_CASE(test_webp_extended_lossy_alpha_vertical_filter)
     // While VP8 YUV contents are defined bit-exact, the YUV->RGB conversion isn't.
     // So pixels changing by 1 or so below is fine if you change code.
     // The important component in this test is alpha, and that shouldn't change even by 1 as it's losslessly compressed and doesn't use YUV.
-    EXPECT_EQ(frame.image->get_pixel(131, 131), Gfx::Color(0x94, 0x50, 0x32, 0x4c));
+    EXPECT_EQ(frame.image->get_pixel(131, 131), Gfx::Color(0x92, 0x50, 0x32, 0x4c));
 }
 
 TEST_CASE(test_webp_extended_lossy_alpha_gradient_filter)
@@ -756,7 +756,7 @@ TEST_CASE(test_webp_extended_lossy_alpha_gradient_filter)
     // So pixels changing by 1 or so below is fine if you change code.
     // The important component in this test is alpha, and that shouldn't change even by 1 as it's losslessly compressed and doesn't use YUV.
     // In particular, the center of the image should be fully opaque, not fully transparent.
-    EXPECT_EQ(frame.image->get_pixel(131, 131), Gfx::Color(0x8c, 0x47, 0x2e, 255));
+    EXPECT_EQ(frame.image->get_pixel(131, 131), Gfx::Color(0x8a, 0x48, 0x2e, 255));
 }
 
 TEST_CASE(test_webp_extended_lossy_uncompressed_alpha)
@@ -769,8 +769,8 @@ TEST_CASE(test_webp_extended_lossy_uncompressed_alpha)
 
     // While VP8 YUV contents are defined bit-exact, the YUV->RGB conversion isn't.
     // So pixels changing by 1 or so below is fine if you change code.
-    EXPECT_EQ(frame.image->get_pixel(89, 72), Gfx::Color(255, 0, 4, 255));
-    EXPECT_EQ(frame.image->get_pixel(174, 69), Gfx::Color(4, 255, 0, 255));
+    EXPECT_EQ(frame.image->get_pixel(89, 72), Gfx::Color(254, 0, 6, 255));
+    EXPECT_EQ(frame.image->get_pixel(174, 69), Gfx::Color(0, 255, 0, 255));
     EXPECT_EQ(frame.image->get_pixel(245, 84), Gfx::Color(0, 0, 255, 255));
     EXPECT_EQ(frame.image->get_pixel(352, 125), Gfx::Color(0, 0, 0, 128));
     EXPECT_EQ(frame.image->get_pixel(355, 106), Gfx::Color(0, 0, 0, 0));
@@ -786,7 +786,7 @@ TEST_CASE(test_webp_extended_lossy_negative_quantization_offset)
 
     // While VP8 YUV contents are defined bit-exact, the YUV->RGB conversion isn't.
     // So pixels changing by 1 or so below is fine if you change code.
-    EXPECT_EQ(frame.image->get_pixel(16, 16), Gfx::Color(0x3c, 0x24, 0x1a, 255));
+    EXPECT_EQ(frame.image->get_pixel(16, 16), Gfx::Color(0x3b, 0x25, 0x18, 255));
 }
 
 TEST_CASE(test_webp_lossy_4)
@@ -813,7 +813,7 @@ TEST_CASE(test_webp_lossy_4_with_partitions)
     auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1024, 772 }));
-    EXPECT_EQ(frame.image->get_pixel(780, 570), Gfx::Color(0x73, 0xc9, 0xf9, 255));
+    EXPECT_EQ(frame.image->get_pixel(780, 570), Gfx::Color(0x72, 0xc7, 0xf8, 255));
 }
 
 TEST_CASE(test_webp_extended_lossless)
