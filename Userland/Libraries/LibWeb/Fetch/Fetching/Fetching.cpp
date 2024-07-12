@@ -138,6 +138,39 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Infrastructure::FetchController>> fetch(JS:
     if (origin && *origin == Infrastructure::Request::Origin::Client)
         request.set_origin(request.client()->origin());
 
+    // 11. If all of the following conditions are true:
+    if (
+        // - request’s URL’s scheme is an HTTP(S) scheme
+        Infrastructure::is_http_or_https_scheme(request.url().scheme())
+        // - request’s mode is "same-origin", "cors", or "no-cors"
+        && (request.mode() == Infrastructure::Request::Mode::SameOrigin || request.mode() == Infrastructure::Request::Mode::CORS || request.mode() == Infrastructure::Request::Mode::NoCORS)
+        // - request’s window is an environment settings object
+        && request.window().has<JS::GCPtr<HTML::EnvironmentSettingsObject>>()
+        // - request’s method is `GET`
+        && StringView { request.method() }.equals_ignoring_ascii_case("GET"sv)
+        // - request’s unsafe-request flag is not set or request’s header list is empty
+        && (!request.unsafe_request() || request.header_list()->is_empty())) {
+        // 1. Assert: request’s origin is same origin with request’s client’s origin.
+        VERIFY(request.origin().has<HTML::Origin>() && request.origin().get<HTML::Origin>().is_same_origin(request.client()->origin()));
+
+        // 2. Let onPreloadedResponseAvailable be an algorithm that runs the following step given a response
+        //    response: set fetchParams’s preloaded response candidate to response.
+        auto on_preloaded_response_available = JS::create_heap_function(realm.heap(), [fetch_params](JS::NonnullGCPtr<Infrastructure::Response> response) {
+            fetch_params->set_preloaded_response_candidate(response);
+        });
+
+        // FIXME: 3. Let foundPreloadedResource be the result of invoking consume a preloaded resource for request’s
+        //    window, given request’s URL, request’s destination, request’s mode, request’s credentials mode,
+        //    request’s integrity metadata, and onPreloadedResponseAvailable.
+        auto found_preloaded_resource = false;
+        (void)on_preloaded_response_available;
+
+        // 4. If foundPreloadedResource is true and fetchParams’s preloaded response candidate is null, then set
+        //    fetchParams’s preloaded response candidate to "pending".
+        if (found_preloaded_resource && fetch_params->preloaded_response_candidate().has<Empty>())
+            fetch_params->set_preloaded_response_candidate(Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag {});
+    }
+
     // 12. If request’s policy container is "client", then:
     auto const* policy_container = request.policy_container().get_pointer<Infrastructure::Request::PolicyContainer>();
     if (policy_container) {
