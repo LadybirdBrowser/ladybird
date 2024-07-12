@@ -189,9 +189,13 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Infrastructure::FetchController>> fetch(JS:
         // 1. Let value be `*/*`.
         auto value = "*/*"sv;
 
-        // 2. A user agent should set value to the first matching statement, if any, switching on request’s
-        //    destination:
-        if (request.destination().has_value()) {
+        // 2. If request’s initiator is "prefetch", then set value to the document `Accept` header value.
+        if (request.initiator() == Infrastructure::Request::Initiator::Prefetch) {
+            value = document_accept_header_value;
+        }
+
+        // 3. Otherwise, the user agent should set value to the first matching statement, if any, switching on request’s destination:
+        else if (request.destination().has_value()) {
             switch (*request.destination()) {
             // -> "document"
             // -> "frame"
@@ -199,8 +203,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Infrastructure::FetchController>> fetch(JS:
             case Infrastructure::Request::Destination::Document:
             case Infrastructure::Request::Destination::Frame:
             case Infrastructure::Request::Destination::IFrame:
-                // `text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`
-                value = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"sv;
+                // the document `Accept` header value
+                value = document_accept_header_value;
                 break;
             // -> "image"
             case Infrastructure::Request::Destination::Image:
@@ -222,7 +226,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Infrastructure::FetchController>> fetch(JS:
             }
         }
 
-        // 3. Append (`Accept`, value) to request’s header list.
+        // 4. Append (`Accept`, value) to request’s header list.
         auto header = Infrastructure::Header::from_string_pair("Accept"sv, value.bytes());
         request.header_list()->append(move(header));
     }
