@@ -22,7 +22,7 @@
 #include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
-#include <LibGfx/Font/WOFF/Font.h>
+#include <LibGfx/Font/WOFF/Typeface.h>
 #include <LibGfx/Font/WOFF2/Font.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
@@ -172,7 +172,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
         }
     }
     if (mime_type == "font/woff"sv || mime_type == "application/font-woff"sv) {
-        if (auto result = WOFF::Font::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+        if (auto result = WOFF::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
             return result;
         }
     }
@@ -186,7 +186,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
     auto ttf = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!ttf.is_error())
         return ttf.release_value();
-    auto woff = WOFF::Font::try_load_from_externally_owned_memory(resource()->encoded_data());
+    auto woff = WOFF::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!woff.is_error())
         return woff.release_value();
     auto woff2 = WOFF2::Font::try_load_from_externally_owned_memory(resource()->encoded_data());

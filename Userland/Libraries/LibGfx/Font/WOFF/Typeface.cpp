@@ -11,7 +11,7 @@
 #include <LibCompress/Zlib.h>
 #include <LibCore/Resource.h>
 #include <LibGfx/Font/OpenType/Typeface.h>
-#include <LibGfx/Font/WOFF/Font.h>
+#include <LibGfx/Font/WOFF/Typeface.h>
 
 namespace WOFF {
 
@@ -69,12 +69,12 @@ static u16 pow_2_less_than_or_equal(u16 x)
     return 1 << (sizeof(u16) * 8 - count_leading_zeroes_safe<u16>(x - 1));
 }
 
-ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_resource(Core::Resource const& resource, unsigned index)
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, unsigned index)
 {
     return try_load_from_externally_owned_memory(resource.data(), index);
 }
 
-ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_externally_owned_memory(ReadonlyBytes buffer, unsigned int index)
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_externally_owned_memory(ReadonlyBytes buffer, unsigned int index)
 {
     FixedMemoryStream stream(buffer);
     auto header = TRY(stream.read_value<Header>());
@@ -159,7 +159,7 @@ ErrorOr<NonnullRefPtr<Font>> Font::try_load_from_externally_owned_memory(Readonl
         return Error::from_string_literal("Invalid WOFF total sfnt size");
 
     auto input_font = TRY(OpenType::Typeface::try_load_from_externally_owned_memory(font_buffer.bytes(), { .index = index }));
-    auto font = adopt_ref(*new Font(input_font, move(font_buffer)));
+    auto font = adopt_ref(*new Typeface(input_font, move(font_buffer)));
     return font;
 }
 
