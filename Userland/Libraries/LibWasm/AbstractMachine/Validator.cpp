@@ -2927,7 +2927,7 @@ VALIDATE_INSTRUCTION(v128_store8_lane)
     if ((1 << arg.memory.align) > max_alignment)
         return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
 
-    return stack.take_and_put<ValueType::V128, ValueType::I32>(ValueType::V128);
+    return stack.take<ValueType::V128, ValueType::I32>();
 }
 
 VALIDATE_INSTRUCTION(v128_store16_lane)
@@ -2945,7 +2945,7 @@ VALIDATE_INSTRUCTION(v128_store16_lane)
     if ((1 << arg.memory.align) > max_alignment)
         return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
 
-    return stack.take_and_put<ValueType::V128, ValueType::I32>(ValueType::V128);
+    return stack.take<ValueType::V128, ValueType::I32>();
 }
 
 VALIDATE_INSTRUCTION(v128_store32_lane)
@@ -2963,7 +2963,7 @@ VALIDATE_INSTRUCTION(v128_store32_lane)
     if ((1 << arg.memory.align) > max_alignment)
         return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
 
-    return stack.take_and_put<ValueType::V128, ValueType::I32>(ValueType::V128);
+    return stack.take<ValueType::V128, ValueType::I32>();
 }
 
 VALIDATE_INSTRUCTION(v128_store64_lane)
@@ -2981,7 +2981,7 @@ VALIDATE_INSTRUCTION(v128_store64_lane)
     if ((1 << arg.memory.align) > max_alignment)
         return Errors::out_of_bounds("memory op alignment"sv, 1 << arg.memory.align, 0u, max_alignment);
 
-    return stack.take_and_put<ValueType::V128, ValueType::I32>(ValueType::V128);
+    return stack.take<ValueType::V128, ValueType::I32>();
 }
 
 VALIDATE_INSTRUCTION(v128_load32_zero)
