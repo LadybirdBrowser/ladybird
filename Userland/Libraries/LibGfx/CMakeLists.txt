@@ -22,7 +22,7 @@ set(SOURCES
     Font/ScaledFont.cpp
     Font/Typeface.cpp
     Font/WOFF/Typeface.cpp
-    Font/WOFF2/Font.cpp
+    Font/WOFF2/Typeface.cpp
     GradientPainting.cpp
     ICC/BinaryWriter.cpp
     ICC/Enums.cpp
