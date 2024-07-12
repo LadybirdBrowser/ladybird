@@ -47,6 +47,13 @@ static JS::GCPtr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& pai
 
 static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, JS::GCPtr<DOM::Node>& node, Layout::Node*& layout_node)
 {
+    auto* current_ancestor_node = node.ptr();
+    do {
+        if (is<HTML::FormAssociatedElement>(current_ancestor_node) && !dynamic_cast<HTML::FormAssociatedElement*>(current_ancestor_node)->enabled()) {
+            return false;
+        }
+    } while ((current_ancestor_node = current_ancestor_node->parent()));
+
     layout_node = &paintable.layout_node();
     while (layout_node && node && !node->is_element() && layout_node->parent()) {
         layout_node = layout_node->parent();
