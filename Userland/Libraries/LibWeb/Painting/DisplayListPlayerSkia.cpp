@@ -13,8 +13,10 @@
 #include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
 #include <core/SkPathBuilder.h>
+#include <core/SkPathEffect.h>
 #include <core/SkRRect.h>
 #include <core/SkSurface.h>
+#include <effects/SkDashPathEffect.h>
 #include <effects/SkGradientShader.h>
 #include <effects/SkImageFilters.h>
 #include <gpu/GrDirectContext.h>
@@ -909,9 +911,44 @@ CommandResult DisplayListPlayerSkia::draw_line(DrawLine const& command)
     auto from = to_skia_point(command.from);
     auto to = to_skia_point(command.to);
     auto& canvas = surface().canvas();
+
     SkPaint paint;
     paint.setStrokeWidth(command.thickness);
     paint.setColor(to_skia_color(command.color));
+
+    switch (command.style) {
+    case Gfx::LineStyle::Solid:
+        break;
+    case Gfx::LineStyle::Dotted: {
+        auto length = command.to.distance_from(command.from);
+        auto dot_count = floor(length / (static_cast<float>(command.thickness) * 2));
+        auto interval = length / dot_count;
+        SkScalar intervals[] = { 0, interval };
+        paint.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+        paint.setStrokeCap(SkPaint::Cap::kRound_Cap);
+
+        // NOTE: As Skia doesn't render a dot exactly at the end of a line, we need
+        //       to extend it by less then an interval.
+        auto direction = to - from;
+        direction.normalize();
+        to += direction * (interval / 2.0f);
+        break;
+    }
+    case Gfx::LineStyle::Dashed: {
+        auto length = command.to.distance_from(command.from) + command.thickness;
+        auto dash_count = floor(length / static_cast<float>(command.thickness) / 4) * 2 + 1;
+        auto interval = length / dash_count;
+        SkScalar intervals[] = { interval, interval };
+        paint.setPathEffect(SkDashPathEffect::Make(intervals, 2, 0));
+
+        auto direction = to - from;
+        direction.normalize();
+        from -= direction * (command.thickness / 2.0f);
+        to += direction * (command.thickness / 2.0f);
+        break;
+    }
+    }
+
     canvas.drawLine(from, to, paint);
     return CommandResult::Continue;
 }
