@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +10,7 @@
 #include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/HTML/HTMLMarqueeElement.h>
+#include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 
 namespace Web::HTML {
@@ -39,6 +41,23 @@ void HTMLMarqueeElement::apply_presentational_hints(CSS::StyleProperties& style)
                 style.set_property(CSS::PropertyID::BackgroundColor, CSS::ColorStyleValue::create(color.value()));
         }
     });
+}
+
+// https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrollamount
+WebIDL::UnsignedLong HTMLMarqueeElement::scroll_amount()
+{
+    // The scrollAmount IDL attribute must reflect the scrollamount content attribute. The default value is 6.
+    if (auto scroll_amount_string = get_attribute(HTML::AttributeNames::scrollamount); scroll_amount_string.has_value()) {
+        if (auto scroll_amount = parse_non_negative_integer(*scroll_amount_string); scroll_amount.has_value())
+            return *scroll_amount;
+    }
+    return 6;
+}
+
+// https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrollamount
+WebIDL::ExceptionOr<void> HTMLMarqueeElement::set_scroll_amount(WebIDL::UnsignedLong value)
+{
+    return set_attribute(HTML::AttributeNames::scrollamount, MUST(String::number(value)));
 }
 
 }

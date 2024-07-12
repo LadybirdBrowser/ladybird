@@ -224,6 +224,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(rowspan)                    \
     __ENUMERATE_HTML_ATTRIBUTE(rules)                      \
     __ENUMERATE_HTML_ATTRIBUTE(scheme)                     \
+    __ENUMERATE_HTML_ATTRIBUTE(scrollamount)               \
     __ENUMERATE_HTML_ATTRIBUTE(scrolling)                  \
     __ENUMERATE_HTML_ATTRIBUTE(selected)                   \
     __ENUMERATE_HTML_ATTRIBUTE(shadowrootclonable)         \
