@@ -12,8 +12,31 @@ The recommended extensions for VS Code include:
 
 ## Configuration
 
+To be compatible with `./Meta/ladybird.sh`, we must set CC and CXX to the correct compilers for *both* configure and build. This can be done in the `.vscode/settings.json` file.
+
+```json
+{
+  "cmake.configureEnvironment": {
+    "CC": "clang-18",
+    "CXX": "clang++-18"
+  },
+  "cmake.buildEnvironment": {
+    "CC": "clang-18",
+    "CXX": "clang++-18"
+  },
+  "clangd.path": "clangd-18"
+}
+```
+
+Run `./Meta/ladybird.sh build` at least once to kick off downloading and building vcpkg dependencies.
+
 The CMake Tools plugin should automatically detect the `CMakePresets.json` at the root of the repository.
-Selecting and activating the `default` preset should be enough to get started.
+Selecting and activating the `default` preset should be enough to get started after the initial build.
+You can also use the `Debug` preset to build with debug symbols, or the `Sanitizer` preset to build with ASAN/UBSAN.
+
+If building through VsCode itself causes vcpkg to rebuild the world, verify that the environment settings match the `CMAKE_CXX_COMPILER` line in the build directory's `CMakeCache.txt`.
+
+For additional settings recommendations, see the [Settings](#settings) section below.
 
 ## Code comprehension
 
@@ -130,6 +153,15 @@ These belong in the `.vscode/settings.json` of Serenity.
     // git commit message length
     "git.inputValidationLength": 72,
     "git.inputValidationSubjectLength": 72,
+    "cmake.configureEnvironment": {
+      "CC": "clang-18",
+      "CXX": "clang++-18"
+    },
+    "cmake.buildEnvironment": {
+      "CC": "clang-18",
+      "CXX": "clang++-18"
+    },
+    "clangd.path": "clangd-18",
     "clangd.arguments": [
         "--header-insertion=never" // See https://github.com/clangd/clangd/issues/1247
     ]
