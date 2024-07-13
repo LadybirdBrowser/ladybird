@@ -70,7 +70,7 @@ public:
 
     ErrorOr<String> dump_layout_tree();
 
-    void set_viewport_rect(Gfx::IntRect);
+    void set_viewport_size(Gfx::IntSize);
     void set_window_size(Gfx::IntSize);
     void set_window_position(Gfx::IntPoint);
     void set_device_pixel_ratio(double);

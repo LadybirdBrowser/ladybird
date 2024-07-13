@@ -459,10 +459,10 @@ void WebContentView::resizeEvent(QResizeEvent* event)
     handle_resize();
 }
 
-void WebContentView::set_viewport_rect(Gfx::IntRect rect)
+void WebContentView::set_viewport_size(Gfx::IntSize size)
 {
-    m_viewport_size = rect.size();
-    client().async_set_viewport_size(m_client_state.page_index, rect.size().to_type<Web::DevicePixels>());
+    m_viewport_size = size;
+    client().async_set_viewport_size(m_client_state.page_index, size.to_type<Web::DevicePixels>());
 }
 
 void WebContentView::set_window_size(Gfx::IntSize size)
@@ -487,9 +487,8 @@ void WebContentView::update_viewport_size()
 {
     auto scaled_width = int(viewport()->width() * m_device_pixel_ratio);
     auto scaled_height = int(viewport()->height() * m_device_pixel_ratio);
-    Gfx::IntRect rect(0, 0, scaled_width, scaled_height);
 
-    set_viewport_rect(rect);
+    set_viewport_size({ scaled_width, scaled_height });
 }
 
 void WebContentView::update_zoom()
