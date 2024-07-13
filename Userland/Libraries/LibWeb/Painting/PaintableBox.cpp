@@ -340,13 +340,28 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
     auto scrollbar_width = computed_values().scrollbar_width();
     if (phase == PaintPhase::Overlay && scrollbar_width != CSS::ScrollbarWidth::None) {
         auto color = Color(Color::NamedColor::DarkGray).with_alpha(128);
+        auto border_color = Color(Color::NamedColor::LightGray).with_alpha(128);
+        auto borders_data = BordersDataDevicePixels {
+            .top = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
+            .right = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
+            .bottom = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
+            .left = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
+        };
         int thumb_corner_radius = static_cast<int>(context.rounded_device_pixels(scrollbar_thumb_thickness / 2));
+        CornerRadii corner_radii = {
+            .top_left = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
+            .top_right = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
+            .bottom_right = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
+            .bottom_left = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
+        };
         if (auto thumb_rect = scroll_thumb_rect(ScrollDirection::Horizontal); thumb_rect.has_value()) {
             auto thumb_device_rect = context.enclosing_device_rect(thumb_rect.value());
+            paint_all_borders(context.display_list_recorder(), thumb_device_rect, corner_radii, borders_data);
             context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius);
         }
         if (auto thumb_rect = scroll_thumb_rect(ScrollDirection::Vertical); thumb_rect.has_value()) {
             auto thumb_device_rect = context.enclosing_device_rect(thumb_rect.value());
+            paint_all_borders(context.display_list_recorder(), thumb_device_rect, corner_radii, borders_data);
             context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius);
         }
     }
