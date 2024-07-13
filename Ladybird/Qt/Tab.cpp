@@ -905,6 +905,9 @@ void Tab::update_hover_label()
 
 void Tab::update_navigation_buttons_state()
 {
+    if (m_window->current_tab() != this)
+        return;
+
     m_window->go_back_action().setEnabled(m_can_navigate_back);
     m_window->go_forward_action().setEnabled(m_can_navigate_forward);
 }
