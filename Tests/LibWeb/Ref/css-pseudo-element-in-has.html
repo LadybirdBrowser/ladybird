@@ -1,0 +1,12 @@
+<!doctype html>
+<link rel="match" href="reference/css-pseudo-element-in-has.html" />
+<style>
+    span::after {
+        content: "bar";
+        color: red;
+    }
+    a:has(::after) {
+        color: orange;
+    }
+</style>
+<a href="https://example.com"><span>foo</span></a>

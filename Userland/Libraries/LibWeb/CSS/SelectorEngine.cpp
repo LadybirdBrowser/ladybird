@@ -63,6 +63,56 @@ static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector
     return false;
 }
 
+// https://drafts.csswg.org/selectors-4/#relational
+static inline bool matches_has_pseudo_class(CSS::Selector const& selector, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& anchor)
+{
+    switch (selector.compound_selectors()[0].combinator) {
+    // Shouldn't be possible because we've parsed relative selectors, which always have a combinator, implicitly or explicitly.
+    case CSS::Selector::Combinator::None:
+        VERIFY_NOT_REACHED();
+    case CSS::Selector::Combinator::Descendant: {
+        bool has = false;
+        anchor.for_each_in_subtree([&](auto const& descendant) {
+            if (!descendant.is_element())
+                return TraversalDecision::Continue;
+            auto const& descendant_element = static_cast<DOM::Element const&>(descendant);
+            if (matches(selector, style_sheet_for_rule, descendant_element, {}, {}, SelectorKind::Relative)) {
+                has = true;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+        return has;
+    }
+    case CSS::Selector::Combinator::ImmediateChild: {
+        bool has = false;
+        anchor.for_each_child([&](DOM::Node const& child) {
+            if (!child.is_element())
+                return IterationDecision::Continue;
+            auto const& child_element = static_cast<DOM::Element const&>(child);
+            if (matches(selector, style_sheet_for_rule, child_element, {}, {}, SelectorKind::Relative)) {
+                has = true;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
+        });
+        return has;
+    }
+    case CSS::Selector::Combinator::NextSibling:
+        return anchor.next_element_sibling() != nullptr && matches(selector, style_sheet_for_rule, *anchor.next_element_sibling(), {}, {}, SelectorKind::Relative);
+    case CSS::Selector::Combinator::SubsequentSibling: {
+        for (auto* sibling = anchor.next_element_sibling(); sibling; sibling = sibling->next_element_sibling()) {
+            if (matches(selector, style_sheet_for_rule, *sibling, {}, {}, SelectorKind::Relative))
+                return true;
+        }
+        return false;
+    }
+    case CSS::Selector::Combinator::Column:
+        TODO();
+    }
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-link
 static inline bool matches_link_pseudo_class(DOM::Element const& element)
 {
@@ -268,7 +318,7 @@ static bool matches_open_state_pseudo_class(DOM::Element const& element, bool op
     return false;
 }
 
-static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoClassSelector const& pseudo_class, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element, JS::GCPtr<DOM::ParentNode const> scope)
+static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoClassSelector const& pseudo_class, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element, JS::GCPtr<DOM::ParentNode const> scope, SelectorKind selector_kind)
 {
     switch (pseudo_class.type) {
     case CSS::PseudoClass::Link:
@@ -359,6 +409,16 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return matches_indeterminate_pseudo_class(element);
     case CSS::PseudoClass::Defined:
         return element.is_defined();
+    case CSS::PseudoClass::Has:
+        // :has() cannot be nested in a :has()
+        if (selector_kind == SelectorKind::Relative)
+            return false;
+        // These selectors should be relative selectors (https://drafts.csswg.org/selectors-4/#relative-selector)
+        for (auto& selector : pseudo_class.argument_selector_list) {
+            if (matches_has_pseudo_class(selector, style_sheet_for_rule, element))
+                return true;
+        }
+        return false;
     case CSS::PseudoClass::Is:
     case CSS::PseudoClass::Where:
         for (auto& selector : pseudo_class.argument_selector_list) {
@@ -588,7 +648,7 @@ static ALWAYS_INLINE bool matches_namespace(
     VERIFY_NOT_REACHED();
 }
 
-static inline bool matches(CSS::Selector::SimpleSelector const& component, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element, JS::GCPtr<DOM::ParentNode const> scope)
+static inline bool matches(CSS::Selector::SimpleSelector const& component, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element, JS::GCPtr<DOM::ParentNode const> scope, SelectorKind selector_kind)
 {
     switch (component.type) {
     case CSS::Selector::SimpleSelector::Type::Universal:
@@ -615,7 +675,7 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, Optio
     case CSS::Selector::SimpleSelector::Type::Attribute:
         return matches_attribute(component.attribute(), style_sheet_for_rule, element);
     case CSS::Selector::SimpleSelector::Type::PseudoClass:
-        return matches_pseudo_class(component.pseudo_class(), style_sheet_for_rule, element, scope);
+        return matches_pseudo_class(component.pseudo_class(), style_sheet_for_rule, element, scope, selector_kind);
     case CSS::Selector::SimpleSelector::Type::PseudoElement:
         // Pseudo-element matching/not-matching is handled in the top level matches().
         return true;
@@ -624,22 +684,26 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, Optio
     }
 }
 
-static inline bool matches(CSS::Selector const& selector, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, int component_list_index, DOM::Element const& element, JS::GCPtr<DOM::ParentNode const> scope)
+static inline bool matches(CSS::Selector const& selector, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, int component_list_index, DOM::Element const& element, JS::GCPtr<DOM::ParentNode const> scope, SelectorKind selector_kind)
 {
-    auto& relative_selector = selector.compound_selectors()[component_list_index];
-    for (auto& simple_selector : relative_selector.simple_selectors) {
-        if (!matches(simple_selector, style_sheet_for_rule, element, scope))
+    auto& compound_selector = selector.compound_selectors()[component_list_index];
+    for (auto& simple_selector : compound_selector.simple_selectors) {
+        if (!matches(simple_selector, style_sheet_for_rule, element, scope, selector_kind))
             return false;
     }
-    switch (relative_selector.combinator) {
+    // Always matches because we assume that element is already relative to its anchor
+    if (selector_kind == SelectorKind::Relative && component_list_index == 0)
+        return true;
+    switch (compound_selector.combinator) {
     case CSS::Selector::Combinator::None:
+        VERIFY(selector_kind != SelectorKind::Relative);
         return true;
     case CSS::Selector::Combinator::Descendant:
         VERIFY(component_list_index != 0);
         for (auto* ancestor = element.parent(); ancestor; ancestor = ancestor->parent()) {
             if (!is<DOM::Element>(*ancestor))
                 continue;
-            if (matches(selector, style_sheet_for_rule, component_list_index - 1, static_cast<DOM::Element const&>(*ancestor), scope))
+            if (matches(selector, style_sheet_for_rule, component_list_index - 1, static_cast<DOM::Element const&>(*ancestor), scope, selector_kind))
                 return true;
         }
         return false;
@@ -647,16 +711,16 @@ static inline bool matches(CSS::Selector const& selector, Optional<CSS::CSSStyle
         VERIFY(component_list_index != 0);
         if (!element.parent() || !is<DOM::Element>(*element.parent()))
             return false;
-        return matches(selector, style_sheet_for_rule, component_list_index - 1, static_cast<DOM::Element const&>(*element.parent()), scope);
+        return matches(selector, style_sheet_for_rule, component_list_index - 1, static_cast<DOM::Element const&>(*element.parent()), scope, selector_kind);
     case CSS::Selector::Combinator::NextSibling:
         VERIFY(component_list_index != 0);
         if (auto* sibling = element.previous_element_sibling())
-            return matches(selector, style_sheet_for_rule, component_list_index - 1, *sibling, scope);
+            return matches(selector, style_sheet_for_rule, component_list_index - 1, *sibling, scope, selector_kind);
         return false;
     case CSS::Selector::Combinator::SubsequentSibling:
         VERIFY(component_list_index != 0);
         for (auto* sibling = element.previous_element_sibling(); sibling; sibling = sibling->previous_element_sibling()) {
-            if (matches(selector, style_sheet_for_rule, component_list_index - 1, *sibling, scope))
+            if (matches(selector, style_sheet_for_rule, component_list_index - 1, *sibling, scope, selector_kind))
                 return true;
         }
         return false;
@@ -666,14 +730,14 @@ static inline bool matches(CSS::Selector const& selector, Optional<CSS::CSSStyle
     VERIFY_NOT_REACHED();
 }
 
-bool matches(CSS::Selector const& selector, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, JS::GCPtr<DOM::ParentNode const> scope)
+bool matches(CSS::Selector const& selector, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, JS::GCPtr<DOM::ParentNode const> scope, SelectorKind selector_kind)
 {
     VERIFY(!selector.compound_selectors().is_empty());
     if (pseudo_element.has_value() && selector.pseudo_element().has_value() && selector.pseudo_element().value().type() != pseudo_element)
         return false;
     if (!pseudo_element.has_value() && selector.pseudo_element().has_value())
         return false;
-    return matches(selector, style_sheet_for_rule, selector.compound_selectors().size() - 1, element, scope);
+    return matches(selector, style_sheet_for_rule, selector.compound_selectors().size() - 1, element, scope, selector_kind);
 }
 
 static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element)
@@ -696,7 +760,7 @@ static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& si
     case CSS::Selector::SimpleSelector::Type::Attribute:
         return matches_attribute(simple_selector.attribute(), style_sheet_for_rule, element);
     case CSS::Selector::SimpleSelector::Type::PseudoClass:
-        return matches_pseudo_class(simple_selector.pseudo_class(), style_sheet_for_rule, element, nullptr);
+        return matches_pseudo_class(simple_selector.pseudo_class(), style_sheet_for_rule, element, nullptr, SelectorKind::Normal);
     default:
         VERIFY_NOT_REACHED();
     }
