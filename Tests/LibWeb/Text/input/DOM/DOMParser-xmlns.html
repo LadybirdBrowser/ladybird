@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const svgstr = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:test="foo"></svg>`;
+        const svg = new DOMParser().parseFromString(svgstr, "image/svg+xml").documentElement;
+        for (const attr of svg.attributes) {
+            println(`namespaceURI=${attr.namespaceURI} prefix=${attr.prefix} localName=${attr.localName} value=${attr.value}`);
+        }
+    });
+</script>
