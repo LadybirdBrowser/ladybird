@@ -15,6 +15,7 @@ source_set("HTML") {
     "AttributeNames.cpp",
     "AudioTrack.cpp",
     "AudioTrackList.cpp",
+    "BroadcastChannel.cpp",
     "BrowsingContext.cpp",
     "BrowsingContextGroup.cpp",
     "CORSSettingAttribute.cpp",

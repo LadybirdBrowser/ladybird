@@ -249,6 +249,7 @@ set(SOURCES
     HTML/AttributeNames.cpp
     HTML/AudioTrack.cpp
     HTML/AudioTrackList.cpp
+    HTML/BroadcastChannel.cpp
     HTML/BrowsingContext.cpp
     HTML/BrowsingContextGroup.cpp
     HTML/Canvas/CanvasDrawImage.cpp
