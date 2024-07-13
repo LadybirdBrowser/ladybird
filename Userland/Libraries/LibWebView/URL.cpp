@@ -36,8 +36,8 @@ Optional<String> get_public_suffix([[maybe_unused]] StringView host)
 
 Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engine, AppendTLD append_tld)
 {
-    if (FileSystem::exists(url)) {
-        auto path = FileSystem::real_path(url);
+    if (FileSystem::exists(url.trim_whitespace())) {
+        auto path = FileSystem::real_path(url.trim_whitespace());
         if (path.is_error())
             return {};
 
