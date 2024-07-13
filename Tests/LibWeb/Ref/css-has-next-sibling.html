@@ -1,0 +1,11 @@
+<!doctype html>
+<link rel="match" href="reference/css-has-next-sibling.html" />
+<style>
+    a:has(+ span) {
+        color: orange;
+    }
+</style>
+<a href="https://example.com">Link</a><span>Hello!</span>
+<a href="https://example.com">Link</a><em>Hello!</em>
+<a href="https://example.com">Link</a><em>Hello</em><span>world!</span>
+<a href="https://example.com">Link</a>

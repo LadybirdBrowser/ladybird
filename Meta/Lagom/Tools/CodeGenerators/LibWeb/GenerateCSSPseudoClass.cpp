@@ -72,6 +72,7 @@ struct PseudoClassMetadata {
         ANPlusBOf,
         CompoundSelector,
         ForgivingSelectorList,
+        ForgivingRelativeSelectorList,
         Ident,
         LanguageRanges,
         SelectorList,
@@ -167,6 +168,8 @@ PseudoClassMetadata pseudo_class_metadata(PseudoClass pseudo_class)
                 parameter_type = "CompoundSelector"_string;
             } else if (argument_string == "<forgiving-selector-list>"sv) {
                 parameter_type = "ForgivingSelectorList"_string;
+            } else if (argument_string == "<forgiving-relative-selector-list>"sv) {
+                parameter_type = "ForgivingRelativeSelectorList"_string;
             } else if (argument_string == "<ident>"sv) {
                 parameter_type = "Ident"_string;
             } else if (argument_string == "<language-ranges>"sv) {

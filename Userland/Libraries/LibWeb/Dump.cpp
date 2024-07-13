@@ -527,6 +527,7 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector)
                 }
                 case CSS::PseudoClassMetadata::ParameterType::CompoundSelector:
                 case CSS::PseudoClassMetadata::ParameterType::ForgivingSelectorList:
+                case CSS::PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:
                 case CSS::PseudoClassMetadata::ParameterType::SelectorList: {
                     builder.append("(["sv);
                     for (auto& selector : pseudo_class.argument_selector_list)

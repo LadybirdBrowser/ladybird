@@ -119,6 +119,7 @@ u32 Selector::specificity() const
             case SimpleSelector::Type::PseudoClass: {
                 auto& pseudo_class = simple_selector.pseudo_class();
                 switch (pseudo_class.type) {
+                case PseudoClass::Has:
                 case PseudoClass::Is:
                 case PseudoClass::Not: {
                     // The specificity of an :is(), :not(), or :has() pseudo-class is replaced by the
