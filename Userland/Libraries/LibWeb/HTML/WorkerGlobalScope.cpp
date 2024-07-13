@@ -76,6 +76,24 @@ void WorkerGlobalScope::close_a_worker()
     m_closing = true;
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#terminate-a-worker
+void WorkerGlobalScope::terminate_a_worker()
+{
+    // 1. Set the worker's WorkerGlobalScope object's closing flag to true.
+    m_closing = true;
+
+    // 2. If there are any tasks queued in the WorkerGlobalScope object's relevant agent's event loop's task queues, discard them without processing them.
+    relevant_settings_object(*this).responsible_event_loop().task_queue().remove_tasks_matching([](HTML::Task const&) {
+        return true;
+    });
+
+    // 3. FIXME: Abort the script currently running in the worker.
+
+    // 4. If the worker's WorkerGlobalScope object is actually a DedicatedWorkerGlobalScope object (i.e. the worker is a dedicated worker),
+    //    then empty the port message queue of the port that the worker's implicit port is entangled with.
+    // NOTE: Handled on the other end
+}
+
 // https://html.spec.whatwg.org/multipage/workers.html#importing-scripts-and-libraries
 WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const& urls, PerformTheFetchHook perform_fetch)
 {

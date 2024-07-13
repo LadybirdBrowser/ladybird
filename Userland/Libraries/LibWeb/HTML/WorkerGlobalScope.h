@@ -100,6 +100,7 @@ protected:
     virtual void initialize_web_interfaces_impl();
 
     void close_a_worker();
+    void terminate_a_worker();
 
     virtual void finalize() override;
 
