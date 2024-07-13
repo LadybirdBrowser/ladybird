@@ -153,20 +153,11 @@ delete_target() {
     [ ! -d "$BUILD_DIR" ] || rm -rf "$BUILD_DIR"
 }
 
-build_cmake() {
-    echo "CMake version too old: build_cmake"
-    ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildCMake.sh )
-}
-
 build_vcpkg() {
     ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildVcpkg.sh )
 }
 
 ensure_toolchain() {
-    if [ "$(cmake -P "$LADYBIRD_SOURCE_DIR"/Meta/CMake/cmake-version.cmake)" -ne 1 ]; then
-        build_cmake
-    fi
-
     build_vcpkg
 }
 

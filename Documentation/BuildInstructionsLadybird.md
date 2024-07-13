@@ -15,7 +15,7 @@ NOTE: In all of the below lists of packages, the Qt6 multimedia package is not n
 ```bash
 sudo apt install autoconf autoconf-archive automake build-essential git cmake libavcodec-dev libgl1-mesa-dev nasm \
                  ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev qt6-wayland ccache fonts-liberation2 \
-                 zip unzip curl tar libssl-dev
+                 zip unzip curl tar
 ```
 
 #### CMake 3.25 or newer:
