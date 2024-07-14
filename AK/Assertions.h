@@ -21,8 +21,8 @@ static constexpr bool TODO = false;
 #define TODO_PPC64() VERIFY(TODO)   /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
 #define TODO_PPC() VERIFY(TODO)     /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
 
-#ifndef NDEBUG
 extern "C" __attribute__((noreturn)) void ak_assertion_failed(char const*);
+#ifndef NDEBUG
 #    define ASSERT(expr)                                                               \
         (__builtin_expect(!(expr), 0)                                                  \
                 ? ak_assertion_failed(#expr " at " __FILE__ ":" __stringify(__LINE__)) \

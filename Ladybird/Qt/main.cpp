@@ -30,6 +30,8 @@
 
 namespace Ladybird {
 
+// FIXME: Find a place to put this declaration (and other helper functions).
+bool is_using_dark_system_theme(QWidget&);
 bool is_using_dark_system_theme(QWidget& widget)
 {
     // FIXME: Qt does not provide any method to query if the system is using a dark theme. We will have to implement

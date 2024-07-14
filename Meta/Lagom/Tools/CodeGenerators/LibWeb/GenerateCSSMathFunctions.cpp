@@ -10,34 +10,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibMain/Main.h>
 
-ErrorOr<void> generate_header_file(JsonObject& functions_data, Core::File& file);
-ErrorOr<void> generate_implementation_file(JsonObject& functions_data, Core::File& file);
-
-ErrorOr<int> serenity_main(Main::Arguments arguments)
-{
-    StringView generated_header_path;
-    StringView generated_implementation_path;
-    StringView identifiers_json_path;
-
-    Core::ArgsParser args_parser;
-    args_parser.add_option(generated_header_path, "Path to the MathFunctions header file to generate", "generated-header-path", 'h', "generated-header-path");
-    args_parser.add_option(generated_implementation_path, "Path to the MathFunctions implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
-    args_parser.add_option(identifiers_json_path, "Path to the JSON file to read from", "json-path", 'j', "json-path");
-    args_parser.parse(arguments);
-
-    auto json = TRY(read_entire_file_as_json(identifiers_json_path));
-    VERIFY(json.is_object());
-    auto math_functions_data = json.as_object();
-
-    auto generated_header_file = TRY(Core::File::open(generated_header_path, Core::File::OpenMode::Write));
-    auto generated_implementation_file = TRY(Core::File::open(generated_implementation_path, Core::File::OpenMode::Write));
-
-    TRY(generate_header_file(math_functions_data, *generated_header_file));
-    TRY(generate_implementation_file(math_functions_data, *generated_implementation_file));
-
-    return 0;
-}
-
+namespace {
 ErrorOr<void> generate_header_file(JsonObject& functions_data, Core::File& file)
 {
     StringBuilder builder;
@@ -377,4 +350,30 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
 
     TRY(file.write_until_depleted(generator.as_string_view().bytes()));
     return {};
+}
+} // end anonymous namespace
+
+ErrorOr<int> serenity_main(Main::Arguments arguments)
+{
+    StringView generated_header_path;
+    StringView generated_implementation_path;
+    StringView identifiers_json_path;
+
+    Core::ArgsParser args_parser;
+    args_parser.add_option(generated_header_path, "Path to the MathFunctions header file to generate", "generated-header-path", 'h', "generated-header-path");
+    args_parser.add_option(generated_implementation_path, "Path to the MathFunctions implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
+    args_parser.add_option(identifiers_json_path, "Path to the JSON file to read from", "json-path", 'j', "json-path");
+    args_parser.parse(arguments);
+
+    auto json = TRY(read_entire_file_as_json(identifiers_json_path));
+    VERIFY(json.is_object());
+    auto math_functions_data = json.as_object();
+
+    auto generated_header_file = TRY(Core::File::open(generated_header_path, Core::File::OpenMode::Write));
+    auto generated_implementation_file = TRY(Core::File::open(generated_implementation_path, Core::File::OpenMode::Write));
+
+    TRY(generate_header_file(math_functions_data, *generated_header_file));
+    TRY(generate_implementation_file(math_functions_data, *generated_implementation_file));
+
+    return 0;
 }

@@ -10,7 +10,7 @@
 
 namespace Core {
 
-ErrorOr<VkInstance> create_instance(uint32_t api_version)
+static ErrorOr<VkInstance> create_instance(uint32_t api_version)
 {
     VkInstance instance;
 
@@ -35,7 +35,7 @@ ErrorOr<VkInstance> create_instance(uint32_t api_version)
     return instance;
 }
 
-ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
+static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
 {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
@@ -65,7 +65,7 @@ ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device)
+static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device)
 {
     VkDevice device;
 

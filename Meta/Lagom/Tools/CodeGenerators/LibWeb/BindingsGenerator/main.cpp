@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "IDLGenerators.h"
 #include "Namespaces.h"
 #include <AK/Debug.h>
 #include <AK/LexicalPath.h>
@@ -15,21 +16,6 @@
 #include <LibCore/File.h>
 #include <LibIDL/IDLParser.h>
 #include <LibIDL/Types.h>
-
-extern Vector<StringView> s_header_search_paths;
-
-namespace IDL {
-void generate_namespace_header(IDL::Interface const&, StringBuilder&);
-void generate_namespace_implementation(IDL::Interface const&, StringBuilder&);
-void generate_constructor_header(IDL::Interface const&, StringBuilder&);
-void generate_constructor_implementation(IDL::Interface const&, StringBuilder&);
-void generate_prototype_header(IDL::Interface const&, StringBuilder&);
-void generate_prototype_implementation(IDL::Interface const&, StringBuilder&);
-void generate_iterator_prototype_header(IDL::Interface const&, StringBuilder&);
-void generate_iterator_prototype_implementation(IDL::Interface const&, StringBuilder&);
-void generate_global_mixin_header(IDL::Interface const&, StringBuilder&);
-void generate_global_mixin_implementation(IDL::Interface const&, StringBuilder&);
-}
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
@@ -47,7 +33,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         .short_name = 'i',
         .value_name = "path",
         .accept_value = [&](StringView s) {
-            s_header_search_paths.append(s);
+            IDL::g_header_search_paths.append(s);
             return true;
         },
     });

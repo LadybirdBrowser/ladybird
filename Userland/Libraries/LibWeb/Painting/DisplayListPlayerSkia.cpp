@@ -839,7 +839,7 @@ CommandResult DisplayListPlayerSkia::fill_path_using_color(FillPathUsingColor co
     return CommandResult::Continue;
 }
 
-SkTileMode to_skia_tile_mode(SVGLinearGradientPaintStyle::SpreadMethod spread_method)
+static SkTileMode to_skia_tile_mode(SVGLinearGradientPaintStyle::SpreadMethod spread_method)
 {
     switch (spread_method) {
     case SVGLinearGradientPaintStyle::SpreadMethod::Pad:
@@ -853,7 +853,7 @@ SkTileMode to_skia_tile_mode(SVGLinearGradientPaintStyle::SpreadMethod spread_me
     }
 }
 
-SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_style, Gfx::FloatRect bounding_rect)
+static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_style, Gfx::FloatRect bounding_rect)
 {
     SkPaint paint;
 

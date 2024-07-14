@@ -19,6 +19,12 @@ function(add_simple_fuzzer name)
     target_sources(${name} PRIVATE "EntryShim.cpp")
     target_link_libraries(${name} PUBLIC ${ARGN} AK LibCore)
   endif()
+
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
+    target_compile_options(${name} PRIVATE -Wno-missing-prototypes)
+  else()
+    target_compile_options(${name} PRIVATE -Wno-missing-declarations)
+  endif()
 endfunction()
 
 include(fuzzers.cmake)

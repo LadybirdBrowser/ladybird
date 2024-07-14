@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "IDLGenerators.h"
 #include "Namespaces.h"
 #include <AK/Array.h>
 #include <AK/LexicalPath.h>
@@ -17,9 +18,9 @@
 #include <AK/QuickSort.h>
 #include <LibIDL/Types.h>
 
-Vector<StringView> s_header_search_paths;
-
 namespace IDL {
+
+Vector<StringView> g_header_search_paths;
 
 // FIXME: Generate this automatically somehow.
 static bool is_platform_object(Type const& type)
@@ -284,7 +285,7 @@ static void generate_include_for(auto& generator, auto& path)
 {
     auto forked_generator = generator.fork();
     auto path_string = path;
-    for (auto& search_path : s_header_search_paths) {
+    for (auto& search_path : g_header_search_paths) {
         if (!path.starts_with(search_path))
             continue;
         auto relative_path = LexicalPath::relative_path(path, search_path);

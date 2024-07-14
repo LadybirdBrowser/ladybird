@@ -23,7 +23,6 @@
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/Script.h>
 #include <LibJS/SourceTextModule.h>
-#include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <unistd.h>
@@ -544,7 +543,15 @@ static bool g_in_assert = false;
 // FIXME: Use a SIGABRT handler here instead of overriding internal libc assertion handlers.
 //        Fixing this will likely require updating the test driver as well to pull the assertion failure
 //        message out of stderr rather than from the json object printed to stdout.
-#ifdef ASSERT_FAIL_HAS_INT /* Set by CMake */
+// FIXME: This likely doesn't even work with our custom ak_verification_failed handler
+#pragma push_macro("NDEBUG")
+// Apple headers do not expose the declaration of __assert_rtn when NDEBUG is set.
+#undef NDEBUG
+#include <assert.h>
+
+#ifdef AK_OS_MACOS
+extern "C" __attribute__((__noreturn__)) void __assert_rtn(char const* function, char const* file, int line, char const* assertion)
+#elifdef ASSERT_FAIL_HAS_INT /* Set by CMake */
 extern "C" __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function)
 #else
 extern "C" __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, unsigned int line, char const* function)
@@ -553,6 +560,7 @@ extern "C" __attribute__((__noreturn__)) void __assert_fail(char const* assertio
     auto full_message = ByteString::formatted("{}:{}: {}: Assertion `{}' failed.", file, line, function, assertion);
     handle_failed_assert(full_message.characters());
 }
+#pragma pop_macro("NDEBUG")
 
 constexpr int exit_wrong_arguments = 2;
 constexpr int exit_stdout_setup_failed = 1;
