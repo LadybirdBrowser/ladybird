@@ -24,6 +24,8 @@ public:
     [[nodiscard]] static JS::NonnullGCPtr<HTMLOptionsCollection> create(DOM::ParentNode& root, ESCAPING Function<bool(DOM::Element const&)> filter);
     virtual ~HTMLOptionsCollection() override;
 
+    WebIDL::ExceptionOr<void> set_value_of_indexed_property(u32, JS::Value) override;
+
     WebIDL::ExceptionOr<void> set_length(WebIDL::UnsignedLong);
 
     WebIDL::ExceptionOr<void> add(HTMLOptionOrOptGroupElement element, Optional<HTMLElementOrElementIndex> before = {});

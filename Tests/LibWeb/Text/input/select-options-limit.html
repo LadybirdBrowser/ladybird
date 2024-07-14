@@ -1,0 +1,11 @@
+<select id="select"></select>
+
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const select = document.getElementById("select");
+        select.options[100000] = new Option("0");
+
+        println(select.options.length);
+    });
+</script>
