@@ -101,14 +101,18 @@ cmd_with_target() {
         export LADYBIRD_SOURCE_DIR
     fi
 
-    declare -A BUILD_DIRECTORIES
-
     # Note: Keep in sync with buildDir defaults in CMakePresets.json
-    BUILD_DIRECTORIES["default"]="$LADYBIRD_SOURCE_DIR/Build/ladybird"
-    BUILD_DIRECTORIES["Debug"]="$LADYBIRD_SOURCE_DIR/Build/ladybird-debug"
-    BUILD_DIRECTORIES["Sanitizer"]="$LADYBIRD_SOURCE_DIR/Build/ladybird-sanitizers"
-
-    BUILD_DIR="${BUILD_DIRECTORIES[${BUILD_PRESET}]}"
+    case "${BUILD_PRESET}" in
+        "default")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird"
+            ;;
+        "Debug")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird-debug"
+            ;;
+        "Sanitizer")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird-sanitizers"
+            ;;
+    esac
 
     CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/ladybird-install-${BUILD_PRESET}")
 
