@@ -280,6 +280,7 @@ set(SOURCES
     HTML/DedicatedWorkerGlobalScope.cpp
     HTML/DocumentState.cpp
     HTML/DOMParser.cpp
+    HTML/DOMStringList.cpp
     HTML/DOMStringMap.cpp
     HTML/DragEvent.cpp
     HTML/ElementInternals.cpp

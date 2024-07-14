@@ -360,6 +360,7 @@ class CustomElementRegistry;
 class DecodedImageData;
 class DocumentState;
 class DOMParser;
+class DOMStringList;
 class DOMStringMap;
 class DragEvent;
 class ElementInternals;
