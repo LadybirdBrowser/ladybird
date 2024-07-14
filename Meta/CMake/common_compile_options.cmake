@@ -19,8 +19,12 @@ else()
     add_compile_options(-ffp-contract=off)
 endif()
 
-add_compile_options(-Wno-invalid-offsetof)
+add_compile_options(-Wcast-qual)
+add_compile_options(-Wformat=2)
+add_compile_options(-Wimplicit-fallthrough)
+add_compile_options(-Wsuggest-override)
 
+add_compile_options(-Wno-invalid-offsetof)
 add_compile_options(-Wno-unknown-warning-option)
 add_compile_options(-Wno-unused-command-line-argument)
 
