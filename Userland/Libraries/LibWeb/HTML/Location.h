@@ -54,6 +54,8 @@ public:
     void reload() const;
     WebIDL::ExceptionOr<void> assign(String const& url);
 
+    WebIDL::ExceptionOr<JS::GCPtr<DOMStringList>> ancestor_origins() const;
+
     virtual JS::ThrowCompletionOr<JS::Object*> internal_get_prototype_of() const override;
     virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(Object* prototype) override;
     virtual JS::ThrowCompletionOr<bool> internal_is_extensible() const override;
@@ -83,6 +85,9 @@ private:
 
     // [[DefaultProperties]], https://html.spec.whatwg.org/multipage/history.html#defaultproperties
     Vector<JS::Value> m_default_properties;
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-location-ancestor-origins-list
+    JS::GCPtr<DOMStringList> m_ancestor_origins_list;
 };
 
 }

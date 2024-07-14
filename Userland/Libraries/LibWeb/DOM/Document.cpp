@@ -5352,4 +5352,15 @@ void Document::set_cached_navigable(JS::GCPtr<HTML::Navigable> navigable)
     m_cached_navigable = navigable.ptr();
 }
 
+// https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document
+JS::GCPtr<DOM::Document> Document::container_document() const
+{
+    // 1. If document's node navigable is null, then return null.
+    if (!navigable())
+        return nullptr;
+
+    // 2. Return document's node navigable's container document.
+    return navigable()->container_document();
+}
+
 }

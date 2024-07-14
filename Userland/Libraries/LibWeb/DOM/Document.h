@@ -701,6 +701,9 @@ public:
     JS::GCPtr<HTML::Navigable> cached_navigable();
     void set_cached_navigable(JS::GCPtr<HTML::Navigable>);
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document
+    JS::GCPtr<DOM::Document> container_document() const;
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

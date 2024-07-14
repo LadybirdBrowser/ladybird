@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/LocationPrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
+#include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Window.h>
@@ -36,6 +37,7 @@ void Location::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_default_properties);
+    visitor.visit(m_ancestor_origins_list);
 }
 
 void Location::initialize(JS::Realm& realm)
@@ -48,6 +50,29 @@ void Location::initialize(JS::Realm& realm)
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
     // NOTE: In LibWeb this happens before the ESO is set up, so we must avoid location's custom [[OwnPropertyKeys]].
     m_default_properties.extend(MUST(Object::internal_own_property_keys()));
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-location-ancestor-origins-list
+    // A Location object has an associated ancestor origins list. When a Location object is created, its ancestor origins
+    // list must be set to a DOMStringList object whose associated list is the list of strings that the following steps
+    // would produce:
+
+    // 1. Let output be a new list of strings.
+    Vector<String> output;
+
+    // 2. Let current be the Location object's relevant Document.
+    auto current = relevant_document();
+
+    // 3. While current's container document is non-null:
+    while (current->container_document()) {
+        // 1. Set current to current's container document.
+        current = current->container_document();
+
+        // 2. Append the serialization of current's origin to output.
+        output.append(MUST(String::from_byte_string(current->origin().serialize())));
+    }
+
+    // 4. Return output.
+    m_ancestor_origins_list = DOMStringList::create(realm, move(output));
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#relevant-document
@@ -402,6 +427,22 @@ WebIDL::ExceptionOr<void> Location::assign(String const& url)
     TRY(navigate(assign_url));
 
     return {};
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-ancestororigins
+WebIDL::ExceptionOr<JS::GCPtr<DOMStringList>> Location::ancestor_origins() const
+{
+    // 1. If this's relevant Document is null, then return an empty list.
+    auto const relevant_document = this->relevant_document();
+    if (!relevant_document)
+        return DOMStringList::create(realm(), {});
+
+    // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
+    if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+
+    // 3. Otherwise, return this's ancestor origins list.
+    return m_ancestor_origins_list;
 }
 
 // 7.10.5.1 [[GetPrototypeOf]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-getprototypeof
