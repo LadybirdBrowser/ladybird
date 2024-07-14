@@ -89,7 +89,7 @@ ErrorOr<void> JPEGWriter::encode_impl(Stream& stream, auto const& bitmap, Option
 
     while (cinfo.next_scanline < cinfo.image_height) {
         auto const* row_ptr = reinterpret_cast<u8 const*>(bitmap.scanline(cinfo.next_scanline));
-        JSAMPROW row_pointer = (JSAMPROW)row_ptr;
+        JSAMPROW row_pointer = const_cast<JSAMPROW>(row_ptr);
         jpeg_write_scanlines(&cinfo, &row_pointer, 1);
     }
 
