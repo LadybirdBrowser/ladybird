@@ -69,3 +69,10 @@ if (UNIX AND NOT APPLE AND NOT ENABLE_FUZZERS)
     add_compile_options(-fno-semantic-interposition)
     add_compile_options(-fvisibility-inlines-hidden)
 endif()
+
+if (NOT WIN32)
+    add_compile_options(-fstack-protector-strong)
+    add_link_options(-fstack-protector-strong)
+endif()
+
+add_compile_options(-fstrict-flex-arrays=2)
