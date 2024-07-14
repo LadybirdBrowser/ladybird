@@ -90,7 +90,6 @@ Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, St
     m_toolbar->addAction(&m_window->go_forward_action());
     m_toolbar->addAction(&m_window->reload_action());
     m_toolbar->addWidget(m_location_edit);
-    m_toolbar->addAction(&m_window->new_tab_action());
     m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
     m_hamburger_button_action = m_toolbar->addWidget(m_hamburger_button);
     m_toolbar->setIconSize({ 16, 16 });
