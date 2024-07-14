@@ -25,6 +25,7 @@
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/LiveNodeList.h>
 #include <LibWeb/DOM/MutationType.h>
+#include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeIterator.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
@@ -43,6 +44,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
@@ -1632,6 +1634,103 @@ bool Node::is_equal_node(Node const* other_node) const
     }
 
     return true;
+}
+
+// https://dom.spec.whatwg.org/#locate-a-namespace
+Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
+{
+    // To locate a namespace for a node using prefix, switch on the interface node implements:
+
+    // Element
+    if (is<Element>(*this)) {
+        // 1. If prefix is "xml", then return the XML namespace.
+        if (prefix == "xml")
+            return Web::Namespace::XML.to_string();
+
+        // 2. If prefix is "xmlns", then return the XMLNS namespace.
+        if (prefix == "xmlns")
+            return Web::Namespace::XMLNS.to_string();
+
+        // 3. If its namespace is non-null and its namespace prefix is prefix, then return namespace.
+        auto& element = verify_cast<Element>(*this);
+        if (element.namespace_uri().has_value() && element.prefix() == prefix)
+            return element.namespace_uri()->to_string();
+
+        // 4. If it has an attribute whose namespace is the XMLNS namespace, namespace prefix is "xmlns", and local name is prefix,
+        //    or if prefix is null and it has an attribute whose namespace is the XMLNS namespace, namespace prefix is null,
+        //    and local name is "xmlns", then return its value if it is not the empty string, and null otherwise.
+        if (auto* attributes = element.attributes()) {
+            for (size_t i = 0; i < attributes->length(); ++i) {
+                auto& attr = *attributes->item(i);
+                if (attr.namespace_uri() == Web::Namespace::XMLNS) {
+                    if ((attr.prefix() == "xmlns" && attr.local_name() == prefix) || (!prefix.has_value() && !attr.prefix().has_value() && attr.local_name() == "xmlns")) {
+                        auto value = attr.value();
+                        if (!value.is_empty())
+                            return value;
+
+                        return {};
+                    }
+                }
+            }
+        }
+
+        // 5. If its parent element is null, then return null.
+        auto* parent_element = element.parent_element();
+        if (!element.parent_element())
+            return {};
+
+        // 6. Return the result of running locate a namespace on its parent element using prefix.
+        return parent_element->locate_a_namespace(prefix);
+    }
+
+    // Document
+    if (is<Document>(*this)) {
+        // 1. If its document element is null, then return null.
+        auto* document_element = verify_cast<Document>(*this).document_element();
+        if (!document_element)
+            return {};
+
+        // 2. Return the result of running locate a namespace on its document element using prefix.
+        return document_element->locate_a_namespace(prefix);
+    }
+
+    // DocumentType
+    // DocumentFragment
+    if (is<DocumentType>(*this) || is<DocumentFragment>(*this)) {
+        // Return null.
+        return {};
+    }
+
+    // Attr
+    if (is<Attr>(*this)) {
+        // 1. If its element is null, then return null.
+        auto* element = verify_cast<Attr>(*this).owner_element();
+        if (!element)
+            return {};
+
+        // 2. Return the result of running locate a namespace on its element using prefix.
+        return element->locate_a_namespace(prefix);
+    }
+
+    // Otherwise
+    // 1. If its parent element is null, then return null.
+    auto* parent_element = this->parent_element();
+    if (!parent_element)
+        return {};
+
+    // 2. Return the result of running locate a namespace on its parent element using prefix.
+    return parent_element->locate_a_namespace(prefix);
+}
+
+// https://dom.spec.whatwg.org/#dom-node-lookupnamespaceuri
+Optional<String> Node::lookup_namespace_uri(Optional<String> prefix) const
+{
+    // 1. If prefix is the empty string, then set it to null.
+    if (prefix.has_value() && prefix->is_empty())
+        prefix = {};
+
+    // 2. Return the result of running locate a namespace for this using prefix.
+    return locate_a_namespace(prefix);
 }
 
 // https://dom.spec.whatwg.org/#in-a-document-tree

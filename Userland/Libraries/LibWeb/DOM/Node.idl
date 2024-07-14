@@ -55,7 +55,7 @@ interface Node : EventTarget {
     boolean contains(Node? other);
 
     [FIXME] DOMString? lookupPrefix(DOMString? namespace);
-    [FIXME] DOMString? lookupNamespaceURI(DOMString? prefix);
+    DOMString? lookupNamespaceURI(DOMString? prefix);
     [FIXME] boolean isDefaultNamespace(DOMString? namespace);
 
     [ImplementedAs=pre_insert, CEReactions] Node insertBefore(Node node, Node? child);

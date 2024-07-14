@@ -695,6 +695,9 @@ public:
     ErrorOr<String> accessible_name(Document const&) const;
     ErrorOr<String> accessible_description(Document const&) const;
 
+    Optional<String> locate_a_namespace(Optional<String> const& prefix) const;
+    Optional<String> lookup_namespace_uri(Optional<String> prefix) const;
+
 protected:
     Node(JS::Realm&, Document&, NodeType);
     Node(Document&, NodeType);
