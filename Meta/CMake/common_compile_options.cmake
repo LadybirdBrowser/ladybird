@@ -22,6 +22,7 @@ endif()
 add_compile_options(-Wcast-qual)
 add_compile_options(-Wformat=2)
 add_compile_options(-Wimplicit-fallthrough)
+add_compile_options(-Wmissing-declarations)
 add_compile_options(-Wsuggest-override)
 
 add_compile_options(-Wno-invalid-offsetof)
@@ -42,6 +43,8 @@ endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES "MSVC")
     # Clang's default constexpr-steps limit is 1048576(2^20), GCC doesn't have one
     add_compile_options(-fconstexpr-steps=16777216)
+
+    add_compile_options(-Wmissing-prototypes)
 
     add_compile_options(-Wno-implicit-const-int-float-conversion)
     add_compile_options(-Wno-user-defined-literals)

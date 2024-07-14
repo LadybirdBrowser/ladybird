@@ -94,7 +94,7 @@ struct SignalHandlersInfo {
 };
 
 static Singleton<SignalHandlersInfo> s_signals;
-SignalHandlersInfo* signals_info()
+static SignalHandlersInfo* signals_info()
 {
     return s_signals.ptr();
 }

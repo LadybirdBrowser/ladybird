@@ -23,7 +23,7 @@
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
 #endif
 
-ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
+static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
 {
     auto cert_path = ByteString::formatted("{}/ladybird/cacert.pem", serenity_resource_root);
     if (!FileSystem::exists(cert_path))

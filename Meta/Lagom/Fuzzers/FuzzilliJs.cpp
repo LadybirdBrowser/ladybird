@@ -24,6 +24,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+// These are hooks into sancov's internals, their declaration isn't available in public headers.
+// See compiler-rt/lib/sanitizer_common/sanitizer_interface_internal.h
+extern "C" {
+void __sanitizer_cov_trace_pc_guard_init(uint32_t*, uint32_t*);
+void __sanitizer_cov_trace_pc_guard(uint32_t*);
+}
+
 //
 // BEGIN FUZZING CODE
 //
@@ -51,7 +58,7 @@ struct shmem_data {
 struct shmem_data* __shmem;
 uint32_t *__edges_start, *__edges_stop;
 
-void __sanitizer_cov_reset_edgeguards()
+static void __sanitizer_cov_reset_edgeguards()
 {
     uint64_t N = 0;
     for (uint32_t* x = __edges_start; x < __edges_stop && N < MAX_EDGES; x++)

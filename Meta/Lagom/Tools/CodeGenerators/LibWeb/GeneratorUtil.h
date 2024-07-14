@@ -13,7 +13,7 @@
 #include <LibCore/File.h>
 #include <ctype.h>
 
-String title_casify(StringView dashy_name)
+inline String title_casify(StringView dashy_name)
 {
     auto parts = dashy_name.split_view('-');
     StringBuilder builder;
@@ -28,7 +28,7 @@ String title_casify(StringView dashy_name)
     return MUST(builder.to_string());
 }
 
-String camel_casify(StringView dashy_name)
+inline String camel_casify(StringView dashy_name)
 {
     auto parts = dashy_name.split_view('-');
     StringBuilder builder;
@@ -49,14 +49,14 @@ String camel_casify(StringView dashy_name)
     return MUST(builder.to_string());
 }
 
-String snake_casify(StringView dashy_name)
+inline String snake_casify(StringView dashy_name)
 {
     // FIXME: We don't really need to convert dashy_name to a String first, but currently
     //        all the `replace` functions that take a StringView return ByteString.
     return MUST(MUST(String::from_utf8(dashy_name)).replace("-"sv, "_"sv, ReplaceMode::All));
 }
 
-ErrorOr<JsonValue> read_entire_file_as_json(StringView filename)
+inline ErrorOr<JsonValue> read_entire_file_as_json(StringView filename)
 {
     auto file = TRY(Core::File::open(filename, Core::File::OpenMode::Read));
     auto json_size = TRY(file->size());

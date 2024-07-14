@@ -16,6 +16,7 @@
 #include <ctype.h>
 #include <stdio.h>
 
+namespace {
 struct Parameter {
     Vector<ByteString> attributes;
     ByteString type;
@@ -823,6 +824,7 @@ void build(StringBuilder& builder, Vector<Endpoint> const& endpoints)
     for (auto const& endpoint : endpoints)
         build_endpoint(generator.fork(), endpoint);
 }
+} // end anonymous namespace
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {

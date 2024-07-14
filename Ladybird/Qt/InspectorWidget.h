@@ -35,7 +35,7 @@ public slots:
     void device_pixel_ratio_changed(qreal dpi);
 
 private:
-    bool event(QEvent*) override;
+    virtual bool event(QEvent*) override;
     void closeEvent(QCloseEvent*) override;
 
     QScreen* m_current_screen;

@@ -42,7 +42,7 @@ public:
     explicit TabBarButton(QIcon const& icon, QWidget* parent = nullptr);
 
 protected:
-    bool event(QEvent* event);
+    virtual bool event(QEvent* event) override;
 };
 
 }

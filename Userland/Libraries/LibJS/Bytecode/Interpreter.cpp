@@ -876,7 +876,7 @@ inline void fast_typed_array_set_element(TypedArrayBase& typed_array, u32 index,
     *slot = value;
 }
 
-Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property_identifier, Executable const& executable)
+static Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property_identifier, Executable const& executable)
 {
     VERIFY(base_value.is_nullish());
 
@@ -885,7 +885,7 @@ Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Option
     return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefinedWithProperty, executable.get_identifier(property_identifier), base_value);
 }
 
-Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
+static Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
 {
     VERIFY(base_value.is_nullish());
 

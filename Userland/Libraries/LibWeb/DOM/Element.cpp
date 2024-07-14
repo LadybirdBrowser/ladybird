@@ -594,7 +594,7 @@ DOMTokenList* Element::class_list()
 }
 
 // https://dom.spec.whatwg.org/#valid-shadow-host-name
-bool is_valid_shadow_host_name(FlyString const& name)
+static bool is_valid_shadow_host_name(FlyString const& name)
 {
     // A valid shadow host name is:
     // - a valid custom element name
