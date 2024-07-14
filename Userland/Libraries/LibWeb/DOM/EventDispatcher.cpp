@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/DOM/Utils.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -27,33 +28,6 @@
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::DOM {
-
-// FIXME: This shouldn't be here, as retargeting is not only used by the event dispatcher.
-//        When moving this function, it needs to be generalized. https://dom.spec.whatwg.org/#retarget
-static EventTarget* retarget(EventTarget* left, EventTarget* right)
-{
-    // To retarget an object A against an object B, repeat these steps until they return an object:
-    for (;;) {
-        // 1. If one of the following is true then return A.
-        // - A is not a node
-        if (!is<Node>(left))
-            return left;
-
-        // - A’s root is not a shadow root
-        auto* left_node = verify_cast<Node>(left);
-        auto& left_root = left_node->root();
-        if (!is<ShadowRoot>(left_root))
-            return left;
-
-        // - B is a node and A’s root is a shadow-including inclusive ancestor of B
-        if (is<Node>(right) && left_root.is_shadow_including_inclusive_ancestor_of(verify_cast<Node>(*right)))
-            return left;
-
-        // 2. Set A to A’s root’s host.
-        auto& left_shadow_root = verify_cast<ShadowRoot>(left_root);
-        left = left_shadow_root.host();
-    }
-}
 
 // https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke
 bool EventDispatcher::inner_invoke(Event& event, Vector<JS::Handle<DOM::DOMEventListener>>& listeners, Event::Phase phase, bool invocation_target_in_shadow_tree)
@@ -222,7 +196,7 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
     JS::GCPtr<EventTarget> activation_target;
 
     // 4. Let relatedTarget be the result of retargeting event’s relatedTarget against target.
-    JS::GCPtr<EventTarget> related_target = retarget(event.related_target(), target);
+    JS::GCPtr<EventTarget> related_target = retarget<EventTarget>(event.related_target(), target);
 
     bool clear_targets = false;
     // 5. If target is not relatedTarget or target is event’s relatedTarget, then:
@@ -232,7 +206,7 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
 
         // 2. For each touchTarget of event’s touch target list, append the result of retargeting touchTarget against target to touchTargets.
         for (auto& touch_target : event.touch_target_list()) {
-            touch_targets.append(retarget(touch_target, target));
+            touch_targets.append(retarget<EventTarget>(touch_target, target));
         }
 
         // 3. Append to an event path with event, target, targetOverride, relatedTarget, touchTargets, and false.
@@ -279,14 +253,14 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
                 slottable = parent;
 
             // 3. Let relatedTarget be the result of retargeting event’s relatedTarget against parent.
-            related_target = retarget(event.related_target(), parent);
+            related_target = retarget<EventTarget>(event.related_target(), parent);
 
             // 4. Let touchTargets be a new list.
             touch_targets.clear();
 
             // 5. For each touchTarget of event’s touch target list, append the result of retargeting touchTarget against parent to touchTargets.
             for (auto& touch_target : event.touch_target_list()) {
-                touch_targets.append(retarget(touch_target, parent));
+                touch_targets.append(retarget<EventTarget>(touch_target, parent));
             }
 
             // 6. If parent is a Window object, or parent is a node and target’s root is a shadow-including inclusive ancestor of parent, then:
