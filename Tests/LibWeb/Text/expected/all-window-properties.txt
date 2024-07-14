@@ -67,6 +67,7 @@ DOMQuad
 DOMRect
 DOMRectList
 DOMRectReadOnly
+DOMStringList
 DOMStringMap
 DOMTokenList
 DataTransfer

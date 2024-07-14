@@ -119,6 +119,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/HTML/CustomElements/CustomElementRegistry.idl",
   "//Userland/Libraries/LibWeb/HTML/DataTransfer.idl",
   "//Userland/Libraries/LibWeb/HTML/DOMParser.idl",
+  "//Userland/Libraries/LibWeb/HTML/DOMStringList.idl",
   "//Userland/Libraries/LibWeb/HTML/DOMStringMap.idl",
   "//Userland/Libraries/LibWeb/HTML/ElementInternals.idl",
   "//Userland/Libraries/LibWeb/HTML/ErrorEvent.idl",

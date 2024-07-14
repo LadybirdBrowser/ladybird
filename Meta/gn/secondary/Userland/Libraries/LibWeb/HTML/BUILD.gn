@@ -26,6 +26,7 @@ source_set("HTML") {
     "CloseWatcher.cpp",
     "CloseWatcherManager.cpp",
     "DOMParser.cpp",
+    "DOMStringList.cpp",
     "DOMStringMap.cpp",
     "DataTransfer.cpp",
     "Dates.cpp",
