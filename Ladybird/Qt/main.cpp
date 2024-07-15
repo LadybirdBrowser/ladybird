@@ -153,6 +153,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     };
 #endif
 
+    copy_default_config_files(Ladybird::Settings::the()->directory());
+
     RefPtr<WebView::Database> database;
     if (!disable_sql_database)
         database = TRY(WebView::Database::create());

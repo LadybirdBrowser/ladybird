@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 
 void platform_init();
+void copy_default_config_files(StringView config_path);
 ErrorOr<ByteString> application_directory();
 ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView process_name);
 

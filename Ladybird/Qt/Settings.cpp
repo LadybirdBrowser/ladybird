@@ -8,6 +8,7 @@
 
 #include "Settings.h"
 #include "StringUtils.h"
+#include <AK/LexicalPath.h>
 #include <Ladybird/DefaultSettings.h>
 
 namespace Ladybird {
@@ -27,6 +28,11 @@ Settings::Settings()
         m_search_engine = search_engine.release_value();
     else
         set_search_engine(move(default_search_engine));
+}
+
+ByteString Settings::directory()
+{
+    return LexicalPath::dirname(ak_byte_string_from_qstring(m_qsettings->fileName()));
 }
 
 Optional<QPoint> Settings::last_position()
