@@ -80,7 +80,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_selected_files);
     visitor.visit(m_slider_thumb);
     visitor.visit(m_image_request);
-    visitor.visit(m_range_progress_element);
+    visitor.visit(m_slider_progress_element);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
@@ -766,7 +766,7 @@ void HTMLInputElement::update_shadow_tree()
         update_file_input_shadow_tree();
         break;
     case TypeAttributeState::Range:
-        update_slider_thumb_element();
+        update_slider_shadow_tree_elements();
         break;
     default:
         update_text_input_shadow_tree();
@@ -993,19 +993,19 @@ void HTMLInputElement::create_range_input_shadow_tree()
     slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderRunnableTrack);
     MUST(shadow_root->append_child(slider_runnable_track));
 
-    m_range_progress_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    MUST(m_range_progress_element->set_attribute(HTML::AttributeNames::style, R"~~~(
+    m_slider_progress_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    MUST(m_slider_progress_element->set_attribute(HTML::AttributeNames::style, R"~~~(
         display: block;
         position: absolute;
         height: 100%;
         background-color: AccentColor;
     )~~~"_string));
-    MUST(slider_runnable_track->append_child(*m_range_progress_element));
+    MUST(slider_runnable_track->append_child(*m_slider_progress_element));
 
     m_slider_thumb = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     m_slider_thumb->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderThumb);
     MUST(slider_runnable_track->append_child(*m_slider_thumb));
-    update_slider_thumb_element();
+    update_slider_shadow_tree_elements();
 
     auto keydown_callback_function = JS::NativeFunction::create(
         realm(), [this](JS::VM& vm) {
@@ -1104,7 +1104,7 @@ void HTMLInputElement::user_interaction_did_change_input_value()
     });
 }
 
-void HTMLInputElement::update_slider_thumb_element()
+void HTMLInputElement::update_slider_shadow_tree_elements()
 {
     double value = convert_string_to_number(value_sanitization_algorithm(m_value)).value_or(0);
     double minimum = *min();
@@ -1114,8 +1114,8 @@ void HTMLInputElement::update_slider_thumb_element()
     if (m_slider_thumb)
         MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
 
-    if (m_range_progress_element)
-        MUST(m_range_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
+    if (m_slider_progress_element)
+        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
 }
 
 void HTMLInputElement::did_receive_focus()

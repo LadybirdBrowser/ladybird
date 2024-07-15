@@ -286,8 +286,9 @@ private:
     JS::GCPtr<DOM::Element> m_file_button;
     JS::GCPtr<DOM::Element> m_file_label;
 
-    void update_slider_thumb_element();
+    void update_slider_shadow_tree_elements();
     JS::GCPtr<DOM::Element> m_slider_thumb;
+    JS::GCPtr<DOM::Element> m_slider_progress_element;
 
     JS::GCPtr<DecodedImageData> image_data() const;
     JS::GCPtr<SharedImageRequest> m_image_request;
@@ -321,8 +322,6 @@ private:
     String m_last_src_value;
 
     bool m_has_uncommitted_changes { false };
-
-    JS::GCPtr<DOM::Element> m_range_progress_element;
 };
 
 }
