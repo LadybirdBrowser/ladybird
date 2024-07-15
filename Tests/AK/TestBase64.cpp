@@ -73,6 +73,22 @@ TEST_CASE(test_encode)
     encode_equal("foobar"sv, "Zm9vYmFy"sv);
 }
 
+TEST_CASE(test_encode_omit_padding)
+{
+    auto encode_equal = [&](StringView input, StringView expected) {
+        auto encoded = MUST(encode_base64(input.bytes(), AK::OmitPadding::Yes));
+        EXPECT_EQ(encoded, expected);
+    };
+
+    encode_equal(""sv, ""sv);
+    encode_equal("f"sv, "Zg"sv);
+    encode_equal("fo"sv, "Zm8"sv);
+    encode_equal("foo"sv, "Zm9v"sv);
+    encode_equal("foob"sv, "Zm9vYg"sv);
+    encode_equal("fooba"sv, "Zm9vYmE"sv);
+    encode_equal("foobar"sv, "Zm9vYmFy"sv);
+}
+
 TEST_CASE(test_urldecode)
 {
     auto decode_equal = [&](StringView input, StringView expected) {
@@ -111,6 +127,27 @@ TEST_CASE(test_urlencode)
 
     encode_equal("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."sv, "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2NpbmcgZWxpdCwgc2VkIGRvIGVpdXNtb2QgdGVtcG9yIGluY2lkaWR1bnQgdXQgbGFib3JlIGV0IGRvbG9yZSBtYWduYSBhbGlxdWEu"sv);
     encode_equal("hello?world"sv, "aGVsbG8_d29ybGQ="sv);
+
+    encode_equal("hello!!world"sv, "aGVsbG8hIXdvcmxk"sv);
+}
+
+TEST_CASE(test_urlencode_omit_padding)
+{
+    auto encode_equal = [&](StringView input, StringView expected) {
+        auto encoded = MUST(encode_base64url(input.bytes(), AK::OmitPadding::Yes));
+        EXPECT_EQ(encoded, expected);
+    };
+
+    encode_equal(""sv, ""sv);
+    encode_equal("f"sv, "Zg"sv);
+    encode_equal("fo"sv, "Zm8"sv);
+    encode_equal("foo"sv, "Zm9v"sv);
+    encode_equal("foob"sv, "Zm9vYg"sv);
+    encode_equal("fooba"sv, "Zm9vYmE"sv);
+    encode_equal("foobar"sv, "Zm9vYmFy"sv);
+
+    encode_equal("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."sv, "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2NpbmcgZWxpdCwgc2VkIGRvIGVpdXNtb2QgdGVtcG9yIGluY2lkaWR1bnQgdXQgbGFib3JlIGV0IGRvbG9yZSBtYWduYSBhbGlxdWEu"sv);
+    encode_equal("hello?world"sv, "aGVsbG8_d29ybGQ"sv);
 
     encode_equal("hello!!world"sv, "aGVsbG8hIXdvcmxk"sv);
 }
