@@ -1165,7 +1165,29 @@ CommandResult DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient con
 
     auto const& conic_gradient_data = command.conic_gradient_data;
 
-    auto const& color_stop_list = conic_gradient_data.color_stops.list;
+    auto color_stop_list = conic_gradient_data.color_stops.list;
+    auto const& repeat_length = conic_gradient_data.color_stops.repeat_length;
+    auto expand_repeat_length = [&] {
+        Vector<Gfx::ColorStop> color_stop_list_with_expanded_repeat;
+        size_t repeat_count = 0;
+        while (true) {
+            for (auto stop : color_stop_list) {
+                stop.position += repeat_length.value() * repeat_count;
+                if (stop.position > 1.0f)
+                    return color_stop_list_with_expanded_repeat;
+                color_stop_list_with_expanded_repeat.append(stop);
+            }
+            repeat_count++;
+            if (repeat_count > 1000) {
+                // Crash instead of being stuck in infinite loop
+                VERIFY_NOT_REACHED();
+            }
+        }
+        VERIFY_NOT_REACHED();
+    };
+    if (repeat_length.has_value())
+        color_stop_list = expand_repeat_length();
+
     VERIFY(!color_stop_list.is_empty());
     auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
 
@@ -1184,9 +1206,7 @@ CommandResult DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient con
 
     SkMatrix matrix;
     matrix.setRotate(-90 + conic_gradient_data.start_angle, center.x(), center.y());
-
-    // FIXME: Account for repeat length
-    auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), positions.data(), positions.size(), 0, &matrix);
+    auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), positions.data(), positions.size(), SkTileMode::kRepeat, 0, 360, 0, &matrix);
 
     SkPaint paint;
     paint.setShader(shader);
