@@ -320,9 +320,11 @@ static SkBitmap to_skia_bitmap(Gfx::Bitmap const& bitmap)
     SkBitmap sk_bitmap;
     sk_bitmap.setInfo(image_info);
 
-    if (!sk_bitmap.installPixels(image_info, (void*)bitmap.begin(), bitmap.width() * 4)) {
+    if (!sk_bitmap.installPixels(image_info, const_cast<Gfx::ARGB32*>(bitmap.begin()), bitmap.width() * 4)) {
         VERIFY_NOT_REACHED();
     }
+
+    sk_bitmap.setImmutable();
 
     return sk_bitmap;
 }
