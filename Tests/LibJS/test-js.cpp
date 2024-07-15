@@ -5,8 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <LibCore/Environment.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibTest/JavaScriptTestRunner.h>
 #include <LibUnicode/TimeZone.h>
 #include <stdlib.h>
@@ -111,6 +113,19 @@ TESTJS_GLOBAL_FUNCTION(set_time_zone, setTimeZone)
     tzset();
 
     return current_time_zone;
+}
+
+TESTJS_GLOBAL_FUNCTION(to_utf8_bytes, toUTF8Bytes)
+{
+    auto& realm = *vm.current_realm();
+
+    auto string = TRY(vm.argument(0).to_string(vm));
+    auto typed_array = TRY(JS::Uint8Array::create(realm, string.bytes().size()));
+
+    for (auto [i, byte] : enumerate(string.bytes()))
+        typed_array->set_value_in_buffer(i, JS::Value { byte }, JS::ArrayBuffer::Order::SeqCst);
+
+    return typed_array;
 }
 
 TESTJS_RUN_FILE_FUNCTION(ByteString const& test_file, JS::Realm& realm, JS::ExecutionContext&)
