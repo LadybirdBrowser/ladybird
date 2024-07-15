@@ -36,10 +36,15 @@ for arg in "$@"; do
         wpt_run_log_filename="$(realpath "${arg#*=}")"
         shift
         ;;
+    -*)
+      echo "Unknown argument $arg"
+      exit 1
+      ;;
     *)
-        echo "Unknown argument ${arg}"
-        exit 1
-        ;;
+      TEST_FILE=$(realpath "$arg")
+      TEST_FILES+=("$TEST_FILE")
+      shift
+      ;;
     esac
 done
 
@@ -73,7 +78,7 @@ fi
 python3 ./concat-extract-metadata.py --extract metadata.txt metadata
 
 # Run tests.
-python3 ./wpt/wpt run ladybird \
+python3 ./wpt/wpt run \
                   --webdriver-binary "${WEBDRIVER_BINARY}" \
                   --no-fail-on-unexpected \
                   --no-fail-on-unexpected-pass \
@@ -83,7 +88,9 @@ python3 ./wpt/wpt run ladybird \
                   --manifest ./MANIFEST.json \
                   --webdriver-arg="--certificate=${PWD}/wpt/tools/certs/cacert.pem" \
                   --webdriver-arg="--certificate=${LADYBIRD_SOURCE_DIR}/Build/lagom/cacert.pem" \
-                  --log-raw "${wpt_run_log_filename}"
+                  --log-raw "${wpt_run_log_filename}" \
+                  ladybird \
+                  ${TEST_FILES:+"${TEST_FILES[@]}"}
 
 # Update expectations metadata files if requested
 if [[ $update_expectations_metadata == true ]]; then
