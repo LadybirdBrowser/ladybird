@@ -581,6 +581,26 @@ static ColorStopList replace_transition_hints_with_normal_color_stops(ColorStopL
     return stops_with_replaced_transition_hints;
 }
 
+static ColorStopList expand_repeat_length(ColorStopList const& color_stop_list, float repeat_length)
+{
+    ColorStopList color_stop_list_with_expanded_repeat;
+    size_t repeat_count = 0;
+    while (true) {
+        for (auto stop : color_stop_list) {
+            stop.position += repeat_length * repeat_count;
+            if (stop.position > 1.0f)
+                return color_stop_list_with_expanded_repeat;
+            color_stop_list_with_expanded_repeat.append(stop);
+        }
+        repeat_count++;
+        if (repeat_count > 1000) {
+            // Crash instead of being stuck in infinite loop
+            VERIFY_NOT_REACHED();
+        }
+    }
+    VERIFY_NOT_REACHED();
+}
+
 CommandResult DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& command)
 {
     APPLY_PATH_CLIP_IF_NEEDED
@@ -1125,8 +1145,11 @@ CommandResult DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient c
 
     auto const& radial_gradient_data = command.radial_gradient_data;
 
-    auto const& color_stop_list = radial_gradient_data.color_stops.list;
+    auto color_stop_list = radial_gradient_data.color_stops.list;
     VERIFY(!color_stop_list.is_empty());
+    auto const& repeat_length = radial_gradient_data.color_stops.repeat_length;
+    if (repeat_length.has_value())
+        color_stop_list = expand_repeat_length(color_stop_list, repeat_length.value());
 
     auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
 
@@ -1167,26 +1190,8 @@ CommandResult DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient con
 
     auto color_stop_list = conic_gradient_data.color_stops.list;
     auto const& repeat_length = conic_gradient_data.color_stops.repeat_length;
-    auto expand_repeat_length = [&] {
-        Vector<Gfx::ColorStop> color_stop_list_with_expanded_repeat;
-        size_t repeat_count = 0;
-        while (true) {
-            for (auto stop : color_stop_list) {
-                stop.position += repeat_length.value() * repeat_count;
-                if (stop.position > 1.0f)
-                    return color_stop_list_with_expanded_repeat;
-                color_stop_list_with_expanded_repeat.append(stop);
-            }
-            repeat_count++;
-            if (repeat_count > 1000) {
-                // Crash instead of being stuck in infinite loop
-                VERIFY_NOT_REACHED();
-            }
-        }
-        VERIFY_NOT_REACHED();
-    };
     if (repeat_length.has_value())
-        color_stop_list = expand_repeat_length();
+        color_stop_list = expand_repeat_length(color_stop_list, repeat_length.value());
 
     VERIFY(!color_stop_list.is_empty());
     auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
