@@ -17,6 +17,7 @@ public:
 
 private:
     JS_DECLARE_NATIVE_FUNCTION(to_base64);
+    JS_DECLARE_NATIVE_FUNCTION(to_hex);
 };
 
 enum class Alphabet {

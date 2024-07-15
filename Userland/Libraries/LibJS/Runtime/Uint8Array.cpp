@@ -5,6 +5,7 @@
  */
 
 #include <AK/Base64.h>
+#include <AK/StringBuilder.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Uint8Array.h>
@@ -19,6 +20,7 @@ void Uint8ArrayPrototypeHelpers::initialize(Realm& realm, Object& prototype)
 
     static constexpr u8 attr = Attribute::Writable | Attribute::Configurable;
     prototype.define_native_function(realm, vm.names.toBase64, to_base64, 0, attr);
+    prototype.define_native_function(realm, vm.names.toHex, to_hex, 0, attr);
 }
 
 static ThrowCompletionOr<Alphabet> parse_alphabet(VM& vm, Object& options)
@@ -83,6 +85,31 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_base64)
 
     // 11. Return CodePointsToString(outAscii).
     return PrimitiveString::create(vm, move(out_ascii));
+}
+
+// 2 Uint8Array.prototype.toHex ( ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tobase64
+JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_hex)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? ValidateUint8Array(O).
+    auto typed_array = TRY(validate_uint8_array(vm));
+
+    // 3. Let toEncode be ? GetUint8ArrayBytes(O).
+    auto to_encode = TRY(get_uint8_array_bytes(vm, typed_array));
+
+    // 4. Let out be the empty String.
+    StringBuilder out;
+
+    // 5. For each byte byte of toEncode, do
+    for (auto byte : to_encode.bytes()) {
+        // a. Let hex be Number::toString(𝔽(byte), 16).
+        // b. Set hex to StringPad(hex, 2, "0", START).
+        // c. Set out to the string-concatenation of out and hex.
+        out.appendff("{:02x}", byte);
+    }
+
+    // 6. Return out.
+    return PrimitiveString::create(vm, MUST(out.to_string()));
 }
 
 // 7 ValidateUint8Array ( ta ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-validateuint8array
