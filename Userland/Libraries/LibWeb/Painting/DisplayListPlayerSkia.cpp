@@ -1141,8 +1141,14 @@ CommandResult DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient c
 
     auto const& rect = command.rect;
     auto center = to_skia_point(command.center.translated(command.rect.location()));
-    auto radius = command.size.height();
-    auto shader = SkGradientShader::MakeRadial(center, radius, colors.data(), positions.data(), positions.size(), SkTileMode::kClamp, 0);
+
+    auto const size = command.size.to_type<float>();
+    SkMatrix matrix;
+    // Skia does not support specifying of horizontal and vertical radius's separately,
+    // so instead we apply scale matrix
+    matrix.setScale(size.width() / size.height(), 1.0f, center.x(), center.y());
+
+    auto shader = SkGradientShader::MakeRadial(center, size.height(), colors.data(), positions.data(), positions.size(), SkTileMode::kClamp, 0, &matrix);
 
     SkPaint paint;
     paint.setShader(shader);
