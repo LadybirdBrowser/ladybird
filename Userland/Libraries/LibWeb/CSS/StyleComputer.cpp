@@ -2045,7 +2045,9 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         Length::ResolutionContext const length_resolution_context {
             .viewport_rect = viewport_rect(),
             .font_metrics = font_metrics,
-            .root_font_metrics = m_root_element_font_metrics,
+            .root_font_metrics = is<HTML::HTMLHtmlElement>(*element)
+                ? font_metrics
+                : m_root_element_font_metrics,
         };
 
         Optional<Length> maybe_length;
@@ -2211,14 +2213,14 @@ Gfx::Font const& StyleComputer::initial_font() const
     return StyleProperties::font_fallback(false, false);
 }
 
-void StyleComputer::absolutize_values(StyleProperties& style) const
+void StyleComputer::absolutize_values(StyleProperties& style, DOM::Element const* element) const
 {
     Length::FontMetrics font_metrics {
-        m_root_element_font_metrics.font_size,
+        element && !is<HTML::HTMLHtmlElement>(*element) ? 16 : m_root_element_font_metrics.font_size,
         style.first_available_computed_font().pixel_metrics()
     };
 
-    auto font_size = style.property(CSS::PropertyID::FontSize)->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
+    auto font_size = style.property(CSS::PropertyID::FontSize)->as_length().length().to_px(viewport_rect(), font_metrics, font_metrics);
     font_metrics.font_size = font_size;
 
     // NOTE: Percentage line-height values are relative to the font-size of the element.
@@ -2390,7 +2392,7 @@ NonnullRefPtr<StyleProperties> StyleComputer::create_document_style() const
     compute_math_depth(style, nullptr, {});
     compute_font(style, nullptr, {});
     compute_defaulted_values(style, nullptr, {});
-    absolutize_values(style);
+    absolutize_values(style, nullptr);
     style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())), nullptr);
     style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())), nullptr);
     style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)), nullptr);
@@ -2440,7 +2442,7 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
     compute_font(style, &element, pseudo_element);
 
     // 4. Absolutize values, turning font/viewport relative lengths into absolute lengths
-    absolutize_values(style);
+    absolutize_values(style, &element);
 
     // 5. Default the values, applying inheritance and 'initial' as needed
     compute_defaulted_values(style, &element, pseudo_element);
