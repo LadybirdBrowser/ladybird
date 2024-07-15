@@ -68,6 +68,7 @@ namespace JS {
     P(adopt)                                 \
     P(all)                                   \
     P(allSettled)                            \
+    P(alphabet)                              \
     P(anchor)                                \
     P(any)                                   \
     P(apply)                                 \
@@ -398,6 +399,7 @@ namespace JS {
     P(of)                                    \
     P(offset)                                \
     P(offsetNanoseconds)                     \
+    P(omitPadding)                           \
     P(overflow)                              \
     P(ownKeys)                               \
     P(padEnd)                                \
@@ -526,6 +528,7 @@ namespace JS {
     P(timeZone)                              \
     P(timeZoneName)                          \
     P(toArray)                               \
+    P(toBase64)                              \
     P(toDateString)                          \
     P(toExponential)                         \
     P(toFixed)                               \
