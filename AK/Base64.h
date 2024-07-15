@@ -16,8 +16,13 @@ namespace AK {
 ErrorOr<ByteBuffer> decode_base64(StringView);
 ErrorOr<ByteBuffer> decode_base64url(StringView);
 
-ErrorOr<String> encode_base64(ReadonlyBytes);
-ErrorOr<String> encode_base64url(ReadonlyBytes);
+enum class OmitPadding {
+    No,
+    Yes,
+};
+
+ErrorOr<String> encode_base64(ReadonlyBytes, OmitPadding = OmitPadding::No);
+ErrorOr<String> encode_base64url(ReadonlyBytes, OmitPadding = OmitPadding::No);
 
 }
 

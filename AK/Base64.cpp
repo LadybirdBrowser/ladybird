@@ -54,14 +54,22 @@ ErrorOr<ByteBuffer> decode_base64url(StringView input)
     return decode_base64_impl(input, simdutf::base64_url);
 }
 
-ErrorOr<String> encode_base64(ReadonlyBytes input)
+ErrorOr<String> encode_base64(ReadonlyBytes input, OmitPadding omit_padding)
 {
-    return encode_base64_impl(input, simdutf::base64_default);
+    auto options = omit_padding == OmitPadding::Yes
+        ? simdutf::base64_default_no_padding
+        : simdutf::base64_default;
+
+    return encode_base64_impl(input, options);
 }
 
-ErrorOr<String> encode_base64url(ReadonlyBytes input)
+ErrorOr<String> encode_base64url(ReadonlyBytes input, OmitPadding omit_padding)
 {
-    return encode_base64_impl(input, simdutf::base64_url_with_padding);
+    auto options = omit_padding == OmitPadding::Yes
+        ? simdutf::base64_url
+        : simdutf::base64_url_with_padding;
+
+    return encode_base64_impl(input, options);
 }
 
 }
