@@ -44,6 +44,8 @@ else
     echo -e "[${GREEN}SKIP${NC}]: IPCMagicLinter (in Meta/lint-ci.sh)"
 fi
 
+echo "$@"
+
 if Meta/lint-clang-format.sh --overwrite-inplace "$@" && git diff --exit-code; then
     echo -e "[${GREEN}OK${NC}]: Meta/lint-clang-format.sh"
 else
