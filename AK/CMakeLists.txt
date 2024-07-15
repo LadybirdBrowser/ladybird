@@ -1,4 +1,4 @@
-set(AK_SOURCES
+set(SOURCES
     Assertions.cpp
     Base64.cpp
     CircularBuffer.cpp
@@ -37,10 +37,22 @@ set(AK_SOURCES
     Utf8View.cpp
     kmalloc.cpp
 )
-# AK sources are included from many different places
-list(TRANSFORM AK_SOURCES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
-set(AK_SOURCES ${AK_SOURCES} PARENT_SCOPE)
+serenity_lib(AK ak)
 
 serenity_install_headers(AK)
 serenity_install_sources(AK)
+
+find_package(Backtrace)
+configure_file(Backtrace.h.in Backtrace.h @ONLY)
+
+if (Backtrace_FOUND)
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30)
+        target_link_libraries(AK PRIVATE Backtrace::Backtrace)
+    else()
+        target_include_directories(AK PRIVATE ${Backtrace_INCLUDE_DIRS})
+        target_link_libraries(AK PRIVATE ${Backtrace_LIBRARIES})
+    endif()
+else()
+    message(WARNING "Backtrace not found, stack traces will be unavailable")
+endif()
