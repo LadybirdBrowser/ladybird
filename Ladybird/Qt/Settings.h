@@ -30,6 +30,8 @@ public:
         return &instance;
     }
 
+    ByteString directory();
+
     Optional<QPoint> last_position();
     void set_last_position(QPoint const& last_position);
 
