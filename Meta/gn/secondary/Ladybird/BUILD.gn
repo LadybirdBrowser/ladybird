@@ -155,6 +155,7 @@ executable("ladybird_executable") {
     deps += [ "//Userland/Libraries/LibThreading" ]
   } else {
     data_deps += [
+      ":ladybird_copy_cacert",
       ":ladybird_copy_config_resources",
       ":ladybird_copy_emoji",
       ":ladybird_copy_fonts",
@@ -279,10 +280,12 @@ web_templates = [
   "//Base/res/ladybird/templates/version.html",
 ]
 
+cacert = [ "$root_build_dir/cacert.pem" ]
+
 config_resources = [
-  "$root_build_dir/cacert.pem",
-  "//Base/home/anon/.config/BrowserAutoplayAllowlist.txt",
-  "//Base/home/anon/.config/BrowserContentFilters.txt",
+  "//Base/res/ladybird/default-config/BrowserAutoplayAllowlist.txt",
+  "//Base/res/ladybird/default-config/BrowserContentFilters.txt",
+  "//Base/res/ladybird/default-config/bookmarks.json",
 ]
 
 if (current_os != "mac") {
@@ -337,10 +340,17 @@ if (current_os != "mac") {
         [ "$root_out_dir/share/Lagom/ladybird/templates/{{source_file_part}}" ]
   }
 
-  copy("ladybird_copy_config_resources") {
+  copy("ladybird_copy_cacert") {
     public_deps = [ "//Userland/Libraries/LibTLS:ca_certificates_download" ]
-    sources = config_resources
+    sources = cacert
     outputs = [ "$root_out_dir/share/Lagom/ladybird/{{source_file_part}}" ]
+  }
+
+  copy("ladybird_copy_config_resources") {
+    sources = config_resources
+    outputs = [
+      "$root_out_dir/share/Lagom/ladybird/default-config/{{source_file_part}}",
+    ]
   }
 } else {
   # macOS bundle steps
@@ -477,10 +487,17 @@ if (current_os != "mac") {
         [ "{{bundle_resources_dir}}/ladybird/templates/{{source_file_part}}" ]
   }
 
-  bundle_data("ladybird_config_resources") {
+  bundle_data("ladybird_cacert") {
     public_deps = [ "//Userland/Libraries/LibTLS:ca_certificates_download" ]
-    sources = config_resources
+    sources = cacert
     outputs = [ "{{bundle_resources_dir}}/ladybird/{{source_file_part}}" ]
+  }
+
+  bundle_data("ladybird_config_resources") {
+    sources = config_resources
+    outputs = [
+      "{{bundle_resources_dir}}/ladybird/default-config/{{source_file_part}}",
+    ]
   }
 
   action("ladybird_create_icon") {
@@ -527,6 +544,7 @@ if (current_os != "mac") {
       ":ladybird_bundle_executables",
       ":ladybird_bundle_info_plist",
       ":ladybird_bundle_libs",
+      ":ladybird_cacert",
       ":ladybird_config_resources",
       ":ladybird_emoji",
       ":ladybird_fonts",

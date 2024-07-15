@@ -197,7 +197,7 @@ static ErrorOr<void> load_content_filters()
 {
     auto buffer = TRY(ByteBuffer::create_uninitialized(4096));
 
-    auto resource = TRY(Core::Resource::load_from_uri("resource://ladybird/BrowserContentFilters.txt"sv));
+    auto resource = TRY(Core::Resource::load_from_uri("resource://ladybird/default-config/BrowserContentFilters.txt"sv));
     auto ad_filter_list = TRY(InputBufferedSeekable<FixedMemoryStream>::create(make<FixedMemoryStream>(resource->data())));
 
     Vector<String> patterns;
@@ -221,7 +221,7 @@ static ErrorOr<void> load_autoplay_allowlist()
 {
     auto buffer = TRY(ByteBuffer::create_uninitialized(4096));
 
-    auto resource = TRY(Core::Resource::load_from_uri("resource://ladybird/BrowserAutoplayAllowlist.txt"sv));
+    auto resource = TRY(Core::Resource::load_from_uri("resource://ladybird/default-config/BrowserAutoplayAllowlist.txt"sv));
     auto allowlist = TRY(InputBufferedSeekable<FixedMemoryStream>::create(make<FixedMemoryStream>(resource->data())));
 
     Vector<String> origins;
