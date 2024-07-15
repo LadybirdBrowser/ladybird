@@ -1167,10 +1167,14 @@ CommandResult DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient con
 
     auto const& color_stop_list = conic_gradient_data.color_stops.list;
     VERIFY(!color_stop_list.is_empty());
+    auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
 
     Vector<SkColor> colors;
     Vector<SkScalar> positions;
-    for (auto const& stop : color_stop_list) {
+    for (size_t stop_index = 0; stop_index < stops_with_replaced_transition_hints.size(); stop_index++) {
+        auto const& stop = stops_with_replaced_transition_hints[stop_index];
+        if (stop_index > 0 && stop == stops_with_replaced_transition_hints[stop_index - 1])
+            continue;
         colors.append(to_skia_color(stop.color));
         positions.append(stop.position);
     }
