@@ -1151,6 +1151,7 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
 
     for_each_tab([&](auto& tab) {
+        tab.view().set_viewport_size({ static_cast<int>(tab.view().width() * m_device_pixel_ratio), static_cast<int>(tab.view().height() * m_device_pixel_ratio) });
         tab.view().set_window_size({ frameSize().width() * m_device_pixel_ratio, frameSize().height() * m_device_pixel_ratio });
     });
 }

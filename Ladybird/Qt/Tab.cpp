@@ -390,8 +390,9 @@ Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, St
     };
 
     view().on_resize_window = [this](auto const& size) {
-        m_window->resize(size.width(), size.height());
-        return Gfx::IntSize { m_window->width(), m_window->height() };
+        auto new_window_size = m_window->size() - m_view->size() + QSize { size.width(), size.height() };
+        m_window->resize(new_window_size);
+        return Gfx::IntSize { m_view->width(), m_view->height() };
     };
 
     view().on_maximize_window = [this]() {
