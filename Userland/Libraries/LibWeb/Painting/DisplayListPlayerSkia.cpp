@@ -1180,9 +1180,13 @@ CommandResult DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient con
     }
 
     auto const& rect = command.rect;
-    auto center = command.position.translated(rect.location());
+    auto center = command.position.translated(rect.location()).to_type<float>();
+
+    SkMatrix matrix;
+    matrix.setRotate(-90, center.x(), center.y());
+
     // FIXME: Account for repeat length and start angle
-    auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), positions.data(), positions.size());
+    auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), positions.data(), positions.size(), 0, &matrix);
 
     SkPaint paint;
     paint.setShader(shader);
