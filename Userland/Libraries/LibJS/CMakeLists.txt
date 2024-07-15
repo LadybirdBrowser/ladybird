@@ -249,6 +249,7 @@ set(SOURCES
     Runtime/TypedArray.cpp
     Runtime/TypedArrayConstructor.cpp
     Runtime/TypedArrayPrototype.cpp
+    Runtime/Uint8Array.cpp
     Runtime/Utf16String.cpp
     Runtime/Value.cpp
     Runtime/VM.cpp

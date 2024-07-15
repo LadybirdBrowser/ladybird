@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/TypedArrayConstructor.h>
+#include <LibJS/Runtime/Uint8Array.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
@@ -500,6 +501,9 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
         auto& vm = this->vm();                                                                                              \
         Base::initialize(realm);                                                                                            \
         define_direct_property(vm.names.BYTES_PER_ELEMENT, Value((i32)sizeof(Type)), 0);                                    \
+                                                                                                                            \
+        if constexpr (IsSame<PrototypeName, Uint8ArrayPrototype>)                                                           \
+            Uint8ArrayPrototypeHelpers::initialize(realm, *this);                                                           \
     }                                                                                                                       \
                                                                                                                             \
     ConstructorName::ConstructorName(Realm& realm, Object& prototype)                                                       \
