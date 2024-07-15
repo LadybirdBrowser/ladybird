@@ -159,6 +159,47 @@ void BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
     configuration.stack().peek() = Value(bit_cast<u128>(convert_vector<V128>(bytes)));
 }
 
+template<size_t N>
+void BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Instruction const& instruction)
+{
+    auto memarg_and_lane = instruction.arguments().get<Instruction::MemoryAndLaneArgument>();
+    auto& address = configuration.frame().module().memories()[memarg_and_lane.memory.memory_index.value()];
+    auto memory = configuration.store().get(address);
+    auto vector = *configuration.stack().pop().get<Value>().to<u128>();
+    auto base = *configuration.stack().pop().get<Value>().to<u32>();
+    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.memory.offset;
+    Checked addition { instance_address };
+    addition += N / 8;
+    if (addition.has_overflow() || addition.value() > memory->size()) {
+        m_trap = Trap { "Memory access out of bounds" };
+        return;
+    }
+    auto slice = memory->data().bytes().slice(instance_address, N / 8);
+    auto dst = bit_cast<u8*>(&vector) + memarg_and_lane.lane * N / 8;
+    memcpy(dst, slice.data(), N / 8);
+    configuration.stack().push(Value(vector));
+}
+
+template<size_t N>
+void BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Instruction const& instruction)
+{
+    auto memarg_and_lane = instruction.arguments().get<Instruction::MemoryArgument>();
+    auto& address = configuration.frame().module().memories()[memarg_and_lane.memory_index.value()];
+    auto memory = configuration.store().get(address);
+    auto base = *configuration.stack().pop().get<Value>().to<u32>();
+    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.offset;
+    Checked addition { instance_address };
+    addition += N / 8;
+    if (addition.has_overflow() || addition.value() > memory->size()) {
+        m_trap = Trap { "Memory access out of bounds" };
+        return;
+    }
+    auto slice = memory->data().bytes().slice(instance_address, N / 8);
+    u128 vector = 0;
+    memcpy(&vector, slice.data(), N / 8);
+    configuration.stack().push(Value(vector));
+}
+
 template<size_t M>
 void BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, Instruction const& instruction)
 {
@@ -381,6 +422,20 @@ void BytecodeInterpreter::pop_and_store(Configuration& configuration, Instructio
     auto base_entry = configuration.stack().pop();
     auto base = base_entry.get<Value>().to<i32>();
     store_to_memory(configuration, instruction, { &value, sizeof(StoreT) }, *base);
+}
+
+template<size_t N>
+void BytecodeInterpreter::pop_and_store_lane_n(Configuration& configuration, Instruction const& instruction)
+{
+    auto& memarg_and_lane = instruction.arguments().get<Instruction::MemoryAndLaneArgument>();
+    auto vector = *configuration.stack().pop().get<Value>().to<u128>();
+    auto src = bit_cast<u8*>(&vector) + memarg_and_lane.lane * N / 8;
+    auto base = *configuration.stack().pop().get<Value>().to<u32>();
+    Instruction synthetic_store_instruction {
+        Instructions::i32_store8,
+        memarg_and_lane.memory,
+    };
+    store_to_memory(configuration, synthetic_store_instruction, { src, N / 8 }, base);
 }
 
 void BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruction const& instruction, ReadonlyBytes data, u32 base)
@@ -1716,17 +1771,31 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         configuration.stack().push(Value(result));
         return;
     }
-    case Instructions::v128_any_true.value():
+    case Instructions::v128_any_true.value(): {
+        auto vector = *configuration.stack().pop().get<Value>().to<u128>();
+        configuration.stack().push(Value(static_cast<i32>(vector == 0)));
+        return;
+    }
     case Instructions::v128_load8_lane.value():
+        return load_and_push_lane_n<8>(configuration, instruction);
     case Instructions::v128_load16_lane.value():
+        return load_and_push_lane_n<16>(configuration, instruction);
     case Instructions::v128_load32_lane.value():
+        return load_and_push_lane_n<32>(configuration, instruction);
     case Instructions::v128_load64_lane.value():
-    case Instructions::v128_store8_lane.value():
-    case Instructions::v128_store16_lane.value():
-    case Instructions::v128_store32_lane.value():
-    case Instructions::v128_store64_lane.value():
+        return load_and_push_lane_n<64>(configuration, instruction);
     case Instructions::v128_load32_zero.value():
+        return load_and_push_zero_n<32>(configuration, instruction);
     case Instructions::v128_load64_zero.value():
+        return load_and_push_zero_n<64>(configuration, instruction);
+    case Instructions::v128_store8_lane.value():
+        return pop_and_store_lane_n<8>(configuration, instruction);
+    case Instructions::v128_store16_lane.value():
+        return pop_and_store_lane_n<16>(configuration, instruction);
+    case Instructions::v128_store32_lane.value():
+        return pop_and_store_lane_n<32>(configuration, instruction);
+    case Instructions::v128_store64_lane.value():
+        return pop_and_store_lane_n<64>(configuration, instruction);
     case Instructions::f32x4_demote_f64x2_zero.value():
     case Instructions::f64x2_promote_low_f32x4.value():
     case Instructions::i8x16_bitmask.value():
@@ -1747,7 +1816,6 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::i32x4_trunc_sat_f64x2_u_zero.value():
     case Instructions::f64x2_convert_low_i32x4_s.value():
     case Instructions::f64x2_convert_low_i32x4_u.value():
-    default:
         dbgln_if(WASM_TRACE_DEBUG, "Instruction '{}' not implemented", instruction_name(instruction.opcode()));
         m_trap = Trap { ByteString::formatted("Unimplemented instruction {}", instruction_name(instruction.opcode())) };
         return;

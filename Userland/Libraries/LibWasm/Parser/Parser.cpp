@@ -731,6 +731,8 @@ ParseResult<Vector<Instruction>> Instruction::parse(Stream& stream, InstructionP
             case Instructions::v128_load16_splat.value():
             case Instructions::v128_load32_splat.value():
             case Instructions::v128_load64_splat.value():
+            case Instructions::v128_load32_zero.value():
+            case Instructions::v128_load64_zero.value():
             case Instructions::v128_store.value(): {
                 // op (align [multi-memory memindex] offset)
                 auto align_or_error = stream.read_value<LEB128<u32>>();
@@ -891,8 +893,6 @@ ParseResult<Vector<Instruction>> Instruction::parse(Stream& stream, InstructionP
             case Instructions::v128_xor.value():
             case Instructions::v128_bitselect.value():
             case Instructions::v128_any_true.value():
-            case Instructions::v128_load32_zero.value():
-            case Instructions::v128_load64_zero.value():
             case Instructions::f32x4_demote_f64x2_zero.value():
             case Instructions::f64x2_promote_low_f32x4.value():
             case Instructions::i8x16_abs.value():
