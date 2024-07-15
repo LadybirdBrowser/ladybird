@@ -22,22 +22,12 @@ copy_res_folder(fonts)
 copy_res_folder(icons)
 copy_res_folder(emoji)
 copy_res_folder(themes)
-add_custom_target(copy-autoplay-allowlist
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${LADYBIRD_SOURCE_DIR}/Base/home/anon/.config/BrowserAutoplayAllowlist.txt"
-        "asset-bundle/res/ladybird/BrowserAutoplayAllowlist.txt"
-)
-add_custom_target(copy-content-filters
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${LADYBIRD_SOURCE_DIR}/Base/home/anon/.config/BrowserContentFilters.txt"
-        "asset-bundle/res/ladybird/BrowserContentFilters.txt"
-)
 add_custom_target(copy-certs
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${Lagom_BINARY_DIR}/cacert.pem"
         "asset-bundle/res/ladybird/cacert.pem"
 )
-add_dependencies(archive-assets copy-autoplay-allowlist copy-content-filters copy-certs)
+add_dependencies(archive-assets copy-certs)
 add_custom_target(copy-assets COMMAND ${CMAKE_COMMAND} -E copy_if_different ladybird-assets.tar "${CMAKE_SOURCE_DIR}/Ladybird/Android/src/main/assets/")
 add_dependencies(copy-assets archive-assets)
 add_dependencies(ladybird copy-assets)
