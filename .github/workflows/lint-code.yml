@@ -21,7 +21,7 @@ jobs:
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
           sudo apt-get update
-          sudo apt-get install clang-format-18 generate-ninja
+          sudo apt-get install clang-format-18 generate-ninja optipng
 
       - name: Install JS Dependencies
         shell: bash
