@@ -1,52 +1,52 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x21 children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 236.65625x21] baseline: 13.296875
-      frag 1 from TextNode start: 0, length: 1, rect: [245,8 8x17] baseline: 13.296875
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 236.65625x21] baseline: 15.296875
+      frag 1 from TextNode start: 0, length: 1, rect: [245,10 8x17] baseline: 13.296875
           " "
-      frag 2 from BlockContainer start: 0, length: 0, rect: [253,8 255.34375x21] baseline: 13.296875
-      frag 3 from TextNode start: 0, length: 1, rect: [508,8 8x17] baseline: 13.296875
+      frag 2 from BlockContainer start: 0, length: 0, rect: [253,8 255.34375x21] baseline: 15.296875
+      frag 3 from TextNode start: 0, length: 1, rect: [508,10 8x17] baseline: 13.296875
           " "
-      frag 4 from BlockContainer start: 0, length: 0, rect: [516,8 255.34375x21] baseline: 13.296875
+      frag 4 from BlockContainer start: 0, length: 0, rect: [516,8 255.34375x21] baseline: 15.296875
       BlockContainer <input> at (8,8) content-size 236.65625x21 inline-block [BFC] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 94.375x17] baseline: 13.296875
-        frag 1 from Label start: 0, length: 0, rect: [116,8 128.28125x17] baseline: 13.296875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 94.375x17] baseline: 15.296875
+        frag 1 from Label start: 0, length: 0, rect: [116,10 128.28125x17] baseline: 13.296875
         BlockContainer <button> at (13,10) content-size 94.375x17 inline-block [BFC] children: not-inline
           BlockContainer <(anonymous)> at (13,10) content-size 94.375x17 flex-container(column) [FFC] children: not-inline
             BlockContainer <(anonymous)> at (13,10) content-size 94.375x17 flex-item [BFC] children: inline
               frag 0 from TextNode start: 0, length: 14, rect: [13,10 94.375x17] baseline: 13.296875
                   "Select file..."
               TextNode <#text>
-        Label <label> at (116,8) content-size 128.28125x17 inline-block [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 17, rect: [116,8 128.28125x17] baseline: 13.296875
+        Label <label> at (116,10) content-size 128.28125x17 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 17, rect: [116,10 128.28125x17] baseline: 13.296875
               "No file selected."
           TextNode <#text>
       TextNode <#text>
       BlockContainer <input> at (253,8) content-size 255.34375x21 inline-block [BFC] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [258,10 103.71875x17] baseline: 13.296875
-        frag 1 from Label start: 0, length: 0, rect: [371,8 137.625x17] baseline: 13.296875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [258,10 103.71875x17] baseline: 15.296875
+        frag 1 from Label start: 0, length: 0, rect: [371,10 137.625x17] baseline: 13.296875
         BlockContainer <button> at (258,10) content-size 103.71875x17 inline-block [BFC] children: not-inline
           BlockContainer <(anonymous)> at (258,10) content-size 103.71875x17 flex-container(column) [FFC] children: not-inline
             BlockContainer <(anonymous)> at (258,10) content-size 103.71875x17 flex-item [BFC] children: inline
               frag 0 from TextNode start: 0, length: 15, rect: [258,10 103.71875x17] baseline: 13.296875
                   "Select files..."
               TextNode <#text>
-        Label <label> at (371,8) content-size 137.625x17 inline-block [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 18, rect: [371,8 137.625x17] baseline: 13.296875
+        Label <label> at (371,10) content-size 137.625x17 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 18, rect: [371,10 137.625x17] baseline: 13.296875
               "No files selected."
           TextNode <#text>
       TextNode <#text>
       BlockContainer <input#multiple> at (516,8) content-size 255.34375x21 inline-block [BFC] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [521,10 103.71875x17] baseline: 13.296875
-        frag 1 from Label start: 0, length: 0, rect: [634,8 137.625x17] baseline: 13.296875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [521,10 103.71875x17] baseline: 15.296875
+        frag 1 from Label start: 0, length: 0, rect: [634,10 137.625x17] baseline: 13.296875
         BlockContainer <button> at (521,10) content-size 103.71875x17 inline-block [BFC] children: not-inline
           BlockContainer <(anonymous)> at (521,10) content-size 103.71875x17 flex-container(column) [FFC] children: not-inline
             BlockContainer <(anonymous)> at (521,10) content-size 103.71875x17 flex-item [BFC] children: inline
               frag 0 from TextNode start: 0, length: 15, rect: [521,10 103.71875x17] baseline: 13.296875
                   "Select files..."
               TextNode <#text>
-        Label <label> at (634,8) content-size 137.625x17 inline-block [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 18, rect: [634,8 137.625x17] baseline: 13.296875
+        Label <label> at (634,10) content-size 137.625x17 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 18, rect: [634,10 137.625x17] baseline: 13.296875
               "No files selected."
           TextNode <#text>
       TextNode <#text>
@@ -60,7 +60,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (BlockContainer(anonymous)) [13,10 94.375x17]
             PaintableWithLines (BlockContainer(anonymous)) [13,10 94.375x17]
               TextPaintable (TextNode<#text>)
-        PaintableWithLines (Label<LABEL>) [112,8 132.28125x17]
+        PaintableWithLines (Label<LABEL>) [112,10 132.28125x17]
           TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>) [253,8 255.34375x21] overflow: [253,8 255.625x21]
@@ -68,7 +68,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (BlockContainer(anonymous)) [258,10 103.71875x17]
             PaintableWithLines (BlockContainer(anonymous)) [258,10 103.71875x17]
               TextPaintable (TextNode<#text>)
-        PaintableWithLines (Label<LABEL>) [367,8 141.625x17]
+        PaintableWithLines (Label<LABEL>) [367,10 141.625x17]
           TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>#multiple) [516,8 255.34375x21] overflow: [516,8 255.625x21]
@@ -76,5 +76,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (BlockContainer(anonymous)) [521,10 103.71875x17]
             PaintableWithLines (BlockContainer(anonymous)) [521,10 103.71875x17]
               TextPaintable (TextNode<#text>)
-        PaintableWithLines (Label<LABEL>) [630,8 141.625x17]
+        PaintableWithLines (Label<LABEL>) [630,10 141.625x17]
           TextPaintable (TextNode<#text>)

@@ -1,7 +1,7 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x120 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x104 children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 143.515625x100] baseline: 54.796875
+      frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 143.515625x100] baseline: 56.796875
       BlockContainer <button> at (13,10) content-size 143.515625x100 inline-block [BFC] children: not-inline
         BlockContainer <(anonymous)> at (13,10) content-size 143.515625x100 flex-container(column) [FFC] children: not-inline
           BlockContainer <(anonymous)> at (13,51.5) content-size 143.515625x17 flex-item [BFC] children: inline
