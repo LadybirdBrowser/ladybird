@@ -1,6 +1,5 @@
 set(SOURCES
     Assertions.cpp
-    Base64.cpp
     CircularBuffer.cpp
     ConstrainedStream.cpp
     CountingStream.cpp
@@ -38,6 +37,10 @@ set(SOURCES
     kmalloc.cpp
 )
 
+if (NOT LAGOM_TOOLS_ONLY)
+    list(APPEND SOURCES Base64.cpp)
+endif()
+
 serenity_lib(AK ak)
 
 serenity_install_headers(AK)
@@ -55,4 +58,9 @@ if (Backtrace_FOUND)
     endif()
 else()
     message(WARNING "Backtrace not found, stack traces will be unavailable")
+endif()
+
+if (NOT LAGOM_TOOLS_ONLY)
+    find_package(simdutf REQUIRED)
+    target_link_libraries(AK PRIVATE simdutf::simdutf)
 endif()

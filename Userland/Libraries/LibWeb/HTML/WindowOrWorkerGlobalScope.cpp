@@ -32,7 +32,6 @@
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
-#include <LibWeb/Infra/Base64.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserverEntryList.h>
@@ -130,14 +129,14 @@ WebIDL::ExceptionOr<String> WindowOrWorkerGlobalScopeMixin::atob(String const& d
     auto& realm = *vm.current_realm();
 
     // 1. Let decodedData be the result of running forgiving-base64 decode on data.
-    auto decoded_data = Infra::decode_forgiving_base64(data.bytes_as_string_view());
+    auto decoded_data = decode_base64(data);
 
     // 2. If decodedData is failure, then throw an "InvalidCharacterError" DOMException.
     if (decoded_data.is_error())
         return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_fly_string);
 
     // 3. Return decodedData.
-    // decode_base64() returns a byte string. LibJS uses UTF-8 for strings. Use Latin1Decoder to convert bytes 128-255 to UTF-8.
+    // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use Latin1Decoder to convert bytes 128-255 to UTF-8.
     auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
     VERIFY(decoder.has_value());
     return TRY_OR_THROW_OOM(vm, decoder->to_utf8(decoded_data.value()));
