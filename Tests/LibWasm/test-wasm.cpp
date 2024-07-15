@@ -199,12 +199,12 @@ TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
     return JS::Value(lhs_array.viewed_array_buffer()->buffer() == rhs_array.viewed_array_buffer()->buffer());
 }
 
-bool _is_canonical_nan32(u32 value)
+static bool _is_canonical_nan32(u32 value)
 {
     return value == 0x7FC00000 || value == 0xFFC00000;
 }
 
-bool _is_canonical_nan64(u64 value)
+static bool _is_canonical_nan64(u64 value)
 {
     return value == 0x7FF8000000000000 || value == 0xFFF8000000000000;
 }
