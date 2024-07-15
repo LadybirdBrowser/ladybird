@@ -7,15 +7,13 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/Base64.h>
-#include <AK/ByteString.h>
 #include <string.h>
 
 TEST_CASE(test_decode)
 {
     auto decode_equal = [&](StringView input, StringView expected) {
         auto decoded = TRY_OR_FAIL(decode_base64(input));
-        EXPECT(ByteString::copy(decoded) == expected);
-        EXPECT(expected.length() <= calculate_base64_decoded_length(input.bytes()));
+        EXPECT_EQ(StringView { decoded }, expected);
     };
 
     decode_equal(""sv, ""sv);
@@ -26,7 +24,7 @@ TEST_CASE(test_decode)
     decode_equal("Zm9vYmE="sv, "fooba"sv);
     decode_equal("Zm9vYmFy"sv, "foobar"sv);
     decode_equal(" Zm9vYmFy "sv, "foobar"sv);
-    decode_equal("  \n\r \t Zm9vYmFy \n"sv, "foobar"sv);
+    decode_equal("  \n\r \t Zm   9v   \t YmFy \n"sv, "foobar"sv);
 
     decode_equal("aGVsbG8/d29ybGQ="sv, "hello?world"sv);
 }
@@ -42,9 +40,7 @@ TEST_CASE(test_decode_invalid)
     EXPECT(decode_base64url("aGVsbG8/d29ybGQ="sv).is_error());
 
     EXPECT(decode_base64("Y"sv).is_error());
-    EXPECT(decode_base64("YQ"sv).is_error());
     EXPECT(decode_base64("YQ="sv).is_error());
-    EXPECT(decode_base64("PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMC42MDUiIGhlaWdodD0iMTUuNTU1Ij48cGF0aCBmaWxsPSIjODg5IiBkPSJtMi44MjggMTUuNTU1IDcuNzc3LTcuNzc5TDIuODI4IDAgMCAyLjgyOGw0Ljk0OSA0Ljk0OEwwIDEyLjcyN2wyLjgyOCAyLjgyOHoiLz48L3N2Zz4"sv).is_error());
 }
 
 TEST_CASE(test_decode_only_padding)
@@ -65,8 +61,7 @@ TEST_CASE(test_encode)
 {
     auto encode_equal = [&](StringView input, StringView expected) {
         auto encoded = MUST(encode_base64(input.bytes()));
-        EXPECT(encoded == expected);
-        EXPECT_EQ(expected.length(), calculate_base64_encoded_length(input.bytes()));
+        EXPECT_EQ(encoded, expected);
     };
 
     encode_equal(""sv, ""sv);
@@ -82,8 +77,7 @@ TEST_CASE(test_urldecode)
 {
     auto decode_equal = [&](StringView input, StringView expected) {
         auto decoded = TRY_OR_FAIL(decode_base64url(input));
-        EXPECT(ByteString::copy(decoded) == expected);
-        EXPECT(expected.length() <= calculate_base64_decoded_length(input.bytes()));
+        EXPECT_EQ(StringView { decoded }, expected);
     };
 
     decode_equal(""sv, ""sv);
@@ -104,8 +98,7 @@ TEST_CASE(test_urlencode)
 {
     auto encode_equal = [&](StringView input, StringView expected) {
         auto encoded = MUST(encode_base64url(input.bytes()));
-        EXPECT(encoded == expected);
-        EXPECT_EQ(expected.length(), calculate_base64_encoded_length(input.bytes()));
+        EXPECT_EQ(encoded, expected);
     };
 
     encode_equal(""sv, ""sv);

@@ -460,7 +460,6 @@ set(SOURCES
     HTML/ValidityState.cpp
     HighResolutionTime/Performance.cpp
     HighResolutionTime/TimeOrigin.cpp
-    Infra/Base64.cpp
     Infra/ByteSequences.cpp
     Infra/JSON.cpp
     Infra/Strings.cpp

@@ -6,10 +6,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/MimeSniff/MimeType.h>
-#include <Userland/Libraries/LibWeb/Infra/Base64.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -79,7 +79,7 @@ ErrorOr<DataURL> process_data_url(URL::URL const& data_url)
 
             // 2. Set body to the forgiving-base64 decode of stringBody.
             // 3. If body is failure, then return failure.
-            body = TRY(Infra::decode_forgiving_base64(string_body));
+            body = TRY(decode_base64(string_body));
 
             // 4. Remove the last 6 code points from mimeType.
             // 5. Remove trailing U+0020 SPACE code points from mimeType, if any.
