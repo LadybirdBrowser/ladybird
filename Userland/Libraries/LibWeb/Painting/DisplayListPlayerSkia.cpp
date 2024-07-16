@@ -854,6 +854,19 @@ SkTileMode to_skia_tile_mode(SVGLinearGradientPaintStyle::SpreadMethod spread_me
 SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_style, Gfx::FloatRect bounding_rect)
 {
     SkPaint paint;
+
+    auto const& color_stops = paint_style.color_stops();
+
+    Vector<SkColor> colors;
+    colors.ensure_capacity(color_stops.size());
+    Vector<SkScalar> positions;
+    positions.ensure_capacity(color_stops.size());
+
+    for (auto const& color_stop : color_stops) {
+        colors.append(to_skia_color(color_stop.color));
+        positions.append(color_stop.position);
+    }
+
     if (is<SVGLinearGradientPaintStyle>(paint_style)) {
         auto const& linear_gradient_paint_style = static_cast<SVGLinearGradientPaintStyle const&>(paint_style);
 
@@ -869,22 +882,27 @@ SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_s
         points[0] = to_skia_point(start_point);
         points[1] = to_skia_point(end_point);
 
-        auto const& color_stops = linear_gradient_paint_style.color_stops();
-
-        Vector<SkColor> colors;
-        colors.ensure_capacity(color_stops.size());
-        Vector<SkScalar> positions;
-        positions.ensure_capacity(color_stops.size());
-
-        for (auto const& color_stop : linear_gradient_paint_style.color_stops()) {
-            colors.append(to_skia_color(color_stop.color));
-            positions.append(color_stop.position);
-        }
-
         auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), color_stops.size(), to_skia_tile_mode(paint_style.spread_method()), 0, &matrix);
         paint.setShader(shader);
     } else if (is<SVGRadialGradientPaintStyle>(paint_style)) {
-        // TODO:
+        auto const& radial_gradient_paint_style = static_cast<SVGRadialGradientPaintStyle const&>(paint_style);
+
+        SkMatrix matrix;
+        auto scale = radial_gradient_paint_style.scale();
+
+        auto start_center = radial_gradient_paint_style.start_center().scaled(scale);
+        auto end_center = radial_gradient_paint_style.end_center().scaled(scale);
+        auto start_radius = radial_gradient_paint_style.start_radius() * scale;
+        auto end_radius = radial_gradient_paint_style.end_radius() * scale;
+
+        start_center.translate_by(bounding_rect.location());
+        end_center.translate_by(bounding_rect.location());
+
+        auto start_sk_point = to_skia_point(start_center);
+        auto end_sk_point = to_skia_point(end_center);
+
+        auto shader = SkGradientShader::MakeTwoPointConical(start_sk_point, start_radius, end_sk_point, end_radius, colors.data(), positions.data(), color_stops.size(), to_skia_tile_mode(paint_style.spread_method()), 0, &matrix);
+        paint.setShader(shader);
     }
 
     return paint;
