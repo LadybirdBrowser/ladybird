@@ -1200,7 +1200,11 @@ CommandResult DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient c
     // so instead we apply scale matrix
     matrix.setScale(size.width() / size.height(), 1.0f, center.x(), center.y());
 
-    auto shader = SkGradientShader::MakeRadial(center, size.height(), colors.data(), positions.data(), positions.size(), SkTileMode::kClamp, 0, &matrix);
+    SkTileMode tile_mode = SkTileMode::kClamp;
+    if (repeat_length.has_value())
+        tile_mode = SkTileMode::kRepeat;
+
+    auto shader = SkGradientShader::MakeRadial(center, size.height(), colors.data(), positions.data(), positions.size(), tile_mode, 0, &matrix);
 
     SkPaint paint;
     paint.setShader(shader);
