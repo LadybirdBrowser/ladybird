@@ -56,8 +56,7 @@ ErrorOr<int> service_main(int ipc_socket)
     Web::Platform::ImageCodecPlugin::install(*new Ladybird::ImageCodecPlugin(move(image_decoder_client)));
 
     Web::Platform::AudioCodecPlugin::install_creation_hook([](auto loader) {
-        (void)loader;
-        return Error::from_string_literal("Don't know how to initialize audio in this configuration!");
+        return Web::Platform::AudioCodecPluginAgnostic::create(move(loader));
     });
 
     auto request_server_client = TRY(bind_request_server_service());

@@ -38,6 +38,7 @@ android {
                 cppFlags += "-std=c++2b"
                 arguments += listOf(
                     "-DLagomTools_DIR=$buildDir/lagom-tools-install/share/LagomTools",
+                    "-DANDROID_STL=c++_shared",
                     "-DSERENITY_CACHE_DIR=$cacheDir",
                     "-DVCPKG_ROOT=$sourceDir/Toolchain/Tarballs/vcpkg",
                     "-DVCPKG_TARGET_ANDROID=ON"
@@ -76,6 +77,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        prefab = true
     }
 }
 
@@ -89,4 +91,5 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.ext:junit-ktx:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    implementation("com.google.oboe:oboe:1.9.0")
 }
