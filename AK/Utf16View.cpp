@@ -26,7 +26,7 @@ static constexpr u32 replacement_code_point = 0xfffd;
 static constexpr u32 first_supplementary_plane_code_point = 0x10000;
 
 template<OneOf<Utf8View, Utf32View> UtfViewType>
-static ErrorOr<Utf16Data> to_utf16_impl(UtfViewType const& view)
+static ErrorOr<Utf16Data> to_utf16_slow(UtfViewType const& view)
 {
     Utf16Data utf16_data;
     TRY(utf16_data.try_ensure_capacity(view.length()));
@@ -39,17 +39,45 @@ static ErrorOr<Utf16Data> to_utf16_impl(UtfViewType const& view)
 
 ErrorOr<Utf16Data> utf8_to_utf16(StringView utf8_view)
 {
-    return to_utf16_impl(Utf8View { utf8_view });
+    return utf8_to_utf16(Utf8View { utf8_view });
 }
 
 ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const& utf8_view)
 {
-    return to_utf16_impl(utf8_view);
+    // All callers want to allow lonely surrogates, which simdutf does not permit.
+    if (!utf8_view.validate(Utf8View::AllowSurrogates::No)) [[unlikely]]
+        return to_utf16_slow(utf8_view);
+
+    Utf16Data utf16_data;
+
+    TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf8(
+        reinterpret_cast<char const*>(utf8_view.bytes()),
+        utf8_view.byte_length())));
+
+    [[maybe_unused]] auto result = simdutf::convert_utf8_to_utf16(
+        reinterpret_cast<char const*>(utf8_view.bytes()),
+        utf8_view.byte_length(),
+        reinterpret_cast<char16_t*>(utf16_data.data()));
+    ASSERT(result == utf16_data.size());
+
+    return utf16_data;
 }
 
 ErrorOr<Utf16Data> utf32_to_utf16(Utf32View const& utf32_view)
 {
-    return to_utf16_impl(utf32_view);
+    Utf16Data utf16_data;
+
+    TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf32(
+        reinterpret_cast<char32_t const*>(utf32_view.code_points()),
+        utf32_view.length())));
+
+    [[maybe_unused]] auto result = simdutf::convert_utf32_to_utf16(
+        reinterpret_cast<char32_t const*>(utf32_view.code_points()),
+        utf32_view.length(),
+        reinterpret_cast<char16_t*>(utf16_data.data()));
+    ASSERT(result == utf16_data.size());
+
+    return utf16_data;
 }
 
 ErrorOr<void> code_point_to_utf16(Utf16Data& string, u32 code_point)
@@ -92,30 +120,27 @@ ErrorOr<ByteString> Utf16View::to_byte_string(AllowInvalidCodeUnits allow_invali
 
 ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_units) const
 {
+    if (allow_invalid_code_units == AllowInvalidCodeUnits::No)
+        return String::from_utf16(*this);
+
     StringBuilder builder;
 
-    if (allow_invalid_code_units == AllowInvalidCodeUnits::Yes) {
-        for (auto const* ptr = begin_ptr(); ptr < end_ptr(); ++ptr) {
-            if (is_high_surrogate(*ptr)) {
-                auto const* next = ptr + 1;
+    for (auto const* ptr = begin_ptr(); ptr < end_ptr(); ++ptr) {
+        if (is_high_surrogate(*ptr)) {
+            auto const* next = ptr + 1;
 
-                if ((next < end_ptr()) && is_low_surrogate(*next)) {
-                    auto code_point = decode_surrogate_pair(*ptr, *next);
-                    TRY(builder.try_append_code_point(code_point));
-                    ++ptr;
-                    continue;
-                }
+            if ((next < end_ptr()) && is_low_surrogate(*next)) {
+                auto code_point = decode_surrogate_pair(*ptr, *next);
+                TRY(builder.try_append_code_point(code_point));
+                ++ptr;
+                continue;
             }
-
-            TRY(builder.try_append_code_point(static_cast<u32>(*ptr)));
         }
-        return builder.to_string_without_validation();
+
+        TRY(builder.try_append_code_point(static_cast<u32>(*ptr)));
     }
 
-    for (auto code_point : *this)
-        TRY(builder.try_append_code_point(code_point));
-
-    return builder.to_string();
+    return builder.to_string_without_validation();
 }
 
 size_t Utf16View::length_in_code_points() const

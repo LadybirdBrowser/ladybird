@@ -63,7 +63,7 @@ TEST_CASE(encode_utf8)
         auto encoded = Array { (u16)0xd83d };
         Utf16View view { encoded };
         EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), "\xed\xa0\xbd"sv);
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No)), "\ufffd"sv);
+        EXPECT(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No).is_error());
     }
 }
 
@@ -307,7 +307,7 @@ TEST_CASE(substring_view)
 
         EXPECT(view.length_in_code_units() == 1);
         EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), "\xed\xa0\xbd"sv);
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No)), "\ufffd"sv);
+        EXPECT(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No).is_error());
     }
 }
 

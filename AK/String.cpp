@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#define AK_DONT_REPLACE_STD
+
 #include <AK/Array.h>
 #include <AK/Checked.h>
 #include <AK/FlyString.h>
@@ -11,8 +13,11 @@
 #include <AK/MemMem.h>
 #include <AK/Stream.h>
 #include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <stdlib.h>
+
+#include <simdutf.h>
 
 namespace AK {
 
@@ -36,6 +41,30 @@ ErrorOr<String> String::from_utf8(StringView view)
         view.bytes().copy_to(buffer);
         return ErrorOr<void> {};
     }));
+    return result;
+}
+
+ErrorOr<String> String::from_utf16(Utf16View const& utf16)
+{
+    if (!utf16.validate())
+        return Error::from_string_literal("String::from_utf16: Input was not valid UTF-16");
+
+    String result;
+
+    auto utf8_length = simdutf::utf8_length_from_utf16(
+        reinterpret_cast<char16_t const*>(utf16.data()),
+        utf16.length_in_code_units());
+
+    TRY(result.replace_with_new_string(utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
+        [[maybe_unused]] auto result = simdutf::convert_utf16_to_utf8(
+            reinterpret_cast<char16_t const*>(utf16.data()),
+            utf16.length_in_code_units(),
+            reinterpret_cast<char*>(buffer.data()));
+        ASSERT(result == buffer.size());
+
+        return {};
+    }));
+
     return result;
 }
 
