@@ -22,6 +22,9 @@ public:
 private:
     IteratorPrototype(Realm&);
 
+    JS_DECLARE_NATIVE_FUNCTION(constructor_getter);
+    JS_DECLARE_NATIVE_FUNCTION(constructor_setter);
+
     JS_DECLARE_NATIVE_FUNCTION(symbol_iterator);
     JS_DECLARE_NATIVE_FUNCTION(map);
     JS_DECLARE_NATIVE_FUNCTION(filter);
