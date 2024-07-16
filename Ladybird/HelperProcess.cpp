@@ -80,6 +80,10 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
         web_content_options.executable_path.to_byte_string(),
     };
 
+    if (web_content_options.config_path.has_value()) {
+        arguments.append("--config-path"sv);
+        arguments.append(web_content_options.config_path.value());
+    }
     if (web_content_options.is_layout_test_mode == Ladybird::IsLayoutTestMode::Yes)
         arguments.append("--layout-test-mode"sv);
     if (web_content_options.use_lagom_networking == Ladybird::UseLagomNetworking::Yes)

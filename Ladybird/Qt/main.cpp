@@ -175,6 +175,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Ladybird::WebContentOptions web_content_options {
         .command_line = MUST(command_line_builder.to_string()),
         .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
+        .config_path = Ladybird::Settings::the()->directory(),
         .enable_callgrind_profiling = enable_callgrind_profiling ? Ladybird::EnableCallgrindProfiling::Yes : Ladybird::EnableCallgrindProfiling::No,
         .enable_skia_painting = use_skia_painting ? Ladybird::EnableSkiaPainting::Yes : Ladybird::EnableSkiaPainting::No,
         .use_lagom_networking = enable_qt_networking ? Ladybird::UseLagomNetworking::No : Ladybird::UseLagomNetworking::Yes,
