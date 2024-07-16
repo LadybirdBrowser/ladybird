@@ -1,8 +1,10 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
+
+#define AK_DONT_REPLACE_STD
 
 #include <AK/CharacterTypes.h>
 #include <AK/Concepts.h>
@@ -11,6 +13,8 @@
 #include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
 #include <AK/Utf8View.h>
+
+#include <simdutf.h>
 
 namespace AK {
 
@@ -233,27 +237,27 @@ bool Utf16View::starts_with(Utf16View const& needle) const
     return true;
 }
 
+bool Utf16View::validate() const
+{
+    return simdutf::validate_utf16(reinterpret_cast<char16_t const*>(m_code_units.data()), m_code_units.size());
+}
+
 bool Utf16View::validate(size_t& valid_code_units) const
 {
-    valid_code_units = 0;
+    auto result = simdutf::validate_utf16_with_errors(reinterpret_cast<char16_t const*>(m_code_units.data()), m_code_units.size());
+    valid_code_units = result.count;
 
-    for (auto const* ptr = begin_ptr(); ptr < end_ptr(); ++ptr) {
-        if (is_high_surrogate(*ptr)) {
-            if ((++ptr >= end_ptr()) || !is_low_surrogate(*ptr))
-                return false;
-            ++valid_code_units;
-        } else if (is_low_surrogate(*ptr)) {
-            return false;
-        }
-
-        ++valid_code_units;
-    }
-
-    return true;
+    return result.error == simdutf::SUCCESS;
 }
 
 size_t Utf16View::calculate_length_in_code_points() const
 {
+    // FIXME: simdutf's code point length method assumes valid UTF-16, whereas Utf16View uses U+FFFD as a replacement
+    //        for invalid code points. If we change Utf16View to only accept valid encodings as an invariant, we can
+    //        remove this branch.
+    if (validate()) [[likely]]
+        return simdutf::count_utf16(reinterpret_cast<char16_t const*>(m_code_units.data()), m_code_units.size());
+
     size_t code_points = 0;
     for ([[maybe_unused]] auto code_point : *this)
         ++code_points;
