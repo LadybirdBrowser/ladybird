@@ -499,9 +499,6 @@ RefPtr<ResourceLoaderConnectorRequest> ResourceLoader::start_network_request(Loa
     if (!headers.contains("User-Agent"))
         headers.set("User-Agent", m_user_agent.to_byte_string());
 
-    if (!headers.contains("Accept-Encoding"))
-        headers.set("Accept-Encoding", "gzip, deflate, br");
-
     auto protocol_request = m_connector->start_request(request.method(), request.url(), headers, request.body(), proxy);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
