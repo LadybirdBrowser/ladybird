@@ -1,5 +1,6 @@
 #import <HTML/Scripting/Fetching.idl>
 #import <SVG/SVGElement.idl>
+#import <SVG/SVGURIReference.idl>
 
 // https://www.w3.org/TR/SVG/interact.html#InterfaceSVGScriptElement
 [Exposed=Window]
@@ -8,4 +9,4 @@ interface SVGScriptElement : SVGElement {
     [Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
 };
 
-// FIXME: SVGScriptElement includes SVGURIReference;
+SVGScriptElement includes SVGURIReference;
