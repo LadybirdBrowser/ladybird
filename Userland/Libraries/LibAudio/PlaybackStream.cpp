@@ -13,6 +13,8 @@
 #    include <LibAudio/PlaybackStreamPulseAudio.h>
 #elif defined(AK_OS_MACOS)
 #    include <LibAudio/PlaybackStreamAudioUnit.h>
+#elif defined(AK_OS_ANDROID)
+#    include <LibAudio/PlaybackStreamOboe.h>
 #endif
 
 namespace Audio {
@@ -25,6 +27,8 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState initia
     return PlaybackStreamPulseAudio::create(initial_output_state, sample_rate, channels, target_latency_ms, move(data_request_callback));
 #elif defined(AK_OS_MACOS)
     return PlaybackStreamAudioUnit::create(initial_output_state, sample_rate, channels, target_latency_ms, move(data_request_callback));
+#elif defined(AK_OS_ANDROID)
+    return PlaybackStreamOboe::create(initial_output_state, sample_rate, channels, target_latency_ms, move(data_request_callback));
 #else
     (void)initial_output_state, (void)sample_rate, (void)channels, (void)target_latency_ms;
     return Error::from_string_literal("Audio output is not available for this platform");
