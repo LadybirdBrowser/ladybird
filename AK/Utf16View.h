@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -113,12 +113,8 @@ public:
 
     bool starts_with(Utf16View const&) const;
 
+    bool validate() const;
     bool validate(size_t& valid_code_units) const;
-    bool validate() const
-    {
-        size_t valid_code_units;
-        return validate(valid_code_units);
-    }
 
     bool equals_ignoring_case(Utf16View const&) const;
 
