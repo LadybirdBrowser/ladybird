@@ -1,4 +1,5 @@
 #import <SVG/SVGElement.idl>
+#import <SVG/SVGURIReference.idl>
 
 // https://svgwg.org/svg2-draft/single-page.html#pservers-InterfaceSVGGradientElement
 [Exposed=Window]
@@ -16,4 +17,4 @@ interface SVGGradientElement : SVGElement {
 
 };
 
-// FIXME: SVGGradientElement includes SVGURIReference;
+SVGGradientElement includes SVGURIReference;
