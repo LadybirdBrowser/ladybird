@@ -1,6 +1,7 @@
 #import <HTML/HTMLHyperlinkElementUtils.idl>
 #import <SVG/SVGURIReference.idl>
 
+// https://svgwg.org/svg2-draft/linking.html#InterfaceSVGAElement
 [Exposed=Window]
 interface SVGAElement : SVGGraphicsElement {
 
