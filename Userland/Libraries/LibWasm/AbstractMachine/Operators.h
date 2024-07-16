@@ -505,14 +505,36 @@ struct PopCount {
 
 struct Absolute {
     template<typename Lhs>
-    auto operator()(Lhs lhs) const { return AK::abs(lhs); }
+    Lhs operator()(Lhs lhs) const
+    {
+        if constexpr (IsFloatingPoint<Lhs>)
+            return AK::abs(lhs);
+
+        if constexpr (IsSigned<Lhs>) {
+            if (lhs == NumericLimits<Lhs>::min())
+                return NumericLimits<Lhs>::min(); // Return the negation of _i_ modulo 2^N: https://www.w3.org/TR/wasm-core-2/#-hrefop-iabsmathrmiabs_n-i step 3
+        }
+
+        return AK::abs(lhs);
+    }
 
     static StringView name() { return "abs"sv; }
 };
 
 struct Negate {
     template<typename Lhs>
-    auto operator()(Lhs lhs) const { return -lhs; }
+    Lhs operator()(Lhs lhs) const
+    {
+        if constexpr (IsFloatingPoint<Lhs>)
+            return -lhs;
+
+        if constexpr (IsSigned<Lhs>) {
+            if (lhs == NumericLimits<Lhs>::min())
+                return NumericLimits<Lhs>::min(); // Return the negation of _i_ modulo 2^N: https://www.w3.org/TR/wasm-core-2/#-hrefop-iabsmathrmiabs_n-i step 3
+        }
+
+        return -lhs;
+    }
 
     static StringView name() { return "== 0"sv; }
 };
