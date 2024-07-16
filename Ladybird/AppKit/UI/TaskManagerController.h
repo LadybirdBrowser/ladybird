@@ -16,6 +16,6 @@
 
 @interface TaskManagerController : NSWindowController
 
-- (instancetype)init:(id<TaskManagerDelegate>)delegate;
+- (instancetype)initWithDelegate:(id<TaskManagerDelegate>)delegate;
 
 @end

@@ -10,6 +10,12 @@
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
 
+#ifdef __swift__
+#    include <swift/bridging>
+#else
+#    define SWIFT_IMMORTAL_REFERENCE
+#endif
+
 namespace WebView {
 
 class Application {
@@ -46,6 +52,6 @@ private:
     Core::EventLoop m_event_loop;
     ProcessManager m_process_manager;
     bool m_in_shutdown { false };
-};
+} SWIFT_IMMORTAL_REFERENCE;
 
 }

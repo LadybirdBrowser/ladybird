@@ -11,7 +11,16 @@
 #import <UI/LadybirdWebView.h>
 #import <UI/Tab.h>
 #import <UI/TabController.h>
-#import <UI/TaskManagerController.h>
+
+#if defined(LADYBIRD_USE_SWIFT)
+// FIXME: Report this codegen error to Apple
+#    define StyleMask NSWindowStyleMask
+#    import <Ladybird-Swift.h>
+#    undef StyleMask
+#else
+#    import <UI/TaskManagerController.h>
+#endif
+
 #import <Utilities/Conversions.h>
 
 #if !__has_feature(objc_arc)
@@ -237,7 +246,7 @@
         return;
     }
 
-    self.task_manager_controller = [[TaskManagerController alloc] init:self];
+    self.task_manager_controller = [[TaskManagerController alloc] initWithDelegate:self];
     [self.task_manager_controller showWindow:nil];
 }
 

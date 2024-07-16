@@ -50,7 +50,7 @@ runs:
       shell: bash
       run: |
         set -e
-        sudo xcode-select --switch /Applications/Xcode_15.4.app
+        sudo xcode-select --switch /Applications/Xcode_16.0.app
         brew update
         brew install autoconf autoconf-archive automake coreutils bash ffmpeg ninja wabt ccache unzip qt llvm@18 nasm
 
