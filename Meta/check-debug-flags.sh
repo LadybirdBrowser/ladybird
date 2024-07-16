@@ -7,6 +7,23 @@ cd "${script_path}/.."
 
 MISSING_FLAGS=n
 
+find_all_source_files () {
+    # We're in the middle of a pre-commit run, so we should only check the files that have
+    # actually changed. The reason is that "git ls-files | grep" on the entire repo takes
+    # about 100ms. That is perfectly fine during a CI run, but becomes noticeable during a
+    # pre-commit hook. It is unnecessary to check the entire repository on every single
+    # commit, so we save some time here.
+    #
+    # And see https://github.com/LadybirdBrowser/ladybird/issues/283; the reason this is
+    # pulled out into separate function is, Bash 3.2 apparently has a parser bug which
+    # makes it choke on the above comment if it's in the process substitution below.
+    for file in "$@"; do
+      if [[ ("${file}" =~ \.cpp || "${file}" =~ \.h || "${file}" =~ \.in) ]]; then
+        echo "$file"
+      fi
+    done
+}
+
 # Check whether all_the_debug_macros.cmake sets all the flags used in C++ code.
 while IFS= read -r FLAG; do
     # We intentionally don't check for commented-out lines,
@@ -22,16 +39,7 @@ done < <(
             '*.h' \
             '*.in'
     else
-        # We're in the middle of a pre-commit run, so we should only check the files that have
-        # actually changed. The reason is that "git ls-files | grep" on the entire repo takes
-        # about 100ms. That is perfectly fine during a CI run, but becomes noticeable during a
-        # pre-commit hook. It is unnecessary to check the entire repository on every single
-        # commit, so we save some time here.
-        for file in "$@"; do
-            if [[ ("${file}" =~ \.cpp || "${file}" =~ \.h || "${file}" =~ \.in) ]]; then
-                echo "$file"
-            fi
-        done
+        find_all_source_files "$@"
     fi \
     | xargs grep -E '(_DEBUG|DEBUG_)' \
     | sed -re 's,^.*[^a-zA-Z0-9_]([a-zA-Z0-9_]*DEBUG[a-zA-Z0-9_]*).*$,\1,' \
