@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     if (auto* layout_node = this->layout_node(); layout_node && layout_node->is_text_node())
         static_cast<Layout::TextNode&>(*layout_node).invalidate_text_for_rendering();
 
-    document().set_needs_layout();
+    document().just_typed_into_input_box(this); // Schedules fast path layout update
 
     if (m_segmenter)
         m_segmenter->set_segmented_text(m_data);

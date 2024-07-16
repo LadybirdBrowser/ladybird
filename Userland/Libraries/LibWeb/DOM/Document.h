@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/Cookie/Cookie.h>
+#include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/NonElementParentNode.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -98,6 +99,8 @@ public:
         No,
         Yes,
     };
+
+    void just_typed_into_input_box(CharacterData* soure_of_edit);
 
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> create_and_initialize(Type, String content_type, HTML::NavigationParams const&);
 
@@ -688,6 +691,8 @@ public:
     void set_console_client(JS::GCPtr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
     JS::GCPtr<JS::ConsoleClient> console_client() const { return m_console_client; }
 
+    void save_layout_state(Layout::LayoutState* layout_state) {m_layout_state = layout_state;}
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -695,6 +700,11 @@ protected:
     Document(JS::Realm&, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
 
 private:
+    // Layout invalidation fast path for input boxes
+    bool m_just_typed_into_input_box = false; // Activated whenever an input box was typed into (and thus we should take the fast path)
+    bool m_will_relayout = false; // Whether the entire document will be invalidated (and thus we should not take the fast path until document is refreshed).  INVARIANT: When this is true, m_just_typed_into_input_box is always false.
+    CharacterData* m_source_of_input_box_edit = nullptr; // A pointer to the input box that was typed into (only read when m_just_typed_into_input_box is true)
+
     // ^HTML::GlobalEventHandlers
     virtual JS::GCPtr<EventTarget> global_event_handlers_to_event_target(FlyString const&) final { return *this; }
 
@@ -728,6 +738,7 @@ private:
     JS::GCPtr<HTML::Window> m_window;
 
     JS::GCPtr<Layout::Viewport> m_layout_root;
+    Layout::LayoutState* m_layout_state = nullptr;
 
     Optional<Color> m_normal_link_color;
     Optional<Color> m_active_link_color;

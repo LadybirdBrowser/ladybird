@@ -224,10 +224,22 @@ OwnPtr<FormattingContext> FormattingContext::layout_inside(Box const& child_box,
         return {};
 
     auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, child_box);
-    if (independent_formatting_context)
+    if (independent_formatting_context) {
         independent_formatting_context->run(child_box, layout_mode, available_space);
-    else
+        
+        // For input box layout invalidation fast path
+        if(is<BlockContainer>(child_box)) {
+            // TODO: check that child box is for an HTMLInputElement before saving run info
+            // It's going to be the node associated with the box, so something like
+            // child_box.dom_node().is_html_input_element()
+
+            if(layout_mode == LayoutMode::Normal)
+                static_cast<BlockContainer&>(const_cast<Box&>(child_box)).store_layout_inside_run_info(&m_state, available_space);
+        }
+    }
+    else {
         run(child_box, layout_mode, available_space);
+    }
 
     return independent_formatting_context;
 }

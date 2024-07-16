@@ -36,6 +36,7 @@
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
+#include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/DOMImplementation.h>
@@ -107,6 +108,7 @@
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
+#include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -1016,8 +1018,25 @@ URL::URL Document::parse_url(StringView url) const
     return DOMURL::parse(url, base_url);
 }
 
+void Document::just_typed_into_input_box(CharacterData* source_of_edit){
+    if (!m_will_relayout) {
+        m_source_of_input_box_edit = source_of_edit;
+        m_just_typed_into_input_box = true;
+    }
+
+    // This is set_needs_layout but without resetting fast path state
+    if (m_needs_layout)
+        return;
+    m_needs_layout = true;
+    schedule_layout_update();
+}
+
 void Document::set_needs_layout()
 {
+    m_just_typed_into_input_box = false;
+    m_source_of_input_box_edit = nullptr;
+    m_will_relayout = true;
+
     if (m_needs_layout)
         return;
     m_needs_layout = true;
@@ -1026,6 +1045,10 @@ void Document::set_needs_layout()
 
 void Document::invalidate_layout()
 {
+    m_just_typed_into_input_box = false;
+    m_source_of_input_box_edit = nullptr;
+    m_will_relayout = true;
+
     tear_down_layout_tree();
     schedule_layout_update();
 }
@@ -1079,10 +1102,11 @@ void Document::update_layout()
 
     // NOTE: If our parent document needs a relayout, we must do that *first*.
     //       This is necessary as the parent layout may cause our viewport to change.
-    if (navigable->container())
+    if (!m_just_typed_into_input_box && navigable->container())
         navigable->container()->document().update_layout();
 
-    update_style();
+    if (!m_just_typed_into_input_box)
+        update_style();
 
     if (!m_needs_layout && m_layout_root)
         return;
@@ -1104,18 +1128,20 @@ void Document::update_layout()
         }
     }
 
-    Layout::LayoutState layout_state;
+    if (!m_just_typed_into_input_box) {
+        if (m_layout_state)
+            delete m_layout_state;
+        m_layout_state = new Layout::LayoutState();
 
-    {
-        Layout::BlockFormattingContext root_formatting_context(layout_state, *m_layout_root, nullptr);
+        Layout::BlockFormattingContext root_formatting_context(*m_layout_state, *m_layout_root, nullptr);
 
         auto& viewport = static_cast<Layout::Viewport&>(*m_layout_root);
-        auto& viewport_state = layout_state.get_mutable(viewport);
+        auto& viewport_state = m_layout_state->get_mutable(viewport);
         viewport_state.set_content_width(viewport_rect.width());
         viewport_state.set_content_height(viewport_rect.height());
 
         if (document_element && document_element->layout_node()) {
-            auto& icb_state = layout_state.get_mutable(verify_cast<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->layout_node()));
+            auto& icb_state = m_layout_state->get_mutable(verify_cast<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->layout_node()));
             icb_state.set_content_width(viewport_rect.width());
         }
 
@@ -1126,8 +1152,25 @@ void Document::update_layout()
                 Layout::AvailableSize::make_definite(viewport_rect.width()),
                 Layout::AvailableSize::make_definite(viewport_rect.height())));
     }
+    else { // This is a fast update_layout() path for when typing into an input box
+        auto target_node_pointer = m_source_of_input_box_edit->shadow_including_first_ancestor_of_type<HTML::HTMLInputElement>()->layout_node();
+        auto& target_block_container = static_cast<Layout::BlockContainer&>(*target_node_pointer);
+        auto formatting_context = Layout::BlockFormattingContext(*m_layout_state, target_block_container, nullptr);
 
-    layout_state.commit(*m_layout_root);
+        formatting_context.run(target_block_container, Layout::LayoutMode::Normal, target_block_container.m_run_available_space);
+    }
+
+    m_layout_state->commit(*m_layout_root);
+
+    m_will_relayout = false;
+    if(m_just_typed_into_input_box) {
+        m_just_typed_into_input_box = false;
+        m_source_of_input_box_edit = nullptr;
+
+        m_needs_layout = false;
+
+        return;
+    }
 
     // Broadcast the current viewport rect to any new paintables, so they know whether they're visible or not.
     inform_all_viewport_clients_about_the_current_viewport_rect();
@@ -1152,6 +1195,7 @@ void Document::update_layout()
     // after the viewport size change.
     if (auto window = this->window())
         window->scroll_by(0, 0);
+
 }
 
 [[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(Node& node, CSS::StyleComputer& style_computer)

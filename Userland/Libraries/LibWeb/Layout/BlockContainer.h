@@ -7,7 +7,11 @@
 #pragma once
 
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/AvailableSpace.h>
 #include <LibWeb/Layout/LineBox.h>
+#include <LibWeb/Layout/Node.h>
+
+class LayoutState;
 
 namespace Web::Layout {
 
@@ -22,7 +26,12 @@ public:
 
     Painting::PaintableWithLines const* paintable_with_lines() const;
 
+    void store_layout_inside_run_info(LayoutState*, AvailableSpace const);
+
     virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+
+    // Save info for layout invalidation input box fast path
+    AvailableSpace m_run_available_space = AvailableSpace(AvailableSize::make_definite(0), AvailableSize::make_definite(0));
 
 private:
     virtual bool is_block_container() const final { return true; }
