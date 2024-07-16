@@ -159,44 +159,57 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     module.for_each_section_of_type<ImportSection>([&](ImportSection const& section) {
         for (auto [i, import_] : enumerate(section.imports())) {
             auto extern_ = externs.at(i);
-            auto is_valid = import_.description().visit(
-                [&](MemoryType const& mem_type) -> bool {
+            auto invalid = import_.description().visit(
+                [&](MemoryType const& mem_type) -> Optional<ByteString> {
                     if (!extern_.has<MemoryAddress>())
-                        return false;
+                        return "Expected memory import"sv;
                     auto other_mem_type = m_store.get(extern_.get<MemoryAddress>())->type();
-                    return other_mem_type.limits().is_subset_of(mem_type.limits());
+                    if (other_mem_type.limits().is_subset_of(mem_type.limits()))
+                        return {};
+                    return ByteString::formatted("Memory import and extern do not match: {}-{} vs {}-{}", mem_type.limits().min(), mem_type.limits().max(), other_mem_type.limits().min(), other_mem_type.limits().max());
                 },
-                [&](TableType const& table_type) -> bool {
+                [&](TableType const& table_type) -> Optional<ByteString> {
                     if (!extern_.has<TableAddress>())
-                        return false;
+                        return "Expected table import"sv;
                     auto other_table_type = m_store.get(extern_.get<TableAddress>())->type();
-                    return table_type.element_type() == other_table_type.element_type()
-                        && other_table_type.limits().is_subset_of(table_type.limits());
+                    if (table_type.element_type() == other_table_type.element_type()
+                        && other_table_type.limits().is_subset_of(table_type.limits()))
+                        return {};
+
+                    return ByteString::formatted("Table import and extern do not match: {}-{} vs {}-{}", table_type.limits().min(), table_type.limits().max(), other_table_type.limits().min(), other_table_type.limits().max());
                 },
-                [&](GlobalType const& global_type) -> bool {
+                [&](GlobalType const& global_type) -> Optional<ByteString> {
                     if (!extern_.has<GlobalAddress>())
-                        return false;
+                        return "Expected global import"sv;
                     auto other_global_type = m_store.get(extern_.get<GlobalAddress>())->type();
-                    return global_type.type() == other_global_type.type()
-                        && global_type.is_mutable() == other_global_type.is_mutable();
+                    if (global_type.type() == other_global_type.type()
+                        && global_type.is_mutable() == other_global_type.is_mutable())
+                        return {};
+                    return "Global import and extern do not match"sv;
                 },
-                [&](FunctionType const& type) -> bool {
+                [&](FunctionType const& type) -> Optional<ByteString> {
                     if (!extern_.has<FunctionAddress>())
-                        return false;
+                        return "Expected function import"sv;
                     auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
-                    return type.results() == other_type.results()
-                        && type.parameters() == other_type.parameters();
+                    if (type.results() != other_type.results())
+                        return ByteString::formatted("Function import and extern do not match, results: {} vs {}", type.results(), other_type.results());
+                    if (type.parameters() != other_type.parameters())
+                        return ByteString::formatted("Function import and extern do not match, parameters: {} vs {}", type.parameters(), other_type.parameters());
+                    return {};
                 },
-                [&](TypeIndex type_index) -> bool {
+                [&](TypeIndex type_index) -> Optional<ByteString> {
                     if (!extern_.has<FunctionAddress>())
-                        return false;
+                        return "Expected function import"sv;
                     auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
                     auto& type = module.type(type_index);
-                    return type.results() == other_type.results()
-                        && type.parameters() == other_type.parameters();
+                    if (type.results() != other_type.results())
+                        return ByteString::formatted("Function import and extern do not match, results: {} vs {}", type.results(), other_type.results());
+                    if (type.parameters() != other_type.parameters())
+                        return ByteString::formatted("Function import and extern do not match, parameters: {} vs {}", type.parameters(), other_type.parameters());
+                    return {};
                 });
-            if (!is_valid)
-                instantiation_result = InstantiationError { "Import and extern do not match" };
+            if (invalid.has_value())
+                instantiation_result = InstantiationError { ByteString::formatted("{}::{}: {}", import_.module(), import_.name(), invalid.release_value()) };
         }
     });
 
