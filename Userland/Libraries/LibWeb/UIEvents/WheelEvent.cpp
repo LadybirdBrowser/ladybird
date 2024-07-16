@@ -61,6 +61,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WheelEvent>> WheelEvent::create_from_platfo
     event_init.delta_mode = WheelDeltaMode::DOM_DELTA_PIXEL;
     auto event = WheelEvent::create(realm, event_name, event_init, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double());
     event->set_is_trusted(true);
+    event->set_bubbles(true);
+    event->set_cancelable(true);
+    event->set_composed(true);
     return event;
 }
 
