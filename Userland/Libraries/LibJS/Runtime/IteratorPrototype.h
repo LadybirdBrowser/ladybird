@@ -34,6 +34,9 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(some);
     JS_DECLARE_NATIVE_FUNCTION(every);
     JS_DECLARE_NATIVE_FUNCTION(find);
+
+    JS_DECLARE_NATIVE_FUNCTION(to_string_tag_getter);
+    JS_DECLARE_NATIVE_FUNCTION(to_string_tag_setter);
 };
 
 }

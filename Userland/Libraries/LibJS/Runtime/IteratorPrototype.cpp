@@ -29,9 +29,6 @@ void IteratorPrototype::initialize(Realm& realm)
     auto& vm = this->vm();
     Base::initialize(realm);
 
-    // 3.1.3.13 Iterator.prototype [ @@toStringTag ], https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype-@@tostringtag
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Iterator"_string), Attribute::Configurable | Attribute::Writable);
-
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.well_known_symbol_iterator(), symbol_iterator, 0, attr);
     define_native_function(realm, vm.names.map, map, 1, attr);
@@ -45,6 +42,9 @@ void IteratorPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.some, some, 1, attr);
     define_native_function(realm, vm.names.every, every, 1, attr);
     define_native_function(realm, vm.names.find, find, 1, attr);
+
+    // 3.1.3.13 Iterator.prototype [ @@toStringTag ], https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype-@@tostringtag
+    define_native_accessor(realm, vm.well_known_symbol_to_string_tag(), to_string_tag_getter, to_string_tag_setter, Attribute::Configurable);
 }
 
 // 27.1.2.1 %IteratorPrototype% [ @@iterator ] ( ), https://tc39.es/ecma262/#sec-%iteratorprototype%-@@iterator
@@ -747,6 +747,25 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::find)
         // g. Set counter to counter + 1.
         ++counter;
     }
+}
+
+// 3.1.3.13.1 get Iterator.prototype [ @@toStringTag ], https://tc39.es/proposal-iterator-helpers/#sec-get-iteratorprototype-@@tostringtag
+JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::to_string_tag_getter)
+{
+    // 1. Return "Iterator".
+    return PrimitiveString::create(vm, vm.names.Iterator.as_string());
+}
+
+// 3.1.3.13.2 set Iterator.prototype [ @@toStringTag ], https://tc39.es/proposal-iterator-helpers/#sec-set-iteratorprototype-@@tostringtag
+JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::to_string_tag_setter)
+{
+    auto& realm = *vm.current_realm();
+
+    // 1. Perform ? SetterThatIgnoresPrototypeProperties(this value, %Iterator.prototype%, %Symbol.toStringTag%, v).
+    TRY(setter_that_ignores_prototype_properties(vm, vm.this_value(), realm.intrinsics().iterator_prototype(), vm.well_known_symbol_to_string_tag(), vm.argument(0)));
+
+    // 2. Return undefined.
+    return js_undefined();
 }
 
 }
