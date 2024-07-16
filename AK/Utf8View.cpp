@@ -5,10 +5,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#define AK_DONT_REPLACE_STD
+
 #include <AK/Assertions.h>
 #include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/Utf8View.h>
+
+#include <simdutf.h>
 
 namespace AK {
 
@@ -72,6 +76,12 @@ Utf8View Utf8View::unicode_substring_view(size_t code_point_offset, size_t code_
 
 size_t Utf8View::calculate_length() const
 {
+    // FIXME: simdutf's code point length method assumes valid UTF-8, whereas Utf8View uses U+FFFD as a replacement
+    //        for invalid code points. If we change Utf8View to only accept valid encodings as an invariant, we can
+    //        remove this branch.
+    if (validate()) [[likely]]
+        return simdutf::count_utf8(m_string.characters_without_null_termination(), m_string.length());
+
     size_t length = 0;
 
     for (size_t i = 0; i < m_string.length(); ++length) {
@@ -141,6 +151,24 @@ Utf8View Utf8View::trim(Utf8View const& characters, TrimMode mode) const
     }
 
     return substring_view(substring_start, substring_length);
+}
+
+bool Utf8View::validate(size_t& valid_bytes, AllowSurrogates allow_surrogates) const
+{
+    auto result = simdutf::validate_utf8_with_errors(m_string.characters_without_null_termination(), m_string.length());
+    valid_bytes = result.count;
+
+    if (result.error == simdutf::SURROGATE && allow_surrogates == AllowSurrogates::Yes) {
+        valid_bytes += 3; // All surrogates have a UTF-8 byte length of 3.
+
+        size_t substring_valid_bytes = 0;
+        auto is_valid = substring_view(valid_bytes).validate(substring_valid_bytes, allow_surrogates);
+
+        valid_bytes += substring_valid_bytes;
+        return is_valid;
+    }
+
+    return result.error == simdutf::SUCCESS;
 }
 
 Utf8CodePointIterator& Utf8CodePointIterator::operator++()
