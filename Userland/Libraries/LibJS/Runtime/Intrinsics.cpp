@@ -306,6 +306,8 @@ JS_ENUMERATE_TYPED_ARRAYS
             initialize_constructor(vm, vm.names.Boolean, *m_##snake_namespace##snake_name##_constructor, m_##snake_namespace##snake_name##_prototype);   \
         else if constexpr (IsSame<Namespace::ConstructorName, FunctionConstructor>)                                                                      \
             initialize_constructor(vm, vm.names.Function, *m_##snake_namespace##snake_name##_constructor, m_##snake_namespace##snake_name##_prototype);  \
+        else if constexpr (IsSame<Namespace::ConstructorName, IteratorConstructor>)                                                                      \
+            initialize_constructor(vm, vm.names.Iterator, *m_##snake_namespace##snake_name##_constructor, nullptr);                                      \
         else if constexpr (IsSame<Namespace::ConstructorName, NumberConstructor>)                                                                        \
             initialize_constructor(vm, vm.names.Number, *m_##snake_namespace##snake_name##_constructor, m_##snake_namespace##snake_name##_prototype);    \
         else if constexpr (IsSame<Namespace::ConstructorName, RegExpConstructor>)                                                                        \
