@@ -138,6 +138,16 @@ jobs:
         working-directory: ${{ github.workspace }}/Build
         run: cmake --build .
 
+      - name: Enable the AppKit chrome with Swift files
+        if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
+        working-directory: ${{ github.workspace }}
+        run: cmake -B Build -DENABLE_QT=OFF -DENABLE_SWIFT=ON
+
+      - name: Build the AppKit chrome with Swift files
+        if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
+        working-directory: ${{ github.workspace }}/Build
+        run: cmake --build .
+
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:

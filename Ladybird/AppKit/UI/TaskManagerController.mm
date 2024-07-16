@@ -20,7 +20,7 @@
 
 @implementation TaskManagerController
 
-- (instancetype)init:(id<TaskManagerDelegate>)delegate
+- (instancetype)initWithDelegate:(id<TaskManagerDelegate>)delegate
 {
     if (self = [super init]) {
         self.delegate = delegate;

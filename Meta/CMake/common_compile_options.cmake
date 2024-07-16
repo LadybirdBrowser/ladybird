@@ -21,6 +21,22 @@ macro(add_cxx_link_options)
   add_link_options($<$<LINK_LANGUAGE:C,CXX>:${args}>) 
 endmacro()
 
+macro(add_swift_compile_options)
+  set(args "")
+  foreach(arg ${ARGN})
+    string(APPEND args ${arg}$<SEMICOLON>)
+  endforeach()
+  add_compile_options($<$<COMPILE_LANGUAGE:Swift>:${args}>) 
+endmacro()
+
+macro(add_swift_link_options)
+  set(args "")
+  foreach(arg ${ARGN})
+    string(APPEND args ${arg}$<SEMICOLON>)
+  endforeach()
+  add_link_options($<$<LINK_LANGUAGE:Swift>:${args}>) 
+endmacro()
+
 if (MSVC)
     add_cxx_compile_options(/W4)
     # do not warn about unused function
