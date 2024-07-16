@@ -428,9 +428,9 @@ ErrorOr<Result<EnvironSizes>> Implementation::impl$environ_sizes_get(Configurati
     });
 }
 
-ErrorOr<Result<void>> Implementation::impl$proc_exit(Configuration&, ExitCode exit_code)
+ErrorOr<void> Implementation::impl$proc_exit(Configuration&, ExitCode exit_code)
 {
-    exit(exit_code);
+    return Error::from_errno(-static_cast<i32>(exit_code + 1));
 }
 
 ErrorOr<Result<void>> Implementation::impl$fd_close(Configuration&, FD fd)
@@ -964,17 +964,36 @@ struct HostTypeImpl<T> {
 };
 
 template<typename T>
+struct HostTypeImpl<LittleEndian<T>> {
+    using Type = typename HostTypeImpl<T>::Type;
+};
+
+template<typename T, typename t, typename... Fs>
+struct HostTypeImpl<DistinctNumeric<T, t, Fs...>> {
+    using Type = typename HostTypeImpl<T>::Type;
+};
+
+template<typename T>
 using HostType = typename HostTypeImpl<T>::Type;
 
 template<typename T>
-auto CompatibleValueType = IsOneOf<HostType<T>, i8, i16, i32, u8, u16>
+auto CompatibleValueType = IsOneOf<HostType<T>, char, i8, i16, i32, u8, u16>
     ? Wasm::ValueType(Wasm::ValueType::I32)
     : Wasm::ValueType(Wasm::ValueType::I64);
 
-template<typename R, typename... Args, ErrorOr<Result<R>> (Implementation::*impl)(Configuration&, Args...)>
+template<typename RV, typename... Args, ErrorOr<RV> (Implementation::*impl)(Configuration&, Args...)>
 struct InvocationOf<impl> {
     HostFunction operator()(Implementation& self, StringView function_name)
     {
+        using R = typename decltype([] {
+            if constexpr (IsSame<RV, Result<void>>)
+                return TypeWrapper<void> {};
+            else if constexpr (IsSpecializationOf<RV, Result>)
+                return TypeWrapper<RemoveCVReference<decltype(*declval<RV>().result())>> {};
+            else
+                return TypeWrapper<RV> {};
+        }())::Type;
+
         Vector<ValueType> arguments_types { CompatibleValueType<typename ABI::ToCompatibleValue<Args>::Type>... };
         if constexpr (!IsVoid<R>) {
             if constexpr (requires { declval<typename R::SerializationComponents>(); }) {
@@ -986,6 +1005,10 @@ struct InvocationOf<impl> {
             }
         }
 
+        Vector<ValueType> return_ty;
+        if constexpr (IsSpecializationOf<RV, Result>)
+            return_ty.append(ValueType(ValueType::I32));
+
         return HostFunction(
             [&self, function_name](Configuration& configuration, Vector<Value>& arguments) -> Wasm::Result {
                 Tuple args = [&]<typename... Ts, auto... Is>(IndexSequence<Is...>) {
@@ -994,12 +1017,18 @@ struct InvocationOf<impl> {
 
                 auto result = args.apply_as_args([&](auto&&... impl_args) { return (self.*impl)(configuration, impl_args...); });
                 dbgln_if(WASI_DEBUG, "WASI: {}({}) = {}", function_name, arguments, result);
-                if (result.is_error())
-                    return Wasm::Trap { ByteString::formatted("Invalid call to {}() = {}", function_name, result.error()) };
+                if (result.is_error()) {
+                    auto error = result.release_error();
+                    if (error.is_errno())
+                        return Wasm::Trap { ByteString::formatted("exit:{}", error.code() + 1) };
+                    return Wasm::Trap { ByteString::formatted("Invalid call to {}() = {}", function_name, error) };
+                }
 
                 auto value = result.release_value();
-                if (value.is_error())
-                    return Wasm::Result { Vector { Value { ValueType(ValueType::I32), static_cast<u64>(to_underlying(value.error().value())) } } };
+                if constexpr (IsSpecializationOf<RV, Result>) {
+                    if (value.is_error())
+                        return Wasm::Result { Vector { Value { ValueType(ValueType::I32), static_cast<u64>(to_underlying(value.error().value())) } } };
+                }
 
                 if constexpr (!IsVoid<R>) {
                     // Return values are passed as pointers, after the arguments
@@ -1015,7 +1044,7 @@ struct InvocationOf<impl> {
             },
             FunctionType {
                 move(arguments_types),
-                { ValueType(ValueType::I32) },
+                return_ty,
             },
             function_name);
     }
