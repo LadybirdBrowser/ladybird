@@ -812,6 +812,19 @@ ErrorOr<Result<FDStat>> Implementation::impl$fd_fdstat_get(Configuration&, FD fd
     };
 }
 
+ErrorOr<Result<FileSize>> Implementation::impl$fd_seek(Configuration&, FD fd, FileDelta offset, Whence whence)
+{
+    auto mapped_fd = map_fd(fd);
+    if (!mapped_fd.has<u32>())
+        return errno_value_from_errno(EBADF);
+
+    u32 fd_value = mapped_fd.get<u32>();
+    auto result = lseek(fd_value, offset, static_cast<int>(whence));
+    if (result < 0)
+        return errno_value_from_errno(errno);
+    return FileSize(result);
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
@@ -830,7 +843,6 @@ ErrorOr<Result<Size>> Implementation::impl$fd_pread(Configuration&, FD, Pointer<
 ErrorOr<Result<Size>> Implementation::impl$fd_pwrite(Configuration&, FD, Pointer<CIOVec> iovs, Size iovs_len, FileSize offset) { return Errno::NoSys; }
 ErrorOr<Result<Size>> Implementation::impl$fd_readdir(Configuration&, FD, Pointer<u8> buf, Size buf_len, DirCookie cookie) { return Errno::NoSys; }
 ErrorOr<Result<void>> Implementation::impl$fd_renumber(Configuration&, FD from, FD to) { return Errno::NoSys; }
-ErrorOr<Result<FileSize>> Implementation::impl$fd_seek(Configuration&, FD, FileDelta offset, Whence whence) { return Errno::NoSys; }
 ErrorOr<Result<void>> Implementation::impl$fd_sync(Configuration&, FD) { return Errno::NoSys; }
 ErrorOr<Result<FileSize>> Implementation::impl$fd_tell(Configuration&, FD) { return Errno::NoSys; }
 ErrorOr<Result<void>> Implementation::impl$path_filestat_set_times(Configuration&, FD, LookupFlags, Pointer<u8> path, Size path_len, Timestamp atim, Timestamp mtim, FSTFlags) { return Errno::NoSys; }
