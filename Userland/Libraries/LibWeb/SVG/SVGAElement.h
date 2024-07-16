@@ -8,10 +8,13 @@
 #pragma once
 
 #include <LibWeb/SVG/SVGGraphicsElement.h>
+#include <LibWeb/SVG/SVGURIReference.h>
 
 namespace Web::SVG {
 
-class SVGAElement final : public SVGGraphicsElement {
+class SVGAElement final
+    : public SVGGraphicsElement
+    , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_PLATFORM_OBJECT(SVGAElement, SVGGraphicsElement);
     JS_DECLARE_ALLOCATOR(SVGAElement);
 

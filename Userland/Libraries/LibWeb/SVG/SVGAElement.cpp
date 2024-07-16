@@ -30,6 +30,7 @@ void SVGAElement::initialize(JS::Realm& realm)
 void SVGAElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_rel_list);
 }
 
