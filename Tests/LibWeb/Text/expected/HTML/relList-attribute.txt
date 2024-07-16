@@ -22,3 +22,9 @@ link.relList for after setting rel to "whatever": whatever
 link.relList for after setting rel to "prefetch": prefetch
 link.relList contains "prefetch": true
 link.relList contains "whatever": false
+svg.a.relList initial length: 0
+svg.a.relList always returns the same value: true
+svg.a.relList for after setting rel to "whatever": whatever
+svg.a.relList for after setting rel to "prefetch": prefetch
+svg.a.relList contains "prefetch": true
+svg.a.relList contains "whatever": false

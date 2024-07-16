@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    function relListTest(tagName) {
-        const element = document.createElement(tagName);
+    function relListTest(tagName, element) {
         const relList = element.relList;
         println(`${tagName}.relList initial length: ${relList.length}`);
         println(`${tagName}.relList always returns the same value: ${relList === element.relList}`);
@@ -21,9 +20,17 @@
             "form",
             "link",
         ];
+        const svgTagNamesToTest = [
+            "a",
+        ];
 
         for (const tagName of tagNamesToTest) {
-            relListTest(tagName);
+            const element = document.createElement(tagName);
+            relListTest(tagName, element);
+        }
+        for (const tagName of svgTagNamesToTest) {
+            const element = document.createElementNS("http://www.w3.org/2000/svg", tagName);
+            relListTest(`svg.${tagName}`, element);
         }
     });
 </script>
