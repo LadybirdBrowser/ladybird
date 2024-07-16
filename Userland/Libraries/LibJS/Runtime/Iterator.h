@@ -83,6 +83,7 @@ Completion iterator_close(VM&, IteratorRecord const&, Completion);
 Completion async_iterator_close(VM&, IteratorRecord const&, Completion);
 NonnullGCPtr<Object> create_iterator_result_object(VM&, Value, bool done);
 ThrowCompletionOr<MarkedVector<Value>> iterator_to_list(VM&, IteratorRecord&);
+ThrowCompletionOr<void> setter_that_ignores_prototype_properties(VM&, Value this_, Object const& home, PropertyKey const& property, Value value);
 
 using IteratorValueCallback = Function<Optional<Completion>(Value)>;
 Completion get_iterator_values(VM&, Value iterable, IteratorValueCallback callback);

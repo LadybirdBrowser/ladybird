@@ -353,6 +353,42 @@ ThrowCompletionOr<MarkedVector<Value>> iterator_to_list(VM& vm, IteratorRecord& 
     }
 }
 
+// 2.1 SetterThatIgnoresPrototypeProperties ( this, home, p, v ), https://tc39.es/proposal-iterator-helpers/#sec-SetterThatIgnoresPrototypeProperties
+ThrowCompletionOr<void> setter_that_ignores_prototype_properties(VM& vm, Value this_, Object const& home, PropertyKey const& property, Value value)
+{
+    // 1. If this is not an Object, then
+    if (!this_.is_object()) {
+        // a. Throw a TypeError exception.
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, this_);
+    }
+
+    auto& this_object = this_.as_object();
+
+    // 2. If this is home, then
+    if (&this_object == &home) {
+        // a. NOTE: Throwing here emulates assignment to a non-writable data property on the home object in strict mode code.
+        // b. Throw a TypeError exception.
+        return vm.throw_completion<TypeError>(ErrorType::DescWriteNonWritable, this_);
+    }
+
+    // 3. Let desc be ? this.[[GetOwnProperty]](p).
+    auto desc = TRY(this_object.internal_get_own_property(property));
+
+    // 4. If desc is undefined, then
+    if (!desc.has_value()) {
+        // a. Perform ? CreateDataPropertyOrThrow(this, p, v).
+        TRY(this_object.create_data_property_or_throw(property, value));
+    }
+    // 5. Else,
+    else {
+        // a. Perform ? Set(this, p, v, true).
+        TRY(this_object.set(property, value, Object::ShouldThrowExceptions::Yes));
+    }
+
+    // 6. Return unused.
+    return {};
+}
+
 // Non-standard
 Completion get_iterator_values(VM& vm, Value iterable, IteratorValueCallback callback)
 {
