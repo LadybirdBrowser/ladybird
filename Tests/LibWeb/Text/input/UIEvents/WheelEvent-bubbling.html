@@ -1,0 +1,24 @@
+<script src="../include.js"></script>
+<style>
+    * { border: 1px solid black; }
+    .inner { width: 100px; height: 100px; }
+</style>
+<div class="outer"><div class="inner">
+<script>
+    asyncTest(done => {
+        let eventCount = 0;
+
+        function wheelHandler() {
+            eventCount++;
+            if (eventCount == 2) {
+                println('PASS (did not hang)');
+                done();
+            }
+        }
+
+        document.querySelector('.outer').addEventListener('wheel', wheelHandler);
+        document.querySelector('.inner').addEventListener('wheel', wheelHandler);
+
+        internals.wheel(50, 50, 10, 0);
+    });
+</script>
