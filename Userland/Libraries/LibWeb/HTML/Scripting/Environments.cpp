@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -54,6 +55,7 @@ void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_module_map);
     visitor.ignore(m_outstanding_rejected_promises_weak_set);
     m_realm_execution_context->visit_edges(visitor);
+    visitor.visit(m_fetch_group);
 }
 
 JS::ExecutionContext& EnvironmentSettingsObject::realm_execution_context()
