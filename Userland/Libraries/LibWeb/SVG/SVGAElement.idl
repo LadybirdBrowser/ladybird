@@ -1,3 +1,4 @@
+#import <DOM/DOMTokenList.idl>
 #import <HTML/HTMLHyperlinkElementUtils.idl>
 #import <SVG/SVGURIReference.idl>
 
@@ -9,7 +10,7 @@ interface SVGAElement : SVGGraphicsElement {
     [Reflect] attribute DOMString download;
     [Reflect] attribute USVString ping;
     [Reflect] attribute DOMString rel;
-    [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
     [Reflect] attribute DOMString hreflang;
     [Reflect] attribute DOMString type;
 
