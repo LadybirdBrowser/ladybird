@@ -827,6 +827,9 @@ struct Implementation {
         Function<Vector<AK::String>()> provide_arguments;
         Function<Vector<AK::String>()> provide_environment;
         Function<Vector<MappedPath>()> provide_preopened_directories;
+        int stdin_fd { 0 };
+        int stdout_fd { 1 };
+        int stderr_fd { 2 };
     };
 
     explicit Implementation(Details&& details)
@@ -835,9 +838,9 @@ struct Implementation {
         , provide_preopened_directories(move(details.provide_preopened_directories))
     {
         // Map all of std{in,out,err} by default.
-        m_fd_map.insert(0, 0);
-        m_fd_map.insert(1, 1);
-        m_fd_map.insert(2, 2);
+        m_fd_map.insert(0, details.stdin_fd);
+        m_fd_map.insert(1, details.stdout_fd);
+        m_fd_map.insert(2, details.stderr_fd);
     }
 
     ErrorOr<HostFunction> function_by_name(StringView);
