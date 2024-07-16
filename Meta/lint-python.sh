@@ -6,7 +6,10 @@ script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 cd "${script_path}/.." || exit 1
 
 if [ "$#" -eq "0" ]; then
-    mapfile -t files < <(
+    files=()
+    while IFS= read -r file; do
+        files+=("$file")
+    done <  <(
         git ls-files '*.py'
     )
 else
