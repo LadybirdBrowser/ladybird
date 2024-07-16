@@ -633,11 +633,11 @@ CommandResult DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient c
     APPLY_PATH_CLIP_IF_NEEDED
 
     auto const& linear_gradient_data = command.linear_gradient_data;
-
-    // FIXME: Account for repeat length
-
-    auto const& color_stop_list = linear_gradient_data.color_stops.list;
+    auto color_stop_list = linear_gradient_data.color_stops.list;
+    auto const& repeat_length = linear_gradient_data.color_stops.repeat_length;
     VERIFY(!color_stop_list.is_empty());
+    if (repeat_length.has_value())
+        color_stop_list = expand_repeat_length(color_stop_list, *repeat_length);
 
     auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
 
