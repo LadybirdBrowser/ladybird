@@ -140,4 +140,10 @@ void SVGGradientElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGradientElement);
 }
 
+void SVGGradientElement::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    SVGURIReferenceMixin::visit_edges(visitor);
+}
+
 }
