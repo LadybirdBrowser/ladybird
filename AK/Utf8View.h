@@ -121,41 +121,13 @@ public:
         return m_length;
     }
 
-    constexpr bool validate(AllowSurrogates surrogates = AllowSurrogates::Yes) const
+    bool validate(AllowSurrogates allow_surrogates = AllowSurrogates::Yes) const
     {
         size_t valid_bytes = 0;
-        return validate(valid_bytes, surrogates);
+        return validate(valid_bytes, allow_surrogates);
     }
 
-    constexpr bool validate(size_t& valid_bytes, AllowSurrogates surrogates = AllowSurrogates::Yes) const
-    {
-        valid_bytes = 0;
-
-        for (auto it = m_string.begin(); it != m_string.end(); ++it) {
-            auto [byte_length, code_point, is_valid] = decode_leading_byte(static_cast<u8>(*it));
-            if (!is_valid)
-                return false;
-
-            for (size_t i = 1; i < byte_length; ++i) {
-                if (++it == m_string.end())
-                    return false;
-
-                auto [code_point_bits, is_valid] = decode_continuation_byte(static_cast<u8>(*it));
-                if (!is_valid)
-                    return false;
-
-                code_point <<= 6;
-                code_point |= code_point_bits;
-            }
-
-            if (!is_valid_code_point(code_point, byte_length, surrogates))
-                return false;
-
-            valid_bytes += byte_length;
-        }
-
-        return true;
-    }
+    bool validate(size_t& valid_bytes, AllowSurrogates allow_surrogates = AllowSurrogates::Yes) const;
 
 private:
     friend class Utf8CodePointIterator;
@@ -196,36 +168,6 @@ private:
         }
 
         return { .is_valid = false };
-    }
-
-    struct ContinuationByte {
-        u32 code_point_bits { 0 };
-        bool is_valid { false };
-    };
-
-    static constexpr ContinuationByte decode_continuation_byte(u8 byte)
-    {
-        constexpr u8 continuation_byte_encoding_bits = 0b1000'0000;
-        constexpr u8 continuation_byte_encoding_mask = 0b1100'0000;
-
-        if ((byte & continuation_byte_encoding_mask) == continuation_byte_encoding_bits) {
-            byte &= ~continuation_byte_encoding_mask;
-            return { byte, true };
-        }
-
-        return { .is_valid = false };
-    }
-
-    static constexpr bool is_valid_code_point(u32 code_point, size_t byte_length, AllowSurrogates surrogates = AllowSurrogates::Yes)
-    {
-        if (surrogates == AllowSurrogates::No && byte_length == 3 && code_point >= 0xD800 && code_point <= 0xDFFF)
-            return false;
-        for (auto const& data : utf8_encoded_byte_data) {
-            if (code_point >= data.first_code_point && code_point <= data.last_code_point)
-                return byte_length == data.byte_length;
-        }
-
-        return false;
     }
 
     StringView m_string;
