@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: inline
-    frag 0 from Box start: 0, length: 0, rect: [8,8 26.953125x17] baseline: 13.296875
+    frag 0 from Box start: 0, length: 0, rect: [8,8 26.953125x17] baseline: 21.296875
     Box <body> at (8,8) content-size 26.953125x17 [GFC] children: not-inline
       BlockContainer <(anonymous)> at (8,8) content-size 26.953125x17 [BFC] children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [8,8 26.953125x17] baseline: 13.296875

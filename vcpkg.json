@@ -14,6 +14,13 @@
       ]
     },
     {
+      "name": "libavif",
+      "features": [
+        "dav1d"
+      ]
+    },
+    "simdutf",
+    {
       "name": "skia",
       "platform": "osx",
       "features": [
@@ -32,7 +39,6 @@
       "platform": "android"
     },
     "sqlite3",
-    "woff2",
     {
       "name": "vulkan",
       "platform": "!android"
@@ -40,7 +46,8 @@
     {
       "name": "vulkan-headers",
       "platform": "!android"
-    }
+    },
+    "woff2"
   ],
   "overrides": [
     {
@@ -58,6 +65,14 @@
     {
       "name": "libpng",
       "version": "1.6.43#1"
+    },
+    {
+      "name": "libavif",
+      "version": "1.0.4#1"
+    },
+    {
+      "name": "simdutf",
+      "version": "5.2.5#0"
     },
     {
       "name": "skia",

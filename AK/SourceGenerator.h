@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,17 +22,19 @@ class SourceGenerator {
 public:
     using MappingType = HashMap<StringView, String>;
 
-    explicit SourceGenerator(StringBuilder& builder, char opening = '@', char closing = '@')
+    explicit SourceGenerator(StringBuilder& builder, char opening = '@', char closing = '@', char escape = '\\')
         : m_builder(builder)
         , m_opening(opening)
         , m_closing(closing)
+        , m_escape(escape)
     {
     }
-    explicit SourceGenerator(StringBuilder& builder, MappingType&& mapping, char opening = '@', char closing = '@')
+    explicit SourceGenerator(StringBuilder& builder, MappingType&& mapping, char opening = '@', char closing = '@', char escape = '\\')
         : m_builder(builder)
         , m_mapping(move(mapping))
         , m_opening(opening)
         , m_closing(closing)
+        , m_escape(escape)
     {
     }
 
@@ -70,7 +73,20 @@ public:
         GenericLexer lexer { pattern };
 
         while (!lexer.is_eof()) {
-            m_builder.append(lexer.consume_until(m_opening));
+            m_builder.append(lexer.consume_until([&](char ch) { return ch == m_opening || ch == m_escape; }));
+            if (lexer.consume_specific(m_escape)) {
+                if (!(lexer.next_is(m_opening) || lexer.next_is(m_escape))) {
+                    if (lexer.is_eof())
+                        warnln("Unexpected EOF while parsing escape sequence on SourceGenerator");
+                    else
+                        warnln("Invalid escape sequence found `{}{}` on SourceGenerator", m_escape, lexer.peek());
+
+                    VERIFY_NOT_REACHED();
+                }
+
+                m_builder.append(lexer.consume());
+                continue;
+            }
 
             if (lexer.consume_specific(m_opening)) {
                 auto const placeholder = lexer.consume_until(m_closing);
@@ -129,7 +145,9 @@ public:
 private:
     StringBuilder& m_builder;
     MappingType m_mapping;
-    char m_opening, m_closing;
+    char m_opening { '@' };
+    char m_closing { '@' };
+    char m_escape { '\\' };
 };
 
 }

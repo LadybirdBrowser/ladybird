@@ -402,6 +402,8 @@ private:
     bool m_must_propagate_completion { true };
 
     GCPtr<ECMAScriptFunctionObject const> m_function;
+
+    Optional<IdentifierTableIndex> m_length_identifier;
 };
 
 }

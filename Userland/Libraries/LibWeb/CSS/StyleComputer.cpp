@@ -19,11 +19,11 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
-#include <LibGfx/Font/OpenType/Font.h>
+#include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
-#include <LibGfx/Font/WOFF/Font.h>
-#include <LibGfx/Font/WOFF2/Font.h>
+#include <LibGfx/Font/WOFF/Typeface.h>
+#include <LibGfx/Font/WOFF2/Typeface.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/CSS/AnimationEvent.h>
@@ -167,29 +167,29 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
     auto const& mime_type = resource()->mime_type();
     if (mime_type == "font/ttf"sv || mime_type == "application/x-font-ttf"sv) {
-        if (auto result = OpenType::Font::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+        if (auto result = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
             return result;
         }
     }
     if (mime_type == "font/woff"sv || mime_type == "application/font-woff"sv) {
-        if (auto result = WOFF::Font::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+        if (auto result = WOFF::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
             return result;
         }
     }
     if (mime_type == "font/woff2"sv || mime_type == "application/font-woff2"sv) {
-        if (auto result = WOFF2::Font::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+        if (auto result = WOFF2::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
             return result;
         }
     }
 
     // We don't have the luxury of knowing the MIME type, so we have to try all formats.
-    auto ttf = OpenType::Font::try_load_from_externally_owned_memory(resource()->encoded_data());
+    auto ttf = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!ttf.is_error())
         return ttf.release_value();
-    auto woff = WOFF::Font::try_load_from_externally_owned_memory(resource()->encoded_data());
+    auto woff = WOFF::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!woff.is_error())
         return woff.release_value();
-    auto woff2 = WOFF2::Font::try_load_from_externally_owned_memory(resource()->encoded_data());
+    auto woff2 = WOFF2::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!woff2.is_error())
         return woff2.release_value();
     return Error::from_string_literal("Automatic format detection failed");
@@ -436,8 +436,80 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             return PropertyID::Left;
         case PropertyID::InsetInlineEnd:
             return PropertyID::Right;
+        case PropertyID::WebkitAlignContent:
+            return PropertyID::AlignContent;
+        case PropertyID::WebkitAlignItems:
+            return PropertyID::AlignItems;
+        case PropertyID::WebkitAlignSelf:
+            return PropertyID::AlignSelf;
+        case PropertyID::WebkitAnimation:
+            return PropertyID::Animation;
+        case PropertyID::WebkitAnimationDelay:
+            return PropertyID::AnimationDelay;
+        case PropertyID::WebkitAnimationDirection:
+            return PropertyID::AnimationDirection;
+        case PropertyID::WebkitAnimationDuration:
+            return PropertyID::AnimationDuration;
+        case PropertyID::WebkitAnimationFillMode:
+            return PropertyID::AnimationFillMode;
+        case PropertyID::WebkitAnimationIterationCount:
+            return PropertyID::AnimationIterationCount;
+        case PropertyID::WebkitAnimationName:
+            return PropertyID::AnimationName;
+        case PropertyID::WebkitAnimationPlayState:
+            return PropertyID::AnimationPlayState;
+        case PropertyID::WebkitAnimationTimingFunction:
+            return PropertyID::AnimationTimingFunction;
         case PropertyID::WebkitAppearance:
             return PropertyID::Appearance;
+        case PropertyID::WebkitBackgroundClip:
+            return PropertyID::BackgroundClip;
+        case PropertyID::WebkitBackgroundOrigin:
+            return PropertyID::BackgroundOrigin;
+        case PropertyID::WebkitBorderBottomLeftRadius:
+            return PropertyID::BorderBottomLeftRadius;
+        case PropertyID::WebkitBorderBottomRightRadius:
+            return PropertyID::BorderBottomRightRadius;
+        case PropertyID::WebkitBorderRadius:
+            return PropertyID::BorderRadius;
+        case PropertyID::WebkitBorderTopLeftRadius:
+            return PropertyID::BorderTopLeftRadius;
+        case PropertyID::WebkitBorderTopRightRadius:
+            return PropertyID::BorderTopRightRadius;
+        case PropertyID::WebkitBoxShadow:
+            return PropertyID::BoxShadow;
+        case PropertyID::WebkitBoxSizing:
+            return PropertyID::BoxSizing;
+        case PropertyID::WebkitFlex:
+            return PropertyID::Flex;
+        case PropertyID::WebkitFlexBasis:
+            return PropertyID::FlexBasis;
+        case PropertyID::WebkitFlexDirection:
+            return PropertyID::FlexDirection;
+        case PropertyID::WebkitFlexFlow:
+            return PropertyID::FlexFlow;
+        case PropertyID::WebkitFlexWrap:
+            return PropertyID::FlexWrap;
+        case PropertyID::WebkitJustifyContent:
+            return PropertyID::JustifyContent;
+        case PropertyID::WebkitMask:
+            return PropertyID::Mask;
+        case PropertyID::WebkitOrder:
+            return PropertyID::Order;
+        case PropertyID::WebkitTransform:
+            return PropertyID::Transform;
+        case PropertyID::WebkitTransformOrigin:
+            return PropertyID::TransformOrigin;
+        case PropertyID::WebkitTransition:
+            return PropertyID::Transition;
+        case PropertyID::WebkitTransitionDelay:
+            return PropertyID::TransitionDelay;
+        case PropertyID::WebkitTransitionDuration:
+            return PropertyID::TransitionDuration;
+        case PropertyID::WebkitTransitionProperty:
+            return PropertyID::TransitionProperty;
+        case PropertyID::WebkitTransitionTimingFunction:
+            return PropertyID::TransitionTimingFunction;
         default:
             return {};
         }
@@ -709,6 +781,19 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         set_longhand_property(CSS::PropertyID::TransitionDelay, StyleValueList::create(move(transition_values[2]), StyleValueList::Separator::Comma));
         set_longhand_property(CSS::PropertyID::TransitionTimingFunction, StyleValueList::create(move(transition_values[3]), StyleValueList::Separator::Comma));
         return;
+    }
+
+    if (property_id == CSS::PropertyID::Float) {
+        auto ident = value.to_identifier();
+
+        // FIXME: Honor writing-mode, direction and text-orientation.
+        if (ident == CSS::ValueID::InlineStart) {
+            set_longhand_property(CSS::PropertyID::Float, IdentifierStyleValue::create(CSS::ValueID::Left));
+            return;
+        } else if (ident == CSS::ValueID::InlineEnd) {
+            set_longhand_property(CSS::PropertyID::Float, IdentifierStyleValue::create(CSS::ValueID::Right));
+            return;
+        }
     }
 
     if (property_is_shorthand(property_id)) {

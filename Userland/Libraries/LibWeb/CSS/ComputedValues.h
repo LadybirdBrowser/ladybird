@@ -432,6 +432,8 @@ public:
     Color background_color() const { return m_noninherited.background_color; }
     Vector<BackgroundLayerData> const& background_layers() const { return m_noninherited.background_layers; }
 
+    Color webkit_text_fill_color() const { return m_inherited.webkit_text_fill_color; }
+
     CSS::ListStyleType list_style_type() const { return m_inherited.list_style_type; }
     CSS::ListStylePosition list_style_position() const { return m_inherited.list_style_position; }
 
@@ -503,6 +505,7 @@ protected:
         CSS::CaptionSide caption_side { InitialValues::caption_side() };
         Color color { InitialValues::color() };
         Optional<Color> accent_color {};
+        Color webkit_text_fill_color { InitialValues::color() };
         CSS::Cursor cursor { InitialValues::cursor() };
         CSS::ImageRendering image_rendering { InitialValues::image_rendering() };
         CSS::PointerEvents pointer_events { InitialValues::pointer_events() };
@@ -667,6 +670,7 @@ public:
     void set_text_transform(CSS::TextTransform value) { m_inherited.text_transform = value; }
     void set_text_shadow(Vector<ShadowData>&& value) { m_inherited.text_shadow = move(value); }
     void set_text_indent(CSS::LengthPercentage value) { m_inherited.text_indent = move(value); }
+    void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
     void set_white_space(CSS::WhiteSpace value) { m_inherited.white_space = value; }
     void set_width(CSS::Size const& width) { m_noninherited.width = width; }

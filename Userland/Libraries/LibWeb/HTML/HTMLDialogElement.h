@@ -30,6 +30,8 @@ public:
     // https://www.w3.org/TR/html-aria/#el-dialog
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::dialog; }
 
+    bool is_modal() const { return m_is_modal; }
+
 private:
     HTMLDialogElement(DOM::Document&, DOM::QualifiedName);
 

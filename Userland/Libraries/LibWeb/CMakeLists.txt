@@ -249,6 +249,7 @@ set(SOURCES
     HTML/AttributeNames.cpp
     HTML/AudioTrack.cpp
     HTML/AudioTrackList.cpp
+    HTML/BroadcastChannel.cpp
     HTML/BrowsingContext.cpp
     HTML/BrowsingContextGroup.cpp
     HTML/Canvas/CanvasDrawImage.cpp
@@ -267,13 +268,16 @@ set(SOURCES
     HTML/CustomElements/CustomElementName.cpp
     HTML/CustomElements/CustomElementReactionNames.cpp
     HTML/CustomElements/CustomElementRegistry.cpp
+    HTML/DataTransfer.cpp
     HTML/Dates.cpp
     HTML/DecodedImageData.cpp
+    HTML/DedicatedWorkerGlobalScope.cpp
     HTML/DocumentState.cpp
     HTML/DOMParser.cpp
     HTML/DOMStringMap.cpp
-    HTML/DataTransfer.cpp
+    HTML/DragEvent.cpp
     HTML/ElementInternals.cpp
+    HTML/EmbedderPolicy.cpp
     HTML/ErrorEvent.cpp
     HTML/EventHandler.cpp
     HTML/EventSource.cpp
@@ -456,7 +460,6 @@ set(SOURCES
     HTML/ValidityState.cpp
     HighResolutionTime/Performance.cpp
     HighResolutionTime/TimeOrigin.cpp
-    Infra/Base64.cpp
     Infra/ByteSequences.cpp
     Infra/JSON.cpp
     Infra/Strings.cpp

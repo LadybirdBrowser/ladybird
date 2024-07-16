@@ -103,6 +103,25 @@ void WebViewImplementationNative::set_device_pixel_ratio(float f)
     client().async_set_device_pixels_per_css_pixel(0, m_device_pixel_ratio);
 }
 
+void WebViewImplementationNative::mouse_event(Web::MouseEvent::Type event_type, float x, float y, float raw_x, float raw_y)
+{
+    Gfx::IntPoint position = { x, y };
+    Gfx::IntPoint screen_position = { raw_x, raw_y };
+    auto event = Web::MouseEvent {
+        event_type,
+        position.to_type<Web::DevicePixels>(),
+        screen_position.to_type<Web::DevicePixels>(),
+        Web::UIEvents::MouseButton::Primary,
+        Web::UIEvents::MouseButton::Primary,
+        Web::UIEvents::KeyModifier::Mod_None,
+        0,
+        0,
+        nullptr
+    };
+
+    enqueue_input_event(move(event));
+}
+
 NonnullRefPtr<WebView::WebContentClient> WebViewImplementationNative::bind_web_content_client()
 {
     JavaEnvironment env(global_vm);

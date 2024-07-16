@@ -25,9 +25,9 @@ void SVGEllipseElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGEllipseElement);
 }
 
-void SVGEllipseElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void SVGEllipseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    SVGGeometryElement::attribute_changed(name, value);
+    SVGGeometryElement::attribute_changed(name, old_value, value);
 
     if (name == SVG::AttributeNames::cx) {
         m_center_x = AttributeParser::parse_coordinate(value.value_or(String {}));

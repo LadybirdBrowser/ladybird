@@ -17,6 +17,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
+#include <LibWeb/HTML/ErrorEvent.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/ImageBitmap.h>
@@ -31,7 +32,6 @@
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
-#include <LibWeb/Infra/Base64.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserverEntryList.h>
@@ -129,14 +129,14 @@ WebIDL::ExceptionOr<String> WindowOrWorkerGlobalScopeMixin::atob(String const& d
     auto& realm = *vm.current_realm();
 
     // 1. Let decodedData be the result of running forgiving-base64 decode on data.
-    auto decoded_data = Infra::decode_forgiving_base64(data.bytes_as_string_view());
+    auto decoded_data = decode_base64(data);
 
     // 2. If decodedData is failure, then throw an "InvalidCharacterError" DOMException.
     if (decoded_data.is_error())
         return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_fly_string);
 
     // 3. Return decodedData.
-    // decode_base64() returns a byte string. LibJS uses UTF-8 for strings. Use Latin1Decoder to convert bytes 128-255 to UTF-8.
+    // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use Latin1Decoder to convert bytes 128-255 to UTF-8.
     auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
     VERIFY(decoder.has_value());
     return TRY_OR_THROW_OOM(vm, decoder->to_utf8(decoded_data.value()));
@@ -740,6 +740,102 @@ JS::NonnullGCPtr<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_typ
     }
 
     return *m_supported_entry_types_array;
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#dom-reporterror
+void WindowOrWorkerGlobalScopeMixin::report_error(JS::Value e)
+{
+    auto& target = static_cast<DOM::EventTarget&>(this_impl());
+    auto& realm = relevant_realm(target);
+    auto& vm = realm.vm();
+    auto script_or_module = vm.get_active_script_or_module();
+
+    // FIXME: Get the current position in the script.
+    auto line = 0;
+    auto col = 0;
+
+    // 1. If target is in error reporting mode, then return; the error is not handled.
+    if (m_error_reporting_mode) {
+        report_exception_to_console(e, realm, ErrorInPromise::No);
+        return;
+    }
+
+    // 2. Let target be in error reporting mode.
+    m_error_reporting_mode = true;
+
+    // 3. Let message be an implementation-defined string describing the error in a helpful manner.
+    auto message = [&] {
+        if (e.is_object()) {
+            auto& object = e.as_object();
+            if (MUST(object.has_own_property(vm.names.message))) {
+                auto message = object.get_without_side_effects(vm.names.message);
+                return message.to_string_without_side_effects();
+            }
+        }
+
+        return MUST(String::formatted("Uncaught exception: {}", e.to_string_without_side_effects()));
+    }();
+
+    // 4. Let errorValue be the value that represents the error: in the case of an uncaught exception,
+    //    that would be the value that was thrown; in the case of a JavaScript error that would be an Error object
+    //    If there is no corresponding value, then the null value must be used instead.
+    auto error_value = e;
+
+    // 5. Let urlString be the result of applying the URL serializer to the URL record that corresponds to the resource from which script was obtained.
+    // NOTE: urlString is set below once we have determined whether we are dealing with a script or a module.
+    String url_string;
+    auto script_or_module_filename = [](auto const& script_or_module) {
+        return MUST(String::from_utf8(script_or_module->filename()));
+    };
+
+    // 6. If script is a classic script and script's muted errors is true, then set message to "Script error.",
+    //    urlString to the empty string, line and col to 0, and errorValue to null.
+    script_or_module.visit(
+        [&](JS::NonnullGCPtr<JS::Script> const& js_script) {
+            if (verify_cast<ClassicScript>(js_script->host_defined())->muted_errors() == ClassicScript::MutedErrors::Yes) {
+                message = "Script error."_string;
+                url_string = String {};
+                line = 0;
+                col = 0;
+                error_value = JS::js_null();
+            } else {
+                url_string = script_or_module_filename(js_script);
+            }
+        },
+        [&](JS::NonnullGCPtr<JS::Module> const& js_module) {
+            url_string = script_or_module_filename(js_module);
+        },
+        [](Empty) {});
+
+    // 7. Let notHandled be true.
+    auto not_handled = true;
+
+    // 8. If target implements EventTarget, then set notHandled to the result of firing an event named error at target,
+    //    using ErrorEvent, with the cancelable attribute initialized to true, the message attribute initialized to message,
+    //    the filename attribute initialized to urlString, the lineno attribute initialized to line, the colno attribute initialized to col,
+    //    and the error attribute initialized to errorValue.
+    ErrorEventInit event_init = {};
+    event_init.cancelable = true;
+    event_init.message = message;
+    event_init.filename = url_string;
+    event_init.lineno = line;
+    event_init.colno = col;
+    event_init.error = error_value;
+
+    not_handled = target.dispatch_event(ErrorEvent::create(realm, EventNames::error, event_init));
+
+    // 9. Let target no longer be in error reporting mode.
+    m_error_reporting_mode = false;
+
+    // 10. If notHandled is false, then the error is handled. Otherwise, the error is not handled.
+    if (not_handled) {
+        // When the user agent is to report an exception E, the user agent must report the error for the relevant script,
+        // with the problematic position (line number and column number) in the resource containing the script,
+        // using the global object specified by the script's settings object as the target.
+        // If the error is still not handled after this, then the error may be reported to a developer console.
+        // https://html.spec.whatwg.org/multipage/webappapis.html#report-the-exception
+        report_exception_to_console(e, realm, ErrorInPromise::No);
+    }
 }
 
 }

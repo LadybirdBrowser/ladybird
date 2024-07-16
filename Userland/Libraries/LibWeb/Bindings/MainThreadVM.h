@@ -80,7 +80,7 @@ struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData
 
 HTML::Script* active_script();
 
-ErrorOr<void> initialize_main_thread_vm();
+ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type);
 JS::VM& main_thread_vm();
 
 void queue_mutation_observer_microtask(DOM::Document const&);

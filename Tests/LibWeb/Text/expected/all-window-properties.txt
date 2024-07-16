@@ -24,6 +24,7 @@ BigInt64Array
 BigUint64Array
 Blob
 Boolean
+BroadcastChannel
 ByteLengthQueuingStrategy
 CDATASection
 CSSAnimation
@@ -76,6 +77,7 @@ Document
 DocumentFragment
 DocumentTimeline
 DocumentType
+DragEvent
 DynamicsCompressorNode
 Element
 ElementInternals

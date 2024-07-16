@@ -35,9 +35,9 @@ void HTMLTrackElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_track);
 }
 
-void HTMLTrackElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLTrackElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    HTMLElement::attribute_changed(name, value);
+    HTMLElement::attribute_changed(name, old_value, value);
 
     // https://html.spec.whatwg.org/multipage/media.html#sourcing-out-of-band-text-tracks
     // As the kind, label, and srclang attributes are set, changed, or removed, the text track must update accordingly, as per the definitions above.

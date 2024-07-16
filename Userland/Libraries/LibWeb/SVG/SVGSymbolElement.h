@@ -37,7 +37,7 @@ private:
 
     bool is_direct_child_of_use_shadow_tree() const;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
     Optional<ViewBox> m_view_box;
 };

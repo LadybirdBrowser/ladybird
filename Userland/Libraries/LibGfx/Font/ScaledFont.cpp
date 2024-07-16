@@ -10,16 +10,16 @@
 
 namespace Gfx {
 
-ScaledFont::ScaledFont(NonnullRefPtr<Typeface> font, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y)
-    : m_font(move(font))
+ScaledFont::ScaledFont(NonnullRefPtr<Typeface> typeface, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y)
+    : m_typeface(move(typeface))
     , m_point_width(point_width)
     , m_point_height(point_height)
 {
-    float units_per_em = m_font->units_per_em();
+    float units_per_em = m_typeface->units_per_em();
     m_x_scale = (point_width * dpi_x) / (POINTS_PER_INCH * units_per_em);
     m_y_scale = (point_height * dpi_y) / (POINTS_PER_INCH * units_per_em);
 
-    auto metrics = m_font->metrics(m_x_scale, m_y_scale);
+    auto metrics = m_typeface->metrics(m_x_scale, m_y_scale);
 
     m_pixel_size = m_point_height * (DEFAULT_DPI / POINTS_PER_INCH);
     m_pixel_size_rounded_up = static_cast<int>(ceilf(m_pixel_size));
@@ -70,14 +70,14 @@ RefPtr<Gfx::Bitmap> ScaledFont::rasterize_glyph(u32 glyph_id, GlyphSubpixelOffse
     if (glyph_iterator != m_cached_glyph_bitmaps.end())
         return glyph_iterator->value;
 
-    auto glyph_bitmap = m_font->rasterize_glyph(glyph_id, m_x_scale, m_y_scale, subpixel_offset);
+    auto glyph_bitmap = m_typeface->rasterize_glyph(glyph_id, m_x_scale, m_y_scale, subpixel_offset);
     m_cached_glyph_bitmaps.set(index, glyph_bitmap);
     return glyph_bitmap;
 }
 
 bool ScaledFont::append_glyph_path_to(Gfx::Path& path, u32 glyph_id) const
 {
-    return m_font->append_glyph_path_to(path, glyph_id, m_x_scale, m_y_scale);
+    return m_typeface->append_glyph_path_to(path, glyph_id, m_x_scale, m_y_scale);
 }
 
 Optional<Glyph> ScaledFont::glyph(u32 code_point) const
@@ -92,7 +92,7 @@ Optional<Glyph> ScaledFont::glyph(u32 code_point, GlyphSubpixelOffset subpixel_o
     if (!bitmap)
         return {};
     auto metrics = glyph_metrics(id);
-    return Gfx::Glyph(*bitmap, metrics.left_side_bearing, metrics.advance_width, metrics.ascender, m_font->has_color_bitmaps());
+    return Gfx::Glyph(*bitmap, metrics.left_side_bearing, metrics.advance_width, metrics.ascender, m_typeface->has_color_bitmaps());
 }
 
 float ScaledFont::glyph_left_bearing(u32 code_point) const
@@ -104,7 +104,7 @@ float ScaledFont::glyph_left_bearing(u32 code_point) const
 float ScaledFont::glyph_width(u32 code_point) const
 {
     auto id = glyph_id_for_code_point(code_point);
-    return m_font->glyph_advance(id, m_x_scale, m_y_scale, m_point_width, m_point_height);
+    return m_typeface->glyph_advance(id, m_x_scale, m_y_scale, m_point_width, m_point_height);
 }
 
 template<typename CodePointIterator>
@@ -133,14 +133,14 @@ float ScaledFont::glyphs_horizontal_kerning(u32 left_code_point, u32 right_code_
     if (left_glyph_id == 0 || right_glyph_id == 0)
         return 0.f;
 
-    return m_font->glyphs_horizontal_kerning(left_glyph_id, right_glyph_id, m_x_scale);
+    return m_typeface->glyphs_horizontal_kerning(left_glyph_id, right_glyph_id, m_x_scale);
 }
 
 NonnullRefPtr<ScaledFont> ScaledFont::scaled_with_size(float point_size) const
 {
     if (point_size == m_point_height && point_size == m_point_width)
         return *const_cast<ScaledFont*>(this);
-    return m_font->scaled_font(point_size);
+    return m_typeface->scaled_font(point_size);
 }
 
 NonnullRefPtr<Font> ScaledFont::with_size(float point_size) const

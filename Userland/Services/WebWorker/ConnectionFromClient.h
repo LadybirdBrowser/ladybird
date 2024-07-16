@@ -28,6 +28,8 @@ public:
 
     virtual void die() override;
 
+    virtual void close_worker() override;
+
     void request_file(Web::FileRequest);
 
     PageHost& page_host() { return *m_page_host; }
@@ -39,7 +41,7 @@ private:
     Web::Page& page();
     Web::Page const& page() const;
 
-    virtual void start_dedicated_worker(URL::URL const& url, String const&, String const&, String const&, Web::HTML::TransferDataHolder const&, Web::HTML::SerializedEnvironmentSettingsObject const&) override;
+    virtual void start_dedicated_worker(URL::URL const& url, String const& type, String const&, String const& name, Web::HTML::TransferDataHolder const&, Web::HTML::SerializedEnvironmentSettingsObject const&) override;
     virtual void handle_file_return(i32 error, Optional<IPC::File> const& file, i32 request_id) override;
 
     JS::Handle<PageHost> m_page_host;

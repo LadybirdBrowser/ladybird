@@ -3,6 +3,7 @@
 set -e
 
 BUILD_PRESET=${BUILD_PRESET:-default}
+
 ARG0=$0
 print_help() {
     NAME=$(basename "$ARG0")
@@ -65,6 +66,23 @@ exit_if_running_as_root "Do not run ladybird.sh as root, your Build directory wi
 CMAKE_ARGS=()
 CMD_ARGS=( "$@" )
 
+if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = "aarch64" ]; then
+    PKGCONFIG=$(which pkg-config)
+    GN=$(command -v gn || echo "")
+    CMAKE_ARGS+=("-DPKG_CONFIG_EXECUTABLE=$PKGCONFIG")
+    # https://github.com/LadybirdBrowser/ladybird/issues/261
+    if [ "$(getconf PAGESIZE)" != "4096" ]; then
+        if [ -z "$GN" ]; then
+            die "GN not found! Please build GN from source and put it in \$PATH"
+        fi
+    fi
+    cat <<- EOF > Meta/CMake/vcpkg/user-variables.cmake
+set(PKGCONFIG $PKGCONFIG)
+set(GN $GN)
+EOF
+
+fi
+
 get_top_dir() {
     git rev-parse --show-toplevel
 }
@@ -82,8 +100,21 @@ cmd_with_target() {
         LADYBIRD_SOURCE_DIR="$(get_top_dir)"
         export LADYBIRD_SOURCE_DIR
     fi
-    BUILD_DIR="$LADYBIRD_SOURCE_DIR/Build/ladybird"
-    CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/ladybird-install")
+
+    # Note: Keep in sync with buildDir defaults in CMakePresets.json
+    case "${BUILD_PRESET}" in
+        "default")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird"
+            ;;
+        "Debug")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird-debug"
+            ;;
+        "Sanitizer")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird-sanitizers"
+            ;;
+    esac
+
+    CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/ladybird-install-${BUILD_PRESET}")
 
     export PATH="$LADYBIRD_SOURCE_DIR/Toolchain/Local/cmake/bin:$LADYBIRD_SOURCE_DIR/Toolchain/Local/vcpkg/bin:$PATH"
     export VCPKG_ROOT="$LADYBIRD_SOURCE_DIR/Toolchain/Tarballs/vcpkg"
@@ -122,20 +153,11 @@ delete_target() {
     [ ! -d "$BUILD_DIR" ] || rm -rf "$BUILD_DIR"
 }
 
-build_cmake() {
-    echo "CMake version too old: build_cmake"
-    ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildCMake.sh )
-}
-
 build_vcpkg() {
     ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildVcpkg.sh )
 }
 
 ensure_toolchain() {
-    if [ "$(cmake -P "$LADYBIRD_SOURCE_DIR"/Meta/CMake/cmake-version.cmake)" -ne 1 ]; then
-        build_cmake
-    fi
-
     build_vcpkg
 }
 
@@ -188,10 +210,16 @@ build_and_run_lagom_target() {
         lagom_target="ladybird"
     fi
 
+    # FIXME: Find some way to centralize these b/w CMakePresets.json, CI files, Documentation and here.
+    if [ "$BUILD_PRESET" = "Sanitizer" ]; then
+        export ASAN_OPTIONS=${ASAN_OPTIONS:-"strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1"}
+        export UBSAN_OPTIONS=${UBSAN_OPTIONS:-"print_stacktrace=1:print_summary=1:halt_on_error=1"}
+    fi
+
     build_target "${lagom_target}"
 
     if [ "$lagom_target" = "ladybird" ] && [ "$(uname -s)" = "Darwin" ]; then
-        open --wait-apps --stdout "$(tty)" --stderr "$(tty)" "$BUILD_DIR/bin/Ladybird.app" --args "${lagom_args[@]}"
+        "$BUILD_DIR/bin/Ladybird.app/Contents/MacOS/Ladybird" "${lagom_args[@]}"
     else
         local lagom_bin="$lagom_target"
         if [ "$lagom_bin" = "ladybird" ]; then

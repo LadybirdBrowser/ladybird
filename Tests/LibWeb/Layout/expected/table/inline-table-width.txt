@@ -1,7 +1,7 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x46 children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 135.984375x44] baseline: 12.796875
+      frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 135.984375x44] baseline: 13.796875
       BlockContainer <table> at (9,9) content-size 135.984375x44 inline-block [BFC] children: not-inline
         TableWrapper <(anonymous)> at (9,9) content-size 135.984375x44 inline-block [BFC] children: not-inline
           Box <(anonymous)> at (9,9) content-size 135.984375x44 inline-table table-box [TFC] children: not-inline

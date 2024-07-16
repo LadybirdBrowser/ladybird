@@ -52,6 +52,15 @@ button, input[type=submit], input[type=button], input[type=reset], select {
     cursor: default;
 }
 
+button:disabled, input[type=submit]:disabled, input[type=button]:disabled, input[type=reset]:disabled, select:disabled {
+    /* FIXME: There isn't a <system-color> keyword for this, so this is a slightly lightened
+     *        version of our light ButtonFace color. Once we support `color-scheme: dark`
+     *        we'll need to use a different color for that.
+     */
+    background-color: #e5e0d7;
+    color: GrayText;
+}
+
 input[type=image] {
     cursor: pointer;
 }
@@ -78,9 +87,11 @@ input[type=range]::-webkit-slider-runnable-track, input[type=range]::-webkit-sli
     display: block;
 }
 input[type=range]::-webkit-slider-runnable-track {
+    position: relative;
     height: 4px;
+    width: 100%;
     margin-top: 6px;
-    background-color:  hsl(217, 71%, 53%);
+    background-color: Background;
     border: 1px solid rgba(0, 0, 0, 0.5);
 }
 input[type=range]::-webkit-slider-thumb {
@@ -89,8 +100,8 @@ input[type=range]::-webkit-slider-thumb {
     height: 16px;
     transform: translateX(-50%);
     border-radius: 50%;
-    background-color: hsl(0, 0%, 96%);
     outline: 1px solid rgba(0, 0, 0, 0.5);
+    z-index: 1;
 }
 
 /* Custom <meter> styles */
@@ -128,11 +139,8 @@ progress::-webkit-progress-bar, progress::-webkit-progress-value {
     height: 100%;
 }
 progress::-webkit-progress-bar {
-    background-color: hsl(0, 0%, 96%);
+    background-color: Background;
     border: 1px solid rgba(0, 0, 0, 0.5);
-}
-progress::-webkit-progress-value {
-    background-color: hsl(204, 86%, 53%);
 }
 
 /* 15.3.1 Hidden elements

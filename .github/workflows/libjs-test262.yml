@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build unzip gcc-13 g++-13 jq wget curl zip tar autoconf autoconf-archive automake pkg-config libgl1-mesa-dev
+          sudo apt-get install -y ninja-build unzip gcc-13 g++-13 jq wget curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev
           test -e /opt/wabt-1.0.35 || (
             cd /tmp
             wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
@@ -99,7 +99,7 @@ jobs:
               -DCMAKE_CXX_COMPILER=g++-13 \
               -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
               -DINCLUDE_WASM_SPEC_TESTS=ON \
-              -DENABLE_QT=OFF
+              -DENABLE_GUI_TARGETS=OFF
           ninja -C libjs-test262/Build test262-runner test-js test-wasm
 
       - name: Run test262 and test262-parser-tests
@@ -146,7 +146,7 @@ jobs:
         run: ./libjs-test262/per_file_result_diff.py -o old-libjs-data/wasm/per-file-master.json -n libjs-data/wasm/per-file-master.json
 
       - name: Deploy to GitHub
-        uses: JamesIves/github-pages-deploy-action@v4.6.1
+        uses: JamesIves/github-pages-deploy-action@v4.6.3
         with:
           git-config-name: LadybirdBot
           git-config-email: ladybirdbot@ladybird.org

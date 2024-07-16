@@ -80,6 +80,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_selected_files);
     visitor.visit(m_slider_thumb);
     visitor.visit(m_image_request);
+    visitor.visit(m_range_progress_element);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
@@ -127,6 +128,14 @@ void HTMLInputElement::adjust_computed_style(CSS::StyleProperties& style)
         if (style.property(CSS::PropertyID::Width)->has_auto())
             style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(size(), CSS::Length::Type::Ch)));
     }
+
+    // NOTE: The following line-height check is done for web compatability and usability reasons.
+    // FIXME: The "normal" line-height value should be calculated but assume 1.0 for now.
+    double normal_line_height = 1.0;
+    double current_line_height = style.line_height().to_double();
+
+    if (is_single_line() && current_line_height < normal_line_height)
+        style.set_property(CSS::PropertyID::LineHeight, CSS::IdentifierStyleValue::create(CSS::ValueID::Normal));
 }
 
 void HTMLInputElement::set_checked(bool checked, ChangeSource change_source)
@@ -769,9 +778,11 @@ void HTMLInputElement::create_button_input_shadow_tree()
 {
     auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
-
+    auto text_container = MUST(DOM::create_element(document(), HTML::TagNames::span, Namespace::HTML));
+    MUST(text_container->set_attribute(HTML::AttributeNames::style, "display: inline-block; pointer-events: none;"_string));
     m_text_node = heap().allocate<DOM::Text>(realm(), document(), value());
-    MUST(shadow_root->append_child(*m_text_node));
+    MUST(text_container->append_child(*m_text_node));
+    MUST(shadow_root->append_child(*text_container));
 }
 
 void HTMLInputElement::create_text_input_shadow_tree()
@@ -982,6 +993,14 @@ void HTMLInputElement::create_range_input_shadow_tree()
     slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderRunnableTrack);
     MUST(shadow_root->append_child(slider_runnable_track));
 
+    m_range_progress_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    MUST(m_range_progress_element->set_attribute(HTML::AttributeNames::style, R"~~~(
+        display: block;
+        position: absolute;
+        height: 100%;
+    )~~~"_string));
+    MUST(slider_runnable_track->append_child(*m_range_progress_element));
+
     m_slider_thumb = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     m_slider_thumb->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderThumb);
     MUST(slider_runnable_track->append_child(*m_slider_thumb));
@@ -1067,6 +1086,21 @@ void HTMLInputElement::create_range_input_shadow_tree()
     add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), mousedown_callback));
 }
 
+void HTMLInputElement::computed_css_values_changed()
+{
+    auto palette = document().page().palette();
+    auto accent_color = palette.color(ColorRole::Accent).to_string();
+
+    auto accent_color_property = computed_css_values()->property(CSS::PropertyID::AccentColor);
+    if (accent_color_property->has_color())
+        accent_color = accent_color_property->to_string();
+
+    if (m_range_progress_element)
+        MUST(m_range_progress_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
+    if (m_slider_thumb)
+        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
+}
+
 void HTMLInputElement::user_interaction_did_change_input_value()
 {
     // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
@@ -1086,28 +1120,35 @@ void HTMLInputElement::user_interaction_did_change_input_value()
 
 void HTMLInputElement::update_slider_thumb_element()
 {
-    if (!m_slider_thumb)
-        return;
-
-    double value = value_as_number();
+    double value = convert_string_to_number(value_sanitization_algorithm(m_value)).value_or(0);
     double minimum = *min();
     double maximum = *max();
     double position = (value - minimum) / (maximum - minimum) * 100;
-    MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
+
+    if (m_slider_thumb)
+        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
+
+    if (m_range_progress_element)
+        MUST(m_range_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
 }
 
 void HTMLInputElement::did_receive_focus()
 {
-    auto navigable = document().navigable();
-    if (!navigable)
-        return;
     if (!m_text_node)
         return;
+    m_text_node->invalidate_style();
+    auto navigable = document().navigable();
+    if (!navigable) {
+        return;
+    }
     navigable->set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
 
 void HTMLInputElement::did_lose_focus()
 {
+    if (m_text_node)
+        m_text_node->invalidate_style();
+
     commit_pending_changes();
 }
 
@@ -1352,7 +1393,7 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
             // The default value is the minimum plus half the difference between the minimum and the maximum, unless the maximum is less than the minimum, in which case the default value is the minimum.
             auto minimum = *min();
             auto maximum = *max();
-            if (maximum > minimum)
+            if (maximum < minimum)
                 return JS::number_to_string(minimum);
             return JS::number_to_string(minimum + (maximum - minimum) / 2);
         }
@@ -2109,6 +2150,21 @@ bool HTMLInputElement::is_submit_button() const
     // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):concept-submit-button
     return type_state() == TypeAttributeState::SubmitButton
         || type_state() == TypeAttributeState::ImageButton;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#text-(type=text)-state-and-search-state-(type=search)
+// https://html.spec.whatwg.org/multipage/input.html#password-state-(type=password)
+// "one line plain text edit control"
+bool HTMLInputElement::is_single_line() const
+{
+    // NOTE: For web compatibility reasons, we consider other types
+    //       in addition to Text, Search, and Password as single line inputs.
+    return type_state() == TypeAttributeState::Text
+        || type_state() == TypeAttributeState::Search
+        || type_state() == TypeAttributeState::Password
+        || type_state() == TypeAttributeState::Email
+        || type_state() == TypeAttributeState::Telephone
+        || type_state() == TypeAttributeState::Number;
 }
 
 bool HTMLInputElement::has_activation_behavior() const

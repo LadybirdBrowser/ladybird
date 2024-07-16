@@ -26,3 +26,5 @@ serenity_option(ENABLE_NETWORK_DOWNLOADS ON CACHE BOOL "Allow downloads of requi
 
 serenity_option(ENABLE_CLANG_PLUGINS OFF CACHE BOOL "Enable building with the Clang plugins")
 serenity_option(ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS OFF CACHE BOOL "Enable detecting invalid function types as members of GC-allocated objects")
+
+serenity_option(ENABLE_GUI_TARGETS ON CACHE BOOL "Enable building GUI targets")

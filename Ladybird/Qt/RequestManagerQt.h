@@ -17,9 +17,9 @@ class RequestManagerQt
     , public Web::ResourceLoaderConnector {
     Q_OBJECT
 public:
-    static NonnullRefPtr<RequestManagerQt> create()
+    static NonnullRefPtr<RequestManagerQt> create(Vector<ByteString> const& certificate_paths)
     {
-        return adopt_ref(*new RequestManagerQt());
+        return adopt_ref(*new RequestManagerQt(certificate_paths));
     }
 
     virtual ~RequestManagerQt() override { }
@@ -34,7 +34,7 @@ private slots:
     void reply_finished(QNetworkReply*);
 
 private:
-    RequestManagerQt();
+    explicit RequestManagerQt(Vector<ByteString> const& certificate_paths);
 
     class Request
         : public Web::ResourceLoaderConnectorRequest {

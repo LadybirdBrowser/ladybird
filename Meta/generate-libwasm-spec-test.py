@@ -1,5 +1,4 @@
 import json
-import math
 import sys
 import struct
 import subprocess
@@ -17,9 +16,18 @@ class GenerateException(Exception):
 
 
 @dataclass
-class WasmValue:
-    kind: Literal["i32", "i64", "f32", "f64", "externref", "funcref", "v128"]
+class WasmPrimitiveValue:
+    kind: Literal["i32", "i64", "f32", "f64", "externref", "funcref"]
     value: str
+
+
+@dataclass
+class WasmVector:
+    lanes: list[str]
+    num_bits: int
+
+
+WasmValue = Union[WasmPrimitiveValue, WasmVector]
 
 
 @dataclass
@@ -90,6 +98,25 @@ Command = Union[
 
 
 @dataclass
+class ArithmeticNan:
+    num_bits: int
+
+
+@dataclass
+class CanonicalNan:
+    num_bits: int
+
+
+@dataclass
+class GeneratedVector:
+    repr: str
+    num_bits: int
+
+
+GeneratedValue = Union[str, ArithmeticNan, CanonicalNan, GeneratedVector]
+
+
+@dataclass
 class WastDescription:
     source_filename: str
     commands: list[Command]
@@ -105,33 +132,14 @@ def parse_value(arg: dict[str, str]) -> WasmValue:
     type_ = arg["type"]
     match type_:
         case "i32" | "i64" | "f32" | "f64" | "externref" | "funcref":
-            payload = arg["value"]
+            return WasmPrimitiveValue(type_, arg["value"])
         case "v128":
-
-            def reverse_endianness(hex_str):
-                if len(hex_str) % 2 != 0:
-                    hex_str = "0" + hex_str
-                bytes_list = [hex_str[i:i + 2] for i in range(0, len(hex_str), 2)]
-                reversed_hex_str = "".join(bytes_list[::-1])
-                return reversed_hex_str
-
-            size = int(arg["lane_type"][1:]) // 4
-            parts = []
-            for raw_val in arg["value"]:
-                match raw_val:
-                    case "nan:canonical":
-                        hex_repr = "7fc".ljust(size, "0")
-                    case "nan:arithmetic":
-                        hex_repr = "7ff".ljust(size, "0")
-                    case "nan:signaling":
-                        hex_repr = "7ff8".ljust(size, "0")
-                    case _:
-                        hex_repr = hex(int(raw_val))[2:].zfill(size)
-                parts.append(hex_repr)
-            payload = "0x" + reverse_endianness("".join(reversed(parts))) + "n"
+            if not isinstance(arg["value"], list):
+                raise ParseException("Got unknown type for Wasm value")
+            num_bits = int(arg["lane_type"][1:])
+            return WasmVector(arg["value"], num_bits)
         case _:
             raise ParseException(f"Unknown value type: {type_}")
-    return WasmValue(type_, payload)
 
 
 def parse_args(raw_args: list[dict[str, str]]) -> list[WasmValue]:
@@ -200,7 +208,19 @@ def make_description(input_path: Path, name: str, out_path: Path) -> WastDescrip
     return parse(description)
 
 
-def gen_value(value: WasmValue) -> str:
+def gen_vector(vec: WasmVector, *, array=False) -> str:
+    addition = "n" if vec.num_bits == 64 else ""
+    vals = ", ".join(v + addition if v.isdigit() else f'"{v}"' for v in vec.lanes)
+    if not array:
+        type_ = "BigUint64Array" if vec.num_bits == 64 else f"Uint{vec.num_bits}Array"
+        return f"new {type_}([{vals}])"
+    return f"[{vals}]"
+
+
+def gen_value_arg(value: WasmValue) -> str:
+    if isinstance(value, WasmVector):
+        return gen_vector(value)
+
     def unsigned_to_signed(uint: int, bits: int) -> int:
         max_value = 2**bits
         if uint >= 2 ** (bits - 1):
@@ -221,24 +241,15 @@ def gen_value(value: WasmValue) -> str:
         f = struct.unpack("d", b)[0]
         return f
 
-    def float_to_str(f: float) -> str:
-        if math.isnan(f) and math.copysign(1.0, f) < 0:
-            return "-NaN"
-        elif math.isnan(f):
-            return "NaN"
-        elif math.isinf(f) and math.copysign(1.0, f) < 0:
-            return "-Infinity"
-        elif math.isinf(f):
-            return "Infinity"
+    def float_to_str(bits: int, *, double=False) -> str:
+        f = int_to_float64_bitcast(bits) if double else int_to_float_bitcast(bits)
         return str(f)
 
     if value.value.startswith("nan"):
-        return "NaN"
-    elif value.value.startswith("-nan"):
-        return "-NaN"
-    elif value.value == "inf":
+        raise GenerateException("Should not get indeterminate nan value as an argument")
+    if value.value == "inf":
         return "Infinity"
-    elif value.value == "-inf":
+    if value.value == "-inf":
         return "-Infinity"
 
     match value.kind:
@@ -247,17 +258,36 @@ def gen_value(value: WasmValue) -> str:
         case "i64":
             return str(unsigned_to_signed(int(value.value), 64)) + "n"
         case "f32":
-            return float_to_str(int_to_float_bitcast(int(value.value)))
+            return str(int(value.value)) + f" /* {float_to_str(int(value.value))} */"
         case "f64":
-            return float_to_str(int_to_float64_bitcast(int(value.value)))
+            return (
+                str(int(value.value))
+                + f"n /* {float_to_str(int(value.value), double=True)} */"
+            )
         case "externref" | "funcref" | "v128":
             return value.value
         case _:
             raise GenerateException(f"Not implemented: {value.kind}")
 
 
+def gen_value_result(value: WasmValue) -> GeneratedValue:
+    if isinstance(value, WasmVector):
+        return GeneratedVector(gen_vector(value, array=True), value.num_bits)
+
+    if (value.kind == "f32" or value.kind == "f64") and value.value.startswith("nan"):
+        num_bits = int(value.kind[1:])
+        match value.value:
+            case "nan:canonical":
+                return CanonicalNan(num_bits)
+            case "nan:arithmetic":
+                return ArithmeticNan(num_bits)
+            case _:
+                raise GenerateException(f"Unknown indeterminate nan: {value.value}")
+    return gen_value_arg(value)
+
+
 def gen_args(args: list[WasmValue]) -> str:
-    return ",".join(gen_value(arg) for arg in args)
+    return ",".join(gen_value_arg(arg) for arg in args)
 
 
 def gen_module_command(command: ModuleCommand, ctx: Context):
@@ -284,6 +314,11 @@ _test.skip = test.skip;
 
 
 def gen_invalid(invalid: AssertInvalid, ctx: Context):
+    # TODO: Remove this once the multiple memories proposal is standardized.
+    # We support the multiple memories proposal, so spec-tests that check that
+    # we don't do not make any sense to include right now.
+    if invalid.message == "multiple memories":
+        return
     if ctx.has_unclosed:
         print("});")
         ctx.has_unclosed = False
@@ -300,6 +335,12 @@ expect(() => parseWebAssemblyModule(content, globalImportObject)).toThrow(Error,
     )
 
 
+def gen_pretty_expect(expr: str, got: str, expect: str):
+    print(
+        f"if (!{expr}) {{ expect().fail(`Failed with ${{{got}}}, expected {expect}`); }}"
+    )
+
+
 def gen_invoke(
     line: int,
     invoke: Invoke,
@@ -308,12 +349,19 @@ def gen_invoke(
     *,
     fail_msg: str | None = None,
 ):
+    if not ctx.has_unclosed:
+        print(f'describe("inline (line {line}))", () => {{\nlet _test = test;\n')
     module = "module"
     if invoke.module is not None:
         module = f'namedModules["{invoke.module}"]'
+    utf8 = (
+        str(invoke.field.encode("utf8"))[2:-1]
+        .replace("\\'", "'")
+        .replace("`", "${'`'}")
+    )
     print(
-        f"""_test("execution of {ctx.current_module_name}: {escape(invoke.field)} (line {line})", () => {{
-let _field = {module}.getExport("{escape(invoke.field)}");
+        f"""_test(`execution of {ctx.current_module_name}: {utf8} (line {line})`, () => {{
+let _field = {module}.getExport(decodeURIComponent(escape(`{utf8}`)));
 expect(_field).not.toBeUndefined();"""
     )
     if fail_msg is not None:
@@ -321,8 +369,35 @@ expect(_field).not.toBeUndefined();"""
     else:
         print(f"let _result = {module}.invoke(_field, {gen_args(invoke.args)});")
     if result is not None:
-        print(f"expect(_result).toBe({gen_value(result)});")
+        gen_result = gen_value_result(result)
+        match gen_result:
+            case str():
+                print(f"expect(_result).toBe({gen_result});")
+            case ArithmeticNan():
+                gen_pretty_expect(
+                    f"isArithmeticNaN{gen_result.num_bits}(_result)",
+                    "_result",
+                    "nan:arithmetic",
+                )
+            case CanonicalNan():
+                gen_pretty_expect(
+                    f"isCanonicalNaN{gen_result.num_bits}(_result)",
+                    "_result",
+                    "nan:canonical",
+                )
+            case GeneratedVector():
+                if gen_result.num_bits == 64:
+                    array = "new BigUint64Array(_result)"
+                else:
+                    array = f"new Uint{gen_result.num_bits}Array(_result)"
+                gen_pretty_expect(
+                    f"testSIMDVector({gen_result.repr}, {array})",
+                    array,
+                    gen_result.repr,
+                )
     print("});")
+    if not ctx.has_unclosed:
+        print("});")
 
 
 def gen_get(line: int, get: Get, result: WasmValue | None, ctx: Context):
@@ -334,7 +409,7 @@ def gen_get(line: int, get: Get, result: WasmValue | None, ctx: Context):
 let _field = {module}.getExport("{get.field}");"""
     )
     if result is not None:
-        print(f"expect(_field).toBe({gen_value(result)});")
+        print(f"expect(_field).toBe({gen_value_result(result)});")
     print("});")
 
 

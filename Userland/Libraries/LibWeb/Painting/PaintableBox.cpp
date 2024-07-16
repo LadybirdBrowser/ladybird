@@ -340,14 +340,29 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
     auto scrollbar_width = computed_values().scrollbar_width();
     if (phase == PaintPhase::Overlay && scrollbar_width != CSS::ScrollbarWidth::None) {
         auto color = Color(Color::NamedColor::DarkGray).with_alpha(128);
+        auto border_color = Color(Color::NamedColor::LightGray).with_alpha(128);
+        auto borders_data = BordersDataDevicePixels {
+            .top = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
+            .right = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
+            .bottom = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
+            .left = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
+        };
         int thumb_corner_radius = static_cast<int>(context.rounded_device_pixels(scrollbar_thumb_thickness / 2));
+        CornerRadii corner_radii = {
+            .top_left = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
+            .top_right = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
+            .bottom_right = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
+            .bottom_left = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
+        };
         if (auto thumb_rect = scroll_thumb_rect(ScrollDirection::Horizontal); thumb_rect.has_value()) {
             auto thumb_device_rect = context.enclosing_device_rect(thumb_rect.value());
-            context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius);
+            paint_all_borders(context.display_list_recorder(), thumb_device_rect, corner_radii, borders_data);
+            context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius);
         }
         if (auto thumb_rect = scroll_thumb_rect(ScrollDirection::Vertical); thumb_rect.has_value()) {
             auto thumb_device_rect = context.enclosing_device_rect(thumb_rect.value());
-            context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius, thumb_corner_radius);
+            paint_all_borders(context.display_list_recorder(), thumb_device_rect, corner_radii, borders_data);
+            context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius);
         }
     }
 
@@ -669,7 +684,7 @@ void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, 
 
         DevicePixelPoint baseline_start { fragment_absolute_device_rect.x(), fragment_absolute_device_rect.y() + context.rounded_device_pixels(fragment.baseline()) };
         auto scale = context.device_pixels_per_css_pixel();
-        painter.draw_text_run(baseline_start.to_type<int>(), *glyph_run, paintable.computed_values().color(), fragment_absolute_device_rect.to_type<int>(), scale);
+        painter.draw_text_run(baseline_start.to_type<int>(), *glyph_run, paintable.computed_values().webkit_text_fill_color(), fragment_absolute_device_rect.to_type<int>(), scale);
 
         auto selection_rect = context.enclosing_device_rect(fragment.selection_rect(paintable.layout_node().first_available_font())).to_type<int>();
         if (!selection_rect.is_empty()) {

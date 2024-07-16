@@ -4,63 +4,93 @@
 
 Qt6 development packages and a C++23 capable compiler are required. g++-13 or clang-17 are required at a minimum for c++23 support.
 
+CMake 3.25 or newer must be available in $PATH as well.
+
 NOTE: In all of the below lists of packages, the Qt6 multimedia package is not needed if your Linux system supports PulseAudio.
 
 ---
 
-### On Debian/Ubuntu:
+### Debian/Ubuntu:
 
-##### For C++23 capable compiler: 
+```bash
+sudo apt install autoconf autoconf-archive automake build-essential git cmake libavcodec-dev libgl1-mesa-dev nasm \
+                 ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev qt6-wayland ccache fonts-liberation2 \
+                 zip unzip curl tar
+```
 
-- `clang` installation steps:
+#### CMake 3.25 or newer:
+
+- Recommendation: Install `CMake 3.25` or newer from [Kitware's apt repository](https://apt.kitware.com/):
+
+Note: This repository is Ubuntu-only
+
+```bash
+# Add Kitware GPG signing key
+wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+
+# Optional: Verify the GPG key manually
+
+# Use the key to authorize an entry for apt.kitware.com in apt sources list
+echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/kitware.list
+
+# Update apt package list and install cmake
+sudo apt update -y && sudo apt install cmake -y
+```
+
+#### C++23-capable compiler:
+
+- Recommendation: Install `clang-17` or newer from [LLVM's apt repository](https://apt.llvm.org/):
 
 ```bash
 # Add LLVM GPG signing key
 sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
 
-# Verify the GPG key, and append it to the sources list for apt
+# Optional: Verify the GPG key manually
+
+# Use the key to authorize an entry for apt.llvm.org in apt sources list
 echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-18 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
-# Update apt package list and install clang
-sudo apt update -y && sudo apt install clang-18 -y
+# Update apt package list and install clang and associated packages
+sudo apt update -y && sudo apt install clang-18 clangd-18 clang-format-18 clang-tidy-18 lld-18 -y
 ```
 
-##### Required packages include, but are not limited to:
+- Alternative: Install gcc-13 or newer from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
 
-```
-sudo apt install autoconf autoconf-archive automake build-essential cmake libavcodec-dev libgl1-mesa-dev ninja-build qt6-base-dev qt6-tools-dev-tools qt6-multimedia-dev ccache fonts-liberation2 zip unzip curl tar libssl-dev
-```
-
-For Ubuntu 20.04 and above, ensure that the Qt6 Wayland packages are available:
-
-```
-sudo apt install qt6-wayland
+```bash
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+sudo apt update && sudo apt install g++-13 libstdc++-13-dev
 ```
 
 ---
-
-On Arch Linux/Manjaro:
+### Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed automake base-devel cmake ffmpeg libgl ninja qt6-base qt6-tools qt6-wayland qt6-multimedia ccache ttf-liberation curl unzip zip tar autoconf-archive
-```
-
-On Fedora or derivatives:
-```
-sudo dnf install automake cmake libglvnd-devel ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts curl zip unzip tar autoconf-archive libavcodec-free-devel
+sudo pacman -S --needed automake base-devel cmake ffmpeg libgl nasm ninja qt6-base qt6-tools qt6-wayland qt6-multimedia ccache ttf-liberation curl unzip zip tar autoconf-archive
 ```
 
-On openSUSE:
+### Fedora or derivatives:
 ```
-sudo zypper install automake cmake libglvnd-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts curl zip unzip tar autoconf-archive ffmpeg-7-libavcodec-devel
+sudo dnf install automake cmake libglvnd-devel nasm ninja-build qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel qt6-qtmultimedia-devel ccache liberation-sans-fonts curl zip unzip tar autoconf-archive libavcodec-free-devel
 ```
 
-On NixOS or with Nix:
+### openSUSE:
+```
+sudo zypper install automake cmake libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel ccache liberation-fonts curl zip unzip tar autoconf-archive ffmpeg-7-libavcodec-devel gcc13 gcc13-c++
+```
+The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
+
+### NixOS or with Nix:
+
+> [!NOTE]
+> These steps are out of date, as vcpkg does not work with Nix.
+> Please refer to the nixpkgs package for the most up-to-date build instructions.
+>
+
 ```console
-nix develop .#ladybird
+nix develop
 
 # With a custom entrypoint, for example your favorite shell
-nix develop .#ladybird --command bash
+nix develop --command bash
 ```
 
 On NixOS or with Nix using your host `nixpkgs` and the legacy `nix-shell` tool:
@@ -71,13 +101,13 @@ nix-shell Ladybird
 nix-shell --command bash Ladybird
 ```
 
-On macOS:
+### macOS:
 
 Xcode 14 versions before 14.3 might crash while building ladybird. Xcode 14.3 or clang from homebrew may be required to successfully build ladybird.
 
 ```
 xcode-select --install
-brew install autoconf autoconf-archive automake cmake ffmpeg ninja ccache pkg-config
+brew install autoconf autoconf-archive automake cmake ffmpeg nasm ninja ccache pkg-config bash
 ```
 
 If you also plan to use the Qt chrome on macOS:
@@ -85,7 +115,19 @@ If you also plan to use the Qt chrome on macOS:
 brew install qt
 ```
 
-On OpenIndiana:
+### Windows:
+
+- Create a WSL2 environment using one of the Linux distros listed above. Ubuntu or Fedora is recommended.
+
+- Install the required packages for the selected Linux distro in the WSL2 environment.
+
+WSL1 is known to have issues. If you run into problems, please use WSL2.
+
+MinGW/MSYS2 are not supported.
+
+Native Windows builds are not supported.
+
+### OpenIndiana:
 
 Note that OpenIndiana's latest GCC port (GCC 11) is too old to build Ladybird, so you need Clang, which is available in the repository.
 
@@ -93,17 +135,12 @@ Note that OpenIndiana's latest GCC port (GCC 11) is too old to build Ladybird, s
 pfexec pkg install cmake ninja clang-17 libglvnd qt6
 ```
 
-On Haiku:
+### Haiku:
 ```
 pkgman install cmake ninja cmd:python3 qt6_base_devel qt6_multimedia_devel qt6_tools_devel openal_devel
 ```
 
-On Windows:
-
-WSL2/WSLg are preferred, as they provide a linux environment that matches one of the above distributions.
-MinGW/MSYS2 are not supported, but may work with sufficient elbow grease. Native Windows builds are not supported with either clang-cl or MSVC.
-
-For Android:
+### Android:
 
 On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](AndroidStudioConfiguration.md).
 Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``Ladybird/Android``
@@ -120,10 +157,17 @@ The simplest way to build and run ladybird is via the ladybird.sh script:
 ./Meta/ladybird.sh gdb ladybird
 ```
 
-The above commands will build Ladybird with one of the following browser chromes, depending on the platform:
-* [Android UI](https://developer.android.com/develop/ui) - The native chrome on Android.
+The above commands will build a Release version of Ladybird. To instead build a Debug version, run the
+`Meta/ladybird.sh` script with the value of the `BUILD_PRESET` environment variable set to `Debug`, like this:
+
+```bash
+BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird
+```
+
+Either way, Ladybird will be built with one of the following browser chromes, depending on the platform:
 * [AppKit](https://developer.apple.com/documentation/appkit?language=objc) - The native chrome on macOS.
 * [Qt](https://doc.qt.io/qt-6/) - The chrome used on all other platforms.
+* [Android UI](https://developer.android.com/develop/ui) - The native chrome on Android.
 
 The Qt chrome is available on platforms where it is not the default as well (except on Android). To build the
 Qt chrome, install the Qt dependencies for your platform, and enable the Qt chrome via CMake:
@@ -134,6 +178,13 @@ cmake --preset default -DENABLE_QT=ON
 ```
 
 To re-disable the Qt chrome, run the above command with `-DENABLE_QT=OFF`.
+
+On macOS, to build with clang from homebrew:
+
+```
+brew install llvm
+CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
+```
 
 ### Resource files
 

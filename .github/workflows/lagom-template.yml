@@ -106,6 +106,7 @@ jobs:
 
           cmake -GNinja -S Meta/Lagom -B ${{ github.workspace }}/tools-build \
             -DLAGOM_TOOLS_ONLY=ON \
+            -DINSTALL_LAGOM_TOOLS=ON \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/tool-install \
             -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches \
             -DCMAKE_C_COMPILER=gcc-13 \

@@ -185,10 +185,11 @@ static ALWAYS_INLINE DecoderErrorOr<void> convert_to_bitmap_selecting_converter(
 
     if (bit_depth == 8 && cicp.transfer_characteristics() == output_cicp.transfer_characteristics() && cicp.color_primaries() == output_cicp.color_primaries() && cicp.video_full_range_flag() == VideoFullRangeFlag::Studio) {
         switch (cicp.matrix_coefficients()) {
-        case MatrixCoefficients::BT709:
-            return convert_to_bitmap_subsampled<subsampling_horizontal, subsampling_vertical>([](T y, T u, T v) { return ColorConverter::convert_simple_yuv_to_rgb<MatrixCoefficients::BT709, VideoFullRangeFlag::Studio>(y, u, v); }, width, height, plane_y, plane_u, plane_v, bitmap);
+        case MatrixCoefficients::BT470BG:
         case MatrixCoefficients::BT601:
             return convert_to_bitmap_subsampled<subsampling_horizontal, subsampling_vertical>([](T y, T u, T v) { return ColorConverter::convert_simple_yuv_to_rgb<MatrixCoefficients::BT601, VideoFullRangeFlag::Studio>(y, u, v); }, width, height, plane_y, plane_u, plane_v, bitmap);
+        case MatrixCoefficients::BT709:
+            return convert_to_bitmap_subsampled<subsampling_horizontal, subsampling_vertical>([](T y, T u, T v) { return ColorConverter::convert_simple_yuv_to_rgb<MatrixCoefficients::BT709, VideoFullRangeFlag::Studio>(y, u, v); }, width, height, plane_y, plane_u, plane_v, bitmap);
         default:
             break;
         }

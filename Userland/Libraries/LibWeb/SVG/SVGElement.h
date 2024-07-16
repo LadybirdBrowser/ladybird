@@ -8,16 +8,19 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/SVG/SVGAnimatedString.h>
 
 namespace Web::SVG {
 
-class SVGElement : public DOM::Element {
+class SVGElement
+    : public DOM::Element
+    , public HTML::GlobalEventHandlers {
     WEB_PLATFORM_OBJECT(SVGElement, DOM::Element);
 
 public:
     virtual bool requires_svg_container() const override { return true; }
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
     virtual void children_changed() override;
     virtual void inserted() override;
@@ -27,6 +30,8 @@ public:
 
     void focus();
     void blur();
+
+    JS::NonnullGCPtr<SVGAnimatedString> class_name();
 
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
@@ -42,7 +47,12 @@ protected:
     JS::NonnullGCPtr<SVGAnimatedLength> svg_animated_length_for_property(CSS::PropertyID) const;
 
 private:
+    // ^HTML::GlobalEventHandlers
+    virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
+
     virtual bool is_svg_element() const final { return true; }
+
+    JS::GCPtr<SVGAnimatedString> m_class_name_animated_string;
 };
 
 }

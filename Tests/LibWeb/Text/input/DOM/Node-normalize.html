@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const documentFragment = document.createDocumentFragment();
+        const textNode1 = document.createTextNode("1");
+        const textNode2 = document.createTextNode("2");
+        const textNode3 = document.createTextNode("3");
+        const textNode4 = document.createTextNode("4");
+        const emptyTextNode = document.createTextNode("");
+        documentFragment.appendChild(textNode1);
+        documentFragment.appendChild(emptyTextNode);
+        documentFragment.appendChild(textNode2);
+        println(`Document fragment initial text: ${documentFragment.textContent}, child nodes: ${documentFragment.childNodes.length}`);
+        let element = document.createElement('div');
+        documentFragment.appendChild(element);
+        element.appendChild(textNode3);
+        element.appendChild(textNode4);
+        println(`Element initial text: ${element.textContent}, child nodes: ${element.childNodes.length}`);
+        document.normalize();
+        println(`Element text after document.normalize(): ${element.textContent}, child nodes: ${element.childNodes.length}`);
+        documentFragment.normalize();
+        println(`Document fragment text after documentFragment.normalize(): ${documentFragment.textContent}, child nodes: ${documentFragment.childNodes.length}`);
+        println(`Text node 1 data: ${textNode1.data}`);
+        println(`Text node 2 data: ${textNode2.data}`);
+        println(`Text node 3 data: ${textNode3.data}`);
+        println(`Text node 4 data: ${textNode4.data}`);
+    });
+</script>

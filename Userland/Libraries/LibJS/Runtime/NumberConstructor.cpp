@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/NumberConstructor.h>
 #include <LibJS/Runtime/NumberObject.h>
+#include <LibJS/Runtime/ValueInlines.h>
 
 #if defined(AK_COMPILER_CLANG)
 #    define EPSILON_VALUE AK::exp2(-52.)

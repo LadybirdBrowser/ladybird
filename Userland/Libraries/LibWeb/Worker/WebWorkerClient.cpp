@@ -14,6 +14,12 @@ void WebWorkerClient::die()
     // FIXME: Notify WorkerAgent that the worker is ded
 }
 
+void WebWorkerClient::did_close_worker()
+{
+    if (on_worker_close)
+        on_worker_close();
+}
+
 WebWorkerClient::WebWorkerClient(NonnullOwnPtr<Core::LocalSocket> socket)
     : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(socket))
 {

@@ -17,7 +17,8 @@ interface mixin WindowOrWorkerGlobalScope {
     readonly attribute boolean isSecureContext;
     readonly attribute boolean crossOriginIsolated;
 
-    [FIXME] undefined reportError(any e);
+    // https://html.spec.whatwg.org/multipage/webappapis.html#dom-reporterror
+    undefined reportError(any e);
 
     // base64 utility methods
     DOMString btoa(DOMString data);

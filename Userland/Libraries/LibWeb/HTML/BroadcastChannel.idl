@@ -1,0 +1,14 @@
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+
+// https://html.spec.whatwg.org/multipage/web-messaging.html#broadcastchannel
+[Exposed=(Window,Worker)]
+interface BroadcastChannel : EventTarget {
+    constructor(DOMString name);
+
+    readonly attribute DOMString name;
+    [FIXME] undefined postMessage(any message);
+    undefined close();
+    attribute EventHandler onmessage;
+    attribute EventHandler onmessageerror;
+};

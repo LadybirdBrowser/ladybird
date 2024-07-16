@@ -1,15 +1,15 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x48 children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 61.1875x48] baseline: 34
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 61.1875x48] baseline: 36
       BlockContainer <div.ib> at (8,8) content-size 61.1875x48 inline-block [BFC] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [9,25 17.828125x22] baseline: 18
-        frag 1 from TextNode start: 0, length: 1, rect: [28,28 8x17] baseline: 13.296875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [9,27 17.828125x22] baseline: 18
+        frag 1 from TextNode start: 0, length: 1, rect: [28,30 8x17] baseline: 13.296875
             " "
-        frag 2 from BlockContainer start: 0, length: 0, rect: [41,10 23.359375x44] baseline: 34
+        frag 2 from BlockContainer start: 0, length: 0, rect: [41,10 23.359375x44] baseline: 36
         TextNode <#text>
-        BlockContainer <div.label> at (9,25) content-size 17.828125x22 inline-block [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [9,25 17.828125x22] baseline: 17
+        BlockContainer <div.label> at (9,27) content-size 17.828125x22 inline-block [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [9,27 17.828125x22] baseline: 17
               "A"
           TextNode <#text>
         TextNode <#text>
@@ -30,7 +30,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x48]
       PaintableWithLines (BlockContainer<DIV>.ib) [8,8 61.1875x48]
-        PaintableWithLines (BlockContainer<DIV>.label) [8,24 19.828125x24]
+        PaintableWithLines (BlockContainer<DIV>.label) [8,26 19.828125x24]
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<BUTTON>) [36,8 33.359375x48]

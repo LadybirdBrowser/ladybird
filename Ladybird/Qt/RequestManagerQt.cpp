@@ -5,15 +5,24 @@
  */
 
 #include "RequestManagerQt.h"
+#include "StringUtils.h"
 #include "WebSocketImplQt.h"
 #include "WebSocketQt.h"
 #include <QNetworkCookie>
 
 namespace Ladybird {
 
-RequestManagerQt::RequestManagerQt()
+RequestManagerQt::RequestManagerQt(Vector<ByteString> const& certificate_paths)
 {
     m_qnam = new QNetworkAccessManager(this);
+    auto ssl_configuration = QSslConfiguration::defaultConfiguration();
+    ssl_configuration.setPeerVerifyMode(QSslSocket::VerifyNone);
+    for (auto const& certificate_path : certificate_paths) {
+        auto certificates = QSslCertificate::fromPath(qstring_from_ak_string(certificate_path));
+        for (auto const& certificate : certificates)
+            ssl_configuration.addCaCertificate(certificate);
+    }
+    QSslConfiguration::setDefaultConfiguration(ssl_configuration);
 
     QObject::connect(m_qnam, &QNetworkAccessManager::finished, this, &RequestManagerQt::reply_finished);
 }

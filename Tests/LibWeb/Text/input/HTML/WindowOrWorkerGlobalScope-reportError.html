@@ -1,0 +1,18 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        window.onerror = (message, filename, lineno, colno, error) => {
+            println(`message = ${message}`);
+            println(`lineno = ${lineno}`);
+            println(`colno = ${colno}`);
+            println(`error = ${error}`);
+            // We can't simply print the filename because it is the full path to the active script, which varies between machines.
+            const filenameURL = new URL(filename);
+            println(`filename URL scheme = ${filenameURL.protocol}`);
+            println(`filename URL final path segment = ${filenameURL.pathname.split('/').pop()}`);
+            return true;
+        };
+
+        window.reportError(new Error('Reporting an Error!'));
+    });
+</script>

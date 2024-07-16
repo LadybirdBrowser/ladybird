@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/KeyedCollections.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -276,9 +277,8 @@ ThrowCompletionOr<GroupsType> group_by(VM& vm, Value items, Value callback_funct
             // i. Assert: keyCoercion is zero.
             static_assert(IsSame<KeyType, void>);
 
-            // ii. If key is -0𝔽, set key to +0𝔽.
-            if (key.value().is_negative_zero())
-                key = Value(0);
+            // ii. Set key to CanonicalizeKeyedCollectionKey(key).
+            key = canonicalize_keyed_collection_key(key.value());
 
             add_value_to_keyed_group(vm, groups, make_handle(key.release_value()), value);
         }

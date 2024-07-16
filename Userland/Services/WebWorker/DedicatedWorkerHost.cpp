@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
@@ -20,9 +21,10 @@
 
 namespace WebWorker {
 
-DedicatedWorkerHost::DedicatedWorkerHost(URL::URL url, String type)
+DedicatedWorkerHost::DedicatedWorkerHost(URL::URL url, String type, String name)
     : m_url(move(url))
     , m_type(move(type))
+    , m_name(move(name))
 {
 }
 
@@ -46,7 +48,7 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
             // FIXME: Proper support for both SharedWorkerGlobalScope and DedicatedWorkerGlobalScope
             if (is_shared)
                 TODO();
-            return Web::Bindings::main_thread_vm().heap().allocate_without_realm<Web::HTML::WorkerGlobalScope>(realm, page);
+            return Web::Bindings::main_thread_vm().heap().allocate_without_realm<Web::HTML::DedicatedWorkerGlobalScope>(realm, page);
         },
         nullptr);
 
@@ -64,7 +66,10 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
     console_object.console().set_client(*m_console);
 
     // 10. Set worker global scope's name to the value of options's name member.
-    // FIXME: name property requires the SharedWorkerGlobalScope or DedicatedWorkerGlobalScope child class to be used
+    if (is_shared)
+        TODO();
+    else
+        static_cast<Web::HTML::DedicatedWorkerGlobalScope&>(*worker_global_scope).set_name(m_name);
 
     // 11. Append owner to worker global scope's owner set.
     // FIXME: support for 'owner' set on WorkerGlobalScope

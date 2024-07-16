@@ -13,8 +13,14 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/ReadableStreamGenericReader.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Streams {
+
+// https://streams.spec.whatwg.org/#dictdef-readablestreambyobreaderreadoptions
+struct ReadableStreamBYOBReaderReadOptions {
+    WebIDL::UnsignedLongLong min = 1;
+};
 
 // https://streams.spec.whatwg.org/#read-into-request
 class ReadIntoRequest : public JS::Cell {
@@ -45,7 +51,7 @@ public:
 
     virtual ~ReadableStreamBYOBReader() override = default;
 
-    JS::NonnullGCPtr<JS::Promise> read(JS::Handle<WebIDL::ArrayBufferView>&);
+    JS::NonnullGCPtr<JS::Promise> read(JS::Handle<WebIDL::ArrayBufferView>&, ReadableStreamBYOBReaderReadOptions options = {});
 
     void release_lock();
 

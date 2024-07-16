@@ -156,6 +156,8 @@ public:
     Optional<String> text_content() const;
     void set_text_content(Optional<String> const&);
 
+    WebIDL::ExceptionOr<void> normalize();
+
     Optional<String> node_value() const;
     void set_node_value(Optional<String> const&);
 

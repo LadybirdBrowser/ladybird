@@ -654,6 +654,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto maybe_text_decoration_thickness = computed_style.length_percentage(CSS::PropertyID::TextDecorationThickness); maybe_text_decoration_thickness.has_value())
         computed_values.set_text_decoration_thickness(maybe_text_decoration_thickness.release_value());
 
+    computed_values.set_webkit_text_fill_color(computed_style.color_or_fallback(CSS::PropertyID::WebkitTextFillColor, *this, computed_values.color()));
+
     computed_values.set_text_shadow(computed_style.text_shadow(*this));
 
     computed_values.set_z_index(computed_style.z_index());

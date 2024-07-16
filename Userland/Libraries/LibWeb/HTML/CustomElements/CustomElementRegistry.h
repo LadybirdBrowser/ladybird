@@ -26,6 +26,7 @@ public:
 
     JS::ThrowCompletionOr<void> define(String const& name, WebIDL::CallbackType* constructor, ElementDefinitionOptions options);
     Variant<JS::Handle<WebIDL::CallbackType>, JS::Value> get(String const& name) const;
+    Optional<String> get_name(JS::Handle<WebIDL::CallbackType> const& constructor) const;
     WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> when_defined(String const& name);
     void upgrade(JS::NonnullGCPtr<DOM::Node> root) const;
 

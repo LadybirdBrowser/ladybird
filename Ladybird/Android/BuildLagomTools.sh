@@ -27,12 +27,16 @@ CACHE_DIR=${CACHE_DIR:-"${BUILD_DIR}/caches"}
 # (And this also works on macOS, despite the fact that $XDG_CACHE_HOME is a Linux-ism.)
 export XDG_CACHE_HOME="$CACHE_DIR"
 
+"$LADYBIRD_SOURCE_DIR"/Meta/ladybird.sh vcpkg
+
 cmake -S "${LADYBIRD_SOURCE_DIR}/Meta/Lagom" -B "$BUILD_DIR/lagom-tools" \
     -GNinja -Dpackage=LagomTools \
     -DCMAKE_INSTALL_PREFIX="$BUILD_DIR/lagom-tools-install"  \
     -DCMAKE_C_COMPILER="$CC" \
     -DCMAKE_CXX_COMPILER="$CXX" \
     -DSERENITY_CACHE_DIR="$CACHE_DIR" \
+    -DLAGOM_TOOLS_ONLY=ON \
+    -DINSTALL_LAGOM_TOOLS=ON \
     -DCMAKE_TOOLCHAIN_FILE="$LADYBIRD_SOURCE_DIR/Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake" \
     -DVCPKG_INSTALL_OPTIONS="--no-print-usage" \
     -DVCPKG_OVERLAY_TRIPLETS="$LADYBIRD_SOURCE_DIR/Meta/CMake/vcpkg/release-triplets" \

@@ -2,8 +2,19 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Index of @path@</title>
+    <title>Index of %path%</title>
     <style>
+        /* FIXME: We should be able to remove the HTML style when "color-scheme" is supported */
+        @media (prefers-color-scheme: dark) {
+            html {
+                background-color: rgb(20, 20, 20);
+                color: rgb(235, 235, 235);
+            }
+            a {
+                color: cornflowerblue;
+            }
+        }
+
         header {
             margin-bottom: 10px;
         }
@@ -51,11 +62,11 @@
 <body>
     <header>
         <span class="folder" style="width: 24px; height: 24px;"></span>
-        <h1>Index of @path@</h1>
+        <h1>Index of %path%</h1>
     </header>
-    <p><a href="@parent_url@"><span class="open-parent"></span>Open Parent Directory</a></p>
+    <p><a href="%parent_url%"><span class="open-parent"></span>Open Parent Directory</a></p>
     <hr>
-    @contents@
+    %contents%
     <hr>
 </body>
 </html>

@@ -1,0 +1,16 @@
+<style>
+    :modal {
+        display: flex;
+    }
+</style>
+
+<dialog id="modal">
+    <span>I'm a node</span>
+</dialog>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        let modal = document.getElementById('modal');
+        modal.showModal();
+    });
+</script>

@@ -428,6 +428,12 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
         return ExposedTo::Window;
     if (exposed == "Worker"sv)
         return ExposedTo::AllWorkers;
+    if (exposed == "DedicatedWorker"sv)
+        return ExposedTo::DedicatedWorker;
+    if (exposed == "SharedWorker"sv)
+        return ExposedTo::SharedWorker;
+    if (exposed == "ServiceWorker"sv)
+        return ExposedTo::ServiceWorker;
     if (exposed == "AudioWorklet"sv)
         return ExposedTo::AudioWorklet;
 

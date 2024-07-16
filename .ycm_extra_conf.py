@@ -71,7 +71,7 @@ def Settings(**kwargs):  # noqa: N802
         return {}
 
     return {
-        'flags': compilation_info.compiler_flags_,
+        'flags': list(compilation_info.compiler_flags_),
         'include_paths_relative_to_dir': DIR_OF_THIS_SCRIPT,
         'override_filename': filename
     }

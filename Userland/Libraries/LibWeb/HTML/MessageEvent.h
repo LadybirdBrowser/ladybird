@@ -40,6 +40,8 @@ public:
     JS::NonnullGCPtr<JS::Object> ports() const;
     Variant<JS::Handle<WindowProxy>, JS::Handle<MessagePort>, Empty> source() const;
 
+    void init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, Optional<MessageEventSource> source, Vector<JS::Handle<MessagePort>> const& ports);
+
 private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

@@ -76,6 +76,8 @@ public:
 
     JS::NonnullGCPtr<IndexedDB::IDBFactory> indexed_db();
 
+    void report_error(JS::Value e);
+
 protected:
     void initialize(JS::Realm&);
     void visit_edges(JS::Cell::Visitor&);
@@ -114,6 +116,8 @@ private:
     JS::GCPtr<IndexedDB::IDBFactory> m_indexed_db;
 
     mutable JS::GCPtr<JS::Object> m_supported_entry_types_array;
+
+    bool m_error_reporting_mode { false };
 };
 
 }

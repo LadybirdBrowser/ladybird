@@ -53,9 +53,9 @@ void HTMLDetailsElement::removed_from(DOM::Node*)
     set_shadow_root(nullptr);
 }
 
-void HTMLDetailsElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLDetailsElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    Base::attribute_changed(name, value);
+    Base::attribute_changed(name, old_value, value);
 
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#details-notification-task-steps
     if (name == HTML::AttributeNames::open) {

@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<u32> Memory::grow(u32 delta)
         return vm.throw_completion<JS::RangeError>("Could not find the memory instance to grow"sv);
 
     auto previous_size = memory->size() / Wasm::Constants::page_size;
-    if (!memory->grow(delta * Wasm::Constants::page_size, Wasm::MemoryInstance::InhibitGrowCallback::Yes))
+    if (!memory->grow(delta * Wasm::Constants::page_size, Wasm::MemoryInstance::GrowType::No, Wasm::MemoryInstance::InhibitGrowCallback::Yes))
         return vm.throw_completion<JS::RangeError>("Memory.grow() grows past the stated limit of the memory instance"sv);
 
     TRY(reset_the_memory_buffer());

@@ -516,10 +516,14 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                     .argument_selector_list = { move(selector) } }
             };
         }
+        case PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:
         case PseudoClassMetadata::ParameterType::ForgivingSelectorList: {
             auto function_token_stream = TokenStream(pseudo_function.values());
+            auto selector_type = metadata.parameter_type == PseudoClassMetadata::ParameterType::ForgivingSelectorList
+                ? SelectorType::Standalone
+                : SelectorType::Relative;
             // NOTE: Because it's forgiving, even complete garbage will parse OK as an empty selector-list.
-            auto argument_selector_list = MUST(parse_a_selector_list(function_token_stream, SelectorType::Standalone, SelectorParsingMode::Forgiving));
+            auto argument_selector_list = MUST(parse_a_selector_list(function_token_stream, selector_type, SelectorParsingMode::Forgiving));
 
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoClass,

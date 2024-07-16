@@ -33,9 +33,9 @@ void HTMLAreaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_rel_list);
 }
 
-void HTMLAreaElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLAreaElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    HTMLElement::attribute_changed(name, value);
+    HTMLElement::attribute_changed(name, old_value, value);
     if (name == HTML::AttributeNames::href) {
         set_the_url();
     } else if (name == HTML::AttributeNames::rel) {

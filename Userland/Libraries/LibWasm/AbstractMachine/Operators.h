@@ -82,6 +82,16 @@ struct Modulo {
     static StringView name() { return "%"sv; }
 };
 
+struct Average {
+    template<typename Lhs, typename Rhs>
+    auto operator()(Lhs lhs, Rhs rhs) const
+    {
+        return static_cast<Lhs>((lhs + rhs + 1) / 2);
+    }
+
+    static StringView name() { return "avgr"sv; }
+};
+
 struct BitShiftLeft {
     template<typename Lhs, typename Rhs>
     auto operator()(Lhs lhs, Rhs rhs) const { return lhs << (rhs % (sizeof(lhs) * 8)); }
@@ -94,6 +104,20 @@ struct BitShiftRight {
     auto operator()(Lhs lhs, Rhs rhs) const { return lhs >> (rhs % (sizeof(lhs) * 8)); }
 
     static StringView name() { return ">>"sv; }
+};
+
+struct BitAndNot {
+    template<typename Lhs, typename Rhs>
+    auto operator()(Lhs lhs, Rhs rhs) const { return lhs & ~rhs; }
+
+    static StringView name() { return "andnot"sv; }
+};
+
+struct BitNot {
+    template<typename Lhs>
+    auto operator()(Lhs lhs) const { return ~lhs; }
+
+    static StringView name() { return "~"sv; }
 };
 
 struct BitRotateLeft {
@@ -122,6 +146,33 @@ struct BitRotateRight {
     }
 
     static StringView name() { return "rotate_right"sv; }
+};
+
+template<size_t VectorSize, template<typename> typename SetSign = MakeSigned>
+struct VectorAllTrue {
+    auto operator()(u128 c) const
+    {
+        using ElementType = NativeIntegralType<128 / VectorSize>;
+
+        auto any_false = bit_cast<Native128ByteVectorOf<ElementType, SetSign>>(c) == 0;
+        return bit_cast<u128>(any_false) == 0;
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 16:
+            return "vec(8x16).all_true"sv;
+        case 8:
+            return "vec(16x8).all_true"sv;
+        case 4:
+            return "vec(32x4).all_true"sv;
+        case 2:
+            return "vec(64x2).all_true"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
 };
 
 template<size_t VectorSize>
@@ -275,8 +326,11 @@ struct VectorCmpOp {
         auto result = bit_cast<Native128ByteVectorOf<ElementType, SetSign>>(c1);
         auto other = bit_cast<Native128ByteVectorOf<ElementType, SetSign>>(c2);
         Op op;
-        for (size_t i = 0; i < VectorSize; ++i)
-            result[i] = op(result[i], other[i]) ? static_cast<MakeUnsigned<ElementType>>(-1) : 0;
+        for (size_t i = 0; i < VectorSize; ++i) {
+            SetSign<ElementType> lhs = result[i];
+            SetSign<ElementType> rhs = other[i];
+            result[i] = op(lhs, rhs) ? static_cast<MakeUnsigned<ElementType>>(-1) : 0;
+        }
         return bit_cast<u128>(result);
     }
 
@@ -329,14 +383,12 @@ struct Minimum {
     auto operator()(Lhs lhs, Rhs rhs) const
     {
         if constexpr (IsFloatingPoint<Lhs> || IsFloatingPoint<Rhs>) {
-            if (isnan(lhs))
-                return lhs;
-            if (isnan(rhs))
-                return rhs;
-            if (isinf(lhs))
-                return lhs > 0 ? rhs : lhs;
-            if (isinf(rhs))
-                return rhs > 0 ? lhs : rhs;
+            if (isnan(lhs) || isnan(rhs)) {
+                return isnan(lhs) ? lhs : rhs;
+            }
+            if (lhs == 0 && rhs == 0) {
+                return signbit(lhs) ? lhs : rhs;
+            }
         }
         return min(lhs, rhs);
     }
@@ -349,14 +401,12 @@ struct Maximum {
     auto operator()(Lhs lhs, Rhs rhs) const
     {
         if constexpr (IsFloatingPoint<Lhs> || IsFloatingPoint<Rhs>) {
-            if (isnan(lhs))
-                return lhs;
-            if (isnan(rhs))
-                return rhs;
-            if (isinf(lhs))
-                return lhs > 0 ? lhs : rhs;
-            if (isinf(rhs))
-                return rhs > 0 ? rhs : lhs;
+            if (isnan(lhs) || isnan(rhs)) {
+                return isnan(lhs) ? lhs : rhs;
+            }
+            if (lhs == 0 && rhs == 0) {
+                return signbit(lhs) ? rhs : lhs;
+            }
         }
         return max(lhs, rhs);
     }
@@ -444,7 +494,7 @@ struct PopCount {
     template<typename Lhs>
     auto operator()(Lhs lhs) const
     {
-        if constexpr (sizeof(Lhs) == 4 || sizeof(Lhs) == 8)
+        if constexpr (sizeof(Lhs) == 1 || sizeof(Lhs) == 2 || sizeof(Lhs) == 4 || sizeof(Lhs) == 8)
             return popcount(MakeUnsigned<Lhs>(lhs));
         else
             VERIFY_NOT_REACHED();
@@ -482,6 +532,194 @@ struct Ceil {
     static StringView name() { return "ceil"sv; }
 };
 
+template<size_t VectorSize, typename Op, template<typename> typename SetSign = MakeSigned>
+struct VectorIntegerExtOpPairwise {
+    auto operator()(u128 c) const
+    {
+        using VectorResult = NativeVectorType<128 / VectorSize, VectorSize, SetSign>;
+        using VectorInput = NativeVectorType<128 / (VectorSize * 2), VectorSize * 2, SetSign>;
+        auto vector = bit_cast<VectorInput>(c);
+        VectorResult result;
+        Op op;
+
+        // FIXME: Find a way to not loop here
+        for (size_t i = 0; i < VectorSize; ++i) {
+            result[i] = op(vector[i * 2], vector[(i * 2) + 1]);
+        }
+
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 8:
+            return "vec(16x8).ext_op_pairwise(8x16)"sv;
+        case 4:
+            return "vec(32x4).ext_op_pairwise(16x8)"sv;
+        case 2:
+            return "vec(64x2).ext_op_pairwise(32x4)"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+};
+
+enum class VectorExt {
+    High,
+    Low,
+};
+
+template<size_t VectorSize, VectorExt Mode, template<typename> typename SetSign = MakeSigned>
+struct VectorIntegerExt {
+    auto operator()(u128 c) const
+    {
+        using VectorResult = NativeVectorType<128 / VectorSize, VectorSize, SetSign>;
+        using VectorInput = NativeVectorType<128 / (VectorSize * 2), VectorSize * 2, SetSign>;
+        auto vector = bit_cast<VectorInput>(c);
+        VectorResult result;
+
+        // FIXME: Find a way to not loop here
+        for (size_t i = 0; i < VectorSize; ++i) {
+            if constexpr (Mode == VectorExt::High)
+                result[i] = vector[VectorSize + i];
+            else if constexpr (Mode == VectorExt::Low)
+                result[i] = vector[i];
+            else
+                VERIFY_NOT_REACHED();
+        }
+
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 8:
+            return "vec(16x8).ext(8x16)"sv;
+        case 4:
+            return "vec(32x4).ext(16x8)"sv;
+        case 2:
+            return "vec(64x2).ext(32x4)"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+};
+
+template<size_t VectorSize, typename Op, VectorExt Mode, template<typename> typename SetSign = MakeSigned>
+struct VectorIntegerExtOp {
+    auto operator()(u128 lhs, u128 rhs) const
+    {
+        using VectorResult = NativeVectorType<128 / VectorSize, VectorSize, SetSign>;
+        using VectorInput = NativeVectorType<128 / (VectorSize * 2), VectorSize * 2, SetSign>;
+        auto first = bit_cast<VectorInput>(lhs);
+        auto second = bit_cast<VectorInput>(rhs);
+        VectorResult result;
+        Op op;
+
+        using ResultType = SetSign<NativeIntegralType<128 / VectorSize>>;
+        // FIXME: Find a way to not loop here
+        for (size_t i = 0; i < VectorSize; ++i) {
+            if constexpr (Mode == VectorExt::High) {
+                ResultType a = first[VectorSize + i];
+                ResultType b = second[VectorSize + i];
+                result[i] = op(a, b);
+            } else if constexpr (Mode == VectorExt::Low) {
+                ResultType a = first[i];
+                ResultType b = second[i];
+                result[i] = op(a, b);
+            } else
+                VERIFY_NOT_REACHED();
+        }
+
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 8:
+            return "vec(16x8).ext_op(8x16)"sv;
+        case 4:
+            return "vec(32x4).ext_op(16x8)"sv;
+        case 2:
+            return "vec(64x2).ext_op(32x4)"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+};
+
+template<size_t VectorSize, typename Op, template<typename> typename SetSign = MakeSigned>
+struct VectorIntegerBinaryOp {
+    auto operator()(u128 lhs, u128 rhs) const
+    {
+        using VectorType = NativeVectorType<128 / VectorSize, VectorSize, SetSign>;
+        auto first = bit_cast<VectorType>(lhs);
+        auto second = bit_cast<VectorType>(rhs);
+        VectorType result;
+        Op op;
+
+        // FIXME: Find a way to not loop here
+        for (size_t i = 0; i < VectorSize; ++i) {
+            result[i] = op(first[i], second[i]);
+        }
+
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 16:
+            return "vec(8x16).binary_op"sv;
+        case 8:
+            return "vec(16x8).binary_op"sv;
+        case 4:
+            return "vec(32x4).binary_op"sv;
+        case 2:
+            return "vec(64x2).binary_op"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+};
+
+template<size_t VectorSize, typename Op, template<typename> typename SetSign = MakeSigned>
+struct VectorIntegerUnaryOp {
+    auto operator()(u128 lhs) const
+    {
+        using VectorType = NativeVectorType<128 / VectorSize, VectorSize, SetSign>;
+        auto value = bit_cast<VectorType>(lhs);
+        VectorType result;
+        Op op;
+
+        // FIXME: Find a way to not loop here
+        for (size_t i = 0; i < VectorSize; ++i) {
+            result[i] = op(value[i]);
+        }
+
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 16:
+            return "vec(8x16).unary_op"sv;
+        case 8:
+            return "vec(16x8).unary_op"sv;
+        case 4:
+            return "vec(32x4).unary_op"sv;
+        case 2:
+            return "vec(64x2).unary_op"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+};
+
 template<size_t VectorSize, typename Op>
 struct VectorFloatBinaryOp {
     auto operator()(u128 lhs, u128 rhs) const
@@ -515,11 +753,11 @@ struct VectorFloatUnaryOp {
     auto operator()(u128 lhs) const
     {
         using VectorType = NativeFloatingVectorType<128, VectorSize, NativeFloatingType<128 / VectorSize>>;
-        auto first = bit_cast<VectorType>(lhs);
+        auto value = bit_cast<VectorType>(lhs);
         VectorType result;
         Op op;
         for (size_t i = 0; i < VectorSize; ++i) {
-            result[i] = op(first[i]);
+            result[i] = op(value[i]);
         }
         return bit_cast<u128>(result);
     }
@@ -652,8 +890,8 @@ struct Convert {
     template<typename Lhs>
     ResultT operator()(Lhs lhs) const
     {
-        auto signed_interpretation = bit_cast<MakeSigned<Lhs>>(lhs);
-        return static_cast<ResultT>(signed_interpretation);
+        auto interpretation = bit_cast<Lhs>(lhs);
+        return static_cast<ResultT>(interpretation);
     }
 
     static StringView name() { return "convert"sv; }
@@ -688,7 +926,7 @@ struct Demote {
             return nanf(""); // FIXME: Ensure canonical NaN remains canonical
 
         if (isinf(lhs))
-            return __builtin_huge_valf();
+            return copysignf(__builtin_huge_valf(), lhs);
 
         return static_cast<float>(lhs);
     }
@@ -749,4 +987,26 @@ struct SaturatingTruncate {
     static StringView name() { return "truncate.saturating"sv; }
 };
 
+template<typename ResultT, typename Op>
+struct SaturatingOp {
+    template<typename Lhs, typename Rhs>
+    ResultT operator()(Lhs lhs, Rhs rhs) const
+    {
+        Op op;
+
+        double result = op(lhs, rhs);
+
+        if (result <= static_cast<double>(NumericLimits<ResultT>::min())) {
+            return NumericLimits<ResultT>::min();
+        }
+
+        if (result >= static_cast<double>(NumericLimits<ResultT>::max())) {
+            return NumericLimits<ResultT>::max();
+        }
+
+        return static_cast<ResultT>(result);
+    }
+
+    static StringView name() { return "saturating_op"sv; }
+};
 }

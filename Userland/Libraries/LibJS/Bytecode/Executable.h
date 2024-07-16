@@ -31,6 +31,7 @@ struct PropertyLookupCache {
 
 struct GlobalVariableCache : public PropertyLookupCache {
     u64 environment_serial_number { 0 };
+    Optional<u32> environment_binding_index;
 };
 
 struct SourceRecord {
@@ -84,6 +85,8 @@ public:
 
     Vector<DeprecatedFlyString> local_variable_names;
     size_t local_index_base { 0 };
+
+    Optional<IdentifierTableIndex> length_identifier;
 
     ByteString const& get_string(StringTableIndex index) const { return string_table->get(index); }
     DeprecatedFlyString const& get_identifier(IdentifierTableIndex index) const { return identifier_table->get(index); }

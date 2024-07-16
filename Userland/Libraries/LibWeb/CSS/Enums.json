@@ -195,7 +195,9 @@
   "float": [
     "none",
     "left",
-    "right"
+    "right",
+    "inline-start",
+    "inline-end"
   ],
   "font-variant": [
     "normal",

@@ -1,17 +1,5 @@
 # Helix Configuration
-Helix comes with support for `clangd` and `clang-format` out of the box! However, a small bit of configuration is needed for it to work correctly with Ladybird.
-
-The following `.clangd` should be placed in the project root:
-```yaml
-CompileFlags:
-  CompilationDatabase: Build/ladybird
-
-Diagnostics:
-  UnusedIncludes: None
-  MissingIncludes: None
-```
-
-You also need to configure the clangd server to not insert headers improperly. To do this, create a `.helix/languages.toml` file in the project root:
+Helix comes with support for `clangd` and `clang-format` out of the box! However, you also need to configure the clangd server to not insert headers improperly. To do this, create a `.helix/languages.toml` file in the project root:
 ```toml
 [language-server.ladybird]
 command = "clangd"

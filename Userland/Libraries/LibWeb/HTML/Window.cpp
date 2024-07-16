@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
 #include <AK/Utf8View.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -59,7 +58,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Infra/Base64.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Internals/Inspector.h>
 #include <LibWeb/Internals/Internals.h>

@@ -86,8 +86,15 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
         MUST(m_current_node->append_child(node));
     }
 
-    for (auto const& attribute : attributes)
+    for (auto const& attribute : attributes) {
+        // https://www.w3.org/TR/2006/REC-xml-names11-20060816/#ns-decl
+        if (attribute.key == "xmlns" || attribute.key.starts_with("xmlns:"sv)) {
+            auto name = attribute.key;
+            // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
+            MUST(node->set_attribute_ns(Namespace::XMLNS, MUST(FlyString::from_deprecated_fly_string(name)), MUST(String::from_byte_string(attribute.value))));
+        }
         MUST(node->set_attribute(MUST(FlyString::from_deprecated_fly_string(attribute.key)), MUST(String::from_byte_string(attribute.value))));
+    }
 
     m_current_node = node.ptr();
 }

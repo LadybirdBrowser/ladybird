@@ -5,5 +5,6 @@
       "location": "https://github.com/microsoft/vcpkg-ce-catalog/archive/refs/heads/main.zip",
       "name": "microsoft"
     }
-  ]
+  ],
+  "overlay-ports": [ "Meta/CMake/vcpkg/overlay-ports" ]
 }

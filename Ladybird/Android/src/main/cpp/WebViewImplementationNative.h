@@ -29,6 +29,8 @@ public:
     void set_viewport_geometry(int w, int h);
     void set_device_pixel_ratio(float f);
 
+    void mouse_event(Web::MouseEvent::Type event_type, float x, float y, float raw_x, float raw_y);
+
     static jclass global_class_reference;
     static jmethodID bind_webcontent_method;
     static jmethodID invalidate_layout_method;

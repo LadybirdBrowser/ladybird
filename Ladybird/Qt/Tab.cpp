@@ -43,7 +43,7 @@ namespace Ladybird {
 
 static QIcon default_favicon()
 {
-    static QIcon icon = load_icon_from_uri("resource://icons/16x16/app-browser.png"sv);
+    static QIcon icon = load_icon_from_uri("resource://icons/48x48/app-browser.png"sv);
     return icon;
 }
 
@@ -91,6 +91,7 @@ Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, St
     m_toolbar->addAction(&m_window->reload_action());
     m_toolbar->addWidget(m_location_edit);
     m_toolbar->addAction(&m_window->new_tab_action());
+    m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
     m_hamburger_button_action = m_toolbar->addWidget(m_hamburger_button);
     m_toolbar->setIconSize({ 16, 16 });
     // This is a little awkward, but without this Qt shrinks the button to the size of the icon.
@@ -904,6 +905,9 @@ void Tab::update_hover_label()
 
 void Tab::update_navigation_buttons_state()
 {
+    if (m_window->current_tab() != this)
+        return;
+
     m_window->go_back_action().setEnabled(m_can_navigate_back);
     m_window->go_forward_action().setEnabled(m_can_navigate_forward);
 }

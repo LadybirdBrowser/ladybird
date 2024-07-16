@@ -82,7 +82,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 @synthesize new_tab_toolbar_item = _new_tab_toolbar_item;
 @synthesize tab_overview_toolbar_item = _tab_overview_toolbar_item;
 
-- (instancetype)init
+- (instancetype)init:(BOOL)block_popups
 {
     if (self = [super init]) {
         self.toolbar = [[NSToolbar alloc] initWithIdentifier:TOOLBAR_IDENTIFIER];
@@ -91,7 +91,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [self.toolbar setAllowsUserCustomization:NO];
         [self.toolbar setSizeMode:NSToolbarSizeModeRegular];
 
-        m_settings = {};
+        m_settings = { .block_popups = block_popups };
         m_can_navigate_back = false;
         m_can_navigate_forward = false;
     }
@@ -367,6 +367,14 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [self debugRequest:"clear-cache" argument:""]; // clear the cache to ensure requests are re-done with the new user agent
 }
 
+- (void)setNavigatorCompatibilityMode:(NSMenuItem*)sender
+{
+    ByteString const compatibility_mode = [[[sender title] lowercaseString] UTF8String];
+    m_settings.navigator_compatibility_mode = compatibility_mode;
+
+    [self debugRequest:"navigator-compatibility-mode" argument:compatibility_mode];
+}
+
 #pragma mark - Properties
 
 - (NSButton*)create_button:(NSImageName)image
@@ -574,6 +582,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [item setState:m_settings.same_origin_policy_enabled ? NSControlStateValueOn : NSControlStateValueOff];
     } else if ([item action] == @selector(setUserAgentSpoof:)) {
         [item setState:(m_settings.user_agent_name == [[item title] UTF8String]) ? NSControlStateValueOn : NSControlStateValueOff];
+    } else if ([item action] == @selector(setNavigatorCompatibilityMode:)) {
+        [item setState:(m_settings.navigator_compatibility_mode == [[[item title] lowercaseString] UTF8String]) ? NSControlStateValueOn : NSControlStateValueOff];
     }
 
     return YES;

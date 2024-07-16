@@ -88,6 +88,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool log_all_js_exceptions = false;
     bool enable_http_cache = false;
     bool new_window = false;
+    bool force_new_process = false;
+    bool allow_popups = false;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("The Ladybird web browser");
@@ -99,10 +101,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
+    args_parser.add_option(force_new_process, "Force creation of new browser/chrome process", "force-new-process");
+    args_parser.add_option(allow_popups, "Disable popup blocking by default", "allow-popups");
     args_parser.parse(arguments);
 
     WebView::ChromeProcess chrome_process;
-    if (TRY(chrome_process.connect(raw_urls, new_window)) == WebView::ChromeProcess::ProcessDisposition::ExitProcess) {
+    if (!force_new_process && TRY(chrome_process.connect(raw_urls, new_window)) == WebView::ChromeProcess::ProcessDisposition::ExitProcess) {
         outln("Opening in existing process");
         return 0;
     }
@@ -148,7 +152,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                                          newTabPageURL:URL::URL { Browser::default_new_tab_url }
                                          withCookieJar:move(cookie_jar)
                                      webContentOptions:web_content_options
-                               webdriverContentIPCPath:webdriver_content_ipc_path];
+                               webdriverContentIPCPath:webdriver_content_ipc_path
+                                           allowPopups:allow_popups];
 
     [NSApp setDelegate:delegate];
 

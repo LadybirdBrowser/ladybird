@@ -21,7 +21,7 @@ class HTMLBodyElement final
 public:
     virtual ~HTMLBodyElement() override;
 
-    virtual void attribute_changed(FlyString const&, Optional<String> const&) override;
+    virtual void attribute_changed(FlyString const&, Optional<String> const& old_value, Optional<String> const&) override;
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
     // https://www.w3.org/TR/html-aria/#el-body

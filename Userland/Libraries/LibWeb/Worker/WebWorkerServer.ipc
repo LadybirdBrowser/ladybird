@@ -7,5 +7,7 @@ endpoint WebWorkerServer {
 
     start_dedicated_worker(URL::URL url, String type, String credentials, String name, Web::HTML::TransferDataHolder message_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings) =|
 
+    close_worker() =|
+
     handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) =|
 }

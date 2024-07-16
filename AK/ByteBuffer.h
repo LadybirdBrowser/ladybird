@@ -284,9 +284,12 @@ public:
 
     void overwrite(size_t offset, void const* data, size_t data_size)
     {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
         // make sure we're not told to write past the end
         VERIFY(offset + data_size <= size());
         __builtin_memmove(this->data() + offset, data, data_size);
+#pragma GCC diagnostic pop
     }
 
     void zero_fill()

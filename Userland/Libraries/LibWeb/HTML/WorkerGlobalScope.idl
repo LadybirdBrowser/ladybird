@@ -20,12 +20,6 @@ interface WorkerGlobalScope : EventTarget {
     attribute EventHandler ononline;
     attribute EventHandler onrejectionhandled;
     attribute EventHandler onunhandledrejection;
-
-    // FIXME: IDL overload issue here
-    // FIXME: undefined postMessage(any message, sequence<object> transfer);
-    undefined postMessage(any message, optional StructuredSerializeOptions options = {});
-    attribute EventHandler onmessage;
-    attribute EventHandler onmessageerror;
 };
 
 WorkerGlobalScope includes WindowOrWorkerGlobalScope;

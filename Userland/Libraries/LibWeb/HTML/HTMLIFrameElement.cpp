@@ -37,9 +37,9 @@ JS::GCPtr<Layout::Node> HTMLIFrameElement::create_layout_node(NonnullRefPtr<CSS:
     return heap().allocate_without_realm<Layout::FrameBox>(document(), *this, move(style));
 }
 
-void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    HTMLElement::attribute_changed(name, value);
+    HTMLElement::attribute_changed(name, old_value, value);
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:process-the-iframe-attributes-2
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:process-the-iframe-attributes-3

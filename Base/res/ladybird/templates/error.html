@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <title>Error!</title>
     <style>
+        /* FIXME: We should be able to remove the HTML style when "color-scheme" is supported */
+        @media (prefers-color-scheme: dark) {
+            html {
+                background-color: rgb(20, 20, 20);
+                color: rgb(235, 235, 235);
+            }
+        }
+
         h1 {
             display: inline;
         }
@@ -20,8 +28,8 @@
 <body>
     <header>
         <img src="resource://icons/32x32/msgbox-warning.png" alt="Warning" width="24" height="24">
-        <h1>Failed to load @failed_url@</h1>
+        <h1>Failed to load %failed_url%</h1>
     </header>
-    <p>@error_message@</p>
+    <p>%error_message%</p>
 </body>
 </html>

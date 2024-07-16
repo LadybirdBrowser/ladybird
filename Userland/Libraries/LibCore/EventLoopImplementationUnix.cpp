@@ -421,6 +421,11 @@ try_select_again:
     if (error_or_marked_fd_count.value() != 0) {
         // Handle file system notifiers by making them normal events.
         for (size_t i = 1; i < thread_data.poll_fds.size(); ++i) {
+            // FIXME: Make the check work under Android, pehaps use ALooper
+#ifdef AK_OS_ANDROID
+            auto& notifier = *thread_data.notifier_by_index[i];
+            ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>(notifier.fd(), notifier.type()));
+#else
             auto& revents = thread_data.poll_fds[i].revents;
             auto& notifier = *thread_data.notifier_by_index[i];
 
@@ -436,6 +441,7 @@ try_select_again:
             type &= notifier.type();
             if (type != NotificationType::None)
                 ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>(notifier.fd(), type));
+#endif
         }
     }
 

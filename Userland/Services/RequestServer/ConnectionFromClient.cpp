@@ -205,11 +205,15 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
         return;
     }
 
+    auto headers = request_headers;
+    if (!headers.contains("Accept-Encoding"))
+        headers.set("Accept-Encoding", "gzip, deflate, br");
+
     enqueue(StartRequest {
         .request_id = request_id,
         .method = method,
         .url = url,
-        .request_headers = request_headers,
+        .request_headers = move(headers),
         .request_body = request_body,
         .proxy_data = proxy_data,
     });

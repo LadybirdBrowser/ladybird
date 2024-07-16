@@ -2,12 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>About @browser_name@</title>
+    <title>About %browser_name%</title>
     <style>
+        /* FIXME: We should be able to remove the HTML style when "color-scheme" is supported */
+        @media (prefers-color-scheme: dark) {
+            html {
+                background-color: rgb(20, 20, 20);
+                color: rgb(235, 235, 235);
+            }
+        }
         img {
             float: left;
-            image-rendering: pixelated;
             margin-right: 10px;
+            height: 48px;
         }
         th {
             text-align: right;
@@ -19,33 +26,36 @@
 </head>
 <body>
     <header>
-        <img src="resource://icons/32x32/app-browser.png">
-        <h1>About @browser_name@</h1>
+        <picture>
+            <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)">
+            <img src="resource://icons/128x128/app-browser-dark.png">
+        </picture>
+        <h1>About %browser_name%</h1>
     </header>
     <table>
         <tr>
             <th>Version:</th>
-            <td>@browser_version@</td>
+            <td>%browser_version%</td>
         </tr>
         <tr>
             <th>Arch:</th>
-            <td>@arch_name@</td>
+            <td>%arch_name%</td>
         </tr>
         <tr>
             <th>Operating System:</th>
-            <td>@os_name@</td>
+            <td>%os_name%</td>
         </tr>
         <tr>
             <th>User Agent:</th>
-            <td>@user_agent@</td>
+            <td>%user_agent%</td>
         </tr>
         <tr>
             <th>Command Line:</th>
-            <td>@command_line@</td>
+            <td>%command_line%</td>
         </tr>
         <tr>
             <th>Executable Path:</th>
-            <td>@executable_path@</td>
+            <td>%executable_path%</td>
         </tr>
     </table>
 </body>

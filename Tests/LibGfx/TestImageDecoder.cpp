@@ -7,6 +7,7 @@
 
 #include <AK/ByteString.h>
 #include <LibCore/MappedFile.h>
+#include <LibGfx/ImageFormats/AVIFLoader.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
 #include <LibGfx/ImageFormats/GIFLoader.h>
 #include <LibGfx/ImageFormats/ICOLoader.h>
@@ -1006,4 +1007,65 @@ TEST_CASE(test_jxl_modular_property_8)
                 EXPECT_EQ(color, Gfx::Color::Yellow);
         }
     }
+}
+
+TEST_CASE(test_avif_simple_lossy)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
+
+    // While AVIF YUV contents are defined bit-exact, the YUV->RGB conversion isn't.
+    // So pixels changing by 1 or so below is fine if you change code.
+    EXPECT_EQ(frame.image->get_pixel(120, 232), Gfx::Color(0xf1, 0xef, 0xf0, 255));
+    EXPECT_EQ(frame.image->get_pixel(198, 202), Gfx::Color(0x7b, 0xaa, 0xd6, 255));
+}
+
+TEST_CASE(test_avif_simple_lossless)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossless.avif"sv)));
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 386, 395 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0, 0, 0, 0));
+    EXPECT_EQ(frame.image->get_pixel(289, 332), Gfx::Color(0xf2, 0xee, 0xd3, 255));
+}
+
+TEST_CASE(test_avif_simple_lossy_bitdepth10)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-bitdepth10.avif"sv)));
+    EXPECT(!Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+}
+
+TEST_CASE(test_avif_icc_profile)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/icc_profile.avif"sv)));
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
+    EXPECT(TRY_OR_FAIL(plugin_decoder->icc_data()).has_value());
+}
+
+TEST_CASE(test_avif_no_icc_profile)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
+    EXPECT(!TRY_OR_FAIL(plugin_decoder->icc_data()).has_value());
+}
+
+TEST_CASE(test_avif_frame_out_of_bounds)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+
+    auto frame1 = TRY_OR_FAIL(plugin_decoder->frame(0));
+    EXPECT(plugin_decoder->frame(1).is_error());
 }

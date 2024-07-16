@@ -320,15 +320,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
         }
     }
 
-    // 3. If O does not implement an interface with the [Global] extended attribute, then set Desc.[[Configurable]] to true.
-    // 4. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-    if (!m_legacy_platform_object_flags->has_global_interface_extended_attribute) {
-        // property_descriptor is a const&, thus we need to create a copy here to set [[Configurable]]
-        JS::PropertyDescriptor descriptor_copy(property_descriptor);
-        descriptor_copy.configurable = true;
-        return Object::internal_define_own_property(property_name, descriptor_copy);
-    }
-
+    // 3. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
     return Object::internal_define_own_property(property_name, property_descriptor);
 }
 

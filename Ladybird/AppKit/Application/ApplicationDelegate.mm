@@ -32,8 +32,11 @@
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
     Web::CSS::PreferredContrast m_preferred_contrast;
     Web::CSS::PreferredMotion m_preferred_motion;
+    ByteString m_navigator_compatibility_mode;
 
     WebView::SearchEngine m_search_engine;
+
+    BOOL m_allow_popups;
 }
 
 @property (nonatomic, strong) NSMutableArray<TabController*>* managed_tabs;
@@ -61,6 +64,7 @@
               withCookieJar:(NonnullOwnPtr<WebView::CookieJar>)cookie_jar
           webContentOptions:(Ladybird::WebContentOptions const&)web_content_options
     webdriverContentIPCPath:(StringView)webdriver_content_ipc_path
+                allowPopups:(BOOL)allow_popups
 {
     if (self = [super init]) {
         [NSApp setMainMenu:[[NSMenu alloc] init]];
@@ -92,7 +96,10 @@
         m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Auto;
         m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
         m_preferred_motion = Web::CSS::PreferredMotion::Auto;
+        m_navigator_compatibility_mode = "chrome";
         m_search_engine = WebView::default_search_engine();
+
+        m_allow_popups = allow_popups;
 
         // Reduce the tooltip delay, as the default delay feels quite long.
         [[NSUserDefaults standardUserDefaults] setObject:@100 forKey:@"NSInitialToolTipDelay"];
@@ -197,7 +204,7 @@
 - (nonnull TabController*)createNewTab:(Web::HTML::ActivateTab)activate_tab
                                fromTab:(nullable Tab*)tab
 {
-    auto* controller = [[TabController alloc] init];
+    auto* controller = [[TabController alloc] init:!m_allow_popups];
     [controller showWindow:nil];
 
     if (tab) {
@@ -663,6 +670,23 @@
     [spoof_user_agent_menu_item setSubmenu:spoof_user_agent_menu];
 
     [submenu addItem:spoof_user_agent_menu_item];
+
+    auto* navigator_compatibility_mode_menu = [[NSMenu alloc] init];
+    auto add_navigator_compatibility_mode = [navigator_compatibility_mode_menu](ByteString name) {
+        [navigator_compatibility_mode_menu addItem:[[NSMenuItem alloc] initWithTitle:Ladybird::string_to_ns_string(name)
+                                                                              action:@selector(setNavigatorCompatibilityMode:)
+                                                                       keyEquivalent:@""]];
+    };
+    add_navigator_compatibility_mode("Chrome");
+    add_navigator_compatibility_mode("Gecko");
+    add_navigator_compatibility_mode("WebKit");
+
+    auto* navigator_compatibility_mode_menu_item = [[NSMenuItem alloc] initWithTitle:@"Navigator Compatibility Mode"
+                                                                              action:nil
+                                                                       keyEquivalent:@""];
+    [navigator_compatibility_mode_menu_item setSubmenu:navigator_compatibility_mode_menu];
+
+    [submenu addItem:navigator_compatibility_mode_menu_item];
     [submenu addItem:[NSMenuItem separatorItem]];
 
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Enable Scripting"

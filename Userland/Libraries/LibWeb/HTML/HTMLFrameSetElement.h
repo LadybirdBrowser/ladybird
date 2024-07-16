@@ -25,7 +25,7 @@ private:
     HTMLFrameSetElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void attribute_changed(FlyString const&, Optional<String> const&) override;
+    virtual void attribute_changed(FlyString const&, Optional<String> const& old_value, Optional<String> const&) override;
 
     // ^HTML::GlobalEventHandlers
     virtual JS::GCPtr<EventTarget> global_event_handlers_to_event_target(FlyString const& event_name) override;

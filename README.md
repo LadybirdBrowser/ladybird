@@ -1,6 +1,6 @@
 # Ladybird
 
-[Ladybird](https://ladybird.dev) is a truly independent web browser, using a novel engine based on web standards.
+[Ladybird](https://ladybird.org) is a truly independent web browser, using a novel engine based on web standards.
 
 > [!IMPORTANT]
 > Ladybird is in a pre-alpha state, and only suitable for use by developers

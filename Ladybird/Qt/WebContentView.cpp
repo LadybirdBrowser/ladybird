@@ -131,9 +131,12 @@ WebContentView::WebContentView(QWidget* window, WebContentOptions const& web_con
         finish_handling_key_event(event);
     };
 
-    on_request_worker_agent = []() {
-        auto& request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
-        auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), *request_server_client));
+    on_request_worker_agent = [&]() {
+        RefPtr<Protocol::RequestClient> request_server_client {};
+        if (m_web_content_options.use_lagom_networking == Ladybird::UseLagomNetworking::Yes)
+            request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
+
+        auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), request_server_client));
         return worker_client->dup_socket();
     };
 }

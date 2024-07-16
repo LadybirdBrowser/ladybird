@@ -224,6 +224,8 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(rowspan)                    \
     __ENUMERATE_HTML_ATTRIBUTE(rules)                      \
     __ENUMERATE_HTML_ATTRIBUTE(scheme)                     \
+    __ENUMERATE_HTML_ATTRIBUTE(scrollamount)               \
+    __ENUMERATE_HTML_ATTRIBUTE(scrolldelay)                \
     __ENUMERATE_HTML_ATTRIBUTE(scrolling)                  \
     __ENUMERATE_HTML_ATTRIBUTE(selected)                   \
     __ENUMERATE_HTML_ATTRIBUTE(shadowrootclonable)         \
@@ -248,6 +250,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(target)                     \
     __ENUMERATE_HTML_ATTRIBUTE(text)                       \
     __ENUMERATE_HTML_ATTRIBUTE(title)                      \
+    __ENUMERATE_HTML_ATTRIBUTE(truespeed)                  \
     __ENUMERATE_HTML_ATTRIBUTE(type)                       \
     __ENUMERATE_HTML_ATTRIBUTE(usemap)                     \
     __ENUMERATE_HTML_ATTRIBUTE(valign)                     \

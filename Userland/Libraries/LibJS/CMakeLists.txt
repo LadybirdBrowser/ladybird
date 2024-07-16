@@ -148,6 +148,7 @@ set(SOURCES
     Runtime/IteratorPrototype.cpp
     Runtime/JSONObject.cpp
     Runtime/JobCallback.cpp
+    Runtime/KeyedCollections.cpp
     Runtime/Map.cpp
     Runtime/MapConstructor.cpp
     Runtime/MapIterator.cpp

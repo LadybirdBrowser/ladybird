@@ -32,6 +32,7 @@ void SVGElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_dataset);
+    visitor.visit(m_class_name_animated_string);
 }
 
 JS::NonnullGCPtr<HTML::DOMStringMap> SVGElement::dataset()
@@ -41,9 +42,9 @@ JS::NonnullGCPtr<HTML::DOMStringMap> SVGElement::dataset()
     return *m_dataset;
 }
 
-void SVGElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void SVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    Base::attribute_changed(name, value);
+    Base::attribute_changed(name, old_value, value);
 
     update_use_elements_that_reference_this();
 }
@@ -112,6 +113,16 @@ void SVGElement::focus()
 void SVGElement::blur()
 {
     dbgln("(STUBBED) SVGElement::blur()");
+}
+
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__classNames
+JS::NonnullGCPtr<SVGAnimatedString> SVGElement::class_name()
+{
+    // The className IDL attribute reflects the ‘class’ attribute.
+    if (!m_class_name_animated_string)
+        m_class_name_animated_string = SVGAnimatedString::create(realm(), *this, AttributeNames::class_);
+
+    return *m_class_name_animated_string;
 }
 
 JS::NonnullGCPtr<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::PropertyID property) const

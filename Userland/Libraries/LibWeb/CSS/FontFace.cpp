@@ -5,10 +5,10 @@
  */
 
 #include <LibCore/Promise.h>
-#include <LibGfx/Font/OpenType/Font.h>
+#include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/Typeface.h>
-#include <LibGfx/Font/WOFF/Font.h>
-#include <LibGfx/Font/WOFF2/Font.h>
+#include <LibGfx/Font/WOFF/Typeface.h>
+#include <LibGfx/Font/WOFF2/Typeface.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
@@ -35,17 +35,17 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_fo
     Platform::EventLoopPlugin::the().deferred_invoke([&data, promise] {
         // FIXME: This should be de-duplicated with StyleComputer::FontLoader::try_load_font
         // We don't have the luxury of knowing the MIME type, so we have to try all formats.
-        auto ttf = OpenType::Font::try_load_from_externally_owned_memory(data);
+        auto ttf = OpenType::Typeface::try_load_from_externally_owned_memory(data);
         if (!ttf.is_error()) {
             promise->resolve(ttf.release_value());
             return;
         }
-        auto woff = WOFF::Font::try_load_from_externally_owned_memory(data);
+        auto woff = WOFF::Typeface::try_load_from_externally_owned_memory(data);
         if (!woff.is_error()) {
             promise->resolve(woff.release_value());
             return;
         }
-        auto woff2 = WOFF2::Font::try_load_from_externally_owned_memory(data);
+        auto woff2 = WOFF2::Typeface::try_load_from_externally_owned_memory(data);
         if (!woff2.is_error()) {
             promise->resolve(woff2.release_value());
             return;

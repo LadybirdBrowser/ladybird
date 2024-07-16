@@ -12,8 +12,31 @@ The recommended extensions for VS Code include:
 
 ## Configuration
 
+To be compatible with `./Meta/ladybird.sh`, we must set CC and CXX to the correct compilers for *both* configure and build. This can be done in the `.vscode/settings.json` file.
+
+```json
+{
+  "cmake.configureEnvironment": {
+    "CC": "clang-18",
+    "CXX": "clang++-18"
+  },
+  "cmake.buildEnvironment": {
+    "CC": "clang-18",
+    "CXX": "clang++-18"
+  },
+  "clangd.path": "clangd-18"
+}
+```
+
+Run `./Meta/ladybird.sh build` at least once to kick off downloading and building vcpkg dependencies.
+
 The CMake Tools plugin should automatically detect the `CMakePresets.json` at the root of the repository.
-Selecting and activating the `default` preset should be enough to get started.
+Selecting and activating the `default` preset should be enough to get started after the initial build.
+You can also use the `Debug` preset to build with debug symbols, or the `Sanitizer` preset to build with ASAN/UBSAN.
+
+If building through VsCode itself causes vcpkg to rebuild the world, verify that the environment settings match the `CMAKE_CXX_COMPILER` line in the build directory's `CMakeCache.txt`.
+
+For additional settings recommendations, see the [Settings](#settings) section below.
 
 ## Code comprehension
 
@@ -24,19 +47,6 @@ Clangd has the best support for modern compilers, especially if configured as no
 The official clangd extension can be used for C++ comprehension. It is recommended in general, as it is most likely to work on all platforms.
 
 clangd uses ``compile_commands.json`` files to understand the project. CMake will generate these in Build/ladybird.
-Depending on which configuration you use most, set the CompilationDatabase configuration item in the below ``.clangd`` file accordingly. It goes at the root of your checkout (``ladybird/.clangd``):
-
-```yaml
-CompileFlags:
-  CompilationDatabase: Build/ladybird
-  
-Diagnostics:
-  UnusedIncludes: None
-  MissingIncludes: None
-```
-
-The UnusedIncludes and MissingIncludes flags are used to disable the [Include Cleaner](https://clangd.llvm.org/design/include-cleaner) feature of newer clangd releases.
-It can be re-enabled if you don't mind the noisy inlay hints and problems in the problem view.
 
 Run ``./Meta/ladybird.sh run ladybird`` at least once to generate the ``compile_commands.json`` file.
 
@@ -143,6 +153,15 @@ These belong in the `.vscode/settings.json` of Serenity.
     // git commit message length
     "git.inputValidationLength": 72,
     "git.inputValidationSubjectLength": 72,
+    "cmake.configureEnvironment": {
+      "CC": "clang-18",
+      "CXX": "clang++-18"
+    },
+    "cmake.buildEnvironment": {
+      "CC": "clang-18",
+      "CXX": "clang++-18"
+    },
+    "clangd.path": "clangd-18",
     "clangd.arguments": [
         "--header-insertion=never" // See https://github.com/clangd/clangd/issues/1247
     ]

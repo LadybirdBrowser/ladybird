@@ -47,7 +47,6 @@ MouseEvent::MouseEvent(JS::Realm& realm, FlyString const& event_name, MouseEvent
     , m_buttons(event_init.buttons)
     , m_related_target(event_init.related_target)
 {
-    set_event_characteristics();
 }
 
 MouseEvent::~MouseEvent() = default;
@@ -146,15 +145,6 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<MouseEvent>> MouseEvent::create_from_platfo
     auto event = MouseEvent::create(realm, event_name, event_init, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double());
     event->set_is_trusted(true);
     return event;
-}
-
-void MouseEvent::set_event_characteristics()
-{
-    if (type().is_one_of(EventNames::mousedown, EventNames::mousemove, EventNames::mouseout, EventNames::mouseover, EventNames::mouseup, HTML::EventNames::click, EventNames::dblclick, EventNames::contextmenu)) {
-        set_bubbles(true);
-        set_cancelable(true);
-        set_composed(true);
-    }
 }
 
 }

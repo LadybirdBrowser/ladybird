@@ -1,5 +1,5 @@
 {
-    "name": "SerenityOS",
+    "name": "Ladybird",
     "image": "mcr.microsoft.com/devcontainers/base:jammy",
 
     // Features to add to the dev container. More info: https://containers.dev/implementors/features.

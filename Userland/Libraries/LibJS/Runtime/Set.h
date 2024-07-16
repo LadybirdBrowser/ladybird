@@ -47,4 +47,15 @@ private:
     GCPtr<Map> m_values;
 };
 
+// 24.2.1.1 Set Records, https://tc39.es/ecma262/#sec-set-records
+struct SetRecord {
+    NonnullGCPtr<Object const> set_object; // [[SetObject]]
+    double size { 0 };                     // [[Size]
+    NonnullGCPtr<FunctionObject> has;      // [[Has]]
+    NonnullGCPtr<FunctionObject> keys;     // [[Keys]]
+};
+
+ThrowCompletionOr<SetRecord> get_set_record(VM&, Value);
+bool set_data_has(NonnullGCPtr<Set>, Value);
+
 }

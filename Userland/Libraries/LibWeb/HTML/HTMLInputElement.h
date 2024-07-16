@@ -168,6 +168,8 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#concept-submit-button
     virtual bool is_submit_button() const override;
 
+    bool is_single_line() const;
+
     virtual void reset_algorithm() override;
 
     virtual void form_associated_element_was_inserted() override;
@@ -210,6 +212,7 @@ private:
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
+    virtual void computed_css_values_changed() override;
 
     // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):dimension-attributes
     virtual bool supports_dimension_attributes() const override { return type_state() == TypeAttributeState::ImageButton; }
@@ -319,6 +322,8 @@ private:
     String m_last_src_value;
 
     bool m_has_uncommitted_changes { false };
+
+    JS::GCPtr<DOM::Element> m_range_progress_element;
 };
 
 }

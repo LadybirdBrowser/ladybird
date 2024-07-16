@@ -110,6 +110,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/HighResolutionTime/Performance.idl",
   "//Userland/Libraries/LibWeb/HTML/AudioTrack.idl",
   "//Userland/Libraries/LibWeb/HTML/AudioTrackList.idl",
+  "//Userland/Libraries/LibWeb/HTML/BroadcastChannel.idl",
   "//Userland/Libraries/LibWeb/HTML/CanvasGradient.idl",
   "//Userland/Libraries/LibWeb/HTML/CanvasPattern.idl",
   "//Userland/Libraries/LibWeb/HTML/CanvasRenderingContext2D.idl",

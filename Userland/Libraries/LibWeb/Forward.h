@@ -342,6 +342,7 @@ class DOMRectReadOnly;
 namespace Web::HTML {
 class AudioTrack;
 class AudioTrackList;
+class BroadcastChannel;
 class BrowsingContext;
 class BrowsingContextGroup;
 class CanvasRenderingContext2D;
@@ -355,7 +356,9 @@ class DecodedImageData;
 class DocumentState;
 class DOMParser;
 class DOMStringMap;
+class DragEvent;
 class ElementInternals;
+struct EmbedderPolicy;
 class ErrorEvent;
 class EventHandler;
 class EventLoop;

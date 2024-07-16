@@ -453,6 +453,7 @@ CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::compile(VM& vm, ASTNo
     executable->source_map = move(source_map);
     executable->local_variable_names = move(local_variable_names);
     executable->local_index_base = number_of_registers + number_of_constants;
+    executable->length_identifier = generator.m_length_identifier;
 
     generator.m_finished = true;
 
@@ -1075,6 +1076,7 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_named_evaluation_
 void Generator::emit_get_by_id(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier)
 {
     if (m_identifier_table->get(property_identifier) == "length"sv) {
+        m_length_identifier = property_identifier;
         emit<Op::GetLength>(dst, base, move(base_identifier), m_next_property_lookup_cache++);
         return;
     }

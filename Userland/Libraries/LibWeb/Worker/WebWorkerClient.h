@@ -21,6 +21,10 @@ class WebWorkerClient final
 public:
     explicit WebWorkerClient(NonnullOwnPtr<Core::LocalSocket>);
 
+    virtual void did_close_worker() override;
+
+    Function<void()> on_worker_close;
+
     IPC::File dup_socket();
 
 private:

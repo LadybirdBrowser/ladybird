@@ -1,0 +1,12 @@
+<script>
+    var resizeCount = 0;
+    onresize = function() {
+        ++resizeCount;
+    }
+</script>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        println("resize count: " + resizeCount);
+    })
+</script>

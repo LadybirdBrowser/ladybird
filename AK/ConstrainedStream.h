@@ -22,6 +22,7 @@ public:
     virtual bool is_eof() const override;
     virtual bool is_open() const override;
     virtual void close() override;
+    u64 remaining() const { return m_limit; }
 
 private:
     MaybeOwned<Stream> m_stream;

@@ -12,9 +12,9 @@ interface HTMLMarqueeElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString height;
     [CEReactions, Reflect] attribute unsigned long hspace;
     [FIXME, CEReactions] attribute long loop;
-    [FIXME, CEReactions] attribute unsigned long scrollAmount;
-    [FIXME, CEReactions] attribute unsigned long scrollDelay;
-    [FIXME, CEReactions] attribute boolean trueSpeed;
+    [CEReactions] attribute unsigned long scrollAmount;
+    [CEReactions] attribute unsigned long scrollDelay;
+    [CEReactions, Reflect=truespeed] attribute boolean trueSpeed;
     [CEReactions, Reflect] attribute unsigned long vspace;
     [CEReactions, Reflect] attribute DOMString width;
 

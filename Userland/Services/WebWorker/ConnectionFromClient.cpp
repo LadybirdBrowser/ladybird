@@ -11,6 +11,16 @@
 
 namespace WebWorker {
 
+void ConnectionFromClient::close_worker()
+{
+    async_did_close_worker();
+
+    // FIXME: Invoke a worker shutdown operation that implements the spec
+    m_worker_host = nullptr;
+
+    die();
+}
+
 void ConnectionFromClient::die()
 {
     // FIXME: When handling multiple workers in the same process,
@@ -53,9 +63,9 @@ Web::Page const& ConnectionFromClient::page() const
     return m_page_host->page();
 }
 
-void ConnectionFromClient::start_dedicated_worker(URL::URL const& url, String const& type, String const&, String const&, Web::HTML::TransferDataHolder const& implicit_port, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings)
+void ConnectionFromClient::start_dedicated_worker(URL::URL const& url, String const& type, String const&, String const& name, Web::HTML::TransferDataHolder const& implicit_port, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings)
 {
-    m_worker_host = make_ref_counted<DedicatedWorkerHost>(url, type);
+    m_worker_host = make_ref_counted<DedicatedWorkerHost>(url, type, name);
     // FIXME: Yikes, const_cast to move? Feels like a LibIPC bug.
     //     We should be able to move non-copyable types from a Message type.
     m_worker_host->run(page(), move(const_cast<Web::HTML::TransferDataHolder&>(implicit_port)), outside_settings);

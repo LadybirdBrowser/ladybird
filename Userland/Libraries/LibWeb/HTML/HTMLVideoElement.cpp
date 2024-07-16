@@ -53,9 +53,9 @@ void HTMLVideoElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_fetch_controller);
 }
 
-void HTMLVideoElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLVideoElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    Base::attribute_changed(name, value);
+    Base::attribute_changed(name, old_value, value);
 
     if (name == HTML::AttributeNames::poster) {
         determine_element_poster_frame(value).release_value_but_fixme_should_propagate_errors();

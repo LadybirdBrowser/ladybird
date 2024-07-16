@@ -76,7 +76,7 @@ public:
     bool execution_paused() const { return m_execution_paused; }
 
 private:
-    EventLoop();
+    explicit EventLoop(Type);
 
     virtual void visit_edges(Visitor&) override;
 

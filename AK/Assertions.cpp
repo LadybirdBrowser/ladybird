@@ -101,4 +101,25 @@ void ak_verification_failed(char const* message)
 #endif
     __builtin_trap();
 }
+
+void ak_assertion_failed(char const* message)
+{
+#if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID)
+    bool colorize_output = true;
+#elif defined(AK_OS_WINDOWS)
+    bool colorize_output = false;
+#else
+    bool colorize_output = isatty(STDERR_FILENO) == 1;
+#endif
+
+    if (colorize_output)
+        ERRORLN("\033[31;1mASSERTION FAILED\033[0m: {}", message);
+    else
+        ERRORLN("ASSERTION FAILED: {}", message);
+
+#if defined(AK_HAS_BACKTRACE_HEADER)
+    dump_backtrace();
+#endif
+    __builtin_trap();
+}
 }

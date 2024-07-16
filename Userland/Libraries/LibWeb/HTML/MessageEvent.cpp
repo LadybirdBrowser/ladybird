@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -73,6 +74,32 @@ JS::NonnullGCPtr<JS::Object> MessageEvent::ports() const
         MUST(m_ports_array->set_integrity_level(IntegrityLevel::Frozen));
     }
     return *m_ports_array;
+}
+
+// https://html.spec.whatwg.org/multipage/comms.html#dom-messageevent-initmessageevent
+void MessageEvent::init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, Optional<MessageEventSource> source, Vector<JS::Handle<MessagePort>> const& ports)
+{
+    // The initMessageEvent(type, bubbles, cancelable, data, origin, lastEventId, source, ports) method must initialize the event in a
+    // manner analogous to the similarly-named initEvent() method.
+
+    // 1. If this’s dispatch flag is set, then return.
+    if (dispatched())
+        return;
+
+    // 2. Initialize this with type, bubbles, and cancelable.
+    initialize_event(type, bubbles, cancelable);
+
+    // Implementation Defined: Initialise other values.
+    m_data = data;
+    m_origin = origin;
+    m_last_event_id = last_event_id;
+    m_source = source;
+    m_ports.clear();
+    m_ports.ensure_capacity(ports.size());
+    for (auto const& port : ports) {
+        VERIFY(port);
+        m_ports.unchecked_append(static_cast<JS::Object&>(*port));
+    }
 }
 
 }

@@ -19,33 +19,33 @@ namespace Web::HTML {
 //    HTMLElement::inserted() -> Use form_associated_element_was_inserted()
 //    HTMLElement::removed_from() -> Use form_associated_element_was_removed()
 //
-#define FORM_ASSOCIATED_ELEMENT(ElementBaseClass, ElementClass)                                   \
-private:                                                                                          \
-    virtual HTMLElement& form_associated_element_to_html_element() override                       \
-    {                                                                                             \
-        static_assert(IsBaseOf<HTMLElement, ElementClass>);                                       \
-        return *this;                                                                             \
-    }                                                                                             \
-                                                                                                  \
-    virtual void inserted() override                                                              \
-    {                                                                                             \
-        ElementBaseClass::inserted();                                                             \
-        form_node_was_inserted();                                                                 \
-        form_associated_element_was_inserted();                                                   \
-    }                                                                                             \
-                                                                                                  \
-    virtual void removed_from(DOM::Node* node) override                                           \
-    {                                                                                             \
-        ElementBaseClass::removed_from(node);                                                     \
-        form_node_was_removed();                                                                  \
-        form_associated_element_was_removed(node);                                                \
-    }                                                                                             \
-                                                                                                  \
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& value) override \
-    {                                                                                             \
-        ElementBaseClass::attribute_changed(name, value);                                         \
-        form_node_attribute_changed(name, value);                                                 \
-        form_associated_element_attribute_changed(name, value);                                   \
+#define FORM_ASSOCIATED_ELEMENT(ElementBaseClass, ElementClass)                                                                      \
+private:                                                                                                                             \
+    virtual HTMLElement& form_associated_element_to_html_element() override                                                          \
+    {                                                                                                                                \
+        static_assert(IsBaseOf<HTMLElement, ElementClass>);                                                                          \
+        return *this;                                                                                                                \
+    }                                                                                                                                \
+                                                                                                                                     \
+    virtual void inserted() override                                                                                                 \
+    {                                                                                                                                \
+        ElementBaseClass::inserted();                                                                                                \
+        form_node_was_inserted();                                                                                                    \
+        form_associated_element_was_inserted();                                                                                      \
+    }                                                                                                                                \
+                                                                                                                                     \
+    virtual void removed_from(DOM::Node* node) override                                                                              \
+    {                                                                                                                                \
+        ElementBaseClass::removed_from(node);                                                                                        \
+        form_node_was_removed();                                                                                                     \
+        form_associated_element_was_removed(node);                                                                                   \
+    }                                                                                                                                \
+                                                                                                                                     \
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override \
+    {                                                                                                                                \
+        ElementBaseClass::attribute_changed(name, old_value, value);                                                                 \
+        form_node_attribute_changed(name, value);                                                                                    \
+        form_associated_element_attribute_changed(name, value);                                                                      \
     }
 
 class FormAssociatedElement {

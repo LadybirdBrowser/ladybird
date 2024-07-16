@@ -42,9 +42,9 @@ void SVGSymbolElement::apply_presentational_hints(CSS::StyleProperties& style) c
     }
 }
 
-void SVGSymbolElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void SVGSymbolElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    Base::attribute_changed(name, value);
+    Base::attribute_changed(name, old_value, value);
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::viewBox))
         m_view_box = try_parse_view_box(value.value_or(String {}));
 }

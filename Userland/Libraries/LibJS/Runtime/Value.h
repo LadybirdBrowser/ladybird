@@ -212,7 +212,7 @@ public:
     {
         bool is_negative_zero = bit_cast<u64>(value) == NEGATIVE_ZERO_BITS;
         if (value >= NumericLimits<i32>::min() && value <= NumericLimits<i32>::max() && trunc(value) == value && !is_negative_zero) {
-            VERIFY(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
+            ASSERT(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
             m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         } else {
             if (isnan(value)) [[unlikely]]
@@ -232,7 +232,7 @@ public:
         if (value > NumericLimits<i32>::max()) {
             m_value.as_double = static_cast<double>(value);
         } else {
-            VERIFY(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
+            ASSERT(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
             m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         }
     }
@@ -242,7 +242,7 @@ public:
         if (value > NumericLimits<i32>::max()) {
             m_value.as_double = static_cast<double>(value);
         } else {
-            VERIFY(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
+            ASSERT(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
             m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         }
     }
@@ -435,8 +435,11 @@ public:
         // For x86_64 and riscv64 the top 16 bits should be sign extending the "real" top bit (47th).
         // So first shift the top 16 bits away then using the right shift it sign extends the top 16 bits.
         return static_cast<FlatPtr>((static_cast<i64>(encoded << 16)) >> 16);
-#elif ARCH(AARCH64)
+#elif ARCH(AARCH64) || ARCH(PPC64) || ARCH(PPC64LE)
         // For AArch64 the top 16 bits of the pointer should be zero.
+        // For PPC64: all 64 bits can be used for pointers, however on Linux only
+        //            the lower 43 bits are used for user-space addresses, so
+        //            masking off the top 16 bits should match the rest of LibJS.
         return static_cast<FlatPtr>(encoded & 0xffff'ffff'ffffULL);
 #else
 #    error "Unknown architecture. Don't know whether pointers need to be sign-extended."
@@ -463,7 +466,7 @@ private:
 
     Value(u64 tag, u64 val)
     {
-        VERIFY(!(tag & val));
+        ASSERT(!(tag & val));
         m_value.encoded = tag | val;
     }
 
@@ -476,7 +479,7 @@ private:
             return;
         }
 
-        VERIFY((tag & 0x8000000000000000ul) == 0x8000000000000000ul);
+        ASSERT((tag & 0x8000000000000000ul) == 0x8000000000000000ul);
 
         if constexpr (sizeof(PointerType*) < sizeof(u64)) {
             m_value.encoded = tag | reinterpret_cast<u32>(ptr);

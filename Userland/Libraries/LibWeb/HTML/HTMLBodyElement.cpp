@@ -59,9 +59,9 @@ void HTMLBodyElement::apply_presentational_hints(CSS::StyleProperties& style) co
     });
 }
 
-void HTMLBodyElement::attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLBodyElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
-    HTMLElement::attribute_changed(name, value);
+    HTMLElement::attribute_changed(name, old_value, value);
     if (name.equals_ignoring_ascii_case("link"sv)) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-3
         auto color = parse_legacy_color_value(value.value_or(String {}));

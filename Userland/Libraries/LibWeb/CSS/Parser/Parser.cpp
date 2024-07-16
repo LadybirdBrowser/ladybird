@@ -6689,6 +6689,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue>> Parser::parse_css_value(Property
     case PropertyID::BackgroundClip:
     case PropertyID::BackgroundImage:
     case PropertyID::BackgroundOrigin:
+    case PropertyID::WebkitBackgroundClip:
+    case PropertyID::WebkitBackgroundOrigin:
         if (auto parsed_value = parse_simple_comma_separated_value_list(property_id, tokens))
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
@@ -6721,14 +6723,20 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue>> Parser::parse_css_value(Property
     case PropertyID::BorderTopRightRadius:
     case PropertyID::BorderBottomRightRadius:
     case PropertyID::BorderBottomLeftRadius:
+    case PropertyID::WebkitBorderTopLeftRadius:
+    case PropertyID::WebkitBorderTopRightRadius:
+    case PropertyID::WebkitBorderBottomRightRadius:
+    case PropertyID::WebkitBorderBottomLeftRadius:
         if (auto parsed_value = parse_border_radius_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BorderRadius:
+    case PropertyID::WebkitBorderRadius:
         if (auto parsed_value = parse_border_radius_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BoxShadow:
+    case PropertyID::WebkitBoxShadow:
         if (auto parsed_value = parse_shadow_value(tokens, AllowInsetKeyword::Yes); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
@@ -6741,10 +6749,12 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue>> Parser::parse_css_value(Property
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Flex:
+    case PropertyID::WebkitFlex:
         if (auto parsed_value = parse_flex_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::FlexFlow:
+    case PropertyID::WebkitFlexFlow:
         if (auto parsed_value = parse_flex_flow_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
@@ -6861,14 +6871,17 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue>> Parser::parse_css_value(Property
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Transform:
+    case PropertyID::WebkitTransform:
         if (auto parsed_value = parse_transform_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::TransformOrigin:
+    case PropertyID::WebkitTransformOrigin:
         if (auto parsed_value = parse_transform_origin_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Transition:
+    case PropertyID::WebkitTransition:
         if (auto parsed_value = parse_transition_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;

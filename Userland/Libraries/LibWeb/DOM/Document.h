@@ -786,7 +786,7 @@ private:
     bool m_page_showing { false };
 
     // Used by run_the_resize_steps().
-    Gfx::IntSize m_last_viewport_size;
+    Optional<Gfx::IntSize> m_last_viewport_size;
 
     HashTable<ViewportClient*> m_viewport_clients;
 

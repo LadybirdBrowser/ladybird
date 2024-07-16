@@ -695,7 +695,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                             result.append(Wasm::Value { result_type, 0ull });
                         return Wasm::Result { move(result) };
                     },
-                    type));
+                    type,
+                    entry.name));
                 exports.set(entry, *address);
             }
 

@@ -10,6 +10,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/SharedImageRequest.h>
@@ -94,10 +95,13 @@ void SharedImageRequest::fetch_image(JS::Realm& realm, JS::NonnullGCPtr<Fetch::I
             handle_failed_fetch();
         });
 
-        if (response->body())
-            response->body()->fully_read(realm, process_body, process_body_error, JS::NonnullGCPtr { realm.global_object() });
-        else
+        // Check for failed fetch response
+        if (!Fetch::Infrastructure::is_ok_status(response->status()) || !response->body()) {
             handle_failed_fetch();
+            return;
+        }
+
+        response->body()->fully_read(realm, process_body, process_body_error, JS::NonnullGCPtr { realm.global_object() });
     };
 
     m_state = State::Fetching;
