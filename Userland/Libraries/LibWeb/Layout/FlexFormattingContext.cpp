@@ -1041,17 +1041,9 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     auto clamp_min = (!computed_min_size.is_auto() && (resolve_percentage_min_max_sizes || !computed_min_size.contains_percentage())) ? specified_cross_min_size(item.box) : 0;
     auto clamp_max = (!should_treat_cross_max_size_as_none(item.box) && (resolve_percentage_min_max_sizes || !computed_max_size.contains_percentage())) ? specified_cross_max_size(item.box) : CSSPixels::max();
 
-    // If we have a definite cross size, this is easy! No need to perform layout, we can just use it as-is.
-    if (has_definite_cross_size(item)) {
-        // To avoid subtracting padding and border twice for `box-sizing: border-box` only min and max clamp should happen on a second pass
-        if (resolve_percentage_min_max_sizes) {
-            item.hypothetical_cross_size = css_clamp(item.hypothetical_cross_size, clamp_min, clamp_max);
-            return;
-        }
-
-        item.hypothetical_cross_size = css_clamp(inner_cross_size(item), clamp_min, clamp_max);
-        return;
-    }
+    // TODO: We can reuse the definite cross size here if the cross size of this item does not depend on its main size.
+    // However, we need to be careful--there are many cases where it does, including but not limited to items with a
+    // preferred aspect ratio. We should enumerate the cases where we *can* safely make this optimization.
 
     if (item.box->has_preferred_aspect_ratio()) {
         if (item.used_flex_basis_is_definite) {
