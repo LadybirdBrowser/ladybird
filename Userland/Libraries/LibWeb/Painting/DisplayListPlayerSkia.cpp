@@ -583,22 +583,49 @@ static ColorStopList replace_transition_hints_with_normal_color_stops(ColorStopL
 
 static ColorStopList expand_repeat_length(ColorStopList const& color_stop_list, float repeat_length)
 {
-    ColorStopList color_stop_list_with_expanded_repeat;
-    size_t repeat_count = 0;
-    while (true) {
-        for (auto stop : color_stop_list) {
-            stop.position += repeat_length * repeat_count;
-            if (stop.position > 1.0f)
-                return color_stop_list_with_expanded_repeat;
-            color_stop_list_with_expanded_repeat.append(stop);
-        }
-        repeat_count++;
-        if (repeat_count > 1000) {
-            // Crash instead of being stuck in infinite loop
-            VERIFY_NOT_REACHED();
+    // https://drafts.csswg.org/css-images/#repeating-gradients
+    // When rendered, however, the color-stops are repeated infinitely in both directions, with their
+    // positions shifted by multiples of the difference between the last specified color-stop’s position
+    // and the first specified color-stop’s position. For example, repeating-linear-gradient(red 10px, blue 50px)
+    // is equivalent to linear-gradient(..., red -30px, blue 10px, red 10px, blue 50px, red 50px, blue 90px, ...).
+
+    auto first_stop_position = color_stop_list.first().position;
+    int const negative_repeat_count = AK::ceil(first_stop_position / repeat_length);
+    int const positive_repeat_count = AK::ceil((1.0f - first_stop_position) / repeat_length);
+
+    ColorStopList color_stop_list_with_expanded_repeat = color_stop_list;
+
+    auto get_color_between_stops = [](float position, auto const& current_stop, auto const& previous_stop) {
+        auto distance_between_stops = current_stop.position - previous_stop.position;
+        auto percentage = (position - previous_stop.position) / distance_between_stops;
+        return previous_stop.color.interpolate(current_stop.color, percentage);
+    };
+
+    for (auto repeat_count = 1; repeat_count <= negative_repeat_count; repeat_count++) {
+        for (auto stop : color_stop_list.in_reverse()) {
+            stop.position += repeat_length * static_cast<float>(-repeat_count);
+            if (stop.position < 0) {
+                stop.color = get_color_between_stops(0.0f, stop, color_stop_list_with_expanded_repeat.first());
+                color_stop_list_with_expanded_repeat.prepend(stop);
+                break;
+            }
+            color_stop_list_with_expanded_repeat.prepend(stop);
         }
     }
-    VERIFY_NOT_REACHED();
+
+    for (auto repeat_count = 0; repeat_count < positive_repeat_count; repeat_count++) {
+        for (auto stop : color_stop_list) {
+            stop.position += repeat_length * static_cast<float>(repeat_count);
+            if (stop.position > 1) {
+                stop.color = get_color_between_stops(1.0f, stop, color_stop_list_with_expanded_repeat.last());
+                color_stop_list_with_expanded_repeat.append(stop);
+                break;
+            }
+            color_stop_list_with_expanded_repeat.append(stop);
+        }
+    }
+
+    return color_stop_list_with_expanded_repeat;
 }
 
 CommandResult DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& command)
