@@ -16,3 +16,19 @@ test("const in for head", () => {
         c;
     }).toThrowWithMessage(ReferenceError, "'c' is not defined");
 });
+
+test("let variables captured by value", () => {
+    let result = "";
+    let functionList = [];
+    for (let i = 0; i < 9; i++) {
+        result += i;
+        functionList.push(function () {
+            return i;
+        });
+    }
+    for (let i = 0; i < functionList.length; i++) {
+        result += functionList[i]();
+    }
+
+    expect(result).toEqual("012345678012345678");
+});
