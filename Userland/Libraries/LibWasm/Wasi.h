@@ -884,7 +884,7 @@ private:
     ErrorOr<Result<void>> impl$path_symlink(Configuration&, Pointer<u8> old_path, Size old_path_len, FD, Pointer<u8> new_path, Size new_path_len);
     ErrorOr<Result<void>> impl$path_unlink_file(Configuration&, FD, Pointer<u8> path, Size path_len);
     ErrorOr<Result<Size>> impl$poll_oneoff(Configuration&, ConstPointer<Subscription> in, Pointer<Event> out, Size nsubscriptions);
-    ErrorOr<Result<void>> impl$proc_exit(Configuration&, ExitCode); // Note: noreturn.
+    ErrorOr<void> impl$proc_exit(Configuration&, ExitCode);
     ErrorOr<Result<void>> impl$proc_raise(Configuration&, Signal);
     ErrorOr<Result<void>> impl$sched_yield(Configuration&);
     ErrorOr<Result<void>> impl$random_get(Configuration&, Pointer<u8> buf, Size buf_len);
