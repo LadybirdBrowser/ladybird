@@ -3,6 +3,7 @@
 #import <HTML/HTMLElement.idl>
 #import <HTML/DOMStringMap.idl>
 #import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGSVGElement.idl>
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGElement
 [Exposed=Window]
@@ -10,7 +11,7 @@ interface SVGElement : Element {
 
     [SameObject] readonly attribute SVGAnimatedString className;
 
-    [FIXME] readonly attribute SVGSVGElement? ownerSVGElement;
+    readonly attribute SVGSVGElement? ownerSVGElement;
     [FIXME] readonly attribute SVGElement? viewportElement;
 };
 

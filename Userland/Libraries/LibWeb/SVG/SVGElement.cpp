@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/DOMStringMap.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
 
 namespace Web::SVG {
@@ -123,6 +124,15 @@ JS::NonnullGCPtr<SVGAnimatedString> SVGElement::class_name()
         m_class_name_animated_string = SVGAnimatedString::create(realm(), *this, AttributeNames::class_);
 
     return *m_class_name_animated_string;
+}
+
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__ownerSVGElement
+JS::GCPtr<SVGSVGElement> SVGElement::owner_svg_element()
+{
+    // The ownerSVGElement IDL attribute represents the nearest ancestor ‘svg’ element.
+    // On getting ownerSVGElement, the nearest ancestor ‘svg’ element is returned;
+    // if the current element is the outermost svg element, then null is returned.
+    return first_ancestor_of_type<SVGSVGElement>();
 }
 
 JS::NonnullGCPtr<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::PropertyID property) const
