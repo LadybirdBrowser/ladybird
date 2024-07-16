@@ -46,8 +46,8 @@
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
 #endif
 
-static ErrorOr<void> load_content_filters();
-static ErrorOr<void> load_autoplay_allowlist();
+static ErrorOr<void> load_content_filters(StringView config_path);
+static ErrorOr<void> load_autoplay_allowlist(StringView config_path);
 static ErrorOr<void> initialize_lagom_networking(int request_server_socket);
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
@@ -92,6 +92,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     StringView command_line {};
     StringView executable_path {};
+    auto config_path = ByteString::formatted("{}/ladybird/default-config", s_serenity_resource_root);
     StringView mach_server_name {};
     Vector<ByteString> certificates;
     int request_server_socket { -1 };
@@ -108,6 +109,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Core::ArgsParser args_parser;
     args_parser.add_option(command_line, "Chrome process command line", "command-line", 0, "command_line");
     args_parser.add_option(executable_path, "Chrome process executable path", "executable-path", 0, "executable_path");
+    args_parser.add_option(config_path, "Ladybird configuration path", "config-path", 0, "config_path");
     args_parser.add_option(request_server_socket, "File descriptor of the socket for the RequestServer connection", "request-server-socket", 'r', "request_server_socket");
     args_parser.add_option(image_decoder_socket, "File descriptor of the socket for the ImageDecoder connection", "image-decoder-socket", 'i', "image_decoder_socket");
     args_parser.add_option(is_layout_test_mode, "Is layout test mode", "layout-test-mode");
@@ -173,11 +175,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         Web::WebIDL::g_enable_idl_tracing = true;
     }
 
-    auto maybe_content_filter_error = load_content_filters();
+    auto maybe_content_filter_error = load_content_filters(config_path);
     if (maybe_content_filter_error.is_error())
         dbgln("Failed to load content filters: {}", maybe_content_filter_error.error());
 
-    auto maybe_autoplay_allowlist_error = load_autoplay_allowlist();
+    auto maybe_autoplay_allowlist_error = load_autoplay_allowlist(config_path);
     if (maybe_autoplay_allowlist_error.is_error())
         dbgln("Failed to load autoplay allowlist: {}", maybe_autoplay_allowlist_error.error());
 
@@ -193,12 +195,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     return event_loop.exec();
 }
 
-static ErrorOr<void> load_content_filters()
+static ErrorOr<void> load_content_filters(StringView config_path)
 {
     auto buffer = TRY(ByteBuffer::create_uninitialized(4096));
 
-    auto resource = TRY(Core::Resource::load_from_uri("resource://ladybird/default-config/BrowserContentFilters.txt"sv));
-    auto ad_filter_list = TRY(InputBufferedSeekable<FixedMemoryStream>::create(make<FixedMemoryStream>(resource->data())));
+    auto file = TRY(Core::File::open(ByteString::formatted("{}/BrowserContentFilters.txt", config_path), Core::File::OpenMode::Read));
+    auto ad_filter_list = TRY(Core::InputBufferedFile::create(move(file)));
 
     Vector<String> patterns;
 
@@ -217,12 +219,12 @@ static ErrorOr<void> load_content_filters()
     return {};
 }
 
-static ErrorOr<void> load_autoplay_allowlist()
+static ErrorOr<void> load_autoplay_allowlist(StringView config_path)
 {
     auto buffer = TRY(ByteBuffer::create_uninitialized(4096));
 
-    auto resource = TRY(Core::Resource::load_from_uri("resource://ladybird/default-config/BrowserAutoplayAllowlist.txt"sv));
-    auto allowlist = TRY(InputBufferedSeekable<FixedMemoryStream>::create(make<FixedMemoryStream>(resource->data())));
+    auto file = TRY(Core::File::open(ByteString::formatted("{}/BrowserAutoplayAllowlist.txt", config_path), Core::File::OpenMode::Read));
+    auto allowlist = TRY(Core::InputBufferedFile::create(move(file)));
 
     Vector<String> origins;
 
