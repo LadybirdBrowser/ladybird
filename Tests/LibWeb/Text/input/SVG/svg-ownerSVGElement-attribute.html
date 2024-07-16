@@ -1,0 +1,14 @@
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" id="svg-element">
+    <linearGradient id="linear-gradient-element" />
+</svg>
+<script>
+    test(() => {
+        const svgElement = document.getElementById("svg-element");
+        println(`svg.ownerSVGElement = '${svgElement.ownerSVGElement}'`);
+
+        const linearGradientElement = document.getElementById("linear-gradient-element");
+        println(`linearGradient.ownerSVGElement = '${linearGradientElement.ownerSVGElement}'`);
+        println(`linearGradient.ownerSVGElement == svg = '${linearGradientElement.ownerSVGElement === svgElement}'`);
+    });
+</script>

@@ -32,6 +32,7 @@ public:
     void blur();
 
     JS::NonnullGCPtr<SVGAnimatedString> class_name();
+    JS::GCPtr<SVGSVGElement> owner_svg_element();
 
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
