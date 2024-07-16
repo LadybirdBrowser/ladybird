@@ -99,6 +99,11 @@ public:
 
     NonnullRefPtr<Gfx::SVGGradientPaintStyle> create_gfx_paint_style() const override;
 
+    Gfx::FloatPoint start_center() const { return m_start_center; }
+    float start_radius() const { return m_start_radius; }
+    Gfx::FloatPoint end_center() const { return m_end_center; }
+    float end_radius() const { return m_end_radius; }
+
     void set_start_center(Gfx::FloatPoint start_center) { m_start_center = start_center; }
     void set_start_radius(float start_radius) { m_start_radius = start_radius; }
     void set_end_center(Gfx::FloatPoint end_center) { m_end_center = end_center; }
