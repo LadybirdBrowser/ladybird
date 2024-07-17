@@ -997,12 +997,6 @@ Vector<Vector<String>> StyleProperties::grid_template_areas() const
     return value->as_grid_template_area().grid_template_area();
 }
 
-String StyleProperties::grid_area() const
-{
-    auto value = property(CSS::PropertyID::GridArea);
-    return value->as_string().string_value();
-}
-
 Optional<CSS::ObjectFit> StyleProperties::object_fit() const
 {
     auto value = property(CSS::PropertyID::ObjectFit);
