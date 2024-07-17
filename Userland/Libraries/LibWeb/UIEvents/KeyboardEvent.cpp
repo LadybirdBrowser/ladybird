@@ -683,6 +683,29 @@ bool KeyboardEvent::get_modifier_state(String const& key_arg) const
     return false;
 }
 
+// https://w3c.github.io/uievents/#dom-keyboardevent-initkeyboardevent
+void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool cancelable, HTML::Window* view, String const& key, WebIDL::UnsignedLong location, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key)
+{
+    // Initializes attributes of a KeyboardEvent object. This method has the same behavior as UIEvent.initUIEvent().
+    // The value of detail remains undefined.
+
+    // 1. If this’s dispatch flag is set, then return.
+    if (dispatched())
+        return;
+
+    // 2. Initialize this with type, bubbles, and cancelable.
+    initialize_event(type, bubbles, cancelable);
+
+    // Implementation Defined: Initialise other values.
+    m_view = view;
+    m_key = key;
+    m_location = location;
+    m_ctrl_key = ctrl_key;
+    m_alt_key = alt_key;
+    m_shift_key = shift_key;
+    m_meta_key = meta_key;
+}
+
 JS::NonnullGCPtr<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)
 {
     return realm.heap().allocate<KeyboardEvent>(realm, realm, event_name, event_init);
