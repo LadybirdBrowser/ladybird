@@ -59,7 +59,7 @@ void AudioCodecPluginQt::seek(double position)
     m_audio_thread->queue_task(move(task)).release_value_but_fixme_should_propagate_errors();
 }
 
-Duration AudioCodecPluginQt::duration()
+AK::Duration AudioCodecPluginQt::duration()
 {
     return m_audio_thread->duration();
 }
