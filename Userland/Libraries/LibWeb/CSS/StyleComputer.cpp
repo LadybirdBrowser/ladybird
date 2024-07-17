@@ -1742,7 +1742,7 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
         if (animation_name.is_null())
             return OptionalNone {};
         if (animation_name->is_string())
-            return animation_name->as_string().string_value();
+            return animation_name->as_string().string_value().to_string();
         return animation_name->to_string();
     }();
 

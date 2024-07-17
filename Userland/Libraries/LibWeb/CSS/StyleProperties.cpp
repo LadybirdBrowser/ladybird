@@ -656,13 +656,13 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(u32 in
     auto get_quote_string = [&](bool open, auto depth) {
         switch (quotes_data.type) {
         case QuotesData::Type::None:
-            return String {};
+            return FlyString {};
         case QuotesData::Type::Auto:
             // FIXME: "A typographically appropriate used value for quotes is automatically chosen by the UA
             //        based on the content language of the element and/or its parent."
             if (open)
-                return depth == 0 ? "“"_string : "‘"_string;
-            return depth == 0 ? "”"_string : "’"_string;
+                return depth == 0 ? "“"_fly_string : "‘"_fly_string;
+            return depth == 0 ? "”"_fly_string : "’"_fly_string;
         case QuotesData::Type::Specified:
             // If the depth is greater than the number of pairs, the last pair is repeated.
             auto& level = quotes_data.strings[min(depth, quotes_data.strings.size() - 1)];
