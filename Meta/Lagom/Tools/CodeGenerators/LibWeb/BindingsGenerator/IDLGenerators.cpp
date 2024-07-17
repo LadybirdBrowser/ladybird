@@ -2786,6 +2786,8 @@ static Vector<Interface const&> create_an_inheritance_stack(IDL::Interface const
 
         // 2. Push I onto stack.
         inheritance_chain.append(*imported_interface_iterator);
+
+        current_interface = &*imported_interface_iterator;
     }
 
     // 4. Return stack.
