@@ -27,7 +27,12 @@ public:
 
     virtual ~PageClient() override;
 
-    static void set_use_skia_painter();
+    enum class UseSkiaPainter {
+        No,
+        CPUBackend,
+        GPUBackendIfAvailable,
+    };
+    static void set_use_skia_painter(UseSkiaPainter);
 
     virtual void schedule_repaint() override;
     virtual bool is_ready_to_paint() const override;
