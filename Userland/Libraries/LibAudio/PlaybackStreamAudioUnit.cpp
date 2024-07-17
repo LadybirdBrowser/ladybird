@@ -11,12 +11,7 @@
 #include <LibCore/SharedCircularQueue.h>
 #include <LibCore/ThreadedPromise.h>
 
-// Several AK types conflict with MacOS types.
-#define FixedPoint FixedPointMacOS
-#define Duration DurationMacOS
 #include <AudioUnit/AudioUnit.h>
-#undef FixedPoint
-#undef Duration
 
 namespace Audio {
 
