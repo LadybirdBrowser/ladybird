@@ -96,7 +96,7 @@ template<>
 ErrorOr<JsonValue> decode(Decoder&);
 
 template<>
-ErrorOr<Duration> decode(Decoder&);
+ErrorOr<AK::Duration> decode(Decoder&);
 
 template<>
 ErrorOr<UnixDateTime> decode(Decoder&);
