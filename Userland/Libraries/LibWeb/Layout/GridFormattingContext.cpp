@@ -24,9 +24,19 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_d
         };
     }
 
+    // https://drafts.csswg.org/css-grid-2/#algo-terms
+    // min track sizing function:
+    // If the track was sized with a minmax() function, this is the first argument to that function.
+    // If the track was sized with a <flex> value or fit-content() function, auto. Otherwise, the track’s sizing function.
+    auto min_track_sizing_function = definition.grid_size();
+    if (min_track_sizing_function.is_flexible_length()) {
+        min_track_sizing_function = CSS::GridSize::make_auto();
+    }
+    auto max_track_sizing_function = definition.grid_size();
+
     return GridTrack {
-        .min_track_sizing_function = definition.grid_size(),
-        .max_track_sizing_function = definition.grid_size(),
+        .min_track_sizing_function = min_track_sizing_function,
+        .max_track_sizing_function = max_track_sizing_function,
     };
 }
 
@@ -766,7 +776,7 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
         });
 
         auto item_spans_tracks_with_flexible_sizing_function = any_of(spanned_tracks, [](auto& track) {
-            return track.min_track_sizing_function.is_flexible_length() || track.max_track_sizing_function.is_flexible_length();
+            return track.max_track_sizing_function.is_flexible_length();
         });
         if (item_spans_tracks_with_flexible_sizing_function)
             continue;
@@ -867,7 +877,7 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
         });
 
         auto item_spans_tracks_with_flexible_sizing_function = any_of(spanned_tracks, [](auto& track) {
-            return track.min_track_sizing_function.is_flexible_length() || track.max_track_sizing_function.is_flexible_length();
+            return track.max_track_sizing_function.is_flexible_length();
         });
         if (!item_spans_tracks_with_flexible_sizing_function)
             continue;
@@ -877,7 +887,7 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
         auto item_minimum_contribution = calculate_minimum_contribution(item, dimension);
         distribute_extra_space_across_spanned_tracks_base_size(dimension,
             item_minimum_contribution, SpaceDistributionPhase::AccommodateMinimumContribution, spanned_tracks, [&](GridTrack const& track) {
-                return track.min_track_sizing_function.is_flexible_length();
+                return track.max_track_sizing_function.is_flexible_length();
             });
 
         for (auto& track : spanned_tracks) {
@@ -2286,14 +2296,23 @@ CSSPixels GridFormattingContext::automatic_minimum_size(GridItem const& item, Gr
     // in a given axis is the content-based minimum size if all of the following are true:
     // - it is not a scroll container
     // - it spans at least one track in that axis whose min track sizing function is auto
-    // FIXME: - if it spans more than one track in that axis, none of those tracks are flexible
+    // - if it spans more than one track in that axis, none of those tracks are flexible
     auto const& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
     auto item_track_index = item.raw_position(dimension);
+    auto item_track_span = item.span(dimension);
 
-    // FIXME: Check all tracks spanned by an item
     AvailableSize const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
-    auto item_spans_auto_tracks = tracks[item_track_index].min_track_sizing_function.is_auto(available_size);
-    if (item_spans_auto_tracks && !item.box->is_scroll_container()) {
+
+    bool spans_auto_tracks = false;
+    bool spans_flexible_tracks = false;
+    for (size_t index = 0; index < item_track_span; index++) {
+        auto const& track = tracks[item_track_index + index];
+        if (track.max_track_sizing_function.is_flexible_length())
+            spans_flexible_tracks = true;
+        if (track.min_track_sizing_function.is_auto(available_size))
+            spans_auto_tracks = true;
+    }
+    if (spans_auto_tracks && !item.box->is_scroll_container() && (item_track_span == 1 || !spans_flexible_tracks)) {
         return content_based_minimum_size(item, dimension);
     }
 
