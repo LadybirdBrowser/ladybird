@@ -334,9 +334,11 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         element.clear_pseudo_element_nodes({});
         VERIFY(!element.needs_style_update());
         style = element.computed_css_values();
+        element.resolve_counters(*style);
         display = style->display();
         if (display.is_none())
             return;
+        // TODO: Implement changing element contents with the `content` property.
         if (context.layout_svg_mask_or_clip_path) {
             if (is<SVG::SVGMaskElement>(dom_node))
                 layout_node = document.heap().allocate_without_realm<Layout::SVGMaskBox>(document, static_cast<SVG::SVGMaskElement&>(dom_node), *style);
