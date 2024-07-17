@@ -3,4 +3,4 @@ set(VCPKG_TARGET_ARCHITECTURE arm64)
 set(VCPKG_OSX_ARCHITECTURES arm64)
 set(VCPKG_CRT_LINKAGE dynamic)
 
-include(${CMAKE_CURRENT_LIST_DIR}/../user-variables.cmake OPTIONAL)
+include(${CMAKE_CURRENT_LIST_DIR}/base.cmake)

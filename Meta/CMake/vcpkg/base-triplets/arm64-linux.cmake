@@ -2,4 +2,4 @@ set(VCPKG_CMAKE_SYSTEM_NAME Linux)
 set(VCPKG_TARGET_ARCHITECTURE arm64)
 set(VCPKG_CRT_LINKAGE dynamic)
 
-include(${CMAKE_CURRENT_LIST_DIR}/../user-variables.cmake OPTIONAL)
+include(${CMAKE_CURRENT_LIST_DIR}/base.cmake)
