@@ -9,6 +9,8 @@
 #include <AK/FixedPoint.h>
 #include <AK/NumericLimits.h>
 
+using AK::FixedPoint;
+
 using Type = FixedPoint<4>;
 
 TEST_CASE(arithmetic)

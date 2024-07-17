@@ -480,7 +480,3 @@ struct Formatter<FixedPoint<precision, Underlying>> : StandardFormatter {
 };
 
 }
-
-#if USING_AK_GLOBALLY
-using AK::FixedPoint;
-#endif
