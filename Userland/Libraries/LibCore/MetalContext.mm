@@ -7,11 +7,7 @@
 #include <AK/OwnPtr.h>
 #include <LibCore/MetalContext.h>
 
-#define FixedPoint FixedPointMacOS
-#define Duration DurationMacOS
-#include <Metal/Metal.h>
-#undef FixedPoint
-#undef Duration
+#import <Metal/Metal.h>
 
 namespace Core {
 

@@ -11,11 +11,7 @@
 static_assert(false, "This file must only be used for macOS");
 #endif
 
-#define FixedPoint FixedPointMacOS
-#define Duration DurationMacOS
-#include <IOSurface/IOSurface.h>
-#undef FixedPoint
-#undef Duration
+#import <IOSurface/IOSurface.h>
 
 namespace Core {
 
