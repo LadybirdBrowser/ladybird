@@ -1,0 +1,12 @@
+documentFragment.isDefaultNamespace(null): true
+documentFragment.isDefaultNamespace(""): true
+documentFragment.isDefaultNamespace("foo"): false
+documentFragment.isDefaultNamespace("xmlms"): false
+docType.isDefaultNamespace(null): true
+docType.isDefaultNamespace(""): true
+docType.isDefaultNamespace("foo"): false
+docType.isDefaultNamespace("xmlms"): false
+element.isDefaultNamespace(null): true
+element.isDefaultNamespace(""): true
+element.isDefaultNamespace("foo"): false
+element.isDefaultNamespace("xmlms"): false
