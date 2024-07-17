@@ -22,10 +22,10 @@ interface HTMLTrackElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString label;
     [CEReactions, Reflect] attribute boolean default;
 
-    // FIXME: [const unsigned short NONE = 0;
-    // FIXME: [const unsigned short LOADING = 1;
-    // FIXME: [const unsigned short LOADED = 2;
-    // FIXME: [const unsigned short ERROR = 3;
+    const unsigned short NONE = 0;
+    const unsigned short LOADING = 1;
+    const unsigned short LOADED = 2;
+    const unsigned short ERROR = 3;
     [FIXME] readonly attribute unsigned short readyState;
 
     readonly attribute TextTrack track;
