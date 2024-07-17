@@ -104,21 +104,20 @@ jobs:
         run: |
           set -e
 
-          cmake -GNinja -S Meta/Lagom -B ${{ github.workspace }}/tools-build \
+          cmake --preset=CI -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
             -DLAGOM_TOOLS_ONLY=ON \
             -DINSTALL_LAGOM_TOOLS=ON \
-            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/tool-install \
-            -DSERENITY_CACHE_DIR=${{ github.workspace }}/Build/caches \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/Build/tools-install \
             -DCMAKE_C_COMPILER=gcc-13 \
             -DCMAKE_CXX_COMPILER=g++-13 \
             -Dpackage=LagomTools
 
-          ninja -C tools-build install
+          ninja -C ${{ github.workspace }}/Build/tools-build install
 
           cmake --preset Fuzzers_CI -B Build \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
-            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/tool-install
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/Build/tools-install
 
       # === BUILD ===
 
