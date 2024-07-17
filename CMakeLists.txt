@@ -7,6 +7,11 @@ if (VCPKG_TARGET_ANDROID)
     include("Ladybird/Android/vcpkg_android.cmake")
 endif()
 
+# Pass additional information to vcpkg toolchain files if we are using vcpkg.
+if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake$")
+    set(CMAKE_PROJECT_ladybird_INCLUDE_BEFORE "Meta/CMake/vcpkg/generate_vcpkg_toolchain_variables.cmake")
+endif()
+
 project(ladybird
         VERSION 0.1.0
         LANGUAGES C CXX
