@@ -24,17 +24,17 @@ public:
     virtual ~AudioCodecPlugin();
 
     static ErrorOr<FixedArray<Audio::Sample>> read_samples_from_loader(Audio::Loader&, size_t samples_to_load);
-    static Duration set_loader_position(Audio::Loader&, double position, Duration duration);
-    static Duration current_loader_position(Audio::Loader const&);
+    static AK::Duration set_loader_position(Audio::Loader&, double position, AK::Duration duration);
+    static AK::Duration current_loader_position(Audio::Loader const&);
 
     virtual void resume_playback() = 0;
     virtual void pause_playback() = 0;
     virtual void set_volume(double) = 0;
     virtual void seek(double) = 0;
 
-    virtual Duration duration() = 0;
+    virtual AK::Duration duration() = 0;
 
-    Function<void(Duration)> on_playback_position_updated;
+    Function<void(AK::Duration)> on_playback_position_updated;
     Function<void(String)> on_decoder_error;
 
 protected:

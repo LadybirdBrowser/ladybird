@@ -27,9 +27,9 @@ public:
     void pause_video(Badge<HTMLVideoElement>);
     void stop_video(Badge<HTMLVideoElement>);
 
-    Duration position() const;
-    Duration duration() const;
-    void seek(Duration, MediaSeekMode);
+    AK::Duration position() const;
+    AK::Duration duration() const;
+    void seek(AK::Duration, MediaSeekMode);
 
     u64 pixel_width() const;
     u64 pixel_height() const;

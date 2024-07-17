@@ -132,7 +132,7 @@ void HTMLVideoElement::on_paused()
 void HTMLVideoElement::on_seek(double position, MediaSeekMode seek_mode)
 {
     if (m_video_track)
-        m_video_track->seek(Duration::from_milliseconds(position * 1000.0), seek_mode);
+        m_video_track->seek(AK::Duration::from_milliseconds(position * 1000.0), seek_mode);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#attr-video-poster

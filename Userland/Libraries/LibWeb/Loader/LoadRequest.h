@@ -41,7 +41,7 @@ public:
     void set_body(ByteBuffer body) { m_body = move(body); }
 
     void start_timer() { m_load_timer.start(); }
-    Duration load_time() const { return m_load_timer.elapsed_time(); }
+    AK::Duration load_time() const { return m_load_timer.elapsed_time(); }
 
     JS::GCPtr<Page> page() const { return m_page.ptr(); }
     void set_page(Page& page) { m_page = page; }

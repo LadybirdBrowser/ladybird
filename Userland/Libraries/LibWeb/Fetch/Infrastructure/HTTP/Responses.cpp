@@ -233,24 +233,24 @@ bool Response::is_stale() const
 u64 Response::current_age() const
 {
     // The term "age_value" denotes the value of the Age header field (Section 5.1), in a form appropriate for arithmetic operation; or 0, if not available.
-    Optional<Duration> age;
+    Optional<AK::Duration> age;
     if (auto const age_header = header_list()->get("Age"sv.bytes()); age_header.has_value()) {
         if (auto converted_age = StringView { *age_header }.to_number<u64>(); converted_age.has_value())
-            age = Duration::from_seconds(converted_age.value());
+            age = AK::Duration::from_seconds(converted_age.value());
     }
 
-    auto const age_value = age.value_or(Duration::from_seconds(0));
+    auto const age_value = age.value_or(AK::Duration::from_seconds(0));
 
     // The term "date_value" denotes the value of the Date header field, in a form appropriate for arithmetic operations. See Section 6.6.1 of [HTTP] for the definition of the Date header field and for requirements regarding responses without it.
     // FIXME: Do we have a parser for HTTP-date?
-    auto const date_value = UnixDateTime::now() - Duration::from_seconds(5);
+    auto const date_value = UnixDateTime::now() - AK::Duration::from_seconds(5);
 
     // The term "now" means the current value of this implementation's clock (Section 5.6.7 of [HTTP]).
     auto const now = UnixDateTime::now();
 
     // The value of the clock at the time of the request that resulted in the stored response.
     // FIXME: Let's get the correct time.
-    auto const request_time = UnixDateTime::now() - Duration::from_seconds(5);
+    auto const request_time = UnixDateTime::now() - AK::Duration::from_seconds(5);
 
     // The value of the clock at the time the response was received.
     auto const response_time = m_response_time;

@@ -82,7 +82,7 @@ private:
     JS::GCPtr<Fetch::Infrastructure::Request> m_request;
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-event-stream-reconnection-time
-    Duration m_reconnection_time { Duration::from_seconds(3) };
+    AK::Duration m_reconnection_time { AK::Duration::from_seconds(3) };
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-event-stream-last-event-id
     String m_last_event_id;

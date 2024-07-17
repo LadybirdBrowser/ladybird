@@ -17,12 +17,12 @@ namespace Web::Platform {
 
 constexpr int update_interval = 50;
 
-static Duration timestamp_from_samples(i64 samples, u32 sample_rate)
+static AK::Duration timestamp_from_samples(i64 samples, u32 sample_rate)
 {
-    return Duration::from_milliseconds(samples * 1000 / sample_rate);
+    return AK::Duration::from_milliseconds(samples * 1000 / sample_rate);
 }
 
-static Duration get_loader_timestamp(NonnullRefPtr<Audio::Loader> const& loader)
+static AK::Duration get_loader_timestamp(NonnullRefPtr<Audio::Loader> const& loader)
 {
     return timestamp_from_samples(loader->loaded_samples(), loader->sample_rate());
 }
@@ -80,7 +80,7 @@ ErrorOr<NonnullOwnPtr<AudioCodecPluginAgnostic>> AudioCodecPluginAgnostic::creat
     return plugin;
 }
 
-AudioCodecPluginAgnostic::AudioCodecPluginAgnostic(NonnullRefPtr<Audio::Loader> loader, Duration duration, NonnullRefPtr<Core::Timer> update_timer)
+AudioCodecPluginAgnostic::AudioCodecPluginAgnostic(NonnullRefPtr<Audio::Loader> loader, AK::Duration duration, NonnullRefPtr<Core::Timer> update_timer)
     : m_loader(move(loader))
     , m_duration(duration)
     , m_main_thread_event_loop(Core::EventLoop::current())
@@ -95,7 +95,7 @@ void AudioCodecPluginAgnostic::resume_playback()
 {
     m_paused = false;
     m_output->resume()
-        ->when_resolved([this](Duration new_device_time) {
+        ->when_resolved([this](AK::Duration new_device_time) {
             m_main_thread_event_loop.deferred_invoke([this, new_device_time]() {
                 m_last_resume_in_device_time = new_device_time;
                 m_update_timer->start();
@@ -164,7 +164,7 @@ void AudioCodecPluginAgnostic::seek(double position)
         });
 }
 
-Duration AudioCodecPluginAgnostic::duration()
+AK::Duration AudioCodecPluginAgnostic::duration()
 {
     return m_duration;
 }

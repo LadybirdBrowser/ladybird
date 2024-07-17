@@ -20,19 +20,19 @@ public:
     virtual void set_volume(double) override;
     virtual void seek(double) override;
 
-    virtual Duration duration() override;
+    virtual AK::Duration duration() override;
 
 private:
-    explicit AudioCodecPluginAgnostic(NonnullRefPtr<Audio::Loader> loader, Duration, NonnullRefPtr<Core::Timer> update_timer);
+    explicit AudioCodecPluginAgnostic(NonnullRefPtr<Audio::Loader> loader, AK::Duration, NonnullRefPtr<Core::Timer> update_timer);
 
     void update_timestamp();
 
     NonnullRefPtr<Audio::Loader> m_loader;
     RefPtr<Audio::PlaybackStream> m_output { nullptr };
-    Duration m_duration { Duration::zero() };
-    Duration m_last_resume_in_media_time { Duration::zero() };
-    Duration m_last_resume_in_device_time { Duration::zero() };
-    Duration m_last_good_device_time { Duration::zero() };
+    AK::Duration m_duration { AK::Duration::zero() };
+    AK::Duration m_last_resume_in_media_time { AK::Duration::zero() };
+    AK::Duration m_last_resume_in_device_time { AK::Duration::zero() };
+    AK::Duration m_last_good_device_time { AK::Duration::zero() };
     Core::EventLoop& m_main_thread_event_loop;
     NonnullRefPtr<Core::Timer> m_update_timer;
     bool m_paused { true };

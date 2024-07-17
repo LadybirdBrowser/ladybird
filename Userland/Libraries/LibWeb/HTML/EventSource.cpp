@@ -399,7 +399,7 @@ void EventSource::process_field(StringView field, StringView value)
         // If the field value consists of only ASCII digits, then interpret the field value as an integer in base ten,
         // and set the event stream's reconnection time to that integer. Otherwise, ignore the field.
         if (auto retry = value.to_number<i64>(); retry.has_value())
-            m_reconnection_time = Duration::from_seconds(*retry);
+            m_reconnection_time = AK::Duration::from_seconds(*retry);
     }
     // -> Otherwise
     else {

@@ -25,7 +25,7 @@ public:
     void play(Badge<HTMLAudioElement>);
     void pause(Badge<HTMLAudioElement>);
 
-    Duration duration();
+    AK::Duration duration();
     void seek(double, MediaSeekMode);
 
     void update_volume();

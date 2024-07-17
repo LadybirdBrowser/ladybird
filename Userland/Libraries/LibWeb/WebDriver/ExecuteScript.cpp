@@ -332,7 +332,7 @@ ExecuteScriptResultSerialized execute_async_script(Web::Page& page, ByteString c
     auto start = MonotonicTime::now();
 
     auto has_timed_out = [&] {
-        return timeout.has_value() && (MonotonicTime::now() - start) > Duration::from_seconds(static_cast<i64>(*timeout));
+        return timeout.has_value() && (MonotonicTime::now() - start) > AK::Duration::from_seconds(static_cast<i64>(*timeout));
     };
 
     // AD-HOC: An execution context is required for Promise creation hooks.
