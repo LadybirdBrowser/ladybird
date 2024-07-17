@@ -28,7 +28,7 @@ public:
         bool is_animated = false;
         u32 loop_count = 0;
         Gfx::FloatPoint scale { 1, 1 };
-        Vector<Gfx::ShareableBitmap> bitmaps;
+        Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
         Vector<u32> durations;
     };
 

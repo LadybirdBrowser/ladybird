@@ -75,16 +75,16 @@ Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::co
     return files;
 }
 
-static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<Gfx::ShareableBitmap>& bitmaps, Vector<u32>& durations)
+static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>>& bitmaps, Vector<u32>& durations)
 {
     for (size_t i = 0; i < decoder.frame_count(); ++i) {
         auto frame_or_error = decoder.frame(i, ideal_size);
         if (frame_or_error.is_error()) {
-            bitmaps.append(Gfx::ShareableBitmap {});
+            bitmaps.append({});
             durations.append(0);
         } else {
             auto frame = frame_or_error.release_value();
-            bitmaps.append(frame.image->to_shareable_bitmap());
+            bitmaps.append(frame.image.release_nonnull());
             durations.append(frame.duration);
         }
     }

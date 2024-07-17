@@ -57,7 +57,7 @@ NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes en
     return promise;
 }
 
-void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Vector<Gfx::ShareableBitmap> const& bitmaps, Vector<u32> const& durations, Gfx::FloatPoint scale)
+void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> const& bitmaps, Vector<u32> const& durations, Gfx::FloatPoint scale)
 {
     VERIFY(!bitmaps.is_empty());
 
@@ -74,13 +74,13 @@ void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Ve
     image.scale = scale;
     image.frames.ensure_capacity(bitmaps.size());
     for (size_t i = 0; i < bitmaps.size(); ++i) {
-        if (!bitmaps[i].is_valid()) {
+        if (!bitmaps[i].has_value()) {
             dbgln("ImageDecoderClient: Invalid bitmap for request {} at index {}", image_id, i);
             promise->reject(Error::from_string_literal("Invalid bitmap"));
             return;
         }
 
-        image.frames.empend(*bitmaps[i].bitmap(), durations[i]);
+        image.frames.empend(*bitmaps[i], durations[i]);
     }
 
     promise->resolve(move(image));
