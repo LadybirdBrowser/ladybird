@@ -33,7 +33,16 @@ public:
 
     void init_ui_event(String const& type, bool bubbles, bool cancelable, HTML::Window* view, int detail)
     {
-        init_event(type, bubbles, cancelable);
+        // Initializes attributes of an UIEvent object. This method has the same behavior as initEvent().
+
+        // 1. If this’s dispatch flag is set, then return.
+        if (dispatched())
+            return;
+
+        // 2. Initialize this with type, bubbles, and cancelable.
+        initialize_event(type, bubbles, cancelable);
+
+        // Implementation Defined: Initialise other values.
         m_view = view;
         m_detail = detail;
     }
