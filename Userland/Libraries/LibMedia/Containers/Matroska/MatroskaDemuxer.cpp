@@ -109,7 +109,7 @@ DecoderErrorOr<ReadonlyBytes> MatroskaDemuxer::get_codec_initialization_data_for
     return TRY(m_reader.track_for_track_number(track.identifier()))->codec_private_data();
 }
 
-DecoderErrorOr<Optional<Duration>> MatroskaDemuxer::seek_to_most_recent_keyframe(Track track, Duration timestamp, Optional<Duration> earliest_available_sample)
+DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::seek_to_most_recent_keyframe(Track track, AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample)
 {
     // Removing the track status will cause us to start from the beginning.
     if (timestamp.is_zero()) {
@@ -151,10 +151,10 @@ DecoderErrorOr<Sample> MatroskaDemuxer::get_next_sample_for_track(Track track)
     return Sample(status.block->timestamp(), status.block->frame(status.frame_index++), VideoSampleData(cicp));
 }
 
-DecoderErrorOr<Duration> MatroskaDemuxer::duration()
+DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration()
 {
     auto duration = TRY(m_reader.segment_information()).duration();
-    return duration.value_or(Duration::zero());
+    return duration.value_or(AK::Duration::zero());
 }
 
 }

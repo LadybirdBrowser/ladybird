@@ -19,13 +19,13 @@ public:
     FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
     ~FFmpegVideoDecoder();
 
-    DecoderErrorOr<void> receive_sample(Duration timestamp, ReadonlyBytes sample) override;
+    DecoderErrorOr<void> receive_sample(AK::Duration timestamp, ReadonlyBytes sample) override;
     DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
 
     void flush() override;
 
 private:
-    DecoderErrorOr<void> decode_single_sample(Duration timestamp, u8* data, int size);
+    DecoderErrorOr<void> decode_single_sample(AK::Duration timestamp, u8* data, int size);
 
     AVCodecContext* m_codec_context;
     AVPacket* m_packet;

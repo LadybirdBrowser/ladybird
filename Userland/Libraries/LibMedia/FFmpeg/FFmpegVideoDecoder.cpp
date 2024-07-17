@@ -101,7 +101,7 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
     avcodec_free_context(&m_codec_context);
 }
 
-DecoderErrorOr<void> FFmpegVideoDecoder::receive_sample(Duration timestamp, ReadonlyBytes sample)
+DecoderErrorOr<void> FFmpegVideoDecoder::receive_sample(AK::Duration timestamp, ReadonlyBytes sample)
 {
     VERIFY(sample.size() < NumericLimits<int>::max());
 
@@ -189,7 +189,7 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
 
         auto size = Gfx::Size<u32> { m_frame->width, m_frame->height };
 
-        auto timestamp = Duration::from_microseconds(m_frame->pts);
+        auto timestamp = AK::Duration::from_microseconds(m_frame->pts);
         auto frame = DECODER_TRY_ALLOC(SubsampledYUVFrame::try_create(timestamp, size, bit_depth, cicp, subsampling));
 
         for (u32 plane = 0; plane < 3; plane++) {

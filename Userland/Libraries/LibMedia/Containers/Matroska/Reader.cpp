@@ -593,11 +593,11 @@ static DecoderErrorOr<Cluster> parse_cluster(Streamer& streamer, u64 timestamp_s
     TRY_READ(streamer.seek_to_position(first_element_position));
 
     Cluster cluster;
-    cluster.set_timestamp(Duration::from_nanoseconds(timestamp.release_value() * timestamp_scale));
+    cluster.set_timestamp(AK::Duration::from_nanoseconds(timestamp.release_value() * timestamp_scale));
     return cluster;
 }
 
-static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
+static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
 {
     Block block;
 
@@ -623,7 +623,7 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, Duration clu
     // This is only mentioned in the elements specification under TrackOffset.
     // https://www.matroska.org/technical/elements.html
     timestamp_offset_ns.saturating_add(AK::clamp_to<i64>(track.timestamp_offset()));
-    Duration timestamp_offset = Duration::from_nanoseconds(timestamp_offset_ns.value());
+    AK::Duration timestamp_offset = AK::Duration::from_nanoseconds(timestamp_offset_ns.value());
     block.set_timestamp(cluster_timestamp + timestamp_offset);
 
     auto flags = TRY_READ(streamer.read_octet());
@@ -756,7 +756,7 @@ static DecoderErrorOr<CuePoint> parse_cue_point(Streamer& streamer, u64 timestam
             // https://github.com/mozilla/nestegg/tree/ec6adfbbf979678e3058cc4695257366f39e290b/src/nestegg.c#L2411-L2416
             // https://github.com/mozilla/nestegg/tree/ec6adfbbf979678e3058cc4695257366f39e290b/src/nestegg.c#L1383-L1392
             // Other fields that specify Matroska Ticks may also use Segment Ticks instead, who knows :^(
-            auto timestamp = Duration::from_nanoseconds(static_cast<i64>(TRY_READ(streamer.read_u64()) * timestamp_scale));
+            auto timestamp = AK::Duration::from_nanoseconds(static_cast<i64>(TRY_READ(streamer.read_u64()) * timestamp_scale));
             cue_point.set_timestamp(timestamp);
             dbgln_if(MATROSKA_DEBUG, "Read CuePoint timestamp {}ms", cue_point.timestamp().to_milliseconds());
             break;
@@ -827,7 +827,7 @@ DecoderErrorOr<void> Reader::ensure_cues_are_parsed()
     return {};
 }
 
-DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator, Duration const& timestamp)
+DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator, AK::Duration const& timestamp)
 {
     auto const& cue_points = MUST(cue_points_for_track(iterator.m_track->track_number())).release_value();
 
@@ -866,7 +866,7 @@ DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator,
     return {};
 }
 
-static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(SampleIterator& iterator, Duration const& timestamp)
+static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(SampleIterator& iterator, AK::Duration const& timestamp)
 {
 #if MATROSKA_DEBUG
     size_t inter_frames_count;
@@ -908,7 +908,7 @@ DecoderErrorOr<bool> Reader::has_cues_for_track(u64 track_number)
     return m_cues.contains(track_number);
 }
 
-DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterator iterator, Duration timestamp)
+DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterator iterator, AK::Duration timestamp)
 {
     if (TRY(has_cues_for_track(iterator.m_track->track_number()))) {
         TRY(seek_to_cue_for_timestamp(iterator, timestamp));

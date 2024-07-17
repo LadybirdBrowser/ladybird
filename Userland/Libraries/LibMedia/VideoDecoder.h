@@ -18,8 +18,8 @@ class VideoDecoder {
 public:
     virtual ~VideoDecoder() {};
 
-    virtual DecoderErrorOr<void> receive_sample(Duration timestamp, ReadonlyBytes sample) = 0;
-    DecoderErrorOr<void> receive_sample(Duration timestamp, ByteBuffer const& sample) { return receive_sample(timestamp, sample.span()); }
+    virtual DecoderErrorOr<void> receive_sample(AK::Duration timestamp, ReadonlyBytes sample) = 0;
+    DecoderErrorOr<void> receive_sample(AK::Duration timestamp, ByteBuffer const& sample) { return receive_sample(timestamp, sample.span()); }
     virtual DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() = 0;
 
     virtual void flush() = 0;

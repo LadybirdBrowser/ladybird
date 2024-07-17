@@ -13,7 +13,7 @@
 namespace Media {
 
 ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create(
-    Duration timestamp,
+    AK::Duration timestamp,
     Gfx::Size<u32> size,
     u8 bit_depth, CodingIndependentCodePoints cicp,
     Subsampling subsampling)
@@ -40,7 +40,7 @@ ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create(
 }
 
 ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create_from_data(
-    Duration timestamp,
+    AK::Duration timestamp,
     Gfx::Size<u32> size,
     u8 bit_depth, CodingIndependentCodePoints cicp,
     Subsampling subsampling,
