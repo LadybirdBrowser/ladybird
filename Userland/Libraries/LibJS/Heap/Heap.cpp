@@ -517,7 +517,7 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     m_gc_bytes_threshold = live_cell_bytes > GC_MIN_BYTES_THRESHOLD ? live_cell_bytes : GC_MIN_BYTES_THRESHOLD;
 
     if (print_report) {
-        Duration const time_spent = measurement_timer.elapsed_time();
+        AK::Duration const time_spent = measurement_timer.elapsed_time();
         size_t live_block_count = 0;
         for_each_block([&](auto&) {
             ++live_block_count;
