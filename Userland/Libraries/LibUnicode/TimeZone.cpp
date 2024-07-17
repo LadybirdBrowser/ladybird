@@ -134,7 +134,7 @@ Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime tim
         return {};
 
     return TimeZoneOffset {
-        .offset = Duration::from_milliseconds(raw_offset + dst_offset),
+        .offset = AK::Duration::from_milliseconds(raw_offset + dst_offset),
         .in_dst = dst_offset == 0 ? TimeZoneOffset::InDST::No : TimeZoneOffset::InDST::Yes,
     };
 }
