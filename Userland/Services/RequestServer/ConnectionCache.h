@@ -228,7 +228,7 @@ extern size_t hits;
 extern size_t misses;
 
 template<typename Cache>
-void start_connection(const URL::URL& url, auto job, auto& sockets_for_url, size_t index, Duration, Cache&);
+void start_connection(const URL::URL& url, auto job, auto& sockets_for_url, size_t index, AK::Duration, Cache&);
 
 void ensure_connection(auto& cache, const URL::URL& url, auto job, Core::ProxyData proxy_data = {})
 {
@@ -296,7 +296,7 @@ void ensure_connection(auto& cache, const URL::URL& url, auto job, Core::ProxyDa
         connection.socket = socket_result.release_value();
     }
 
-    auto elapsed = Duration::from_milliseconds(timer.elapsed_milliseconds());
+    auto elapsed = AK::Duration::from_milliseconds(timer.elapsed_milliseconds());
 
     if (failed_to_find_a_socket) {
         if (!did_add_new_connection) {
@@ -320,7 +320,7 @@ void ensure_connection(auto& cache, const URL::URL& url, auto job, Core::ProxyDa
 }
 
 template<typename Cache>
-void start_connection(URL::URL const& url, auto job, auto& sockets_for_url, size_t index, Duration setup_time, Cache& cache)
+void start_connection(URL::URL const& url, auto job, auto& sockets_for_url, size_t index, AK::Duration setup_time, Cache& cache)
 {
     if (sockets_for_url.is_empty()) {
         Core::deferred_invoke([job] {
@@ -347,13 +347,13 @@ void start_connection(URL::URL const& url, auto job, auto& sockets_for_url, size
             (void)setup_time;
             auto job_data = JobData::create(job, url);
             if constexpr (REQUESTSERVER_DEBUG) {
-                job_data.timing_info.waiting_in_queue = Duration::from_milliseconds(job_data.timing_info.timer.elapsed_milliseconds());
+                job_data.timing_info.waiting_in_queue = AK::Duration::from_milliseconds(job_data.timing_info.timer.elapsed_milliseconds());
                 job_data.timing_info.timer.start();
             }
             if (auto result = recreate_socket_if_needed(connection, url); result.is_error()) {
                 dbgln_if(REQUESTSERVER_DEBUG, "ConnectionCache: request failed to start, failed to make a socket: {}", result.error());
                 if constexpr (REQUESTSERVER_DEBUG) {
-                    job_data.timing_info.starting_connection += Duration::from_milliseconds(job_data.timing_info.timer.elapsed_milliseconds()) + setup_time;
+                    job_data.timing_info.starting_connection += AK::Duration::from_milliseconds(job_data.timing_info.timer.elapsed_milliseconds()) + setup_time;
                     job_data.timing_info.timer.start();
                 }
                 Core::deferred_invoke([job] {
@@ -364,7 +364,7 @@ void start_connection(URL::URL const& url, auto job, auto& sockets_for_url, size
                     dbgln_if(REQUESTSERVER_DEBUG, "Immediately start request for url {} in {} - {}", url, &connection, connection.socket.ptr());
                     connection.job_data = move(job_data);
                     if constexpr (REQUESTSERVER_DEBUG) {
-                        connection.job_data->timing_info.starting_connection += Duration::from_milliseconds(connection.job_data->timing_info.timer.elapsed_milliseconds()) + setup_time;
+                        connection.job_data->timing_info.starting_connection += AK::Duration::from_milliseconds(connection.job_data->timing_info.timer.elapsed_milliseconds()) + setup_time;
                         connection.job_data->timing_info.timer.start();
                     }
                     connection.removal_timer->stop();
