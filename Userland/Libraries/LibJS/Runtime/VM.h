@@ -198,10 +198,16 @@ public:
         return JS::throw_completion(completion);
     }
 
+    template<typename T>
+    Completion throw_completion(ErrorType type)
+    {
+        return throw_completion<T>(String::from_utf8_without_validation(type.message().bytes()));
+    }
+
     template<typename T, typename... Args>
     Completion throw_completion(ErrorType type, Args&&... args)
     {
-        return throw_completion<T>(ByteString::formatted(type.message(), forward<Args>(args)...));
+        return throw_completion<T>(MUST(String::formatted(type.message(), forward<Args>(args)...)));
     }
 
     Value get_new_target();
