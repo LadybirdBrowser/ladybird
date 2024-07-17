@@ -278,7 +278,8 @@ struct PaintOptions {
 
 enum class DisplayListPlayerType {
     CPU,
-    Skia
+    SkiaGPUIfAvailable,
+    SkiaCPU,
 };
 
 class PageClient : public JS::Cell {

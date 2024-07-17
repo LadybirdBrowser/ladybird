@@ -105,7 +105,8 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
         display_list.execute(executor);
         break;
     }
-    case DisplayListPlayerType::Skia: {
+    case DisplayListPlayerType::SkiaGPUIfAvailable:
+    case DisplayListPlayerType::SkiaCPU: {
         Painting::DisplayListPlayerSkia executor { *bitmap };
         display_list.execute(executor);
         break;

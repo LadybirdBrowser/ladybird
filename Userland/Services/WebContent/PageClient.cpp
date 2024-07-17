@@ -27,13 +27,13 @@
 
 namespace WebContent {
 
-static bool s_use_skia_painter = false;
+static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::No;
 
 JS_DEFINE_ALLOCATOR(PageClient);
 
-void PageClient::set_use_skia_painter()
+void PageClient::set_use_skia_painter(UseSkiaPainter use_skia_painter)
 {
-    s_use_skia_painter = true;
+    s_use_skia_painter = use_skia_painter;
 }
 
 JS::NonnullGCPtr<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
@@ -732,9 +732,16 @@ void PageClient::did_get_js_console_messages(i32 start_index, Vector<ByteString>
 
 Web::DisplayListPlayerType PageClient::display_list_player_type() const
 {
-    if (s_use_skia_painter)
-        return Web::DisplayListPlayerType::Skia;
-    return Web::DisplayListPlayerType::CPU;
+    switch (s_use_skia_painter) {
+    case UseSkiaPainter::No:
+        return Web::DisplayListPlayerType::CPU;
+    case UseSkiaPainter::GPUBackendIfAvailable:
+        return Web::DisplayListPlayerType::SkiaGPUIfAvailable;
+    case UseSkiaPainter::CPUBackend:
+        return Web::DisplayListPlayerType::SkiaCPU;
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 void PageClient::queue_screenshot_task(Optional<i32> node_id)

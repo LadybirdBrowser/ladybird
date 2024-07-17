@@ -135,7 +135,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Web::set_chrome_process_executable_path(executable_path);
 
     if (use_skia_painter) {
-        WebContent::PageClient::set_use_skia_painter();
+        // Always use the CPU backend for layout tests, as the GPU backend is not deterministic
+        WebContent::PageClient::set_use_skia_painter(is_layout_test_mode ? WebContent::PageClient::UseSkiaPainter::CPUBackend : WebContent::PageClient::UseSkiaPainter::GPUBackendIfAvailable);
     }
 
     if (enable_http_cache) {

@@ -30,7 +30,7 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
 {
 #ifdef AK_OS_MACOS
     auto display_list_player_type = page->client().display_list_player_type();
-    if (display_list_player_type == DisplayListPlayerType::Skia) {
+    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
         m_metal_context = Core::get_metal_context();
         m_skia_backend_context = Painting::DisplayListPlayerSkia::create_metal_context(*m_metal_context);
     }
@@ -38,7 +38,7 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
 
 #ifdef USE_VULKAN
     auto display_list_player_type = page->client().display_list_player_type();
-    if (display_list_player_type == DisplayListPlayerType::Skia) {
+    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
         auto maybe_vulkan_context = Core::create_vulkan_context();
         if (!maybe_vulkan_context.is_error()) {
             auto vulkan_context = maybe_vulkan_context.release_value();
@@ -1203,8 +1203,8 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
     paint_config.has_focus = paint_options.has_focus;
     record_display_list(display_list_recorder, paint_config);
 
-    auto display_list_player_type = page().client().display_list_player_type();
-    if (display_list_player_type == DisplayListPlayerType::Skia) {
+    switch (page().client().display_list_player_type()) {
+    case DisplayListPlayerType::SkiaGPUIfAvailable: {
 #ifdef AK_OS_MACOS
         if (m_metal_context && m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
             auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
@@ -1223,11 +1223,23 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
         }
 #endif
 
+        // Fallback to CPU backend if GPU is not available
         Painting::DisplayListPlayerSkia player(target.bitmap());
         display_list.execute(player);
-    } else {
+        break;
+    }
+    case DisplayListPlayerType::SkiaCPU: {
+        Painting::DisplayListPlayerSkia player(target.bitmap());
+        display_list.execute(player);
+        break;
+    }
+    case DisplayListPlayerType::CPU: {
         Painting::DisplayListPlayerCPU player(target.bitmap());
         display_list.execute(player);
+        break;
+    }
+    default:
+        VERIFY_NOT_REACHED();
     }
 }
 
