@@ -1,0 +1,16 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x17 [GFC] children: not-inline
+      BlockContainer <main> at (150,8) content-size 500x17 [BFC] children: not-inline
+        BlockContainer <div#item> at (150,8) content-size 500x17 children: inline
+          frag 0 from TextNode start: 0, length: 11, rect: [150,8 105.953125x17] baseline: 13.296875
+              "Smartphones"
+          TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
+    PaintableBox (Box<BODY>) [8,8 784x17]
+      PaintableWithLines (BlockContainer<MAIN>) [150,8 500x17]
+        PaintableWithLines (BlockContainer<DIV>#item) [150,8 500x17]
+          TextPaintable (TextNode<#text>)
+

@@ -161,8 +161,6 @@ private:
 
     void init_grid_lines(GridDimension);
 
-    HashMap<String, GridArea> m_grid_areas;
-
     Vector<GridTrack> m_grid_rows;
     Vector<GridTrack> m_grid_columns;
 
