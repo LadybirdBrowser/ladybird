@@ -100,7 +100,7 @@ An Agent holds a stack of Execution Contexts, with the topmost entry being the r
 Each Execution Context holds a Realm and a specific script's context, including the current function and
 any state required to pause and resume the execution for that context. The Realm holds the Global
 Object for the Execution Context, and any ECMAScript or host-specific intrinsics required to create the
-desired environment for code to run in. More loosely, an Agent is a specification artefact that somewhat
+desired environment for code to run in. More loosely, an Agent is a specification artifact that somewhat
 maps the execution of a JavaScript script or module to a native thread of execution. But the specification
 does so in a way that allows a host/embedder to choose to switch out which Agent is currently executing
 its running execution context on that native thread, and which Realm within that Agent owns the running execution
