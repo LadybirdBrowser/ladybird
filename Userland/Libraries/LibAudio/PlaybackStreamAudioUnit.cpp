@@ -42,14 +42,14 @@ struct AudioTask {
         Volume,
     };
 
-    void resolve(Duration time)
+    void resolve(AK::Duration time)
     {
         promise.visit(
             [](Empty) { VERIFY_NOT_REACHED(); },
             [&](NonnullRefPtr<Core::ThreadedPromise<void>>& promise) {
                 promise->resolve();
             },
-            [&](NonnullRefPtr<Core::ThreadedPromise<Duration>>& promise) {
+            [&](NonnullRefPtr<Core::ThreadedPromise<AK::Duration>>& promise) {
                 promise->resolve(move(time));
             });
     }
@@ -66,7 +66,7 @@ struct AudioTask {
     }
 
     Type type;
-    Variant<Empty, NonnullRefPtr<Core::ThreadedPromise<void>>, NonnullRefPtr<Core::ThreadedPromise<Duration>>> promise;
+    Variant<Empty, NonnullRefPtr<Core::ThreadedPromise<void>>, NonnullRefPtr<Core::ThreadedPromise<AK::Duration>>> promise;
     Optional<double> data {};
 };
 
@@ -128,9 +128,9 @@ public:
         });
     }
 
-    Duration last_sample_time() const
+    AK::Duration last_sample_time() const
     {
-        return Duration::from_milliseconds(m_last_sample_time.load());
+        return AK::Duration::from_milliseconds(m_last_sample_time.load());
     }
 
 private:
@@ -182,7 +182,7 @@ private:
             }
 
             if (error == noErr)
-                task.resolve(Duration::from_milliseconds(last_sample_time));
+                task.resolve(AK::Duration::from_milliseconds(last_sample_time));
             else
                 task.reject(error);
         }
@@ -248,9 +248,9 @@ void PlaybackStreamAudioUnit::set_underrun_callback(Function<void()>)
     // FIXME: Implement this.
 }
 
-NonnullRefPtr<Core::ThreadedPromise<Duration>> PlaybackStreamAudioUnit::resume()
+NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamAudioUnit::resume()
 {
-    auto promise = Core::ThreadedPromise<Duration>::create();
+    auto promise = Core::ThreadedPromise<AK::Duration>::create();
     AudioTask task { AudioTask::Type::Play, promise };
 
     if (auto result = m_state->queue_task(move(task)); result.is_error())
@@ -281,7 +281,7 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::discard_buff
     return promise;
 }
 
-ErrorOr<Duration> PlaybackStreamAudioUnit::total_time_played()
+ErrorOr<AK::Duration> PlaybackStreamAudioUnit::total_time_played()
 {
     return m_state->last_sample_time();
 }

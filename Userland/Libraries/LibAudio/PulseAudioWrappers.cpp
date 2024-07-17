@@ -452,7 +452,7 @@ ErrorOr<void> PulseAudioStream::resume()
     return {};
 }
 
-ErrorOr<Duration> PulseAudioStream::total_time_played()
+ErrorOr<AK::Duration> PulseAudioStream::total_time_played()
 {
     auto locker = m_context->main_loop_locker();
 
@@ -465,19 +465,19 @@ ErrorOr<Duration> PulseAudioStream::total_time_played()
     //       last-returned time. If we never call pa_stream_get_time() until after giving
     //       the stream its first samples, the issue never occurs.
     if (!m_started_playback)
-        return Duration::zero();
+        return AK::Duration::zero();
 
     pa_usec_t time = 0;
     auto error = pa_stream_get_time(m_stream, &time);
     if (error == -PA_ERR_NODATA)
-        return Duration::zero();
+        return AK::Duration::zero();
     if (error != 0)
         return Error::from_string_literal("Failed to get time from PulseAudio stream");
     if (time > NumericLimits<i64>::max()) {
         warnln("WARNING: Audio time is too large!");
         time -= NumericLimits<i64>::max();
     }
-    return Duration::from_microseconds(static_cast<i64>(time));
+    return AK::Duration::from_microseconds(static_cast<i64>(time));
 }
 
 ErrorOr<void> PulseAudioStream::set_volume(double volume)

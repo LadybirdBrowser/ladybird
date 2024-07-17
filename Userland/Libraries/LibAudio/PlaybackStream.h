@@ -52,7 +52,7 @@ public:
     //
     // The value provided to the promise resolution will match the `total_time_played()` at the exact moment that
     // the stream was resumed.
-    virtual NonnullRefPtr<Core::ThreadedPromise<Duration>> resume() = 0;
+    virtual NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> resume() = 0;
     // Completes playback of any buffered audio data and then suspends playback and buffering.
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> drain_buffer_and_suspend() = 0;
     // Drops any buffered audio data and then suspends playback and buffering. This can used be to stop playback
@@ -64,7 +64,7 @@ public:
     // whenever possible.
     //
     // This function should be able to run from any thread safely.
-    virtual ErrorOr<Duration> total_time_played() = 0;
+    virtual ErrorOr<AK::Duration> total_time_played() = 0;
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double volume) = 0;
 };

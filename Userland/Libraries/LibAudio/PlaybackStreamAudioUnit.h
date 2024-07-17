@@ -21,11 +21,11 @@ public:
 
     virtual void set_underrun_callback(Function<void()>) override;
 
-    virtual NonnullRefPtr<Core::ThreadedPromise<Duration>> resume() override;
+    virtual NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> resume() override;
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> drain_buffer_and_suspend() override;
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> discard_buffer_and_suspend() override;
 
-    virtual ErrorOr<Duration> total_time_played() override;
+    virtual ErrorOr<AK::Duration> total_time_played() override;
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override;
 
