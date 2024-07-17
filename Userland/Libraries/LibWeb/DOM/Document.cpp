@@ -53,6 +53,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/DOM/TreeWalker.h>
+#include <LibWeb/DOM/Utils.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -1906,6 +1907,46 @@ bool Document::is_editable() const
     return m_editable;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-documentorshadowroot-activeelement
+void Document::update_active_element()
+{
+    // 1. Let candidate be the DOM anchor of the focused area of this DocumentOrShadowRoot's node document.
+    Node* candidate = focused_element();
+
+    // 2. Set candidate to the result of retargeting candidate against this DocumentOrShadowRoot.
+    candidate = retarget<Node>(candidate, this);
+
+    // 3. If candidate's root is not this DocumentOrShadowRoot, then return null.
+    if (&candidate->root() != this) {
+        set_active_element(nullptr);
+        return;
+    }
+
+    // 4. If candidate is not a Document object, then return candidate.
+    if (!is<Document>(candidate)) {
+        set_active_element(verify_cast<Element>(candidate));
+        return;
+    }
+
+    auto* candidate_document = static_cast<Document*>(candidate);
+
+    // 5. If candidate has a body element, then return that body element.
+    if (candidate_document->body()) {
+        set_active_element(candidate_document->body());
+        return;
+    }
+
+    // 6. If candidate's document element is non-null, then return that document element.
+    if (candidate_document->document_element()) {
+        set_active_element(candidate_document->document_element());
+        return;
+    }
+
+    // 7. Return null.
+    set_active_element(nullptr);
+    return;
+}
+
 void Document::set_focused_element(Element* element)
 {
     if (m_focused_element.ptr() == element)
@@ -1935,6 +1976,8 @@ void Document::set_focused_element(Element* element)
             (void)m_focused_element->scroll_into_view(scroll_options);
         });
     }
+
+    update_active_element();
 }
 
 void Document::set_active_element(Element* element)

@@ -692,6 +692,8 @@ private:
 
     void tear_down_layout_tree();
 
+    void update_active_element();
+
     void run_unloading_cleanup_steps();
 
     void evaluate_media_rules();
