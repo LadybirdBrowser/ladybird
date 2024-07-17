@@ -96,7 +96,7 @@ template<>
 ErrorOr<void> encode(Encoder&, JsonValue const&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Duration const&);
+ErrorOr<void> encode(Encoder&, AK::Duration const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, UnixDateTime const&);

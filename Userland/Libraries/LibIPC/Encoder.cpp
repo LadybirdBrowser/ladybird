@@ -85,7 +85,7 @@ ErrorOr<void> encode(Encoder& encoder, JsonValue const& value)
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Duration const& value)
+ErrorOr<void> encode(Encoder& encoder, AK::Duration const& value)
 {
     return encoder.encode(value.to_nanoseconds());
 }
