@@ -40,7 +40,7 @@ static void out_curve(Gfx::ICC::CurveTagData const& curve, int indent_amount)
     if (curve.values().is_empty()) {
         outln("{: >{}}identity curve", "", indent_amount);
     } else if (curve.values().size() == 1) {
-        outln("{: >{}}gamma: {}", "", indent_amount, FixedPoint<8, u16>::create_raw(curve.values()[0]));
+        outln("{: >{}}gamma: {}", "", indent_amount, AK::FixedPoint<8, u16>::create_raw(curve.values()[0]));
     } else {
         // FIXME: Maybe print the actual points if -v is passed?
         outln("{: >{}}curve with {} points", "", indent_amount, curve.values().size());

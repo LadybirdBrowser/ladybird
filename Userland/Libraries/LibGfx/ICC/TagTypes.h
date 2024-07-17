@@ -62,8 +62,8 @@ inline FloatVector3 lerp_nd(Function<unsigned(size_t)> size, Function<FloatVecto
     return sample_output;
 }
 
-using S15Fixed16 = FixedPoint<16, i32>;
-using U16Fixed16 = FixedPoint<16, u32>;
+using S15Fixed16 = AK::FixedPoint<16, i32>;
+using U16Fixed16 = AK::FixedPoint<16, u32>;
 
 struct XYZ {
     float X { 0 };
