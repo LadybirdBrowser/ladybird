@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function testIsDefaultNamespace(node, prefix, name) {
+        let prefixName = prefix;
+        if (prefixName !== null)
+            prefixName = `"${prefix}"`;
+
+        println(`${name}.isDefaultNamespace(${prefixName}): ${node.isDefaultNamespace(prefix)}`);
+    }
+
+    test(() => {
+        const documentFragment = document.createDocumentFragment();
+        testIsDefaultNamespace(documentFragment, null, "documentFragment");
+        testIsDefaultNamespace(documentFragment, "", "documentFragment");
+        testIsDefaultNamespace(documentFragment, "foo", "documentFragment");
+        testIsDefaultNamespace(documentFragment, "xmlms", "documentFragment");
+
+        const docType = document.doctype;
+        testIsDefaultNamespace(docType, null, "docType");
+        testIsDefaultNamespace(docType, "", "docType");
+        testIsDefaultNamespace(docType, "foo", "docType");
+        testIsDefaultNamespace(docType, "xmlms", "docType");
+
+        const element = document.createElementNS("namespace", "prefix:element");
+        testIsDefaultNamespace(element, null, "element");
+        testIsDefaultNamespace(element, "", "element");
+        testIsDefaultNamespace(element, "foo", "element");
+        testIsDefaultNamespace(element, "xmlms", "element");
+    });
+</script>

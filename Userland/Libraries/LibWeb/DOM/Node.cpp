@@ -1733,6 +1733,20 @@ Optional<String> Node::lookup_namespace_uri(Optional<String> prefix) const
     return locate_a_namespace(prefix);
 }
 
+// https://dom.spec.whatwg.org/#dom-node-isdefaultnamespace
+bool Node::is_default_namespace(Optional<String> namespace_) const
+{
+    // 1. If namespace is the empty string, then set it to null.
+    if (namespace_.has_value() && namespace_->is_empty())
+        namespace_ = {};
+
+    // 2. Let defaultNamespace be the result of running locate a namespace for this using null.
+    auto default_namespace = locate_a_namespace({});
+
+    // 3. Return true if defaultNamespace is the same as namespace; otherwise false.
+    return default_namespace == namespace_;
+}
+
 // https://dom.spec.whatwg.org/#in-a-document-tree
 bool Node::in_a_document_tree() const
 {

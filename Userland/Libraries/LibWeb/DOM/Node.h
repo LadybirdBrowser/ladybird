@@ -697,6 +697,7 @@ public:
 
     Optional<String> locate_a_namespace(Optional<String> const& prefix) const;
     Optional<String> lookup_namespace_uri(Optional<String> prefix) const;
+    bool is_default_namespace(Optional<String> namespace_) const;
 
 protected:
     Node(JS::Realm&, Document&, NodeType);
