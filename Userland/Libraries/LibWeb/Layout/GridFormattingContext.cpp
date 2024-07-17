@@ -184,8 +184,9 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     }
 
     if (placement_end.has_identifier()) {
-        if (auto maybe_grid_area = m_grid_areas.get(placement_end.identifier()); maybe_grid_area.has_value()) {
-            result.end = dimension == GridDimension::Row ? maybe_grid_area->row_end : maybe_grid_area->column_end;
+        auto area_end_line_name = MUST(String::formatted("{}-end", placement_end.identifier()));
+        if (auto area_end_line_index = get_line_index_by_line_name(dimension, area_end_line_name); area_end_line_index.has_value()) {
+            result.end = area_end_line_index.value();
         } else if (auto line_name_index = get_line_index_by_line_name(dimension, placement_end.identifier()); line_name_index.has_value()) {
             result.end = line_name_index.value();
         } else {
@@ -195,8 +196,9 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     }
 
     if (placement_start.has_identifier()) {
-        if (auto maybe_grid_area = m_grid_areas.get(placement_start.identifier()); maybe_grid_area.has_value()) {
-            result.start = dimension == GridDimension::Row ? maybe_grid_area->row_start : maybe_grid_area->column_start;
+        auto area_start_line_name = MUST(String::formatted("{}-start", placement_start.identifier()));
+        if (auto area_start_line_index = get_line_index_by_line_name(dimension, area_start_line_name); area_start_line_index.has_value()) {
+            result.start = area_start_line_index.value();
         } else if (auto line_name_index = get_line_index_by_line_name(dimension, placement_start.identifier()); line_name_index.has_value()) {
             result.start = line_name_index.value();
         } else {
@@ -1159,6 +1161,8 @@ void GridFormattingContext::build_grid_areas()
     // filled-in rectangle, the declaration is invalid.
     auto const& rows = grid_container().computed_values().grid_template_areas();
 
+    HashMap<String, GridArea> grid_areas;
+
     auto find_area_rectangle = [&](size_t x_start, size_t y_start, String const& name) {
         bool invalid = false;
         size_t x_end = x_start;
@@ -1176,13 +1180,13 @@ void GridFormattingContext::build_grid_areas()
                 }
             }
         }
-        m_grid_areas.set(name, { name, y_start, y_end, x_start, x_end, invalid });
+        grid_areas.set(name, { name, y_start, y_end, x_start, x_end, invalid });
     };
 
     for (size_t y = 0; y < rows.size(); y++) {
         for (size_t x = 0; x < rows[y].size(); x++) {
             auto name = rows[y][x];
-            if (auto grid_area = m_grid_areas.get(name); grid_area.has_value())
+            if (auto grid_area = grid_areas.get(name); grid_area.has_value())
                 continue;
             find_area_rectangle(x, y, name);
         }
@@ -1190,7 +1194,7 @@ void GridFormattingContext::build_grid_areas()
 
     size_t max_column_line_index_of_area = 0;
     size_t max_row_line_index_of_area = 0;
-    for (auto const& grid_area : m_grid_areas) {
+    for (auto const& grid_area : grid_areas) {
         max_column_line_index_of_area = max(max_column_line_index_of_area, grid_area.value.column_end);
         max_row_line_index_of_area = max(max_row_line_index_of_area, grid_area.value.row_end);
     }
@@ -1206,7 +1210,7 @@ void GridFormattingContext::build_grid_areas()
     // template. For each named grid area foo, four implicitly-assigned line names are created: two named foo-start,
     // naming the row-start and column-start lines of the named grid area, and two named foo-end, naming the row-end
     // and column-end lines of the named grid area.
-    for (auto const& it : m_grid_areas) {
+    for (auto const& it : grid_areas) {
         auto const& grid_area = it.value;
         m_column_lines[grid_area.column_start].names.append(MUST(String::formatted("{}-start", grid_area.name)));
         m_column_lines[grid_area.column_end].names.append(MUST(String::formatted("{}-end", grid_area.name)));
