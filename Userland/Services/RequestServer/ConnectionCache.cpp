@@ -51,7 +51,7 @@ void request_did_finish(URL::URL const& url, Core::Socket const* socket)
 
         auto& connection = *connection_it;
         if constexpr (REQUESTSERVER_DEBUG) {
-            connection->job_data->timing_info.performing_request = Duration::from_milliseconds(connection->job_data->timing_info.timer.elapsed_milliseconds());
+            connection->job_data->timing_info.performing_request = AK::Duration::from_milliseconds(connection->job_data->timing_info.timer.elapsed_milliseconds());
             connection->job_data->timing_info.timer.start();
         }
 
@@ -91,7 +91,7 @@ void request_did_finish(URL::URL const& url, Core::Socket const* socket)
             auto timer = Core::ElapsedTimer::start_new();
             if (auto result = recreate_socket_if_needed(*connection, url); result.is_error()) {
                 if constexpr (REQUESTSERVER_DEBUG) {
-                    connection->job_data->timing_info.starting_connection += Duration::from_milliseconds(timer.elapsed_milliseconds());
+                    connection->job_data->timing_info.starting_connection += AK::Duration::from_milliseconds(timer.elapsed_milliseconds());
                 }
                 cache.with_read_locked([&](auto&) {
                     dbgln("ConnectionCache request finish handler, reconnection failed with {}", result.error());
@@ -100,7 +100,7 @@ void request_did_finish(URL::URL const& url, Core::Socket const* socket)
                 return;
             }
             if constexpr (REQUESTSERVER_DEBUG) {
-                connection->job_data->timing_info.starting_connection += Duration::from_milliseconds(timer.elapsed_milliseconds());
+                connection->job_data->timing_info.starting_connection += AK::Duration::from_milliseconds(timer.elapsed_milliseconds());
             }
 
             connection->has_started = true;
@@ -111,7 +111,7 @@ void request_did_finish(URL::URL const& url, Core::Socket const* socket)
                     connection.current_url = url;
                     connection.job_data = connection.request_queue.with_write_locked([](auto& queue) { return queue.take_first(); });
                     if constexpr (REQUESTSERVER_DEBUG) {
-                        connection.job_data->timing_info.waiting_in_queue = Duration::from_milliseconds(connection.job_data->timing_info.timer.elapsed_milliseconds() - connection.job_data->timing_info.performing_request.to_milliseconds());
+                        connection.job_data->timing_info.waiting_in_queue = AK::Duration::from_milliseconds(connection.job_data->timing_info.timer.elapsed_milliseconds() - connection.job_data->timing_info.performing_request.to_milliseconds());
                         connection.job_data->timing_info.timer.start();
                     }
                     connection.socket->set_notifications_enabled(true);
