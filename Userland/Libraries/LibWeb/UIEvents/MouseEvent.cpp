@@ -96,6 +96,33 @@ bool MouseEvent::get_modifier_state(String const& key_arg) const
     return false;
 }
 
+// https://w3c.github.io/uievents/#dom-mouseevent-initmouseevent
+void MouseEvent::init_mouse_event(String const& type, bool bubbles, bool cancelable, HTML::Window* view, WebIDL::Long detail, WebIDL::Long screen_x, WebIDL::Long screen_y, WebIDL::Long client_x, WebIDL::Long client_y, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key, WebIDL::Short button, DOM::EventTarget* related_target)
+{
+    // Initializes attributes of a MouseEvent object. This method has the same behavior as UIEvent.initUIEvent().
+
+    // 1. If this’s dispatch flag is set, then return.
+    if (dispatched())
+        return;
+
+    // 2. Initialize this with type, bubbles, and cancelable.
+    initialize_event(type, bubbles, cancelable);
+
+    // Implementation Defined: Initialise other values.
+    m_view = view;
+    m_detail = detail;
+    m_screen_x = screen_x;
+    m_screen_y = screen_y;
+    m_client_x = client_x;
+    m_client_y = client_y;
+    m_ctrl_key = ctrl_key;
+    m_shift_key = shift_key;
+    m_alt_key = alt_key;
+    m_meta_key = meta_key;
+    m_button = button;
+    m_related_target = related_target;
+}
+
 // https://www.w3.org/TR/uievents/#dom-mouseevent-button
 static i16 determine_button(unsigned mouse_button)
 {
