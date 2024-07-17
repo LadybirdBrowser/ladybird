@@ -77,9 +77,9 @@ void PlaybackStreamPulseAudio::set_underrun_callback(Function<void()> callback)
     });
 }
 
-NonnullRefPtr<Core::ThreadedPromise<Duration>> PlaybackStreamPulseAudio::resume()
+NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamPulseAudio::resume()
 {
-    auto promise = Core::ThreadedPromise<Duration>::create();
+    auto promise = Core::ThreadedPromise<AK::Duration>::create();
     TRY_OR_REJECT(m_state->check_is_running(), promise);
     m_state->enqueue([this, promise]() {
         TRY_OR_REJECT(m_state->stream()->resume());
@@ -110,11 +110,11 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamPulseAudio::discard_buf
     return promise;
 }
 
-ErrorOr<Duration> PlaybackStreamPulseAudio::total_time_played()
+ErrorOr<AK::Duration> PlaybackStreamPulseAudio::total_time_played()
 {
     if (m_state->stream() != nullptr)
         return m_state->stream()->total_time_played();
-    return Duration::zero();
+    return AK::Duration::zero();
 }
 
 NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamPulseAudio::set_volume(double volume)
