@@ -200,7 +200,7 @@ ErrorOr<void> PosixSocketHelper::set_close_on_exec(bool enabled)
     return {};
 }
 
-ErrorOr<void> PosixSocketHelper::set_receive_timeout(Duration timeout)
+ErrorOr<void> PosixSocketHelper::set_receive_timeout(AK::Duration timeout)
 {
     auto timeout_spec = timeout.to_timespec();
     return System::setsockopt(m_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout_spec, sizeof(timeout_spec));
@@ -259,14 +259,14 @@ ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
     return static_cast<size_t>(value);
 }
 
-ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(ByteString const& host, u16 port, Optional<Duration> timeout)
+ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(ByteString const& host, u16 port, Optional<AK::Duration> timeout)
 {
     auto ip_address = TRY(resolve_host(host, SocketType::Datagram));
 
     return ip_address.visit([port, timeout](auto address) { return connect(SocketAddress { address, port }, timeout); });
 }
 
-ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(SocketAddress const& address, Optional<Duration> timeout)
+ErrorOr<NonnullOwnPtr<UDPSocket>> UDPSocket::connect(SocketAddress const& address, Optional<AK::Duration> timeout)
 {
     auto socket = TRY(adopt_nonnull_own_or_enomem(new (nothrow) UDPSocket()));
 

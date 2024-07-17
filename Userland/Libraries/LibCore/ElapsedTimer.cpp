@@ -33,7 +33,7 @@ i64 ElapsedTimer::elapsed_milliseconds() const
     return elapsed_time().to_milliseconds();
 }
 
-Duration ElapsedTimer::elapsed_time() const
+AK::Duration ElapsedTimer::elapsed_time() const
 {
     VERIFY(is_valid());
     auto now = m_timer_type == TimerType::Precise ? MonotonicTime::now() : MonotonicTime::now_coarse();
