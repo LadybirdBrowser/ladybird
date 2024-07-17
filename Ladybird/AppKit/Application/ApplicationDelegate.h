@@ -17,7 +17,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/CookieJar.h>
 
-#import <System/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 
 @class Tab;
 @class TabController;

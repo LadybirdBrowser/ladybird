@@ -14,7 +14,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
 
-#import <System/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 
 namespace Ladybird {
 

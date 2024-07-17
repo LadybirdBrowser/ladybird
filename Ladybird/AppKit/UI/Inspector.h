@@ -6,7 +6,7 @@
 
 #pragma once
 
-#import <System/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 
 @class LadybirdWebView;
 @class Tab;

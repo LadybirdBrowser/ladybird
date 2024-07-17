@@ -8,7 +8,7 @@
 
 #include <LibWeb/Page/InputEvent.h>
 
-#import <System/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 
 namespace Ladybird {
 

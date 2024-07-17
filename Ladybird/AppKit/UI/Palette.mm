@@ -10,7 +10,7 @@
 #include <LibGfx/Palette.h>
 #include <LibGfx/SystemTheme.h>
 
-#import <System/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 #import <UI/Palette.h>
 
 namespace Ladybird {
