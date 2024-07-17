@@ -9,6 +9,8 @@
 #include <AK/Time.h>
 #include <sys/time.h>
 
+using AK::Duration;
+
 #if defined(__TIMESIZE) && __TIMESIZE < 64
 #    define TIME_T_IS_32BIT
 #endif

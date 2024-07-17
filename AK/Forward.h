@@ -157,7 +157,6 @@ using AK::CountingStream;
 using AK::DeprecatedFlyString;
 using AK::DeprecatedStringCodePointIterator;
 using AK::DoublyLinkedList;
-using AK::Duration;
 using AK::Error;
 using AK::ErrorOr;
 using AK::FixedArray;

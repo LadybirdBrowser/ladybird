@@ -581,7 +581,6 @@ using AK::day_of_year;
 using AK::days_in_month;
 using AK::days_in_year;
 using AK::days_since_epoch;
-using AK::Duration;
 using AK::is_leap_year;
 using AK::MonotonicTime;
 using AK::seconds_since_epoch_to_year;
