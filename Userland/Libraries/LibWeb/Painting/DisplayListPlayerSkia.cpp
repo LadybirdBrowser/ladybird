@@ -359,15 +359,17 @@ static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
     }
 }
 
-#define APPLY_PATH_CLIP_IF_NEEDED                                  \
-    ScopeGuard restore_path_clip { [&] {                           \
-        if (command.clip_paths.size() > 0)                         \
-            surface().canvas().restore();                          \
-    } };                                                           \
-    if (command.clip_paths.size() > 0) {                           \
-        surface().canvas().save();                                 \
-        for (auto const& path : command.clip_paths)                \
-            surface().canvas().clipPath(to_skia_path(path), true); \
+#define APPLY_PATH_CLIP_IF_NEEDED                     \
+    ScopeGuard restore_path_clip { [&] {              \
+        if (command.clip_paths.size() > 0)            \
+            surface().canvas().restore();             \
+    } };                                              \
+    if (command.clip_paths.size() > 0) {              \
+        surface().canvas().save();                    \
+        SkPath clip_path;                             \
+        for (auto const& path : command.clip_paths)   \
+            clip_path.addPath(to_skia_path(path));    \
+        surface().canvas().clipPath(clip_path, true); \
     }
 
 DisplayListPlayerSkia::SkiaSurface& DisplayListPlayerSkia::surface() const
