@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/ScalingMode.h>
@@ -49,7 +50,7 @@ struct QuotesData {
         Auto,
         Specified,
     } type;
-    Vector<Array<String, 2>> strings {};
+    Vector<Array<FlyString, 2>> strings {};
 };
 
 struct ResolvedBackdropFilter {

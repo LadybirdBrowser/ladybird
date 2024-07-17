@@ -2912,7 +2912,7 @@ RefPtr<StyleValue> Parser::parse_string_value(TokenStream<ComponentValue>& token
     auto peek = tokens.peek_token();
     if (peek.is(Token::Type::String)) {
         (void)tokens.next_token();
-        return StringStyleValue::create(peek.token().string().to_string());
+        return StringStyleValue::create(peek.token().string());
     }
 
     return nullptr;
@@ -4761,7 +4761,7 @@ RefPtr<StyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue>& 
             (void)tokens.next_token(); // String
             if (!next_is_comma_or_eof())
                 return nullptr;
-            font_families.append(StringStyleValue::create(peek.token().string().to_string()));
+            font_families.append(StringStyleValue::create(peek.token().string()));
             (void)tokens.next_token(); // Comma
             continue;
         }
@@ -7088,7 +7088,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
 
     if (peek_token.is(Token::Type::String)) {
         if (auto property = any_property_accepts_type(property_ids, ValueType::String); property.has_value())
-            return PropertyAndValue { *property, StringStyleValue::create(tokens.next_token().token().string().to_string()) };
+            return PropertyAndValue { *property, StringStyleValue::create(tokens.next_token().token().string()) };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Url); property.has_value()) {
