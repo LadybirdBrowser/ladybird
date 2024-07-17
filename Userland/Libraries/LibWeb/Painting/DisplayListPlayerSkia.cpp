@@ -795,7 +795,7 @@ CommandResult DisplayListPlayerSkia::paint_inner_box_shadow(PaintInnerBoxShadow 
 CommandResult DisplayListPlayerSkia::paint_text_shadow(PaintTextShadow const& command)
 {
     auto& canvas = surface().canvas();
-    auto blur_image_filter = SkImageFilters::Blur(command.blur_radius, command.blur_radius, nullptr);
+    auto blur_image_filter = SkImageFilters::Blur(command.blur_radius / 2, command.blur_radius / 2, nullptr);
     SkPaint blur_paint;
     blur_paint.setImageFilter(blur_image_filter);
     canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &blur_paint, nullptr, 0));
