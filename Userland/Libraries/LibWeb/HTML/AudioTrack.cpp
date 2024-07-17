@@ -70,7 +70,7 @@ void AudioTrack::pause(Badge<HTMLAudioElement>)
     m_audio_plugin->pause_playback();
 }
 
-Duration AudioTrack::duration()
+AK::Duration AudioTrack::duration()
 {
     return m_audio_plugin->duration();
 }

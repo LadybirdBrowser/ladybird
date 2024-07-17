@@ -173,7 +173,7 @@ void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_valu
             parsed_cookie.expiry_time_from_max_age_attribute = UnixDateTime::earliest();
         } else {
             // Otherwise, let the expiry-time be the current date and time plus delta-seconds seconds.
-            parsed_cookie.expiry_time_from_max_age_attribute = UnixDateTime::now() + Duration::from_seconds(*delta_seconds);
+            parsed_cookie.expiry_time_from_max_age_attribute = UnixDateTime::now() + AK::Duration::from_seconds(*delta_seconds);
         }
     }
 }

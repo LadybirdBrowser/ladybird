@@ -39,7 +39,7 @@ ErrorOr<FixedArray<Audio::Sample>> AudioCodecPlugin::read_samples_from_loader(Au
     return buffer_or_error.release_value();
 }
 
-Duration AudioCodecPlugin::set_loader_position(Audio::Loader& loader, double position, Duration duration)
+AK::Duration AudioCodecPlugin::set_loader_position(Audio::Loader& loader, double position, AK::Duration duration)
 {
     if (loader.total_samples() == 0)
         return current_loader_position(loader);
@@ -51,12 +51,12 @@ Duration AudioCodecPlugin::set_loader_position(Audio::Loader& loader, double pos
     return current_loader_position(loader);
 }
 
-Duration AudioCodecPlugin::current_loader_position(Audio::Loader const& loader)
+AK::Duration AudioCodecPlugin::current_loader_position(Audio::Loader const& loader)
 {
     auto samples_played = static_cast<double>(loader.loaded_samples());
     auto sample_rate = static_cast<double>(loader.sample_rate());
 
-    return Duration::from_milliseconds(static_cast<i64>(samples_played / sample_rate * 1000.0));
+    return AK::Duration::from_milliseconds(static_cast<i64>(samples_played / sample_rate * 1000.0));
 }
 
 }
