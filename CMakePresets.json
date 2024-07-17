@@ -11,18 +11,18 @@
       "displayName": "Default Config",
       "description": "Default build using Ninja generator",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/Build/ladybird",
+      "binaryDir": "${fileDir}/Build/ladybird",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "SERENITY_CACHE_DIR": "${sourceDir}/Build/caches",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "SERENITY_CACHE_DIR": "${fileDir}/Build/caches",
+        "CMAKE_TOOLCHAIN_FILE": "${fileDir}/Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALL_OPTIONS": "--no-print-usage",
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/Meta/CMake/vcpkg/release-triplets"
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/release-triplets"
       },
       "environment": {
-        "LADYBIRD_SOURCE_DIR": "${sourceDir}",
-        "VCPKG_ROOT": "${sourceDir}/Toolchain/Tarballs/vcpkg",
-        "VCPKG_BINARY_SOURCES": "clear;files,${sourceDir}/Toolchain/Build/vcpkg-binary-cache,readwrite"
+        "LADYBIRD_SOURCE_DIR": "${fileDir}",
+        "VCPKG_ROOT": "${fileDir}/Toolchain/Tarballs/vcpkg",
+        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Toolchain/Build/vcpkg-binary-cache,readwrite"
       },
       "vendor": {
         "jetbrains.com/clion": {
@@ -35,10 +35,10 @@
       "inherits": "default",
       "displayName": "Debug Config",
       "description": "Debug build using Ninja generator",
-      "binaryDir": "${sourceDir}/Build/ladybird-debug",
+      "binaryDir": "${fileDir}/Build/ladybird-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/Meta/CMake/vcpkg/debug-triplets"
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
       }
     },
     {
@@ -46,11 +46,11 @@
       "inherits": "Debug",
       "displayName": "Sanitizer Config",
       "description": "Debug build using Sanitizers",
-      "binaryDir": "${sourceDir}/Build/ladybird-sanitizers",
+      "binaryDir": "${fileDir}/Build/ladybird-sanitizers",
       "cacheVariables": {
         "ENABLE_UNDEFINED_SANITIZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON",
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/Meta/CMake/vcpkg/sanitizer-triplets"
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
       }
     },
     {
@@ -79,7 +79,7 @@
       "inherits": ["vcpkg_ci", "default" ],
       "displayName": "Fuzzers Config",
       "description": "Fuzzers build with GitHub Actions cache",
-      "binaryDir": "${sourceDir}/Build/ladybird-fuzzers",
+      "binaryDir": "${fileDir}/Build/ladybird-fuzzers",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "",
         "ENABLE_QT": "OFF",
@@ -120,7 +120,7 @@
         "stopOnFailure": true
       },
       "environment": {
-        "LADYBIRD_SOURCE_DIR": "${sourceDir}"
+        "LADYBIRD_SOURCE_DIR": "${fileDir}"
       }
     },
     {
