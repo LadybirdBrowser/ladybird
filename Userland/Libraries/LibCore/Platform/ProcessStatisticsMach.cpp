@@ -61,15 +61,15 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
         }
 
         timeval scratch_timeval = { static_cast<time_t>(time_info.user_time.seconds), static_cast<suseconds_t>(time_info.user_time.microseconds) };
-        auto time_in_process = Duration::from_timeval(scratch_timeval);
+        auto time_in_process = AK::Duration::from_timeval(scratch_timeval);
         scratch_timeval = { static_cast<time_t>(time_info.system_time.seconds), static_cast<suseconds_t>(time_info.system_time.microseconds) };
-        time_in_process += Duration::from_timeval(scratch_timeval);
+        time_in_process += AK::Duration::from_timeval(scratch_timeval);
 
-        auto time_diff_process = time_in_process - Duration::from_microseconds(process->time_spent_in_process);
+        auto time_diff_process = time_in_process - AK::Duration::from_microseconds(process->time_spent_in_process);
         process->time_spent_in_process = time_in_process.to_microseconds();
 
         process->cpu_percent = 0.0f;
-        if (time_diff_process > Duration::zero())
+        if (time_diff_process > AK::Duration::zero())
             process->cpu_percent = 100.0f * static_cast<float>(time_diff_process.to_microseconds()) / total_cpu_micro_diff;
     }
 

@@ -29,7 +29,7 @@ public:
     void reset();
 
     i64 elapsed_milliseconds() const;
-    Duration elapsed_time() const;
+    AK::Duration elapsed_time() const;
 
     // FIXME: Move callers to elapsed_milliseconds(), remove this.
     i64 elapsed() const // milliseconds

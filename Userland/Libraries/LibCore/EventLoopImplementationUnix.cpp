@@ -71,7 +71,7 @@ public:
 
 protected:
     union {
-        Duration m_duration;
+        AK::Duration m_duration;
         MonotonicTime m_fire_time;
     };
 
@@ -209,7 +209,7 @@ public:
             ThreadEventQueue::current().post_event(*strong_owner, make<TimerEvent>());
     }
 
-    Duration interval;
+    AK::Duration interval;
     bool should_reload { false };
     TimerShouldFireWhenNotVisible fire_when_not_visible { TimerShouldFireWhenNotVisible::No };
     WeakPtr<EventReceiver> owner;
@@ -367,7 +367,7 @@ retry:
         if (next_timer_expiration.has_value()) {
             auto computed_timeout = next_timer_expiration.value() - time_at_iteration_start;
             if (computed_timeout.is_negative())
-                computed_timeout = Duration::zero();
+                computed_timeout = AK::Duration::zero();
             i64 true_timeout = computed_timeout.to_milliseconds();
             timeout = static_cast<i32>(min<i64>(AK::NumericLimits<i32>::max(), true_timeout));
         } else {
@@ -651,7 +651,7 @@ intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int millise
     auto timer = new EventLoopTimer;
     timer->owner_thread = s_thread_id;
     timer->owner = object;
-    timer->interval = Duration::from_milliseconds(milliseconds);
+    timer->interval = AK::Duration::from_milliseconds(milliseconds);
     timer->reload(MonotonicTime::now_coarse());
     timer->should_reload = should_reload;
     timer->fire_when_not_visible = fire_when_not_visible;
