@@ -80,7 +80,7 @@ AudioThread::AudioThread(NonnullRefPtr<Audio::Loader> loader, AudioTaskQueue tas
     , m_task_queue(move(task_queue))
 {
     auto duration = static_cast<double>(m_loader->total_samples()) / static_cast<double>(m_loader->sample_rate());
-    m_duration = Duration::from_milliseconds(static_cast<i64>(duration * 1000.0));
+    m_duration = AK::Duration::from_milliseconds(static_cast<i64>(duration * 1000.0));
 }
 
 void AudioThread::run()

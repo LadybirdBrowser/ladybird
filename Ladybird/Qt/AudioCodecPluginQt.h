@@ -31,7 +31,7 @@ public:
     virtual void set_volume(double) override;
     virtual void seek(double) override;
 
-    virtual Duration duration() override;
+    virtual AK::Duration duration() override;
 
 private:
     explicit AudioCodecPluginQt(NonnullOwnPtr<AudioThread>);

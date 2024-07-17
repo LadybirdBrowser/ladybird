@@ -48,12 +48,12 @@ public:
 
     ErrorOr<void> stop();
 
-    Duration duration() const { return m_duration; }
+    AK::Duration duration() const { return m_duration; }
 
     ErrorOr<void> queue_task(AudioTask task);
 
 Q_SIGNALS:
-    void playback_position_updated(Duration);
+    void playback_position_updated(AK::Duration);
 
 private:
     AudioThread(NonnullRefPtr<Audio::Loader> loader, AudioTaskQueue task_queue);
@@ -96,8 +96,8 @@ private:
 
     QByteArray m_sample_buffer;
 
-    Duration m_duration;
-    Duration m_position;
+    AK::Duration m_duration;
+    AK::Duration m_position;
 };
 
 }
