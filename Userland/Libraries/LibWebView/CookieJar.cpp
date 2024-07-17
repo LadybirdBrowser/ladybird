@@ -18,7 +18,7 @@
 
 namespace WebView {
 
-static constexpr auto DATABASE_SYNCHRONIZATION_TIMER = Duration::from_seconds(30);
+static constexpr auto DATABASE_SYNCHRONIZATION_TIMER = AK::Duration::from_seconds(30);
 
 ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database& database)
 {

@@ -2006,7 +2006,7 @@ Gfx::IntRect WebDriverConnection::iconify_the_window()
 ErrorOr<JsonArray, Web::WebDriver::Error> WebDriverConnection::find(StartNodeGetter&& start_node_getter, Web::WebDriver::LocationStrategy using_, StringView value)
 {
     // 1. Let end time be the current time plus the session implicit wait timeout.
-    auto end_time = MonotonicTime::now() + Duration::from_milliseconds(static_cast<i64>(m_timeouts_configuration.implicit_wait_timeout));
+    auto end_time = MonotonicTime::now() + AK::Duration::from_milliseconds(static_cast<i64>(m_timeouts_configuration.implicit_wait_timeout));
 
     // 2. Let location strategy be equal to using.
     auto location_strategy = using_;
