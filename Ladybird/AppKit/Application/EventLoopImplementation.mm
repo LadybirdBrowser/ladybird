@@ -13,8 +13,8 @@
 #include <LibCore/ThreadEventQueue.h>
 
 #import <Application/EventLoopImplementation.h>
-#import <System/Cocoa.h>
-#import <System/CoreFoundation.h>
+#import <Cocoa/Cocoa.h>
+#import <CoreFoundation/CoreFoundation.h>
 
 #include <sys/event.h>
 #include <sys/time.h>

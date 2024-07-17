@@ -8,7 +8,7 @@
 
 #include <AK/Optional.h>
 
-#import <System/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 
 @interface SearchPanel : NSStackView
 

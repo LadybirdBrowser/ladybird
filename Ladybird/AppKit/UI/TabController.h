@@ -9,7 +9,7 @@
 #include <AK/Forward.h>
 #include <LibURL/URL.h>
 
-#import <System/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 
 struct TabSettings {
     BOOL should_show_line_box_borders { NO };

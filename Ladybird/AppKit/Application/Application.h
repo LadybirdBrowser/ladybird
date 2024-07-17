@@ -11,7 +11,7 @@
 #include <LibIPC/Forward.h>
 #include <LibWebView/Forward.h>
 
-#import <System/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 
 namespace Ladybird {
 class WebViewBridge;

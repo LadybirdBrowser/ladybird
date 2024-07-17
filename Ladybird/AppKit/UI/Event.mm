@@ -7,7 +7,7 @@
 #include <AK/TypeCasts.h>
 #include <AK/Utf8View.h>
 
-#import <System/Carbon.h>
+#import <Carbon/Carbon.h>
 #import <UI/Event.h>
 #import <Utilities/Conversions.h>
 

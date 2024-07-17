@@ -16,7 +16,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
 
-#import <System/Cocoa.h>
+#import <Cocoa/Cocoa.h>
 
 @protocol LadybirdWebViewObserver <NSObject>
 
