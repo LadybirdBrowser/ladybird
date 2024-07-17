@@ -70,7 +70,7 @@ TEST_CASE(resolve_primary_time_zone)
 
 using enum Unicode::TimeZoneOffset::InDST;
 
-static void test_offset(StringView time_zone, i64 time, Duration expected_offset, Unicode::TimeZoneOffset::InDST expected_in_dst)
+static void test_offset(StringView time_zone, i64 time, AK::Duration expected_offset, Unicode::TimeZoneOffset::InDST expected_in_dst)
 {
     auto actual_offset = Unicode::time_zone_offset(time_zone, AK::UnixDateTime::from_seconds_since_epoch(time));
     VERIFY(actual_offset.has_value());
@@ -79,9 +79,9 @@ static void test_offset(StringView time_zone, i64 time, Duration expected_offset
     EXPECT_EQ(actual_offset->in_dst, expected_in_dst);
 }
 
-static constexpr Duration offset(i64 sign, i64 hours, i64 minutes, i64 seconds)
+static constexpr AK::Duration offset(i64 sign, i64 hours, i64 minutes, i64 seconds)
 {
-    return Duration::from_seconds(sign * ((hours * 3600) + (minutes * 60) + seconds));
+    return AK::Duration::from_seconds(sign * ((hours * 3600) + (minutes * 60) + seconds));
 }
 
 // Useful website to convert times in the TZDB (which sometimes are and aren't UTC) to UTC and the desired local time:

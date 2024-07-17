@@ -19,7 +19,7 @@ struct TimeZoneOffset {
         Yes,
     };
 
-    Duration offset;
+    AK::Duration offset;
     InDST in_dst { InDST::No };
 };
 
