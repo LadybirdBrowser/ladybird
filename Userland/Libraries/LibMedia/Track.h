@@ -22,7 +22,7 @@ enum class TrackType : u32 {
 
 class Track {
     struct VideoData {
-        Duration duration {};
+        AK::Duration duration {};
         u64 pixel_width { 0 };
         u64 pixel_height { 0 };
     };

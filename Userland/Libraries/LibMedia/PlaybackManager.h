@@ -27,30 +27,30 @@ class FrameQueueItem {
 public:
     FrameQueueItem()
         : m_data(Empty())
-        , m_timestamp(Duration::zero())
+        , m_timestamp(AK::Duration::zero())
     {
     }
 
-    static constexpr Duration no_timestamp = Duration::min();
+    static constexpr AK::Duration no_timestamp = AK::Duration::min();
 
     enum class Type {
         Frame,
         Error,
     };
 
-    static FrameQueueItem frame(RefPtr<Gfx::Bitmap> bitmap, Duration timestamp)
+    static FrameQueueItem frame(RefPtr<Gfx::Bitmap> bitmap, AK::Duration timestamp)
     {
         return FrameQueueItem(move(bitmap), timestamp);
     }
 
-    static FrameQueueItem error_marker(DecoderError&& error, Duration timestamp)
+    static FrameQueueItem error_marker(DecoderError&& error, AK::Duration timestamp)
     {
         return FrameQueueItem(move(error), timestamp);
     }
 
     bool is_frame() const { return m_data.has<RefPtr<Gfx::Bitmap>>(); }
     RefPtr<Gfx::Bitmap> bitmap() const { return m_data.get<RefPtr<Gfx::Bitmap>>(); }
-    Duration timestamp() const { return m_timestamp; }
+    AK::Duration timestamp() const { return m_timestamp; }
 
     bool is_error() const { return m_data.has<DecoderError>(); }
     DecoderError const& error() const { return m_data.get<DecoderError>(); }
@@ -71,21 +71,21 @@ public:
     }
 
 private:
-    FrameQueueItem(RefPtr<Gfx::Bitmap> bitmap, Duration timestamp)
+    FrameQueueItem(RefPtr<Gfx::Bitmap> bitmap, AK::Duration timestamp)
         : m_data(move(bitmap))
         , m_timestamp(timestamp)
     {
         VERIFY(m_timestamp != no_timestamp);
     }
 
-    FrameQueueItem(DecoderError&& error, Duration timestamp)
+    FrameQueueItem(DecoderError&& error, AK::Duration timestamp)
         : m_data(move(error))
         , m_timestamp(timestamp)
     {
     }
 
     Variant<Empty, RefPtr<Gfx::Bitmap>, DecoderError> m_data { Empty() };
-    Duration m_timestamp { no_timestamp };
+    AK::Duration m_timestamp { no_timestamp };
 };
 
 static constexpr size_t frame_buffer_count = 4;
@@ -123,7 +123,7 @@ public:
     void pause_playback();
     void restart_playback();
     void terminate_playback();
-    void seek_to_timestamp(Duration, SeekMode = DEFAULT_SEEK_MODE);
+    void seek_to_timestamp(AK::Duration, SeekMode = DEFAULT_SEEK_MODE);
     bool is_playing() const
     {
         return m_playback_handler->is_playing();
@@ -135,8 +135,8 @@ public:
 
     u64 number_of_skipped_frames() const { return m_skipped_frames; }
 
-    Duration current_playback_time();
-    Duration duration();
+    AK::Duration current_playback_time();
+    AK::Duration duration();
 
     Function<void(RefPtr<Gfx::Bitmap>)> on_video_frame;
     Function<void()> on_playback_state_change;
@@ -159,7 +159,7 @@ private:
 
     void timer_callback();
     // This must be called with m_demuxer_mutex locked!
-    DecoderErrorOr<Optional<Duration>> seek_demuxer_to_most_recent_keyframe(Duration timestamp, Optional<Duration> earliest_available_sample = OptionalNone());
+    DecoderErrorOr<Optional<AK::Duration>> seek_demuxer_to_most_recent_keyframe(AK::Duration timestamp, Optional<AK::Duration> earliest_available_sample = OptionalNone());
 
     Optional<FrameQueueItem> dequeue_one_frame();
     void set_state_update_timer(int delay_ms);
@@ -173,7 +173,7 @@ private:
     void dispatch_state_change();
     void dispatch_fatal_error(Error);
 
-    Duration m_last_present_in_media_time = Duration::zero();
+    AK::Duration m_last_present_in_media_time = AK::Duration::zero();
 
     NonnullOwnPtr<Demuxer> m_demuxer;
     Threading::Mutex m_decoder_mutex;
@@ -213,10 +213,10 @@ private:
         virtual PlaybackState get_state() const = 0;
         virtual ErrorOr<void> pause() { return {}; }
         virtual ErrorOr<void> buffer() { return {}; }
-        virtual ErrorOr<void> seek(Duration target_timestamp, SeekMode);
+        virtual ErrorOr<void> seek(AK::Duration target_timestamp, SeekMode);
         virtual ErrorOr<void> stop();
 
-        virtual Duration current_time() const;
+        virtual AK::Duration current_time() const;
 
         virtual ErrorOr<void> do_timed_state_update() { return {}; }
 

@@ -20,6 +20,6 @@ TEST_CASE(master_elements_containing_crc32)
 
     auto iterator = MUST(matroska_reader.create_sample_iterator(video_track));
     MUST(iterator.next_block());
-    MUST(matroska_reader.seek_to_random_access_point(iterator, Duration::from_seconds(7)));
+    MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_seconds(7)));
     MUST(iterator.next_block());
 }

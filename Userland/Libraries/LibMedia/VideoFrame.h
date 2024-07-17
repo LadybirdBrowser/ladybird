@@ -31,7 +31,7 @@ public:
         return bitmap;
     }
 
-    inline Duration timestamp() const { return m_timestamp; }
+    inline AK::Duration timestamp() const { return m_timestamp; }
 
     inline Gfx::Size<u32> size() const { return m_size; }
     inline u32 width() const { return size().width(); }
@@ -41,7 +41,7 @@ public:
     inline CodingIndependentCodePoints& cicp() { return m_cicp; }
 
 protected:
-    VideoFrame(Duration timestamp,
+    VideoFrame(AK::Duration timestamp,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp)
         : m_timestamp(timestamp)
@@ -51,7 +51,7 @@ protected:
     {
     }
 
-    Duration m_timestamp;
+    AK::Duration m_timestamp;
     Gfx::Size<u32> m_size;
     u8 m_bit_depth;
     CodingIndependentCodePoints m_cicp;
@@ -61,20 +61,20 @@ class SubsampledYUVFrame : public VideoFrame {
 
 public:
     static ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> try_create(
-        Duration timestamp,
+        AK::Duration timestamp,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         Subsampling subsampling);
 
     static ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> try_create_from_data(
-        Duration timestamp,
+        AK::Duration timestamp,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         Subsampling subsampling,
         ReadonlyBytes y_data, ReadonlyBytes u_data, ReadonlyBytes v_data);
 
     SubsampledYUVFrame(
-        Duration timestamp,
+        AK::Duration timestamp,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         Subsampling subsampling,

@@ -30,7 +30,7 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
 {
 }
 
-DecoderErrorOr<void> FFmpegVideoDecoder::receive_sample(Duration timestamp, ReadonlyBytes sample)
+DecoderErrorOr<void> FFmpegVideoDecoder::receive_sample(AK::Duration timestamp, ReadonlyBytes sample)
 {
     (void)timestamp;
     (void)sample;

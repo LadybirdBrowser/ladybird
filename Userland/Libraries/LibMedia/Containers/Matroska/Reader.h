@@ -39,7 +39,7 @@ public:
     DecoderErrorOr<size_t> track_count();
 
     DecoderErrorOr<SampleIterator> create_sample_iterator(u64 track_number);
-    DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, Duration);
+    DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
     DecoderErrorOr<Optional<Vector<CuePoint> const&>> cue_points_for_track(u64 track_number);
     DecoderErrorOr<bool> has_cues_for_track(u64 track_number);
 
@@ -58,7 +58,7 @@ private:
 
     DecoderErrorOr<void> parse_cues(Streamer&);
     DecoderErrorOr<void> ensure_cues_are_parsed();
-    DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, Duration const&);
+    DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&);
 
     RefPtr<Core::SharedMappedFile> m_mapped_file;
     ReadonlyBytes m_data;
@@ -84,7 +84,7 @@ class SampleIterator {
 public:
     DecoderErrorOr<Block> next_block();
     Cluster const& current_cluster() const { return *m_current_cluster; }
-    Optional<Duration> const& last_timestamp() const { return m_last_timestamp; }
+    Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
     TrackEntry const& track() const { return *m_track; }
 
 private:
@@ -109,7 +109,7 @@ private:
     // Must always point to an element ID or the end of the stream.
     size_t m_position { 0 };
 
-    Optional<Duration> m_last_timestamp;
+    Optional<AK::Duration> m_last_timestamp;
 
     Optional<Cluster> m_current_cluster;
 };

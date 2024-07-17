@@ -28,7 +28,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
     size_t frame_count = 0;
     NonnullOwnPtr<Media::VideoDecoder> decoder = create_decoder(iterator);
 
-    auto last_timestamp = Duration::min();
+    auto last_timestamp = AK::Duration::min();
 
     while (frame_count <= expected_frame_count) {
         auto block_result = iterator.next_block();
