@@ -1,0 +1,17 @@
+#import <UIEvents/UIEvent.idl>
+
+// https://w3c.github.io/uievents/#compositionevent
+[Exposed=Window]
+interface CompositionEvent : UIEvent {
+    constructor(DOMString type, optional CompositionEventInit eventInitDict = {});
+    readonly attribute USVString data;
+
+    // https://w3c.github.io/uievents/#dom-compositionevent-initcompositionevent
+    // FIXME: The spec uses WindowProxy rather than Window (see https://github.com/w3c/uievents/pull/379).
+    undefined initCompositionEvent(DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional Window? viewArg = null, optional DOMString dataArg = "");
+};
+
+// https://w3c.github.io/uievents/#dictdef-compositioneventinit
+dictionary CompositionEventInit : UIEventInit {
+    DOMString data = "";
+};
