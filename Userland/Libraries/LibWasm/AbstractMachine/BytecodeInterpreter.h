@@ -77,12 +77,6 @@ protected:
     template<typename PopType, typename PushType, typename Operator, typename... Args>
     void unary_operation(Configuration&, Args&&...);
 
-    template<typename V, typename T>
-    MakeUnsigned<T> checked_unsigned_truncate(V);
-
-    template<typename V, typename T>
-    MakeSigned<T> checked_signed_truncate(V);
-
     template<typename T>
     T read_value(ReadonlyBytes data);
 

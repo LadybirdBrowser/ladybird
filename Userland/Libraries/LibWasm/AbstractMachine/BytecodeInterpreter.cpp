@@ -489,51 +489,6 @@ double BytecodeInterpreter::read_value<double>(ReadonlyBytes data)
     return bit_cast<double>(static_cast<u64>(raw_value));
 }
 
-template<typename V, typename T>
-MakeSigned<T> BytecodeInterpreter::checked_signed_truncate(V value)
-{
-    if (isnan(value) || isinf(value)) { // "undefined", let's just trap.
-        m_trap = Trap { "Signed truncation undefined behavior" };
-        return 0;
-    }
-
-    double truncated;
-    if constexpr (IsSame<float, V>)
-        truncated = truncf(value);
-    else
-        truncated = trunc(value);
-
-    using SignedT = MakeSigned<T>;
-    if (NumericLimits<SignedT>::min() <= truncated && static_cast<double>(NumericLimits<SignedT>::max()) >= truncated)
-        return static_cast<SignedT>(truncated);
-
-    dbgln_if(WASM_TRACE_DEBUG, "Truncate out of range error");
-    m_trap = Trap { "Signed truncation out of range" };
-    return true;
-}
-
-template<typename V, typename T>
-MakeUnsigned<T> BytecodeInterpreter::checked_unsigned_truncate(V value)
-{
-    if (isnan(value) || isinf(value)) { // "undefined", let's just trap.
-        m_trap = Trap { "Unsigned truncation undefined behavior" };
-        return 0;
-    }
-    double truncated;
-    if constexpr (IsSame<float, V>)
-        truncated = truncf(value);
-    else
-        truncated = trunc(value);
-
-    using UnsignedT = MakeUnsigned<T>;
-    if (NumericLimits<UnsignedT>::min() <= truncated && static_cast<double>(NumericLimits<UnsignedT>::max()) >= truncated)
-        return static_cast<UnsignedT>(truncated);
-
-    dbgln_if(WASM_TRACE_DEBUG, "Truncate out of range error");
-    m_trap = Trap { "Unsigned truncation out of range" };
-    return true;
-}
-
 Vector<Value> BytecodeInterpreter::pop_values(Configuration& configuration, size_t count)
 {
     Vector<Value> results;
