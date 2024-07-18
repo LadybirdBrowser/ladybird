@@ -721,7 +721,7 @@ void fetch_single_module_script(JS::Realm& realm,
         module_map.wait_for_change(realm.heap(), url, module_type, [on_complete, &realm](auto entry) -> void {
             HTML::queue_global_task(HTML::Task::Source::Networking, realm.global_object(), JS::create_heap_function(realm.heap(), [on_complete, entry] {
                 // FIXME: This should run other steps, for now we just assume the script loaded.
-                VERIFY(entry.type == ModuleMap::EntryType::ModuleScript);
+                VERIFY(entry.type == ModuleMap::EntryType::ModuleScript || entry.type == ModuleMap::EntryType::Failed);
 
                 on_complete->function()(entry.module_script);
             }));
