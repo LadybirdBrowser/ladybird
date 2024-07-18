@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <atkinssj@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
@@ -647,7 +648,7 @@ Optional<CSS::Clear> StyleProperties::clear() const
     return value_id_to_clear(value->to_identifier());
 }
 
-StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(u32 initial_quote_nesting_level) const
+StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::Element& element, u32 initial_quote_nesting_level) const
 {
     auto value = property(CSS::PropertyID::Content);
     auto quotes_data = quotes();
@@ -710,8 +711,10 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(u32 in
                     dbgln("`{}` is not supported in `content` (yet?)", item->to_string());
                     break;
                 }
+            } else if (item->is_counter()) {
+                builder.append(item->as_counter().resolve(element));
             } else {
-                // TODO: Implement counters, images, and other things.
+                // TODO: Implement images, and other things.
                 dbgln("`{}` is not supported in `content` (yet?)", item->to_string());
             }
         }
@@ -723,8 +726,10 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(u32 in
             for (auto const& item : content_style_value.alt_text()->values()) {
                 if (item->is_string()) {
                     alt_text_builder.append(item->as_string().string_value());
+                } else if (item->is_counter()) {
+                    alt_text_builder.append(item->as_counter().resolve(element));
                 } else {
-                    // TODO: Implement counters
+                    dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string());
                 }
             }
             content_data.alt_text = MUST(alt_text_builder.to_string());

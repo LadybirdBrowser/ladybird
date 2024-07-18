@@ -85,7 +85,7 @@ public:
         CSS::ContentData content_data;
         u32 final_quote_nesting_level { 0 };
     };
-    ContentDataAndQuoteNestingLevel content(u32 initial_quote_nesting_level) const;
+    ContentDataAndQuoteNestingLevel content(DOM::Element&, u32 initial_quote_nesting_level) const;
     Optional<CSS::ContentVisibility> content_visibility() const;
     Optional<CSS::Cursor> cursor() const;
     Optional<CSS::WhiteSpace> white_space() const;
