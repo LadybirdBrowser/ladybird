@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -335,4 +335,72 @@ TEST_CASE(starts_with)
     EXPECT(emoji.starts_with(u"😀🙃"));
     EXPECT(!emoji.starts_with(u"a"));
     EXPECT(!emoji.starts_with(u"🙃"));
+}
+
+TEST_CASE(big_endian)
+{
+    auto string = MUST(AK::utf8_to_utf16("säk😀"sv, AK::Endianness::Big));
+    Utf16View view { string, AK::Endianness::Big };
+    {
+        EXPECT(view.validate());
+        EXPECT_EQ(MUST(view.to_utf8()), "säk😀"sv);
+
+        EXPECT_EQ(view.length_in_code_units(), 5u);
+        EXPECT_EQ(view.length_in_code_points(), 4u);
+
+        EXPECT_EQ(view.code_unit_at(0), 0x73u);
+        EXPECT_EQ(view.code_unit_at(1), 0xe4u);
+        EXPECT_EQ(view.code_unit_at(2), 0x6bu);
+        EXPECT_EQ(view.code_unit_at(3), 0xd83d);
+        EXPECT_EQ(view.code_unit_at(4), 0xde00u);
+
+        EXPECT_EQ(view.code_point_at(0), 0x73u);
+        EXPECT_EQ(view.code_point_at(1), 0xe4u);
+        EXPECT_EQ(view.code_point_at(2), 0x6bu);
+        EXPECT_EQ(view.code_point_at(3), 0x1f600u);
+        EXPECT_EQ(view.code_point_at(4), 0xde00u);
+    }
+    {
+        Utf16Data data;
+        MUST(code_point_to_utf16(data, 's', AK::Endianness::Big));
+        MUST(code_point_to_utf16(data, 0xe4, AK::Endianness::Big));
+        MUST(code_point_to_utf16(data, 'k', AK::Endianness::Big));
+        MUST(code_point_to_utf16(data, 0x1f600, AK::Endianness::Big));
+        EXPECT_EQ(data, to_array<u16>({ 0x7300, 0xe400, 0x6b00, 0x3dd8, 0x00de }));
+        EXPECT_EQ(data, string);
+    }
+}
+
+TEST_CASE(little_endian)
+{
+    auto string = MUST(AK::utf8_to_utf16("säk😀"sv, AK::Endianness::Little));
+    Utf16View view { string, AK::Endianness::Little };
+    {
+        EXPECT(view.validate());
+        EXPECT_EQ(MUST(view.to_utf8()), "säk😀"sv);
+
+        EXPECT_EQ(view.length_in_code_units(), 5u);
+        EXPECT_EQ(view.length_in_code_points(), 4u);
+
+        EXPECT_EQ(view.code_unit_at(0), 0x73u);
+        EXPECT_EQ(view.code_unit_at(1), 0xe4u);
+        EXPECT_EQ(view.code_unit_at(2), 0x6bu);
+        EXPECT_EQ(view.code_unit_at(3), 0xd83d);
+        EXPECT_EQ(view.code_unit_at(4), 0xde00u);
+
+        EXPECT_EQ(view.code_point_at(0), 0x73u);
+        EXPECT_EQ(view.code_point_at(1), 0xe4u);
+        EXPECT_EQ(view.code_point_at(2), 0x6bu);
+        EXPECT_EQ(view.code_point_at(3), 0x1f600u);
+        EXPECT_EQ(view.code_point_at(4), 0xde00u);
+    }
+    {
+        Utf16Data data;
+        MUST(code_point_to_utf16(data, 's', AK::Endianness::Little));
+        MUST(code_point_to_utf16(data, 0xe4, AK::Endianness::Little));
+        MUST(code_point_to_utf16(data, 'k', AK::Endianness::Little));
+        MUST(code_point_to_utf16(data, 0x1f600, AK::Endianness::Little));
+        EXPECT_EQ(data, to_array<u16>({ 0x73, 0xe4, 0x6b, 0xd83d, 0xde00 }));
+        EXPECT_EQ(data, string);
+    }
 }
