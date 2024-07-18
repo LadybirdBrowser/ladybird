@@ -1,0 +1,254 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x255 children: not-inline
+      BlockContainer <div.ol> at (24,8) content-size 768x255 children: not-inline
+        BlockContainer <(anonymous)> at (24,8) content-size 768x0 children: inline
+          TextNode <#text>
+        BlockContainer <div.li> at (24,8) content-size 768x17 children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [42,8 14.265625x17] baseline: 13.296875
+              "A"
+          InlineNode <(anonymous)>
+            frag 0 from TextNode start: 0, length: 3, rect: [24,8 18.125x17] baseline: 13.296875
+                "1: "
+            TextNode <#text>
+          TextNode <#text>
+        BlockContainer <(anonymous)> at (24,25) content-size 768x0 children: inline
+          TextNode <#text>
+        BlockContainer <div.li> at (24,25) content-size 768x17 children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [45,25 9.34375x17] baseline: 13.296875
+              "B"
+          InlineNode <(anonymous)>
+            frag 0 from TextNode start: 0, length: 3, rect: [24,25 20.59375x17] baseline: 13.296875
+                "2: "
+            TextNode <#text>
+          TextNode <#text>
+        BlockContainer <(anonymous)> at (24,42) content-size 768x0 children: inline
+          TextNode <#text>
+        BlockContainer <div.li> at (24,42) content-size 768x17 children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [45,42 10.3125x17] baseline: 13.296875
+              "C"
+          InlineNode <(anonymous)>
+            frag 0 from TextNode start: 0, length: 3, rect: [24,42 20.875x17] baseline: 13.296875
+                "3: "
+            TextNode <#text>
+          TextNode <#text>
+        BlockContainer <(anonymous)> at (24,59) content-size 768x0 children: inline
+          TextNode <#text>
+        BlockContainer <div.li> at (24,59) content-size 768x153 children: not-inline
+          BlockContainer <(anonymous)> at (24,59) content-size 768x17 children: inline
+            InlineNode <(anonymous)>
+              frag 0 from TextNode start: 0, length: 2, rect: [24,59 11.53125x17] baseline: 13.296875
+                  "4:"
+              TextNode <#text>
+            TextNode <#text>
+          BlockContainer <div.ol> at (40,76) content-size 752x136 children: not-inline
+            BlockContainer <(anonymous)> at (40,76) content-size 752x0 children: inline
+              TextNode <#text>
+            BlockContainer <div.li> at (40,76) content-size 752x17 children: inline
+              frag 0 from TextNode start: 0, length: 1, rect: [70,76 11.140625x17] baseline: 13.296875
+                  "D"
+              InlineNode <(anonymous)>
+                frag 0 from TextNode start: 0, length: 5, rect: [40,76 30.21875x17] baseline: 13.296875
+                    "4.1: "
+                TextNode <#text>
+              TextNode <#text>
+            BlockContainer <(anonymous)> at (40,93) content-size 752x0 children: inline
+              TextNode <#text>
+            BlockContainer <div.li> at (40,93) content-size 752x17 children: inline
+              frag 0 from TextNode start: 0, length: 1, rect: [73,93 11.859375x17] baseline: 13.296875
+                  "E"
+              InlineNode <(anonymous)>
+                frag 0 from TextNode start: 0, length: 5, rect: [40,93 32.6875x17] baseline: 13.296875
+                    "4.2: "
+                TextNode <#text>
+              TextNode <#text>
+            BlockContainer <(anonymous)> at (40,110) content-size 752x0 children: inline
+              TextNode <#text>
+            BlockContainer <div.li> at (40,110) content-size 752x68 children: not-inline
+              BlockContainer <(anonymous)> at (40,110) content-size 752x17 children: inline
+                InlineNode <(anonymous)>
+                  frag 0 from TextNode start: 0, length: 4, rect: [40,110 24.96875x17] baseline: 13.296875
+                      "4.3:"
+                  TextNode <#text>
+                TextNode <#text>
+              BlockContainer <div.ol> at (56,127) content-size 736x51 children: not-inline
+                BlockContainer <(anonymous)> at (56,127) content-size 736x0 children: inline
+                  TextNode <#text>
+                BlockContainer <div.li> at (56,127) content-size 736x17 children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [100,127 12.546875x17] baseline: 13.296875
+                      "F"
+                  InlineNode <(anonymous)>
+                    frag 0 from TextNode start: 0, length: 7, rect: [56,127 43.65625x17] baseline: 13.296875
+                        "4.3.1: "
+                    TextNode <#text>
+                  TextNode <#text>
+                BlockContainer <(anonymous)> at (56,144) content-size 736x0 children: inline
+                  TextNode <#text>
+                BlockContainer <div.li> at (56,144) content-size 736x17 children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [102,144 13.234375x17] baseline: 13.296875
+                      "G"
+                  InlineNode <(anonymous)>
+                    frag 0 from TextNode start: 0, length: 7, rect: [56,144 46.125x17] baseline: 13.296875
+                        "4.3.2: "
+                    TextNode <#text>
+                  TextNode <#text>
+                BlockContainer <(anonymous)> at (56,161) content-size 736x0 children: inline
+                  TextNode <#text>
+                BlockContainer <div.li> at (56,161) content-size 736x17 children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [102,161 12.234375x17] baseline: 13.296875
+                      "H"
+                  InlineNode <(anonymous)>
+                    frag 0 from TextNode start: 0, length: 7, rect: [56,161 46.40625x17] baseline: 13.296875
+                        "4.3.3: "
+                    TextNode <#text>
+                  TextNode <#text>
+                BlockContainer <(anonymous)> at (56,178) content-size 736x0 children: inline
+                  TextNode <#text>
+              BlockContainer <(anonymous)> at (40,178) content-size 752x0 children: inline
+                TextNode <#text>
+            BlockContainer <(anonymous)> at (40,178) content-size 752x0 children: inline
+              TextNode <#text>
+            BlockContainer <div.li> at (40,178) content-size 752x17 children: inline
+              frag 0 from TextNode start: 0, length: 1, rect: [72,178 4.59375x17] baseline: 13.296875
+                  "I"
+              InlineNode <(anonymous)>
+                frag 0 from TextNode start: 0, length: 5, rect: [40,178 31.625x17] baseline: 13.296875
+                    "4.4: "
+                TextNode <#text>
+              TextNode <#text>
+            BlockContainer <(anonymous)> at (40,195) content-size 752x0 children: inline
+              TextNode <#text>
+            BlockContainer <div.li> at (40,195) content-size 752x17 children: inline
+              frag 0 from TextNode start: 0, length: 1, rect: [72,195 8.90625x17] baseline: 13.296875
+                  "J"
+              InlineNode <(anonymous)>
+                frag 0 from TextNode start: 0, length: 5, rect: [40,195 32.328125x17] baseline: 13.296875
+                    "4.5: "
+                TextNode <#text>
+              TextNode <#text>
+            BlockContainer <(anonymous)> at (40,212) content-size 752x0 children: inline
+              TextNode <#text>
+          BlockContainer <(anonymous)> at (24,212) content-size 768x0 children: inline
+            TextNode <#text>
+        BlockContainer <(anonymous)> at (24,212) content-size 768x0 children: inline
+          TextNode <#text>
+        BlockContainer <div.li> at (24,212) content-size 768x17 children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [44,212 9.8125x17] baseline: 13.296875
+              "K"
+          InlineNode <(anonymous)>
+            frag 0 from TextNode start: 0, length: 3, rect: [24,212 20.234375x17] baseline: 13.296875
+                "5: "
+            TextNode <#text>
+          TextNode <#text>
+        BlockContainer <(anonymous)> at (24,229) content-size 768x0 children: inline
+          TextNode <#text>
+        BlockContainer <div.li> at (24,229) content-size 768x17 children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [45,229 10.859375x17] baseline: 13.296875
+              "L"
+          InlineNode <(anonymous)>
+            frag 0 from TextNode start: 0, length: 3, rect: [24,229 20.515625x17] baseline: 13.296875
+                "6: "
+            TextNode <#text>
+          TextNode <#text>
+        BlockContainer <(anonymous)> at (24,246) content-size 768x0 children: inline
+          TextNode <#text>
+        BlockContainer <div.li> at (24,246) content-size 768x17 children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [45,246 11.765625x17] baseline: 13.296875
+              "M"
+          InlineNode <(anonymous)>
+            frag 0 from TextNode start: 0, length: 3, rect: [24,246 20.5x17] baseline: 13.296875
+                "7: "
+            TextNode <#text>
+          TextNode <#text>
+        BlockContainer <(anonymous)> at (24,263) content-size 768x0 children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,263) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x255]
+      PaintableWithLines (BlockContainer<DIV>.ol) [8,8 784x255]
+        PaintableWithLines (BlockContainer(anonymous)) [24,8 768x0]
+        PaintableWithLines (BlockContainer<DIV>.li) [24,8 768x17]
+          InlinePaintable (InlineNode(anonymous))
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [24,25 768x0]
+        PaintableWithLines (BlockContainer<DIV>.li) [24,25 768x17]
+          InlinePaintable (InlineNode(anonymous))
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [24,42 768x0]
+        PaintableWithLines (BlockContainer<DIV>.li) [24,42 768x17]
+          InlinePaintable (InlineNode(anonymous))
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [24,59 768x0]
+        PaintableWithLines (BlockContainer<DIV>.li) [24,59 768x153]
+          PaintableWithLines (BlockContainer(anonymous)) [24,59 768x17]
+            InlinePaintable (InlineNode(anonymous))
+              TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>.ol) [24,76 768x136]
+            PaintableWithLines (BlockContainer(anonymous)) [40,76 752x0]
+            PaintableWithLines (BlockContainer<DIV>.li) [40,76 752x17]
+              InlinePaintable (InlineNode(anonymous))
+                TextPaintable (TextNode<#text>)
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer(anonymous)) [40,93 752x0]
+            PaintableWithLines (BlockContainer<DIV>.li) [40,93 752x17]
+              InlinePaintable (InlineNode(anonymous))
+                TextPaintable (TextNode<#text>)
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer(anonymous)) [40,110 752x0]
+            PaintableWithLines (BlockContainer<DIV>.li) [40,110 752x68]
+              PaintableWithLines (BlockContainer(anonymous)) [40,110 752x17]
+                InlinePaintable (InlineNode(anonymous))
+                  TextPaintable (TextNode<#text>)
+              PaintableWithLines (BlockContainer<DIV>.ol) [40,127 752x51]
+                PaintableWithLines (BlockContainer(anonymous)) [56,127 736x0]
+                PaintableWithLines (BlockContainer<DIV>.li) [56,127 736x17]
+                  InlinePaintable (InlineNode(anonymous))
+                    TextPaintable (TextNode<#text>)
+                  TextPaintable (TextNode<#text>)
+                PaintableWithLines (BlockContainer(anonymous)) [56,144 736x0]
+                PaintableWithLines (BlockContainer<DIV>.li) [56,144 736x17]
+                  InlinePaintable (InlineNode(anonymous))
+                    TextPaintable (TextNode<#text>)
+                  TextPaintable (TextNode<#text>)
+                PaintableWithLines (BlockContainer(anonymous)) [56,161 736x0]
+                PaintableWithLines (BlockContainer<DIV>.li) [56,161 736x17]
+                  InlinePaintable (InlineNode(anonymous))
+                    TextPaintable (TextNode<#text>)
+                  TextPaintable (TextNode<#text>)
+                PaintableWithLines (BlockContainer(anonymous)) [56,178 736x0]
+              PaintableWithLines (BlockContainer(anonymous)) [40,178 752x0]
+            PaintableWithLines (BlockContainer(anonymous)) [40,178 752x0]
+            PaintableWithLines (BlockContainer<DIV>.li) [40,178 752x17]
+              InlinePaintable (InlineNode(anonymous))
+                TextPaintable (TextNode<#text>)
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer(anonymous)) [40,195 752x0]
+            PaintableWithLines (BlockContainer<DIV>.li) [40,195 752x17]
+              InlinePaintable (InlineNode(anonymous))
+                TextPaintable (TextNode<#text>)
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer(anonymous)) [40,212 752x0]
+          PaintableWithLines (BlockContainer(anonymous)) [24,212 768x0]
+        PaintableWithLines (BlockContainer(anonymous)) [24,212 768x0]
+        PaintableWithLines (BlockContainer<DIV>.li) [24,212 768x17]
+          InlinePaintable (InlineNode(anonymous))
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [24,229 768x0]
+        PaintableWithLines (BlockContainer<DIV>.li) [24,229 768x17]
+          InlinePaintable (InlineNode(anonymous))
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [24,246 768x0]
+        PaintableWithLines (BlockContainer<DIV>.li) [24,246 768x17]
+          InlinePaintable (InlineNode(anonymous))
+            TextPaintable (TextNode<#text>)
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [24,263 768x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,263 784x0]

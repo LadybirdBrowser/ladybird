@@ -1,0 +1,36 @@
+<style>
+div.ol {
+    counter-reset: index;
+    padding-left: 1em;
+}
+div.li {
+    counter-increment: index;
+}
+div.li::before {
+    content: counters(index, ".") ": ";
+}
+</style>
+
+<div class="ol">
+    <div class="li">A</div>
+    <div class="li">B</div>
+    <div class="li">C</div>
+    <div class="li">
+        <div class="ol">
+            <div class="li">D</div>
+            <div class="li">E</div>
+            <div class="li">
+                <div class="ol">
+                    <div class="li">F</div>
+                    <div class="li">G</div>
+                    <div class="li">H</div>
+                </div>
+            </div>
+            <div class="li">I</div>
+            <div class="li">J</div>
+        </div>
+    </div>
+    <div class="li">K</div>
+    <div class="li">L</div>
+    <div class="li">M</div>
+</div>

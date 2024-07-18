@@ -1,0 +1,12 @@
+<style>
+div {
+    counter-increment: line;
+    counter-reset: word;
+}
+p {
+    counter-increment: word;
+}
+p::before {
+    content: counter(line) "." counter(word) ": ";
+}
+</style><div><p>Never<p>Gonna<p>Give<p>You<p>Up</div><div><p>Never<p>Gonna<p>Let<p>You<p>Down</div>
