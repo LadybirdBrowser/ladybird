@@ -751,8 +751,6 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto outline_width = computed_style.property(CSS::PropertyID::OutlineWidth); outline_width->is_length())
         computed_values.set_outline_width(outline_width->as_length().length());
 
-    // FIXME: Stop generating the content twice. (First time is in TreeBuilder.)
-    computed_values.set_content(computed_style.content(initial_quote_nesting_level()).content_data);
     computed_values.set_grid_auto_columns(computed_style.grid_auto_columns());
     computed_values.set_grid_auto_rows(computed_style.grid_auto_rows());
     computed_values.set_grid_template_columns(computed_style.grid_template_columns());
