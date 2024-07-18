@@ -710,6 +710,23 @@ struct VectorIntegerBinaryOp {
     }
 };
 
+template<size_t VectorSize>
+struct VectorBitmask {
+    auto operator()(u128 lhs) const
+    {
+        using VectorType = NativeVectorType<128 / VectorSize, VectorSize, MakeSigned>;
+        auto value = bit_cast<VectorType>(lhs);
+        u32 result = 0;
+
+        for (size_t i = 0; i < VectorSize; ++i)
+            result |= static_cast<u32>(value[i] < 0) << i;
+
+        return result;
+    }
+
+    static StringView name() { return "bitmask"sv; }
+};
+
 template<size_t VectorSize, typename Op, template<typename> typename SetSign = MakeSigned>
 struct VectorIntegerUnaryOp {
     auto operator()(u128 lhs) const
@@ -793,6 +810,34 @@ struct VectorFloatUnaryOp {
             return "vecf(32x4).unary_op"sv;
         case 2:
             return "vecf(64x2).unary_op"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+};
+
+template<size_t VectorSize, typename Op>
+struct VectorFloatConvertOp {
+    auto operator()(u128 lhs) const
+    {
+        using VectorInput = NativeFloatingVectorType<128, VectorSize, NativeFloatingType<128 / VectorSize>>;
+        using VectorResult = NativeVectorType<128 / VectorSize, VectorSize, MakeUnsigned>;
+        auto value = bit_cast<VectorInput>(lhs);
+        VectorResult result;
+        Op op;
+        for (size_t i = 0; i < VectorSize; ++i) {
+            result[i] = op(value[i]);
+        }
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 4:
+            return "vecf(32x4).cvt_op"sv;
+        case 2:
+            return "vecf(64x2).cvt_op"sv;
         default:
             VERIFY_NOT_REACHED();
         }
