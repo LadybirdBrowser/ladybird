@@ -13,8 +13,7 @@
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#retarget
-template<typename T>
-T* retarget(T* a, T* b)
+inline EventTarget* retarget_impl(EventTarget* a, EventTarget* b)
 {
     // To retarget an object A against an object B, repeat these steps until they return an object:
     for (;;) {
@@ -37,6 +36,13 @@ T* retarget(T* a, T* b)
         auto& a_shadow_root = verify_cast<ShadowRoot>(a_root);
         a = a_shadow_root.host();
     }
+}
+
+// https://dom.spec.whatwg.org/#retarget
+template<typename T>
+T* retarget(T* a, T* b)
+{
+    return static_cast<T*>(retarget_impl(a, b));
 }
 
 }
