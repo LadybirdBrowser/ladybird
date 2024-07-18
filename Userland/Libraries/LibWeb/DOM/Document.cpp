@@ -1071,13 +1071,13 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
 
 void Document::update_layout()
 {
-    if (!is_active())
+    auto navigable = this->navigable();
+    if (!navigable || navigable->active_document() != this)
         return;
 
     // NOTE: If our parent document needs a relayout, we must do that *first*.
     //       This is necessary as the parent layout may cause our viewport to change.
-    auto navigable = this->navigable();
-    if (navigable && navigable->container())
+    if (navigable->container())
         navigable->container()->document().update_layout();
 
     update_style();
@@ -1089,11 +1089,8 @@ void Document::update_layout()
     if (m_created_for_appropriate_template_contents)
         return;
 
-    if (!navigable)
-        return;
-
     auto* document_element = this->document_element();
-    auto viewport_rect = this->viewport_rect();
+    auto viewport_rect = navigable->viewport_rect();
 
     if (!m_layout_root) {
         Layout::TreeBuilder tree_builder;
