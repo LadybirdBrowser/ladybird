@@ -375,150 +375,56 @@ ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
     return Decoder::to_utf8(bomless_input);
 }
 
+static Utf16View as_utf16(StringView view, AK::Endianness endianness)
+{
+    return Utf16View {
+        { reinterpret_cast<u16 const*>(view.bytes().data()), view.length() / 2 },
+        endianness
+    };
+}
+
 ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    // rfc2781, 2.2 Decoding UTF-16
-    size_t utf16_length = input.length() - (input.length() % 2);
-    for (size_t i = 0; i < utf16_length; i += 2) {
-        // 1) If W1 < 0xD800 or W1 > 0xDFFF, the character value U is the value
-        //    of W1. Terminate.
-        u16 w1 = (static_cast<u8>(input[i]) << 8) | static_cast<u8>(input[i + 1]);
-        if (!is_unicode_surrogate(w1)) {
-            TRY(on_code_point(w1));
-            continue;
-        }
-
-        // 2) Determine if W1 is between 0xD800 and 0xDBFF. If not, the sequence
-        //    is in error and no valid character can be obtained using W1.
-        //    Terminate.
-        // 3) If there is no W2 (that is, the sequence ends with W1), or if W2
-        //    is not between 0xDC00 and 0xDFFF, the sequence is in error.
-        //    Terminate.
-        if (!Utf16View::is_high_surrogate(w1) || i + 2 == utf16_length) {
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        u16 w2 = (static_cast<u8>(input[i + 2]) << 8) | static_cast<u8>(input[i + 3]);
-        if (!Utf16View::is_low_surrogate(w2)) {
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 4) Construct a 20-bit unsigned integer U', taking the 10 low-order
-        //    bits of W1 as its 10 high-order bits and the 10 low-order bits of
-        //    W2 as its 10 low-order bits.
-        // 5) Add 0x10000 to U' to obtain the character value U. Terminate.
-        TRY(on_code_point(Utf16View::decode_surrogate_pair(w1, w2)));
-        i += 2;
-    }
+    for (auto code_point : as_utf16(input, AK::Endianness::Big))
+        TRY(on_code_point(code_point));
 
     return {};
 }
 
 bool UTF16BEDecoder::validate(StringView input)
 {
-    size_t utf16_length = input.length() - (input.length() % 2);
-    for (size_t i = 0; i < utf16_length; i += 2) {
-        u16 w1 = (static_cast<u8>(input[i]) << 8) | static_cast<u8>(input[i + 1]);
-        if (!is_unicode_surrogate(w1))
-            continue;
-
-        if (!Utf16View::is_high_surrogate(w1) || i + 2 == utf16_length)
-            return false;
-
-        u16 w2 = (static_cast<u8>(input[i + 2]) << 8) | static_cast<u8>(input[i + 3]);
-        if (!Utf16View::is_low_surrogate(w2))
-            return false;
-
-        i += 2;
-    }
-    return true;
+    return as_utf16(input, AK::Endianness::Big).validate();
 }
 
 ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
 {
     // Discard the BOM
-    auto bomless_input = input;
     if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
-        bomless_input = input.substring_view(2);
+        input = input.substring_view(2);
 
-    StringBuilder builder(bomless_input.length() / 2);
-    TRY(process(bomless_input, [&builder](u32 c) { return builder.try_append_code_point(c); }));
-    return builder.to_string();
+    return String::from_utf16(as_utf16(input, AK::Endianness::Big));
 }
 
 ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    // rfc2781, 2.2 Decoding UTF-16
-    size_t utf16_length = input.length() - (input.length() % 2);
-    for (size_t i = 0; i < utf16_length; i += 2) {
-        // 1) If W1 < 0xD800 or W1 > 0xDFFF, the character value U is the value
-        //    of W1. Terminate.
-        u16 w1 = static_cast<u8>(input[i]) | (static_cast<u8>(input[i + 1]) << 8);
-        if (!is_unicode_surrogate(w1)) {
-            TRY(on_code_point(w1));
-            continue;
-        }
-
-        // 2) Determine if W1 is between 0xD800 and 0xDBFF. If not, the sequence
-        //    is in error and no valid character can be obtained using W1.
-        //    Terminate.
-        // 3) If there is no W2 (that is, the sequence ends with W1), or if W2
-        //    is not between 0xDC00 and 0xDFFF, the sequence is in error.
-        //    Terminate.
-        if (!Utf16View::is_high_surrogate(w1) || i + 2 == utf16_length) {
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        u16 w2 = static_cast<u8>(input[i + 2]) | (static_cast<u8>(input[i + 3]) << 8);
-        if (!Utf16View::is_low_surrogate(w2)) {
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 4) Construct a 20-bit unsigned integer U', taking the 10 low-order
-        //    bits of W1 as its 10 high-order bits and the 10 low-order bits of
-        //    W2 as its 10 low-order bits.
-        // 5) Add 0x10000 to U' to obtain the character value U. Terminate.
-        TRY(on_code_point(Utf16View::decode_surrogate_pair(w1, w2)));
-        i += 2;
-    }
+    for (auto code_point : as_utf16(input, AK::Endianness::Little))
+        TRY(on_code_point(code_point));
 
     return {};
 }
 
 bool UTF16LEDecoder::validate(StringView input)
 {
-    size_t utf16_length = input.length() - (input.length() % 2);
-    for (size_t i = 0; i < utf16_length; i += 2) {
-        u16 w1 = static_cast<u8>(input[i]) | (static_cast<u8>(input[i + 1]) << 8);
-        if (!is_unicode_surrogate(w1))
-            continue;
-
-        if (!Utf16View::is_high_surrogate(w1) || i + 2 == utf16_length)
-            return false;
-
-        u16 w2 = static_cast<u8>(input[i + 2]) | (static_cast<u8>(input[i + 3]) << 8);
-        if (!Utf16View::is_low_surrogate(w2))
-            return false;
-
-        i += 2;
-    }
-    return true;
+    return as_utf16(input, AK::Endianness::Little).validate();
 }
 
 ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
 {
     // Discard the BOM
-    auto bomless_input = input;
     if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
-        bomless_input = input.substring_view(2);
+        input = input.substring_view(2);
 
-    StringBuilder builder(bomless_input.length() / 2);
-    TRY(process(bomless_input, [&builder](u32 c) { return builder.try_append_code_point(c); }));
-    return builder.to_string();
+    return String::from_utf16(as_utf16(input, AK::Endianness::Little));
 }
 
 ErrorOr<void> Latin1Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
