@@ -1547,7 +1547,7 @@ bool Node::is_equal_node(Node const* other_node) const
     // A node A equals a node B if all of the following conditions are true:
 
     // A and B implement the same interfaces.
-    if (node_name() != other_node->node_name())
+    if (!node_name().equals_ignoring_ascii_case(other_node->node_name()))
         return false;
 
     // The following are equal, switching on the interface A implements:
