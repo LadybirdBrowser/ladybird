@@ -128,6 +128,7 @@
 #include <LibWeb/SVG/SVGStyleElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/UIEvents/CompositionEvent.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/FocusEvent.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
@@ -1753,7 +1754,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> Document::create_event(StringView i
     if (Infra::is_ascii_case_insensitive_match(interface, "beforeunloadevent"sv)) {
         event = BeforeUnloadEvent::create(realm, FlyString {});
     } else if (Infra::is_ascii_case_insensitive_match(interface, "compositionevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create CompositionEvent
+        event = UIEvents::CompositionEvent::create(realm, String {});
     } else if (Infra::is_ascii_case_insensitive_match(interface, "customevent"sv)) {
         event = CustomEvent::create(realm, FlyString {});
     } else if (Infra::is_ascii_case_insensitive_match(interface, "devicemotionevent"sv)) {
@@ -1783,7 +1784,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> Document::create_event(StringView i
     } else if (Infra::is_ascii_case_insensitive_match(interface, "svgevents"sv)) {
         event = Event::create(realm, FlyString {});
     } else if (Infra::is_ascii_case_insensitive_match(interface, "textevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create CompositionEvent
+        event = Event::create(realm, FlyString {}); // FIXME: Create TextEvent
     } else if (Infra::is_ascii_case_insensitive_match(interface, "touchevent"sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create TouchEvent
     } else if (Infra::is_ascii_case_insensitive_match(interface, "uievent"sv)

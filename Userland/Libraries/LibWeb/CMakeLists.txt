@@ -705,6 +705,7 @@ set(SOURCES
     SVG/TagNames.cpp
     SVG/ViewBox.cpp
     Selection/Selection.cpp
+    UIEvents/CompositionEvent.cpp
     UIEvents/EventNames.cpp
     UIEvents/FocusEvent.cpp
     UIEvents/InputEvent.cpp
