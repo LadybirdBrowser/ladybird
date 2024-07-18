@@ -11,11 +11,18 @@
 #include <AK/Platform.h>
 
 namespace AK {
+
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 inline constexpr static bool HostIsLittleEndian = true;
 #else
 inline constexpr static bool HostIsLittleEndian = false;
 #endif
+
+enum class Endianness {
+    Host,
+    Big,
+    Little,
+};
 
 template<typename T>
 ALWAYS_INLINE constexpr T convert_between_host_and_little_endian(T value)

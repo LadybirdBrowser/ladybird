@@ -25,71 +25,102 @@ static constexpr u16 low_surrogate_max = 0xdfff;
 static constexpr u32 replacement_code_point = 0xfffd;
 static constexpr u32 first_supplementary_plane_code_point = 0x10000;
 
+static constexpr u16 host_code_unit(u16 code_unit, Endianness endianness)
+{
+    switch (endianness) {
+    case Endianness::Host:
+        return code_unit;
+    case Endianness::Big:
+        return convert_between_host_and_big_endian(code_unit);
+    case Endianness::Little:
+        return convert_between_host_and_little_endian(code_unit);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 template<OneOf<Utf8View, Utf32View> UtfViewType>
-static ErrorOr<Utf16Data> to_utf16_slow(UtfViewType const& view)
+static ErrorOr<Utf16Data> to_utf16_slow(UtfViewType const& view, Endianness endianness)
 {
     Utf16Data utf16_data;
     TRY(utf16_data.try_ensure_capacity(view.length()));
 
     for (auto code_point : view)
-        TRY(code_point_to_utf16(utf16_data, code_point));
+        TRY(code_point_to_utf16(utf16_data, code_point, endianness));
 
     return utf16_data;
 }
 
-ErrorOr<Utf16Data> utf8_to_utf16(StringView utf8_view)
+ErrorOr<Utf16Data> utf8_to_utf16(StringView utf8_view, Endianness endianness)
 {
-    return utf8_to_utf16(Utf8View { utf8_view });
+    return utf8_to_utf16(Utf8View { utf8_view }, endianness);
 }
 
-ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const& utf8_view)
+ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const& utf8_view, Endianness endianness)
 {
     // All callers want to allow lonely surrogates, which simdutf does not permit.
     if (!utf8_view.validate(Utf8View::AllowSurrogates::No)) [[unlikely]]
-        return to_utf16_slow(utf8_view);
+        return to_utf16_slow(utf8_view, endianness);
+
+    auto const* data = reinterpret_cast<char const*>(utf8_view.bytes());
+    auto length = utf8_view.byte_length();
 
     Utf16Data utf16_data;
+    TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf8(data, length)));
 
-    TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf8(
-        reinterpret_cast<char const*>(utf8_view.bytes()),
-        utf8_view.byte_length())));
-
-    [[maybe_unused]] auto result = simdutf::convert_utf8_to_utf16(
-        reinterpret_cast<char const*>(utf8_view.bytes()),
-        utf8_view.byte_length(),
-        reinterpret_cast<char16_t*>(utf16_data.data()));
+    [[maybe_unused]] auto result = [&]() {
+        switch (endianness) {
+        case Endianness::Host:
+            return simdutf::convert_utf8_to_utf16(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
+        case Endianness::Big:
+            return simdutf::convert_utf8_to_utf16be(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
+        case Endianness::Little:
+            return simdutf::convert_utf8_to_utf16le(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
+        }
+        VERIFY_NOT_REACHED();
+    }();
     ASSERT(result == utf16_data.size());
 
     return utf16_data;
 }
 
-ErrorOr<Utf16Data> utf32_to_utf16(Utf32View const& utf32_view)
+ErrorOr<Utf16Data> utf32_to_utf16(Utf32View const& utf32_view, Endianness endianness)
 {
+    auto const* data = reinterpret_cast<char32_t const*>(utf32_view.code_points());
+    auto length = utf32_view.length();
+
     Utf16Data utf16_data;
+    TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf32(data, length)));
 
-    TRY(utf16_data.try_resize(simdutf::utf16_length_from_utf32(
-        reinterpret_cast<char32_t const*>(utf32_view.code_points()),
-        utf32_view.length())));
-
-    [[maybe_unused]] auto result = simdutf::convert_utf32_to_utf16(
-        reinterpret_cast<char32_t const*>(utf32_view.code_points()),
-        utf32_view.length(),
-        reinterpret_cast<char16_t*>(utf16_data.data()));
+    [[maybe_unused]] auto result = [&]() {
+        switch (endianness) {
+        case Endianness::Host:
+            return simdutf::convert_utf32_to_utf16(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
+        case Endianness::Big:
+            return simdutf::convert_utf32_to_utf16be(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
+        case Endianness::Little:
+            return simdutf::convert_utf32_to_utf16le(data, length, reinterpret_cast<char16_t*>(utf16_data.data()));
+        }
+        VERIFY_NOT_REACHED();
+    }();
     ASSERT(result == utf16_data.size());
 
     return utf16_data;
 }
 
-ErrorOr<void> code_point_to_utf16(Utf16Data& string, u32 code_point)
+ErrorOr<void> code_point_to_utf16(Utf16Data& string, u32 code_point, Endianness endianness)
 {
     VERIFY(is_unicode(code_point));
 
     if (code_point < first_supplementary_plane_code_point) {
-        TRY(string.try_append(static_cast<u16>(code_point)));
+        TRY(string.try_append(host_code_unit(static_cast<u16>(code_point), endianness)));
     } else {
         code_point -= first_supplementary_plane_code_point;
-        TRY(string.try_append(static_cast<u16>(high_surrogate_min | (code_point >> 10))));
-        TRY(string.try_append(static_cast<u16>(low_surrogate_min | (code_point & 0x3ff))));
+
+        auto code_unit = static_cast<u16>(high_surrogate_min | (code_point >> 10));
+        TRY(string.try_append(host_code_unit(code_unit, endianness)));
+
+        code_unit = static_cast<u16>(low_surrogate_min | (code_point & 0x3ff));
+        TRY(string.try_append(host_code_unit(code_unit, endianness)));
     }
 
     return {};
@@ -125,19 +156,12 @@ ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_unit
 
     StringBuilder builder;
 
-    for (auto const* ptr = begin_ptr(); ptr < end_ptr(); ++ptr) {
-        if (is_high_surrogate(*ptr)) {
-            auto const* next = ptr + 1;
+    for (size_t i = 0; i < length_in_code_units(); ++i) {
+        auto code_point = code_point_at(i);
+        TRY(builder.try_append_code_point(code_point));
 
-            if ((next < end_ptr()) && is_low_surrogate(*next)) {
-                auto code_point = decode_surrogate_pair(*ptr, *next);
-                TRY(builder.try_append_code_point(code_point));
-                ++ptr;
-                continue;
-            }
-        }
-
-        TRY(builder.try_append_code_point(static_cast<u32>(*ptr)));
+        if (code_point >= first_supplementary_plane_code_point)
+            ++i;
     }
 
     return builder.to_string_without_validation();
@@ -153,7 +177,7 @@ size_t Utf16View::length_in_code_points() const
 u16 Utf16View::code_unit_at(size_t index) const
 {
     VERIFY(index < length_in_code_units());
-    return m_code_units[index];
+    return host_code_unit(m_code_units[index], m_endianness);
 }
 
 u32 Utf16View::code_point_at(size_t index) const
@@ -264,14 +288,32 @@ bool Utf16View::starts_with(Utf16View const& needle) const
 
 bool Utf16View::validate() const
 {
-    return simdutf::validate_utf16(reinterpret_cast<char16_t const*>(m_code_units.data()), m_code_units.size());
+    switch (m_endianness) {
+    case Endianness::Host:
+        return simdutf::validate_utf16(char_data(), length_in_code_units());
+    case Endianness::Big:
+        return simdutf::validate_utf16be(char_data(), length_in_code_units());
+    case Endianness::Little:
+        return simdutf::validate_utf16le(char_data(), length_in_code_units());
+    }
+    VERIFY_NOT_REACHED();
 }
 
 bool Utf16View::validate(size_t& valid_code_units) const
 {
-    auto result = simdutf::validate_utf16_with_errors(reinterpret_cast<char16_t const*>(m_code_units.data()), m_code_units.size());
-    valid_code_units = result.count;
+    auto result = [&]() {
+        switch (m_endianness) {
+        case Endianness::Host:
+            return simdutf::validate_utf16_with_errors(char_data(), length_in_code_units());
+        case Endianness::Big:
+            return simdutf::validate_utf16be_with_errors(char_data(), length_in_code_units());
+        case Endianness::Little:
+            return simdutf::validate_utf16le_with_errors(char_data(), length_in_code_units());
+        }
+        VERIFY_NOT_REACHED();
+    }();
 
+    valid_code_units = result.count;
     return result.error == simdutf::SUCCESS;
 }
 
@@ -280,8 +322,16 @@ size_t Utf16View::calculate_length_in_code_points() const
     // FIXME: simdutf's code point length method assumes valid UTF-16, whereas Utf16View uses U+FFFD as a replacement
     //        for invalid code points. If we change Utf16View to only accept valid encodings as an invariant, we can
     //        remove this branch.
-    if (validate()) [[likely]]
-        return simdutf::count_utf16(reinterpret_cast<char16_t const*>(m_code_units.data()), m_code_units.size());
+    if (validate()) [[likely]] {
+        switch (m_endianness) {
+        case Endianness::Host:
+            return simdutf::count_utf16(char_data(), length_in_code_units());
+        case Endianness::Big:
+            return simdutf::count_utf16be(char_data(), length_in_code_units());
+        case Endianness::Little:
+            return simdutf::count_utf16le(char_data(), length_in_code_units());
+        }
+    }
 
     size_t code_points = 0;
     for ([[maybe_unused]] auto code_point : *this)
@@ -339,30 +389,28 @@ u32 Utf16CodePointIterator::operator*() const
     //    W2 as its 10 low-order bits.
     // 5) Add 0x10000 to U' to obtain the character value U. Terminate.
 
-    if (Utf16View::is_high_surrogate(*m_ptr)) {
-        if ((m_remaining_code_units > 1) && Utf16View::is_low_surrogate(*(m_ptr + 1)))
-            return Utf16View::decode_surrogate_pair(*m_ptr, *(m_ptr + 1));
-        return replacement_code_point;
-    } else if (Utf16View::is_low_surrogate(*m_ptr)) {
+    auto code_unit = host_code_unit(*m_ptr, m_endianness);
+
+    if (Utf16View::is_high_surrogate(code_unit)) {
+        if (m_remaining_code_units > 1) {
+            auto next_code_unit = host_code_unit(*(m_ptr + 1), m_endianness);
+
+            if (Utf16View::is_low_surrogate(next_code_unit))
+                return Utf16View::decode_surrogate_pair(code_unit, next_code_unit);
+        }
+
         return replacement_code_point;
     }
 
-    return static_cast<u32>(*m_ptr);
+    if (Utf16View::is_low_surrogate(code_unit))
+        return replacement_code_point;
+
+    return static_cast<u32>(code_unit);
 }
 
 size_t Utf16CodePointIterator::length_in_code_units() const
 {
-    VERIFY(m_remaining_code_units > 0);
-
-    if (Utf16View::is_high_surrogate(*m_ptr)) {
-        if ((m_remaining_code_units > 1) && Utf16View::is_low_surrogate(*(m_ptr + 1)))
-            return 2;
-    }
-
-    // If this return is reached, either the encoded code point is a valid single code unit, or that
-    // code point is invalid (e.g. began with a low surrogate, or a low surrogate did not follow a
-    // high surrogate). In the latter case, a single replacement code unit will be used.
-    return 1;
+    return *(*this) < first_supplementary_plane_code_point ? 1 : 2;
 }
 
 }
