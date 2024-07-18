@@ -92,20 +92,10 @@ void BytecodeInterpreter::load_and_push(Configuration& configuration, Instructio
     auto& arg = instruction.arguments().get<Instruction::MemoryArgument>();
     auto& address = configuration.frame().module().memories()[arg.memory_index.value()];
     auto memory = configuration.store().get(address);
-    if (!memory) {
-        m_trap = Trap { "Nonexistent memory" };
-        return;
-    }
     auto& entry = configuration.stack().peek();
-    auto base = entry.get<Value>().to<i32>();
-    if (!base.has_value()) {
-        m_trap = Trap { "Memory access out of bounds" };
-        return;
-    }
-    u64 instance_address = static_cast<u64>(bit_cast<u32>(base.value())) + arg.offset;
-    Checked addition { instance_address };
-    addition += sizeof(ReadType);
-    if (addition.has_overflow() || addition.value() > memory->size()) {
+    auto base = *entry.get<Value>().to<i32>();
+    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    if (instance_address + sizeof(ReadType) > memory->size()) {
         m_trap = Trap { "Memory access out of bounds" };
         dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
         return;
@@ -127,20 +117,10 @@ void BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
     auto& arg = instruction.arguments().get<Instruction::MemoryArgument>();
     auto& address = configuration.frame().module().memories()[arg.memory_index.value()];
     auto memory = configuration.store().get(address);
-    if (!memory) {
-        m_trap = Trap { "Nonexistent memory" };
-        return;
-    }
     auto& entry = configuration.stack().peek();
-    auto base = entry.get<Value>().to<i32>();
-    if (!base.has_value()) {
-        m_trap = Trap { "Memory access out of bounds" };
-        return;
-    }
-    u64 instance_address = static_cast<u64>(bit_cast<u32>(base.value())) + arg.offset;
-    Checked addition { instance_address };
-    addition += M * N / 8;
-    if (addition.has_overflow() || addition.value() > memory->size()) {
+    auto base = *entry.get<Value>().to<i32>();
+    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    if (instance_address + M * N / 8 > memory->size()) {
         m_trap = Trap { "Memory access out of bounds" };
         dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
         return;
@@ -168,9 +148,7 @@ void BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Ins
     auto vector = *configuration.stack().pop().get<Value>().to<u128>();
     auto base = *configuration.stack().pop().get<Value>().to<u32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.memory.offset;
-    Checked addition { instance_address };
-    addition += N / 8;
-    if (addition.has_overflow() || addition.value() > memory->size()) {
+    if (instance_address + N / 8 > memory->size()) {
         m_trap = Trap { "Memory access out of bounds" };
         return;
     }
@@ -188,9 +166,7 @@ void BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Ins
     auto memory = configuration.store().get(address);
     auto base = *configuration.stack().pop().get<Value>().to<u32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.offset;
-    Checked addition { instance_address };
-    addition += N / 8;
-    if (addition.has_overflow() || addition.value() > memory->size()) {
+    if (instance_address + N / 8 > memory->size()) {
         m_trap = Trap { "Memory access out of bounds" };
         return;
     }
@@ -206,20 +182,10 @@ void BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, In
     auto& arg = instruction.arguments().get<Instruction::MemoryArgument>();
     auto& address = configuration.frame().module().memories()[arg.memory_index.value()];
     auto memory = configuration.store().get(address);
-    if (!memory) {
-        m_trap = Trap { "Nonexistent memory" };
-        return;
-    }
     auto& entry = configuration.stack().peek();
-    auto base = entry.get<Value>().to<i32>();
-    if (!base.has_value()) {
-        m_trap = Trap { "Memory access out of bounds" };
-        return;
-    }
-    u64 instance_address = static_cast<u64>(bit_cast<u32>(base.value())) + arg.offset;
-    Checked addition { instance_address };
-    addition += M / 8;
-    if (addition.has_overflow() || addition.value() > memory->size()) {
+    auto base = *entry.get<Value>().to<i32>();
+    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    if (instance_address + M / 8 > memory->size()) {
         m_trap = Trap { "Memory access out of bounds" };
         dbgln("LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
         return;
@@ -416,12 +382,13 @@ struct ConvertToRaw<double> {
 template<typename PopT, typename StoreT>
 void BytecodeInterpreter::pop_and_store(Configuration& configuration, Instruction const& instruction)
 {
+    auto& memarg = instruction.arguments().get<Instruction::MemoryArgument>();
     auto entry = configuration.stack().pop();
     auto value = ConvertToRaw<StoreT> {}(*entry.get<Value>().to<PopT>());
     dbgln_if(WASM_TRACE_DEBUG, "stack({}) -> temporary({}b)", value, sizeof(StoreT));
     auto base_entry = configuration.stack().pop();
     auto base = base_entry.get<Value>().to<i32>();
-    store_to_memory(configuration, instruction, { &value, sizeof(StoreT) }, *base);
+    store_to_memory(configuration, memarg, { &value, sizeof(StoreT) }, *base);
 }
 
 template<size_t N>
@@ -431,16 +398,11 @@ void BytecodeInterpreter::pop_and_store_lane_n(Configuration& configuration, Ins
     auto vector = *configuration.stack().pop().get<Value>().to<u128>();
     auto src = bit_cast<u8*>(&vector) + memarg_and_lane.lane * N / 8;
     auto base = *configuration.stack().pop().get<Value>().to<u32>();
-    Instruction synthetic_store_instruction {
-        Instructions::i32_store8,
-        memarg_and_lane.memory,
-    };
-    store_to_memory(configuration, synthetic_store_instruction, { src, N / 8 }, base);
+    store_to_memory(configuration, memarg_and_lane.memory, { src, N / 8 }, base);
 }
 
-void BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruction const& instruction, ReadonlyBytes data, u32 base)
+void BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruction::MemoryArgument const& arg, ReadonlyBytes data, u32 base)
 {
-    auto& arg = instruction.arguments().get<Instruction::MemoryArgument>();
     auto& address = configuration.frame().module().memories()[arg.memory_index.value()];
     auto memory = configuration.store().get(address);
     u64 instance_address = static_cast<u64>(base) + arg.offset;
@@ -784,14 +746,9 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         if (count == 0)
             return;
 
-        Instruction synthetic_store_instruction {
-            Instructions::i32_store8,
-            Instruction::MemoryArgument { 0, 0 }
-        };
+        for (u32 i = 0; i < count; ++i)
+            store_to_memory(configuration, Instruction::MemoryArgument { 0, 0 }, { &value, sizeof(value) }, destination_offset + i);
 
-        for (u32 i = 0; i < count; ++i) {
-            store_to_memory(configuration, synthetic_store_instruction, { &value, sizeof(value) }, destination_offset + i);
-        }
         return;
     }
     // https://webassembly.github.io/spec/core/bikeshed/#exec-memory-copy
@@ -816,20 +773,16 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         if (count == 0)
             return;
 
-        Instruction synthetic_store_instruction {
-            Instructions::i32_store8,
-            Instruction::MemoryArgument { 0, 0, args.dst_index }
-        };
-
+        Instruction::MemoryArgument memarg { 0, 0, args.dst_index };
         if (destination_offset <= source_offset) {
             for (auto i = 0; i < count; ++i) {
                 auto value = source_instance->data()[source_offset + i];
-                store_to_memory(configuration, synthetic_store_instruction, { &value, sizeof(value) }, destination_offset + i);
+                store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i);
             }
         } else {
             for (auto i = count - 1; i >= 0; --i) {
                 auto value = source_instance->data()[source_offset + i];
-                store_to_memory(configuration, synthetic_store_instruction, { &value, sizeof(value) }, destination_offset + i);
+                store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i);
             }
         }
 
@@ -856,14 +809,10 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         if (count == 0)
             return;
 
-        Instruction synthetic_store_instruction {
-            Instructions::i32_store8,
-            Instruction::MemoryArgument { 0, 0, args.memory_index }
-        };
-
+        Instruction::MemoryArgument memarg { 0, 0, args.memory_index };
         for (size_t i = 0; i < (size_t)count; ++i) {
             auto value = data.data()[source_offset + i];
-            store_to_memory(configuration, synthetic_store_instruction, { &value, sizeof(value) }, destination_offset + i);
+            store_to_memory(configuration, memarg, { &value, sizeof(value) }, destination_offset + i);
         }
         return;
     }
