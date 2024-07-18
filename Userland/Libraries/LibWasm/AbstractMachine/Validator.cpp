@@ -124,15 +124,18 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     // - Exports
     auto scan_expression_for_function_indices = [&](auto& expression) {
         for (auto& instruction : expression.instructions()) {
-            if (instruction.opcode() == Instructions::ref_func)
-                m_context.references.set(instruction.arguments().template get<FunctionIndex>());
+            if (instruction.opcode() == Instructions::ref_func) {
+                auto index = instruction.arguments().template get<FunctionIndex>();
+                m_context.references->tree.insert(index.value(), index);
+            }
         }
     };
     module.for_each_section_of_type<ExportSection>([&](ExportSection const& section) {
         for (auto& export_ : section.entries()) {
             if (!export_.description().has<FunctionIndex>())
                 continue;
-            m_context.references.set(export_.description().get<FunctionIndex>());
+            auto index = export_.description().get<FunctionIndex>();
+            m_context.references->tree.insert(index.value(), index);
         }
     });
     module.for_each_section_of_type<ElementSection>([&](ElementSection const& section) {
@@ -1313,7 +1316,7 @@ VALIDATE_INSTRUCTION(ref_func)
     auto index = instruction.arguments().get<FunctionIndex>();
     TRY(validate(index));
 
-    if (!m_context.references.contains(index))
+    if (m_context.references->tree.find(index.value()) == nullptr)
         return Errors::invalid("function reference"sv);
 
     is_constant = true;

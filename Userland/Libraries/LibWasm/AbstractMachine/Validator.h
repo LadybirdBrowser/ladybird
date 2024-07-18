@@ -8,7 +8,7 @@
 
 #include <AK/COWVector.h>
 #include <AK/Debug.h>
-#include <AK/HashTable.h>
+#include <AK/RedBlackTree.h>
 #include <AK/SourceLocation.h>
 #include <AK/Tuple.h>
 #include <AK/Vector.h>
@@ -18,6 +18,10 @@
 namespace Wasm {
 
 struct Context {
+    struct RefRBTree : RefCounted<RefRBTree> {
+        RedBlackTree<size_t, FunctionIndex> tree;
+    };
+
     COWVector<FunctionType> types;
     COWVector<FunctionType> functions;
     COWVector<TableType> tables;
@@ -27,7 +31,7 @@ struct Context {
     COWVector<bool> datas;
     COWVector<ValueType> locals;
     Optional<u32> data_count;
-    AK::HashTable<FunctionIndex> references;
+    RefPtr<RefRBTree> references { make_ref_counted<RefRBTree>() };
     size_t imported_function_count { 0 };
 };
 
