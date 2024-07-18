@@ -24,6 +24,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
+#include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
@@ -1629,9 +1630,39 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
             http_request->header_list()->append(move(header));
         }
 
-        // FIXME: 10. If contentLength is non-null and httpRequest’s keepalive is true, then:
+        // 10. If contentLength is non-null and httpRequest’s keepalive is true, then:
         if (content_length.has_value() && http_request->keepalive()) {
-            // FIXME: 1-5., requires 'fetch records' and 'fetch group' concepts.
+            // 1. Let inflightKeepaliveBytes be 0.
+            u64 inflight_keep_alive_bytes = 0;
+
+            // 2. Let group be httpRequest’s client’s fetch group.
+            auto& group = http_request->client()->fetch_group();
+
+            // 3. Let inflightRecords be the set of fetch records in group whose request’s keepalive is true and done flag is unset.
+            Vector<JS::NonnullGCPtr<Infrastructure::FetchRecord>> in_flight_records;
+            for (auto const& fetch_record : group) {
+                if (fetch_record->request()->keepalive() && !fetch_record->request()->done())
+                    in_flight_records.append(fetch_record);
+            }
+
+            // 4. For each fetchRecord of inflightRecords:
+            for (auto const& fetch_record : in_flight_records) {
+                // 1. Let inflightRequest be fetchRecord’s request.
+                auto const& in_flight_request = fetch_record->request();
+
+                // 2. Increment inflightKeepaliveBytes by inflightRequest’s body’s length.
+                inflight_keep_alive_bytes += in_flight_request->body().visit(
+                    [](Empty) -> u64 { return 0; },
+                    [](ByteBuffer const& buffer) -> u64 { return buffer.size(); },
+                    [](JS::NonnullGCPtr<Infrastructure::Body> body) -> u64 {
+                        return body->length().has_value() ? body->length().value() : 0;
+                    });
+            }
+
+            // 5. If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
+            if ((content_length.value() + inflight_keep_alive_bytes) > 65536)
+                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Keepalive request exceeded maximum allowed size of 64 KiB"sv));
+
             // NOTE: The above limit ensures that requests that are allowed to outlive the environment settings object
             //       and contain a body, have a bounded size and are not allowed to stay alive indefinitely.
         }
