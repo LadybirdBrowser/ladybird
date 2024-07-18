@@ -330,6 +330,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/SVG/SVGTransformList.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGTSpanElement.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGUseElement.idl",
+  "//Userland/Libraries/LibWeb/UIEvents/CompositionEvent.idl",
   "//Userland/Libraries/LibWeb/UIEvents/FocusEvent.idl",
   "//Userland/Libraries/LibWeb/UIEvents/InputEvent.idl",
   "//Userland/Libraries/LibWeb/UIEvents/KeyboardEvent.idl",
