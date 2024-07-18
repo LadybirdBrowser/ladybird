@@ -1,0 +1,11 @@
+element.isEqualNode(element): true
+element.isEqualNode(identicalElement): true
+identicalElement.isEqualNode(element): true
+element.isEqualNode(identicalElementWithCapitalizedName): true
+element.isEqualNode(elementWithDifferentNamespace): false
+element.isEqualNode(elementWithDifferentPrefix): false
+element.isEqualNode(elementWithDifferentLocalName): false
+element.isEqualNode(elementWithAttribute): false
+element.isEqualNode(elementWithAttribute) (after adding non-matching attribute): false
+element.isEqualNode(elementWithAttribute) (after adding matching attribute): false
+element.isEqualNode(elementWithAttribute) (after removing non-matching attribute): true
