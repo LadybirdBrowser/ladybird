@@ -740,6 +740,7 @@ CommandResult DisplayListPlayerSkia::paint_outer_box_shadow(PaintOuterBoxShadow 
     canvas.save();
     canvas.clipRRect(content_rrect, SkClipOp::kDifference, true);
     SkPaint paint;
+    paint.setAntiAlias(true);
     paint.setColor(to_skia_color(color));
     paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_radius / 2));
     auto shadow_rounded_rect = to_skia_rrect(shadow_rect, corner_radii);
@@ -795,6 +796,7 @@ CommandResult DisplayListPlayerSkia::paint_inner_box_shadow(PaintInnerBoxShadow 
 
     auto& canvas = surface().canvas();
     SkPaint path_paint;
+    path_paint.setAntiAlias(true);
     path_paint.setColor(to_skia_color(color));
     path_paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_radius / 2));
     canvas.save();
@@ -832,6 +834,7 @@ CommandResult DisplayListPlayerSkia::fill_rect_with_rounded_corners(FillRectWith
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setColor(to_skia_color(command.color));
+    paint.setAntiAlias(true);
 
     auto rounded_rect = to_skia_rrect(rect, command.corner_radii);
     canvas.drawRRect(rounded_rect, paint);
@@ -1009,6 +1012,7 @@ CommandResult DisplayListPlayerSkia::draw_line(DrawLine const& command)
     auto& canvas = surface().canvas();
 
     SkPaint paint;
+    paint.setAntiAlias(true);
     paint.setStrokeWidth(command.thickness);
     paint.setColor(to_skia_color(command.color));
 
@@ -1192,6 +1196,7 @@ CommandResult DisplayListPlayerSkia::draw_rect(DrawRect const& command)
     auto const& rect = command.rect;
     auto& canvas = surface().canvas();
     SkPaint paint;
+    paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kStroke_Style);
     paint.setStrokeWidth(1);
     paint.setColor(to_skia_color(command.color));
@@ -1243,6 +1248,7 @@ CommandResult DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient c
     auto shader = SkGradientShader::MakeRadial(center, size.height(), colors.data(), color_space, positions.data(), positions.size(), tile_mode, interpolation, &matrix);
 
     SkPaint paint;
+    paint.setAntiAlias(true);
     paint.setShader(shader);
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 
@@ -1285,6 +1291,7 @@ CommandResult DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient con
     auto shader = SkGradientShader::MakeSweep(center.x(), center.y(), colors.data(), color_space, positions.data(), positions.size(), SkTileMode::kRepeat, 0, 360, interpolation, &matrix);
 
     SkPaint paint;
+    paint.setAntiAlias(true);
     paint.setShader(shader);
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 
