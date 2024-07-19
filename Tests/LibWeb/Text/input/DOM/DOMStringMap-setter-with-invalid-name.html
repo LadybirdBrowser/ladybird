@@ -1,0 +1,12 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let threw = false;
+        try {
+            document.body.dataset["'\uDBF8"] = "foo";
+        } catch {
+            threw = true;
+        }
+        println("Setting DOMStringMap with an invalid name key throws? " + threw);
+    });
+</script>
