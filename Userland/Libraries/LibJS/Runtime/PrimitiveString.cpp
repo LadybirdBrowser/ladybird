@@ -254,6 +254,7 @@ void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) cons
     // This vector will hold all the pieces of the rope that need to be assembled
     // into the resolved string.
     Vector<PrimitiveString const*> pieces;
+    size_t approximate_length = 0;
 
     // NOTE: We traverse the rope tree without using recursion, since we'd run out of
     //       stack space quickly when handling a long sequence of unresolved concatenations.
@@ -267,6 +268,9 @@ void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) cons
             stack.append(current->m_lhs);
             continue;
         }
+
+        if (current->has_utf8_string())
+            approximate_length += current->utf8_string_view().length();
         pieces.append(current);
     }
 
@@ -286,7 +290,7 @@ void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) cons
     }
 
     // Now that we have all the pieces, we can concatenate them using a StringBuilder.
-    StringBuilder builder;
+    StringBuilder builder(approximate_length);
 
     // We keep track of the previous piece in order to handle surrogate pairs spread across two pieces.
     PrimitiveString const* previous = nullptr;
