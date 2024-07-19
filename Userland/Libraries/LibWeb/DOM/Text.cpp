@@ -117,4 +117,36 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::split_text(size_t offset)
     return new_node;
 }
 
+// https://dom.spec.whatwg.org/#dom-text-wholetext
+String Text::whole_text()
+{
+    // https://dom.spec.whatwg.org/#contiguous-text-nodes
+    // The contiguous Text nodes of a node node are node, node’s previous sibling Text node, if any, and its contiguous
+    // Text nodes, and node’s next sibling Text node, if any, and its contiguous Text nodes, avoiding any duplicates.
+    Vector<Text*> nodes;
+
+    nodes.append(this);
+
+    auto* current_node = previous_sibling();
+    while (current_node && (current_node->is_text() || current_node->is_cdata_section())) {
+        nodes.append(static_cast<Text*>(current_node));
+        current_node = current_node->previous_sibling();
+    }
+
+    // Reverse nodes so they are in tree order
+    nodes.reverse();
+
+    current_node = next_sibling();
+    while (current_node && (current_node->is_text() || current_node->is_cdata_section())) {
+        nodes.append(static_cast<Text*>(current_node));
+        current_node = current_node->next_sibling();
+    }
+
+    StringBuilder builder;
+    for (auto const& text_node : nodes)
+        builder.append(text_node->data());
+
+    return MUST(builder.to_string());
+}
+
 }
