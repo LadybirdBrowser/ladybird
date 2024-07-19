@@ -1677,7 +1677,7 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     }
     case Instructions::v128_any_true.value(): {
         auto vector = *configuration.stack().pop().get<Value>().to<u128>();
-        configuration.stack().push(Value(static_cast<i32>(vector == 0)));
+        configuration.stack().push(Value(static_cast<i32>(vector != 0)));
         return;
     }
     case Instructions::v128_load8_lane.value():
