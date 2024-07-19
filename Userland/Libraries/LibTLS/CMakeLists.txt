@@ -1,4 +1,4 @@
-add_compile_options(-Wvla)
+add_cxx_compile_options(-Wvla)
 
 set(SOURCES
     Certificate.cpp
