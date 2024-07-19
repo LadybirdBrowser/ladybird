@@ -8,7 +8,7 @@ interface Text : CharacterData {
     constructor(optional DOMString data = "");
 
     [NewObject] Text splitText(unsigned long offset);
-    [FIXME] readonly attribute DOMString wholeText;
+    readonly attribute DOMString wholeText;
 };
 
 Text includes Slottable;
