@@ -87,9 +87,9 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 6. Let delete offset be offset + data’s length.
     // 7. Starting from delete offset code units, remove count code units from node’s data.
     StringBuilder builder;
-    builder.append(MUST(utf16_view.substring_view(0, offset).to_utf8()));
+    builder.append(MUST(utf16_view.substring_view(0, offset).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)));
     builder.append(data);
-    builder.append(MUST(utf16_view.substring_view(offset + count).to_utf8()));
+    builder.append(MUST(utf16_view.substring_view(offset + count).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)));
     m_data = MUST(builder.to_string());
 
     // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to offset plus count, set its start offset to offset.
