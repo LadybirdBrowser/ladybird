@@ -88,27 +88,27 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".js")
-    add_compile_options(-gsource-map)
-    add_link_options(--emrun "SHELL:-s ALLOW_MEMORY_GROWTH")
+    add_cxx_compile_options(-gsource-map)
+    add_cxx_link_options(--emrun "SHELL:-s ALLOW_MEMORY_GROWTH")
 endif()
 
 if (ENABLE_ADDRESS_SANITIZER)
-    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_cxx_compile_options(-fsanitize=address -fno-omit-frame-pointer)
     set(LINKER_FLAGS "${LINKER_FLAGS} -fsanitize=address")
 endif()
 
 if (ENABLE_MEMORY_SANITIZER)
-    add_compile_options(-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer)
+    add_cxx_compile_options(-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer)
     set(LINKER_FLAGS "${LINKER_FLAGS} -fsanitize=memory -fsanitize-memory-track-origins")
 endif()
 
 if (ENABLE_UNDEFINED_SANITIZER)
-    add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+    add_cxx_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
     if (UNDEFINED_BEHAVIOR_IS_FATAL)
-        add_compile_options(-fno-sanitize-recover=undefined)
+        add_cxx_compile_options(-fno-sanitize-recover=undefined)
     endif()
     if (APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "17")
-        add_compile_options(-fno-sanitize=function)
+        add_cxx_compile_options(-fno-sanitize=function)
     endif()
     set(LINKER_FLAGS "${LINKER_FLAGS} -fsanitize=undefined")
 endif()
@@ -125,7 +125,7 @@ if (HAIKU)
 endif()
 
 if (ENABLE_FUZZERS)
-    add_compile_options(-fno-omit-frame-pointer)
+    add_cxx_compile_options(-fno-omit-frame-pointer)
 endif()
 
 CHECK_INCLUDE_FILE(pulse/pulseaudio.h HAVE_PULSEAUDIO)
@@ -134,14 +134,14 @@ add_library(JSClangPlugin INTERFACE)
 add_library(GenericClangPlugin INTERFACE)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
-    add_compile_options(-Wno-overloaded-virtual)
+    add_cxx_compile_options(-Wno-overloaded-virtual)
     # FIXME: Re-enable this check when the warning stops triggering, or document why we can't stop it from triggering.
     # For now, there is a lot of unused private fields in LibWeb that trigger this that could be removed.
     # See issue #14137 for details
-    add_compile_options(-Wno-unused-private-field)
+    add_cxx_compile_options(-Wno-unused-private-field)
 
     if (ENABLE_FUZZERS_LIBFUZZER)
-        add_compile_options(-fsanitize=fuzzer)
+        add_cxx_compile_options(-fsanitize=fuzzer)
         set(LINKER_FLAGS "${LINKER_FLAGS} -fsanitize=fuzzer")
     endif()
 
