@@ -1,0 +1,11 @@
+<body>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let newDoc = document.implementation.createHTMLDocument("foo");
+        let newDocP = newDoc.createElement("p");
+        let selection = window.getSelection();
+        selection.setBaseAndExtent(document.body, 0, newDocP, 0);
+        println("PASS (Didn't crash)");
+    });
+</script>
