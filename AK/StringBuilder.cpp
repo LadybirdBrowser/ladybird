@@ -11,6 +11,7 @@
 #include <AK/FlyString.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <AK/StringData.h>
 #include <AK/StringView.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16View.h>
@@ -18,16 +19,33 @@
 
 namespace AK {
 
+static constexpr auto STRING_BASE_PREFIX_SIZE = sizeof(Detail::StringData);
+
+static ErrorOr<StringBuilder::Buffer> create_buffer(size_t capacity)
+{
+    StringBuilder::Buffer buffer;
+
+    if (capacity > StringBuilder::inline_capacity)
+        TRY(buffer.try_ensure_capacity(STRING_BASE_PREFIX_SIZE + capacity));
+
+    TRY(buffer.try_resize(STRING_BASE_PREFIX_SIZE));
+    return buffer;
+}
+
 ErrorOr<StringBuilder> StringBuilder::create(size_t initial_capacity)
 {
-    StringBuilder builder;
-    TRY(builder.m_buffer.try_ensure_capacity(initial_capacity));
-    return builder;
+    auto buffer = TRY(create_buffer(initial_capacity));
+    return StringBuilder { move(buffer) };
 }
 
 StringBuilder::StringBuilder(size_t initial_capacity)
+    : m_buffer(MUST(create_buffer(initial_capacity)))
 {
-    m_buffer.ensure_capacity(initial_capacity);
+}
+
+StringBuilder::StringBuilder(Buffer buffer)
+    : m_buffer(move(buffer))
+{
 }
 
 inline ErrorOr<void> StringBuilder::will_append(size_t size)
@@ -47,12 +65,12 @@ inline ErrorOr<void> StringBuilder::will_append(size_t size)
 
 size_t StringBuilder::length() const
 {
-    return m_buffer.size();
+    return m_buffer.size() - STRING_BASE_PREFIX_SIZE;
 }
 
 bool StringBuilder::is_empty() const
 {
-    return m_buffer.is_empty();
+    return length() == 0;
 }
 
 void StringBuilder::trim(size_t count)
@@ -122,14 +140,18 @@ ByteString StringBuilder::to_byte_string() const
     return ByteString((char const*)data(), length());
 }
 
-ErrorOr<String> StringBuilder::to_string() const
+ErrorOr<String> StringBuilder::to_string()
 {
-    return String::from_utf8(string_view());
+    if (m_buffer.is_inline())
+        return String::from_utf8(string_view());
+    return String::from_string_builder({}, *this);
 }
 
-String StringBuilder::to_string_without_validation() const
+String StringBuilder::to_string_without_validation()
 {
-    return String::from_utf8_without_validation(string_view().bytes());
+    if (m_buffer.is_inline())
+        return String::from_utf8_without_validation(string_view().bytes());
+    return String::from_string_builder_without_validation({}, *this);
 }
 
 FlyString StringBuilder::to_fly_string_without_validation() const
@@ -144,22 +166,22 @@ ErrorOr<FlyString> StringBuilder::to_fly_string() const
 
 u8* StringBuilder::data()
 {
-    return m_buffer.data();
+    return m_buffer.data() + STRING_BASE_PREFIX_SIZE;
 }
 
 u8 const* StringBuilder::data() const
 {
-    return m_buffer.data();
+    return m_buffer.data() + STRING_BASE_PREFIX_SIZE;
 }
 
 StringView StringBuilder::string_view() const
 {
-    return StringView { data(), m_buffer.size() };
+    return m_buffer.span().slice(STRING_BASE_PREFIX_SIZE);
 }
 
 void StringBuilder::clear()
 {
-    m_buffer.clear();
+    m_buffer.resize(STRING_BASE_PREFIX_SIZE);
 }
 
 ErrorOr<void> StringBuilder::try_append_code_point(u32 code_point)
@@ -269,6 +291,16 @@ ErrorOr<void> StringBuilder::try_append_escaped_for_json(StringView string)
                 TRY(try_append(ch));
         }
     }
+    return {};
+}
+
+auto StringBuilder::leak_buffer_for_string_construction(Badge<Detail::StringData>) -> Optional<Buffer::OutlineBuffer>
+{
+    if (auto buffer = m_buffer.leak_outline_buffer({}); buffer.has_value()) {
+        clear();
+        return buffer;
+    }
+
     return {};
 }
 

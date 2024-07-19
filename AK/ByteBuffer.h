@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Badge.h>
 #include <AK/Error.h>
 #include <AK/Span.h>
 #include <AK/Types.h>
@@ -301,6 +302,23 @@ public:
     operator ReadonlyBytes() const { return bytes(); }
 
     ALWAYS_INLINE size_t capacity() const { return m_inline ? inline_capacity : m_outline_capacity; }
+    ALWAYS_INLINE bool is_inline() const { return m_inline; }
+
+    struct OutlineBuffer {
+        Bytes buffer;
+        size_t capacity { 0 };
+    };
+    Optional<OutlineBuffer> leak_outline_buffer(Badge<StringBuilder>)
+    {
+        if (m_inline)
+            return {};
+
+        auto buffer = bytes();
+        m_inline = true;
+        m_size = 0;
+
+        return OutlineBuffer { buffer, capacity() };
+    }
 
 private:
     void move_from(ByteBuffer&& other)

@@ -11,6 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/StringBase.h>
+#include <AK/StringBuilder.h>
 #include <AK/kmalloc.h>
 
 namespace AK::Detail {
@@ -20,13 +21,26 @@ public:
     static ErrorOr<NonnullRefPtr<StringData>> create_uninitialized(size_t byte_count, u8*& buffer)
     {
         VERIFY(byte_count);
-        void* slot = malloc(allocation_size_for_string_data(byte_count));
-        if (!slot) {
+
+        auto capacity = allocation_size_for_string_data(byte_count);
+        void* slot = malloc(capacity);
+        if (!slot)
             return Error::from_errno(ENOMEM);
-        }
-        auto new_string_data = adopt_ref(*new (slot) StringData(byte_count));
+
+        auto new_string_data = adopt_ref(*new (slot) StringData(byte_count, capacity));
         buffer = const_cast<u8*>(new_string_data->bytes().data());
         return new_string_data;
+    }
+
+    static NonnullRefPtr<StringData> create_from_string_builder(StringBuilder& builder)
+    {
+        auto byte_count = builder.length();
+        VERIFY(byte_count > MAX_SHORT_STRING_BYTE_COUNT);
+
+        auto buffer = builder.leak_buffer_for_string_construction({});
+        VERIFY(buffer.has_value()); // We should only arrive here if the buffer is outlined.
+
+        return adopt_ref(*new (buffer->buffer.data()) StringData(byte_count, buffer->capacity));
     }
 
     static ErrorOr<NonnullRefPtr<StringData>> create_substring(StringData const& superstring, size_t start, size_t byte_count)
@@ -34,11 +48,12 @@ public:
         // Strings of MAX_SHORT_STRING_BYTE_COUNT bytes or less should be handled by the String short string optimization.
         VERIFY(byte_count > MAX_SHORT_STRING_BYTE_COUNT);
 
-        void* slot = malloc(sizeof(StringData) + sizeof(StringData::SubstringData));
-        if (!slot) {
+        auto capacity = sizeof(StringData) + sizeof(StringData::SubstringData);
+        void* slot = malloc(capacity);
+        if (!slot)
             return Error::from_errno(ENOMEM);
-        }
-        return adopt_ref(*new (slot) StringData(superstring, start, byte_count));
+
+        return adopt_ref(*new (slot) StringData(superstring, start, byte_count, capacity));
     }
 
     struct SubstringData {
@@ -48,7 +63,7 @@ public:
 
     void operator delete(void* ptr)
     {
-        kfree_sized(ptr, allocation_size_for_string_data(static_cast<StringData const*>(ptr)->m_byte_count));
+        kfree_sized(ptr, static_cast<StringData const*>(ptr)->m_capacity);
     }
 
     ~StringData()
@@ -99,13 +114,15 @@ private:
         return sizeof(StringData) + (sizeof(char) * length);
     }
 
-    explicit StringData(size_t byte_count)
+    StringData(size_t byte_count, size_t capacity)
         : m_byte_count(byte_count)
+        , m_capacity(capacity)
     {
     }
 
-    StringData(StringData const& superstring, size_t start, size_t byte_count)
+    StringData(StringData const& superstring, size_t start, size_t byte_count, size_t capacity)
         : m_byte_count(byte_count)
+        , m_capacity(capacity)
         , m_substring(true)
     {
         auto& data = const_cast<SubstringData&>(substring_data());
@@ -125,6 +142,8 @@ private:
     }
 
     u32 m_byte_count { 0 };
+    u32 m_capacity { 0 };
+
     mutable unsigned m_hash { 0 };
     mutable bool m_has_hash { false };
     bool m_substring { false };
