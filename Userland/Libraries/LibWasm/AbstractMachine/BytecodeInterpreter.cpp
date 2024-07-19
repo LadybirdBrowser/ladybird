@@ -1712,18 +1712,26 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         return unary_operation<u128, i32, Operators::VectorBitmask<4>>(configuration);
     case Instructions::i64x2_bitmask.value():
         return unary_operation<u128, i32, Operators::VectorBitmask<2>>(configuration);
+    case Instructions::i32x4_dot_i16x8_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorDotProduct<4>>(configuration);
+    case Instructions::i8x16_narrow_i16x8_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorNarrow<16, i8>>(configuration);
+    case Instructions::i8x16_narrow_i16x8_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorNarrow<16, u8>>(configuration);
+    case Instructions::i16x8_narrow_i32x4_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorNarrow<8, i16>>(configuration);
+    case Instructions::i16x8_narrow_i32x4_u.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorNarrow<8, u16>>(configuration);
+    case Instructions::i16x8_q15mulr_sat_s.value():
+        return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::SaturatingOp<i16, Operators::Q15Mul>, MakeSigned>>(configuration);
+    case Instructions::f32x4_convert_i32x4_s.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerConvertOp<4, Operators::Convert<f32>, MakeSigned>>(configuration);
+    case Instructions::f32x4_convert_i32x4_u.value():
+        return unary_operation<u128, u128, Operators::VectorIntegerConvertOp<4, Operators::Convert<f32>, MakeUnsigned>>(configuration);
     case Instructions::f32x4_demote_f64x2_zero.value():
     case Instructions::f64x2_promote_low_f32x4.value():
-    case Instructions::i8x16_narrow_i16x8_s.value():
-    case Instructions::i8x16_narrow_i16x8_u.value():
-    case Instructions::i16x8_q15mulr_sat_s.value():
-    case Instructions::i16x8_narrow_i32x4_s.value():
-    case Instructions::i16x8_narrow_i32x4_u.value():
-    case Instructions::i32x4_dot_i16x8_s.value():
     case Instructions::i32x4_trunc_sat_f64x2_s_zero.value():
     case Instructions::i32x4_trunc_sat_f64x2_u_zero.value():
-    case Instructions::f32x4_convert_i32x4_s.value():
-    case Instructions::f32x4_convert_i32x4_u.value():
     case Instructions::f64x2_convert_low_i32x4_s.value():
     case Instructions::f64x2_convert_low_i32x4_u.value():
         dbgln_if(WASM_TRACE_DEBUG, "Instruction '{}' not implemented", instruction_name(instruction.opcode()));
