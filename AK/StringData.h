@@ -6,7 +6,11 @@
 
 #pragma once
 
+#include <AK/Error.h>
+#include <AK/FlyString.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/StringBase.h>
 #include <AK/kmalloc.h>
 
 namespace AK::Detail {
