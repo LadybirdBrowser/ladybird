@@ -1,0 +1,9 @@
+<img height="2147483647">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let img = document.querySelector("img");
+        println("Image height: " + img.offsetHeight);
+        img.remove();
+    });
+</script>
