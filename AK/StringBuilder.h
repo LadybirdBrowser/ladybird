@@ -23,12 +23,6 @@ public:
     static ErrorOr<StringBuilder> create(size_t initial_capacity = inline_capacity);
 
     explicit StringBuilder(size_t initial_capacity = inline_capacity);
-
-    enum class UseInlineCapacityOnly {
-        Yes,
-        No,
-    };
-    explicit StringBuilder(UseInlineCapacityOnly use_inline_capacity_only);
     ~StringBuilder() = default;
 
     ErrorOr<void> try_append(StringView);
@@ -106,7 +100,6 @@ private:
     u8* data();
     u8 const* data() const;
 
-    UseInlineCapacityOnly m_use_inline_capacity_only { UseInlineCapacityOnly::No };
     Detail::ByteBuffer<inline_capacity> m_buffer;
 };
 
