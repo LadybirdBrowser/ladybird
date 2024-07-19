@@ -307,7 +307,7 @@ WebIDL::ExceptionOr<void> Selection::set_base_and_extent(JS::NonnullGCPtr<DOM::N
         return WebIDL::IndexSizeError::create(realm(), "Focus offset points outside of the focus node"_fly_string);
 
     // 2. If document associated with this is not a shadow-including inclusive ancestor of anchorNode or focusNode, abort these steps.
-    if (!(m_document->is_shadow_including_inclusive_ancestor_of(anchor_node) || m_document->is_shadow_including_inclusive_ancestor_of(focus_node)))
+    if (!m_document->is_shadow_including_inclusive_ancestor_of(anchor_node) || !m_document->is_shadow_including_inclusive_ancestor_of(focus_node))
         return {};
 
     // 3. Let anchor be the boundary point (anchorNode, anchorOffset) and let focus be the boundary point (focusNode, focusOffset).
