@@ -1,0 +1,8 @@
+<style>
+p {
+    counter-increment: a;
+}
+p::before {
+    content: counter(a) ": ";
+}
+</style><p>A<p>B<p>C<p style="display:none">SECRET<p>D<p>E
