@@ -18,32 +18,6 @@
 
 namespace AK {
 
-inline ErrorOr<void> StringBuilder::will_append(size_t size)
-{
-    if (m_use_inline_capacity_only == UseInlineCapacityOnly::Yes) {
-        VERIFY(m_buffer.capacity() == StringBuilder::inline_capacity);
-        Checked<size_t> current_pointer = m_buffer.size();
-        current_pointer += size;
-        VERIFY(!current_pointer.has_overflow());
-        if (current_pointer <= StringBuilder::inline_capacity) {
-            return {};
-        }
-        return Error::from_errno(ENOMEM);
-    }
-
-    Checked<size_t> needed_capacity = m_buffer.size();
-    needed_capacity += size;
-    VERIFY(!needed_capacity.has_overflow());
-    // Prefer to completely use the existing capacity first
-    if (needed_capacity <= m_buffer.capacity())
-        return {};
-    Checked<size_t> expanded_capacity = needed_capacity;
-    expanded_capacity *= 2;
-    VERIFY(!expanded_capacity.has_overflow());
-    TRY(m_buffer.try_ensure_capacity(expanded_capacity.value()));
-    return {};
-}
-
 ErrorOr<StringBuilder> StringBuilder::create(size_t initial_capacity)
 {
     StringBuilder builder;
@@ -56,9 +30,19 @@ StringBuilder::StringBuilder(size_t initial_capacity)
     m_buffer.ensure_capacity(initial_capacity);
 }
 
-StringBuilder::StringBuilder(UseInlineCapacityOnly use_inline_capacity_only)
-    : m_use_inline_capacity_only(use_inline_capacity_only)
+inline ErrorOr<void> StringBuilder::will_append(size_t size)
 {
+    Checked<size_t> needed_capacity = m_buffer.size();
+    needed_capacity += size;
+    VERIFY(!needed_capacity.has_overflow());
+    // Prefer to completely use the existing capacity first
+    if (needed_capacity <= m_buffer.capacity())
+        return {};
+    Checked<size_t> expanded_capacity = needed_capacity;
+    expanded_capacity *= 2;
+    VERIFY(!expanded_capacity.has_overflow());
+    TRY(m_buffer.try_ensure_capacity(expanded_capacity.value()));
+    return {};
 }
 
 size_t StringBuilder::length() const
