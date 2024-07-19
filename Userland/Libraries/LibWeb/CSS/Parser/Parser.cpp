@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
@@ -90,15 +90,6 @@ static void log_parse_error(SourceLocation const& location = SourceLocation::cur
 }
 
 namespace Web::CSS::Parser {
-
-static bool contains_single_none_ident(TokenStream<ComponentValue>& tokens)
-{
-    if (tokens.remaining_token_count() > 1)
-        return false;
-    if (auto token = tokens.peek_token(); token.is_ident("none"sv))
-        return true;
-    return false;
-}
 
 ErrorOr<Parser> Parser::create(ParsingContext const& context, StringView input, StringView encoding)
 {
@@ -3343,6 +3334,20 @@ RefPtr<StyleValue> Parser::parse_simple_comma_separated_value_list(PropertyID pr
     });
 }
 
+RefPtr<StyleValue> Parser::parse_all_as_single_none_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    tokens.skip_whitespace();
+    auto maybe_none = tokens.next_token();
+    tokens.skip_whitespace();
+
+    if (tokens.has_next_token() || !maybe_none.is_ident("none"sv))
+        return {};
+
+    transaction.commit();
+    return IdentifierStyleValue::create(ValueID::None);
+}
+
 static void remove_property(Vector<PropertyID>& properties, PropertyID property_to_remove)
 {
     properties.remove_first_matching([&](auto it) { return it == property_to_remove; });
@@ -3986,8 +3991,8 @@ RefPtr<StyleValue> Parser::parse_border_radius_shorthand_value(TokenStream<Compo
 RefPtr<StyleValue> Parser::parse_shadow_value(TokenStream<ComponentValue>& tokens, AllowInsetKeyword allow_inset_keyword)
 {
     // "none"
-    if (contains_single_none_ident(tokens))
-        return parse_identifier_value(tokens);
+    if (auto none = parse_all_as_single_none_value(tokens))
+        return none;
 
     return parse_comma_separated_value_list(tokens, [this, allow_inset_keyword](auto& tokens) {
         return parse_single_shadow_value(tokens, allow_inset_keyword);
@@ -4298,12 +4303,10 @@ RefPtr<StyleValue> Parser::parse_display_value(TokenStream<ComponentValue>& toke
 
 RefPtr<StyleValue> Parser::parse_filter_value_list_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
+    if (auto none = parse_all_as_single_none_value(tokens))
+        return none;
 
-    if (contains_single_none_ident(tokens)) {
-        transaction.commit();
-        return parse_identifier_value(tokens);
-    }
+    auto transaction = tokens.begin_transaction();
 
     // FIXME: <url>s are ignored for now
     // <filter-value-list> = [ <filter-function> | <url> ]+
@@ -5543,10 +5546,8 @@ RefPtr<StyleValue> Parser::parse_transform_value(TokenStream<ComponentValue>& to
     // <transform> = none | <transform-list>
     // <transform-list> = <transform-function>+
 
-    if (contains_single_none_ident(tokens)) {
-        tokens.next_token(); // none
-        return IdentifierStyleValue::create(ValueID::None);
-    }
+    if (auto none = parse_all_as_single_none_value(tokens))
+        return none;
 
     StyleValueVector transformations;
     auto transaction = tokens.begin_transaction();
@@ -5797,10 +5798,8 @@ RefPtr<StyleValue> Parser::parse_transform_origin_value(TokenStream<ComponentVal
 
 RefPtr<StyleValue> Parser::parse_transition_value(TokenStream<ComponentValue>& tokens)
 {
-    if (contains_single_none_ident(tokens)) {
-        tokens.next_token(); // none
-        return IdentifierStyleValue::create(ValueID::None);
-    }
+    if (auto none = parse_all_as_single_none_value(tokens))
+        return none;
 
     Vector<TransitionStyleValue::Transition> transitions;
     auto transaction = tokens.begin_transaction();
@@ -6105,13 +6104,10 @@ Optional<CSS::ExplicitGridTrack> Parser::parse_track_sizing_function(ComponentVa
 
 RefPtr<StyleValue> Parser::parse_grid_track_size_list(TokenStream<ComponentValue>& tokens, bool allow_separate_line_name_blocks)
 {
-    auto transaction = tokens.begin_transaction();
-
-    if (contains_single_none_ident(tokens)) {
-        tokens.next_token();
-        transaction.commit();
+    if (auto none = parse_all_as_single_none_value(tokens))
         return GridTrackSizeListStyleValue::make_none();
-    }
+
+    auto transaction = tokens.begin_transaction();
 
     Vector<Variant<ExplicitGridTrack, GridLineNames>> track_list;
     auto last_object_was_line_names = false;
@@ -6602,10 +6598,8 @@ RefPtr<StyleValue> Parser::parse_grid_template_areas_value(TokenStream<Component
     // none | <string>+
     Vector<Vector<String>> grid_area_rows;
 
-    if (contains_single_none_ident(tokens)) {
-        (void)tokens.next_token(); // none
+    if (auto none = parse_all_as_single_none_value(tokens))
         return GridTemplateAreaStyleValue::create(move(grid_area_rows));
-    }
 
     auto transaction = tokens.begin_transaction();
     while (tokens.has_next_token() && tokens.peek_token().is(Token::Type::String)) {

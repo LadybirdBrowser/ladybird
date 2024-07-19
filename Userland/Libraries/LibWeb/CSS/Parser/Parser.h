@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <atkinssj@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -303,6 +303,7 @@ private:
     template<typename ParseFunction>
     RefPtr<StyleValue> parse_comma_separated_value_list(TokenStream<ComponentValue>&, ParseFunction);
     RefPtr<StyleValue> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_all_as_single_none_value(TokenStream<ComponentValue>&);
 
     RefPtr<StyleValue> parse_aspect_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_background_value(TokenStream<ComponentValue>&);
