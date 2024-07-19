@@ -882,51 +882,33 @@ struct VectorFloatUnaryOp {
     }
 };
 
-template<size_t VectorSize, typename Op>
-struct VectorFloatConvertOp {
+template<size_t ResultSize, size_t InputSize, typename ResultType, typename InputType, typename Op>
+struct VectorConvertOp {
     auto operator()(u128 lhs) const
     {
-        using VectorInput = NativeFloatingVectorType<128, VectorSize, NativeFloatingType<128 / VectorSize>>;
-        using VectorResult = NativeVectorType<128 / VectorSize, VectorSize, MakeUnsigned>;
+        using VectorInput = NativeVectorType<128 / InputSize, InputSize, MakeUnsigned>;
+        using VectorResult = NativeVectorType<128 / ResultSize, ResultSize, MakeUnsigned>;
         auto value = bit_cast<VectorInput>(lhs);
         VectorResult result;
         Op op;
-        for (size_t i = 0; i < VectorSize; ++i) {
-            result[i] = op(value[i]);
+        auto size = min(InputSize, ResultSize);
+        for (size_t i = 0; i < size; ++i)
+            result[i] = bit_cast<ResultType>(op(bit_cast<InputType>(value[i])));
+        // FIXME: We shouldn't need this, but the auto-vectorizer sometimes doesn't see that we
+        // need to pad with zeroes when InputSize < ResultSize (i.e. converting from f64x2 -> f32x4).
+        // So we put this here to make sure. Putting [[clang::optnone]] over this function resolves
+        // this issue, but that would be pretty unacceptable...
+        if constexpr (InputSize < ResultSize) {
+            constexpr size_t remaining = ResultSize - InputSize;
+            for (size_t i = 0; i < remaining; ++i)
+                result[i + InputSize] = 0;
         }
         return bit_cast<u128>(result);
     }
 
     static StringView name()
     {
-        switch (VectorSize) {
-        case 4:
-            return "vecf(32x4).cvt_op"sv;
-        case 2:
-            return "vecf(64x2).cvt_op"sv;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
-};
-
-template<size_t VectorSize, typename Op, template<typename> typename SetSign = MakeSigned>
-struct VectorIntegerConvertOp {
-    auto operator()(u128 lhs) const
-    {
-        using VectorInput = NativeVectorType<128 / VectorSize, VectorSize, SetSign>;
-        using VectorResult = NativeFloatingVectorType<128, VectorSize, NativeFloatingType<128 / VectorSize>>;
-        auto value = bit_cast<VectorInput>(lhs);
-        VectorResult result;
-        Op op;
-        for (size_t i = 0; i < VectorSize; ++i)
-            result[i] = op(value[i]);
-        return bit_cast<u128>(result);
-    }
-
-    static StringView name()
-    {
-        switch (VectorSize) {
+        switch (ResultSize) {
         case 4:
             return "vec(32x4).cvt_op"sv;
         case 2:

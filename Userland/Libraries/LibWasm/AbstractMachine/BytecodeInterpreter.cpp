@@ -1701,9 +1701,9 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::v128_store64_lane.value():
         return pop_and_store_lane_n<64>(configuration, instruction);
     case Instructions::i32x4_trunc_sat_f32x4_s.value():
-        return unary_operation<u128, u128, Operators::VectorFloatConvertOp<4, Operators::SaturatingTruncate<i32>>>(configuration);
+        return unary_operation<u128, u128, Operators::VectorConvertOp<4, 4, u32, f32, Operators::SaturatingTruncate<i32>>>(configuration);
     case Instructions::i32x4_trunc_sat_f32x4_u.value():
-        return unary_operation<u128, u128, Operators::VectorFloatConvertOp<4, Operators::SaturatingTruncate<u32>>>(configuration);
+        return unary_operation<u128, u128, Operators::VectorConvertOp<4, 4, u32, f32, Operators::SaturatingTruncate<u32>>>(configuration);
     case Instructions::i8x16_bitmask.value():
         return unary_operation<u128, i32, Operators::VectorBitmask<16>>(configuration);
     case Instructions::i16x8_bitmask.value():
@@ -1725,18 +1725,21 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::i16x8_q15mulr_sat_s.value():
         return binary_numeric_operation<u128, u128, Operators::VectorIntegerBinaryOp<8, Operators::SaturatingOp<i16, Operators::Q15Mul>, MakeSigned>>(configuration);
     case Instructions::f32x4_convert_i32x4_s.value():
-        return unary_operation<u128, u128, Operators::VectorIntegerConvertOp<4, Operators::Convert<f32>, MakeSigned>>(configuration);
+        return unary_operation<u128, u128, Operators::VectorConvertOp<4, 4, u32, i32, Operators::Convert<f32>>>(configuration);
     case Instructions::f32x4_convert_i32x4_u.value():
-        return unary_operation<u128, u128, Operators::VectorIntegerConvertOp<4, Operators::Convert<f32>, MakeUnsigned>>(configuration);
-    case Instructions::f32x4_demote_f64x2_zero.value():
-    case Instructions::f64x2_promote_low_f32x4.value():
-    case Instructions::i32x4_trunc_sat_f64x2_s_zero.value():
-    case Instructions::i32x4_trunc_sat_f64x2_u_zero.value():
+        return unary_operation<u128, u128, Operators::VectorConvertOp<4, 4, u32, u32, Operators::Convert<f32>>>(configuration);
     case Instructions::f64x2_convert_low_i32x4_s.value():
+        return unary_operation<u128, u128, Operators::VectorConvertOp<2, 4, u64, i32, Operators::Convert<f64>>>(configuration);
     case Instructions::f64x2_convert_low_i32x4_u.value():
-        dbgln_if(WASM_TRACE_DEBUG, "Instruction '{}' not implemented", instruction_name(instruction.opcode()));
-        m_trap = Trap { ByteString::formatted("Unimplemented instruction {}", instruction_name(instruction.opcode())) };
-        return;
+        return unary_operation<u128, u128, Operators::VectorConvertOp<2, 4, u64, u32, Operators::Convert<f64>>>(configuration);
+    case Instructions::f32x4_demote_f64x2_zero.value():
+        return unary_operation<u128, u128, Operators::VectorConvertOp<4, 2, u32, f64, Operators::Convert<f32>>>(configuration);
+    case Instructions::f64x2_promote_low_f32x4.value():
+        return unary_operation<u128, u128, Operators::VectorConvertOp<2, 4, u64, f32, Operators::Convert<f64>>>(configuration);
+    case Instructions::i32x4_trunc_sat_f64x2_s_zero.value():
+        return unary_operation<u128, u128, Operators::VectorConvertOp<4, 2, u32, f64, Operators::SaturatingTruncate<i32>>>(configuration);
+    case Instructions::i32x4_trunc_sat_f64x2_u_zero.value():
+        return unary_operation<u128, u128, Operators::VectorConvertOp<4, 2, u32, f64, Operators::SaturatingTruncate<u32>>>(configuration);
     }
 }
 
