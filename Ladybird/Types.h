@@ -15,11 +15,6 @@ enum class EnableCallgrindProfiling {
     Yes
 };
 
-enum class EnableSkiaPainting {
-    No,
-    Yes
-};
-
 enum class IsLayoutTestMode {
     No,
     Yes
@@ -60,7 +55,6 @@ struct WebContentOptions {
     String executable_path;
     Optional<ByteString> config_path {};
     EnableCallgrindProfiling enable_callgrind_profiling { EnableCallgrindProfiling::No };
-    EnableSkiaPainting enable_skia_painting { EnableSkiaPainting::No };
     IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
     UseLagomNetworking use_lagom_networking { UseLagomNetworking::Yes };
     WaitForDebugger wait_for_debugger { WaitForDebugger::No };

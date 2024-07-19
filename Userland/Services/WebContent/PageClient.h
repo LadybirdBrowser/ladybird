@@ -28,7 +28,6 @@ public:
     virtual ~PageClient() override;
 
     enum class UseSkiaPainter {
-        No,
         CPUBackend,
         GPUBackendIfAvailable,
     };

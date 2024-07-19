@@ -88,8 +88,6 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
         arguments.append("--layout-test-mode"sv);
     if (web_content_options.use_lagom_networking == Ladybird::UseLagomNetworking::Yes)
         arguments.append("--use-lagom-networking"sv);
-    if (web_content_options.enable_skia_painting == Ladybird::EnableSkiaPainting::Yes)
-        arguments.append("--use-skia-painting"sv);
     if (web_content_options.wait_for_debugger == Ladybird::WaitForDebugger::Yes)
         arguments.append("--wait-for-debugger"sv);
     if (web_content_options.log_all_js_exceptions == Ladybird::LogAllJSExceptions::Yes)
