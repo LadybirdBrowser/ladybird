@@ -90,6 +90,19 @@ bool StringBase::operator==(StringBase const& other) const
     return bytes() == other.bytes();
 }
 
+void StringBase::replace_with_string_builder(StringBuilder& builder)
+{
+    if (builder.length() <= MAX_SHORT_STRING_BYTE_COUNT) {
+        return replace_with_new_short_string(builder.length(), [&](Bytes buffer) {
+            builder.string_view().bytes().copy_to(buffer);
+        });
+    }
+
+    destroy_string();
+
+    m_data = &StringData::create_from_string_builder(builder).leak_ref();
+}
+
 ErrorOr<Bytes> StringBase::replace_with_uninitialized_buffer(size_t byte_count)
 {
     if (byte_count <= MAX_SHORT_STRING_BYTE_COUNT)

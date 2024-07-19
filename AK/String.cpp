@@ -96,6 +96,23 @@ ErrorOr<String> String::from_stream(Stream& stream, size_t byte_count)
     return result;
 }
 
+ErrorOr<String> String::from_string_builder(Badge<StringBuilder>, StringBuilder& builder)
+{
+    if (!Utf8View { builder.string_view() }.validate())
+        return Error::from_string_literal("String::from_string_builder: Input was not valid UTF-8");
+
+    String result;
+    result.replace_with_string_builder(builder);
+    return result;
+}
+
+String String::from_string_builder_without_validation(Badge<StringBuilder>, StringBuilder& builder)
+{
+    String result;
+    result.replace_with_string_builder(builder);
+    return result;
+}
+
 ErrorOr<String> String::repeated(u32 code_point, size_t count)
 {
     VERIFY(is_unicode(code_point));

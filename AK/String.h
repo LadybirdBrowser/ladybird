@@ -57,6 +57,9 @@ public:
 
     [[nodiscard]] static String from_utf8_without_validation(ReadonlyBytes);
 
+    static ErrorOr<String> from_string_builder(Badge<StringBuilder>, StringBuilder&);
+    [[nodiscard]] static String from_string_builder_without_validation(Badge<StringBuilder>, StringBuilder&);
+
     // Creates a new String from a sequence of UTF-16 encoded code points.
     static ErrorOr<String> from_utf16(Utf16View const&);
 

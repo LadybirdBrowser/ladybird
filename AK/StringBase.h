@@ -92,6 +92,8 @@ protected:
             callback(buffer);
     }
 
+    void replace_with_string_builder(StringBuilder&);
+
     // This is not a trivial operation with storage, so it does not belong here. Unfortunately, it
     // is impossible to implement it without access to StringData.
     ErrorOr<StringBase> substring_from_byte_offset_with_shared_superstring(size_t start, size_t byte_count) const;
