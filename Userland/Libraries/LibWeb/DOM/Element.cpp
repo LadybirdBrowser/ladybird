@@ -2718,6 +2718,13 @@ void Element::resolve_counters(CSS::StyleProperties& style)
     // 1. Existing counters are inherited from previous elements.
     inherit_counters();
 
+    // https://drafts.csswg.org/css-lists-3/#counters-without-boxes
+    // An element that does not generate a box (for example, an element with display set to none,
+    // or a pseudo-element with content set to none) cannot set, reset, or increment a counter.
+    // The counter properties are still valid on such an element, but they must have no effect.
+    if (style.display().is_none())
+        return;
+
     // 2. New counters are instantiated (counter-reset).
     auto counter_reset = style.counter_data(CSS::PropertyID::CounterReset);
     for (auto const& counter : counter_reset)
