@@ -94,6 +94,16 @@ struct Average {
     static StringView name() { return "avgr"sv; }
 };
 
+struct Q15Mul {
+    template<typename Lhs, typename Rhs>
+    auto operator()(Lhs lhs, Rhs rhs) const
+    {
+        return (lhs * rhs + 0x4000) >> 15;
+    }
+
+    static StringView name() { return "q15mul"sv; }
+};
+
 struct BitShiftLeft {
     template<typename Lhs, typename Rhs>
     auto operator()(Lhs lhs, Rhs rhs) const { return lhs << (rhs % (sizeof(lhs) * 8)); }
@@ -727,6 +737,62 @@ struct VectorBitmask {
     static StringView name() { return "bitmask"sv; }
 };
 
+template<size_t VectorSize>
+struct VectorDotProduct {
+    auto operator()(u128 lhs, u128 rhs) const
+    {
+        using VectorInput = NativeVectorType<128 / (VectorSize * 2), VectorSize * 2, MakeSigned>;
+        using VectorResult = NativeVectorType<128 / VectorSize, VectorSize, MakeSigned>;
+        auto v1 = bit_cast<VectorInput>(lhs);
+        auto v2 = bit_cast<VectorInput>(rhs);
+        VectorResult result;
+
+        using ResultType = MakeUnsigned<NativeIntegralType<128 / VectorSize>>;
+        for (size_t i = 0; i < VectorSize; ++i) {
+            ResultType low = v1[i * 2] * v2[i * 2];
+            ResultType high = v1[(i * 2) + 1] * v2[(i * 2) + 1];
+            result[i] = low + high;
+        }
+
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name() { return "dot"sv; }
+};
+
+template<size_t VectorSize, typename Element>
+struct VectorNarrow {
+    auto operator()(u128 lhs, u128 rhs) const
+    {
+        using VectorInput = NativeVectorType<128 / (VectorSize / 2), VectorSize / 2, MakeSigned>;
+        using VectorResult = NativeVectorType<128 / VectorSize, VectorSize, MakeUnsigned>;
+        auto v1 = bit_cast<VectorInput>(lhs);
+        auto v2 = bit_cast<VectorInput>(rhs);
+        VectorResult result;
+
+        for (size_t i = 0; i < (VectorSize / 2); ++i) {
+            if (v1[i] <= NumericLimits<Element>::min())
+                result[i] = NumericLimits<Element>::min();
+            else if (v1[i] >= NumericLimits<Element>::max())
+                result[i] = NumericLimits<Element>::max();
+            else
+                result[i] = v1[i];
+        }
+        for (size_t i = 0; i < (VectorSize / 2); ++i) {
+            if (v2[i] <= NumericLimits<Element>::min())
+                result[i + VectorSize / 2] = NumericLimits<Element>::min();
+            else if (v2[i] >= NumericLimits<Element>::max())
+                result[i + VectorSize / 2] = NumericLimits<Element>::max();
+            else
+                result[i + VectorSize / 2] = v2[i];
+        }
+
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name() { return "narrow"sv; }
+};
+
 template<size_t VectorSize, typename Op, template<typename> typename SetSign = MakeSigned>
 struct VectorIntegerUnaryOp {
     auto operator()(u128 lhs) const
@@ -838,6 +904,33 @@ struct VectorFloatConvertOp {
             return "vecf(32x4).cvt_op"sv;
         case 2:
             return "vecf(64x2).cvt_op"sv;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+};
+
+template<size_t VectorSize, typename Op, template<typename> typename SetSign = MakeSigned>
+struct VectorIntegerConvertOp {
+    auto operator()(u128 lhs) const
+    {
+        using VectorInput = NativeVectorType<128 / VectorSize, VectorSize, SetSign>;
+        using VectorResult = NativeFloatingVectorType<128, VectorSize, NativeFloatingType<128 / VectorSize>>;
+        auto value = bit_cast<VectorInput>(lhs);
+        VectorResult result;
+        Op op;
+        for (size_t i = 0; i < VectorSize; ++i)
+            result[i] = op(value[i]);
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name()
+    {
+        switch (VectorSize) {
+        case 4:
+            return "vec(32x4).cvt_op"sv;
+        case 2:
+            return "vec(64x2).cvt_op"sv;
         default:
             VERIFY_NOT_REACHED();
         }
