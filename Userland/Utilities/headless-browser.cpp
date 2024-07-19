@@ -554,6 +554,7 @@ static ErrorOr<int> run_tests(HeadlessWebContentView& view, StringView test_root
     TRY(collect_dump_tests(tests, TRY(String::formatted("{}/Layout", test_root_path)), "."sv, TestMode::Layout));
     TRY(collect_dump_tests(tests, TRY(String::formatted("{}/Text", test_root_path)), "."sv, TestMode::Text));
     TRY(collect_ref_tests(tests, TRY(String::formatted("{}/Ref", test_root_path))));
+    TRY(collect_ref_tests(tests, TRY(String::formatted("{}/Screenshot", test_root_path))));
 
     tests.remove_all_matching([&](auto const& test) {
         return !test.input_path.bytes_as_string_view().matches(test_glob, CaseSensitivity::CaseSensitive);

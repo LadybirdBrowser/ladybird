@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="match" href="reference/css-background-repeat-ref.html" />
+    <style>
+        body {
+            background: cyan;
+        }
+        iframe {
+            width: 200px;
+            height: 200px;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .background {
+            background: white url(./assets/smiley.png);
+            width: 200px;
+            height: 200px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <iframe src="./assets/background-repeat.html"></iframe>
+    <iframe src="./assets/background-repeat-x.html"></iframe>
+    <iframe src="./assets/background-no-repeat.html"></iframe>
+    <iframe src="./assets/background-repeat-y.html"></iframe>
+
+    <div class="background" style="background-repeat: repeat"></div>
+    <div class="background" style="background-repeat: repeat-x"></div>
+    <div class="background" style="background-repeat: no-repeat"></div>
+    <div class="background" style="background-repeat: repeat-y"></div>
+    <div class="background" style="background-repeat: repeat repeat"></div>
+    <div class="background" style="background-repeat: repeat no-repeat"></div>
+    <div class="background" style="background-repeat: no-repeat no-repeat"></div>
+    <div class="background" style="background-repeat: no-repeat repeat"></div>
+</body>
+</html>

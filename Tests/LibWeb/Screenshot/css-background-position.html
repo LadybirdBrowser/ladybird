@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>CSS background-position tests</title>
+    <link rel="match" href="reference/css-background-position-ref.html" />
+    <style>
+        .example {
+            width: 100px;
+            height: 100px;
+            border: 1px solid black;
+            overflow: auto;
+            margin-bottom: 10px;
+            background: url("./assets/smiley.png") bottom right no-repeat;
+        }
+    </style>
+</head>
+<body>
+    <!-- FIXME: This <img> tag is only here as a hack. The test runner takes a screenshot after the load event,
+                which waits for img tags to load, but not images referred to in CSS. -->
+    <img src="./assets/smiley.png"/>
+
+    <!-- Single value -->
+    <div class="example" style="background-position: left"></div>
+    <div class="example" style="background-position-x: left"></div>
+    <div class="example" style="background-position: top"></div>
+    <div class="example" style="background-position-y: top"></div>
+    <div class="example" style="background-position: center"></div>
+    <div class="example" style="background-position-x: center"></div>
+    <div class="example" style="background-position-y: center"></div>
+
+    <!-- Two values: side side -->
+    <div class="example" style="background-position: top left"></div>
+    <div class="example" style="background-position: left top"></div>
+    <div class="example" style="background-position: center right"></div>
+    <div class="example" style="background-position: right center"></div>
+    <div class="example" style="background-position: center top"></div>
+    <div class="example" style="background-position: top center"></div>
+    <div class="example" style="background-position-x: left; background-position-y: top"></div>
+
+    <!-- Two values: side offset -->
+    <div class="example" style="background-position: left 10px"></div>
+    <div class="example" style="background-position-x: left; background-position-y: 10px"></div>
+    <div class="example" style="background-position: left 25%"></div>
+    <div class="example" style="background-position-x: left; background-position-y: 25%"></div>
+
+    <!-- Two values: offset side -->
+    <div class="example" style="background-position: 10px top"></div>
+    <div class="example" style="background-position-x: 10px; background-position-y: top"></div>
+    <div class="example" style="background-position: 25% top"></div>
+    <div class="example" style="background-position-x: 25%; background-position-y: top"></div>
+
+    <!-- Two values: offset offset -->
+    <div class="example" style="background-position: 10px 20%"></div>
+    <div class="example" style="background-position-x: 10px; background-position-y: 20%"></div>
+    <div class="example" style="background-position: 20% 10px"></div>
+    <div class="example" style="background-position-x: 20%; background-position-y: 10px"></div>
+
+    <!-- Three values: side offset side -->
+    <div class="example" style="background-position: left 10px top"></div>
+    <div class="example" style="background-position: top left 10px"></div>
+    <div class="example" style="background-position-x: left 10px; background-position-y: top"></div>
+    <div class="example" style="background-position: left 25% top"></div>
+    <div class="example" style="background-position: top left 25%"></div>
+    <div class="example" style="background-position-x: left 25%; background-position-y: top"></div>
+    <div class="example" style="background-position: center left 25%"></div>
+    <div class="example" style="background-position-x: left 25%; background-position-y: center"></div>
+
+    <!-- Three values: side side offset -->
+    <div class="example" style="background-position: left top 10px"></div>
+    <div class="example" style="background-position: top 10px left"></div>
+    <div class="example" style="background-position-x: left; background-position-y: top 10px"></div>
+    <div class="example" style="background-position: left top 25%"></div>
+    <div class="example" style="background-position: top 25% left"></div>
+    <div class="example" style="background-position-x: left; background-position-y: top 25%"></div>
+    <div class="example" style="background-position: center top 10px"></div>
+    <div class="example" style="background-position-x: center; background-position-y: top 25%"></div>
+
+    <!-- Four values: side offset side offset -->
+    <div class="example" style="background-position: left 10px top 25%"></div>
+    <div class="example" style="background-position: top 25% left 10px"></div>
+    <div class="example" style="background-position-x: left 10px; background-position-y: top 25%"></div>
+    <div class="example" style="background-position: right 10px bottom 25%"></div>
+    <div class="example" style="background-position: bottom 25% right 10px"></div>
+    <div class="example" style="background-position-x: right 10px; background-position-y: bottom 25%"></div>
+
+    <!-- Below cases should not parse, so all the images should be in the bottom-right from the .example CSS. -->
+
+    <!-- Two sides, both the same axis -->
+    <div class="example" style="background-position: top top"></div>
+    <div class="example" style="background-position: top bottom"></div>
+    <div class="example" style="background-position-x: top"></div>
+    <div class="example" style="background-position-x: bottom"></div>
+    <div class="example" style="background-position: left left"></div>
+    <div class="example" style="background-position: left right"></div>
+    <div class="example" style="background-position-y: left"></div>
+    <div class="example" style="background-position-y: right"></div>
+
+    <!-- Three values: center followed by <length-percentage> -->
+    <div class="example" style="background-position: center 25% top"></div>
+    <div class="example" style="background-position: top center 25%"></div>
+
+    <!-- No trailing tokens -->
+    <div class="example" style="background-position: top left yellow"></div>
+    <div class="example" style="background-position: 10px 25% 0"></div>
+    <div class="example" style="background-position: left top 10px 20px"></div>
+    <div class="example" style="background-position: left 10% top 10px red"></div>
+
+    <!-- No offsets from "center" side -->
+    <div class="example" style="background-position: center 10px right"></div>
+    <div class="example" style="background-position: right center 10px"></div>
+    <div class="example" style="background-position: center 10px center 20%"></div>
+
+    <!-- Doubled side -->
+    <div class="example" style="background-position: left left top 20%"></div>
+</body>
+
+</html>

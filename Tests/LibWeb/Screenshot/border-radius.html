@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<link rel="match" href="reference/border-radius-ref.html" />
+<head>
+  <style>
+    .box {
+      width: 50px;
+      height: 50px
+    }
+
+    .box-1 {
+      border: 1px solid #000;
+      border-radius: 10px
+    }
+
+    .box-1-1 {
+      border: 1px solid #000;
+      border-radius: 5px 10px 15px 20px
+    }
+
+    .box-1-5 {
+      border: 1px solid #000;
+      border-radius: 20px
+    }
+
+    .box-1-6 {
+      border: 1px solid #000;
+      border-top-width: 1px;
+      border-right-width: 5px;
+      border-bottom-width: 10px;
+      border-left-width: 12px;
+      border-radius: 20px
+    }
+
+    .box-2 {
+      border: 1px solid #000;
+      border-top-left-radius: 10px
+    }
+
+    .box-1-7 {
+      border: 5px solid #000;
+      border-radius: 15px
+    }
+
+    .box-1-8 {
+      border: 20px solid #000;
+      border-radius: 10px
+    }
+
+    .box-1-9 {
+      border: 20px inset #000;
+      border-radius: 10px
+    }
+
+    .box-1-10 {
+      border: 20px outset #000;
+      border-radius: 10px
+    }
+
+    .box-1-11 {
+      border-top: 20px solid #000;
+      border-radius: 10px
+    }
+
+    .box-1-12 {
+      border-radius: 20px;
+      border-top: 5px solid red;
+      border-right: 10px solid #ff0;
+      border-bottom: 15px solid #0f0;
+      border-left: 20px solid #00f
+    }
+
+    .box-1-13 {
+      border-radius: 15px;
+      border-color: #000;
+      border: 3px solid #000;
+      border-top-width: 0;
+      border-bottom-width: 0
+    }
+
+    .box-1-14 {
+      border-radius: 15px;
+      border-color: #000;
+      border: 3px solid #000;
+      border-left-width: 0;
+      border-right-width: 0
+    }
+
+    .box-3 {
+      border: 1px solid #000;
+      border-top-right-radius: 10px
+    }
+
+    .box-4 {
+      border: 1px solid #000;
+      border-bottom-right-radius: 10px
+    }
+
+    .box-5 {
+      border: 1px solid #000;
+      border-bottom-left-radius: 10px
+    }
+
+    .box-6 {
+      width: 200px;
+      height: 200px;
+      border: 1px solid #000;
+      border-radius: 75px
+    }
+
+    .box-7 {
+      background-color: #ff00ff;
+      border-radius: 10px
+    }
+
+    .box-7-1 {
+      width: 200px;
+      height: 200px;
+      background-color: #ff00ff;
+      border-radius: 25px 50px 75px 100px
+    }
+
+    .box-7-2 {
+      width: 200px;
+      height: 200px;
+      background-color: #ff00ff;
+      border-radius: 100px 75px 50px 25px
+    }
+
+    .box-8 {
+      background-color: #ff00ff;
+      border-radius: 20px
+    }
+
+    .box-9 {
+      background-color: #ff00ff;
+      border-radius: 15px
+    }
+
+    .box-10 {
+      background-color: #ff00ff;
+      border-top-left-radius: 10px
+    }
+
+    .box-11 {
+      background-color: #ff00ff;
+      border-top-right-radius: 10px
+    }
+
+    .box-12 {
+      background-color: #ff00ff;
+      border-bottom-right-radius: 10px
+    }
+
+    .box-13 {
+      background-color: #ff00ff;
+      border-bottom-left-radius: 10px
+    }
+
+    .box-14 {
+      background-color: #0f0;
+      border: 1px solid #000;
+      border-radius: 500px
+    }
+
+    .box-15 {
+      background-color: red;
+      border: 1px solid #000;
+      border-radius: 500px
+    }
+
+    .rect {
+      width: 300px;
+      height: 100px;
+      background-color: red
+    }
+
+    .rect-1 {
+      border-radius: 50%
+    }
+
+    .rect-2 {
+      border-radius: 50% 20%/10% 40%;
+      width: 280px;
+      height: 215px;
+      background-color: #5b6dcd
+    }
+
+    .rect-3 {
+      border-top-left-radius: 50%
+    }
+
+    .rect-4 {
+      border-top-right-radius: 50%
+    }
+
+    .rect-5 {
+      border-bottom-left-radius: 50%
+    }
+
+    .rect-6 {
+      border-bottom-right-radius: 50%
+    }
+
+    .rect-7 {
+      border-radius: 10px 100px/120px;
+      width: 200px;
+      height: 100px;
+      border: 1px solid #000;
+      background-color: transparent
+    }
+
+    .nut {
+      width: 220px;
+      height: 180px;
+      background-size: 220px 180px;
+      border-radius: 70% 30% 30% 70%/60% 40% 60% 40%;
+      background-image: url(./assets/car.png)
+    }
+
+    .screenshot {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background-image: url(./assets/car.png)
+    }
+
+    .rounded-image {
+      background-image: url(./assets/car.png);
+      background-repeat: repeat;
+      border-radius: 20px;
+      width: 150px;
+      height: 100px
+    }
+
+    .solid-color {
+      background: red content-box
+    }
+
+    .image {
+      background: center/contain url(car.png) content-box
+    }
+
+    .image-layers {
+      background: center/contain url(car.png) content-box, center/contain url(./assets/car.png)
+    }
+
+    .box-background-clip {
+      width: 100px;
+      height: 100px;
+      border: 10px solid #000;
+      border-radius: 50px;
+      padding: 10px
+    }
+
+    .positioned {
+      background-color: red;
+      position: relative
+    }
+
+    body {
+      background-color: #fff
+    }
+
+    div {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box box-7"></div>
+  <div class="box box-7-1"></div>
+  <div class="box box-7-2"></div>
+  <div class="box box-8"></div>
+  <div class="box box-9"></div>
+  <div class="box box-10"></div>
+  <div class="box box-11"></div>
+  <div class="box box-12"></div>
+  <div class="box box-13"></div>
+  <div class="rect rect-1"></div>
+  <div class="rect rect-2"></div>
+  <div class="rect rect-3"></div>
+  <div class="rect rect-4"></div>
+  <div class="rect rect-5"></div>
+  <div class="rect rect-6"></div>
+  <div class="rect rect-7"></div>
+  <div class="nut"></div>
+  <div class="screenshot"></div>
+  <div class="rounded-image"></div>
+  <img src="./assets/car.png" style="border-radius: 20px; width: 200px">
+  <div class="box-background-clip solid-color"></div>
+  <div class="box-background-clip image"></div>
+  <div class="box-background-clip image-layers"></div>
+  <a style="display: inline-block; border-radius: 50%; overflow: hidden; width: 100px; height: 100px;">
+    <img src="./assets/car.png" style="width: 100px; height: 100px">
+  </a>
+  <div class="box" style="border-radius: 10px; overflow: hidden;">
+    <div class="box positioned"></div>
+  </div>
+  <div class="box" style="border-radius: 10px; overflow: hidden;">
+    <div class="box" style="background-color: blue;"></div>
+  </div>
+  <img src="./assets/car.png" style="border-radius: 100%; border: 10px solid limegreen;">
+  <div class="box box-1"></div>
+  <div class="box box-1-1"></div>
+  <div class="box box-1-5"></div>
+  <div class="box box-1-6"></div>
+  <div class="box box-1-7"></div>
+  <div class="box box-1-8"></div>
+  <div class="box box-1-9"></div>
+  <div class="box box-1-10"></div>
+  <div class="box box-1-11"></div>
+  <div class="box box-1-12"></div>
+  <div class="box box-1-13"></div>
+  <div class="box box-1-14"></div>
+  <div class="box box-2"></div>
+  <div class="box box-3"></div>
+  <div class="box box-4"></div>
+  <div class="box box-5"></div>
+  <div class="box box-6"></div>
+  <div class="box box-14"></div>
+  <div class="box box-15"></div>
+</body>
+</html>

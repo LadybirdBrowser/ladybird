@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>CSS Background Tests</title>
+    <link rel="match" href="reference/css-backgrounds-ref.html" />
+    <style>
+        .box {
+            width: 180px;
+            height: 160px;
+            border: 1px solid black;
+            padding: 5px 10px 15px 20px;
+            overflow: auto;
+            margin-bottom: 10px;
+            scrollbar-width: none;
+        }
+
+        .force-scroll {
+            width: 500px;
+            height: 500px;
+        }
+    </style>
+</head>
+<body>
+    <!-- FIXME: This <img> tag is only here as a hack. The test runner takes a screenshot after the load event,
+                which waits for img tags to load, but not images referred to in CSS. -->
+    <img src="./assets/smiley.png"/>
+
+    <div class="box" style="background: url('./assets/smiley.png') fixed;">
+        <div class="force-scroll"></div>
+    </div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-attachment: fixed;">
+        <div class="force-scroll"></div>
+    </div>
+
+    <div class="box" style="background: url('./assets/smiley.png') local">
+        <div class="force-scroll"></div>
+    </div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-attachment: local">
+        <div class="force-scroll"></div>
+    </div>
+
+    <div class="box" style="background: url('./assets/smiley.png') scroll">
+        <div class="force-scroll"></div>
+    </div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-attachment: scroll">
+        <div class="force-scroll"></div>
+    </div>
+
+    <div class="box" style="background: url('./assets/smiley.png') bottom 5% right 10px no-repeat"></div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-position: bottom 5% right 10px; background-repeat: no-repeat"></div>
+
+
+    <div class="box" style="background: url('./assets/smiley.png') yellow padding-box content-box"></div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-color: yellow; background-origin: padding-box; background-clip: content-box"></div>
+
+    <div class="box" style="background: url('./assets/smiley.png') center / contain"></div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-position: center; background-size: contain"></div>
+
+    <div class="box" style="background: url('./assets/smiley.png') center / cover"></div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-position: center; background-size: cover"></div>
+
+    <div class="box" style="background: url('./assets/smiley.png') top / 50% 25px"></div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-position: top; background-size: 50% 25px"></div>
+
+    <div class="box" style="background: url('./assets/smiley.png') space"></div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-repeat: space"></div>
+
+    <div class="box" style="background: url('./assets/smiley.png') round"></div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-repeat: round"></div>
+
+    <div class="box" style="background: url('./assets/smiley.png') space round"></div>
+    <div class="box" style="background-image: url('./assets/smiley.png'); background-repeat: space round"></div>
+
+    <div class="box" style="background: url('./assets/smiley.png') no-repeat top 5px left 5px, url('./assets/smiley.png') no-repeat top 5px right 5px, url('./assets/smiley.png') no-repeat bottom 5px left 5px, url('./assets/smiley.png') no-repeat bottom 5px right 5px, url('./assets/smiley.png') no-repeat center cyan"></div>
+    <div class="box" style="background-color: cyan;
+        background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+        background-position: top 5px left 5px, top 5px right 5px, bottom 5px left 5px, bottom 5px right 5px, center;
+        background-image: url('./assets/smiley.png'), url('./assets/smiley.png'), url('./assets/smiley.png'), url('./assets/smiley.png'), url('./assets/smiley.png');"></div>
+</body>
+
+</html>
