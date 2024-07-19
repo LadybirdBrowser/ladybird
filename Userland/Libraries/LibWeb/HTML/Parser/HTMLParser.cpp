@@ -4879,6 +4879,9 @@ Optional<Color> parse_legacy_color_value(StringView string)
     }
 
     auto to_hex = [&](StringView string) -> u8 {
+        if (length == 1) {
+            return hex_nibble_to_u8(string[0]);
+        }
         auto nib1 = hex_nibble_to_u8(string[0]);
         auto nib2 = hex_nibble_to_u8(string[1]);
         return nib1 << 4 | nib2;
