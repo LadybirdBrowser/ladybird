@@ -1,0 +1,16 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const str = '\uD2ED\uDEA6';
+        let t = document.createTextNode(str);
+        println("Before replaceData:");
+        for (let i = 0; i < t.length; ++i) {
+            println("[" + i + "]: " + t.data.charCodeAt(i));
+        }
+        t.replaceData(0, 1, '')
+        println("After replaceData:");
+        for (let i = 0; i < t.length; ++i) {
+            println("[" + i + "]: " + t.data.charCodeAt(i));
+        }
+    });
+</script>
