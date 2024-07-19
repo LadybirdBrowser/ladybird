@@ -27,7 +27,7 @@
 
 namespace WebContent {
 
-static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::No;
+static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
 
 JS_DEFINE_ALLOCATOR(PageClient);
 
@@ -733,8 +733,6 @@ void PageClient::did_get_js_console_messages(i32 start_index, Vector<ByteString>
 Web::DisplayListPlayerType PageClient::display_list_player_type() const
 {
     switch (s_use_skia_painter) {
-    case UseSkiaPainter::No:
-        return Web::DisplayListPlayerType::CPU;
     case UseSkiaPainter::GPUBackendIfAvailable:
         return Web::DisplayListPlayerType::SkiaGPUIfAvailable;
     case UseSkiaPainter::CPUBackend:

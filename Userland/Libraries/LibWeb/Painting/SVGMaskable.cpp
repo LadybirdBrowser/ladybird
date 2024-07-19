@@ -8,6 +8,7 @@
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
 #include <LibWeb/Painting/DisplayListPlayerCPU.h>
+#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/SVGClipPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -88,7 +89,7 @@ RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CS
         paint_context.set_svg_transform(graphics_element.get_transform());
         paint_context.set_draw_svg_geometry_for_clip_path(is<SVGClipPaintable>(paintable));
         StackingContext::paint_node_as_stacking_context(paintable, paint_context);
-        DisplayListPlayerCPU executor { *mask_bitmap };
+        DisplayListPlayerSkia executor { *mask_bitmap };
         display_list.execute(executor);
         return mask_bitmap;
     };

@@ -83,7 +83,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Vector<ByteString> raw_urls;
     Vector<ByteString> certificates;
     StringView webdriver_content_ipc_path;
-    bool use_skia_painting = false;
     bool debug_web_content = false;
     bool log_all_js_exceptions = false;
     bool enable_http_cache = false;
@@ -95,7 +94,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.set_general_help("The Ladybird web browser");
     args_parser.add_positional_argument(raw_urls, "URLs to open", "url", Core::ArgsParser::Required::No);
     args_parser.add_option(webdriver_content_ipc_path, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
-    args_parser.add_option(use_skia_painting, "Enable Skia painting", "enable-skia-painting");
     args_parser.add_option(debug_web_content, "Wait for debugger to attach to WebContent", "debug-web-content");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
@@ -142,7 +140,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Ladybird::WebContentOptions web_content_options {
         .command_line = MUST(command_line_builder.to_string()),
         .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
-        .enable_skia_painting = use_skia_painting ? Ladybird::EnableSkiaPainting::Yes : Ladybird::EnableSkiaPainting::No,
         .wait_for_debugger = debug_web_content ? Ladybird::WaitForDebugger::Yes : Ladybird::WaitForDebugger::No,
         .log_all_js_exceptions = log_all_js_exceptions ? Ladybird::LogAllJSExceptions::Yes : Ladybird::LogAllJSExceptions::No,
         .enable_http_cache = enable_http_cache ? Ladybird::EnableHTTPCache::Yes : Ladybird::EnableHTTPCache::No,
