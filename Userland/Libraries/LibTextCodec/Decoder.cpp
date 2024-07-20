@@ -372,6 +372,9 @@ ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
         bomless_input = input.substring_view(3);
     }
 
+    if (Utf8View(bomless_input).validate())
+        return String::from_utf8_without_validation(bomless_input.bytes());
+
     return Decoder::to_utf8(bomless_input);
 }
 
