@@ -6,4 +6,4 @@ interface SVGSymbolElement : SVGGraphicsElement {
 
 };
 
-// FIXME: SVGSymbolElement includes SVGFitToViewBox;
+SVGSymbolElement includes SVGFitToViewBox;
