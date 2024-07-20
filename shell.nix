@@ -20,6 +20,20 @@ pkgs.mkShell {
       clang-tools
       pre-commit
       prettier
+
+      autoconf
+      autoconf-archive
+      automake
+      curl
+      ffmpeg.dev
+      glibc.dev
+      gnutar
+      libglvnd.dev
+      nasm
+      unzip
+      xorg.libX11.dev
+      xorg.xorgproto
+      zip
     ];
 
   # Fix for: https://github.com/LadybirdBrowser/ladybird/issues/371#issuecomment-2616415434
