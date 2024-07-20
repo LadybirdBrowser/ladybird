@@ -277,7 +277,6 @@ struct PaintOptions {
 };
 
 enum class DisplayListPlayerType {
-    CPU,
     SkiaGPUIfAvailable,
     SkiaCPU,
 };

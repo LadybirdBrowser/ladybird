@@ -17,7 +17,6 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListPlayerCPU.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
@@ -1230,11 +1229,6 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
     }
     case DisplayListPlayerType::SkiaCPU: {
         Painting::DisplayListPlayerSkia player(target.bitmap());
-        display_list.execute(player);
-        break;
-    }
-    case DisplayListPlayerType::CPU: {
-        Painting::DisplayListPlayerCPU player(target.bitmap());
         display_list.execute(player);
         break;
     }

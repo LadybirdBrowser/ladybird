@@ -16,7 +16,6 @@ source_set("Painting") {
     "ClippableAndScrollable.cpp",
     "Command.cpp",
     "DisplayList.cpp",
-    "DisplayListPlayerCPU.cpp",
     "DisplayListRecorder.cpp",
     "FilterPainting.cpp",
     "GradientPainting.cpp",

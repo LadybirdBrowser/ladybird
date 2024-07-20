@@ -7,7 +7,6 @@
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
-#include <LibWeb/Painting/DisplayListPlayerCPU.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/SVGClipPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>

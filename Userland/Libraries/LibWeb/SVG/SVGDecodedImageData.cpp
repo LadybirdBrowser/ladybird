@@ -15,7 +15,6 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListPlayerCPU.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/PaintContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -100,11 +99,6 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
 
     auto painting_command_executor_type = m_page_client->display_list_player_type();
     switch (painting_command_executor_type) {
-    case DisplayListPlayerType::CPU: {
-        Painting::DisplayListPlayerCPU executor { *bitmap };
-        display_list.execute(executor);
-        break;
-    }
     case DisplayListPlayerType::SkiaGPUIfAvailable:
     case DisplayListPlayerType::SkiaCPU: {
         Painting::DisplayListPlayerSkia executor { *bitmap };
