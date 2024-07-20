@@ -15,7 +15,7 @@
         <key>CFBundleExecutable</key>
         <string>Ladybird</string>
         <key>CFBundleIdentifier</key>
-        <string>org.SerenityOS.Ladybird</string>
+        <string>org.ladybird.Ladybird</string>
         <key>NSPrincipalClass</key>
         <string>NSApplication</string>
         <key>NSHighResolutionCapable</key>
