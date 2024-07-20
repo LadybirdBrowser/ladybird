@@ -202,11 +202,25 @@ ErrorOr<Vector<Token>> Tokenizer::tokenize(StringView input, StringView encoding
         auto decoder = TextCodec::decoder_for(encoding);
         VERIFY(decoder.has_value());
 
+        auto decoded_input = TRY(decoder->to_utf8(input));
+
+        // OPTIMIZATION: If the input doesn't contain any CR or FF, we can skip the filtering
+        bool const contains_cr_or_ff = [&] {
+            for (auto byte : decoded_input.bytes()) {
+                if (byte == '\r' || byte == '\f')
+                    return true;
+            }
+            return false;
+        }();
+        if (!contains_cr_or_ff) {
+            return decoded_input;
+        }
+
         StringBuilder builder { input.length() };
         bool last_was_carriage_return = false;
 
         // To filter code points from a stream of (unfiltered) code points input:
-        TRY(decoder->process(input, [&builder, &last_was_carriage_return](u32 code_point) -> ErrorOr<void> {
+        for (auto code_point : decoded_input.code_points()) {
             // Replace any U+000D CARRIAGE RETURN (CR) code points,
             // U+000C FORM FEED (FF) code points,
             // or pairs of U+000D CARRIAGE RETURN (CR) followed by U+000A LINE FEED (LF)
@@ -236,8 +250,7 @@ ErrorOr<Vector<Token>> Tokenizer::tokenize(StringView input, StringView encoding
 
                 last_was_carriage_return = false;
             }
-            return {};
-        }));
+        }
         return builder.to_string_without_validation();
     };
 
