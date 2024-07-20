@@ -13,7 +13,7 @@ namespace Ladybird {
 
 MachPortServer::MachPortServer()
     : m_thread(Threading::Thread::construct([this]() -> intptr_t { thread_loop(); return 0; }, "MachPortServer"sv))
-    , m_server_port_name(ByteString::formatted("org.SerenityOS.Ladybird.helper.{}", getpid()))
+    , m_server_port_name(ByteString::formatted("org.ladybird.Ladybird.helper.{}", getpid()))
 {
     if (auto err = allocate_server_port(); err.is_error())
         dbgln("Failed to allocate server port: {}", err.error());
