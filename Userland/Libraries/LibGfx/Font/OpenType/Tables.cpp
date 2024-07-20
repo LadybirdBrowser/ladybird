@@ -229,18 +229,20 @@ String Name::string_for_id(NameId id) const
     auto const platform_id = name_record.platform_id;
     auto const length = name_record.length;
     auto const offset = name_record.string_offset;
+    auto const name_bytes = m_string_data.slice(offset, length);
 
     if (platform_id == to_underlying(Platform::Windows)) {
         static auto& decoder = *TextCodec::decoder_for("utf-16be"sv);
-        return decoder.to_utf8(m_string_data.slice(offset, length)).release_value_but_fixme_should_propagate_errors();
+        return decoder.to_utf8(name_bytes).release_value_but_fixme_should_propagate_errors();
     }
 
-    auto maybe_name = String::from_utf8(m_string_data.slice(offset, length));
+    auto maybe_name = String::from_utf8(name_bytes);
     if (maybe_name.is_error()) {
-        // FIXME: https://github.com/LadybirdBrowser/ladybird/issues/75
-        // This seems related to fonts that don't have a Latin script name in their family field.
-        // Perhaps we shouldn't be assuming these are UTF-8 encoded?
-        dbgln("OpenType::Name: Failed to decode name string as UTF-8");
+        static auto& decoder = *TextCodec::decoder_for("utf-16be"sv);
+        maybe_name = decoder.to_utf8(name_bytes);
+        if (!maybe_name.is_error())
+            return maybe_name.release_value_but_fixme_should_propagate_errors();
+        dbgln("OpenType::Name: Failed to decode name string as UTF-8 or UTF-16BE");
         return String {};
     }
     return maybe_name.release_value();
