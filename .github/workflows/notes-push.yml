@@ -9,7 +9,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: fregante/setup-git-user@v2
       - run: |
           git fetch origin "refs/notes/*:refs/notes/*"
