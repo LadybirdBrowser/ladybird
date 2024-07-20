@@ -1155,17 +1155,17 @@ void HTMLParser::insert_character(u32 data)
 {
     auto node = find_character_insertion_node();
     if (node == m_character_insertion_node.ptr()) {
-        m_character_insertion_builder.append(Utf32View { &data, 1 });
+        m_character_insertion_builder.append_code_point(data);
         return;
     }
     if (!m_character_insertion_node.ptr()) {
         m_character_insertion_node = JS::make_handle(node);
-        m_character_insertion_builder.append(Utf32View { &data, 1 });
+        m_character_insertion_builder.append_code_point(data);
         return;
     }
     flush_character_insertions();
     m_character_insertion_node = JS::make_handle(node);
-    m_character_insertion_builder.append(Utf32View { &data, 1 });
+    m_character_insertion_builder.append_code_point(data);
 }
 
 void HTMLParser::handle_after_head(HTMLToken& token)
