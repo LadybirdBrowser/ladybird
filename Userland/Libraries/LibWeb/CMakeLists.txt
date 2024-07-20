@@ -549,7 +549,6 @@ set(SOURCES
     Painting/CheckBoxPaintable.cpp
     Painting/ClippableAndScrollable.cpp
     Painting/DisplayList.cpp
-    Painting/DisplayListPlayerCPU.cpp
     Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListRecorder.cpp
     Painting/GradientPainting.cpp
