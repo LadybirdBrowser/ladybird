@@ -801,9 +801,13 @@ input[type=image i][align=bottom i], object[align=bottom i] {
     vertical-align: bottom;
 }
 
-/* 15.5.4 The details and summary elements
+/* 15.5.5 The details and summary elements
  * https://html.spec.whatwg.org/multipage/rendering.html#the-details-and-summary-elements
  */
+
+details, summary {
+    display: block;
+}
 
 details > summary:first-of-type {
     display: list-item;
