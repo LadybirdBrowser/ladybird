@@ -89,6 +89,19 @@ TEST_CASE(decode_utf16)
     EXPECT_EQ(i, expected.size());
 }
 
+TEST_CASE(null_view)
+{
+    Utf16View view;
+    EXPECT(view.validate());
+    EXPECT_EQ(view.length_in_code_units(), 0zu);
+    EXPECT_EQ(view.length_in_code_points(), 0zu);
+    EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No)), ""sv);
+    EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), ""sv);
+
+    for ([[maybe_unused]] auto it : view)
+        FAIL("Iterating a null UTF-16 string should not produce any values");
+}
+
 TEST_CASE(utf16_literal)
 {
     {

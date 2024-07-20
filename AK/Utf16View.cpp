@@ -60,6 +60,8 @@ ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const& utf8_view, Endianness endiannes
     // All callers want to allow lonely surrogates, which simdutf does not permit.
     if (!utf8_view.validate(Utf8View::AllowSurrogates::No)) [[unlikely]]
         return to_utf16_slow(utf8_view, endianness);
+    if (utf8_view.is_empty())
+        return Utf16Data {};
 
     auto const* data = reinterpret_cast<char const*>(utf8_view.bytes());
     auto length = utf8_view.byte_length();
@@ -85,6 +87,9 @@ ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const& utf8_view, Endianness endiannes
 
 ErrorOr<Utf16Data> utf32_to_utf16(Utf32View const& utf32_view, Endianness endianness)
 {
+    if (utf32_view.is_empty())
+        return Utf16Data {};
+
     auto const* data = reinterpret_cast<char32_t const*>(utf32_view.code_points());
     auto length = utf32_view.length();
 
@@ -288,6 +293,10 @@ bool Utf16View::starts_with(Utf16View const& needle) const
 
 bool Utf16View::validate() const
 {
+    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
+    if (is_empty())
+        return true;
+
     switch (m_endianness) {
     case Endianness::Host:
         return simdutf::validate_utf16(char_data(), length_in_code_units());
@@ -301,6 +310,12 @@ bool Utf16View::validate() const
 
 bool Utf16View::validate(size_t& valid_code_units) const
 {
+    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
+    if (is_empty()) {
+        valid_code_units = 0;
+        return true;
+    }
+
     auto result = [&]() {
         switch (m_endianness) {
         case Endianness::Host:
@@ -319,6 +334,10 @@ bool Utf16View::validate(size_t& valid_code_units) const
 
 size_t Utf16View::calculate_length_in_code_points() const
 {
+    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
+    if (is_empty())
+        return 0;
+
     // FIXME: simdutf's code point length method assumes valid UTF-16, whereas Utf16View uses U+FFFD as a replacement
     //        for invalid code points. If we change Utf16View to only accept valid encodings as an invariant, we can
     //        remove this branch.
