@@ -2,12 +2,14 @@
   pkgs ? import <nixpkgs> { },
 }:
 
-pkgs.mkShell {
+(pkgs.buildFHSEnv {
+  name = "nix-shell";
+
   inputsFrom = [
     pkgs.ladybird
   ];
 
-  packages =
+  targetPkgs = pkgs:
     with pkgs;
     with pkgs.qt6Packages;
     with pkgs.nodePackages;
@@ -46,4 +48,4 @@ pkgs.mkShell {
     export QT_PLUGIN_PATH="$QT_PLUGIN_PATH:${pkgs.qt6.qtwayland}/lib/qt-6/plugins"
     export QT_QPA_PLATFORM="wayland;xcb"
   '';
-}
+}).env
