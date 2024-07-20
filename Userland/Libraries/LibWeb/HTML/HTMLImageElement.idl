@@ -38,4 +38,8 @@ interface HTMLImageElement : HTMLElement {
 
     [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString border;
 
+    // https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlimageelement-interface
+    [FIXME] readonly attribute long x;
+    [FIXME] readonly attribute long y;
+
 };
