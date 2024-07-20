@@ -30,8 +30,8 @@ list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_SOURCE_DIR}/Meta/CMake")
 
 include(Ladybird/cmake/EnableLagom.cmake)
 include(use_linker)
+include(lagom_options NO_POLICY_SCOPE)
 include(lagom_compile_options)
-include(lagom_install_options)
 
 if (ENABLE_ADDRESS_SANITIZER)
     add_cxx_compile_options(-fsanitize=address -fno-omit-frame-pointer)
