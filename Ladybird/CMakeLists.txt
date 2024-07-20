@@ -78,10 +78,12 @@ if (APPLE)
     target_link_libraries(ladybird PRIVATE LibThreading)
 endif()
 
-target_sources(ladybird PUBLIC FILE_SET ladybird TYPE HEADERS
-    BASE_DIRS ${LADYBIRD_SOURCE_DIR}
-    FILES ${LADYBIRD_HEADERS}
-)
+if (ENABLE_INSTALL_HEADERS)
+    target_sources(ladybird PUBLIC FILE_SET ladybird TYPE HEADERS
+        BASE_DIRS ${LADYBIRD_SOURCE_DIR}
+        FILES ${LADYBIRD_HEADERS}
+    )
+endif()
 
 if (TARGET ladybird_impl)
     set(LADYBIRD_TARGET ladybird_impl PUBLIC)

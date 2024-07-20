@@ -11,5 +11,7 @@ function (generate_encoding_indexes)
         arguments -j "${LIBTEXTCODEC_INPUT_FOLDER}/indexes.json"
     )
 
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/LookupTables.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibTextCodec/")
+    if (ENABLE_INSTALL_HEADERS)
+        install(FILES "${CMAKE_CURRENT_BINARY_DIR}/LookupTables.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibTextCodec/")
+    endif()
 endfunction()

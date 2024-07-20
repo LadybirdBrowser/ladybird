@@ -228,19 +228,23 @@ function(lagom_lib target_name fs_name)
     endif()
 
     # FIXME: Clean these up so that we don't need so many include dirs
-    target_include_directories(${target_name} INTERFACE
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Userland/Libraries>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Userland/Services>
-    )
+    if (ENABLE_INSTALL_HEADERS)
+        target_include_directories(${target_name} INTERFACE
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Userland/Libraries>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Userland/Services>
+        )
+    endif()
     add_lagom_library_install_rules(${target_name} ALIAS_NAME ${library})
-    # FIXME: Move this to serenity_install_headers
-    install(
-        DIRECTORY "${SERENITY_PROJECT_ROOT}/Userland/Libraries/Lib${library}"
-        COMPONENT Lagom_Development
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILES_MATCHING PATTERN "*.h"
-    )
+    if (ENABLE_INSTALL_HEADERS)
+        # FIXME: Move this to serenity_install_headers
+        install(
+            DIRECTORY "${SERENITY_PROJECT_ROOT}/Userland/Libraries/Lib${library}"
+            COMPONENT Lagom_Development
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+            FILES_MATCHING PATTERN "*.h"
+        )
+    endif()
     serenity_generated_sources(${target_name})
 endfunction()
 
@@ -347,18 +351,20 @@ add_serenity_subdirectory(Userland/Libraries/LibFileSystem)
 add_serenity_subdirectory(Userland/Libraries/LibIDL)
 
 # Manually install AK headers
-install(
-    DIRECTORY "${SERENITY_PROJECT_ROOT}/AK"
-    COMPONENT Lagom_Development
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING PATTERN "*.h"
-)
-install(FILES
-    ${Lagom_BINARY_DIR}/AK/Debug.h
-    ${Lagom_BINARY_DIR}/AK/Backtrace.h
-    COMPONENT Lagom_Development
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/AK"
-)
+if (ENABLE_INSTALL_HEADERS)
+    install(
+        DIRECTORY "${SERENITY_PROJECT_ROOT}/AK"
+        COMPONENT Lagom_Development
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(FILES
+        ${Lagom_BINARY_DIR}/AK/Debug.h
+        ${Lagom_BINARY_DIR}/AK/Backtrace.h
+        COMPONENT Lagom_Development
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/AK"
+    )
+endif()
 
 # Code Generators and other host tools
 if (BUILD_LAGOM_TOOLS)
