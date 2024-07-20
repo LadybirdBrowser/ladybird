@@ -96,17 +96,19 @@ function (generate_css_implementation)
         NAMESPACE "Web::CSS"
     )
 
-    set(CSS_GENERATED_TO_INSTALL
-        "CSS/Enums.h"
-        "CSS/MathFunctions.h"
-        "CSS/MediaFeatureID.h"
-        "CSS/PropertyID.h"
-        "CSS/PseudoClass.h"
-        "CSS/TransformFunctions.h"
-        "CSS/ValueID.h"
-    )
-    list(TRANSFORM CSS_GENERATED_TO_INSTALL PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
-    install(FILES ${CSS_GENERATED_TO_INSTALL} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/CSS")
+    if (ENABLE_INSTALL_HEADERS)
+        set(CSS_GENERATED_TO_INSTALL
+            "CSS/Enums.h"
+            "CSS/MathFunctions.h"
+            "CSS/MediaFeatureID.h"
+            "CSS/PropertyID.h"
+            "CSS/PseudoClass.h"
+            "CSS/TransformFunctions.h"
+            "CSS/ValueID.h"
+        )
+        list(TRANSFORM CSS_GENERATED_TO_INSTALL PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+        install(FILES ${CSS_GENERATED_TO_INSTALL} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/CSS")
+    endif()
 
 endfunction()
 
@@ -173,9 +175,11 @@ function (generate_js_bindings target)
         add_dependencies(all_generated generate_${basename})
         add_dependencies(${target} generate_${basename})
 
-        # install generated sources
-        list(FILTER BINDINGS_SOURCES INCLUDE REGEX "\.h$")
-        install(FILES ${BINDINGS_SOURCES} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
+        if (ENABLE_INSTALL_HEADERS)
+            # install generated sources
+            list(FILTER BINDINGS_SOURCES INCLUDE REGEX "\.h$")
+            install(FILES ${BINDINGS_SOURCES} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
+        endif()
 
         list(APPEND LIBWEB_ALL_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
         set(LIBWEB_ALL_IDL_FILES ${LIBWEB_ALL_IDL_FILES} PARENT_SCOPE)
@@ -208,9 +212,11 @@ function (generate_js_bindings target)
         add_dependencies(all_generated generate_exposed_interfaces)
         add_dependencies(${target} generate_exposed_interfaces)
 
-        list(FILTER exposed_interface_sources INCLUDE REGEX "\.h$")
-        list(TRANSFORM exposed_interface_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
-        install(FILES ${exposed_interface_sources} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
+        if (ENABLE_INSTALL_HEADERS)
+            list(FILTER exposed_interface_sources INCLUDE REGEX "\.h$")
+            list(TRANSFORM exposed_interface_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+            install(FILES ${exposed_interface_sources} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
+        endif()
     endfunction()
 
     include("idl_files.cmake")

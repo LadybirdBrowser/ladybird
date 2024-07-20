@@ -55,16 +55,18 @@ target_compile_definitions(LibWebView PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENAB
 find_package(SQLite3 REQUIRED)
 target_link_libraries(LibWebView PRIVATE SQLite::SQLite3)
 
-foreach(header ${GENERATED_SOURCES})
-    get_filename_component(extension ${header} EXT)
-    if (NOT "${extension}" STREQUAL ".h")
-        continue()
-    endif()
+if (ENABLE_INSTALL_HEADERS)
+    foreach(header ${GENERATED_SOURCES})
+        get_filename_component(extension ${header} EXT)
+        if (NOT "${extension}" STREQUAL ".h")
+            continue()
+        endif()
 
-    get_filename_component(subdirectory ${header} DIRECTORY)
-    string(REGEX REPLACE "^\\.\\./\\.\\./" "" subdirectory "${subdirectory}")
+        get_filename_component(subdirectory ${header} DIRECTORY)
+        string(REGEX REPLACE "^\\.\\./\\.\\./" "" subdirectory "${subdirectory}")
 
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${header}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${subdirectory}")
-endforeach()
+        install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${header}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${subdirectory}")
+    endforeach()
 
-install(FILES "${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/ConnectionCache.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/RequestServer")
+    install(FILES "${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/ConnectionCache.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/RequestServer")
+endif()

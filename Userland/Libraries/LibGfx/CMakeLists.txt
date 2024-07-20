@@ -83,8 +83,10 @@ add_custom_target(generate_tiff_files_handler DEPENDS ${generated_sources})
 add_dependencies(all_generated generate_tiff_files_handler)
 add_dependencies(LibGfx generate_tiff_files_handler)
 
-list(TRANSFORM generated_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
-install(FILES ${generated_sources} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibGfx/ImageFormats")
+if (ENABLE_INSTALL_HEADERS)
+    list(TRANSFORM generated_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+    install(FILES ${generated_sources} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibGfx/ImageFormats")
+endif()
 
 # Third-party
 find_package(PkgConfig)
