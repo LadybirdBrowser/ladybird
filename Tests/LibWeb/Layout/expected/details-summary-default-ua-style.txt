@@ -1,0 +1,19 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x153 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x137 children: not-inline
+      BlockContainer <details> at (68,68) content-size 664x17 children: not-inline
+        ListItemBox <summary> at (92,68) content-size 640x17 children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [92,68 36.84375x17] baseline: 13.296875
+              "hello"
+          TextNode <#text>
+          ListItemMarkerBox <(anonymous)> at (68,68) content-size 12x17 children: not-inline
+        BlockContainer <slot> at (68,85) content-size 664x0 children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x153]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x137]
+      PaintableWithLines (BlockContainer<DETAILS>) [8,8 784x137]
+        PaintableWithLines (ListItemBox<SUMMARY>) [92,68 640x17]
+          TextPaintable (TextNode<#text>)
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [68,68 12x17]
+        PaintableWithLines (BlockContainer<SLOT>) [68,85 664x0]

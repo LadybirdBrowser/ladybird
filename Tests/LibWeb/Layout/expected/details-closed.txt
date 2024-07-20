@@ -1,24 +1,22 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x17 children: not-inline
-      BlockContainer <(anonymous)> at (8,8) content-size 784x0 children: inline
-        InlineNode <details>
-      ListItemBox <summary> at (32,8) content-size 760x17 children: inline
-        frag 0 from TextNode start: 0, length: 13, rect: [32,8 114.625x17] baseline: 13.296875
-            "I'm a summary"
-        TextNode <#text>
-        ListItemMarkerBox <(anonymous)> at (8,8) content-size 12x17 children: not-inline
-      BlockContainer <slot> at (8,25) content-size 784x0 children: not-inline
+      BlockContainer <details> at (8,8) content-size 784x17 children: not-inline
+        ListItemBox <summary> at (32,8) content-size 760x17 children: inline
+          frag 0 from TextNode start: 0, length: 13, rect: [32,8 114.625x17] baseline: 13.296875
+              "I'm a summary"
+          TextNode <#text>
+          ListItemMarkerBox <(anonymous)> at (8,8) content-size 12x17 children: not-inline
+        BlockContainer <slot> at (8,25) content-size 784x0 children: not-inline
       BlockContainer <(anonymous)> at (8,25) content-size 784x0 children: inline
         TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
-      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-        InlinePaintable (InlineNode<DETAILS>)
-      PaintableWithLines (ListItemBox<SUMMARY>) [32,8 760x17]
-        TextPaintable (TextNode<#text>)
-        MarkerPaintable (ListItemMarkerBox(anonymous)) [8,8 12x17]
-      PaintableWithLines (BlockContainer<SLOT>) [8,25 784x0]
+      PaintableWithLines (BlockContainer<DETAILS>) [8,8 784x17]
+        PaintableWithLines (ListItemBox<SUMMARY>) [32,8 760x17]
+          TextPaintable (TextNode<#text>)
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [8,8 12x17]
+        PaintableWithLines (BlockContainer<SLOT>) [8,25 784x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,25 784x0]
