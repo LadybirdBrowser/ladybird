@@ -15,12 +15,10 @@ interface SVGLength {
 
     readonly attribute unsigned short unitType;
 
-    // FIXME: Support setraises().
-    attribute float value; // setraises(DOMException);
+    attribute float value;
+    [FIXME] attribute float valueInSpecifiedUnits;
+    [FIXME] attribute DOMString valueAsString;
 
-    // attribute float valueInSpecifiedUnits setraises(DOMException);
-    // attribute DOMString valueAsString setraises(DOMException);
-
-    // void newValueSpecifiedUnits(in unsigned short unitType, in float valueInSpecifiedUnits) raises(DOMException);
-    // void convertToSpecifiedUnits(in unsigned short unitType) raises(DOMException);
+    [FIXME] undefined newValueSpecifiedUnits(unsigned short unitType, float valueInSpecifiedUnits);
+    [FIXME] undefined convertToSpecifiedUnits(unsigned short unitType);
 };
