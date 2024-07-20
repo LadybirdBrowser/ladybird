@@ -664,7 +664,7 @@ HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_ins
     // 3. If the adjusted insertion location is inside a template element,
     //    let it instead be inside the template element's template contents, after its last child (if any).
     if (is<HTMLTemplateElement>(*adjusted_insertion_location.parent))
-        adjusted_insertion_location = { verify_cast<HTMLTemplateElement>(*adjusted_insertion_location.parent).content().ptr(), nullptr };
+        adjusted_insertion_location = { static_cast<HTMLTemplateElement const&>(*adjusted_insertion_location.parent).content().ptr(), nullptr };
 
     // 4. Return the adjusted insertion location.
     return adjusted_insertion_location;
