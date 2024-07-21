@@ -36,10 +36,10 @@ Java_org_serenityos_ladybird_LadybirdServiceBase_initNativeCode(JNIEnv* env, job
     env->GetJavaVM(&global_vm);
 
     char const* raw_resource_dir = env->GetStringUTFChars(resource_dir, nullptr);
-    s_serenity_resource_root = raw_resource_dir;
+    s_ladybird_resource_root = raw_resource_dir;
     env->ReleaseStringUTFChars(resource_dir, raw_resource_dir);
     // FIXME: Use a custom Android version that uses AssetManager to load files.
-    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::formatted("{}/res", s_serenity_resource_root))));
+    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::formatted("{}/res", s_ladybird_resource_root))));
 
     char const* raw_tag_name = env->GetStringUTFChars(tag_name, nullptr);
     AK::set_log_tag_name(raw_tag_name);

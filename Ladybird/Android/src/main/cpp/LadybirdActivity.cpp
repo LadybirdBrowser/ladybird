@@ -34,19 +34,19 @@ extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv* env, jobject thiz, jstring resource_dir, jstring tag_name, jobject timer_service)
 {
     char const* raw_resource_dir = env->GetStringUTFChars(resource_dir, nullptr);
-    s_serenity_resource_root = raw_resource_dir;
+    s_ladybird_resource_root = raw_resource_dir;
     env->ReleaseStringUTFChars(resource_dir, raw_resource_dir);
 
     char const* raw_tag_name = env->GetStringUTFChars(tag_name, nullptr);
     AK::set_log_tag_name(raw_tag_name);
     env->ReleaseStringUTFChars(tag_name, raw_tag_name);
 
-    dbgln("Set resource dir to {}", s_serenity_resource_root);
+    dbgln("Set resource dir to {}", s_ladybird_resource_root);
 
-    auto file_or_error = Core::System::open(MUST(String::formatted("{}/res/icons/48x48/app-browser.png", s_serenity_resource_root)), O_RDONLY);
+    auto file_or_error = Core::System::open(MUST(String::formatted("{}/res/icons/48x48/app-browser.png", s_ladybird_resource_root)), O_RDONLY);
     if (file_or_error.is_error()) {
         dbgln("No resource files, extracting assets...");
-        MUST(extract_tar_archive(MUST(String::formatted("{}/ladybird-assets.tar", s_serenity_resource_root)), s_serenity_resource_root));
+        MUST(extract_tar_archive(MUST(String::formatted("{}/ladybird-assets.tar", s_ladybird_resource_root)), s_ladybird_resource_root));
     } else {
         dbgln("Found app-browser.png, not re-extracting assets.");
         dbgln("Hopefully no developer changed the asset files and expected them to be re-extracted!");

@@ -31,7 +31,7 @@ ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
 ErrorOr<int> service_main(int ipc_socket)
 {
     // Ensure the certificates are read out here.
-    DefaultRootCACertificates::set_default_certificate_paths(Vector { TRY(find_certificates(s_serenity_resource_root)) });
+    DefaultRootCACertificates::set_default_certificate_paths(Vector { TRY(find_certificates(s_ladybird_resource_root)) });
     [[maybe_unused]] auto& certs = DefaultRootCACertificates::the();
 
     Core::EventLoop event_loop;

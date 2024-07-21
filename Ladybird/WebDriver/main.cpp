@@ -57,7 +57,7 @@ static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool use_qt_
 
 static ErrorOr<pid_t> launch_headless_browser(ByteString const& socket_path)
 {
-    auto resources = ByteString::formatted("{}/res", s_serenity_resource_root);
+    auto resources = ByteString::formatted("{}/res", s_ladybird_resource_root);
     return launch_process("headless-browser"sv,
         Array {
             "--resources",

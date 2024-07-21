@@ -25,7 +25,7 @@ constexpr auto libexec_path = STRINGIFY(LADYBIRD_LIBEXECDIR);
 constexpr auto libexec_path = "libexec"sv;
 #endif
 
-ByteString s_serenity_resource_root;
+ByteString s_ladybird_resource_root;
 
 Optional<ByteString> s_mach_server_name;
 
@@ -61,7 +61,7 @@ static LexicalPath find_prefix(LexicalPath const& application_directory)
 
 void platform_init()
 {
-    s_serenity_resource_root = [] {
+    s_ladybird_resource_root = [] {
         auto home = Core::Environment::get("XDG_CONFIG_HOME"sv)
                         .value_or_lazy_evaluated_optional([]() { return Core::Environment::get("HOME"sv); });
         if (home.has_value()) {
@@ -76,7 +76,7 @@ void platform_init()
         return find_prefix(LexicalPath(app_dir)).append("share/Lagom"sv).string();
 #endif
     }();
-    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_byte_string(s_serenity_resource_root))));
+    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_byte_string(s_ladybird_resource_root))));
 }
 
 void copy_default_config_files(StringView config_path)
