@@ -73,6 +73,15 @@ const selectTopTab = (tabButton, tabID) => {
 const selectBottomTab = (tabButton, tabID) => {
     selectedBottomTab = selectTab(tabButton, tabID, selectedBottomTab, selectedBottomTabButton);
     selectedBottomTabButton = tabButton;
+
+    let inspectorBottom = document.getElementById("inspector-bottom");
+    inspectorBottom.scrollTo(0, 0);
+
+    if (tabID === "console") {
+        inspectorBottom.style.overflow = "hidden";
+    } else {
+        inspectorBottom.style.overflow = "scroll";
+    }
 };
 
 let initialTopTabButton = document.getElementById("dom-tree-button");

@@ -75,7 +75,7 @@ body {
     border-radius: 0.5rem;
 
     margin-top: 30px;
-    padding: 8px;
+    padding: 8px 0px 0px 4px;
 }
 
 @media (prefers-color-scheme: dark) {
