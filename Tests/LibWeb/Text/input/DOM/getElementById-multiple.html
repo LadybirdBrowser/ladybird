@@ -1,0 +1,7 @@
+<div id="foo" n="1"></div><div id="foo" n="2"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println("getElementById('foo') => " + document.getElementById("foo").getAttribute("n"));
+    });
+</script>
