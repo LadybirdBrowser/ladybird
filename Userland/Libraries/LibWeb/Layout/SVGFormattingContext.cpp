@@ -308,7 +308,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box
     auto text_contents = text_element.text_contents();
     Utf8View text_utf8 { text_contents };
     auto text_width = font.width(text_utf8);
-    auto text_offset = text_element.get_offset();
+    auto text_offset = text_element.get_offset(m_viewport_size);
 
     // https://svgwg.org/svg2-draft/text.html#TextAnchoringProperties
     switch (text_element.text_anchor().value_or(SVG::TextAnchor::Start)) {

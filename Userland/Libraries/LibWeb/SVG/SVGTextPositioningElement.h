@@ -18,7 +18,7 @@ class SVGTextPositioningElement : public SVGTextContentElement {
 public:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
-    Gfx::FloatPoint get_offset() const;
+    Gfx::FloatPoint get_offset(CSSPixelSize const& viewport_size) const;
 
     JS::NonnullGCPtr<SVGAnimatedLength> x() const;
     JS::NonnullGCPtr<SVGAnimatedLength> y() const;
@@ -31,10 +31,10 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
 private:
-    float m_x { 0 };
-    float m_y { 0 };
-    float m_dx { 0 };
-    float m_dy { 0 };
+    Optional<NumberPercentage> m_x;
+    Optional<NumberPercentage> m_y;
+    Optional<NumberPercentage> m_dx;
+    Optional<NumberPercentage> m_dy;
 };
 
 }

@@ -34,19 +34,27 @@ void SVGTextPositioningElement::attribute_changed(FlyString const& name, Optiona
     SVGGraphicsElement::attribute_changed(name, old_value, value);
 
     if (name == SVG::AttributeNames::x) {
-        m_x = AttributeParser::parse_coordinate(value.value_or(String {})).value_or(m_x);
+        m_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::y) {
-        m_y = AttributeParser::parse_coordinate(value.value_or(String {})).value_or(m_y);
+        m_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::dx) {
-        m_dx = AttributeParser::parse_coordinate(value.value_or(String {})).value_or(m_dx);
+        m_dx = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::dy) {
-        m_dy = AttributeParser::parse_coordinate(value.value_or(String {})).value_or(m_dy);
+        m_dy = AttributeParser::parse_number_percentage(value.value_or(String {}));
     }
 }
 
-Gfx::FloatPoint SVGTextPositioningElement::get_offset() const
+Gfx::FloatPoint SVGTextPositioningElement::get_offset(CSSPixelSize const& viewport_size) const
 {
-    return { m_x + m_dx, m_y + m_dy };
+    auto const viewport_width = viewport_size.width().to_float();
+    auto const viewport_height = viewport_size.height().to_float();
+
+    float const x = m_x.value_or({ 0, false }).resolve_relative_to(viewport_width);
+    float const y = m_y.value_or({ 0, false }).resolve_relative_to(viewport_height);
+    float const dx = m_dx.value_or({ 0, false }).resolve_relative_to(viewport_width);
+    float const dy = m_dy.value_or({ 0, false }).resolve_relative_to(viewport_height);
+
+    return { x + dx, y + dy };
 }
 
 }
