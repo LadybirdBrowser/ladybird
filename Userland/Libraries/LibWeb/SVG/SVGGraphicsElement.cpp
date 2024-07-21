@@ -273,9 +273,10 @@ JS::NonnullGCPtr<Geometry::DOMRect> SVGGraphicsElement::get_b_box(Optional<SVGBo
     // Invert the SVG -> screen space transform.
     auto svg_element_rect = shadow_including_first_ancestor_of_type<SVG::SVGSVGElement>()->paintable_box()->absolute_rect();
     auto inverse_transform = static_cast<Painting::SVGGraphicsPaintable&>(*paintable_box()).computed_transforms().svg_to_css_pixels_transform().inverse();
-    return Geometry::DOMRect::create(realm(),
-        inverse_transform->map(
-            paintable_box()->absolute_rect().to_type<float>().translated(-svg_element_rect.location().to_type<float>())));
+    auto translated_rect = paintable_box()->absolute_rect().to_type<float>().translated(-svg_element_rect.location().to_type<float>());
+    if (inverse_transform.has_value())
+        translated_rect = inverse_transform->map(translated_rect);
+    return Geometry::DOMRect::create(realm(), translated_rect);
 }
 
 JS::NonnullGCPtr<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
