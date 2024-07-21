@@ -1,6 +1,7 @@
 #import <DOM/EventTarget.idl>
 #import <DOM/EventHandler.idl>
 #import <WebAudio/AudioBuffer.idl>
+#import <WebAudio/AudioBufferSourceNode.idl>
 #import <WebAudio/DynamicsCompressorNode.idl>
 #import <WebAudio/GainNode.idl>
 #import <WebAudio/OscillatorNode.idl>
@@ -27,7 +28,7 @@ interface BaseAudioContext : EventTarget {
     [FIXME] AnalyserNode createAnalyser ();
     [FIXME] BiquadFilterNode createBiquadFilter ();
     AudioBuffer createBuffer(unsigned long numberOfChannels, unsigned long length, float sampleRate);
-    [FIXME] AudioBufferSourceNode createBufferSource ();
+    AudioBufferSourceNode createBufferSource ();
     [FIXME] ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);
     [FIXME] ChannelSplitterNode createChannelSplitter (optional unsigned long numberOfOutputs = 6);
     [FIXME] ConstantSourceNode createConstantSource ();

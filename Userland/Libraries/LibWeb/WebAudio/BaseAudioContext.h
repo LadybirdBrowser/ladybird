@@ -48,6 +48,7 @@ public:
     static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBuffer>> create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> create_buffer_source();
     WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> create_oscillator();
     WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> create_dynamics_compressor();
     JS::NonnullGCPtr<GainNode> create_gain();

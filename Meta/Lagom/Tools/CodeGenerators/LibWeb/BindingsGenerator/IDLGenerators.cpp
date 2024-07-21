@@ -34,6 +34,7 @@ static bool is_platform_object(Type const& type)
         "AnimationEffect"sv,
         "AnimationTimeline"sv,
         "Attr"sv,
+        "AudioBuffer"sv,
         "AudioNode"sv,
         "AudioParam"sv,
         "AudioScheduledSourceNode"sv,
@@ -2523,7 +2524,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> @constructor_class@::constru
     auto prototype = TRY(new_target.get(vm.names.prototype));
 
     // 3.3. If Type(prototype) is not Object, then:
-    if (!prototype.is_object()) {    
+    if (!prototype.is_object()) {
         // 1. Let targetRealm be ? GetFunctionRealm(newTarget).
         auto* target_realm = TRY(JS::get_function_realm(vm, new_target));
 
