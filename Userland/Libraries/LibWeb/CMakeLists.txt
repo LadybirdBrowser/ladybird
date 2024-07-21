@@ -688,6 +688,7 @@ set(SOURCES
     WebAudio/AudioParam.cpp
     WebAudio/AudioScheduledSourceNode.cpp
     WebAudio/BaseAudioContext.cpp
+    WebAudio/BiquadFilterNode.cpp
     WebAudio/DynamicsCompressorNode.cpp
     WebAudio/GainNode.cpp
     WebAudio/OfflineAudioContext.cpp

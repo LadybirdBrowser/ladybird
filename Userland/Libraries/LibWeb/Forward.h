@@ -717,6 +717,7 @@ class AudioNode;
 class AudioParam;
 class AudioScheduledSourceNode;
 class BaseAudioContext;
+class BiquadFilterNode;
 class DynamicsCompressorNode;
 class GainNode;
 class OfflineAudioContext;
