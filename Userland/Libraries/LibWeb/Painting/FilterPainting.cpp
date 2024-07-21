@@ -4,15 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Filters/BrightnessFilter.h>
-#include <LibGfx/Filters/ContrastFilter.h>
-#include <LibGfx/Filters/GrayscaleFilter.h>
-#include <LibGfx/Filters/HueRotateFilter.h>
-#include <LibGfx/Filters/InvertFilter.h>
-#include <LibGfx/Filters/OpacityFilter.h>
-#include <LibGfx/Filters/SaturateFilter.h>
-#include <LibGfx/Filters/SepiaFilter.h>
-#include <LibGfx/Filters/StackBlurFilter.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/FilterPainting.h>

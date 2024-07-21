@@ -8,7 +8,6 @@
 
 #include <AK/NumericLimits.h>
 #include <LibGfx/DisjointRectSet.h>
-#include <LibGfx/Filters/StackBlurFilter.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Painter.h>
 #include <LibWeb/Layout/LineBoxFragment.h>
