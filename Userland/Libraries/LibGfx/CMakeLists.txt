@@ -6,10 +6,6 @@ set(SOURCES
     Color.cpp
     DeltaE.cpp
     EdgeFlagPathRasterizer.cpp
-    Filters/ColorBlindnessFilter.cpp
-    Filters/FastBoxBlurFilter.cpp
-    Filters/LumaFilter.cpp
-    Filters/StackBlurFilter.cpp
     FontCascadeList.cpp
     Font/Emoji.cpp
     Font/Font.cpp
