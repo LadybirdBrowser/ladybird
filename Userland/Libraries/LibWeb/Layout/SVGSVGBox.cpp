@@ -75,9 +75,10 @@ Optional<CSSPixelFraction> SVGSVGBox::calculate_intrinsic_aspect_ratio() const
         auto const& viewbox = dom_node().view_box().value();
 
         // 2. return viewbox.width / viewbox.height
+        auto viewbox_width = CSSPixels::nearest_value_for(viewbox.width);
         auto viewbox_height = CSSPixels::nearest_value_for(viewbox.height);
-        if (viewbox_height != 0)
-            return CSSPixels::nearest_value_for(viewbox.width) / viewbox_height;
+        if (viewbox_width != 0 && viewbox_height != 0)
+            return viewbox_width / viewbox_height;
 
         return {};
     }
