@@ -48,6 +48,18 @@ TEST_CASE(decode_utf8)
     EXPECT_EQ(i, expected_size);
 }
 
+TEST_CASE(null_view)
+{
+    Utf8View view;
+    EXPECT(view.validate(Utf8View::AllowSurrogates::No));
+    EXPECT(view.validate(Utf8View::AllowSurrogates::Yes));
+    EXPECT_EQ(view.byte_length(), 0zu);
+    EXPECT_EQ(view.length(), 0zu);
+
+    for ([[maybe_unused]] auto it : view)
+        FAIL("Iterating a null UTF-8 string should not produce any values");
+}
+
 TEST_CASE(validate_invalid_ut8)
 {
     size_t valid_bytes;

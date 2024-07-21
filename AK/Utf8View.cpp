@@ -76,6 +76,10 @@ Utf8View Utf8View::unicode_substring_view(size_t code_point_offset, size_t code_
 
 size_t Utf8View::calculate_length() const
 {
+    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
+    if (is_empty())
+        return 0;
+
     // FIXME: simdutf's code point length method assumes valid UTF-8, whereas Utf8View uses U+FFFD as a replacement
     //        for invalid code points. If we change Utf8View to only accept valid encodings as an invariant, we can
     //        remove this branch.
@@ -155,6 +159,12 @@ Utf8View Utf8View::trim(Utf8View const& characters, TrimMode mode) const
 
 bool Utf8View::validate(size_t& valid_bytes, AllowSurrogates allow_surrogates) const
 {
+    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
+    if (is_empty()) {
+        valid_bytes = 0;
+        return true;
+    }
+
     auto result = simdutf::validate_utf8_with_errors(m_string.characters_without_null_termination(), m_string.length());
     valid_bytes = result.count;
 
