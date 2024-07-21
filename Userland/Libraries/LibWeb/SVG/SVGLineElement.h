@@ -32,10 +32,10 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    Optional<float> m_x1;
-    Optional<float> m_y1;
-    Optional<float> m_x2;
-    Optional<float> m_y2;
+    Optional<NumberPercentage> m_x1;
+    Optional<NumberPercentage> m_y1;
+    Optional<NumberPercentage> m_x2;
+    Optional<NumberPercentage> m_y2;
 };
 
 }
