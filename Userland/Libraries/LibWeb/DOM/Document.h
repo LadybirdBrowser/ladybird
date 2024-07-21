@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/LazyLoadingElement.h>
+#include <LibWeb/HTML/NavigationType.h>
 #include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -593,7 +594,7 @@ public:
 
     HTML::SourceSnapshotParams snapshot_source_snapshot_params() const;
 
-    void update_for_history_step_application(JS::NonnullGCPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Vector<JS::NonnullGCPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, bool update_navigation_api = true);
+    void update_for_history_step_application(JS::NonnullGCPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<JS::NonnullGCPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, Optional<JS::NonnullGCPtr<HTML::SessionHistoryEntry>> previous_entry_for_activation = {}, bool update_navigation_api = true);
 
     HashMap<URL::URL, JS::GCPtr<HTML::SharedImageRequest>>& shared_image_requests();
 

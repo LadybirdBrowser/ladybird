@@ -4171,8 +4171,10 @@ void Document::restore_the_history_object_state(JS::NonnullGCPtr<HTML::SessionHi
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
-void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Vector<JS::NonnullGCPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, bool update_navigation_api)
+void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<JS::NonnullGCPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, Optional<JS::NonnullGCPtr<HTML::SessionHistoryEntry>> previous_entry_for_activation, bool update_navigation_api)
 {
+    (void)previous_entry_for_activation;
+
     // 1. Let documentIsNew be true if document's latest entry is null; otherwise false.
     auto document_is_new = !m_latest_entry;
 
@@ -4185,7 +4187,10 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
     // 4. Set document's history object's length to scriptHistoryLength.
     history()->m_length = script_history_length;
 
-    // 5. If documentsEntryChanged is true, then:
+    // 5. Let navigation be history's relevant global object's navigation API.
+    auto navigation = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).navigation();
+
+    // 6. If documentsEntryChanged is true, then:
     // NOTE: documentsEntryChanged can be false for one of two reasons: either we are restoring from bfcache,
     //      or we are asynchronously finishing up a synchronous navigation which already synchronously set document's latest entry.
     //      The doNotReactivate argument distinguishes between these two cases.
@@ -4199,21 +4204,21 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
         // 3. Restore the history object state given document and entry.
         restore_the_history_object_state(entry);
 
-        // 4. Let navigation be history's relevant global object's navigation API.
-        auto navigation = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).navigation();
-
-        // 5. If documentIsNew is false, then:
+        // 4. If documentIsNew is false, then:
         if (!document_is_new) {
             // NOTE: Not in the spec, but otherwise document's url won't be updated in case of a same-document back/forward navigation.
             set_url(entry->url());
 
+            // 1. Assert: navigationType is not null.
+            VERIFY(navigation_type.has_value());
+
             // AD HOC: Skip this in situations the spec steps don't account for
             if (update_navigation_api) {
-                // 1. Update the navigation API entries for a same-document navigation given navigation, entry, and "traverse".
-                navigation->update_the_navigation_api_entries_for_a_same_document_navigation(entry, Bindings::NavigationType::Traverse);
+                // 2. Update the navigation API entries for a same-document navigation given navigation, entry, and navigationType.
+                navigation->update_the_navigation_api_entries_for_a_same_document_navigation(entry, navigation_type.value());
             }
 
-            // 2. Fire an event named popstate at document's relevant global object, using PopStateEvent,
+            // 3. Fire an event named popstate at document's relevant global object, using PopStateEvent,
             //    with the state attribute initialized to document's history object's state and hasUAVisualTransition initialized to true
             //    if a visual transition, to display a cached rendered state of the latest entry, was done by the user agent.
             // FIXME: Initialise hasUAVisualTransition
@@ -4223,9 +4228,9 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
             auto pop_state_event = HTML::PopStateEvent::create(realm(), "popstate"_fly_string, popstate_event_init);
             relevant_global_object.dispatch_event(pop_state_event);
 
-            // FIXME: 3. Restore persisted state given entry.
+            // FIXME: 4. Restore persisted state given entry.
 
-            // 4. If oldURL's fragment is not equal to entry's URL's fragment, then queue a global task on the DOM manipulation task source
+            // 5. If oldURL's fragment is not equal to entry's URL's fragment, then queue a global task on the DOM manipulation task source
             //    given document's relevant global object to fire an event named hashchange at document's relevant global object,
             //    using HashChangeEvent, with the oldURL attribute initialized to the serialization of oldURL and the newURL attribute
             //    initialized to the serialization of entry's URL.
@@ -4240,7 +4245,7 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
             }
         }
 
-        // 6. Otherwise:
+        // 5. Otherwise:
         else {
             // 1. Assert: entriesForNavigationAPI is given.
             VERIFY(entries_for_navigation_api.has_value());
@@ -4252,7 +4257,25 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
         }
     }
 
-    // 6. If documentIsNew is true, then:
+    // FIXME: 7. If all the following are true:
+    //    - previousEntryForActivation is given;
+    //    - navigationType is non-null; and
+    //    - navigationType is "reload" or previousEntryForActivation's document is not document, then:
+
+    // FIXME: 1. If navigation's activation is null, then set navigation's activation to a new NavigationActivation object in navigation's relevant realm.
+    // FIXME: 2. Let previousEntryIndex be the result of getting the navigation API entry index of previousEntryForActivation within navigation.
+    // FIXME: 3. If previousEntryIndex is non-negative, then set activation's old entry to navigation's entry list[previousEntryIndex].
+
+    // FIXME: 4. Otherwise, if all the following are true:
+    //    - navigationType is "replace";
+    //    - previousEntryForActivation's document state's origin is same origin with document's origin; and
+    //    - previousEntryForActivation's document's initial about:blank is false,
+    //    then set activation's old entry to a new NavigationHistoryEntry in navigation's relevant realm, whose session history entry is previousEntryForActivation.
+
+    // FIXME: 5. Set activation's new entry to navigation's current entry.
+    // FIXME: 6. Set activation's navigation type to navigationType.
+
+    // 8. If documentIsNew is true, then:
     if (document_is_new) {
         // FIXME: 1. Try to scroll to the fragment for document.
         // FIXME: According to the spec we should only scroll here if document has no parser or parsing has stopped.
@@ -4264,7 +4287,7 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
         m_ready_to_run_scripts = true;
     }
 
-    // 7. Otherwise, if documentsEntryChanged is false and doNotReactivate is false, then:
+    // 9. Otherwise, if documentsEntryChanged is false and doNotReactivate is false, then:
     // NOTE: This is for bfcache restoration
     if (!documents_entry_changed && !do_not_reactivate) {
         // FIXME: 1. Assert: entriesForNavigationAPI is given.

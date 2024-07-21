@@ -710,7 +710,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
         bool const update_only = changing_navigable_continuation->update_only;
         JS::GCPtr<SessionHistoryEntry> const target_entry = changing_navigable_continuation->target_entry;
         bool const populated_cloned_target_session_history_entry = changing_navigable_continuation->populated_cloned_target_session_history_entry;
-        auto after_potential_unload = JS::create_heap_function(this->heap(), [navigable, update_only, target_entry, populated_target_entry, populated_cloned_target_session_history_entry, displayed_document, &completed_change_jobs, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), &heap = this->heap()] {
+        auto after_potential_unload = JS::create_heap_function(this->heap(), [navigable, update_only, target_entry, populated_target_entry, populated_cloned_target_session_history_entry, displayed_document, &completed_change_jobs, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), &heap = this->heap(), navigation_type] {
             if (populated_cloned_target_session_history_entry) {
                 target_entry->set_document_state(populated_target_entry->document_state());
                 target_entry->set_url(populated_target_entry->url());
@@ -724,8 +724,8 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
             // 2. Let updateDocument be an algorithm step which performs update document for history step application given
             //    targetEntry's document, targetEntry, changingNavigableContinuation's update-only, scriptHistoryLength,
             //    scriptHistoryIndex, navigationType, entriesForNavigationAPI, and displayedEntry.
-            auto update_document = [script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), target_entry, update_only] {
-                target_entry->document()->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, entries_for_navigation_api);
+            auto update_document = [script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), target_entry, update_only, navigation_type] {
+                target_entry->document()->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api);
             };
 
             // 3. If targetEntry's document is equal to displayedDocument, then perform updateDocument.
