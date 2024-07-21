@@ -192,6 +192,7 @@ set(SOURCES
     DOM/StyleElementUtils.cpp
     DOM/Text.cpp
     DOM/TreeWalker.cpp
+    DOM/Utils.cpp
     DOM/XMLDocument.cpp
     DOMParsing/XMLSerializer.cpp
     DOMURL/DOMURL.cpp

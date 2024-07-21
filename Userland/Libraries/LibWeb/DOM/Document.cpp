@@ -1911,7 +1911,7 @@ void Document::update_active_element()
     Node* candidate = focused_element();
 
     // 2. Set candidate to the result of retargeting candidate against this DocumentOrShadowRoot.
-    candidate = retarget<Node>(candidate, this);
+    candidate = verify_cast<Node>(retarget(candidate, this));
 
     // 3. If candidate's root is not this DocumentOrShadowRoot, then return null.
     if (&candidate->root() != this) {
