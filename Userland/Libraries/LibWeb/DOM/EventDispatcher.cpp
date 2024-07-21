@@ -196,7 +196,7 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
     JS::GCPtr<EventTarget> activation_target;
 
     // 4. Let relatedTarget be the result of retargeting event’s relatedTarget against target.
-    JS::GCPtr<EventTarget> related_target = retarget<EventTarget>(event.related_target(), target);
+    JS::GCPtr<EventTarget> related_target = retarget(event.related_target(), target);
 
     bool clear_targets = false;
     // 5. If target is not relatedTarget or target is event’s relatedTarget, then:
@@ -206,7 +206,7 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
 
         // 2. For each touchTarget of event’s touch target list, append the result of retargeting touchTarget against target to touchTargets.
         for (auto& touch_target : event.touch_target_list()) {
-            touch_targets.append(retarget<EventTarget>(touch_target, target));
+            touch_targets.append(retarget(touch_target, target));
         }
 
         // 3. Append to an event path with event, target, targetOverride, relatedTarget, touchTargets, and false.
@@ -253,14 +253,14 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
                 slottable = parent;
 
             // 3. Let relatedTarget be the result of retargeting event’s relatedTarget against parent.
-            related_target = retarget<EventTarget>(event.related_target(), parent);
+            related_target = retarget(event.related_target(), parent);
 
             // 4. Let touchTargets be a new list.
             touch_targets.clear();
 
             // 5. For each touchTarget of event’s touch target list, append the result of retargeting touchTarget against parent to touchTargets.
             for (auto& touch_target : event.touch_target_list()) {
-                touch_targets.append(retarget<EventTarget>(touch_target, parent));
+                touch_targets.append(retarget(touch_target, parent));
             }
 
             // 6. If parent is a Window object, or parent is a node and target’s root is a shadow-including inclusive ancestor of parent, then:
