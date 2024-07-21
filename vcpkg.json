@@ -7,6 +7,7 @@
     },
     "icu",
     "libjpeg-turbo",
+    "libjxl",
     {
       "name": "libpng",
       "features": [
@@ -69,6 +70,10 @@
     {
       "name": "libjpeg-turbo",
       "version": "3.0.2"
+    },
+    {
+      "name": "libjxl",
+      "version": "0.10.2"
     },
     {
       "name": "libpng",

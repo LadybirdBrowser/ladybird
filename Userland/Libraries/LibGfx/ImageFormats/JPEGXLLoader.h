@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Lucas Chollet <lucas.chollet@serenityos.org>
+ * Copyright (c) 2023-2024, Lucas Chollet <lucas.chollet@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -30,7 +30,7 @@ public:
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) override;
 
 private:
-    JPEGXLImageDecoderPlugin(NonnullOwnPtr<FixedMemoryStream>);
+    JPEGXLImageDecoderPlugin(OwnPtr<JPEGXLLoadingContext>);
 
     OwnPtr<JPEGXLLoadingContext> m_context;
 };
