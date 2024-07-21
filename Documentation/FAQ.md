@@ -32,3 +32,13 @@ Simple, my friend! Just refer to the [build instructions](BuildInstructionsLadyb
 If it builds on CI, it should build for you too. You may need to rebuild the toolchain. If that doesn't help, try it with a clean repo.
 
 If you can't figure out what to do, ask in the `#build-problems` channel on Discord.
+
+## Where did Ladybird come from?
+
+For full details, see the [Ladybird: A new cross-platform browser project](https://awesomekling.substack.com/p/ladybird-a-new-cross-platform-browser-project) announcement from 12 September 2022.
+
+Here’s a very short summary: Work on what eventually became Ladybird started on 15 June 2019, as _LibHTML_ — the beginnings of an HTML viewer for [SerenityOS](https://github.com/SerenityOS/serenity) — with a commit titled [“LibHTML: Start working on a simple HTML library”](https://github.com/SerenityOS/serenity/commit/a67e8238389), and with this commit description:
+
+> _I'd like to have rich text, and we might as well use HTML for that. :^)_
+
+LibHTML eventually became [LibWeb](https://github.com/LadybirdBrowser/ladybird/tree/master/Userland/Libraries/LibWeb) — which in turn eventually grew into being the core part of the browser engine and browser to which, on 4 July 2022, [the name _Ladybird_ was given](https://www.youtube.com/watch?v=X38MTKHt3_I&t=29s).
