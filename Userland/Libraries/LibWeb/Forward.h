@@ -711,6 +711,7 @@ class Table;
 
 namespace Web::WebAudio {
 class AudioBuffer;
+class AudioBufferSourceNode;
 class AudioContext;
 class AudioNode;
 class AudioParam;
