@@ -26,7 +26,7 @@ interface BaseAudioContext : EventTarget {
     attribute EventHandler onstatechange;
 
     [FIXME] AnalyserNode createAnalyser ();
-    [FIXME] BiquadFilterNode createBiquadFilter ();
+    BiquadFilterNode createBiquadFilter ();
     AudioBuffer createBuffer(unsigned long numberOfChannels, unsigned long length, float sampleRate);
     AudioBufferSourceNode createBufferSource ();
     [FIXME] ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);

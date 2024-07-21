@@ -18,6 +18,8 @@ source_set("WebAudio") {
     "AudioScheduledSourceNode.h",
     "BaseAudioContext.cpp",
     "BaseAudioContext.h",
+    "BiquadFilterNode.cpp",
+    "BiquadFilterNode.h",
     "DynamicsCompressorNode.cpp",
     "DynamicsCompressorNode.h",
     "GainNode.cpp",

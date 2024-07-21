@@ -9,6 +9,7 @@
 
 #include <LibWeb/Bindings/BaseAudioContextPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebAudio {
@@ -47,6 +48,7 @@ public:
 
     static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
 
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> create_biquad_filter();
     WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBuffer>> create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
     WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> create_buffer_source();
     WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> create_oscillator();

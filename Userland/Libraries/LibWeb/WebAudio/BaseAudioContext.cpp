@@ -11,6 +11,7 @@
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/AudioBufferSourceNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebAudio/DynamicsCompressorNode.h>
 #include <LibWeb/WebAudio/GainNode.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>
@@ -39,6 +40,13 @@ void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)
 WebIDL::CallbackType* BaseAudioContext::onstatechange()
 {
     return event_handler_attribute(HTML::EventNames::statechange);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbiquadfilter
+WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> BaseAudioContext::create_biquad_filter()
+{
+    // Factory method for a BiquadFilterNode representing a second order filter which can be configured as one of several common filter types.
+    return BiquadFilterNode::create(realm(), *this);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer
