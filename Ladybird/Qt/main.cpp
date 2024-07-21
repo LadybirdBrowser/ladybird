@@ -164,7 +164,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
     if (!enable_qt_networking) {
         auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
-        auto protocol_client = TRY(launch_request_server_process(request_server_paths, s_serenity_resource_root, certificates));
+        auto protocol_client = TRY(launch_request_server_process(request_server_paths, s_ladybird_resource_root, certificates));
         app.request_server_client = move(protocol_client);
     }
 

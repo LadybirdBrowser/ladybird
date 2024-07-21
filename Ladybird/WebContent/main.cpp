@@ -92,7 +92,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     StringView command_line {};
     StringView executable_path {};
-    auto config_path = ByteString::formatted("{}/ladybird/default-config", s_serenity_resource_root);
+    auto config_path = ByteString::formatted("{}/ladybird/default-config", s_ladybird_resource_root);
     StringView mach_server_name {};
     Vector<ByteString> certificates;
     int request_server_socket { -1 };

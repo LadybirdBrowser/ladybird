@@ -33,7 +33,7 @@ ApplicationBridge::~ApplicationBridge() = default;
 ErrorOr<void> ApplicationBridge::launch_request_server(Vector<ByteString> const& certificates)
 {
     auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
-    auto protocol_client = TRY(launch_request_server_process(request_server_paths, s_serenity_resource_root, certificates));
+    auto protocol_client = TRY(launch_request_server_process(request_server_paths, s_ladybird_resource_root, certificates));
 
     m_impl->request_server_client = move(protocol_client);
     return {};

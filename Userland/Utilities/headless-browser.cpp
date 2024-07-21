@@ -651,7 +651,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Vector<ByteString> certificates;
 
     platform_init();
-    resources_folder = s_serenity_resource_root;
+    resources_folder = s_ladybird_resource_root;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("This utility runs the Browser in headless mode.");
