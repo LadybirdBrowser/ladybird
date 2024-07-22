@@ -12,6 +12,7 @@ ArrayBuffer
 Attr
 Audio
 AudioBuffer
+AudioBufferSourceNode
 AudioContext
 AudioNode
 AudioParam
@@ -22,6 +23,7 @@ BaseAudioContext
 BigInt
 BigInt64Array
 BigUint64Array
+BiquadFilterNode
 Blob
 Boolean
 BroadcastChannel
