@@ -73,7 +73,7 @@ interface Document : Node {
     readonly attribute Element? activeElement;
 
     Element? getElementById(DOMString id);
-    HTMLCollection getElementsByName([FlyString] DOMString name);
+    NodeList getElementsByName([FlyString] DOMString name);
     HTMLCollection getElementsByTagName([FlyString] DOMString tagName);
     HTMLCollection getElementsByTagNameNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
     HTMLCollection getElementsByClassName(DOMString className);
