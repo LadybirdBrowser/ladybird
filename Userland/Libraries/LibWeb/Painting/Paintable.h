@@ -214,6 +214,8 @@ public:
 
     Gfx::AffineTransform compute_combined_css_transform() const;
 
+    virtual void resolve_paint_properties() {};
+
 protected:
     explicit Paintable(Layout::Node const&);
 
@@ -254,5 +256,7 @@ inline bool Paintable::fast_is<PaintableWithLines>() const { return is_paintable
 
 template<>
 inline bool Paintable::fast_is<TextPaintable>() const { return is_text_paintable(); }
+
+Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, CSSPixelRect const& rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius);
 
 }

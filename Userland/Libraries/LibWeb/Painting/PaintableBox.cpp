@@ -18,6 +18,8 @@
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/FilterPainting.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/SVGPaintable.h>
+#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -1030,6 +1032,152 @@ RefPtr<Gfx::Bitmap> PaintableBox::calculate_mask(PaintContext& context, CSSPixel
     Gfx::AntiAliasingPainter aa_painter(painter);
     aa_painter.fill_path(path, Color::Black);
     return bitmap;
+}
+
+void PaintableBox::resolve_paint_properties()
+{
+    auto const& computed_values = this->computed_values();
+    auto const& layout_node = this->layout_node();
+
+    // Border radii
+    CSSPixelRect const border_rect { 0, 0, border_box_width(), border_box_height() };
+    auto const& border_top_left_radius = computed_values.border_top_left_radius();
+    auto const& border_top_right_radius = computed_values.border_top_right_radius();
+    auto const& border_bottom_right_radius = computed_values.border_bottom_right_radius();
+    auto const& border_bottom_left_radius = computed_values.border_bottom_left_radius();
+
+    auto radii_data = normalize_border_radii_data(layout_node, border_rect, border_top_left_radius,
+        border_top_right_radius, border_bottom_right_radius,
+        border_bottom_left_radius);
+    set_border_radii_data(radii_data);
+
+    // Box shadows
+    auto const& box_shadow_data = computed_values.box_shadow();
+    Vector<Painting::ShadowData> resolved_box_shadow_data;
+    resolved_box_shadow_data.ensure_capacity(box_shadow_data.size());
+    for (auto const& layer : box_shadow_data) {
+        resolved_box_shadow_data.empend(
+            layer.color,
+            layer.offset_x.to_px(layout_node),
+            layer.offset_y.to_px(layout_node),
+            layer.blur_radius.to_px(layout_node),
+            layer.spread_distance.to_px(layout_node),
+            layer.placement == CSS::ShadowPlacement::Outer ? Painting::ShadowPlacement::Outer
+                                                           : Painting::ShadowPlacement::Inner);
+    }
+    set_box_shadow_data(move(resolved_box_shadow_data));
+
+    auto const& transformations = computed_values.transformations();
+    if (!transformations.is_empty()) {
+        auto matrix = Gfx::FloatMatrix4x4::identity();
+        for (auto const& transform : transformations)
+            matrix = matrix * transform.to_matrix(*this).release_value();
+        set_transform(matrix);
+    }
+
+    auto const& transform_origin = computed_values.transform_origin();
+    // https://www.w3.org/TR/css-transforms-1/#transform-box
+    auto transform_box = computed_values.transform_box();
+    // For SVG elements without associated CSS layout box, the used value for content-box is fill-box and for
+    // border-box is stroke-box.
+    // FIXME: This currently detects any SVG element except the <svg> one. Is that correct?
+    //        And is it correct to use `else` below?
+    if (is<Painting::SVGPaintable>(*this)) {
+        switch (transform_box) {
+        case CSS::TransformBox::ContentBox:
+            transform_box = CSS::TransformBox::FillBox;
+            break;
+        case CSS::TransformBox::BorderBox:
+            transform_box = CSS::TransformBox::StrokeBox;
+            break;
+        default:
+            break;
+        }
+    }
+    // For elements with associated CSS layout box, the used value for fill-box is content-box and for
+    // stroke-box and view-box is border-box.
+    else {
+        switch (transform_box) {
+        case CSS::TransformBox::FillBox:
+            transform_box = CSS::TransformBox::ContentBox;
+            break;
+        case CSS::TransformBox::StrokeBox:
+        case CSS::TransformBox::ViewBox:
+            transform_box = CSS::TransformBox::BorderBox;
+            break;
+        default:
+            break;
+        }
+    }
+
+    CSSPixelRect reference_box = [&]() {
+        switch (transform_box) {
+        case CSS::TransformBox::ContentBox:
+            // Uses the content box as reference box.
+            // FIXME: The reference box of a table is the border box of its table wrapper box, not its table box.
+            return absolute_rect();
+        case CSS::TransformBox::BorderBox:
+            // Uses the border box as reference box.
+            // FIXME: The reference box of a table is the border box of its table wrapper box, not its table box.
+            return absolute_border_box_rect();
+        case CSS::TransformBox::FillBox:
+            // Uses the object bounding box as reference box.
+            // FIXME: For now we're using the content rect as an approximation.
+            return absolute_rect();
+        case CSS::TransformBox::StrokeBox:
+            // Uses the stroke bounding box as reference box.
+            // FIXME: For now we're using the border rect as an approximation.
+            return absolute_border_box_rect();
+        case CSS::TransformBox::ViewBox:
+            // Uses the nearest SVG viewport as reference box.
+            // FIXME: If a viewBox attribute is specified for the SVG viewport creating element:
+            //  - The reference box is positioned at the origin of the coordinate system established by the viewBox attribute.
+            //  - The dimension of the reference box is set to the width and height values of the viewBox attribute.
+            auto* svg_paintable = first_ancestor_of_type<Painting::SVGSVGPaintable>();
+            if (!svg_paintable)
+                return absolute_border_box_rect();
+            return svg_paintable->absolute_rect();
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    auto x = reference_box.left() + transform_origin.x.to_px(layout_node, reference_box.width());
+    auto y = reference_box.top() + transform_origin.y.to_px(layout_node, reference_box.height());
+    set_transform_origin({ x, y });
+    set_transform_origin({ x, y });
+
+    // Outlines
+    auto outline_width = computed_values.outline_width().to_px(layout_node);
+    auto outline_data = borders_data_for_outline(layout_node, computed_values.outline_color(), computed_values.outline_style(), outline_width);
+    auto outline_offset = computed_values.outline_offset().to_px(layout_node);
+    set_outline_data(outline_data);
+    set_outline_offset(outline_offset);
+
+    auto combined_transform = compute_combined_css_transform();
+    set_combined_css_transform(combined_transform);
+}
+
+void PaintableWithLines::resolve_paint_properties()
+{
+    PaintableBox::resolve_paint_properties();
+
+    auto const& layout_node = this->layout_node();
+    for (auto const& fragment : fragments()) {
+        auto const& text_shadow = fragment.m_layout_node->computed_values().text_shadow();
+        if (!text_shadow.is_empty()) {
+            Vector<Painting::ShadowData> resolved_shadow_data;
+            resolved_shadow_data.ensure_capacity(text_shadow.size());
+            for (auto const& layer : text_shadow) {
+                resolved_shadow_data.empend(
+                    layer.color,
+                    layer.offset_x.to_px(layout_node),
+                    layer.offset_y.to_px(layout_node),
+                    layer.blur_radius.to_px(layout_node),
+                    layer.spread_distance.to_px(layout_node),
+                    Painting::ShadowPlacement::Outer);
+            }
+            const_cast<Painting::PaintableFragment&>(fragment).set_shadows(move(resolved_shadow_data));
+        }
+    }
 }
 
 }
