@@ -47,6 +47,7 @@
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/HTMLCollection.h>
+#include <LibWeb/DOM/LiveNodeList.h>
 #include <LibWeb/DOM/NodeIterator.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
@@ -1394,10 +1395,12 @@ void Document::set_hovered_node(Node* node)
     }
 }
 
-JS::NonnullGCPtr<HTMLCollection> Document::get_elements_by_name(FlyString const& name)
+JS::NonnullGCPtr<NodeList> Document::get_elements_by_name(FlyString const& name)
 {
-    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [name](Element const& element) {
-        return element.name() == name;
+    return LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Descendants, [name](auto const& node) {
+        if (!is<Element>(node))
+            return false;
+        return verify_cast<Element>(node).name() == name;
     });
 }
 
