@@ -137,6 +137,7 @@ class FrequencyOrCalculated;
 class FrequencyPercentage;
 class FrequencyStyleValue;
 class GridAutoFlowStyleValue;
+class GridFitContent;
 class GridMinMax;
 class GridRepeat;
 class GridSize;

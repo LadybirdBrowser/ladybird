@@ -17,6 +17,13 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_d
     // NOTE: repeat() is expected to be expanded beforehand.
     VERIFY(!definition.is_repeat());
 
+    if (definition.is_fit_content()) {
+        return GridTrack {
+            .min_track_sizing_function = CSS::GridSize::make_auto(),
+            .max_track_sizing_function = definition.fit_content().max_grid_size(),
+        };
+    }
+
     if (definition.is_minmax()) {
         return GridTrack {
             .min_track_sizing_function = definition.minmax().min_grid_size(),
@@ -422,6 +429,7 @@ void GridFormattingContext::initialize_grid_tracks_from_definition(GridDimension
         for (auto _ = 0; _ < repeat_count; _++) {
             switch (track_definition.type()) {
             case CSS::ExplicitGridTrack::Type::Default:
+            case CSS::ExplicitGridTrack::Type::FitContent:
             case CSS::ExplicitGridTrack::Type::MinMax:
                 tracks.append(GridTrack::create_from_definition(track_definition));
                 break;
@@ -852,13 +860,18 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
 
         // 6. For max-content maximums: Lastly continue to increase the growth limit of tracks with a max track
         //    sizing function of max-content by distributing extra space as needed to account for these items' max-
-        //    content contributions.
+        //    content contributions. However, limit the growth of any fit-content() tracks by their fit-content() argument.
         auto item_max_content_contribution = calculate_max_content_contribution(item, dimension);
         distribute_extra_space_across_spanned_tracks_growth_limit(item_max_content_contribution, spanned_tracks, [&](GridTrack const& track) {
-            return track.max_track_sizing_function.is_max_content() || track.max_track_sizing_function.is_auto(available_size);
+            return track.max_track_sizing_function.is_max_content() || track.max_track_sizing_function.is_auto(available_size) || track.max_track_sizing_function.is_fit_content();
         });
         for (auto& track : spanned_tracks) {
-            if (!track.growth_limit.has_value()) {
+            if (track.max_track_sizing_function.is_fit_content()) {
+                track.growth_limit = css_clamp(
+                    track.planned_increase,
+                    track.base_size,
+                    track.max_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero()));
+            } else if (!track.growth_limit.has_value()) {
                 // If the affected size is an infinite growth limit, set it to the track’s base size plus the planned increase.
                 track.growth_limit = track.base_size + track.planned_increase;
             } else {
@@ -2039,7 +2052,7 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
                 line_names.extend(item.get<CSS::GridLineNames>().names);
             } else if (item.has<CSS::ExplicitGridTrack>()) {
                 auto const& explicit_track = item.get<CSS::ExplicitGridTrack>();
-                if (explicit_track.is_default() || explicit_track.is_minmax()) {
+                if (explicit_track.is_default() || explicit_track.is_minmax() || explicit_track.is_fit_content()) {
                     lines.append({ .names = line_names });
                     line_names.clear();
                 } else if (explicit_track.is_repeat()) {
