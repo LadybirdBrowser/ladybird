@@ -212,8 +212,6 @@ public:
     bool is_target() const;
     bool is_document_element() const;
 
-    JS::NonnullGCPtr<HTMLCollection> get_elements_by_class_name(StringView);
-
     bool is_shadow_host() const;
     JS::GCPtr<ShadowRoot> shadow_root() { return m_shadow_root; }
     JS::GCPtr<ShadowRoot const> shadow_root() const { return m_shadow_root; }

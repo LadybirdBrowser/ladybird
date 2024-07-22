@@ -36,6 +36,8 @@ public:
     WebIDL::ExceptionOr<void> append(Vector<Variant<JS::Handle<Node>, String>> const& nodes);
     WebIDL::ExceptionOr<void> replace_children(Vector<Variant<JS::Handle<Node>, String>> const& nodes);
 
+    JS::NonnullGCPtr<HTMLCollection> get_elements_by_class_name(StringView);
+
 protected:
     ParentNode(JS::Realm& realm, Document& document, NodeType type)
         : Node(realm, document, type)
