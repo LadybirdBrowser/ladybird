@@ -1,0 +1,23 @@
+<script src="../include.js"></script>
+<style>
+    * { border: 1px solid black; }
+    .test { width: 1000px; height: 1000px; }
+</style>
+<div class="test">
+<script>
+    asyncTest(done => {
+        let eventCount = 0;
+
+        function mouseHandler() {
+            eventCount++;
+            if (eventCount == 1) {
+                println('PASS');
+                done();
+            }
+        }
+
+        document.querySelector('.test').addEventListener('mouseenter', mouseHandler);
+
+        internals.wheel(50, 0, 0, 30);
+    });
+</script>

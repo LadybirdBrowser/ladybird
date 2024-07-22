@@ -183,6 +183,7 @@ bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPo
     if (auto result = target_for_mouse_position(position); result.has_value())
         paintable = result->paintable;
 
+    auto& document = *m_navigable->active_document();
     if (paintable) {
         auto* containing_block = paintable->containing_block();
         while (containing_block) {
@@ -216,6 +217,24 @@ bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPo
             auto page_offset = compute_mouse_event_page_offset(client_offset);
             if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::wheel, screen_position, page_offset, client_offset, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors())) {
                 m_navigable->active_window()->scroll_by(wheel_delta_x, wheel_delta_y);
+            }
+
+            JS::GCPtr<DOM::Node> final_node = nullptr;
+            auto final_scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
+            auto final_position = viewport_position.translated(final_scroll_offset);
+            if (auto result = target_for_mouse_position(final_position); result.has_value()) {
+                final_node = dom_node_for_event_dispatch(*result->paintable);
+
+                if (final_node) {
+                    // When using mouse wheel, we should also fire appropriate mouse enter, leave, etc. events.
+                    // https://w3c.github.io/uievents/#event-type-mouseenter
+                    // https://w3c.github.io/uievents/#event-type-mouseleave
+                    // A user agent MUST also dispatch this event when the element or one of its descendants moves to be underneath the primary pointing device.
+                    // https://w3c.github.io/uievents/#event-type-mouseover
+                    // https://w3c.github.io/uievents/#event-type-mouseout
+                    // A user agent MUST dispatch this event when a pointing device is moved off of the boundaries of an element or when the element is moved to be no longer underneath the primary pointing device.
+                    document.set_hovered_node(final_node);
+                }
             }
 
             handled_event = true;
