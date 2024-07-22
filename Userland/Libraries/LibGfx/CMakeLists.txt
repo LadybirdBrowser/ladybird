@@ -9,6 +9,7 @@ set(SOURCES
     FontCascadeList.cpp
     Font/Emoji.cpp
     Font/Font.cpp
+    Font/FontData.cpp
     Font/FontDatabase.cpp
     Font/OpenType/Cmap.cpp
     Font/OpenType/Glyf.cpp
@@ -17,8 +18,8 @@ set(SOURCES
     Font/OpenType/Typeface.cpp
     Font/ScaledFont.cpp
     Font/Typeface.cpp
-    Font/WOFF/Typeface.cpp
-    Font/WOFF2/Typeface.cpp
+    Font/WOFF/Loader.cpp
+    Font/WOFF2/Loader.cpp
     GradientPainting.cpp
     ICC/BinaryWriter.cpp
     ICC/Enums.cpp

@@ -22,8 +22,8 @@
 #include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
-#include <LibGfx/Font/WOFF/Typeface.h>
-#include <LibGfx/Font/WOFF2/Typeface.h>
+#include <LibGfx/Font/WOFF/Loader.h>
+#include <LibGfx/Font/WOFF2/Loader.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/CSS/AnimationEvent.h>
@@ -172,12 +172,12 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
         }
     }
     if (mime_type == "font/woff"sv || mime_type == "application/font-woff"sv) {
-        if (auto result = WOFF::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+        if (auto result = WOFF::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
             return result;
         }
     }
     if (mime_type == "font/woff2"sv || mime_type == "application/font-woff2"sv) {
-        if (auto result = WOFF2::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+        if (auto result = WOFF2::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
             return result;
         }
     }
@@ -186,10 +186,10 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
     auto ttf = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!ttf.is_error())
         return ttf.release_value();
-    auto woff = WOFF::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
+    auto woff = WOFF::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!woff.is_error())
         return woff.release_value();
-    auto woff2 = WOFF2::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
+    auto woff2 = WOFF2::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!woff2.is_error())
         return woff2.release_value();
     return Error::from_string_literal("Automatic format detection failed");

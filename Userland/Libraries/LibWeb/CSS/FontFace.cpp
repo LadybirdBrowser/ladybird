@@ -7,8 +7,8 @@
 #include <LibCore/Promise.h>
 #include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/Typeface.h>
-#include <LibGfx/Font/WOFF/Typeface.h>
-#include <LibGfx/Font/WOFF2/Typeface.h>
+#include <LibGfx/Font/WOFF/Loader.h>
+#include <LibGfx/Font/WOFF2/Loader.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
@@ -40,12 +40,12 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_fo
             promise->resolve(ttf.release_value());
             return;
         }
-        auto woff = WOFF::Typeface::try_load_from_externally_owned_memory(data);
+        auto woff = WOFF::try_load_from_externally_owned_memory(data);
         if (!woff.is_error()) {
             promise->resolve(woff.release_value());
             return;
         }
-        auto woff2 = WOFF2::Typeface::try_load_from_externally_owned_memory(data);
+        auto woff2 = WOFF2::try_load_from_externally_owned_memory(data);
         if (!woff2.is_error()) {
             promise->resolve(woff2.release_value());
             return;

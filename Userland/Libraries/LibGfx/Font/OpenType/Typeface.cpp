@@ -152,8 +152,14 @@ float be_fword(u8 const* ptr)
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, unsigned index)
 {
-    auto font = TRY(try_load_from_externally_owned_memory(resource.data(), { .index = index }));
-    font->m_resource = resource;
+    auto font_data = Gfx::FontData::create_from_resource(resource);
+    return try_load_from_font_data(move(font_data), { .index = index });
+}
+
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_font_data(NonnullOwnPtr<Gfx::FontData> font_data, Options options)
+{
+    auto font = TRY(try_load_from_externally_owned_memory(font_data->bytes(), move(options)));
+    font->m_font_data = move(font_data);
     return font;
 }
 
