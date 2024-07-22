@@ -207,6 +207,8 @@ public:
 
     virtual bool wants_mouse_events() const override;
 
+    virtual void resolve_paint_properties() override;
+
 protected:
     explicit PaintableBox(Layout::Box const&);
 
@@ -302,6 +304,8 @@ public:
         for (auto& fragment : m_fragments)
             visitor.visit(JS::NonnullGCPtr { fragment.layout_node() });
     }
+
+    virtual void resolve_paint_properties() override;
 
 protected:
     PaintableWithLines(Layout::BlockContainer const&);

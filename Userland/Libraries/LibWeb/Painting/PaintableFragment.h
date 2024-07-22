@@ -14,7 +14,8 @@
 namespace Web::Painting {
 
 class PaintableFragment {
-    friend class ViewportPaintable;
+    friend class InlinePaintable;
+    friend class PaintableWithLines;
 
 public:
     explicit PaintableFragment(Layout::LineBoxFragment const&);
