@@ -5910,6 +5910,21 @@ Optional<CSS::GridSize> Parser::parse_grid_size(ComponentValue const& component_
     return {};
 }
 
+Optional<CSS::GridFitContent> Parser::parse_fit_content(Vector<ComponentValue> const& component_values)
+{
+    // https://www.w3.org/TR/css-grid-2/#valdef-grid-template-columns-fit-content
+    // 'fit-content( <length-percentage> )'
+    // Represents the formula max(minimum, min(limit, max-content)), where minimum represents an auto minimum (which is often, but not always,
+    // equal to a min-content minimum), and limit is the track sizing function passed as an argument to fit-content().
+    // This is essentially calculated as the smaller of minmax(auto, max-content) and minmax(auto, limit).
+    auto function_tokens = TokenStream(component_values);
+    function_tokens.skip_whitespace();
+    auto maybe_length_percentage = parse_length_percentage(function_tokens);
+    if (maybe_length_percentage.has_value())
+        return CSS::GridFitContent(CSS::GridSize(CSS::GridSize::Type::FitContent, maybe_length_percentage.value()));
+    return {};
+}
+
 Optional<CSS::GridMinMax> Parser::parse_min_max(Vector<ComponentValue> const& component_values)
 {
     // https://www.w3.org/TR/css-grid-2/#valdef-grid-template-columns-minmax
@@ -6067,6 +6082,11 @@ Optional<CSS::ExplicitGridTrack> Parser::parse_track_sizing_function(ComponentVa
                 return CSS::ExplicitGridTrack(maybe_min_max_value.value());
             else
                 return {};
+        } else if (function_token.name().equals_ignoring_ascii_case("fit-content"sv)) {
+            auto maybe_fit_content_value = parse_fit_content(function_token.values());
+            if (maybe_fit_content_value.has_value())
+                return CSS::ExplicitGridTrack(maybe_fit_content_value.value());
+            return {};
         } else if (auto maybe_calculated = parse_calculated_value(token)) {
             return CSS::ExplicitGridTrack(GridSize(LengthPercentage(maybe_calculated.release_nonnull())));
         }

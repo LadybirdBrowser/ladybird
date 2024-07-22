@@ -250,6 +250,7 @@ private:
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);
     Vector<Gfx::UnicodeRange> parse_unicode_ranges(TokenStream<ComponentValue>&);
     Optional<GridSize> parse_grid_size(ComponentValue const&);
+    Optional<GridFitContent> parse_fit_content(Vector<ComponentValue> const&);
     Optional<GridMinMax> parse_min_max(Vector<ComponentValue> const&);
     Optional<GridRepeat> parse_repeat(Vector<ComponentValue> const&);
     Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);

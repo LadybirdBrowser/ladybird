@@ -17,10 +17,12 @@ public:
     enum class Type {
         LengthPercentage,
         FlexibleLength,
+        FitContent,
         MaxContent,
         MinContent,
     };
 
+    GridSize(Type, LengthPercentage);
     GridSize(LengthPercentage);
     GridSize(Flex);
     GridSize(Type);
@@ -34,6 +36,7 @@ public:
     bool is_auto(Layout::AvailableSize const&) const;
     bool is_fixed(Layout::AvailableSize const&) const;
     bool is_flexible_length() const { return m_type == Type::FlexibleLength; }
+    bool is_fit_content() const { return m_type == Type::FitContent; }
     bool is_max_content() const { return m_type == Type::MaxContent; }
     bool is_min_content() const { return m_type == Type::MinContent; }
 
@@ -42,7 +45,6 @@ public:
 
     // https://www.w3.org/TR/css-grid-2/#layout-algorithm
     // An intrinsic sizing function (min-content, max-content, auto, fit-content()).
-    // FIXME: Add missing properties once implemented.
     bool is_intrinsic(Layout::AvailableSize const&) const;
 
     bool is_definite() const
@@ -62,6 +64,23 @@ public:
 private:
     Type m_type;
     Variant<Empty, LengthPercentage, Flex> m_value;
+};
+
+class GridFitContent {
+public:
+    GridFitContent(GridSize);
+    GridFitContent();
+
+    GridSize max_grid_size() const& { return m_max_grid_size; }
+
+    String to_string() const;
+    bool operator==(GridFitContent const& other) const
+    {
+        return m_max_grid_size == other.m_max_grid_size;
+    }
+
+private:
+    GridSize m_max_grid_size;
 };
 
 class GridMinMax {
@@ -149,13 +168,22 @@ private:
 class ExplicitGridTrack {
 public:
     enum class Type {
+        FitContent,
         MinMax,
         Repeat,
         Default,
     };
+    ExplicitGridTrack(CSS::GridFitContent);
     ExplicitGridTrack(CSS::GridRepeat);
     ExplicitGridTrack(CSS::GridMinMax);
     ExplicitGridTrack(CSS::GridSize);
+
+    bool is_fit_content() const { return m_type == Type::FitContent; }
+    GridFitContent fit_content() const
+    {
+        VERIFY(is_fit_content());
+        return m_grid_fit_content;
+    }
 
     bool is_repeat() const { return m_type == Type::Repeat; }
     GridRepeat repeat() const
@@ -183,6 +211,8 @@ public:
     String to_string() const;
     bool operator==(ExplicitGridTrack const& other) const
     {
+        if (is_fit_content() && other.is_fit_content())
+            return m_grid_fit_content == other.fit_content();
         if (is_repeat() && other.is_repeat())
             return m_grid_repeat == other.repeat();
         if (is_minmax() && other.is_minmax())
@@ -194,6 +224,7 @@ public:
 
 private:
     Type m_type;
+    GridFitContent m_grid_fit_content;
     GridRepeat m_grid_repeat;
     GridMinMax m_grid_minmax;
     GridSize m_grid_size;

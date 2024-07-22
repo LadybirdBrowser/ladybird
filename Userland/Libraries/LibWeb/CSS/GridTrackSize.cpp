@@ -10,6 +10,13 @@
 
 namespace Web::CSS {
 
+GridSize::GridSize(Type type, LengthPercentage length_percentage)
+    : m_value(move(length_percentage))
+{
+    VERIFY(type == Type::FitContent);
+    m_type = type;
+}
+
 GridSize::GridSize(LengthPercentage length_percentage)
     : m_type(Type::LengthPercentage)
     , m_value(move(length_percentage))
@@ -63,7 +70,7 @@ bool GridSize::is_fixed(Layout::AvailableSize const& available_size) const
 
 bool GridSize::is_intrinsic(Layout::AvailableSize const& available_size) const
 {
-    return is_auto(available_size) || is_max_content() || is_min_content();
+    return is_auto(available_size) || is_max_content() || is_min_content() || is_fit_content();
 }
 
 GridSize GridSize::make_auto()
@@ -73,7 +80,7 @@ GridSize GridSize::make_auto()
 
 Size GridSize::css_size() const
 {
-    VERIFY(m_type == Type::LengthPercentage);
+    VERIFY(m_type == Type::LengthPercentage || m_type == Type::FitContent);
     auto& length_percentage = m_value.get<LengthPercentage>();
     if (length_percentage.is_auto())
         return CSS::Size::make_auto();
@@ -88,6 +95,7 @@ String GridSize::to_string() const
 {
     switch (m_type) {
     case Type::LengthPercentage:
+    case Type::FitContent:
         return m_value.get<LengthPercentage>().to_string();
     case Type::FlexibleLength:
         return m_value.get<Flex>().to_string();
@@ -114,6 +122,21 @@ String GridMinMax::to_string() const
     builder.appendff("{}", m_max_grid_size.to_string());
     builder.append(")"sv);
     return MUST(builder.to_string());
+}
+
+GridFitContent::GridFitContent(GridSize max_grid_size)
+    : m_max_grid_size(max_grid_size)
+{
+}
+
+GridFitContent::GridFitContent()
+    : m_max_grid_size(GridSize::make_auto())
+{
+}
+
+String GridFitContent::to_string() const
+{
+    return MUST(String::formatted("fit-content({})", m_max_grid_size.to_string()));
 }
 
 GridRepeat::GridRepeat(GridTrackSizeList grid_track_size_list, int repeat_count)
@@ -156,6 +179,12 @@ String GridRepeat::to_string() const
     return MUST(builder.to_string());
 }
 
+ExplicitGridTrack::ExplicitGridTrack(CSS::GridFitContent grid_fit_content)
+    : m_type(Type::FitContent)
+    , m_grid_fit_content(grid_fit_content)
+{
+}
+
 ExplicitGridTrack::ExplicitGridTrack(CSS::GridMinMax grid_minmax)
     : m_type(Type::MinMax)
     , m_grid_minmax(grid_minmax)
@@ -177,6 +206,8 @@ ExplicitGridTrack::ExplicitGridTrack(CSS::GridSize grid_size)
 String ExplicitGridTrack::to_string() const
 {
     switch (m_type) {
+    case Type::FitContent:
+        return m_grid_fit_content.to_string();
     case Type::MinMax:
         return m_grid_minmax.to_string();
     case Type::Repeat:

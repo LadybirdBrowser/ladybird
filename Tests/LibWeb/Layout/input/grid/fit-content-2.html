@@ -1,0 +1,25 @@
+<style>
+#container {
+  display: grid;
+  grid-template-columns: fit-content(300px) fit-content(300px) 1fr;
+  grid-gap: 5px;
+  box-sizing: border-box;
+  height: 200px;
+  width: 100%;
+  background-color: #8cffa0;
+  padding: 10px;
+}
+
+#container > div {
+  background-color: #8ca0ff;
+  padding: 5px;
+}
+</style><div id="container">
+<div>Item as wide as the content.</div>
+<div>
+Item with more text in it. Because the contents of it are wider than the
+maximum width, it is clamped at 300 pixels.
+</div>
+<div>Flexible item</div>
+</div>
+
