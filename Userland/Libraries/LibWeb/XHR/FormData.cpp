@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Kenneth Myhra <kennethmyhra@serenityos.org>
+ * Copyright (c) 2023-2024, Kenneth Myhra <kennethmyhra@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -38,6 +38,16 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::construct_impl(JS::Rea
 WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::construct_impl(JS::Realm& realm, Vector<FormDataEntry> entry_list)
 {
     return realm.heap().allocate<FormData>(realm, realm, move(entry_list));
+}
+
+WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::create(JS::Realm& realm, Vector<DOMURL::QueryParam> entry_list)
+{
+    Vector<FormDataEntry> list;
+    list.ensure_capacity(entry_list.size());
+    for (auto& entry : entry_list)
+        list.unchecked_append({ .name = move(entry.name), .value = move(entry.value) });
+
+    return construct_impl(realm, move(list));
 }
 
 FormData::FormData(JS::Realm& realm, Vector<FormDataEntry> entry_list)

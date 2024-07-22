@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Fetch/Body.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/FileAPI/Blob.h>
@@ -23,6 +24,7 @@
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWeb/XHR/FormData.h>
 
 namespace Web::Fetch {
 
@@ -143,10 +145,15 @@ WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm& realm, ByteBuffer bytes, 
         }
         // Otherwise, if mimeType’s essence is "application/x-www-form-urlencoded", then:
         else if (mime_type.has_value() && mime_type->essence() == "application/x-www-form-urlencoded"sv) {
-            // FIXME: 1. Let entries be the result of parsing bytes.
-            // FIXME: 2. If entries is failure, then throw a TypeError.
-            // FIXME: 3. Return a new FormData object whose entry list is entries.
-            return JS::js_null();
+            // 1. Let entries be the result of parsing bytes.
+            auto entries = DOMURL::url_decode(StringView { bytes });
+
+            // 2. If entries is failure, then throw a TypeError.
+            if (entries.is_error())
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, entries.error().string_literal() };
+
+            // 3. Return a new FormData object whose entry list is entries.
+            return TRY(XHR::FormData::create(realm, entries.release_value()));
         }
         // Otherwise, throw a TypeError.
         else {

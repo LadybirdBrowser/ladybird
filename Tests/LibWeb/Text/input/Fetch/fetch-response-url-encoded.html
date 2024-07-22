@@ -1,0 +1,17 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const data = "param-a=value-a&param-b=value-b&param-c=value-c1&param-c=value-c2";
+        const response = new Response(data, {
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        });
+
+        response.formData().then((formData) => {
+            println(formData.get("param-a"));
+            println(formData.get("param-b"));
+            println(formData.getAll("param-c"));
+        });
+    });
+</script>
