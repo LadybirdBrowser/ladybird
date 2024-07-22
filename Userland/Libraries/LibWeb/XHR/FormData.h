@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Kenneth Myhra <kennethmyhra@serenityos.org>
+ * Copyright (c) 2023-2024, Kenneth Myhra <kennethmyhra@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/FormDataPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -25,6 +26,8 @@ public:
 
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> construct_impl(JS::Realm&, JS::GCPtr<HTML::HTMLFormElement> form = {});
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> construct_impl(JS::Realm&, Vector<FormDataEntry> entry_list);
+
+    static WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> create(JS::Realm&, Vector<DOMURL::QueryParam> entry_list);
 
     WebIDL::ExceptionOr<void> append(String const& name, String const& value);
     WebIDL::ExceptionOr<void> append(String const& name, JS::NonnullGCPtr<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
