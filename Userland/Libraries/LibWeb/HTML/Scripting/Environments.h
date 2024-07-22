@@ -90,6 +90,8 @@ public:
     JS::Realm& realm();
     JS::Object& global_object();
     EventLoop& responsible_event_loop();
+
+    // https://fetch.spec.whatwg.org/#concept-fetch-group
     Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
 
     RunScriptDecision can_run_script();
