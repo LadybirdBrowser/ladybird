@@ -1401,21 +1401,6 @@ JS::NonnullGCPtr<HTMLCollection> Document::get_elements_by_name(FlyString const&
     });
 }
 
-JS::NonnullGCPtr<HTMLCollection> Document::get_elements_by_class_name(StringView class_names)
-{
-    Vector<FlyString> list_of_class_names;
-    for (auto& name : class_names.split_view(' ')) {
-        list_of_class_names.append(FlyString::from_utf8(name).release_value_but_fixme_should_propagate_errors());
-    }
-    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [list_of_class_names = move(list_of_class_names), quirks_mode = document().in_quirks_mode()](Element const& element) {
-        for (auto& name : list_of_class_names) {
-            if (!element.has_class(name, quirks_mode ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive))
-                return false;
-        }
-        return true;
-    });
-}
-
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-document-applets
 JS::NonnullGCPtr<HTMLCollection> Document::applets()
 {
