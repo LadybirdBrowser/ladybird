@@ -21,12 +21,27 @@
 
 namespace RequestServer {
 
+template<typename Pool>
+struct Looper : public Threading::ThreadPoolLooper<Pool> {
+    IterationDecision next(Pool& pool, bool wait);
+    Core::EventLoop event_loop;
+};
+
+struct ThreadPoolEntry {
+    NonnullRefPtr<ConnectionFromClient> client;
+    ConnectionFromClient::Work work;
+};
+static Threading::ThreadPool<ThreadPoolEntry, Looper> s_thread_pool {
+    [](ThreadPoolEntry entry) {
+        entry.client->worker_do_work(move(entry.work));
+    }
+};
+
 static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(socket), s_client_ids.allocate())
-    , m_thread_pool([this](Work work) { worker_do_work(move(work)); })
 {
     s_connections.set(client_id(), *this);
 }
@@ -74,7 +89,7 @@ private:
 };
 
 template<typename Pool>
-IterationDecision ConnectionFromClient::Looper<Pool>::next(Pool& pool, bool wait)
+IterationDecision Looper<Pool>::next(Pool& pool, bool wait)
 {
     bool should_exit = false;
     auto timer = Core::Timer::create_repeating(100, [&] {
@@ -187,7 +202,7 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
 
 void ConnectionFromClient::enqueue(Work work)
 {
-    m_thread_pool.submit(move(work));
+    s_thread_pool.submit({ *this, move(work) });
 }
 
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString const& protocol)
