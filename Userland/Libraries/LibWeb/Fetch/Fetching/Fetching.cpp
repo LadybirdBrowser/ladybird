@@ -249,8 +249,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Infrastructure::FetchController>> fetch(JS:
 
     // 16. If request is a subresource request, then:
     if (request.is_subresource_request()) {
-        // FIXME: 1. Let record be a new fetch record whose request is request and controller is fetchParams’s controller.
-        // FIXME: 2. Append record to request’s client’s fetch group list of fetch records.
+        // 1. Let record be a new fetch record whose request is request and controller is fetchParams’s controller.
+        auto record = Infrastructure::FetchRecord::create(vm, request, fetch_params->controller());
+
+        // 2. Append record to request’s client’s fetch group list of fetch records.
+        request.client()->fetch_group().append(record);
     }
 
     // 17. Run main fetch given fetchParams.
