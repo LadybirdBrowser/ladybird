@@ -12,6 +12,9 @@
 namespace Gfx {
 
 class JPEGXLLoadingContext {
+    AK_MAKE_NONCOPYABLE(JPEGXLLoadingContext);
+    AK_MAKE_NONMOVABLE(JPEGXLLoadingContext);
+
 public:
     JPEGXLLoadingContext(JxlDecoder* decoder)
         : m_decoder(decoder)
