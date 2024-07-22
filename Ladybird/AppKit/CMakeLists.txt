@@ -59,6 +59,7 @@ endif()
 add_executable(ladybird MACOSX_BUNDLE
    main.mm
 )
-target_link_libraries(ladybird PRIVATE "-framework Cocoa -framework UniformTypeIdentifiers" LibUnicode ladybird_impl)
+target_link_libraries(ladybird_impl PUBLIC "-framework Cocoa -framework UniformTypeIdentifiers" LibUnicode)
+target_link_libraries(ladybird PRIVATE ladybird_impl)
 
 create_ladybird_bundle(ladybird)
