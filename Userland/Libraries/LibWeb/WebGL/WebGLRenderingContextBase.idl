@@ -29,33 +29,148 @@ interface mixin WebGLRenderingContextBase {
     object? getExtension(DOMString name);
 
     undefined activeTexture(GLenum texture);
+    [FIXME] undefined attachShader(WebGLProgram program, WebGLShader shader);
+    [FIXME] undefined bindAttribLocation(WebGLProgram program, GLuint index, DOMString name);
+    [FIXME] undefined bindBuffer(GLenum target, WebGLBuffer? buffer);
+    [FIXME] undefined bindFramebuffer(GLenum target, WebGLFramebuffer? framebuffer);
+    [FIXME] undefined bindRenderbuffer(GLenum target, WebGLRenderbuffer? renderbuffer);
+    [FIXME] undefined bindTexture(GLenum target, WebGLTexture? texture);
+    [FIXME] undefined blendColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
+    [FIXME] undefined blendEquation(GLenum mode);
+    [FIXME] undefined blendEquationSeparate(GLenum modeRGB, GLenum modeAlpha);
+    [FIXME] undefined blendFunc(GLenum sfactor, GLenum dfactor);
+    [FIXME] undefined blendFuncSeparate(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
 
+    [FIXME] GLenum checkFramebufferStatus(GLenum target);
     undefined clear(GLbitfield mask);
     undefined clearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
     undefined clearDepth(GLclampf depth);
     undefined clearStencil(GLint s);
     undefined colorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
+    [FIXME] undefined compileShader(WebGLShader shader);
+
+    [FIXME] undefined copyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
+    [FIXME] undefined copyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+
+    [FIXME] WebGLBuffer? createBuffer();
+    [FIXME] WebGLFramebuffer? createFramebuffer();
+    [FIXME] WebGLProgram? createProgram();
+    [FIXME] WebGLRenderbuffer? createRenderbuffer();
+    [FIXME] WebGLShader? createShader(GLenum type);
+    [FIXME] WebGLTexture? createTexture();
 
     undefined cullFace(GLenum mode);
+
+    [FIXME] undefined deleteBuffer(WebGLBuffer? buffer);
+    [FIXME] undefined deleteFramebuffer(WebGLFramebuffer? framebuffer);
+    [FIXME] undefined deleteProgram(WebGLProgram? program);
+    [FIXME] undefined deleteRenderbuffer(WebGLRenderbuffer? renderbuffer);
+    [FIXME] undefined deleteShader(WebGLShader? shader);
+    [FIXME] undefined deleteTexture(WebGLTexture? texture);
 
     undefined depthFunc(GLenum func);
     undefined depthMask(GLboolean flag);
     undefined depthRange(GLclampf zNear, GLclampf zFar);
+    [FIXME] undefined detachShader(WebGLProgram program, WebGLShader shader);
+    [FIXME] undefined disable(GLenum cap);
+    [FIXME] undefined disableVertexAttribArray(GLuint index);
+    [FIXME] undefined drawArrays(GLenum mode, GLint first, GLsizei count);
+    [FIXME] undefined drawElements(GLenum mode, GLsizei count, GLenum type, GLintptr offset);
 
+    [FIXME] undefined enable(GLenum cap);
+    [FIXME] undefined enableVertexAttribArray(GLuint index);
     undefined finish();
     undefined flush();
-
+    [FIXME] undefined framebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, WebGLRenderbuffer? renderbuffer);
+    [FIXME] undefined framebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, WebGLTexture? texture, GLint level);
     undefined frontFace(GLenum mode);
+
+    [FIXME] undefined generateMipmap(GLenum target);
+
+    [FIXME] WebGLActiveInfo? getActiveAttrib(WebGLProgram program, GLuint index);
+    [FIXME] WebGLActiveInfo? getActiveUniform(WebGLProgram program, GLuint index);
+    [FIXME] sequence<WebGLShader>? getAttachedShaders(WebGLProgram program);
+
+    [FIXME] GLint getAttribLocation(WebGLProgram program, DOMString name);
+
+    [FIXME] any getBufferParameter(GLenum target, GLenum pname);
+    [FIXME] any getParameter(GLenum pname);
 
     GLenum getError();
 
+    [FIXME] any getFramebufferAttachmentParameter(GLenum target, GLenum attachment, GLenum pname);
+    [FIXME] any getProgramParameter(WebGLProgram program, GLenum pname);
+    [FIXME] DOMString? getProgramInfoLog(WebGLProgram program);
+    [FIXME] any getRenderbufferParameter(GLenum target, GLenum pname);
+    [FIXME] any getShaderParameter(WebGLShader shader, GLenum pname);
+    [FIXME] WebGLShaderPrecisionFormat? getShaderPrecisionFormat(GLenum shadertype, GLenum precisiontype);
+    [FIXME] DOMString? getShaderInfoLog(WebGLShader shader);
+
+    [FIXME] DOMString? getShaderSource(WebGLShader shader);
+
+    [FIXME] any getTexParameter(GLenum target, GLenum pname);
+
+    [FIXME] any getUniform(WebGLProgram program, WebGLUniformLocation location);
+
+    [FIXME] WebGLUniformLocation? getUniformLocation(WebGLProgram program, DOMString name);
+
+    [FIXME] any getVertexAttrib(GLuint index, GLenum pname);
+
+    [FIXME] GLintptr getVertexAttribOffset(GLuint index, GLenum pname);
+
+    [FIXME] undefined hint(GLenum target, GLenum mode);
+    [FIXME] GLboolean isBuffer(WebGLBuffer? buffer);
+    [FIXME] GLboolean isEnabled(GLenum cap);
+    [FIXME] GLboolean isFramebuffer(WebGLFramebuffer? framebuffer);
+    [FIXME] GLboolean isProgram(WebGLProgram? program);
+    [FIXME] GLboolean isRenderbuffer(WebGLRenderbuffer? renderbuffer);
+    [FIXME] GLboolean isShader(WebGLShader? shader);
+    [FIXME] GLboolean isTexture(WebGLTexture? texture);
     undefined lineWidth(GLfloat width);
+    [FIXME] undefined linkProgram(WebGLProgram program);
+    [FIXME] undefined pixelStorei(GLenum pname, GLint param);
     undefined polygonOffset(GLfloat factor, GLfloat units);
 
+    [FIXME] undefined renderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
+    [FIXME] undefined sampleCoverage(GLclampf value, GLboolean invert);
     undefined scissor(GLint x, GLint y, GLsizei width, GLsizei height);
 
+    [FIXME] undefined shaderSource(WebGLShader shader, DOMString source);
+
+    [FIXME] undefined stencilFunc(GLenum func, GLint ref, GLuint mask);
+    [FIXME] undefined stencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask);
+    [FIXME] undefined stencilMask(GLuint mask);
+    [FIXME] undefined stencilMaskSeparate(GLenum face, GLuint mask);
     undefined stencilOp(GLenum fail, GLenum zfail, GLenum zpass);
     undefined stencilOpSeparate(GLenum face, GLenum fail, GLenum zfail, GLenum zpass);
+
+    [FIXME] undefined texParameterf(GLenum target, GLenum pname, GLfloat param);
+    [FIXME] undefined texParameteri(GLenum target, GLenum pname, GLint param);
+
+    [FIXME] undefined uniform1f(WebGLUniformLocation? location, GLfloat x);
+    [FIXME] undefined uniform2f(WebGLUniformLocation? location, GLfloat x, GLfloat y);
+    [FIXME] undefined uniform3f(WebGLUniformLocation? location, GLfloat x, GLfloat y, GLfloat z);
+    [FIXME] undefined uniform4f(WebGLUniformLocation? location, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
+
+    [FIXME] undefined uniform1i(WebGLUniformLocation? location, GLint x);
+    [FIXME] undefined uniform2i(WebGLUniformLocation? location, GLint x, GLint y);
+    [FIXME] undefined uniform3i(WebGLUniformLocation? location, GLint x, GLint y, GLint z);
+    [FIXME] undefined uniform4i(WebGLUniformLocation? location, GLint x, GLint y, GLint z, GLint w);
+
+    [FIXME] undefined useProgram(WebGLProgram? program);
+    [FIXME] undefined validateProgram(WebGLProgram program);
+
+    [FIXME] undefined vertexAttrib1f(GLuint index, GLfloat x);
+    [FIXME] undefined vertexAttrib2f(GLuint index, GLfloat x, GLfloat y);
+    [FIXME] undefined vertexAttrib3f(GLuint index, GLfloat x, GLfloat y, GLfloat z);
+    [FIXME] undefined vertexAttrib4f(GLuint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
+
+    [FIXME] undefined vertexAttrib1fv(GLuint index, Float32List values);
+    [FIXME] undefined vertexAttrib2fv(GLuint index, Float32List values);
+    [FIXME] undefined vertexAttrib3fv(GLuint index, Float32List values);
+    [FIXME] undefined vertexAttrib4fv(GLuint index, Float32List values);
+
+    [FIXME] undefined vertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, GLintptr offset);
 
     undefined viewport(GLint x, GLint y, GLsizei width, GLsizei height);
 
