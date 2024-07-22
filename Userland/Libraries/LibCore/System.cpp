@@ -1848,4 +1848,25 @@ ErrorOr<Bytes> allocate(size_t count, size_t size)
     return Bytes { data, size * count };
 }
 
+ErrorOr<rlimit> get_resource_limits(int resource)
+{
+    rlimit limits;
+
+    if (::getrlimit(resource, &limits) != 0)
+        return Error::from_errno(errno);
+
+    return limits;
+}
+
+ErrorOr<void> set_resource_limits(int resource, rlim_t limit)
+{
+    auto limits = TRY(get_resource_limits(resource));
+    limits.rlim_cur = limit;
+
+    if (::setrlimit(resource, &limits) != 0)
+        return Error::from_errno(errno);
+
+    return {};
+}
+
 }
