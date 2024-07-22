@@ -464,7 +464,7 @@ void Element::attribute_changed(FlyString const& name, Optional<String> const&, 
 
         document().element_id_changed({}, *this);
     } else if (name == HTML::AttributeNames::name) {
-        if (!value.has_value())
+        if (value_or_empty.is_empty())
             m_name = {};
         else
             m_name = value_or_empty;
