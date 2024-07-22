@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <spawn.h>
 #include <sys/ioctl.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -288,5 +289,8 @@ ErrorOr<String> resolve_executable_from_environment(StringView filename, int fla
 ErrorOr<ByteString> current_executable_path();
 
 ErrorOr<Bytes> allocate(size_t count, size_t size);
+
+ErrorOr<rlimit> get_resource_limits(int resource);
+ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
 
 }
