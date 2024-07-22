@@ -184,6 +184,11 @@ bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPo
         paintable = result->paintable;
 
     auto& document = *m_navigable->active_document();
+    bool is_hovering_link = false;
+    bool hovered_node_changed = false;
+    HTML::HTMLAnchorElement const* hovered_link_element = nullptr;
+    Gfx::StandardCursor hovered_node_cursor = Gfx::StandardCursor::None;
+
     if (paintable) {
         auto* containing_block = paintable->containing_block();
         while (containing_block) {
@@ -219,11 +224,13 @@ bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPo
                 m_navigable->active_window()->scroll_by(wheel_delta_x, wheel_delta_y);
             }
 
+            JS::GCPtr<Painting::Paintable> final_paintable = nullptr;
             JS::GCPtr<DOM::Node> final_node = nullptr;
             auto final_scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
             auto final_position = viewport_position.translated(final_scroll_offset);
             if (auto result = target_for_mouse_position(final_position); result.has_value()) {
                 final_node = dom_node_for_event_dispatch(*result->paintable);
+                final_paintable = result->paintable;
 
                 if (final_node) {
                     // When using mouse wheel, we should also fire appropriate mouse enter, leave, etc. events.
@@ -233,11 +240,50 @@ bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPo
                     // https://w3c.github.io/uievents/#event-type-mouseover
                     // https://w3c.github.io/uievents/#event-type-mouseout
                     // A user agent MUST dispatch this event when a pointing device is moved off of the boundaries of an element or when the element is moved to be no longer underneath the primary pointing device.
+                    hovered_node_changed = final_node.ptr() != document.hovered_node();
                     document.set_hovered_node(final_node);
                 }
             }
 
+            if (final_paintable) {
+                auto const cursor = final_paintable->computed_values().cursor();
+                hovered_link_element = final_node->enclosing_link_element();
+                if (hovered_link_element)
+                    is_hovering_link = true;
+
+                if (final_paintable->layout_node().is_text_node()) {
+                    if (cursor == CSS::Cursor::Auto)
+                        hovered_node_cursor = Gfx::StandardCursor::IBeam;
+                    else
+                        hovered_node_cursor = cursor_css_to_gfx(cursor);
+                } else if (final_node->is_element()) {
+                    if (cursor == CSS::Cursor::Auto)
+                        hovered_node_cursor = Gfx::StandardCursor::Arrow;
+                    else
+                        hovered_node_cursor = cursor_css_to_gfx(cursor);
+                }
+            }
+
             handled_event = true;
+        }
+    }
+
+    auto& page = m_navigable->page();
+
+    page.client().page_did_request_cursor_change(hovered_node_cursor);
+
+    if (hovered_node_changed) {
+        JS::GCPtr<HTML::HTMLElement const> hovered_html_element = document.hovered_node() ? document.hovered_node()->enclosing_html_element_with_attribute(HTML::AttributeNames::title) : nullptr;
+        if (hovered_html_element && hovered_html_element->title().has_value()) {
+            page.client().page_did_enter_tooltip_area(hovered_html_element->title()->to_byte_string());
+        } else {
+            page.client().page_did_leave_tooltip_area();
+        }
+
+        if (is_hovering_link) {
+            page.client().page_did_hover_link(document.parse_url(hovered_link_element->href()));
+        } else {
+            page.client().page_did_unhover_link();
         }
     }
 
