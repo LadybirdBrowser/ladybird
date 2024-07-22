@@ -82,11 +82,18 @@ target_sources(ladybird PUBLIC FILE_SET ladybird TYPE HEADERS
     BASE_DIRS ${LADYBIRD_SOURCE_DIR}
     FILES ${LADYBIRD_HEADERS}
 )
-target_link_libraries(ladybird PRIVATE AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibProtocol LibURL)
 
-target_include_directories(ladybird PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(ladybird PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
-target_include_directories(ladybird PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
+if (TARGET ladybird_impl)
+    set(LADYBIRD_TARGET ladybird_impl PUBLIC)
+else()
+    set(LADYBIRD_TARGET ladybird PRIVATE)
+endif()
+
+target_link_libraries(${LADYBIRD_TARGET} AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibProtocol LibURL)
+
+target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Userland/)
+target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
 
 function(set_helper_process_properties)
     set(targets ${ARGV})
