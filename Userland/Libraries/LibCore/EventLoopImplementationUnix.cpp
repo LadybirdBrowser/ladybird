@@ -272,7 +272,13 @@ struct ThreadData {
         if (wake_pipe_fds[1] != -1)
             close(wake_pipe_fds[1]);
 
-        wake_pipe_fds = MUST(Core::System::pipe2(O_CLOEXEC));
+        auto result = Core::System::pipe2(O_CLOEXEC);
+        if (result.is_error()) {
+            warnln("\033[31;1mFailed to create event loop pipe:\033[0m {}", result.error());
+            VERIFY_NOT_REACHED();
+        }
+
+        wake_pipe_fds = result.release_value();
 
         // The wake pipe informs us of POSIX signals as well as manual calls to wake()
         VERIFY(poll_fds.size() == 0);
