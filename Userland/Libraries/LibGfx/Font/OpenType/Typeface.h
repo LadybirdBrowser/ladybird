@@ -51,6 +51,7 @@ class Typeface : public Gfx::Typeface {
 public:
     using Options = FontOptions;
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, unsigned index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_font_data(NonnullOwnPtr<Gfx::FontData>, Options options = {});
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, Options options = {});
 
     virtual Gfx::ScaledFontMetrics metrics(float x_scale, float y_scale) const override;
@@ -144,7 +145,7 @@ private:
     {
     }
 
-    RefPtr<Core::Resource> m_resource;
+    OwnPtr<Gfx::FontData> m_font_data;
 
     // These are stateful wrappers around non-owning slices
     Head m_head;
