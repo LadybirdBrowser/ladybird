@@ -40,7 +40,7 @@ private:
 
 class ChromeProcess {
     AK_MAKE_NONCOPYABLE(ChromeProcess);
-    AK_MAKE_NONMOVABLE(ChromeProcess);
+    AK_MAKE_DEFAULT_MOVABLE(ChromeProcess);
 
 public:
     enum class ProcessDisposition : u8 {
@@ -48,7 +48,7 @@ public:
         ExitProcess,
     };
 
-    ChromeProcess() = default;
+    static ErrorOr<ChromeProcess> create();
     ~ChromeProcess();
 
     ErrorOr<ProcessDisposition> connect(Vector<ByteString> const& raw_urls, bool new_window);
@@ -57,6 +57,8 @@ public:
     Function<void(Vector<ByteString> const& raw_urls)> on_new_window;
 
 private:
+    ChromeProcess() = default;
+
     ErrorOr<void> connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, bool new_window);
     ErrorOr<void> connect_as_server(ByteString const& socket_path);
 

@@ -7,6 +7,7 @@
 #include <AK/ByteString.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibWebView/ChromeProcess.h>
 
@@ -21,6 +22,14 @@ class UIProcessClient final
 private:
     UIProcessClient(NonnullOwnPtr<Core::LocalSocket>);
 };
+
+ErrorOr<ChromeProcess> ChromeProcess::create()
+{
+    // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
+    TRY(Core::System::set_resource_limits(RLIMIT_NOFILE, 8192));
+
+    return ChromeProcess {};
+}
 
 ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteString> const& raw_urls, bool new_window)
 {
