@@ -471,14 +471,18 @@ void Element::attribute_changed(FlyString const& name, Optional<String> const&, 
 
         document().element_name_changed({}, *this);
     } else if (name == HTML::AttributeNames::class_) {
-        auto new_classes = value_or_empty.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
-        m_classes.clear();
-        m_classes.ensure_capacity(new_classes.size());
-        for (auto& new_class : new_classes) {
-            m_classes.unchecked_append(FlyString::from_utf8(new_class).release_value_but_fixme_should_propagate_errors());
+        if (value_or_empty.is_empty()) {
+            m_classes.clear();
+        } else {
+            auto new_classes = value_or_empty.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+            m_classes.clear();
+            m_classes.ensure_capacity(new_classes.size());
+            for (auto& new_class : new_classes) {
+                m_classes.unchecked_append(FlyString::from_utf8(new_class).release_value_but_fixme_should_propagate_errors());
+            }
+            if (m_class_list)
+                m_class_list->associated_attribute_changed(value_or_empty);
         }
-        if (m_class_list)
-            m_class_list->associated_attribute_changed(value_or_empty);
     } else if (name == HTML::AttributeNames::style) {
         if (!value.has_value()) {
             if (m_inline_style) {
