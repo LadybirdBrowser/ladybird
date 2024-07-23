@@ -70,6 +70,17 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
 
     m_empty_string = m_heap.allocate_without_realm<PrimitiveString>(String {});
 
+    typeof_strings = {
+        .number = m_heap.allocate_without_realm<PrimitiveString>("number"),
+        .undefined = m_heap.allocate_without_realm<PrimitiveString>("undefined"),
+        .object = m_heap.allocate_without_realm<PrimitiveString>("object"),
+        .string = m_heap.allocate_without_realm<PrimitiveString>("string"),
+        .symbol = m_heap.allocate_without_realm<PrimitiveString>("symbol"),
+        .boolean = m_heap.allocate_without_realm<PrimitiveString>("boolean"),
+        .bigint = m_heap.allocate_without_realm<PrimitiveString>("bigint"),
+        .function = m_heap.allocate_without_realm<PrimitiveString>("function"),
+    };
+
     for (size_t i = 0; i < single_ascii_character_strings.size(); ++i)
         m_single_ascii_character_strings[i] = m_heap.allocate_without_realm<PrimitiveString>(single_ascii_character_strings[i]);
 
@@ -191,6 +202,15 @@ void VM::gather_roots(HashMap<Cell*, HeapRoot>& roots)
     roots.set(m_empty_string, HeapRoot { .type = HeapRoot::Type::VM });
     for (auto string : m_single_ascii_character_strings)
         roots.set(string, HeapRoot { .type = HeapRoot::Type::VM });
+
+    roots.set(typeof_strings.number, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(typeof_strings.undefined, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(typeof_strings.object, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(typeof_strings.string, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(typeof_strings.symbol, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(typeof_strings.boolean, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(typeof_strings.bigint, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(typeof_strings.function, HeapRoot { .type = HeapRoot::Type::VM });
 
 #define __JS_ENUMERATE(SymbolName, snake_name) \
     roots.set(m_well_known_symbols.snake_name, HeapRoot { .type = HeapRoot::Type::VM });
