@@ -418,7 +418,7 @@ public:
         return *this;
     }
 
-    [[nodiscard]] NonnullGCPtr<PrimitiveString> typeof(VM&) const;
+    [[nodiscard]] NonnullGCPtr<PrimitiveString> typeof_(VM&) const;
 
     bool operator==(Value const&) const;
 

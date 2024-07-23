@@ -313,7 +313,7 @@ ThrowCompletionOr<bool> Value::is_regexp(VM& vm) const
 }
 
 // 13.5.3 The typeof Operator, https://tc39.es/ecma262/#sec-typeof-operator
-NonnullGCPtr<PrimitiveString> Value::typeof(VM& vm) const
+NonnullGCPtr<PrimitiveString> Value::typeof_(VM& vm) const
 {
     // 9. If val is a Number, return "number".
     if (is_number())
