@@ -235,7 +235,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Infrastructure::FetchController>> fetch(JS:
     // 14. If request’s header list does not contain `Accept-Language`, then user agents should append
     //     (`Accept-Language, an appropriate header value) to request’s header list.
     if (!request.header_list()->contains("Accept-Language"sv.bytes())) {
-        auto header = Infrastructure::Header::from_string_pair("Accept-Language"sv, "*"sv);
+        StringBuilder accept_language;
+        accept_language.join(","sv, ResourceLoader::the().preferred_languages());
+
+        auto header = Infrastructure::Header::from_string_pair("Accept-Language"sv, accept_language.string_view());
         request.header_list()->append(move(header));
     }
 

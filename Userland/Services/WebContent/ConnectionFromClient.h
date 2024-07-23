@@ -95,6 +95,7 @@ private:
     virtual void set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme const&) override;
     virtual void set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast const&) override;
     virtual void set_preferred_motion(u64 page_id, Web::CSS::PreferredMotion const&) override;
+    virtual void set_preferred_languages(u64 page_id, Vector<String> const&) override;
     virtual void set_enable_do_not_track(u64 page_id, bool) override;
     virtual void set_has_focus(u64 page_id, bool) override;
     virtual void set_is_scripting_enabled(u64 page_id, bool) override;

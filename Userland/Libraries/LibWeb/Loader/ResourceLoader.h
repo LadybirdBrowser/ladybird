@@ -100,6 +100,9 @@ public:
     String const& platform() const { return m_platform; }
     void set_platform(String platform) { m_platform = move(platform); }
 
+    Vector<String> preferred_languages() const { return m_preferred_languages; }
+    void set_preferred_languages(Vector<String> preferred_languages) { m_preferred_languages = move(preferred_languages); }
+
     NavigatorCompatibilityMode navigator_compatibility_mode() { return m_navigator_compatibility_mode; }
     void set_navigator_compatibility_mode(NavigatorCompatibilityMode mode) { m_navigator_compatibility_mode = mode; }
 
@@ -123,6 +126,7 @@ private:
     NonnullRefPtr<ResourceLoaderConnector> m_connector;
     String m_user_agent;
     String m_platform;
+    Vector<String> m_preferred_languages;
     NavigatorCompatibilityMode m_navigator_compatibility_mode;
     bool m_enable_do_not_track { false };
     Optional<JS::GCPtr<Page>> m_page {};
