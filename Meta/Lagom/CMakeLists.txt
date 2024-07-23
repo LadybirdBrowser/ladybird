@@ -581,12 +581,8 @@ if (BUILD_TESTING)
         ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
     target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto)
     add_test(
-        NAME WasmParser
+        NAME Wasm
         COMMAND test-wasm --show-progress=false ${CMAKE_CURRENT_BINARY_DIR}/Userland/Libraries/LibWasm/Tests
-    )
-    set_tests_properties(WasmParser PROPERTIES
-        SKIP_RETURN_CODE 1
-        ENVIRONMENT LADYBIRD_SOURCE_DIR=${SERENITY_PROJECT_ROOT}
     )
 endif()
 
