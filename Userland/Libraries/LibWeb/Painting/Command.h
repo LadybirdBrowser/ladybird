@@ -75,6 +75,21 @@ struct DrawScaledImmutableBitmap {
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
 };
 
+struct DrawRepeatedImmutableBitmap {
+    struct Repeat {
+        bool x { false };
+        bool y { false };
+    };
+
+    Gfx::IntRect dst_rect;
+    NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
+    Gfx::ScalingMode scaling_mode;
+    Repeat repeat;
+    Vector<Gfx::Path> clip_paths;
+
+    void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
+};
+
 struct Save { };
 struct Restore { };
 
@@ -352,6 +367,7 @@ using Command = Variant<
     FillRect,
     DrawScaledBitmap,
     DrawScaledImmutableBitmap,
+    DrawRepeatedImmutableBitmap,
     Save,
     Restore,
     AddClipRect,

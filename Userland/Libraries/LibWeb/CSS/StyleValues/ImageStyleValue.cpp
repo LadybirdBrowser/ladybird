@@ -141,6 +141,11 @@ void ImageStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_r
     }
 }
 
+Gfx::ImmutableBitmap const* ImageStyleValue::current_frame_bitmap(DevicePixelRect const& dest_rect) const
+{
+    return bitmap(m_current_frame_index, dest_rect.size().to_type<int>());
+}
+
 JS::GCPtr<HTML::DecodedImageData> ImageStyleValue::image_data() const
 {
     if (!m_image_request)

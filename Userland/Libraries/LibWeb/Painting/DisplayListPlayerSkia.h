@@ -37,6 +37,7 @@ public:
     CommandResult fill_rect(FillRect const&) override;
     CommandResult draw_scaled_bitmap(DrawScaledBitmap const&) override;
     CommandResult draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
+    CommandResult draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) override;
     CommandResult add_clip_rect(AddClipRect const&) override;
     CommandResult save(Save const&) override;
     CommandResult restore(Restore const&) override;
