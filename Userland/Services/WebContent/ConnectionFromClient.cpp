@@ -946,6 +946,15 @@ void ConnectionFromClient::set_preferred_motion(u64 page_id, Web::CSS::Preferred
         page->set_preferred_motion(motion);
 }
 
+void ConnectionFromClient::set_preferred_languages(u64, Vector<String> const& preferred_languages)
+{
+    // FIXME: Whenever the user agent needs to make the navigator.languages attribute of a Window or WorkerGlobalScope
+    // object global return a new set of language tags, the user agent must queue a global task on the DOM manipulation
+    // task source given global to fire an event named languagechange at global, and wait until that task begins to be
+    // executed before actually returning a new value.
+    Web::ResourceLoader::the().set_preferred_languages(preferred_languages);
+}
+
 void ConnectionFromClient::set_enable_do_not_track(u64, bool enable)
 {
     Web::ResourceLoader::the().set_enable_do_not_track(enable);

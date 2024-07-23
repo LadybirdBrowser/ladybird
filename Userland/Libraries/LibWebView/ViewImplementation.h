@@ -66,6 +66,8 @@ public:
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
 
+    void set_preferred_languages(Vector<String>);
+
     void set_enable_do_not_track(bool);
 
     ByteString selected_text();
