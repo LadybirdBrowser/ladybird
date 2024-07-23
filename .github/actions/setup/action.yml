@@ -25,8 +25,9 @@ runs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 
         sudo apt-get update
-        sudo apt-get install autoconf autoconf-archive automake build-essential cmake libavcodec-dev fonts-liberation2 zip curl tar ccache clang-18 clang++-18 lld-18 gcc-13 g++-13 libstdc++-13-dev \
-            ninja-build unzip qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev qt6-multimedia-dev libgl1-mesa-dev libpulse-dev libssl-dev libegl1-mesa-dev nasm
+        sudo apt-get install autoconf autoconf-archive automake build-essential ccache clang-18 clang++-18 cmake curl fonts-liberation2 \
+            gcc-13 g++-13 libavcodec-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libqt6svg6-dev libssl-dev libstdc++-13-dev lld-18 \
+            nasm ninja-build qt6-base-dev qt6-multimedia-dev qt6-tools-dev-tools tar unzip zip
 
         sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
         sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
@@ -52,7 +53,7 @@ runs:
         set -e
         sudo xcode-select --switch /Applications/Xcode_16.0.app
         brew update
-        brew install autoconf autoconf-archive automake coreutils bash ffmpeg ninja wabt ccache unzip qt llvm@18 nasm
+        brew install autoconf autoconf-archive automake bash ccache coreutils ffmpeg llvm@18 nasm ninja qt unzip wabt
 
     - name: 'Install vcpkg'
       shell: bash
