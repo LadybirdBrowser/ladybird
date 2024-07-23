@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/NodeOperations.h>
 #include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -44,7 +45,7 @@ WebIDL::ExceptionOr<JS::GCPtr<Element>> ParentNode::query_selector(StringView se
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
     for_each_in_subtree_of_type<Element>([&](auto& element) {
         for (auto& selector : selectors) {
-            if (SelectorEngine::matches(selector, {}, element, {}, this)) {
+            if (SelectorEngine::matches(selector, {}, element, nullptr, {}, this)) {
                 result = &element;
                 return TraversalDecision::Break;
             }
@@ -76,7 +77,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<NodeList>> ParentNode::query_selector_all(S
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
     for_each_in_subtree_of_type<Element>([&](auto& element) {
         for (auto& selector : selectors) {
-            if (SelectorEngine::matches(selector, {}, element, {}, this)) {
+            if (SelectorEngine::matches(selector, {}, element, nullptr, {}, this)) {
                 elements.append(&element);
             }
         }

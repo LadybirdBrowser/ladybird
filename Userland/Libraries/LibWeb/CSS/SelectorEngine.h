@@ -16,9 +16,9 @@ enum class SelectorKind {
     Relative,
 };
 
-bool matches(CSS::Selector const&, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const&, Optional<CSS::Selector::PseudoElement::Type> = {}, JS::GCPtr<DOM::ParentNode const> scope = {}, SelectorKind selector_kind = SelectorKind::Normal);
+bool matches(CSS::Selector const&, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const&, JS::GCPtr<DOM::Element const> shadow_host, Optional<CSS::Selector::PseudoElement::Type> = {}, JS::GCPtr<DOM::ParentNode const> scope = {}, SelectorKind selector_kind = SelectorKind::Normal);
 
-[[nodiscard]] bool fast_matches(CSS::Selector const&, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const&);
+[[nodiscard]] bool fast_matches(CSS::Selector const&, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const&, JS::GCPtr<DOM::Element const> shadow_host);
 [[nodiscard]] bool can_use_fast_matches(CSS::Selector const&);
 
 }

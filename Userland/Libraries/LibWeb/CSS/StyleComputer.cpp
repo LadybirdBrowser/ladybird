@@ -322,6 +322,12 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
 
+    JS::GCPtr<DOM::Element const> shadow_host;
+    if (element.is_shadow_host())
+        shadow_host = element;
+    else if (shadow_root)
+        shadow_host = shadow_root->host();
+
     auto const& rule_cache = rule_cache_for_cascade_origin(cascade_origin);
 
     Vector<MatchingRule, 512> rules_to_run;
@@ -366,11 +372,29 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
     Vector<MatchingRule> matching_rules;
     matching_rules.ensure_capacity(rules_to_run.size());
     for (auto const& rule_to_run : rules_to_run) {
-        // FIXME: This needs to be revised when adding support for the :host and ::shadow selectors, which transition shadow tree boundaries
+        // FIXME: This needs to be revised when adding support for the ::shadow selector, as it needs to cross shadow boundaries.
         auto rule_root = rule_to_run.shadow_root;
         auto from_user_agent_or_user_stylesheet = rule_to_run.cascade_origin == CascadeOrigin::UserAgent || rule_to_run.cascade_origin == CascadeOrigin::User;
-        if (rule_root != shadow_root && !from_user_agent_or_user_stylesheet)
+
+        // NOTE: Inside shadow trees, we only match rules that are defined in the shadow tree's style sheets.
+        //       The key exception is the shadow tree's *shadow host*, which needs to match :host rules from inside the shadow root.
+        //       Also note that UA or User style sheets don't have a scope, so they are always relevant.
+        // FIXME: We should reorganize the data so that the document-level StyleComputer doesn't cache *all* rules,
+        //        but instead we'd have some kind of "style scope" at the document level, and also one for each shadow root.
+        //        Then we could only evaluate rules from the current style scope.
+        bool rule_is_relevant_for_current_scope = rule_root == shadow_root
+            || (element.is_shadow_host() && rule_root == element.shadow_root())
+            || from_user_agent_or_user_stylesheet;
+
+        if (!rule_is_relevant_for_current_scope)
             continue;
+
+        // NOTE: When matching an element against a rule from outside the shadow root's style scope,
+        //       we have to pass in null for the shadow host, otherwise combinator traversal will
+        //       be confined to the element itself (since it refuses to cross the shadow boundary).
+        auto shadow_host_to_use = shadow_host;
+        if (element.is_shadow_host() && rule_root != element.shadow_root())
+            shadow_host_to_use = nullptr;
 
         auto const& selector = rule_to_run.rule->selectors()[rule_to_run.selector_index];
 
@@ -378,10 +402,10 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
             continue;
 
         if (rule_to_run.can_use_fast_matches) {
-            if (!SelectorEngine::fast_matches(selector, *rule_to_run.sheet, element))
+            if (!SelectorEngine::fast_matches(selector, *rule_to_run.sheet, element, shadow_host_to_use))
                 continue;
         } else {
-            if (!SelectorEngine::matches(selector, *rule_to_run.sheet, element, pseudo_element))
+            if (!SelectorEngine::matches(selector, *rule_to_run.sheet, element, shadow_host_to_use, pseudo_element))
                 continue;
         }
         matching_rules.append(rule_to_run);
