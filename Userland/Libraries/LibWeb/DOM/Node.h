@@ -8,6 +8,7 @@
 
 #include <AK/Badge.h>
 #include <AK/FlyString.h>
+#include <AK/GenericShorthands.h>
 #include <AK/JsonObjectSerializer.h>
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
@@ -69,7 +70,7 @@ public:
     bool is_document() const { return type() == NodeType::DOCUMENT_NODE; }
     bool is_document_type() const { return type() == NodeType::DOCUMENT_TYPE_NODE; }
     bool is_comment() const { return type() == NodeType::COMMENT_NODE; }
-    bool is_character_data() const { return type() == NodeType::TEXT_NODE || type() == NodeType::COMMENT_NODE; }
+    bool is_character_data() const { return first_is_one_of(type(), NodeType::TEXT_NODE, NodeType::COMMENT_NODE, NodeType::CDATA_SECTION_NODE, NodeType::PROCESSING_INSTRUCTION_NODE); }
     bool is_document_fragment() const { return type() == NodeType::DOCUMENT_FRAGMENT_NODE; }
     bool is_parent_node() const { return is_element() || is_document() || is_document_fragment(); }
     bool is_slottable() const { return is_element() || is_text() || is_cdata_section(); }
