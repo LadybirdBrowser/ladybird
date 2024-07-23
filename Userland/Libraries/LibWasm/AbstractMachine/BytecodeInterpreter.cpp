@@ -236,32 +236,9 @@ void BytecodeInterpreter::pop_and_push_m_splat(Wasm::Configuration& configuratio
 }
 
 template<typename M, template<typename> typename SetSign, typename VectorType>
-Optional<VectorType> BytecodeInterpreter::pop_vector(Configuration& configuration)
+VectorType BytecodeInterpreter::pop_vector(Configuration& configuration)
 {
-    auto value = peek_vector<M, SetSign, VectorType>(configuration);
-    if (value.has_value())
-        configuration.stack().pop();
-    return value;
-}
-
-template<typename M, template<typename> typename SetSign, typename VectorType>
-Optional<VectorType> BytecodeInterpreter::peek_vector(Configuration& configuration)
-{
-    auto& entry = configuration.stack().peek();
-    auto value = entry.get<Value>().value().get_pointer<u128>();
-    if (!value)
-        return {};
-    auto vector = bit_cast<VectorType>(*value);
-    dbgln_if(WASM_TRACE_DEBUG, "stack({}) peek-> vector({:x})", *value, bit_cast<u128>(vector));
-    return vector;
-}
-
-template<typename VectorType>
-static u128 shuffle_vector(VectorType values, VectorType indices)
-{
-    auto vector = bit_cast<VectorType>(values);
-    auto indices_vector = bit_cast<VectorType>(indices);
-    return bit_cast<u128>(shuffle_or_0(vector, indices_vector));
+    return bit_cast<VectorType>(configuration.stack().pop().get<Value>().value().get<u128>());
 }
 
 void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAddress address)
@@ -1290,8 +1267,8 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
         return pop_and_push_m_splat<64, NativeFloatingType>(configuration, instruction);
     case Instructions::i8x16_shuffle.value(): {
         auto& arg = instruction.arguments().get<Instruction::ShuffleArgument>();
-        auto b = *pop_vector<u8, MakeUnsigned>(configuration);
-        auto a = *pop_vector<u8, MakeUnsigned>(configuration);
+        auto b = pop_vector<u8, MakeUnsigned>(configuration);
+        auto a = pop_vector<u8, MakeUnsigned>(configuration);
         using VectorType = Native128ByteVectorOf<u8, MakeUnsigned>;
         VectorType result;
         for (size_t i = 0; i < 16; ++i)
