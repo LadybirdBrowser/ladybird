@@ -85,6 +85,8 @@ public:
 
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
+    WebContentOptions const& web_content_options() const { return m_web_content_options; }
+
 signals:
     void urls_dropped(QList<QUrl> const&);
 
