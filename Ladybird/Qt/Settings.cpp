@@ -74,6 +74,17 @@ void Settings::set_search_engine(WebView::SearchEngine search_engine)
     emit search_engine_changed(m_search_engine);
 }
 
+QStringList Settings::preferred_languages()
+{
+    return m_qsettings->value("preferred_languages").toStringList();
+}
+
+void Settings::set_preferred_languages(QStringList const& languages)
+{
+    m_qsettings->setValue("preferred_languages", languages);
+    emit preferred_languages_changed(languages);
+}
+
 Settings::EngineProvider Settings::autocomplete_engine()
 {
     EngineProvider engine_provider;

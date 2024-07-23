@@ -74,6 +74,8 @@ public:
     void set_user_agent_string(ByteString const&);
     void set_navigator_compatibility_mode(ByteString const&);
 
+    void set_preferred_languages(Vector<String> const& preferred_languages);
+
     void set_enable_do_not_track(bool);
 
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }

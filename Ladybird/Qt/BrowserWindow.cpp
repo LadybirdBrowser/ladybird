@@ -104,6 +104,18 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
         });
     });
 
+    QObject::connect(Settings::the(), &Settings::preferred_languages_changed, this, [this](QStringList languages) {
+        Vector<String> preferred_languages;
+        preferred_languages.ensure_capacity(languages.length());
+        for (auto& language : languages) {
+            preferred_languages.append(ak_string_from_qstring(language));
+        }
+
+        for_each_tab([preferred_languages](auto& tab) {
+            tab.set_preferred_languages(preferred_languages);
+        });
+    });
+
     m_hamburger_menu = new HamburgerMenu(this);
 
     if (!Settings::the()->show_menubar())
@@ -826,11 +838,18 @@ void BrowserWindow::initialize_tab(Tab* tab)
     m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());
     create_close_button_for_tab(tab);
 
+    Vector<String> preferred_languages;
+    preferred_languages.ensure_capacity(Settings::the()->preferred_languages().length());
+    for (auto& language : Settings::the()->preferred_languages()) {
+        preferred_languages.append(ak_string_from_qstring(language));
+    }
+
     tab->set_line_box_borders(m_show_line_box_borders_action->isChecked());
     tab->set_scripting(m_enable_scripting_action->isChecked());
     tab->set_block_popups(m_block_pop_ups_action->isChecked());
     tab->set_same_origin_policy(m_enable_same_origin_policy_action->isChecked());
     tab->set_user_agent_string(user_agent_string());
+    tab->set_preferred_languages(preferred_languages);
     tab->set_navigator_compatibility_mode(navigator_compatibility_mode());
     tab->set_enable_do_not_track(Settings::the()->enable_do_not_track());
     tab->view().set_preferred_color_scheme(m_preferred_color_scheme);
