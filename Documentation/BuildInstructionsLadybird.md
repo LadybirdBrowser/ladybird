@@ -13,7 +13,7 @@ NOTE: In all of the below lists of packages, the Qt6 multimedia package is not n
 ### Debian/Ubuntu:
 
 ```bash
-sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libavcodec-dev libgl1-mesa-dev nasm ninja-build qt6-base-dev qt6-multimedia-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
+sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libavcodec-dev libgl1-mesa-dev nasm ninja-build qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
 #### CMake 3.25 or newer:
@@ -59,7 +59,20 @@ sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 sudo apt update && sudo apt install g++-13 libstdc++-13-dev
 ```
 
----
+#### Audio support:
+
+- Recommendation: Install PulseAudio development package:
+
+```bash
+sudo apt install libpulse-dev
+```
+
+- Alternative: Install Qt6's multimedia package:
+
+```bash
+sudo apt install qt6-multimedia-dev
+```
+
 ### Arch Linux/Manjaro:
 
 ```
