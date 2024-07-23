@@ -65,9 +65,7 @@ protected:
     template<size_t M, template<size_t> typename NativeType>
     void pop_and_push_m_splat(Configuration&, Instruction const&);
     template<typename M, template<typename> typename SetSign, typename VectorType = Native128ByteVectorOf<M, SetSign>>
-    Optional<VectorType> pop_vector(Configuration&);
-    template<typename M, template<typename> typename SetSign, typename VectorType = Native128ByteVectorOf<M, SetSign>>
-    Optional<VectorType> peek_vector(Configuration&);
+    VectorType pop_vector(Configuration&);
     void store_to_memory(Configuration&, Instruction::MemoryArgument const&, ReadonlyBytes data, u32 base);
     void call_address(Configuration&, FunctionAddress);
 
