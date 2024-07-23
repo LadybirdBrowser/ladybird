@@ -720,7 +720,7 @@ WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
     // 3. If the result of match a selector against an element, using s, this, and scoping root this, returns success, then return true; otherwise, return false.
     auto sel = maybe_selectors.value();
     for (auto& s : sel) {
-        if (SelectorEngine::matches(s, {}, *this, {}, static_cast<ParentNode const*>(this)))
+        if (SelectorEngine::matches(s, {}, *this, nullptr, {}, static_cast<ParentNode const*>(this)))
             return true;
     }
     return false;
@@ -739,7 +739,7 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
     auto matches_selectors = [this](CSS::SelectorList const& selector_list, Element const* element) {
         // 4. For each element in elements, if match a selector against an element, using s, element, and scoping root this, returns success, return element.
         for (auto const& selector : selector_list) {
-            if (SelectorEngine::matches(selector, {}, *element, {}, this))
+            if (SelectorEngine::matches(selector, {}, *element, nullptr, {}, this))
                 return true;
         }
         return false;
