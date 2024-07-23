@@ -45,6 +45,7 @@ public:
     virtual CommandResult fill_rect(FillRect const&) = 0;
     virtual CommandResult draw_scaled_bitmap(DrawScaledBitmap const&) = 0;
     virtual CommandResult draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) = 0;
+    virtual CommandResult draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) = 0;
     virtual CommandResult save(Save const&) = 0;
     virtual CommandResult restore(Restore const&) = 0;
     virtual CommandResult add_clip_rect(AddClipRect const&) = 0;

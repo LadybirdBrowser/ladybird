@@ -459,6 +459,31 @@ CommandResult DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmu
     return CommandResult::Continue;
 }
 
+CommandResult DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)
+{
+    APPLY_PATH_CLIP_IF_NEEDED
+
+    auto bitmap = to_skia_bitmap(command.bitmap->bitmap());
+    auto image = SkImages::RasterFromBitmap(bitmap);
+
+    SkMatrix matrix;
+    auto dst_rect = command.dst_rect.to_type<float>();
+    auto src_size = command.bitmap->size().to_type<float>();
+    matrix.setScale(dst_rect.width() / src_size.width(), dst_rect.height() / src_size.height());
+    matrix.postTranslate(dst_rect.x(), dst_rect.y());
+    auto sampling_options = to_skia_sampling_options(command.scaling_mode);
+
+    auto tile_mode_x = command.repeat.x ? SkTileMode::kRepeat : SkTileMode::kDecal;
+    auto tile_mode_y = command.repeat.y ? SkTileMode::kRepeat : SkTileMode::kDecal;
+    auto shader = image->makeShader(tile_mode_x, tile_mode_y, sampling_options, matrix);
+
+    SkPaint paint;
+    paint.setShader(shader);
+    auto& canvas = surface().canvas();
+    canvas.drawPaint(paint);
+    return CommandResult::Continue;
+}
+
 CommandResult DisplayListPlayerSkia::add_clip_rect(AddClipRect const& command)
 {
     auto& canvas = surface().canvas();

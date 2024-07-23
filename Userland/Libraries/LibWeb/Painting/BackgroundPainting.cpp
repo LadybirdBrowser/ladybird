@@ -351,6 +351,8 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         // Repetition
         bool repeat_x = false;
         bool repeat_y = false;
+        bool repeat_x_has_gap = false;
+        bool repeat_y_has_gap = false;
         CSSPixels x_step = 0;
         CSSPixels y_step = 0;
 
@@ -368,6 +370,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
                 auto space = fmod(background_positioning_area.width().to_double(), image_rect.width().to_double());
                 x_step = image_rect.width() + CSSPixels::nearest_value_for(space / static_cast<double>(whole_images - 1));
                 repeat_x = true;
+                repeat_x_has_gap = true;
             }
             break;
         }
@@ -399,6 +402,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
                 auto space = fmod(background_positioning_area.height().to_float(), image_rect.height().to_float());
                 y_step = image_rect.height() + CSSPixels::nearest_value_for(static_cast<double>(space) / static_cast<double>(whole_images - 1));
                 repeat_y = true;
+                repeat_y_has_gap = true;
             }
             break;
         }
@@ -456,6 +460,13 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
                 }
             });
             display_list_recorder.fill_rect(fill_rect->to_type<int>(), color.value(), clip_paths);
+        } else if (is<CSS::ImageStyleValue>(image) && repeat_x && repeat_y && !repeat_x_has_gap && !repeat_y_has_gap) {
+            // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
+            // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
+            auto dest_rect = context.rounded_device_rect(image_rect);
+            auto const* bitmap = static_cast<CSS::ImageStyleValue const&>(image).current_frame_bitmap(dest_rect);
+            auto scaling_mode = to_gfx_scaling_mode(image_rendering, bitmap->rect(), dest_rect.to_type<int>());
+            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y }, clip_paths);
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
                 image.paint(context, image_device_rect, image_rendering, clip_paths);

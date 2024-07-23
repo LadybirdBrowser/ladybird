@@ -210,6 +210,17 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
     });
 }
 
+void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, NonnullRefPtr<Gfx::ImmutableBitmap> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat, Vector<Gfx::Path> const& clip_paths)
+{
+    append(DrawRepeatedImmutableBitmap {
+        .dst_rect = dst_rect,
+        .bitmap = move(bitmap),
+        .scaling_mode = scaling_mode,
+        .repeat = repeat,
+        .clip_paths = clip_paths,
+    });
+}
+
 void DisplayListRecorder::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color color, int thickness, Gfx::LineStyle style, Color alternate_color)
 {
     append(DrawLine {
