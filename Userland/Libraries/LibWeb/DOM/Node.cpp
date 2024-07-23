@@ -1040,6 +1040,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::clone_node(Document* document,
     }
 
     // 7. Return copy.
+    VERIFY(copy);
     return JS::NonnullGCPtr { *copy };
 }
 
