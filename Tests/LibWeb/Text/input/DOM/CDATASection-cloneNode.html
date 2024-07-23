@@ -1,0 +1,9 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const xmlDocument = new DOMParser().parseFromString(`<xml></xml>`, "application/xml");
+        const cdata = xmlDocument.createCDATASection("PASS");
+        const clone = cdata.cloneNode();
+        println(`Cloned CDATASection node data: ${clone.data}`);
+    });
+</script>
