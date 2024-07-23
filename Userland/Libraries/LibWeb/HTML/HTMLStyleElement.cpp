@@ -46,7 +46,7 @@ void HTMLStyleElement::inserted()
 
 void HTMLStyleElement::removed_from(Node* old_parent)
 {
-    m_style_element_utils.update_a_style_block(*this);
+    m_style_element_utils.update_a_style_block(*this, old_parent);
     Base::removed_from(old_parent);
 }
 

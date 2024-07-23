@@ -14,7 +14,7 @@ namespace Web::DOM {
 
 class StyleElementUtils {
 public:
-    void update_a_style_block(DOM::Element& style_element);
+    void update_a_style_block(DOM::Element& style_element, JS::GCPtr<DOM::Node> old_parent_if_removed_from = nullptr);
 
     CSS::CSSStyleSheet* sheet() { return m_associated_css_style_sheet; }
     CSS::CSSStyleSheet const* sheet() const { return m_associated_css_style_sheet; }
