@@ -30,6 +30,7 @@ private:
     QLineEdit* m_new_tab_page { nullptr };
     QCheckBox* m_enable_search { nullptr };
     QPushButton* m_search_engine_dropdown { nullptr };
+    QLineEdit* m_preferred_languages { nullptr };
     QCheckBox* m_enable_autocomplete { nullptr };
     QPushButton* m_autocomplete_engine_dropdown { nullptr };
     QCheckBox* m_enable_do_not_track { nullptr };
