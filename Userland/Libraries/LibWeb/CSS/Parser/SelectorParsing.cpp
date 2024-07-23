@@ -506,7 +506,10 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 return ParseError::SyntaxError;
             }
 
-            Vector compound_selectors { compound_selector_or_error.release_value().release_value() };
+            auto compound_selector = compound_selector_or_error.release_value().release_value();
+            compound_selector.combinator = Selector::Combinator::None;
+
+            Vector compound_selectors { move(compound_selector) };
             auto selector = Selector::create(move(compound_selectors));
 
             return Selector::SimpleSelector {
