@@ -115,7 +115,8 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
 void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
 {
     sheet.set_style_sheet_list({}, nullptr);
-    m_sheets.remove_first_matching([&](auto& entry) { return entry.ptr() == &sheet; });
+    bool did_remove = m_sheets.remove_first_matching([&](auto& entry) { return entry.ptr() == &sheet; });
+    VERIFY(did_remove);
 
     if (sheet.rules().length() == 0) {
         // NOTE: If the removed sheet had no rules, we don't have to invalidate anything.
