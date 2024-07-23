@@ -192,9 +192,12 @@ WebIDL::ExceptionOr<bool> DOMTokenList::toggle(String const& token, Optional<boo
 WebIDL::ExceptionOr<bool> DOMTokenList::replace(String const& token, String const& new_token)
 {
     // 1. If either token or newToken is the empty string, then throw a "SyntaxError" DOMException.
+    TRY(validate_token_not_empty(token));
+    TRY(validate_token_not_empty(new_token));
+
     // 2. If either token or newToken contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
-    TRY(validate_token(token));
-    TRY(validate_token(new_token));
+    TRY(validate_token_not_whitespace(token));
+    TRY(validate_token_not_whitespace(new_token));
 
     // 3. If this’s token set does not contain token, then return false.
     if (!contains(token))
@@ -265,8 +268,20 @@ void DOMTokenList::set_value(String const& value)
 
 WebIDL::ExceptionOr<void> DOMTokenList::validate_token(StringView token) const
 {
+    TRY(validate_token_not_empty(token));
+    TRY(validate_token_not_whitespace(token));
+    return {};
+}
+
+WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_empty(StringView token) const
+{
     if (token.is_empty())
         return WebIDL::SyntaxError::create(realm(), "Non-empty DOM tokens are not allowed"_fly_string);
+    return {};
+}
+
+WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_whitespace(StringView token) const
+{
     if (any_of(token, Infra::is_ascii_whitespace))
         return WebIDL::InvalidCharacterError::create(realm(), "DOM tokens containing ASCII whitespace are not allowed"_fly_string);
     return {};
