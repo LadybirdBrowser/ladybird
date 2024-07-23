@@ -1193,7 +1193,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         if (!succeeded && vm.in_strict_mode()) {
             if (base.is_object())
                 return vm.throw_completion<TypeError>(ErrorType::ReferenceNullishSetProperty, name, base.to_string_without_side_effects());
-            return vm.throw_completion<TypeError>(ErrorType::ReferencePrimitiveSetProperty, name, base.typeof(), base.to_string_without_side_effects());
+            return vm.throw_completion<TypeError>(ErrorType::ReferencePrimitiveSetProperty, name, base.typeof(vm)->utf8_string(), base.to_string_without_side_effects());
         }
         break;
     }
@@ -2018,7 +2018,7 @@ static ThrowCompletionOr<Value> not_(VM&, Value value)
 
 static ThrowCompletionOr<Value> typeof_(VM& vm, Value value)
 {
-    return PrimitiveString::create(vm, value.typeof());
+    return value.typeof(vm);
 }
 
 #define JS_DEFINE_COMMON_UNARY_OP(OpTitleCase, op_snake_case)                                   \
@@ -2873,7 +2873,7 @@ ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& inter
             environment = environment->outer_environment();
         if (!environment->is_permanently_screwed_by_eval()) {
             auto value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, m_cache.index));
-            interpreter.set(dst(), PrimitiveString::create(vm, value.typeof()));
+            interpreter.set(dst(), value.typeof(vm));
             return {};
         }
         m_cache = {};
@@ -2897,7 +2897,7 @@ ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& inter
 
     // 4. NOTE: This step is replaced in section B.3.6.3.
     // 5. Return a String according to Table 41.
-    interpreter.set(dst(), PrimitiveString::create(vm, value.typeof()));
+    interpreter.set(dst(), value.typeof(vm));
     return {};
 }
 

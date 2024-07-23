@@ -217,6 +217,16 @@ public:
     Object& get_global_object();
 
     CommonPropertyNames names;
+    struct {
+        GCPtr<PrimitiveString> number;
+        GCPtr<PrimitiveString> undefined;
+        GCPtr<PrimitiveString> object;
+        GCPtr<PrimitiveString> string;
+        GCPtr<PrimitiveString> symbol;
+        GCPtr<PrimitiveString> boolean;
+        GCPtr<PrimitiveString> bigint;
+        GCPtr<PrimitiveString> function;
+    } typeof_strings;
 
     void run_queued_promise_jobs();
     void enqueue_promise_job(NonnullGCPtr<HeapFunction<ThrowCompletionOr<Value>()>> job, Realm*);

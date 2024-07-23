@@ -418,7 +418,7 @@ public:
         return *this;
     }
 
-    StringView typeof() const;
+    [[nodiscard]] NonnullGCPtr<PrimitiveString> typeof(VM&) const;
 
     bool operator==(Value const&) const;
 
