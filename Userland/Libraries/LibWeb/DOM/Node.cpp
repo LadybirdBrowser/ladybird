@@ -978,12 +978,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::clone_node(Document* document,
         // Set copy’s namespace, namespace prefix, local name, and value to those of node.
         auto& attr = static_cast<Attr&>(*this);
         copy = attr.clone(*document);
-    } else if (is<Text>(this)) {
+    }
+    // NOTE: is<Text>() currently returns true only for text nodes, not for descendant types of Text.
+    else if (is<Text>(this) || is<CDATASection>(this)) {
         // Text
-        auto text = verify_cast<Text>(this);
+        auto& text = static_cast<Text&>(*this);
 
         // Set copy’s data to that of node.
-        auto text_copy = heap().allocate<Text>(realm(), *document, text->data());
+        auto text_copy = heap().allocate<Text>(realm(), *document, text.data());
         copy = move(text_copy);
     } else if (is<Comment>(this)) {
         // Comment
