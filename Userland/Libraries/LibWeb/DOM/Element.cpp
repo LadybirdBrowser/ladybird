@@ -480,9 +480,9 @@ void Element::attribute_changed(FlyString const& name, Optional<String> const&, 
             for (auto& new_class : new_classes) {
                 m_classes.unchecked_append(FlyString::from_utf8(new_class).release_value_but_fixme_should_propagate_errors());
             }
-            if (m_class_list)
-                m_class_list->associated_attribute_changed(value_or_empty);
         }
+        if (m_class_list)
+            m_class_list->associated_attribute_changed(value_or_empty);
     } else if (name == HTML::AttributeNames::style) {
         if (!value.has_value()) {
             if (m_inline_style) {

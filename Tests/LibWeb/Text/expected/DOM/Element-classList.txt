@@ -1,0 +1,3 @@
+ element.classList initial value: ""
+element.classList after setting classList to "a": "a"
+element.classList after setting className to "": ""
