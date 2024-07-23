@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
@@ -23,27 +24,45 @@ public:
     ~CanvasFillStrokeStyles() = default;
     using FillOrStrokeStyleVariant = Variant<String, JS::Handle<CanvasGradient>, JS::Handle<CanvasPattern>>;
 
-    static CanvasState::FillOrStrokeStyle to_canvas_state_fill_or_stroke_style(auto const& style)
-    {
-        return style.visit(
-            [&](String const& string) -> CanvasState::FillOrStrokeStyle {
-                // FIXME: This should parse color strings the same as CSS
-                auto color = Gfx::Color::from_string(string);
-
-                if (!color.has_value())
-                    dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasFillStrokeStyles: Unsupported canvas fill or stroke style \"{}\". Defaulting to Color::Black.", string);
-
-                return color.value_or(Color::Black);
-            },
-            [&](auto fill_or_stroke_style) -> CanvasState::FillOrStrokeStyle {
-                return fill_or_stroke_style;
-            });
-    }
-
     void set_fill_style(FillOrStrokeStyleVariant style)
     {
-        // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's origin-clean flag to false.
-        my_drawing_state().fill_style = to_canvas_state_fill_or_stroke_style(style);
+        auto& realm = static_cast<IncludingClass&>(*this).realm();
+
+        // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fillstyle
+        style.visit(
+            // 1. If the given value is a string, then:
+            [&](String const& string) {
+                // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
+                auto maybe_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), string);
+                if (maybe_parser.is_error()) {
+                    dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasFillStrokeStyles: Failed to create CSS parser.");
+                    return;
+                }
+                auto parser = maybe_parser.release_value();
+
+                // 2. Let parsedValue be the result of parsing the given value with context if non-null.
+                // FIXME: Parse a color value
+                // https://drafts.csswg.org/css-color/#parse-a-css-color-value
+                auto style_value = parser.parse_as_css_value(CSS::PropertyID::Color);
+                if (style_value && style_value->has_color()) {
+                    auto parsedValue = style_value->to_color(OptionalNone());
+
+                    // 4. Set this's fill style to parsedValue.
+                    my_drawing_state().fill_style = parsedValue;
+                } else {
+                    // 3. If parsedValue is failure, then return.
+                    return;
+                }
+
+                // 5. Return.
+                return;
+            },
+            [&](auto fill_or_stroke_style) {
+                // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's origin-clean flag to false.
+
+                // 3. Set this's fill style to the given value.
+                my_drawing_state().fill_style = fill_or_stroke_style;
+            });
     }
 
     FillOrStrokeStyleVariant fill_style() const
@@ -53,8 +72,44 @@ public:
 
     void set_stroke_style(FillOrStrokeStyleVariant style)
     {
-        // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's origin-clean flag to false.
-        my_drawing_state().stroke_style = to_canvas_state_fill_or_stroke_style(style);
+        auto& realm = static_cast<IncludingClass&>(*this).realm();
+
+        // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-strokestyle
+
+        style.visit(
+            // 1. If the given value is a string, then:
+            [&](String const& string) {
+                // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
+                auto maybe_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), string);
+                if (maybe_parser.is_error()) {
+                    dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasFillStrokeStyles: Failed to create CSS parser.");
+                    return;
+                }
+                auto parser = maybe_parser.release_value();
+
+                // 2. Let parsedValue be the result of parsing the given value with context if non-null.
+                // FIXME: Parse a color value
+                // https://drafts.csswg.org/css-color/#parse-a-css-color-value
+                auto style_value = parser.parse_as_css_value(CSS::PropertyID::Color);
+                if (style_value && style_value->has_color()) {
+                    auto parsedValue = style_value->to_color(OptionalNone());
+
+                    // 4. Set this's stroke style to parsedValue.
+                    my_drawing_state().stroke_style = parsedValue;
+                } else {
+                    // 3. If parsedValue is failure, then return.
+                    return;
+                }
+
+                // 5. Return.
+                return;
+            },
+            [&](auto fill_or_stroke_style) {
+                // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's origin-clean flag to false.
+
+                // 3. Set this's stroke style to the given value.
+                my_drawing_state().fill_style = fill_or_stroke_style;
+            });
     }
 
     FillOrStrokeStyleVariant stroke_style() const

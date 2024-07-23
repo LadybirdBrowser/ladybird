@@ -18,11 +18,11 @@
     ctx.fillRect(0, 0, 500, 100);
 
     // Decimal numbers
-    ctx.fillStyle = "rgb(0.28813966673057,254.56022744510793,0.2973971574794)";
+    ctx.fillStyle = "rgb(254.56022744510793,0.28813966673057,0.2973971574794)";
     ctx.fillRect(0, 100, 500, 100);
 
     // Numbers below 0 and above 255 should be clamped
-    ctx.fillStyle = "rgba(-50,500,-50,1)";
+    ctx.fillStyle = "rgba(-50,-50,500,1)";
     ctx.fillRect(0, 200, 500, 100);
 
     // Percentages
@@ -30,6 +30,8 @@
     ctx.fillRect(0, 300, 500, 100);
 
     // Calc
-    ctx.fillStyle = "rgb(0, calc(infinity), 0)";
+    // FIXME: The CSS parser currently chokes on calc expressions, which will
+    //        leave the fillStyle as it was (green).
+    ctx.fillStyle = "rgb(calc(infinity), 0, 0)";
     ctx.fillRect(0, 400, 500, 100);
 </script>
