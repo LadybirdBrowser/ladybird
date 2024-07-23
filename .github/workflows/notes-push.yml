@@ -17,6 +17,6 @@ jobs:
       - run: |
           git fetch origin "refs/notes/*:refs/notes/*"
           curl -fsSLO https://sideshowbarker.github.io/git-gloss/git-gloss && bash ./git-gloss
-          git push origin "refs/notes/*"
+          git push origin "refs/notes/*" || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
