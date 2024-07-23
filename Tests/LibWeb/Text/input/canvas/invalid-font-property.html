@@ -1,0 +1,15 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let canvas = document.createElement("canvas");
+        let context = canvas.getContext("2d");
+        context.font = '20px SerenitySans';
+        println(context.font);
+        context.font = 'inherit'; // CSS-wide keywords are not allowed
+        println(context.font);
+        context.font = 'var(--font-size, 30px) Arial'; // Variables are not allowed here
+        println(context.font);
+        context.font = '!!!'; // Invalid value, should be ignored.
+        println(context.font);
+    });
+</script>
