@@ -308,7 +308,7 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
             .origin = params.transform.origin,
             .matrix = params.transform.matrix,
         },
-        .mask = params.mask });
+        .mask = move(params.mask) });
     m_state_stack.append(State());
 }
 

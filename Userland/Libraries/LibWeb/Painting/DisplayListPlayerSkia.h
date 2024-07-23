@@ -25,10 +25,10 @@ class SkiaBackendContext {
     AK_MAKE_NONMOVABLE(SkiaBackendContext);
 
 public:
-    SkiaBackendContext() {};
-    virtual ~SkiaBackendContext() {};
+    SkiaBackendContext() { }
+    virtual ~SkiaBackendContext() { }
 
-    virtual void flush_and_submit() {};
+    virtual void flush_and_submit() { }
 };
 
 class DisplayListPlayerSkia : public DisplayListPlayer {
@@ -79,7 +79,7 @@ private:
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
-    void apply_mask_painted_from(DisplayList&, Gfx::IntRect);
+    void apply_mask_painted_from(DisplayList&, Gfx::IntRect, bool translate = true);
 
     class SkiaSurface;
     SkiaSurface& surface() const;

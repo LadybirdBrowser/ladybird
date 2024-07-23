@@ -54,7 +54,7 @@ public:
     virtual JS::GCPtr<DOM::Node const> dom_node_of_svg() const override { return dom_node(); }
     virtual Optional<CSSPixelRect> get_masking_area() const override { return get_masking_area_of_svg(); }
     virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const override { return get_mask_type_of_svg(); }
-    virtual RefPtr<Gfx::Bitmap> calculate_mask(PaintContext& paint_context, CSSPixelRect const& masking_area) const override { return calculate_mask_of_svg(paint_context, masking_area); }
+    virtual MaskAndClipPathDisplayLists calculate_mask(PaintContext& paint_context, CSSPixelRect const& masking_area) const override { return calculate_mask_of_svg(paint_context, masking_area); }
 
     void set_computed_transforms(ComputedTransforms computed_transforms)
     {

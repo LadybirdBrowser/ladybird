@@ -105,8 +105,13 @@ struct StackingContextTransform {
     Gfx::FloatMatrix4x4 matrix;
 };
 
+struct MaskAndClipPathDisplayLists {
+    RefPtr<DisplayList> mask_display_list;
+    Optional<RefPtr<DisplayList>> clip_path_display_list;
+};
+
 struct StackingContextMask {
-    NonnullRefPtr<Gfx::Bitmap> mask_bitmap;
+    MaskAndClipPathDisplayLists mask_and_clip_path_display_lists;
     Gfx::Bitmap::MaskKind mask_kind;
 };
 
@@ -119,7 +124,7 @@ struct PushStackingContext {
     Gfx::IntPoint post_transform_translation;
     CSS::ImageRendering image_rendering;
     StackingContextTransform transform;
-    Optional<StackingContextMask> mask = {};
+    Optional<StackingContextMask> mask;
 
     void translate_by(Gfx::IntPoint const& offset)
     {

@@ -71,16 +71,11 @@ Optional<Gfx::Bitmap::MaskKind> SVGMaskable::get_mask_type_of_svg() const
     return {};
 }
 
-RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CSSPixelRect const& masking_area) const
+MaskAndClipPathDisplayLists SVGMaskable::calculate_mask_of_svg(PaintContext& context, CSSPixelRect const& masking_area) const
 {
     auto const& graphics_element = verify_cast<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
     auto mask_rect = context.enclosing_device_rect(masking_area);
-    auto paint_mask_or_clip = [&](PaintableBox const& paintable) -> RefPtr<Gfx::Bitmap> {
-        auto mask_bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, mask_rect.size().to_type<int>());
-        RefPtr<Gfx::Bitmap> mask_bitmap = {};
-        if (mask_bitmap_or_error.is_error())
-            return {};
-        mask_bitmap = mask_bitmap_or_error.release_value();
+    auto paint_mask_or_clip = [&](PaintableBox const& paintable) -> RefPtr<DisplayList> {
         auto display_list = DisplayList::create();
         DisplayListRecorder display_list_recorder(*display_list);
         display_list_recorder.translate(-mask_rect.location().to_type<int>());
@@ -88,25 +83,26 @@ RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CS
         paint_context.set_svg_transform(graphics_element.get_transform());
         paint_context.set_draw_svg_geometry_for_clip_path(is<SVGClipPaintable>(paintable));
         StackingContext::paint_node_as_stacking_context(paintable, paint_context);
-        DisplayListPlayerSkia display_list_player { *mask_bitmap };
-        display_list_player.execute(display_list);
-        return mask_bitmap;
+        return display_list;
     };
-    RefPtr<Gfx::Bitmap> mask_bitmap = {};
-    if (auto* mask_box = get_mask_box(graphics_element)) {
-        auto& mask_paintable = static_cast<PaintableBox const&>(*mask_box->paintable());
-        mask_bitmap = paint_mask_or_clip(mask_paintable);
+
+    RefPtr<DisplayList> mask_display_list;
+    if (auto const* mask_box = get_mask_box(graphics_element)) {
+        auto const& mask_paintable = static_cast<PaintableBox const&>(*mask_box->paintable());
+        mask_display_list = paint_mask_or_clip(mask_paintable);
     }
-    if (auto* clip_box = get_clip_box(graphics_element)) {
-        auto& clip_paintable = static_cast<PaintableBox const&>(*clip_box->paintable());
-        auto clip_bitmap = paint_mask_or_clip(clip_paintable);
+    if (auto const* clip_box = get_clip_box(graphics_element)) {
+        auto const& clip_paintable = static_cast<PaintableBox const&>(*clip_box->paintable());
+        auto clip_display_list = paint_mask_or_clip(clip_paintable);
+
         // Combine the clip-path with the mask (if present).
-        if (mask_bitmap && clip_bitmap)
-            mask_bitmap->apply_mask(*clip_bitmap, Gfx::Bitmap::MaskKind::Alpha);
-        if (!mask_bitmap)
-            mask_bitmap = clip_bitmap;
+        if (mask_display_list && clip_display_list)
+            return MaskAndClipPathDisplayLists { .mask_display_list = mask_display_list, .clip_path_display_list = clip_display_list };
+        if (!mask_display_list)
+            mask_display_list = move(clip_display_list);
     }
-    return mask_bitmap;
+
+    return MaskAndClipPathDisplayLists { .mask_display_list = mask_display_list, .clip_path_display_list = {} };
 }
 
 }

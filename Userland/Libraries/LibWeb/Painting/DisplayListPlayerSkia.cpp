@@ -84,7 +84,7 @@ public:
     {
     }
 
-    ~SkiaVulkanBackendContext() override {};
+    ~SkiaVulkanBackendContext() override { }
 
     void flush_and_submit() override
     {
@@ -152,7 +152,7 @@ public:
     {
     }
 
-    ~SkiaMetalBackendContext() override {};
+    ~SkiaMetalBackendContext() override { }
 
     sk_sp<SkSurface> wrap_metal_texture(Core::MetalTexture& metal_texture)
     {
@@ -539,12 +539,29 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
     }
 
     if (command.mask.has_value()) {
-        auto alpha_mask = alpha_mask_from_bitmap(*command.mask.value().mask_bitmap, command.mask.value().mask_kind);
+        auto mask_display_list = command.mask->mask_and_clip_path_display_lists.mask_display_list;
+
+        auto mask_bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, command.source_paintable_rect.size());
+        RefPtr<Gfx::Bitmap> mask_bitmap = {};
+        if (mask_bitmap_or_error.is_error())
+            return;
+        mask_bitmap = mask_bitmap_or_error.release_value();
+
+        DisplayListPlayerSkia player { *mask_bitmap };
+        player.execute(*mask_display_list);
+
+        auto alpha_mask = alpha_mask_from_bitmap(*mask_bitmap, command.mask.value().mask_kind);
         SkMatrix mask_matrix;
         auto mask_position = command.source_paintable_rect.location();
         mask_matrix.setTranslate(mask_position.x(), mask_position.y());
         auto shader = alpha_mask.makeShader(SkSamplingOptions(), mask_matrix);
         canvas.clipShader(shader);
+
+        auto maybe_clip_path_display_list = command.mask->mask_and_clip_path_display_lists.clip_path_display_list;
+        if (maybe_clip_path_display_list.has_value()) {
+            auto clip_path_display_list = maybe_clip_path_display_list.release_value();
+            apply_mask_painted_from(*clip_path_display_list, command.source_paintable_rect, false);
+        }
     }
 
     if (command.is_fixed_position) {
@@ -1305,13 +1322,15 @@ bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect)
     return surface().canvas().quickReject(to_skia_rect(rect));
 }
 
-void DisplayListPlayerSkia::apply_mask_painted_from(DisplayList& display_list, Gfx::IntRect rect)
+void DisplayListPlayerSkia::apply_mask_painted_from(DisplayList& display_list, Gfx::IntRect rect, bool translate)
 {
     auto mask_surface = m_surface->make_surface(rect.width(), rect.height());
 
     auto previous_surface = move(m_surface);
     m_surface = make<SkiaSurface>(mask_surface);
-    surface().canvas().translate(-rect.x(), -rect.y());
+    if (translate)
+        surface().canvas().translate(-rect.x(), -rect.y());
+
     execute(display_list);
     m_surface = move(previous_surface);
 

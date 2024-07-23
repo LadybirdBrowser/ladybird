@@ -310,12 +310,13 @@ void StackingContext::paint(PaintContext& context) const
         if (auto masking_area = paintable_box().get_masking_area(); masking_area.has_value()) {
             if (masking_area->is_empty())
                 return;
-            auto mask_bitmap = paintable_box().calculate_mask(context, *masking_area);
-            if (mask_bitmap) {
+            auto mask_and_clip_path_display_lists = paintable_box().calculate_mask(context, *masking_area);
+            auto mask_display_list = mask_and_clip_path_display_lists.mask_display_list;
+            if (!mask_display_list->is_empty()) {
                 auto source_paintable_rect = context.enclosing_device_rect(*masking_area).to_type<int>();
                 push_stacking_context_params.source_paintable_rect = source_paintable_rect;
                 push_stacking_context_params.mask = StackingContextMask {
-                    .mask_bitmap = mask_bitmap.release_nonnull(),
+                    .mask_and_clip_path_display_lists = mask_and_clip_path_display_lists,
                     .mask_kind = *paintable_box().get_mask_type()
                 };
             }
@@ -325,7 +326,7 @@ void StackingContext::paint(PaintContext& context) const
     context.display_list_recorder().save();
     if (paintable().is_paintable_box() && paintable_box().scroll_frame_id().has_value())
         context.display_list_recorder().set_scroll_frame_id(*paintable_box().scroll_frame_id());
-    context.display_list_recorder().push_stacking_context(push_stacking_context_params);
+    context.display_list_recorder().push_stacking_context(move(push_stacking_context_params));
     paint_internal(context);
     context.display_list_recorder().pop_stacking_context();
     context.display_list_recorder().restore();

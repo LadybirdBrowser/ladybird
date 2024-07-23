@@ -83,6 +83,8 @@ public:
 
     void apply_scroll_offsets(Vector<Gfx::IntPoint> const& offsets_by_frame_id);
 
+    bool is_empty() const { return m_commands.is_empty(); }
+
     struct CommandListItem {
         Optional<i32> scroll_frame_id;
         Command command;

@@ -19,7 +19,7 @@ public:
 
     Optional<CSSPixelRect> get_masking_area_of_svg() const;
     Optional<Gfx::Bitmap::MaskKind> get_mask_type_of_svg() const;
-    RefPtr<Gfx::Bitmap> calculate_mask_of_svg(PaintContext&, CSSPixelRect const& masking_area) const;
+    MaskAndClipPathDisplayLists calculate_mask_of_svg(PaintContext&, CSSPixelRect const& masking_area) const;
 };
 
 }
