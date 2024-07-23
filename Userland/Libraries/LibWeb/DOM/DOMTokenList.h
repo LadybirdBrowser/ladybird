@@ -53,6 +53,8 @@ private:
     WebIDL::ExceptionOr<void> validate_token(StringView token) const;
     void run_update_steps();
 
+    String serialize_ordered_set() const;
+
     JS::NonnullGCPtr<Element> m_associated_element;
     FlyString m_associated_attribute;
     Vector<String> m_token_set;
