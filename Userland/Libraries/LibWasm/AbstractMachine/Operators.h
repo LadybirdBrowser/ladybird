@@ -239,8 +239,8 @@ struct VectorSwizzle {
     auto operator()(u128 c1, u128 c2) const
     {
         // https://webassembly.github.io/spec/core/bikeshed/#-mathsfi8x16hrefsyntax-instr-vecmathsfswizzle%E2%91%A0
-        auto i = bit_cast<Native128ByteVectorOf<i8, MakeSigned>>(c2);
-        auto j = bit_cast<Native128ByteVectorOf<i8, MakeSigned>>(c1);
+        auto i = bit_cast<Native128ByteVectorOf<i8, MakeSigned>>(c1);
+        auto j = bit_cast<Native128ByteVectorOf<i8, MakeSigned>>(c2);
         auto result = shuffle_or_0(i, j);
         return bit_cast<u128>(result);
     }
