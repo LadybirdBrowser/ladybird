@@ -1,0 +1,11 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const xmlDocument = new DOMParser().parseFromString(`<xml></xml>`, "application/xml");
+        const cdata = xmlDocument.createCDATASection("DATA");
+        const range = xmlDocument.createRange();
+        range.setStart(cdata, 0);
+        range.setEnd(cdata, 3);
+        println(`range start offset: ${range.startOffset}, end offset: ${range.endOffset}`);
+    });
+</script>
