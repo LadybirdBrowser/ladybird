@@ -8,6 +8,10 @@
         println(`element.classList after setting classList to "a": "${element.classList.toString()}"`);
         element.className = "";
         println(`element.classList after setting className to "": "${element.classList.toString()}"`);
+        element.className = "a a b c";
+        println(`element.classList after setting to className to "a a b c": "${element.classList.toString()}"`);
+        element.className = "   a a b c ";
+        println(`element.classList after setting to className to "   a a b c ": "${element.classList.toString()}"`);
     });
 </script>
 </html>

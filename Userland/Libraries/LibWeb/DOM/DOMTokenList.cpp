@@ -239,12 +239,18 @@ WebIDL::ExceptionOr<bool> DOMTokenList::supports(StringView token)
     return false;
 }
 
-// https://dom.spec.whatwg.org/#dom-domtokenlist-value
-String DOMTokenList::value() const
+// https://dom.spec.whatwg.org/#concept-ordered-set-serializer
+String DOMTokenList::serialize_ordered_set() const
 {
     StringBuilder builder;
     builder.join(' ', m_token_set);
     return MUST(builder.to_string());
+}
+
+// https://dom.spec.whatwg.org/#dom-domtokenlist-value
+String DOMTokenList::value() const
+{
+    return m_associated_element->get_attribute_value(m_associated_attribute);
 }
 
 // https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-set-value%E2%91%A2
@@ -278,7 +284,7 @@ void DOMTokenList::run_update_steps()
         return;
 
     // 2. Set an attribute value for the associated element using associated attribute’s local name and the result of running the ordered set serializer for token set.
-    MUST(associated_element->set_attribute(m_associated_attribute, value()));
+    MUST(associated_element->set_attribute(m_associated_attribute, serialize_ordered_set()));
 }
 
 WebIDL::ExceptionOr<JS::Value> DOMTokenList::item_value(size_t index) const
