@@ -84,8 +84,9 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
     document().set_needs_to_refresh_clip_state(true);
     document().set_needs_to_refresh_scroll_state(true);
 
-    auto max_x_offset = max(scrollable_overflow_rect->width() - content_size().width(), 0);
-    auto max_y_offset = max(scrollable_overflow_rect->height() - content_size().height(), 0);
+    auto padding_rect = absolute_padding_box_rect();
+    auto max_x_offset = max(scrollable_overflow_rect->width() - padding_rect.width(), 0);
+    auto max_y_offset = max(scrollable_overflow_rect->height() - padding_rect.height(), 0);
 
     offset.set_x(clamp(offset.x(), 0, max_x_offset));
     offset.set_y(clamp(offset.y(), 0, max_y_offset));
