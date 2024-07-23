@@ -1,0 +1,20 @@
+<div id=foo>
+<template shadowrootmode="open">
+<style>
+div { border: 5px solid black; }
+</style>
+<div>hello</div>
+</template>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(foo.shadowRoot.styleSheets);
+        println("Before remove, sheet count: " + foo.shadowRoot.styleSheets.length);
+        let style = foo.shadowRoot.firstElementChild;
+        style.remove()
+        println("After remove, sheet count: " + foo.shadowRoot.styleSheets.length);
+        style.innerText = "div { border: 10px solid red; }";
+        println("After setting innerText of removed sheet, we're still alive!");
+    });
+</script>

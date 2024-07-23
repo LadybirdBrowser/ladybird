@@ -7,10 +7,20 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StyleElementUtils.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::DOM {
+
+static CSS::StyleSheetList& relevant_style_sheet_list_for_node(DOM::Node& node)
+{
+    auto& root_node = node.root();
+    if (is<DOM::ShadowRoot>(root_node))
+        return static_cast<DOM::ShadowRoot&>(root_node).style_sheets();
+
+    return node.document().style_sheets();
+}
 
 // The user agent must run the "update a style block" algorithm whenever one of the following conditions occur:
 // FIXME: The element is popped off the stack of open elements of an HTML parser or XML parser.
@@ -22,7 +32,7 @@ namespace Web::DOM {
 // The element is not on the stack of open elements of an HTML parser or XML parser, and it becomes connected or disconnected.
 //
 // https://html.spec.whatwg.org/multipage/semantics.html#update-a-style-block
-void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
+void StyleElementUtils::update_a_style_block(DOM::Element& style_element, JS::GCPtr<DOM::Node> old_parent_if_removed_from)
 {
     // OPTIMIZATION: Skip parsing CSS if we're in the middle of parsing a HTML fragment.
     //               The style block will be parsed upon insertion into a proper document.
@@ -33,7 +43,13 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
     // 2. If element has an associated CSS style sheet, remove the CSS style sheet in question.
 
     if (m_associated_css_style_sheet) {
-        style_element.document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_associated_css_style_sheet);
+        // NOTE: If we're here in response to a node being removed from the tree, we need to remove the stylesheet from the style scope
+        //       of the old parent, not the style scope of the node itself, since it's too late to find it that way!
+        if (old_parent_if_removed_from) {
+            relevant_style_sheet_list_for_node(*old_parent_if_removed_from).remove_a_css_style_sheet(*m_associated_css_style_sheet);
+        } else {
+            style_element.document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_associated_css_style_sheet);
+        }
 
         // FIXME: This should probably be handled by StyleSheet::set_owner_node().
         m_associated_css_style_sheet = nullptr;
