@@ -1289,12 +1289,17 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     case Instructions::f64x2_splat.value():
         return pop_and_push_m_splat<64, NativeFloatingType>(configuration, instruction);
     case Instructions::i8x16_shuffle.value(): {
-        auto indices = pop_vector<u8, MakeSigned>(configuration);
-        TRAP_IF_NOT(indices.has_value());
-        auto vector = peek_vector<u8, MakeSigned>(configuration);
-        TRAP_IF_NOT(vector.has_value());
-        auto result = shuffle_vector(vector.value(), indices.value());
-        configuration.stack().peek() = Value(result);
+        auto& arg = instruction.arguments().get<Instruction::ShuffleArgument>();
+        auto b = *pop_vector<u8, MakeUnsigned>(configuration);
+        auto a = *pop_vector<u8, MakeUnsigned>(configuration);
+        using VectorType = Native128ByteVectorOf<u8, MakeUnsigned>;
+        VectorType result;
+        for (size_t i = 0; i < 16; ++i)
+            if (arg.lanes[i] < 16)
+                result[i] = a[arg.lanes[i]];
+            else
+                result[i] = b[arg.lanes[i] - 16];
+        configuration.stack().push(Value(bit_cast<u128>(result)));
         return;
     }
     case Instructions::v128_store.value():
