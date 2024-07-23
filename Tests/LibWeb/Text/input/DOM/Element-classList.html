@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement("div");
+        println(`element.classList initial value: "${element.classList.toString()}"`);
+        element.classList = "a";
+        println(`element.classList after setting classList to "a": "${element.classList.toString()}"`);
+        element.className = "";
+        println(`element.classList after setting className to "": "${element.classList.toString()}"`);
+    });
+</script>
+</html>
