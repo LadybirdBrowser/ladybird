@@ -216,7 +216,7 @@ struct VectorShiftRight {
     auto operator()(u128 lhs, i32 rhs) const
     {
         auto shift_value = rhs % (sizeof(lhs) * 8 / VectorSize);
-        return bit_cast<u128>(bit_cast<Native128ByteVectorOf<NativeIntegralType<128 / VectorSize>, SetSign>>(lhs) >> shift_value);
+        return bit_cast<u128>(bit_cast<Native128ByteVectorOf<SetSign<NativeIntegralType<128 / VectorSize>>, SetSign>>(lhs) >> shift_value);
     }
     static StringView name()
     {
