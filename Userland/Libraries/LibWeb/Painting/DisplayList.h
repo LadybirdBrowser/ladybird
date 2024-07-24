@@ -67,8 +67,6 @@ public:
     virtual void blit_corner_clipping(BlitCornerClipping const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
     virtual void prepare_to_execute([[maybe_unused]] size_t corner_clip_max_depth) { }
-    virtual bool needs_update_immutable_bitmap_texture_cache() const = 0;
-    virtual void update_immutable_bitmap_texture_cache(HashMap<u32, Gfx::ImmutableBitmap const*>&) = 0;
 };
 
 class DisplayList {

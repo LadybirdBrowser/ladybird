@@ -80,18 +80,6 @@ void DisplayList::execute(DisplayListPlayer& executor)
 {
     executor.prepare_to_execute(m_corner_clip_max_depth);
 
-    if (executor.needs_update_immutable_bitmap_texture_cache()) {
-        HashMap<u32, Gfx::ImmutableBitmap const*> immutable_bitmaps;
-        for (auto const& command_with_scroll_id : m_commands) {
-            auto& command = command_with_scroll_id.command;
-            if (command.has<DrawScaledImmutableBitmap>()) {
-                auto const& immutable_bitmap = command.get<DrawScaledImmutableBitmap>().bitmap;
-                immutable_bitmaps.set(immutable_bitmap->id(), immutable_bitmap.ptr());
-            }
-        }
-        executor.update_immutable_bitmap_texture_cache(immutable_bitmaps);
-    }
-
     HashTable<u32> skipped_sample_corner_commands;
     size_t next_command_index = 0;
     while (next_command_index < m_commands.size()) {
