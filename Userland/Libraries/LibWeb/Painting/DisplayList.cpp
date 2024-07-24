@@ -78,8 +78,6 @@ void DisplayList::mark_unnecessary_commands()
 
 void DisplayList::execute(DisplayListPlayer& executor)
 {
-    executor.prepare_to_execute(m_corner_clip_max_depth);
-
     HashTable<u32> skipped_sample_corner_commands;
     size_t next_command_index = 0;
     while (next_command_index < m_commands.size()) {

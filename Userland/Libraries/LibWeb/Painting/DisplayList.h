@@ -66,7 +66,6 @@ public:
     virtual void sample_under_corners(SampleUnderCorners const&) = 0;
     virtual void blit_corner_clipping(BlitCornerClipping const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
-    virtual void prepare_to_execute([[maybe_unused]] size_t corner_clip_max_depth) { }
 };
 
 class DisplayList {
@@ -77,9 +76,6 @@ public:
     void mark_unnecessary_commands();
     void execute(DisplayListPlayer&);
 
-    size_t corner_clip_max_depth() const { return m_corner_clip_max_depth; }
-    void set_corner_clip_max_depth(size_t depth) { m_corner_clip_max_depth = depth; }
-
 private:
     struct CommandListItem {
         Optional<i32> scroll_frame_id;
@@ -87,7 +83,6 @@ private:
         bool skip { false };
     };
 
-    size_t m_corner_clip_max_depth { 0 };
     AK::SegmentedVector<CommandListItem, 512> m_commands;
 };
 

@@ -65,8 +65,6 @@ public:
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
-    virtual void prepare_to_execute(size_t corner_clip_max_depth) override;
-
     DisplayListPlayerSkia(Gfx::Bitmap&);
 
 #ifdef USE_VULKAN
