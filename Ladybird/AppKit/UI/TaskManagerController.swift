@@ -10,41 +10,41 @@ import SwiftUI
 
 @objc
 public protocol TaskManagerDelegate where Self: NSObject {
-  func onTaskManagerClosed()
+    func onTaskManagerClosed()
 }
 
 public class TaskManagerController: NSWindowController, NSWindowDelegate {
 
-  private weak var delegate: TaskManagerDelegate?
+    private weak var delegate: TaskManagerDelegate?
 
-  @objc
-  public convenience init(delegate: TaskManagerDelegate) {
-    self.init()
-    self.delegate = delegate
-  }
-
-  @IBAction public override func showWindow(_ sender: Any?) {
-    self.window = TaskManager.init()
-    self.window!.delegate = self
-    self.window!.makeKeyAndOrderFront(sender)
-  }
-
-  public func windowWillClose(_ sender: Notification) {
-    self.delegate?.onTaskManagerClosed()
-  }
-
-  public func windowDidResize(_ sender: Notification) {
-    guard self.window != nil else { return }
-    if !self.window!.inLiveResize {
-      self.taskManager().web_view.handleResize()
+    @objc
+    public convenience init(delegate: TaskManagerDelegate) {
+        self.init()
+        self.delegate = delegate
     }
-  }
 
-  public func windowDidChangeBackingProperties(_ sender: Notification) {
-    self.taskManager().web_view.handleDevicePixelRatioChange()
-  }
+    @IBAction public override func showWindow(_ sender: Any?) {
+        self.window = TaskManager.init()
+        self.window!.delegate = self
+        self.window!.makeKeyAndOrderFront(sender)
+    }
 
-  private func taskManager() -> TaskManager {
-    return self.window as! TaskManager
-  }
+    public func windowWillClose(_ sender: Notification) {
+        self.delegate?.onTaskManagerClosed()
+    }
+
+    public func windowDidResize(_ sender: Notification) {
+        guard self.window != nil else { return }
+        if !self.window!.inLiveResize {
+            self.taskManager().web_view.handleResize()
+        }
+    }
+
+    public func windowDidChangeBackingProperties(_ sender: Notification) {
+        self.taskManager().web_view.handleDevicePixelRatioChange()
+    }
+
+    private func taskManager() -> TaskManager {
+        return self.window as! TaskManager
+    }
 }
