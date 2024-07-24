@@ -387,6 +387,8 @@ DisplayListPlayerSkia::SkiaSurface& DisplayListPlayerSkia::surface() const
     return static_cast<SkiaSurface&>(*m_surface);
 }
 
+static HashMap<Gfx::Bitmap*, sk_sp<SkImage>> s_glyph_cache;
+
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
     auto& canvas = surface().canvas();
@@ -409,13 +411,19 @@ void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
             auto maybe_font_glyph = scaled_font->glyph(code_point, glyph_position.subpixel_offset);
             if (!maybe_font_glyph.has_value())
                 continue;
-            if (maybe_font_glyph->is_color_bitmap()) {
-                TODO();
-            } else {
-                auto sk_bitmap = to_skia_bitmap(*maybe_font_glyph->bitmap());
-                auto sk_image = SkImages::RasterFromBitmap(sk_bitmap);
+            if (!maybe_font_glyph->is_color_bitmap()) {
                 auto const& blit_position = glyph_position.blit_position;
-                canvas.drawImage(sk_image, blit_position.x(), blit_position.y(), SkSamplingOptions(), &paint);
+                sk_sp<SkImage> image;
+                if (auto maybe_image = s_glyph_cache.get(maybe_font_glyph->bitmap()); maybe_image.has_value()) {
+                    image = maybe_image.value();
+                } else {
+                    auto sk_bitmap = to_skia_bitmap(*maybe_font_glyph->bitmap());
+                    image = SkImages::RasterFromBitmap(sk_bitmap);
+                    s_glyph_cache.set(maybe_font_glyph->bitmap(), image);
+                }
+                canvas.drawImage(image, blit_position.x(), blit_position.y(), SkSamplingOptions(), &paint);
+            } else {
+                TODO();
             }
         }
     }
