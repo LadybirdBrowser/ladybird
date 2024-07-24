@@ -1292,10 +1292,6 @@ void DisplayListPlayerSkia::draw_triangle_wave(DrawTriangleWave const&)
 {
 }
 
-void DisplayListPlayerSkia::prepare_to_execute(size_t)
-{
-}
-
 void DisplayListPlayerSkia::sample_under_corners(SampleUnderCorners const& command)
 {
     auto rounded_rect = to_skia_rrect(command.border_rect, command.corner_radii);
