@@ -55,10 +55,14 @@ public:
     WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> create_dynamics_compressor();
     JS::NonnullGCPtr<GainNode> create_gain();
 
+    JS::NonnullGCPtr<AudioDestinationNode> destination();
+
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
     virtual void initialize(JS::Realm&) override;
+
+    virtual void visit_edges(Cell::Visitor& visitor) override;
 
 private:
     float m_sample_rate { 0 };
@@ -66,6 +70,7 @@ private:
 
     Bindings::AudioContextState m_control_thread_state = Bindings::AudioContextState::Suspended;
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;
+    JS::GCPtr<AudioDestinationNode> m_destination;
 };
 
 }

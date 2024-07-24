@@ -2,6 +2,7 @@
 #import <DOM/EventHandler.idl>
 #import <WebAudio/AudioBuffer.idl>
 #import <WebAudio/AudioBufferSourceNode.idl>
+#import <WebAudio/AudioDestinationNode.idl>
 #import <WebAudio/DynamicsCompressorNode.idl>
 #import <WebAudio/GainNode.idl>
 #import <WebAudio/OscillatorNode.idl>
@@ -16,7 +17,7 @@ enum AudioContextState { "suspended", "running", "closed" };
 // https://webaudio.github.io/web-audio-api/#BaseAudioContext
 [Exposed=Window]
 interface BaseAudioContext : EventTarget {
-    [FIXME] readonly attribute AudioDestinationNode destination;
+    readonly attribute AudioDestinationNode destination;
     readonly attribute float sampleRate;
     readonly attribute double currentTime;
     [FIXME] readonly attribute AudioListener listener;
