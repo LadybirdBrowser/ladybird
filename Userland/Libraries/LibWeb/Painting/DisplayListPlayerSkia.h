@@ -33,35 +33,35 @@ public:
 
 class DisplayListPlayerSkia : public DisplayListPlayer {
 public:
-    CommandResult draw_glyph_run(DrawGlyphRun const&) override;
-    CommandResult fill_rect(FillRect const&) override;
-    CommandResult draw_scaled_bitmap(DrawScaledBitmap const&) override;
-    CommandResult draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
-    CommandResult draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) override;
-    CommandResult add_clip_rect(AddClipRect const&) override;
-    CommandResult save(Save const&) override;
-    CommandResult restore(Restore const&) override;
-    CommandResult push_stacking_context(PushStackingContext const&) override;
-    CommandResult pop_stacking_context(PopStackingContext const&) override;
-    CommandResult paint_linear_gradient(PaintLinearGradient const&) override;
-    CommandResult paint_outer_box_shadow(PaintOuterBoxShadow const&) override;
-    CommandResult paint_inner_box_shadow(PaintInnerBoxShadow const&) override;
-    CommandResult paint_text_shadow(PaintTextShadow const&) override;
-    CommandResult fill_rect_with_rounded_corners(FillRectWithRoundedCorners const&) override;
-    CommandResult fill_path_using_color(FillPathUsingColor const&) override;
-    CommandResult fill_path_using_paint_style(FillPathUsingPaintStyle const&) override;
-    CommandResult stroke_path_using_color(StrokePathUsingColor const&) override;
-    CommandResult stroke_path_using_paint_style(StrokePathUsingPaintStyle const&) override;
-    CommandResult draw_ellipse(DrawEllipse const&) override;
-    CommandResult fill_ellipse(FillEllipse const&) override;
-    CommandResult draw_line(DrawLine const&) override;
-    CommandResult apply_backdrop_filter(ApplyBackdropFilter const&) override;
-    CommandResult draw_rect(DrawRect const&) override;
-    CommandResult paint_radial_gradient(PaintRadialGradient const&) override;
-    CommandResult paint_conic_gradient(PaintConicGradient const&) override;
-    CommandResult draw_triangle_wave(DrawTriangleWave const&) override;
-    CommandResult sample_under_corners(SampleUnderCorners const&) override;
-    CommandResult blit_corner_clipping(BlitCornerClipping const&) override;
+    void draw_glyph_run(DrawGlyphRun const&) override;
+    void fill_rect(FillRect const&) override;
+    void draw_scaled_bitmap(DrawScaledBitmap const&) override;
+    void draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
+    void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) override;
+    void add_clip_rect(AddClipRect const&) override;
+    void save(Save const&) override;
+    void restore(Restore const&) override;
+    void push_stacking_context(PushStackingContext const&) override;
+    void pop_stacking_context(PopStackingContext const&) override;
+    void paint_linear_gradient(PaintLinearGradient const&) override;
+    void paint_outer_box_shadow(PaintOuterBoxShadow const&) override;
+    void paint_inner_box_shadow(PaintInnerBoxShadow const&) override;
+    void paint_text_shadow(PaintTextShadow const&) override;
+    void fill_rect_with_rounded_corners(FillRectWithRoundedCorners const&) override;
+    void fill_path_using_color(FillPathUsingColor const&) override;
+    void fill_path_using_paint_style(FillPathUsingPaintStyle const&) override;
+    void stroke_path_using_color(StrokePathUsingColor const&) override;
+    void stroke_path_using_paint_style(StrokePathUsingPaintStyle const&) override;
+    void draw_ellipse(DrawEllipse const&) override;
+    void fill_ellipse(FillEllipse const&) override;
+    void draw_line(DrawLine const&) override;
+    void apply_backdrop_filter(ApplyBackdropFilter const&) override;
+    void draw_rect(DrawRect const&) override;
+    void paint_radial_gradient(PaintRadialGradient const&) override;
+    void paint_conic_gradient(PaintConicGradient const&) override;
+    void draw_triangle_wave(DrawTriangleWave const&) override;
+    void sample_under_corners(SampleUnderCorners const&) override;
+    void blit_corner_clipping(BlitCornerClipping const&) override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
