@@ -274,9 +274,7 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::Effect
                    dbgln("FIXME: a callback interface type");
                    dbgln("FIXME: a dictionary type");
                    dbgln("FIXME: a record type");
-                   if (type.is_object())
-                       return true;
-                   return false;
+                   return type.is_object();
                })) {
             overloads.remove_all_other_entries();
         }
