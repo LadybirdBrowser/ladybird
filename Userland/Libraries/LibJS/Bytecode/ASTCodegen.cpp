@@ -1042,9 +1042,12 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
         }
     };
 
-    // CreatePerIterationEnvironment where lastIterationEnv is the variable
-    // scope created above for bound identifiers
-    generate_per_iteration_bindings();
+    if (m_init) {
+        // CreatePerIterationEnvironment where lastIterationEnv is the variable
+        // scope created above for bound identifiers
+        generate_per_iteration_bindings();
+    }
+
     body_block_ptr = &generator.make_block();
 
     if (m_update)
@@ -1082,10 +1085,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
     generator.end_breakable_scope();
     generator.end_continuable_scope();
 
-    // CreatePerIterationEnvironment where lastIterationEnv is the environment
-    // created by the previous CreatePerIterationEnvironment setup
-    generate_per_iteration_bindings();
     if (!generator.is_current_block_terminated()) {
+        // CreatePerIterationEnvironment where lastIterationEnv is the environment
+        // created by the previous CreatePerIterationEnvironment setup
+        generate_per_iteration_bindings();
+
         if (m_update) {
             generator.emit<Bytecode::Op::Jump>(Bytecode::Label { *update_block_ptr });
         } else {
