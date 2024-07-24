@@ -460,10 +460,11 @@ public:
     {
     }
 
-    static ParseResult<Vector<Instruction>> parse(Stream& stream, InstructionPointer& ip);
+    static ParseResult<Instruction> parse(Stream& stream);
 
     auto& opcode() const { return m_opcode; }
     auto& arguments() const { return m_arguments; }
+    auto& arguments() { return m_arguments; }
 
 private:
     OpCode m_opcode { 0 };
