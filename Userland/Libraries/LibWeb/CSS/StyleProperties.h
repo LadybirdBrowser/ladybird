@@ -177,6 +177,7 @@ public:
     int math_depth() const { return m_math_depth; }
 
     QuotesData quotes() const;
+    Vector<CounterData> counter_data(PropertyID) const;
 
     Optional<CSS::ScrollbarWidth> scrollbar_width() const;
 

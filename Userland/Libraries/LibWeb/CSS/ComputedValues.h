@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ColumnCount.h>
+#include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
@@ -313,6 +314,12 @@ struct ContentData {
     // FIXME: Data is a list of identifiers, strings and image values.
     String data {};
     String alt_text {};
+};
+
+struct CounterData {
+    FlyString name;
+    bool is_reversed;
+    Optional<CounterValue> value;
 };
 
 struct BorderRadiusData {
@@ -632,6 +639,9 @@ protected:
         LengthPercentage y { InitialValues::x() };
 
         CSS::ScrollbarWidth scrollbar_width { InitialValues::scrollbar_width() };
+        Vector<CounterData, 0> counter_increment;
+        Vector<CounterData, 0> counter_reset;
+        Vector<CounterData, 0> counter_set;
     } m_noninherited;
 };
 
@@ -774,6 +784,10 @@ public:
     void set_math_depth(int value) { m_inherited.math_depth = value; }
 
     void set_scrollbar_width(CSS::ScrollbarWidth value) { m_noninherited.scrollbar_width = value; }
+
+    void set_counter_increment(Vector<CounterData> value) { m_noninherited.counter_increment = move(value); }
+    void set_counter_reset(Vector<CounterData> value) { m_noninherited.counter_reset = move(value); }
+    void set_counter_set(Vector<CounterData> value) { m_noninherited.counter_set = move(value); }
 };
 
 }
