@@ -288,6 +288,11 @@ private:
     RefPtr<StyleValue> parse_number_or_percentage_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_identifier_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_color_value(TokenStream<ComponentValue>&);
+    enum class AllowReversed {
+        No,
+        Yes,
+    };
+    RefPtr<StyleValue> parse_counter_definitions_value(TokenStream<ComponentValue>&, AllowReversed, i32 default_value_if_not_reversed);
     RefPtr<StyleValue> parse_rect_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_string_value(TokenStream<ComponentValue>&);
@@ -314,6 +319,9 @@ private:
     RefPtr<StyleValue> parse_border_radius_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_border_radius_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_content_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_counter_increment_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_counter_reset_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_counter_set_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_display_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_flex_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_flex_flow_value(TokenStream<ComponentValue>&);

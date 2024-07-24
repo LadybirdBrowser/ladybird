@@ -986,6 +986,42 @@
       "content-visibility"
     ]
   },
+  "counter-increment": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "custom-ident",
+      "integer [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "counter-reset": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "custom-ident",
+      "integer [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "counter-set": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "custom-ident",
+      "integer [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "cursor": {
     "affects-layout": false,
     "animation-type": "discrete",

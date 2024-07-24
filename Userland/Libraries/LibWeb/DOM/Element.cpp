@@ -2711,16 +2711,27 @@ CSS::CountersSet& Element::ensure_counters_set()
 }
 
 // https://drafts.csswg.org/css-lists-3/#auto-numbering
-void Element::resolve_counters(CSS::StyleProperties&)
+void Element::resolve_counters(CSS::StyleProperties& style)
 {
     // Resolving counter values on a given element is a multi-step process:
 
     // 1. Existing counters are inherited from previous elements.
     inherit_counters();
 
-    // TODO: 2. New counters are instantiated (counter-reset).
-    // TODO: 3. Counter values are incremented (counter-increment).
-    // TODO: 4. Counter values are explicitly set (counter-set).
+    // 2. New counters are instantiated (counter-reset).
+    auto counter_reset = style.counter_data(CSS::PropertyID::CounterReset);
+    for (auto const& counter : counter_reset)
+        ensure_counters_set().instantiate_a_counter(counter.name, unique_id(), counter.is_reversed, counter.value);
+
+    // 3. Counter values are incremented (counter-increment).
+    auto counter_increment = style.counter_data(CSS::PropertyID::CounterIncrement);
+    for (auto const& counter : counter_increment)
+        ensure_counters_set().increment_a_counter(counter.name, unique_id(), *counter.value);
+
+    // 4. Counter values are explicitly set (counter-set).
+    auto counter_set = style.counter_data(CSS::PropertyID::CounterSet);
+    for (auto const& counter : counter_set)
+        ensure_counters_set().set_a_counter(counter.name, unique_id(), *counter.value);
 
     // 5. Counter values are used (counter()/counters()).
     // NOTE: This happens when we process the `content` property.

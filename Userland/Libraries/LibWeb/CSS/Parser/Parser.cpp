@@ -44,6 +44,7 @@
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
@@ -2891,6 +2892,63 @@ RefPtr<StyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tokens
     return nullptr;
 }
 
+RefPtr<StyleValue> Parser::parse_counter_definitions_value(TokenStream<ComponentValue>& tokens, AllowReversed allow_reversed, i32 default_value_if_not_reversed)
+{
+    // If AllowReversed is Yes, parses:
+    //   [ <counter-name> <integer>? | <reversed-counter-name> <integer>? ]+
+    // Otherwise parses:
+    //   [ <counter-name> <integer>? ]+
+
+    // FIXME: This disabled parsing of `reversed()` counters. Remove this line once they're supported.
+    allow_reversed = AllowReversed::No;
+
+    auto transaction = tokens.begin_transaction();
+    tokens.skip_whitespace();
+
+    Vector<CounterDefinition> counter_definitions;
+    while (tokens.has_next_token()) {
+        auto per_item_transaction = tokens.begin_transaction();
+        CounterDefinition definition {};
+
+        // <counter-name> | <reversed-counter-name>
+        auto& token = tokens.next_token();
+        if (token.is(Token::Type::Ident)) {
+            definition.name = token.token().ident();
+            definition.is_reversed = false;
+        } else if (allow_reversed == AllowReversed::Yes && token.is_function("reversed"sv)) {
+            TokenStream function_tokens { token.function().values() };
+            function_tokens.skip_whitespace();
+            auto& name_token = function_tokens.next_token();
+            if (!name_token.is(Token::Type::Ident))
+                break;
+            function_tokens.skip_whitespace();
+            if (function_tokens.has_next_token())
+                break;
+
+            definition.name = name_token.token().ident();
+            definition.is_reversed = true;
+        } else {
+            break;
+        }
+        tokens.skip_whitespace();
+
+        // <integer>?
+        definition.value = parse_integer_value(tokens);
+        if (!definition.value && !definition.is_reversed)
+            definition.value = IntegerStyleValue::create(default_value_if_not_reversed);
+
+        counter_definitions.append(move(definition));
+        tokens.skip_whitespace();
+        per_item_transaction.commit();
+    }
+
+    if (counter_definitions.is_empty())
+        return {};
+
+    transaction.commit();
+    return CounterDefinitionsStyleValue::create(move(counter_definitions));
+}
+
 RefPtr<StyleValue> Parser::parse_ratio_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto ratio = parse_ratio(tokens); ratio.has_value())
@@ -4168,6 +4226,36 @@ RefPtr<StyleValue> Parser::parse_content_value(TokenStream<ComponentValue>& toke
 
     transaction.commit();
     return ContentStyleValue::create(StyleValueList::create(move(content_values), StyleValueList::Separator::Space), move(alt_text));
+}
+
+// https://drafts.csswg.org/css-lists-3/#propdef-counter-increment
+RefPtr<StyleValue> Parser::parse_counter_increment_value(TokenStream<ComponentValue>& tokens)
+{
+    // [ <counter-name> <integer>? ]+ | none
+    if (auto none = parse_all_as_single_none_value(tokens))
+        return none;
+
+    return parse_counter_definitions_value(tokens, AllowReversed::No, 1);
+}
+
+// https://drafts.csswg.org/css-lists-3/#propdef-counter-reset
+RefPtr<StyleValue> Parser::parse_counter_reset_value(TokenStream<ComponentValue>& tokens)
+{
+    // [ <counter-name> <integer>? | <reversed-counter-name> <integer>? ]+ | none
+    if (auto none = parse_all_as_single_none_value(tokens))
+        return none;
+
+    return parse_counter_definitions_value(tokens, AllowReversed::Yes, 0);
+}
+
+// https://drafts.csswg.org/css-lists-3/#propdef-counter-set
+RefPtr<StyleValue> Parser::parse_counter_set_value(TokenStream<ComponentValue>& tokens)
+{
+    // [ <counter-name> <integer>? ]+ | none
+    if (auto none = parse_all_as_single_none_value(tokens))
+        return none;
+
+    return parse_counter_definitions_value(tokens, AllowReversed::No, 0);
 }
 
 // https://www.w3.org/TR/css-display-3/#the-display-properties
@@ -6756,6 +6844,18 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue>> Parser::parse_css_value(Property
         return ParseError::SyntaxError;
     case PropertyID::Content:
         if (auto parsed_value = parse_content_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::CounterIncrement:
+        if (auto parsed_value = parse_counter_increment_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::CounterReset:
+        if (auto parsed_value = parse_counter_reset_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::CounterSet:
+        if (auto parsed_value = parse_counter_set_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Display:

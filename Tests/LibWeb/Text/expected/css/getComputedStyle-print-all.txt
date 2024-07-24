@@ -88,6 +88,9 @@ column-count: auto
 column-gap: auto
 content: normal
 content-visibility: visible
+counter-increment: none
+counter-reset: none
+counter-set: none
 cursor: auto
 cx: 0px
 cy: 0px
@@ -120,7 +123,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2074px
+height: 2125px
 image-rendering: auto
 inline-size: auto
 inset-block-end: auto

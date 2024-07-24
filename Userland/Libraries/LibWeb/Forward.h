@@ -120,6 +120,7 @@ class Clip;
 class ColorStyleValue;
 class ConicGradientStyleValue;
 class ContentStyleValue;
+class CounterDefinitionsStyleValue;
 class CustomIdentStyleValue;
 class Display;
 class DisplayStyleValue;

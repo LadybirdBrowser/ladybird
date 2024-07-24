@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
@@ -1091,6 +1092,42 @@ QuotesData StyleProperties::quotes() const
     }
 
     return InitialValues::quotes();
+}
+
+Vector<CounterData> StyleProperties::counter_data(PropertyID property_id) const
+{
+    auto value = property(property_id);
+
+    if (value->is_counter_definitions()) {
+        auto& counter_definitions = value->as_counter_definitions().counter_definitions();
+        Vector<CounterData> result;
+        for (auto& counter : counter_definitions) {
+            CounterData data {
+                .name = counter.name,
+                .is_reversed = counter.is_reversed,
+                .value = {},
+            };
+            if (counter.value) {
+                if (counter.value->is_integer()) {
+                    data.value = AK::clamp_to<i32>(counter.value->as_integer().integer());
+                } else if (counter.value->is_calculated()) {
+                    auto maybe_int = counter.value->as_calculated().resolve_integer();
+                    if (maybe_int.has_value())
+                        data.value = AK::clamp_to<i32>(*maybe_int);
+                } else {
+                    dbgln("Unimplemented type for {} integer value: '{}'", string_from_property_id(property_id), counter.value->to_string());
+                }
+            }
+            result.append(move(data));
+        }
+        return result;
+    }
+
+    if (value->to_identifier() == ValueID::None)
+        return {};
+
+    dbgln("Unhandled type for {} value: '{}'", string_from_property_id(property_id), value->to_string());
+    return {};
 }
 
 Optional<CSS::ScrollbarWidth> StyleProperties::scrollbar_width() const
