@@ -80,25 +80,6 @@ void DisplayList::execute(DisplayListPlayer& executor)
 {
     executor.prepare_to_execute(m_corner_clip_max_depth);
 
-    if (executor.needs_prepare_glyphs_texture()) {
-        HashMap<Gfx::Font const*, HashTable<u32>> unique_glyphs;
-        for (auto& command_with_scroll_id : m_commands) {
-            auto& command = command_with_scroll_id.command;
-            if (command.has<DrawGlyphRun>()) {
-                auto scale = command.get<DrawGlyphRun>().scale;
-                auto const& font = command.get<DrawGlyphRun>().glyph_run->font();
-                auto scaled_font = font.with_size(font.point_size() * static_cast<float>(scale));
-                for (auto const& glyph_or_emoji : command.get<DrawGlyphRun>().glyph_run->glyphs()) {
-                    if (glyph_or_emoji.has<Gfx::DrawGlyph>()) {
-                        auto const& glyph = glyph_or_emoji.get<Gfx::DrawGlyph>();
-                        unique_glyphs.ensure(scaled_font, [] { return HashTable<u32> {}; }).set(glyph.code_point);
-                    }
-                }
-            }
-        }
-        executor.prepare_glyph_texture(unique_glyphs);
-    }
-
     if (executor.needs_update_immutable_bitmap_texture_cache()) {
         HashMap<u32, Gfx::ImmutableBitmap const*> immutable_bitmaps;
         for (auto const& command_with_scroll_id : m_commands) {
