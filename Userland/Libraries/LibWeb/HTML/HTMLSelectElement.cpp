@@ -133,7 +133,16 @@ HTMLOptionElement* HTMLSelectElement::named_item(FlyString const& name)
 WebIDL::ExceptionOr<void> HTMLSelectElement::add(HTMLOptionOrOptGroupElement element, Optional<HTMLElementOrElementIndex> before)
 {
     // Similarly, the add(element, before) method must act like its namesake method on that same options collection.
-    return const_cast<HTMLOptionsCollection&>(*options()).add(move(element), move(before));
+    TRY(const_cast<HTMLOptionsCollection&>(*options()).add(move(element), move(before)));
+
+    // If the inserted element is the first and only element, mark it as selected
+    auto options = list_of_options();
+    if (options.size() == 1) {
+        options.at(0)->set_selected(true);
+        update_inner_text_element();
+    }
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-remove
