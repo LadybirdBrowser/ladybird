@@ -82,7 +82,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> AudioParam::set_value_at_time(
 {
     (void)value;
     (void)start_time;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::set_value_at_time"_fly_string);
+    dbgln("FIXME: Implement AudioParam::set_value_at_time");
+    return JS::NonnullGCPtr<AudioParam> { *this };
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-linearramptovalueattime
