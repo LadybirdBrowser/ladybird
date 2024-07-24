@@ -80,6 +80,8 @@ private:
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
+    void apply_mask_painted_from(DisplayList&, Gfx::IntRect);
+
     class SkiaSurface;
     SkiaSurface& surface() const;
 

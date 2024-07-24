@@ -51,7 +51,7 @@ public:
 
     virtual String to_string() const override;
 
-    void paint(PaintContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering, Vector<Gfx::Path> const& clip_paths = {}) const override;
+    void paint(PaintContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering, RefPtr<Painting::DisplayList> text_clip = {}) const override;
 
     virtual bool equals(StyleValue const& other) const override;
 

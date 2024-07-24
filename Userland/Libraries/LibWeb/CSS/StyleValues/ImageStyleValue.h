@@ -45,7 +45,7 @@ public:
     Optional<CSSPixelFraction> natural_aspect_ratio() const override;
 
     virtual bool is_paintable() const override;
-    void paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, Vector<Gfx::Path> const& clip_paths = {}) const override;
+    void paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, RefPtr<Painting::DisplayList> clip_paths = {}) const override;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
     Gfx::ImmutableBitmap const* current_frame_bitmap(DevicePixelRect const& dest_rect) const;

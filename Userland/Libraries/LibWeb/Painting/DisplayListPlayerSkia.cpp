@@ -62,6 +62,11 @@ public:
         m_surface->readPixels(pixmap, 0, 0);
     }
 
+    sk_sp<SkSurface> make_surface(int width, int height)
+    {
+        return m_surface->makeSurface(width, height);
+    }
+
 private:
     sk_sp<SkSurface> m_surface;
 };
@@ -368,17 +373,13 @@ static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
     }
 }
 
-#define APPLY_PATH_CLIP_IF_NEEDED                     \
-    ScopeGuard restore_path_clip { [&] {              \
-        if (command.clip_paths.size() > 0)            \
-            surface().canvas().restore();             \
-    } };                                              \
-    if (command.clip_paths.size() > 0) {              \
-        surface().canvas().save();                    \
-        SkPath clip_path;                             \
-        for (auto const& path : command.clip_paths)   \
-            clip_path.addPath(to_skia_path(path));    \
-        surface().canvas().clipPath(clip_path, true); \
+#define APPLY_TEXT_CLIP_IF_NEEDED(MASK_RECT)                    \
+    ScopeGuard const restore { [&] {                            \
+        if (command.text_clip)                                  \
+            surface().canvas().restore();                       \
+    } };                                                        \
+    if (command.text_clip) {                                    \
+        apply_mask_painted_from(*command.text_clip, MASK_RECT); \
     }
 
 DisplayListPlayerSkia::SkiaSurface& DisplayListPlayerSkia::surface() const
@@ -422,7 +423,7 @@ void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 
 void DisplayListPlayerSkia::fill_rect(FillRect const& command)
 {
-    APPLY_PATH_CLIP_IF_NEEDED
+    APPLY_TEXT_CLIP_IF_NEEDED(command.rect)
 
     auto const& rect = command.rect;
     auto& canvas = surface().canvas();
@@ -444,7 +445,7 @@ void DisplayListPlayerSkia::draw_scaled_bitmap(DrawScaledBitmap const& command)
 
 void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
 {
-    APPLY_PATH_CLIP_IF_NEEDED
+    APPLY_TEXT_CLIP_IF_NEEDED(command.dst_rect)
 
     auto src_rect = to_skia_rect(command.src_rect);
     auto dst_rect = to_skia_rect(command.dst_rect);
@@ -457,7 +458,7 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
 
 void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)
 {
-    APPLY_PATH_CLIP_IF_NEEDED
+    APPLY_TEXT_CLIP_IF_NEEDED(command.clip_rect)
 
     auto bitmap = to_skia_bitmap(command.bitmap->bitmap());
     auto image = SkImages::RasterFromBitmap(bitmap);
@@ -655,7 +656,7 @@ static ColorStopList expand_repeat_length(ColorStopList const& color_stop_list, 
 
 void DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& command)
 {
-    APPLY_PATH_CLIP_IF_NEEDED
+    APPLY_TEXT_CLIP_IF_NEEDED(command.gradient_rect)
 
     auto const& linear_gradient_data = command.linear_gradient_data;
     auto color_stop_list = linear_gradient_data.color_stops.list;
@@ -833,7 +834,7 @@ void DisplayListPlayerSkia::paint_text_shadow(PaintTextShadow const& command)
 
 void DisplayListPlayerSkia::fill_rect_with_rounded_corners(FillRectWithRoundedCorners const& command)
 {
-    APPLY_PATH_CLIP_IF_NEEDED
+    APPLY_TEXT_CLIP_IF_NEEDED(command.rect)
 
     auto const& rect = command.rect;
 
@@ -1200,7 +1201,7 @@ void DisplayListPlayerSkia::draw_rect(DrawRect const& command)
 
 void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& command)
 {
-    APPLY_PATH_CLIP_IF_NEEDED
+    APPLY_TEXT_CLIP_IF_NEEDED(command.rect)
 
     auto const& radial_gradient_data = command.radial_gradient_data;
 
@@ -1249,7 +1250,7 @@ void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& com
 
 void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& command)
 {
-    APPLY_PATH_CLIP_IF_NEEDED
+    APPLY_TEXT_CLIP_IF_NEEDED(command.rect)
 
     auto const& conic_gradient_data = command.conic_gradient_data;
 
@@ -1310,6 +1311,24 @@ void DisplayListPlayerSkia::blit_corner_clipping(BlitCornerClipping const&)
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const
 {
     return surface().canvas().quickReject(to_skia_rect(rect));
+}
+
+void DisplayListPlayerSkia::apply_mask_painted_from(DisplayList& display_list, Gfx::IntRect rect)
+{
+    auto mask_surface = m_surface->make_surface(rect.width(), rect.height());
+
+    auto previous_surface = move(m_surface);
+    m_surface = make<SkiaSurface>(mask_surface);
+    surface().canvas().translate(-rect.x(), -rect.y());
+    execute(display_list);
+    m_surface = move(previous_surface);
+
+    SkMatrix mask_matrix;
+    mask_matrix.setTranslate(rect.x(), rect.y());
+    auto image = mask_surface->makeImageSnapshot();
+    auto shader = image->makeShader(SkSamplingOptions(), mask_matrix);
+    surface().canvas().save();
+    surface().canvas().clipShader(shader);
 }
 
 }

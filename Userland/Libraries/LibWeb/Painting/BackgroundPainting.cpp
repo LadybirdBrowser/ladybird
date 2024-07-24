@@ -58,47 +58,21 @@ static CSSPixelSize run_default_sizing_algorithm(
     return default_size;
 }
 
-static Vector<Gfx::Path> compute_text_clip_paths(PaintContext& context, Paintable const& paintable)
+static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Paintable const& paintable)
 {
-    Vector<Gfx::Path> text_clip_paths;
+    auto text_clip_paths = DisplayList::create();
+    DisplayListRecorder display_list_recorder(*text_clip_paths);
     auto add_text_clip_path = [&](PaintableFragment const& fragment) {
         auto glyph_run = fragment.glyph_run();
         if (!glyph_run || glyph_run->glyphs().is_empty())
             return;
-        // Scale to the device pixels.
-        Gfx::Path glyph_run_path;
-        auto const& font = fragment.glyph_run()->font();
-        auto scaled_font = font.with_size(font.point_size() * static_cast<float>(context.device_pixels_per_css_pixel()));
-        for (auto glyph : fragment.glyph_run()->glyphs()) {
-            glyph.visit([&](auto& glyph) {
-                glyph.position = glyph.position.scaled(context.device_pixels_per_css_pixel());
-            });
 
-            if (glyph.has<Gfx::DrawGlyph>()) {
-                auto const& draw_glyph = glyph.get<Gfx::DrawGlyph>();
-
-                // Get the path for the glyph.
-                Gfx::Path glyph_path;
-                auto glyph_id = scaled_font->glyph_id_for_code_point(draw_glyph.code_point);
-                scaled_font->append_glyph_path_to(glyph_path, glyph_id);
-
-                // Transform the path to the fragment's position.
-                // FIXME: Record glyphs and use Painter::draw_glyphs() instead to avoid this duplicated code.
-                auto top_left = draw_glyph.position + Gfx::FloatPoint(scaled_font->glyph_left_bearing(draw_glyph.code_point), 0);
-                auto glyph_position = Gfx::GlyphRasterPosition::get_nearest_fit_for(top_left);
-                auto transform = Gfx::AffineTransform {}.translate(glyph_position.blit_position.to_type<float>());
-                glyph_run_path.append_path(glyph_path.copy_transformed(transform));
-            }
-        }
-
-        // Calculate the baseline start position.
         auto fragment_absolute_rect = fragment.absolute_rect();
         auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
-        DevicePixelPoint baseline_start { fragment_absolute_device_rect.x(), fragment_absolute_device_rect.y() + context.rounded_device_pixels(fragment.baseline()) };
 
-        // Add the path to text_clip_paths.
-        auto transform = Gfx::AffineTransform {}.translate(baseline_start.to_type<int>().to_type<float>());
-        text_clip_paths.append(glyph_run_path.copy_transformed(transform));
+        DevicePixelPoint baseline_start { fragment_absolute_device_rect.x(), fragment_absolute_device_rect.y() + context.rounded_device_pixels(fragment.baseline()) };
+        auto scale = context.device_pixels_per_css_pixel();
+        display_list_recorder.draw_text_run(baseline_start.to_type<int>(), *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.to_type<int>(), scale);
     };
 
     paintable.for_each_in_inclusive_subtree([&](auto& paintable) {
@@ -124,9 +98,9 @@ static Vector<Gfx::Path> compute_text_clip_paths(PaintContext& context, Paintabl
 // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
 void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, CSSPixelRect const& border_rect, Color background_color, CSS::ImageRendering image_rendering, Vector<CSS::BackgroundLayerData> const* background_layers, BorderRadiiData const& border_radii)
 {
-    Vector<Gfx::Path> clip_paths {};
+    RefPtr<DisplayList> text_clip;
     if (background_layers && !background_layers->is_empty() && background_layers->last().clip == CSS::BackgroundBox::Text) {
-        clip_paths = compute_text_clip_paths(context, *layout_node.paintable());
+        text_clip = compute_text_clip_paths(context, *layout_node.paintable());
     }
 
     auto& display_list_recorder = context.display_list_recorder();
@@ -191,7 +165,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         color_box.radii.top_right.as_corner(context),
         color_box.radii.bottom_right.as_corner(context),
         color_box.radii.bottom_left.as_corner(context),
-        clip_paths);
+        text_clip);
 
     if (!has_paintable_layers)
         return;
@@ -459,17 +433,17 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
                     fill_rect = fill_rect->united(image_device_rect);
                 }
             });
-            display_list_recorder.fill_rect(fill_rect->to_type<int>(), color.value(), clip_paths);
+            display_list_recorder.fill_rect(fill_rect->to_type<int>(), color.value(), text_clip);
         } else if (is<CSS::ImageStyleValue>(image) && repeat_x && repeat_y && !repeat_x_has_gap && !repeat_y_has_gap) {
             // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
             // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
             auto dest_rect = context.rounded_device_rect(image_rect);
             auto const* bitmap = static_cast<CSS::ImageStyleValue const&>(image).current_frame_bitmap(dest_rect);
             auto scaling_mode = to_gfx_scaling_mode(image_rendering, bitmap->rect(), dest_rect.to_type<int>());
-            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y }, clip_paths);
+            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y }, text_clip);
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
-                image.paint(context, image_device_rect, image_rendering, clip_paths);
+                image.paint(context, image_device_rect, image_rendering, text_clip);
             });
         }
     }
