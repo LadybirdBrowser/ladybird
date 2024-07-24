@@ -33,6 +33,8 @@
 
 namespace Web::Painting {
 
+class DisplayList;
+
 struct DrawGlyphRun {
     NonnullRefPtr<Gfx::GlyphRun> glyph_run;
     Color color;
@@ -48,7 +50,7 @@ struct DrawGlyphRun {
 struct FillRect {
     Gfx::IntRect rect;
     Color color;
-    Vector<Gfx::Path> clip_paths;
+    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
@@ -69,7 +71,7 @@ struct DrawScaledImmutableBitmap {
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::IntRect src_rect;
     Gfx::ScalingMode scaling_mode;
-    Vector<Gfx::Path> clip_paths;
+    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
@@ -82,10 +84,11 @@ struct DrawRepeatedImmutableBitmap {
     };
 
     Gfx::IntRect dst_rect;
+    Gfx::IntRect clip_rect;
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
-    Vector<Gfx::Path> clip_paths;
+    RefPtr<DisplayList> text_clip;
 
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
 };
@@ -129,7 +132,7 @@ struct PopStackingContext { };
 struct PaintLinearGradient {
     Gfx::IntRect gradient_rect;
     LinearGradientData linear_gradient_data;
-    Vector<Gfx::Path> clip_paths;
+    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return gradient_rect; }
 
@@ -170,7 +173,7 @@ struct FillRectWithRoundedCorners {
     Gfx::IntRect rect;
     Color color;
     CornerRadii corner_radii;
-    Vector<Gfx::Path> clip_paths;
+    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
@@ -310,7 +313,7 @@ struct PaintRadialGradient {
     RadialGradientData radial_gradient_data;
     Gfx::IntPoint center;
     Gfx::IntSize size;
-    Vector<Gfx::Path> clip_paths;
+    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 
@@ -321,7 +324,7 @@ struct PaintConicGradient {
     Gfx::IntRect rect;
     ConicGradientData conic_gradient_data;
     Gfx::IntPoint position;
-    Vector<Gfx::Path> clip_paths;
+    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 
