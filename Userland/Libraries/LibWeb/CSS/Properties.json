@@ -966,6 +966,7 @@
     "initial": "normal",
     "__comment": "FIXME: This accepts a whole lot of other types and identifiers!",
     "valid-types": [
+      "counter",
       "string"
     ],
     "valid-identifiers": [

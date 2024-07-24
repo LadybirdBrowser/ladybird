@@ -45,6 +45,7 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
@@ -2887,6 +2888,118 @@ RefPtr<StyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tokens
             transaction.commit();
             return IdentifierStyleValue::create(ident.value());
         }
+    }
+
+    return nullptr;
+}
+
+// https://drafts.csswg.org/css-lists-3/#counter-functions
+RefPtr<StyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& tokens)
+{
+    auto parse_counter_name = [](TokenStream<ComponentValue>& tokens) -> Optional<FlyString> {
+        // https://drafts.csswg.org/css-lists-3/#typedef-counter-name
+        // Counters are referred to in CSS syntax using the <counter-name> type, which represents
+        // their name as a <custom-ident>. A <counter-name> name cannot match the keyword none;
+        // such an identifier is invalid as a <counter-name>.
+        auto transaction = tokens.begin_transaction();
+        tokens.skip_whitespace();
+
+        auto& token = tokens.next_token();
+        if (!token.is(Token::Type::Ident) || token.token().ident() == "none"sv)
+            return {};
+
+        tokens.skip_whitespace();
+        if (tokens.has_next_token())
+            return {};
+
+        transaction.commit();
+        return token.token().ident();
+    };
+
+    auto parse_counter_style = [](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue> {
+        // https://drafts.csswg.org/css-counter-styles-3/#typedef-counter-style
+        // <counter-style> = <counter-style-name> | <symbols()>
+        // For now we just support <counter-style-name>, found here:
+        // https://drafts.csswg.org/css-counter-styles-3/#typedef-counter-style-name
+        // <counter-style-name> is a <custom-ident> that is not an ASCII case-insensitive match for none.
+        auto transaction = tokens.begin_transaction();
+        tokens.skip_whitespace();
+
+        auto& token = tokens.next_token();
+        if (!token.is(Token::Type::Ident) || token.token().ident() == "none"sv)
+            return {};
+
+        tokens.skip_whitespace();
+        if (tokens.has_next_token())
+            return {};
+
+        transaction.commit();
+        return CustomIdentStyleValue::create(token.token().ident());
+    };
+
+    auto transaction = tokens.begin_transaction();
+    auto token = tokens.next_token();
+    if (token.is_function("counter"sv)) {
+        // counter() = counter( <counter-name>, <counter-style>? )
+        auto& function = token.function();
+        TokenStream function_tokens { function.values() };
+        auto function_values = parse_a_comma_separated_list_of_component_values(function_tokens);
+        if (function_values.is_empty() || function_values.size() > 2)
+            return nullptr;
+
+        TokenStream name_tokens { function_values[0] };
+        auto counter_name = parse_counter_name(name_tokens);
+        if (!counter_name.has_value())
+            return nullptr;
+
+        RefPtr<StyleValue> counter_style;
+        if (function_values.size() > 1) {
+            TokenStream counter_style_tokens { function_values[1] };
+            counter_style = parse_counter_style(counter_style_tokens);
+            if (!counter_style)
+                return nullptr;
+        } else {
+            // In both cases, if the <counter-style> argument is omitted it defaults to `decimal`.
+            counter_style = CustomIdentStyleValue::create("decimal"_fly_string);
+        }
+
+        transaction.commit();
+        return CounterStyleValue::create_counter(counter_name.release_value(), counter_style.release_nonnull());
+    }
+
+    if (token.is_function("counters"sv)) {
+        // counters() = counters( <counter-name>, <string>, <counter-style>? )
+        auto& function = token.function();
+        TokenStream function_tokens { function.values() };
+        auto function_values = parse_a_comma_separated_list_of_component_values(function_tokens);
+        if (function_values.is_empty() || function_values.size() > 3)
+            return nullptr;
+
+        TokenStream name_tokens { function_values[0] };
+        auto counter_name = parse_counter_name(name_tokens);
+        if (!counter_name.has_value())
+            return nullptr;
+
+        TokenStream string_tokens { function_values[1] };
+        string_tokens.skip_whitespace();
+        RefPtr<StyleValue> join_string = parse_string_value(string_tokens);
+        string_tokens.skip_whitespace();
+        if (!join_string || string_tokens.has_next_token())
+            return nullptr;
+
+        RefPtr<StyleValue> counter_style;
+        if (function_values.size() > 2) {
+            TokenStream counter_style_tokens { function_values[2] };
+            counter_style = parse_counter_style(counter_style_tokens);
+            if (!counter_style)
+                return nullptr;
+        } else {
+            // In both cases, if the <counter-style> argument is omitted it defaults to `decimal`.
+            counter_style = CustomIdentStyleValue::create("decimal"_fly_string);
+        }
+
+        transaction.commit();
+        return CounterStyleValue::create_counters(counter_name.release_value(), join_string->as_string().string_value(), counter_style.release_nonnull());
     }
 
     return nullptr;
@@ -7139,6 +7252,11 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (auto property = any_property_accepts_type(property_ids, ValueType::Color); property.has_value()) {
         if (auto maybe_color = parse_color_value(tokens))
             return PropertyAndValue { *property, maybe_color };
+    }
+
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Counter); property.has_value()) {
+        if (auto maybe_counter = parse_counter_value(tokens))
+            return PropertyAndValue { *property, maybe_counter };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Image); property.has_value()) {

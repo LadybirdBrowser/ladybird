@@ -288,6 +288,7 @@ private:
     RefPtr<StyleValue> parse_number_or_percentage_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_identifier_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_color_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_counter_value(TokenStream<ComponentValue>&);
     enum class AllowReversed {
         No,
         Yes,
