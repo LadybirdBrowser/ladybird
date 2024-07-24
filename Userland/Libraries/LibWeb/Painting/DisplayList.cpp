@@ -141,13 +141,12 @@ void DisplayList::execute(DisplayListPlayer& executor)
             }
         }
 
-#define HANDLE_COMMAND(command_type, executor_method)                   \
-    if (command.has<command_type>()) {                                  \
-        result = executor.executor_method(command.get<command_type>()); \
+#define HANDLE_COMMAND(command_type, executor_method)          \
+    if (command.has<command_type>()) {                         \
+        executor.executor_method(command.get<command_type>()); \
     }
 
         // clang-format off
-        CommandResult result;
         HANDLE_COMMAND(DrawGlyphRun, draw_glyph_run)
         else HANDLE_COMMAND(FillRect, fill_rect)
         else HANDLE_COMMAND(DrawScaledBitmap, draw_scaled_bitmap)
@@ -179,22 +178,6 @@ void DisplayList::execute(DisplayListPlayer& executor)
         else HANDLE_COMMAND(BlitCornerClipping, blit_corner_clipping)
         else VERIFY_NOT_REACHED();
         // clang-format on
-
-        if (result == CommandResult::SkipStackingContext) {
-            auto stacking_context_nesting_level = 1;
-            while (next_command_index < m_commands.size()) {
-                if (m_commands[next_command_index].command.has<PushStackingContext>()) {
-                    stacking_context_nesting_level++;
-                } else if (m_commands[next_command_index].command.has<PopStackingContext>()) {
-                    stacking_context_nesting_level--;
-                }
-
-                next_command_index++;
-
-                if (stacking_context_nesting_level == 0)
-                    break;
-            }
-        }
     }
 }
 
