@@ -342,13 +342,8 @@ void PageClient::page_did_create_new_document(Web::DOM::Document& document)
 
 void PageClient::page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document& document)
 {
-    auto& realm = document.realm();
-
     VERIFY(m_console_clients.contains(document));
     m_top_level_document_console_client = *m_console_clients.get(document).value();
-
-    auto console_object = realm.intrinsics().console_object();
-    console_object->console().set_client(*m_top_level_document_console_client);
 }
 
 void PageClient::page_did_destroy_document(Web::DOM::Document& document)
@@ -671,6 +666,7 @@ void PageClient::initialize_js_console(Web::DOM::Document& document)
     auto& realm = document.realm();
     auto console_object = realm.intrinsics().console_object();
     auto console_client = heap().allocate_without_realm<WebContentConsoleClient>(console_object->console(), document.realm(), *this);
+    console_object->console().set_client(*console_client);
 
     m_console_clients.set(document, console_client);
 }
