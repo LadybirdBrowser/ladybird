@@ -400,7 +400,7 @@ int queue_a_task(HTML::Task::Source source, JS::GCPtr<EventLoop> event_loop, JS:
     auto task = HTML::Task::create(event_loop->vm(), source, document, steps);
 
     // 8. Let queue be the task queue to which source is associated on event loop.
-    auto& queue = event_loop->task_queue();
+    auto& queue = source == HTML::Task::Source::Microtask ? event_loop->microtask_queue() : event_loop->task_queue();
 
     // 9. Append task to queue.
     queue.add(task);
