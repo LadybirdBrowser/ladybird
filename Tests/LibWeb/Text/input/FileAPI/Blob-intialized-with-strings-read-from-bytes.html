@@ -1,0 +1,13 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const blob = new Blob(["This is some data to be read! 🦬"]);
+        const uint8Array = await blob.bytes();
+        const string = new TextDecoder().decode(uint8Array);
+        if (string === "This is some data to be read! 🦬")
+            println("PASS");
+        else
+            println("FAIL");
+        done();
+    });
+</script>

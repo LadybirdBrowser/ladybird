@@ -50,8 +50,9 @@ public:
     JS::NonnullGCPtr<Streams::ReadableStream> stream();
     JS::NonnullGCPtr<JS::Promise> text();
     JS::NonnullGCPtr<JS::Promise> array_buffer();
+    JS::NonnullGCPtr<JS::Promise> bytes();
 
-    ReadonlyBytes bytes() const { return m_byte_buffer.bytes(); }
+    ReadonlyBytes raw_bytes() const { return m_byte_buffer.bytes(); }
 
     JS::NonnullGCPtr<Streams::ReadableStream> get_stream();
 

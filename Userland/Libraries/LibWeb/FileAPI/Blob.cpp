@@ -107,7 +107,7 @@ ErrorOr<ByteBuffer> process_blob_parts(Vector<BlobPart> const& blob_parts, Optio
             },
             // 3. If element is a Blob, append the bytes it represents to bytes.
             [&](JS::Handle<Blob> const& blob) -> ErrorOr<void> {
-                return bytes.try_append(blob->bytes());
+                return bytes.try_append(blob->raw_bytes());
             }));
     }
     // 3. Return bytes.
@@ -410,6 +410,32 @@ JS::NonnullGCPtr<JS::Promise> Blob::array_buffer()
         auto const& buffer = static_cast<const JS::ArrayBuffer&>(object).buffer();
 
         return JS::ArrayBuffer::create(realm, buffer);
+    }));
+}
+
+// https://w3c.github.io/FileAPI/#dom-blob-bytes
+JS::NonnullGCPtr<JS::Promise> Blob::bytes()
+{
+    auto& realm = this->realm();
+
+    // 1. Let stream be the result of calling get stream on this.
+    auto stream = get_stream();
+
+    // 2. Let reader be the result of getting a reader from stream. If that threw an exception, return a new promise rejected with that exception.
+    auto reader_or_exception = acquire_readable_stream_default_reader(*stream);
+    if (reader_or_exception.is_exception())
+        return WebIDL::create_rejected_promise_from_exception(realm, reader_or_exception.release_error());
+    auto reader = reader_or_exception.release_value();
+
+    // 3. Let promise be the result of reading all bytes from stream with reader.
+    auto promise = reader->read_all_bytes_deprecated();
+
+    // 4. Return the result of transforming promise by a fulfillment handler that returns a new Uint8Array wrapping an ArrayBuffer containing its first argument.
+    return WebIDL::upon_fulfillment(*promise, JS::create_heap_function(heap(), [&realm](JS::Value first_argument) -> WebIDL::ExceptionOr<JS::Value> {
+        auto& object = first_argument.as_object();
+        VERIFY(is<JS::ArrayBuffer>(object));
+        auto& array_buffer = static_cast<JS::ArrayBuffer&>(object);
+        return JS::Uint8Array::create(realm, array_buffer.byte_length(), array_buffer);
     }));
 }
 

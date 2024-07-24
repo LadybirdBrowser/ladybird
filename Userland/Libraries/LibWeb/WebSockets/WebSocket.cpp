@@ -233,7 +233,7 @@ WebIDL::ExceptionOr<void> WebSocket::send(Variant<JS::Handle<WebIDL::BufferSourc
                     return {};
                 },
                 [this](JS::Handle<FileAPI::Blob> const& blob) -> ErrorOr<void> {
-                    auto byte_buffer = TRY(ByteBuffer::copy(blob->bytes()));
+                    auto byte_buffer = TRY(ByteBuffer::copy(blob->raw_bytes()));
                     m_websocket->send(byte_buffer, false);
                     return {};
                 }));

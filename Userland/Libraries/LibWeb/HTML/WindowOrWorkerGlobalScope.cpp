@@ -210,7 +210,7 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
                 // 1. Let imageData be the result of reading image's data. If an error occurs during reading of the
                 // object, then reject p with an "InvalidStateError" DOMException and abort these steps.
                 // FIXME: I guess this is always fine for us as the data is already read.
-                auto const image_data = blob->bytes();
+                auto const image_data = blob->raw_bytes();
 
                 // FIXME:
                 // 2. Apply the image sniffing rules to determine the file format of imageData, with MIME type of
