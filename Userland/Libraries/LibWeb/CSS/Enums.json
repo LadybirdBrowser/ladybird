@@ -369,6 +369,10 @@
     "middle",
     "end"
   ],
+  "text-overflow": [
+    "clip",
+    "ellipsis"
+  ],
   "scrollbar-gutter": [
     "auto",
     "stable",

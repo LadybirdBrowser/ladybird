@@ -2559,6 +2559,15 @@
       "text-justify"
     ]
   },
+  "text-overflow": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "clip",
+    "valid-types": [
+      "text-overflow"
+    ]
+  },
   "text-shadow": {
     "affects-layout": false,
     "animation-type": "custom",
