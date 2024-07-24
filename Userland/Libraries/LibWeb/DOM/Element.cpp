@@ -338,9 +338,8 @@ bool Element::has_attribute_ns(Optional<FlyString> const& namespace_, FlyString 
 WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optional<bool> force)
 {
     // 1. If qualifiedName does not match the Name production in XML, then throw an "InvalidCharacterError" DOMException.
-    // FIXME: Proper name validation
-    if (name.is_empty())
-        return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty"_fly_string);
+    if (!Document::is_valid_name(name.to_string()))
+        return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_fly_string);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
     bool insert_as_lowercase = namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML;

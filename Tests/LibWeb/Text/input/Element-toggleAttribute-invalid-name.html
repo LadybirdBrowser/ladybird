@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="test"></div>
+<script>
+    test(() => {
+        const element = document.getElementById("test");
+
+        // toggleAttribute should throw an exception if the name isn't a valid
+        // XML Name (e.g. "", or "0").
+        try {
+            element.toggleAttribute("");
+            println("FAIL ('')");
+        } catch (err) {
+            println("PASS (''): " + err.name);
+        }
+
+        try {
+            element.toggleAttribute("0");
+            println("FAIL ('0')");
+        } catch (err) {
+            println("PASS ('0'): " + err.name);
+        }
+    });
+</script>
