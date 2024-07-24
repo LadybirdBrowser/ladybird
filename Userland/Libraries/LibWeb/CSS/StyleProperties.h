@@ -66,6 +66,7 @@ public:
     Optional<CSS::TextAnchor> text_anchor() const;
     Optional<CSS::TextAlign> text_align() const;
     Optional<CSS::TextJustify> text_justify() const;
+    Optional<CSS::TextOverflow> text_overflow() const;
     CSS::Length border_spacing_horizontal() const;
     CSS::Length border_spacing_vertical() const;
     Optional<CSS::CaptionSide> caption_side() const;

@@ -643,6 +643,12 @@ Optional<CSS::TextJustify> StyleProperties::text_justify() const
     return value_id_to_text_justify(value->to_identifier());
 }
 
+Optional<CSS::TextOverflow> StyleProperties::text_overflow() const
+{
+    auto value = property(CSS::PropertyID::TextOverflow);
+    return value_id_to_text_overflow(value->to_identifier());
+}
+
 Optional<CSS::PointerEvents> StyleProperties::pointer_events() const
 {
     auto value = property(CSS::PropertyID::PointerEvents);
