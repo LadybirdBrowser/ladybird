@@ -96,7 +96,7 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
                 error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_fly_string));
         },
         [&](JS::Handle<FileAPI::Blob> const& blob) {
-            if (auto result = success_steps(blob->bytes()); result.is_error())
+            if (auto result = success_steps(blob->raw_bytes()); result.is_error())
                 error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_fly_string));
         },
         [&](Empty) {

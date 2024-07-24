@@ -277,7 +277,7 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(Vector<XHR::FormDat
                 TRY(builder.try_append(TRY(String::formatted("Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\n", escaped_name, escaped_filename))));
                 // The parts of the generated multipart/form-data resource that correspond to file fields must have a `Content-Type` header specified.
                 TRY(builder.try_append(TRY(String::formatted("Content-Type: {}\r\n\r\n", file->type()))));
-                TRY(builder.try_append(file->bytes()));
+                TRY(builder.try_append(file->raw_bytes()));
                 TRY(builder.try_append("\r\n"sv));
                 return {};
             },

@@ -841,7 +841,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> scheme_fetch(JS::Realm& r
         // 8. If request’s header list does not contain `Range`:
         if (!request->header_list()->contains("Range"sv.bytes())) {
             // 1. Let bodyWithType be the result of safely extracting blob.
-            auto body_with_type = TRY(safely_extract_body(realm, blob->bytes()));
+            auto body_with_type = TRY(safely_extract_body(realm, blob->raw_bytes()));
 
             // 2. Set response’s status message to `OK`.
             response->set_status_message(MUST(ByteBuffer::copy("OK"sv.bytes())));
@@ -2150,7 +2150,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                 return {};
             },
             [&](JS::Handle<FileAPI::Blob> const& blob_handle) -> WebIDL::ExceptionOr<void> {
-                load_request.set_body(TRY_OR_THROW_OOM(vm, ByteBuffer::copy(blob_handle->bytes())));
+                load_request.set_body(TRY_OR_THROW_OOM(vm, ByteBuffer::copy(blob_handle->raw_bytes())));
                 return {};
             },
             [](Empty) -> WebIDL::ExceptionOr<void> {
