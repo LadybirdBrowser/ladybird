@@ -88,8 +88,8 @@ RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CS
         paint_context.set_svg_transform(graphics_element.get_transform());
         paint_context.set_draw_svg_geometry_for_clip_path(is<SVGClipPaintable>(paintable));
         StackingContext::paint_node_as_stacking_context(paintable, paint_context);
-        DisplayListPlayerSkia executor { *mask_bitmap };
-        display_list.execute(executor);
+        DisplayListPlayerSkia display_list_player { *mask_bitmap };
+        display_list_player.execute(display_list);
         return mask_bitmap;
     };
     RefPtr<Gfx::Bitmap> mask_bitmap = {};

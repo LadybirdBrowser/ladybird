@@ -76,19 +76,21 @@ void DisplayList::mark_unnecessary_commands()
     VERIFY(sample_blit_ranges.is_empty());
 }
 
-void DisplayList::execute(DisplayListPlayer& executor)
+void DisplayListPlayer::execute(DisplayList& display_list)
 {
+    auto const& commands = display_list.commands();
+
     HashTable<u32> skipped_sample_corner_commands;
     size_t next_command_index = 0;
-    while (next_command_index < m_commands.size()) {
-        if (m_commands[next_command_index].skip) {
+    while (next_command_index < commands.size()) {
+        if (commands[next_command_index].skip) {
             next_command_index++;
             continue;
         }
 
-        auto& command = m_commands[next_command_index++].command;
+        auto& command = commands[next_command_index++].command;
         auto bounding_rect = command_bounding_rectangle(command);
-        if (bounding_rect.has_value() && (bounding_rect->is_empty() || executor.would_be_fully_clipped_by_painter(*bounding_rect))) {
+        if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
             if (command.has<SampleUnderCorners>()) {
                 auto const& sample_under_corners = command.get<SampleUnderCorners>();
                 skipped_sample_corner_commands.set(sample_under_corners.id);
@@ -108,9 +110,9 @@ void DisplayList::execute(DisplayListPlayer& executor)
             }
         }
 
-#define HANDLE_COMMAND(command_type, executor_method)          \
-    if (command.has<command_type>()) {                         \
-        executor.executor_method(command.get<command_type>()); \
+#define HANDLE_COMMAND(command_type, executor_method) \
+    if (command.has<command_type>()) {                \
+        executor_method(command.get<command_type>()); \
     }
 
         // clang-format off
