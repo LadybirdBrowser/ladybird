@@ -1209,7 +1209,7 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
             auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
             auto texture = m_metal_context->create_texture_from_iosurface(iosurface_backing_store.iosurface_handle());
             Painting::DisplayListPlayerSkia player(*m_skia_backend_context, *texture);
-            display_list.execute(player);
+            player.execute(display_list);
             return;
         }
 #endif
@@ -1217,19 +1217,19 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
 #ifdef USE_VULKAN
         if (m_skia_backend_context) {
             Painting::DisplayListPlayerSkia player(*m_skia_backend_context, target.bitmap());
-            display_list.execute(player);
+            player.execute(display_list);
             return;
         }
 #endif
 
         // Fallback to CPU backend if GPU is not available
         Painting::DisplayListPlayerSkia player(target.bitmap());
-        display_list.execute(player);
+        player.execute(display_list);
         break;
     }
     case DisplayListPlayerType::SkiaCPU: {
         Painting::DisplayListPlayerSkia player(target.bitmap());
-        display_list.execute(player);
+        player.execute(display_list);
         break;
     }
     default:

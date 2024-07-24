@@ -32,10 +32,15 @@
 
 namespace Web::Painting {
 
+class DisplayList;
+
 class DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
 
+    void execute(DisplayList& display_list);
+
+private:
     virtual void draw_glyph_run(DrawGlyphRun const&) = 0;
     virtual void fill_rect(FillRect const&) = 0;
     virtual void draw_scaled_bitmap(DrawScaledBitmap const&) = 0;
@@ -74,15 +79,16 @@ public:
 
     void apply_scroll_offsets(Vector<Gfx::IntPoint> const& offsets_by_frame_id);
     void mark_unnecessary_commands();
-    void execute(DisplayListPlayer&);
 
-private:
     struct CommandListItem {
         Optional<i32> scroll_frame_id;
         Command command;
         bool skip { false };
     };
 
+    AK::SegmentedVector<CommandListItem, 512> const& commands() const { return m_commands; }
+
+private:
     AK::SegmentedVector<CommandListItem, 512> m_commands;
 };
 
