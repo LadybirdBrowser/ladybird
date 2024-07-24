@@ -67,9 +67,6 @@ public:
 
     virtual void prepare_to_execute(size_t corner_clip_max_depth) override;
 
-    bool needs_update_immutable_bitmap_texture_cache() const override { return false; }
-    void update_immutable_bitmap_texture_cache(HashMap<u32, Gfx::ImmutableBitmap const*>&) override {};
-
     DisplayListPlayerSkia(Gfx::Bitmap&);
 
 #ifdef USE_VULKAN
