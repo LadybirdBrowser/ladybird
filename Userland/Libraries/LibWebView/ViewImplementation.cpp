@@ -449,6 +449,7 @@ void ViewImplementation::handle_resize()
 void ViewImplementation::handle_web_content_process_crash()
 {
     dbgln("WebContent process crashed!");
+    dbgln("Consider raising an issue at https://github.com/LadybirdBrowser/ladybird/issues");
 
     ++m_crash_count;
     constexpr size_t max_reasonable_crash_count = 5U;
