@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/AudioBufferSourceNode.h>
+#include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebAudio/DynamicsCompressorNode.h>
@@ -30,6 +31,24 @@ void BaseAudioContext::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(BaseAudioContext);
+}
+
+void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_destination);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-destination
+JS::NonnullGCPtr<AudioDestinationNode> BaseAudioContext::destination()
+{
+    auto& realm = this->realm();
+
+    dbgln("FIXME: Properly implement BaseAudioContext::destination");
+
+    if (!m_destination)
+        m_destination = realm.heap().allocate<AudioDestinationNode>(realm, realm, *this);
+    return *m_destination;
 }
 
 void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)
