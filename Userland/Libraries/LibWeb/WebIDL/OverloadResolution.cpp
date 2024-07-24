@@ -271,9 +271,9 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::Effect
         //     then remove from S all other entries.
         else if (value.is_object()
             && has_overload_with_argument_type_or_subtype_matching(overloads, i, [](IDL::Type const& type) {
-                   // FIXME: - a callback interface type
-                   // FIXME: - a dictionary type
-                   // FIXME: - a record type
+                   dbgln("FIXME: a callback interface type");
+                   dbgln("FIXME: a dictionary type");
+                   dbgln("FIXME: a record type");
                    if (type.is_object())
                        return true;
                    return false;
