@@ -13,6 +13,14 @@
 
 namespace Web::Layout {
 
+// NOTE: We use a custom clamping function here instead of AK::clamp(), since the AK version
+//       will VERIFY(max >= min) and CSS explicitly allows that (see css-values-4.)
+template<typename T>
+[[nodiscard]] constexpr T css_clamp(T const& value, T const& min, T const& max)
+{
+    return ::max(min, ::min(value, max));
+}
+
 class FormattingContext {
 public:
     virtual ~FormattingContext();
