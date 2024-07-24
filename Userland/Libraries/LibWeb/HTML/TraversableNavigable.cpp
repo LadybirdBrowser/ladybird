@@ -1190,7 +1190,7 @@ JS::GCPtr<DOM::Node> TraversableNavigable::currently_focused_area()
 
 void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::BackingStore& target, PaintOptions paint_options)
 {
-    Painting::DisplayList display_list;
+    auto display_list = Painting::DisplayList::create();
     Painting::DisplayListRecorder display_list_recorder(display_list);
 
     Gfx::IntRect bitmap_rect { {}, content_rect.size().to_type<int>() };
