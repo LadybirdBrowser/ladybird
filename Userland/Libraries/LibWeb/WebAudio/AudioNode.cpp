@@ -24,10 +24,10 @@ AudioNode::~AudioNode() = default;
 // https://webaudio.github.io/web-audio-api/#dom-audionode-connect
 WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioNode>> AudioNode::connect(JS::NonnullGCPtr<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
 {
-    (void)destination_node;
     (void)output;
     (void)input;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioNode::connect (AudioNode)"_fly_string);
+    dbgln("FIXME: Implement AudioNode::connect (AudioNode)");
+    return destination_node;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-connect-destinationparam-output
