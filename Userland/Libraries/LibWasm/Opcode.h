@@ -20,6 +20,8 @@ namespace Instructions {
     M(block, 0x02)                            \
     M(loop, 0x03)                             \
     M(if_, 0x04)                              \
+    M(structured_else, 0x05)                  \
+    M(structured_end, 0x0b)                   \
     M(br, 0x0c)                               \
     M(br_if, 0x0d)                            \
     M(br_table, 0x0e)                         \
@@ -217,8 +219,6 @@ namespace Instructions {
     M(table_grow, 0xfc0000000000000full)                    \
     M(table_size, 0xfc00000000000010ull)                    \
     M(table_fill, 0xfc00000000000011ull)                    \
-    M(structured_else, 0xff00000000000000ull)               \
-    M(structured_end, 0xff00000000000001ull)                \
     M(v128_load, 0xfd00000000000000ull)                     \
     M(v128_load8x8_s, 0xfd00000000000001ull)                \
     M(v128_load8x8_u, 0xfd00000000000002ull)                \
