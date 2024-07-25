@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <math.h>
+
 #include <AK/Assertions.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
@@ -13,7 +15,6 @@
 #include <AK/SIMD.h>
 #include <AK/StdLibExtras.h>
 #include <LibIPC/Forward.h>
-#include <math.h>
 
 namespace Gfx {
 

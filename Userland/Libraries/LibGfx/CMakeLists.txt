@@ -105,3 +105,18 @@ pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)
 
 target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PkgConfig::Jxl PNG::PNG avif WebP::webp WebP::webpdecoder
             WebP::webpdemux WebP::libwebpmux)
+
+if (ENABLE_SWIFT)
+    target_compile_features(LibGfx PUBLIC cxx_std_23)
+
+    target_sources(LibGfx PRIVATE
+        Color.swift
+    )
+    target_compile_definitions(LibGfx PRIVATE LIBGFX_USE_SWIFT)
+    set_target_properties(LibGfx PROPERTIES Swift_MODULE_NAME "SwiftLibGfx" LINKER_LANGUAGE Swift)
+
+    get_target_property(LIBGFX_NATIVE_DIRS LibGfx INCLUDE_DIRECTORIES)
+    _swift_generate_cxx_header(LibGfx "LibGfx-Swift.h"
+            SEARCH_PATHS ${LIBGFX_NATIVE_DIRS}
+    )
+endif()

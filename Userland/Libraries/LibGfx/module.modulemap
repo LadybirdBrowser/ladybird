@@ -1,0 +1,8 @@
+module LibGfx [system] {
+    requires cplusplus
+
+    explicit module Color {
+        header "Color.h"
+        export *
+    }
+}
