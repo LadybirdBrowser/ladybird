@@ -116,10 +116,10 @@ bool MediaList::matches() const
     return false;
 }
 
-JS::Value MediaList::item_value(size_t index) const
+Optional<JS::Value> MediaList::item_value(size_t index) const
 {
     if (index >= m_media.size())
-        return JS::js_undefined();
+        return {};
     return JS::PrimitiveString::create(vm(), m_media[index]->to_string());
 }
 

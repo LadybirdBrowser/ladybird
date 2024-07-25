@@ -96,7 +96,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
             // 2. Let value be an uninitialized variable.
             // 3. If operation was defined without an identifier, then set value to the result of performing the steps listed in the interface description to determine the value of an indexed property with index as the index.
             // 4. Otherwise, operation was defined with an identifier. Set value to the result of performing the method steps of operation with O as this and « index » as the argument values.
-            auto value = item_value(index);
+            auto value = *item_value(index);
 
             // 5. Let desc be a newly created Property Descriptor with no fields.
             JS::PropertyDescriptor descriptor;
@@ -481,9 +481,9 @@ WebIDL::ExceptionOr<PlatformObject::DidDeletionFail> PlatformObject::delete_valu
     VERIFY_NOT_REACHED();
 }
 
-JS::Value PlatformObject::item_value(size_t) const
+Optional<JS::Value> PlatformObject::item_value(size_t) const
 {
-    return JS::js_undefined();
+    return {};
 }
 
 JS::Value PlatformObject::named_item_value(FlyString const&) const

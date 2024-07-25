@@ -106,11 +106,11 @@ JS::GCPtr<Plugin> PluginArray::named_item(FlyString const& name) const
     return nullptr;
 }
 
-JS::Value PluginArray::item_value(size_t index) const
+Optional<JS::Value> PluginArray::item_value(size_t index) const
 {
     auto return_value = item(index);
     if (!return_value)
-        return JS::js_null();
+        return {};
     return return_value.ptr();
 }
 

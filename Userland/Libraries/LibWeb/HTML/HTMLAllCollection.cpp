@@ -219,9 +219,11 @@ bool HTMLAllCollection::is_supported_property_index(u32 index) const
     return index < collect_matching_elements().size();
 }
 
-JS::Value HTMLAllCollection::item_value(size_t index) const
+Optional<JS::Value> HTMLAllCollection::item_value(size_t index) const
 {
-    return get_the_all_indexed_element(index);
+    if (auto value = get_the_all_indexed_element(index))
+        return value;
+    return {};
 }
 
 JS::Value HTMLAllCollection::named_item_value(FlyString const& name) const

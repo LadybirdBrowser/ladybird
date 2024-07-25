@@ -25,11 +25,11 @@ void NodeList::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NodeList);
 }
 
-JS::Value NodeList::item_value(size_t index) const
+Optional<JS::Value> NodeList::item_value(size_t index) const
 {
     auto* node = item(index);
     if (!node)
-        return JS::js_undefined();
+        return {};
     return const_cast<Node*>(node);
 }
 

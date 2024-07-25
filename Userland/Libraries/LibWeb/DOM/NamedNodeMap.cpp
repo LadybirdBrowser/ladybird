@@ -326,11 +326,11 @@ Attr const* NamedNodeMap::remove_attribute_ns(Optional<FlyString> const& namespa
     return attribute;
 }
 
-JS::Value NamedNodeMap::item_value(size_t index) const
+Optional<JS::Value> NamedNodeMap::item_value(size_t index) const
 {
     auto const* node = item(index);
     if (!node)
-        return JS::js_undefined();
+        return {};
     return node;
 }
 

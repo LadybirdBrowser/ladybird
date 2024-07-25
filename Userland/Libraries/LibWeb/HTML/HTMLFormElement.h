@@ -106,7 +106,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     // ^PlatformObject
-    virtual JS::Value item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(size_t index) const override;
     virtual JS::Value named_item_value(FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
     virtual bool is_supported_property_index(u32) const override;

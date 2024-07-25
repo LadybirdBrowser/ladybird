@@ -56,10 +56,10 @@ bool FileList::is_supported_property_index(u32 index) const
     return index < m_files.size();
 }
 
-JS::Value FileList::item_value(size_t index) const
+Optional<JS::Value> FileList::item_value(size_t index) const
 {
     if (index >= m_files.size())
-        return JS::js_undefined();
+        return {};
 
     return m_files[index].ptr();
 }
