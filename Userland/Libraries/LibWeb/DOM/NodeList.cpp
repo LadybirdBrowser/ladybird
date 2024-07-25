@@ -33,9 +33,4 @@ Optional<JS::Value> NodeList::item_value(size_t index) const
     return const_cast<Node*>(node);
 }
 
-bool NodeList::is_supported_property_index(u32 index) const
-{
-    return index < length();
-}
-
 }

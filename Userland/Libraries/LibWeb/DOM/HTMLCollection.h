@@ -44,7 +44,6 @@ public:
     virtual JS::Value named_item_value(FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
     virtual bool is_supported_property_name(FlyString const&) const override;
-    virtual bool is_supported_property_index(u32) const override;
 
 protected:
     HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter);

@@ -501,9 +501,9 @@ bool PlatformObject::is_supported_property_name(FlyString const& name) const
     return supported_property_names().contains_slow(name);
 }
 
-bool PlatformObject::is_supported_property_index(u32) const
+bool PlatformObject::is_supported_property_index(u32 index) const
 {
-    return false;
+    return item_value(index).has_value();
 }
 
 }

@@ -74,14 +74,6 @@ Vector<FlyString> Plugin::supported_property_names() const
     return mime_types;
 }
 
-// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewing-support:supports-indexed-properties-3
-bool Plugin::is_supported_property_index(u32 index) const
-{
-    // The Plugin interface supports indexed properties. The supported property indices are the indices of this's relevant global object's PDF viewer mime type objects.
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
-    return index < window.pdf_viewer_mime_type_objects().size();
-}
-
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin-length
 size_t Plugin::length() const
 {

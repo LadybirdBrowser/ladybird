@@ -24,7 +24,6 @@ public:
     [[nodiscard]] static JS::NonnullGCPtr<NamedNodeMap> create(Element&);
     ~NamedNodeMap() = default;
 
-    virtual bool is_supported_property_index(u32 index) const override;
     virtual Vector<FlyString> supported_property_names() const override;
     virtual Optional<JS::Value> item_value(size_t index) const override;
     virtual JS::Value named_item_value(FlyString const& name) const override;

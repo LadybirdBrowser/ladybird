@@ -927,13 +927,6 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, P
     VERIFY(m_planned_navigation);
 }
 
-// https://html.spec.whatwg.org/multipage/forms.html#the-form-element:supported-property-indices
-bool HTMLFormElement::is_supported_property_index(u32 index) const
-{
-    // The supported property indices at any instant are the indices supported by the object returned by the elements attribute at that instant.
-    return index < elements()->length();
-}
-
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-item
 Optional<JS::Value> HTMLFormElement::item_value(size_t index) const
 {

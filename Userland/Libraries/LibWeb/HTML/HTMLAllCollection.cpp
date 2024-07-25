@@ -214,11 +214,6 @@ Variant<JS::NonnullGCPtr<DOM::HTMLCollection>, JS::NonnullGCPtr<DOM::Element>, E
     return get_the_all_named_elements(MUST(FlyString::from_deprecated_fly_string(name_or_index.as_string())));
 }
 
-bool HTMLAllCollection::is_supported_property_index(u32 index) const
-{
-    return index < collect_matching_elements().size();
-}
-
 Optional<JS::Value> HTMLAllCollection::item_value(size_t index) const
 {
     if (auto value = get_the_all_indexed_element(index))

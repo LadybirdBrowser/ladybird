@@ -31,7 +31,6 @@ public:
     void append_medium(StringView);
     void delete_medium(StringView);
 
-    virtual bool is_supported_property_index(u32 index) const override;
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
     bool evaluate(HTML::Window const&);

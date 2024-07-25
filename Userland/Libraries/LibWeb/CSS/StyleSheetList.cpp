@@ -153,17 +153,6 @@ void StyleSheetList::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_sheets);
 }
 
-// https://www.w3.org/TR/cssom/#ref-for-dfn-supported-property-indices%E2%91%A1
-bool StyleSheetList::is_supported_property_index(u32 index) const
-{
-    // The object’s supported property indices are the numbers in the range zero to one less than the number of CSS style sheets represented by the collection.
-    // If there are no such CSS style sheets, then there are no supported property indices.
-    if (m_sheets.is_empty())
-        return false;
-
-    return index < m_sheets.size();
-}
-
 Optional<JS::Value> StyleSheetList::item_value(size_t index) const
 {
     if (index >= m_sheets.size())

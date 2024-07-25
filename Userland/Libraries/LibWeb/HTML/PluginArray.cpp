@@ -59,14 +59,6 @@ Vector<FlyString> PluginArray::supported_property_names() const
     return plugin_names;
 }
 
-// https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewing-support:supports-indexed-properties
-bool PluginArray::is_supported_property_index(u32 index) const
-{
-    // The PluginArray interface supports indexed properties. The supported property indices are the indices of this's relevant global object's PDF viewer plugin objects.
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
-    return index < window.pdf_viewer_plugin_objects().size();
-}
-
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-pluginarray-length
 size_t PluginArray::length() const
 {

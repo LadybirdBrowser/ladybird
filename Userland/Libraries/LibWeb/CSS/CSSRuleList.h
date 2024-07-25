@@ -51,7 +51,6 @@ public:
     auto end() const { return m_rules.end(); }
     auto end() { return m_rules.end(); }
 
-    virtual bool is_supported_property_index(u32 index) const override;
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
     WebIDL::ExceptionOr<void> remove_a_css_rule(u32 index);

@@ -109,7 +109,6 @@ private:
     virtual Optional<JS::Value> item_value(size_t index) const override;
     virtual JS::Value named_item_value(FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
-    virtual bool is_supported_property_index(u32) const override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
