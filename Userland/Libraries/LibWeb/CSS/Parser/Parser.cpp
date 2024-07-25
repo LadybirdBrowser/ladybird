@@ -7651,7 +7651,7 @@ static RefPtr<StyleValue const> get_custom_property(DOM::Element const& element,
             return it->value.value;
     }
 
-    for (auto const* current_element = &element; current_element; current_element = current_element->parent_element()) {
+    for (auto const* current_element = &element; current_element; current_element = current_element->parent_or_shadow_host_element()) {
         if (auto it = current_element->custom_properties({}).find(custom_property_name); it != current_element->custom_properties({}).end())
             return it->value.value;
     }
