@@ -219,7 +219,7 @@ bool HTMLAllCollection::is_supported_property_index(u32 index) const
     return index < collect_matching_elements().size();
 }
 
-WebIDL::ExceptionOr<JS::Value> HTMLAllCollection::item_value(size_t index) const
+JS::Value HTMLAllCollection::item_value(size_t index) const
 {
     return get_the_all_indexed_element(index);
 }

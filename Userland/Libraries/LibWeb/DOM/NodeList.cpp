@@ -25,7 +25,7 @@ void NodeList::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NodeList);
 }
 
-WebIDL::ExceptionOr<JS::Value> NodeList::item_value(size_t index) const
+JS::Value NodeList::item_value(size_t index) const
 {
     auto* node = item(index);
     if (!node)

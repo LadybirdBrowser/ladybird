@@ -27,7 +27,7 @@ public:
     DOMRect const* item(u32 index) const;
 
     virtual bool is_supported_property_index(u32) const override;
-    virtual WebIDL::ExceptionOr<JS::Value> item_value(size_t index) const override;
+    virtual JS::Value item_value(size_t index) const override;
 
 private:
     DOMRectList(JS::Realm&, Vector<JS::NonnullGCPtr<DOMRect>>);
