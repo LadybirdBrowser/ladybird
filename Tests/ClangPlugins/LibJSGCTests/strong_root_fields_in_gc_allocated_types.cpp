@@ -5,6 +5,8 @@
  */
 
 // RUN: %clang++ -cc1 -verify %plugin_opts% %s 2>&1
+// FIXME: Un-XFAIL this when re-enabling the plugin option in the Tests CMakeLists.txt
+// XFAIL: true
 
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/Handle.h>
