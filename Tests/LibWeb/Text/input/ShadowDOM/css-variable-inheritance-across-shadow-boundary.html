@@ -1,0 +1,20 @@
+<style>
+:root {
+    --foo: green;
+}
+</style>
+<div id="myShadowHost">
+<template shadowrootmode="open">
+<style>
+span { color: var(--foo, red); }
+</style>
+<span>green</span>
+</template>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let span = myShadowHost.shadowRoot.firstElementChild.nextElementSibling;
+        println(getComputedStyle(span).color);
+    });
+</script>
