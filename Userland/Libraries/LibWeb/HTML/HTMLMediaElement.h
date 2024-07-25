@@ -107,6 +107,8 @@ public:
     JS::NonnullGCPtr<VideoTrackList> video_tracks() const { return *m_video_tracks; }
     JS::NonnullGCPtr<TextTrackList> text_tracks() const { return *m_text_tracks; }
 
+    JS::NonnullGCPtr<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
+
     WebIDL::ExceptionOr<void> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode);
 
     enum class MouseTrackingComponent {

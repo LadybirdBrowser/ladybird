@@ -1,6 +1,7 @@
 #import <HTML/AudioTrackList.idl>
 #import <HTML/HTMLElement.idl>
 #import <HTML/MediaError.idl>
+#import <HTML/TextTrack.idl>
 #import <HTML/TextTrackList.idl>
 #import <HTML/TimeRanges.idl>
 #import <HTML/VideoTrackList.idl>
@@ -70,6 +71,6 @@ interface HTMLMediaElement : HTMLElement {
     [SameObject] readonly attribute AudioTrackList audioTracks;
     [SameObject] readonly attribute VideoTrackList videoTracks;
     [SameObject] readonly attribute TextTrackList textTracks;
-    [FIXME] TextTrack addTextTrack(TextTrackKind kind, optional DOMString label = "", optional DOMString language = "");
+    TextTrack addTextTrack(TextTrackKind kind, optional DOMString label = "", optional DOMString language = "");
 
 };

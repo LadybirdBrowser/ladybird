@@ -465,6 +465,42 @@ double HTMLMediaElement::effective_media_volume() const
     return volume;
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
+JS::NonnullGCPtr<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language)
+{
+    // 1. Create a new TextTrack object.
+    auto text_track = TextTrack::create(this->realm());
+
+    // 2. Create a new text track corresponding to the new object, and set its text track kind to kind, its text track
+    //    label to label, its text track language to language, its text track readiness state to the text track loaded
+    //    state, its text track mode to the text track hidden mode, and its text track list of cues to an empty list.
+    text_track->set_kind(kind);
+    text_track->set_label(label);
+    text_track->set_language(language);
+    text_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
+    text_track->set_mode(Bindings::TextTrackMode::Hidden);
+    // FIXME: set text track list of cues to an empty list
+
+    // FIXME: 3. Initially, the text track list of cues is not associated with any rules for updating the text track rendering.
+    //    When a text track cue is added to it, the text track list of cues has its rules permanently set accordingly.
+
+    // FIXME: 4. Add the new text track to the media element's list of text tracks.
+
+    // 5. Queue a media element task given the media element to fire an event named addtrack at the media element's
+    //    textTracks attribute's TextTrackList object, using TrackEvent, with the track attribute initialized to the new
+    //    text track's TextTrack object.
+    queue_a_media_element_task([this, text_track] {
+        TrackEventInit event_init {};
+        event_init.track = JS::make_handle(text_track);
+
+        auto event = TrackEvent::create(this->realm(), HTML::EventNames::addtrack, move(event_init));
+        m_text_tracks->dispatch_event(event);
+    });
+
+    // 6. Return the new TextTrack object.
+    return text_track;
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#media-element-load-algorithm
 WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 {
