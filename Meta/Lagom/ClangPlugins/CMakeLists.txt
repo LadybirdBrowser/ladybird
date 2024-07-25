@@ -7,6 +7,10 @@ function(clang_plugin target_name)
     target_compile_features(${target_name} PRIVATE cxx_std_20)
     target_compile_options(${target_name} PRIVATE -Wall -Wextra -Werror -Wno-unused -fno-rtti)
 
+    # Building these with fuzzers would require building the compiler with fuzzers, which feels out of scope
+    target_compile_options(${target_name} PRIVATE -fno-sanitize=all)
+    target_link_options(${target_name} PRIVATE -fno-sanitize=all)
+
     add_custom_target(${target_name}Target DEPENDS ${target_name})
 
     set_property(GLOBAL APPEND PROPERTY CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS -fplugin=${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/lib${target_name}.so)
