@@ -117,25 +117,27 @@ void XMLDocumentBuilder::element_end(const XML::Name& name)
         // and then prepare the script element.
         auto& script_element = static_cast<HTML::HTMLScriptElement&>(*m_current_node);
         script_element.prepare_script(Badge<XMLDocumentBuilder> {});
+
         // If this causes there to be a pending parsing-blocking script, then the user agent must run the following steps:
-        if (m_document->pending_parsing_blocking_script()) {
-            // Block this instance of the XML parser, such that the event loop will not run tasks that invoke it.
+        if (auto pending_parsing_blocking_script = m_document->pending_parsing_blocking_script()) {
+            // 1. Block this instance of the XML parser, such that the event loop will not run tasks that invoke it.
             // NOTE: Noop.
 
-            // Spin the event loop until the parser's Document has no style sheet that is blocking scripts and the pending parsing-blocking script's "ready to be parser-executed" flag is set.
-            if (m_document->has_a_style_sheet_that_is_blocking_scripts() || !script_element.is_ready_to_be_parser_executed()) {
+            // 2. Spin the event loop until the parser's Document has no style sheet that is blocking scripts and the pending parsing-blocking script's "ready to be parser-executed" flag is set.
+            if (m_document->has_a_style_sheet_that_is_blocking_scripts() || !pending_parsing_blocking_script->is_ready_to_be_parser_executed()) {
                 HTML::main_thread_event_loop().spin_until([&] {
-                    return !m_document->has_a_style_sheet_that_is_blocking_scripts() && script_element.is_ready_to_be_parser_executed();
+                    return !m_document->has_a_style_sheet_that_is_blocking_scripts() && pending_parsing_blocking_script->is_ready_to_be_parser_executed();
                 });
             }
 
-            // Unblock this instance of the XML parser, such that tasks that invoke it can again be run.
+            // 3. Unblock this instance of the XML parser, such that tasks that invoke it can again be run.
             // NOTE: Noop.
 
-            // Execute the pending parsing-blocking script.
-            script_element.execute_script();
+            // 4. Execute the script element given by the pending parsing-blocking script.
+            pending_parsing_blocking_script->execute_script();
 
-            // There is no longer a pending parsing-blocking script.
+            // 5. Set the pending parsing-blocking script to null.
+            m_document->set_pending_parsing_blocking_script(nullptr);
         }
     } else if (m_scripting_support == XMLScriptingSupport::Enabled && m_current_node->is_svg_script_element()) {
         // https://www.w3.org/TR/SVGMobile12/struct.html#ProgressiveRendering

@@ -536,7 +536,7 @@ void HTMLScriptElement::prepare_script()
         // 5. Otherwise:
         else {
             // 1. Set el's parser document's pending parsing-blocking script to el.
-            m_parser_document->set_pending_parsing_blocking_script({}, this);
+            m_parser_document->set_pending_parsing_blocking_script(this);
 
             // FIXME: 2. Block rendering on el.
 
@@ -563,7 +563,7 @@ void HTMLScriptElement::prepare_script()
             && is_parser_inserted()
             && m_parser_document->has_a_style_sheet_that_is_blocking_scripts()) {
             // 1. Set el's parser document's pending parsing-blocking script to el.
-            m_parser_document->set_pending_parsing_blocking_script({}, this);
+            m_parser_document->set_pending_parsing_blocking_script(this);
 
             // 2. Set el's ready to be parser-executed to true. (The parser will handle executing the script.)
             m_ready_to_be_parser_executed = true;
