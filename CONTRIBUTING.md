@@ -15,6 +15,7 @@ Join [our Discord server](https://discord.gg/nvfjVJ4Svh) to participate in devel
 Please file any bugs you find, keeping the following in mind:
 
 * One issue per bug. Putting multiple things in the same issue makes both discussion and completion unnecessarily complicated.
+* Follow the [detailed issue-reporting guidelines](ISSUES.md).
 * No build issues (or other support requests). If the GitHub Actions CI build succeeds, the build problem is most likely on your side. Work it out locally, or ask in the `#build-problems` channel on Discord.
 * Don't comment on issues just to add a joke or irrelevant commentary. Hundreds of people get notified about comments so let's keep them relevant.
 
