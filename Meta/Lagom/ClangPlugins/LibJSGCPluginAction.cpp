@@ -34,7 +34,7 @@ private:
     std::vector<T const*> m_matches;
 };
 
-bool record_inherits_from_cell(clang::CXXRecordDecl const& record)
+static bool record_inherits_from_cell(clang::CXXRecordDecl const& record)
 {
     if (!record.isCompleteDefinition())
         return false;
@@ -50,7 +50,7 @@ bool record_inherits_from_cell(clang::CXXRecordDecl const& record)
     return inherits_from_cell;
 }
 
-std::vector<clang::QualType> get_all_qualified_types(clang::QualType const& type)
+static std::vector<clang::QualType> get_all_qualified_types(clang::QualType const& type)
 {
     std::vector<clang::QualType> qualified_types;
 
@@ -98,7 +98,7 @@ struct QualTypeGCInfo {
     bool base_type_inherits_from_cell { false };
 };
 
-std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType const& type)
+static std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType const& type)
 {
     if (auto const* pointer_decl = type->getAs<clang::PointerType>()) {
         if (auto const* pointee = pointer_decl->getPointeeCXXRecordDecl())
@@ -141,7 +141,7 @@ std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType const& typ
     return {};
 }
 
-std::optional<QualTypeGCInfo> validate_field_qualified_type(clang::FieldDecl const* field_decl)
+static std::optional<QualTypeGCInfo> validate_field_qualified_type(clang::FieldDecl const* field_decl)
 {
     auto type = field_decl->getType();
     if (auto const* elaborated_type = llvm::dyn_cast<clang::ElaboratedType>(type.getTypePtr()))
@@ -294,7 +294,7 @@ struct CellTypeWithOrigin {
     LibJSCellMacro::Type type;
 };
 
-std::optional<CellTypeWithOrigin> find_cell_type_with_origin(clang::CXXRecordDecl const& record)
+static std::optional<CellTypeWithOrigin> find_cell_type_with_origin(clang::CXXRecordDecl const& record)
 {
     for (auto const& base : record.bases()) {
         if (auto const* base_record = base.getType()->getAsCXXRecordDecl()) {
@@ -342,6 +342,7 @@ LibJSGCVisitor::CellMacroExpectation LibJSGCVisitor::get_record_cell_macro_expec
     }
 
     assert(false);
+    std::unreachable();
 }
 
 void LibJSGCVisitor::validate_record_macros(clang::CXXRecordDecl const& record)
