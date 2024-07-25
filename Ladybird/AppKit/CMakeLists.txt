@@ -17,7 +17,6 @@ add_library(ladybird_impl STATIC
 )
 target_include_directories(ladybird_impl PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
-target_compile_options(ladybird_impl PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Xcc -std=c++23 -cxx-interoperability-mode=default>")
 target_compile_options(ladybird_impl PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fobjc-arc>
         $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-anon-enum-enum-conversion> # Required for CGImageCreate
@@ -25,19 +24,6 @@ target_compile_options(ladybird_impl PUBLIC
 target_compile_features(ladybird_impl PUBLIC cxx_std_23)
 
 if (ENABLE_SWIFT)
-    enable_language(Swift)
-    if (CMAKE_Swift_COMPILER_VERSION VERSION_LESS 6.0)
-        message(FATAL_ERROR
-            "Swift 6.0 or newer is required to parse AK C++ headers in C++23 mode"
-        )
-    endif()
-    if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-        message(FATAL_ERROR
-            "Swift files must use Clang that was bundled with swiftc"
-        )
-    endif()
-    include(Swift/GenerateSwiftHeader)
-
     target_sources(ladybird_impl PRIVATE
         UI/TaskManager.swift
         UI/TaskManagerController.swift
