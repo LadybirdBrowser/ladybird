@@ -22,10 +22,10 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           BreakNode <br>
           BreakNode <br>
         BlockContainer <pre#out> at (8,109) content-size 784x51 children: inline
-          frag 0 from TextNode start: 0, length: 10, rect: [8,109 72.421875x17] baseline: 13.296875
-              "well: 0, 0"
-          frag 1 from TextNode start: 11, length: 13, rect: [8,126 96.765625x17] baseline: 13.296875
-              "hello: 36, 25"
+          frag 0 from TextNode start: 0, length: 10, rect: [8,109 72.203125x17] baseline: 13.296875
+              "well: 8, 8"
+          frag 1 from TextNode start: 11, length: 13, rect: [8,126 95.359375x17] baseline: 13.296875
+              "hello: 44, 33"
           frag 2 from TextNode start: 25, length: 15, rect: [8,143 113.65625x17] baseline: 13.296875
               "friends: 45, 25"
           TextNode <#text>

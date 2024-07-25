@@ -260,14 +260,20 @@ int HTMLElement::offset_top() const
     if (!layout_node())
         return 0;
 
+    CSSPixels top_border_edge_of_element;
+    if (paintable()->is_paintable_box()) {
+        top_border_edge_of_element = paintable_box()->absolute_border_box_rect().y();
+    } else {
+        top_border_edge_of_element = paintable()->box_type_agnostic_position().y();
+    }
+
     // 2. If the offsetParent of the element is null
     //    return the y-coordinate of the top border edge of the first CSS layout box associated with the element,
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors, and terminate this algorithm.
     auto offset_parent = this->offset_parent();
     if (!offset_parent || !offset_parent->layout_node()) {
-        auto position = paintable()->box_type_agnostic_position();
-        return position.y().to_int();
+        return top_border_edge_of_element.to_int();
     }
 
     // 3. Return the result of subtracting the y-coordinate of the top padding edge
@@ -275,9 +281,19 @@ int HTMLElement::offset_top() const
     //    from the y-coordinate of the top border edge of the first box associated with the element,
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors.
-    auto offset_parent_position = offset_parent->paintable()->box_type_agnostic_position();
-    auto position = paintable()->box_type_agnostic_position();
-    return position.y().to_int() - offset_parent_position.y().to_int();
+
+    // NOTE: We give special treatment to the body element to match other browsers.
+    //       Spec bug: https://github.com/w3c/csswg-drafts/issues/10549
+
+    CSSPixels top_padding_edge_of_offset_parent;
+    if (offset_parent->is_html_body_element() && !offset_parent->paintable()->is_positioned()) {
+        top_padding_edge_of_offset_parent = 0;
+    } else if (offset_parent->paintable()->is_paintable_box()) {
+        top_padding_edge_of_offset_parent = offset_parent->paintable_box()->absolute_padding_box_rect().y();
+    } else {
+        top_padding_edge_of_offset_parent = offset_parent->paintable()->box_type_agnostic_position().y();
+    }
+    return (top_border_edge_of_element - top_padding_edge_of_offset_parent).to_int();
 }
 
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsetleft
@@ -293,14 +309,20 @@ int HTMLElement::offset_left() const
     if (!layout_node())
         return 0;
 
+    CSSPixels left_border_edge_of_element;
+    if (paintable()->is_paintable_box()) {
+        left_border_edge_of_element = paintable_box()->absolute_border_box_rect().x();
+    } else {
+        left_border_edge_of_element = paintable()->box_type_agnostic_position().x();
+    }
+
     // 2. If the offsetParent of the element is null
     //    return the x-coordinate of the left border edge of the first CSS layout box associated with the element,
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors, and terminate this algorithm.
     auto offset_parent = this->offset_parent();
     if (!offset_parent || !offset_parent->layout_node()) {
-        auto position = paintable()->box_type_agnostic_position();
-        return position.x().to_int();
+        return left_border_edge_of_element.to_int();
     }
 
     // 3. Return the result of subtracting the x-coordinate of the left padding edge
@@ -308,9 +330,19 @@ int HTMLElement::offset_left() const
     //    from the x-coordinate of the left border edge of the first CSS layout box associated with the element,
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors.
-    auto offset_parent_position = offset_parent->paintable()->box_type_agnostic_position();
-    auto position = paintable()->box_type_agnostic_position();
-    return position.x().to_int() - offset_parent_position.x().to_int();
+
+    // NOTE: We give special treatment to the body element to match other browsers.
+    //       Spec bug: https://github.com/w3c/csswg-drafts/issues/10549
+
+    CSSPixels left_padding_edge_of_offset_parent;
+    if (offset_parent->is_html_body_element() && !offset_parent->paintable()->is_positioned()) {
+        left_padding_edge_of_offset_parent = 0;
+    } else if (offset_parent->paintable()->is_paintable_box()) {
+        left_padding_edge_of_offset_parent = offset_parent->paintable_box()->absolute_padding_box_rect().x();
+    } else {
+        left_padding_edge_of_offset_parent = offset_parent->paintable()->box_type_agnostic_position().x();
+    }
+    return (left_border_edge_of_element - left_padding_edge_of_offset_parent).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlelement-offsetwidth
