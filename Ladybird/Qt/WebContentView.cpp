@@ -15,7 +15,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Types.h>
 #include <Ladybird/HelperProcess.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Resource.h>
 #include <LibCore/Timer.h>

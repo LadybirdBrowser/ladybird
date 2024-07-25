@@ -11,7 +11,7 @@
 #include <AK/HashMap.h>
 #include <AK/LexicalPath.h>
 #include <AK/OwnPtr.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibArchive/TarStream.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/Directory.h>

@@ -8,7 +8,7 @@ set(WEBWORKER_SOURCES
     "${WEBWORKER_SOURCE_DIR}/PageHost.cpp"
     ../FontPlugin.cpp
     ../HelperProcess.cpp
-    ../Utilities.cpp
+    ../Utils.cpp
 )
 
 # FIXME: Add Android service

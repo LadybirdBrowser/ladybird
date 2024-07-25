@@ -8,7 +8,7 @@
 #include <Application/ApplicationBridge.h>
 #include <Ladybird/AppKit/UI/LadybirdWebViewBridge.h>
 #include <Ladybird/HelperProcess.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibProtocol/RequestClient.h>
 #include <LibWebView/WebContentClient.h>

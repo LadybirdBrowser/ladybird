@@ -4,7 +4,7 @@ set(SOURCES
     ${WEBDRIVER_SOURCE_DIR}/Client.cpp
     ${WEBDRIVER_SOURCE_DIR}/Session.cpp
     ${WEBDRIVER_SOURCE_DIR}/WebContentConnection.cpp
-    ../Utilities.cpp
+    ../Utils.cpp
     main.cpp
 )
 

@@ -23,7 +23,7 @@ executable("WebWorker") {
   ]
   sources = [
     "//Ladybird/HelperProcess.cpp",
-    "//Ladybird/Utilities.cpp",
+    "//Ladybird/Utils.cpp",
     "//Userland/Services/WebWorker/ConnectionFromClient.cpp",
     "//Userland/Services/WebWorker/DedicatedWorkerHost.cpp",
     "//Userland/Services/WebWorker/PageHost.cpp",

@@ -20,7 +20,7 @@
 #include <AK/Vector.h>
 #include <Ladybird/HelperProcess.h>
 #include <Ladybird/Types.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/DirIterator.h>

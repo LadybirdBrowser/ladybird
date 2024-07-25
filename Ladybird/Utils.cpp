@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Utilities.h"
+#include "Utils.h"
 #include <AK/LexicalPath.h>
 #include <AK/Platform.h>
 #include <LibCore/Directory.h>

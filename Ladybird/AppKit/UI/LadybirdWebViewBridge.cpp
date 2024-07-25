@@ -6,7 +6,7 @@
 
 #include <Ladybird/HelperProcess.h>
 #include <Ladybird/Types.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/File.h>

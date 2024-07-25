@@ -10,7 +10,7 @@
 #include "Settings.h"
 #include "WebContentView.h"
 #include <Ladybird/HelperProcess.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>

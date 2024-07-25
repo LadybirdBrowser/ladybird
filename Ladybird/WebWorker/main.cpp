@@ -6,7 +6,7 @@
 
 #include <Ladybird/FontPlugin.h>
 #include <Ladybird/HelperProcess.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>

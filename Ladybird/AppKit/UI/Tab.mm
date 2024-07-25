@@ -6,7 +6,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/String.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibCore/Resource.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/ShareableBitmap.h>

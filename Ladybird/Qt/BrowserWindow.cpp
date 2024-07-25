@@ -18,7 +18,7 @@
 #include "WebContentView.h"
 #include <AK/TypeCasts.h>
 #include <Ladybird/Qt/TabBar.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>

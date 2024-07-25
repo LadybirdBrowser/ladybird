@@ -7,7 +7,7 @@
 #include <AK/LexicalPath.h>
 #include <Ladybird/FontPlugin.h>
 #include <Ladybird/ImageCodecPlugin.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibAudio/Loader.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>

@@ -77,7 +77,7 @@ executable("ladybird_executable") {
   ]
   sources = [
     "HelperProcess.cpp",
-    "Utilities.cpp",
+    "Utils.cpp",
   ]
 
   if (enable_qt) {
@@ -197,7 +197,7 @@ executable("headless-browser") {
   sources = [
     "//Userland/Utilities/headless-browser.cpp",
     "HelperProcess.cpp",
-    "Utilities.cpp",
+    "Utils.cpp",
   ]
 }
 
