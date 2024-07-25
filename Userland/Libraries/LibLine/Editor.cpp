@@ -31,10 +31,6 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-namespace {
-constexpr u32 ctrl(char c) { return c & 0x3f; }
-}
-
 namespace Line {
 
 Configuration Configuration::from_config(StringView libname)

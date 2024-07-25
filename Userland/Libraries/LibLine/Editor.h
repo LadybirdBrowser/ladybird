@@ -36,6 +36,8 @@
 
 namespace Line {
 
+static constexpr u32 ctrl(char c) { return c & 0x3f; }
+
 struct KeyBinding {
     Vector<Key> keys;
     enum class Kind {

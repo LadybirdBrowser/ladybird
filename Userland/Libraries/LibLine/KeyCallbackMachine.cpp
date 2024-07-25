@@ -7,10 +7,6 @@
 #include <AK/Debug.h>
 #include <LibLine/Editor.h>
 
-namespace {
-constexpr u32 ctrl(char c) { return c & 0x3f; }
-}
-
 namespace Line {
 
 void KeyCallbackMachine::register_key_input_callback(Vector<Key> keys, Function<bool(Editor&)> callback)
