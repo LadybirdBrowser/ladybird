@@ -23,7 +23,7 @@ public:
 
     virtual ~DocumentType() override = default;
 
-    virtual FlyString node_name() const override { return "#doctype"_fly_string; }
+    virtual FlyString node_name() const override { return name(); }
 
     String const& name() const { return m_name; }
     void set_name(String const& name) { m_name = name; }
