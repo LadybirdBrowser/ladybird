@@ -44,7 +44,7 @@ Code-related documentation can be found in the [documentation](Documentation/) f
 
 Join [our Discord server](https://discord.gg/nvfjVJ4Svh) to participate in development discussion.
 
-Before opening an issue, please see the [issue policy](CONTRIBUTING.md#issue-policy).
+Before opening an issue, please see the [issue policy](CONTRIBUTING.md#issue-policy) and the [detailed issue-reporting guidelines](ISSUES.md).
 
 A general guide for contributing can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
