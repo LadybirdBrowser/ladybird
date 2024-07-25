@@ -161,14 +161,6 @@ Vector<FlyString> HTMLCollection::supported_property_names() const
     return result;
 }
 
-// https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-indices%E2%91%A1
-bool HTMLCollection::is_supported_property_index(u32 index) const
-{
-    // The object’s supported property indices are the numbers in the range zero to one less than the number of elements represented by the collection.
-    // If there are no such elements, then there are no supported property indices.
-    return index < length();
-}
-
 Optional<JS::Value> HTMLCollection::item_value(size_t index) const
 {
     auto* element = item(index);

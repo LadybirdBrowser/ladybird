@@ -47,12 +47,4 @@ Node const* StaticNodeList::item(u32 index) const
     return m_static_nodes[index];
 }
 
-// https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-indices
-bool StaticNodeList::is_supported_property_index(u32 index) const
-{
-    // The object’s supported property indices are the numbers in the range zero to one less than the number of nodes represented by the collection.
-    // If there are no such elements, then there are no supported property indices.
-    return index < m_static_nodes.size();
-}
-
 }

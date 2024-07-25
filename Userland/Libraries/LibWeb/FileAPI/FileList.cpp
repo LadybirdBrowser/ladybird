@@ -45,17 +45,6 @@ void FileList::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FileList);
 }
 
-// https://w3c.github.io/FileAPI/#dfn-item
-bool FileList::is_supported_property_index(u32 index) const
-{
-    // Supported property indices are the numbers in the range zero to one less than the number of File objects represented by the FileList object.
-    // If there are no such File objects, then there are no supported property indices.
-    if (m_files.is_empty())
-        return false;
-
-    return index < m_files.size();
-}
-
 Optional<JS::Value> FileList::item_value(size_t index) const
 {
     if (index >= m_files.size())

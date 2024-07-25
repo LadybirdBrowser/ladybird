@@ -42,7 +42,6 @@ public:
         return index < m_files.size() ? m_files[index].ptr() : nullptr;
     }
 
-    virtual bool is_supported_property_index(u32 index) const override;
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
     virtual StringView interface_name() const override { return "FileList"sv; }

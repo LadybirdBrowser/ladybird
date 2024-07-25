@@ -30,8 +30,6 @@ public:
     virtual u32 length() const override;
     virtual Node const* item(u32 index) const override;
 
-    virtual bool is_supported_property_index(u32) const override;
-
 protected:
     LiveNodeList(JS::Realm&, Node const& root, Scope, ESCAPING Function<bool(Node const&)> filter);
 

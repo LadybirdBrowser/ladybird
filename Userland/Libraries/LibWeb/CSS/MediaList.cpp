@@ -48,15 +48,10 @@ void MediaList::set_media_text(StringView text)
     m_media = parse_media_query_list(Parser::ParsingContext { realm() }, text);
 }
 
-bool MediaList::is_supported_property_index(u32 index) const
-{
-    return index < length();
-}
-
 // https://www.w3.org/TR/cssom-1/#dom-medialist-item
 Optional<String> MediaList::item(u32 index) const
 {
-    if (!is_supported_property_index(index))
+    if (index >= m_media.size())
         return {};
 
     return m_media[index]->to_string();

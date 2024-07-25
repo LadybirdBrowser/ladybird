@@ -47,12 +47,6 @@ void NamedNodeMap::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_attributes);
 }
 
-// https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-indices%E2%91%A3
-bool NamedNodeMap::is_supported_property_index(u32 index) const
-{
-    return index < m_attributes.size();
-}
-
 // https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-names%E2%91%A0
 Vector<FlyString> NamedNodeMap::supported_property_names() const
 {

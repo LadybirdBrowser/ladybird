@@ -76,7 +76,7 @@ protected:
     virtual JS::Value named_item_value(FlyString const& name) const;
     virtual Vector<FlyString> supported_property_names() const;
     virtual bool is_supported_property_name(FlyString const&) const;
-    virtual bool is_supported_property_index(u32) const;
+    bool is_supported_property_index(u32) const;
 
     // NOTE: These will crash if you make has_named_property_setter return true but do not override these methods.
     // NOTE: This is only used if named_property_setter_has_identifier returns false, otherwise set_value_of_named_property is used instead.

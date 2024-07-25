@@ -98,12 +98,6 @@ void DOMTokenList::associated_attribute_changed(StringView value)
         append_to_ordered_set(m_token_set, String::from_utf8(split_value).release_value_but_fixme_should_propagate_errors());
 }
 
-// https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-indices%E2%91%A3
-bool DOMTokenList::is_supported_property_index(u32 index) const
-{
-    return index < m_token_set.size();
-}
-
 // https://dom.spec.whatwg.org/#dom-domtokenlist-item
 Optional<String> DOMTokenList::item(size_t index) const
 {

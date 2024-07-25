@@ -61,11 +61,6 @@ DOMRect const* DOMRectList::item(u32 index) const
     return m_rects[index];
 }
 
-bool DOMRectList::is_supported_property_index(u32 index) const
-{
-    return index < m_rects.size();
-}
-
 Optional<JS::Value> DOMRectList::item_value(size_t index) const
 {
     if (index >= m_rects.size())
