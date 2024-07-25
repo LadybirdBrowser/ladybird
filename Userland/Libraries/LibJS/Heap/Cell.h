@@ -19,6 +19,14 @@
 
 namespace JS {
 
+// This instrumentation tells analysis tooling to ignore a potentially mis-wrapped GC-allocated member variable
+// It should only be used when the lifetime of the GC-allocated member is always longer than the object
+#if defined(AK_COMPILER_CLANG)
+#    define IGNORE_GC [[clang::annotate("serenity::ignore_gc")]]
+#else
+#    define IGNORE_GC
+#endif
+
 #define JS_CELL(class_, base_class)                \
 public:                                            \
     using Base = base_class;                       \
