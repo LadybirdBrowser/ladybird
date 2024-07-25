@@ -1,0 +1,22 @@
+find_package(unofficial-skia CONFIG)
+if(unofficial-skia_FOUND)
+    set(SKIA_LIBRARIES unofficial::skia::skia)
+else()
+    find_package(PkgConfig)
+
+    # Get skia version from vcpkg.json
+    file(READ ${LADYBIRD_SOURCE_DIR}/vcpkg.json VCPKG_DOT_JSON)
+    string(JSON VCPKG_OVERRIDES_LENGTH LENGTH ${VCPKG_DOT_JSON} overrides)
+    MATH(EXPR VCPKG_OVERRIDES_END_RANGE "${VCPKG_OVERRIDES_LENGTH}-1")
+    foreach(IDX RANGE ${VCPKG_OVERRIDES_END_RANGE})
+      string(JSON VCPKG_OVERRIDE_NAME GET ${VCPKG_DOT_JSON} overrides ${IDX} name)
+      if(VCPKG_OVERRIDE_NAME STREQUAL "skia")
+        string(JSON SKIA_REQUIRED_VERSION GET ${VCPKG_DOT_JSON} overrides ${IDX} version)
+        string(REGEX MATCH "[0-9]+" SKIA_REQUIRED_VERSION ${SKIA_REQUIRED_VERSION})
+      endif()
+    endforeach()
+
+    pkg_check_modules(SKIA skia=${SKIA_REQUIRED_VERSION} REQUIRED)
+    target_include_directories(LibWeb PRIVATE ${SKIA_INCLUDE_DIRS})
+    target_link_directories(LibWeb PRIVATE ${SKIA_LIBRARY_DIRS})
+endif()

@@ -17,6 +17,8 @@
 #define POINTS_PER_INCH 72.0f
 #define DEFAULT_DPI 96
 
+class SkTypeface;
+
 namespace Gfx {
 
 class ScaledFont;
@@ -63,11 +65,17 @@ public:
 
     [[nodiscard]] NonnullRefPtr<ScaledFont> scaled_font(float point_size) const;
 
+    RefPtr<SkTypeface> const& skia_typeface() const;
+
 protected:
     Typeface();
 
+    virtual ReadonlyBytes buffer() const = 0;
+    virtual unsigned ttc_index() const = 0;
+
 private:
     mutable HashMap<float, NonnullRefPtr<ScaledFont>> m_scaled_fonts;
+    mutable RefPtr<SkTypeface> m_skia_typeface;
 };
 
 }

@@ -12,6 +12,8 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/Typeface.h>
 
+class SkFont;
+
 namespace Gfx {
 
 struct GlyphIndexWithSubpixelOffset {
@@ -56,6 +58,10 @@ public:
     virtual NonnullRefPtr<Font> with_size(float point_size) const override;
 
     virtual bool has_color_bitmaps() const override { return m_typeface->has_color_bitmaps(); }
+
+    virtual Typeface const& typeface() const override { return m_typeface; }
+
+    SkFont skia_font(float scale) const;
 
 private:
     NonnullRefPtr<Typeface> m_typeface;
