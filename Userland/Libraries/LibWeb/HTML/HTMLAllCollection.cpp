@@ -224,7 +224,7 @@ JS::Value HTMLAllCollection::item_value(size_t index) const
     return get_the_all_indexed_element(index);
 }
 
-WebIDL::ExceptionOr<JS::Value> HTMLAllCollection::named_item_value(FlyString const& name) const
+JS::Value HTMLAllCollection::named_item_value(FlyString const& name) const
 {
     return named_item(name).visit(
         [](Empty) -> JS::Value { return JS::js_undefined(); },

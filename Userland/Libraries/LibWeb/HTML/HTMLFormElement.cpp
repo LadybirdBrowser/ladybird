@@ -1036,7 +1036,7 @@ Vector<FlyString> HTMLFormElement::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-nameditem
-WebIDL::ExceptionOr<JS::Value> HTMLFormElement::named_item_value(FlyString const& name) const
+JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
 {
     auto& realm = this->realm();
     auto& root = verify_cast<ParentNode>(this->root());

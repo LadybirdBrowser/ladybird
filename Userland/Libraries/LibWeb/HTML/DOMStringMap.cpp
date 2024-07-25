@@ -204,7 +204,7 @@ WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::del
     return DidDeletionFail::No;
 }
 
-WebIDL::ExceptionOr<JS::Value> DOMStringMap::named_item_value(FlyString const& name) const
+JS::Value DOMStringMap::named_item_value(FlyString const& name) const
 {
     return JS::PrimitiveString::create(vm(), determine_value_of_named_property(name));
 }

@@ -1635,7 +1635,7 @@ Vector<FlyString> Window::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/#named-access-on-the-window-object
-WebIDL::ExceptionOr<JS::Value> Window::named_item_value(FlyString const& name) const
+JS::Value Window::named_item_value(FlyString const& name) const
 {
     // FIXME: Make the const-correctness of the methods this method calls less cowboy.
     auto& mutable_this = const_cast<Window&>(*this);

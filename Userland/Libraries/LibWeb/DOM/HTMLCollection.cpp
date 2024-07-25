@@ -177,7 +177,7 @@ JS::Value HTMLCollection::item_value(size_t index) const
     return element;
 }
 
-WebIDL::ExceptionOr<JS::Value> HTMLCollection::named_item_value(FlyString const& name) const
+JS::Value HTMLCollection::named_item_value(FlyString const& name) const
 {
     auto* element = named_item(name);
     if (!element)
