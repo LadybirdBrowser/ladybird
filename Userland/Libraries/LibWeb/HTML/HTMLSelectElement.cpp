@@ -71,15 +71,22 @@ void HTMLSelectElement::adjust_computed_style(CSS::StyleProperties& style)
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
 }
 
-// https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-size
+// https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-size
 WebIDL::UnsignedLong HTMLSelectElement::size() const
 {
     // The size IDL attribute must reflect the respective content attributes of the same name. The size IDL attribute has a default value of 0.
     if (auto size_string = get_attribute(HTML::AttributeNames::size); size_string.has_value()) {
+        // The display size of a select element is the result of applying the rules for parsing non-negative integers
+        // to the value of element's size attribute, if it has one and parsing it is successful.
         if (auto size = parse_non_negative_integer(*size_string); size.has_value())
             return *size;
     }
-    return 0;
+
+    // If applying those rules to the attribute's value is not successful or if the size attribute is absent,
+    // then the element's display size is 4 if the element's multiple content attribute is present, and 1 otherwise.
+    if (has_attribute(AttributeNames::multiple))
+        return 4;
+    return 1;
 }
 
 WebIDL::ExceptionOr<void> HTMLSelectElement::set_size(WebIDL::UnsignedLong size)
