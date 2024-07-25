@@ -7,6 +7,7 @@
 
 #include "WebContentView.h"
 #include "Application.h"
+#include "QtUtils.h"
 #include "StringUtils.h"
 #include <AK/Assertions.h>
 #include <AK/ByteBuffer.h>
@@ -47,8 +48,6 @@
 #include <QToolTip>
 
 namespace Ladybird {
-
-bool is_using_dark_system_theme(QWidget&);
 
 WebContentView::WebContentView(QWidget* window, WebContentOptions const& web_content_options, StringView webdriver_content_ipc_path, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
     : QAbstractScrollArea(window)

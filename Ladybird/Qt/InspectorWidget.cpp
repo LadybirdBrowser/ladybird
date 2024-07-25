@@ -5,6 +5,7 @@
  */
 
 #include "InspectorWidget.h"
+#include "QtUtils.h"
 #include <Ladybird/Qt/StringUtils.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/InspectorClient.h>
@@ -16,8 +17,6 @@
 #include <QWindow>
 
 namespace Ladybird {
-
-extern bool is_using_dark_system_theme(QWidget&);
 
 InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     : QWidget(tab, Qt::Window)
