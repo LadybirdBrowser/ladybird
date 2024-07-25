@@ -75,6 +75,17 @@ void TextTrack::set_id(String id)
     m_id = id;
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-mode
+Bindings::TextTrackMode TextTrack::mode()
+{
+    return m_mode;
+}
+
+void TextTrack::set_mode(Bindings::TextTrackMode mode)
+{
+    m_mode = mode;
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#handler-texttrack-oncuechange
 void TextTrack::set_oncuechange(WebIDL::CallbackType* event_handler)
 {
