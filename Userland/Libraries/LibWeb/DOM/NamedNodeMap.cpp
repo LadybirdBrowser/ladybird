@@ -326,7 +326,7 @@ Attr const* NamedNodeMap::remove_attribute_ns(Optional<FlyString> const& namespa
     return attribute;
 }
 
-WebIDL::ExceptionOr<JS::Value> NamedNodeMap::item_value(size_t index) const
+JS::Value NamedNodeMap::item_value(size_t index) const
 {
     auto const* node = item(index);
     if (!node)

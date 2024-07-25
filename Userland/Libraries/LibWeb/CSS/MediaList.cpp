@@ -116,7 +116,7 @@ bool MediaList::matches() const
     return false;
 }
 
-WebIDL::ExceptionOr<JS::Value> MediaList::item_value(size_t index) const
+JS::Value MediaList::item_value(size_t index) const
 {
     if (index >= m_media.size())
         return JS::js_undefined();

@@ -43,7 +43,7 @@ public:
     }
 
     virtual bool is_supported_property_index(u32 index) const override;
-    virtual WebIDL::ExceptionOr<JS::Value> item_value(size_t index) const override;
+    virtual JS::Value item_value(size_t index) const override;
 
     virtual StringView interface_name() const override { return "FileList"sv; }
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::SerializationRecord& serialized, bool for_storage, HTML::SerializationMemory&) override;

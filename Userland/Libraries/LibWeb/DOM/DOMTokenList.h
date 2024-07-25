@@ -31,7 +31,7 @@ public:
     void associated_attribute_changed(StringView value);
 
     virtual bool is_supported_property_index(u32 index) const override;
-    virtual WebIDL::ExceptionOr<JS::Value> item_value(size_t index) const override;
+    virtual JS::Value item_value(size_t index) const override;
 
     size_t length() const { return m_token_set.size(); }
     Optional<String> item(size_t index) const;

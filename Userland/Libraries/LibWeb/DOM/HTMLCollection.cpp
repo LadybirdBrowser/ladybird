@@ -169,7 +169,7 @@ bool HTMLCollection::is_supported_property_index(u32 index) const
     return index < length();
 }
 
-WebIDL::ExceptionOr<JS::Value> HTMLCollection::item_value(size_t index) const
+JS::Value HTMLCollection::item_value(size_t index) const
 {
     auto* element = item(index);
     if (!element)

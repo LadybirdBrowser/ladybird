@@ -302,7 +302,7 @@ void DOMTokenList::run_update_steps()
     MUST(associated_element->set_attribute(m_associated_attribute, serialize_ordered_set()));
 }
 
-WebIDL::ExceptionOr<JS::Value> DOMTokenList::item_value(size_t index) const
+JS::Value DOMTokenList::item_value(size_t index) const
 {
     auto string = item(index);
     if (!string.has_value())

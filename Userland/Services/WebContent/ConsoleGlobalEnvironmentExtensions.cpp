@@ -114,8 +114,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
 
     auto array = TRY(JS::Array::create(*vm.current_realm(), node_list->length()));
     for (auto i = 0u; i < node_list->length(); ++i) {
-        // NOTE: NodeList::item_value cannot fail.
-        TRY(array->create_data_property_or_throw(i, MUST(node_list->item_value(i))));
+        TRY(array->create_data_property_or_throw(i, node_list->item_value(i)));
     }
 
     return array;
