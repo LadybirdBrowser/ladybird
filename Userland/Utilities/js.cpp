@@ -101,10 +101,13 @@ static ErrorOr<void> print(JS::Value value, PrintTarget target = PrintTarget::St
     return print(value, *stream);
 }
 
+static size_t s_ctrl_c_hit_count = 0;
 static ErrorOr<String> prompt_for_level(int level)
 {
     static StringBuilder prompt_builder;
     prompt_builder.clear();
+    if (s_ctrl_c_hit_count > 0)
+        prompt_builder.append("(Use Ctrl+C again to exit)\n"sv);
     prompt_builder.append("> "sv);
 
     for (auto i = 0; i < level; ++i)
@@ -122,6 +125,7 @@ static ErrorOr<String> read_next_piece()
     do {
         auto line_result = s_editor->get_line(TRY(prompt_for_level(s_repl_line_level)).to_byte_string());
 
+        s_ctrl_c_hit_count = 0;
         line_level_delta_for_next_line = 0;
 
         if (line_result.is_error()) {
@@ -598,6 +602,18 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             if (!s_editor->is_editing())
                 exit(0);
             s_editor->save_history(s_history_path.to_byte_string());
+        });
+
+        s_editor->register_key_input_callback(Line::ctrl('C'), [](Line::Editor& editor) -> bool {
+            if (editor.buffer_view().length() == 0 || s_ctrl_c_hit_count > 0) {
+                if (++s_ctrl_c_hit_count == 2) {
+                    s_keep_running_repl = false;
+                    editor.finish_edit();
+                    return false;
+                }
+            }
+
+            return true;
         });
 
         s_editor->on_display_refresh = [syntax_highlight](Line::Editor& editor) {
