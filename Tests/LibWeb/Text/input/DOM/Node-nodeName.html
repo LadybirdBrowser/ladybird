@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement("div");
+        element.setAttribute("testAttribute", "foo");
+        element.innerText = "Text";
+        println(`Element nodeName: ${element.nodeName}`);
+        println(`Attribute nodeName: ${element.attributes[0].nodeName}`);
+        println(`Text nodeName: ${element.childNodes[0].nodeName}`);
+
+        const xmlDocument = new DOMParser().parseFromString(`<xml></xml>`, "application/xml");
+        const CDATASection = xmlDocument.createCDATASection("Test CDATA");
+        println(`CDATASection nodeName: ${CDATASection.nodeName}`);
+
+        const processingInstruction = document.createProcessingInstruction("testPI", "bar");
+        println(`ProcessingInstruction nodeName: ${processingInstruction.nodeName}`);
+
+        const comment = document.createComment("Test comment");
+        println(`Comment nodeName: ${comment.nodeName}`);
+
+        println(`Document nodeName: ${document.nodeName}`);
+        println(`DocumentType nodeName: ${document.doctype.nodeName}`);
+
+        const documentFragment = document.createDocumentFragment();
+        println(`DocumentFragment nodeName: ${documentFragment.nodeName}`);
+    });
+</script>

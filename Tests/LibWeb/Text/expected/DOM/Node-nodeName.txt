@@ -1,0 +1,9 @@
+Element nodeName: DIV
+Attribute nodeName: testattribute
+Text nodeName: #text
+CDATASection nodeName: #cdata-section
+ProcessingInstruction nodeName: testPI
+Comment nodeName: #comment
+Document nodeName: #document
+DocumentType nodeName: html
+DocumentFragment nodeName: #document-fragment
