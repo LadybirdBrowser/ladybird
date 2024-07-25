@@ -109,7 +109,7 @@ protected:
 
 private:
     WebIDL::ExceptionOr<void> invoke_indexed_property_setter(JS::PropertyKey const&, JS::Value);
-    WebIDL::ExceptionOr<void> invoke_named_property_setter(String const&, JS::Value);
+    WebIDL::ExceptionOr<void> invoke_named_property_setter(FlyString const&, JS::Value);
 };
 
 }

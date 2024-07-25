@@ -185,11 +185,10 @@ WebIDL::ExceptionOr<void> PlatformObject::invoke_indexed_property_setter(JS::Pro
 }
 
 // https://webidl.spec.whatwg.org/#invoke-named-setter
-WebIDL::ExceptionOr<void> PlatformObject::invoke_named_property_setter(String const& property_name, JS::Value value)
+WebIDL::ExceptionOr<void> PlatformObject::invoke_named_property_setter(FlyString const& property_name, JS::Value value)
 {
     // 1. Let creating be true if P is not a supported property name, and false otherwise.
-    auto supported_property_names = this->supported_property_names();
-    bool creating = !supported_property_names.contains_slow(property_name);
+    bool creating = !is_supported_property_name(property_name);
 
     // FIXME: We do not have this information at this point, so converting the value is left as an exercise to the inheritor of PlatformObject.
     // 2. Let operation be the operation used to declare the indexed property setter.
@@ -200,14 +199,14 @@ WebIDL::ExceptionOr<void> PlatformObject::invoke_named_property_setter(String co
     if (!m_legacy_platform_object_flags->named_property_setter_has_identifier) {
         // 1. If creating is true, then perform the steps listed in the interface description to set the value of a new named property with P as the name and value as the value.
         if (creating)
-            return set_value_of_new_named_property(property_name, value);
+            return set_value_of_new_named_property(property_name.to_string(), value);
 
         // 2. Otherwise, creating is false. Perform the steps listed in the interface description to set the value of an existing named property with P as the name and value as the value.
-        return set_value_of_existing_named_property(property_name, value);
+        return set_value_of_existing_named_property(property_name.to_string(), value);
     }
 
     // 6. Otherwise, operation was defined with an identifier. Perform the method steps of operation with O as this and « P, value » as the argument values.
-    return set_value_of_named_property(property_name, value);
+    return set_value_of_named_property(property_name.to_string(), value);
 }
 
 // https://webidl.spec.whatwg.org/#legacy-platform-object-getownproperty
@@ -287,12 +286,10 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
     // 2. If O supports named properties, O does not implement an interface with the [Global] extended attribute, Type(P) is String, and P is not an unforgeable property name of O, then:
     // FIXME: Check if P is not an unforgeable property name of O
     if (m_legacy_platform_object_flags->supports_named_properties && !m_legacy_platform_object_flags->has_global_interface_extended_attribute && property_name.is_string()) {
-        auto const& property_name_as_string = property_name.as_string();
+        auto const property_name_as_string = MUST(FlyString::from_deprecated_fly_string(property_name.as_string()));
 
         // 1. Let creating be true if P is not a supported property name, and false otherwise.
-        // NOTE: This is in it's own variable to enforce the type.
-        auto supported_property_names = this->supported_property_names();
-        bool creating = !supported_property_names.contains_slow(MUST(FlyString::from_deprecated_fly_string(property_name_as_string)));
+        bool creating = !is_supported_property_name(property_name_as_string);
 
         // 2. If O implements an interface with the [LegacyOverrideBuiltIns] extended attribute or O does not have an own property named P, then:
         // NOTE: Own property lookup has to be done manually instead of using Object::has_own_property, as that would use the overridden internal_get_own_property.
@@ -308,7 +305,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
                     return false;
 
                 // 2. Invoke the named property setter on O with P and Desc.[[Value]].
-                TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(MUST(String::from_byte_string(property_name_as_string)), property_descriptor.value.value()); }));
+                TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(property_name_as_string, property_descriptor.value.value()); }));
 
                 // 3. Return true.
                 return true;
