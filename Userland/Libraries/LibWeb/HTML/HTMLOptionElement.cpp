@@ -57,9 +57,14 @@ void HTMLOptionElement::attribute_changed(FlyString const& name, Optional<String
 void HTMLOptionElement::set_selected(bool selected)
 {
     // On setting, it must set the element's selectedness to the new value, set its dirtiness to true, and then cause the element to ask for a reset.
-    m_selected = selected;
+    set_selected_internal(selected);
     m_dirty = true;
     ask_for_a_reset();
+}
+
+void HTMLOptionElement::set_selected_internal(bool selected)
+{
+    m_selected = selected;
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-value

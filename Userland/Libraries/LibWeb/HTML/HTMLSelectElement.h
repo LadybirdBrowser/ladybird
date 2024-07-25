@@ -92,6 +92,8 @@ public:
 
     void did_select_item(Optional<u32> const& id);
 
+    void update_selectedness();
+
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
 

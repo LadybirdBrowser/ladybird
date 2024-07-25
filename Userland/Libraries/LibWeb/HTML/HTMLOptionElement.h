@@ -20,6 +20,7 @@ public:
 
     bool selected() const { return m_selected; }
     void set_selected(bool);
+    void set_selected_internal(bool);
 
     String value() const;
     WebIDL::ExceptionOr<void> set_value(String const&);
