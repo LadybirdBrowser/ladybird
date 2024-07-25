@@ -137,7 +137,10 @@ int HTMLOptionElement::index() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#ask-for-a-reset
 void HTMLOptionElement::ask_for_a_reset()
 {
-    // FIXME: Implement this operation.
+    // If an option element in the list of options asks for a reset, then run that select element's selectedness setting algorithm.
+    if (is<HTMLSelectElement>(parent_element())) {
+        static_cast<HTMLSelectElement*>(parent())->update_selectedness();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-disabled
