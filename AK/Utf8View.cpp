@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
-
 #include <AK/Assertions.h>
 #include <AK/Debug.h>
 #include <AK/Format.h>

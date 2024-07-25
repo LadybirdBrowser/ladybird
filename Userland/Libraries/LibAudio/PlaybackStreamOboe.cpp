@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
 #include <AK/Atomic.h>
 #include <AK/SourceLocation.h>
 #include <LibAudio/PlaybackStreamOboe.h>

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
-
 #include <AK/Array.h>
 #include <AK/Checked.h>
 #include <AK/Endian.h>

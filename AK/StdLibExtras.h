@@ -16,6 +16,8 @@
 
 #include <AK/Assertions.h>
 
+#include <utility>
+
 namespace AK {
 
 template<typename T, typename U>
@@ -35,44 +37,8 @@ requires(AK::Detail::IsIntegral<T>)
 template<typename... Args>
 void compiletime_fail(Args...);
 
-}
-
-#if !USING_AK_GLOBALLY || defined(AK_DONT_REPLACE_STD)
-#    define AK_REPLACED_STD_NAMESPACE AK::replaced_std
-#else
-#    define AK_REPLACED_STD_NAMESPACE std
-#endif
-
-namespace AK_REPLACED_STD_NAMESPACE { // NOLINT(cert-dcl58-cpp) Names in std to aid tools
-
-// NOTE: These are in the "std" namespace since some compilers and static analyzers rely on it.
-//       If USING_AK_GLOBALLY is false, we can't put them in ::std, so we put them in AK::replaced_std instead
-//       The user code should not notice anything unless it explicitly asks for std::stuff, so...don't.
-
-template<typename T>
-constexpr T&& forward(AK::Detail::RemoveReference<T>& param)
-{
-    return static_cast<T&&>(param);
-}
-
-template<typename T>
-constexpr T&& forward(AK::Detail::RemoveReference<T>&& param) noexcept
-{
-    static_assert(!AK::Detail::IsLvalueReference<T>, "Can't forward an rvalue as an lvalue.");
-    return static_cast<T&&>(param);
-}
-
-template<typename T>
-constexpr T&& move(T& arg)
-{
-    return static_cast<T&&>(arg);
-}
-
-}
-
-namespace AK {
-using AK_REPLACED_STD_NAMESPACE::forward;
-using AK_REPLACED_STD_NAMESPACE::move;
+using std::forward;
+using std::move;
 }
 
 namespace AK::Detail {

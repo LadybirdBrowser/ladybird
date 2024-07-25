@@ -67,7 +67,6 @@ if (HAIKU)
     add_compile_definitions(__USE_GNU)
 endif()
 
-add_compile_definitions(AK_DONT_REPLACE_STD)
 add_cxx_compile_options(-Wno-expansion-to-defined)
 add_cxx_compile_options(-Wno-user-defined-literals)
 

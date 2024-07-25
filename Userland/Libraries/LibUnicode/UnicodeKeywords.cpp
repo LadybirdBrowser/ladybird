@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
-
 #include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
 #include <LibUnicode/DateTimeFormat.h>

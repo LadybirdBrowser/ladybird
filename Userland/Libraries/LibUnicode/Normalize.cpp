@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
-
 #include <AK/StringBuilder.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Normalize.h>

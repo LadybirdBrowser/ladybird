@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
-
 #include <AK/NonnullOwnPtr.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/ListFormat.h>
