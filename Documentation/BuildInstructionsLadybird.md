@@ -197,6 +197,24 @@ brew install llvm
 CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
 ```
 
+### Build error messages you may encounter
+
+The section lists out some particular error messages you may run into, and explains how to deal with them.
+
+#### Unable to find a build program corresponding to "Ninja"
+
+Solution to try: If you do in fact already have Ninja installed, then first try reinstalling Ninja.
+
+Details: If you see the message *“Unable to find a build program corresponding to "Ninja"”*, it’s likely not an indication that the build tooling can’t actually find Ninja, but instead an indication that the tooling found Ninja but it failed to run successfully.
+
+So, when you do run into that error message, the way to start figuring out what’s actually wrong is to try invoking Ninja manually, like this:
+
+```
+ninja -C Build/ladybird
+```
+
+Then, based on what output you get from that, you can troubleshoot the *actual* problem you’re running into — which may involve uninstalling your current Ninja install, and then re-installing it.
+
 ### Resource files
 
 Ladybird requires resource files from the ladybird/Base/res directory in order to properly load
