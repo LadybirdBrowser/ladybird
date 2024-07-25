@@ -248,7 +248,10 @@ icons_32x32 = [
   "//Base/res/icons/32x32/msgbox-warning.png",
 ]
 
-icons_48x48 = [ "//Base/res/icons/48x48/app-browser.png" ]
+icons_48x48 = [
+  "//Base/res/icons/48x48/app-browser.png",
+  "//Base/res/icons/48x48/app-browser-dark.png",
+]
 
 icons_128x128 = [
   "//Base/res/icons/128x128/app-browser.png",

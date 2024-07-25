@@ -9,6 +9,7 @@
 #include "BrowserWindow.h"
 #include "Icon.h"
 #include "InspectorWidget.h"
+#include "QtUtils.h"
 #include "Settings.h"
 #include "StringUtils.h"
 #include <AK/TemporaryChange.h>
@@ -40,12 +41,6 @@
 #include <QResizeEvent>
 
 namespace Ladybird {
-
-static QIcon default_favicon()
-{
-    static QIcon icon = load_icon_from_uri("resource://icons/48x48/app-browser.png"sv);
-    return icon;
-}
 
 Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, StringView webdriver_content_ipc_path, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
     : QWidget(window)
@@ -84,7 +79,12 @@ Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, St
 
     recreate_toolbar_icons();
 
-    m_favicon = default_favicon();
+    if (is_using_dark_system_theme(*this))
+        m_default_favicon = load_icon_from_uri("resource://icons/48x48/app-browser.png"sv);
+    else
+        m_default_favicon = load_icon_from_uri("resource://icons/48x48/app-browser-dark.png"sv);
+
+    m_favicon = m_default_favicon;
 
     m_toolbar->addAction(&m_window->go_back_action());
     m_toolbar->addAction(&m_window->go_forward_action());
@@ -142,7 +142,7 @@ Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, St
         m_title = url_serialized;
         emit title_changed(tab_index(), url_serialized);
 
-        m_favicon = default_favicon();
+        m_favicon = m_default_favicon;
         emit favicon_changed(tab_index(), m_favicon);
 
         m_location_edit->set_url(url);
