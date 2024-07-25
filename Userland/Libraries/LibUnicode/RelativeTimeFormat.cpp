@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
-
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/NumberFormat.h>

@@ -6,8 +6,6 @@
 
 #pragma once
 
-#define AK_DONT_REPLACE_STD
-
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>

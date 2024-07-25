@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
-
 #include <AK/CharacterTypes.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf8View.h>

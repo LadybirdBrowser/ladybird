@@ -48,7 +48,6 @@ config("ladybird_config") {
     "//Userland/Applications",
     "//Userland/Services",
   ]
-  defines = [ "AK_DONT_REPLACE_STD" ]
 }
 
 ladybird_helper_processes = [

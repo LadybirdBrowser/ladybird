@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
 #include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
 #include <woff2/decode.h>

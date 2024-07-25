@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
-
 #include <core/SkBitmap.h>
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>

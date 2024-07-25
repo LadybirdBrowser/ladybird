@@ -40,8 +40,6 @@ Now, you can link against Lagom libraries.
 Things to keep in mind:
 - You should prefer to use a library's `Lagom::` alias when linking
   - Example: `Lagom::Core` vs `LibCore`
-- If you still _need_ to use the C++ standard library, you may have to compile with the `AK_DONT_REPLACE_STD` macro.
-  - Serenity defines its own `move` and `forward` functions inside of `AK/StdLibExtras.h` that will clash with the standard library's definitions. This macro will make Serenity use the standard library's `move` and `forward` instead.
 - If your application has name clashes with any names in AK, you may have to define `USING_AK_GLOBALLY=0` for the files that have visibility to both sets of headers.
 
 ## Fuzzing
