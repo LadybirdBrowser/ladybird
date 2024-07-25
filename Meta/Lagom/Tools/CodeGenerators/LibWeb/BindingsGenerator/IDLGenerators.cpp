@@ -3015,7 +3015,6 @@ void @named_properties_class@::initialize(JS::Realm& realm)
 // https://webidl.spec.whatwg.org/#named-properties-object-getownproperty
 JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> @named_properties_class@::internal_get_own_property(JS::PropertyKey const& property_name) const
 {
-    auto& vm = this->vm();
     auto& realm = this->realm();
 
     // 1. Let A be the interface for the named properties object O.
@@ -3033,7 +3032,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> @named_properties_class@
         // 2. Let value be an uninitialized variable.
         // 3. If operation was defined without an identifier, then set value to the result of performing the steps listed in the interface description to determine the value of a named property with P as the name.
         // 4. Otherwise, operation was defined with an identifier. Set value to the result of performing the method steps of operation with « P » as the only argument value.
-        auto value = TRY(throw_dom_exception_if_needed(vm, [&] { return object.named_item_value(property_name_string); }));
+        auto value = object.named_item_value(property_name_string);
 
         // 5. Let desc be a newly created Property Descriptor with no fields.
         JS::PropertyDescriptor descriptor;

@@ -85,8 +85,6 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
 // https://webidl.spec.whatwg.org/#PlatformObjectGetOwnProperty
 JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_platform_object_get_own_property(JS::PropertyKey const& property_name, IgnoreNamedProps ignore_named_props) const
 {
-    auto& vm = this->vm();
-
     // 1. If O supports indexed properties and P is an array index, then:
     if (m_legacy_platform_object_flags->supports_indexed_properties && property_name.is_number()) {
         // 1. Let index be the result of calling ToUint32(P).
@@ -98,7 +96,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
             // 2. Let value be an uninitialized variable.
             // 3. If operation was defined without an identifier, then set value to the result of performing the steps listed in the interface description to determine the value of an indexed property with index as the index.
             // 4. Otherwise, operation was defined with an identifier. Set value to the result of performing the method steps of operation with O as this and « index » as the argument values.
-            auto value item_value(index);
+            auto value = item_value(index);
 
             // 5. Let desc be a newly created Property Descriptor with no fields.
             JS::PropertyDescriptor descriptor;
@@ -132,7 +130,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
             // 2. Let value be an uninitialized variable.
             // 3. If operation was defined without an identifier, then set value to the result of performing the steps listed in the interface description to determine the value of a named property with P as the name.
             // 4. Otherwise, operation was defined with an identifier. Set value to the result of performing the method steps of operation with O as this and « P » as the argument values.
-            auto value = TRY(throw_dom_exception_if_needed(vm, [&] { return named_item_value(property_name_string); }));
+            auto value = named_item_value(property_name_string);
 
             // 5. Let desc be a newly created Property Descriptor with no fields.
             JS::PropertyDescriptor descriptor;
@@ -488,7 +486,7 @@ JS::Value PlatformObject::item_value(size_t) const
     return JS::js_undefined();
 }
 
-WebIDL::ExceptionOr<JS::Value> PlatformObject::named_item_value(FlyString const&) const
+JS::Value PlatformObject::named_item_value(FlyString const&) const
 {
     return JS::js_undefined();
 }

@@ -168,7 +168,7 @@ Vector<FlyString> Storage::supported_property_names() const
     return names;
 }
 
-WebIDL::ExceptionOr<JS::Value> Storage::named_item_value(FlyString const& name) const
+JS::Value Storage::named_item_value(FlyString const& name) const
 {
     auto value = get_item(name);
     if (!value.has_value())

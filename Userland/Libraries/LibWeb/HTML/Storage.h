@@ -38,7 +38,7 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     // ^PlatformObject
-    virtual WebIDL::ExceptionOr<JS::Value> named_item_value(FlyString const&) const override;
+    virtual JS::Value named_item_value(FlyString const&) const override;
     virtual WebIDL::ExceptionOr<DidDeletionFail> delete_value(String const&) override;
     virtual Vector<FlyString> supported_property_names() const override;
     virtual WebIDL::ExceptionOr<void> set_value_of_named_property(String const& key, JS::Value value) override;

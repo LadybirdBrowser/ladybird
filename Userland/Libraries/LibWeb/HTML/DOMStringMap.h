@@ -36,7 +36,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     // ^PlatformObject
-    virtual WebIDL::ExceptionOr<JS::Value> named_item_value(FlyString const&) const override;
+    virtual JS::Value named_item_value(FlyString const&) const override;
     virtual Vector<FlyString> supported_property_names() const override;
 
     struct NameValuePair {

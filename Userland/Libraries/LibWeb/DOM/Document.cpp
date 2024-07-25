@@ -4837,7 +4837,7 @@ static Vector<JS::NonnullGCPtr<DOM::Element>> named_elements_with_name(Document 
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem
-WebIDL::ExceptionOr<JS::Value> Document::named_item_value(FlyString const& name) const
+JS::Value Document::named_item_value(FlyString const& name) const
 {
     // 1. Let elements be the list of named elements with the name name that are in a document tree with the Document as their root.
     // NOTE: There will be at least one such element, since the algorithm would otherwise not have been invoked by Web IDL.

@@ -114,7 +114,7 @@ JS::Value PluginArray::item_value(size_t index) const
     return return_value.ptr();
 }
 
-WebIDL::ExceptionOr<JS::Value> PluginArray::named_item_value(FlyString const& name) const
+JS::Value PluginArray::named_item_value(FlyString const& name) const
 {
     auto return_value = named_item(name);
     if (!return_value)
