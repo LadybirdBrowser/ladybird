@@ -49,6 +49,9 @@ static void init()
 
 void Threading::quit_background_thread()
 {
+    if (!s_background_thread)
+        return;
+
     s_background_thread_should_run.store(false, AK::MemoryOrder::memory_order_release);
 
     pthread_mutex_lock(&s_mutex);
