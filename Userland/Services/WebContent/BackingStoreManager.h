@@ -35,7 +35,8 @@ public:
     BackingStoreManager(PageClient&);
 
 private:
-    PageClient& m_page_client;
+    // FIXME: We should come up with an ownership model for this class that makes the GC-checker happy
+    IGNORE_GC PageClient& m_page_client;
 
     i32 m_front_bitmap_id { -1 };
     i32 m_back_bitmap_id { -1 };
