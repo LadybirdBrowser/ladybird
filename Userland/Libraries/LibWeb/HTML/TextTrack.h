@@ -36,6 +36,9 @@ public:
     String id();
     void set_id(String);
 
+    Bindings::TextTrackMode mode();
+    void set_mode(Bindings::TextTrackMode);
+
     void set_oncuechange(WebIDL::CallbackType*);
     WebIDL::CallbackType* oncuechange();
 
@@ -49,6 +52,8 @@ private:
     String m_language {};
 
     String m_id {};
+
+    Bindings::TextTrackMode m_mode { Bindings::TextTrackMode::Disabled };
 };
 
 Bindings::TextTrackKind text_track_kind_from_string(String);

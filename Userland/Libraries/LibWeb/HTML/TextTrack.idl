@@ -16,7 +16,7 @@ interface TextTrack : EventTarget {
     readonly attribute DOMString id;
     [FIXME] readonly attribute DOMString inBandMetadataTrackDispatchType;
 
-    [FIXME] attribute TextTrackMode mode;
+    attribute TextTrackMode mode;
 
     [FIXME] readonly attribute TextTrackCueList? cues;
     [FIXME] readonly attribute TextTrackCueList? activeCues;
