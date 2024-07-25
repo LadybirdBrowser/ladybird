@@ -36,7 +36,7 @@ if (ENABLE_SWIFT)
             "Swift files must use Clang that was bundled with swiftc"
         )
     endif()
-    include(../cmake/GenerateSwiftHeader.cmake)
+    include(Swift/GenerateSwiftHeader)
 
     target_sources(ladybird_impl PRIVATE
         UI/TaskManager.swift
