@@ -1724,7 +1724,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> Document::create_event(StringView i
     return JS::NonnullGCPtr(*event);
 }
 
-void Document::set_pending_parsing_blocking_script(Badge<HTML::HTMLScriptElement>, HTML::HTMLScriptElement* script)
+void Document::set_pending_parsing_blocking_script(HTML::HTMLScriptElement* script)
 {
     m_pending_parsing_blocking_script = script;
 }
