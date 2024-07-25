@@ -47,9 +47,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
 
     // 1. If P is not a supported property name of O, then return false.
     // NOTE: This is in it's own variable to enforce the type.
-    auto supported_property_names = this->supported_property_names();
-    auto property_key_string = MUST(String::from_byte_string(property_key.to_string()));
-    if (!supported_property_names.contains_slow(property_key_string))
+    if (!is_supported_property_name(MUST(String::from_byte_string(property_key.to_string()))))
         return false;
 
     // 2. If O has an own property named P, then return false.
@@ -498,6 +496,11 @@ WebIDL::ExceptionOr<JS::Value> PlatformObject::named_item_value(FlyString const&
 Vector<FlyString> PlatformObject::supported_property_names() const
 {
     return {};
+}
+
+bool PlatformObject::is_supported_property_name(FlyString const& name) const
+{
+    return supported_property_names().contains_slow(name);
 }
 
 bool PlatformObject::is_supported_property_index(u32) const

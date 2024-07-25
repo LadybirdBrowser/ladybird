@@ -48,6 +48,30 @@ void HTMLCollection::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_root);
     visitor.visit(m_cached_elements);
+    if (m_cached_name_to_element_mappings)
+        visitor.visit(*m_cached_name_to_element_mappings);
+}
+
+void HTMLCollection::update_name_to_element_mappings_if_needed() const
+{
+    update_cache_if_needed();
+    if (m_cached_name_to_element_mappings)
+        return;
+    m_cached_name_to_element_mappings = make<HashMap<FlyString, JS::NonnullGCPtr<Element>>>();
+    for (auto const& element : m_cached_elements) {
+        // 1. If element has an ID which is not in result, append element’s ID to result.
+        if (auto const& id = element->id(); id.has_value()) {
+            if (!id.value().is_empty() && !m_cached_name_to_element_mappings->contains(id.value()))
+                m_cached_name_to_element_mappings->set(id.value(), element);
+        }
+
+        // 2. If element is in the HTML namespace and has a name attribute whose value is neither the empty string nor is in result, append element’s name attribute value to result.
+        if (element->namespace_uri() == Namespace::HTML && element->name().has_value()) {
+            auto element_name = element->name().value();
+            if (!element_name.is_empty() && !m_cached_name_to_element_mappings->contains(element_name))
+                m_cached_name_to_element_mappings->set(move(element_name), element);
+        }
+    }
 }
 
 void HTMLCollection::update_cache_if_needed() const
@@ -57,6 +81,7 @@ void HTMLCollection::update_cache_if_needed() const
         return;
 
     m_cached_elements.clear();
+    m_cached_name_to_element_mappings = nullptr;
     if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree_of_type<Element>([&](auto& element) {
             if (m_filter(element))
@@ -107,21 +132,17 @@ Element* HTMLCollection::named_item(FlyString const& key) const
     if (key.is_empty())
         return nullptr;
 
-    update_cache_if_needed();
-
-    // 2. Return the first element in the collection for which at least one of the following is true:
-    for (auto const& element : m_cached_elements) {
-        // - it has an ID which is key;
-        if (element->id() == key)
-            return element;
-
-        // - it is in the HTML namespace and has a name attribute whose value is key;
-        if (element->namespace_uri() == Namespace::HTML && element->name() == key)
-            return element;
-    }
-
-    // or null if there is no such element.
+    update_name_to_element_mappings_if_needed();
+    if (auto it = m_cached_name_to_element_mappings->get(key); it.has_value())
+        return it.value();
     return nullptr;
+}
+
+// https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-names
+bool HTMLCollection::is_supported_property_name(FlyString const& name) const
+{
+    update_name_to_element_mappings_if_needed();
+    return m_cached_name_to_element_mappings->contains(name);
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-names
@@ -131,20 +152,9 @@ Vector<FlyString> HTMLCollection::supported_property_names() const
     Vector<FlyString> result;
 
     // 2. For each element represented by the collection, in tree order:
-    update_cache_if_needed();
-    for (auto const& element : m_cached_elements) {
-        // 1. If element has an ID which is not in result, append element’s ID to result.
-        if (auto const& id = element->id(); id.has_value()) {
-            if (!id.value().is_empty() && !result.contains_slow(id.value()))
-                result.append(id.value());
-        }
-
-        // 2. If element is in the HTML namespace and has a name attribute whose value is neither the empty string nor is in result, append element’s name attribute value to result.
-        if (element->namespace_uri() == Namespace::HTML && element->name().has_value()) {
-            auto name = element->name().value();
-            if (!name.is_empty() && !result.contains_slow(name))
-                result.append(move(name));
-        }
+    update_name_to_element_mappings_if_needed();
+    for (auto const& it : *m_cached_name_to_element_mappings) {
+        result.append(it.key);
     }
 
     // 3. Return result.
