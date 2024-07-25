@@ -91,12 +91,12 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
         u32 index = property_name.as_number();
 
         // 2. If index is a supported property index, then:
-        if (is_supported_property_index(index)) {
+        if (auto maybe_value = item_value(index); maybe_value.has_value()) {
             // 1. Let operation be the operation used to declare the indexed property getter.
             // 2. Let value be an uninitialized variable.
             // 3. If operation was defined without an identifier, then set value to the result of performing the steps listed in the interface description to determine the value of an indexed property with index as the index.
             // 4. Otherwise, operation was defined with an identifier. Set value to the result of performing the method steps of operation with O as this and « index » as the argument values.
-            auto value = *item_value(index);
+            auto value = maybe_value.release_value();
 
             // 5. Let desc be a newly created Property Descriptor with no fields.
             JS::PropertyDescriptor descriptor;
