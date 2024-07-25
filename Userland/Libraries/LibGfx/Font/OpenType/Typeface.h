@@ -88,6 +88,10 @@ public:
     static constexpr Tag HeaderTag_CFFOutlines = Tag { "OTTO" };
     static constexpr Tag HeaderTag_FontCollection = Tag { "ttcf" };
 
+protected:
+    virtual ReadonlyBytes buffer() const override { return m_buffer; }
+    virtual unsigned ttc_index() const override { return m_ttc_index; }
+
 private:
     struct AscenderAndDescender {
         i16 ascender;
@@ -126,8 +130,12 @@ private:
         Optional<Prep> prep,
         Optional<CBLC> cblc,
         Optional<CBDT> cbdt,
-        Optional<GPOS> gpos)
-        : m_head(move(head))
+        Optional<GPOS> gpos,
+        ReadonlyBytes buffer,
+        unsigned ttc_index)
+        : m_buffer(buffer)
+        , m_ttc_index(ttc_index)
+        , m_head(move(head))
         , m_name(move(name))
         , m_hhea(move(hhea))
         , m_maxp(move(maxp))
@@ -146,6 +154,8 @@ private:
     }
 
     OwnPtr<Gfx::FontData> m_font_data;
+    ReadonlyBytes m_buffer;
+    unsigned m_ttc_index { 0 };
 
     // These are stateful wrappers around non-owning slices
     Head m_head;

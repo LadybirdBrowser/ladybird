@@ -1,3 +1,5 @@
+include(skia)
+
 set(SOURCES
     AffineTransform.cpp
     AntiAliasingPainter.cpp
@@ -17,7 +19,9 @@ set(SOURCES
     Font/OpenType/Tables.cpp
     Font/OpenType/Typeface.cpp
     Font/ScaledFont.cpp
+    Font/ScaledFontSkia.cpp
     Font/Typeface.cpp
+    Font/TypefaceSkia.cpp
     Font/WOFF/Loader.cpp
     Font/WOFF2/Loader.cpp
     GradientPainting.cpp
@@ -65,7 +69,8 @@ set(SOURCES
 )
 
 serenity_lib(LibGfx gfx)
-target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL)
+
+target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL ${SKIA_LIBRARIES})
 
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
 list(TRANSFORM generated_sources PREPEND "ImageFormats/")

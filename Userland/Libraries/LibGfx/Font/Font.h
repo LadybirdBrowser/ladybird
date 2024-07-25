@@ -98,6 +98,8 @@ enum FontWidth {
     UltraExpanded = 9
 };
 
+class Typeface;
+
 class Font : public RefCounted<Font> {
 public:
     virtual ~Font() {};
@@ -142,6 +144,8 @@ public:
     Font const& bold_variant() const;
 
     virtual bool has_color_bitmaps() const = 0;
+
+    virtual Typeface const& typeface() const = 0;
 
 private:
     mutable RefPtr<Gfx::Font const> m_bold_variant;

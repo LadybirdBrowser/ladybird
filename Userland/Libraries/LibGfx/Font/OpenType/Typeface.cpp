@@ -352,7 +352,9 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_offset(ReadonlyBytes bu
         move(prep),
         move(cblc),
         move(cbdt),
-        move(gpos)));
+        move(gpos),
+        buffer.slice(offset),
+        options.index));
 }
 
 Gfx::ScaledFontMetrics Typeface::metrics([[maybe_unused]] float x_scale, float y_scale) const
