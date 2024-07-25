@@ -67,13 +67,16 @@ jobs:
             if ${{ inputs.toolchain == 'Clang' }} ; then
               echo "host_cc=clang-18" >> "$GITHUB_OUTPUT"
               echo "host_cxx=clang++-18" >> "$GITHUB_OUTPUT"
+              echo "extra_cmake_options=-DENABLE_CLANG_PLUGINS=ON" >> "$GITHUB_OUTPUT"
             elif ${{ inputs.toolchain == 'GNU' }} ; then
               echo "host_cc=gcc-13" >> "$GITHUB_OUTPUT"
               echo "host_cxx=g++-13" >> "$GITHUB_OUTPUT"
+              echo "extra_cmake_options=" >> "$GITHUB_OUTPUT"
             fi
           elif ${{ inputs.os_name == 'macOS' }} ; then
             echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
             echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
+            echo "extra_cmake_options=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set dynamic environment variables
@@ -95,6 +98,7 @@ jobs:
           cmake --preset Sanitizer_CI -B Build \
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
+            ${{ steps.build-parameters.outputs.extra_cmake_options }} \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
