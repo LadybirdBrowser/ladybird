@@ -169,11 +169,11 @@ bool HTMLCollection::is_supported_property_index(u32 index) const
     return index < length();
 }
 
-JS::Value HTMLCollection::item_value(size_t index) const
+Optional<JS::Value> HTMLCollection::item_value(size_t index) const
 {
     auto* element = item(index);
     if (!element)
-        return JS::js_undefined();
+        return {};
     return element;
 }
 

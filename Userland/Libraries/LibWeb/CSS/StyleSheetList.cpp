@@ -164,10 +164,10 @@ bool StyleSheetList::is_supported_property_index(u32 index) const
     return index < m_sheets.size();
 }
 
-JS::Value StyleSheetList::item_value(size_t index) const
+Optional<JS::Value> StyleSheetList::item_value(size_t index) const
 {
     if (index >= m_sheets.size())
-        return JS::js_undefined();
+        return {};
 
     return m_sheets[index].ptr();
 }

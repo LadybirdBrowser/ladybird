@@ -97,11 +97,11 @@ JS::GCPtr<MimeType> MimeTypeArray::named_item(FlyString const& name) const
     return nullptr;
 }
 
-JS::Value MimeTypeArray::item_value(size_t index) const
+Optional<JS::Value> MimeTypeArray::item_value(size_t index) const
 {
     auto return_value = item(index);
     if (!return_value)
-        return JS::js_null();
+        return {};
     return return_value.ptr();
 }
 

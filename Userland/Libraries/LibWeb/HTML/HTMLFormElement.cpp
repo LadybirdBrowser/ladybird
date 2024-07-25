@@ -935,11 +935,13 @@ bool HTMLFormElement::is_supported_property_index(u32 index) const
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-item
-JS::Value HTMLFormElement::item_value(size_t index) const
+Optional<JS::Value> HTMLFormElement::item_value(size_t index) const
 {
     // To determine the value of an indexed property for a form element, the user agent must return the value returned by
     // the item method on the elements collection, when invoked with the given index as its argument.
-    return elements()->item(index);
+    if (auto value = elements()->item(index))
+        return value;
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#the-form-element:supported-property-names
