@@ -34,6 +34,7 @@ private:
     DragEvent(JS::Realm&, FlyString const& event_name, DragEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(JS::Cell::Visitor&) override;
 
     JS::GCPtr<DataTransfer> m_data_transfer;
 };
