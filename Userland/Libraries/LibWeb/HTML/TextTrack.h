@@ -21,6 +21,14 @@ class TextTrack final : public DOM::EventTarget {
     JS_DECLARE_ALLOCATOR(TextTrack);
 
 public:
+    // https://html.spec.whatwg.org/multipage/media.html#text-track-readiness-state
+    enum class ReadinessState {
+        NotLoaded,
+        Loading,
+        Loaded,
+        FailedToLoad,
+    };
+
     static JS::NonnullGCPtr<TextTrack> create(JS::Realm&);
     virtual ~TextTrack() override;
 
@@ -42,6 +50,9 @@ public:
     void set_oncuechange(WebIDL::CallbackType*);
     WebIDL::CallbackType* oncuechange();
 
+    ReadinessState readiness_state() { return m_readiness_state; }
+    void set_readiness_state(ReadinessState readiness_state) { m_readiness_state = readiness_state; }
+
 private:
     TextTrack(JS::Realm&);
 
@@ -54,6 +65,8 @@ private:
     String m_id {};
 
     Bindings::TextTrackMode m_mode { Bindings::TextTrackMode::Disabled };
+
+    ReadinessState m_readiness_state { ReadinessState::NotLoaded };
 };
 
 Bindings::TextTrackKind text_track_kind_from_string(String);
