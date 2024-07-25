@@ -155,6 +155,17 @@ static std::optional<QualTypeGCInfo> validate_field_qualified_type(clang::FieldD
     return {};
 }
 
+static bool decl_has_annotation(clang::Decl const* decl, std::string name)
+{
+    for (auto const* attr : decl->attrs()) {
+        if (auto const* annotate_attr = llvm::dyn_cast<clang::AnnotateAttr>(attr)) {
+            if (annotate_attr->getAnnotation() == name)
+                return true;
+        }
+    }
+    return false;
+}
+
 bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
 {
     using namespace clang::ast_matchers;
@@ -175,6 +186,9 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     for (clang::FieldDecl const* field : record->fields()) {
         auto validation_results = validate_field_qualified_type(field);
         if (!validation_results)
+            continue;
+
+        if (decl_has_annotation(field, "serenity::ignore_gc"))
             continue;
 
         auto [outer_type, base_type_inherits_from_cell] = *validation_results;
