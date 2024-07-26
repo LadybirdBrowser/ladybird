@@ -45,7 +45,7 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
             false);
     };
 
-    auto tokens = CSS::Parser::Tokenizer::tokenize(text, "utf-8"sv).release_value_but_fixme_should_propagate_errors();
+    auto tokens = CSS::Parser::Tokenizer::tokenize(text, "utf-8"sv);
     for (auto const& token : tokens) {
         if (token.is(Parser::Token::Type::EndOfFile))
             break;
