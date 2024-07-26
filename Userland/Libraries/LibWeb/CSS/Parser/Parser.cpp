@@ -1562,6 +1562,37 @@ RefPtr<StyleValue> Parser::parse_builtin_value(ComponentValue const& component_v
     return nullptr;
 }
 
+// https://www.w3.org/TR/css-values-4/#custom-idents
+RefPtr<CustomIdentStyleValue> Parser::parse_custom_ident_value(TokenStream<ComponentValue>& tokens, std::initializer_list<StringView> blacklist)
+{
+    auto transaction = tokens.begin_transaction();
+    tokens.skip_whitespace();
+
+    auto token = tokens.next_token();
+    if (!token.is(Token::Type::Ident))
+        return nullptr;
+    auto custom_ident = token.token().ident();
+
+    // The CSS-wide keywords are not valid <custom-ident>s.
+    if (is_css_wide_keyword(custom_ident))
+        return nullptr;
+
+    // The default keyword is reserved and is also not a valid <custom-ident>.
+    if (custom_ident.equals_ignoring_ascii_case("default"sv))
+        return nullptr;
+
+    // Specifications using <custom-ident> must specify clearly what other keywords are excluded from <custom-ident>,
+    // if any—for example by saying that any pre-defined keywords in that property’s value definition are excluded.
+    // Excluded keywords are excluded in all ASCII case permutations.
+    for (auto& value : blacklist) {
+        if (custom_ident.equals_ignoring_ascii_case(value))
+            return nullptr;
+    }
+
+    transaction.commit();
+    return CustomIdentStyleValue::create(custom_ident);
+}
+
 RefPtr<CalculatedStyleValue> Parser::parse_calculated_value(ComponentValue const& component_value)
 {
     if (!component_value.is_function())
@@ -2896,7 +2927,7 @@ RefPtr<StyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tokens
 // https://drafts.csswg.org/css-lists-3/#counter-functions
 RefPtr<StyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& tokens)
 {
-    auto parse_counter_name = [](TokenStream<ComponentValue>& tokens) -> Optional<FlyString> {
+    auto parse_counter_name = [this](TokenStream<ComponentValue>& tokens) -> Optional<FlyString> {
         // https://drafts.csswg.org/css-lists-3/#typedef-counter-name
         // Counters are referred to in CSS syntax using the <counter-name> type, which represents
         // their name as a <custom-ident>. A <counter-name> name cannot match the keyword none;
@@ -2904,8 +2935,8 @@ RefPtr<StyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& toke
         auto transaction = tokens.begin_transaction();
         tokens.skip_whitespace();
 
-        auto& token = tokens.next_token();
-        if (!token.is(Token::Type::Ident) || token.token().ident() == "none"sv)
+        auto counter_name = parse_custom_ident_value(tokens, { "none"sv });
+        if (!counter_name)
             return {};
 
         tokens.skip_whitespace();
@@ -2913,10 +2944,10 @@ RefPtr<StyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& toke
             return {};
 
         transaction.commit();
-        return token.token().ident();
+        return counter_name->custom_ident();
     };
 
-    auto parse_counter_style = [](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue> {
+    auto parse_counter_style = [this](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue> {
         // https://drafts.csswg.org/css-counter-styles-3/#typedef-counter-style
         // <counter-style> = <counter-style-name> | <symbols()>
         // For now we just support <counter-style-name>, found here:
@@ -2925,8 +2956,8 @@ RefPtr<StyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& toke
         auto transaction = tokens.begin_transaction();
         tokens.skip_whitespace();
 
-        auto& token = tokens.next_token();
-        if (!token.is(Token::Type::Ident) || token.token().ident() == "none"sv)
+        auto counter_style_name = parse_custom_ident_value(tokens, { "none"sv });
+        if (!counter_style_name)
             return {};
 
         tokens.skip_whitespace();
@@ -2934,7 +2965,7 @@ RefPtr<StyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& toke
             return {};
 
         transaction.commit();
-        return CustomIdentStyleValue::create(token.token().ident());
+        return counter_style_name.release_nonnull();
     };
 
     auto transaction = tokens.begin_transaction();
@@ -6507,11 +6538,9 @@ RefPtr<StyleValue> Parser::parse_grid_track_placement(TokenStream<ComponentValue
             return true;
         return false;
     };
-    auto is_custom_ident = [](auto& token) -> bool {
+    auto parse_custom_ident = [this](auto& tokens) {
         // The <custom-ident> additionally excludes the keywords span and auto.
-        if (token.is(Token::Type::Ident) && !token.is_ident("span"sv) && !token.is_ident("auto"sv))
-            return true;
-        return false;
+        return parse_custom_ident_value(tokens, { "span"sv, "auto"sv });
     };
 
     auto transaction = tokens.begin_transaction();
@@ -6519,6 +6548,10 @@ RefPtr<StyleValue> Parser::parse_grid_track_placement(TokenStream<ComponentValue
     // FIXME: Handle the single-token case inside the loop instead, so that we can more easily call this from
     //        `parse_grid_area_shorthand_value()` using a single TokenStream.
     if (tokens.remaining_token_count() == 1) {
+        if (auto custom_ident = parse_custom_ident(tokens)) {
+            transaction.commit();
+            return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line({}, custom_ident->custom_ident().to_string()));
+        }
         auto& token = tokens.next_token();
         if (auto maybe_calculated = parse_calculated_value(token); maybe_calculated && maybe_calculated->resolves_to_number()) {
             transaction.commit();
@@ -6535,10 +6568,6 @@ RefPtr<StyleValue> Parser::parse_grid_track_placement(TokenStream<ComponentValue
         if (is_valid_integer(token)) {
             transaction.commit();
             return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(token.token().number_value()), {}));
-        }
-        if (is_custom_ident(token)) {
-            transaction.commit();
-            return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line({}, token.token().ident().to_string()));
         }
         return nullptr;
     }
@@ -6563,10 +6592,10 @@ RefPtr<StyleValue> Parser::parse_grid_track_placement(TokenStream<ComponentValue
             span_or_position_value = static_cast<int>(tokens.next_token().token().to_integer());
             continue;
         }
-        if (is_custom_ident(token)) {
+        if (auto custom_ident = parse_custom_ident(tokens)) {
             if (!identifier_value.is_empty())
                 return nullptr;
-            identifier_value = tokens.next_token().token().ident().to_string();
+            identifier_value = custom_ident->custom_ident().to_string();
             continue;
         }
         break;
@@ -7244,8 +7273,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
 
         // Custom idents
         if (auto property = any_property_accepts_type(property_ids, ValueType::CustomIdent); property.has_value()) {
-            (void)tokens.next_token();
-            return PropertyAndValue { *property, CustomIdentStyleValue::create(peek_token.token().ident()) };
+            if (auto custom_ident = parse_custom_ident_value(tokens, {}))
+                return PropertyAndValue { *property, custom_ident };
         }
     }
 

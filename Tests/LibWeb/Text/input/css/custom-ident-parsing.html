@@ -1,0 +1,14 @@
+<script src="../include.js"></script>
+<div id="foo"></div>
+<script>
+    test(() => {
+        const foo = document.getElementById("foo");
+        println(`Before testing: ${getComputedStyle(foo).getPropertyValue("animation-name")}`);
+        const cases = [ 'badger', 'none', 'BANANA', 'NONE', 'InHeRiT', 'revert', 'initial', 'unset', 'george', 'REVERT', 'NaCl', 'default', 'string', '32', 'done' ];
+        for (const name of cases) {
+            foo.style.setProperty('animation-name', 'INVALID');
+            foo.style.setProperty('animation-name', name);
+            println(`${name}: ${getComputedStyle(foo).getPropertyValue("animation-name")}`);
+        }
+    });
+</script>
