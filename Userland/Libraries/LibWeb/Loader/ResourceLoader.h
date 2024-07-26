@@ -126,7 +126,7 @@ private:
     NonnullRefPtr<ResourceLoaderConnector> m_connector;
     String m_user_agent;
     String m_platform;
-    Vector<String> m_preferred_languages;
+    Vector<String> m_preferred_languages = { "en"_string };
     NavigatorCompatibilityMode m_navigator_compatibility_mode;
     bool m_enable_do_not_track { false };
     Optional<JS::GCPtr<Page>> m_page {};
