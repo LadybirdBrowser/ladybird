@@ -1246,7 +1246,7 @@ ParseResult<CodeSection::Func> CodeSection::Func::parse(Stream& stream, size_t s
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Func"sv);
     auto locals = TRY(parse_vector<Locals>(stream));
     auto body = TRY(Expression::parse(stream, size_hint));
-    return Func { locals, body };
+    return Func { move(locals), move(body) };
 }
 
 ParseResult<CodeSection::Code> CodeSection::Code::parse(Stream& stream)
@@ -1261,14 +1261,14 @@ ParseResult<CodeSection::Code> CodeSection::Code::parse(Stream& stream)
     // `size / 2` instructions, so we pass that as our size hint.
     auto func = TRY(Func::parse(stream, size / 2));
 
-    return Code { static_cast<u32>(size), func };
+    return Code { static_cast<u32>(size), move(func) };
 }
 
 ParseResult<CodeSection> CodeSection::parse(Stream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("CodeSection"sv);
     auto result = TRY(parse_vector<Code>(stream));
-    return CodeSection { result };
+    return CodeSection { move(result) };
 }
 
 ParseResult<DataSection::Data> DataSection::Data::parse(Stream& stream)
