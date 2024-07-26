@@ -1,0 +1,12 @@
+<form id="theForm" style="display:none"><button id="theButton" type="submit" disabled></button></form>
+<script src="../include.js"></script>
+<script>
+    theForm.onclick = function() {
+        println("FAIL! Should not click!");
+    }
+
+    test(() => {
+        theButton.click();
+        println("PASS! Did not click");
+    });
+</script>

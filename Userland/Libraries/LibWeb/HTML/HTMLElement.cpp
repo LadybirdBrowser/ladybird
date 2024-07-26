@@ -496,7 +496,11 @@ JS::GCPtr<DOM::NodeList> HTMLElement::labels()
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-click
 void HTMLElement::click()
 {
-    // FIXME: 1. If this element is a form control that is disabled, then return.
+    // 1. If this element is a form control that is disabled, then return.
+    if (auto* form_control = dynamic_cast<FormAssociatedElement*>(this)) {
+        if (!form_control->enabled())
+            return;
+    }
 
     // 2. If this element's click in progress flag is set, then return.
     if (m_click_in_progress)
