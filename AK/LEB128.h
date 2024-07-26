@@ -27,30 +27,26 @@ public:
     static ErrorOr<LEB128<ValueType>> read_from_stream(Stream& stream)
     requires(Unsigned<ValueType>)
     {
-        ValueType result {};
-        size_t num_bytes = 0;
+        // First byte is unrolled for speed
+        auto byte = TRY(stream.read_value<u8>());
+        if ((byte & 0x80) == 0)
+            return LEB128<ValueType> { byte };
+
+        ValueType result = byte & 0x7F;
+        size_t num_bytes = 1;
         while (true) {
-            if (stream.is_eof())
-                return Error::from_string_literal("Stream reached end-of-file while reading LEB128 value");
-
             auto byte = TRY(stream.read_value<u8>());
-
-            ValueType masked_byte = byte & ~(1 << 7);
-            bool const shift_too_large_for_result = num_bytes * 7 > sizeof(ValueType) * 8;
-            if (shift_too_large_for_result)
-                return Error::from_string_literal("Read value contains more bits than fit the chosen ValueType");
-
-            bool const shift_too_large_for_byte = ((masked_byte << (num_bytes * 7)) >> (num_bytes * 7)) != masked_byte;
-            if (shift_too_large_for_byte)
+            ValueType masked = byte & 0x7F;
+            result |= masked << (num_bytes * 7);
+            if (num_bytes * 7 >= sizeof(ValueType) * 8 - 7 && (byte >> (sizeof(ValueType) * 8 - (num_bytes * 7))) != 0) {
+                if ((byte & 0x80) != 0)
+                    return Error::from_string_literal("Read value contains more bits than fit the chosen ValueType");
                 return Error::from_string_literal("Read byte is too large to fit the chosen ValueType");
-
-            result = (result) | (masked_byte << (num_bytes * 7));
-            if (!(byte & (1 << 7)))
-                break;
+            }
             ++num_bytes;
+            if ((byte & 0x80) == 0)
+                return LEB128<ValueType> { result };
         }
-
-        return LEB128<ValueType> { result };
     }
 
     static ErrorOr<LEB128<ValueType>> read_from_stream(Stream& stream)
