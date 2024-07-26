@@ -95,7 +95,7 @@ namespace Web::CSS::Parser {
 
 ErrorOr<Parser> Parser::create(ParsingContext const& context, StringView input, StringView encoding)
 {
-    auto tokens = TRY(Tokenizer::tokenize(input, encoding));
+    auto tokens = Tokenizer::tokenize(input, encoding);
     return Parser { context, move(tokens) };
 }
 
