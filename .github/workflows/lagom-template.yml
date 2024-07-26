@@ -67,7 +67,11 @@ jobs:
             if ${{ inputs.toolchain == 'Clang' }} ; then
               echo "host_cc=clang-18" >> "$GITHUB_OUTPUT"
               echo "host_cxx=clang++-18" >> "$GITHUB_OUTPUT"
-              echo "extra_cmake_options=-DENABLE_CLANG_PLUGINS=ON" >> "$GITHUB_OUTPUT"
+              if ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }} ; then
+                echo "extra_cmake_options=-DENABLE_CLANG_PLUGINS=ON" >> "$GITHUB_OUTPUT"
+              else
+                echo "extra_cmake_options=" >> "$GITHUB_OUTPUT"
+              fi
             elif ${{ inputs.toolchain == 'GNU' }} ; then
               echo "host_cc=gcc-13" >> "$GITHUB_OUTPUT"
               echo "host_cxx=g++-13" >> "$GITHUB_OUTPUT"
