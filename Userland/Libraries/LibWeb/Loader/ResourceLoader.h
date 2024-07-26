@@ -101,7 +101,15 @@ public:
     void set_platform(String platform) { m_platform = move(platform); }
 
     Vector<String> preferred_languages() const { return m_preferred_languages; }
-    void set_preferred_languages(Vector<String> preferred_languages) { m_preferred_languages = move(preferred_languages); }
+    void set_preferred_languages(Vector<String> preferred_languages)
+    {
+        // Default to "en" if no preferred languages are specified.
+        if (preferred_languages.is_empty() || (preferred_languages.size() == 1 && preferred_languages[0].is_empty())) {
+            m_preferred_languages = { "en"_string };
+        } else {
+            m_preferred_languages = move(preferred_languages);
+        }
+    }
 
     NavigatorCompatibilityMode navigator_compatibility_mode() { return m_navigator_compatibility_mode; }
     void set_navigator_compatibility_mode(NavigatorCompatibilityMode mode) { m_navigator_compatibility_mode = mode; }
