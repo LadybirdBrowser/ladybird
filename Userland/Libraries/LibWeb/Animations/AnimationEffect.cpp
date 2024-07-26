@@ -594,11 +594,9 @@ Optional<double> AnimationEffect::transformed_progress() const
 
 RefPtr<CSS::StyleValue const> AnimationEffect::parse_easing_string(JS::Realm& realm, StringView value)
 {
-    auto maybe_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), value);
-    if (maybe_parser.is_error())
-        return {};
+    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), value);
 
-    if (auto style_value = maybe_parser.release_value().parse_as_css_value(CSS::PropertyID::AnimationTimingFunction)) {
+    if (auto style_value = parser.parse_as_css_value(CSS::PropertyID::AnimationTimingFunction)) {
         if (style_value->is_easing())
             return style_value;
     }

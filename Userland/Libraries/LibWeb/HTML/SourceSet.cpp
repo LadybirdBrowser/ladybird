@@ -341,7 +341,7 @@ descriptor_parser:
 // https://html.spec.whatwg.org/multipage/images.html#parse-a-sizes-attribute
 CSS::LengthOrCalculated parse_a_sizes_attribute(DOM::Document const& document, StringView sizes)
 {
-    auto css_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext { document }, sizes).release_value_but_fixme_should_propagate_errors();
+    auto css_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext { document }, sizes);
     return css_parser.parse_as_sizes_attribute();
 }
 

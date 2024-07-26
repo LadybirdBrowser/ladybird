@@ -40,7 +40,7 @@ class PropertyDependencyNode;
 
 class Parser {
 public:
-    static ErrorOr<Parser> create(ParsingContext const&, StringView input, StringView encoding = "utf-8"sv);
+    static Parser create(ParsingContext const&, StringView input, StringView encoding = "utf-8"sv);
 
     Parser(Parser&&);
 
