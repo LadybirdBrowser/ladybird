@@ -1049,13 +1049,15 @@ ParseResult<MemorySection> MemorySection::parse(Stream& stream)
     return MemorySection { memories };
 }
 
-ParseResult<Expression> Expression::parse(Stream& stream)
+ParseResult<Expression> Expression::parse(Stream& stream, Optional<size_t> size_hint)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Expression"sv);
 
     InstructionPointer ip { 0 };
     Vector<InstructionPointer> stack;
     Vector<Instruction> instructions;
+    if (size_hint.has_value())
+        instructions.ensure_capacity(size_hint.release_value());
     while (true) {
         auto instruction = TRY(Instruction::parse(stream));
         switch (instruction.opcode().value()) {
@@ -1239,11 +1241,11 @@ ParseResult<Locals> Locals::parse(Stream& stream)
     return Locals { static_cast<u32>(count), type };
 }
 
-ParseResult<CodeSection::Func> CodeSection::Func::parse(Stream& stream)
+ParseResult<CodeSection::Func> CodeSection::Func::parse(Stream& stream, size_t size_hint)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Func"sv);
     auto locals = TRY(parse_vector<Locals>(stream));
-    auto body = TRY(Expression::parse(stream));
+    auto body = TRY(Expression::parse(stream, size_hint));
     return Func { locals, body };
 }
 
@@ -1257,7 +1259,9 @@ ParseResult<CodeSection::Code> CodeSection::Code::parse(Stream& stream)
 
     auto constrained_stream = ConstrainedStream { MaybeOwned<Stream>(stream), size };
 
-    auto func = TRY(Func::parse(constrained_stream));
+    // Emprically, if there are `size` bytes to be read, then there's around
+    // `size / 2` instructions, so we pass that as our size hint.
+    auto func = TRY(Func::parse(constrained_stream, size / 2));
 
     return Code { static_cast<u32>(size), func };
 }
