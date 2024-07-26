@@ -676,7 +676,7 @@ public:
 
     auto& instructions() const { return m_instructions; }
 
-    static ParseResult<Expression> parse(Stream& stream);
+    static ParseResult<Expression> parse(Stream& stream, Optional<size_t> size_hint = {});
 
 private:
     Vector<Instruction> m_instructions;
@@ -855,7 +855,7 @@ public:
         auto& locals() const { return m_locals; }
         auto& body() const { return m_body; }
 
-        static ParseResult<Func> parse(Stream& stream);
+        static ParseResult<Func> parse(Stream& stream, size_t size_hint);
 
     private:
         Vector<Locals> m_locals;
