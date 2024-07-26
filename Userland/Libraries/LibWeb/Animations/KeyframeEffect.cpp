@@ -540,11 +540,9 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
             if (!property_id.has_value())
                 continue;
 
-            auto maybe_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), value_string);
-            if (maybe_parser.is_error())
-                continue;
+            auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), value_string);
 
-            if (auto style_value = maybe_parser.release_value().parse_as_css_value(*property_id)) {
+            if (auto style_value = parser.parse_as_css_value(*property_id)) {
                 // Handle 'initial' here so we don't have to get the default value of the property every frame in StyleComputer
                 if (style_value->is_initial())
                     style_value = CSS::property_initial_value(realm, *property_id);

@@ -22,64 +22,55 @@ CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingContext const& cont
         auto media_list = CSS::MediaList::create(context.realm(), {});
         return CSS::CSSStyleSheet::create(context.realm(), rule_list, media_list, location);
     }
-    auto parser = CSS::Parser::Parser::create(context, css).release_value_but_fixme_should_propagate_errors();
-    return parser.parse_as_css_stylesheet(location);
+    return CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location);
 }
 
 CSS::ElementInlineCSSStyleDeclaration* parse_css_style_attribute(CSS::Parser::ParsingContext const& context, StringView css, DOM::Element& element)
 {
     if (css.is_empty())
         return CSS::ElementInlineCSSStyleDeclaration::create(element, {}, {});
-    auto parser = CSS::Parser::Parser::create(context, css).release_value_but_fixme_should_propagate_errors();
-    return parser.parse_as_style_attribute(element);
+    return CSS::Parser::Parser::create(context, css).parse_as_style_attribute(element);
 }
 
 RefPtr<CSS::StyleValue> parse_css_value(CSS::Parser::ParsingContext const& context, StringView string, CSS::PropertyID property_id)
 {
     if (string.is_empty())
         return nullptr;
-    auto parser = MUST(CSS::Parser::Parser::create(context, string));
-    return parser.parse_as_css_value(property_id);
+    return CSS::Parser::Parser::create(context, string).parse_as_css_value(property_id);
 }
 
 CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingContext const& context, StringView css_text)
 {
-    auto parser = CSS::Parser::Parser::create(context, css_text).release_value_but_fixme_should_propagate_errors();
-    return parser.parse_as_css_rule();
+    return CSS::Parser::Parser::create(context, css_text).parse_as_css_rule();
 }
 
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingContext const& context, StringView selector_text)
 {
-    auto parser = CSS::Parser::Parser::create(context, selector_text).release_value_but_fixme_should_propagate_errors();
-    return parser.parse_as_selector();
+    return CSS::Parser::Parser::create(context, selector_text).parse_as_selector();
 }
 
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingContext const& context, StringView string)
 {
-    auto parser = CSS::Parser::Parser::create(context, string).release_value_but_fixme_should_propagate_errors();
-    return parser.parse_as_media_query();
+    return CSS::Parser::Parser::create(context, string).parse_as_media_query();
 }
 
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingContext const& context, StringView string)
 {
-    auto parser = CSS::Parser::Parser::create(context, string).release_value_but_fixme_should_propagate_errors();
-    return parser.parse_as_media_query_list();
+    return CSS::Parser::Parser::create(context, string).parse_as_media_query_list();
 }
 
 RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingContext const& context, StringView string)
 {
     if (string.is_empty())
         return {};
-    auto parser = CSS::Parser::Parser::create(context, string).release_value_but_fixme_should_propagate_errors();
-    return parser.parse_as_supports();
+    return CSS::Parser::Parser::create(context, string).parse_as_supports();
 }
 
 Optional<CSS::StyleProperty> parse_css_supports_condition(CSS::Parser::ParsingContext const& context, StringView string)
 {
     if (string.is_empty())
         return {};
-    auto parser = CSS::Parser::Parser::create(context, string).release_value_but_fixme_should_propagate_errors();
-    return parser.parse_as_supports_condition();
+    return CSS::Parser::Parser::create(context, string).parse_as_supports_condition();
 }
 
 }

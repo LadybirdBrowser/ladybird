@@ -33,12 +33,7 @@ public:
             // 1. If the given value is a string, then:
             [&](String const& string) {
                 // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-                auto maybe_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), string);
-                if (maybe_parser.is_error()) {
-                    dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasFillStrokeStyles: Failed to create CSS parser.");
-                    return;
-                }
-                auto parser = maybe_parser.release_value();
+                auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), string);
 
                 // 2. Let parsedValue be the result of parsing the given value with context if non-null.
                 // FIXME: Parse a color value
@@ -80,12 +75,7 @@ public:
             // 1. If the given value is a string, then:
             [&](String const& string) {
                 // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-                auto maybe_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), string);
-                if (maybe_parser.is_error()) {
-                    dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasFillStrokeStyles: Failed to create CSS parser.");
-                    return;
-                }
-                auto parser = maybe_parser.release_value();
+                auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), string);
 
                 // 2. Let parsedValue be the result of parsing the given value with context if non-null.
                 // FIXME: Parse a color value
