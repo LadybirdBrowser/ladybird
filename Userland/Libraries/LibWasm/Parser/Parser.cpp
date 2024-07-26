@@ -1257,11 +1257,9 @@ ParseResult<CodeSection::Code> CodeSection::Code::parse(Stream& stream)
         return with_eof_check(stream, ParseError::InvalidSize);
     size_t size = size_or_error.release_value();
 
-    auto constrained_stream = ConstrainedStream { MaybeOwned<Stream>(stream), size };
-
     // Emprically, if there are `size` bytes to be read, then there's around
     // `size / 2` instructions, so we pass that as our size hint.
-    auto func = TRY(Func::parse(constrained_stream, size / 2));
+    auto func = TRY(Func::parse(stream, size / 2));
 
     return Code { static_cast<u32>(size), func };
 }
