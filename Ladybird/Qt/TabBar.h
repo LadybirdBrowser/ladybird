@@ -35,6 +35,8 @@ class TabWidget : public QTabWidget {
 
 public:
     explicit TabWidget(QWidget* parent = nullptr);
+
+    virtual void paintEvent(QPaintEvent*) override;
 };
 
 class TabBarButton : public QPushButton {
