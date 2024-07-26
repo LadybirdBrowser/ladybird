@@ -3,6 +3,7 @@
  * Copyright (c) 2022, Matthew Costa <ucosty@gmail.com>
  * Copyright (c) 2022, Filiph Sandström <filiph.sandstrom@filfatstudios.com>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -679,6 +680,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     m_new_tab_button_toolbar->setMovable(false);
     m_new_tab_button_toolbar->setStyleSheet("QToolBar { background: transparent; }");
     m_new_tab_button_toolbar->setIconSize(QSize(16, 16));
+    m_tabs_container->setCornerWidget(m_new_tab_button_toolbar, Qt::TopRightCorner);
 
     setCentralWidget(m_tabs_container);
     setContextMenuPolicy(Qt::PreventContextMenu);
@@ -691,20 +693,6 @@ void BrowserWindow::set_current_tab(Tab* tab)
         update_displayed_zoom_level();
         tab->update_navigation_buttons_state();
     }
-}
-
-void BrowserWindow::update_new_tab_button()
-{
-    if (m_new_tab_button_toolbar == nullptr || m_tabs_container == nullptr || m_tabs_container->count() < 1)
-        return;
-    QSize tab_bar_size = m_tabs_container->tabBar()->sizeHint();
-    int window_width = this->rect().width();
-    QRect new_rect;
-    new_rect.setX(qMin(tab_bar_size.width(), window_width - 32));
-    new_rect.setWidth(32);
-    new_rect.setHeight(32);
-    m_tabs_container->tabBar()->setMaximumWidth(window_width - 32);
-    m_new_tab_button_toolbar->setGeometry(new_rect);
 }
 
 void BrowserWindow::debug_request(ByteString const& request, ByteString const& argument)
@@ -854,8 +842,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
     tab->set_navigator_compatibility_mode(navigator_compatibility_mode());
     tab->set_enable_do_not_track(Settings::the()->enable_do_not_track());
     tab->view().set_preferred_color_scheme(m_preferred_color_scheme);
-
-    update_new_tab_button();
 }
 
 void BrowserWindow::activate_tab(int index)
@@ -868,8 +854,6 @@ void BrowserWindow::close_tab(int index)
     auto* tab = m_tabs_container->widget(index);
     m_tabs_container->removeTab(index);
     tab->deleteLater();
-
-    update_new_tab_button();
 
     if (m_tabs_container->count() == 0)
         close();
@@ -1197,7 +1181,6 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     for_each_tab([&](auto& tab) {
         tab.view().set_window_size({ frameSize().width() * m_device_pixel_ratio, frameSize().height() * m_device_pixel_ratio });
     });
-    update_new_tab_button();
 }
 
 void BrowserWindow::moveEvent(QMoveEvent* event)
