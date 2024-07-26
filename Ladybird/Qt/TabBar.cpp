@@ -57,6 +57,32 @@ TabWidget::TabWidget(QWidget* parent)
     installEventFilter(parent);
 }
 
+void TabWidget::paintEvent(QPaintEvent*)
+{
+    auto prepare_style_options = [](QTabBar* tab_bar, QSize widget_size) {
+        QStyleOptionTabBarBase style_options;
+        QStyleOptionTab tab_overlap;
+        tab_overlap.shape = tab_bar->shape();
+        auto overlap = tab_bar->style()->pixelMetric(QStyle::PM_TabBarBaseOverlap, &tab_overlap, tab_bar);
+        style_options.initFrom(tab_bar);
+        style_options.shape = tab_bar->shape();
+        style_options.documentMode = tab_bar->documentMode();
+        // NOTE: This assumes the tab bar is at the top of the tab widget.
+        style_options.rect = { 0, widget_size.height() - overlap, widget_size.width(), overlap };
+
+        return style_options;
+    };
+
+    QStylePainter painter { this, tabBar() };
+    if (auto* widget = cornerWidget(Qt::TopRightCorner)) {
+        // Manually paint the background for the area where the "new tab" button would have been
+        // if we hadn't relocated it in `TabStyle::subElementRect()`.
+        auto style_options = prepare_style_options(tabBar(), widget->size());
+        style_options.rect.translate(tabBar()->rect().width(), widget->y());
+        painter.drawPrimitive(QStyle::PE_FrameTabBarBase, style_options);
+    }
+}
+
 TabBarButton::TabBarButton(QIcon const& icon, QWidget* parent)
     : QPushButton(icon, {}, parent)
 {
