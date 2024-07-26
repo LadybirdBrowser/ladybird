@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +13,7 @@
 #include <QContextMenuEvent>
 #include <QEvent>
 #include <QPushButton>
+#include <QStylePainter>
 
 namespace Ladybird {
 
@@ -50,6 +52,8 @@ TabWidget::TabWidget(QWidget* parent)
     setMovable(true);
     setTabsClosable(true);
 
+    setStyle(new TabStyle(this));
+
     installEventFilter(parent);
 }
 
@@ -68,6 +72,29 @@ bool TabBarButton::event(QEvent* event)
         setFlat(true);
 
     return QPushButton::event(event);
+}
+
+TabStyle::TabStyle(QObject* parent)
+{
+    setParent(parent);
+}
+
+QRect TabStyle::subElementRect(QStyle::SubElement sub_element, QStyleOption const* option, QWidget const* widget) const
+{
+    // Place our add-tab button (set as the top-right corner widget) directly after the last tab
+    if (sub_element == QStyle::SE_TabWidgetRightCorner) {
+        auto* tab_widget = verify_cast<TabWidget>(widget);
+        auto tab_bar_size = tab_widget->tabBar()->sizeHint();
+        auto new_tab_button_size = tab_bar_size.height();
+        return QRect {
+            qMin(tab_bar_size.width(), tab_widget->width() - new_tab_button_size),
+            0,
+            new_tab_button_size,
+            new_tab_button_size
+        };
+    }
+
+    return QProxyStyle::subElementRect(sub_element, option, widget);
 }
 
 }
