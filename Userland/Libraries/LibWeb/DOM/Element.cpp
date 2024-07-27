@@ -2156,6 +2156,30 @@ void Element::set_prefix(Optional<FlyString> value)
     m_qualified_name.set_prefix(move(value));
 }
 
+// https://dom.spec.whatwg.org/#locate-a-namespace-prefix
+Optional<String> Element::locate_a_namespace_prefix(Optional<String> const& namespace_) const
+{
+    // 1. If element’s namespace is namespace and its namespace prefix is non-null, then return its namespace prefix.
+    if (this->namespace_uri() == namespace_ && this->prefix().has_value())
+        return this->prefix()->to_string();
+
+    // 2. If element has an attribute whose namespace prefix is "xmlns" and value is namespace, then return element’s first such attribute’s local name.
+    if (auto* attributes = this->attributes()) {
+        for (size_t i = 0; i < attributes->length(); ++i) {
+            auto& attr = *attributes->item(i);
+            if (attr.prefix() == "xmlns" && attr.value() == namespace_)
+                return attr.local_name().to_string();
+        }
+    }
+
+    // 3. If element’s parent element is not null, then return the result of running locate a namespace prefix on that element using namespace.
+    if (auto* parent = this->parent_element())
+        return parent->locate_a_namespace_prefix(namespace_);
+
+    // 4. Return null
+    return {};
+}
+
 void Element::for_each_attribute(Function<void(Attr const&)> callback) const
 {
     for (size_t i = 0; i < m_attributes->length(); ++i)

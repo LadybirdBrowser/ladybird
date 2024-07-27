@@ -106,6 +106,8 @@ public:
 
     void set_prefix(Optional<FlyString> value);
 
+    Optional<String> locate_a_namespace_prefix(Optional<String> const& namespace_) const;
+
     // NOTE: This is for the JS bindings
     Optional<FlyString> const& namespace_uri() const { return m_qualified_name.namespace_(); }
 

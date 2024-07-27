@@ -54,7 +54,7 @@ interface Node : EventTarget {
     unsigned short compareDocumentPosition(Node? otherNode);
     boolean contains(Node? other);
 
-    [FIXME] DOMString? lookupPrefix(DOMString? namespace);
+    DOMString? lookupPrefix(DOMString? namespace);
     DOMString? lookupNamespaceURI(DOMString? prefix);
     boolean isDefaultNamespace(DOMString? namespace);
 
