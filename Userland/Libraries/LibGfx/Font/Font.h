@@ -19,55 +19,6 @@
 
 namespace Gfx {
 
-class Glyph {
-public:
-    Glyph(NonnullRefPtr<Bitmap> bitmap, float left_bearing, float advance, float ascent, bool is_color_bitmap)
-        : m_bitmap(bitmap)
-        , m_left_bearing(left_bearing)
-        , m_advance(advance)
-        , m_ascent(ascent)
-        , m_color_bitmap(is_color_bitmap)
-    {
-    }
-
-    bool is_color_bitmap() const { return m_color_bitmap; }
-
-    [[nodiscard]] NonnullRefPtr<Bitmap> bitmap() const { return m_bitmap; }
-    float left_bearing() const { return m_left_bearing; }
-    float advance() const { return m_advance; }
-    float ascent() const { return m_ascent; }
-
-private:
-    NonnullRefPtr<Bitmap> m_bitmap;
-    float m_left_bearing;
-    float m_advance;
-    float m_ascent;
-    bool m_color_bitmap { false };
-};
-
-struct GlyphSubpixelOffset {
-    u8 x;
-    u8 y;
-
-    // TODO: Allow setting this at runtime via some config?
-    static constexpr int subpixel_divisions() { return 3; }
-    FloatPoint to_float_point() const { return FloatPoint(x / float(subpixel_divisions()), y / float(subpixel_divisions())); }
-
-    bool operator==(GlyphSubpixelOffset const&) const = default;
-};
-
-struct GlyphRasterPosition {
-    // Where the glyph bitmap should be drawn/blitted.
-    IntPoint blit_position;
-
-    // A subpixel offset to be used when rendering the glyph.
-    // This improves kerning and alignment at the expense of caching a few extra bitmaps.
-    // This is (currently) snapped to thirds of a subpixel (i.e. 0, 0.33, 0.66).
-    GlyphSubpixelOffset subpixel_offset;
-
-    static GlyphRasterPosition get_nearest_fit_for(FloatPoint position);
-};
-
 struct FontPixelMetrics {
     float size { 0 };
     float x_height { 0 };
@@ -118,8 +69,6 @@ public:
     virtual int pixel_size_rounded_up() const = 0;
 
     virtual u16 weight() const = 0;
-    virtual Optional<Glyph> glyph(u32 code_point) const = 0;
-    virtual Optional<Glyph> glyph(u32 code_point, GlyphSubpixelOffset) const = 0;
     virtual bool contains_glyph(u32 code_point) const = 0;
 
     virtual bool append_glyph_path_to(Gfx::Path&, u32 glyph_id) const = 0;

@@ -836,44 +836,6 @@ void Painter::draw_scaled_bitmap(IntRect const& a_dst_rect, Gfx::Bitmap const& s
     }
 }
 
-FLATTEN void Painter::draw_glyph(FloatPoint point, u32 code_point, Font const& font, Color color)
-{
-    auto top_left = point + FloatPoint(font.glyph_left_bearing(code_point), 0);
-    auto glyph_position = Gfx::GlyphRasterPosition::get_nearest_fit_for(top_left);
-    auto maybe_glyph = font.glyph(code_point, glyph_position.subpixel_offset);
-    if (!maybe_glyph.has_value())
-        return;
-    auto glyph = maybe_glyph.release_value();
-
-    if (glyph.is_color_bitmap()) {
-        float scaled_width = glyph.advance();
-        float ratio = static_cast<float>(glyph.bitmap()->height()) / static_cast<float>(glyph.bitmap()->width());
-        float scaled_height = scaled_width * ratio;
-
-        FloatRect rect(point.x(), point.y(), scaled_width, scaled_height);
-        draw_scaled_bitmap(rect.to_rounded<int>(), *glyph.bitmap(), glyph.bitmap()->rect(), 1.0f, ScalingMode::BilinearBlend);
-    } else if (color.alpha() != 255) {
-        blit_filtered(glyph_position.blit_position, *glyph.bitmap(), glyph.bitmap()->rect(), [color](Color pixel) -> Color {
-            return pixel.multiply(color);
-        });
-    } else {
-        blit_filtered(glyph_position.blit_position, *glyph.bitmap(), glyph.bitmap()->rect(), [color](Color pixel) -> Color {
-            return color.with_alpha(pixel.alpha());
-        });
-    }
-}
-
-void Painter::draw_emoji(IntPoint point, Gfx::Bitmap const& emoji, Font const& font)
-{
-    IntRect dst_rect {
-        point.x(),
-        point.y(),
-        font.pixel_size_rounded_up() * emoji.width() / emoji.height(),
-        font.pixel_size_rounded_up(),
-    };
-    draw_scaled_bitmap(dst_rect, emoji, emoji.rect());
-}
-
 void Painter::set_pixel(IntPoint p, Color color, bool blend)
 {
     auto point = p;
