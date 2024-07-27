@@ -16,11 +16,11 @@ dictionary AudioBufferSourceOptions {
 [Exposed=Window]
 interface AudioBufferSourceNode : AudioScheduledSourceNode {
     constructor(BaseAudioContext context, optional AudioBufferSourceOptions options = {});
-    [FIXME] attribute AudioBuffer? buffer;
-    [FIXME] readonly attribute AudioParam playbackRate;
-    [FIXME] readonly attribute AudioParam detune;
-    [FIXME] attribute boolean loop;
-    [FIXME] attribute double loopStart;
-    [FIXME] attribute double loopEnd;
-    [FIXME] undefined start(optional double when = 0, optional double offset, optional double duration);
+    attribute AudioBuffer? buffer;
+    readonly attribute AudioParam playbackRate;
+    readonly attribute AudioParam detune;
+    attribute boolean loop;
+    attribute double loopStart;
+    attribute double loopEnd;
+    undefined start(optional double when = 0, optional double offset, optional double duration);
 };
