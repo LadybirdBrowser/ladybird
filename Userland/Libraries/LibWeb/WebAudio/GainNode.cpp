@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/GainNode.h>

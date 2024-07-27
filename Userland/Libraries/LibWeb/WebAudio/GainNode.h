@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/GainNodePrototype.h>
-#include <LibWeb/WebAudio/AudioScheduledSourceNode.h>
+#include <LibWeb/WebAudio/AudioNode.h>
 
 namespace Web::WebAudio {
 
