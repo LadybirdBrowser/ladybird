@@ -576,6 +576,13 @@ void Job::finish_up()
 {
     VERIFY(!m_has_scheduled_finish);
     m_state = State::Finished;
+
+    if (is_cancelled()) {
+        stop_timer();
+        m_has_scheduled_finish = true;
+        return;
+    }
+
     if (!m_can_stream_response) {
         auto maybe_flattened_buffer = ByteBuffer::create_uninitialized(m_buffered_size);
         if (maybe_flattened_buffer.is_error())

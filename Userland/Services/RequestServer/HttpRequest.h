@@ -23,6 +23,7 @@ public:
     HTTP::Job const& job() const { return m_job; }
 
     virtual URL::URL url() const override { return m_job->url(); }
+    virtual void cancel() override { m_job->cancel(); }
 
 private:
     explicit HttpRequest(ConnectionFromClient&, NonnullRefPtr<HTTP::Job>, NonnullOwnPtr<Core::File>&&, i32);
