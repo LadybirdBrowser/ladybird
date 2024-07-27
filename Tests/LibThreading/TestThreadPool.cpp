@@ -20,7 +20,7 @@ RANDOMIZED_TEST_CASE(thread_pool_race_condition)
         u64 expected_value = (max_value * (max_value + 1)) / 2;
         Atomic<u64> sum;
         auto thread_pool = Threading::ThreadPool<u64> {
-            [&sum](u64 current_val) {
+            [&sum](Function<void(u64)>, u64 current_val) {
                 sum += current_val;
                 usleep(SUM_SLEEP_TIME.to_microseconds());
             },

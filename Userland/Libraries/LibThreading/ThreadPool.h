@@ -42,7 +42,7 @@ struct ThreadPoolLooper {
         }
 
         pool.m_busy_count++;
-        pool.m_handler(entry.release_value());
+        pool.m_handler([&pool](typename Pool::Work w) { pool.submit(w); }, entry.release_value());
         return IterationDecision::Continue;
     }
 };
@@ -57,15 +57,17 @@ public:
     friend struct ThreadPoolLooper<ThreadPool>;
 
     ThreadPool(Optional<size_t> concurrency = {})
-    requires(IsFunction<Work>)
-        : m_handler([](Work work) { return work(); })
+    requires(requires(Work w, Function<void(Work)> f) {
+        w(f);
+    })
+        : m_handler([](Function<void(Work)> submit, Work work) { return work(forward(submit)); })
         , m_work_available(m_mutex)
         , m_work_done(m_mutex)
     {
         initialize_workers(concurrency.value_or(Core::System::hardware_concurrency()));
     }
 
-    explicit ThreadPool(Function<void(Work)> handler, Optional<size_t> concurrency = {})
+    explicit ThreadPool(Function<void(Function<void(Work)>, Work)> handler, Optional<size_t> concurrency = {})
         : m_handler(move(handler))
         , m_work_available(m_mutex)
         , m_work_done(m_mutex)
@@ -97,15 +99,9 @@ public:
         {
             MutexLocker lock(m_mutex);
             m_work_done.wait_while([this]() {
-                return m_work_queue.with_locked([](auto& queue) {
+                return m_busy_count.load(AK::MemoryOrder::memory_order_acquire) > 0 || m_work_queue.with_locked([](auto& queue) {
                     return !queue.is_empty();
                 });
-            });
-        }
-        {
-            MutexLocker lock(m_mutex);
-            m_work_done.wait_while([this] {
-                return m_busy_count.load(AK::MemoryOrder::memory_order_acquire) > 0;
             });
         }
     }
@@ -135,7 +131,7 @@ private:
 
     Vector<NonnullRefPtr<Thread>> m_workers;
     MutexProtected<Queue<Work>> m_work_queue;
-    Function<void(Work)> m_handler;
+    Function<void(Function<void(Work)>, Work)> m_handler;
     Mutex m_mutex;
     ConditionVariable m_work_available;
     ConditionVariable m_work_done;

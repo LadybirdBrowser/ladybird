@@ -32,7 +32,8 @@ struct ThreadPoolEntry {
     ConnectionFromClient::Work work;
 };
 static Threading::ThreadPool<ThreadPoolEntry, Looper> s_thread_pool {
-    [](ThreadPoolEntry entry) {
+    [](Function<void(ThreadPoolEntry)> submit, ThreadPoolEntry entry) {
+        (void)submit;
         entry.client->worker_do_work(move(entry.work));
     }
 };
