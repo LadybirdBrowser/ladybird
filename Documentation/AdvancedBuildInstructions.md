@@ -67,3 +67,16 @@ Some OS distributions don't ship bleeding-edge clang-format binaries. Below are 
 
 1) If you have a Debian-based (apt-based) distribution, use the [LLVM apt repositories](https://apt.llvm.org) to install the latest release of clang-format.
 2) Compile LLVM from source as described in the LLVM documentation [here](https://llvm.org/docs/GettingStarted.html#compiling-the-llvm-suite-source-code).
+
+## Clangd Configuration
+
+Clangd will automatically look for configuration information in files
+named `.clangd` in each of the parent directories of the file being
+edited. The Ladybird source code repository has a top-level `.clangd`
+configuration file in the root directory. One of the configuration
+stanzas in that file specifies the location for a compilation database.
+Depending on your build configuration (e.g., Debug, default, Sanitizer,
+etc), the path to the compilation database in that file may not be
+correct. The result is that clangd will have a difficult time
+understanding all your include directories. To resolve the problem, you
+can use the `Meta/configure-clangd.sh` script.
