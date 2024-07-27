@@ -70,13 +70,14 @@ public:
     }
 };
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::CookieJar& cookie_jar, WebContentOptions const& web_content_options, StringView webdriver_content_ipc_path, bool allow_popups, Tab* parent_tab, Optional<u64> page_index)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::CookieJar& cookie_jar, WebContentOptions const& web_content_options, StringView webdriver_content_ipc_path, bool allow_popups, IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
     : m_tabs_container(new TabWidget(this))
     , m_new_tab_button_toolbar(new QToolBar("New Tab", m_tabs_container))
     , m_cookie_jar(cookie_jar)
     , m_web_content_options(web_content_options)
     , m_webdriver_content_ipc_path(webdriver_content_ipc_path)
     , m_allow_popups(allow_popups)
+    , m_is_popup_window(is_popup_window)
 {
     setWindowIcon(app_icon());
 
@@ -786,7 +787,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
         if (hints.popup) {
-            auto& window = static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, m_cookie_jar, m_web_content_options, m_webdriver_content_ipc_path, m_allow_popups, tab, AK::move(page_index));
+            auto& window = static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, m_cookie_jar, m_web_content_options, m_webdriver_content_ipc_path, m_allow_popups, IsPopupWindow::Yes, tab, AK::move(page_index));
             window.set_window_rect(hints.screen_x, hints.screen_y, hints.width, hints.height);
             return window.current_tab()->view().handle();
         }
@@ -1238,9 +1239,11 @@ bool BrowserWindow::eventFilter(QObject* obj, QEvent* event)
 
 void BrowserWindow::closeEvent(QCloseEvent* event)
 {
-    Settings::the()->set_last_position(pos());
-    Settings::the()->set_last_size(size());
-    Settings::the()->set_is_maximized(isMaximized());
+    if (m_is_popup_window == IsPopupWindow::No) {
+        Settings::the()->set_last_position(pos());
+        Settings::the()->set_last_size(size());
+        Settings::the()->set_is_maximized(isMaximized());
+    }
 
     QObject::deleteLater();
 

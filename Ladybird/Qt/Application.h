@@ -31,7 +31,7 @@ public:
     NonnullRefPtr<ImageDecoderClient::Client> image_decoder_client() const { return *m_image_decoder_client; }
     ErrorOr<void> initialize_image_decoder();
 
-    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, WebContentOptions const&, StringView webdriver_content_ipc_path, bool allow_popups, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, WebContentOptions const&, StringView webdriver_content_ipc_path, bool allow_popups, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
     void show_task_manager_window(WebContentOptions const&);
     void close_task_manager_window();
