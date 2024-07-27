@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Ali Mohammad Pur <mpfard@serenityos.org>
+ * Copyright (c) 2024, Braydn Moore <braydn.moore@uwaterloo.ca>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,27 +23,24 @@ struct ThreadPoolLooper {
     {
         Optional<typename Pool::Work> entry;
         while (true) {
-            entry = pool.m_work_queue.with_locked([&](auto& queue) -> Optional<typename Pool::Work> {
+            entry = pool.looper_with_global_queue([&](auto& queue) -> Optional<typename Pool::Work> {
                 if (queue.is_empty())
                     return {};
                 return queue.dequeue();
             });
             if (entry.has_value())
                 break;
-            if (pool.m_should_exit)
+            if (pool.looper_should_exit())
                 return IterationDecision::Break;
 
             if (!wait)
                 return IterationDecision::Continue;
 
-            pool.m_mutex.lock();
-            pool.m_work_done.broadcast();
-            pool.m_work_available.wait();
-            pool.m_mutex.unlock();
+            pool.looper_wait();
         }
 
-        pool.m_busy_count++;
-        pool.m_handler([&pool](typename Pool::Work w) { pool.submit(w); }, entry.release_value());
+        auto guard = pool.looper_enter_busy_section();
+        pool.looper_run_handler([&pool](typename Pool::Work w) { pool.submit(w); }, entry.release_value());
         return IterationDecision::Continue;
     }
 };
@@ -52,9 +50,27 @@ class ThreadPool {
     AK_MAKE_NONCOPYABLE(ThreadPool);
     AK_MAKE_NONMOVABLE(ThreadPool);
 
+    struct BusyWorkerGuard {
+        [[nodiscard]] BusyWorkerGuard(Atomic<size_t>& busy_count, ConditionVariable& work_done)
+            : m_busy_count(busy_count)
+            , m_work_done(work_done)
+        {
+            ++m_busy_count;
+        }
+
+        ~BusyWorkerGuard()
+        {
+            --m_busy_count;
+            m_work_done.signal();
+        }
+
+    private:
+        Atomic<size_t>& m_busy_count;
+        ConditionVariable& m_work_done;
+    };
+
 public:
     using Work = TWork;
-    friend struct ThreadPoolLooper<ThreadPool>;
 
     ThreadPool(Optional<size_t> concurrency = {})
     requires(requires(Work w, Function<void(Work)> f) {
@@ -99,12 +115,39 @@ public:
         {
             MutexLocker lock(m_mutex);
             m_work_done.wait_while([this]() {
-                return m_busy_count.load(AK::MemoryOrder::memory_order_acquire) > 0 || m_work_queue.with_locked([](auto& queue) {
-                    return !queue.is_empty();
-                });
+                return m_busy_count.load(AK::MemoryOrder::memory_order_acquire) > 0
+                    || m_work_queue.try_with_locked([](auto& queue) { return !queue.is_empty(); }).value_or(true);
             });
         }
     }
+
+    template<typename Func>
+    decltype(auto) looper_with_global_queue(Func f)
+    {
+        return m_work_queue.with_locked(f);
+    }
+
+    template<typename Func>
+    decltype(auto) looper_try_with_global_queue(Func f)
+    {
+        return m_work_queue.try_with_locked(f);
+    }
+
+    void looper_wait()
+    {
+        MutexLocker guard(m_mutex);
+        m_work_done.signal();
+        m_work_available.wait();
+    }
+
+    inline bool looper_should_exit() const { return m_should_exit; }
+    inline size_t looper_num_workers() const { return m_workers.size(); }
+    inline void looper_signal_work_available() { m_work_available.broadcast(); }
+
+    template<typename... Args>
+    inline void looper_run_handler(Args&&... args) const { m_handler(forward<Args>(args)...); }
+
+    [[nodiscard]] inline BusyWorkerGuard looper_enter_busy_section() { return BusyWorkerGuard(m_busy_count, m_work_done); }
 
 private:
     void initialize_workers(size_t concurrency)
@@ -114,8 +157,6 @@ private:
                 Looper<ThreadPool> thread_looper;
                 for (; !m_should_exit;) {
                     auto result = thread_looper.next(*this, true);
-                    m_busy_count--;
-                    m_work_done.signal();
                     if (result == IterationDecision::Break)
                         break;
                 }
