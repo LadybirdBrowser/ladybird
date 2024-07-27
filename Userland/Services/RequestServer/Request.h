@@ -34,6 +34,8 @@ public:
     void set_request_fd(int fd) { m_request_fd = fd; }
     int request_fd() const { return m_request_fd; }
 
+    virtual void cancel() = 0;
+
     void did_finish(bool success);
     void did_progress(Optional<u64> total_size, u64 downloaded_size);
     void set_status_code(u32 status_code) { m_status_code = status_code; }

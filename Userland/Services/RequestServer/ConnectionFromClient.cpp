@@ -46,6 +46,14 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> sock
     s_connections.set(client_id(), *this);
 }
 
+ConnectionFromClient::~ConnectionFromClient()
+{
+    m_requests.with_locked([](HashMap<i32, OwnPtr<Request>>& map) {
+        for (auto& entry : map)
+            entry.value->cancel();
+    });
+}
+
 class Job : public RefCounted<Job>
     , public Weakable<Job> {
 public:
@@ -152,10 +160,9 @@ void ConnectionFromClient::worker_do_work(Work work)
                 return;
             }
 
-            auto job = Job::ensure(url);
             dbgln("EnsureConnection: Pre-connect to {}", url);
-            auto do_preconnect = [&](auto& cache) {
-                ConnectionCache::ensure_connection(cache, url, job);
+            auto do_preconnect = [=, job = Job::ensure(url)](auto& cache) {
+                ConnectionCache::ensure_connection(cache, url, job->make_weak_ptr<Job>());
             };
 
             if (url.scheme() == "http"sv)

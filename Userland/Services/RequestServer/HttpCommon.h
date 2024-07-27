@@ -99,10 +99,10 @@ OwnPtr<Request> start_request(TBadgedProtocol&& protocol, i32 request_id, Connec
 
     auto output_stream = MUST(Core::File::adopt_fd(pipe_result.value().write_fd, Core::File::OpenMode::Write));
     auto job = TJob::construct(move(request), *output_stream);
-    auto protocol_request = TRequest::create_with_job(forward<TBadgedProtocol>(protocol), client, (TJob&)*job, move(output_stream), request_id);
+    auto protocol_request = TRequest::create_with_job(forward<TBadgedProtocol>(protocol), client, static_cast<TJob&>(*job), move(output_stream), request_id);
     protocol_request->set_request_fd(pipe_result.value().read_fd);
 
-    Core::deferred_invoke([=] {
+    Core::deferred_invoke([=, job = job->template make_weak_ptr<TJob>()] {
         if constexpr (IsSame<typename TBadgedProtocol::Type, HttpsProtocol>)
             ConnectionCache::ensure_connection(ConnectionCache::g_tls_connection_cache, url, job, proxy_data);
         else

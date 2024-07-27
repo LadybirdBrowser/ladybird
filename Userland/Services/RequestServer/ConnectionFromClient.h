@@ -23,7 +23,7 @@ class ConnectionFromClient final
     C_OBJECT(ConnectionFromClient);
 
 public:
-    ~ConnectionFromClient() override = default;
+    ~ConnectionFromClient() override;
 
     virtual void die() override;
 
