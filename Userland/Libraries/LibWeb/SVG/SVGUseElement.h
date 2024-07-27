@@ -57,15 +57,20 @@ private:
 
     JS::GCPtr<DOM::Element> referenced_element();
 
+    void fetch_the_document(URL::URL const& url);
+    bool is_referrenced_element_same_document() const;
+
     void clone_element_tree_as_our_shadow_tree(Element* to_clone);
     bool is_valid_reference_element(Element const& reference_element) const;
 
     Optional<float> m_x;
     Optional<float> m_y;
 
-    Optional<FlyString> m_referenced_id;
+    URL::URL m_href;
 
     JS::GCPtr<DOM::DocumentObserver> m_document_observer;
+    JS::GCPtr<HTML::SharedImageRequest> m_image_request;
+    Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
 
 }

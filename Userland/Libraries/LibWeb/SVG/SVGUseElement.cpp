@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Preston Taylor <95388976+PrestonLTaylor@users.noreply.github.com>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,13 +8,16 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGUseElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
 
@@ -48,6 +52,7 @@ void SVGUseElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_document_observer);
+    visitor.visit(m_image_request);
 }
 
 void SVGUseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
@@ -68,20 +73,25 @@ void SVGUseElement::attribute_changed(FlyString const& name, Optional<String> co
 // https://www.w3.org/TR/SVG2/linking.html#processingURL
 void SVGUseElement::process_the_url(Optional<String> const& href)
 {
-    m_referenced_id = parse_id_from_href(href.value_or(String {}));
+    // In all other cases, the URL is for a resource to be used in this SVG document. The user agent
+    // must parse the URL to separate out the target fragment from the rest of the URL, and compare
+    // it with the document base URL. If all parts other than the target fragment are equal, this is
+    // a same-document URL reference, and processing the URL must continue as indicated in Identifying
+    // the target element with the current document as the referenced document.
+    m_href = document().url().complete_url(href.value_or(String {}));
+    if (!m_href.is_valid())
+        return;
 
-    clone_element_tree_as_our_shadow_tree(referenced_element());
+    if (is_referrenced_element_same_document()) {
+        clone_element_tree_as_our_shadow_tree(referenced_element());
+    } else {
+        fetch_the_document(m_href);
+    }
 }
 
-Optional<FlyString> SVGUseElement::parse_id_from_href(StringView href)
+bool SVGUseElement::is_referrenced_element_same_document() const
 {
-    auto id_seperator = href.find('#');
-    if (!id_seperator.has_value()) {
-        return {};
-    }
-
-    auto id = href.substring_view(id_seperator.value() + 1);
-    return MUST(FlyString::from_utf8(id));
+    return m_href.equals(document().url(), URL::ExcludeFragment::Yes);
 }
 
 Gfx::AffineTransform SVGUseElement::element_transform() const
@@ -111,23 +121,56 @@ void SVGUseElement::svg_element_changed(SVGElement& svg_element)
 
 void SVGUseElement::svg_element_removed(SVGElement& svg_element)
 {
-    if (!m_referenced_id.has_value()) {
+    if (!m_href.fragment().has_value() || !is_referrenced_element_same_document()) {
         return;
     }
 
-    if (AK::StringUtils::matches(svg_element.get_attribute_value("id"_fly_string), m_referenced_id.value())) {
+    if (AK::StringUtils::matches(svg_element.get_attribute_value("id"_fly_string), m_href.fragment().value())) {
         shadow_root()->remove_all_children();
     }
 }
 
+// https://svgwg.org/svg2-draft/linking.html#processingURL-target
 JS::GCPtr<DOM::Element> SVGUseElement::referenced_element()
 {
-    if (!m_referenced_id.has_value()) {
+    if (!m_href.is_valid())
         return nullptr;
-    }
 
-    // FIXME: Support loading of external svg documents
-    return document().get_element_by_id(m_referenced_id.value());
+    if (!m_href.fragment().has_value())
+        return nullptr;
+
+    if (is_referrenced_element_same_document())
+        return document().get_element_by_id(*m_href.fragment());
+
+    if (!m_image_request)
+        return nullptr;
+
+    auto data = m_image_request->image_data();
+    if (!data || !is<SVG::SVGDecodedImageData>(*data))
+        return nullptr;
+
+    return verify_cast<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(*m_href.fragment());
+}
+
+// https://svgwg.org/svg2-draft/linking.html#processingURL-fetch
+void SVGUseElement::fetch_the_document(URL::URL const& url)
+{
+    m_load_event_delayer.emplace(document());
+    m_image_request = HTML::SharedImageRequest::get_or_create(realm(), document().page(), url);
+    m_image_request->add_callbacks(
+        [this] {
+            clone_element_tree_as_our_shadow_tree(referenced_element());
+            m_load_event_delayer.clear();
+        },
+        [this] {
+            m_load_event_delayer.clear();
+        });
+
+    if (m_image_request->needs_fetching()) {
+        auto request = HTML::create_potential_CORS_request(vm(), url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
+        request->set_client(&document().relevant_settings_object());
+        m_image_request->fetch_image(realm(), request);
+    }
 }
 
 // https://svgwg.org/svg2-draft/struct.html#UseShadowTree
