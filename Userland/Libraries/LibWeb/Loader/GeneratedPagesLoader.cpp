@@ -88,7 +88,11 @@ ErrorOr<String> load_about_version_page()
     StringBuilder builder;
     SourceGenerator generator { builder, '%', '%' };
     generator.set("browser_name", BROWSER_NAME);
+#if defined(LADYBIRD_COMMIT_HASH)
+    generator.set("browser_version", MUST(String::formatted("{} ({})", BROWSER_VERSION, LADYBIRD_COMMIT_HASH)));
+#else
     generator.set("browser_version", BROWSER_VERSION);
+#endif
     generator.set("arch_name", CPU_STRING);
     generator.set("os_name", OS_STRING);
     generator.set("user_agent", default_user_agent);

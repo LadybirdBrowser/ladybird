@@ -121,6 +121,11 @@ target_include_directories(headless-browser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(headless-browser PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
 target_link_libraries(headless-browser PRIVATE AK LibCore LibWeb LibWebView LibWebSocket LibCrypto LibFileSystem LibHTTP LibImageDecoderClient LibJS LibGfx LibMain LibTLS LibIPC LibDiff LibProtocol LibURL)
 
+execute_process(COMMAND git rev-parse --short HEAD
+                OUTPUT_VARIABLE LADYBIRD_COMMIT_HASH
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+target_compile_definitions(LibWeb PUBLIC LADYBIRD_COMMIT_HASH="${LADYBIRD_COMMIT_HASH}")
+
 add_custom_target(run
     COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}
     USES_TERMINAL
