@@ -63,36 +63,9 @@ ALWAYS_INLINE float ScaledFont::unicode_view_width(T const& view) const
     return longest_width;
 }
 
-RefPtr<Gfx::Bitmap> ScaledFont::rasterize_glyph(u32 glyph_id, GlyphSubpixelOffset subpixel_offset) const
-{
-    GlyphIndexWithSubpixelOffset index { glyph_id, subpixel_offset };
-    auto glyph_iterator = m_cached_glyph_bitmaps.find(index);
-    if (glyph_iterator != m_cached_glyph_bitmaps.end())
-        return glyph_iterator->value;
-
-    auto glyph_bitmap = m_typeface->rasterize_glyph(glyph_id, m_x_scale, m_y_scale, subpixel_offset);
-    m_cached_glyph_bitmaps.set(index, glyph_bitmap);
-    return glyph_bitmap;
-}
-
 bool ScaledFont::append_glyph_path_to(Gfx::Path& path, u32 glyph_id) const
 {
     return m_typeface->append_glyph_path_to(path, glyph_id, m_x_scale, m_y_scale);
-}
-
-Optional<Glyph> ScaledFont::glyph(u32 code_point) const
-{
-    return glyph(code_point, GlyphSubpixelOffset { 0, 0 });
-}
-
-Optional<Glyph> ScaledFont::glyph(u32 code_point, GlyphSubpixelOffset subpixel_offset) const
-{
-    auto id = glyph_id_for_code_point(code_point);
-    auto bitmap = rasterize_glyph(id, subpixel_offset);
-    if (!bitmap)
-        return {};
-    auto metrics = glyph_metrics(id);
-    return Gfx::Glyph(*bitmap, metrics.left_side_bearing, metrics.advance_width, metrics.ascender, m_typeface->has_color_bitmaps());
 }
 
 float ScaledFont::glyph_left_bearing(u32 code_point) const

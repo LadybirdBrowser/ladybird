@@ -64,8 +64,6 @@ public:
     void draw_triangle_wave(IntPoint, IntPoint, Color color, int amplitude, int thickness = 1);
     void blit(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect, float opacity = 1.0f, bool apply_alpha = true);
     void blit_filtered(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect, Function<Color(Color)> const&, bool apply_alpha = true);
-    void draw_emoji(IntPoint, Gfx::Bitmap const&, Font const&);
-    void draw_glyph(FloatPoint, u32, Font const&, Color);
 
     enum class CornerOrientation {
         TopLeft,
