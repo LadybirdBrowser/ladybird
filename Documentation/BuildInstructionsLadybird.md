@@ -2,11 +2,12 @@
 
 ## Build Prerequisites
 
-Qt6 development packages and a C++23 capable compiler are required. g++-13 or clang-17 are required at a minimum for c++23 support.
+Qt6 development packages, FFmpeg, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-17 are required.
 
-CMake 3.25 or newer must be available in $PATH as well.
+CMake 3.25 or newer must be available in $PATH.
 
-NOTE: In all of the below lists of packages, the Qt6 multimedia package is not needed if your Linux system supports PulseAudio.
+> [!NOTE]
+> In all of the below lists of packages, the Qt6 multimedia package is not needed if your Linux system supports PulseAudio.
 
 ---
 
@@ -20,7 +21,8 @@ sudo apt install autoconf autoconf-archive automake build-essential ccache cmake
 
 - Recommendation: Install `CMake 3.25` or newer from [Kitware's apt repository](https://apt.kitware.com/):
 
-Note: This repository is Ubuntu-only
+> [!NOTE]
+> This repository is Ubuntu-only
 
 ```bash
 # Add Kitware GPG signing key
@@ -121,6 +123,11 @@ xcode-select --install
 brew install autoconf autoconf-archive automake ccache cmake ffmpeg nasm ninja pkg-config
 ```
 
+If you wish to use clang from homebrew instead:
+```
+brew install llvm
+```
+
 If you also plan to use the Qt chrome on macOS:
 ```
 brew install qt
@@ -165,6 +172,15 @@ The simplest way to build and run ladybird is via the ladybird.sh script:
 ```bash
 # From /path/to/ladybird
 ./Meta/ladybird.sh run ladybird
+```
+
+On macOS, to build using clang from homebrew:
+```bash
+CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
+```
+
+You may also choose to start it in `gdb` using:
+```bash
 ./Meta/ladybird.sh gdb ladybird
 ```
 
@@ -175,7 +191,11 @@ The above commands will build a Release version of Ladybird. To instead build a 
 BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird
 ```
 
-Either way, Ladybird will be built with one of the following browser chromes, depending on the platform:
+Note that debug symbols are available in both Release and Debug builds.
+
+### The chromes
+
+Ladybird will be built with one of the following browser chromes (graphical frontends), depending on the platform:
 * [AppKit](https://developer.apple.com/documentation/appkit?language=objc) - The native chrome on macOS.
 * [Qt](https://doc.qt.io/qt-6/) - The chrome used on all other platforms.
 * [Android UI](https://developer.android.com/develop/ui) - The native chrome on Android.
@@ -189,13 +209,6 @@ cmake --preset default -DENABLE_QT=ON
 ```
 
 To re-disable the Qt chrome, run the above command with `-DENABLE_QT=OFF`.
-
-On macOS, to build with clang from homebrew:
-
-```
-brew install llvm
-CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
-```
 
 ### Build error messages you may encounter
 
