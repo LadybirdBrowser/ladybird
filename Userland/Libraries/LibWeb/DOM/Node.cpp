@@ -1736,6 +1736,57 @@ Optional<String> Node::lookup_namespace_uri(Optional<String> prefix) const
     return locate_a_namespace(prefix);
 }
 
+// https://dom.spec.whatwg.org/#dom-node-lookupprefix
+Optional<String> Node::lookup_prefix(Optional<String> namespace_) const
+{
+    // 1. If namespace is null or the empty string, then return null.
+    if (!namespace_.has_value() || namespace_->is_empty())
+        return {};
+
+    // 2. Switch on the interface this implements:
+
+    // Element
+    if (is<Element>(*this)) {
+        // Return the result of locating a namespace prefix for it using namespace.
+        auto& element = verify_cast<Element>(*this);
+        return element.locate_a_namespace_prefix(namespace_);
+    }
+
+    // Document
+    if (is<Document>(*this)) {
+        // Return the result of locating a namespace prefix for its document element, if its document element is non-null; otherwise null.
+        auto* document_element = verify_cast<Document>(*this).document_element();
+        if (!document_element)
+            return {};
+
+        return document_element->locate_a_namespace_prefix(namespace_);
+    }
+
+    // DocumentType
+    // DocumentFragment
+    if (is<DocumentType>(*this) || is<DocumentFragment>(*this))
+        // Return null
+        return {};
+
+    // Attr
+    if (is<Attr>(*this)) {
+        // Return the result of locating a namespace prefix for its element, if its element is non-null; otherwise null.
+        auto* element = verify_cast<Attr>(*this).owner_element();
+        if (!element)
+            return {};
+
+        return element->locate_a_namespace_prefix(namespace_);
+    }
+
+    // Otherwise
+    // Return the result of locating a namespace prefix for its parent element, if its parent element is non-null; otherwise null.
+    auto* parent_element = this->parent_element();
+    if (!parent_element)
+        return {};
+
+    return parent_element->locate_a_namespace_prefix(namespace_);
+}
+
 // https://dom.spec.whatwg.org/#dom-node-isdefaultnamespace
 bool Node::is_default_namespace(Optional<String> namespace_) const
 {
