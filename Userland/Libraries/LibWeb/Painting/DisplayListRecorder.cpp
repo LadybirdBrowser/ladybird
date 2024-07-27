@@ -147,7 +147,7 @@ void DisplayListRecorder::fill_rect_with_linear_gradient(Gfx::IntRect const& gra
     append(PaintLinearGradient {
         .gradient_rect = state().translation.map(gradient_rect),
         .linear_gradient_data = data,
-        .text_clip = text_clip });
+        .text_clip = move(text_clip) });
 }
 
 void DisplayListRecorder::fill_rect_with_conic_gradient(Gfx::IntRect const& rect, ConicGradientData const& data, Gfx::IntPoint const& position, RefPtr<DisplayList> text_clip)
@@ -158,7 +158,7 @@ void DisplayListRecorder::fill_rect_with_conic_gradient(Gfx::IntRect const& rect
         .rect = state().translation.map(rect),
         .conic_gradient_data = data,
         .position = position,
-        .text_clip = text_clip });
+        .text_clip = move(text_clip) });
 }
 
 void DisplayListRecorder::fill_rect_with_radial_gradient(Gfx::IntRect const& rect, RadialGradientData const& data, Gfx::IntPoint center, Gfx::IntSize size, RefPtr<DisplayList> text_clip)
@@ -170,7 +170,7 @@ void DisplayListRecorder::fill_rect_with_radial_gradient(Gfx::IntRect const& rec
         .radial_gradient_data = data,
         .center = center,
         .size = size,
-        .text_clip = text_clip });
+        .text_clip = move(text_clip) });
 }
 
 void DisplayListRecorder::draw_rect(Gfx::IntRect const& rect, Color color, bool rough)
@@ -364,13 +364,13 @@ void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect boundi
         .draw_location = state().translation.map(draw_location) });
 }
 
-void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, Gfx::AntiAliasingPainter::CornerRadius top_left_radius, Gfx::AntiAliasingPainter::CornerRadius top_right_radius, Gfx::AntiAliasingPainter::CornerRadius bottom_right_radius, Gfx::AntiAliasingPainter::CornerRadius bottom_left_radius, RefPtr<DisplayList> clip_paths)
+void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, Gfx::AntiAliasingPainter::CornerRadius top_left_radius, Gfx::AntiAliasingPainter::CornerRadius top_right_radius, Gfx::AntiAliasingPainter::CornerRadius bottom_right_radius, Gfx::AntiAliasingPainter::CornerRadius bottom_left_radius, RefPtr<DisplayList> text_clip)
 {
     if (rect.is_empty())
         return;
 
     if (!top_left_radius && !top_right_radius && !bottom_right_radius && !bottom_left_radius) {
-        fill_rect(rect, color, clip_paths);
+        fill_rect(rect, color, text_clip);
         return;
     }
 
@@ -383,18 +383,18 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rec
             .bottom_right = bottom_right_radius,
             .bottom_left = bottom_left_radius,
         },
-        .text_clip = clip_paths,
+        .text_clip = text_clip,
     });
 }
 
-void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int radius, RefPtr<DisplayList> clip_paths)
+void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int radius, RefPtr<DisplayList> text_clip)
 {
     if (a_rect.is_empty())
         return;
-    fill_rect_with_rounded_corners(a_rect, color, radius, radius, radius, radius, move(clip_paths));
+    fill_rect_with_rounded_corners(a_rect, color, radius, radius, radius, radius, move(text_clip));
 }
 
-void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius, RefPtr<DisplayList> clip_paths)
+void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius, RefPtr<DisplayList> text_clip)
 {
     if (a_rect.is_empty())
         return;
@@ -403,7 +403,7 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_r
         { top_right_radius, top_right_radius },
         { bottom_right_radius, bottom_right_radius },
         { bottom_left_radius, bottom_left_radius },
-        clip_paths);
+        move(text_clip));
 }
 
 void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a_p2, Color color, int amplitude, int thickness = 1)
