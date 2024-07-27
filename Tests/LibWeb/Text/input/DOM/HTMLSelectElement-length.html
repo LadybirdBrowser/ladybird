@@ -1,0 +1,12 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const select = document.createElement("select");
+        const option = document.createElement("option");
+        println(select.length);
+        select.add(option);
+        println(select.length);
+        select.length = 0;
+        println(select.length);
+    });
+</script>
