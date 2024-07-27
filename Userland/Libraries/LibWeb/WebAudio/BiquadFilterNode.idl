@@ -24,10 +24,10 @@ dictionary BiquadFilterOptions : AudioNodeOptions {
 [Exposed=Window]
 interface BiquadFilterNode : AudioNode {
     constructor (BaseAudioContext context, optional BiquadFilterOptions options = {});
-    [FIXME] attribute BiquadFilterType type;
-    [FIXME] readonly attribute AudioParam frequency;
-    [FIXME] readonly attribute AudioParam detune;
-    [FIXME] readonly attribute AudioParam Q;
-    [FIXME] readonly attribute AudioParam gain;
-    [FIXME] undefined getFrequencyResponse (Float32Array frequencyHz, Float32Array magResponse, Float32Array phaseResponse);
+    attribute BiquadFilterType type;
+    readonly attribute AudioParam frequency;
+    readonly attribute AudioParam detune;
+    readonly attribute AudioParam Q;
+    readonly attribute AudioParam gain;
+    undefined getFrequencyResponse (Float32Array frequencyHz, Float32Array magResponse, Float32Array phaseResponse);
 };
