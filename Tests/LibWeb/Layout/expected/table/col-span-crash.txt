@@ -1,0 +1,19 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x19 children: not-inline
+      TableWrapper <(anonymous)> at (8,8) content-size 4x2 [BFC] children: not-inline
+        Box <table> at (8,8) content-size 4x2 table-box [TFC] children: not-inline
+          BlockContainer <colgroup> (not painted) table-column-group children: not-inline
+            BlockContainer <col> (not painted) children: not-inline
+      BlockContainer <(anonymous)> at (8,10) content-size 784x17 children: inline
+        frag 0 from TextNode start: 1, length: 19, rect: [8,10 162.109375x17] baseline: 13.296875
+            "PASS (didn't crash)"
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x19]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 4x2]
+        PaintableBox (Box<TABLE>) [8,8 4x2]
+      PaintableWithLines (BlockContainer(anonymous)) [8,10 784x17]
+        TextPaintable (TextNode<#text>)
