@@ -66,8 +66,8 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_length(WebIDL::UnsignedLong
         auto n = current - value;
 
         // 3.2. Remove the last n nodes in the collection from their parent nodes.
-        for (WebIDL::UnsignedLong i = current - 1; i >= current - n; i--)
-            this->item(i)->remove();
+        for (auto i = 0u; i < n; i++)
+            item(length() - 1)->remove();
     }
 
     return {};
