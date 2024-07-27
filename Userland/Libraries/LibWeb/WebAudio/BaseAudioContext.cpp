@@ -21,6 +21,7 @@ namespace Web::WebAudio {
 
 BaseAudioContext::BaseAudioContext(JS::Realm& realm, float sample_rate)
     : DOM::EventTarget(realm)
+    , m_destination(AudioDestinationNode::construct_impl(realm, *this))
     , m_sample_rate(sample_rate)
 {
 }
@@ -37,18 +38,6 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_destination);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-destination
-JS::NonnullGCPtr<AudioDestinationNode> BaseAudioContext::destination()
-{
-    auto& realm = this->realm();
-
-    dbgln("FIXME: Properly implement BaseAudioContext::destination");
-
-    if (!m_destination)
-        m_destination = realm.heap().allocate<AudioDestinationNode>(realm, realm, *this);
-    return *m_destination;
 }
 
 void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)

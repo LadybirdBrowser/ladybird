@@ -10,6 +10,8 @@ source_set("WebAudio") {
     "AudioBufferSourceNode.h",
     "AudioContext.cpp",
     "AudioContext.h",
+    "AudioDestinationNode.cpp",
+    "AudioDestinationNode.h",
     "AudioNode.cpp",
     "AudioNode.h",
     "AudioParam.cpp",
