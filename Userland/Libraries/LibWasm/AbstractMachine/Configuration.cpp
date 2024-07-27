@@ -44,14 +44,16 @@ Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Ve
         return Trap {};
     if (auto* wasm_function = function->get_pointer<WasmFunction>()) {
         Vector<Value> locals = move(arguments);
-        locals.ensure_capacity(locals.size() + wasm_function->code().locals().size());
-        for (auto& type : wasm_function->code().locals())
-            locals.empend(type, 0ull);
+        locals.ensure_capacity(locals.size() + wasm_function->code().func().locals().size());
+        for (auto& local : wasm_function->code().func().locals()) {
+            for (size_t i = 0; i < local.n(); ++i)
+                locals.empend(local.type(), 0ull);
+        }
 
         set_frame(Frame {
             wasm_function->module(),
             move(locals),
-            wasm_function->code().body(),
+            wasm_function->code().func().body(),
             wasm_function->type().results().size(),
         });
         m_ip = 0;

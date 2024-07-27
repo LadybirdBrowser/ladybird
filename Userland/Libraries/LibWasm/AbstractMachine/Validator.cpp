@@ -74,9 +74,13 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
         return result;
     }
 
-    module.for_each_section_of_type<FunctionSection>([this, &result](FunctionSection const& section) {
-        if (result.is_error())
+    CodeSection const* code_section { nullptr };
+    module.for_each_section_of_type<CodeSection>([&](auto& section) { code_section = &section; });
+    module.for_each_section_of_type<FunctionSection>([&](FunctionSection const& section) {
+        if ((!code_section && !section.types().is_empty()) || (code_section && code_section->functions().size() != section.types().size())) {
+            result = Errors::invalid("FunctionSection"sv);
             return;
+        }
         m_context.functions.ensure_capacity(section.types().size() + m_context.functions.size());
         for (auto& index : section.types()) {
             if (m_context.types.size() > index.value()) {
