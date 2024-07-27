@@ -31,7 +31,7 @@ public:
     virtual ~AudioNode() override;
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioNode>> connect(JS::NonnullGCPtr<AudioNode> destination_node, WebIDL::UnsignedLong output = 0, WebIDL::UnsignedLong input = 0);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioNode>> connect(JS::NonnullGCPtr<AudioParam> destination_param, WebIDL::UnsignedLong output = 0);
+    void connect(JS::NonnullGCPtr<AudioParam> destination_param, WebIDL::UnsignedLong output = 0);
 
     void disconnect();
     void disconnect(WebIDL::UnsignedLong output);
@@ -48,6 +48,15 @@ public:
         return m_context;
     }
 
+    WebIDL::UnsignedLong number_of_inputs();
+    WebIDL::UnsignedLong number_of_outputs();
+    WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong);
+    WebIDL::UnsignedLong channel_count();
+    WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
+    Bindings::ChannelCountMode channel_count_mode();
+    WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation);
+    Bindings::ChannelInterpretation channel_interpretation();
+
 protected:
     AudioNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>);
 
@@ -56,6 +65,8 @@ protected:
 
 private:
     JS::NonnullGCPtr<BaseAudioContext> m_context;
+    Bindings::ChannelCountMode m_channel_count_mode { Bindings::ChannelCountMode::Max };
+    Bindings::ChannelInterpretation m_channel_interpretation { Bindings::ChannelInterpretation::Speakers };
 };
 
 }
