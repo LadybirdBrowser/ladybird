@@ -541,33 +541,6 @@ void Printer::print(Wasm::Module const& module)
     print(")\n");
 }
 
-void Printer::print(Wasm::Module::Function const& func)
-{
-    print_indent();
-    print("(function\n");
-    {
-        TemporaryChange change { m_indent, m_indent + 1 };
-        {
-            print_indent();
-            print("(locals\n");
-            {
-                TemporaryChange change { m_indent, m_indent + 1 };
-                for (auto& locals : func.locals())
-                    print(locals);
-            }
-            print_indent();
-            print(")\n");
-        }
-        print_indent();
-        print("(body\n");
-        print(func.body());
-        print_indent();
-        print(")\n");
-    }
-    print_indent();
-    print(")\n");
-}
-
 void Printer::print(Wasm::StartSection const& section)
 {
     print_indent();

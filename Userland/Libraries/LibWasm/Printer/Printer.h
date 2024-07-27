@@ -50,7 +50,6 @@ struct Printer {
     void print(Wasm::MemorySection::Memory const&);
     void print(Wasm::MemoryType const&);
     void print(Wasm::Module const&);
-    void print(Wasm::Module::Function const&);
     void print(Wasm::Reference const&);
     void print(Wasm::StartSection const&);
     void print(Wasm::StartSection::StartFunction const&);

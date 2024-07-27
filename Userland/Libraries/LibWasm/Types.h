@@ -961,25 +961,6 @@ public:
         Valid,
     };
 
-    class Function {
-    public:
-        explicit Function(TypeIndex type, Vector<ValueType> local_types, Expression body)
-            : m_type(type)
-            , m_local_types(move(local_types))
-            , m_body(move(body))
-        {
-        }
-
-        auto& type() const { return m_type; }
-        auto& locals() const { return m_local_types; }
-        auto& body() const { return m_body; }
-
-    private:
-        TypeIndex m_type;
-        Vector<ValueType> m_local_types;
-        Expression m_body;
-    };
-
     using AnySection = Variant<
         CustomSection,
         TypeSection,
@@ -1001,14 +982,9 @@ public:
     explicit Module(Vector<AnySection> sections)
         : m_sections(move(sections))
     {
-        if (!populate_sections()) {
-            m_validation_status = ValidationStatus::Invalid;
-            m_validation_error = "Failed to populate module sections"sv;
-        }
     }
 
     auto& sections() const { return m_sections; }
-    auto& functions() const { return m_functions; }
     auto& type(TypeIndex index) const
     {
         FunctionType const* type = nullptr;
@@ -1045,11 +1021,9 @@ public:
     static ParseResult<Module> parse(Stream& stream);
 
 private:
-    bool populate_sections();
     void set_validation_status(ValidationStatus status) { m_validation_status = status; }
 
     Vector<AnySection> m_sections;
-    Vector<Function> m_functions;
     ValidationStatus m_validation_status { ValidationStatus::Unchecked };
     Optional<ByteString> m_validation_error;
 };

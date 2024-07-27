@@ -329,7 +329,7 @@ private:
 
 class WasmFunction {
 public:
-    explicit WasmFunction(FunctionType const& type, ModuleInstance const& module, Module::Function const& code)
+    explicit WasmFunction(FunctionType const& type, ModuleInstance const& module, CodeSection::Code const& code)
         : m_type(type)
         , m_module(module)
         , m_code(code)
@@ -343,7 +343,7 @@ public:
 private:
     FunctionType m_type;
     ModuleInstance const& m_module;
-    Module::Function const& m_code;
+    CodeSection::Code const& m_code;
 };
 
 class HostFunction {
@@ -537,7 +537,7 @@ class Store {
 public:
     Store() = default;
 
-    Optional<FunctionAddress> allocate(ModuleInstance& module, Module::Function const& function);
+    Optional<FunctionAddress> allocate(ModuleInstance&, CodeSection::Code const&, TypeIndex);
     Optional<FunctionAddress> allocate(HostFunction&&);
     Optional<TableAddress> allocate(TableType const&);
     Optional<MemoryAddress> allocate(MemoryType const&);

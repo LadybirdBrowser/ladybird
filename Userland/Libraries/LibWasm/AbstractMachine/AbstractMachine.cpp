@@ -14,14 +14,14 @@
 
 namespace Wasm {
 
-Optional<FunctionAddress> Store::allocate(ModuleInstance& module, Module::Function const& function)
+Optional<FunctionAddress> Store::allocate(ModuleInstance& module, CodeSection::Code const& code, TypeIndex type_index)
 {
     FunctionAddress address { m_functions.size() };
-    if (function.type().value() > module.types().size())
+    if (type_index.value() > module.types().size())
         return {};
 
-    auto& type = module.types()[function.type().value()];
-    m_functions.empend(WasmFunction { type, module, function });
+    auto& type = module.types()[type_index.value()];
+    m_functions.empend(WasmFunction { type, module, code });
     return address;
 }
 
@@ -223,15 +223,24 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             auxiliary_instance.functions().append(*ptr);
     }
 
-    Vector<FunctionAddress> module_functions;
-    module_functions.ensure_capacity(module.functions().size());
+    FunctionSection const* function_section { nullptr };
+    module.for_each_section_of_type<FunctionSection>([&](FunctionSection const& section) { function_section = &section; });
 
-    for (auto& func : module.functions()) {
-        auto address = m_store.allocate(main_module_instance, func);
-        VERIFY(address.has_value());
-        auxiliary_instance.functions().append(*address);
-        module_functions.append(*address);
-    }
+    Vector<FunctionAddress> module_functions;
+    if (function_section)
+        module_functions.ensure_capacity(function_section->types().size());
+
+    module.for_each_section_of_type<CodeSection>([&](auto& code_section) {
+        size_t i = 0;
+        for (auto& code : code_section.functions()) {
+            auto type_index = function_section->types()[i];
+            auto address = m_store.allocate(main_module_instance, code, type_index);
+            VERIFY(address.has_value());
+            auxiliary_instance.functions().append(*address);
+            module_functions.append(*address);
+            ++i;
+        }
+    });
 
     BytecodeInterpreter interpreter(m_stack_info);
 
