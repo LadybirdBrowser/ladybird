@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/BiquadFilterNodePrototype.h>
 #include <LibWeb/WebAudio/AudioNode.h>
+#include <LibWeb/WebAudio/AudioParam.h>
 
 namespace Web::WebAudio {
 
@@ -28,6 +29,14 @@ class BiquadFilterNode : public AudioNode {
 public:
     virtual ~BiquadFilterNode() override;
 
+    WebIDL::ExceptionOr<void> set_type(Bindings::BiquadFilterType);
+    Bindings::BiquadFilterType type() const;
+    JS::NonnullGCPtr<AudioParam> frequency() const;
+    JS::NonnullGCPtr<AudioParam> detune() const;
+    JS::NonnullGCPtr<AudioParam> q() const;
+    JS::NonnullGCPtr<AudioParam> gain() const;
+    WebIDL::ExceptionOr<void> get_frequency_response(JS::Handle<WebIDL::BufferSource> const&, JS::Handle<WebIDL::BufferSource> const&, JS::Handle<WebIDL::BufferSource> const&);
+
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> create(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, BiquadFilterOptions const& = {});
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> construct_impl(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, BiquadFilterOptions const& = {});
 
@@ -36,6 +45,13 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+
+private:
+    Bindings::BiquadFilterType m_type { Bindings::BiquadFilterType::Lowpass };
+    JS::NonnullGCPtr<AudioParam> m_frequency;
+    JS::NonnullGCPtr<AudioParam> m_detune;
+    JS::NonnullGCPtr<AudioParam> m_q;
+    JS::NonnullGCPtr<AudioParam> m_gain;
 };
 
 }
