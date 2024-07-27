@@ -9,6 +9,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/Noncopyable.h>
+#include <AK/Optional.h>
 #include <AK/Types.h>
 #include <pthread.h>
 
@@ -36,6 +37,7 @@ public:
 
     void lock();
     void unlock();
+    bool try_lock();
 
 private:
     pthread_mutex_t m_mutex;
@@ -47,10 +49,12 @@ class MutexLocker {
     AK_MAKE_NONMOVABLE(MutexLocker);
 
 public:
-    ALWAYS_INLINE explicit MutexLocker(Mutex& mutex)
+    ALWAYS_INLINE explicit MutexLocker(Mutex& mutex, bool already_locked = false)
         : m_mutex(mutex)
     {
-        lock();
+        if (!already_locked) {
+            lock();
+        }
     }
     ALWAYS_INLINE ~MutexLocker()
     {
@@ -58,6 +62,15 @@ public:
     }
     ALWAYS_INLINE void unlock() { m_mutex.unlock(); }
     ALWAYS_INLINE void lock() { m_mutex.lock(); }
+
+    [[nodiscard]] static AK::Optional<MutexLocker> try_lock(Mutex& m)
+    {
+        if (m.try_lock()) {
+            return AK::Optional<MutexLocker>(AK::Detail::InPlace, m, true);
+        }
+
+        return {};
+    }
 
 private:
     Mutex& m_mutex;
@@ -77,6 +90,16 @@ ALWAYS_INLINE void Mutex::unlock()
     // but we're not handling any errors from pthread_mutex_unlock anyways.
     m_lock_count--;
     pthread_mutex_unlock(&m_mutex);
+}
+
+ALWAYS_INLINE bool Mutex::try_lock()
+{
+    bool success = pthread_mutex_trylock(&m_mutex) == 0;
+    if (success) {
+        ++m_lock_count;
+    }
+
+    return success;
 }
 
 }

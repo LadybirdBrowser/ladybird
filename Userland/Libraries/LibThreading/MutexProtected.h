@@ -8,6 +8,7 @@
 
 #include <AK/Concepts.h>
 #include <AK/Noncopyable.h>
+#include <AK/Optional.h>
 #include <LibThreading/Mutex.h>
 
 namespace Threading {
@@ -16,6 +17,12 @@ template<typename T>
 class MutexProtected {
     AK_MAKE_NONCOPYABLE(MutexProtected);
     AK_MAKE_NONMOVABLE(MutexProtected);
+
+    template<typename Callback>
+    using CallbackReturnType = decltype(declval<Callback>()(declval<T&>()));
+
+    template<typename Callback>
+    using TryLockReturnType = Conditional<IsVoid<CallbackReturnType<Callback>>, void, Optional<CallbackReturnType<Callback>>>;
 
 public:
     using ProtectedType = T;
@@ -38,6 +45,16 @@ public:
         return callback(m_value);
     }
 
+    template<typename Callback>
+    auto try_with_locked(Callback callback) -> TryLockReturnType<Callback>
+    {
+        if (auto lock = this->try_lock(); lock.has_value()) {
+            return callback(m_value);
+        }
+
+        return TryLockReturnType<Callback>();
+    }
+
     template<VoidFunction<T> Callback>
     void for_each_locked(Callback callback)
     {
@@ -49,6 +66,7 @@ public:
 
 private:
     [[nodiscard]] ALWAYS_INLINE MutexLocker lock() { return MutexLocker(m_lock); }
+    [[nodiscard]] ALWAYS_INLINE Optional<MutexLocker> try_lock() { return MutexLocker::try_lock(m_lock); }
 
     T m_value;
     Mutex m_lock {};
