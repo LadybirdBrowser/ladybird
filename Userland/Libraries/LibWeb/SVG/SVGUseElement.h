@@ -51,6 +51,8 @@ private:
 
     virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
 
+    void process_the_url(Optional<String> const& href);
+
     static Optional<FlyString> parse_id_from_href(StringView);
 
     JS::GCPtr<DOM::Element> referenced_element();

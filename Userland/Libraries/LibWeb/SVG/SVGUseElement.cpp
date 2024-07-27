@@ -60,10 +60,17 @@ void SVGUseElement::attribute_changed(FlyString const& name, Optional<String> co
     } else if (name == SVG::AttributeNames::y) {
         m_y = AttributeParser::parse_coordinate(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::href || name == "xlink:href"_fly_string) {
-        m_referenced_id = parse_id_from_href(value.value_or(String {}));
-
-        clone_element_tree_as_our_shadow_tree(referenced_element());
+        // When the ‘href’ attribute is set (or, in the absence of an ‘href’ attribute, an ‘xlink:href’ attribute), the user agent must process the URL.
+        process_the_url(value);
     }
+}
+
+// https://www.w3.org/TR/SVG2/linking.html#processingURL
+void SVGUseElement::process_the_url(Optional<String> const& href)
+{
+    m_referenced_id = parse_id_from_href(href.value_or(String {}));
+
+    clone_element_tree_as_our_shadow_tree(referenced_element());
 }
 
 Optional<FlyString> SVGUseElement::parse_id_from_href(StringView href)
