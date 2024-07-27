@@ -9,6 +9,7 @@
 
 #include <LibWeb/Bindings/BaseAudioContextPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -32,6 +33,7 @@ public:
     static constexpr float MIN_SAMPLE_RATE { 8000 };
     static constexpr float MAX_SAMPLE_RATE { 192000 };
 
+    JS::NonnullGCPtr<AudioDestinationNode> destination() const { return m_destination; }
     float sample_rate() const { return m_sample_rate; }
     double current_time() const { return m_current_time; }
     Bindings::AudioContextState state() const { return m_control_thread_state; }
@@ -55,14 +57,13 @@ public:
     WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> create_dynamics_compressor();
     JS::NonnullGCPtr<GainNode> create_gain();
 
-    JS::NonnullGCPtr<AudioDestinationNode> destination();
-
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
-    virtual void initialize(JS::Realm&) override;
+    JS::NonnullGCPtr<AudioDestinationNode> m_destination;
 
-    virtual void visit_edges(Cell::Visitor& visitor) override;
+    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     float m_sample_rate { 0 };
@@ -70,7 +71,6 @@ private:
 
     Bindings::AudioContextState m_control_thread_state = Bindings::AudioContextState::Suspended;
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;
-    JS::GCPtr<AudioDestinationNode> m_destination;
 };
 
 }
