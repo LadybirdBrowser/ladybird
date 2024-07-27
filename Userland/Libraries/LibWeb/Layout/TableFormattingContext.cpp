@@ -1386,6 +1386,7 @@ void TableFormattingContext::BorderConflictFinder::collect_conflicting_col_eleme
             VERIFY(child_of_column_group->display().is_table_column());
             auto const& col_node = static_cast<HTML::HTMLTableColElement const&>(*child_of_column_group->dom_node());
             unsigned span = col_node.get_attribute_value(HTML::AttributeNames::span).to_number<unsigned>().value_or(1);
+            m_col_elements_by_index.resize(column_index + span);
             for (size_t i = column_index; i < column_index + span; ++i) {
                 m_col_elements_by_index[i] = child_of_column_group;
             }
