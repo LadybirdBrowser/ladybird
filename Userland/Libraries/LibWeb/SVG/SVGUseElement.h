@@ -57,7 +57,7 @@ private:
 
     JS::GCPtr<DOM::Element> referenced_element();
 
-    void clone_element_tree_as_our_shadow_tree(Element* to_clone) const;
+    void clone_element_tree_as_our_shadow_tree(Element* to_clone);
     bool is_valid_reference_element(Element const& reference_element) const;
 
     Optional<float> m_x;
