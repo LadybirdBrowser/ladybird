@@ -31,7 +31,12 @@ class BrowserWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, WebContentOptions const&, StringView webdriver_content_ipc_path, bool allow_popups, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    enum class IsPopupWindow {
+        No,
+        Yes,
+    };
+
+    BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, WebContentOptions const&, StringView webdriver_content_ipc_path, bool allow_popups, IsPopupWindow is_popup_window = IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
     WebContentView& view() const { return m_current_tab->view(); }
 
@@ -216,6 +221,7 @@ private:
     StringView m_webdriver_content_ipc_path;
 
     bool m_allow_popups { false };
+    IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 };
 
 }
