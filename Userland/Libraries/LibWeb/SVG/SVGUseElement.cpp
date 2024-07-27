@@ -135,18 +135,18 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(Element* to_clone) con
 {
     const_cast<DOM::ShadowRoot&>(*shadow_root()).remove_all_children();
 
-    if (to_clone && is_valid_reference_element(to_clone)) {
+    if (to_clone && is_valid_reference_element(*to_clone)) {
         // The ‘use’ element references another element, a copy of which is rendered in place of the ‘use’ in the document.
         auto cloned_reference_node = MUST(to_clone->clone_node(nullptr, true));
         const_cast<DOM::ShadowRoot&>(*shadow_root()).append_child(cloned_reference_node).release_value_but_fixme_should_propagate_errors();
     }
 }
 
-bool SVGUseElement::is_valid_reference_element(Element* reference_element) const
+bool SVGUseElement::is_valid_reference_element(Element const& reference_element) const
 {
     // If the referenced element that results from resolving the URL is not an SVG element, then the reference is invalid and the ‘use’ element is in error.
     // If the referenced element is a (shadow-including) ancestor of the ‘use’ element, then this is an invalid circular reference and the ‘use’ element is in error.
-    return reference_element->is_svg_element() && !reference_element->is_ancestor_of(*this);
+    return reference_element.is_svg_element() && !reference_element.is_ancestor_of(*this);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementXAttribute
