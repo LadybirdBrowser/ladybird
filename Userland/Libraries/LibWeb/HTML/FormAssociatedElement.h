@@ -90,10 +90,10 @@ public:
     virtual void reset_algorithm() {};
 
     WebIDL::UnsignedLong selection_start() const;
-    WebIDL::ExceptionOr<void> set_selection_start(WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<void> set_selection_start(Optional<WebIDL::UnsignedLong> const&);
 
     WebIDL::UnsignedLong selection_end() const;
-    WebIDL::ExceptionOr<void> set_selection_end(WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<void> set_selection_end(Optional<WebIDL::UnsignedLong> const&);
 
 protected:
     FormAssociatedElement() = default;

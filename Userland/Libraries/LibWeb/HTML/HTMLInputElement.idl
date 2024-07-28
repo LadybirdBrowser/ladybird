@@ -58,8 +58,8 @@ interface HTMLInputElement : HTMLElement {
     readonly attribute NodeList? labels;
 
     undefined select();
-    [FIXME] attribute unsigned long? selectionStart;
-    [FIXME] attribute unsigned long? selectionEnd;
+    [ImplementedAs=selection_start_for_bindings] attribute unsigned long? selectionStart;
+    [ImplementedAs=selection_end_for_bindings] attribute unsigned long? selectionEnd;
     [FIXME] attribute DOMString? selectionDirection;
     [FIXME] undefined setRangeText(DOMString replacement);
     [FIXME] undefined setRangeText(DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
