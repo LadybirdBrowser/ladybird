@@ -1,0 +1,1 @@
+location global object URL final segment: Worker-location.js
