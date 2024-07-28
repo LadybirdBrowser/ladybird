@@ -29,7 +29,7 @@ void FormAssociatedElement::set_form(HTMLFormElement* form)
 bool FormAssociatedElement::enabled() const
 {
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-disabled
-    auto const& html_element = const_cast<FormAssociatedElement&>(*this).form_associated_element_to_html_element();
+    auto const& html_element = form_associated_element_to_html_element();
 
     // A form control is disabled if any of the following conditions are met:
     // 1. The element is a button, input, select, textarea, or form-associated custom element, and the disabled attribute is specified on this element (regardless of its value).
