@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const params = new URLSearchParams('key=value1+value2');
+        for (const [key, value] of params) {
+            println(`key '${key}'`);
+            println(`value '${value}'`);
+        }
+    });
+</script>
