@@ -388,6 +388,35 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
     }
 }
 
+static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type const& type)
+{
+    struct TypeMap {
+        StringView idl_type;
+        StringView cpp_type;
+    };
+    static constexpr auto idl_type_map = to_array<TypeMap>({
+        { "byte"sv, "WebIDL::Byte"sv },
+        { "octet"sv, "WebIDL::Octet"sv },
+        { "short"sv, "WebIDL::Short"sv },
+        { "unsigned short"sv, "WebIDL::UnsignedShort"sv },
+        { "long"sv, "WebIDL::Long"sv },
+        { "unsigned long"sv, "WebIDL::UnsignedLong"sv },
+        { "long long"sv, "double"sv },
+        { "unsigned long long"sv, "double"sv },
+    });
+
+    auto it = find_if(idl_type_map.begin(), idl_type_map.end(), [&](auto const& entry) {
+        return entry.idl_type == type.name();
+    });
+
+    VERIFY(it != idl_type_map.end());
+    scoped_generator.set("cpp_type"sv, it->cpp_type);
+
+    scoped_generator.append(R"~~~(
+    @result_expression@ JS::Value(static_cast<@cpp_type@>(@value@));
+)~~~");
+}
+
 template<typename ParameterType>
 static void generate_to_integral(SourceGenerator& scoped_generator, ParameterType const& parameter, bool optional, Optional<ByteString> const& optional_default_value)
 {
@@ -1741,22 +1770,8 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     @result_expression@ JS::Value(@value@);
 )~~~");
         }
-    } else if (type.name() == "short" || type.name() == "long" || type.name() == "unsigned short") {
-        scoped_generator.append(R"~~~(
-    @result_expression@ JS::Value((i32)@value@);
-)~~~");
-    } else if (type.name() == "unsigned long") {
-        scoped_generator.append(R"~~~(
-    @result_expression@ JS::Value((u32)@value@);
-)~~~");
-    } else if (type.name() == "long long") {
-        scoped_generator.append(R"~~~(
-    @result_expression@ JS::Value((double)@value@);
-)~~~");
-    } else if (type.name() == "unsigned long long") {
-        scoped_generator.append(R"~~~(
-    @result_expression@ JS::Value((double)@value@);
-)~~~");
+    } else if (type.is_integer()) {
+        generate_from_integral(scoped_generator, type);
     } else if (type.name() == "Location" || type.name() == "Promise" || type.name() == "Uint8Array" || type.name() == "Uint8ClampedArray" || type.name() == "any") {
         scoped_generator.append(R"~~~(
     @result_expression@ @value@;
