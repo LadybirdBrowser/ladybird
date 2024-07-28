@@ -56,8 +56,6 @@ enum class ParseError {
     OutOfMemory,
     SectionSizeMismatch,
     InvalidUtf8,
-    // FIXME: This should not exist!
-    NotImplemented,
 };
 
 ByteString parse_error_to_byte_string(ParseError);

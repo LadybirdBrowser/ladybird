@@ -1310,8 +1310,6 @@ ByteString parse_error_to_byte_string(ParseError error)
         return "A parsed tag did not make sense in context";
     case ParseError::InvalidType:
         return "A parsed type did not make sense in context";
-    case ParseError::NotImplemented:
-        return "The parser encountered an unimplemented feature";
     case ParseError::HugeAllocationRequested:
         return "Parsing caused an attempt to allocate a very big chunk of memory, likely malformed data";
     case ParseError::OutOfMemory:
