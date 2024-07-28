@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <AK/WeakPtr.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -87,6 +88,12 @@ public:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset-control
     virtual void reset_algorithm() {};
+
+    WebIDL::UnsignedLong selection_start() const;
+    WebIDL::ExceptionOr<void> set_selection_start(WebIDL::UnsignedLong);
+
+    WebIDL::UnsignedLong selection_end() const;
+    WebIDL::ExceptionOr<void> set_selection_end(WebIDL::UnsignedLong);
 
 protected:
     FormAssociatedElement() = default;

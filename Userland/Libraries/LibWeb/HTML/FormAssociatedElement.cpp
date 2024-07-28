@@ -152,4 +152,61 @@ void FormAssociatedElement::reset_form_owner()
     }
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
+WebIDL::UnsignedLong FormAssociatedElement::selection_start() const
+{
+    // FIXME: 1. If this element is an input element, and selectionStart does not apply to this element, return null.
+
+    // 2. If there is no selection, return the code unit offset within the relevant value to the character that
+    //    immediately follows the text entry cursor.
+    if (auto navigable = form_associated_element_to_html_element().document().navigable()) {
+        if (auto cursor = navigable->cursor_position())
+            return cursor->offset();
+    }
+
+    // FIXME: 3. Return the code unit offset within the relevant value to the character that immediately follows the start of
+    //           the selection.
+    return 0;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionstart-2
+WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_start(WebIDL::UnsignedLong)
+{
+    // FIXME: 1. If this element is an input element, and selectionStart does not apply to this element, throw an
+    //    "InvalidStateError" DOMException.
+
+    // FIXME: 2. Let end be the value of this element's selectionEnd attribute.
+    // FIXME: 3. If end is less than the given value, set end to the given value.
+    // FIXME: 4. Set the selection range with the given value, end, and the value of this element's selectionDirection attribute.
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionend
+WebIDL::UnsignedLong FormAssociatedElement::selection_end() const
+{
+    // FIXME: 1. If this element is an input element, and selectionEnd does not apply to this element, return null.
+
+    // 2. If there is no selection, return the code unit offset within the relevant value to the character that
+    //    immediately follows the text entry cursor.
+    if (auto navigable = form_associated_element_to_html_element().document().navigable()) {
+        if (auto cursor = navigable->cursor_position())
+            return cursor->offset();
+    }
+
+    // FIXME: 3. Return the code unit offset within the relevant value to the character that immediately follows the end of
+    //           the selection.
+    return 0;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionend-3
+WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_end(WebIDL::UnsignedLong)
+{
+    // FIXME: 1. If this element is an input element, and selectionEnd does not apply to this element, throw an
+    //    "InvalidStateError" DOMException.
+
+    // FIXME: 2. Set the selection range with the value of this element's selectionStart attribute, the given value, and the
+    //           value of this element's selectionDirection attribute.
+    return {};
+}
+
 }
