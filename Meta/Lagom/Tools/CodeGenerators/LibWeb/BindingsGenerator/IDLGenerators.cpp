@@ -412,9 +412,15 @@ static void generate_from_integral(SourceGenerator& scoped_generator, IDL::Type 
     VERIFY(it != idl_type_map.end());
     scoped_generator.set("cpp_type"sv, it->cpp_type);
 
-    scoped_generator.append(R"~~~(
+    if (type.is_nullable()) {
+        scoped_generator.append(R"~~~(
+    @result_expression@ JS::Value(static_cast<@cpp_type@>(@value@.release_value()));
+)~~~");
+    } else {
+        scoped_generator.append(R"~~~(
     @result_expression@ JS::Value(static_cast<@cpp_type@>(@value@));
 )~~~");
+    }
 }
 
 template<typename ParameterType>
