@@ -1,0 +1,7 @@
+Well hello friends    text selectionStart: 0
+text selectionEnd: 0
+date selectionStart: null
+date selectionEnd: null
+text selectionStart: 18
+text selectionEnd: 18
+date input setting selectionStart error: InvalidStateError: setSelectionStart does not apply to this input type

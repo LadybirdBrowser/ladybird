@@ -1,0 +1,24 @@
+<input type="text" id="ladybird-text-input"></input>
+<input type="date" id="ladybird-date-input"></input>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let textInput = document.getElementById("ladybird-text-input");
+        let dateInput = document.getElementById("ladybird-date-input");
+
+        println(`text selectionStart: ${textInput.selectionStart}`);
+        println(`text selectionEnd: ${textInput.selectionEnd}`);
+        println(`date selectionStart: ${dateInput.selectionStart}`);
+        println(`date selectionEnd: ${dateInput.selectionEnd}`);
+
+        textInput.value = "Well hello friends";
+        println(`text selectionStart: ${textInput.selectionStart}`);
+        println(`text selectionEnd: ${textInput.selectionEnd}`);
+
+        try {
+            dateInput.selectionStart = 0;
+        } catch (e) {
+            println(`date input setting selectionStart error: ${e}`);
+        }
+    });
+</script>

@@ -155,7 +155,8 @@ void FormAssociatedElement::reset_form_owner()
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
 WebIDL::UnsignedLong FormAssociatedElement::selection_start() const
 {
-    // FIXME: 1. If this element is an input element, and selectionStart does not apply to this element, return null.
+    // 1. If this element is an input element, and selectionStart does not apply to this element, return null.
+    // NOTE: This is done by HTMLInputElement before calling this function
 
     // 2. If there is no selection, return the code unit offset within the relevant value to the character that
     //    immediately follows the text entry cursor.
@@ -170,10 +171,11 @@ WebIDL::UnsignedLong FormAssociatedElement::selection_start() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionstart-2
-WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_start(WebIDL::UnsignedLong)
+WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_start(Optional<WebIDL::UnsignedLong> const&)
 {
-    // FIXME: 1. If this element is an input element, and selectionStart does not apply to this element, throw an
+    // 1. If this element is an input element, and selectionStart does not apply to this element, throw an
     //    "InvalidStateError" DOMException.
+    // NOTE: This is done by HTMLInputElement before calling this function
 
     // FIXME: 2. Let end be the value of this element's selectionEnd attribute.
     // FIXME: 3. If end is less than the given value, set end to the given value.
@@ -184,7 +186,8 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_start(WebIDL::Uns
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionend
 WebIDL::UnsignedLong FormAssociatedElement::selection_end() const
 {
-    // FIXME: 1. If this element is an input element, and selectionEnd does not apply to this element, return null.
+    // 1. If this element is an input element, and selectionEnd does not apply to this element, return null.
+    // NOTE: This is done by HTMLInputElement before calling this function
 
     // 2. If there is no selection, return the code unit offset within the relevant value to the character that
     //    immediately follows the text entry cursor.
@@ -199,10 +202,11 @@ WebIDL::UnsignedLong FormAssociatedElement::selection_end() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionend-3
-WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_end(WebIDL::UnsignedLong)
+WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_end(Optional<WebIDL::UnsignedLong> const&)
 {
-    // FIXME: 1. If this element is an input element, and selectionEnd does not apply to this element, throw an
+    // 1. If this element is an input element, and selectionEnd does not apply to this element, throw an
     //    "InvalidStateError" DOMException.
+    // NOTE: This is done by HTMLInputElement before calling this function
 
     // FIXME: 2. Set the selection range with the value of this element's selectionStart attribute, the given value, and the
     //           value of this element's selectionDirection attribute.
