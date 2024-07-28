@@ -31,6 +31,7 @@ public:
 private:
     explicit WorkerLocation(WorkerGlobalScope&);
 
+    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     JS::NonnullGCPtr<WorkerGlobalScope> m_global_scope;

@@ -1,0 +1,11 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let work = new Worker("Worker-location.js");
+        work.onmessage = (evt) => {
+            const locationURL = new URL(evt.data);
+            println(`location global object URL final segment: ${locationURL.pathname.split('/').pop()}`);
+            done();
+        };
+    });
+</script>

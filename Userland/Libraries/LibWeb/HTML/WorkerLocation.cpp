@@ -142,6 +142,12 @@ WorkerLocation::WorkerLocation(WorkerGlobalScope& global_scope)
 
 WorkerLocation::~WorkerLocation() = default;
 
+void WorkerLocation::initialize(JS::Realm& realm)
+{
+    Base::initialize(realm);
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(WorkerLocation);
+}
+
 void WorkerLocation::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
