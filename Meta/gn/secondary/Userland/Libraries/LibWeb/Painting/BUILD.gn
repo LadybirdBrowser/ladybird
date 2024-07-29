@@ -17,7 +17,6 @@ source_set("Painting") {
     "Command.cpp",
     "DisplayList.cpp",
     "DisplayListRecorder.cpp",
-    "FilterPainting.cpp",
     "GradientPainting.cpp",
     "ImagePaintable.cpp",
     "InlinePaintable.cpp",

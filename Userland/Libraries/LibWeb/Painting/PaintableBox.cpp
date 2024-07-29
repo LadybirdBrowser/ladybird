@@ -16,7 +16,6 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
-#include <LibWeb/Painting/FilterPainting.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
@@ -438,9 +437,15 @@ void PaintableBox::paint_border(PaintContext& context) const
 
 void PaintableBox::paint_backdrop_filter(PaintContext& context) const
 {
-    auto& backdrop_filter = computed_values().backdrop_filter();
-    if (!backdrop_filter.is_none())
-        apply_backdrop_filter(context, absolute_border_box_rect(), normalized_border_radii_data(), backdrop_filter);
+    auto const& backdrop_filter = computed_values().backdrop_filter();
+    if (backdrop_filter.is_none()) {
+        return;
+    }
+
+    auto backdrop_region = context.rounded_device_rect(absolute_border_box_rect());
+    auto border_radii_data = normalized_border_radii_data();
+    ScopedCornerRadiusClip corner_clipper { context, backdrop_region, border_radii_data };
+    context.display_list_recorder().apply_backdrop_filter(backdrop_region.to_type<int>(), border_radii_data, backdrop_filter);
 }
 
 void PaintableBox::paint_background(PaintContext& context) const
