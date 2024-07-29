@@ -650,8 +650,10 @@ void ConnectionFromClient::add_dom_node_attributes(u64 page_id, i32 node_id, Vec
 
     auto& element = static_cast<Web::DOM::Element&>(*dom_node);
 
-    for (auto const& attribute : attributes)
-        element.set_attribute(attribute.name, attribute.value).release_value_but_fixme_should_propagate_errors();
+    for (auto const& attribute : attributes) {
+        // NOTE: We ignore invalid attributes for now, but we may want to send feedback to the user that this failed.
+        (void)element.set_attribute(attribute.name, attribute.value);
+    }
 
     async_did_finish_editing_dom_node(page_id, element.unique_id());
 }
@@ -671,7 +673,8 @@ void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, i32 node_id, 
         if (should_remove_attribute && Web::Infra::is_ascii_case_insensitive_match(name, attribute.name))
             should_remove_attribute = false;
 
-        element.set_attribute(attribute.name, attribute.value).release_value_but_fixme_should_propagate_errors();
+        // NOTE: We ignore invalid attributes for now, but we may want to send feedback to the user that this failed.
+        (void)element.set_attribute(attribute.name, attribute.value);
     }
 
     if (should_remove_attribute)
