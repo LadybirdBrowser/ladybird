@@ -19,6 +19,24 @@ Please file any bugs you find, keeping the following in mind:
 * No build issues (or other support requests). If the GitHub Actions CI build succeeds, the build problem is most likely on your side. Work it out locally, or ask in the `#build-problems` channel on Discord.
 * Don't comment on issues just to add a joke or irrelevant commentary. Hundreds of people get notified about comments so let's keep them relevant.
 
+## Project governance
+
+The Ladybird project is driven by the [Ladybird Browser Initiative](https://ladybird.org/), a 501(c)(3) non-profit organization.
+
+Pull requests are approved and merged by a group of maintainers. The current group of maintainers are (in alphabetical order):
+
+- [Ali Mohammad Pur (@alimpfard)](https://github.com/alimpfard)
+- [Aliaksandr Kalenik (@kalenikaliaksandr)](https://github.com/kalenikaliaksandr)
+- [Andreas Kling (@awesomekling)](https://github.com/awesomekling)
+- [Andrew Kaster (@ADKaster)](https://github.com/ADKaster)
+- [Dániel Bertalan (@BertalanD)](https://github.com/BertalanD)
+- [Jelle Raaijmakers (@GMTA)](https://github.com/gmta)
+- [Luke Wilde (@Lubrsi)](https://github.com/Lubrsi)
+- [Sam Atkins (@AtkinsSJ)](https://github.com/AtkinsSJ)
+- [Tim Flynn (@trflynn89)](https://github.com/trflynn89)
+- [Tim Ledbetter (@tcl3)](https://github.com/tcl3)
+- [Tim Schumacher (@timschumi)](https://github.com/timschumi)
+
 ## Human language policy
 
 In Ladybird, we treat human language as seriously as we do programming language.
@@ -28,8 +46,11 @@ The following applies to all user-facing strings, code, comments, and commit mes
 * The official project language is American English with ISO 8601 dates and metric units.
 * Use proper spelling, grammar, and punctuation.
 * Write in an authoritative and technical tone.
+* Avoid contractions, slang, and idioms.
+* Avoid humor, sarcasm, and other forms of non-literal language.
+* Use gender-neutral pronouns, except when referring to a specific person.
 
-Everyone is encouraged to make use of tooling (spell checkers, etc) to make this easier.
+Note that this also applies to debug logging and other internal strings, as they may be exposed to users in the future.
 
 ## Testing policy
 
@@ -37,11 +58,11 @@ When possible, please include tests when fixing bugs or adding new features.
 
 ## Code submission policy
 
-Nobody is perfect, and sometimes we mess things up. That said, here are some good dos & don'ts to try and stick to:
+Nobody is perfect, and sometimes we mess things up. That said, here are some good do's & don'ts to try and stick to:
 
 **Do:**
 
-* Write in idiomatic SerenityOS-style C++23, using the `AK` containers in all code.
+* Write in idiomatic project-style C++23, using the `AK` containers in all code.
 * Conform to the project coding style found in [CodingStyle.md](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/CodingStyle.md). Use `clang-format` (version 18 or later) to automatically format C++ files. See [AdvancedBuildInstructions.md](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/AdvancedBuildInstructions.md#clang-format-updates) for instructions on how to get an up-to-date version if your OS distribution does not ship clang-format-18.
 * Choose expressive variable, function and class names. Make it as obvious as possible what the code is doing.
 * Split your changes into separate, atomic commits (i.e. A commit per feature or fix, where the build, tests and the system are all functioning).
@@ -83,24 +104,6 @@ While unadvertised PRs may get randomly merged by curious maintainers, you will 
 
 Ping them right away if it's something urgent! If it's less urgent, advertise your PR on Discord (`#code-review`) and ask if someone could review it.
 
-### Who are the project maintainers?
-
-The project founder and [BDFL](https://en.wikipedia.org/wiki/Benevolent_dictator_for_life) is [@awesomekling](https://github.com/awesomekling).
-
-There is also a group of maintainers with the ability to approve and merge PRs:
-- [@ADKaster](https://github.com/ADKaster)
-- [@alimpfard](https://github.com/alimpfard)
-- [@AtkinsSJ](https://github.com/AtkinsSJ)
-- [@BertalanD](https://github.com/BertalanD)
-- [@GMTA](https://github.com/gmta)
-- [@kalenikaliaksandr](https://github.com/kalenikaliaksandr)
-- [@Lubrsi](https://github.com/Lubrsi)
-- [@tcl3](https://github.com/tcl3)
-- [@timschumi](https://github.com/timschumi)
-- [@trflynn89](https://github.com/trflynn89)
-
-Maintainership is by invitation only and does not correlate with any particular metric.
-
 ### Is there a policy for branches/PRs that haven't been touched in X days? Should they be closed?
 
 Yes, we have a "stalebot" that will mark untouched PRs as "stale" after 21 days, and close them after another 7 days if nothing happens.
@@ -109,7 +112,7 @@ Yes, we have a "stalebot" that will mark untouched PRs as "stale" after 21 days,
 
 In theory, the best person to speak with is whoever wrote most code adjacent to what you're working on. In practice, asking in one of the development channels on Discord is usually easier/better, since that allows many people to join the discussion.
 
-### Is Discord the place to ask for review help, or is Github preferred?
+### Is Discord the place to ask for review help, or is GitHub preferred?
 
 It's definitely better to ask on Discord. Due to the volume of GitHub notifications, many of us turn them off and rely on Discord for learning about review requests.
 
@@ -132,6 +135,21 @@ Sometimes good PRs get abandoned by the author for one reason or another. If the
 
 To make this easier, we do appreciate it if folks enable the "Allow edits from maintainers" flag on their pull requests.
 
-## On ideologically motivated changes
+## On neutrality
 
-This is a purely technical project. As such, it is not an appropriate arena to advertise your personal politics or religious beliefs. Any changes that appear ideologically motivated will be rejected.
+Our goal is to build a browser for everyone, irrespective of their specific opinions and worldviews.
+To achieve this, we strive to set our differences aside and focus on the shared goal of building the browser.
+
+This means:
+- We welcome contributions from anyone who is committed to the project's goals and respects the collaborative environment.
+- Our discussions and work will remain strictly related to browser development and web standards. We do not take positions on issues outside this scope.
+- The project will not be used as a platform to advertise or promote causes unrelated to browser development or web standards.
+- To maintain a focused and productive environment, discussions on societal politics and other divisive topics are discouraged in project spaces.
+
+We encourage everyone to share their personal views and opinions outside project spaces. However, please keep project spaces focused on project goals.
+
+## On bad-faith contributions and brigading
+
+We reserve the right to reject issues and pull requests that appear to be motivated by bad faith.
+
+Additionally, anyone found participating in social media brigading of Ladybird will be permanently banned from the project.
