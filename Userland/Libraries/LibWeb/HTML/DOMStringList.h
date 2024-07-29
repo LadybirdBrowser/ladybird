@@ -22,8 +22,7 @@ public:
     Optional<String> item(u32 index) const;
     bool contains(StringView string);
 
-    virtual bool is_supported_property_index(u32) const override;
-    virtual WebIDL::ExceptionOr<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(size_t index) const override;
 
 private:
     explicit DOMStringList(JS::Realm&, Vector<String>);

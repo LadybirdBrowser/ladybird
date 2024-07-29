@@ -56,17 +56,10 @@ bool DOMStringList::contains(StringView string)
     return m_list.contains_slow(string);
 }
 
-bool DOMStringList::is_supported_property_index(u32 index) const
-{
-    // The DOMStringList interface supports indexed properties. The supported property indices are the indices of this's
-    // associated list.
-    return index < m_list.size();
-}
-
-WebIDL::ExceptionOr<JS::Value> DOMStringList::item_value(size_t index) const
+Optional<JS::Value> DOMStringList::item_value(size_t index) const
 {
     if (index + 1 > m_list.size())
-        return JS::js_undefined();
+        return {};
 
     return JS::PrimitiveString::create(vm(), m_list.at(index));
 }
