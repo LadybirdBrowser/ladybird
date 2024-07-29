@@ -101,8 +101,10 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_class_list);
     visitor.visit(m_shadow_root);
     visitor.visit(m_custom_element_definition);
-    if (m_pseudo_element_nodes) {
-        visitor.visit(m_pseudo_element_nodes->span());
+    if (m_pseudo_element_data) {
+        for (auto& pseudo_element : *m_pseudo_element_data) {
+            visitor.visit(pseudo_element.layout_node);
+        }
     }
     if (m_registered_intersection_observers) {
         for (auto& registered_intersection_observers : *m_registered_intersection_observers)
@@ -1087,34 +1089,36 @@ void Element::children_changed()
 
 void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type pseudo_element, JS::GCPtr<Layout::Node> pseudo_element_node)
 {
-    if (!m_pseudo_element_nodes) {
-        if (!pseudo_element_node)
-            return;
-        m_pseudo_element_nodes = make<PseudoElementLayoutNodes>();
-    }
+    auto existing_pseudo_element = get_pseudo_element(pseudo_element);
+    if (!existing_pseudo_element.has_value() && !pseudo_element_node)
+        return;
 
-    (*m_pseudo_element_nodes)[to_underlying(pseudo_element)] = pseudo_element_node;
+    ensure_pseudo_element(pseudo_element).layout_node = move(pseudo_element_node);
 }
 
 JS::GCPtr<Layout::Node> Element::get_pseudo_element_node(CSS::Selector::PseudoElement::Type pseudo_element) const
 {
-    if (!m_pseudo_element_nodes)
-        return nullptr;
-    return (*m_pseudo_element_nodes)[to_underlying(pseudo_element)];
+    if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
+        return element_data->layout_node;
+    return nullptr;
 }
 
 void Element::clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>)
 {
-    m_pseudo_element_nodes = nullptr;
+    if (m_pseudo_element_data) {
+        for (auto& pseudo_element : *m_pseudo_element_data) {
+            pseudo_element.layout_node = nullptr;
+        }
+    }
 }
 
 void Element::serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilder>& children_array) const
 {
-    if (!m_pseudo_element_nodes)
+    if (!m_pseudo_element_data)
         return;
-    for (size_t i = 0; i < m_pseudo_element_nodes->size(); ++i) {
-        auto& pseudo_element_node = (*m_pseudo_element_nodes)[i];
-        if (!pseudo_element_node)
+    for (size_t i = 0; i < m_pseudo_element_data->size(); ++i) {
+        auto& pseudo_element = (*m_pseudo_element_data)[i].layout_node;
+        if (!pseudo_element)
             continue;
         auto object = MUST(children_array.add_object());
         MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::Selector::PseudoElement::name(static_cast<CSS::Selector::PseudoElement::Type>(i))))));
@@ -2219,11 +2223,18 @@ void Element::set_computed_css_values(RefPtr<CSS::StyleProperties> style)
     computed_css_values_changed();
 }
 
-auto Element::pseudo_element_custom_properties() const -> PseudoElementCustomProperties&
+Optional<Element::PseudoElement&> Element::get_pseudo_element(CSS::Selector::PseudoElement::Type type) const
 {
-    if (!m_pseudo_element_custom_properties)
-        m_pseudo_element_custom_properties = make<PseudoElementCustomProperties>();
-    return *m_pseudo_element_custom_properties;
+    if (!m_pseudo_element_data)
+        return {};
+    return m_pseudo_element_data->at(to_underlying(type));
+}
+
+Element::PseudoElement& Element::ensure_pseudo_element(CSS::Selector::PseudoElement::Type type) const
+{
+    if (!m_pseudo_element_data)
+        m_pseudo_element_data = make<PseudoElementData>();
+    return m_pseudo_element_data->at(to_underlying(type));
 }
 
 void Element::set_custom_properties(Optional<CSS::Selector::PseudoElement::Type> pseudo_element, HashMap<FlyString, CSS::StyleProperty> custom_properties)
@@ -2232,14 +2243,14 @@ void Element::set_custom_properties(Optional<CSS::Selector::PseudoElement::Type>
         m_custom_properties = move(custom_properties);
         return;
     }
-    pseudo_element_custom_properties()[to_underlying(pseudo_element.value())] = move(custom_properties);
+    ensure_pseudo_element(pseudo_element.value()).custom_properties = move(custom_properties);
 }
 
 HashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     if (!pseudo_element.has_value())
         return m_custom_properties;
-    return pseudo_element_custom_properties()[to_underlying(pseudo_element.value())];
+    return ensure_pseudo_element(pseudo_element.value()).custom_properties;
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll

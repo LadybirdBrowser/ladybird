@@ -449,9 +449,16 @@ private:
     RefPtr<CSS::StyleProperties> m_computed_css_values;
     HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
 
-    using PseudoElementCustomProperties = Array<HashMap<FlyString, CSS::StyleProperty>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)>;
-    mutable OwnPtr<PseudoElementCustomProperties> m_pseudo_element_custom_properties;
-    PseudoElementCustomProperties& pseudo_element_custom_properties() const;
+    struct PseudoElement {
+        JS::GCPtr<Layout::Node> layout_node;
+        HashMap<FlyString, CSS::StyleProperty> custom_properties;
+    };
+    // TODO: CSS::Selector::PseudoElement::Type includes a lot of pseudo-elements that exist in shadow trees,
+    //       and so we don't want to include data for them here.
+    using PseudoElementData = Array<PseudoElement, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)>;
+    mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
+    Optional<PseudoElement&> get_pseudo_element(CSS::Selector::PseudoElement::Type) const;
+    PseudoElement& ensure_pseudo_element(CSS::Selector::PseudoElement::Type) const;
 
     Optional<CSS::Selector::PseudoElement::Type> m_use_pseudo_element;
 
@@ -460,9 +467,6 @@ private:
 
     Optional<FlyString> m_id;
     Optional<FlyString> m_name;
-
-    using PseudoElementLayoutNodes = Array<JS::GCPtr<Layout::Node>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)>;
-    OwnPtr<PseudoElementLayoutNodes> m_pseudo_element_nodes;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-reaction-queue
     // All elements have an associated custom element reaction queue, initially empty. Each item in the custom element reaction queue is of one of two types:
