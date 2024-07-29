@@ -3003,7 +3003,7 @@ RefPtr<StyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& toke
         auto& function = token.function();
         TokenStream function_tokens { function.values() };
         auto function_values = parse_a_comma_separated_list_of_component_values(function_tokens);
-        if (function_values.is_empty() || function_values.size() > 3)
+        if (function_values.size() < 2 || function_values.size() > 3)
             return nullptr;
 
         TokenStream name_tokens { function_values[0] };
