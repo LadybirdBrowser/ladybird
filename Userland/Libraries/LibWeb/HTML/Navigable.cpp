@@ -2143,7 +2143,6 @@ void Navigable::record_display_list(Painting::DisplayListRecorder& display_list_
             scroll_offsets_by_frame_id[scrollable_frame->id] = scroll_offset;
         }
         display_list_recorder.display_list().apply_scroll_offsets(scroll_offsets_by_frame_id);
-        display_list_recorder.display_list().mark_unnecessary_commands();
     }
 
     m_needs_repaint = false;

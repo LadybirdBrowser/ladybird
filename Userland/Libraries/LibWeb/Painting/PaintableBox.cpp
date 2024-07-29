@@ -528,17 +528,14 @@ void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase ph
         context.display_list_recorder().save();
         context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(overflow_clip_rect).to_type<int>());
         auto const& border_radii_clips = this->border_radii_clips();
-        m_corner_clipper_ids.resize(border_radii_clips.size());
         auto const& combined_transform = combined_css_transform();
         for (size_t corner_clip_index = 0; corner_clip_index < border_radii_clips.size(); ++corner_clip_index) {
             auto const& corner_clip = border_radii_clips[corner_clip_index];
             auto corners = corner_clip.radii.as_corners(context);
             if (!corners.has_any_radius())
                 continue;
-            auto corner_clipper_id = context.allocate_corner_clipper_id();
-            m_corner_clipper_ids[corner_clip_index] = corner_clipper_id;
             auto rect = corner_clip.rect.translated(-combined_transform.translation().to_type<CSSPixels>());
-            context.display_list_recorder().sample_under_corners(corner_clipper_id, corner_clip.radii.as_corners(context), context.rounded_device_rect(rect).to_type<int>(), CornerClip::Outside);
+            context.display_list_recorder().add_rounded_rect_clip(corner_clip.radii.as_corners(context), context.rounded_device_rect(rect).to_type<int>(), CornerClip::Outside);
         }
     }
 }
@@ -550,16 +547,6 @@ void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase ph
 
     if (m_clipping_overflow) {
         m_clipping_overflow = false;
-        auto const& border_radii_clips = this->border_radii_clips();
-        for (int corner_clip_index = border_radii_clips.size() - 1; corner_clip_index >= 0; --corner_clip_index) {
-            auto const& corner_clip = border_radii_clips[corner_clip_index];
-            auto corners = corner_clip.radii.as_corners(context);
-            if (!corners.has_any_radius())
-                continue;
-            auto corner_clipper_id = m_corner_clipper_ids[corner_clip_index];
-            m_corner_clipper_ids[corner_clip_index] = corner_clipper_id;
-            context.display_list_recorder().blit_corner_clipping(corner_clipper_id);
-        }
         context.display_list_recorder().restore();
     }
 }
@@ -742,8 +729,7 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
             .bottom_left = border_radii.bottom_left.as_corner(context)
         };
         if (corner_radii.has_any_radius()) {
-            corner_clip_id = context.allocate_corner_clipper_id();
-            context.display_list_recorder().sample_under_corners(*corner_clip_id, corner_radii, context.rounded_device_rect(clip_box).to_type<int>(), CornerClip::Outside);
+            context.display_list_recorder().add_rounded_rect_clip(corner_radii, context.rounded_device_rect(clip_box).to_type<int>(), CornerClip::Outside);
         }
 
         context.display_list_recorder().save();
@@ -776,10 +762,6 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
     if (should_clip_overflow) {
         context.display_list_recorder().restore();
-        if (corner_clip_id.has_value()) {
-            context.display_list_recorder().blit_corner_clipping(*corner_clip_id);
-            corner_clip_id = {};
-        }
         context.display_list_recorder().restore();
     }
 }

@@ -15,31 +15,19 @@ DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
     m_state_stack.append(State());
 }
 
-DisplayListRecorder::~DisplayListRecorder()
-{
-    VERIFY(m_corner_clip_state_stack.is_empty());
-}
+DisplayListRecorder::~DisplayListRecorder() = default;
 
 void DisplayListRecorder::append(Command&& command)
 {
     m_command_list.append(move(command), state().scroll_frame_id);
 }
 
-void DisplayListRecorder::sample_under_corners(u32 id, CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip)
+void DisplayListRecorder::add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip)
 {
-    m_corner_clip_state_stack.append({ id, border_rect });
-    append(SampleUnderCorners {
-        id,
+    append(AddRoundedRectClip {
         corner_radii,
         border_rect = state().translation.map(border_rect),
         corner_clip });
-}
-
-void DisplayListRecorder::blit_corner_clipping(u32 id)
-{
-    auto clip_state = m_corner_clip_state_stack.take_last();
-    VERIFY(clip_state.id == id);
-    append(BlitCornerClipping { id, state().translation.map(clip_state.rect) });
 }
 
 void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color, RefPtr<DisplayList> text_clip)

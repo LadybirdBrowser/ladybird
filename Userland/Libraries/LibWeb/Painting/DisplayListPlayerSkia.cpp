@@ -1294,19 +1294,12 @@ void DisplayListPlayerSkia::draw_triangle_wave(DrawTriangleWave const&)
 {
 }
 
-void DisplayListPlayerSkia::sample_under_corners(SampleUnderCorners const& command)
+void DisplayListPlayerSkia::add_rounded_rect_clip(AddRoundedRectClip const& command)
 {
     auto rounded_rect = to_skia_rrect(command.border_rect, command.corner_radii);
     auto& canvas = surface().canvas();
-    canvas.save();
     auto clip_op = command.corner_clip == CornerClip::Inside ? SkClipOp::kDifference : SkClipOp::kIntersect;
     canvas.clipRRect(rounded_rect, clip_op, true);
-}
-
-void DisplayListPlayerSkia::blit_corner_clipping(BlitCornerClipping const&)
-{
-    auto& canvas = surface().canvas();
-    canvas.restore();
 }
 
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const

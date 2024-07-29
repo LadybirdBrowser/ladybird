@@ -82,8 +82,6 @@ public:
 
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
 
-    u32 allocate_corner_clipper_id() { return m_next_corner_clipper_id++; }
-
     u64 paint_generation_id() const { return m_paint_generation_id; }
 
 private:
@@ -96,7 +94,6 @@ private:
     bool m_focus { false };
     bool m_draw_svg_geometry_for_clip_path { false };
     Gfx::AffineTransform m_svg_transform;
-    u32 m_next_corner_clipper_id { 0 };
     u64 m_paint_generation_id { 0 };
 };
 
