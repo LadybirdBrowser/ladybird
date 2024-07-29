@@ -25,6 +25,7 @@ struct RequiredInvalidationAfterStyleChange {
     }
 
     [[nodiscard]] bool is_none() const { return !repaint && !rebuild_stacking_context_tree && !relayout && !rebuild_layout_tree; }
+    [[nodiscard]] bool is_full() const { return repaint && rebuild_stacking_context_tree && relayout && rebuild_layout_tree; }
     static RequiredInvalidationAfterStyleChange full() { return { true, true, true, true }; }
 };
 
