@@ -17,3 +17,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/InitializeSwift.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/GenerateSwiftHeader.cmake)
 
 add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Xcc -std=c++23 -cxx-interoperability-mode=default>")
+
+# FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26174
+if (APPLE)
+    set(CMAKE_Swift_COMPILER_TARGET "${CMAKE_SYSTEM_PROCESSOR}-apple-macosx${CMAKE_OSX_DEPLOYMENT_TARGET}")
+endif()
