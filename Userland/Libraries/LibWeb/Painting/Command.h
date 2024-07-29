@@ -345,20 +345,10 @@ struct DrawTriangleWave {
     }
 };
 
-struct SampleUnderCorners {
-    u32 id;
+struct AddRoundedRectClip {
     CornerRadii corner_radii;
     Gfx::IntRect border_rect;
     CornerClip corner_clip;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return border_rect; }
-
-    void translate_by(Gfx::IntPoint const& offset) { border_rect.translate_by(offset); }
-};
-
-struct BlitCornerClipping {
-    u32 id;
-    Gfx::IntRect border_rect;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return border_rect; }
 
@@ -393,7 +383,6 @@ using Command = Variant<
     ApplyBackdropFilter,
     DrawRect,
     DrawTriangleWave,
-    SampleUnderCorners,
-    BlitCornerClipping>;
+    AddRoundedRectClip>;
 
 }

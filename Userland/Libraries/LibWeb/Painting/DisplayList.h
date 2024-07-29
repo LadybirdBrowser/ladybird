@@ -68,8 +68,7 @@ private:
     virtual void apply_backdrop_filter(ApplyBackdropFilter const&) = 0;
     virtual void draw_rect(DrawRect const&) = 0;
     virtual void draw_triangle_wave(DrawTriangleWave const&) = 0;
-    virtual void sample_under_corners(SampleUnderCorners const&) = 0;
-    virtual void blit_corner_clipping(BlitCornerClipping const&) = 0;
+    virtual void add_rounded_rect_clip(AddRoundedRectClip const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 };
 
@@ -83,12 +82,10 @@ public:
     void append(Command&& command, Optional<i32> scroll_frame_id);
 
     void apply_scroll_offsets(Vector<Gfx::IntPoint> const& offsets_by_frame_id);
-    void mark_unnecessary_commands();
 
     struct CommandListItem {
         Optional<i32> scroll_frame_id;
         Command command;
-        bool skip { false };
     };
 
     AK::SegmentedVector<CommandListItem, 512> const& commands() const { return m_commands; }

@@ -75,8 +75,7 @@ private:
     void paint_radial_gradient(PaintRadialGradient const&) override;
     void paint_conic_gradient(PaintConicGradient const&) override;
     void draw_triangle_wave(DrawTriangleWave const&) override;
-    void sample_under_corners(SampleUnderCorners const&) override;
-    void blit_corner_clipping(BlitCornerClipping const&) override;
+    void add_rounded_rect_clip(AddRoundedRectClip const&) override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 

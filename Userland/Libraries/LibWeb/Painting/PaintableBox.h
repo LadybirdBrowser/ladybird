@@ -245,7 +245,6 @@ private:
     Optional<CSSPixelRect> mutable m_absolute_paint_rect;
 
     mutable bool m_clipping_overflow { false };
-    mutable Vector<u32> m_corner_clipper_ids;
 
     RefPtr<ScrollFrame const> m_enclosing_scroll_frame;
     RefPtr<ClipFrame const> m_enclosing_clip_frame;

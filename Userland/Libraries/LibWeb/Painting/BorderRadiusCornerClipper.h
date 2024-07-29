@@ -25,9 +25,7 @@ struct ScopedCornerRadiusClip {
 
 private:
     PaintContext& m_context;
-    u32 m_id;
     bool m_has_radius { false };
-    Gfx::IntRect m_border_rect;
 };
 
 }
