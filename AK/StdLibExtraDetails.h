@@ -602,6 +602,11 @@ struct EquivalentFunctionTypeImpl<T (C::*)(Args...) const> {
 template<typename Callable>
 using EquivalentFunctionType = typename EquivalentFunctionTypeImpl<Callable>::Type;
 
+struct InPlaceT {
+    explicit InPlaceT() = default;
+};
+inline constexpr InPlaceT InPlace {};
+
 }
 
 #if !USING_AK_GLOBALLY

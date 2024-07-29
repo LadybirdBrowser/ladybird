@@ -133,6 +133,13 @@ public:
         new (&m_storage) T(forward<U>(value));
     }
 
+    template<typename... Args>
+    ALWAYS_INLINE explicit Optional(Detail::InPlaceT, Args&&... args)
+        : m_has_value(true)
+    {
+        new (&m_storage) T(forward<Args>(args)...);
+    }
+
     ALWAYS_INLINE Optional& operator=(Optional const& other)
     requires(!IsTriviallyCopyConstructible<T> || !IsTriviallyDestructible<T>)
     {
