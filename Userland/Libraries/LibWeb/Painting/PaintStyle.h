@@ -20,8 +20,6 @@ struct ColorStop {
 
 class SVGGradientPaintStyle : public RefCounted<SVGGradientPaintStyle> {
 public:
-    virtual NonnullRefPtr<Gfx::SVGGradientPaintStyle> create_gfx_paint_style() const { VERIFY_NOT_REACHED(); }
-
     void set_gradient_transform(Gfx::AffineTransform transform);
 
     enum class SpreadMethod {
@@ -71,8 +69,6 @@ public:
         return adopt_ref(*new SVGLinearGradientPaintStyle(start_point, end_point));
     }
 
-    NonnullRefPtr<Gfx::SVGGradientPaintStyle> create_gfx_paint_style() const override;
-
     Gfx::FloatPoint start_point() const { return m_start_point; }
     Gfx::FloatPoint end_point() const { return m_end_point; }
 
@@ -96,8 +92,6 @@ public:
     {
         return adopt_ref(*new SVGRadialGradientPaintStyle(start_center, start_radius, end_center, end_radius));
     }
-
-    NonnullRefPtr<Gfx::SVGGradientPaintStyle> create_gfx_paint_style() const override;
 
     Gfx::FloatPoint start_center() const { return m_start_center; }
     float start_radius() const { return m_start_radius; }
