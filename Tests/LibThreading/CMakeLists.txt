@@ -1,6 +1,7 @@
 set(TEST_SOURCES
     TestThread.cpp
     TestThreadPool.cpp
+    TestWorkStealing.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
