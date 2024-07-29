@@ -11,6 +11,47 @@
 
 namespace WebView {
 
+static String generate_style()
+{
+    StringBuilder builder;
+
+    builder.append(HTML_HIGHLIGHTER_STYLE);
+    builder.append(R"~~~(
+    .html {
+        counter-reset: line;
+    }
+
+    .line {
+        counter-increment: line;
+        white-space: nowrap;
+    }
+
+    .line::before {
+        content: counter(line) " ";
+
+        display: inline-block;
+        width: 2.5em;
+
+        padding-right: 0.5em;
+        text-align: right;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .line::before {
+            color: darkgrey;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        .line::before {
+            color: dimgray;
+        }
+    }
+)~~~"sv);
+
+    return MUST(builder.to_string());
+}
+
 String highlight_source(URL::URL const& url, StringView source)
 {
     Web::HTML::HTMLTokenizer tokenizer { source, "utf-8"sv };
@@ -23,12 +64,12 @@ String highlight_source(URL::URL const& url, StringView source)
     <meta name="color-scheme" content="dark light">)~~~"sv);
 
     builder.appendff("<title>View Source - {}</title>", url);
-    builder.appendff("<style type=\"text/css\">{}</style>", HTML_HIGHLIGHTER_STYLE);
+    builder.appendff("<style type=\"text/css\">{}</style>", generate_style());
     builder.append(R"~~~(
 </head>
 <body>
 <pre class="html">
-)~~~"sv);
+<span class="line">)~~~"sv);
 
     size_t previous_position = 0;
 
@@ -50,6 +91,8 @@ String highlight_source(URL::URL const& url, StringView source)
                 builder.append("&lt;"sv);
             else if (code_point == '>')
                 builder.append("&gt;"sv);
+            else if (code_point == '\n')
+                builder.append("</span>\n<span class=\"line\">"sv);
             else
                 builder.append_code_point(code_point);
         }
@@ -83,12 +126,14 @@ String highlight_source(URL::URL const& url, StringView source)
             append_source(token->end_position().byte_offset);
         } else {
             append_source(token->end_position().byte_offset);
+
             if (token->is_end_of_file())
                 break;
         }
     }
 
     builder.append(R"~~~(
+</span>
 </pre>
 </body>
 </html>
