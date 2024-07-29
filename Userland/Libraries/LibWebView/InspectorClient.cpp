@@ -544,7 +544,7 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
 
                 builder.append("&nbsp;"sv);
                 builder.appendff("<span data-node-type=\"attribute\" data-tag=\"{}\" data-attribute-index={} class=\"editable\">", tag, dom_node_attributes.size());
-                builder.appendff("<span class=\"attribute-name\">{}</span>", name);
+                builder.appendff("<span class=\"attribute-name\">{}</span>", escape_html_entities(name));
                 builder.append('=');
                 builder.appendff("<span class=\"attribute-value\">\"{}\"</span>", escape_html_entities(value_string));
                 builder.append("</span>"sv);
