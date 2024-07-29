@@ -15,8 +15,6 @@
 
 namespace Web::Painting {
 
-Gfx::IntRect get_outer_box_shadow_bounding_rect(PaintBoxShadowParams params);
-
 void paint_box_shadow(
     PaintContext&,
     CSSPixelRect const& bordered_content_rect,
