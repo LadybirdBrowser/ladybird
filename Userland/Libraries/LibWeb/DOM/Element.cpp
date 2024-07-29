@@ -534,7 +534,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     set_needs_style_update(false);
     VERIFY(parent());
 
-    auto new_computed_css_values = document().style_computer().compute_style(*this);
+    auto& style_computer = document().style_computer();
+    auto new_computed_css_values = style_computer.compute_style(*this);
 
     // Tables must not inherit -libweb-* values for text-align.
     // FIXME: Find the spec for this.
@@ -549,6 +550,35 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
         invalidation = compute_required_invalidation(*m_computed_css_values, *new_computed_css_values);
     else
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
+
+    // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
+    // So determine if any pseudo-elements currently exist, or should now exist, and if so, invalidate everything.
+    // (If we're already invalidating everything, we don't need to do further checks for this.)
+    if (!invalidation.is_full()) {
+        bool pseudo_elements_dirty = false;
+
+        if (m_pseudo_element_data) {
+            for (auto& pseudo_element : *m_pseudo_element_data) {
+                if (pseudo_element.layout_node) {
+                    pseudo_elements_dirty = true;
+                    break;
+                }
+            }
+        }
+
+        if (!pseudo_elements_dirty) {
+            for (auto i = 0; i < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount); i++) {
+                auto style = style_computer.compute_pseudo_element_style_if_needed(*this, static_cast<CSS::Selector::PseudoElement::Type>(i));
+                if (style) {
+                    pseudo_elements_dirty = true;
+                    break;
+                }
+            }
+        }
+
+        if (pseudo_elements_dirty)
+            invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
+    }
 
     if (invalidation.is_none())
         return invalidation;
