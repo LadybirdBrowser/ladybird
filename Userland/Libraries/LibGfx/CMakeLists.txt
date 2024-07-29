@@ -119,4 +119,11 @@ if (ENABLE_SWIFT)
     _swift_generate_cxx_header(LibGfx "LibGfx-Swift.h"
             SEARCH_PATHS ${LIBGFX_NATIVE_DIRS}
     )
+
+    # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26175
+    if (APPLE)
+        add_custom_command(TARGET LibGfx POST_BUILD
+            COMMAND install_name_tool -id @rpath/liblagom-gfx.0.dylib "$<TARGET_FILE:LibGfx>"
+        )
+    endif()
 endif()
