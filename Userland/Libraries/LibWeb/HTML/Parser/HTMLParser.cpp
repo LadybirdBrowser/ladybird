@@ -1719,9 +1719,10 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // Otherwise, for each attribute on the token, check to see if the attribute is already present on the top element of the stack of open elements.
         // If it is not, add the attribute and its corresponding value to that element.
+        auto& top_element = m_stack_of_open_elements.first();
         token.for_each_attribute([&](auto& attribute) {
-            if (!current_node().has_attribute(attribute.local_name))
-                current_node().append_attribute(attribute.local_name, attribute.value);
+            if (!top_element.has_attribute(attribute.local_name))
+                top_element.append_attribute(attribute.local_name, attribute.value);
             return IterationDecision::Continue;
         });
         return;
