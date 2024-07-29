@@ -5,6 +5,6 @@
 <script src="include.js"></script>
 <script>
     test(() => {
-        println("PASS (didn't crash)");
+        println(`HTML element has '<head' attribute: ${document.documentElement.hasAttribute('<head')}`);
     });
 </script>

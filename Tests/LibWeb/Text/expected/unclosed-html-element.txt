@@ -1,1 +1,1 @@
-PASS (didn't crash)
+HTML element has '<head' attribute: true
