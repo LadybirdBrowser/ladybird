@@ -200,6 +200,7 @@ text-decoration-style: solid
 text-decoration-thickness: auto
 text-indent: 0px
 text-justify: auto
+text-overflow: clip
 text-shadow: none
 text-transform: none
 top: auto
