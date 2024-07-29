@@ -337,6 +337,44 @@ void InlineFormattingContext::generate_line_boxes(LayoutMode layout_mode)
                 // putting it on the next line.
                 if (is_whitespace && next_width > 0 && line_builder.break_if_needed(item.border_box_width() + next_width))
                     break;
+            } else if (text_node.computed_values().text_overflow() == CSS::TextOverflow::Ellipsis
+                && text_node.computed_values().overflow_x() != CSS::Overflow::Visible) {
+                // We may need to do an ellipsis if the text is too long for the container
+                constexpr u32 ellipsis_codepoint = 0x2026;
+                if (m_available_space.has_value()
+                    && item.width.to_double() > m_available_space.value().width.to_px_or_zero().to_double()) {
+                    // Do the ellipsis
+                    auto& glyph_run = item.glyph_run;
+
+                    auto available_width = m_available_space.value().width.to_px_or_zero().to_double();
+                    auto ellipsis_width = glyph_run->font().glyph_width(ellipsis_codepoint);
+                    auto max_text_width = available_width - ellipsis_width;
+
+                    auto& glyphs = glyph_run->glyphs();
+                    auto last_glyph_index = 0;
+                    auto last_glyph_position = Gfx::FloatPoint();
+
+                    for (auto const& glyph_or_emoji : glyphs) {
+                        auto this_position = Gfx::FloatPoint();
+                        glyph_or_emoji.visit(
+                            [&](Gfx::DrawGlyph glyph) {
+                                this_position = glyph.position;
+                            },
+                            [&](Gfx::DrawEmoji emoji) {
+                                this_position = emoji.position;
+                            });
+                        if (this_position.x() > max_text_width)
+                            break;
+
+                        last_glyph_index++;
+                        last_glyph_position = this_position;
+                    }
+
+                    auto remove_item_count = glyphs.size() - last_glyph_index;
+                    glyphs.remove(last_glyph_index - 1, remove_item_count);
+
+                    glyphs.append(Gfx::DrawGlyph(last_glyph_position, ellipsis_codepoint));
+                }
             }
             line_builder.append_text_chunk(
                 text_node,
@@ -414,5 +452,4 @@ void InlineFormattingContext::set_vertical_float_clearance(CSSPixels vertical_fl
 {
     m_vertical_float_clearance = vertical_float_clearance;
 }
-
 }
