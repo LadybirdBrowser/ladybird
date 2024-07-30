@@ -279,7 +279,7 @@ ErrorOr<MessagePort::ParseDecision> MessagePort::parse_message()
         [[fallthrough]];
     }
     case SocketState::Data: {
-        if (num_bytes_ready < m_socket_incoming_message_size)
+        if (num_bytes_ready < HEADER_SIZE + m_socket_incoming_message_size)
             return ParseDecision::NotEnoughData;
 
         auto payload = m_buffered_data.span().slice(HEADER_SIZE, m_socket_incoming_message_size);
