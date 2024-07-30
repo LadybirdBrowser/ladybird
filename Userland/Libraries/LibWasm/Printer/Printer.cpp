@@ -64,6 +64,8 @@ void Printer::print(Wasm::BlockType const& type)
 
 void Printer::print(Wasm::CodeSection const& section)
 {
+    if (section.functions().is_empty())
+        return;
     print_indent();
     print("(section code\n");
     {
@@ -97,6 +99,8 @@ void Printer::print(Wasm::CustomSection const& section)
 
 void Printer::print(Wasm::DataCountSection const& section)
 {
+    if (!section.count().has_value())
+        return;
     print_indent();
     print("(section data count\n");
     if (section.count().has_value()) {
@@ -110,6 +114,8 @@ void Printer::print(Wasm::DataCountSection const& section)
 
 void Printer::print(Wasm::DataSection const& section)
 {
+    if (section.data().is_empty())
+        return;
     print_indent();
     print("(section data\n");
     {
@@ -163,6 +169,8 @@ void Printer::print(Wasm::DataSection::Data const& data)
 
 void Printer::print(Wasm::ElementSection const& section)
 {
+    if (section.segments().is_empty())
+        return;
     print_indent();
     print("(section element\n");
     {
@@ -218,6 +226,8 @@ void Printer::print(Wasm::ElementSection::Element const& element)
 
 void Printer::print(Wasm::ExportSection const& section)
 {
+    if (section.entries().is_empty())
+        return;
     print_indent();
     print("(section export\n");
     {
@@ -282,6 +292,8 @@ void Printer::print(Wasm::CodeSection::Func const& func)
 
 void Printer::print(Wasm::FunctionSection const& section)
 {
+    if (section.types().is_empty())
+        return;
     print_indent();
     print("(section function\n");
     {
@@ -329,6 +341,8 @@ void Printer::print(Wasm::FunctionType const& type)
 
 void Printer::print(Wasm::GlobalSection const& section)
 {
+    if (section.entries().is_empty())
+        return;
     print_indent();
     print("(section global\n");
     {
@@ -384,6 +398,8 @@ void Printer::print(Wasm::GlobalType const& type)
 
 void Printer::print(Wasm::ImportSection const& section)
 {
+    if (section.imports().is_empty())
+        return;
     print_indent();
     print("(section import\n");
     {
@@ -493,6 +509,8 @@ void Printer::print(Wasm::Locals const& local)
 
 void Printer::print(Wasm::MemorySection const& section)
 {
+    if (section.memories().is_empty())
+        return;
     print_indent();
     print("(section memory\n");
     {
@@ -534,8 +552,20 @@ void Printer::print(Wasm::Module const& module)
     {
         TemporaryChange change { m_indent, m_indent + 1 };
         print("(module\n");
-        for (auto& section : module.sections())
-            section.visit([this](auto const& value) { print(value); });
+        for (auto& custom_section : module.custom_sections())
+            print(custom_section);
+        print(module.type_section());
+        print(module.import_section());
+        print(module.function_section());
+        print(module.table_section());
+        print(module.memory_section());
+        print(module.global_section());
+        print(module.export_section());
+        print(module.start_section());
+        print(module.element_section());
+        print(module.code_section());
+        print(module.data_section());
+        print(module.data_count_section());
     }
     print_indent();
     print(")\n");
@@ -543,11 +573,13 @@ void Printer::print(Wasm::Module const& module)
 
 void Printer::print(Wasm::StartSection const& section)
 {
+    if (!section.function().has_value())
+        return;
     print_indent();
     print("(section start\n");
     {
         TemporaryChange change { m_indent, m_indent + 1 };
-        print(section.function());
+        print(*section.function());
     }
     print_indent();
     print(")\n");
@@ -561,6 +593,8 @@ void Printer::print(Wasm::StartSection::StartFunction const& function)
 
 void Printer::print(Wasm::TableSection const& section)
 {
+    if (section.tables().is_empty())
+        return;
     print_indent();
     print("(section table\n");
     {
@@ -601,6 +635,8 @@ void Printer::print(Wasm::TableType const& type)
 
 void Printer::print(Wasm::TypeSection const& section)
 {
+    if (section.types().is_empty())
+        return;
     print_indent();
     print("(section type\n");
     {

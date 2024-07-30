@@ -146,75 +146,67 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
 
     auto main_module_instance_pointer = make<ModuleInstance>();
     auto& main_module_instance = *main_module_instance_pointer;
-    Optional<InstantiationResult> instantiation_result;
 
-    module.for_each_section_of_type<TypeSection>([&](TypeSection const& section) {
-        main_module_instance.types() = section.types();
-    });
+    main_module_instance.types() = module.type_section().types();
 
     Vector<Value> global_values;
     Vector<Vector<Reference>> elements;
     ModuleInstance auxiliary_instance;
 
-    module.for_each_section_of_type<ImportSection>([&](ImportSection const& section) {
-        for (auto [i, import_] : enumerate(section.imports())) {
-            auto extern_ = externs.at(i);
-            auto invalid = import_.description().visit(
-                [&](MemoryType const& mem_type) -> Optional<ByteString> {
-                    if (!extern_.has<MemoryAddress>())
-                        return "Expected memory import"sv;
-                    auto other_mem_type = m_store.get(extern_.get<MemoryAddress>())->type();
-                    if (other_mem_type.limits().is_subset_of(mem_type.limits()))
-                        return {};
-                    return ByteString::formatted("Memory import and extern do not match: {}-{} vs {}-{}", mem_type.limits().min(), mem_type.limits().max(), other_mem_type.limits().min(), other_mem_type.limits().max());
-                },
-                [&](TableType const& table_type) -> Optional<ByteString> {
-                    if (!extern_.has<TableAddress>())
-                        return "Expected table import"sv;
-                    auto other_table_type = m_store.get(extern_.get<TableAddress>())->type();
-                    if (table_type.element_type() == other_table_type.element_type()
-                        && other_table_type.limits().is_subset_of(table_type.limits()))
-                        return {};
-
-                    return ByteString::formatted("Table import and extern do not match: {}-{} vs {}-{}", table_type.limits().min(), table_type.limits().max(), other_table_type.limits().min(), other_table_type.limits().max());
-                },
-                [&](GlobalType const& global_type) -> Optional<ByteString> {
-                    if (!extern_.has<GlobalAddress>())
-                        return "Expected global import"sv;
-                    auto other_global_type = m_store.get(extern_.get<GlobalAddress>())->type();
-                    if (global_type.type() == other_global_type.type()
-                        && global_type.is_mutable() == other_global_type.is_mutable())
-                        return {};
-                    return "Global import and extern do not match"sv;
-                },
-                [&](FunctionType const& type) -> Optional<ByteString> {
-                    if (!extern_.has<FunctionAddress>())
-                        return "Expected function import"sv;
-                    auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
-                    if (type.results() != other_type.results())
-                        return ByteString::formatted("Function import and extern do not match, results: {} vs {}", type.results(), other_type.results());
-                    if (type.parameters() != other_type.parameters())
-                        return ByteString::formatted("Function import and extern do not match, parameters: {} vs {}", type.parameters(), other_type.parameters());
+    for (auto [i, import_] : enumerate(module.import_section().imports())) {
+        auto extern_ = externs.at(i);
+        auto invalid = import_.description().visit(
+            [&](MemoryType const& mem_type) -> Optional<ByteString> {
+                if (!extern_.has<MemoryAddress>())
+                    return "Expected memory import"sv;
+                auto other_mem_type = m_store.get(extern_.get<MemoryAddress>())->type();
+                if (other_mem_type.limits().is_subset_of(mem_type.limits()))
                     return {};
-                },
-                [&](TypeIndex type_index) -> Optional<ByteString> {
-                    if (!extern_.has<FunctionAddress>())
-                        return "Expected function import"sv;
-                    auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
-                    auto& type = module.type(type_index);
-                    if (type.results() != other_type.results())
-                        return ByteString::formatted("Function import and extern do not match, results: {} vs {}", type.results(), other_type.results());
-                    if (type.parameters() != other_type.parameters())
-                        return ByteString::formatted("Function import and extern do not match, parameters: {} vs {}", type.parameters(), other_type.parameters());
+                return ByteString::formatted("Memory import and extern do not match: {}-{} vs {}-{}", mem_type.limits().min(), mem_type.limits().max(), other_mem_type.limits().min(), other_mem_type.limits().max());
+            },
+            [&](TableType const& table_type) -> Optional<ByteString> {
+                if (!extern_.has<TableAddress>())
+                    return "Expected table import"sv;
+                auto other_table_type = m_store.get(extern_.get<TableAddress>())->type();
+                if (table_type.element_type() == other_table_type.element_type()
+                    && other_table_type.limits().is_subset_of(table_type.limits()))
                     return {};
-                });
-            if (invalid.has_value())
-                instantiation_result = InstantiationError { ByteString::formatted("{}::{}: {}", import_.module(), import_.name(), invalid.release_value()) };
-        }
-    });
 
-    if (instantiation_result.has_value())
-        return instantiation_result.release_value();
+                return ByteString::formatted("Table import and extern do not match: {}-{} vs {}-{}", table_type.limits().min(), table_type.limits().max(), other_table_type.limits().min(), other_table_type.limits().max());
+            },
+            [&](GlobalType const& global_type) -> Optional<ByteString> {
+                if (!extern_.has<GlobalAddress>())
+                    return "Expected global import"sv;
+                auto other_global_type = m_store.get(extern_.get<GlobalAddress>())->type();
+                if (global_type.type() == other_global_type.type()
+                    && global_type.is_mutable() == other_global_type.is_mutable())
+                    return {};
+                return "Global import and extern do not match"sv;
+            },
+            [&](FunctionType const& type) -> Optional<ByteString> {
+                if (!extern_.has<FunctionAddress>())
+                    return "Expected function import"sv;
+                auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
+                if (type.results() != other_type.results())
+                    return ByteString::formatted("Function import and extern do not match, results: {} vs {}", type.results(), other_type.results());
+                if (type.parameters() != other_type.parameters())
+                    return ByteString::formatted("Function import and extern do not match, parameters: {} vs {}", type.parameters(), other_type.parameters());
+                return {};
+            },
+            [&](TypeIndex type_index) -> Optional<ByteString> {
+                if (!extern_.has<FunctionAddress>())
+                    return "Expected function import"sv;
+                auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
+                auto& type = module.type_section().types()[type_index.value()];
+                if (type.results() != other_type.results())
+                    return ByteString::formatted("Function import and extern do not match, results: {} vs {}", type.results(), other_type.results());
+                if (type.parameters() != other_type.parameters())
+                    return ByteString::formatted("Function import and extern do not match, parameters: {} vs {}", type.parameters(), other_type.parameters());
+                return {};
+            });
+        if (invalid.has_value())
+            return InstantiationError { ByteString::formatted("{}::{}: {}", import_.module(), import_.name(), invalid.release_value()) };
+    }
 
     for (auto& entry : externs) {
         if (auto* ptr = entry.get_pointer<GlobalAddress>())
@@ -223,239 +215,179 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             auxiliary_instance.functions().append(*ptr);
     }
 
-    FunctionSection const* function_section { nullptr };
-    module.for_each_section_of_type<FunctionSection>([&](FunctionSection const& section) { function_section = &section; });
-
     Vector<FunctionAddress> module_functions;
-    if (function_section)
-        module_functions.ensure_capacity(function_section->types().size());
+    module_functions.ensure_capacity(module.function_section().types().size());
 
-    module.for_each_section_of_type<CodeSection>([&](auto& code_section) {
-        size_t i = 0;
-        for (auto& code : code_section.functions()) {
-            auto type_index = function_section->types()[i];
-            auto address = m_store.allocate(main_module_instance, code, type_index);
-            VERIFY(address.has_value());
-            auxiliary_instance.functions().append(*address);
-            module_functions.append(*address);
-            ++i;
-        }
-    });
+    size_t i = 0;
+    for (auto& code : module.code_section().functions()) {
+        auto type_index = module.function_section().types()[i];
+        auto address = m_store.allocate(main_module_instance, code, type_index);
+        VERIFY(address.has_value());
+        auxiliary_instance.functions().append(*address);
+        module_functions.append(*address);
+        ++i;
+    }
 
     BytecodeInterpreter interpreter(m_stack_info);
 
-    module.for_each_section_of_type<GlobalSection>([&](auto& global_section) {
-        for (auto& entry : global_section.entries()) {
+    for (auto& entry : module.global_section().entries()) {
+        Configuration config { m_store };
+        if (m_should_limit_instruction_count)
+            config.enable_instruction_count_limit();
+        config.set_frame(Frame {
+            auxiliary_instance,
+            Vector<Value> {},
+            entry.expression(),
+            1,
+        });
+        auto result = config.execute(interpreter).assert_wasm_result();
+        if (result.is_trap())
+            return InstantiationError { ByteString::formatted("Global value construction trapped: {}", result.trap().reason) };
+        global_values.append(result.values().first());
+    }
+
+    if (auto result = allocate_all_initial_phase(module, main_module_instance, externs, global_values, module_functions); result.has_value())
+        return result.release_value();
+
+    for (auto& segment : module.element_section().segments()) {
+        Vector<Reference> references;
+        for (auto& entry : segment.init) {
             Configuration config { m_store };
             if (m_should_limit_instruction_count)
                 config.enable_instruction_count_limit();
             config.set_frame(Frame {
                 auxiliary_instance,
                 Vector<Value> {},
-                entry.expression(),
-                1,
+                entry,
+                entry.instructions().size(),
             });
             auto result = config.execute(interpreter).assert_wasm_result();
             if (result.is_trap())
-                instantiation_result = InstantiationError { ByteString::formatted("Global value construction trapped: {}", result.trap().reason) };
-            else
-                global_values.append(result.values().first());
+                return InstantiationError { ByteString::formatted("Element construction trapped: {}", result.trap().reason) };
+
+            for (auto& value : result.values()) {
+                auto reference = value.to<Reference>();
+                references.append(reference.release_value());
+            }
         }
-    });
+        elements.append(move(references));
+    }
 
-    if (instantiation_result.has_value())
-        return instantiation_result.release_value();
-
-    if (auto result = allocate_all_initial_phase(module, main_module_instance, externs, global_values, module_functions); result.has_value())
+    if (auto result = allocate_all_final_phase(module, main_module_instance, elements); result.has_value())
         return result.release_value();
 
-    module.for_each_section_of_type<ElementSection>([&](ElementSection const& section) {
-        for (auto& segment : section.segments()) {
-            Vector<Reference> references;
-            for (auto& entry : segment.init) {
+    size_t index = 0;
+    for (auto& segment : module.element_section().segments()) {
+        auto current_index = index;
+        ++index;
+        auto active_ptr = segment.mode.get_pointer<ElementSection::Active>();
+        auto elem_instance = m_store.get(main_module_instance.elements()[current_index]);
+        if (!active_ptr) {
+            if (segment.mode.has<ElementSection::Declarative>())
+                *elem_instance = ElementInstance(elem_instance->type(), {});
+            continue;
+        }
+        Configuration config { m_store };
+        if (m_should_limit_instruction_count)
+            config.enable_instruction_count_limit();
+        config.set_frame(Frame {
+            auxiliary_instance,
+            Vector<Value> {},
+            active_ptr->expression,
+            1,
+        });
+        auto result = config.execute(interpreter).assert_wasm_result();
+        if (result.is_trap())
+            return InstantiationError { ByteString::formatted("Element section initialisation trapped: {}", result.trap().reason) };
+        auto d = result.values().first().to<i32>();
+        if (!d.has_value())
+            return InstantiationError { "Element section initialisation returned invalid table initial offset" };
+        auto table_instance = m_store.get(main_module_instance.tables()[active_ptr->index.value()]);
+        if (current_index >= main_module_instance.elements().size())
+            return InstantiationError { "Invalid element referenced by active element segment" };
+        if (!table_instance || !elem_instance)
+            return InstantiationError { "Invalid element referenced by active element segment" };
+
+        Checked<size_t> total_size = elem_instance->references().size();
+        total_size.saturating_add(d.value());
+
+        if (total_size.value() > table_instance->elements().size())
+            return InstantiationError { "Table instantiation out of bounds" };
+
+        size_t i = 0;
+        for (auto it = elem_instance->references().begin(); it < elem_instance->references().end(); ++i, ++it)
+            table_instance->elements()[i + d.value()] = *it;
+        // Drop element
+        *m_store.get(main_module_instance.elements()[current_index]) = ElementInstance(elem_instance->type(), {});
+    }
+
+    for (auto& segment : module.data_section().data()) {
+        Optional<InstantiationError> result = segment.value().visit(
+            [&](DataSection::Data::Active const& data) -> Optional<InstantiationError> {
                 Configuration config { m_store };
                 if (m_should_limit_instruction_count)
                     config.enable_instruction_count_limit();
                 config.set_frame(Frame {
                     auxiliary_instance,
                     Vector<Value> {},
-                    entry,
-                    entry.instructions().size(),
+                    data.offset,
+                    1,
                 });
                 auto result = config.execute(interpreter).assert_wasm_result();
-                if (result.is_trap()) {
-                    instantiation_result = InstantiationError { ByteString::formatted("Element construction trapped: {}", result.trap().reason) };
-                    return IterationDecision::Continue;
+                if (result.is_trap())
+                    return InstantiationError { ByteString::formatted("Data section initialisation trapped: {}", result.trap().reason) };
+                size_t offset = TRY(result.values().first().value().visit(
+                    [&](auto const& value) { return ErrorOr<size_t, InstantiationError> { value }; },
+                    [&](u128 const&) { return ErrorOr<size_t, InstantiationError> { InstantiationError { "Data segment offset returned a vector type"sv } }; },
+                    [&](Reference const&) { return ErrorOr<size_t, InstantiationError> { InstantiationError { "Data segment offset returned a reference type"sv } }; }));
+                if (main_module_instance.memories().size() <= data.index.value()) {
+                    return InstantiationError {
+                        ByteString::formatted("Data segment referenced out-of-bounds memory ({}) of max {} entries",
+                            data.index.value(), main_module_instance.memories().size())
+                    };
                 }
-
-                for (auto& value : result.values()) {
-                    if (!value.type().is_reference()) {
-                        instantiation_result = InstantiationError { "Evaluated element entry is not a reference" };
-                        return IterationDecision::Continue;
-                    }
-                    auto reference = value.to<Reference>();
-                    if (!reference.has_value()) {
-                        instantiation_result = InstantiationError { "Evaluated element entry does not contain a reference" };
-                        return IterationDecision::Continue;
-                    }
-                    // FIXME: type-check the reference.
-                    references.append(reference.release_value());
+                auto maybe_data_address = m_store.allocate_data(data.init);
+                if (!maybe_data_address.has_value()) {
+                    return InstantiationError { "Failed to allocate a data instance for an active data segment"sv };
                 }
-            }
-            elements.append(move(references));
-        }
+                main_module_instance.datas().append(*maybe_data_address);
 
-        return IterationDecision::Continue;
-    });
-
-    if (instantiation_result.has_value())
-        return instantiation_result.release_value();
-
-    if (auto result = allocate_all_final_phase(module, main_module_instance, elements); result.has_value())
-        return result.release_value();
-
-    module.for_each_section_of_type<ElementSection>([&](ElementSection const& section) {
-        size_t index = 0;
-        for (auto& segment : section.segments()) {
-            auto current_index = index;
-            ++index;
-            auto active_ptr = segment.mode.get_pointer<ElementSection::Active>();
-            auto elem_instance = m_store.get(main_module_instance.elements()[current_index]);
-            if (!active_ptr) {
-                if (segment.mode.has<ElementSection::Declarative>())
-                    *elem_instance = ElementInstance(elem_instance->type(), {});
-                continue;
-            }
-            Configuration config { m_store };
-            if (m_should_limit_instruction_count)
-                config.enable_instruction_count_limit();
-            config.set_frame(Frame {
-                auxiliary_instance,
-                Vector<Value> {},
-                active_ptr->expression,
-                1,
-            });
-            auto result = config.execute(interpreter).assert_wasm_result();
-            if (result.is_trap()) {
-                instantiation_result = InstantiationError { ByteString::formatted("Element section initialisation trapped: {}", result.trap().reason) };
-                return IterationDecision::Break;
-            }
-            auto d = result.values().first().to<i32>();
-            if (!d.has_value()) {
-                instantiation_result = InstantiationError { "Element section initialisation returned invalid table initial offset" };
-                return IterationDecision::Break;
-            }
-            auto table_instance = m_store.get(main_module_instance.tables()[active_ptr->index.value()]);
-            if (current_index >= main_module_instance.elements().size()) {
-                instantiation_result = InstantiationError { "Invalid element referenced by active element segment" };
-                return IterationDecision::Break;
-            }
-            if (!table_instance || !elem_instance) {
-                instantiation_result = InstantiationError { "Invalid element referenced by active element segment" };
-                return IterationDecision::Break;
-            }
-
-            Checked<size_t> total_size = elem_instance->references().size();
-            total_size.saturating_add(d.value());
-
-            if (total_size.value() > table_instance->elements().size()) {
-                instantiation_result = InstantiationError { "Table instantiation out of bounds" };
-                return IterationDecision::Break;
-            }
-
-            size_t i = 0;
-            for (auto it = elem_instance->references().begin(); it < elem_instance->references().end(); ++i, ++it) {
-                table_instance->elements()[i + d.value()] = *it;
-            }
-            // Drop element
-            *m_store.get(main_module_instance.elements()[current_index]) = ElementInstance(elem_instance->type(), {});
-        }
-
-        return IterationDecision::Continue;
-    });
-
-    if (instantiation_result.has_value())
-        return instantiation_result.release_value();
-
-    module.for_each_section_of_type<DataSection>([&](DataSection const& data_section) {
-        for (auto& segment : data_section.data()) {
-            segment.value().visit(
-                [&](DataSection::Data::Active const& data) {
-                    Configuration config { m_store };
-                    if (m_should_limit_instruction_count)
-                        config.enable_instruction_count_limit();
-                    config.set_frame(Frame {
-                        auxiliary_instance,
-                        Vector<Value> {},
-                        data.offset,
-                        1,
-                    });
-                    auto result = config.execute(interpreter).assert_wasm_result();
-                    if (result.is_trap()) {
-                        instantiation_result = InstantiationError { ByteString::formatted("Data section initialisation trapped: {}", result.trap().reason) };
-                        return;
-                    }
-                    size_t offset = 0;
-                    result.values().first().value().visit(
-                        [&](auto const& value) { offset = value; },
-                        [&](u128 const&) { instantiation_result = InstantiationError { "Data segment offset returned a vector type"sv }; },
-                        [&](Reference const&) { instantiation_result = InstantiationError { "Data segment offset returned a reference"sv }; });
-                    if (instantiation_result.has_value() && instantiation_result->is_error())
-                        return;
-                    if (main_module_instance.memories().size() <= data.index.value()) {
-                        instantiation_result = InstantiationError {
-                            ByteString::formatted("Data segment referenced out-of-bounds memory ({}) of max {} entries",
-                                data.index.value(), main_module_instance.memories().size())
-                        };
-                        return;
-                    }
-                    auto maybe_data_address = m_store.allocate_data(data.init);
-                    if (!maybe_data_address.has_value()) {
-                        instantiation_result = InstantiationError { "Failed to allocate a data instance for an active data segment"sv };
-                        return;
-                    }
-                    main_module_instance.datas().append(*maybe_data_address);
-
-                    auto address = main_module_instance.memories()[data.index.value()];
-                    auto instance = m_store.get(address);
-                    Checked<size_t> checked_offset = data.init.size();
-                    checked_offset += offset;
-                    if (checked_offset.has_overflow() || checked_offset > instance->size()) {
-                        instantiation_result = InstantiationError {
-                            ByteString::formatted("Data segment attempted to write to out-of-bounds memory ({}) in memory of size {}",
-                                offset, instance->size())
-                        };
-                        return;
-                    }
-                    if (data.init.is_empty())
-                        return;
+                auto address = main_module_instance.memories()[data.index.value()];
+                auto instance = m_store.get(address);
+                Checked<size_t> checked_offset = data.init.size();
+                checked_offset += offset;
+                if (checked_offset.has_overflow() || checked_offset > instance->size()) {
+                    return InstantiationError {
+                        ByteString::formatted("Data segment attempted to write to out-of-bounds memory ({}) in memory of size {}",
+                            offset, instance->size())
+                    };
+                }
+                if (!data.init.is_empty())
                     instance->data().overwrite(offset, data.init.data(), data.init.size());
-                },
-                [&](DataSection::Data::Passive const& passive) {
-                    auto maybe_data_address = m_store.allocate_data(passive.init);
-                    if (!maybe_data_address.has_value()) {
-                        instantiation_result = InstantiationError { "Failed to allocate a data instance for a passive data segment"sv };
-                        return;
-                    }
-                    main_module_instance.datas().append(*maybe_data_address);
-                });
-        }
-    });
+                return {};
+            },
+            [&](DataSection::Data::Passive const& passive) -> Optional<InstantiationError> {
+                auto maybe_data_address = m_store.allocate_data(passive.init);
+                if (!maybe_data_address.has_value()) {
+                    return InstantiationError { "Failed to allocate a data instance for a passive data segment"sv };
+                }
+                main_module_instance.datas().append(*maybe_data_address);
+                return {};
+            });
+        if (result.has_value())
+            return result.release_value();
+    }
 
-    module.for_each_section_of_type<StartSection>([&](StartSection const& section) {
+    if (module.start_section().function().has_value()) {
         auto& functions = main_module_instance.functions();
-        auto index = section.function().index();
+        auto index = module.start_section().function()->index();
         if (functions.size() <= index.value()) {
-            instantiation_result = InstantiationError { ByteString::formatted("Start section function referenced invalid index {} of max {} entries", index.value(), functions.size()) };
-            return;
+            return InstantiationError { ByteString::formatted("Start section function referenced invalid index {} of max {} entries", index.value(), functions.size()) };
         }
         auto result = invoke(functions[index.value()], {});
         if (result.is_trap())
-            instantiation_result = InstantiationError { ByteString::formatted("Start function trapped: {}", result.trap().reason) };
-    });
-
-    if (instantiation_result.has_value())
-        return instantiation_result.release_value();
+            return InstantiationError { ByteString::formatted("Start function trapped: {}", result.trap().reason) };
+    }
 
     return InstantiationResult { move(main_module_instance_pointer) };
 }
@@ -476,86 +408,77 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
 
     // FIXME: What if this fails?
 
-    module.for_each_section_of_type<TableSection>([&](TableSection const& section) {
-        for (auto& table : section.tables()) {
-            auto table_address = m_store.allocate(table.type());
-            VERIFY(table_address.has_value());
-            module_instance.tables().append(*table_address);
-        }
-    });
+    for (auto& table : module.table_section().tables()) {
+        auto table_address = m_store.allocate(table.type());
+        VERIFY(table_address.has_value());
+        module_instance.tables().append(*table_address);
+    }
 
-    module.for_each_section_of_type<MemorySection>([&](MemorySection const& section) {
-        for (auto& memory : section.memories()) {
-            auto memory_address = m_store.allocate(memory.type());
-            VERIFY(memory_address.has_value());
-            module_instance.memories().append(*memory_address);
-        }
-    });
+    for (auto& memory : module.memory_section().memories()) {
+        auto memory_address = m_store.allocate(memory.type());
+        VERIFY(memory_address.has_value());
+        module_instance.memories().append(*memory_address);
+    }
 
-    module.for_each_section_of_type<GlobalSection>([&](GlobalSection const& section) {
-        size_t index = 0;
-        for (auto& entry : section.entries()) {
-            auto address = m_store.allocate(entry.type(), move(global_values[index]));
-            VERIFY(address.has_value());
-            module_instance.globals().append(*address);
-            index++;
-        }
-    });
-    module.for_each_section_of_type<ExportSection>([&](ExportSection const& section) {
-        for (auto& entry : section.entries()) {
-            Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress, Empty> address {};
-            entry.description().visit(
-                [&](FunctionIndex const& index) {
-                    if (module_instance.functions().size() > index.value())
-                        address = FunctionAddress { module_instance.functions()[index.value()] };
-                    else
-                        dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.functions().size());
-                },
-                [&](TableIndex const& index) {
-                    if (module_instance.tables().size() > index.value())
-                        address = TableAddress { module_instance.tables()[index.value()] };
-                    else
-                        dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.tables().size());
-                },
-                [&](MemoryIndex const& index) {
-                    if (module_instance.memories().size() > index.value())
-                        address = MemoryAddress { module_instance.memories()[index.value()] };
-                    else
-                        dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.memories().size());
-                },
-                [&](GlobalIndex const& index) {
-                    if (module_instance.globals().size() > index.value())
-                        address = GlobalAddress { module_instance.globals()[index.value()] };
-                    else
-                        dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.globals().size());
-                });
+    size_t index = 0;
+    for (auto& entry : module.global_section().entries()) {
+        auto address = m_store.allocate(entry.type(), move(global_values[index]));
+        VERIFY(address.has_value());
+        module_instance.globals().append(*address);
+        index++;
+    }
 
-            if (address.has<Empty>()) {
-                result = InstantiationError { "An export could not be resolved" };
-                continue;
-            }
-
-            module_instance.exports().append(ExportInstance {
-                entry.name(),
-                move(address).downcast<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress>(),
+    for (auto& entry : module.export_section().entries()) {
+        Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress, Empty> address {};
+        entry.description().visit(
+            [&](FunctionIndex const& index) {
+                if (module_instance.functions().size() > index.value())
+                    address = FunctionAddress { module_instance.functions()[index.value()] };
+                else
+                    dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.functions().size());
+            },
+            [&](TableIndex const& index) {
+                if (module_instance.tables().size() > index.value())
+                    address = TableAddress { module_instance.tables()[index.value()] };
+                else
+                    dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.tables().size());
+            },
+            [&](MemoryIndex const& index) {
+                if (module_instance.memories().size() > index.value())
+                    address = MemoryAddress { module_instance.memories()[index.value()] };
+                else
+                    dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.memories().size());
+            },
+            [&](GlobalIndex const& index) {
+                if (module_instance.globals().size() > index.value())
+                    address = GlobalAddress { module_instance.globals()[index.value()] };
+                else
+                    dbgln("Failed to export '{}', the exported address ({}) was out of bounds (min: 0, max: {})", entry.name(), index.value(), module_instance.globals().size());
             });
+
+        if (address.has<Empty>()) {
+            result = InstantiationError { "An export could not be resolved" };
+            continue;
         }
-    });
+
+        module_instance.exports().append(ExportInstance {
+            entry.name(),
+            move(address).downcast<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress>(),
+        });
+    }
 
     return result;
 }
 
 Optional<InstantiationError> AbstractMachine::allocate_all_final_phase(Module const& module, ModuleInstance& module_instance, Vector<Vector<Reference>>& elements)
 {
-    module.for_each_section_of_type<ElementSection>([&](ElementSection const& section) {
-        size_t index = 0;
-        for (auto& segment : section.segments()) {
-            auto address = m_store.allocate(segment.type, move(elements[index]));
-            VERIFY(address.has_value());
-            module_instance.elements().append(*address);
-            index++;
-        }
-    });
+    size_t index = 0;
+    for (auto& segment : module.element_section().segments()) {
+        auto address = m_store.allocate(segment.type, move(elements[index]));
+        VERIFY(address.has_value());
+        module_instance.elements().append(*address);
+        index++;
+    }
 
     return {};
 }
@@ -642,21 +565,10 @@ void Linker::populate()
     if (!m_ordered_imports.is_empty())
         return;
 
-    // There better be at most one import section!
-    bool already_seen_an_import_section = false;
-    m_module.for_each_section_of_type<ImportSection>([&](ImportSection const& section) {
-        if (already_seen_an_import_section) {
-            if (!m_error.has_value())
-                m_error = LinkError {};
-            m_error->other_errors.append(LinkError::InvalidImportedModule);
-            return;
-        }
-        already_seen_an_import_section = true;
-        for (auto& import_ : section.imports()) {
-            m_ordered_imports.append({ import_.module(), import_.name(), import_.description() });
-            m_unresolved_imports.set(m_ordered_imports.last());
-        }
-    });
+    for (auto& import_ : m_module.import_section().imports()) {
+        m_ordered_imports.append({ import_.module(), import_.name(), import_.description() });
+        m_unresolved_imports.set(m_ordered_imports.last());
+    }
 }
 
 }

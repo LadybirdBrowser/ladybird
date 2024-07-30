@@ -1227,60 +1227,66 @@ ParseResult<Module> Module::parse(Stream& stream)
     if (Bytes { buf, 4 } != wasm_version.span())
         return with_eof_check(stream, ParseError::InvalidModuleVersion);
 
-    Vector<AnySection> sections;
+    auto last_section_id = CustomSection::section_id;
+    Module module;
     while (!stream.is_eof()) {
         auto section_id = TRY_READ(stream, u8, ParseError::ExpectedIndex);
         size_t section_size = TRY_READ(stream, LEB128<u32>, ParseError::ExpectedSize);
         auto section_stream = ConstrainedStream { MaybeOwned<Stream>(stream), section_size };
 
+        if (section_id != CustomSection::section_id && section_id == last_section_id)
+            return ParseError::DuplicateSection;
+
         switch (section_id) {
         case CustomSection::section_id:
-            sections.append(TRY(CustomSection::parse(section_stream)));
+            module.custom_sections().append(TRY(CustomSection::parse(section_stream)));
             break;
         case TypeSection::section_id:
-            sections.append(TRY(TypeSection::parse(section_stream)));
+            module.type_section() = TRY(TypeSection::parse(section_stream));
             break;
         case ImportSection::section_id:
-            sections.append(TRY(ImportSection::parse(section_stream)));
+            module.import_section() = TRY(ImportSection::parse(section_stream));
             break;
         case FunctionSection::section_id:
-            sections.append(TRY(FunctionSection::parse(section_stream)));
+            module.function_section() = TRY(FunctionSection::parse(section_stream));
             break;
         case TableSection::section_id:
-            sections.append(TRY(TableSection::parse(section_stream)));
+            module.table_section() = TRY(TableSection::parse(section_stream));
             break;
         case MemorySection::section_id:
-            sections.append(TRY(MemorySection::parse(section_stream)));
+            module.memory_section() = TRY(MemorySection::parse(section_stream));
             break;
         case GlobalSection::section_id:
-            sections.append(TRY(GlobalSection::parse(section_stream)));
+            module.global_section() = TRY(GlobalSection::parse(section_stream));
             break;
         case ExportSection::section_id:
-            sections.append(TRY(ExportSection::parse(section_stream)));
+            module.export_section() = TRY(ExportSection::parse(section_stream));
             break;
         case StartSection::section_id:
-            sections.append(TRY(StartSection::parse(section_stream)));
+            module.start_section() = TRY(StartSection::parse(section_stream));
             break;
         case ElementSection::section_id:
-            sections.append(TRY(ElementSection::parse(section_stream)));
+            module.element_section() = TRY(ElementSection::parse(section_stream));
             break;
         case CodeSection::section_id:
-            sections.append(TRY(CodeSection::parse(section_stream)));
+            module.code_section() = TRY(CodeSection::parse(section_stream));
             break;
         case DataSection::section_id:
-            sections.append(TRY(DataSection::parse(section_stream)));
+            module.data_section() = TRY(DataSection::parse(section_stream));
             break;
         case DataCountSection::section_id:
-            sections.append(TRY(DataCountSection::parse(section_stream)));
+            module.data_count_section() = TRY(DataCountSection::parse(section_stream));
             break;
         default:
             return ParseError::InvalidIndex;
         }
+        if (section_id != CustomSection::section_id)
+            last_section_id = section_id;
         if (section_stream.remaining() != 0)
             return ParseError::SectionSizeMismatch;
     }
 
-    return Module { move(sections) };
+    return module;
 }
 
 ByteString parse_error_to_byte_string(ParseError error)
@@ -1326,6 +1332,8 @@ ByteString parse_error_to_byte_string(ParseError error)
         return "A parsed string was not valid UTF-8";
     case ParseError::UnknownInstruction:
         return "A parsed instruction was not known to this parser";
+    case ParseError::DuplicateSection:
+        return "Two sections of the same type were encountered";
     }
     return "Unknown error";
 }

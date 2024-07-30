@@ -182,7 +182,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
             TRY(import_name.type.visit(
                 [&](Wasm::TypeIndex index) -> JS::ThrowCompletionOr<void> {
                     dbgln("Trying to resolve a function {}::{}, type index {}", import_name.module, import_name.name, index.value());
-                    auto& type = module.type(index);
+                    auto& type = module.type_section().types()[index.value()];
                     // FIXME: IsCallable()
                     if (!import_.is_function())
                         return {};

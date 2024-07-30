@@ -672,7 +672,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             for (auto& entry : linker.unresolved_imports()) {
                 if (!entry.type.has<Wasm::TypeIndex>())
                     continue;
-                auto type = parse_result.value().type(entry.type.get<Wasm::TypeIndex>());
+                auto type = parse_result.value().type_section().types()[entry.type.get<Wasm::TypeIndex>().value()];
                 auto address = machine.store().allocate(Wasm::HostFunction(
                     [name = entry.name, type = type](auto&, auto& arguments) -> Wasm::Result {
                         StringBuilder argument_builder;

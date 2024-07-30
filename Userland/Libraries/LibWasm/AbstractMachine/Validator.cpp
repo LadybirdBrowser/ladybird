@@ -16,111 +16,79 @@ namespace Wasm {
 
 ErrorOr<void, ValidationError> Validator::validate(Module& module)
 {
-    ErrorOr<void, ValidationError> result {};
+    // Pre-emptively make invalid. The module will be set to `Valid` at the end
+    // of validation.
+    module.set_validation_status(Module::ValidationStatus::Invalid, {});
 
     // Note: The spec performs this after populating the context, but there's no real reason to do so,
     //       as this has no dependency.
     HashTable<StringView> seen_export_names;
-    module.for_each_section_of_type<ExportSection>([&result, &seen_export_names](ExportSection const& section) {
-        if (result.is_error())
-            return;
-        for (auto& export_ : section.entries()) {
-            if (seen_export_names.try_set(export_.name()).release_value_but_fixme_should_propagate_errors() != AK::HashSetResult::InsertedNewEntry) {
-                result = Errors::duplicate_export_name(export_.name());
-                return;
-            }
-        }
-    });
-    if (result.is_error()) {
-        module.set_validation_status(Module::ValidationStatus::Invalid, {});
-        return result;
-    }
+    for (auto& export_ : module.export_section().entries())
+        if (seen_export_names.try_set(export_.name()).release_value_but_fixme_should_propagate_errors() != AK::HashSetResult::InsertedNewEntry)
+            return Errors::duplicate_export_name(export_.name());
 
     m_context = {};
 
-    module.for_each_section_of_type<TypeSection>([this](TypeSection const& section) {
-        m_context.types.extend(section.types());
-    });
+    m_context.types.extend(module.type_section().types());
+    m_context.data_count = module.data_count_section().count();
 
-    module.for_each_section_of_type<DataCountSection>([this](DataCountSection const& section) {
-        m_context.data_count = section.count();
-    });
-
-    module.for_each_section_of_type<ImportSection>([&](ImportSection const& section) {
-        for (auto& import_ : section.imports()) {
-            import_.description().visit(
-                [this, &result](TypeIndex const& index) {
-                    if (m_context.types.size() > index.value())
-                        m_context.functions.append(m_context.types[index.value()]);
-                    else
-                        result = Errors::invalid("TypeIndex"sv);
-                    m_context.imported_function_count++;
-                },
-                [this](FunctionType const& type) {
-                    m_context.functions.append(type);
-                    m_context.imported_function_count++;
-                },
-                [this](TableType const& type) { m_context.tables.append(type); },
-                [this](MemoryType const& type) { m_context.memories.append(type); },
-                [this](GlobalType const& type) {
-                    m_globals_without_internal_globals.append(type);
-                    m_context.globals.append(type);
-                });
-        }
-    });
-
-    if (result.is_error()) {
-        module.set_validation_status(Module::ValidationStatus::Invalid, {});
-        return result;
+    for (auto& import_ : module.import_section().imports()) {
+        TRY(import_.description().visit(
+            [&](TypeIndex const& index) -> ErrorOr<void, ValidationError> {
+                if (m_context.types.size() > index.value())
+                    m_context.functions.append(m_context.types[index.value()]);
+                else
+                    return Errors::invalid("TypeIndex"sv);
+                m_context.imported_function_count++;
+                return {};
+            },
+            [&](FunctionType const& type) -> ErrorOr<void, ValidationError> {
+                m_context.functions.append(type);
+                m_context.imported_function_count++;
+                return {};
+            },
+            [&](TableType const& type) -> ErrorOr<void, ValidationError> {
+                m_context.tables.append(type);
+                return {};
+            },
+            [&](MemoryType const& type) -> ErrorOr<void, ValidationError> {
+                m_context.memories.append(type);
+                return {};
+            },
+            [&](GlobalType const& type) -> ErrorOr<void, ValidationError> {
+                m_globals_without_internal_globals.append(type);
+                m_context.globals.append(type);
+                return {};
+            }));
     }
 
-    CodeSection const* code_section { nullptr };
-    module.for_each_section_of_type<CodeSection>([&](auto& section) { code_section = &section; });
-    module.for_each_section_of_type<FunctionSection>([&](FunctionSection const& section) {
-        if ((!code_section && !section.types().is_empty()) || (code_section && code_section->functions().size() != section.types().size())) {
-            result = Errors::invalid("FunctionSection"sv);
-            return;
-        }
-        m_context.functions.ensure_capacity(section.types().size() + m_context.functions.size());
-        for (auto& index : section.types()) {
-            if (m_context.types.size() > index.value()) {
-                m_context.functions.append(m_context.types[index.value()]);
-            } else {
-                result = Errors::invalid("TypeIndex"sv);
-                break;
-            }
-        }
-    });
-    if (result.is_error()) {
-        module.set_validation_status(Module::ValidationStatus::Invalid, {});
-        return result;
-    }
+    if (module.code_section().functions().size() != module.function_section().types().size())
+        return Errors::invalid("FunctionSection"sv);
 
-    module.for_each_section_of_type<TableSection>([this](TableSection const& section) {
-        m_context.tables.ensure_capacity(m_context.tables.size() + section.tables().size());
-        for (auto& table : section.tables())
-            m_context.tables.append(table.type());
-    });
+    m_context.functions.ensure_capacity(module.function_section().types().size() + m_context.functions.size());
+    for (auto& index : module.function_section().types())
+        if (m_context.types.size() > index.value())
+            m_context.functions.append(m_context.types[index.value()]);
+        else
+            return Errors::invalid("TypeIndex"sv);
 
-    module.for_each_section_of_type<MemorySection>([this](MemorySection const& section) {
-        m_context.memories.ensure_capacity(m_context.memories.size() + section.memories().size());
-        for (auto& memory : section.memories())
-            m_context.memories.append(memory.type());
-    });
+    m_context.tables.ensure_capacity(m_context.tables.size() + module.table_section().tables().size());
+    for (auto& table : module.table_section().tables())
+        m_context.tables.append(table.type());
 
-    module.for_each_section_of_type<GlobalSection>([this](GlobalSection const& section) {
-        m_context.globals.ensure_capacity(m_context.globals.size() + section.entries().size());
-        for (auto& global : section.entries())
-            m_context.globals.append(global.type());
-    });
-    module.for_each_section_of_type<ElementSection>([this](ElementSection const& section) {
-        m_context.elements.ensure_capacity(section.segments().size());
-        for (auto& segment : section.segments())
-            m_context.elements.append(segment.type);
-    });
-    module.for_each_section_of_type<DataSection>([this](DataSection const& section) {
-        m_context.datas.resize(section.data().size());
-    });
+    m_context.memories.ensure_capacity(m_context.memories.size() + module.memory_section().memories().size());
+    for (auto& memory : module.memory_section().memories())
+        m_context.memories.append(memory.type());
+
+    m_context.globals.ensure_capacity(m_context.globals.size() + module.global_section().entries().size());
+    for (auto& global : module.global_section().entries())
+        m_context.globals.append(global.type());
+
+    m_context.elements.ensure_capacity(module.element_section().segments().size());
+    for (auto& segment : module.element_section().segments())
+        m_context.elements.append(segment.type);
+
+    m_context.datas.resize(module.data_section().data().size());
 
     // We need to build the set of declared functions to check that `ref.func` uses a specific set of predetermined functions, found in:
     // - Element initializer expressions
@@ -134,44 +102,28 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
             }
         }
     };
-    module.for_each_section_of_type<ExportSection>([&](ExportSection const& section) {
-        for (auto& export_ : section.entries()) {
-            if (!export_.description().has<FunctionIndex>())
-                continue;
-            auto index = export_.description().get<FunctionIndex>();
-            m_context.references->tree.insert(index.value(), index);
-        }
-    });
-    module.for_each_section_of_type<ElementSection>([&](ElementSection const& section) {
-        for (auto& segment : section.segments()) {
-            for (auto& expression : segment.init)
-                scan_expression_for_function_indices(expression);
-        }
-    });
-    module.for_each_section_of_type<GlobalSection>([&](GlobalSection const& section) {
-        for (auto& segment : section.entries())
-            scan_expression_for_function_indices(segment.expression());
-    });
-    bool seen_start_section = false;
-    module.for_each_section_of_type<StartSection>([&](StartSection const&) {
-        if (seen_start_section)
-            result = Errors::multiple_start_sections();
-        seen_start_section = true;
-    });
-    if (result.is_error()) {
-        module.set_validation_status(Module::ValidationStatus::Invalid, {});
-        return result;
+    for (auto& export_ : module.export_section().entries()) {
+        if (!export_.description().has<FunctionIndex>())
+            continue;
+        auto index = export_.description().get<FunctionIndex>();
+        m_context.references->tree.insert(index.value(), index);
     }
+    for (auto& segment : module.element_section().segments()) {
+        for (auto& expression : segment.init)
+            scan_expression_for_function_indices(expression);
+    }
+    for (auto& segment : module.global_section().entries())
+        scan_expression_for_function_indices(segment.expression());
 
-    for (auto& section : module.sections()) {
-        section.visit([this, &result](auto& section) {
-            result = validate(section);
-        });
-        if (result.is_error()) {
-            module.set_validation_status(Module::ValidationStatus::Invalid, {});
-            return result;
-        }
-    }
+    TRY(validate(module.import_section()));
+    TRY(validate(module.export_section()));
+    TRY(validate(module.start_section()));
+    TRY(validate(module.data_section()));
+    TRY(validate(module.element_section()));
+    TRY(validate(module.global_section()));
+    TRY(validate(module.memory_section()));
+    TRY(validate(module.table_section()));
+    TRY(validate(module.code_section()));
 
     module.set_validation_status(Module::ValidationStatus::Valid, {});
     return {};
@@ -193,8 +145,10 @@ ErrorOr<void, ValidationError> Validator::validate(ExportSection const& section)
 
 ErrorOr<void, ValidationError> Validator::validate(StartSection const& section)
 {
-    TRY(validate(section.function().index()));
-    FunctionType const& type = m_context.functions[section.function().index().value()];
+    if (!section.function().has_value())
+        return {};
+    TRY(validate(section.function()->index()));
+    FunctionType const& type = m_context.functions[section.function()->index().value()];
     if (!type.parameters().is_empty() || !type.results().is_empty())
         return Errors::invalid("start function signature"sv);
     return {};
