@@ -20,6 +20,7 @@
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
+#include <LibWeb/Painting/TableBordersPainting.h>
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -309,8 +310,13 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         paint_box_shadow(context);
     }
 
-    if (phase == PaintPhase::Border) {
+    auto const is_table_with_collapsed_borders = display().is_table_inside() && computed_values().border_collapse() == CSS::BorderCollapse::Collapse;
+    if (!display().is_table_cell() && !is_table_with_collapsed_borders && phase == PaintPhase::Border) {
         paint_border(context);
+    }
+
+    if ((display().is_table_inside() || computed_values().border_collapse() == CSS::BorderCollapse::Collapse) && phase == PaintPhase::TableCollapsedBorder) {
+        paint_table_borders(context, *this);
     }
 
     if (phase == PaintPhase::Outline) {
@@ -519,7 +525,7 @@ void PaintableBox::reset_scroll_offset(PaintContext& context, PaintPhase) const
 
 void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
 {
-    if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::Foreground, PaintPhase::Outline))
+    if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
         return;
 
     if (clip_rect().has_value()) {
@@ -542,7 +548,7 @@ void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase ph
 
 void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
 {
-    if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::Foreground, PaintPhase::Outline))
+    if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
         return;
 
     if (m_clipping_overflow) {

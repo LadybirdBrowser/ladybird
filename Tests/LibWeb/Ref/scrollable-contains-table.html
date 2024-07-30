@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<link rel="match" href="reference/scrollable-contains-table-ref.html" />
+<head>
+    <style>
+        * {
+            scrollbar-width: none;
+        }
+        #scrollable-div {
+            width: 300px;
+            height: 300px;
+            overflow: auto;
+            border: 1px solid #000;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th,
+        td {
+            padding: 0;
+            margin: 0;
+            height: 50px;
+            box-sizing: content-box;
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="scrollable-div">
+        <table>
+            <thead>
+                <tr>
+                    <th>Header 1</th>
+                    <th>Header 2</th>
+                    <th>Header 3</th>
+                    <th>Header 4</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Row 1, Cell 1</td>
+                    <td>Row 1, Cell 2</td>
+                    <td>Row 1, Cell 3</td>
+                    <td>Row 1, Cell 4</td>
+                </tr>
+                <tr>
+                    <td>Row 2, Cell 1</td>
+                    <td>Row 2, Cell 2</td>
+                    <td>Row 2, Cell 3</td>
+                    <td>Row 2, Cell 4</td>
+                </tr>
+                <tr>
+                    <td>Row 3, Cell 1</td>
+                    <td>Row 3, Cell 2</td>
+                    <td>Row 3, Cell 3</td>
+                    <td>Row 3, Cell 4</td>
+                </tr>
+                <tr>
+                    <td>Row 4, Cell 1</td>
+                    <td>Row 4, Cell 2</td>
+                    <td>Row 4, Cell 3</td>
+                    <td>Row 4, Cell 4</td>
+                </tr>
+                <tr>
+                    <td>Row 5, Cell 1</td>
+                    <td>Row 5, Cell 2</td>
+                    <td>Row 5, Cell 3</td>
+                    <td>Row 5, Cell 4</td>
+                </tr>
+                <tr>
+                    <td>Row 6, Cell 1</td>
+                    <td>Row 6, Cell 2</td>
+                    <td>Row 6, Cell 3</td>
+                    <td>Row 6, Cell 4</td>
+                </tr>
+                <tr>
+                    <td>Row 7, Cell 1</td>
+                    <td>Row 7, Cell 2</td>
+                    <td>Row 7, Cell 3</td>
+                    <td>Row 7, Cell 4</td>
+                </tr>
+                <tr>
+                    <td>Row 8, Cell 1</td>
+                    <td>Row 8, Cell 2</td>
+                    <td>Row 8, Cell 3</td>
+                    <td>Row 8, Cell 4</td>
+                </tr>
+                <tr>
+                    <td>Row 9, Cell 1</td>
+                    <td>Row 9, Cell 2</td>
+                    <td>Row 9, Cell 3</td>
+                    <td>Row 9, Cell 4</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+<script>
+    const scrollContainer = document.getElementById("scrollable-div");
+    scrollContainer.scrollTop = 100;
+</script>
