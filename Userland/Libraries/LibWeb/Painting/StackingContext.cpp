@@ -19,7 +19,6 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
-#include <LibWeb/Painting/TableBordersPainting.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 
 namespace Web::Painting {
@@ -134,13 +133,9 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
         case StackingContextPaintPhase::BackgroundAndBorders:
             if (!child_is_inline_or_replaced && !child.is_floating()) {
                 paint_node(child, context, PaintPhase::Background);
-                bool is_table_with_collapsed_borders = child.display().is_table_inside() && child.computed_values().border_collapse() == CSS::BorderCollapse::Collapse;
-                if (!child.display().is_table_cell() && !is_table_with_collapsed_borders)
-                    paint_node(child, context, PaintPhase::Border);
+                paint_node(child, context, PaintPhase::Border);
                 paint_descendants(context, child, phase);
-                if (child.display().is_table_inside() || child.computed_values().border_collapse() == CSS::BorderCollapse::Collapse) {
-                    paint_table_borders(context, verify_cast<PaintableBox>(child));
-                }
+                paint_node(child, context, PaintPhase::TableCollapsedBorder);
             }
             break;
         case StackingContextPaintPhase::Floats:
@@ -155,8 +150,7 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
             if (child_is_inline_or_replaced) {
                 paint_node(child, context, PaintPhase::Background);
                 paint_node(child, context, PaintPhase::Border);
-                if (child.display().is_table_inside() && child.computed_values().border_collapse() == CSS::BorderCollapse::Separate)
-                    paint_table_borders(context, verify_cast<PaintableBox>(child));
+                paint_node(child, context, PaintPhase::TableCollapsedBorder);
                 paint_descendants(context, child, StackingContextPaintPhase::BackgroundAndBorders);
             }
             paint_descendants(context, child, phase);

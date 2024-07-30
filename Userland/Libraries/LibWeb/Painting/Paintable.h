@@ -16,6 +16,7 @@ namespace Web::Painting {
 enum class PaintPhase {
     Background,
     Border,
+    TableCollapsedBorder,
     Foreground,
     Outline,
     Overlay,
