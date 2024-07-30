@@ -162,7 +162,7 @@ void ConnectionFromClient::worker_do_work(Work work)
 
             dbgln("EnsureConnection: Pre-connect to {}", url);
             auto do_preconnect = [=, job = Job::ensure(url)](auto& cache) {
-                ConnectionCache::ensure_connection(cache, url, job->make_weak_ptr<Job>());
+                ConnectionCache::ensure_connection(cache, url, move(job));
             };
 
             if (url.scheme() == "http"sv)

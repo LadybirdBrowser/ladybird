@@ -100,8 +100,7 @@ struct JobData {
     }
 #endif
 
-    template<typename T>
-    static JobData create(WeakPtr<T> job, [[maybe_unused]] URL::URL url)
+    static JobData create(auto job, [[maybe_unused]] URL::URL url)
     {
         return JobData {
             [job](auto& socket) { job->start(socket); },
