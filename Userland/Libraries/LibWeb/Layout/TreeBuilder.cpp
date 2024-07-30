@@ -191,9 +191,8 @@ void TreeBuilder::insert_node_into_inline_or_block_ancestor(Layout::Node& node, 
 void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Selector::PseudoElement::Type pseudo_element, AppendOrPrepend mode)
 {
     auto& document = element.document();
-    auto& style_computer = document.style_computer();
 
-    auto pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed(element, pseudo_element);
+    auto pseudo_element_style = element.pseudo_element_computed_css_values(pseudo_element);
     if (!pseudo_element_style)
         return;
 
