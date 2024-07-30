@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <LibUnicode/Forward.h>
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/Node.h>
@@ -30,9 +31,7 @@ public:
 
     unsigned length_in_utf16_code_units() const
     {
-        // FIXME: This is inefficient!
-        auto utf16_data = MUST(AK::utf8_to_utf16(m_data));
-        return Utf16View { utf16_data }.length_in_code_units();
+        return AK::utf16_code_unit_length_from_utf8(m_data);
     }
 
     WebIDL::ExceptionOr<String> substring_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units) const;
