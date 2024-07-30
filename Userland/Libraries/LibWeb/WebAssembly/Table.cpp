@@ -106,8 +106,6 @@ WebIDL::ExceptionOr<JS::Value> Table::get(u32 index) const
         return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
 
     auto& ref = table->elements()[index];
-    if (!ref.ref().has<Wasm::Reference::Null>())
-        return JS::js_undefined();
 
     Wasm::Value wasm_value { ref };
     return Detail::to_js_value(vm, wasm_value);
