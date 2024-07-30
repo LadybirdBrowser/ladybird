@@ -1,7 +1,7 @@
 # Security Policy
 
 Ladybird is unreleased software still in early development, and so bugs and vulnerabilities in its code can be safely
-disclosed publicly. The preference is to report security issues as [GitHub issues](https://github.com/LadybirdBrowser/ladybird/issues/new).
+disclosed publicly. The preference is to report security issues as [GitHub issues](https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml).
 
 However, private vulnerability reporting is also enabled on the repository. If you find a security issue in Ladybird,
 or in another web browser that you believe affects Ladybird, you may report it privately to the maintainers
@@ -12,7 +12,7 @@ and given a security advisory identifier. The maintainers may include regular co
 process as their expertise requires. Researchers who report security issues privately will be credited in the advisory.
 
 The maintainers reserve the right to reject reports that are not security issues, or that are not in the scope of Ladybird.
-For issues that are determined to not be security issues, please report them as a [GitHub issue](https://github.com/LadybirdBrowser/ladybird/issues/new)
+For issues that are determined to not be security issues, please report them as a [GitHub issue](https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml)
 instead. If you choose not to re-report the issue as a generic issue, the maintainers may do so themselves.
 
 Ladybird does not offer bug bounties for security issues at this time.
