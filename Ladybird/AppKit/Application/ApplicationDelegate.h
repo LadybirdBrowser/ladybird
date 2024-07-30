@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,8 +8,6 @@
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
-#include <AK/Vector.h>
-#include <Ladybird/Types.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
@@ -24,12 +22,7 @@
 
 @interface ApplicationDelegate : NSObject <NSApplicationDelegate>
 
-- (nullable instancetype)init:(Vector<URL::URL>)initial_urls
-                newTabPageURL:(URL::URL)new_tab_page_url
-                withCookieJar:(NonnullOwnPtr<WebView::CookieJar>)cookie_jar
-            webContentOptions:(Ladybird::WebContentOptions const&)web_content_options
-      webdriverContentIPCPath:(StringView)webdriver_content_ipc_path
-                  allowPopups:(BOOL)allow_popups;
+- (nullable instancetype)initWithCookieJar:(NonnullOwnPtr<WebView::CookieJar>)cookie_jar;
 
 - (nonnull TabController*)createNewTab:(Optional<URL::URL> const&)url
                                fromTab:(nullable Tab*)tab
@@ -46,8 +39,6 @@
 - (void)removeTab:(nonnull TabController*)controller;
 
 - (WebView::CookieJar&)cookieJar;
-- (Ladybird::WebContentOptions const&)webContentOptions;
-- (Optional<StringView> const&)webdriverContentIPCPath;
 - (Web::CSS::PreferredColorScheme)preferredColorScheme;
 - (Web::CSS::PreferredContrast)preferredContrast;
 - (Web::CSS::PreferredMotion)preferredMotion;

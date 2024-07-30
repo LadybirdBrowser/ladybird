@@ -12,15 +12,18 @@
 #include <LibImageDecoderClient/Client.h>
 #include <LibProtocol/RequestClient.h>
 #include <LibURL/URL.h>
+#include <LibWebView/Application.h>
 #include <QApplication>
 
 namespace Ladybird {
 
-class Application : public QApplication {
+class Application
+    : public QApplication
+    , public WebView::Application {
     Q_OBJECT
+    WEB_VIEW_APPLICATION(Application)
 
 public:
-    Application(int& argc, char** argv);
     virtual ~Application() override;
 
     virtual bool event(QEvent* event) override;
@@ -31,15 +34,20 @@ public:
     NonnullRefPtr<ImageDecoderClient::Client> image_decoder_client() const { return *m_image_decoder_client; }
     ErrorOr<void> initialize_image_decoder();
 
-    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, WebContentOptions const&, StringView webdriver_content_ipc_path, bool allow_popups, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
-    void show_task_manager_window(WebContentOptions const&);
+    void show_task_manager_window();
     void close_task_manager_window();
 
     BrowserWindow& active_window() { return *m_active_window; }
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
 
 private:
+    virtual void create_platform_arguments(Core::ArgsParser&) override;
+    virtual void create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions&) override;
+
+    bool m_enable_qt_networking { false };
+
     TaskManagerWindow* m_task_manager_window { nullptr };
     BrowserWindow* m_active_window { nullptr };
 

@@ -4,19 +4,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Application.h"
-#include "StringUtils.h"
-#include "TaskManagerWindow.h"
 #include <Ladybird/HelperProcess.h>
+#include <Ladybird/Qt/Application.h>
+#include <Ladybird/Qt/Settings.h>
+#include <Ladybird/Qt/StringUtils.h>
+#include <Ladybird/Qt/TaskManagerWindow.h>
 #include <Ladybird/Utilities.h>
+#include <LibCore/ArgsParser.h>
 #include <LibWebView/URL.h>
 #include <QFileOpenEvent>
 
 namespace Ladybird {
 
-Application::Application(int& argc, char** argv)
-    : QApplication(argc, argv)
+Application::Application(Badge<WebView::Application>, Main::Arguments& arguments)
+    : QApplication(arguments.argc, arguments.argv)
 {
+}
+
+void Application::create_platform_arguments(Core::ArgsParser& args_parser)
+{
+    args_parser.add_option(m_enable_qt_networking, "Enable Qt as the backend networking service", "enable-qt-networking");
+}
+
+void Application::create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions& web_content_options)
+{
+    web_content_options.config_path = Settings::the()->directory();
+    web_content_options.use_lagom_networking = m_enable_qt_networking ? WebView::UseLagomNetworking::No : WebView::UseLagomNetworking::Yes;
 }
 
 Application::~Application()
@@ -77,10 +90,10 @@ ErrorOr<void> Application::initialize_image_decoder()
     return {};
 }
 
-void Application::show_task_manager_window(WebContentOptions const& web_content_options)
+void Application::show_task_manager_window()
 {
     if (!m_task_manager_window) {
-        m_task_manager_window = new TaskManagerWindow(nullptr, web_content_options);
+        m_task_manager_window = new TaskManagerWindow(nullptr);
     }
     m_task_manager_window->show();
     m_task_manager_window->activateWindow();
@@ -96,9 +109,9 @@ void Application::close_task_manager_window()
     }
 }
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WebView::CookieJar& cookie_jar, WebContentOptions const& web_content_options, StringView webdriver_content_ipc_path, bool allow_popups, BrowserWindow::IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WebView::CookieJar& cookie_jar, BrowserWindow::IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
 {
-    auto* window = new BrowserWindow(initial_urls, cookie_jar, web_content_options, webdriver_content_ipc_path, allow_popups, is_popup_window, parent_tab, move(page_index));
+    auto* window = new BrowserWindow(initial_urls, cookie_jar, is_popup_window, parent_tab, move(page_index));
     set_active_window(*window);
     window->show();
     if (initial_urls.is_empty()) {

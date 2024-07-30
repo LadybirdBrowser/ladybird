@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,7 +22,7 @@ struct TabSettings {
 
 @interface TabController : NSWindowController <NSWindowDelegate>
 
-- (instancetype)init:(BOOL)block_popups;
+- (instancetype)init;
 
 - (void)loadURL:(URL::URL const&)url;
 - (void)loadHTML:(StringView)html url:(URL::URL const&)url;

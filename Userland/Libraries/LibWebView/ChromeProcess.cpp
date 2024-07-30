@@ -9,7 +9,9 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/ChromeProcess.h>
+#include <LibWebView/URL.h>
 
 namespace WebView {
 
@@ -32,7 +34,7 @@ ErrorOr<ChromeProcess> ChromeProcess::create()
     return ChromeProcess {};
 }
 
-ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteString> const& raw_urls, bool new_window)
+ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteString> const& raw_urls, NewWindow new_window)
 {
     static constexpr auto process_name = "Ladybird"sv;
 
@@ -52,12 +54,12 @@ ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteStr
     return ProcessDisposition::ContinueMainProcess;
 }
 
-ErrorOr<void> ChromeProcess::connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, bool new_window)
+ErrorOr<void> ChromeProcess::connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window)
 {
     auto socket = TRY(Core::LocalSocket::connect(socket_path));
     auto client = UIProcessClient::construct(move(socket));
 
-    if (new_window) {
+    if (new_window == NewWindow::Yes) {
         if (!client->send_sync_but_allow_failure<Messages::UIProcessServer::CreateNewWindow>(raw_urls))
             dbgln("Failed to send CreateNewWindow message to UIProcess");
     } else {
@@ -121,13 +123,13 @@ void UIProcessConnectionFromClient::die()
 void UIProcessConnectionFromClient::create_new_tab(Vector<ByteString> const& urls)
 {
     if (on_new_tab)
-        on_new_tab(urls);
+        on_new_tab(sanitize_urls(urls, Application::chrome_options().new_tab_page_url));
 }
 
 void UIProcessConnectionFromClient::create_new_window(Vector<ByteString> const& urls)
 {
     if (on_new_window)
-        on_new_window(urls);
+        on_new_window(sanitize_urls(urls, Application::chrome_options().new_tab_page_url));
 }
 
 }

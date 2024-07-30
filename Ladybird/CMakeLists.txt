@@ -6,7 +6,6 @@ set(LADYBIRD_SOURCES
 )
 set(LADYBIRD_HEADERS
     HelperProcess.h
-    Types.h
     Utilities.h
 )
 

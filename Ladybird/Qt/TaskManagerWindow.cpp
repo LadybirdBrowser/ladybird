@@ -10,9 +10,9 @@
 
 namespace Ladybird {
 
-TaskManagerWindow::TaskManagerWindow(QWidget* parent, WebContentOptions const& web_content_options)
+TaskManagerWindow::TaskManagerWindow(QWidget* parent)
     : QWidget(parent, Qt::WindowFlags(Qt::WindowType::Window))
-    , m_web_view(new WebContentView(this, web_content_options, {}))
+    , m_web_view(new WebContentView(this))
 {
     setLayout(new QVBoxLayout);
     layout()->addWidget(m_web_view);

@@ -72,6 +72,22 @@ Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engi
     return result;
 }
 
+Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const& new_tab_page_url)
+{
+    Vector<URL::URL> sanitized_urls;
+    sanitized_urls.ensure_capacity(raw_urls.size());
+
+    for (auto const& raw_url : raw_urls) {
+        if (auto url = sanitize_url(raw_url); url.has_value())
+            sanitized_urls.unchecked_append(url.release_value());
+    }
+
+    if (sanitized_urls.is_empty())
+        sanitized_urls.append(new_tab_page_url);
+
+    return sanitized_urls;
+}
+
 static URLParts break_file_url_into_parts(URL::URL const& url, StringView url_string)
 {
     auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + "://"sv.length());

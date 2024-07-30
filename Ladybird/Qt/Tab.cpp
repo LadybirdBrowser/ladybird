@@ -47,7 +47,7 @@ static QIcon default_favicon()
     return icon;
 }
 
-Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, StringView webdriver_content_ipc_path, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
+Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
     : QWidget(window)
     , m_window(window)
 {
@@ -55,7 +55,7 @@ Tab::Tab(BrowserWindow* window, WebContentOptions const& web_content_options, St
     m_layout->setSpacing(0);
     m_layout->setContentsMargins(0, 0, 0, 0);
 
-    m_view = new WebContentView(this, web_content_options, webdriver_content_ipc_path, parent_client, page_index);
+    m_view = new WebContentView(this, parent_client, page_index);
     m_find_in_page = new FindInPageWidget(this, m_view);
     m_find_in_page->setVisible(false);
     m_toolbar = new QToolBar(this);

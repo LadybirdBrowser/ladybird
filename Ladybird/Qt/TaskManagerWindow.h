@@ -16,7 +16,7 @@ class TaskManagerWindow : public QWidget {
     Q_OBJECT
 
 public:
-    TaskManagerWindow(QWidget* parent, WebContentOptions const&);
+    explicit TaskManagerWindow(QWidget* parent);
 
 private:
     virtual void showEvent(QShowEvent*) override;

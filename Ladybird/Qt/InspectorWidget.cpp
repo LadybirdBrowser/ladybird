@@ -22,7 +22,7 @@ extern bool is_using_dark_system_theme(QWidget&);
 InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     : QWidget(tab, Qt::Window)
 {
-    m_inspector_view = new WebContentView(this, content_view.web_content_options(), {});
+    m_inspector_view = new WebContentView(this);
 
     if (is_using_dark_system_theme(*this))
         m_inspector_view->update_palette(WebContentView::PaletteMode::Dark);
