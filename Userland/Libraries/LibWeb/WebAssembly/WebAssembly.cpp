@@ -450,7 +450,10 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value)
     case Wasm::ValueType::F32:
         return JS::Value(static_cast<double>(wasm_value.to<float>().value()));
     case Wasm::ValueType::FunctionReference: {
-        auto address = wasm_value.to<Wasm::Reference::Func>().value().address;
+        auto ref_ = *wasm_value.to<Wasm::Reference>();
+        if (ref_.ref().has<Wasm::Reference::Null>())
+            return JS::js_null();
+        auto address = ref_.ref().get<Wasm::Reference::Func>().address;
         auto& cache = get_cache(realm);
         auto* function = cache.abstract_machine().store().get(address);
         auto name = function->visit(
