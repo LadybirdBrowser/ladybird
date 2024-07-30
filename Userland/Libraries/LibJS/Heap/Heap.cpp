@@ -22,6 +22,7 @@
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/WeakContainer.h>
 #include <LibJS/SafeFunction.h>
+#include <LibThreading/WorkStealingThreadPool.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -371,18 +372,13 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
 
 class MarkingVisitor final : public Cell::Visitor {
 public:
-    explicit MarkingVisitor(Heap& heap, HashMap<Cell*, HeapRoot> const& roots)
-        : m_heap(heap)
+    explicit MarkingVisitor(NonnullGCPtr<Cell>& root, Function<void(NonnullGCPtr<Cell>)> const& submit, HashTable<HeapBlock*> const& all_live_block, FlatPtr min_block_address, FlatPtr max_block_address)
+        : m_submit(submit)
+        , m_all_live_heap_blocks(all_live_block)
+        , m_min_block_address(min_block_address)
+        , m_max_block_address(max_block_address)
     {
-        m_heap.find_min_and_max_block_addresses(m_min_block_address, m_max_block_address);
-        m_heap.for_each_block([&](auto& block) {
-            m_all_live_heap_blocks.set(&block);
-            return IterationDecision::Continue;
-        });
-
-        for (auto* root : roots.keys()) {
-            visit(root);
-        }
+        root->visit_edges(*this);
     }
 
     virtual void visit_impl(Cell& cell) override
@@ -392,7 +388,7 @@ public:
         dbgln_if(HEAP_DEBUG, "  ! {}", &cell);
 
         cell.set_marked(true);
-        m_work_queue.append(cell);
+        m_submit(cell);
     }
 
     virtual void visit_possible_values(ReadonlyBytes bytes) override
@@ -409,32 +405,45 @@ public:
             if (cell->state() != Cell::State::Live)
                 return;
             cell->set_marked(true);
-            m_work_queue.append(*cell);
+            m_submit(*cell);
         });
     }
 
-    void mark_all_live_cells()
-    {
-        while (!m_work_queue.is_empty()) {
-            m_work_queue.take_last()->visit_edges(*this);
-        }
-    }
-
 private:
-    Heap& m_heap;
-    Vector<NonnullGCPtr<Cell>> m_work_queue;
-    HashTable<HeapBlock*> m_all_live_heap_blocks;
-    FlatPtr m_min_block_address;
-    FlatPtr m_max_block_address;
+    Function<void(NonnullGCPtr<Cell>)> const& m_submit;
+    HashTable<HeapBlock*> const& m_all_live_heap_blocks;
+    FlatPtr const m_min_block_address;
+    FlatPtr const m_max_block_address;
 };
 
 void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
 {
     dbgln_if(HEAP_DEBUG, "mark_live_cells:");
 
-    MarkingVisitor visitor(*this, roots);
+    HashTable<HeapBlock*> all_live_block;
+    FlatPtr min_block_address;
+    FlatPtr max_block_address;
 
-    visitor.mark_all_live_cells();
+    find_min_and_max_block_addresses(min_block_address, max_block_address);
+    for_each_block([&all_live_block](auto& block) {
+        all_live_block.set(&block);
+        return IterationDecision::Continue;
+    });
+
+    auto marking_threads = Threading::WorkStealingThreadPool<NonnullGCPtr<Cell>> {
+        [&all_live_block = static_cast<HashTable<HeapBlock*> const&>(all_live_block),
+            min_block_address,
+            max_block_address](Function<void(NonnullGCPtr<Cell>)> submit, NonnullGCPtr<Cell> root) {
+            MarkingVisitor visitor(root, submit, all_live_block, min_block_address, max_block_address);
+        }
+    };
+
+    for (auto* root : roots.keys()) {
+        root->set_marked(true);
+        marking_threads.submit(*root);
+    }
+
+    marking_threads.wait_for_all();
 
     for (auto& inverse_root : m_uprooted_cells)
         inverse_root->set_marked(false);
