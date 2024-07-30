@@ -15,10 +15,10 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     StringView server_name,
     ReadonlySpan<ByteString> candidate_server_paths,
     Vector<ByteString> arguments,
-    Ladybird::EnableCallgrindProfiling enable_callgrind_profiling,
+    WebView::EnableCallgrindProfiling enable_callgrind_profiling,
     ClientArguments&&... client_arguments)
 {
-    if (enable_callgrind_profiling == Ladybird::EnableCallgrindProfiling::Yes) {
+    if (enable_callgrind_profiling == WebView::EnableCallgrindProfiling::Yes) {
         arguments.prepend({
             "--tool=callgrind"sv,
             "--instr-atstart=no"sv,
@@ -29,7 +29,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     for (auto [i, path] : enumerate(candidate_server_paths)) {
         Core::ProcessSpawnOptions options { .name = server_name, .arguments = arguments };
 
-        if (enable_callgrind_profiling == Ladybird::EnableCallgrindProfiling::Yes) {
+        if (enable_callgrind_profiling == WebView::EnableCallgrindProfiling::Yes) {
             options.executable = "valgrind"sv;
             options.search_for_executable_in_path = true;
             arguments[2] = path;
@@ -47,7 +47,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 
             WebView::Application::the().add_child_process(WebView::Process { WebView::process_type_from_name(server_name), process.client, move(process.process) });
 
-            if (enable_callgrind_profiling == Ladybird::EnableCallgrindProfiling::Yes) {
+            if (enable_callgrind_profiling == WebView::EnableCallgrindProfiling::Yes) {
                 dbgln();
                 dbgln("\033[1;45mLaunched {} process under callgrind!\033[0m", server_name);
                 dbgln("\033[100mRun `\033[4mcallgrind_control -i on\033[24m` to start instrumentation and `\033[4mcallgrind_control -i off\033[24m` stop it again.\033[0m");
@@ -69,10 +69,11 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     WebView::ViewImplementation& view,
     ReadonlySpan<ByteString> candidate_web_content_paths,
-    Ladybird::WebContentOptions const& web_content_options,
     IPC::File image_decoder_socket,
     Optional<IPC::File> request_server_socket)
 {
+    auto const& web_content_options = WebView::Application::web_content_options();
+
     Vector<ByteString> arguments {
         "--command-line"sv,
         web_content_options.command_line.to_byte_string(),
@@ -84,19 +85,19 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
         arguments.append("--config-path"sv);
         arguments.append(web_content_options.config_path.value());
     }
-    if (web_content_options.is_layout_test_mode == Ladybird::IsLayoutTestMode::Yes)
+    if (web_content_options.is_layout_test_mode == WebView::IsLayoutTestMode::Yes)
         arguments.append("--layout-test-mode"sv);
-    if (web_content_options.use_lagom_networking == Ladybird::UseLagomNetworking::Yes)
+    if (web_content_options.use_lagom_networking == WebView::UseLagomNetworking::Yes)
         arguments.append("--use-lagom-networking"sv);
-    if (web_content_options.wait_for_debugger == Ladybird::WaitForDebugger::Yes)
+    if (web_content_options.wait_for_debugger == WebView::WaitForDebugger::Yes)
         arguments.append("--wait-for-debugger"sv);
-    if (web_content_options.log_all_js_exceptions == Ladybird::LogAllJSExceptions::Yes)
+    if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
         arguments.append("--log-all-js-exceptions"sv);
-    if (web_content_options.enable_idl_tracing == Ladybird::EnableIDLTracing::Yes)
+    if (web_content_options.enable_idl_tracing == WebView::EnableIDLTracing::Yes)
         arguments.append("--enable-idl-tracing"sv);
-    if (web_content_options.enable_http_cache == Ladybird::EnableHTTPCache::Yes)
+    if (web_content_options.enable_http_cache == WebView::EnableHTTPCache::Yes)
         arguments.append("--enable-http-cache"sv);
-    if (web_content_options.expose_internals_object == Ladybird::ExposeInternalsObject::Yes)
+    if (web_content_options.expose_internals_object == WebView::ExposeInternalsObject::Yes)
         arguments.append("--expose-internals-object"sv);
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
@@ -121,7 +122,7 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
         arguments.append(server.value());
     }
 
-    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, arguments, Ladybird::EnableCallgrindProfiling::No);
+    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, arguments, WebView::EnableCallgrindProfiling::No);
 }
 
 ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, RefPtr<Protocol::RequestClient> request_client)
@@ -132,13 +133,13 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Rea
         arguments.append("--request-server-socket"sv);
         arguments.append(ByteString::number(socket.fd()));
         arguments.append("--use-lagom-networking"sv);
-        return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), Ladybird::EnableCallgrindProfiling::No);
+        return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), WebView::EnableCallgrindProfiling::No);
     }
 
-    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), Ladybird::EnableCallgrindProfiling::No);
+    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments), WebView::EnableCallgrindProfiling::No);
 }
 
-ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(ReadonlySpan<ByteString> candidate_request_server_paths, StringView serenity_resource_root, Vector<ByteString> const& certificates)
+ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(ReadonlySpan<ByteString> candidate_request_server_paths, StringView serenity_resource_root)
 {
     Vector<ByteString> arguments;
 
@@ -147,7 +148,7 @@ ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(Re
         arguments.append(serenity_resource_root);
     }
 
-    for (auto const& certificate : certificates)
+    for (auto const& certificate : WebView::Application::chrome_options().certificates)
         arguments.append(ByteString::formatted("--certificate={}", certificate));
 
     if (auto server = mach_server_name(); server.has_value()) {
@@ -155,7 +156,7 @@ ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(Re
         arguments.append(server.value());
     }
 
-    return launch_server_process<Protocol::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments), Ladybird::EnableCallgrindProfiling::No);
+    return launch_server_process<Protocol::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments), WebView::EnableCallgrindProfiling::No);
 }
 
 ErrorOr<IPC::File> connect_new_request_server_client(Protocol::RequestClient& client)

@@ -6,7 +6,11 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <LibCore/EventLoop.h>
+#include <LibMain/Main.h>
+#include <LibURL/URL.h>
+#include <LibWebView/Options.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
 
@@ -22,12 +26,14 @@ class Application {
     AK_MAKE_NONCOPYABLE(Application);
 
 public:
-    Application(int argc, char** argv);
     virtual ~Application();
 
-    int exec();
+    int execute();
 
     static Application& the() { return *s_the; }
+
+    static ChromeOptions const& chrome_options() { return the().m_chrome_options; }
+    static WebContentOptions const& web_content_options() { return the().m_web_content_options; }
 
     Core::EventLoop& event_loop() { return m_event_loop; }
 
@@ -44,10 +50,29 @@ public:
     String generate_process_statistics_html();
 
 protected:
+    template<DerivedFrom<Application> ApplicationType>
+    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url)
+    {
+        auto app = adopt_own(*new ApplicationType { {}, arguments });
+        app->initialize(arguments, move(new_tab_page_url));
+
+        return app;
+    }
+
+    Application();
+
     virtual void process_did_exit(Process&&);
 
+    virtual void create_platform_arguments(Core::ArgsParser&) { }
+    virtual void create_platform_options(ChromeOptions&, WebContentOptions&) { }
+
 private:
+    void initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url);
+
     static Application* s_the;
+
+    ChromeOptions m_chrome_options;
+    WebContentOptions m_web_content_options;
 
     Core::EventLoop m_event_loop;
     ProcessManager m_process_manager;
@@ -55,3 +80,12 @@ private:
 } SWIFT_IMMORTAL_REFERENCE;
 
 }
+
+#define WEB_VIEW_APPLICATION(ApplicationType)                                                           \
+public:                                                                                                 \
+    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url) \
+    {                                                                                                   \
+        return WebView::Application::create<ApplicationType>(arguments, move(new_tab_page_url));        \
+    }                                                                                                   \
+                                                                                                        \
+    ApplicationType(Badge<WebView::Application>, Main::Arguments&);

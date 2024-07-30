@@ -6,48 +6,84 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
+#include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Vector.h>
+#include <LibURL/URL.h>
 
-namespace Ladybird {
+namespace WebView {
+
+enum class NewWindow {
+    No,
+    Yes,
+};
+
+enum class ForceNewProcess {
+    No,
+    Yes,
+};
+
+enum class AllowPopups {
+    No,
+    Yes,
+};
+
+enum class DisableSQLDatabase {
+    No,
+    Yes,
+};
+
+struct ChromeOptions {
+    Vector<URL::URL> urls;
+    Vector<ByteString> raw_urls;
+    URL::URL new_tab_page_url;
+    Vector<ByteString> certificates {};
+    NewWindow new_window { NewWindow::No };
+    ForceNewProcess force_new_process { ForceNewProcess::No };
+    AllowPopups allow_popups { AllowPopups::No };
+    DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
+    Optional<ByteString> webdriver_content_ipc_path {};
+};
 
 enum class EnableCallgrindProfiling {
     No,
-    Yes
+    Yes,
 };
 
 enum class IsLayoutTestMode {
     No,
-    Yes
+    Yes,
 };
 
 enum class UseLagomNetworking {
     No,
-    Yes
+    Yes,
 };
 
 enum class WaitForDebugger {
     No,
-    Yes
+    Yes,
 };
 
 enum class LogAllJSExceptions {
     No,
-    Yes
+    Yes,
 };
 
 enum class EnableIDLTracing {
     No,
-    Yes
+    Yes,
 };
 
 enum class EnableHTTPCache {
     No,
-    Yes
+    Yes,
 };
 
 enum class ExposeInternalsObject {
     No,
-    Yes
+    Yes,
 };
 
 struct WebContentOptions {

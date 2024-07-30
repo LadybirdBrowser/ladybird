@@ -14,6 +14,7 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/MultiServer.h>
+#include <LibWebView/Options.h>
 #include <LibWebView/UIProcessClientEndpoint.h>
 #include <LibWebView/UIProcessServerEndpoint.h>
 
@@ -28,8 +29,8 @@ public:
 
     virtual void die() override;
 
-    Function<void(Vector<ByteString> const& urls)> on_new_tab;
-    Function<void(Vector<ByteString> const& urls)> on_new_window;
+    Function<void(Vector<URL::URL> const&)> on_new_tab;
+    Function<void(Vector<URL::URL> const&)> on_new_window;
 
 private:
     UIProcessConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>, int client_id);
@@ -51,15 +52,15 @@ public:
     static ErrorOr<ChromeProcess> create();
     ~ChromeProcess();
 
-    ErrorOr<ProcessDisposition> connect(Vector<ByteString> const& raw_urls, bool new_window);
+    ErrorOr<ProcessDisposition> connect(Vector<ByteString> const& raw_urls, NewWindow new_window);
 
-    Function<void(Vector<ByteString> const& raw_urls)> on_new_tab;
-    Function<void(Vector<ByteString> const& raw_urls)> on_new_window;
+    Function<void(Vector<URL::URL> const&)> on_new_tab;
+    Function<void(Vector<URL::URL> const&)> on_new_window;
 
 private:
     ChromeProcess() = default;
 
-    ErrorOr<void> connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, bool new_window);
+    ErrorOr<void> connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window);
     ErrorOr<void> connect_as_server(ByteString const& socket_path);
 
     OwnPtr<IPC::MultiServer<UIProcessConnectionFromClient>> m_server_connection;

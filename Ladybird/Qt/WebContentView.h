@@ -11,7 +11,6 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
-#include <Ladybird/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/StandardCursor.h>
@@ -46,7 +45,7 @@ class WebContentView final
     , public WebView::ViewImplementation {
     Q_OBJECT
 public:
-    WebContentView(QWidget* window, WebContentOptions const&, StringView webdriver_content_ipc_path, RefPtr<WebView::WebContentClient> parent_client = nullptr, size_t page_index = 0);
+    WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, size_t page_index = 0);
     virtual ~WebContentView() override;
 
     Function<String(const URL::URL&, Web::HTML::ActivateTab)> on_tab_open_request;
@@ -85,8 +84,6 @@ public:
 
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
-    WebContentOptions const& web_content_options() const { return m_web_content_options; }
-
 signals:
     void urls_dropped(QList<QUrl> const&);
 
@@ -113,9 +110,6 @@ private:
     bool m_should_show_line_box_borders { false };
 
     Gfx::IntSize m_viewport_size;
-
-    WebContentOptions m_web_content_options;
-    StringView m_webdriver_content_ipc_path;
 };
 
 }

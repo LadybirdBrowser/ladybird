@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
-#include <AK/Vector.h>
 #include <LibIPC/Forward.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/Forward.h>
 
 namespace Ladybird {
@@ -16,12 +16,13 @@ namespace Ladybird {
 struct ApplicationBridgeImpl;
 class WebViewBridge;
 
-class ApplicationBridge {
+class ApplicationBridge : public WebView::Application {
+    WEB_VIEW_APPLICATION(ApplicationBridge)
+
 public:
-    ApplicationBridge();
     ~ApplicationBridge();
 
-    ErrorOr<void> launch_request_server(Vector<ByteString> const& certificates);
+    ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder();
     ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content(WebViewBridge&);
     ErrorOr<IPC::File> launch_web_worker();

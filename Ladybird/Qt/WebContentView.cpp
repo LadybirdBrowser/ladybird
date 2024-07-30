@@ -30,6 +30,7 @@
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/WebContentClient.h>
 #include <QApplication>
 #include <QCursor>
@@ -50,10 +51,8 @@ namespace Ladybird {
 
 bool is_using_dark_system_theme(QWidget&);
 
-WebContentView::WebContentView(QWidget* window, WebContentOptions const& web_content_options, StringView webdriver_content_ipc_path, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
+WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
     : QAbstractScrollArea(window)
-    , m_web_content_options(web_content_options)
-    , m_webdriver_content_ipc_path(webdriver_content_ipc_path)
 {
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -133,7 +132,7 @@ WebContentView::WebContentView(QWidget* window, WebContentOptions const& web_con
 
     on_request_worker_agent = [&]() {
         RefPtr<Protocol::RequestClient> request_server_client {};
-        if (m_web_content_options.use_lagom_networking == Ladybird::UseLagomNetworking::Yes)
+        if (WebView::Application::web_content_options().use_lagom_networking == WebView::UseLagomNetworking::Yes)
             request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
 
         auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), request_server_client));
@@ -574,7 +573,7 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
         m_client_state = {};
 
         Optional<IPC::File> request_server_socket;
-        if (m_web_content_options.use_lagom_networking == UseLagomNetworking::Yes) {
+        if (WebView::Application::web_content_options().use_lagom_networking == WebView::UseLagomNetworking::Yes) {
             auto& protocol = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
 
             // FIXME: Fail to open the tab, rather than crashing the whole application if this fails
@@ -586,7 +585,7 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
         auto image_decoder_socket = connect_new_image_decoder_client(*image_decoder).release_value_but_fixme_should_propagate_errors();
 
         auto candidate_web_content_paths = get_paths_for_helper_process("WebContent"sv).release_value_but_fixme_should_propagate_errors();
-        auto new_client = launch_web_content_process(*this, candidate_web_content_paths, m_web_content_options, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
+        auto new_client = launch_web_content_process(*this, candidate_web_content_paths, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
 
         m_client_state.client = new_client;
     } else {
@@ -607,8 +606,8 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
 
     update_screen_rects();
 
-    if (!m_webdriver_content_ipc_path.is_empty())
-        client().async_connect_to_webdriver(m_client_state.page_index, m_webdriver_content_ipc_path);
+    if (auto webdriver_content_ipc_path = WebView::Application::chrome_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())
+        client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
 }
 
 void WebContentView::update_cursor(Gfx::StandardCursor cursor)

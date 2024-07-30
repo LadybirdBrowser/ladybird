@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <Ladybird/Types.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
@@ -22,12 +21,10 @@ namespace Ladybird {
 
 class WebViewBridge final : public WebView::ViewImplementation {
 public:
-    static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const&, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast, Web::CSS::PreferredMotion);
+    static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast, Web::CSS::PreferredMotion);
     virtual ~WebViewBridge() override;
 
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes) override;
-
-    WebContentOptions const& web_content_options() const { return m_web_content_options; }
 
     float device_pixel_ratio() const { return m_device_pixel_ratio; }
     void set_device_pixel_ratio(float device_pixel_ratio);
@@ -59,7 +56,7 @@ public:
     Function<void()> on_zoom_level_changed;
 
 private:
-    WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const&, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast, Web::CSS::PreferredMotion);
+    WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, Web::CSS::PreferredColorScheme, Web::CSS::PreferredContrast, Web::CSS::PreferredMotion);
 
     virtual void update_zoom() override;
     virtual Web::DevicePixelSize viewport_size() const override;
@@ -68,9 +65,6 @@ private:
 
     Vector<Web::DevicePixelRect> m_screen_rects;
     Gfx::IntSize m_viewport_size;
-
-    WebContentOptions m_web_content_options;
-    Optional<StringView> m_webdriver_content_ipc_path;
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::Auto };

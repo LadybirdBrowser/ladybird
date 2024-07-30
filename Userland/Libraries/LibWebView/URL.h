@@ -20,6 +20,7 @@ enum class AppendTLD {
     Yes,
 };
 Optional<URL::URL> sanitize_url(StringView, Optional<StringView> search_engine = {}, AppendTLD = AppendTLD::No);
+Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const& new_tab_page_url);
 
 struct URLParts {
     StringView scheme_and_subdomain;

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWebView/Application.h>
 #include <LibWebView/SearchEngine.h>
 
 #import <Application/ApplicationDelegate.h>
@@ -29,14 +30,8 @@
 
 @interface ApplicationDelegate () <TaskManagerDelegate>
 {
-    Vector<URL::URL> m_initial_urls;
-    URL::URL m_new_tab_page_url;
-
     // This will always be populated, but we cannot have a non-default constructible instance variable.
     OwnPtr<WebView::CookieJar> m_cookie_jar;
-
-    Ladybird::WebContentOptions m_web_content_options;
-    Optional<StringView> m_webdriver_content_ipc_path;
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
     Web::CSS::PreferredContrast m_preferred_contrast;
@@ -44,8 +39,6 @@
     ByteString m_navigator_compatibility_mode;
 
     WebView::SearchEngine m_search_engine;
-
-    BOOL m_allow_popups;
 }
 
 @property (nonatomic, strong) NSMutableArray<TabController*>* managed_tabs;
@@ -68,12 +61,7 @@
 
 @implementation ApplicationDelegate
 
-- (instancetype)init:(Vector<URL::URL>)initial_urls
-              newTabPageURL:(URL::URL)new_tab_page_url
-              withCookieJar:(NonnullOwnPtr<WebView::CookieJar>)cookie_jar
-          webContentOptions:(Ladybird::WebContentOptions const&)web_content_options
-    webdriverContentIPCPath:(StringView)webdriver_content_ipc_path
-                allowPopups:(BOOL)allow_popups
+- (instancetype)initWithCookieJar:(NonnullOwnPtr<WebView::CookieJar>)cookie_jar
 {
     if (self = [super init]) {
         [NSApp setMainMenu:[[NSMenu alloc] init]];
@@ -91,24 +79,13 @@
 
         self.managed_tabs = [[NSMutableArray alloc] init];
 
-        m_initial_urls = move(initial_urls);
-        m_new_tab_page_url = move(new_tab_page_url);
-
         m_cookie_jar = move(cookie_jar);
-
-        m_web_content_options = web_content_options;
-
-        if (!webdriver_content_ipc_path.is_empty()) {
-            m_webdriver_content_ipc_path = webdriver_content_ipc_path;
-        }
 
         m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Auto;
         m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
         m_preferred_motion = Web::CSS::PreferredMotion::Auto;
         m_navigator_compatibility_mode = "chrome";
         m_search_engine = WebView::default_search_engine();
-
-        m_allow_popups = allow_popups;
 
         // Reduce the tooltip delay, as the default delay feels quite long.
         [[NSUserDefaults standardUserDefaults] setObject:@100 forKey:@"NSInitialToolTipDelay"];
@@ -124,7 +101,7 @@
                    activateTab:(Web::HTML::ActivateTab)activate_tab
 {
     auto* controller = [self createNewTab:activate_tab fromTab:tab];
-    [controller loadURL:url.value_or(m_new_tab_page_url)];
+    [controller loadURL:url.value_or(WebView::Application::chrome_options().new_tab_page_url)];
 
     return controller;
 }
@@ -166,16 +143,6 @@
     return *m_cookie_jar;
 }
 
-- (Ladybird::WebContentOptions const&)webContentOptions
-{
-    return m_web_content_options;
-}
-
-- (Optional<StringView> const&)webdriverContentIPCPath
-{
-    return m_webdriver_content_ipc_path;
-}
-
 - (Web::CSS::PreferredColorScheme)preferredColorScheme
 {
     return m_preferred_color_scheme;
@@ -213,7 +180,7 @@
 - (nonnull TabController*)createNewTab:(Web::HTML::ActivateTab)activate_tab
                                fromTab:(nullable Tab*)tab
 {
-    auto* controller = [[TabController alloc] init:!m_allow_popups];
+    auto* controller = [[TabController alloc] init];
     [controller showWindow:nil];
 
     if (tab) {
@@ -740,7 +707,7 @@
 {
     Tab* tab = nil;
 
-    for (auto const& url : m_initial_urls) {
+    for (auto const& url : WebView::Application::chrome_options().urls) {
         auto activate_tab = tab == nil ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No;
 
         auto* controller = [self createNewTab:url
@@ -749,8 +716,6 @@
 
         tab = (Tab*)[controller window];
     }
-
-    m_initial_urls.clear();
 }
 
 - (void)applicationWillTerminate:(NSNotification*)notification

@@ -1,10 +1,9 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteString.h>
 #include <Application/ApplicationBridge.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ThreadEventQueue.h>
@@ -25,20 +24,17 @@
 
 @implementation Application
 
-- (instancetype)init
-{
-    if (self = [super init]) {
-        m_application_bridge = make<Ladybird::ApplicationBridge>();
-    }
-
-    return self;
-}
-
 #pragma mark - Public methods
 
-- (ErrorOr<void>)launchRequestServer:(Vector<ByteString> const&)certificates
+- (void)setupWebViewApplication:(Main::Arguments&)arguments
+                  newTabPageURL:(URL::URL)new_tab_page_url
 {
-    return m_application_bridge->launch_request_server(certificates);
+    m_application_bridge = Ladybird::ApplicationBridge::create(arguments, move(new_tab_page_url));
+}
+
+- (ErrorOr<void>)launchRequestServer
+{
+    return m_application_bridge->launch_request_server();
 }
 
 - (ErrorOr<void>)launchImageDecoder

@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <Ladybird/HelperProcess.h>
-#include <Ladybird/Types.h>
 #include <Ladybird/Utilities.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/File.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWebView/Application.h>
 #include <UI/LadybirdWebViewBridge.h>
 
 #import <UI/Palette.h>
@@ -23,15 +23,13 @@ static T scale_for_device(T size, float device_pixel_ratio)
     return size.template to_type<float>().scaled(device_pixel_ratio).template to_type<int>();
 }
 
-ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast, Web::CSS::PreferredMotion preferred_motion)
+ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast, Web::CSS::PreferredMotion preferred_motion)
 {
-    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, web_content_options, move(webdriver_content_ipc_path), preferred_color_scheme, preferred_contrast, preferred_motion));
+    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, preferred_color_scheme, preferred_contrast, preferred_motion));
 }
 
-WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, WebContentOptions const& web_content_options, Optional<StringView> webdriver_content_ipc_path, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast, Web::CSS::PreferredMotion preferred_motion)
+WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, Web::CSS::PreferredColorScheme preferred_color_scheme, Web::CSS::PreferredContrast preferred_contrast, Web::CSS::PreferredMotion preferred_motion)
     : m_screen_rects(move(screen_rects))
-    , m_web_content_options(web_content_options)
-    , m_webdriver_content_ipc_path(move(webdriver_content_ipc_path))
     , m_preferred_color_scheme(preferred_color_scheme)
     , m_preferred_contrast(preferred_contrast)
     , m_preferred_motion(preferred_motion)
@@ -168,8 +166,8 @@ void WebViewBridge::initialize_client(CreateNewClient)
         client().async_update_screen_rects(m_client_state.page_index, m_screen_rects, 0);
     }
 
-    if (m_webdriver_content_ipc_path.has_value()) {
-        client().async_connect_to_webdriver(m_client_state.page_index, *m_webdriver_content_ipc_path);
+    if (auto const& webdriver_content_ipc_path = WebView::Application::chrome_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value()) {
+        client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
     }
 }
 

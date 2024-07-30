@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibWeb/Loader/UserAgent.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -82,7 +83,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 @synthesize new_tab_toolbar_item = _new_tab_toolbar_item;
 @synthesize tab_overview_toolbar_item = _tab_overview_toolbar_item;
 
-- (instancetype)init:(BOOL)block_popups
+- (instancetype)init
 {
     if (self = [super init]) {
         self.toolbar = [[NSToolbar alloc] initWithIdentifier:TOOLBAR_IDENTIFIER];
@@ -91,7 +92,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [self.toolbar setAllowsUserCustomization:NO];
         [self.toolbar setSizeMode:NSToolbarSizeModeRegular];
 
-        m_settings = { .block_popups = block_popups };
+        m_settings = { .block_popups = WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::Yes ? NO : YES };
         m_can_navigate_back = false;
         m_can_navigate_forward = false;
     }
