@@ -129,6 +129,15 @@ ErrorOr<void> code_point_to_utf16(Utf16Data& string, u32 code_point, Endianness 
     return {};
 }
 
+size_t utf16_code_unit_length_from_utf8(StringView string)
+{
+    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
+    if (string.is_empty())
+        return 0;
+
+    return simdutf::utf16_length_from_utf8(string.characters_without_null_termination(), string.length());
+}
+
 bool Utf16View::is_high_surrogate(u16 code_unit)
 {
     return (code_unit >= high_surrogate_min) && (code_unit <= high_surrogate_max);

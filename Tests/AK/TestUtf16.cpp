@@ -89,6 +89,14 @@ TEST_CASE(decode_utf16)
     EXPECT_EQ(i, expected.size());
 }
 
+TEST_CASE(utf16_code_unit_length_from_utf8)
+{
+    EXPECT_EQ(AK::utf16_code_unit_length_from_utf8(""sv), 0uz);
+    EXPECT_EQ(AK::utf16_code_unit_length_from_utf8("abc"sv), 3uz);
+    EXPECT_EQ(AK::utf16_code_unit_length_from_utf8("😀"sv), 2uz);
+    EXPECT_EQ(AK::utf16_code_unit_length_from_utf8("Привет, мир! 😀 γειά σου κόσμος こんにちは世界"sv), 39uz);
+}
+
 TEST_CASE(null_view)
 {
     Utf16View view;
