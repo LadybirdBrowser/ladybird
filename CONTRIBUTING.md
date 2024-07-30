@@ -4,6 +4,8 @@ When contributing to Ladybird, make sure that the changes you wish to make are i
 
 **For your first couple of PRs, start with something small to get familiar with the project and its development processes. Please do not start by adding a large component.**
 
+Read [the Ladybird documentation](https://github.com/LadybirdBrowser/ladybird/blob/master/CONTRIBUTING.md), including the documents in the **Development** section of the `Documentation/README.md` file.
+
 Everyone is welcome to work on the project, and while we have lots of fun, it's a serious kind of fun. :^)
 
 ## Communication

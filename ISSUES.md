@@ -1,32 +1,7 @@
-# Detailed issue-reporting guidelines
+# Issue-reporting guidelines
 
-When reporting an issue, you should should try to provide:
-
-1. Succinct prose description of the problem (in addition to the issue title).
-
-2. Exact steps for reproducing the problem.
-
-3. Description of what you expect to see happen (the expected behavior) when you follow those steps.
-
-4. Description of what actually happens instead (the actual behavior) when you follow those steps.
-
-5. Either:
-
-   * The URL for a [reduced test case](#how-you-can-write-a-reduced-test-case) that reproduces the problem (e.g., using a site such as https://codepen.io/pen/, https://jsbin.com, or https://jsfiddle.net), or else at least the URL for a website/page that causes the problem.
-
-   * The HTML source for a reduced test case that reproduces the problem.
-
-6. Backtrace and Ladybird log output.
-
-7. Screenshot or screen recording.
-
-8. Operating system (Linux/macOS/Window/Android) in which you’re building or running Ladybird.
-
-9. Browser chrome of the build (Qt/AppKit/AndroidUI).
-
-10. Config/build flags you’re building with.
-
-11. Whether you’re interested yourself in trying to write a patch/PR with the fix for the problem.
+Report problems using our detailed [bug-reporting
+form](https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml), which helps to ensure that, for us to reproduce and investigate the problem, your bug report includes the information needed — including a reduced test case.
 
 ## How you can write a reduced test case
 
@@ -46,7 +21,7 @@ Here’s how you can do that:
    <base href="https://ladybird.org/">
    ```
 
-    However, if the problem appears be caused not by anything in the source of the document itself, but instead by something in an external script or external stylesheet, then you’ll also need to create a local copy of the problem script or problem stylesheet.
+    However, if the problem appears to be caused not by anything in the source of the document itself, but instead by something in an external script or external stylesheet, then you’ll also need to create a local copy of the problem script or problem stylesheet.
 
 3. Open/load the `REDUCTION.html` file in Ladybird, and verify that the same problem occurs with it as occurs with the original website/page you copied it from.
 
