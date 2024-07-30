@@ -1,0 +1,116 @@
+name: Report a bug
+description: Create a report to help us reproduce and fix a bug.
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the problem in 1 or 2 short sentences.
+      placeholder: When I … in Ladybird, …
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Android
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      description: Describe the exact steps we can follow to reproduce the problem.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: Describe what you expected to happen when you followed [the steps you described above](#description-reproduction-steps).
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      description: Describe what actually happened when you followed [the steps you described above](#description-reproduction-steps).
+    validations:
+      required: true
+  - type: markdown
+    id: reduced-test-case
+    attributes:
+      value: |
+        &nbsp; <!-- add some vertical whitespace -->
+        ## Reduced test case
+        Either provide the URL for a [reduced test case](https://github.com/LadybirdBrowser/ladybird/blob/master/ISSUES.md#how-you-can-write-a-reduced-test-case) that reproduces the problem, or else HTML/SVG/etc. source for a reduced test case.
+        > [!IMPORTANT]
+        > A [reduced test case](https://github.com/LadybirdBrowser/ladybird/blob/master/ISSUES.md#how-you-can-write-a-reduced-test-case) may be the most important thing you can give us; without it, we’re much less likely to isolate the cause.
+  - type: input
+    id: reduced-test-case-url
+    attributes:
+      label: URL for a reduced test case
+      description: |
+        Provide the URL for a [reduced test case](https://github.com/LadybirdBrowser/ladybird/blob/master/ISSUES.md#how-you-can-write-a-reduced-test-case) that reproduces the problem (e.g., using a site such as [CodePen](https://codepen.io/pen/), [JS Bin](https://jsbin.com), or [JSFiddle](https://jsfiddle.net)). Or if you don’t have a [reduced test case](https://github.com/LadybirdBrowser/ladybird/blob/master/ISSUES.md#how-you-can-write-a-reduced-test-case), at least provide the URL for a website/page that causes the problem. Otherwise just enter `N/A` here.
+    validations:
+      required: true
+  - type: textarea
+    id: reduced-test-case-source
+    attributes:
+      label: HTML/SVG/etc. source for a reduced test case
+      description: If you’ve not provided the URL for a [reduced test case](https://github.com/LadybirdBrowser/ladybird/blob/master/ISSUES.md#how-you-can-write-a-reduced-test-case) that reproduces the problem, then paste in below the HTML/SVG/etc. source for a reduced test case. Otherwise just enter `N/A` here. What you paste in will be formatted as a code block — so, no need to put code fence backticks around it.
+      value:
+      render: html
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        &nbsp; <!-- add some vertical whitespace -->
+  - type: textarea
+    id: log-output
+    attributes:
+      label: |
+        Log output and (if possible) backtrace
+      description: |
+        Copy and paste the full log output from Ladybird — including error messages — as well as any backtrace that Ladybird reported.
+        What you paste in will be formatted as a code block — so, no need to put code fence backticks around it.
+      value:
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or screen recordings
+      description: Drag and drop in below any screenshots or screen recordings you’ve made which show the problem.
+  - type: textarea
+    id: build-flags
+    attributes:
+      label: Build flags or config settings
+      description: If you’re building with any non-default build flags or other non-default config settings in your environment, list them out below.
+  - type: checkboxes
+    id: will-patch
+    attributes:
+      label: Contribute a patch?
+      description: |
+        If you plan to contribute patch for this issue yourself, please check the box below — to tell us and others looking at the issue that someone’s already working on it. If you do check this box, please try to send a pull request within 7 days or so.
+      options:
+        - label: I’ll contribute a patch for this myself.
+  - type: markdown
+    attributes:
+      value: |
+        &nbsp; <!-- add some vertical whitespace -->
+        ## :heart: Become a Ladybird supporter
+
+        Ladybird is funded entirely by sponsorships and donations from people and companies who care about the open web.\
+        We accept one-time and recurring monthly donations via [**Donorbox**](https://donorbox.org/ladybird).
+        &nbsp; <!-- add some vertical whitespace -->
