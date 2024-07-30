@@ -1459,6 +1459,10 @@ private:
             // FIXME: Implement must-understand cache directive
         }
 
+        // FIXME: This is just for now, ad-hoc — not adhering to any particular spec.
+        if (response.status() == 301 || response.status() == 302 || response.status() == 303 || response.status() == 307 || response.status() == 308)
+            return false;
+
         // - the no-store cache directive is not present in the response (see Section 5.2.2.5);
         if (request.cache_mode() == Infrastructure::Request::CacheMode::NoStore)
             return false;
