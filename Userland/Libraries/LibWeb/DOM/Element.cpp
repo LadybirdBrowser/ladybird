@@ -551,40 +551,30 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     else
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
 
+    if (!invalidation.is_none())
+        set_computed_css_values(move(new_computed_css_values));
+
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
-    // So determine if any pseudo-elements currently exist, or should now exist, and if so, invalidate everything.
-    // (If we're already invalidating everything, we don't need to do further checks for this.)
-    if (!invalidation.is_full()) {
-        bool pseudo_elements_dirty = false;
+    for (auto i = 0; i < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount); i++) {
+        style_computer.push_ancestor(*this);
 
-        if (m_pseudo_element_data) {
-            for (auto& pseudo_element : *m_pseudo_element_data) {
-                if (pseudo_element.layout_node) {
-                    pseudo_elements_dirty = true;
-                    break;
-                }
-            }
-        }
+        auto pseudo_element = static_cast<CSS::Selector::PseudoElement::Type>(i);
+        auto pseudo_element_style = pseudo_element_computed_css_values(pseudo_element);
+        auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed(*this, pseudo_element);
 
-        if (!pseudo_elements_dirty) {
-            for (auto i = 0; i < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount); i++) {
-                auto style = style_computer.compute_pseudo_element_style_if_needed(*this, static_cast<CSS::Selector::PseudoElement::Type>(i));
-                if (style) {
-                    pseudo_elements_dirty = true;
-                    break;
-                }
-            }
-        }
-
-        if (pseudo_elements_dirty)
+        // TODO: Can we be smarter about invalidation?
+        if (pseudo_element_style && new_pseudo_element_style) {
+            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style);
+        } else if (pseudo_element_style || new_pseudo_element_style) {
             invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
+        }
+
+        set_pseudo_element_computed_css_values(pseudo_element, move(new_pseudo_element_style));
+        style_computer.pop_ancestor(*this);
     }
 
     if (invalidation.is_none())
         return invalidation;
-
-    m_computed_css_values = move(new_computed_css_values);
-    computed_css_values_changed();
 
     if (invalidation.repaint)
         document().set_needs_to_resolve_paint_only_properties();
@@ -594,6 +584,24 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
         layout_node()->apply_style(*m_computed_css_values);
         if (invalidation.repaint && paintable())
             paintable()->set_needs_display();
+
+        // Do the same for pseudo-elements.
+        for (auto i = 0; i < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount); i++) {
+            auto pseudo_element_type = static_cast<CSS::Selector::PseudoElement::Type>(i);
+            auto pseudo_element = get_pseudo_element(pseudo_element_type);
+            if (!pseudo_element.has_value() || !pseudo_element->layout_node)
+                continue;
+
+            auto pseudo_element_style = pseudo_element_computed_css_values(pseudo_element_type);
+            if (!pseudo_element_style)
+                continue;
+
+            if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element->layout_node.ptr())) {
+                node_with_style->apply_style(*pseudo_element_style);
+                if (invalidation.repaint && node_with_style->paintable())
+                    node_with_style->paintable()->set_needs_display();
+            }
+        }
     }
 
     return invalidation;
@@ -2251,6 +2259,21 @@ void Element::set_computed_css_values(RefPtr<CSS::StyleProperties> style)
 {
     m_computed_css_values = move(style);
     computed_css_values_changed();
+}
+
+void Element::set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type pseudo_element, RefPtr<CSS::StyleProperties> style)
+{
+    if (!m_pseudo_element_data && !style)
+        return;
+    ensure_pseudo_element(pseudo_element).computed_css_values = move(style);
+}
+
+RefPtr<CSS::StyleProperties> Element::pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type type)
+{
+    auto pseudo_element = get_pseudo_element(type);
+    if (pseudo_element.has_value())
+        return pseudo_element->computed_css_values;
+    return nullptr;
 }
 
 Optional<Element::PseudoElement&> Element::get_pseudo_element(CSS::Selector::PseudoElement::Type type) const

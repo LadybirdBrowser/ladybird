@@ -188,6 +188,9 @@ public:
     void set_computed_css_values(RefPtr<CSS::StyleProperties>);
     NonnullRefPtr<CSS::StyleProperties> resolved_css_values();
 
+    void set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type, RefPtr<CSS::StyleProperties>);
+    RefPtr<CSS::StyleProperties> pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type);
+
     void reset_animated_css_properties();
 
     JS::GCPtr<CSS::ElementInlineCSSStyleDeclaration const> inline_style() const { return m_inline_style; }
@@ -451,6 +454,7 @@ private:
 
     struct PseudoElement {
         JS::GCPtr<Layout::Node> layout_node;
+        RefPtr<CSS::StyleProperties> computed_css_values;
         HashMap<FlyString, CSS::StyleProperty> custom_properties;
     };
     // TODO: CSS::Selector::PseudoElement::Type includes a lot of pseudo-elements that exist in shadow trees,
