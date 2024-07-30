@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16View.h>
 #include <LibWeb/Bindings/HTMLTextAreaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleProperties.h>
@@ -189,9 +190,7 @@ String HTMLTextAreaElement::api_value() const
 u32 HTMLTextAreaElement::text_length() const
 {
     // The textLength IDL attribute must return the length of the element's API value.
-    // FIXME: This is inefficient!
-    auto utf16_data = MUST(AK::utf8_to_utf16(api_value()));
-    return Utf16View { utf16_data }.length_in_code_units();
+    return AK::utf16_code_unit_length_from_utf8(api_value());
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
