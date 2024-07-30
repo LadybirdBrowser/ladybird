@@ -584,9 +584,13 @@ if (BUILD_TESTING)
         ../../Tests/LibWasm/test-wasm.cpp
         ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
     target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto)
+    set(wasm_test_root "${SERENITY_PROJECT_ROOT}")
+    if (INCLUDE_WASM_SPEC_TESTS)
+       set(wasm_test_root "${CMAKE_CURRENT_BINARY_DIR}")
+    endif()
     add_test(
         NAME Wasm
-        COMMAND test-wasm --show-progress=false ${CMAKE_CURRENT_BINARY_DIR}/Userland/Libraries/LibWasm/Tests
+        COMMAND test-wasm --show-progress=false "${wasm_test_root}/Userland/Libraries/LibWasm/Tests"
     )
 endif()
 
