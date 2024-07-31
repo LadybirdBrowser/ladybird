@@ -41,15 +41,18 @@ class WebAssemblyCache {
 public:
     void add_compiled_module(NonnullRefPtr<CompiledWebAssemblyModule> module) { m_compiled_modules.append(module); }
     void add_function_instance(Wasm::FunctionAddress address, JS::GCPtr<JS::NativeFunction> function) { m_function_instances.set(address, function); }
+    void add_imported_object(JS::GCPtr<JS::Object> object) { m_imported_objects.set(object); }
 
     Optional<JS::GCPtr<JS::NativeFunction>> get_function_instance(Wasm::FunctionAddress address) { return m_function_instances.get(address); }
 
     HashMap<Wasm::FunctionAddress, JS::GCPtr<JS::NativeFunction>> function_instances() const { return m_function_instances; }
+    HashTable<JS::GCPtr<JS::Object>> imported_objects() const { return m_imported_objects; }
     Wasm::AbstractMachine& abstract_machine() { return m_abstract_machine; }
 
 private:
     HashMap<Wasm::FunctionAddress, JS::GCPtr<JS::NativeFunction>> m_function_instances;
     Vector<NonnullRefPtr<CompiledWebAssemblyModule>> m_compiled_modules;
+    HashTable<JS::GCPtr<JS::Object>> m_imported_objects;
     Wasm::AbstractMachine m_abstract_machine;
 };
 
