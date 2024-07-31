@@ -342,8 +342,8 @@ void PageClient::page_did_create_new_document(Web::DOM::Document& document)
 
 void PageClient::page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document& document)
 {
-    VERIFY(m_console_clients.contains(document));
-    m_top_level_document_console_client = *m_console_clients.get(document).value();
+    if (auto console_client = m_console_clients.get(document); console_client.has_value())
+        m_top_level_document_console_client = *console_client.value();
 }
 
 void PageClient::page_did_destroy_document(Web::DOM::Document& document)
@@ -663,6 +663,9 @@ ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_p
 
 void PageClient::initialize_js_console(Web::DOM::Document& document)
 {
+    if (document.is_temporary_document_for_fragment_parsing())
+        return;
+
     auto& realm = document.realm();
     auto console_object = realm.intrinsics().console_object();
     auto console_client = heap().allocate_without_realm<WebContentConsoleClient>(console_object->console(), document.realm(), *this);
