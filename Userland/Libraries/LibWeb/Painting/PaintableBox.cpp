@@ -530,7 +530,6 @@ void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase ph
 
     if (clip_rect().has_value()) {
         auto overflow_clip_rect = clip_rect().value();
-        m_clipping_overflow = true;
         context.display_list_recorder().save();
         context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(overflow_clip_rect).to_type<int>());
         auto const& border_radii_clips = this->border_radii_clips();
@@ -551,8 +550,7 @@ void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase ph
     if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
         return;
 
-    if (m_clipping_overflow) {
-        m_clipping_overflow = false;
+    if (clip_rect().has_value()) {
         context.display_list_recorder().restore();
     }
 }
