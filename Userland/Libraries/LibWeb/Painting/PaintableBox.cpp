@@ -158,13 +158,12 @@ CSSPixelRect PaintableBox::compute_absolute_rect() const
     return rect;
 }
 
-CSSPixelRect PaintableBox::compute_absolute_padding_rect_with_css_transform_applied() const
+CSSPixelRect PaintableBox::compute_absolute_padding_rect_with_scroll_offset_applied() const
 {
     auto rect = absolute_rect();
     auto scroll_offset = this->enclosing_scroll_frame_offset();
     if (scroll_offset.has_value())
         rect.translate_by(scroll_offset.value());
-    rect.translate_by(combined_css_transform().translation().to_type<CSSPixels>());
 
     CSSPixelRect padding_rect;
     padding_rect.set_x(rect.x() - box_model().padding.left);
@@ -233,7 +232,9 @@ void PaintableBox::before_paint(PaintContext& context, [[maybe_unused]] PaintPha
     if (!is_visible())
         return;
 
-    apply_clip_overflow_rect(context, phase);
+    if (!has_css_transform()) {
+        apply_clip_overflow_rect(context, phase);
+    }
     apply_scroll_offset(context, phase);
 }
 
@@ -243,7 +244,9 @@ void PaintableBox::after_paint(PaintContext& context, [[maybe_unused]] PaintPhas
         return;
 
     reset_scroll_offset(context, phase);
-    clear_clip_overflow_rect(context, phase);
+    if (!has_css_transform()) {
+        clear_clip_overflow_rect(context, phase);
+    }
 }
 
 bool PaintableBox::is_scrollable(ScrollDirection direction) const
@@ -533,14 +536,12 @@ void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase ph
         context.display_list_recorder().save();
         context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(overflow_clip_rect).to_type<int>());
         auto const& border_radii_clips = this->border_radii_clips();
-        auto const& combined_transform = combined_css_transform();
         for (size_t corner_clip_index = 0; corner_clip_index < border_radii_clips.size(); ++corner_clip_index) {
             auto const& corner_clip = border_radii_clips[corner_clip_index];
             auto corners = corner_clip.radii.as_corners(context);
             if (!corners.has_any_radius())
                 continue;
-            auto rect = corner_clip.rect.translated(-combined_transform.translation().to_type<CSSPixels>());
-            context.display_list_recorder().add_rounded_rect_clip(corner_clip.radii.as_corners(context), context.rounded_device_rect(rect).to_type<int>(), CornerClip::Outside);
+            context.display_list_recorder().add_rounded_rect_clip(corner_clip.radii.as_corners(context), context.rounded_device_rect(corner_clip.rect).to_type<int>(), CornerClip::Outside);
         }
     }
 }

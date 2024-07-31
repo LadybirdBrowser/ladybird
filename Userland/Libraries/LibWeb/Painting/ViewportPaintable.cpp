@@ -119,6 +119,9 @@ void ViewportPaintable::assign_clip_frames()
                 }
                 break;
             }
+            if (block->has_css_transform()) {
+                break;
+            }
         }
         return TraversalDecision::Continue;
     });
@@ -164,14 +167,17 @@ void ViewportPaintable::refresh_clip_state()
         };
         clip_frame.clear_border_radii_clips();
         if (overflow_x != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Visible) {
-            auto overflow_clip_rect = paintable_box.compute_absolute_padding_rect_with_css_transform_applied();
+            auto overflow_clip_rect = paintable_box.compute_absolute_padding_rect_with_scroll_offset_applied();
             add_border_radii_clip(overflow_clip_rect, paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes));
             for (auto const* block = &paintable_box.layout_box(); !block->is_viewport(); block = block->containing_block()) {
+                if (block->has_css_transform()) {
+                    break;
+                }
                 auto const& block_paintable_box = *block->paintable_box();
                 auto block_overflow_x = block_paintable_box.computed_values().overflow_x();
                 auto block_overflow_y = block_paintable_box.computed_values().overflow_y();
                 if (block_overflow_x != CSS::Overflow::Visible && block_overflow_y != CSS::Overflow::Visible) {
-                    auto rect = block_paintable_box.compute_absolute_padding_rect_with_css_transform_applied();
+                    auto rect = block_paintable_box.compute_absolute_padding_rect_with_scroll_offset_applied();
                     overflow_clip_rect.intersect(rect);
                     add_border_radii_clip(rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes));
                 }
