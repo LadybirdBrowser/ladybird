@@ -415,12 +415,6 @@ WebIDL::ExceptionOr<void> Document::populate_with_html_head_and_body()
     return {};
 }
 
-void Document::finalize()
-{
-    Base::finalize();
-    page().client().page_did_destroy_document(*this);
-}
-
 void Document::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -490,6 +484,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_top_layer_elements);
     visitor.visit(m_top_layer_pending_removals);
+    visitor.visit(m_console_client);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
