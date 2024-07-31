@@ -16,6 +16,7 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/DateTime.h>
 #include <LibCore/Forward.h>
+#include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -684,10 +685,12 @@ public:
     void parse_html_from_a_string(StringView);
     static JS::NonnullGCPtr<Document> parse_html_unsafe(JS::VM&, StringView);
 
+    void set_console_client(JS::GCPtr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
+    JS::GCPtr<JS::ConsoleClient> console_client() const { return m_console_client; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual void finalize() override;
 
     Document(JS::Realm&, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
 
@@ -945,6 +948,8 @@ private:
 
     // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
     bool m_allow_declarative_shadow_roots { false };
+
+    JS::GCPtr<JS::ConsoleClient> m_console_client;
 };
 
 template<>
