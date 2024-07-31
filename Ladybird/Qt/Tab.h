@@ -116,6 +116,7 @@ private:
     BrowserWindow* m_window { nullptr };
     QString m_title;
     QLabel* m_hover_label { nullptr };
+    QIcon m_default_favicon;
     QIcon m_favicon;
 
     QMenu* m_context_menu { nullptr };

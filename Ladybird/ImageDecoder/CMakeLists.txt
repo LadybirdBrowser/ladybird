@@ -13,7 +13,7 @@ if (ANDROID)
             ${IMAGE_DECODER_SOURCES}
             ../Android/src/main/cpp/ImageDecoderService.cpp
             ../Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
-            ../Utilities.cpp
+            ../Utils.cpp
             )
 else()
     add_library(imagedecoder STATIC ${IMAGE_DECODER_SOURCES})

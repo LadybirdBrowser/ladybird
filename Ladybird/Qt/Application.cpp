@@ -8,7 +8,7 @@
 #include "StringUtils.h"
 #include "TaskManagerWindow.h"
 #include <Ladybird/HelperProcess.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibWebView/URL.h>
 #include <QFileOpenEvent>
 

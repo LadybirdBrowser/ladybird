@@ -2,12 +2,12 @@ include(cmake/ResourceFiles.cmake)
 
 set(LADYBIRD_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/HelperProcess.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Utilities.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Utils.cpp
 )
 set(LADYBIRD_HEADERS
     HelperProcess.h
     Types.h
-    Utilities.h
+    Utils.h
 )
 
 function(create_ladybird_bundle target_name)
@@ -106,9 +106,9 @@ function(set_helper_process_properties)
         set_target_properties(${targets} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_LIBEXECDIR}")
 
         if (NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
-            set_source_files_properties(Utilities.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
-            set_source_files_properties(Utilities.cpp TARGET_DIRECTORY ladybird PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
-            set_source_files_properties(Utilities.cpp TARGET_DIRECTORY ${targets} PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
+            set_source_files_properties(Utils.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
+            set_source_files_properties(Utils.cpp TARGET_DIRECTORY ladybird PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
+            set_source_files_properties(Utils.cpp TARGET_DIRECTORY ${targets} PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
         endif()
     endif()
 endfunction()

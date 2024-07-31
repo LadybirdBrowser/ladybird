@@ -9,13 +9,14 @@ target_sources(ladybird PRIVATE
     Icon.cpp
     InspectorWidget.cpp
     LocationEdit.cpp
+    QtUtils.cpp
     Settings.cpp
     SettingsDialog.cpp
+    StringUtils.cpp
     Tab.cpp
     TabBar.cpp
     TaskManagerWindow.cpp
     TVGIconEngine.cpp
-    StringUtils.cpp
     WebContentView.cpp
     ladybird.qrc
     main.cpp

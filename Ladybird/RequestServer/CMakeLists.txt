@@ -20,7 +20,7 @@ if (ANDROID)
         ${REQUESTSERVER_SOURCES}
         ../Android/src/main/cpp/RequestServerService.cpp
         ../Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
-        ../Utilities.cpp
+        ../Utils.cpp
     )
 else()
     add_library(requestserver STATIC ${REQUESTSERVER_SOURCES})

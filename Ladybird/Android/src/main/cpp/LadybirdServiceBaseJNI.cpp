@@ -7,7 +7,7 @@
 #include "LadybirdServiceBase.h"
 #include <AK/Atomic.h>
 #include <AK/Format.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibCore/ResourceImplementationFile.h>
 #include <jni.h>
 

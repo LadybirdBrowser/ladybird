@@ -5,7 +5,7 @@
  */
 
 #include <AK/ByteString.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibCore/Resource.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/SystemTheme.h>

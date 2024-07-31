@@ -13,7 +13,7 @@ set(WEBCONTENT_SOURCES
     ../FontPlugin.cpp
     ../HelperProcess.cpp
     ../ImageCodecPlugin.cpp
-    ../Utilities.cpp
+    ../Utils.cpp
 )
 
 if (ANDROID)

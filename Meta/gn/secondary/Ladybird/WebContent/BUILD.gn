@@ -60,7 +60,7 @@ executable("WebContent") {
     "//Ladybird/FontPlugin.cpp",
     "//Ladybird/HelperProcess.cpp",
     "//Ladybird/ImageCodecPlugin.cpp",
-    "//Ladybird/Utilities.cpp",
+    "//Ladybird/Utils.cpp",
     "//Userland/Services/WebContent/ConnectionFromClient.cpp",
     "//Userland/Services/WebContent/ConsoleGlobalEnvironmentExtensions.cpp",
     "//Userland/Services/WebContent/PageClient.cpp",

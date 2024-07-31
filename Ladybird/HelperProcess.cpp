@@ -5,7 +5,7 @@
  */
 
 #include "HelperProcess.h"
-#include "Utilities.h"
+#include "Utils.h"
 #include <AK/Enumerate.h>
 #include <LibCore/Process.h>
 #include <LibWebView/Application.h>

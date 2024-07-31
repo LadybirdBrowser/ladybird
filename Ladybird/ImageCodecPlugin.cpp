@@ -6,7 +6,7 @@
  */
 
 #include "ImageCodecPlugin.h"
-#include "Utilities.h"
+#include "Utils.h"
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibImageDecoderClient/Client.h>

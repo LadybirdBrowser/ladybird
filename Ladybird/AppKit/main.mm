@@ -8,7 +8,7 @@
 #include <Ladybird/DefaultSettings.h>
 #include <Ladybird/MachPortServer.h>
 #include <Ladybird/Types.h>
-#include <Ladybird/Utilities.h>
+#include <Ladybird/Utils.h>
 #include <LibCore/ArgsParser.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibMain/Main.h>
