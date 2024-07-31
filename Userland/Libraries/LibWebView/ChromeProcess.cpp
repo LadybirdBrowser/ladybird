@@ -26,7 +26,8 @@ private:
 ErrorOr<ChromeProcess> ChromeProcess::create()
 {
     // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
-    TRY(Core::System::set_resource_limits(RLIMIT_NOFILE, 8192));
+    if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
+        warnln("Unable to increase open file limit: {}", result.error());
 
     return ChromeProcess {};
 }
