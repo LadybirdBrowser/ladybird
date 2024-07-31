@@ -1853,7 +1853,7 @@ ErrorOr<rlimit> get_resource_limits(int resource)
     rlimit limits;
 
     if (::getrlimit(resource, &limits) != 0)
-        return Error::from_errno(errno);
+        return Error::from_syscall("getrlimit"sv, -errno);
 
     return limits;
 }
@@ -1864,7 +1864,7 @@ ErrorOr<void> set_resource_limits(int resource, rlim_t limit)
     limits.rlim_cur = limit;
 
     if (::setrlimit(resource, &limits) != 0)
-        return Error::from_errno(errno);
+        return Error::from_syscall("setrlimit"sv, -errno);
 
     return {};
 }
