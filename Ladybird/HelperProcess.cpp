@@ -102,6 +102,8 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
         arguments.append("--enable-http-cache"sv);
     if (web_content_options.expose_internals_object == WebView::ExposeInternalsObject::Yes)
         arguments.append("--expose-internals-object"sv);
+    if (web_content_options.force_cpu_painting == WebView::ForceCPUPainting::Yes)
+        arguments.append("--force-cpu-painting"sv);
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());

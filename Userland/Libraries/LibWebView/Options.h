@@ -79,6 +79,11 @@ enum class ExposeInternalsObject {
     Yes,
 };
 
+enum class ForceCPUPainting {
+    No,
+    Yes,
+};
+
 struct WebContentOptions {
     String command_line;
     String executable_path;
@@ -89,6 +94,7 @@ struct WebContentOptions {
     EnableIDLTracing enable_idl_tracing { EnableIDLTracing::No };
     EnableHTTPCache enable_http_cache { EnableHTTPCache::No };
     ExposeInternalsObject expose_internals_object { ExposeInternalsObject::No };
+    ForceCPUPainting force_cpu_painting { ForceCPUPainting::No };
 };
 
 }
