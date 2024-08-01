@@ -11,6 +11,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
+#include <LibWebView/ProcessType.h>
 
 namespace WebView {
 
@@ -43,6 +44,7 @@ struct ChromeOptions {
     ForceNewProcess force_new_process { ForceNewProcess::No };
     AllowPopups allow_popups { AllowPopups::No };
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
+    Optional<ProcessType> debug_helper_process {};
     Optional<ByteString> webdriver_content_ipc_path {};
 };
 
@@ -57,11 +59,6 @@ enum class IsLayoutTestMode {
 };
 
 enum class UseLagomNetworking {
-    No,
-    Yes,
-};
-
-enum class WaitForDebugger {
     No,
     Yes,
 };
@@ -93,7 +90,6 @@ struct WebContentOptions {
     EnableCallgrindProfiling enable_callgrind_profiling { EnableCallgrindProfiling::No };
     IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
     UseLagomNetworking use_lagom_networking { UseLagomNetworking::Yes };
-    WaitForDebugger wait_for_debugger { WaitForDebugger::No };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
     EnableIDLTracing enable_idl_tracing { EnableIDLTracing::No };
     EnableHTTPCache enable_http_cache { EnableHTTPCache::No };

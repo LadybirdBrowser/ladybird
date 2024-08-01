@@ -10,6 +10,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
+#include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
@@ -41,13 +42,18 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView serenity_resource_root;
     Vector<ByteString> certificates;
     bool use_lagom_networking { false };
+    bool wait_for_debugger = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(request_server_socket, "File descriptor of the request server socket", "request-server-socket", 's', "request-server-socket");
     args_parser.add_option(serenity_resource_root, "Absolute path to directory for serenity resources", "serenity-resource-root", 'r', "serenity-resource-root");
     args_parser.add_option(use_lagom_networking, "Enable Lagom servers for networking", "use-lagom-networking");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
+    args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.parse(arguments);
+
+    if (wait_for_debugger)
+        Core::Process::wait_for_debugger_and_break();
 
 #if defined(HAVE_QT)
     QCoreApplication app(arguments.argc, arguments.argv);

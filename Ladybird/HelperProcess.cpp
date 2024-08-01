@@ -18,6 +18,9 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     WebView::EnableCallgrindProfiling enable_callgrind_profiling,
     ClientArguments&&... client_arguments)
 {
+    auto process_type = WebView::process_type_from_name(server_name);
+    auto const& chrome_options = WebView::Application::chrome_options();
+
     if (enable_callgrind_profiling == WebView::EnableCallgrindProfiling::Yes) {
         arguments.prepend({
             "--tool=callgrind"sv,
@@ -25,6 +28,9 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             ""sv, // Placeholder for the process path.
         });
     }
+
+    if (chrome_options.debug_helper_process == process_type)
+        arguments.append("--wait-for-debugger"sv);
 
     for (auto [i, path] : enumerate(candidate_server_paths)) {
         Core::ProcessSpawnOptions options { .name = server_name, .arguments = arguments };
@@ -45,7 +51,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             if constexpr (requires { process.client->set_pid(pid_t {}); })
                 process.client->set_pid(process.process.pid());
 
-            WebView::Application::the().add_child_process(WebView::Process { WebView::process_type_from_name(server_name), process.client, move(process.process) });
+            WebView::Application::the().add_child_process(WebView::Process { process_type, process.client, move(process.process) });
 
             if (enable_callgrind_profiling == WebView::EnableCallgrindProfiling::Yes) {
                 dbgln();
@@ -89,8 +95,6 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
         arguments.append("--layout-test-mode"sv);
     if (web_content_options.use_lagom_networking == WebView::UseLagomNetworking::Yes)
         arguments.append("--use-lagom-networking"sv);
-    if (web_content_options.wait_for_debugger == WebView::WaitForDebugger::Yes)
-        arguments.append("--wait-for-debugger"sv);
     if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
         arguments.append("--log-all-js-exceptions"sv);
     if (web_content_options.enable_idl_tracing == WebView::EnableIDLTracing::Yes)

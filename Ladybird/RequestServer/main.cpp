@@ -10,6 +10,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
+#include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
@@ -38,12 +39,17 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView serenity_resource_root;
     Vector<ByteString> certificates;
     StringView mach_server_name;
+    bool wait_for_debugger = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(serenity_resource_root, "Absolute path to directory for serenity resources", "serenity-resource-root", 'r', "serenity-resource-root");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
+    args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.parse(arguments);
+
+    if (wait_for_debugger)
+        Core::Process::wait_for_debugger_and_break();
 
     // Ensure the certificates are read out here.
     if (certificates.is_empty())
