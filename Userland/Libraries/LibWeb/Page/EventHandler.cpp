@@ -312,7 +312,7 @@ bool EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint
                     JS::NonnullGCPtr<DOM::Document> document = *m_navigable->active_document();
                     auto href = link->href();
                     auto url = document->parse_url(href);
-                    dbgln("Web::EventHandler: Clicking on a link to {}", url);
+
                     if (button == UIEvents::MouseButton::Middle) {
                         m_navigable->page().client().page_did_middle_click_link(url, link->target().to_byte_string(), modifiers);
                     } else if (button == UIEvents::MouseButton::Secondary) {
