@@ -39,8 +39,8 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     bool allow_popups = false;
     bool disable_sql_database = false;
     Optional<StringView> debug_process;
+    Optional<StringView> profile_process;
     Optional<StringView> webdriver_content_ipc_path;
-    bool enable_callgrind_profiling = false;
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
     bool enable_http_cache = false;
@@ -55,8 +55,8 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_option(allow_popups, "Disable popup blocking by default", "allow-popups");
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
+    args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
     args_parser.add_option(webdriver_content_ipc_path, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
-    args_parser.add_option(enable_callgrind_profiling, "Enable Callgrind profiling", "enable-callgrind-profiling", 'P');
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
@@ -66,8 +66,12 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.parse(arguments);
 
     Optional<ProcessType> debug_process_type;
+    Optional<ProcessType> profile_process_type;
+
     if (debug_process.has_value())
         debug_process_type = process_type_from_name(*debug_process);
+    if (profile_process.has_value())
+        profile_process_type = process_type_from_name(*profile_process);
 
     m_chrome_options = {
         .urls = sanitize_urls(raw_urls, new_tab_page_url),
@@ -79,6 +83,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .allow_popups = allow_popups ? AllowPopups::Yes : AllowPopups::No,
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,
         .debug_helper_process = move(debug_process_type),
+        .profile_helper_process = move(profile_process_type),
     };
 
     if (webdriver_content_ipc_path.has_value())
@@ -87,7 +92,6 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     m_web_content_options = {
         .command_line = MUST(String::join(' ', arguments.strings)),
         .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
-        .enable_callgrind_profiling = enable_callgrind_profiling ? EnableCallgrindProfiling::Yes : EnableCallgrindProfiling::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
         .enable_idl_tracing = enable_idl_tracing ? EnableIDLTracing::Yes : EnableIDLTracing::No,
         .enable_http_cache = enable_http_cache ? EnableHTTPCache::Yes : EnableHTTPCache::No,
