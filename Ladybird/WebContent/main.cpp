@@ -100,7 +100,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool is_layout_test_mode = false;
     bool expose_internals_object = false;
     bool use_lagom_networking = false;
-    bool use_skia_painter = false;
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
@@ -116,7 +115,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(use_lagom_networking, "Enable Lagom servers for networking", "use-lagom-networking");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
-    args_parser.add_option(use_skia_painter, "Enable Skia painter", "use-skia-painting");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
