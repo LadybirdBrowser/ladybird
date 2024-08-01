@@ -954,13 +954,12 @@ void KeyframeEffect::update_style_properties()
     if (!target)
         return;
 
-    if (pseudo_element_type().has_value()) {
-        // StyleProperties are not saved for pseudo-elements so there is nothing to patch
-        target->invalidate_style();
-        return;
-    }
+    CSS::StyleProperties* style = nullptr;
+    if (!pseudo_element_type().has_value())
+        style = target->computed_css_values();
+    else
+        style = target->pseudo_element_computed_css_values(pseudo_element_type().value());
 
-    auto* style = target->computed_css_values();
     if (!style)
         return;
 
@@ -988,8 +987,15 @@ void KeyframeEffect::update_style_properties()
 
     auto invalidation = compute_required_invalidation(animated_properties_before_update, style->animated_property_values());
 
-    if (target->layout_node())
-        target->layout_node()->apply_style(*style);
+    if (!pseudo_element_type().has_value()) {
+        if (target->layout_node())
+            target->layout_node()->apply_style(*style);
+    } else {
+        auto pseudo_element_node = target->get_pseudo_element_node(pseudo_element_type().value());
+        if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element_node.ptr())) {
+            node_with_style->apply_style(*style);
+        }
+    }
 
     if (invalidation.relayout)
         document.set_needs_layout();
