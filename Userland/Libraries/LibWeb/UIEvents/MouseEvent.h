@@ -56,6 +56,15 @@ public:
     bool alt_key() const { return m_alt_key; }
     bool meta_key() const { return m_meta_key; }
 
+    bool platform_ctrl_key() const
+    {
+#if defined(AK_OS_MACOS)
+        return meta_key();
+#else
+        return ctrl_key();
+#endif
+    }
+
     double movement_x() const { return m_movement_x; }
     double movement_y() const { return m_movement_y; }
 
