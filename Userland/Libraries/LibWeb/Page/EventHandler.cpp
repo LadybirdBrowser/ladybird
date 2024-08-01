@@ -313,7 +313,9 @@ bool EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint
                     auto href = link->href();
                     auto url = document->parse_url(href);
 
-                    if (button == UIEvents::MouseButton::Middle) {
+                    if (button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::Mod_PlatformCtrl) != 0) {
+                        m_navigable->page().client().page_did_click_link(url, link->target().to_byte_string(), modifiers);
+                    } else if (button == UIEvents::MouseButton::Middle) {
                         m_navigable->page().client().page_did_middle_click_link(url, link->target().to_byte_string(), modifiers);
                     } else if (button == UIEvents::MouseButton::Secondary) {
                         m_navigable->page().client().page_did_request_link_context_menu(viewport_position, url, link->target().to_byte_string(), modifiers);
