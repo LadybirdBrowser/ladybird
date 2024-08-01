@@ -324,6 +324,11 @@ void PageClient::page_did_unhover_link()
     client().async_did_unhover_link(m_id);
 }
 
+void PageClient::page_did_click_link(URL::URL const& url, ByteString const& target, unsigned modifiers)
+{
+    client().async_did_click_link(m_id, url, target, modifiers);
+}
+
 void PageClient::page_did_middle_click_link(URL::URL const& url, ByteString const& target, unsigned modifiers)
 {
     client().async_did_middle_click_link(m_id, url, target, modifiers);
