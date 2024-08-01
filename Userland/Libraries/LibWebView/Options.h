@@ -45,12 +45,8 @@ struct ChromeOptions {
     AllowPopups allow_popups { AllowPopups::No };
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
     Optional<ProcessType> debug_helper_process {};
+    Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_content_ipc_path {};
-};
-
-enum class EnableCallgrindProfiling {
-    No,
-    Yes,
 };
 
 enum class IsLayoutTestMode {
@@ -87,7 +83,6 @@ struct WebContentOptions {
     String command_line;
     String executable_path;
     Optional<ByteString> config_path {};
-    EnableCallgrindProfiling enable_callgrind_profiling { EnableCallgrindProfiling::No };
     IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
     UseLagomNetworking use_lagom_networking { UseLagomNetworking::Yes };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
