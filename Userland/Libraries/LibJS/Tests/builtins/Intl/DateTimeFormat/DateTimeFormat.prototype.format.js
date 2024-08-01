@@ -62,10 +62,10 @@ describe("dateStyle", () => {
 describe("timeStyle", () => {
     // prettier-ignore
     const data = [
-        { time: "full", en0: "5:40:50\u202fPM Coordinated Universal Time", en1: "7:08:09\u202fAM Coordinated Universal Time", ar0: "٥:٤٠:٥٠ م التوقيت العالمي المنسق", ar1: "٧:٠٨:٠٩ ص التوقيت العالمي المنسق" },
-        { time: "long", en0: "5:40:50\u202fPM UTC", en1: "7:08:09\u202fAM UTC", ar0: "٥:٤٠:٥٠ م UTC", ar1: "٧:٠٨:٠٩ ص UTC" },
-        { time: "medium", en0: "5:40:50\u202fPM", en1: "7:08:09\u202fAM", ar0: "٥:٤٠:٥٠ م", ar1: "٧:٠٨:٠٩ ص" },
-        { time: "short", en0: "5:40\u202fPM", en1: "7:08\u202fAM", ar0: "٥:٤٠ م", ar1: "٧:٠٨ ص" },
+        { time: "full", en0: "5:40:50 PM Coordinated Universal Time", en1: "7:08:09 AM Coordinated Universal Time", ar0: "٥:٤٠:٥٠ م التوقيت العالمي المنسق", ar1: "٧:٠٨:٠٩ ص التوقيت العالمي المنسق" },
+        { time: "long", en0: "5:40:50 PM UTC", en1: "7:08:09 AM UTC", ar0: "٥:٤٠:٥٠ م UTC", ar1: "٧:٠٨:٠٩ ص UTC" },
+        { time: "medium", en0: "5:40:50 PM", en1: "7:08:09 AM", ar0: "٥:٤٠:٥٠ م", ar1: "٧:٠٨:٠٩ ص" },
+        { time: "short", en0: "5:40 PM", en1: "7:08 AM", ar0: "٥:٤٠ م", ar1: "٧:٠٨ ص" },
     ];
 
     test("all", () => {
@@ -84,22 +84,22 @@ describe("timeStyle", () => {
 describe("dateStyle + timeStyle", () => {
     // prettier-ignore
     const data = [
-        { date: "full", time: "full", en: "Tuesday, December 7, 2021 at 5:40:50\u202fPM Coordinated Universal Time", ar: "الثلاثاء، ٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م التوقيت العالمي المنسق" },
-        { date: "full", time: "long", en: "Tuesday, December 7, 2021 at 5:40:50\u202fPM UTC", ar: "الثلاثاء، ٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م UTC" },
-        { date: "full", time: "medium", en: "Tuesday, December 7, 2021 at 5:40:50\u202fPM", ar: "الثلاثاء، ٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م" },
-        { date: "full", time: "short", en: "Tuesday, December 7, 2021 at 5:40\u202fPM", ar: "الثلاثاء، ٧ ديسمبر ٢٠٢١ في ٥:٤٠ م" },
-        { date: "long", time: "full", en: "December 7, 2021 at 5:40:50\u202fPM Coordinated Universal Time", ar: "٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م التوقيت العالمي المنسق" },
-        { date: "long", time: "long", en: "December 7, 2021 at 5:40:50\u202fPM UTC", ar: "٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م UTC" },
-        { date: "long", time: "medium", en: "December 7, 2021 at 5:40:50\u202fPM", ar: "٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م" },
-        { date: "long", time: "short", en: "December 7, 2021 at 5:40\u202fPM", ar: "٧ ديسمبر ٢٠٢١ في ٥:٤٠ م" },
-        { date: "medium", time: "full", en: "Dec 7, 2021, 5:40:50\u202fPM Coordinated Universal Time", ar: "٠٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م التوقيت العالمي المنسق" },
-        { date: "medium", time: "long", en: "Dec 7, 2021, 5:40:50\u202fPM UTC", ar: "٠٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م UTC" },
-        { date: "medium", time: "medium", en: "Dec 7, 2021, 5:40:50\u202fPM", ar: "٠٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م" },
-        { date: "medium", time: "short", en: "Dec 7, 2021, 5:40\u202fPM", ar: "٠٧‏/١٢‏/٢٠٢١، ٥:٤٠ م" },
-        { date: "short", time: "full", en: "12/7/21, 5:40:50\u202fPM Coordinated Universal Time", ar: "٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م التوقيت العالمي المنسق" },
-        { date: "short", time: "long", en: "12/7/21, 5:40:50\u202fPM UTC", ar: "٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م UTC" },
-        { date: "short", time: "medium", en: "12/7/21, 5:40:50\u202fPM", ar: "٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م" },
-        { date: "short", time: "short", en: "12/7/21, 5:40\u202fPM", ar: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م" },
+        { date: "full", time: "full", en: "Tuesday, December 7, 2021 at 5:40:50 PM Coordinated Universal Time", ar: "الثلاثاء، ٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م التوقيت العالمي المنسق" },
+        { date: "full", time: "long", en: "Tuesday, December 7, 2021 at 5:40:50 PM UTC", ar: "الثلاثاء، ٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م UTC" },
+        { date: "full", time: "medium", en: "Tuesday, December 7, 2021 at 5:40:50 PM", ar: "الثلاثاء، ٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م" },
+        { date: "full", time: "short", en: "Tuesday, December 7, 2021 at 5:40 PM", ar: "الثلاثاء، ٧ ديسمبر ٢٠٢١ في ٥:٤٠ م" },
+        { date: "long", time: "full", en: "December 7, 2021 at 5:40:50 PM Coordinated Universal Time", ar: "٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م التوقيت العالمي المنسق" },
+        { date: "long", time: "long", en: "December 7, 2021 at 5:40:50 PM UTC", ar: "٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م UTC" },
+        { date: "long", time: "medium", en: "December 7, 2021 at 5:40:50 PM", ar: "٧ ديسمبر ٢٠٢١ في ٥:٤٠:٥٠ م" },
+        { date: "long", time: "short", en: "December 7, 2021 at 5:40 PM", ar: "٧ ديسمبر ٢٠٢١ في ٥:٤٠ م" },
+        { date: "medium", time: "full", en: "Dec 7, 2021, 5:40:50 PM Coordinated Universal Time", ar: "٠٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م التوقيت العالمي المنسق" },
+        { date: "medium", time: "long", en: "Dec 7, 2021, 5:40:50 PM UTC", ar: "٠٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م UTC" },
+        { date: "medium", time: "medium", en: "Dec 7, 2021, 5:40:50 PM", ar: "٠٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م" },
+        { date: "medium", time: "short", en: "Dec 7, 2021, 5:40 PM", ar: "٠٧‏/١٢‏/٢٠٢١، ٥:٤٠ م" },
+        { date: "short", time: "full", en: "12/7/21, 5:40:50 PM Coordinated Universal Time", ar: "٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م التوقيت العالمي المنسق" },
+        { date: "short", time: "long", en: "12/7/21, 5:40:50 PM UTC", ar: "٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م UTC" },
+        { date: "short", time: "medium", en: "12/7/21, 5:40:50 PM", ar: "٧‏/١٢‏/٢٠٢١، ٥:٤٠:٥٠ م" },
+        { date: "short", time: "short", en: "12/7/21, 5:40 PM", ar: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م" },
     ];
 
     test("all", () => {
@@ -369,8 +369,8 @@ describe("dayPeriod", () => {
 describe("hour", () => {
     // prettier-ignore
     const data = [
-        { hour: "2-digit", en0: "05\u202fPM", en1: "07\u202fAM", ar0: "٠٥ م", ar1: "٠٧ ص" },
-        { hour: "numeric", en0: "5\u202fPM", en1: "7\u202fAM", ar0: "٥ م", ar1: "٧ ص" },
+        { hour: "2-digit", en0: "05 PM", en1: "07 AM", ar0: "٠٥ م", ar1: "٠٧ ص" },
+        { hour: "numeric", en0: "5 PM", en1: "7 AM", ar0: "٥ م", ar1: "٧ ص" },
     ];
 
     test("all", () => {
@@ -389,8 +389,8 @@ describe("hour", () => {
 describe("minute", () => {
     // prettier-ignore
     const data = [
-        { minute: "2-digit", en0: "5:40\u202fPM", en1: "7:08\u202fAM", ar0: "٥:٤٠ م", ar1: "٧:٠٨ ص" },
-        { minute: "numeric", en0: "5:40\u202fPM", en1: "7:08\u202fAM", ar0: "٥:٤٠ م", ar1: "٧:٠٨ ص" },
+        { minute: "2-digit", en0: "5:40 PM", en1: "7:08 AM", ar0: "٥:٤٠ م", ar1: "٧:٠٨ ص" },
+        { minute: "numeric", en0: "5:40 PM", en1: "7:08 AM", ar0: "٥:٤٠ م", ar1: "٧:٠٨ ص" },
     ];
 
     test("all", () => {
@@ -545,8 +545,8 @@ describe("non-Gregorian calendars", () => {
             timeStyle: "long",
             timeZone: "UTC",
         });
-        expect(en.format(d0)).toBe("3 Tevet 5782 at 5:40:50\u202fPM UTC");
-        expect(en.format(d1)).toBe("17 Shevat 5749 at 7:08:09\u202fAM UTC");
+        expect(en.format(d0)).toBe("3 Tevet 5782 at 5:40:50 PM UTC");
+        expect(en.format(d1)).toBe("17 Shevat 5749 at 7:08:09 AM UTC");
 
         const ar = new Intl.DateTimeFormat("ar-u-ca-hebrew", {
             dateStyle: "long",
@@ -563,8 +563,8 @@ describe("non-Gregorian calendars", () => {
             timeStyle: "long",
             timeZone: "UTC",
         });
-        expect(en.format(d0)).toBe("Eleventh Month 4, 2021(xin-chou) at 5:40:50\u202fPM UTC");
-        expect(en.format(d1)).toBe("Twelfth Month 16, 1988(wu-chen) at 7:08:09\u202fAM UTC");
+        expect(en.format(d0)).toBe("Eleventh Month 4, 2021(xin-chou) at 5:40:50 PM UTC");
+        expect(en.format(d1)).toBe("Twelfth Month 16, 1988(wu-chen) at 7:08:09 AM UTC");
 
         const zh = new Intl.DateTimeFormat("zh-u-ca-chinese", {
             dateStyle: "long",

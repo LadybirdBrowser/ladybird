@@ -732,6 +732,7 @@ public:
         if (icu_failure(status))
             return {};
 
+        normalize_spaces(formatted_time);
         return icu_string_to_string(formatted_time);
     }
 
@@ -749,6 +750,8 @@ public:
         auto formatted_time = formatted->toTempString(status);
         if (icu_failure(status))
             return {};
+
+        normalize_spaces(formatted_time);
 
         icu::ConstrainedFieldPosition position;
         i32 previous_end_index = 0;
@@ -802,6 +805,7 @@ private:
         if (icu_failure(status))
             return {};
 
+        normalize_spaces(formatted_time);
         return formatted_time;
     }
 
@@ -840,6 +844,23 @@ private:
             return {};
 
         return formatted;
+    }
+
+    // ICU 72 introduced the use of NBSP to separate time fields and day periods. All major browsers have found that
+    // this significantly breaks web compatibilty, and they all replace these spaces with normal ASCII spaces. See:
+    //
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=1806042
+    // https://bugs.webkit.org/show_bug.cgi?id=252147
+    // https://issues.chromium.org/issues/40256057
+    static void normalize_spaces(icu::UnicodeString& string)
+    {
+        static char16_t NARROW_NO_BREAK_SPACE = 0x202f;
+        static char16_t THIN_SPACE = 0x2009;
+
+        for (i32 i = 0; i < string.length(); ++i) {
+            if (string[i] == NARROW_NO_BREAK_SPACE || string[i] == THIN_SPACE)
+                string.setCharAt(i, ' ');
+        }
     }
 
     icu::Locale& m_locale;

@@ -127,7 +127,7 @@ describe("timeStyle", () => {
             { type: "minute", value: "08" },
             { type: "literal", value: ":" },
             { type: "second", value: "09" },
-            { type: "literal", value: "\u202f" },
+            { type: "literal", value: " " },
             { type: "dayPeriod", value: "AM" },
             { type: "literal", value: " " },
             { type: "timeZoneName", value: "Coordinated Universal Time" },
@@ -155,7 +155,7 @@ describe("timeStyle", () => {
             { type: "minute", value: "08" },
             { type: "literal", value: ":" },
             { type: "second", value: "09" },
-            { type: "literal", value: "\u202f" },
+            { type: "literal", value: " " },
             { type: "dayPeriod", value: "AM" },
             { type: "literal", value: " " },
             { type: "timeZoneName", value: "UTC" },
@@ -183,7 +183,7 @@ describe("timeStyle", () => {
             { type: "minute", value: "08" },
             { type: "literal", value: ":" },
             { type: "second", value: "09" },
-            { type: "literal", value: "\u202f" },
+            { type: "literal", value: " " },
             { type: "dayPeriod", value: "AM" },
         ]);
 
@@ -205,7 +205,7 @@ describe("timeStyle", () => {
             { type: "hour", value: "7" },
             { type: "literal", value: ":" },
             { type: "minute", value: "08" },
-            { type: "literal", value: "\u202f" },
+            { type: "literal", value: " " },
             { type: "dayPeriod", value: "AM" },
         ]);
 
