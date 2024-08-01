@@ -28,7 +28,7 @@ static ErrorOr<pid_t> launch_headless_browser(ByteString const& socket_path)
 {
     return Core::Process::spawn("/bin/headless-browser"sv,
         Array {
-            "--webdriver-ipc-path",
+            "--webdriver-content-path",
             socket_path.characters(),
             "about:blank",
         });
