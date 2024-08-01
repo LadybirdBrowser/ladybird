@@ -102,8 +102,42 @@ void Animatable::disassociate_with_animation(JS::NonnullGCPtr<Animation> animati
 void Animatable::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_associated_animations);
-    visitor.visit(m_cached_animation_name_source);
-    visitor.visit(m_cached_animation_name_animation);
+    for (auto const& cached_animation_source : m_cached_animation_name_source)
+        visitor.visit(cached_animation_source);
+    for (auto const& cached_animation_name : m_cached_animation_name_animation)
+        visitor.visit(cached_animation_name);
+}
+
+JS::GCPtr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+{
+    if (pseudo_element.has_value())
+        return m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1];
+    return m_cached_animation_name_source[0];
+}
+
+void Animatable::set_cached_animation_name_source(JS::GCPtr<CSS::CSSStyleDeclaration const> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+{
+    if (pseudo_element.has_value()) {
+        m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1] = value;
+    } else {
+        m_cached_animation_name_source[0] = value;
+    }
+}
+
+JS::GCPtr<Animations::Animation> Animatable::cached_animation_name_animation(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+{
+    if (pseudo_element.has_value())
+        return m_cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1];
+    return m_cached_animation_name_animation[0];
+}
+
+void Animatable::set_cached_animation_name_animation(JS::GCPtr<Animations::Animation> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+{
+    if (pseudo_element.has_value()) {
+        m_cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1] = value;
+    } else {
+        m_cached_animation_name_animation[0] = value;
+    }
 }
 
 }
