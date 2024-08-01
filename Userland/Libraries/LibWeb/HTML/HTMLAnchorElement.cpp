@@ -80,6 +80,14 @@ void HTMLAnchorElement::activation_behavior(Web::DOM::Event const& event)
     if (href().is_empty())
         return;
 
+    // AD-HOC: Do not activate the element for clicks with the ctrl/cmd modifier present. This lets
+    //         the chrome open the link in a new tab.
+    if (is<UIEvents::MouseEvent>(event)) {
+        auto const& mouse_event = static_cast<UIEvents::MouseEvent const&>(event);
+        if (mouse_event.platform_ctrl_key())
+            return;
+    }
+
     // 2. Let hyperlinkSuffix be null.
     Optional<String> hyperlink_suffix {};
 
