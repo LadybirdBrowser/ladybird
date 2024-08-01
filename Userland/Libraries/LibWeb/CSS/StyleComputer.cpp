@@ -1774,11 +1774,11 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
         if (auto source_declaration = style.property_source_declaration(PropertyID::AnimationName); source_declaration) {
             auto& realm = element.realm();
 
-            if (source_declaration != element.cached_animation_name_source()) {
+            if (source_declaration != element.cached_animation_name_source(pseudo_element)) {
                 // This animation name is new, so we need to create a new animation for it.
-                if (auto existing_animation = element.cached_animation_name_animation())
+                if (auto existing_animation = element.cached_animation_name_animation(pseudo_element))
                     existing_animation->cancel(Animations::Animation::ShouldInvalidate::No);
-                element.set_cached_animation_name_source(source_declaration);
+                element.set_cached_animation_name_source(source_declaration, pseudo_element);
 
                 auto effect = Animations::KeyframeEffect::create(realm);
                 auto animation = CSSAnimation::create(realm);
@@ -1795,21 +1795,21 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
                     effect->set_key_frame_set(keyframe_set.value());
 
                 effect->set_target(&element);
-                element.set_cached_animation_name_animation(animation);
+                element.set_cached_animation_name_animation(animation, pseudo_element);
 
                 HTML::TemporaryExecutionContext context(m_document->relevant_settings_object());
                 animation->play().release_value_but_fixme_should_propagate_errors();
             } else {
                 // The animation hasn't changed, but some properties of the animation may have
-                apply_animation_properties(m_document, style, *element.cached_animation_name_animation());
+                apply_animation_properties(m_document, style, *element.cached_animation_name_animation(pseudo_element));
             }
         }
     } else {
         // If the element had an existing animation, cancel it
-        if (auto existing_animation = element.cached_animation_name_animation()) {
+        if (auto existing_animation = element.cached_animation_name_animation(pseudo_element)) {
             existing_animation->cancel(Animations::Animation::ShouldInvalidate::No);
-            element.set_cached_animation_name_animation({});
-            element.set_cached_animation_name_source({});
+            element.set_cached_animation_name_animation({}, pseudo_element);
+            element.set_cached_animation_name_source({}, pseudo_element);
         }
     }
 

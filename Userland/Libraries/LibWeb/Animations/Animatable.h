@@ -33,11 +33,11 @@ public:
     void associate_with_animation(JS::NonnullGCPtr<Animation>);
     void disassociate_with_animation(JS::NonnullGCPtr<Animation>);
 
-    JS::GCPtr<CSS::CSSStyleDeclaration const> cached_animation_name_source() const { return m_cached_animation_name_source; }
-    void set_cached_animation_name_source(JS::GCPtr<CSS::CSSStyleDeclaration const> value) { m_cached_animation_name_source = value; }
+    JS::GCPtr<CSS::CSSStyleDeclaration const> cached_animation_name_source(Optional<CSS::Selector::PseudoElement::Type>) const;
+    void set_cached_animation_name_source(JS::GCPtr<CSS::CSSStyleDeclaration const> value, Optional<CSS::Selector::PseudoElement::Type>);
 
-    JS::GCPtr<Animations::Animation> cached_animation_name_animation() const { return m_cached_animation_name_animation; }
-    void set_cached_animation_name_animation(JS::GCPtr<Animations::Animation> value) { m_cached_animation_name_animation = value; }
+    JS::GCPtr<Animations::Animation> cached_animation_name_animation(Optional<CSS::Selector::PseudoElement::Type>) const;
+    void set_cached_animation_name_animation(JS::GCPtr<Animations::Animation> value, Optional<CSS::Selector::PseudoElement::Type>);
 
 protected:
     void visit_edges(JS::Cell::Visitor&);
@@ -45,8 +45,9 @@ protected:
 private:
     Vector<JS::NonnullGCPtr<Animation>> m_associated_animations;
     bool m_is_sorted_by_composite_order { true };
-    JS::GCPtr<CSS::CSSStyleDeclaration const> m_cached_animation_name_source;
-    JS::GCPtr<Animations::Animation> m_cached_animation_name_animation;
+
+    Array<JS::GCPtr<CSS::CSSStyleDeclaration const>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount) + 1> m_cached_animation_name_source;
+    Array<JS::GCPtr<Animations::Animation>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount) + 1> m_cached_animation_name_animation;
 };
 
 }
