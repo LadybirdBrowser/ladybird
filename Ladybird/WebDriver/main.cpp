@@ -32,7 +32,7 @@ static ErrorOr<pid_t> launch_process(StringView application, ReadonlySpan<char c
     return result;
 }
 
-static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool use_qt_networking)
+static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool use_qt_networking, bool force_cpu_painting)
 {
     auto arguments = Vector {
         "--webdriver-content-path",
@@ -49,6 +49,8 @@ static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool use_qt_
     arguments.append("--force-new-process");
     if (use_qt_networking)
         arguments.append("--enable-qt-networking");
+    if (force_cpu_painting)
+        arguments.append("--force-cpu-painting");
 
     arguments.append("about:blank");
 
@@ -75,12 +77,14 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto listen_address = "0.0.0.0"sv;
     int port = 8000;
     bool enable_qt_networking = false;
+    bool force_cpu_painting = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(listen_address, "IP address to listen on", "listen-address", 'l', "listen_address");
     args_parser.add_option(port, "Port to listen on", "port", 'p', "port");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(enable_qt_networking, "Launch browser with Qt networking enabled", "enable-qt-networking");
+    args_parser.add_option(force_cpu_painting, "Launch browser with GPU painting disabled", "force-cpu-painting");
     args_parser.parse(arguments);
 
     auto ipv4_address = IPv4Address::from_string(listen_address);
@@ -117,7 +121,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         }
 
         auto launch_browser_callback = [&](ByteString const& socket_path) {
-            return launch_browser(socket_path, enable_qt_networking);
+            return launch_browser(socket_path, enable_qt_networking, force_cpu_painting);
         };
 
         auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), { move(launch_browser_callback), launch_headless_browser }, server);
