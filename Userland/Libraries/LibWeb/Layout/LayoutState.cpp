@@ -94,18 +94,22 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
         }
     }
 
+    auto content_overflow_rect = scrollable_overflow_rect;
+
     // - The border boxes of all boxes for which it is the containing block
     //   and whose border boxes are positioned not wholly in the negative scrollable overflow region,
     //   FIXME: accounting for transforms by projecting each box onto the plane of the element that establishes its 3D rendering context. [CSS3-TRANSFORMS]
     if (!box.children_are_inline()) {
-        box.for_each_child_of_type<Box>([&box, &scrollable_overflow_rect](Box const& child) {
+        box.for_each_child_of_type<Box>([&box, &scrollable_overflow_rect, &content_overflow_rect](Box const& child) {
             if (!child.paintable_box())
                 return IterationDecision::Continue;
 
             auto child_border_box = child.paintable_box()->absolute_border_box_rect();
             // NOTE: Here we check that the child is not wholly in the negative scrollable overflow region.
-            if (child_border_box.bottom() > 0 && child_border_box.right() > 0)
+            if (child_border_box.bottom() > 0 && child_border_box.right() > 0) {
                 scrollable_overflow_rect = scrollable_overflow_rect.united(child_border_box);
+                content_overflow_rect = content_overflow_rect.united(child_border_box);
+            }
 
             // - The scrollable overflow areas of all of the above boxes
             //   (including zero-area boxes and accounting for transforms as described above),
@@ -122,10 +126,12 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
             return IterationDecision::Continue;
         });
     } else {
-        box.for_each_child([&scrollable_overflow_rect](Node const& child) {
+        box.for_each_child([&scrollable_overflow_rect, &content_overflow_rect](Node const& child) {
             if (child.paintable() && child.paintable()->is_inline_paintable()) {
-                for (auto const& fragment : static_cast<Painting::InlinePaintable const&>(*child.paintable()).fragments())
+                for (auto const& fragment : static_cast<Painting::InlinePaintable const&>(*child.paintable()).fragments()) {
                     scrollable_overflow_rect = scrollable_overflow_rect.united(fragment.absolute_rect());
+                    content_overflow_rect = content_overflow_rect.united(fragment.absolute_rect());
+                }
             }
 
             return IterationDecision::Continue;
@@ -134,12 +140,16 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
 
     // FIXME: - The margin areas of grid item and flex item boxes for which the box establishes a containing block.
 
-    // FIXME: - Additional padding added to the end-side of the scrollable overflow rectangle as necessary
-    //          to enable a scroll position that satisfies the requirements of place-content: end alignment.
+    // - Additional padding added to the end-side of the scrollable overflow rectangle as necessary
+    //   to enable a scroll position that satisfies the requirements of place-content: end alignment.
+    auto has_scrollable_overflow = !paintable_box.absolute_padding_box_rect().contains(scrollable_overflow_rect);
+    if (has_scrollable_overflow) {
+        scrollable_overflow_rect.set_height(max(scrollable_overflow_rect.height(), content_overflow_rect.height() + box.box_model().padding.bottom));
+    }
 
     paintable_box.set_overflow_data(Painting::PaintableBox::OverflowData {
         .scrollable_overflow_rect = scrollable_overflow_rect,
-        .has_scrollable_overflow = !paintable_box.absolute_padding_box_rect().contains(scrollable_overflow_rect),
+        .has_scrollable_overflow = has_scrollable_overflow,
     });
 
     return scrollable_overflow_rect;

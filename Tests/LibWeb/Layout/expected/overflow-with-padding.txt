@@ -1,0 +1,57 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x260 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x244 children: not-inline
+      BlockContainer <div.outer> at (34,34) content-size 400x70 [BFC] children: not-inline
+        BlockContainer <div.inner> at (35,35) content-size 400x100 children: inline
+          frag 0 from TextNode start: 0, length: 47, rect: [35,35 382.296875x17] baseline: 13.296875
+              "This should be scrollable vertically because of"
+          frag 1 from TextNode start: 48, length: 12, rect: [35,52 93.4375x17] baseline: 13.296875
+              "the padding."
+          TextNode <#text>
+          InlineNode <span>
+      BlockContainer <(anonymous)> at (8,130) content-size 784x0 children: inline
+        TextNode <#text>
+      BlockContainer <div.outer> at (34,156) content-size 400x70 [BFC] children: not-inline
+        BlockContainer <div.inner> at (35,157) content-size 400x100 children: inline
+          frag 0 from TextNode start: 0, length: 46, rect: [35,157 373.796875x17] baseline: 13.296875
+              "This padding represents, within the scrollable"
+          frag 1 from TextNode start: 47, length: 46, rect: [35,174 370.875x17] baseline: 13.296875
+              "overflow rectangle, the box’s own padding so"
+          frag 2 from TextNode start: 94, length: 45, rect: [35,191 366.578125x17] baseline: 13.296875
+              "that when its content is scrolled to the end,"
+          frag 3 from TextNode start: 140, length: 44, rect: [35,208 359.828125x17] baseline: 13.296875
+              "there is padding between the end-edge of its"
+          frag 4 from TextNode start: 185, length: 48, rect: [35,225 391.71875x17] baseline: 13.296875
+              "in-flow (or floated) content and the border edge"
+          frag 5 from TextNode start: 234, length: 50, rect: [35,242 395.328125x17] baseline: 13.296875
+              "of the box. It typically ends up being exactly the"
+          frag 6 from TextNode start: 285, length: 49, rect: [35,259 399.1875x17] baseline: 13.296875
+              "same size as the box’s own padding, except in a"
+          frag 7 from TextNode start: 335, length: 39, rect: [35,276 320.640625x17] baseline: 13.296875
+              "few cases—such as when an out-of-flow"
+          frag 8 from TextNode start: 375, length: 48, rect: [35,293 389.421875x17] baseline: 13.296875
+              "positioned element, or the visible overflow of a"
+          frag 9 from TextNode start: 424, length: 45, rect: [35,310 371.28125x17] baseline: 13.296875
+              "descendent, has already increased the size of"
+          frag 10 from TextNode start: 470, length: 45, rect: [35,327 366x17] baseline: 13.296875
+              "the scrollable overflow rectangle outside the"
+          frag 11 from TextNode start: 516, length: 43, rect: [35,344 319.109375x17] baseline: 13.296875
+              "conceptual “content edge” of the scroll"
+          frag 12 from TextNode start: 560, length: 22, rect: [35,361 165.21875x17] baseline: 13.296875
+              "container’s content."
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,252) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x260]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x244]
+      PaintableWithLines (BlockContainer<DIV>.outer) [8,8 452x122] overflow: [9,9 450x152]
+        PaintableWithLines (BlockContainer<DIV>.inner) [34,34 402x102]
+          TextPaintable (TextNode<#text>)
+          InlinePaintable (InlineNode<SPAN>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,130 784x0]
+      PaintableWithLines (BlockContainer<DIV>.outer) [8,130 452x122] overflow: [9,131 450x247]
+        PaintableWithLines (BlockContainer<DIV>.inner) [34,156 402x102] overflow: [35,157 400x221]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,252 784x0]
