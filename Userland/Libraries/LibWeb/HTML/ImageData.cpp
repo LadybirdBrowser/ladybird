@@ -30,7 +30,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& re
     // 2. Initialize this given sw, sh, and settings set to settings.
     // 3. Initialize the image data of this to transparent black.
     auto data = TRY(JS::Uint8ClampedArray::create(realm, sw * sh * 4));
-    auto bitmap = TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize(sw, sh), sw * sizeof(u32), data->data().data()));
+    auto bitmap = TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(sw, sh), sw * sizeof(u32), data->data().data()));
 
     return realm.heap().allocate<ImageData>(realm, realm, bitmap, data);
 }

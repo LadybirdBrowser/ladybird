@@ -212,7 +212,7 @@ bool HTMLCanvasElement::create_bitmap(size_t minimum_width, size_t minimum_heigh
         return false;
     }
     if (!m_bitmap || m_bitmap->size() != size) {
-        auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, size);
+        auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size);
         if (bitmap_or_error.is_error())
             return false;
         m_bitmap = bitmap_or_error.release_value_but_fixme_should_propagate_errors();

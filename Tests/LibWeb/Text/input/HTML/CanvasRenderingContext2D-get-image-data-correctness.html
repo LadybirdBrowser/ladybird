@@ -12,7 +12,7 @@
 
         let imageData = areaCtx.getImageData(0, 0, area.width, area.height);
 
-        if (imageData.data[0] == 0xff && imageData.data[1] == 0x80 && imageData.data[2] == 0x40)
+        if (imageData.data[0] == 0xff && imageData.data[1] == 0x80 && imageData.data[2] == 0x40 && imageData.data[3] == 0xff)
             println("PASS");
         else
             println("FAIL");

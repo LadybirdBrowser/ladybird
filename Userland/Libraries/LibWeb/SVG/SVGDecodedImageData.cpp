@@ -87,7 +87,7 @@ void SVGDecodedImageData::visit_edges(Cell::Visitor& visitor)
 
 RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
 {
-    auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, size).release_value_but_fixme_should_propagate_errors();
+    auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value_but_fixme_should_propagate_errors();
     VERIFY(m_document->navigable());
     m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout();
