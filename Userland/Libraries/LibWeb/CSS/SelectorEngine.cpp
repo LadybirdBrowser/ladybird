@@ -702,8 +702,12 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, Optio
     }
     case CSS::Selector::SimpleSelector::Type::Id:
         return component.name() == element.id();
-    case CSS::Selector::SimpleSelector::Type::Class:
-        return element.has_class(component.name());
+    case CSS::Selector::SimpleSelector::Type::Class: {
+        // Class selectors are matched case insensitively in quirks mode.
+        // See: https://drafts.csswg.org/selectors-4/#class-html
+        auto case_sensitivity = element.document().in_quirks_mode() ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
+        return element.has_class(component.name(), case_sensitivity);
+    }
     case CSS::Selector::SimpleSelector::Type::Attribute:
         return matches_attribute(component.attribute(), style_sheet_for_rule, element);
     case CSS::Selector::SimpleSelector::Type::PseudoClass:
@@ -788,8 +792,12 @@ static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& si
             return false;
         }
         return matches_namespace(simple_selector.qualified_name(), element, style_sheet_for_rule);
-    case CSS::Selector::SimpleSelector::Type::Class:
-        return element.has_class(simple_selector.name());
+    case CSS::Selector::SimpleSelector::Type::Class: {
+        // Class selectors are matched case insensitively in quirks mode.
+        // See: https://drafts.csswg.org/selectors-4/#class-html
+        auto case_sensitivity = element.document().in_quirks_mode() ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
+        return element.has_class(simple_selector.name(), case_sensitivity);
+    }
     case CSS::Selector::SimpleSelector::Type::Id:
         return simple_selector.name() == element.id();
     case CSS::Selector::SimpleSelector::Type::Attribute:
