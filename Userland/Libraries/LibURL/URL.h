@@ -78,6 +78,34 @@ enum class SpaceAsPlus {
 ByteString percent_encode(StringView input, PercentEncodeSet set = PercentEncodeSet::Userinfo, SpaceAsPlus = SpaceAsPlus::No);
 ByteString percent_decode(StringView input);
 
+template<typename T>
+class CopyOnWrite {
+public:
+    CopyOnWrite()
+        : m_value(adopt_ref(*new T))
+    {
+    }
+    T& mutable_value()
+    {
+        if (m_value->ref_count() > 1)
+            m_value = m_value->clone();
+        return *m_value;
+    }
+    T const& value() const { return *m_value; }
+
+    operator T const&() const { return value(); }
+    operator T&() { return mutable_value(); }
+
+    T const* operator->() const { return &value(); }
+    T* operator->() { return &mutable_value(); }
+
+    T const* ptr() const { return m_value.ptr(); }
+    T* ptr() { return m_value.ptr(); }
+
+private:
+    NonnullRefPtr<T> m_value;
+};
+
 // https://url.spec.whatwg.org/#url-representation
 // A URL is a struct that represents a universal identifier. To disambiguate from a valid URL string it can also be referred to as a URL record.
 class URL {
@@ -95,26 +123,26 @@ public:
     {
     }
 
-    bool is_valid() const { return m_valid; }
+    bool is_valid() const { return m_data->valid; }
 
-    String const& scheme() const { return m_scheme; }
+    String const& scheme() const { return m_data->scheme; }
     ErrorOr<String> username() const;
     ErrorOr<String> password() const;
-    Host const& host() const { return m_host; }
+    Host const& host() const { return m_data->host; }
     ErrorOr<String> serialized_host() const;
     ByteString basename() const;
-    Optional<String> const& query() const { return m_query; }
-    Optional<String> const& fragment() const { return m_fragment; }
-    Optional<u16> port() const { return m_port; }
+    Optional<String> const& query() const { return m_data->query; }
+    Optional<String> const& fragment() const { return m_data->fragment; }
+    Optional<u16> port() const { return m_data->port; }
     ByteString path_segment_at_index(size_t index) const;
-    size_t path_segment_count() const { return m_paths.size(); }
+    size_t path_segment_count() const { return m_data->paths.size(); }
 
-    u16 port_or_default() const { return m_port.value_or(default_port_for_scheme(m_scheme).value_or(0)); }
-    bool cannot_be_a_base_url() const { return m_cannot_be_a_base_url; }
+    u16 port_or_default() const { return m_data->port.value_or(default_port_for_scheme(m_data->scheme).value_or(0)); }
+    bool cannot_be_a_base_url() const { return m_data->cannot_be_a_base_url; }
     bool cannot_have_a_username_or_password_or_port() const;
 
-    bool includes_credentials() const { return !m_username.is_empty() || !m_password.is_empty(); }
-    bool is_special() const { return is_special_scheme(m_scheme); }
+    bool includes_credentials() const { return !m_data->username.is_empty() || !m_data->password.is_empty(); }
+    bool is_special() const { return is_special_scheme(m_data->scheme); }
 
     void set_scheme(String);
     ErrorOr<void> set_username(StringView);
@@ -122,14 +150,14 @@ public:
     void set_host(Host);
     void set_port(Optional<u16>);
     void set_paths(Vector<ByteString> const&);
-    void set_query(Optional<String> query) { m_query = move(query); }
-    void set_fragment(Optional<String> fragment) { m_fragment = move(fragment); }
-    void set_cannot_be_a_base_url(bool value) { m_cannot_be_a_base_url = value; }
+    void set_query(Optional<String> query) { m_data->query = move(query); }
+    void set_fragment(Optional<String> fragment) { m_data->fragment = move(fragment); }
+    void set_cannot_be_a_base_url(bool value) { m_data->cannot_be_a_base_url = value; }
     void append_path(StringView);
     void append_slash()
     {
         // NOTE: To indicate that we want to end the path with a slash, we have to append an empty path segment.
-        m_paths.append(String {});
+        m_data->paths.append(String {});
     }
 
     ByteString serialize_path(ApplyPercentDecoding = ApplyPercentDecoding::Yes) const;
@@ -145,49 +173,74 @@ public:
 
     URL complete_url(StringView) const;
 
-    bool operator==(URL const& other) const { return equals(other, ExcludeFragment::No); }
+    [[nodiscard]] bool operator==(URL const& other) const
+    {
+        if (m_data.ptr() == other.m_data.ptr())
+            return true;
+        return equals(other, ExcludeFragment::No);
+    }
 
-    String const& raw_username() const { return m_username; }
-    String const& raw_password() const { return m_password; }
+    String const& raw_username() const { return m_data->username; }
+    String const& raw_password() const { return m_data->password; }
 
-    Optional<BlobURLEntry> const& blob_url_entry() const { return m_blob_url_entry; }
-    void set_blob_url_entry(Optional<BlobURLEntry> entry) { m_blob_url_entry = move(entry); }
+    Optional<BlobURLEntry> const& blob_url_entry() const { return m_data->blob_url_entry; }
+    void set_blob_url_entry(Optional<BlobURLEntry> entry) { m_data->blob_url_entry = move(entry); }
 
 private:
     bool compute_validity() const;
 
-    bool m_valid { false };
+    struct Data : public RefCounted<Data> {
+        NonnullRefPtr<Data> clone()
+        {
+            auto clone = adopt_ref(*new Data);
+            clone->valid = valid;
+            clone->scheme = scheme;
+            clone->username = username;
+            clone->password = password;
+            clone->host = host;
+            clone->port = port;
+            clone->paths = paths;
+            clone->query = query;
+            clone->fragment = fragment;
+            clone->cannot_be_a_base_url = cannot_be_a_base_url;
+            clone->blob_url_entry = blob_url_entry;
+            return clone;
+        }
 
-    // A URL’s scheme is an ASCII string that identifies the type of URL and can be used to dispatch a URL for further processing after parsing. It is initially the empty string.
-    String m_scheme;
+        bool valid { false };
 
-    // A URL’s username is an ASCII string identifying a username. It is initially the empty string.
-    String m_username;
+        // A URL’s scheme is an ASCII string that identifies the type of URL and can be used to dispatch a URL for further processing after parsing. It is initially the empty string.
+        String scheme;
 
-    // A URL’s password is an ASCII string identifying a password. It is initially the empty string.
-    String m_password;
+        // A URL’s username is an ASCII string identifying a username. It is initially the empty string.
+        String username;
 
-    // A URL’s host is null or a host. It is initially null.
-    Host m_host;
+        // A URL’s password is an ASCII string identifying a password. It is initially the empty string.
+        String password;
 
-    // A URL’s port is either null or a 16-bit unsigned integer that identifies a networking port. It is initially null.
-    Optional<u16> m_port;
+        // A URL’s host is null or a host. It is initially null.
+        Host host;
 
-    // A URL’s path is either a URL path segment or a list of zero or more URL path segments, usually identifying a location. It is initially « ».
-    // A URL path segment is an ASCII string. It commonly refers to a directory or a file, but has no predefined meaning.
-    Vector<String> m_paths;
+        // A URL’s port is either null or a 16-bit unsigned integer that identifies a networking port. It is initially null.
+        Optional<u16> port;
 
-    // A URL’s query is either null or an ASCII string. It is initially null.
-    Optional<String> m_query;
+        // A URL’s path is either a URL path segment or a list of zero or more URL path segments, usually identifying a location. It is initially « ».
+        // A URL path segment is an ASCII string. It commonly refers to a directory or a file, but has no predefined meaning.
+        Vector<String> paths;
 
-    // A URL’s fragment is either null or an ASCII string that can be used for further processing on the resource the URL’s other components identify. It is initially null.
-    Optional<String> m_fragment;
+        // A URL’s query is either null or an ASCII string. It is initially null.
+        Optional<String> query;
 
-    bool m_cannot_be_a_base_url { false };
+        // A URL’s fragment is either null or an ASCII string that can be used for further processing on the resource the URL’s other components identify. It is initially null.
+        Optional<String> fragment;
 
-    // https://url.spec.whatwg.org/#concept-url-blob-entry
-    // A URL also has an associated blob URL entry that is either null or a blob URL entry. It is initially null.
-    Optional<BlobURLEntry> m_blob_url_entry;
+        bool cannot_be_a_base_url { false };
+
+        // https://url.spec.whatwg.org/#concept-url-blob-entry
+        // A URL also has an associated blob URL entry that is either null or a blob URL entry. It is initially null.
+        Optional<BlobURLEntry> blob_url_entry;
+    };
+    CopyOnWrite<Data> m_data;
 };
 
 URL create_with_url_or_path(ByteString const&);
