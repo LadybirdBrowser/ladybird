@@ -253,7 +253,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
 
             png_get_next_frame_fcTL(png_ptr, info_ptr, &width, &height, &x, &y, &delay_num, &delay_den, &dispose_op, &blend_op);
 
-            decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, IntSize { static_cast<int>(width), static_cast<int>(height) }));
+            decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, IntSize { static_cast<int>(width), static_cast<int>(height) }));
 
             row_pointers.resize(height);
             for (u32 i = 0; i < height; ++i) {
@@ -279,7 +279,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         frame_count = 1;
         loop_count = 0;
 
-        decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, size));
+        decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
         row_pointers.resize(size.height());
         for (int i = 0; i < size.height(); ++i)
             row_pointers[i] = decoded_frame_bitmap->scanline_u8(i);
