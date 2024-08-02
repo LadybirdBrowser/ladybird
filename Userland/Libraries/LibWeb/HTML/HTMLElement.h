@@ -80,6 +80,8 @@ public:
     WebIDL::ExceptionOr<void> set_popover(Optional<String> value);
     Optional<String> popover() const;
 
+    virtual bool is_child_node_selectable(DOM::Node*) const { return true; }
+
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
 

@@ -70,6 +70,8 @@ public:
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;
 
+    virtual bool is_child_node_selectable(DOM::Node*) const override { return false; }
+
 private:
     virtual bool is_html_button_element() const override { return true; }
 
