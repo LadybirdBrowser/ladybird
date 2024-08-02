@@ -74,6 +74,7 @@ static bool is_platform_object(Type const& type)
         "Path2D"sv,
         "PerformanceEntry"sv,
         "PerformanceMark"sv,
+        "PerformanceNavigation"sv,
         "PeriodicWave"sv,
         "PointerEvent"sv,
         "ReadableStreamBYOBReader"sv,

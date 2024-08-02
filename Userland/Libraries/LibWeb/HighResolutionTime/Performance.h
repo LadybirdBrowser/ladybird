@@ -25,8 +25,6 @@ public:
     double now() const { return static_cast<double>(m_timer.elapsed_time().to_nanoseconds()) / 1e6; }
     double time_origin() const;
 
-    JS::GCPtr<NavigationTiming::PerformanceTiming> timing();
-
     WebIDL::ExceptionOr<JS::NonnullGCPtr<UserTiming::PerformanceMark>> mark(String const& mark_name, UserTiming::PerformanceMarkOptions const& mark_options = {});
     void clear_marks(Optional<String> mark_name);
     WebIDL::ExceptionOr<JS::NonnullGCPtr<UserTiming::PerformanceMeasure>> measure(String const& measure_name, Variant<String, UserTiming::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark);
@@ -35,6 +33,9 @@ public:
     WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> get_entries() const;
     WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(String const& type) const;
     WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(String const& name, Optional<String> type) const;
+
+    JS::GCPtr<NavigationTiming::PerformanceTiming> timing();
+    JS::GCPtr<NavigationTiming::PerformanceNavigation> navigation();
 
 private:
     explicit Performance(JS::Realm&);
@@ -48,6 +49,7 @@ private:
     WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_name_to_timestamp(JS::Realm& realm, String const& name);
     WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_mark_to_timestamp(JS::Realm& realm, Variant<String, HighResolutionTime::DOMHighResTimeStamp> mark);
 
+    JS::GCPtr<NavigationTiming::PerformanceNavigation> m_navigation;
     JS::GCPtr<NavigationTiming::PerformanceTiming> m_timing;
 
     Core::ElapsedTimer m_timer;

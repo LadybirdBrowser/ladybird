@@ -538,6 +538,7 @@ set(SOURCES
     MixedContent/AbstractOperations.cpp
     Namespace.cpp
     NavigationTiming/EntryNames.cpp
+    NavigationTiming/PerformanceNavigation.cpp
     NavigationTiming/PerformanceTiming.cpp
     Page/EditEventHandler.cpp
     Page/EventHandler.cpp

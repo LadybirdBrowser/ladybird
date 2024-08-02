@@ -1,5 +1,6 @@
 #import <DOM/EventTarget.idl>
 #import <HighResolutionTime/DOMHighResTimeStamp.idl>
+#import <NavigationTiming/PerformanceNavigation.idl>
 #import <NavigationTiming/PerformanceTiming.idl>
 #import <PerformanceTimeline/PerformanceEntry.idl>
 #import <UserTiming/PerformanceMark.idl>
@@ -15,8 +16,6 @@ interface Performance : EventTarget {
     readonly attribute DOMHighResTimeStamp timeOrigin;
     [Default] object toJSON();
 
-    readonly attribute PerformanceTiming timing;
-
     // https://w3c.github.io/user-timing/#extensions-performance-interface
     // "User Timing" extensions to the Performance interface
     PerformanceMark mark(DOMString markName, optional PerformanceMarkOptions markOptions = {});
@@ -29,4 +28,11 @@ interface Performance : EventTarget {
     PerformanceEntryList getEntries();
     PerformanceEntryList getEntriesByType(DOMString type);
     PerformanceEntryList getEntriesByName(DOMString name, optional DOMString type);
+
+    // https://w3c.github.io/navigation-timing/#extensions-to-the-performance-interface
+    // Obsolete "Navigation Timing" extensions to the Performance interface
+    [SameObject]
+    readonly attribute PerformanceTiming timing;
+    [SameObject]
+    readonly attribute PerformanceNavigation navigation;
 };
