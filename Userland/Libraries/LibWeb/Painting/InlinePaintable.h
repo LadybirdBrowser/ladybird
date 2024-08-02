@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/ClippableAndScrollable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>

@@ -12,6 +12,41 @@
 
 namespace Web::Painting {
 
-void paint_background(PaintContext&, Layout::NodeWithStyleAndBoxModelMetrics const&, CSSPixelRect const&, Color background_color, CSS::ImageRendering, Vector<CSS::BackgroundLayerData> const*, BorderRadiiData const&);
+struct ResolvedBackgroundLayerData {
+    RefPtr<CSS::AbstractImageStyleValue const> background_image;
+    CSS::BackgroundAttachment attachment;
+    CSS::BackgroundBox clip;
+    CSS::PositionEdge position_edge_x;
+    CSS::PositionEdge position_edge_y;
+    CSSPixels offset_x;
+    CSSPixels offset_y;
+    CSSPixelRect background_positioning_area;
+    CSSPixelRect image_rect;
+    CSS::Repeat repeat_x;
+    CSS::Repeat repeat_y;
+};
+
+struct BackgroundBox {
+    CSSPixelRect rect;
+    BorderRadiiData radii;
+
+    inline void shrink(CSSPixels top, CSSPixels right, CSSPixels bottom, CSSPixels left)
+    {
+        rect.shrink(top, right, bottom, left);
+        radii.shrink(top, right, bottom, left);
+    }
+};
+
+struct ResolvedBackground {
+    BackgroundBox color_box;
+    Vector<ResolvedBackgroundLayerData> layers;
+    bool needs_text_clip { false };
+    CSSPixelRect background_rect {};
+    Color color {};
+};
+
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii);
+
+void paint_background(PaintContext&, Layout::NodeWithStyleAndBoxModelMetrics const&, CSS::ImageRendering, ResolvedBackground resolved_background, BorderRadiiData const&);
 
 }

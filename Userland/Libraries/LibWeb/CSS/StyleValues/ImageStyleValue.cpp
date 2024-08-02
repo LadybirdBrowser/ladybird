@@ -43,9 +43,13 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
             if (!m_document)
                 return;
 
-            // FIXME: Do less than a full repaint if possible?
-            if (auto navigable = m_document->navigable())
+            if (auto navigable = m_document->navigable()) {
+                // Once the image has loaded, we need to re-resolve CSS properties that depend on the image's dimensions.
+                m_document->set_needs_to_resolve_paint_only_properties();
+
+                // FIXME: Do less than a full repaint if possible?
                 navigable->set_needs_display();
+            }
 
             auto image_data = m_resource_request->image_data();
             if (image_data->is_animated() && image_data->frame_count() > 1) {

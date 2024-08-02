@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/BorderPainting.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/ClipFrame.h>
@@ -262,6 +263,8 @@ private:
 
     Optional<CSSPixelPoint> m_last_mouse_tracking_position;
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
+
+    ResolvedBackground m_resolved_background;
 };
 
 class PaintableWithLines : public PaintableBox {

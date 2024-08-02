@@ -6,8 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/AntiAliasingPainter.h>
-#include <LibGfx/Font/ScaledFont.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
@@ -95,80 +93,51 @@ static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Painta
     return text_clip_paths;
 }
 
+static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_box, auto const& layout_node)
+{
+    auto box = border_box;
+    switch (box_clip) {
+    case CSS::BackgroundBox::ContentBox: {
+        auto& padding = layout_node.box_model().padding;
+        box.shrink(padding.top, padding.right, padding.bottom, padding.left);
+        [[fallthrough]];
+    }
+    case CSS::BackgroundBox::PaddingBox: {
+        auto& border = layout_node.box_model().border;
+        box.shrink(border.top, border.right, border.bottom, border.left);
+        [[fallthrough]];
+    }
+    case CSS::BackgroundBox::BorderBox:
+    default:
+        return box;
+    }
+}
+
 // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
-void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, CSSPixelRect const& border_rect, Color background_color, CSS::ImageRendering image_rendering, Vector<CSS::BackgroundLayerData> const* background_layers, BorderRadiiData const& border_radii)
+void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, CSS::ImageRendering image_rendering, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
 {
     RefPtr<DisplayList> text_clip;
-    if (background_layers && !background_layers->is_empty() && background_layers->last().clip == CSS::BackgroundBox::Text) {
+    if (resolved_background.needs_text_clip) {
         text_clip = compute_text_clip_paths(context, *layout_node.paintable());
     }
 
     auto& display_list_recorder = context.display_list_recorder();
 
-    struct BackgroundBox {
-        CSSPixelRect rect;
-        BorderRadiiData radii;
-
-        inline void shrink(CSSPixels top, CSSPixels right, CSSPixels bottom, CSSPixels left)
-        {
-            rect.shrink(top, right, bottom, left);
-            radii.shrink(top, right, bottom, left);
-        }
-    };
-
     BackgroundBox border_box {
-        border_rect,
+        resolved_background.background_rect,
         border_radii
     };
 
-    auto get_box = [&](CSS::BackgroundBox box_clip) {
-        auto box = border_box;
-        switch (box_clip) {
-        case CSS::BackgroundBox::ContentBox: {
-            auto& padding = layout_node.box_model().padding;
-            box.shrink(padding.top, padding.right, padding.bottom, padding.left);
-            [[fallthrough]];
-        }
-        case CSS::BackgroundBox::PaddingBox: {
-            auto& border = layout_node.box_model().border;
-            box.shrink(border.top, border.right, border.bottom, border.left);
-            [[fallthrough]];
-        }
-        case CSS::BackgroundBox::BorderBox:
-        default:
-            return box;
-        }
-    };
-
-    auto color_box = border_box;
-    if (background_layers && !background_layers->is_empty())
-        color_box = get_box(background_layers->last().clip);
-
-    auto layer_is_paintable = [&](auto& layer) {
-        return layer.background_image && layer.background_image->is_paintable();
-    };
-
-    bool has_paintable_layers = false;
-    if (background_layers) {
-        for (auto& layer : *background_layers) {
-            if (layer_is_paintable(layer)) {
-                has_paintable_layers = true;
-                break;
-            }
-        }
-    }
+    auto const& color_box = resolved_background.color_box;
 
     display_list_recorder.fill_rect_with_rounded_corners(
         context.rounded_device_rect(color_box.rect).to_type<int>(),
-        background_color,
+        resolved_background.color,
         color_box.radii.top_left.as_corner(context),
         color_box.radii.top_right.as_corner(context),
         color_box.radii.bottom_right.as_corner(context),
         color_box.radii.bottom_left.as_corner(context),
         text_clip);
-
-    if (!has_paintable_layers)
-        return;
 
     struct {
         DevicePixels top { 0 };
@@ -191,13 +160,11 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
     }
 
     // Note: Background layers are ordered front-to-back, so we paint them in reverse
-    for (auto& layer : background_layers->in_reverse()) {
-        if (!layer_is_paintable(layer))
-            continue;
+    for (auto& layer : resolved_background.layers.in_reverse()) {
         DisplayListRecorderStateSaver state { display_list_recorder };
 
         // Clip
-        auto clip_box = get_box(layer.clip);
+        auto clip_box = get_box(layer.clip, border_box, layout_node);
 
         CSSPixelRect const& css_clip_rect = clip_box.rect;
         auto clip_rect = context.rounded_device_rect(css_clip_rect);
@@ -210,18 +177,17 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
             clip_rect.shrink(clip_shrink.top, clip_shrink.right, clip_shrink.bottom, clip_shrink.left);
         }
 
-        auto& image = *layer.background_image;
-        CSSPixelRect background_positioning_area;
+        auto const& image = *layer.background_image;
+        auto image_rect = layer.image_rect;
+        auto background_positioning_area = layer.background_positioning_area;
 
-        // Attachment and Origin
         switch (layer.attachment) {
         case CSS::BackgroundAttachment::Fixed:
-            background_positioning_area = layout_node.root().navigable()->viewport_rect();
+            background_positioning_area.set_location(layout_node.root().navigable()->viewport_scroll_offset());
             break;
         case CSS::BackgroundAttachment::Local:
-            background_positioning_area = get_box(layer.origin).rect;
             if (is<Layout::Box>(layout_node)) {
-                auto* paintable_box = static_cast<Layout::Box const&>(layout_node).paintable_box();
+                auto const* paintable_box = static_cast<Layout::Box const&>(layout_node).paintable_box();
                 if (paintable_box && !paintable_box->is_viewport()) {
                     auto scroll_offset = paintable_box->scroll_offset();
                     background_positioning_area.translate_by(-scroll_offset.x(), -scroll_offset.y());
@@ -229,97 +195,22 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
             }
             break;
         case CSS::BackgroundAttachment::Scroll:
-            background_positioning_area = get_box(layer.origin).rect;
             break;
         }
 
-        Optional<CSSPixels> specified_width {};
-        Optional<CSSPixels> specified_height {};
-        if (layer.size_type == CSS::BackgroundSize::LengthPercentage) {
-            if (!layer.size_x.is_auto())
-                specified_width = layer.size_x.to_px(layout_node, background_positioning_area.width());
-            if (!layer.size_y.is_auto())
-                specified_height = layer.size_y.to_px(layout_node, background_positioning_area.height());
-        }
-        auto concrete_image_size = run_default_sizing_algorithm(
-            specified_width, specified_height,
-            image.natural_width(), image.natural_height(), image.natural_aspect_ratio(),
-            background_positioning_area.size());
-
-        // If any of these are zero, the NaNs will pop up in the painting code.
-        if (background_positioning_area.is_empty() || concrete_image_size.is_empty())
+        if (background_positioning_area.is_empty())
             continue;
 
-        // Size
-        CSSPixelRect image_rect;
-        switch (layer.size_type) {
-        case CSS::BackgroundSize::Contain: {
-            double max_width_ratio = background_positioning_area.width().to_double() / concrete_image_size.width().to_double();
-            double max_height_ratio = background_positioning_area.height().to_double() / concrete_image_size.height().to_double();
-            double ratio = min(max_width_ratio, max_height_ratio);
-            image_rect.set_size(concrete_image_size.width().scaled(ratio), concrete_image_size.height().scaled(ratio));
-            break;
-        }
-        case CSS::BackgroundSize::Cover: {
-            double max_width_ratio = background_positioning_area.width().to_double() / concrete_image_size.width().to_double();
-            double max_height_ratio = background_positioning_area.height().to_double() / concrete_image_size.height().to_double();
-            double ratio = max(max_width_ratio, max_height_ratio);
-            image_rect.set_size(concrete_image_size.width().scaled(ratio), concrete_image_size.height().scaled(ratio));
-            break;
-        }
-        case CSS::BackgroundSize::LengthPercentage:
-            image_rect.set_size(concrete_image_size);
-            break;
-        }
-
-        // If after sizing we have a 0px image, we're done. Attempting to paint this would be an infinite loop.
-        if (image_rect.is_empty())
-            continue;
-
-        // If background-repeat is round for one (or both) dimensions, there is a second step.
-        // The UA must scale the image in that dimension (or both dimensions) so that it fits a
-        // whole number of times in the background positioning area.
-        if (layer.repeat_x == CSS::Repeat::Round || layer.repeat_y == CSS::Repeat::Round) {
-            // If X ≠ 0 is the width of the image after step one and W is the width of the
-            // background positioning area, then the rounded width X' = W / round(W / X)
-            // where round() is a function that returns the nearest natural number
-            // (integer greater than zero).
-            if (layer.repeat_x == CSS::Repeat::Round) {
-                image_rect.set_width(background_positioning_area.width() / round(background_positioning_area.width() / image_rect.width()));
-            }
-            if (layer.repeat_y == CSS::Repeat::Round) {
-                image_rect.set_height(background_positioning_area.height() / round(background_positioning_area.height() / image_rect.height()));
-            }
-
-            // If background-repeat is round for one dimension only and if background-size is auto
-            // for the other dimension, then there is a third step: that other dimension is scaled
-            // so that the original aspect ratio is restored.
-            if (layer.repeat_x != layer.repeat_y) {
-                if (layer.size_x.is_auto()) {
-                    image_rect.set_width(image_rect.height() * (concrete_image_size.width() / concrete_image_size.height()));
-                }
-                if (layer.size_y.is_auto()) {
-                    image_rect.set_height(image_rect.width() * (concrete_image_size.height() / concrete_image_size.width()));
-                }
-            }
-        }
-
-        CSSPixels space_x = background_positioning_area.width() - image_rect.width();
-        CSSPixels space_y = background_positioning_area.height() - image_rect.height();
-
-        // Position
-        CSSPixels offset_x = layer.position_offset_x.to_px(layout_node, space_x);
         if (layer.position_edge_x == CSS::PositionEdge::Right) {
-            image_rect.set_right_without_resize(background_positioning_area.right() - offset_x);
+            image_rect.set_right_without_resize(background_positioning_area.right() - layer.offset_x);
         } else {
-            image_rect.set_left(background_positioning_area.left() + offset_x);
+            image_rect.set_left(background_positioning_area.left() + layer.offset_x);
         }
 
-        CSSPixels offset_y = layer.position_offset_y.to_px(layout_node, space_y);
         if (layer.position_edge_y == CSS::PositionEdge::Bottom) {
-            image_rect.set_bottom_without_resize(background_positioning_area.bottom() - offset_y);
+            image_rect.set_bottom_without_resize(background_positioning_area.bottom() - layer.offset_y);
         } else {
-            image_rect.set_top(background_positioning_area.top() + offset_y);
+            image_rect.set_top(background_positioning_area.top() + layer.offset_y);
         }
 
         // Repetition
@@ -396,7 +287,6 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
 
         CSSPixels initial_image_x = image_rect.x();
         CSSPixels image_y = image_rect.y();
-        Optional<DevicePixelRect> last_image_device_rect;
 
         image.resolve_for_size(layout_node, image_rect.size());
 
@@ -447,6 +337,130 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
             });
         }
     }
+}
+
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
+{
+    auto layer_is_paintable = [&](auto& layer) {
+        return layer.background_image && layer.background_image->is_paintable();
+    };
+
+    BackgroundBox border_box {
+        border_rect,
+        border_radii
+    };
+
+    auto color_box = border_box;
+    if (!layers.is_empty())
+        color_box = get_box(layers.last().clip, border_box, layout_node);
+
+    Vector<ResolvedBackgroundLayerData> resolved_layers;
+    for (auto const& layer : layers) {
+        if (!layer_is_paintable(layer))
+            continue;
+
+        auto background_positioning_area = get_box(layer.origin, border_box, layout_node).rect;
+        auto const& image = *layer.background_image;
+
+        Optional<CSSPixels> specified_width {};
+        Optional<CSSPixels> specified_height {};
+        if (layer.size_type == CSS::BackgroundSize::LengthPercentage) {
+            if (!layer.size_x.is_auto())
+                specified_width = layer.size_x.to_px(layout_node, background_positioning_area.width());
+            if (!layer.size_y.is_auto())
+                specified_height = layer.size_y.to_px(layout_node, background_positioning_area.height());
+        }
+        auto concrete_image_size = run_default_sizing_algorithm(
+            specified_width, specified_height,
+            image.natural_width(), image.natural_height(), image.natural_aspect_ratio(),
+            background_positioning_area.size());
+
+        // If any of these are zero, the NaNs will pop up in the painting code.
+        if (background_positioning_area.is_empty() || concrete_image_size.is_empty()) {
+            continue;
+        }
+
+        // Size
+        CSSPixelRect image_rect;
+        switch (layer.size_type) {
+        case CSS::BackgroundSize::Contain: {
+            double max_width_ratio = background_positioning_area.width().to_double() / concrete_image_size.width().to_double();
+            double max_height_ratio = background_positioning_area.height().to_double() / concrete_image_size.height().to_double();
+            double ratio = min(max_width_ratio, max_height_ratio);
+            image_rect.set_size(concrete_image_size.width().scaled(ratio), concrete_image_size.height().scaled(ratio));
+            break;
+        }
+        case CSS::BackgroundSize::Cover: {
+            double max_width_ratio = background_positioning_area.width().to_double() / concrete_image_size.width().to_double();
+            double max_height_ratio = background_positioning_area.height().to_double() / concrete_image_size.height().to_double();
+            double ratio = max(max_width_ratio, max_height_ratio);
+            image_rect.set_size(concrete_image_size.width().scaled(ratio), concrete_image_size.height().scaled(ratio));
+            break;
+        }
+        case CSS::BackgroundSize::LengthPercentage:
+            image_rect.set_size(concrete_image_size);
+            break;
+        }
+
+        // If after sizing we have a 0px image, we're done. Attempting to paint this would be an infinite loop.
+        if (image_rect.is_empty()) {
+            continue;
+        }
+
+        // If background-repeat is round for one (or both) dimensions, there is a second step.
+        // The UA must scale the image in that dimension (or both dimensions) so that it fits a
+        // whole number of times in the background positioning area.
+        if (layer.repeat_x == CSS::Repeat::Round || layer.repeat_y == CSS::Repeat::Round) {
+            // If X ≠ 0 is the width of the image after step one and W is the width of the
+            // background positioning area, then the rounded width X' = W / round(W / X)
+            // where round() is a function that returns the nearest natural number
+            // (integer greater than zero).
+            if (layer.repeat_x == CSS::Repeat::Round) {
+                image_rect.set_width(background_positioning_area.width() / round(background_positioning_area.width() / image_rect.width()));
+            }
+            if (layer.repeat_y == CSS::Repeat::Round) {
+                image_rect.set_height(background_positioning_area.height() / round(background_positioning_area.height() / image_rect.height()));
+            }
+
+            // If background-repeat is round for one dimension only and if background-size is auto
+            // for the other dimension, then there is a third step: that other dimension is scaled
+            // so that the original aspect ratio is restored.
+            if (layer.repeat_x != layer.repeat_y) {
+                if (layer.size_x.is_auto()) {
+                    image_rect.set_width(image_rect.height() * (concrete_image_size.width() / concrete_image_size.height()));
+                }
+                if (layer.size_y.is_auto()) {
+                    image_rect.set_height(image_rect.width() * (concrete_image_size.height() / concrete_image_size.width()));
+                }
+            }
+        }
+
+        CSSPixels space_x = background_positioning_area.width() - image_rect.width();
+        CSSPixels space_y = background_positioning_area.height() - image_rect.height();
+
+        CSSPixels offset_x = layer.position_offset_x.to_px(layout_node, space_x);
+        CSSPixels offset_y = layer.position_offset_y.to_px(layout_node, space_y);
+
+        resolved_layers.append({ .background_image = layer.background_image,
+            .attachment = layer.attachment,
+            .clip = layer.clip,
+            .position_edge_x = layer.position_edge_x,
+            .position_edge_y = layer.position_edge_y,
+            .offset_x = offset_x,
+            .offset_y = offset_y,
+            .background_positioning_area = background_positioning_area,
+            .image_rect = image_rect,
+            .repeat_x = layer.repeat_x,
+            .repeat_y = layer.repeat_y });
+    }
+
+    return ResolvedBackground {
+        .color_box = color_box,
+        .layers = move(resolved_layers),
+        .needs_text_clip = !layers.is_empty() && layers.last().clip == CSS::BackgroundBox::Text,
+        .background_rect = border_rect,
+        .color = background_color
+    };
 }
 
 }
