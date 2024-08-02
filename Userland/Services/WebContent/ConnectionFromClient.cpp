@@ -332,9 +332,10 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
                 if (element->is_element()) {
                     auto styles = doc->style_computer().compute_style(*static_cast<Web::DOM::Element*>(element));
                     dbgln("+ Element {}", element->debug_description());
-                    auto& properties = styles->properties();
-                    for (size_t i = 0; i < properties.size(); ++i)
-                        dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), properties[i].style ? properties[i].style->to_string() : ""_string);
+                    for (size_t i = 0; i < Web::CSS::StyleProperties::number_of_properties; ++i) {
+                        auto property = styles->maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
+                        dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string() : ""_string);
+                    }
                     dbgln("---");
                 }
             }
