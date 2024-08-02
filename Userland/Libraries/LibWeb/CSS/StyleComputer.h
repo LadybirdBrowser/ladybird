@@ -113,7 +113,7 @@ public:
         No,
     };
     static void for_each_property_expanding_shorthands(PropertyID, StyleValue const&, AllowUnresolved, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property);
-    static void set_property_expanding_shorthands(StyleProperties&, PropertyID, StyleValue const&, CSS::CSSStyleDeclaration const*, StyleProperties::PropertyValues const& properties_for_revert, CSS::CSSStyleDeclaration const* animation_name_source_for_revert, StyleProperties::Important = StyleProperties::Important::No);
+    static void set_property_expanding_shorthands(StyleProperties&, PropertyID, StyleValue const&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, Important = Important::No);
     static NonnullRefPtr<StyleValue const> get_inherit_value(JS::Realm& initial_value_context_realm, CSS::PropertyID, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type> = {});
 
     explicit StyleComputer(DOM::Document&);
@@ -177,7 +177,7 @@ private:
 
     void compute_defaulted_property_value(StyleProperties&, DOM::Element const*, CSS::PropertyID, Optional<CSS::Selector::PseudoElement::Type>) const;
 
-    void set_all_properties(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, StyleProperties&, StyleValue const&, DOM::Document&, CSS::CSSStyleDeclaration const*, StyleProperties::PropertyValues const& properties_for_revert, CSS::CSSStyleDeclaration const* animation_name_source_for_revert, StyleProperties::Important = StyleProperties::Important::No) const;
+    void set_all_properties(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, StyleProperties&, StyleValue const&, DOM::Document&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, Important = Important::No) const;
 
     template<typename Callback>
     void for_each_stylesheet(CascadeOrigin, Callback) const;
