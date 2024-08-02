@@ -75,7 +75,7 @@ body {
 
     padding: 8px 0px 0px 4px;
 
-    overflow: scroll;
+    overflow: auto scroll;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -187,7 +187,7 @@ details > :not(:first-child) {
 
 .console-output {
     height: calc(100% - 32px);
-    overflow: scroll;
+    overflow: auto scroll;
 }
 
 .console-input {
