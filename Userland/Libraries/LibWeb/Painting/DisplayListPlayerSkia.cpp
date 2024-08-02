@@ -331,7 +331,8 @@ static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
 static SkBitmap to_skia_bitmap(Gfx::Bitmap const& bitmap)
 {
     SkColorType color_type = to_skia_color_type(bitmap.format());
-    SkImageInfo image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, kUnpremul_SkAlphaType);
+    SkAlphaType alpha_type = bitmap.alpha_type() == Gfx::AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
+    SkImageInfo image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type);
     SkBitmap sk_bitmap;
     sk_bitmap.setInfo(image_info);
 

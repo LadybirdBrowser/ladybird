@@ -281,6 +281,17 @@ public:
         return color_with_alpha;
     }
 
+    constexpr Color to_unpremultiplied() const
+    {
+        if (alpha() == 0 || alpha() == 255)
+            return *this;
+        return Color(
+            red() * 255 / alpha(),
+            green() * 255 / alpha(),
+            blue() * 255 / alpha(),
+            alpha());
+    }
+
     constexpr Color blend(Color source) const
     {
         if (alpha() == 0 || source.alpha() == 255)

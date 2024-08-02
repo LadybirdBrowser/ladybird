@@ -29,7 +29,7 @@ static Vector<Detail::Edge> prepare_edges(ReadonlySpan<FloatLine> lines, unsigne
     // The first visible y value.
     auto top_clip = top_clip_scanline * int(samples_per_pixel);
     // The last visible y value.
-    auto bottom_clip = (bottom_clip_scanline + 1) * int(samples_per_pixel) - 1;
+    auto bottom_clip = (bottom_clip_scanline + 1) * int(samples_per_pixel);
     min_edge_y = bottom_clip;
     max_edge_y = top_clip;
 
@@ -75,9 +75,8 @@ static Vector<Detail::Edge> prepare_edges(ReadonlySpan<FloatLine> lines, unsigne
             start_x += dxdy * (top_clip - min_y);
             min_y = top_clip;
         }
-        if (max_y > bottom_clip) {
+        if (max_y > bottom_clip)
             max_y = bottom_clip;
-        }
 
         min_edge_y = min(min_y, min_edge_y);
         max_edge_y = max(max_y, max_edge_y);
@@ -240,8 +239,8 @@ Color EdgeFlagPathRasterizer<SamplesPerPixel>::scanline_color(int scanline, int 
             return function({ offset, scanline });
         });
     if (color.alpha() == 255)
-        return color.with_alpha(alpha);
-    return color.with_alpha(color.alpha() * alpha / 255);
+        return color.with_alpha(alpha, AlphaType::Premultiplied);
+    return color.with_alpha(color.alpha() * alpha / 255, AlphaType::Premultiplied);
 }
 
 template<unsigned SamplesPerPixel>
@@ -309,7 +308,7 @@ auto EdgeFlagPathRasterizer<SamplesPerPixel>::accumulate_even_odd_scanline(EdgeE
     SampleType sample = init;
     VERIFY(edge_extent.min_x >= 0);
     VERIFY(edge_extent.max_x < static_cast<int>(m_scanline.size()));
-    for (int x = edge_extent.min_x; x <= edge_extent.max_x; x += 1) {
+    for (int x = edge_extent.min_x; x <= edge_extent.max_x; x++) {
         sample ^= m_scanline.data()[x];
         sample_callback(x, sample);
         m_scanline.data()[x] = 0;
@@ -323,7 +322,7 @@ auto EdgeFlagPathRasterizer<SamplesPerPixel>::accumulate_non_zero_scanline(EdgeE
     NonZeroAcc acc = init;
     VERIFY(edge_extent.min_x >= 0);
     VERIFY(edge_extent.max_x < static_cast<int>(m_scanline.size()));
-    for (int x = edge_extent.min_x; x <= edge_extent.max_x; x += 1) {
+    for (int x = edge_extent.min_x; x <= edge_extent.max_x; x++) {
         if (auto edges = m_scanline.data()[x]) {
             // We only need to process the windings when we hit some edges.
             for (auto y_sub = 0u; y_sub < SamplesPerPixel; y_sub++) {
