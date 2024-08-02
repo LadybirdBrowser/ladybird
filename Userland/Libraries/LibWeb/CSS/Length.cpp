@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
  *
@@ -389,6 +389,16 @@ Optional<Length> Length::absolutize(CSSPixelRect const& viewport_rect, FontMetri
 Length Length::absolutized(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
 {
     return absolutize(viewport_rect, font_metrics, root_font_metrics).value_or(*this);
+}
+
+Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, Length const& reference_value)
+{
+    return calculated->resolve_length_percentage(layout_node, reference_value).value();
+}
+
+Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, CSSPixels reference_value)
+{
+    return calculated->resolve_length_percentage(layout_node, reference_value).value();
 }
 
 }

@@ -46,6 +46,8 @@ public:
         return 0;
     }
 
+    static Frequency resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Frequency const& reference_value);
+
 private:
     StringView unit_name() const;
 

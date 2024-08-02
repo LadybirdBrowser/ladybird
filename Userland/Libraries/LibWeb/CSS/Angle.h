@@ -51,6 +51,8 @@ public:
         return 0;
     }
 
+    static Angle resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Angle const& reference_value);
+
 private:
     StringView unit_name() const;
 

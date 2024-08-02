@@ -6,6 +6,7 @@
 
 #include "Time.h"
 #include <LibWeb/CSS/Percentage.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
 namespace Web::CSS {
 
@@ -71,6 +72,11 @@ Optional<Time::Type> Time::unit_from_name(StringView name)
         return Type::Ms;
     }
     return {};
+}
+
+Time Time::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&, Time const& reference_value)
+{
+    return calculated->resolve_time_percentage(reference_value).value();
 }
 
 }

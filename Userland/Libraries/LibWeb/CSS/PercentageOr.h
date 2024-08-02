@@ -36,7 +36,7 @@ public:
     {
     }
 
-    virtual ~PercentageOr() = default;
+    ~PercentageOr() = default;
 
     PercentageOr<T>& operator=(T t)
     {
@@ -83,18 +83,6 @@ public:
         return m_value.template get<NonnullRefPtr<CalculatedStyleValue>>();
     }
 
-    virtual T resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, T const& reference_value) const
-    {
-        (void)reference_value;
-        VERIFY_NOT_REACHED();
-    }
-
-    virtual T resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, CSSPixels reference_value) const
-    {
-        (void)reference_value;
-        VERIFY_NOT_REACHED();
-    }
-
     CSSPixels to_px(Layout::Node const& layout_node, CSSPixels reference_value) const
     {
         if constexpr (IsSame<T, Length>) {
@@ -113,7 +101,7 @@ public:
             [&](T const& t) {
                 if constexpr (requires { t.is_calculated(); }) {
                     if (t.is_calculated())
-                        return resolve_calculated(t.calculated_style_value(), layout_node, reference_value);
+                        return T::resolve_calculated(t.calculated_style_value(), layout_node, reference_value);
                 }
 
                 return t;
@@ -122,7 +110,7 @@ public:
                 return reference_value.percentage_of(percentage);
             },
             [&](NonnullRefPtr<CalculatedStyleValue> const& calculated) {
-                return resolve_calculated(calculated, layout_node, reference_value);
+                return T::resolve_calculated(calculated, layout_node, reference_value);
             });
     }
 
@@ -132,7 +120,7 @@ public:
             [&](T const& t) {
                 if constexpr (requires { t.is_calculated(); }) {
                     if (t.is_calculated())
-                        return resolve_calculated(t.calculated_style_value(), layout_node, reference_value);
+                        return T::resolve_calculated(t.calculated_style_value(), layout_node, reference_value);
                 }
 
                 return t;
@@ -141,7 +129,7 @@ public:
                 return Length::make_px(CSSPixels(percentage.value() * reference_value) / 100);
             },
             [&](NonnullRefPtr<CalculatedStyleValue> const& calculated) {
-                return resolve_calculated(calculated, layout_node, reference_value);
+                return T::resolve_calculated(calculated, layout_node, reference_value);
             });
     }
 
@@ -205,7 +193,6 @@ public:
 
     bool is_angle() const { return is_t(); }
     Angle const& angle() const { return get_t(); }
-    virtual Angle resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Angle const& reference_value) const override;
 };
 
 class FrequencyPercentage : public PercentageOr<Frequency> {
@@ -214,7 +201,6 @@ public:
 
     bool is_frequency() const { return is_t(); }
     Frequency const& frequency() const { return get_t(); }
-    virtual Frequency resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Frequency const& reference_value) const override;
 };
 
 class LengthPercentage : public PercentageOr<Length> {
@@ -225,8 +211,6 @@ public:
 
     bool is_length() const { return is_t(); }
     Length const& length() const { return get_t(); }
-    virtual Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Length const& reference_value) const override;
-    virtual Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, CSSPixels reference_value) const override;
 };
 
 class TimePercentage : public PercentageOr<Time> {
@@ -235,7 +219,6 @@ public:
 
     bool is_time() const { return is_t(); }
     Time const& time() const { return get_t(); }
-    virtual Time resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Time const& reference_value) const override;
 };
 
 struct NumberPercentage : public PercentageOr<Number> {
