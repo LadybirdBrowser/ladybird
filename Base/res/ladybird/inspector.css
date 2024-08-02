@@ -15,8 +15,6 @@ body {
 .split-view-container {
     max-height: calc(100% - 40px);
     min-height: 40px;
-
-    overflow: scroll;
 }
 
 .split-view-separator {
@@ -28,10 +26,11 @@ body {
 
     cursor: row-resize;
     user-select: none;
+
+    z-index: 100;
 }
 
 .tab-controls-container {
-    position: absolute;
     width: 100%;
 
     padding: 4px;
@@ -69,13 +68,14 @@ body {
 }
 
 .tab-content {
-    height: 100%;
+    height: calc(100% - 40px);
 
     display: none;
     border-radius: 0.5rem;
 
-    margin-top: 30px;
     padding: 8px 0px 0px 4px;
+
+    overflow: scroll;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -175,6 +175,10 @@ details > :not(:first-child) {
     }
 }
 
+#console {
+    overflow: unset;
+}
+
 .console {
     font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     width: 100%;
@@ -182,7 +186,7 @@ details > :not(:first-child) {
 }
 
 .console-output {
-    height: calc(100% - 75px);
+    height: calc(100% - 32px);
     overflow: scroll;
 }
 
