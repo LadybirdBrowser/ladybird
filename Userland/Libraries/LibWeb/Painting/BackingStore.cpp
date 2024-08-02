@@ -19,7 +19,7 @@ IOSurfaceBackingStore::IOSurfaceBackingStore(Core::IOSurfaceHandle&& iosurface_h
     : m_iosurface_handle(move(iosurface_handle))
 {
     auto bytes_per_row = m_iosurface_handle.bytes_per_row();
-    auto bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, size(), bytes_per_row, m_iosurface_handle.data());
+    auto bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size(), bytes_per_row, m_iosurface_handle.data());
     m_bitmap_wrapper = bitmap.release_value();
 }
 

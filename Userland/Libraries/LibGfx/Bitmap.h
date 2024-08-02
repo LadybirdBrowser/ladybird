@@ -63,12 +63,13 @@ struct BackingStore;
 class Bitmap : public RefCounted<Bitmap> {
 public:
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, IntSize);
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {});
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create(BitmapFormat, AlphaType, IntSize);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable(BitmapFormat, AlphaType, IntSize);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_wrapper(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback = {});
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> load_from_file(StringView path, Optional<IntSize> ideal_size = {});
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> load_from_file(NonnullOwnPtr<Core::File>, StringView path, Optional<IntSize> ideal_size = {});
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> load_from_bytes(ReadonlyBytes, Optional<IntSize> ideal_size = {}, Optional<ByteString> mine_type = {});
-    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, Core::AnonymousBuffer, IntSize);
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> clone() const;
 
@@ -159,10 +160,12 @@ public:
 
     [[nodiscard]] bool visually_equals(Bitmap const&) const;
 
+    [[nodiscard]] AlphaType alpha_type() const { return m_alpha_type; }
+
 private:
-    Bitmap(BitmapFormat, IntSize, BackingStore const&);
-    Bitmap(BitmapFormat, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback);
-    Bitmap(BitmapFormat, Core::AnonymousBuffer, IntSize);
+    Bitmap(BitmapFormat, AlphaType, IntSize, BackingStore const&);
+    Bitmap(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback);
+    Bitmap(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
 
     static ErrorOr<BackingStore> allocate_backing_store(BitmapFormat format, IntSize size);
 
@@ -170,6 +173,7 @@ private:
     void* m_data { nullptr };
     size_t m_pitch { 0 };
     BitmapFormat m_format { BitmapFormat::Invalid };
+    AlphaType m_alpha_type { AlphaType::Premultiplied };
     Core::AnonymousBuffer m_buffer;
     Function<void()> m_destruction_callback;
 };
