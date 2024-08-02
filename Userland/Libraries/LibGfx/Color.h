@@ -20,6 +20,11 @@ namespace Gfx {
 
 typedef u32 ARGB32;
 
+enum class AlphaType {
+    Premultiplied,
+    Unpremultiplied,
+};
+
 struct HSV {
     double hue { 0 };
     double saturation { 0 };
@@ -224,10 +229,21 @@ public:
     constexpr u8 blue() const { return m_value & 0xff; }
     constexpr u8 alpha() const { return (m_value >> 24) & 0xff; }
 
-    constexpr void set_alpha(u8 value)
+    constexpr void set_alpha(u8 value, AlphaType alpha_type = AlphaType::Unpremultiplied)
     {
-        m_value &= 0x00ffffff;
-        m_value |= value << 24;
+        switch (alpha_type) {
+        case AlphaType::Premultiplied:
+            m_value = value << 24
+                | (red() * value / 255) << 16
+                | (green() * value / 255) << 8
+                | blue() * value / 255;
+            break;
+        case AlphaType::Unpremultiplied:
+            m_value = (m_value & 0x00ffffff) | value << 24;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
     }
 
     constexpr void set_red(u8 value)
@@ -248,9 +264,11 @@ public:
         m_value |= value;
     }
 
-    constexpr Color with_alpha(u8 alpha) const
+    constexpr Color with_alpha(u8 alpha, AlphaType alpha_type = AlphaType::Unpremultiplied) const
     {
-        return Color((m_value & 0x00ffffff) | alpha << 24);
+        Color color_with_alpha = Color(m_value);
+        color_with_alpha.set_alpha(alpha, alpha_type);
+        return color_with_alpha;
     }
 
     constexpr Color blend(Color source) const

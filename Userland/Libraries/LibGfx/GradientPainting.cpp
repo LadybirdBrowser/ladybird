@@ -45,18 +45,13 @@ float color_stop_step(ColorStop const& previous_stop, ColorStop const& next_stop
     return c;
 }
 
-enum class UsePremultipliedAlpha {
-    Yes,
-    No
-};
-
 class GradientLine {
 public:
-    GradientLine(int gradient_length, ReadonlySpan<ColorStop> color_stops, Optional<float> repeat_length, UsePremultipliedAlpha use_premultiplied_alpha = UsePremultipliedAlpha::Yes)
+    GradientLine(int gradient_length, ReadonlySpan<ColorStop> color_stops, Optional<float> repeat_length, AlphaType alpha_type = AlphaType::Premultiplied)
         : m_repeat_mode(repeat_length.has_value() ? RepeatMode::Repeat : RepeatMode::None)
         , m_start_offset(round_to<int>((repeating() ? color_stops.first().position : 0.0f) * gradient_length))
         , m_color_stops(color_stops)
-        , m_use_premultiplied_alpha(use_premultiplied_alpha)
+        , m_alpha_type(alpha_type)
     {
         // Avoid generating excessive amounts of colors when the not enough shades to fill that length.
         auto necessary_length = min<int>((color_stops.size() - 1) * 255, gradient_length);
@@ -83,7 +78,7 @@ public:
     {
         // Note: color.mixed_with() performs premultiplied alpha mixing when necessary as defined in:
         // https://drafts.csswg.org/css-images/#coloring-gradient-line
-        if (m_use_premultiplied_alpha == UsePremultipliedAlpha::Yes)
+        if (m_alpha_type == AlphaType::Premultiplied)
             return a.mixed_with(b, amount);
         return a.interpolate(b, amount);
     }
@@ -162,7 +157,7 @@ private:
     int m_start_offset { 0 };
     float m_sample_scale { 1 };
     ReadonlySpan<ColorStop> m_color_stops {};
-    UsePremultipliedAlpha m_use_premultiplied_alpha { UsePremultipliedAlpha::Yes };
+    AlphaType m_alpha_type { AlphaType::Premultiplied };
 
     Vector<Color, 1024> m_gradient_line_colors;
     bool m_requires_blending = false;
@@ -222,10 +217,10 @@ static auto create_linear_gradient(IntRect const& physical_rect, ReadonlySpan<Co
     };
 }
 
-static auto create_conic_gradient(ReadonlySpan<ColorStop> color_stops, FloatPoint center_point, float start_angle, Optional<float> repeat_length, UsePremultipliedAlpha use_premultiplied_alpha = UsePremultipliedAlpha::Yes)
+static auto create_conic_gradient(ReadonlySpan<ColorStop> color_stops, FloatPoint center_point, float start_angle, Optional<float> repeat_length, AlphaType alpha_type = AlphaType::Premultiplied)
 {
     // FIXME: Do we need/want sub-degree accuracy for the gradient line?
-    GradientLine gradient_line(360, color_stops, repeat_length, use_premultiplied_alpha);
+    GradientLine gradient_line(360, color_stops, repeat_length, alpha_type);
     float normalized_start_angle = (360.0f - start_angle) + 90.0f;
     // The flooring can make gradients that want soft edges look worse, so only floor if we have hard edges.
     // Which makes sure the hard edge stay hard edges :^)
@@ -352,7 +347,7 @@ static auto make_linear_gradient_between_two_points(FloatPoint p0, FloatPoint p1
     auto rotated_start_point_x = p0.x() * cos_angle - p0.y() * -sin_angle;
 
     return Gradient {
-        GradientLine(gradient_length, color_stops, repeat_length, UsePremultipliedAlpha::No),
+        GradientLine(gradient_length, color_stops, repeat_length, AlphaType::Unpremultiplied),
         [=](int x, int y) {
             return (x * cos_angle - y * -sin_angle) - rotated_start_point_x;
         }
@@ -439,7 +434,7 @@ void CanvasConicGradientPaintStyle::paint(IntRect physical_bounding_box, PaintFu
     // 'conic-gradient(from adjustedStartAnglerad at xpx ypx, angularColorStopList)'.
     //  Here:
     //      adjustedStartAngle is given by startAngle + π/2;
-    auto conic_gradient = create_conic_gradient(color_stops(), m_center, m_start_angle + 90.0f, repeat_length(), UsePremultipliedAlpha::No);
+    auto conic_gradient = create_conic_gradient(color_stops(), m_center, m_start_angle + 90.0f, repeat_length(), AlphaType::Unpremultiplied);
     paint(make_sample_non_relative(physical_bounding_box.location(), conic_gradient.sample_function()));
 }
 
@@ -482,7 +477,7 @@ static auto create_radial_gradient_between_two_circles(Gfx::FloatPoint start_cen
 
     // This is just an approximate upperbound (the gradient line class will shorten this if necessary).
     int gradient_length = AK::ceil(center_dist + end_radius + start_radius);
-    GradientLine gradient_line(gradient_length, color_stops, repeat_length, UsePremultipliedAlpha::No);
+    GradientLine gradient_line(gradient_length, color_stops, repeat_length, AlphaType::Unpremultiplied);
 
     // If you can simplify this please do, this is "best guess" implementation due to lack of specification.
     // It was implemented to visually match chrome/firefox in all cases:
