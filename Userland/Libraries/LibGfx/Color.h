@@ -25,6 +25,16 @@ enum class AlphaType {
     Unpremultiplied,
 };
 
+inline bool is_valid_alpha_type(u32 alpha_type)
+{
+    switch (alpha_type) {
+    case (u32)AlphaType::Premultiplied:
+    case (u32)AlphaType::Unpremultiplied:
+        return true;
+    }
+    return false;
+}
+
 struct HSV {
     double hue { 0 };
     double saturation { 0 };

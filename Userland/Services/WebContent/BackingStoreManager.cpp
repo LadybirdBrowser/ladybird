@@ -93,8 +93,8 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     m_front_bitmap_id = m_next_bitmap_id++;
     m_back_bitmap_id = m_next_bitmap_id++;
 
-    auto front_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, size).release_value();
-    auto back_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, size).release_value();
+    auto front_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
+    auto back_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size).release_value();
 
     m_front_store = make<Web::Painting::BitmapBackingStore>(front_bitmap);
     m_back_store = make<Web::Painting::BitmapBackingStore>(back_bitmap);

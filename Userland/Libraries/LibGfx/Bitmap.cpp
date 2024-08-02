@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2022, Timothy Slater <tslater2006@gmail.com>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -60,11 +61,17 @@ static bool size_would_overflow(BitmapFormat format, IntSize size)
 
 ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create(BitmapFormat format, IntSize size)
 {
-    auto backing_store = TRY(Bitmap::allocate_backing_store(format, size));
-    return AK::adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, size, backing_store));
+    // For backwards compatibility, premultiplied alpha is assumed
+    return create(format, AlphaType::Premultiplied, size);
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create(BitmapFormat format, AlphaType alpha_type, IntSize size)
+{
+    auto backing_store = TRY(Bitmap::allocate_backing_store(format, size));
+    return AK::adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, size, backing_store));
+}
+
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, AlphaType alpha_type, IntSize size)
 {
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_shareable size overflow");
@@ -73,15 +80,16 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, Int
     auto const data_size = size_in_bytes(pitch, size.height());
 
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(round_up_to_power_of_two(data_size, PAGE_SIZE)));
-    auto bitmap = TRY(Bitmap::create_with_anonymous_buffer(format, buffer, size));
+    auto bitmap = TRY(Bitmap::create_with_anonymous_buffer(format, alpha_type, buffer, size));
     return bitmap;
 }
 
-Bitmap::Bitmap(BitmapFormat format, IntSize size, BackingStore const& backing_store)
+Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, BackingStore const& backing_store)
     : m_size(size)
     , m_data(backing_store.data)
     , m_pitch(backing_store.pitch)
     , m_format(format)
+    , m_alpha_type(alpha_type)
 {
     VERIFY(!m_size.is_empty());
     VERIFY(!size_would_overflow(format, size));
@@ -92,11 +100,11 @@ Bitmap::Bitmap(BitmapFormat format, IntSize size, BackingStore const& backing_st
     };
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
 {
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_wrapper size overflow");
-    return adopt_ref(*new Bitmap(format, size, pitch, data, move(destruction_callback)));
+    return adopt_ref(*new Bitmap(format, alpha_type, size, pitch, data, move(destruction_callback)));
 }
 
 ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::load_from_file(StringView path, Optional<IntSize> ideal_size)
@@ -123,11 +131,12 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::load_from_bytes(ReadonlyBytes bytes, Opti
     return Error::from_string_literal("Gfx::Bitmap unable to load from file");
 }
 
-Bitmap::Bitmap(BitmapFormat format, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
+Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
     : m_size(size)
     , m_data(data)
     , m_pitch(pitch)
     , m_format(format)
+    , m_alpha_type(alpha_type)
     , m_destruction_callback(move(destruction_callback))
 {
     VERIFY(pitch >= minimum_pitch(size.width(), format));
@@ -135,19 +144,20 @@ Bitmap::Bitmap(BitmapFormat format, IntSize size, size_t pitch, void* data, Func
     // FIXME: assert that `data` is actually long enough!
 }
 
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat format, Core::AnonymousBuffer buffer, IntSize size)
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size)
 {
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_with_anonymous_buffer size overflow");
 
-    return adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, move(buffer), size));
+    return adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, move(buffer), size));
 }
 
-Bitmap::Bitmap(BitmapFormat format, Core::AnonymousBuffer buffer, IntSize size)
+Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, Core::AnonymousBuffer buffer, IntSize size)
     : m_size(size)
     , m_data(buffer.data<void>())
     , m_pitch(minimum_pitch(size.width(), format))
     , m_format(format)
+    , m_alpha_type(alpha_type)
     , m_buffer(move(buffer))
 {
     VERIFY(!size_would_overflow(format, size));
@@ -155,7 +165,7 @@ Bitmap::Bitmap(BitmapFormat format, Core::AnonymousBuffer buffer, IntSize size)
 
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::clone() const
 {
-    auto new_bitmap = TRY(Bitmap::create(format(), size()));
+    auto new_bitmap = TRY(Bitmap::create(format(), alpha_type(), size()));
 
     VERIFY(size_in_bytes() == new_bitmap->size_in_bytes());
     memcpy(new_bitmap->scanline(0), scanline(0), size_in_bytes());
@@ -188,7 +198,7 @@ ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::scaled(int sx, int sy) const
     if (sx == 1 && sy == 1)
         return clone();
 
-    auto new_bitmap = TRY(Gfx::Bitmap::create(format(), { width() * sx, height() * sy }));
+    auto new_bitmap = TRY(Gfx::Bitmap::create(format(), alpha_type(), { width() * sx, height() * sy }));
 
     auto old_width = width();
     auto old_height = height();
@@ -224,7 +234,7 @@ ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::scaled(float sx, float sy) const
 // http://fourier.eng.hmc.edu/e161/lectures/resize/node3.html
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::scaled_to_size(Gfx::IntSize size) const
 {
-    auto new_bitmap = TRY(Gfx::Bitmap::create(format(), size));
+    auto new_bitmap = TRY(Gfx::Bitmap::create(format(), alpha_type(), size));
 
     auto old_width = width();
     auto old_height = height();
@@ -344,7 +354,7 @@ ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::scaled_to_size(Gfx::IntSize size) co
 
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::cropped(Gfx::IntRect crop, Optional<BitmapFormat> new_bitmap_format) const
 {
-    auto new_bitmap = TRY(Gfx::Bitmap::create(new_bitmap_format.value_or(format()), { crop.width(), crop.height() }));
+    auto new_bitmap = TRY(Gfx::Bitmap::create(new_bitmap_format.value_or(format()), alpha_type(), { crop.width(), crop.height() }));
 
     for (int y = 0; y < crop.height(); ++y) {
         for (int x = 0; x < crop.width(); ++x) {
@@ -367,7 +377,7 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::to_bitmap_backed_by_anonymous_buffer() co
         return NonnullRefPtr { const_cast<Bitmap&>(*this) };
     }
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(round_up_to_power_of_two(size_in_bytes(), PAGE_SIZE)));
-    auto bitmap = TRY(Bitmap::create_with_anonymous_buffer(m_format, move(buffer), size()));
+    auto bitmap = TRY(Bitmap::create_with_anonymous_buffer(format(), alpha_type(), move(buffer), size()));
     memcpy(bitmap->scanline(0), scanline(0), size_in_bytes());
     return bitmap;
 }
@@ -453,6 +463,7 @@ ErrorOr<void> encode(Encoder& encoder, AK::NonnullRefPtr<Gfx::Bitmap> const& bit
     }
     TRY(encoder.encode(TRY(IPC::File::clone_fd(buffer.fd()))));
     TRY(encoder.encode(static_cast<u32>(bitmap->format())));
+    TRY(encoder.encode(static_cast<u32>(bitmap->alpha_type())));
     TRY(encoder.encode(bitmap->size_in_bytes()));
     TRY(encoder.encode(bitmap->pitch()));
     TRY(encoder.encode(bitmap->size()));
@@ -463,15 +474,22 @@ template<>
 ErrorOr<AK::NonnullRefPtr<Gfx::Bitmap>> decode(Decoder& decoder)
 {
     auto anon_file = TRY(decoder.decode<IPC::File>());
+
     auto raw_bitmap_format = TRY(decoder.decode<u32>());
     if (!Gfx::is_valid_bitmap_format(raw_bitmap_format))
         return Error::from_string_literal("IPC: Invalid Gfx::ShareableBitmap format");
     auto bitmap_format = static_cast<Gfx::BitmapFormat>(raw_bitmap_format);
+
+    auto raw_alpha_type = TRY(decoder.decode<u32>());
+    if (!Gfx::is_valid_alpha_type(raw_alpha_type))
+        return Error::from_string_literal("IPC: Invalid Gfx::ShareableBitmap alpha type");
+    auto alpha_type = static_cast<Gfx::AlphaType>(raw_alpha_type);
+
     auto size_in_bytes = TRY(decoder.decode<size_t>());
     auto pitch = TRY(decoder.decode<size_t>());
     auto size = TRY(decoder.decode<Gfx::IntSize>());
     auto* data = TRY(Core::System::mmap(nullptr, round_up_to_power_of_two(size_in_bytes, PAGE_SIZE), PROT_READ | PROT_WRITE, MAP_SHARED, anon_file.fd(), 0));
-    return Gfx::Bitmap::create_wrapper(bitmap_format, size, pitch, data, [data, size_in_bytes] {
+    return Gfx::Bitmap::create_wrapper(bitmap_format, alpha_type, size, pitch, data, [data, size_in_bytes] {
         MUST(Core::System::munmap(data, size_in_bytes));
     });
 }
