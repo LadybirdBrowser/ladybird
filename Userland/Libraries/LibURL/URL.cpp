@@ -21,7 +21,7 @@ URL::URL(StringView string)
     : URL(Parser::basic_parse(string))
 {
     if constexpr (URL_PARSER_DEBUG) {
-        if (m_valid)
+        if (m_data->valid)
             dbgln("URL constructor: Parsed URL to be '{}'.", serialize());
         else
             dbgln("URL constructor: Parsed URL to be invalid.");
@@ -38,42 +38,42 @@ URL URL::complete_url(StringView relative_url) const
 
 ErrorOr<String> URL::username() const
 {
-    return String::from_byte_string(percent_decode(m_username));
+    return String::from_byte_string(percent_decode(m_data->username));
 }
 
 ErrorOr<String> URL::password() const
 {
-    return String::from_byte_string(percent_decode(m_password));
+    return String::from_byte_string(percent_decode(m_data->password));
 }
 
 ByteString URL::path_segment_at_index(size_t index) const
 {
     VERIFY(index < path_segment_count());
-    return percent_decode(m_paths[index]);
+    return percent_decode(m_data->paths[index]);
 }
 
 ByteString URL::basename() const
 {
-    if (!m_valid)
+    if (!m_data->valid)
         return {};
-    if (m_paths.is_empty())
+    if (m_data->paths.is_empty())
         return {};
-    auto& last_segment = m_paths.last();
+    auto& last_segment = m_data->paths.last();
     return percent_decode(last_segment);
 }
 
 void URL::set_scheme(String scheme)
 {
-    m_scheme = move(scheme);
-    m_valid = compute_validity();
+    m_data->scheme = move(scheme);
+    m_data->valid = compute_validity();
 }
 
 // https://url.spec.whatwg.org/#set-the-username
 ErrorOr<void> URL::set_username(StringView username)
 {
     // To set the username given a url and username, set url’s username to the result of running UTF-8 percent-encode on username using the userinfo percent-encode set.
-    m_username = TRY(String::from_byte_string(percent_encode(username, PercentEncodeSet::Userinfo)));
-    m_valid = compute_validity();
+    m_data->username = TRY(String::from_byte_string(percent_encode(username, PercentEncodeSet::Userinfo)));
+    m_data->valid = compute_validity();
     return {};
 }
 
@@ -81,76 +81,76 @@ ErrorOr<void> URL::set_username(StringView username)
 ErrorOr<void> URL::set_password(StringView password)
 {
     // To set the password given a url and password, set url’s password to the result of running UTF-8 percent-encode on password using the userinfo percent-encode set.
-    m_password = TRY(String::from_byte_string(percent_encode(password, PercentEncodeSet::Userinfo)));
-    m_valid = compute_validity();
+    m_data->password = TRY(String::from_byte_string(percent_encode(password, PercentEncodeSet::Userinfo)));
+    m_data->valid = compute_validity();
     return {};
 }
 
 void URL::set_host(Host host)
 {
-    m_host = move(host);
-    m_valid = compute_validity();
+    m_data->host = move(host);
+    m_data->valid = compute_validity();
 }
 
 // https://url.spec.whatwg.org/#concept-host-serializer
 ErrorOr<String> URL::serialized_host() const
 {
-    return Parser::serialize_host(m_host);
+    return Parser::serialize_host(m_data->host);
 }
 
 void URL::set_port(Optional<u16> port)
 {
-    if (port == default_port_for_scheme(m_scheme)) {
-        m_port = {};
+    if (port == default_port_for_scheme(m_data->scheme)) {
+        m_data->port = {};
         return;
     }
-    m_port = move(port);
-    m_valid = compute_validity();
+    m_data->port = move(port);
+    m_data->valid = compute_validity();
 }
 
 void URL::set_paths(Vector<ByteString> const& paths)
 {
-    m_paths.clear_with_capacity();
-    m_paths.ensure_capacity(paths.size());
+    m_data->paths.clear_with_capacity();
+    m_data->paths.ensure_capacity(paths.size());
     for (auto const& segment : paths)
-        m_paths.unchecked_append(String::from_byte_string(percent_encode(segment, PercentEncodeSet::Path)).release_value_but_fixme_should_propagate_errors());
-    m_valid = compute_validity();
+        m_data->paths.unchecked_append(String::from_byte_string(percent_encode(segment, PercentEncodeSet::Path)).release_value_but_fixme_should_propagate_errors());
+    m_data->valid = compute_validity();
 }
 
 void URL::append_path(StringView path)
 {
-    m_paths.append(String::from_byte_string(percent_encode(path, PercentEncodeSet::Path)).release_value_but_fixme_should_propagate_errors());
+    m_data->paths.append(String::from_byte_string(percent_encode(path, PercentEncodeSet::Path)).release_value_but_fixme_should_propagate_errors());
 }
 
 // https://url.spec.whatwg.org/#cannot-have-a-username-password-port
 bool URL::cannot_have_a_username_or_password_or_port() const
 {
     // A URL cannot have a username/password/port if its host is null or the empty string, or its scheme is "file".
-    return m_host.has<Empty>() || m_host == String {} || m_scheme == "file"sv;
+    return m_data->host.has<Empty>() || m_data->host == String {} || m_data->scheme == "file"sv;
 }
 
 // FIXME: This is by no means complete.
 // NOTE: This relies on some assumptions about how the spec-defined URL parser works that may turn out to be wrong.
 bool URL::compute_validity() const
 {
-    if (m_scheme.is_empty())
+    if (m_data->scheme.is_empty())
         return false;
 
-    if (m_cannot_be_a_base_url) {
-        if (m_paths.size() != 1)
+    if (m_data->cannot_be_a_base_url) {
+        if (m_data->paths.size() != 1)
             return false;
-        if (m_paths[0].is_empty())
+        if (m_data->paths[0].is_empty())
             return false;
     } else {
-        if (m_scheme.is_one_of("about", "mailto"))
+        if (m_data->scheme.is_one_of("about", "mailto"))
             return false;
         // NOTE: Maybe it is allowed to have a zero-segment path.
-        if (m_paths.size() == 0)
+        if (m_data->paths.size() == 0)
             return false;
     }
 
     // NOTE: A file URL's host should be the empty string for localhost, not null.
-    if (m_scheme == "file" && m_host.has<Empty>())
+    if (m_data->scheme == "file" && m_data->host.has<Empty>())
         return false;
 
     return true;
@@ -251,13 +251,13 @@ ByteString URL::serialize_path(ApplyPercentDecoding apply_percent_decoding) cons
     // 1. If url has an opaque path, then return url’s path.
     // FIXME: Reimplement this step once we modernize the URL implementation to meet the spec.
     if (cannot_be_a_base_url())
-        return m_paths[0].to_byte_string();
+        return m_data->paths[0].to_byte_string();
 
     // 2. Let output be the empty string.
     StringBuilder output;
 
     // 3. For each segment of url’s path: append U+002F (/) followed by segment to output.
-    for (auto const& segment : m_paths) {
+    for (auto const& segment : m_data->paths) {
         output.append('/');
         output.append(apply_percent_decoding == ApplyPercentDecoding::Yes ? percent_decode(segment) : segment.to_byte_string());
     }
@@ -271,23 +271,23 @@ ByteString URL::serialize(ExcludeFragment exclude_fragment) const
 {
     // 1. Let output be url’s scheme and U+003A (:) concatenated.
     StringBuilder output;
-    output.append(m_scheme);
+    output.append(m_data->scheme);
     output.append(':');
 
     // 2. If url’s host is non-null:
-    if (!m_host.has<Empty>()) {
+    if (!m_data->host.has<Empty>()) {
         // 1. Append "//" to output.
         output.append("//"sv);
 
         // 2. If url includes credentials, then:
         if (includes_credentials()) {
             // 1. Append url’s username to output.
-            output.append(m_username);
+            output.append(m_data->username);
 
             // 2. If url’s password is not the empty string, then append U+003A (:), followed by url’s password, to output.
-            if (!m_password.is_empty()) {
+            if (!m_data->password.is_empty()) {
                 output.append(':');
-                output.append(m_password);
+                output.append(m_data->password);
             }
 
             // 3. Append U+0040 (@) to output.
@@ -298,34 +298,34 @@ ByteString URL::serialize(ExcludeFragment exclude_fragment) const
         output.append(serialized_host().release_value_but_fixme_should_propagate_errors());
 
         // 4. If url’s port is non-null, append U+003A (:) followed by url’s port, serialized, to output.
-        if (m_port.has_value())
-            output.appendff(":{}", *m_port);
+        if (m_data->port.has_value())
+            output.appendff(":{}", *m_data->port);
     }
 
     // 3. If url’s host is null, url does not have an opaque path, url’s path’s size is greater than 1, and url’s path[0] is the empty string, then append U+002F (/) followed by U+002E (.) to output.
     // 4. Append the result of URL path serializing url to output.
     // FIXME: Implement this closer to spec steps.
     if (cannot_be_a_base_url()) {
-        output.append(m_paths[0]);
+        output.append(m_data->paths[0]);
     } else {
-        if (m_host.has<Empty>() && m_paths.size() > 1 && m_paths[0].is_empty())
+        if (m_data->host.has<Empty>() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
             output.append("/."sv);
-        for (auto& segment : m_paths) {
+        for (auto& segment : m_data->paths) {
             output.append('/');
             output.append(segment);
         }
     }
 
     // 5. If url’s query is non-null, append U+003F (?), followed by url’s query, to output.
-    if (m_query.has_value()) {
+    if (m_data->query.has_value()) {
         output.append('?');
-        output.append(*m_query);
+        output.append(*m_data->query);
     }
 
     // 6. If exclude fragment is false and url’s fragment is non-null, then append U+0023 (#), followed by url’s fragment, to output.
-    if (exclude_fragment == ExcludeFragment::No && m_fragment.has_value()) {
+    if (exclude_fragment == ExcludeFragment::No && m_data->fragment.has_value()) {
         output.append('#');
-        output.append(*m_fragment);
+        output.append(*m_data->fragment);
     }
 
     // 7. Return output.
@@ -338,38 +338,38 @@ ByteString URL::serialize(ExcludeFragment exclude_fragment) const
 //        resulting from percent-decoding those sequences converted to bytes, unless that renders those sequences invisible.
 ByteString URL::serialize_for_display() const
 {
-    VERIFY(m_valid);
+    VERIFY(m_data->valid);
 
     StringBuilder builder;
-    builder.append(m_scheme);
+    builder.append(m_data->scheme);
     builder.append(':');
 
-    if (!m_host.has<Empty>()) {
+    if (!m_data->host.has<Empty>()) {
         builder.append("//"sv);
         builder.append(serialized_host().release_value_but_fixme_should_propagate_errors());
-        if (m_port.has_value())
-            builder.appendff(":{}", *m_port);
+        if (m_data->port.has_value())
+            builder.appendff(":{}", *m_data->port);
     }
 
     if (cannot_be_a_base_url()) {
-        builder.append(m_paths[0]);
+        builder.append(m_data->paths[0]);
     } else {
-        if (m_host.has<Empty>() && m_paths.size() > 1 && m_paths[0].is_empty())
+        if (m_data->host.has<Empty>() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
             builder.append("/."sv);
-        for (auto& segment : m_paths) {
+        for (auto& segment : m_data->paths) {
             builder.append('/');
             builder.append(segment);
         }
     }
 
-    if (m_query.has_value()) {
+    if (m_data->query.has_value()) {
         builder.append('?');
-        builder.append(*m_query);
+        builder.append(*m_data->query);
     }
 
-    if (m_fragment.has_value()) {
+    if (m_data->fragment.has_value()) {
         builder.append('#');
-        builder.append(*m_fragment);
+        builder.append(*m_data->fragment);
     }
 
     return builder.to_byte_string();
@@ -384,27 +384,27 @@ ErrorOr<String> URL::to_string() const
 // https://url.spec.whatwg.org/#concept-url-origin
 ByteString URL::serialize_origin() const
 {
-    VERIFY(m_valid);
+    VERIFY(m_data->valid);
 
-    if (m_scheme == "blob"sv) {
+    if (m_data->scheme == "blob"sv) {
         // TODO: 1. If URL’s blob URL entry is non-null, then return URL’s blob URL entry’s environment’s origin.
         // 2. Let url be the result of parsing URL’s path[0].
-        VERIFY(!m_paths.is_empty());
-        URL url = m_paths[0];
+        VERIFY(!m_data->paths.is_empty());
+        URL url = m_data->paths[0];
         // 3. Return a new opaque origin, if url is failure, and url’s origin otherwise.
         if (!url.is_valid())
             return "null";
         return url.serialize_origin();
-    } else if (!m_scheme.is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) { // file: "Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin."
+    } else if (!m_data->scheme.is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) { // file: "Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin."
         return "null";
     }
 
     StringBuilder builder;
-    builder.append(m_scheme);
+    builder.append(m_data->scheme);
     builder.append("://"sv);
     builder.append(serialized_host().release_value_but_fixme_should_propagate_errors());
-    if (m_port.has_value())
-        builder.appendff(":{}", *m_port);
+    if (m_data->port.has_value())
+        builder.appendff(":{}", *m_data->port);
     return builder.to_byte_string();
 }
 
@@ -412,7 +412,7 @@ bool URL::equals(URL const& other, ExcludeFragment exclude_fragments) const
 {
     if (this == &other)
         return true;
-    if (!m_valid || !other.m_valid)
+    if (!m_data->valid || !other.m_data->valid)
         return false;
     return serialize(exclude_fragments) == other.serialize(exclude_fragments);
 }
