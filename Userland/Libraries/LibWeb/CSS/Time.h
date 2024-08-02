@@ -48,6 +48,8 @@ public:
         return 0;
     }
 
+    static Time resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Time const& reference_value);
+
 private:
     StringView unit_name() const;
 
