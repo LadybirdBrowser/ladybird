@@ -22,6 +22,7 @@ struct ThreadPoolLooper {
     {
         Optional<typename Pool::Work> entry;
         while (true) {
+            pool.m_busy_count++;
             entry = pool.m_work_queue.with_locked([&](auto& queue) -> Optional<typename Pool::Work> {
                 if (queue.is_empty())
                     return {};
@@ -29,6 +30,8 @@ struct ThreadPoolLooper {
             });
             if (entry.has_value())
                 break;
+
+            pool.m_busy_count--;
             if (pool.m_should_exit)
                 return IterationDecision::Break;
 
@@ -47,8 +50,9 @@ struct ThreadPoolLooper {
             pool.m_mutex.unlock();
         }
 
-        pool.m_busy_count++;
         pool.m_handler(entry.release_value());
+        pool.m_busy_count--;
+        pool.m_work_done.signal();
         return IterationDecision::Continue;
     }
 };
@@ -124,8 +128,6 @@ private:
                 Looper<ThreadPool> thread_looper;
                 for (; !m_should_exit;) {
                     auto result = thread_looper.next(*this, true);
-                    m_busy_count--;
-                    m_work_done.signal();
                     if (result == IterationDecision::Break)
                         break;
                 }
