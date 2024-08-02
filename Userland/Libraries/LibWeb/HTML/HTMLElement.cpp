@@ -713,10 +713,7 @@ void HTMLElement::did_receive_focus()
 {
     if (m_content_editable_state != ContentEditableState::True)
         return;
-    auto navigable = document().navigable();
-    if (!navigable)
-        return;
-    navigable->set_cursor_position(DOM::Position::create(realm(), *this, 0));
+    document().set_cursor_position(DOM::Position::create(realm(), *this, 0));
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-accesskeylabel

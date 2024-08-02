@@ -160,10 +160,8 @@ WebIDL::UnsignedLong FormAssociatedElement::selection_start() const
 
     // 2. If there is no selection, return the code unit offset within the relevant value to the character that
     //    immediately follows the text entry cursor.
-    if (auto navigable = form_associated_element_to_html_element().document().navigable()) {
-        if (auto cursor = navigable->cursor_position())
-            return cursor->offset();
-    }
+    if (auto cursor = form_associated_element_to_html_element().document().cursor_position())
+        return cursor->offset();
 
     // FIXME: 3. Return the code unit offset within the relevant value to the character that immediately follows the start of
     //           the selection.
@@ -191,10 +189,8 @@ WebIDL::UnsignedLong FormAssociatedElement::selection_end() const
 
     // 2. If there is no selection, return the code unit offset within the relevant value to the character that
     //    immediately follows the text entry cursor.
-    if (auto navigable = form_associated_element_to_html_element().document().navigable()) {
-        if (auto cursor = navigable->cursor_position())
-            return cursor->offset();
-    }
+    if (auto cursor = form_associated_element_to_html_element().document().cursor_position())
+        return cursor->offset();
 
     // FIXME: 3. Return the code unit offset within the relevant value to the character that immediately follows the end of
     //           the selection.

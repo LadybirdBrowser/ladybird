@@ -37,7 +37,7 @@ public:
     }
 
     // ^DOM::EditableTextNodeOwner
-    virtual void did_edit_text_node(Badge<Navigable>) override;
+    virtual void did_edit_text_node(Badge<DOM::Document>) override;
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-textarea-element

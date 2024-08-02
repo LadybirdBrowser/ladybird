@@ -559,18 +559,19 @@ void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase ph
 void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
 {
     auto const& navigable = *paintable.navigable();
+    auto const& document = paintable.document();
 
     if (!navigable.is_focused())
         return;
 
-    if (!navigable.cursor_blink_state())
+    if (!document.cursor_blink_state())
         return;
 
-    if (navigable.cursor_position()->node() != paintable.dom_node())
+    if (document.cursor_position()->node() != paintable.dom_node())
         return;
 
     // NOTE: This checks if the cursor is before the start or after the end of the fragment. If it is at the end, after all text, it should still be painted.
-    if (navigable.cursor_position()->offset() < (unsigned)fragment.start() || navigable.cursor_position()->offset() > (unsigned)(fragment.start() + fragment.length()))
+    if (document.cursor_position()->offset() < (unsigned)fragment.start() || document.cursor_position()->offset() > (unsigned)(fragment.start() + fragment.length()))
         return;
 
     if (!fragment.layout_node().dom_node() || !fragment.layout_node().dom_node()->is_editable())
@@ -580,7 +581,7 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
 
     auto text = fragment.string_view();
     CSSPixelRect cursor_rect {
-        fragment_rect.x() + CSSPixels::nearest_value_for(paintable.layout_node().first_available_font().width(text.substring_view(0, navigable.cursor_position()->offset() - fragment.start()))),
+        fragment_rect.x() + CSSPixels::nearest_value_for(paintable.layout_node().first_available_font().width(text.substring_view(0, document.cursor_position()->offset() - fragment.start()))),
         fragment_rect.top(),
         1,
         fragment_rect.height()
