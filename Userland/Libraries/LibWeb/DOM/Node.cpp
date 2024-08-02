@@ -362,9 +362,17 @@ void Node::set_node_value(Optional<String> const& maybe_value)
 // https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable
 JS::GCPtr<HTML::Navigable> Node::navigable() const
 {
+    auto& document = const_cast<Document&>(this->document());
+    if (auto cached_navigable = document.cached_navigable()) {
+        if (cached_navigable->active_document() == &document)
+            return cached_navigable;
+    }
+
     // To get the node navigable of a node node, return the navigable whose active document is node's node document,
     // or null if there is no such navigable.
-    return HTML::Navigable::navigable_with_active_document(const_cast<Document&>(document()));
+    auto navigable = HTML::Navigable::navigable_with_active_document(document);
+    document.set_cached_navigable(navigable);
+    return navigable;
 }
 
 void Node::invalidate_style()

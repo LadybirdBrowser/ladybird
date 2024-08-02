@@ -5342,4 +5342,14 @@ void Document::reset_cursor_blink_cycle()
         m_cursor_position->node()->paintable()->set_needs_display();
 }
 
+JS::GCPtr<HTML::Navigable> Document::cached_navigable()
+{
+    return m_cached_navigable.ptr();
+}
+
+void Document::set_cached_navigable(JS::GCPtr<HTML::Navigable> navigable)
+{
+    m_cached_navigable = navigable.ptr();
+}
+
 }
