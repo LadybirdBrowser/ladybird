@@ -198,15 +198,6 @@ public:
     Web::EventHandler& event_handler() { return m_event_handler; }
     Web::EventHandler const& event_handler() const { return m_event_handler; }
 
-    void did_edit(Badge<EditEventHandler>);
-
-    JS::GCPtr<DOM::Position> cursor_position() const { return m_cursor_position; }
-    void set_cursor_position(JS::NonnullGCPtr<DOM::Position>);
-    bool increment_cursor_position_offset();
-    bool decrement_cursor_position_offset();
-
-    bool cursor_blink_state() const { return m_cursor_blink_state; }
-
 protected:
     explicit Navigable(JS::NonnullGCPtr<Page>);
 
@@ -256,10 +247,6 @@ private:
     bool m_needs_repaint { false };
 
     Web::EventHandler m_event_handler;
-
-    JS::GCPtr<DOM::Position> m_cursor_position;
-    RefPtr<Core::Timer> m_cursor_blink_timer;
-    bool m_cursor_blink_state { false };
 };
 
 HashTable<Navigable*>& all_navigables();

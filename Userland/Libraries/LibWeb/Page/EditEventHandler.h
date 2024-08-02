@@ -8,26 +8,23 @@
 
 #include <AK/Types.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 
 namespace Web {
 
 class EditEventHandler {
 public:
-    explicit EditEventHandler(HTML::Navigable& navigable)
-        : m_navigable(navigable)
+    explicit EditEventHandler()
     {
     }
 
     ~EditEventHandler() = default;
 
-    void handle_delete_character_after(JS::NonnullGCPtr<DOM::Position>);
-    void handle_delete(DOM::Range&);
-    void handle_insert(JS::NonnullGCPtr<DOM::Position>, u32 code_point);
-    void handle_insert(JS::NonnullGCPtr<DOM::Position>, String);
-
-private:
-    JS::NonnullGCPtr<HTML::Navigable> m_navigable;
+    void handle_delete_character_after(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>);
+    void handle_delete(JS::NonnullGCPtr<DOM::Document>, DOM::Range&);
+    void handle_insert(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>, u32 code_point);
+    void handle_insert(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>, String);
 };
 
 }

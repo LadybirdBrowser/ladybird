@@ -71,11 +71,8 @@ void HTMLTextAreaElement::did_receive_focus()
     if (!m_text_node)
         return;
     m_text_node->invalidate_style();
-    auto navigable = document().navigable();
-    if (!navigable) {
-        return;
-    }
-    navigable->set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
+
+    document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
 
 void HTMLTextAreaElement::did_lose_focus()
@@ -165,8 +162,7 @@ void HTMLTextAreaElement::set_value(String const& value)
             m_text_node->set_data(m_raw_value);
             update_placeholder_visibility();
 
-            if (auto navigable = document().navigable())
-                navigable->set_cursor_position(DOM::Position::create(realm, *m_text_node, m_text_node->data().bytes().size()));
+            document().set_cursor_position(DOM::Position::create(realm, *m_text_node, m_text_node->data().bytes().size()));
         }
     }
 }
@@ -378,7 +374,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
     }
 }
 
-void HTMLTextAreaElement::did_edit_text_node(Badge<Navigable>)
+void HTMLTextAreaElement::did_edit_text_node(Badge<DOM::Document>)
 {
     VERIFY(m_text_node);
     set_raw_value(m_text_node->data());

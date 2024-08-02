@@ -688,6 +688,15 @@ public:
     void set_console_client(JS::GCPtr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
     JS::GCPtr<JS::ConsoleClient> console_client() const { return m_console_client; }
 
+    JS::GCPtr<DOM::Position> cursor_position() const { return m_cursor_position; }
+    void set_cursor_position(JS::NonnullGCPtr<DOM::Position>);
+    bool increment_cursor_position_offset();
+    bool decrement_cursor_position_offset();
+
+    bool cursor_blink_state() const { return m_cursor_blink_state; }
+
+    void user_did_edit_document_text(Badge<EditEventHandler>);
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -714,6 +723,8 @@ private:
     Element* find_a_potential_indicated_element(FlyString const& fragment) const;
 
     void dispatch_events_for_animation_if_necessary(JS::NonnullGCPtr<Animations::Animation>);
+
+    void reset_cursor_blink_cycle();
 
     JS::NonnullGCPtr<Page> m_page;
     OwnPtr<CSS::StyleComputer> m_style_computer;
@@ -950,6 +961,10 @@ private:
     bool m_allow_declarative_shadow_roots { false };
 
     JS::GCPtr<JS::ConsoleClient> m_console_client;
+
+    JS::GCPtr<DOM::Position> m_cursor_position;
+    RefPtr<Core::Timer> m_cursor_blink_timer;
+    bool m_cursor_blink_state { false };
 };
 
 template<>

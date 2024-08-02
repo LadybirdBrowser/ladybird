@@ -371,6 +371,25 @@ Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFr
         .has_legacy_override_built_ins_interface_extended_attribute = true,
     };
 
+    m_cursor_blink_timer = Core::Timer::create_repeating(500, [this] {
+        if (!m_cursor_position)
+            return;
+
+        auto node = m_cursor_position->node();
+        if (!node)
+            return;
+
+        if (auto navigable = this->navigable(); !navigable || !navigable->is_focused())
+            return;
+
+        node->document().update_layout();
+
+        if (node->paintable()) {
+            m_cursor_blink_state = !m_cursor_blink_state;
+            node->paintable()->set_needs_display();
+        }
+    });
+
     HTML::main_thread_event_loop().register_document({}, *this);
 }
 
@@ -485,6 +504,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_top_layer_elements);
     visitor.visit(m_top_layer_pending_removals);
     visitor.visit(m_console_client);
+    visitor.visit(m_cursor_position);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -5265,6 +5285,61 @@ JS::NonnullGCPtr<Document> Document::parse_html_unsafe(JS::VM& vm, StringView ht
 
     // 5. Return document.
     return document;
+}
+
+void Document::set_cursor_position(JS::NonnullGCPtr<DOM::Position> position)
+{
+    if (m_cursor_position && m_cursor_position->equals(position))
+        return;
+
+    if (m_cursor_position && m_cursor_position->node()->paintable())
+        m_cursor_position->node()->paintable()->set_needs_display();
+
+    m_cursor_position = position;
+
+    if (m_cursor_position && m_cursor_position->node()->paintable())
+        m_cursor_position->node()->paintable()->set_needs_display();
+
+    reset_cursor_blink_cycle();
+}
+
+bool Document::increment_cursor_position_offset()
+{
+    if (!m_cursor_position->increment_offset())
+        return false;
+
+    reset_cursor_blink_cycle();
+    return true;
+}
+
+bool Document::decrement_cursor_position_offset()
+{
+    if (!m_cursor_position->decrement_offset())
+        return false;
+
+    reset_cursor_blink_cycle();
+    return true;
+}
+
+void Document::user_did_edit_document_text(Badge<EditEventHandler>)
+{
+    reset_cursor_blink_cycle();
+
+    if (m_cursor_position && is<DOM::Text>(*m_cursor_position->node())) {
+        auto& text_node = static_cast<DOM::Text&>(*m_cursor_position->node());
+
+        if (auto* text_node_owner = text_node.editable_text_node_owner())
+            text_node_owner->did_edit_text_node({});
+    }
+}
+
+void Document::reset_cursor_blink_cycle()
+{
+    m_cursor_blink_state = true;
+    m_cursor_blink_timer->restart();
+
+    if (m_cursor_position && m_cursor_position->node()->paintable())
+        m_cursor_position->node()->paintable()->set_needs_display();
 }
 
 }

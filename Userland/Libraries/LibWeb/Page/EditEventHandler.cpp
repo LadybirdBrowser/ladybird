@@ -17,7 +17,7 @@
 
 namespace Web {
 
-void EditEventHandler::handle_delete_character_after(JS::NonnullGCPtr<DOM::Position> cursor_position)
+void EditEventHandler::handle_delete_character_after(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> cursor_position)
 {
     auto& node = verify_cast<DOM::Text>(*cursor_position->node());
     auto& text = node.data();
@@ -33,11 +33,11 @@ void EditEventHandler::handle_delete_character_after(JS::NonnullGCPtr<DOM::Posit
     builder.append(text.bytes_as_string_view().substring_view(*next_offset));
     node.set_data(MUST(builder.to_string()));
 
-    m_navigable->did_edit({});
+    document->user_did_edit_document_text({});
 }
 
 // This method is quite convoluted but this is necessary to make editing feel intuitive.
-void EditEventHandler::handle_delete(DOM::Range& range)
+void EditEventHandler::handle_delete(JS::NonnullGCPtr<DOM::Document> document, DOM::Range& range)
 {
     auto* start = verify_cast<DOM::Text>(range.start_container());
     auto* end = verify_cast<DOM::Text>(range.end_container());
@@ -89,17 +89,17 @@ void EditEventHandler::handle_delete(DOM::Range& range)
         end->remove();
     }
 
-    m_navigable->did_edit({});
+    document->user_did_edit_document_text({});
 }
 
-void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Position> position, u32 code_point)
+void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> position, u32 code_point)
 {
     StringBuilder builder;
     builder.append_code_point(code_point);
-    handle_insert(position, MUST(builder.to_string()));
+    handle_insert(document, position, MUST(builder.to_string()));
 }
 
-void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Position> position, String data)
+void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> position, String data)
 {
     if (is<DOM::Text>(*position->node())) {
         auto& node = verify_cast<DOM::Text>(*position->node());
@@ -126,6 +126,7 @@ void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Position> position, S
         position->set_offset(1);
     }
 
-    m_navigable->did_edit({});
+    document->user_did_edit_document_text({});
 }
+
 }
