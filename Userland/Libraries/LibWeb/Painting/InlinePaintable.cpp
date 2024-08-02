@@ -75,7 +75,7 @@ void InlinePaintable::paint(PaintContext& context, PaintPhase phase) const
             absolute_fragment_rect.set_height(absolute_fragment_rect.height() + box_model().padding.top + box_model().padding.bottom);
 
             auto const& border_radii_data = fragment.border_radii_data();
-            paint_background(context, layout_node(), absolute_fragment_rect, computed_values().background_color(), computed_values().image_rendering(), &computed_values().background_layers(), border_radii_data);
+            paint_background(context, layout_node(), computed_values().image_rendering(), fragment.resolved_background(), border_radii_data);
 
             if (!box_shadow_data().is_empty()) {
                 auto borders_data = BordersData {
@@ -248,7 +248,7 @@ void InlinePaintable::resolve_paint_properties()
     auto const& layout_node = this->layout_node();
     auto& fragments = this->fragments();
 
-    // Border radii
+    // Border radii and background layers
     auto const& top_left_border_radius = computed_values.border_top_left_radius();
     auto const& top_right_border_radius = computed_values.border_top_right_radius();
     auto const& bottom_right_border_radius = computed_values.border_bottom_right_radius();
@@ -277,6 +277,9 @@ void InlinePaintable::resolve_paint_properties()
             bottom_right_border_radius,
             bottom_left_border_radius);
         fragment.set_border_radii_data(border_radii_data);
+
+        auto resolved_background = resolve_background_layers(computed_values.background_layers(), layout_node, computed_values.background_color(), absolute_fragment_rect, border_radii_data);
+        fragment.set_resolved_background(move(resolved_background));
     }
 
     auto const& box_shadow_data = computed_values.box_shadow();

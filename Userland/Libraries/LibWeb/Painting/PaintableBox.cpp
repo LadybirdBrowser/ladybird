@@ -463,30 +463,7 @@ void PaintableBox::paint_background(PaintContext& context) const
     if (layout_box().is_body() && document().html_element()->should_use_body_background_properties())
         return;
 
-    CSSPixelRect background_rect;
-    Color background_color = computed_values().background_color();
-    auto* background_layers = &computed_values().background_layers();
-
-    if (layout_box().is_root_element()) {
-        // CSS 2.1 Appendix E.2: If the element is a root element, paint the background over the entire canvas.
-        background_rect = context.css_viewport_rect();
-
-        // Section 2.11.2: If the computed value of background-image on the root element is none and its background-color is transparent,
-        // user agents must instead propagate the computed values of the background properties from that element’s first HTML BODY child element.
-        if (document().html_element()->should_use_body_background_properties()) {
-            background_layers = document().background_layers();
-            background_color = document().background_color();
-        }
-    } else {
-        background_rect = absolute_padding_box_rect();
-    }
-
-    // HACK: If the Box has a border, use the bordered_rect to paint the background.
-    //       This way if we have a border-radius there will be no gap between the filling and actual border.
-    if (computed_values().border_top().width != 0 || computed_values().border_right().width != 0 || computed_values().border_bottom().width != 0 || computed_values().border_left().width != 0)
-        background_rect = absolute_border_box_rect();
-
-    Painting::paint_background(context, layout_box(), background_rect, background_color, computed_values().image_rendering(), background_layers, normalized_border_radii_data());
+    Painting::paint_background(context, layout_box(), computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
 }
 
 void PaintableBox::paint_box_shadow(PaintContext& context) const
@@ -1148,6 +1125,32 @@ void PaintableBox::resolve_paint_properties()
 
     auto combined_transform = compute_combined_css_transform();
     set_combined_css_transform(combined_transform);
+
+    CSSPixelRect background_rect;
+    Color background_color = computed_values.background_color();
+    auto const* background_layers = &computed_values.background_layers();
+    if (layout_box().is_root_element()) {
+        background_rect = navigable()->viewport_rect();
+
+        // Section 2.11.2: If the computed value of background-image on the root element is none and its background-color is transparent,
+        // user agents must instead propagate the computed values of the background properties from that element’s first HTML BODY child element.
+        if (document().html_element()->should_use_body_background_properties()) {
+            background_layers = document().background_layers();
+            background_color = document().background_color();
+        }
+    } else {
+        background_rect = absolute_padding_box_rect();
+    }
+
+    // HACK: If the Box has a border, use the bordered_rect to paint the background.
+    //       This way if we have a border-radius there will be no gap between the filling and actual border.
+    if (computed_values.border_top().width != 0 || computed_values.border_right().width != 0 || computed_values.border_bottom().width != 0 || computed_values.border_left().width != 0)
+        background_rect = absolute_border_box_rect();
+
+    m_resolved_background.layers.clear();
+    if (background_layers) {
+        m_resolved_background = resolve_background_layers(*background_layers, layout_box(), background_color, background_rect, normalized_border_radii_data());
+    };
 }
 
 void PaintableWithLines::resolve_paint_properties()
