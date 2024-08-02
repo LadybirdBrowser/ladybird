@@ -617,7 +617,7 @@ NonnullRefPtr<CSS::StyleProperties> Element::resolved_css_values()
         auto maybe_value = element_computed_style->property(property_id);
         if (!maybe_value.has_value())
             continue;
-        properties->set_property(property_id, maybe_value.release_value().value, nullptr);
+        properties->set_property(property_id, maybe_value.release_value().value);
     }
 
     return properties;
