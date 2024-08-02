@@ -19,12 +19,12 @@ public:
     {
     }
 
-    virtual ~EditEventHandler() = default;
+    ~EditEventHandler() = default;
 
-    virtual void handle_delete_character_after(JS::NonnullGCPtr<DOM::Position>);
-    virtual void handle_delete(DOM::Range&);
-    virtual void handle_insert(JS::NonnullGCPtr<DOM::Position>, u32 code_point);
-    virtual void handle_insert(JS::NonnullGCPtr<DOM::Position>, String);
+    void handle_delete_character_after(JS::NonnullGCPtr<DOM::Position>);
+    void handle_delete(DOM::Range&);
+    void handle_insert(JS::NonnullGCPtr<DOM::Position>, u32 code_point);
+    void handle_insert(JS::NonnullGCPtr<DOM::Position>, String);
 
 private:
     JS::NonnullGCPtr<HTML::Navigable> m_navigable;
