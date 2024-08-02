@@ -204,7 +204,20 @@ inspector.createPropertyTables = (computedStyle, resolvedStyle, customProperties
         newTable.setAttribute("id", tableID);
 
         Object.keys(properties)
-            .sort()
+            .sort((a, b) => {
+                let baseResult = a.localeCompare(b);
+                // Manually move vendor-prefixed items after non-prefixed ones.
+                if (a[0] === "-") {
+                    if (b[0] === "-") {
+                        return baseResult;
+                    }
+                    return 1;
+                }
+                if (b[0] === "-") {
+                    return -1;
+                }
+                return baseResult;
+            })
             .forEach(name => {
                 let row = newTable.insertRow();
 
