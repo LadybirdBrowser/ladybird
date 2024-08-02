@@ -47,9 +47,9 @@ bool StyleProperties::is_property_inherited(CSS::PropertyID property_id) const
     return m_property_values[to_underlying(property_id)].style && m_property_values[to_underlying(property_id)].inherited == Inherited::Yes;
 }
 
-void StyleProperties::set_property(CSS::PropertyID id, NonnullRefPtr<StyleValue const> value, CSS::CSSStyleDeclaration const* source_declaration, Inherited inherited, Important important)
+void StyleProperties::set_property(CSS::PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
 {
-    m_property_values[to_underlying(id)] = StyleAndSourceDeclaration { move(value), source_declaration, important, inherited };
+    m_property_values[to_underlying(id)] = StyleValueAndMetadata { move(value), important, inherited };
 }
 
 void StyleProperties::set_animated_property(CSS::PropertyID id, NonnullRefPtr<StyleValue const> value)
@@ -76,11 +76,6 @@ RefPtr<StyleValue const> StyleProperties::maybe_null_property(CSS::PropertyID pr
     if (auto animated_value = m_animated_property_values.get(property_id).value_or(nullptr))
         return *animated_value;
     return m_property_values[to_underlying(property_id)].style;
-}
-
-CSS::CSSStyleDeclaration const* StyleProperties::property_source_declaration(CSS::PropertyID property_id) const
-{
-    return m_property_values[to_underlying(property_id)].declaration;
 }
 
 CSS::Size StyleProperties::size_value(CSS::PropertyID id) const

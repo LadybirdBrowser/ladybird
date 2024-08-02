@@ -977,7 +977,7 @@ void KeyframeEffect::update_style_properties()
         for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
             if (element_style->is_property_inherited(static_cast<CSS::PropertyID>(i))) {
                 auto new_value = CSS::StyleComputer::get_inherit_value(document.realm(), static_cast<CSS::PropertyID>(i), &element);
-                element_style->set_property(static_cast<CSS::PropertyID>(i), *new_value, nullptr, CSS::StyleProperties::Inherited::Yes);
+                element_style->set_property(static_cast<CSS::PropertyID>(i), *new_value, CSS::StyleProperties::Inherited::Yes);
             }
         }
 
