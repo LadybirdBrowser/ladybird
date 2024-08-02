@@ -696,6 +696,10 @@ public:
     bool cursor_blink_state() const { return m_cursor_blink_state; }
 
     void user_did_edit_document_text(Badge<EditEventHandler>);
+    // Cached pointer to the last known node navigable.
+    // If this document is currently the "active document" of the cached navigable, the cache is still valid.
+    JS::GCPtr<HTML::Navigable> cached_navigable();
+    void set_cached_navigable(JS::GCPtr<HTML::Navigable>);
 
 protected:
     virtual void initialize(JS::Realm&) override;
@@ -965,6 +969,9 @@ private:
     JS::GCPtr<DOM::Position> m_cursor_position;
     RefPtr<Core::Timer> m_cursor_blink_timer;
     bool m_cursor_blink_state { false };
+
+    // NOTE: This is WeakPtr, not GCPtr, on purpose. We don't want the document to keep some old detached navigable alive.
+    WeakPtr<HTML::Navigable> m_cached_navigable;
 };
 
 template<>
