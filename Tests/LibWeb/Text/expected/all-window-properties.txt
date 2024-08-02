@@ -237,6 +237,7 @@ Performance
 PerformanceEntry
 PerformanceMark
 PerformanceMeasure
+PerformanceNavigation
 PerformanceObserver
 PerformanceObserverEntryList
 PerformanceTiming

@@ -14,6 +14,7 @@
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/NavigationTiming/EntryNames.h>
+#include <LibWeb/NavigationTiming/PerformanceNavigation.h>
 #include <LibWeb/NavigationTiming/PerformanceTiming.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 
@@ -48,6 +49,19 @@ JS::GCPtr<NavigationTiming::PerformanceTiming> Performance::timing()
     if (!m_timing)
         m_timing = heap().allocate<NavigationTiming::PerformanceTiming>(realm, realm);
     return m_timing;
+}
+
+JS::GCPtr<NavigationTiming::PerformanceNavigation> Performance::navigation()
+{
+    auto& realm = this->realm();
+    if (!m_navigation) {
+        // FIXME actually determine values for these
+        u16 type = 0;
+        u16 redirect_count = 0;
+
+        m_navigation = heap().allocate<NavigationTiming::PerformanceNavigation>(realm, realm, type, redirect_count);
+    }
+    return m_navigation;
 }
 
 double Performance::time_origin() const
