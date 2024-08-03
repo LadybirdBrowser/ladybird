@@ -1137,6 +1137,9 @@ void HTMLInputElement::did_receive_focus()
         return;
     m_text_node->invalidate_style();
 
+    if (m_placeholder_text_node)
+        m_placeholder_text_node->invalidate_style();
+
     document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
 
@@ -1144,6 +1147,9 @@ void HTMLInputElement::did_lose_focus()
 {
     if (m_text_node)
         m_text_node->invalidate_style();
+
+    if (m_placeholder_text_node)
+        m_placeholder_text_node->invalidate_style();
 
     commit_pending_changes();
 }
