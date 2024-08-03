@@ -79,7 +79,6 @@ protected:
     template<typename T>
     T read_value(ReadonlyBytes data);
 
-    Vector<Value> pop_values(Configuration& configuration, size_t count);
     ALWAYS_INLINE bool trap_if_not(bool value, StringView reason)
     {
         if (!value)
