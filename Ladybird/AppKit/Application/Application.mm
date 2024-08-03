@@ -52,6 +52,11 @@
     return m_application_bridge->launch_web_worker();
 }
 
+- (void)dumpConnectionInfo:(id)sender
+{
+    m_application_bridge->dump_connection_info();
+}
+
 #pragma mark - NSApplication
 
 - (void)terminate:(id)sender

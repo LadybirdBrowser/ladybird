@@ -611,6 +611,9 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Local Storage"
                                                 action:@selector(dumpLocalStorage:)
                                          keyEquivalent:@""]];
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Connection Info"
+                                                action:@selector(dumpConnectionInfo:)
+                                         keyEquivalent:@""]];
     [submenu addItem:[NSMenuItem separatorItem]];
 
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Show Line Box Borders"

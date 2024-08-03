@@ -27,6 +27,8 @@ public:
     ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content(WebViewBridge&);
     ErrorOr<IPC::File> launch_web_worker();
 
+    void dump_connection_info();
+
 private:
     NonnullOwnPtr<ApplicationBridgeImpl> m_impl;
 };
