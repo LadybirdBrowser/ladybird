@@ -48,6 +48,7 @@ private:
 
     void handle_successful_fetch(URL::URL const&, StringView mime_type, ByteBuffer data);
     void handle_failed_fetch();
+    void handle_successful_resource_load();
 
     enum class State {
         New,

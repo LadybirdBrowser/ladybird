@@ -145,27 +145,18 @@ void SharedImageRequest::handle_successful_fetch(URL::URL const& url_string, Str
 
     bool const is_svg_image = mime_type == "image/svg+xml"sv || url_string.basename().ends_with(".svg"sv);
 
-    auto handle_successful_decode = [](SharedImageRequest& self) {
-        self.m_state = State::Finished;
-        for (auto& callback : self.m_callbacks) {
-            if (callback.on_finish)
-                callback.on_finish->function()();
-        }
-        self.m_callbacks.clear();
-    };
-
     if (is_svg_image) {
         auto result = SVG::SVGDecodedImageData::create(m_document->realm(), m_page, url_string, data);
         if (result.is_error()) {
             handle_failed_fetch();
         } else {
             m_image_data = result.release_value();
-            handle_successful_decode(*this);
+            handle_successful_resource_load();
         }
         return;
     }
 
-    auto handle_successful_bitmap_decode = [strong_this = JS::Handle(*this), handle_successful_decode = move(handle_successful_decode)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+    auto handle_successful_bitmap_decode = [strong_this = JS::Handle(*this)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
         Vector<AnimatedBitmapDecodedImageData::Frame> frames;
         for (auto& frame : result.frames) {
             frames.append(AnimatedBitmapDecodedImageData::Frame {
@@ -174,7 +165,7 @@ void SharedImageRequest::handle_successful_fetch(URL::URL const& url_string, Str
             });
         }
         strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
-        handle_successful_decode(*strong_this);
+        strong_this->handle_successful_resource_load();
         return {};
     };
 
@@ -191,6 +182,16 @@ void SharedImageRequest::handle_failed_fetch()
     for (auto& callback : m_callbacks) {
         if (callback.on_fail)
             callback.on_fail->function()();
+    }
+    m_callbacks.clear();
+}
+
+void SharedImageRequest::handle_successful_resource_load()
+{
+    m_state = State::Finished;
+    for (auto& callback : m_callbacks) {
+        if (callback.on_finish)
+            callback.on_finish->function()();
     }
     m_callbacks.clear();
 }
