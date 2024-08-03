@@ -227,6 +227,7 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(Vector<Variant<JS::Handle
     return {};
 }
 
+// https://dom.spec.whatwg.org/#dom-document-getelementsbyclassname
 JS::NonnullGCPtr<HTMLCollection> ParentNode::get_elements_by_class_name(StringView class_names)
 {
     Vector<FlyString> list_of_class_names;
@@ -235,10 +236,10 @@ JS::NonnullGCPtr<HTMLCollection> ParentNode::get_elements_by_class_name(StringVi
     }
     return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [list_of_class_names = move(list_of_class_names), quirks_mode = document().in_quirks_mode()](Element const& element) {
         for (auto& name : list_of_class_names) {
-            if (element.has_class(name, quirks_mode ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive))
-                return true;
+            if (!element.has_class(name, quirks_mode ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive))
+                return false;
         }
-        return false;
+        return !list_of_class_names.is_empty();
     });
 }
 
