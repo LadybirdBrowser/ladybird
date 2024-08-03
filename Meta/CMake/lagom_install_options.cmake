@@ -20,7 +20,17 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAK
 set(CMAKE_Swift_MODULE_DIRECTORY  "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}swift")
 
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+
+if ("${VCPKG_INSTALLED_DIR}" STREQUAL "")
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+else()
+    if (CMAKE_BUILD_TYPE MATCHES "Release|RelWithDebInfo")
+        set(CMAKE_BUILD_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+    else()
+        set(CMAKE_BUILD_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib")
+    endif()
+endif()
+
 # See slide 100 of the following ppt :^)
 # https://crascit.com/wp-content/uploads/2019/09/Deep-CMake-For-Library-Authors-Craig-Scott-CppCon-2019.pdf
 if (APPLE)
