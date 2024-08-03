@@ -674,8 +674,8 @@ void HTMLImageElement::add_callbacks_to_image_request(JS::NonnullGCPtr<ImageRequ
     image_request->add_callbacks(
         [this, image_request, maybe_omit_events, url_string, previous_url]() {
             batching_dispatcher().enqueue([this, image_request, maybe_omit_events, url_string, previous_url] {
-                VERIFY(image_request->shared_image_request());
-                auto image_data = image_request->shared_image_request()->image_data();
+                VERIFY(image_request->shared_resource_request());
+                auto image_data = image_request->shared_resource_request()->image_data();
                 image_request->set_image_data(image_data);
 
                 ListOfAvailableImages::Key key;
@@ -884,8 +884,8 @@ void HTMLImageElement::react_to_changes_in_the_environment()
                 batching_dispatcher().enqueue([step_15, selected_source = move(selected_source), image_request, key] {
                     // 7. Otherwise, response's unsafe response is image request's image data. It can be either CORS-same-origin
                     //    or CORS-cross-origin; this affects the image's interaction with other APIs (e.g., when used on a canvas).
-                    VERIFY(image_request->shared_image_request());
-                    auto image_data = image_request->shared_image_request()->image_data();
+                    VERIFY(image_request->shared_resource_request());
+                    auto image_data = image_request->shared_resource_request()->image_data();
                     image_request->set_image_data(image_data);
                     step_15(selected_source, image_request, key, *image_data);
                 });

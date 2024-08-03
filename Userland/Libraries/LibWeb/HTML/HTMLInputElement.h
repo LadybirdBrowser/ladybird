@@ -299,7 +299,7 @@ private:
     JS::GCPtr<DOM::Element> m_slider_progress_element;
 
     JS::GCPtr<DecodedImageData> image_data() const;
-    JS::GCPtr<SharedImageRequest> m_image_request;
+    JS::GCPtr<SharedResourceRequest> m_resource_request;
     SelectedCoordinate m_selected_coordinate;
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;

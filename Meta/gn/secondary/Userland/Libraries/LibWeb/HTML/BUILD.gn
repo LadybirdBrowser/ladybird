@@ -159,7 +159,7 @@ source_set("HTML") {
     "SelectedFile.cpp",
     "SessionHistoryEntry.cpp",
     "SessionHistoryTraversalQueue.cpp",
-    "SharedImageRequest.cpp",
+    "SharedResourceRequest.cpp",
     "SourceSet.cpp",
     "Storage.cpp",
     "StructuredSerialize.cpp",

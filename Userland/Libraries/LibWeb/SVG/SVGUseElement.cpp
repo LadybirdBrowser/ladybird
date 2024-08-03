@@ -52,7 +52,7 @@ void SVGUseElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_document_observer);
-    visitor.visit(m_image_request);
+    visitor.visit(m_resource_request);
 }
 
 void SVGUseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
@@ -142,10 +142,10 @@ JS::GCPtr<DOM::Element> SVGUseElement::referenced_element()
     if (is_referrenced_element_same_document())
         return document().get_element_by_id(*m_href.fragment());
 
-    if (!m_image_request)
+    if (!m_resource_request)
         return nullptr;
 
-    auto data = m_image_request->image_data();
+    auto data = m_resource_request->image_data();
     if (!data || !is<SVG::SVGDecodedImageData>(*data))
         return nullptr;
 
@@ -156,8 +156,8 @@ JS::GCPtr<DOM::Element> SVGUseElement::referenced_element()
 void SVGUseElement::fetch_the_document(URL::URL const& url)
 {
     m_load_event_delayer.emplace(document());
-    m_image_request = HTML::SharedImageRequest::get_or_create(realm(), document().page(), url);
-    m_image_request->add_callbacks(
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), url);
+    m_resource_request->add_callbacks(
         [this] {
             clone_element_tree_as_our_shadow_tree(referenced_element());
             m_load_event_delayer.clear();
@@ -166,10 +166,10 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
             m_load_event_delayer.clear();
         });
 
-    if (m_image_request->needs_fetching()) {
+    if (m_resource_request->needs_fetching()) {
         auto request = HTML::create_potential_CORS_request(vm(), url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(&document().relevant_settings_object());
-        m_image_request->fetch_image(realm(), request);
+        m_resource_request->fetch_resource(realm(), request);
     }
 }
 

@@ -99,6 +99,7 @@
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -482,7 +483,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_intersection_observers);
     visitor.visit(m_resize_observers);
 
-    visitor.visit(m_shared_image_requests);
+    visitor.visit(m_shared_resource_requests);
 
     visitor.visit(m_associated_animation_timelines);
     visitor.visit(m_list_of_available_images);
@@ -4304,9 +4305,9 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
     }
 }
 
-HashMap<URL::URL, JS::GCPtr<HTML::SharedImageRequest>>& Document::shared_image_requests()
+HashMap<URL::URL, JS::GCPtr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()
 {
-    return m_shared_image_requests;
+    return m_shared_resource_requests;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-document-timeline

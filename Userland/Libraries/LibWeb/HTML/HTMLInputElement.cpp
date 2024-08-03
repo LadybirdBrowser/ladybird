@@ -31,7 +31,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SelectedFile.h>
-#include <LibWeb/HTML/SharedImageRequest.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -80,7 +80,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_selected_files);
     visitor.visit(m_slider_thumb);
     visitor.visit(m_slider_progress_element);
-    visitor.visit(m_image_request);
+    visitor.visit(m_resource_request);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
@@ -1242,8 +1242,8 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
     request->set_use_url_credentials(true);
 
     // 4. Fetch request, with processResponseEndOfBody set to the following step given response response:
-    m_image_request = SharedImageRequest::get_or_create(realm, document().page(), request->url());
-    m_image_request->add_callbacks(
+    m_resource_request = SharedResourceRequest::get_or_create(realm, document().page(), request->url());
+    m_resource_request->add_callbacks(
         [this, &realm]() {
             // 1. If the download was successful and the image is available, queue an element task on the user interaction
             //    task source given the input element to fire an event named load at the input element.
@@ -1265,8 +1265,8 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
             m_load_event_delayer.clear();
         });
 
-    if (m_image_request->needs_fetching()) {
-        m_image_request->fetch_image(realm, request);
+    if (m_resource_request->needs_fetching()) {
+        m_resource_request->fetch_resource(realm, request);
     }
 
     // Fetching the image must delay the load event of the element's node document until the task that is queued by the
@@ -1563,8 +1563,8 @@ void HTMLInputElement::legacy_cancelled_activation_behavior_was_not_called()
 
 JS::GCPtr<DecodedImageData> HTMLInputElement::image_data() const
 {
-    if (m_image_request)
-        return m_image_request->image_data();
+    if (m_resource_request)
+        return m_resource_request->image_data();
     return nullptr;
 }
 

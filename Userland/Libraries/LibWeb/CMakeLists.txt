@@ -434,7 +434,7 @@ set(SOURCES
     HTML/SelectItem.cpp
     HTML/SessionHistoryEntry.cpp
     HTML/SessionHistoryTraversalQueue.cpp
-    HTML/SharedImageRequest.cpp
+    HTML/SharedResourceRequest.cpp
     HTML/SourceSet.cpp
     HTML/Storage.cpp
     HTML/StructuredSerialize.cpp

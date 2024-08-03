@@ -69,7 +69,7 @@ private:
     URL::URL m_href;
 
     JS::GCPtr<DOM::DocumentObserver> m_document_observer;
-    JS::GCPtr<HTML::SharedImageRequest> m_image_request;
+    JS::GCPtr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
 

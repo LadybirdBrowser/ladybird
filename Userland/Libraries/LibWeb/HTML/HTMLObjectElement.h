@@ -88,7 +88,7 @@ private:
 
     JS::GCPtr<DecodedImageData> image_data() const;
 
-    JS::GCPtr<SharedImageRequest> m_image_request;
+    JS::GCPtr<SharedResourceRequest> m_resource_request;
 };
 
 }

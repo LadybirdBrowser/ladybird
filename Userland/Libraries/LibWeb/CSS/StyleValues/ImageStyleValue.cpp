@@ -30,12 +30,12 @@ ImageStyleValue::~ImageStyleValue() = default;
 
 void ImageStyleValue::load_any_resources(DOM::Document& document)
 {
-    if (m_image_request)
+    if (m_resource_request)
         return;
     m_document = &document;
 
-    m_image_request = HTML::SharedImageRequest::get_or_create(document.realm(), document.page(), m_url);
-    m_image_request->add_callbacks(
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document.realm(), document.page(), m_url);
+    m_resource_request->add_callbacks(
         [this, weak_this = make_weak_ptr()] {
             if (!weak_this)
                 return;
@@ -47,7 +47,7 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
             if (auto navigable = m_document->navigable())
                 navigable->set_needs_display();
 
-            auto image_data = m_image_request->image_data();
+            auto image_data = m_resource_request->image_data();
             if (image_data->is_animated() && image_data->frame_count() > 1) {
                 m_timer = Platform::Timer::create();
                 m_timer->set_interval(image_data->frame_duration(0));
@@ -57,18 +57,18 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
         },
         nullptr);
 
-    if (m_image_request->needs_fetching()) {
+    if (m_resource_request->needs_fetching()) {
         auto request = HTML::create_potential_CORS_request(document.vm(), m_url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(&document.relevant_settings_object());
-        m_image_request->fetch_image(document.realm(), request);
+        m_resource_request->fetch_resource(document.realm(), request);
     }
 }
 
 void ImageStyleValue::animate()
 {
-    if (!m_image_request)
+    if (!m_resource_request)
         return;
-    auto image_data = m_image_request->image_data();
+    auto image_data = m_resource_request->image_data();
     if (!image_data)
         return;
 
@@ -148,9 +148,9 @@ Gfx::ImmutableBitmap const* ImageStyleValue::current_frame_bitmap(DevicePixelRec
 
 JS::GCPtr<HTML::DecodedImageData> ImageStyleValue::image_data() const
 {
-    if (!m_image_request)
+    if (!m_resource_request)
         return nullptr;
-    return m_image_request->image_data();
+    return m_resource_request->image_data();
 }
 
 Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap() const
