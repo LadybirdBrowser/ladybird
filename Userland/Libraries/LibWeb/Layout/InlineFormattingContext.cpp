@@ -351,7 +351,7 @@ void InlineFormattingContext::generate_line_boxes(LayoutMode layout_mode)
                     auto max_text_width = available_width - ellipsis_width;
 
                     auto& glyphs = glyph_run->glyphs();
-                    auto last_glyph_index = 0;
+                    size_t last_glyph_index = 0;
                     auto last_glyph_position = Gfx::FloatPoint();
 
                     for (auto const& glyph_or_emoji : glyphs) {
@@ -370,10 +370,13 @@ void InlineFormattingContext::generate_line_boxes(LayoutMode layout_mode)
                         last_glyph_position = this_position;
                     }
 
-                    auto remove_item_count = glyphs.size() - last_glyph_index;
-                    glyphs.remove(last_glyph_index - 1, remove_item_count);
-
-                    glyphs.append(Gfx::DrawGlyph(last_glyph_position, ellipsis_codepoint));
+                    if (last_glyph_index > 1) {
+                        auto remove_item_count = glyphs.size() - last_glyph_index;
+                        glyphs.remove(last_glyph_index - 1, remove_item_count);
+                        glyphs.append(Gfx::DrawGlyph {
+                            .position = last_glyph_position,
+                            .code_point = ellipsis_codepoint });
+                    }
                 }
             }
             line_builder.append_text_chunk(
