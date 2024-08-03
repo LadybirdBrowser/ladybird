@@ -7,6 +7,7 @@ set(TEST_SOURCES
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
+    TestURLSearchParams.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
