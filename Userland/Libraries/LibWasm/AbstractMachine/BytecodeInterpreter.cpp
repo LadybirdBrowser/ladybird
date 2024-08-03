@@ -48,7 +48,7 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
         }
         auto& instruction = instructions[current_ip_value.value()];
         auto old_ip = current_ip_value;
-        interpret(configuration, current_ip_value, instruction);
+        interpret_instruction(configuration, current_ip_value, instruction);
         if (did_trap())
             return;
         if (current_ip_value == old_ip) // If no jump occurred
@@ -420,7 +420,7 @@ Vector<Value> BytecodeInterpreter::pop_values(Configuration& configuration, size
     return results;
 }
 
-void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPointer& ip, Instruction const& instruction)
+ALWAYS_INLINE void BytecodeInterpreter::interpret_instruction(Configuration& configuration, InstructionPointer& ip, Instruction const& instruction)
 {
     dbgln_if(WASM_TRACE_DEBUG, "Executing instruction {} at ip {}", instruction_name(instruction.opcode()), ip.value());
 
@@ -1671,7 +1671,7 @@ void BytecodeInterpreter::interpret(Configuration& configuration, InstructionPoi
     }
 }
 
-void DebuggerBytecodeInterpreter::interpret(Configuration& configuration, InstructionPointer& ip, Instruction const& instruction)
+void DebuggerBytecodeInterpreter::interpret_instruction(Configuration& configuration, InstructionPointer& ip, Instruction const& instruction)
 {
     if (pre_interpret_hook) {
         auto result = pre_interpret_hook(configuration, ip, instruction);
@@ -1681,7 +1681,7 @@ void DebuggerBytecodeInterpreter::interpret(Configuration& configuration, Instru
         }
     }
 
-    BytecodeInterpreter::interpret(configuration, ip, instruction);
+    BytecodeInterpreter::interpret_instruction(configuration, ip, instruction);
 
     if (post_interpret_hook) {
         auto result = post_interpret_hook(configuration, ip, instruction, *this);

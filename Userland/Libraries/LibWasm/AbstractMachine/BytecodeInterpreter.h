@@ -19,6 +19,7 @@ struct BytecodeInterpreter : public Interpreter {
     }
 
     virtual void interpret(Configuration&) override;
+
     virtual ~BytecodeInterpreter() override = default;
     virtual bool did_trap() const override { return !m_trap.has<Empty>(); }
     virtual ByteString trap_reason() const override
@@ -44,7 +45,7 @@ struct BytecodeInterpreter : public Interpreter {
     };
 
 protected:
-    virtual void interpret(Configuration&, InstructionPointer&, Instruction const&);
+    void interpret_instruction(Configuration&, InstructionPointer&, Instruction const&);
     void branch_to_label(Configuration&, LabelIndex);
     template<typename ReadT, typename PushT>
     void load_and_push(Configuration&, Instruction const&);
@@ -101,7 +102,7 @@ struct DebuggerBytecodeInterpreter : public BytecodeInterpreter {
     Function<bool(Configuration&, InstructionPointer&, Instruction const&, Interpreter const&)> post_interpret_hook;
 
 private:
-    virtual void interpret(Configuration&, InstructionPointer&, Instruction const&) override;
+    void interpret_instruction(Configuration&, InstructionPointer&, Instruction const&);
 };
 
 }
