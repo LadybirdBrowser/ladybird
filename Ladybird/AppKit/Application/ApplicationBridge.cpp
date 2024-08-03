@@ -91,4 +91,9 @@ ErrorOr<IPC::File> ApplicationBridge::launch_web_worker()
     return worker_client->dup_socket();
 }
 
+void ApplicationBridge::dump_connection_info()
+{
+    m_impl->request_server_client->dump_connection_info();
+}
+
 }
