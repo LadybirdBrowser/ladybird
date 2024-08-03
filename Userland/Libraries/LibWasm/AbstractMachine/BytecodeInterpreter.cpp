@@ -30,13 +30,6 @@ namespace Wasm {
         }                                                                                      \
     } while (false)
 
-#define TRAP_IF_NOT_NORETURN(x)                                                                \
-    do {                                                                                       \
-        if (trap_if_not(x, #x##sv)) {                                                          \
-            dbgln_if(WASM_TRACE_DEBUG, "Trapped because {} failed, at line {}", #x, __LINE__); \
-        }                                                                                      \
-    } while (false)
-
 void BytecodeInterpreter::interpret(Configuration& configuration)
 {
     m_trap = Empty {};
@@ -284,12 +277,9 @@ void BytecodeInterpreter::call_address(Configuration& configuration, FunctionAdd
 template<typename PopTypeLHS, typename PushType, typename Operator, typename PopTypeRHS, typename... Args>
 void BytecodeInterpreter::binary_numeric_operation(Configuration& configuration, Args&&... args)
 {
-    auto rhs_entry = configuration.stack().pop();
+    auto rhs = configuration.stack().pop().get<Value>().to<PopTypeRHS>();
     auto& lhs_entry = configuration.stack().peek();
-    auto rhs_ptr = rhs_entry.get_pointer<Value>();
-    auto lhs_ptr = lhs_entry.get_pointer<Value>();
-    auto rhs = rhs_ptr->to<PopTypeRHS>();
-    auto lhs = lhs_ptr->to<PopTypeLHS>();
+    auto lhs = lhs_entry.get<Value>().to<PopTypeLHS>();
     PushType result;
     auto call_result = Operator { forward<Args>(args)... }(lhs.value(), rhs.value());
     if constexpr (IsSpecializationOf<decltype(call_result), AK::ErrorOr>) {
@@ -309,8 +299,7 @@ template<typename PopType, typename PushType, typename Operator, typename... Arg
 void BytecodeInterpreter::unary_operation(Configuration& configuration, Args&&... args)
 {
     auto& entry = configuration.stack().peek();
-    auto entry_ptr = entry.get_pointer<Value>();
-    auto value = entry_ptr->to<PopType>();
+    auto value = entry.get<Value>().to<PopType>();
     auto call_result = Operator { forward<Args>(args)... }(*value);
     PushType result;
     if constexpr (IsSpecializationOf<decltype(call_result), AK::ErrorOr>) {
@@ -433,13 +422,9 @@ Vector<Value> BytecodeInterpreter::pop_values(Configuration& configuration, size
     Vector<Value> results;
     results.resize(count);
 
-    for (size_t i = 0; i < count; ++i) {
-        auto top_of_stack = configuration.stack().pop();
-        if (auto value = top_of_stack.get_pointer<Value>())
-            results[i] = move(*value);
-        else
-            TRAP_IF_NOT_NORETURN(value);
-    }
+    for (size_t i = 0; i < count; ++i)
+        results[i] = configuration.stack().pop().get<Value>();
+
     return results;
 }
 
