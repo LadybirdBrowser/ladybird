@@ -384,4 +384,9 @@ Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::w
     return success;
 }
 
+void ConnectionFromClient::dump_connection_info()
+{
+    ConnectionCache::dump_jobs();
+}
+
 }

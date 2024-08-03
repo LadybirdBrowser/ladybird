@@ -22,4 +22,6 @@ endpoint RequestServer
     websocket_send(i32 connection_id, bool is_text, ByteBuffer data) =|
     websocket_close(i32 connection_id, u16 code, ByteString reason) =|
     websocket_set_certificate(i32 request_id, ByteString certificate, ByteString key) => (bool success)
+
+    dump_connection_info() =|
 }
