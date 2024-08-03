@@ -63,14 +63,8 @@ void BytecodeInterpreter::branch_to_label(Configuration& configuration, LabelInd
         configuration.label_stack().take_last();
     auto label = configuration.label_stack().last();
     dbgln_if(WASM_TRACE_DEBUG, "...which is actually IP {}, and has {} result(s)", label.continuation().value(), label.arity());
-    auto results = pop_values(configuration, label.arity());
 
-    while (configuration.value_stack().size() != label.stack_height())
-        configuration.value_stack().take_last();
-
-    for (auto& result : results.in_reverse())
-        configuration.value_stack().append(result);
-
+    configuration.value_stack().remove(label.stack_height(), configuration.value_stack().size() - label.stack_height() - label.arity());
     configuration.ip() = label.continuation();
 }
 
@@ -407,17 +401,6 @@ double BytecodeInterpreter::read_value<double>(ReadonlyBytes data)
         m_trap = Trap { "Read from memory failed" };
     auto raw_value = raw_value_or_error.release_value();
     return bit_cast<double>(static_cast<u64>(raw_value));
-}
-
-Vector<Value> BytecodeInterpreter::pop_values(Configuration& configuration, size_t count)
-{
-    Vector<Value> results;
-    results.resize(count);
-
-    for (size_t i = 0; i < count; ++i)
-        results[i] = configuration.value_stack().take_last();
-
-    return results;
 }
 
 ALWAYS_INLINE void BytecodeInterpreter::interpret_instruction(Configuration& configuration, InstructionPointer& ip, Instruction const& instruction)
