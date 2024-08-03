@@ -66,6 +66,8 @@ private:
     virtual void websocket_close(i32, u16, ByteString const&) override;
     virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(i32, ByteString const&, ByteString const&) override;
 
+    virtual void dump_connection_info() override;
+
     Threading::MutexProtected<HashMap<i32, OwnPtr<Request>>> m_requests;
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 

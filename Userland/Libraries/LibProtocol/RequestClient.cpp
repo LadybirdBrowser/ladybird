@@ -146,4 +146,9 @@ void RequestClient::websocket_certificate_requested(i32 connection_id)
         maybe_connection.value()->did_request_certificates({});
 }
 
+void RequestClient::dump_connection_info()
+{
+    async_dump_connection_info();
+}
+
 }
