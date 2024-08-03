@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestICCProfile.cpp
     TestImageDecoder.cpp
     TestImageWriter.cpp
+    TestQuad.cpp
     TestRect.cpp
     TestWOFF.cpp
     TestWOFF2.cpp
