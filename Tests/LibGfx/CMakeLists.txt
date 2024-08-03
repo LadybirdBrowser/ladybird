@@ -10,6 +10,7 @@ set(TEST_SOURCES
     TestMedianCut.cpp
     TestPainter.cpp
     TestRect.cpp
+    TestQuad.cpp
     TestScalingFunctions.cpp
     TestWOFF.cpp
     TestWOFF2.cpp
