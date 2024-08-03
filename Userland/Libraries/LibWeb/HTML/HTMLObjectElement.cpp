@@ -47,7 +47,7 @@ void HTMLObjectElement::initialize(JS::Realm& realm)
 void HTMLObjectElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_image_request);
+    visitor.visit(m_resource_request);
 }
 
 void HTMLObjectElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&)
@@ -332,8 +332,8 @@ void HTMLObjectElement::load_image()
     // NOTE: This currently reloads the image instead of reusing the resource we've already downloaded.
     auto data = get_attribute_value(HTML::AttributeNames::data);
     auto url = document().parse_url(data);
-    m_image_request = HTML::SharedImageRequest::get_or_create(realm(), document().page(), url);
-    m_image_request->add_callbacks(
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), url);
+    m_resource_request->add_callbacks(
         [this] {
             run_object_representation_completed_steps(Representation::Image);
         },
@@ -341,10 +341,10 @@ void HTMLObjectElement::load_image()
             run_object_representation_fallback_steps();
         });
 
-    if (m_image_request->needs_fetching()) {
+    if (m_resource_request->needs_fetching()) {
         auto request = HTML::create_potential_CORS_request(vm(), url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(&document().relevant_settings_object());
-        m_image_request->fetch_image(realm(), request);
+        m_resource_request->fetch_resource(realm(), request);
     }
 }
 
@@ -372,9 +372,9 @@ i32 HTMLObjectElement::default_tab_index_value() const
 
 JS::GCPtr<DecodedImageData> HTMLObjectElement::image_data() const
 {
-    if (!m_image_request)
+    if (!m_resource_request)
         return nullptr;
-    return m_image_request->image_data();
+    return m_resource_request->image_data();
 }
 
 bool HTMLObjectElement::is_image_available() const

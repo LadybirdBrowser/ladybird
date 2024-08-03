@@ -13,44 +13,44 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
 #include <LibWeb/HTML/DecodedImageData.h>
-#include <LibWeb/HTML/SharedImageRequest.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(SharedImageRequest);
+JS_DEFINE_ALLOCATOR(SharedResourceRequest);
 
-JS::NonnullGCPtr<SharedImageRequest> SharedImageRequest::get_or_create(JS::Realm& realm, JS::NonnullGCPtr<Page> page, URL::URL const& url)
+JS::NonnullGCPtr<SharedResourceRequest> SharedResourceRequest::get_or_create(JS::Realm& realm, JS::NonnullGCPtr<Page> page, URL::URL const& url)
 {
     auto document = Bindings::host_defined_environment_settings_object(realm).responsible_document();
     VERIFY(document);
-    auto& shared_image_requests = document->shared_image_requests();
-    if (auto it = shared_image_requests.find(url); it != shared_image_requests.end())
+    auto& shared_resource_requests = document->shared_resource_requests();
+    if (auto it = shared_resource_requests.find(url); it != shared_resource_requests.end())
         return *it->value;
-    auto request = realm.heap().allocate<SharedImageRequest>(realm, page, url, *document);
-    shared_image_requests.set(url, request);
+    auto request = realm.heap().allocate<SharedResourceRequest>(realm, page, url, *document);
+    shared_resource_requests.set(url, request);
     return request;
 }
 
-SharedImageRequest::SharedImageRequest(JS::NonnullGCPtr<Page> page, URL::URL url, JS::NonnullGCPtr<DOM::Document> document)
+SharedResourceRequest::SharedResourceRequest(JS::NonnullGCPtr<Page> page, URL::URL url, JS::NonnullGCPtr<DOM::Document> document)
     : m_page(page)
     , m_url(move(url))
     , m_document(document)
 {
 }
 
-SharedImageRequest::~SharedImageRequest() = default;
+SharedResourceRequest::~SharedResourceRequest() = default;
 
-void SharedImageRequest::finalize()
+void SharedResourceRequest::finalize()
 {
     Base::finalize();
-    auto& shared_image_requests = m_document->shared_image_requests();
-    shared_image_requests.remove(m_url);
+    auto& shared_resource_requests = m_document->shared_resource_requests();
+    shared_resource_requests.remove(m_url);
 }
 
-void SharedImageRequest::visit_edges(JS::Cell::Visitor& visitor)
+void SharedResourceRequest::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_fetch_controller);
@@ -63,22 +63,22 @@ void SharedImageRequest::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_image_data);
 }
 
-JS::GCPtr<DecodedImageData> SharedImageRequest::image_data() const
+JS::GCPtr<DecodedImageData> SharedResourceRequest::image_data() const
 {
     return m_image_data;
 }
 
-JS::GCPtr<Fetch::Infrastructure::FetchController> SharedImageRequest::fetch_controller()
+JS::GCPtr<Fetch::Infrastructure::FetchController> SharedResourceRequest::fetch_controller()
 {
     return m_fetch_controller.ptr();
 }
 
-void SharedImageRequest::set_fetch_controller(JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller)
+void SharedResourceRequest::set_fetch_controller(JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller)
 {
     m_fetch_controller = move(fetch_controller);
 }
 
-void SharedImageRequest::fetch_image(JS::Realm& realm, JS::NonnullGCPtr<Fetch::Infrastructure::Request> request)
+void SharedResourceRequest::fetch_resource(JS::Realm& realm, JS::NonnullGCPtr<Fetch::Infrastructure::Request> request)
 {
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
     fetch_algorithms_input.process_response = [this, &realm, request](JS::NonnullGCPtr<Fetch::Infrastructure::Response> response) {
@@ -115,7 +115,7 @@ void SharedImageRequest::fetch_image(JS::Realm& realm, JS::NonnullGCPtr<Fetch::I
     set_fetch_controller(fetch_controller);
 }
 
-void SharedImageRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail)
+void SharedResourceRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail)
 {
     if (m_state == State::Finished) {
         if (on_finish)
@@ -138,7 +138,7 @@ void SharedImageRequest::add_callbacks(Function<void()> on_finish, Function<void
     m_callbacks.append(move(callbacks));
 }
 
-void SharedImageRequest::handle_successful_fetch(URL::URL const& url_string, StringView mime_type, ByteBuffer data)
+void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, StringView mime_type, ByteBuffer data)
 {
     // AD-HOC: At this point, things gets very ad-hoc.
     // FIXME: Bring this closer to spec.
@@ -176,7 +176,7 @@ void SharedImageRequest::handle_successful_fetch(URL::URL const& url_string, Str
     (void)Web::Platform::ImageCodecPlugin::the().decode_image(data.bytes(), move(handle_successful_bitmap_decode), move(handle_failed_decode));
 }
 
-void SharedImageRequest::handle_failed_fetch()
+void SharedResourceRequest::handle_failed_fetch()
 {
     m_state = State::Failed;
     for (auto& callback : m_callbacks) {
@@ -186,7 +186,7 @@ void SharedImageRequest::handle_failed_fetch()
     m_callbacks.clear();
 }
 
-void SharedImageRequest::handle_successful_resource_load()
+void SharedResourceRequest::handle_successful_resource_load()
 {
     m_state = State::Finished;
     for (auto& callback : m_callbacks) {
@@ -196,12 +196,12 @@ void SharedImageRequest::handle_successful_resource_load()
     m_callbacks.clear();
 }
 
-bool SharedImageRequest::needs_fetching() const
+bool SharedResourceRequest::needs_fetching() const
 {
     return m_state == State::New;
 }
 
-bool SharedImageRequest::is_fetching() const
+bool SharedResourceRequest::is_fetching() const
 {
     return m_state == State::Fetching;
 }

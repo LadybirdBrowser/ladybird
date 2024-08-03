@@ -34,7 +34,6 @@
 #include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/SharedImageRequest.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
@@ -601,7 +600,7 @@ public:
 
     void update_for_history_step_application(JS::NonnullGCPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<JS::NonnullGCPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, Optional<JS::NonnullGCPtr<HTML::SessionHistoryEntry>> previous_entry_for_activation = {}, bool update_navigation_api = true);
 
-    HashMap<URL::URL, JS::GCPtr<HTML::SharedImageRequest>>& shared_image_requests();
+    HashMap<URL::URL, JS::GCPtr<HTML::SharedResourceRequest>>& shared_resource_requests();
 
     void restore_the_history_object_state(JS::NonnullGCPtr<HTML::SessionHistoryEntry> entry);
 
@@ -917,7 +916,7 @@ private:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#latest-entry
     JS::GCPtr<HTML::SessionHistoryEntry> m_latest_entry;
 
-    HashMap<URL::URL, JS::GCPtr<HTML::SharedImageRequest>> m_shared_image_requests;
+    HashMap<URL::URL, JS::GCPtr<HTML::SharedResourceRequest>> m_shared_resource_requests;
 
     // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
     HashTable<JS::NonnullGCPtr<Animations::AnimationTimeline>> m_associated_animation_timelines;

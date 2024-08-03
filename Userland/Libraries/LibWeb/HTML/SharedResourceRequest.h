@@ -17,14 +17,14 @@
 
 namespace Web::HTML {
 
-class SharedImageRequest final : public JS::Cell {
-    JS_CELL(SharedImageRequest, JS::Cell);
-    JS_DECLARE_ALLOCATOR(SharedImageRequest);
+class SharedResourceRequest final : public JS::Cell {
+    JS_CELL(SharedResourceRequest, JS::Cell);
+    JS_DECLARE_ALLOCATOR(SharedResourceRequest);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<SharedImageRequest> get_or_create(JS::Realm&, JS::NonnullGCPtr<Page>, URL::URL const&);
+    [[nodiscard]] static JS::NonnullGCPtr<SharedResourceRequest> get_or_create(JS::Realm&, JS::NonnullGCPtr<Page>, URL::URL const&);
 
-    virtual ~SharedImageRequest() override;
+    virtual ~SharedResourceRequest() override;
 
     URL::URL const& url() const { return m_url; }
 
@@ -33,7 +33,7 @@ public:
     [[nodiscard]] JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller();
     void set_fetch_controller(JS::GCPtr<Fetch::Infrastructure::FetchController>);
 
-    void fetch_image(JS::Realm&, JS::NonnullGCPtr<Fetch::Infrastructure::Request>);
+    void fetch_resource(JS::Realm&, JS::NonnullGCPtr<Fetch::Infrastructure::Request>);
 
     void add_callbacks(Function<void()> on_finish, Function<void()> on_fail);
 
@@ -41,7 +41,7 @@ public:
     bool needs_fetching() const;
 
 private:
-    explicit SharedImageRequest(JS::NonnullGCPtr<Page>, URL::URL, JS::NonnullGCPtr<DOM::Document>);
+    explicit SharedResourceRequest(JS::NonnullGCPtr<Page>, URL::URL, JS::NonnullGCPtr<DOM::Document>);
 
     virtual void finalize() override;
     virtual void visit_edges(JS::Cell::Visitor&) override;

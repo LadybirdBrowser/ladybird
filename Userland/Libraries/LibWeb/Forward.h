@@ -474,7 +474,7 @@ class Plugin;
 class PluginArray;
 class PromiseRejectionEvent;
 class SelectedFile;
-class SharedImageRequest;
+class SharedResourceRequest;
 class Storage;
 class SubmitEvent;
 class TextMetrics;
