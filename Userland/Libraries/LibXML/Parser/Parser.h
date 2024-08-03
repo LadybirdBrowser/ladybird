@@ -22,7 +22,7 @@
 namespace XML {
 
 struct ParseError {
-    size_t offset;
+    LineTrackingLexer::Position position {};
     ByteString error;
 };
 
@@ -185,7 +185,7 @@ private:
             if (rule_name.starts_with("parse_"sv))
                 rule_name = rule_name.substring_view(6);
             m_parse_errors.append({
-                error.offset,
+                error.position,
                 ByteString::formatted("{}: {}", rule_name, error.error),
             });
         }
@@ -219,6 +219,6 @@ template<>
 struct AK::Formatter<XML::ParseError> : public AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, XML::ParseError const& error)
     {
-        return Formatter<FormatString>::format(builder, "{} at offset {}"sv, error.error, error.offset);
+        return Formatter<FormatString>::format(builder, "{} at line: {}, col: {} (offset {})"sv, error.error, error.position.line, error.position.column, error.position.offset);
     }
 };
