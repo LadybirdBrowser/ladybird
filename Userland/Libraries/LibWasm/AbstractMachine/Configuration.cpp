@@ -11,30 +11,11 @@
 
 namespace Wasm {
 
-Optional<size_t> Configuration::nth_label_index(size_t i)
-{
-    for (size_t index = m_stack.size(); index > 0; --index) {
-        auto& entry = m_stack.entries()[index - 1];
-        if (entry.has<Label>()) {
-            if (i == 0)
-                return index - 1;
-            --i;
-        }
-    }
-    return {};
-}
-
 void Configuration::unwind(Badge<CallFrameHandle>, CallFrameHandle const& frame_handle)
 {
-    if (m_stack.size() == frame_handle.stack_size && frame_handle.frame_index == m_current_frame_index)
-        return;
-
-    VERIFY(m_stack.size() > frame_handle.stack_size);
-    m_stack.entries().remove(frame_handle.stack_size, m_stack.size() - frame_handle.stack_size);
-    m_current_frame_index = frame_handle.frame_index;
+    auto frame = m_frame_stack.take_last();
     m_depth--;
     m_ip = frame_handle.ip;
-    VERIFY(m_stack.size() == frame_handle.stack_size);
 }
 
 Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Vector<Value> arguments)
@@ -71,17 +52,12 @@ Result Configuration::execute(Interpreter& interpreter)
     if (interpreter.did_trap())
         return Trap { interpreter.trap_reason() };
 
-    if (stack().size() <= frame().arity() + 1)
-        return Trap { "Not enough values to return from call" };
-
     Vector<Value> results;
     results.ensure_capacity(frame().arity());
     for (size_t i = 0; i < frame().arity(); ++i)
-        results.append(move(stack().pop().get<Value>()));
-    auto label = stack().pop();
-    // ASSERT: label == current frame
-    if (!label.has<Label>())
-        return Trap { "Invalid stack configuration" };
+        results.unchecked_append(value_stack().take_last());
+
+    label_stack().take_last();
     return Result { move(results) };
 }
 
@@ -94,20 +70,8 @@ void Configuration::dump_stack()
         memory_stream.read_until_filled(buffer).release_value_but_fixme_should_propagate_errors();
         dbgln(format.view(), StringView(buffer).trim_whitespace());
     };
-    for (auto const& entry : stack().entries()) {
-        entry.visit(
-            [&](Value const& v) {
-                print_value("    {}", v);
-            },
-            [&](Frame const& f) {
-                dbgln("    frame({})", f.arity());
-                for (auto& local : f.locals()) {
-                    print_value("        {}", local);
-                }
-            },
-            [](Label const& l) {
-                dbgln("    label({}) -> {}", l.arity(), l.continuation());
-            });
+    for (auto const& value : value_stack()) {
+        print_value("    {}", value);
     }
 }
 

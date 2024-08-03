@@ -563,17 +563,20 @@ private:
 
 class Label {
 public:
-    explicit Label(size_t arity, InstructionPointer continuation)
+    explicit Label(size_t arity, InstructionPointer continuation, size_t stack_height)
         : m_arity(arity)
+        , m_stack_height(stack_height)
         , m_continuation(continuation)
     {
     }
 
     auto continuation() const { return m_continuation; }
     auto arity() const { return m_arity; }
+    auto stack_height() const { return m_stack_height; }
 
 private:
     size_t m_arity { 0 };
+    size_t m_stack_height { 0 };
     InstructionPointer m_continuation { 0 };
 };
 
@@ -592,31 +595,15 @@ public:
     auto& locals() { return m_locals; }
     auto& expression() const { return m_expression; }
     auto arity() const { return m_arity; }
+    auto label_index() const { return m_label_index; }
+    auto& label_index() { return m_label_index; }
 
 private:
     ModuleInstance const& m_module;
     Vector<Value> m_locals;
     Expression const& m_expression;
     size_t m_arity { 0 };
-};
-
-class Stack {
-public:
-    using EntryType = Variant<Value, Label, Frame>;
-    Stack() = default;
-
-    [[nodiscard]] ALWAYS_INLINE bool is_empty() const { return m_data.is_empty(); }
-    ALWAYS_INLINE void push(EntryType entry) { m_data.append(move(entry)); }
-    ALWAYS_INLINE auto pop() { return m_data.take_last(); }
-    ALWAYS_INLINE auto& peek() const { return m_data.last(); }
-    ALWAYS_INLINE auto& peek() { return m_data.last(); }
-
-    ALWAYS_INLINE auto size() const { return m_data.size(); }
-    ALWAYS_INLINE auto& entries() const { return m_data; }
-    ALWAYS_INLINE auto& entries() { return m_data; }
-
-private:
-    Vector<EntryType, 1024> m_data;
+    size_t m_label_index { 0 };
 };
 
 using InstantiationResult = AK::ErrorOr<NonnullOwnPtr<ModuleInstance>, InstantiationError>;

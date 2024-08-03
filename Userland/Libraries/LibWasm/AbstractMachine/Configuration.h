@@ -17,37 +17,29 @@ public:
     {
     }
 
-    Optional<Label> nth_label(size_t label)
+    void set_frame(Frame frame)
     {
-        auto index = nth_label_index(label);
-        if (index.has_value())
-            return m_stack.entries()[index.value()].get<Label>();
-        return {};
+        Label label(frame.arity(), frame.expression().instructions().size(), m_value_stack.size());
+        frame.label_index() = m_label_stack.size();
+        m_frame_stack.append(move(frame));
+        m_label_stack.append(label);
     }
-    Optional<size_t> nth_label_index(size_t);
-    void set_frame(Frame&& frame)
-    {
-        m_current_frame_index = m_stack.size();
-        Label label(frame.arity(), frame.expression().instructions().size());
-        m_stack.push(move(frame));
-        m_stack.push(label);
-    }
-    ALWAYS_INLINE auto& frame() const { return m_stack.entries()[m_current_frame_index].get<Frame>(); }
-    ALWAYS_INLINE auto& frame() { return m_stack.entries()[m_current_frame_index].get<Frame>(); }
+    ALWAYS_INLINE auto& frame() const { return m_frame_stack.last(); }
+    ALWAYS_INLINE auto& frame() { return m_frame_stack.last(); }
     ALWAYS_INLINE auto& ip() const { return m_ip; }
     ALWAYS_INLINE auto& ip() { return m_ip; }
     ALWAYS_INLINE auto& depth() const { return m_depth; }
     ALWAYS_INLINE auto& depth() { return m_depth; }
-    ALWAYS_INLINE auto& stack() const { return m_stack; }
-    ALWAYS_INLINE auto& stack() { return m_stack; }
+    ALWAYS_INLINE auto& value_stack() const { return m_value_stack; }
+    ALWAYS_INLINE auto& value_stack() { return m_value_stack; }
+    ALWAYS_INLINE auto& label_stack() const { return m_label_stack; }
+    ALWAYS_INLINE auto& label_stack() { return m_label_stack; }
     ALWAYS_INLINE auto& store() const { return m_store; }
     ALWAYS_INLINE auto& store() { return m_store; }
 
     struct CallFrameHandle {
         explicit CallFrameHandle(Configuration& configuration)
-            : frame_index(configuration.m_current_frame_index)
-            , stack_size(configuration.m_stack.size())
-            , ip(configuration.ip())
+            : ip(configuration.ip())
             , configuration(configuration)
         {
             configuration.depth()++;
@@ -58,8 +50,6 @@ public:
             configuration.unwind({}, *this);
         }
 
-        size_t frame_index { 0 };
-        size_t stack_size { 0 };
         InstructionPointer ip { 0 };
         Configuration& configuration;
     };
@@ -75,8 +65,9 @@ public:
 
 private:
     Store& m_store;
-    size_t m_current_frame_index { 0 };
-    Stack m_stack;
+    Vector<Value> m_value_stack;
+    Vector<Label> m_label_stack;
+    Vector<Frame> m_frame_stack;
     size_t m_depth { 0 };
     InstructionPointer m_ip;
     bool m_should_limit_instruction_count { false };
