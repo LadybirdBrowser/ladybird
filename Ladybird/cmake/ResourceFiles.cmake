@@ -23,6 +23,7 @@ set(16x16_ICONS
     history.png
     layers.png
     layout.png
+    network.png
     new-tab.png
     open-parent-directory.png
     paste.png

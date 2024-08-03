@@ -432,6 +432,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
         debug_request("dump-local-storage");
     });
 
+    auto* dump_connection_info = new QAction("Dump Co&nnection Info", this);
+    dump_connection_info->setIcon(load_icon_from_uri("resource://icons/16x16/network.png"sv));
+    debug_menu->addAction(dump_connection_info);
+    QObject::connect(dump_connection_info, &QAction::triggered, this, &BrowserWindow::dump_connection_info);
+
     debug_menu->addSeparator();
 
     m_show_line_box_borders_action = new QAction("Show Line Box Borders", this);
@@ -1225,6 +1230,12 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
     QObject::deleteLater();
 
     QMainWindow::closeEvent(event);
+}
+
+void BrowserWindow::dump_connection_info()
+{
+    if (auto& application = static_cast<Application&>(WebView::Application::the()); application.request_server_client)
+        application.request_server_client->dump_connection_info();
 }
 
 }

@@ -226,6 +226,7 @@ icons_16x16 = [
   "//Base/res/icons/16x16/history.png",
   "//Base/res/icons/16x16/layers.png",
   "//Base/res/icons/16x16/layout.png",
+  "//Base/res/icons/16x16/network.png",
   "//Base/res/icons/16x16/new-tab.png",
   "//Base/res/icons/16x16/open-parent-directory.png",
   "//Base/res/icons/16x16/paste.png",
