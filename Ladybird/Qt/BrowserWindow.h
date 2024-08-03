@@ -183,6 +183,8 @@ private:
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme);
 
+    static void dump_connection_info();
+
     QTabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };
     QMenu* m_zoom_menu { nullptr };
