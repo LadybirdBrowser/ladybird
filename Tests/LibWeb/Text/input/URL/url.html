@@ -22,6 +22,7 @@
             { input: 'http://serenityos.org/cat?dog#meow"woof' },
             { input: '/hello', base: 'file://friends/' },
             { input: '//d:/..', base: 'file:///C:/a/b' },
+            { input: 'file://a%C2%ADb/p' },
         ];
 
         for (url of urls) {

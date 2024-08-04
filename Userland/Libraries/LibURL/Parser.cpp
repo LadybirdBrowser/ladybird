@@ -1485,8 +1485,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
                 // 3. Otherwise, run these steps:
                 else {
                     // 1. Let host be the result of host parsing buffer with url is not special.
-                    // FIXME: It seems we are not passing through url is not special through here
-                    auto host = parse_host(buffer.string_view(), true);
+                    auto host = parse_host(buffer.string_view(), !url->is_special());
 
                     // 2. If host is failure, then return failure.
                     if (!host.has_value())
