@@ -40,6 +40,7 @@ void Performance::initialize(JS::Realm& realm)
 void Performance::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_navigation);
     visitor.visit(m_timing);
 }
 
