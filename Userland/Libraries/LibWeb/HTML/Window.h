@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/RequestIdleCallback/IdleRequest.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -201,8 +202,8 @@ public:
     i32 outer_height() const;
     double device_pixel_ratio() const;
 
-    i32 request_animation_frame(WebIDL::CallbackType&);
-    void cancel_animation_frame(i32 handle);
+    WebIDL::UnsignedLong request_animation_frame(WebIDL::CallbackType&);
+    void cancel_animation_frame(WebIDL::UnsignedLong handle);
 
     u32 request_idle_callback(WebIDL::CallbackType&, RequestIdleCallback::IdleRequestOptions const&);
     void cancel_idle_callback(u32 handle);

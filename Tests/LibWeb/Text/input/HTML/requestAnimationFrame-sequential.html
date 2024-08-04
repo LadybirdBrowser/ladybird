@@ -1,0 +1,14 @@
+<script src="../include.js"></script>
+<script>
+    var rafIds = [];
+    asyncTest((done) => {
+        rafIds.push(requestAnimationFrame(function() {
+            rafIds.push(requestAnimationFrame(function() {
+                rafIds.push(requestAnimationFrame(function() {
+                    println(rafIds);
+                    done();
+                }));
+            }));
+        }));
+    });
+</script>

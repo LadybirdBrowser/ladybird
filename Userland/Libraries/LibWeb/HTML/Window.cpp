@@ -1438,7 +1438,7 @@ double Window::device_pixel_ratio() const
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-animationframeprovider-requestanimationframe
-i32 Window::request_animation_frame(WebIDL::CallbackType& callback)
+WebIDL::UnsignedLong Window::request_animation_frame(WebIDL::CallbackType& callback)
 {
     // FIXME: Make this fully spec compliant. Currently implements a mix of 'requestAnimationFrame()' and 'run the animation frame callbacks'.
     return m_animation_frame_callback_driver.add([this, callback = JS::make_handle(callback)](double now) {
@@ -1450,14 +1450,14 @@ i32 Window::request_animation_frame(WebIDL::CallbackType& callback)
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#animationframeprovider-cancelanimationframe
-void Window::cancel_animation_frame(i32 handle)
+void Window::cancel_animation_frame(WebIDL::UnsignedLong handle)
 {
     // 1. If this is not supported, then throw a "NotSupportedError" DOMException.
     // NOTE: Doesn't apply in this Window-specific implementation.
 
     // 2. Let callbacks be this's target object's map of animation frame callbacks.
     // 3. Remove callbacks[handle].
-    m_animation_frame_callback_driver.remove(handle);
+    (void)m_animation_frame_callback_driver.remove(handle);
 }
 
 // https://w3c.github.io/requestidlecallback/#dom-window-requestidlecallback
