@@ -126,8 +126,8 @@ public:
     bool is_valid() const { return m_data->valid; }
 
     String const& scheme() const { return m_data->scheme; }
-    ErrorOr<String> username() const;
-    ErrorOr<String> password() const;
+    String const& username() const { return m_data->username; }
+    String const& password() const { return m_data->password; }
     Host const& host() const { return m_data->host; }
     ErrorOr<String> serialized_host() const;
     ByteString basename() const;
@@ -179,9 +179,6 @@ public:
             return true;
         return equals(other, ExcludeFragment::No);
     }
-
-    String const& raw_username() const { return m_data->username; }
-    String const& raw_password() const { return m_data->password; }
 
     Optional<BlobURLEntry> const& blob_url_entry() const { return m_data->blob_url_entry; }
     void set_blob_url_entry(Optional<BlobURLEntry> entry) { m_data->blob_url_entry = move(entry); }

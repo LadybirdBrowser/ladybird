@@ -456,8 +456,8 @@ TEST_CASE(username_and_password)
         URL::URL url(url_with_username_and_password);
         EXPECT(url.is_valid());
         EXPECT_EQ(MUST(url.serialized_host()), "test.com"sv);
-        EXPECT_EQ(MUST(url.username()), "username"sv);
-        EXPECT_EQ(MUST(url.password()), "password"sv);
+        EXPECT_EQ(url.username(), "username"sv);
+        EXPECT_EQ(url.password(), "password"sv);
     }
 
     {
@@ -465,8 +465,10 @@ TEST_CASE(username_and_password)
         URL::URL url(url_with_percent_encoded_credentials);
         EXPECT(url.is_valid());
         EXPECT_EQ(MUST(url.serialized_host()), "test.com"sv);
-        EXPECT_EQ(MUST(url.username()), "username!$%"sv);
-        EXPECT_EQ(MUST(url.password()), "password!$%"sv);
+        EXPECT_EQ(url.username(), "username%21%24%25");
+        EXPECT_EQ(url.password(), "password%21%24%25");
+        EXPECT_EQ(URL::percent_decode(url.username()), "username!$%"sv);
+        EXPECT_EQ(URL::percent_decode(url.password()), "password!$%"sv);
     }
 
     {
@@ -475,8 +477,8 @@ TEST_CASE(username_and_password)
         URL::URL url(url_with_long_username);
         EXPECT(url.is_valid());
         EXPECT_EQ(MUST(url.serialized_host()), "test.com"sv);
-        EXPECT_EQ(MUST(url.username()), username);
-        EXPECT(MUST(url.password()).is_empty());
+        EXPECT_EQ(url.username(), username);
+        EXPECT(url.password().is_empty());
     }
 
     {
@@ -485,8 +487,8 @@ TEST_CASE(username_and_password)
         URL::URL url(url_with_long_password);
         EXPECT(url.is_valid());
         EXPECT_EQ(MUST(url.serialized_host()), "test.com"sv);
-        EXPECT(MUST(url.username()).is_empty());
-        EXPECT_EQ(MUST(url.password()), password);
+        EXPECT(url.username().is_empty());
+        EXPECT_EQ(url.password(), password);
     }
 }
 

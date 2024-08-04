@@ -271,12 +271,12 @@ Optional<Header> HttpRequest::get_http_basic_authentication_header(URL::URL cons
     if (!url.includes_credentials())
         return {};
     StringBuilder builder;
-    builder.append(url.username().release_value_but_fixme_should_propagate_errors());
+    builder.append(URL::percent_decode(url.username()));
     builder.append(':');
-    builder.append(url.password().release_value_but_fixme_should_propagate_errors());
+    builder.append(URL::percent_decode(url.password()));
 
     // FIXME: change to TRY() and make method fallible
-    auto token = MUST(encode_base64(MUST(builder.to_string()).bytes()));
+    auto token = MUST(encode_base64(builder.string_view().bytes()));
     builder.clear();
     builder.append("Basic "sv);
     builder.append(token);

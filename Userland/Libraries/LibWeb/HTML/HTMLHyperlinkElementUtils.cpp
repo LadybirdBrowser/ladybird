@@ -97,7 +97,7 @@ String HTMLHyperlinkElementUtils::username() const
         return String {};
 
     // 3. Return this element's url's username.
-    return m_url->username().release_value();
+    return m_url->username();
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-username
@@ -134,7 +134,7 @@ String HTMLHyperlinkElementUtils::password() const
         return String {};
 
     // 4. Return url's password.
-    return url->password().release_value();
+    return url->password();
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-password

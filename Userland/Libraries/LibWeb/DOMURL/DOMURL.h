@@ -40,10 +40,10 @@ public:
     WebIDL::ExceptionOr<String> protocol() const;
     WebIDL::ExceptionOr<void> set_protocol(String const&);
 
-    WebIDL::ExceptionOr<String> username() const;
+    String const& username() const;
     void set_username(String const&);
 
-    WebIDL::ExceptionOr<String> password() const;
+    String const& password() const;
     void set_password(String const&);
 
     WebIDL::ExceptionOr<String> host() const;
