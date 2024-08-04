@@ -702,6 +702,7 @@ bool is_forbidden_request_header(Header const& header)
             "Keep-Alive"sv,
             "Origin"sv,
             "Referer"sv,
+            "Set-Cookie"sv,
             "TE"sv,
             "Trailer"sv,
             "Transfer-Encoding"sv,
