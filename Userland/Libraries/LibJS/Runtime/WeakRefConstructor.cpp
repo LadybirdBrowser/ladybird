@@ -6,7 +6,6 @@
 
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/WeakRef.h>
 #include <LibJS/Runtime/WeakRefConstructor.h>
 

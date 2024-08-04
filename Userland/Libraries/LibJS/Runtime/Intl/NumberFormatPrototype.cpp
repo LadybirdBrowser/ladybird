@@ -6,7 +6,6 @@
 
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/NumberFormat.h>
 #include <LibJS/Runtime/Intl/NumberFormatFunction.h>
 #include <LibJS/Runtime/Intl/NumberFormatPrototype.h>

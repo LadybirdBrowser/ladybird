@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Temporal/CalendarConstructor.h>
 #include <LibJS/Runtime/Temporal/DurationConstructor.h>
 #include <LibJS/Runtime/Temporal/InstantConstructor.h>
@@ -17,6 +16,7 @@
 #include <LibJS/Runtime/Temporal/Temporal.h>
 #include <LibJS/Runtime/Temporal/TimeZoneConstructor.h>
 #include <LibJS/Runtime/Temporal/ZonedDateTimeConstructor.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS::Temporal {
 

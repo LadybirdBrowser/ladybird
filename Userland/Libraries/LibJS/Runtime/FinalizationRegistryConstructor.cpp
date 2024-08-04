@@ -8,7 +8,6 @@
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/FinalizationRegistry.h>
 #include <LibJS/Runtime/FinalizationRegistryConstructor.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/JobCallback.h>
 
 namespace JS {

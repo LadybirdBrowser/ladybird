@@ -5,8 +5,8 @@
  */
 
 #include <AK/QuickSort.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/ModuleNamespaceObject.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 

@@ -5,9 +5,9 @@
  */
 
 #include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/RegExpConstructor.h>
 #include <LibJS/Runtime/RegExpObject.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS {

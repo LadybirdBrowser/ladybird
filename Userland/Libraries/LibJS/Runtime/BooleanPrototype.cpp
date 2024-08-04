@@ -9,7 +9,8 @@
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/BooleanPrototype.h>
 #include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 

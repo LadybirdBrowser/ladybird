@@ -6,7 +6,6 @@
 
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatFunction.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>

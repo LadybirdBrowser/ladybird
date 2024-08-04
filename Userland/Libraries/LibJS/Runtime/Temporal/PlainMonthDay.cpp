@@ -7,7 +7,6 @@
 
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/AbstractOperations.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>

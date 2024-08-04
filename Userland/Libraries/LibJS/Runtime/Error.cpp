@@ -7,10 +7,11 @@
 
 #include <AK/StringBuilder.h>
 #include <LibJS/AST.h>
+#include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/ExecutionContext.h>
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/SourceRange.h>
 
 namespace JS {

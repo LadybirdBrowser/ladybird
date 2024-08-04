@@ -9,7 +9,6 @@
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
 
 namespace JS {

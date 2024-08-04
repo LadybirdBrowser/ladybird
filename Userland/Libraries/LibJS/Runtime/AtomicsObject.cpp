@@ -18,7 +18,6 @@
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/AtomicsObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>

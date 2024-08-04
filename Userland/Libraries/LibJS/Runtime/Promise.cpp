@@ -9,7 +9,6 @@
 #include <AK/Optional.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseCapability.h>

@@ -8,7 +8,7 @@
 
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 
