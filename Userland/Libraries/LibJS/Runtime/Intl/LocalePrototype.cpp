@@ -6,7 +6,6 @@
 
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/Locale.h>
 #include <LibJS/Runtime/Intl/LocalePrototype.h>
 #include <LibUnicode/Locale.h>

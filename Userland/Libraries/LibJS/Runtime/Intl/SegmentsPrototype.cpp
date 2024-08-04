@@ -5,7 +5,6 @@
  */
 
 #include <AK/Utf16View.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/SegmentIterator.h>
 #include <LibJS/Runtime/Intl/SegmentsPrototype.h>
 

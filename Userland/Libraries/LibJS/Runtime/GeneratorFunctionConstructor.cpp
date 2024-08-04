@@ -7,7 +7,6 @@
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/FunctionConstructor.h>
 #include <LibJS/Runtime/GeneratorFunctionConstructor.h>
-#include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 

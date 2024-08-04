@@ -6,8 +6,8 @@
 
 #include <AK/Time.h>
 #include <LibJS/Contrib/Test262/AgentObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/VM.h>
 #include <unistd.h>
 
 namespace JS::Test262 {

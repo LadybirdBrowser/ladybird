@@ -9,8 +9,8 @@
 #include <AK/StringView.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 

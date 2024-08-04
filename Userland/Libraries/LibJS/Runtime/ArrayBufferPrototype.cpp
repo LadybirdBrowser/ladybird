@@ -10,7 +10,6 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBufferConstructor.h>
 #include <LibJS/Runtime/ArrayBufferPrototype.h>
-#include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 

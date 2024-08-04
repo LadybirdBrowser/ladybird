@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Heap/Heap.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/WeakSet.h>
 
 namespace JS {

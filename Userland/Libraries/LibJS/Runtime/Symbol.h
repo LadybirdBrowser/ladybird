@@ -9,6 +9,7 @@
 
 #include <AK/String.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibJS/Heap/CellAllocator.h>
 
 namespace JS {
 

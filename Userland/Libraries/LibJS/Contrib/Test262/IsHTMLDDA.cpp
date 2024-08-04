@@ -5,7 +5,8 @@
  */
 
 #include <LibJS/Contrib/Test262/IsHTMLDDA.h>
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS::Test262 {
 

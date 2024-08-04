@@ -13,7 +13,6 @@
 #include <LibJS/Heap/MarkedVector.h>
 #include <LibJS/Runtime/CanonicalIndex.h>
 #include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/KeyedCollections.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>

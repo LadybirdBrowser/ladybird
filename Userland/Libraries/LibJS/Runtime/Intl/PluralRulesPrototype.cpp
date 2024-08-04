@@ -6,7 +6,6 @@
 
 #include <LibJS/Heap/MarkedVector.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/PluralRulesPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/PluralRules.h>

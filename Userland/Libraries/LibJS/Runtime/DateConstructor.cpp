@@ -15,7 +15,6 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/DateConstructor.h>
 #include <LibJS/Runtime/DatePrototype.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <sys/time.h>

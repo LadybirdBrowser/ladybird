@@ -11,7 +11,6 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/ByteLength.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/TypedArrayConstructor.h>

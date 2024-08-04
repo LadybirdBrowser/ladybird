@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Promise.h>

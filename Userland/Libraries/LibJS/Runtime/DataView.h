@@ -8,7 +8,6 @@
 
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/ByteLength.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {

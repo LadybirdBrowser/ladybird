@@ -6,7 +6,6 @@
 
 #include <AK/Function.h>
 #include <LibJS/Runtime/AbstractOperations.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/SharedArrayBufferConstructor.h>
 #include <LibJS/Runtime/SharedArrayBufferPrototype.h>
 

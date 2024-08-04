@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 

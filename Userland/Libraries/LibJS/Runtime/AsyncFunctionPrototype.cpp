@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/AsyncFunctionPrototype.h>
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 

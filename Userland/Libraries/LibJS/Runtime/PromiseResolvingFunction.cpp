@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseResolvingFunction.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 

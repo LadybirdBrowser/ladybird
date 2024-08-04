@@ -5,7 +5,6 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/DisplayNames.h>
 #include <LibJS/Runtime/Intl/DisplayNamesPrototype.h>

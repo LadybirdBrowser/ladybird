@@ -6,7 +6,6 @@
 
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/AsyncFunctionDriverWrapper.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>

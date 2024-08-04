@@ -8,7 +8,6 @@
 
 #include <LibJS/Contrib/Test262/AgentObject.h>
 #include <LibJS/Contrib/Test262/IsHTMLDDA.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
 
 namespace JS::Test262 {
