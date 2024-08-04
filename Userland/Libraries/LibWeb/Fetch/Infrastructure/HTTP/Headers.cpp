@@ -725,7 +725,7 @@ bool is_forbidden_request_header(Header const& header)
     if (name.is_one_of_ignoring_ascii_case(
             "X-HTTP-Method"sv,
             "X-HTTP-Method-Override"sv,
-            "X-Method"sv)) {
+            "X-Method-Override"sv)) {
         // 1. Let parsedValues be the result of getting, decoding, and splitting value.
         auto parsed_values = get_decode_and_split_header_value(header.value);
 
