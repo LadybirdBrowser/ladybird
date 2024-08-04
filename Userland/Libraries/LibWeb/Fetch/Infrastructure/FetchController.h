@@ -16,6 +16,7 @@
 #include <LibJS/SafeFunction.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/EventLoop/Task.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -50,7 +51,7 @@ public:
     void stop_fetch();
 
     u64 next_fetch_task_id() { return m_next_fetch_task_id++; }
-    void fetch_task_queued(u64 fetch_task_id, int event_id);
+    void fetch_task_queued(u64 fetch_task_id, HTML::TaskID event_id);
     void fetch_task_complete(u64 fetch_task_id);
 
 private:
@@ -84,7 +85,7 @@ private:
 
     JS::GCPtr<FetchParams> m_fetch_params;
 
-    HashMap<u64, int> m_ongoing_fetch_tasks;
+    HashMap<u64, HTML::TaskID> m_ongoing_fetch_tasks;
     u64 m_next_fetch_task_id { 0 };
 };
 

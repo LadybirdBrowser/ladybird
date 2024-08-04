@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/DistinctNumeric.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/CellAllocator.h>
 #include <LibJS/SafeFunction.h>
@@ -14,6 +15,8 @@
 namespace Web::HTML {
 
 struct UniqueTaskSource;
+
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, TaskID, Comparison);
 
 class Task final : public JS::Cell {
     JS_CELL(Task, JS::Cell);
@@ -69,9 +72,8 @@ public:
     static JS::NonnullGCPtr<Task> create(JS::VM&, Source, JS::GCPtr<DOM::Document const>, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps);
 
     virtual ~Task() override;
-    virtual void finalize() override;
 
-    int id() const { return m_id; }
+    [[nodiscard]] TaskID id() const { return m_id; }
     Source source() const { return m_source; }
     void execute();
 
@@ -84,7 +86,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    int m_id { 0 };
+    TaskID m_id {};
     Source m_source { Source::Unspecified };
     JS::NonnullGCPtr<JS::HeapFunction<void()>> m_steps;
     JS::GCPtr<DOM::Document const> m_document;

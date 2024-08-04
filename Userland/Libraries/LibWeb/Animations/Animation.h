@@ -192,7 +192,7 @@ private:
     // https://www.w3.org/TR/web-animations-1/#pending-pause-task
     TaskState m_pending_pause_task { TaskState::None };
 
-    Optional<int> m_pending_finish_microtask_id;
+    Optional<HTML::TaskID> m_pending_finish_microtask_id;
 
     Optional<double> m_saved_play_time;
     Optional<double> m_saved_pause_time;
