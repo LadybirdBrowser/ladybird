@@ -246,12 +246,10 @@ WebIDL::ExceptionOr<void> DOMURL::set_protocol(String const& protocol)
 }
 
 // https://url.spec.whatwg.org/#dom-url-username
-WebIDL::ExceptionOr<String> DOMURL::username() const
+String const& DOMURL::username() const
 {
-    auto& vm = realm().vm();
-
     // The username getter steps are to return this’s URL’s username.
-    return TRY_OR_THROW_OOM(vm, m_url.username());
+    return m_url.username();
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-username%E2%91%A0
@@ -266,12 +264,10 @@ void DOMURL::set_username(String const& username)
 }
 
 // https://url.spec.whatwg.org/#dom-url-password
-WebIDL::ExceptionOr<String> DOMURL::password() const
+String const& DOMURL::password() const
 {
-    auto& vm = realm().vm();
-
     // The password getter steps are to return this’s URL’s password.
-    return TRY_OR_THROW_OOM(vm, m_url.password());
+    return m_url.password();
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-password%E2%91%A0

@@ -41,8 +41,8 @@ bool url_matches_about_blank(URL::URL const& url)
     // A URL matches about:blank if its scheme is "about", its path contains a single string "blank", its username and password are the empty string, and its host is null.
     return url.scheme() == "about"sv
         && url.serialize_path() == "blank"sv
-        && url.raw_username().is_empty()
-        && url.raw_password().is_empty()
+        && url.username().is_empty()
+        && url.password().is_empty()
         && url.host().has<Empty>();
 }
 
@@ -53,8 +53,8 @@ bool url_matches_about_srcdoc(URL::URL const& url)
     return url.scheme() == "about"sv
         && url.serialize_path() == "srcdoc"sv
         && !url.query().has_value()
-        && url.raw_username().is_empty()
-        && url.raw_password().is_empty()
+        && url.username().is_empty()
+        && url.password().is_empty()
         && url.host().has<Empty>();
 }
 

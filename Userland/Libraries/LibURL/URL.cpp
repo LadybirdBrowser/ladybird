@@ -36,16 +36,6 @@ URL URL::complete_url(StringView relative_url) const
     return Parser::basic_parse(relative_url, *this);
 }
 
-ErrorOr<String> URL::username() const
-{
-    return String::from_byte_string(percent_decode(m_data->username));
-}
-
-ErrorOr<String> URL::password() const
-{
-    return String::from_byte_string(percent_decode(m_data->password));
-}
-
 ByteString URL::path_segment_at_index(size_t index) const
 {
     VERIFY(index < path_segment_count());

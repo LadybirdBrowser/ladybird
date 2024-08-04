@@ -135,8 +135,8 @@ bool can_have_its_url_rewritten(DOM::Document const& document, URL::URL const& t
     // 2. If targetURL and documentURL differ in their scheme, username, password, host, or port components,
     //    then return false.
     if (target_url.scheme() != document_url.scheme()
-        || target_url.raw_username() != document_url.raw_username()
-        || target_url.raw_password() != document_url.raw_password()
+        || target_url.username() != document_url.username()
+        || target_url.password() != document_url.password()
         || target_url.host() != document_url.host()
         || target_url.port() != document_url.port())
         return false;
