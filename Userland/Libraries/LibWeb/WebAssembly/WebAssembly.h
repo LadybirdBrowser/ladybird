@@ -62,7 +62,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
 JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> parse_module(JS::VM&, JS::Object* buffer);
 JS::NativeFunction* create_native_function(JS::VM&, Wasm::FunctionAddress address, ByteString const& name, Instance* instance = nullptr);
 JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM&, JS::Value value, Wasm::ValueType const& type);
-JS::Value to_js_value(JS::VM&, Wasm::Value& wasm_value);
+JS::Value to_js_value(JS::VM&, Wasm::Value& wasm_value, Wasm::ValueType type);
 
 extern HashMap<JS::GCPtr<JS::Object>, WebAssemblyCache> s_caches;
 

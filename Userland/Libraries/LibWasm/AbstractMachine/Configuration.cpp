@@ -28,7 +28,7 @@ Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Ve
         locals.ensure_capacity(locals.size() + wasm_function->code().func().locals().size());
         for (auto& local : wasm_function->code().func().locals()) {
             for (size_t i = 0; i < local.n(); ++i)
-                locals.empend(local.type(), 0ull);
+                locals.append(Value());
         }
 
         set_frame(Frame {

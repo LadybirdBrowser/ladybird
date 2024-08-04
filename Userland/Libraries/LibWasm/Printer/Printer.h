@@ -59,6 +59,7 @@ struct Printer {
     void print(Wasm::TypeSection const&);
     void print(Wasm::ValueType const&);
     void print(Wasm::Value const&);
+    void print(Wasm::Value const&, ValueType const&);
 
 private:
     void print_indent();

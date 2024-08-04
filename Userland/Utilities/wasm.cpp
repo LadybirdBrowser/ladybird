@@ -31,6 +31,11 @@ static void (*old_signal)(int);
 static StackInfo g_stack_info;
 static Wasm::DebuggerBytecodeInterpreter g_interpreter(g_stack_info);
 
+struct ParsedValue {
+    Wasm::Value value;
+    Wasm::ValueType type;
+};
+
 static void sigint_handler(int)
 {
     if (!g_continue) {
@@ -81,7 +86,7 @@ static Optional<u128> convert_to_uint_from_hex(StringView string)
     return value;
 }
 
-static ErrorOr<Wasm::Value> parse_value(StringView spec)
+static ErrorOr<ParsedValue> parse_value(StringView spec)
 {
     constexpr auto is_sep = [](char c) { return is_ascii_space(c) || c == ':'; };
     // Scalar: 'T.const[:\s]v' (i32.const 42)
@@ -127,42 +132,63 @@ static ErrorOr<Wasm::Value> parse_value(StringView spec)
         lexer.ignore_while(is_sep);
         // The rest of the string is the value
         auto text = lexer.consume_all();
-        return parse_u128(text);
+        return ParsedValue {
+            .value = TRY(parse_u128(text)),
+            .type = Wasm::ValueType(Wasm::ValueType::Kind::V128)
+        };
     }
 
     if (lexer.consume_specific("i8.const"sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
-        return parse_scalar.operator()<i8>(text);
+        return ParsedValue {
+            .value = TRY(parse_scalar.operator()<i8>(text)),
+            .type = Wasm::ValueType(Wasm::ValueType::Kind::I32)
+        };
     }
     if (lexer.consume_specific("i16.const"sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
-        return parse_scalar.operator()<i16>(text);
+        return ParsedValue {
+            .value = TRY(parse_scalar.operator()<i16>(text)),
+            .type = Wasm::ValueType(Wasm::ValueType::Kind::I32)
+        };
     }
     if (lexer.consume_specific("i32.const"sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
-        return parse_scalar.operator()<i32>(text);
+        return ParsedValue {
+            .value = TRY(parse_scalar.operator()<i32>(text)),
+            .type = Wasm::ValueType(Wasm::ValueType::Kind::I32)
+        };
     }
     if (lexer.consume_specific("i64.const"sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
-        return parse_scalar.operator()<i64>(text);
+        return ParsedValue {
+            .value = TRY(parse_scalar.operator()<i64>(text)),
+            .type = Wasm::ValueType(Wasm::ValueType::Kind::I64)
+        };
     }
     if (lexer.consume_specific("f32.const"sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
-        return parse_scalar.operator()<float>(text);
+        return ParsedValue {
+            .value = TRY(parse_scalar.operator()<float>(text)),
+            .type = Wasm::ValueType(Wasm::ValueType::Kind::F32)
+        };
     }
     if (lexer.consume_specific("f64.const"sv)) {
         lexer.ignore_while(is_sep);
         auto text = lexer.consume_all();
-        return parse_scalar.operator()<double>(text);
+        return ParsedValue {
+            .value = TRY(parse_scalar.operator()<double>(text)),
+            .type = Wasm::ValueType(Wasm::ValueType::Kind::F64)
+        };
     }
 
     if (lexer.consume_specific("v("sv)) {
-        Vector<Wasm::Value> values;
+        Vector<ParsedValue> values;
         for (;;) {
             lexer.ignore_while(is_sep);
             if (lexer.consume_specific(")"sv))
@@ -181,9 +207,9 @@ static ErrorOr<Wasm::Value> parse_value(StringView spec)
         if (values.is_empty())
             return Error::from_string_literal("Empty vector");
 
-        auto element_type = values.first().type();
+        auto element_type = values.first().type;
         for (auto& value : values) {
-            if (value.type() != element_type)
+            if (value.type != element_type)
                 return Error::from_string_literal("Mixed types in vector");
         }
 
@@ -191,24 +217,25 @@ static ErrorOr<Wasm::Value> parse_value(StringView spec)
         unsigned width = 0;
         u128 result = 0;
         u128 last_value = 0;
-        for (auto& value : values) {
+        for (auto& parsed : values) {
             if (total_size >= 128)
                 return Error::from_string_literal("Vector too large");
 
-            width = value.value().visit(
-                [&](Integral auto x) {
-                    last_value = u128(x, 0);
-                    return sizeof(x);
-                },
-                [&](float x) {
-                    last_value = u128(bit_cast<u32>(x), 0);
-                    return sizeof(x);
-                },
-                [&](double x) {
-                    last_value = u128(bit_cast<u64>(x), 0);
-                    return sizeof(x);
-                },
-                [&](auto) -> size_t { VERIFY_NOT_REACHED(); });
+            switch (parsed.type.kind()) {
+            case Wasm::ValueType::F32:
+            case Wasm::ValueType::I32:
+                width = sizeof(u32);
+                break;
+            case Wasm::ValueType::F64:
+            case Wasm::ValueType::I64:
+                width = sizeof(u64);
+                break;
+            case Wasm::ValueType::V128:
+            case Wasm::ValueType::FunctionReference:
+            case Wasm::ValueType::ExternReference:
+                VERIFY_NOT_REACHED();
+            }
+            last_value = parsed.value.value();
 
             result |= last_value << total_size;
             total_size += width * 8;
@@ -222,7 +249,10 @@ static ErrorOr<Wasm::Value> parse_value(StringView spec)
             total_size += width * 8;
         }
 
-        return Wasm::Value { result };
+        return ParsedValue {
+            .value = Wasm::Value { result },
+            .type = Wasm::ValueType(Wasm::ValueType::Kind::V128)
+        };
     }
 
     return Error::from_string_literal("Invalid value");
@@ -390,7 +420,7 @@ static bool pre_interpret_hook(Wasm::Configuration& config, Wasm::InstructionPoi
                 warnln("Expected {} arguments for call, but found only {}", type.parameters().size(), args.size() - 2);
                 continue;
             }
-            Vector<Wasm::Value> values_to_push;
+            Vector<ParsedValue> values_to_push;
             Vector<Wasm::Value> values;
             auto ok = true;
             for (size_t index = 2; index < args.size(); ++index) {
@@ -406,12 +436,12 @@ static bool pre_interpret_hook(Wasm::Configuration& config, Wasm::InstructionPoi
                 continue;
             for (auto& param : type.parameters()) {
                 auto v = values_to_push.take_last();
-                if (v.type() != param) {
-                    warnln("Type mismatch in argument: expected {}, but got {}", Wasm::ValueType::kind_name(param.kind()), Wasm::ValueType::kind_name(v.type().kind()));
+                if (v.type != param) {
+                    warnln("Type mismatch in argument: expected {}, but got {}", Wasm::ValueType::kind_name(param.kind()), Wasm::ValueType::kind_name(v.type.kind()));
                     ok = false;
                     break;
                 }
-                values.append(v);
+                values.append(v.value);
             }
             if (!ok)
                 continue;
@@ -426,9 +456,11 @@ static bool pre_interpret_hook(Wasm::Configuration& config, Wasm::InstructionPoi
             } else {
                 if (!result.values().is_empty())
                     warnln("Returned:");
+                size_t index = 0;
                 for (auto& value : result.values()) {
                     g_stdout->write_until_depleted("  -> "sv.bytes()).release_value_but_fixme_should_propagate_errors();
-                    g_printer->print(value);
+                    g_printer->print(value, type.results()[index]);
+                    ++index;
                 }
             }
             continue;
@@ -492,7 +524,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool shell_mode = false;
     bool wasi = false;
     ByteString exported_function_to_execute;
-    Vector<Wasm::Value> values_to_push;
+    Vector<ParsedValue> values_to_push;
     Vector<ByteString> modules_to_link_in;
     Vector<StringView> args_if_wasi;
     Vector<StringView> wasi_preopened_mappings;
@@ -677,9 +709,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                     [name = entry.name, type = type](auto&, auto& arguments) -> Wasm::Result {
                         StringBuilder argument_builder;
                         bool first = true;
+                        size_t index = 0;
                         for (auto& argument : arguments) {
                             AllocatingMemoryStream stream;
-                            Wasm::Printer { stream }.print(argument);
+                            auto value_type = type.parameters()[index];
+                            Wasm::Printer { stream }.print(argument, value_type);
                             if (first)
                                 first = false;
                             else
@@ -687,12 +721,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                             auto buffer = ByteBuffer::create_uninitialized(stream.used_buffer_size()).release_value_but_fixme_should_propagate_errors();
                             stream.read_until_filled(buffer).release_value_but_fixme_should_propagate_errors();
                             argument_builder.append(StringView(buffer).trim_whitespace());
+                            ++index;
                         }
                         dbgln("[wasm runtime] Stub function {} was called with the following arguments: {}", name, argument_builder.to_byte_string());
                         Vector<Wasm::Value> result;
                         result.ensure_capacity(type.results().size());
-                        for (auto& result_type : type.results())
-                            result.append(Wasm::Value { result_type, 0ull });
+                        for (size_t i = 0; i < type.results().size(); ++i)
+                            result.append(Wasm::Value());
                         return Wasm::Result { move(result) };
                     },
                     type,
@@ -783,11 +818,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
             for (auto& param : instance->get<Wasm::WasmFunction>().type().parameters()) {
                 if (values_to_push.is_empty()) {
-                    values.append(Wasm::Value { param, 0ull });
-                } else if (param == values_to_push.last().type()) {
-                    values.append(values_to_push.take_last());
+                    values.append(Wasm::Value());
+                } else if (param == values_to_push.last().type) {
+                    values.append(values_to_push.take_last().value);
                 } else {
-                    warnln("Type mismatch in argument: expected {}, but got {}", Wasm::ValueType::kind_name(param.kind()), Wasm::ValueType::kind_name(values_to_push.last().type().kind()));
+                    warnln("Type mismatch in argument: expected {}, but got {}", Wasm::ValueType::kind_name(param.kind()), Wasm::ValueType::kind_name(values_to_push.last().type.kind()));
                     return 1;
                 }
             }
@@ -810,9 +845,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             } else {
                 if (!result.values().is_empty())
                     warnln("Returned:");
+                auto result_type = instance->get<Wasm::WasmFunction>().type().results();
+                size_t index = 0;
                 for (auto& value : result.values()) {
                     g_stdout->write_until_depleted("  -> "sv.bytes()).release_value_but_fixme_should_propagate_errors();
-                    g_printer->print(value);
+                    g_printer->print(value, result_type[index]);
+                    ++index;
                 }
             }
         }
