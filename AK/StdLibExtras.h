@@ -6,15 +6,9 @@
 
 #pragma once
 
-#include <AK/Platform.h>
-
-#if defined(AK_COMPILER_CLANG)
-#    pragma clang diagnostic ignored "-Wunqualified-std-cast-call"
-#endif
-
-#include <AK/StdLibExtraDetails.h>
-
 #include <AK/Assertions.h>
+#include <AK/Platform.h>
+#include <AK/StdLibExtraDetails.h>
 
 #include <utility>
 
