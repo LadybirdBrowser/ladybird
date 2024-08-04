@@ -130,8 +130,37 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<EventSource>> EventSource::construct_impl(J
         else {
             event_source->announce_the_connection();
 
-            auto process_body_chunk = JS::create_heap_function(realm.heap(), [event_source](ByteBuffer body) {
-                event_source->interpret_response(body);
+            StringBuilder pending_line = MUST(StringBuilder::create());
+
+            auto process_body_chunk = JS::create_heap_function(realm.heap(), [event_source, pending_line](ByteBuffer body) mutable {
+                StringView body_str = body;
+
+                auto last_linebreak = body_str.find_any_of("\r\n"sv, StringView::SearchDirection::Backward);
+
+                StringView remainder;
+                if (last_linebreak.has_value()) {
+                    size_t end = last_linebreak.value() + 1;
+
+                    auto new_completed = body_str.substring_view(0, end);
+
+                    if (pending_line.is_empty()) {
+                        event_source->interpret_response(new_completed);
+                    } else {
+                        MUST(pending_line.try_append(new_completed));
+
+                        event_source->interpret_response(pending_line.string_view());
+
+                        pending_line.clear();
+                    }
+
+                    remainder = body_str.substring_view(end);
+                } else {
+                    remainder = body_str;
+                }
+
+                if (!remainder.is_empty()) {
+                    MUST(pending_line.try_append(remainder));
+                }
             });
             auto process_end_of_body = JS::create_heap_function(realm.heap(), []() {
                 // This case is handled by `process_event_source_end_of_body` above.
