@@ -25,6 +25,7 @@
 #include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/Runtime/ValueInvoke.h>
 
 namespace JS::Temporal {
 

@@ -48,16 +48,4 @@ Object& set_default_global_bindings(Realm&);
 template<>
 inline bool Object::fast_is<GlobalObject>() const { return is_global_object(); }
 
-template<typename... Args>
-[[nodiscard]] ALWAYS_INLINE ThrowCompletionOr<Value> Value::invoke(VM& vm, PropertyKey const& property_key, Args... args)
-{
-    if constexpr (sizeof...(Args) > 0) {
-        MarkedVector<Value> arglist { vm.heap() };
-        (..., arglist.append(move(args)));
-        return invoke_internal(vm, property_key, move(arglist));
-    }
-
-    return invoke_internal(vm, property_key, Optional<MarkedVector<Value>> {});
-}
-
 }

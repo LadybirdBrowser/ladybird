@@ -24,6 +24,7 @@
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/Runtime/ValueInvoke.h>
 #include <LibUnicode/DisplayNames.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/TimeZone.h>

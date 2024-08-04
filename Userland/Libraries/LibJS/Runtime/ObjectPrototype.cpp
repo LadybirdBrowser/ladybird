@@ -18,6 +18,7 @@
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibJS/Runtime/ValueInvoke.h>
 
 namespace JS {
 
