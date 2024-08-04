@@ -11,6 +11,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/ImportMap.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -29,8 +30,8 @@ public:
     [[nodiscard]] Optional<ImportMap> const& import_map() const { return m_import_map; }
     void set_import_map(ImportMap const& value) { m_import_map = value; }
 
-    [[nodiscard]] JS::Value error_to_rethrow() const { return m_error_to_rethrow; }
-    void set_error_to_rethrow(JS::Value value) { m_error_to_rethrow = value; }
+    [[nodiscard]] Optional<WebIDL::Exception> const& error_to_rethrow() const { return m_error_to_rethrow; }
+    void set_error_to_rethrow(WebIDL::Exception const& value) { m_error_to_rethrow = value; }
 
     void register_import_map(Window& global);
 
@@ -40,13 +41,13 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    virtual void visit_host_defined_self(JS::Cell::Visitor&) override;
+    virtual void visit_host_defined_self(Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#impr-import-map
     Optional<ImportMap> m_import_map;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#impr-error-to-rethrow
-    JS::Value m_error_to_rethrow;
+    Optional<WebIDL::Exception> m_error_to_rethrow;
 };
 
 }
