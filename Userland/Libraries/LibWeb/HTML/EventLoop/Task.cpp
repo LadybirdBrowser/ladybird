@@ -13,7 +13,12 @@ namespace Web::HTML {
 JS_DEFINE_ALLOCATOR(Task);
 
 static IDAllocator s_unique_task_source_allocator { static_cast<int>(Task::Source::UniqueTaskSourceStart) };
-static IDAllocator s_task_id_allocator;
+
+[[nodiscard]] static TaskID allocate_task_id()
+{
+    static u64 next_task_id = 1;
+    return next_task_id++;
+}
 
 JS::NonnullGCPtr<Task> Task::create(JS::VM& vm, Source source, JS::GCPtr<DOM::Document const> document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
 {
@@ -21,7 +26,7 @@ JS::NonnullGCPtr<Task> Task::create(JS::VM& vm, Source source, JS::GCPtr<DOM::Do
 }
 
 Task::Task(Source source, JS::GCPtr<DOM::Document const> document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
-    : m_id(s_task_id_allocator.allocate())
+    : m_id(allocate_task_id())
     , m_source(source)
     , m_steps(steps)
     , m_document(document)
@@ -29,11 +34,6 @@ Task::Task(Source source, JS::GCPtr<DOM::Document const> document, JS::NonnullGC
 }
 
 Task::~Task() = default;
-
-void Task::finalize()
-{
-    s_unique_task_source_allocator.deallocate(m_id);
-}
 
 void Task::visit_edges(Visitor& visitor)
 {

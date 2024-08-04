@@ -227,7 +227,7 @@ public:
     [[nodiscard]] HashMap<FlyString, CSS::StyleProperty> const& custom_properties(Optional<CSS::Selector::PseudoElement::Type>) const;
 
     // NOTE: The function is wrapped in a JS::HeapFunction immediately.
-    int queue_an_element_task(HTML::Task::Source, Function<void()>);
+    HTML::TaskID queue_an_element_task(HTML::Task::Source, Function<void()>);
 
     bool is_void_element() const;
     bool serializes_as_void() const;

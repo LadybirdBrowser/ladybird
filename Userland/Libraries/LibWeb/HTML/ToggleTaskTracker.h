@@ -16,7 +16,7 @@ namespace Web::HTML {
 struct ToggleTaskTracker {
     // https://html.spec.whatwg.org/multipage/interaction.html#toggle-task-task
     // NOTE: We store the task's ID rather than the task itself to avoid ownership issues.
-    Optional<int> task_id;
+    Optional<HTML::TaskID> task_id;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#toggle-task-old-state
     String old_state;

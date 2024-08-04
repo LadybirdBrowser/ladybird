@@ -110,7 +110,7 @@ void FetchController::stop_fetch()
     auto ongoing_fetch_tasks = move(m_ongoing_fetch_tasks);
 
     HTML::main_thread_event_loop().task_queue().remove_tasks_matching([&](auto const& task) {
-        return ongoing_fetch_tasks.remove_all_matching([&](u64, int task_id) {
+        return ongoing_fetch_tasks.remove_all_matching([&](u64, HTML::TaskID task_id) {
             return task.id() == task_id;
         });
     });
@@ -121,7 +121,7 @@ void FetchController::stop_fetch()
     }
 }
 
-void FetchController::fetch_task_queued(u64 fetch_task_id, int event_id)
+void FetchController::fetch_task_queued(u64 fetch_task_id, HTML::TaskID event_id)
 {
     m_ongoing_fetch_tasks.set(fetch_task_id, event_id);
 }
