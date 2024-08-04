@@ -22,6 +22,22 @@ namespace URL {
 // NOTE: This is similar to the LibC macro EOF = -1.
 constexpr u32 end_of_file = 0xFFFFFFFF;
 
+// https://url.spec.whatwg.org/#forbidden-host-code-point
+static bool is_forbidden_host_code_point(u32 code_point)
+{
+    // A forbidden host code point is U+0000 NULL, U+0009 TAB, U+000A LF, U+000D CR, U+0020 SPACE,
+    // U+0023 (#), U+002F (/), U+003A (:), U+003C (<), U+003E (>), U+003F (?), U+0040 (@), U+005B ([),
+    // U+005C (\), U+005D (]), U+005E (^), or U+007C (|).
+    return "\0\t\n\r #/:<>?@[\\]^|"sv.contains(code_point);
+}
+
+// https://url.spec.whatwg.org/#forbidden-domain-code-point
+static bool is_forbidden_domain_code_point(u32 code_point)
+{
+    // A forbidden domain code point is a forbidden host code point, a C0 control, U+0025 (%), or U+007F DELETE.
+    return is_forbidden_host_code_point(code_point) || is_ascii_c0_control(code_point) || code_point == '%' || code_point == 0x7F;
+}
+
 // https://url.spec.whatwg.org/#url-code-points
 static bool is_url_code_point(u32 code_point)
 {
@@ -44,9 +60,8 @@ static void report_validation_error(SourceLocation const& location = SourceLocat
 static Optional<Host> parse_opaque_host(StringView input)
 {
     // 1. If input contains a forbidden host code point, host-invalid-code-point validation error, return failure.
-    auto forbidden_host_characters_excluding_percent = "\0\t\n\r #/:<>?@[\\]^|"sv;
-    for (auto character : forbidden_host_characters_excluding_percent) {
-        if (input.contains(character)) {
+    for (auto code_point : Utf8View { input }) {
+        if (is_forbidden_host_code_point(code_point)) {
             report_validation_error();
             return {};
         }
@@ -647,9 +662,8 @@ static Optional<Host> parse_host(StringView input, bool is_opaque = false)
     auto ascii_domain = ascii_domain_or_error.release_value();
 
     // 7. If asciiDomain contains a forbidden domain code point, domain-invalid-code-point validation error, return failure.
-    auto forbidden_host_characters = "\0\t\n\r #%/:<>?@[\\]^|"sv;
-    for (auto character : forbidden_host_characters) {
-        if (ascii_domain.bytes_as_string_view().contains(character)) {
+    for (auto character : ascii_domain.bytes_as_string_view()) {
+        if (is_forbidden_domain_code_point(character)) {
             report_validation_error();
             return {};
         }

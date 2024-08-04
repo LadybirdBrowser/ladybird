@@ -512,3 +512,18 @@ TEST_CASE(ascii_only_url)
         EXPECT_EQ(url.to_byte_string(), "http://example.com/iNdEx.HtMl#fRaGmEnT");
     }
 }
+
+TEST_CASE(invalid_domain_code_points)
+{
+    {
+        constexpr auto upper_case_url = "http://example%25.com"sv;
+        URL::URL url(upper_case_url);
+        EXPECT(!url.is_valid());
+    }
+
+    {
+        constexpr auto mixed_case_url = "http://thing\u0007y/'"sv;
+        URL::URL url(mixed_case_url);
+        EXPECT(!url.is_valid());
+    }
+}
