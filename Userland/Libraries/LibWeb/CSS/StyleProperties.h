@@ -54,6 +54,7 @@ public:
     void set_animated_property(CSS::PropertyID, NonnullRefPtr<StyleValue const> value);
     NonnullRefPtr<StyleValue const> property(CSS::PropertyID) const;
     RefPtr<StyleValue const> maybe_null_property(CSS::PropertyID) const;
+    void revert_property(CSS::PropertyID, StyleProperties const& style_for_revert);
 
     JS::GCPtr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
     void set_animation_name_source(JS::GCPtr<CSS::CSSStyleDeclaration const> declaration) { m_animation_name_source = declaration; }

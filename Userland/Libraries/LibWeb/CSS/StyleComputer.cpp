@@ -859,13 +859,7 @@ void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Sele
         auto property_id = (CSS::PropertyID)i;
 
         if (value.is_revert()) {
-            style.set_property(
-                property_id,
-                style_for_revert.property(property_id),
-                style_for_revert.is_property_inherited(property_id)
-                    ? StyleProperties::Inherited::Yes
-                    : StyleProperties::Inherited::No,
-                important);
+            style.revert_property(property_id, style_for_revert);
             continue;
         }
 

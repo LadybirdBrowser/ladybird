@@ -88,6 +88,13 @@ void StyleProperties::set_property(CSS::PropertyID id, NonnullRefPtr<StyleValue 
     set_property_inherited(id, inherited);
 }
 
+void StyleProperties::revert_property(CSS::PropertyID id, StyleProperties const& style_for_revert)
+{
+    m_property_values[to_underlying(id)] = style_for_revert.m_property_values[to_underlying(id)];
+    set_property_important(id, style_for_revert.is_property_important(id) ? Important::Yes : Important::No);
+    set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
+}
+
 void StyleProperties::set_animated_property(CSS::PropertyID id, NonnullRefPtr<StyleValue const> value)
 {
     m_animated_property_values.set(id, move(value));
