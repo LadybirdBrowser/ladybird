@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/PromisePrototype.h>
+#include <LibJS/Runtime/ValueInvoke.h>
 
 namespace JS {
 
