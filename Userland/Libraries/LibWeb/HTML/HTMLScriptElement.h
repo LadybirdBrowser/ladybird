@@ -94,7 +94,7 @@ private:
     JS::GCPtr<DOM::Document> m_preparation_time_document;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#script-force-async
-    bool m_force_async { false };
+    bool m_force_async { true };
 
     // https://html.spec.whatwg.org/multipage/scripting.html#already-started
     bool m_already_started { false };
