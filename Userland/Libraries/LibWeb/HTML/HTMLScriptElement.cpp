@@ -66,6 +66,10 @@ void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<String
         if (!is_parser_inserted() && is_connected() && value.has_value() && !old_value.has_value()) {
             prepare_script();
         }
+    } else if (name == HTML::AttributeNames::async) {
+        // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:script-force-async
+        // When an async attribute is added to a script element el, the user agent must set el's force async to false.
+        m_force_async = false;
     }
 }
 
