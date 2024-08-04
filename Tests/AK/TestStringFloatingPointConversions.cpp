@@ -8,9 +8,13 @@
 #include <AK/StringFloatingPointConversions.h>
 #include <LibTest/TestCase.h>
 
-static bool operator!=(AK::FloatingPointExponentialForm a, AK::FloatingPointExponentialForm b)
+namespace AK {
+
+static bool operator!=(FloatingPointExponentialForm a, FloatingPointExponentialForm b)
 {
     return a.sign != b.sign || a.exponent != b.exponent || a.fraction != b.fraction;
+}
+
 }
 
 template<>
