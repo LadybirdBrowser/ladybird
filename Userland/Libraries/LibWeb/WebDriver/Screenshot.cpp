@@ -54,7 +54,7 @@ Response capture_element_screenshot(Painter const& painter, Page& page, DOM::Ele
 {
     Optional<Response> encoded_string_or_error;
 
-    element.document().window()->animation_frame_callback_driver().add([&](auto) {
+    (void)element.document().window()->animation_frame_callback_driver().add([&](auto) {
         auto viewport_rect = page.top_level_traversable()->viewport_rect();
         rect.intersect(page.enclosing_device_rect(viewport_rect).to_type<int>());
 
