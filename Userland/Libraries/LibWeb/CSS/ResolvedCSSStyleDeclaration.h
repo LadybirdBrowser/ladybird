@@ -24,7 +24,9 @@ public:
 
     virtual Optional<StyleProperty> property(PropertyID) const override;
     virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority) override;
+    virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority) override;
     virtual WebIDL::ExceptionOr<String> remove_property(PropertyID) override;
+    virtual WebIDL::ExceptionOr<String> remove_property(StringView property_name) override;
 
     virtual String serialized() const override;
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;

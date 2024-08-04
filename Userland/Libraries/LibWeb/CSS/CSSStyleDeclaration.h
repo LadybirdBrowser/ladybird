@@ -30,8 +30,8 @@ public:
     virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv) = 0;
     virtual WebIDL::ExceptionOr<String> remove_property(PropertyID) = 0;
 
-    WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority);
-    WebIDL::ExceptionOr<String> remove_property(StringView property_name);
+    virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority);
+    virtual WebIDL::ExceptionOr<String> remove_property(StringView property_name);
 
     String get_property_value(StringView property) const;
     StringView get_property_priority(StringView property) const;
