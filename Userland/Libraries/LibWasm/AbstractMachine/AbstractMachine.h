@@ -75,45 +75,57 @@ private:
 class Value {
 public:
     Value()
-        : m_value(0)
-    {
-    }
-
-    using AnyValueType = Variant<i32, i64, float, double, u128, Reference>;
-    explicit Value(AnyValueType value)
-        : m_value(move(value))
+        : m_value(u128())
     {
     }
 
     template<typename T>
-    requires(sizeof(T) == sizeof(u64)) explicit Value(ValueType type, T raw_value)
-        : m_value(0)
+    requires(sizeof(T) == sizeof(u64)) explicit Value(T raw_value)
+        : m_value(u128(bit_cast<i64>(raw_value), 0))
     {
-        switch (type.kind()) {
-        case ValueType::Kind::ExternReference:
-            m_value = Reference { Reference::Extern { { bit_cast<u64>(raw_value) } } };
-            break;
-        case ValueType::Kind::FunctionReference:
-            m_value = Reference { Reference::Func { { bit_cast<u64>(raw_value) } } };
-            break;
-        case ValueType::Kind::I32:
-            m_value = static_cast<i32>(bit_cast<i64>(raw_value));
-            break;
-        case ValueType::Kind::I64:
-            m_value = static_cast<i64>(bit_cast<u64>(raw_value));
-            break;
-        case ValueType::Kind::F32:
-            m_value = static_cast<float>(bit_cast<double>(raw_value));
-            break;
-        case ValueType::Kind::F64:
-            m_value = bit_cast<double>(raw_value);
-            break;
-        case ValueType::Kind::V128:
-            m_value = u128(0ull, bit_cast<u64>(raw_value));
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
+    }
+
+    template<typename T>
+    requires(sizeof(T) == sizeof(u32)) explicit Value(T raw_value)
+        : m_value(u128(static_cast<i64>(bit_cast<i32>(raw_value)), 0))
+    {
+    }
+
+    template<typename T>
+    requires(sizeof(T) == sizeof(u8) && Signed<T>) explicit Value(T raw_value)
+        : m_value(u128(static_cast<i64>(bit_cast<i8>(raw_value)), 0))
+    {
+    }
+
+    template<typename T>
+    requires(sizeof(T) == sizeof(u8) && Unsigned<T>) explicit Value(T raw_value)
+        : m_value(u128(static_cast<u64>(bit_cast<u8>(raw_value)), 0))
+    {
+    }
+
+    template<typename T>
+    requires(sizeof(T) == sizeof(u16) && Signed<T>) explicit Value(T raw_value)
+        : m_value(u128(static_cast<i64>(bit_cast<i16>(raw_value)), 0))
+    {
+    }
+
+    template<typename T>
+    requires(sizeof(T) == sizeof(u16) && Unsigned<T>) explicit Value(T raw_value)
+        : m_value(u128(static_cast<u64>(bit_cast<u16>(raw_value)), 0))
+    {
+    }
+
+    explicit Value(Reference ref)
+    {
+        // Reference variant is encoded in the high storage of the u128:
+        // 0: funcref
+        // 1: externref
+        // 2: null funcref
+        // 3: null externref
+        ref.ref().visit(
+            [&](Reference::Func const& func) { m_value = u128(bit_cast<u64>(func.address), 0); },
+            [&](Reference::Extern const& func) { m_value = u128(bit_cast<u64>(func.address), 1); },
+            [&](Reference::Null const& null) { m_value = u128(0, null.type.kind() == ValueType::Kind::FunctionReference ? 2 : 3); });
     }
 
     template<SameAs<u128> T>
@@ -128,63 +140,53 @@ public:
     ALWAYS_INLINE Value& operator=(Value const& value) = default;
 
     template<typename T>
-    ALWAYS_INLINE Optional<T> to() const
+    ALWAYS_INLINE T to() const
     {
-        Optional<T> result;
-        m_value.visit(
-            [&](auto value) {
-                if constexpr (IsSame<T, decltype(value)> || (!IsFloatingPoint<T> && IsSame<decltype(value), MakeSigned<T>>)) {
-                    result = static_cast<T>(value);
-                } else if constexpr (!IsFloatingPoint<T> && IsConvertible<decltype(value), T>) {
-                    // NOTE: No implicit vector <-> scalar conversion.
-                    if constexpr (!IsSame<T, u128>) {
-                        if (AK::is_within_range<T>(value))
-                            result = static_cast<T>(value);
-                    }
-                }
-            },
-            [&](u128 value) {
-                if constexpr (IsSame<T, u128>)
-                    result = value;
-            },
-            [&](Reference const& value) {
-                if constexpr (IsSame<T, Reference>) {
-                    result = value;
-                } else if constexpr (IsSame<T, Reference::Func>) {
-                    if (auto ptr = value.ref().template get_pointer<Reference::Func>())
-                        result = *ptr;
-                } else if constexpr (IsSame<T, Reference::Extern>) {
-                    if (auto ptr = value.ref().template get_pointer<Reference::Extern>())
-                        result = *ptr;
-                } else if constexpr (IsSame<T, Reference::Null>) {
-                    if (auto ptr = value.ref().template get_pointer<Reference::Null>())
-                        result = *ptr;
-                }
-            });
-        return result;
+        if constexpr (IsSame<T, u128>) {
+            return m_value;
+        }
+        if constexpr (IsSame<T, u32>) {
+            u32 low = m_value.low() & 0xFFFFFFFF;
+            return low;
+        }
+        if constexpr (IsSame<T, i32>) {
+            u32 low = m_value.low() & 0xFFFFFFFF;
+            return bit_cast<i32>(low);
+        }
+        if constexpr (IsSame<T, u64>) {
+            return bit_cast<u64>(m_value.low());
+        }
+        if constexpr (IsSame<T, i64>) {
+            return bit_cast<i64>(m_value.low());
+        }
+        if constexpr (IsSame<T, f32>) {
+            u32 low = m_value.low() & 0xFFFFFFFF;
+            return bit_cast<f32>(low);
+        }
+        if constexpr (IsSame<T, f64>) {
+            return bit_cast<f64>(m_value.low());
+        }
+        if constexpr (IsSame<T, Reference>) {
+            switch (m_value.high()) {
+            case 0:
+                return Reference { Reference::Func(bit_cast<FunctionAddress>(m_value.low())) };
+            case 1:
+                return Reference { Reference::Extern(bit_cast<ExternAddress>(m_value.low())) };
+            case 2:
+                return Reference { Reference::Null(ValueType(ValueType::Kind::FunctionReference)) };
+            case 3:
+                return Reference { Reference::Null(ValueType(ValueType::Kind::ExternReference)) };
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }
+        VERIFY_NOT_REACHED();
     }
 
-    ValueType type() const
-    {
-        return ValueType(m_value.visit(
-            [](i32) { return ValueType::Kind::I32; },
-            [](i64) { return ValueType::Kind::I64; },
-            [](float) { return ValueType::Kind::F32; },
-            [](double) { return ValueType::Kind::F64; },
-            [](u128) { return ValueType::Kind::V128; },
-            [&](Reference const& type) {
-                return type.ref().visit(
-                    [](Reference::Func const&) { return ValueType::Kind::FunctionReference; },
-                    [](Reference::Null const& null_type) {
-                        return null_type.type.kind();
-                    },
-                    [](Reference::Extern const&) { return ValueType::Kind::ExternReference; });
-            }));
-    }
     auto& value() const { return m_value; }
 
 private:
-    AnyValueType m_value;
+    u128 m_value;
 };
 
 struct Trap {
@@ -481,15 +483,16 @@ private:
 
 class GlobalInstance {
 public:
-    explicit GlobalInstance(Value value, bool is_mutable)
+    explicit GlobalInstance(Value value, bool is_mutable, ValueType type)
         : m_mutable(is_mutable)
-        , m_value(move(value))
+        , m_value(value)
+        , m_type(type)
     {
     }
 
     auto is_mutable() const { return m_mutable; }
     auto& value() const { return m_value; }
-    GlobalType type() const { return { m_value.type(), is_mutable() }; }
+    GlobalType type() const { return { m_type, is_mutable() }; }
     void set_value(Value value)
     {
         VERIFY(is_mutable());
@@ -499,6 +502,7 @@ public:
 private:
     bool m_mutable { false };
     Value m_value;
+    ValueType m_type;
 };
 
 class DataInstance {

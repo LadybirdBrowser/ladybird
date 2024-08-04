@@ -68,7 +68,7 @@ CompatibleValue<T> to_compatible_value(Wasm::Value const& value)
 {
     using Type = typename ToCompatibleValue<T>::Type;
     // Note: the type can't be something else, we've already checked before through the function type's runtime checker.
-    auto converted_value = *value.template to<Type>();
+    auto converted_value = value.template to<Type>();
     return { .value = converted_value };
 }
 
@@ -868,7 +868,7 @@ static Array<Bytes, N> address_spans(Span<Value> values, Configuration& configur
     Array<Bytes, N> result;
     auto memory = configuration.store().get(MemoryAddress { 0 })->data().span();
     for (size_t i = 0; i < N; ++i)
-        result[i] = memory.slice(*values[i].to<i32>());
+        result[i] = memory.slice(values[i].to<i32>());
     return result;
 }
 
@@ -1027,7 +1027,7 @@ struct InvocationOf<impl> {
                 auto value = result.release_value();
                 if constexpr (IsSpecializationOf<RV, Result>) {
                     if (value.is_error())
-                        return Wasm::Result { Vector { Value { ValueType(ValueType::I32), static_cast<u64>(to_underlying(value.error().value())) } } };
+                        return Wasm::Result { Vector { Value { static_cast<u32>(to_underlying(value.error().value())) } } };
                 }
 
                 if constexpr (!IsVoid<R>) {
@@ -1040,7 +1040,7 @@ struct InvocationOf<impl> {
                     }
                 }
                 // Return value is errno, we have nothing to return.
-                return Wasm::Result { Vector<Value> { Value(ValueType(ValueType::I32), 0ull) } };
+                return Wasm::Result { Vector<Value> { Value() } };
             },
             FunctionType {
                 move(arguments_types),
@@ -1227,20 +1227,6 @@ FDFlags fd_flags_of(struct stat const&)
 }
 
 namespace AK {
-template<>
-struct Formatter<Wasm::Value> : AK::Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, Wasm::Value const& value)
-    {
-        return value.value().visit(
-            [&](Wasm::Reference const&) {
-                return Formatter<FormatString>::format(builder, "({}) &r"sv, Wasm::ValueType::kind_name(value.type().kind()));
-            },
-            [&](auto const& v) {
-                return Formatter<FormatString>::format(builder, "({}) {}"sv, Wasm::ValueType::kind_name(value.type().kind()), v);
-            });
-    }
-};
-
 template<>
 struct Formatter<Wasm::Wasi::Errno> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::Wasi::Errno const& value)

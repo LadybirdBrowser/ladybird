@@ -654,24 +654,41 @@ void Printer::print(Wasm::ValueType const& type)
     print("(type {})\n", ValueType::kind_name(type.kind()));
 }
 
+void Printer::print(Wasm::Value const& value, Wasm::ValueType const& type)
+{
+    print_indent();
+    switch (type.kind()) {
+    case ValueType::I32:
+        print(ByteString::formatted("{}", value.to<i32>()));
+        break;
+    case ValueType::I64:
+        print(ByteString::formatted("{}", value.to<i64>()));
+        break;
+    case ValueType::F32:
+        print(ByteString::formatted("{}", value.to<f32>()));
+        break;
+    case ValueType::F64:
+        print(ByteString::formatted("{}", value.to<f64>()));
+        break;
+    case ValueType::V128:
+        print(ByteString::formatted("v128({:x})", value.value()));
+        break;
+    case ValueType::FunctionReference:
+    case ValueType::ExternReference:
+        print(ByteString::formatted("addr({})",
+            value.to<Reference>().ref().visit(
+                [](Wasm::Reference::Null const&) { return ByteString("null"); },
+                [](auto const& ref) { return ByteString::number(ref.address.value()); })));
+        break;
+    }
+    TemporaryChange<size_t> change { m_indent, 0 };
+}
+
 void Printer::print(Wasm::Value const& value)
 {
     print_indent();
-    print("{} ", value.value().visit([&]<typename T>(T const& value) {
-        if constexpr (IsSame<Wasm::Reference, T>) {
-            return ByteString::formatted(
-                "addr({})",
-                value.ref().visit(
-                    [](Wasm::Reference::Null const&) { return ByteString("null"); },
-                    [](auto const& ref) { return ByteString::number(ref.address.value()); }));
-        } else if constexpr (IsSame<u128, T>) {
-            return ByteString::formatted("v128({:x})", value);
-        } else {
-            return ByteString::formatted("{}", value);
-        }
-    }));
+    print("{:x}", value.value());
     TemporaryChange<size_t> change { m_indent, 0 };
-    print(value.type());
 }
 
 void Printer::print(Wasm::Reference const& value)

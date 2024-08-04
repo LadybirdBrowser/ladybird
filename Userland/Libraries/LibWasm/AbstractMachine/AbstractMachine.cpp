@@ -55,7 +55,7 @@ Optional<MemoryAddress> Store::allocate(MemoryType const& type)
 Optional<GlobalAddress> Store::allocate(GlobalType const& type, Value value)
 {
     GlobalAddress address { m_globals.size() };
-    m_globals.append(GlobalInstance { move(value), type.is_mutable() });
+    m_globals.append(GlobalInstance { value, type.is_mutable(), type.type() });
     return address;
 }
 
@@ -138,7 +138,6 @@ ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module)
 
     return {};
 }
-
 InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<ExternValue> externs)
 {
     if (auto result = validate(const_cast<Module&>(module)); result.is_error())
@@ -267,7 +266,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
 
             for (auto& value : result.values()) {
                 auto reference = value.to<Reference>();
-                references.append(reference.release_value());
+                references.append(reference);
             }
         }
         elements.append(move(references));
@@ -300,8 +299,6 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         if (result.is_trap())
             return InstantiationError { ByteString::formatted("Element section initialisation trapped: {}", result.trap().reason) };
         auto d = result.values().first().to<i32>();
-        if (!d.has_value())
-            return InstantiationError { "Element section initialisation returned invalid table initial offset" };
         auto table_instance = m_store.get(main_module_instance.tables()[active_ptr->index.value()]);
         if (current_index >= main_module_instance.elements().size())
             return InstantiationError { "Invalid element referenced by active element segment" };
@@ -309,14 +306,14 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             return InstantiationError { "Invalid element referenced by active element segment" };
 
         Checked<size_t> total_size = elem_instance->references().size();
-        total_size.saturating_add(d.value());
+        total_size.saturating_add(d);
 
         if (total_size.value() > table_instance->elements().size())
             return InstantiationError { "Table instantiation out of bounds" };
 
         size_t i = 0;
         for (auto it = elem_instance->references().begin(); it < elem_instance->references().end(); ++i, ++it)
-            table_instance->elements()[i + d.value()] = *it;
+            table_instance->elements()[i + d] = *it;
         // Drop element
         *m_store.get(main_module_instance.elements()[current_index]) = ElementInstance(elem_instance->type(), {});
     }
@@ -336,10 +333,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 auto result = config.execute(interpreter).assert_wasm_result();
                 if (result.is_trap())
                     return InstantiationError { ByteString::formatted("Data section initialisation trapped: {}", result.trap().reason) };
-                size_t offset = TRY(result.values().first().value().visit(
-                    [&](auto const& value) { return ErrorOr<size_t, InstantiationError> { value }; },
-                    [&](u128 const&) { return ErrorOr<size_t, InstantiationError> { InstantiationError { "Data segment offset returned a vector type"sv } }; },
-                    [&](Reference const&) { return ErrorOr<size_t, InstantiationError> { InstantiationError { "Data segment offset returned a reference type"sv } }; }));
+                size_t offset = result.values().first().to<u64>();
                 if (main_module_instance.memories().size() <= data.index.value()) {
                     return InstantiationError {
                         ByteString::formatted("Data segment referenced out-of-bounds memory ({}) of max {} entries",
@@ -570,5 +564,4 @@ void Linker::populate()
         m_unresolved_imports.set(m_ordered_imports.last());
     }
 }
-
 }

@@ -32,7 +32,7 @@ static Wasm::ValueType table_kind_to_value_type(Bindings::TableKind kind)
 static JS::ThrowCompletionOr<Wasm::Value> value_to_reference(JS::VM& vm, JS::Value value, Wasm::ValueType const& reference_type)
 {
     if (value.is_undefined())
-        return Wasm::Value(reference_type, 0ull);
+        return Wasm::Value();
     return Detail::to_webassembly_value(vm, value, reference_type);
 }
 
@@ -51,7 +51,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Table>> Table::construct_impl(JS::Realm& re
     if (!address.has_value())
         return vm.throw_completion<JS::TypeError>("Wasm Table allocation failed"sv);
 
-    auto const& reference = reference_value.value().get<Wasm::Reference>();
+    auto const& reference = reference_value.to<Wasm::Reference>();
     auto& table = *cache.abstract_machine().store().get(*address);
     for (auto& element : table.elements())
         element = reference;
@@ -84,7 +84,7 @@ WebIDL::ExceptionOr<u32> Table::grow(u32 delta, JS::Value value)
     auto initial_size = table->elements().size();
 
     auto reference_value = TRY(value_to_reference(vm, value, table->type().element_type()));
-    auto const& reference = reference_value.value().get<Wasm::Reference>();
+    auto const& reference = reference_value.to<Wasm::Reference>();
 
     if (!table->grow(delta, reference))
         return vm.throw_completion<JS::RangeError>("Failed to grow table"sv);
@@ -108,7 +108,7 @@ WebIDL::ExceptionOr<JS::Value> Table::get(u32 index) const
     auto& ref = table->elements()[index];
 
     Wasm::Value wasm_value { ref };
-    return Detail::to_js_value(vm, wasm_value);
+    return Detail::to_js_value(vm, wasm_value, table->type().element_type());
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-table-set
@@ -125,7 +125,7 @@ WebIDL::ExceptionOr<void> Table::set(u32 index, JS::Value value)
         return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
 
     auto reference_value = TRY(value_to_reference(vm, value, table->type().element_type()));
-    auto const& reference = reference_value.value().get<Wasm::Reference>();
+    auto const& reference = reference_value.to<Wasm::Reference>();
 
     table->elements()[index] = reference;
 

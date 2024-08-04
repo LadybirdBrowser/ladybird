@@ -295,16 +295,27 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
             if (auto ptr = value.get_pointer<Wasm::FunctionAddress>())
                 return JS::Value(static_cast<unsigned long>(ptr->value()));
             if (auto v = value.get_pointer<Wasm::GlobalAddress>()) {
-                return m_machine.store().get(*v)->value().value().visit(
-                    [&](auto const& value) -> JS::Value { return JS::Value(static_cast<double>(value)); },
-                    [&](i32 value) { return JS::Value(static_cast<double>(value)); },
-                    [&](i64 value) -> JS::Value { return JS::BigInt::create(vm, Crypto::SignedBigInteger { value }); },
-                    [&](u128 value) -> JS::Value { return JS::BigInt::create(vm, Crypto::SignedBigInteger::import_data(bit_cast<u8 const*>(&value), sizeof(value))); },
-                    [&](Wasm::Reference const& reference) -> JS::Value {
-                        return reference.ref().visit(
-                            [&](Wasm::Reference::Null const&) -> JS::Value { return JS::js_null(); },
-                            [&](auto const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.address.value())); });
-                    });
+                auto global = m_machine.store().get(*v);
+                switch (global->type().type().kind()) {
+                case Wasm::ValueType::I32:
+                    return JS::Value(static_cast<double>(global->value().to<i32>()));
+                case Wasm::ValueType::I64:
+                    return JS::BigInt::create(vm, Crypto::SignedBigInteger { global->value().to<i64>() });
+                case Wasm::ValueType::F32:
+                    return JS::Value(static_cast<double>(global->value().to<float>()));
+                case Wasm::ValueType::F64:
+                    return JS::Value(global->value().to<double>());
+                case Wasm::ValueType::V128: {
+                    auto value = global->value().to<u128>();
+                    return JS::BigInt::create(vm, Crypto::SignedBigInteger::import_data(bit_cast<u8 const*>(&value), sizeof(u128)));
+                }
+                case Wasm::ValueType::FunctionReference:
+                case Wasm::ValueType::ExternReference:
+                    auto ref = global->value().to<Wasm::Reference>();
+                    return ref.ref().visit(
+                        [&](Wasm::Reference::Null const&) -> JS::Value { return JS::js_null(); },
+                        [&](auto const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.address.value())); });
+                }
             }
             return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("'{}' does not refer to a function or a global", name)));
         }
@@ -336,14 +347,14 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             double_value = TRY(argument.to_double(vm));
         switch (param.kind()) {
         case Wasm::ValueType::Kind::I32:
-            arguments.append(Wasm::Value(param, static_cast<i64>(double_value)));
+            arguments.append(Wasm::Value(static_cast<i64>(double_value)));
             break;
         case Wasm::ValueType::Kind::I64:
             if (argument.is_bigint()) {
                 auto value = TRY(argument.to_bigint_int64(vm));
-                arguments.append(Wasm::Value(param, value));
+                arguments.append(Wasm::Value(value));
             } else {
-                arguments.append(Wasm::Value(param, static_cast<i64>(double_value)));
+                arguments.append(Wasm::Value(static_cast<i64>(double_value)));
             }
             break;
         case Wasm::ValueType::Kind::F32:
@@ -352,9 +363,9 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         case Wasm::ValueType::Kind::F64:
             if (argument.is_bigint()) {
                 auto value = TRY(argument.to_bigint_uint64(vm));
-                arguments.append(Wasm::Value(param, bit_cast<double>(value)));
+                arguments.append(Wasm::Value(bit_cast<double>(value)));
             } else {
-                arguments.append(Wasm::Value(param, double_value));
+                arguments.append(Wasm::Value(double_value));
             }
             break;
         case Wasm::ValueType::Kind::V128: {
@@ -385,6 +396,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         }
     }
 
+    auto functype = WebAssemblyModule::machine().store().get(function_address)->visit([&](auto& func) { return func.type(); });
     auto result = WebAssemblyModule::machine().invoke(function_address, arguments);
     if (result.is_trap())
         return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("Execution trapped: {}", result.trap().reason)));
@@ -395,30 +407,36 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     if (result.values().is_empty())
         return JS::js_null();
 
-    auto to_js_value = [&](Wasm::Value const& value) {
-        return value.value().visit(
-            // For floating point values, we're testing with their bit representation, so we bit_cast them
-            [](f32 value) { return JS::Value(static_cast<double>(bit_cast<u32>(value))); },
-            [&](f64 value) { return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { bit_cast<u64>(value) } })); },
-            [](i32 value) { return JS::Value(static_cast<double>(value)); },
-            [&](i64 value) { return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { value })); },
-            [&](u128 value) {
-                // FIXME: remove the MUST here
-                auto buf = MUST(JS::ArrayBuffer::create(*vm.current_realm(), 16));
-                memcpy(buf->buffer().data(), value.bytes().data(), 16);
-                return JS::Value(buf);
-            },
-            [](Wasm::Reference const& reference) {
-                return reference.ref().visit(
-                    [](Wasm::Reference::Null const&) { return JS::js_null(); },
-                    [](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
-            });
+    auto to_js_value = [&](Wasm::Value const& value, Wasm::ValueType type) {
+        switch (type.kind()) {
+        case Wasm::ValueType::I32:
+            return JS::Value(static_cast<double>(value.to<i32>()));
+        case Wasm::ValueType::I64:
+            return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { value.to<i64>() }));
+        case Wasm::ValueType::F32:
+            return JS::Value(static_cast<double>(bit_cast<u32>(value.to<float>())));
+        case Wasm::ValueType::F64:
+            return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { bit_cast<u64>(value.to<double>()) } }));
+        case Wasm::ValueType::V128: {
+            u128 val = value.to<u128>();
+            // FIXME: remove the MUST here
+            auto buf = MUST(JS::ArrayBuffer::create(*vm.current_realm(), 16));
+            memcpy(buf->buffer().data(), val.bytes().data(), 16);
+            return JS::Value(buf);
+        }
+        case Wasm::ValueType::FunctionReference:
+        case Wasm::ValueType::ExternReference:
+            return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
+        }
+        VERIFY_NOT_REACHED();
     };
 
     if (result.values().size() == 1)
-        return to_js_value(result.values().first());
+        return to_js_value(result.values().first(), functype.results().first());
 
+    size_t i = 0;
     return JS::Array::create_from<Wasm::Value>(*vm.current_realm(), result.values(), [&](Wasm::Value value) {
-        return to_js_value(value);
+        auto value_type = type->results()[i++];
+        return to_js_value(value, value_type);
     });
 }
