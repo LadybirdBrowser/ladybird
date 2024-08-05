@@ -808,29 +808,22 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
         // 2. If input contains any leading or trailing C0 control or space, invalid-URL-unit validation error.
         // 3. Remove any leading and trailing C0 control or space from input.
         bool has_validation_error = false;
-        for (size_t i = 0; i < raw_input.length(); ++i) {
-            u8 ch = raw_input[i];
-            if (is_ascii_c0_control_or_space(ch)) {
-                ++start_index;
-                has_validation_error = true;
-            } else {
+
+        for (; start_index < raw_input.length(); ++start_index) {
+            if (!is_ascii_c0_control_or_space(raw_input[start_index]))
                 break;
-            }
+            has_validation_error = true;
         }
-        for (ssize_t i = raw_input.length() - 1; i >= 0; --i) {
-            u8 ch = raw_input[i];
-            if (is_ascii_c0_control_or_space(ch)) {
-                --end_index;
-                has_validation_error = true;
-            } else {
+
+        for (; end_index > start_index; --end_index) {
+            if (!is_ascii_c0_control_or_space(raw_input[end_index - 1]))
                 break;
-            }
+            has_validation_error = true;
         }
+
         if (has_validation_error)
             report_validation_error();
     }
-    if (start_index >= end_index)
-        return {};
 
     ByteString processed_input = raw_input.substring_view(start_index, end_index - start_index);
 
