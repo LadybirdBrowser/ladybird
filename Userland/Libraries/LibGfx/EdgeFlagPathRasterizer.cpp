@@ -410,22 +410,22 @@ FLATTEN __attribute__((hot)) void EdgeFlagPathRasterizer<SamplesPerPixel>::write
     auto write_scanline_with_fast_fills = [&](Color color) {
         if (color.alpha() != 255)
             return write_scanline_pixelwise(color);
-        constexpr SampleType full_converage = NumericLimits<SampleType>::max();
-        int full_converage_count = 0;
+        constexpr SampleType full_coverage = NumericLimits<SampleType>::max();
+        int full_coverage_count = 0;
         accumulate_scanline<WindingRule>(clipped_extent, acc, [&](int x, SampleType sample) {
-            if (sample == full_converage) {
-                full_converage_count++;
+            if (sample == full_coverage) {
+                full_coverage_count++;
                 return;
             } else {
                 write_pixel(dest_format, dest_ptr, scanline, x, sample, color);
             }
-            if (full_converage_count > 0) {
-                fast_fill_solid_color_span(dest_ptr, x - full_converage_count, x - 1, color);
-                full_converage_count = 0;
+            if (full_coverage_count > 0) {
+                fast_fill_solid_color_span(dest_ptr, x - full_coverage_count, x - 1, color);
+                full_coverage_count = 0;
             }
         });
-        if (full_converage_count > 0)
-            fast_fill_solid_color_span(dest_ptr, clipped_extent.max_x - full_converage_count + 1, clipped_extent.max_x, color);
+        if (full_coverage_count > 0)
+            fast_fill_solid_color_span(dest_ptr, clipped_extent.max_x - full_coverage_count + 1, clipped_extent.max_x, color);
     };
     switch_on_color_or_function(
         color_or_function, write_scanline_with_fast_fills, write_scanline_pixelwise);
