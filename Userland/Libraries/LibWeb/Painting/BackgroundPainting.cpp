@@ -159,6 +159,15 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         clip_shrink.right = context.rounded_device_pixels(border_right.width);
     }
 
+    CSSPixelPoint enclosing_scroll_offset;
+    if (is<PaintableBox>(layout_node.paintable())) {
+        auto const& paintable_box = static_cast<PaintableBox const&>(*layout_node.paintable());
+        enclosing_scroll_offset = paintable_box.enclosing_scroll_frame_offset().value_or({});
+    } else if (is<InlinePaintable>(layout_node.paintable())) {
+        auto const& inline_paintable = static_cast<InlinePaintable const&>(*layout_node.paintable());
+        enclosing_scroll_offset = inline_paintable.enclosing_scroll_frame_offset().value_or({});
+    }
+
     // Note: Background layers are ordered front-to-back, so we paint them in reverse
     for (auto& layer : resolved_background.layers.in_reverse()) {
         DisplayListRecorderStateSaver state { display_list_recorder };
@@ -167,9 +176,9 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         auto clip_box = get_box(layer.clip, border_box, layout_node);
 
         CSSPixelRect const& css_clip_rect = clip_box.rect;
-        auto clip_rect = context.rounded_device_rect(css_clip_rect);
+        auto clip_rect = context.rounded_device_rect(css_clip_rect.translated(enclosing_scroll_offset));
         display_list_recorder.add_clip_rect(clip_rect.to_type<int>());
-        ScopedCornerRadiusClip corner_clip { context, clip_rect, clip_box.radii };
+        ScopedCornerRadiusClip corner_clip { context, context.rounded_device_rect(css_clip_rect), clip_box.radii };
 
         if (layer.clip == CSS::BackgroundBox::BorderBox) {
             // Shrink the effective clip rect if to account for the bits the borders will definitely paint over
