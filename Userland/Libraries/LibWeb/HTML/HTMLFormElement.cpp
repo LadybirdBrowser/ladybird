@@ -160,10 +160,6 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(JS::NonnullGCPtr<HTMLElem
 
     // 6. Let encoding be the result of picking an encoding for the form.
     auto encoding = TRY_OR_THROW_OOM(vm, pick_an_encoding());
-    if (encoding != "UTF-8"sv) {
-        dbgln("FIXME: Support encodings other than UTF-8 in form submission. Returning from form submission.");
-        return {};
-    }
 
     // 7. Let entry list be the result of constructing the entry list with form, submitter, and encoding.
     auto entry_list_or_null = TRY(construct_entry_list(realm, *this, submitter, encoding));

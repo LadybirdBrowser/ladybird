@@ -9,6 +9,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibTextCodec/Encoder.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -47,6 +48,12 @@ ErrorOr<String> url_encode(Vector<QueryParam> const& tuples, StringView encoding
     // 1. Set encoding to the result of getting an output encoding from encoding.
     encoding = TextCodec::get_output_encoding(encoding);
 
+    auto encoder = TextCodec::encoder_for(encoding);
+    if (!encoder.has_value()) {
+        // NOTE: Fallback to default utf-8 encoder.
+        encoder = TextCodec::encoder_for("utf-8"sv);
+    }
+
     // 2. Let output be the empty string.
     StringBuilder output;
 
@@ -55,12 +62,10 @@ ErrorOr<String> url_encode(Vector<QueryParam> const& tuples, StringView encoding
         // 1. Assert: tuple’s name and tuple’s value are scalar value strings.
 
         // 2. Let name be the result of running percent-encode after encoding with encoding, tuple’s name, the application/x-www-form-urlencoded percent-encode set, and true.
-        // FIXME: URL::Parser does not currently implement encoding.
-        auto name = TRY(URL::Parser::percent_encode_after_encoding(tuple.name, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true));
+        auto name = TRY(URL::Parser::percent_encode_after_encoding(*encoder, tuple.name, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true));
 
         // 3. Let value be the result of running percent-encode after encoding with encoding, tuple’s value, the application/x-www-form-urlencoded percent-encode set, and true.
-        // FIXME: URL::Parser does not currently implement encoding.
-        auto value = TRY(URL::Parser::percent_encode_after_encoding(tuple.value, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true));
+        auto value = TRY(URL::Parser::percent_encode_after_encoding(*encoder, tuple.value, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true));
 
         // 4. If output is not the empty string, then append U+0026 (&) to output.
         if (!output.is_empty())
