@@ -807,13 +807,10 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
 
         // 2. If input contains any leading or trailing C0 control or space, invalid-URL-unit validation error.
         // 3. Remove any leading and trailing C0 control or space from input.
-        //
-        // FIXME: We aren't checking exactly for 'trailing C0 control or space' here.
-
         bool has_validation_error = false;
         for (size_t i = 0; i < raw_input.length(); ++i) {
-            i8 ch = raw_input[i];
-            if (0 <= ch && ch <= 0x20) {
+            u8 ch = raw_input[i];
+            if (is_ascii_c0_control_or_space(ch)) {
                 ++start_index;
                 has_validation_error = true;
             } else {
@@ -821,8 +818,8 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
             }
         }
         for (ssize_t i = raw_input.length() - 1; i >= 0; --i) {
-            i8 ch = raw_input[i];
-            if (0 <= ch && ch <= 0x20) {
+            u8 ch = raw_input[i];
+            if (is_ascii_c0_control_or_space(ch)) {
                 --end_index;
                 has_validation_error = true;
             } else {
