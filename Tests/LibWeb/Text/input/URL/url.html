@@ -1,6 +1,13 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
+        function escapeWhitespace(str) {
+            return str
+                .replace(/\t/g, '\\t')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r');
+        }
+
         function printURL(url) {
             println(`protocol => '${url.protocol}'`);
             println(`username => '${url.username}'`);
@@ -24,13 +31,14 @@
             { input: '//d:/..', base: 'file:///C:/a/b' },
             { input: 'file://a%C2%ADb/p' },
             { input: 'http://user%20name:pa%40ss%3Aword@www.ladybird.org' },
+            { input: 'h\tt\nt\rp://h\to\ns\rt:9\t0\n0\r0/p\ta\nt\rh?q\tu\ne\rry#f\tr\na\rg' },
         ];
 
         for (url of urls) {
             if (url.base === undefined)
-                println(`new URL('${url.input}', ${url.base})`);
+                println(`new URL('${escapeWhitespace(url.input)}', ${url.base})`);
             else
-                println(`new URL('${url.input}', '${url.base}')`);
+                println(`new URL('${escapeWhitespace(url.input)}', '${escapeWhitespace(url.base)}')`);
 
             printURL(new URL(url.input, url.base));
         }
@@ -39,9 +47,9 @@
 
         for (url of urls) {
             if (url.base === undefined)
-                println(`URL.parse('${url.input}', ${url.base})`);
+                println(`URL.parse('${escapeWhitespace(url.input)}', ${url.base})`);
             else
-                println(`URL.parse('${url.input}', '${url.base}')`);
+                println(`URL.parse('${escapeWhitespace(url.input)}', '${escapeWhitespace(url.base)}')`);
 
             printURL(URL.parse(url.input, url.base));
         }
