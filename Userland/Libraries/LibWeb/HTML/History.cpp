@@ -148,17 +148,13 @@ bool can_have_its_url_rewritten(DOM::Document const& document, URL::URL const& t
 
     // 4. If targetURL's scheme is "file", and targetURL and documentURL differ in their path component,
     //    then return false. (Differences in query and fragment are allowed for file: URLs.)
-    // FIXME: Don't create temporary strings to compare paths
-    auto target_url_path = target_url.serialize_path();
-    auto document_url_path = document_url.serialize_path();
-    if (target_url.scheme() == "file"sv
-        && target_url_path != document_url_path)
+    bool path_components_match = target_url.paths() == document_url.paths();
+    if (target_url.scheme() == "file"sv && !path_components_match)
         return false;
 
     // 5. If targetURL and documentURL differ in their path component or query components, then return false.
     //    (Only differences in fragment are allowed for other types of URLs.)
-    if (target_url_path != document_url_path
-        || target_url.query() != document_url.query())
+    if (!path_components_match || target_url.query() != document_url.query())
         return false;
 
     // 6. Return true.
