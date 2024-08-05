@@ -1,0 +1,3 @@
+[object CSSStyleDeclaration]
+[object DOMRectList]
+PASS (didn't crash)
