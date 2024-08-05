@@ -42,7 +42,7 @@ ErrorOr<String> load_error_page(URL::URL const& url, StringView error_message)
 ErrorOr<String> load_file_directory_page(URL::URL const& url)
 {
     // Generate HTML contents entries table
-    auto lexical_path = LexicalPath(url.serialize_path());
+    auto lexical_path = LexicalPath(URL::percent_decode(url.serialize_path()));
     Core::DirIterator dt(lexical_path.string(), Core::DirIterator::Flags::SkipParentAndBaseDir);
     Vector<ByteString> names;
     while (dt.has_next())

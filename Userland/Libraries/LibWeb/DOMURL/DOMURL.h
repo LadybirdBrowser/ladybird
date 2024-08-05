@@ -55,7 +55,7 @@ public:
     WebIDL::ExceptionOr<String> port() const;
     void set_port(String const&);
 
-    WebIDL::ExceptionOr<String> pathname() const;
+    String pathname() const;
     void set_pathname(String const&);
 
     Optional<String> const& fragment() const { return m_url.fragment(); }

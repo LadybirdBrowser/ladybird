@@ -248,15 +248,13 @@ WebIDL::ExceptionOr<void> Location::set_port(String const&)
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-pathname
 WebIDL::ExceptionOr<String> Location::pathname() const
 {
-    auto& vm = this->vm();
-
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
         return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
 
     // 2. Return the result of URL path serializing this Location object's url.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(url().serialize_path()));
+    return url().serialize_path();
 }
 
 WebIDL::ExceptionOr<void> Location::set_pathname(String const&)

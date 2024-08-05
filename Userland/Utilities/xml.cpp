@@ -371,7 +371,7 @@ static auto parse(StringView contents)
                 if (url.scheme() != "file")
                     return Error::from_string_literal("NYI: Nonlocal entity");
 
-                auto file = TRY(Core::File::open(url.serialize_path(), Core::File::OpenMode::Read));
+                auto file = TRY(Core::File::open(URL::percent_decode(url.serialize_path()), Core::File::OpenMode::Read));
                 return ByteString::copy(TRY(file->read_until_eof()));
             },
         },
@@ -440,7 +440,7 @@ static void do_run_tests(XML::Document& document)
                 continue;
             }
 
-            auto file_path = url.serialize_path();
+            auto file_path = URL::percent_decode(url.serialize_path());
             auto file_result = Core::File::open(file_path, Core::File::OpenMode::Read);
             if (file_result.is_error()) {
                 warnln("Read error for {}: {}", file_path, file_result.error());
