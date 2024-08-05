@@ -58,7 +58,7 @@ public:
     }
 
     // https://url.spec.whatwg.org/#concept-basic-url-parser
-    static URL basic_parse(StringView input, Optional<URL> const& base_url = {}, Optional<URL> url = {}, Optional<State> state_override = {});
+    static URL basic_parse(StringView input, Optional<URL> const& base_url = {}, Optional<URL> url = {}, Optional<State> state_override = {}, Optional<StringView> encoding = {});
 
     // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
     static ErrorOr<String> percent_encode_after_encoding(TextCodec::Encoder&, StringView input, PercentEncodeSet percent_encode_set, bool space_as_plus = false);
