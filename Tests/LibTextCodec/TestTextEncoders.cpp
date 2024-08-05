@@ -61,3 +61,21 @@ TEST_CASE(test_euc_kr_encoder)
     EXPECT(processed_bytes[2] == 0xF0);
     EXPECT(processed_bytes[3] == 0xD8);
 }
+
+TEST_CASE(test_big5_encoder)
+{
+    TextCodec::Big5Encoder encoder;
+    // U+A7 Section Sign
+    // U+70D7 CJK Unified Ideograph-70D7
+    auto test_string = "\U000000A7\U000070D7"sv;
+
+    Vector<u8> processed_bytes;
+    MUST(encoder.process(Utf8View(test_string), [&](u8 byte) {
+        return processed_bytes.try_append(byte);
+    }));
+    EXPECT(processed_bytes.size() == 4);
+    EXPECT(processed_bytes[0] == 0xA1);
+    EXPECT(processed_bytes[1] == 0xB1);
+    EXPECT(processed_bytes[2] == 0xD2);
+    EXPECT(processed_bytes[3] == 0x71);
+}
