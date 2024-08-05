@@ -845,9 +845,9 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
     // 2. If input contains any ASCII tab or newline, invalid-URL-unit validation error.
     // 3. Remove all ASCII tab or newline from input.
     for (auto const ch : processed_input) {
-        if (ch == '\t' || ch == '\n') {
+        if (ch == '\t' || ch == '\n' || ch == '\r') {
             report_validation_error();
-            processed_input = processed_input.replace("\t"sv, ""sv, ReplaceMode::All).replace("\n"sv, ""sv, ReplaceMode::All);
+            processed_input = processed_input.replace("\t"sv, ""sv, ReplaceMode::All).replace("\n"sv, ""sv, ReplaceMode::All).replace("\r"sv, ""sv, ReplaceMode::All);
             break;
         }
     }
