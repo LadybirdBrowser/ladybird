@@ -56,4 +56,30 @@ void HTMLTrackElement::attribute_changed(FlyString const& name, Optional<String>
     }
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-track-readystate
+WebIDL::UnsignedShort HTMLTrackElement::ready_state()
+{
+    // The readyState attribute must return the numeric value corresponding to the text track readiness state of the track element's text track, as defined by the following list:
+    switch (m_track->readiness_state()) {
+    case TextTrack::ReadinessState::NotLoaded:
+        // NONE (numeric value 0)
+        //    The text track not loaded state.
+        return 0;
+    case TextTrack::ReadinessState::Loading:
+        // LOADING (numeric value 1)
+        //    The text track loading state.
+        return 1;
+    case TextTrack::ReadinessState::Loaded:
+        // LOADED (numeric value 2)
+        //    The text track loaded state.
+        return 2;
+    case TextTrack::ReadinessState::FailedToLoad:
+        // ERROR (numeric value 3)
+        //    The text track failed to load state.
+        return 3;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 }

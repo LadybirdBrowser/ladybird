@@ -19,6 +19,8 @@ class HTMLTrackElement final : public HTMLElement {
 public:
     virtual ~HTMLTrackElement() override;
 
+    WebIDL::UnsignedShort ready_state();
+
     JS::Handle<TextTrack> track() { return m_track; }
 
 private:
