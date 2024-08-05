@@ -791,11 +791,6 @@ ErrorOr<String> Parser::percent_encode_after_encoding(StringView input, PercentE
 
 // https://url.spec.whatwg.org/#concept-basic-url-parser
 // NOTE: This parser assumes a UTF-8 encoding.
-// NOTE: Refrain from using the URL classes setters inside this algorithm. Rather, set the values directly. This bypasses the setters' built-in
-//       validation, which is strictly unnecessary since we set m_valid=true at the end anyways. Furthermore, this algorithm may be used in the
-//       future for validation of URLs, which would then lead to infinite recursion.
-//       The same goes for base_url, because e.g. the port() getter does not always return m_port, and we are interested in the underlying member
-//       variables' values here, not what the URL class presents to its users.
 URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Optional<URL> url, Optional<State> state_override)
 {
     dbgln_if(URL_PARSER_DEBUG, "URL::Parser::parse: Parsing '{}'", raw_input);
