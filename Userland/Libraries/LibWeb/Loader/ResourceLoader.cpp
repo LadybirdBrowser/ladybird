@@ -311,7 +311,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         }
 
         auto data = resource.value()->data();
-        auto response_headers = response_headers_for_file(url.serialize_path(), resource.value()->modified_time());
+        auto response_headers = response_headers_for_file(URL::percent_decode(url.serialize_path()), resource.value()->modified_time());
 
         log_success(request);
         success_callback(data, response_headers, {});
@@ -328,7 +328,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             return;
         }
 
-        FileRequest file_request(url.serialize_path(), [this, success_callback = move(success_callback), error_callback = move(error_callback), request, respond_directory_page](ErrorOr<i32> file_or_error) {
+        FileRequest file_request(URL::percent_decode(url.serialize_path()), [this, success_callback = move(success_callback), error_callback = move(error_callback), request, respond_directory_page](ErrorOr<i32> file_or_error) {
             --m_pending_loads;
             if (on_load_counter_change)
                 on_load_counter_change();
@@ -376,7 +376,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             }
 
             auto data = maybe_data.release_value();
-            auto response_headers = response_headers_for_file(request.url().serialize_path(), st_or_error.value().st_mtime);
+            auto response_headers = response_headers_for_file(URL::percent_decode(request.url().serialize_path()), st_or_error.value().st_mtime);
 
             log_success(request);
             success_callback(data, response_headers, {});

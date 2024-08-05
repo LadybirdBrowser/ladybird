@@ -380,7 +380,7 @@ static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL c
 
     if (dump_failed_ref_tests) {
         warnln("\033[33;1mRef test {} failed; dumping screenshots\033[0m", url);
-        auto title = LexicalPath::title(url.serialize_path());
+        auto title = LexicalPath::title(URL::percent_decode(url.serialize_path()));
         auto dump_screenshot = [&](Gfx::Bitmap& bitmap, StringView path) -> ErrorOr<void> {
             auto screenshot_file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
             auto encoded_data = TRY(Gfx::PNGWriter::encode(bitmap));

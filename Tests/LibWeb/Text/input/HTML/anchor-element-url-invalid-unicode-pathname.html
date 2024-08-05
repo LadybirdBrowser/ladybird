@@ -1,0 +1,8 @@
+<a id="anchor" href="http://ladybird.org/foo%C2%91%91"></a>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const anchorElement = document.getElementById('anchor');
+        println(anchorElement.pathname);
+    })
+</script>

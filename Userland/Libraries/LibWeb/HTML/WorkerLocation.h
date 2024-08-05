@@ -24,7 +24,7 @@ public:
     WebIDL::ExceptionOr<String> host() const;
     WebIDL::ExceptionOr<String> hostname() const;
     WebIDL::ExceptionOr<String> port() const;
-    WebIDL::ExceptionOr<String> pathname() const;
+    String pathname() const;
     WebIDL::ExceptionOr<String> search() const;
     WebIDL::ExceptionOr<String> hash() const;
 

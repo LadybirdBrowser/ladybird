@@ -53,11 +53,6 @@ using IPv6Address = Array<u16, 8>;
 // but it is sometimes used as opaque identifier in URLs where a network address is not necessary.
 using Host = Variant<IPv4Address, IPv6Address, String, Empty>;
 
-enum class ApplyPercentDecoding {
-    Yes,
-    No
-};
-
 // https://w3c.github.io/FileAPI/#blob-url-entry
 // NOTE: This represents the raw bytes behind a 'Blob' (and does not yet support a MediaSourceQuery).
 struct BlobURLEntry {
@@ -161,7 +156,7 @@ public:
         m_data->paths.append(String {});
     }
 
-    ByteString serialize_path(ApplyPercentDecoding = ApplyPercentDecoding::Yes) const;
+    String serialize_path() const;
     ByteString serialize(ExcludeFragment = ExcludeFragment::No) const;
     ByteString serialize_for_display() const;
     ByteString to_byte_string() const { return serialize(); }

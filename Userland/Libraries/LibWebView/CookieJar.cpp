@@ -269,7 +269,7 @@ String CookieJar::default_path(const URL::URL& url)
     // https://tools.ietf.org/html/rfc6265#section-5.1.4
 
     // 1. Let uri-path be the path portion of the request-uri if such a portion exists (and empty otherwise).
-    auto uri_path = url.serialize_path();
+    auto uri_path = URL::percent_decode(url.serialize_path());
 
     // 2. If the uri-path is empty or if the first character of the uri-path is not a %x2F ("/") character, output %x2F ("/") and skip the remaining steps.
     if (uri_path.is_empty() || (uri_path[0] != '/'))
@@ -283,6 +283,7 @@ String CookieJar::default_path(const URL::URL& url)
         return "/"_string;
 
     // 4. Output the characters of the uri-path from the first character up to, but not including, the right-most %x2F ("/").
+    // FIXME: The path might not be valid UTF-8.
     return MUST(String::from_utf8(uri_path.substring_view(0, last_separator)));
 }
 

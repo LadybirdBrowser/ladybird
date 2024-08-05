@@ -236,12 +236,12 @@ bool is_special_scheme(StringView scheme)
 }
 
 // https://url.spec.whatwg.org/#url-path-serializer
-ByteString URL::serialize_path(ApplyPercentDecoding apply_percent_decoding) const
+String URL::serialize_path() const
 {
     // 1. If url has an opaque path, then return url’s path.
     // FIXME: Reimplement this step once we modernize the URL implementation to meet the spec.
     if (cannot_be_a_base_url())
-        return m_data->paths[0].to_byte_string();
+        return m_data->paths[0];
 
     // 2. Let output be the empty string.
     StringBuilder output;
@@ -249,11 +249,11 @@ ByteString URL::serialize_path(ApplyPercentDecoding apply_percent_decoding) cons
     // 3. For each segment of url’s path: append U+002F (/) followed by segment to output.
     for (auto const& segment : m_data->paths) {
         output.append('/');
-        output.append(apply_percent_decoding == ApplyPercentDecoding::Yes ? percent_decode(segment) : segment.to_byte_string());
+        output.append(segment);
     }
 
     // 4. Return output.
-    return output.to_byte_string();
+    return output.to_string_without_validation();
 }
 
 // https://url.spec.whatwg.org/#concept-url-serializer

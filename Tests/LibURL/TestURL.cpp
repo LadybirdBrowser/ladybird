@@ -159,7 +159,8 @@ TEST_CASE(file_url_with_encoded_characters)
     URL::URL url("file:///my/file/test%23file.txt"sv);
     EXPECT(url.is_valid());
     EXPECT_EQ(url.scheme(), "file");
-    EXPECT_EQ(url.serialize_path(), "/my/file/test#file.txt");
+    EXPECT_EQ(url.serialize_path(), "/my/file/test%23file.txt");
+    EXPECT_EQ(URL::percent_decode(url.serialize_path()), "/my/file/test#file.txt");
     EXPECT(!url.query().has_value());
     EXPECT(!url.fragment().has_value());
 }
@@ -330,7 +331,8 @@ TEST_CASE(unicode)
 {
     URL::URL url { "http://example.com/_ünicöde_téxt_©"sv };
     EXPECT(url.is_valid());
-    EXPECT_EQ(url.serialize_path(), "/_ünicöde_téxt_©");
+    EXPECT_EQ(url.serialize_path(), "/_%C3%BCnic%C3%B6de_t%C3%A9xt_%C2%A9");
+    EXPECT_EQ(URL::percent_decode(url.serialize_path()), "/_ünicöde_téxt_©");
     EXPECT(!url.query().has_value());
     EXPECT(!url.fragment().has_value());
 }

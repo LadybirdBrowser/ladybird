@@ -291,10 +291,8 @@ String HTMLHyperlinkElementUtils::pathname() const
     if (!m_url.has_value())
         return String {};
 
-    // 4. If url's cannot-be-a-base-URL is true, then return url's path[0].
-    // 5. If url's path is empty, then return the empty string.
-    // 6. Return "/", followed by the strings in url's path (including empty strings), separated from each other by "/".
-    return MUST(String::from_byte_string(m_url->serialize_path()));
+    // 4. Return the result of URL path serializing url.
+    return m_url->serialize_path();
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-pathname

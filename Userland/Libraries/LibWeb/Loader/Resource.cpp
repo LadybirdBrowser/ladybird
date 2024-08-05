@@ -102,7 +102,7 @@ void Resource::did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderM
         if (content_type_options.value_or("").equals_ignoring_ascii_case("nosniff"sv)) {
             m_mime_type = "text/plain";
         } else {
-            m_mime_type = Core::guess_mime_type_based_on_filename(url().serialize_path());
+            m_mime_type = Core::guess_mime_type_based_on_filename(URL::percent_decode(url().serialize_path()));
         }
     }
 
