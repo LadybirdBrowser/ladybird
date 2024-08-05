@@ -806,8 +806,7 @@ ErrorOr<String> Parser::percent_encode_after_encoding(TextCodec::Encoder& encode
 }
 
 // https://url.spec.whatwg.org/#concept-basic-url-parser
-// NOTE: This parser assumes a UTF-8 encoding.
-URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Optional<URL> url, Optional<State> state_override)
+URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Optional<URL> url, Optional<State> state_override, Optional<StringView> encoding)
 {
     dbgln_if(URL_PARSER_DEBUG, "URL::Parser::basic_parse: Parsing '{}'", raw_input);
 
@@ -855,7 +854,11 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
     State state = state_override.value_or(State::SchemeStart);
 
     // 5. Set encoding to the result of getting an output encoding from encoding.
-    auto encoder = TextCodec::encoder_for("utf-8"sv);
+    Optional<TextCodec::Encoder&> encoder = {};
+    if (encoding.has_value())
+        encoder = TextCodec::encoder_for(TextCodec::get_output_encoding(*encoding));
+    if (!encoder.has_value())
+        encoder = TextCodec::encoder_for("utf-8"sv);
     VERIFY(encoder.has_value());
 
     // 6. Let buffer be the empty string.

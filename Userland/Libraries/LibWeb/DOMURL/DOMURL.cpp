@@ -585,12 +585,12 @@ void strip_trailing_spaces_from_an_opaque_path(DOMURL& url)
 }
 
 // https://url.spec.whatwg.org/#concept-url-parser
-URL::URL parse(StringView input, Optional<URL::URL> const& base_url)
+URL::URL parse(StringView input, Optional<URL::URL> const& base_url, Optional<StringView> encoding)
 {
     // FIXME: We should probably have an extended version of URL::URL for LibWeb instead of standalone functions like this.
 
     // 1. Let url be the result of running the basic URL parser on input with base and encoding.
-    auto url = URL::Parser::basic_parse(input, base_url);
+    auto url = URL::Parser::basic_parse(input, base_url, {}, {}, encoding);
 
     // 2. If url is failure, return failure.
     if (!url.is_valid())
