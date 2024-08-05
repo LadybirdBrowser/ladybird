@@ -43,7 +43,7 @@ jobs:
           java-version: 17
 
       - name: Set Up Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       # === PREPARE FOR BUILDING ===
 
