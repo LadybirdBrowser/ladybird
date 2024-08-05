@@ -100,6 +100,12 @@ constexpr bool is_ascii_c0_control(u32 code_point)
     return code_point < 0x20;
 }
 
+// https://infra.spec.whatwg.org/#c0-control-or-space
+constexpr bool is_ascii_c0_control_or_space(u32 code_point)
+{
+    return code_point <= 0x20;
+}
+
 constexpr bool is_ascii_control(u32 code_point)
 {
     return is_ascii_c0_control(code_point) || code_point == 0x7F;
@@ -190,6 +196,7 @@ using AK::is_ascii_base36_digit;
 using AK::is_ascii_binary_digit;
 using AK::is_ascii_blank;
 using AK::is_ascii_c0_control;
+using AK::is_ascii_c0_control_or_space;
 using AK::is_ascii_control;
 using AK::is_ascii_digit;
 using AK::is_ascii_graphical;
