@@ -9,6 +9,7 @@
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <LibTextCodec/Encoder.h>
 #include <LibURL/URL.h>
 
 namespace URL {
@@ -60,7 +61,7 @@ public:
     static URL basic_parse(StringView input, Optional<URL> const& base_url = {}, Optional<URL> url = {}, Optional<State> state_override = {});
 
     // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
-    static ErrorOr<String> percent_encode_after_encoding(StringView input, PercentEncodeSet percent_encode_set, bool space_as_plus = false);
+    static ErrorOr<String> percent_encode_after_encoding(TextCodec::Encoder&, StringView input, PercentEncodeSet percent_encode_set, bool space_as_plus = false);
 
     // https://url.spec.whatwg.org/#concept-host-serializer
     static ErrorOr<String> serialize_host(Host const&);

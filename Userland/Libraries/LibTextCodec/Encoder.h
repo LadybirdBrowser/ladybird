@@ -1,0 +1,35 @@
+/*
+ * Copyright (c) 2024, Ben Jilks <benjyjilks@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Forward.h>
+#include <AK/Function.h>
+
+namespace TextCodec {
+
+class Encoder {
+public:
+    virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte) = 0;
+
+protected:
+    virtual ~Encoder() = default;
+};
+
+class UTF8Encoder final : public Encoder {
+public:
+    virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte) override;
+};
+
+class EUCJPEncoder final : public Encoder {
+public:
+    virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte) override;
+};
+
+Optional<Encoder&> encoder_for_exact_name(StringView encoding);
+Optional<Encoder&> encoder_for(StringView label);
+
+}

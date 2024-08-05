@@ -4,4 +4,4 @@ set(SOURCES
 )
 
 serenity_lib(LibURL url)
-target_link_libraries(LibURL PRIVATE LibUnicode)
+target_link_libraries(LibURL PRIVATE LibUnicode LibTextCodec)
