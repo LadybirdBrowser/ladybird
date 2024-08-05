@@ -79,3 +79,22 @@ TEST_CASE(test_big5_encoder)
     EXPECT(processed_bytes[2] == 0xD2);
     EXPECT(processed_bytes[3] == 0x71);
 }
+
+TEST_CASE(test_gb18030_encoder)
+{
+    TextCodec::GB18030Encoder encoder;
+    // U+20AC Euro Sign
+    // U+E4C5 Private Use Area
+    auto test_string = "\U000020AC\U0000E4C5"sv;
+
+    Vector<u8> processed_bytes;
+    MUST(encoder.process(Utf8View(test_string), [&](u8 byte) {
+        return processed_bytes.try_append(byte);
+    }));
+
+    EXPECT(processed_bytes.size() == 4);
+    EXPECT(processed_bytes[0] == 0xA2);
+    EXPECT(processed_bytes[1] == 0xE3);
+    EXPECT(processed_bytes[2] == 0xFE);
+    EXPECT(processed_bytes[3] == 0xFE);
+}

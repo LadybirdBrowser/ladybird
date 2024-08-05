@@ -240,7 +240,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto json_data = TRY(json_file->read_until_eof());
     auto data = TRY(JsonValue::from_string(json_data)).as_object();
 
-    auto gb18030_table = prepare_table(data.get("gb18030"sv)->as_array(), GenerateAccessor::Yes);
+    auto gb18030_table = prepare_table(data.get("gb18030"sv)->as_array(), GenerateAccessor::Yes, GenerateInverseAccessor::Yes);
 
     // FIXME: Encoding specification is not updated to GB-18030-2022 yet (https://github.com/whatwg/encoding/issues/312)
     // NOTE: See https://commits.webkit.org/264918@main
