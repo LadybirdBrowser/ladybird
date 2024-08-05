@@ -43,3 +43,21 @@ TEST_CASE(test_euc_jp_encoder)
     EXPECT(processed_bytes[3] == 0xA5);
     EXPECT(processed_bytes[4] == 0xC4);
 }
+
+TEST_CASE(test_euc_kr_encoder)
+{
+    TextCodec::EUCKREncoder encoder;
+    // U+B29F Hangul Syllable Neulh
+    // U+7C97 CJK Unified Ideograph-7C97
+    auto test_string = "\U0000B29F\U00007C97"sv;
+
+    Vector<u8> processed_bytes;
+    MUST(encoder.process(Utf8View(test_string), [&](u8 byte) {
+        return processed_bytes.try_append(byte);
+    }));
+    EXPECT(processed_bytes.size() == 4);
+    EXPECT(processed_bytes[0] == 0x88);
+    EXPECT(processed_bytes[1] == 0x6B);
+    EXPECT(processed_bytes[2] == 0xF0);
+    EXPECT(processed_bytes[3] == 0xD8);
+}

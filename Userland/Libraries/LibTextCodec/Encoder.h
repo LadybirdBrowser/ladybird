@@ -29,6 +29,11 @@ public:
     virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte) override;
 };
 
+class EUCKREncoder final : public Encoder {
+public:
+    virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte) override;
+};
+
 Optional<Encoder&> encoder_for_exact_name(StringView encoding);
 Optional<Encoder&> encoder_for(StringView label);
 

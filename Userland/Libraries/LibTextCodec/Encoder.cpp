@@ -15,6 +15,7 @@ namespace TextCodec {
 namespace {
 UTF8Encoder s_utf8_encoder;
 EUCJPEncoder s_euc_jp_encoder;
+EUCKREncoder s_euc_kr_encoder;
 }
 
 Optional<Encoder&> encoder_for_exact_name(StringView encoding)
@@ -23,6 +24,8 @@ Optional<Encoder&> encoder_for_exact_name(StringView encoding)
         return s_utf8_encoder;
     if (encoding.equals_ignoring_ascii_case("euc-jp"sv))
         return s_euc_jp_encoder;
+    if (encoding.equals_ignoring_ascii_case("euc-kr"sv))
+        return s_euc_kr_encoder;
     dbgln("TextCodec: No encoder implemented for encoding '{}'", encoding);
     return {};
 }
@@ -93,6 +96,41 @@ ErrorOr<void> EUCJPEncoder::process(Utf8View input, Function<ErrorOr<void>(u8)> 
         auto trail = *pointer % 94 + 0xA1;
 
         // 11. Return two bytes whose values are lead and trail.
+        TRY(on_byte(static_cast<u8>(lead)));
+        TRY(on_byte(static_cast<u8>(trail)));
+    }
+
+    return {};
+}
+
+// https://encoding.spec.whatwg.org/#euc-kr-encoder
+ErrorOr<void> EUCKREncoder::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte)
+{
+    for (u32 item : input) {
+        // 1. If code point is end-of-queue, return finished.
+
+        // 2. If code point is an ASCII code point, return a byte whose value is code point.
+        if (is_ascii(item)) {
+            TRY(on_byte(static_cast<u8>(item)));
+            continue;
+        }
+
+        // 3. Let pointer be the index pointer for code point in index EUC-KR.
+        auto pointer = code_point_euc_kr_index(item);
+
+        // 4. If pointer is null, return error with code point.
+        if (!pointer.has_value()) {
+            // TODO: Report error.
+            continue;
+        }
+
+        // 5. Let lead be pointer / 190 + 0x81.
+        auto lead = *pointer / 190 + 0x81;
+
+        // 6. Let trail be pointer % 190 + 0x41.
+        auto trail = *pointer % 190 + 0x41;
+
+        // 7. Return two bytes whose values are lead and trail.
         TRY(on_byte(static_cast<u8>(lead)));
         TRY(on_byte(static_cast<u8>(trail)));
     }

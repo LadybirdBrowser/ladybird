@@ -270,7 +270,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             { "big5"sv, prepare_table(data.get("big5"sv)->as_array(), GenerateAccessor::Yes) },
             { "jis0208"sv, prepare_table(data.get("jis0208"sv)->as_array(), GenerateAccessor::Yes, GenerateInverseAccessor::Yes) },
             { "jis0212"sv, prepare_table(data.get("jis0212"sv)->as_array(), GenerateAccessor::Yes) },
-            { "euc_kr"sv, prepare_table(data.get("euc-kr"sv)->as_array(), GenerateAccessor::Yes) },
+            { "euc_kr"sv, prepare_table(data.get("euc-kr"sv)->as_array(), GenerateAccessor::Yes, GenerateInverseAccessor::Yes) },
             { "ibm866"sv, prepare_table(data.get("ibm866"sv)->as_array()) },
             { "iso_8859_2"sv, prepare_table(data.get("iso-8859-2"sv)->as_array()) },
             { "iso_8859_3"sv, prepare_table(data.get("iso-8859-3"sv)->as_array()) },
