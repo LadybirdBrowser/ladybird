@@ -19,6 +19,7 @@ GB18030Encoder s_gb18030_encoder;
 GB18030Encoder s_gbk_encoder(GB18030Encoder::IsGBK::Yes);
 Big5Encoder s_big5_encoder;
 EUCJPEncoder s_euc_jp_encoder;
+ShiftJISEncoder s_shift_jis_encoder;
 EUCKREncoder s_euc_kr_encoder;
 }
 
@@ -30,6 +31,8 @@ Optional<Encoder&> encoder_for_exact_name(StringView encoding)
         return s_big5_encoder;
     if (encoding.equals_ignoring_ascii_case("euc-jp"sv))
         return s_euc_jp_encoder;
+    if (encoding.equals_ignoring_ascii_case("shift_jis"sv))
+        return s_shift_jis_encoder;
     if (encoding.equals_ignoring_ascii_case("euc-kr"sv))
         return s_euc_kr_encoder;
     if (encoding.equals_ignoring_ascii_case("gb18030"sv))
@@ -108,6 +111,97 @@ ErrorOr<void> EUCJPEncoder::process(Utf8View input, Function<ErrorOr<void>(u8)> 
         // 11. Return two bytes whose values are lead and trail.
         TRY(on_byte(static_cast<u8>(lead)));
         TRY(on_byte(static_cast<u8>(trail)));
+    }
+
+    return {};
+}
+
+static Optional<u32> code_point_jis0208_index_skipping_range(u32 code_point, u32 skip_from, u32 skip_to)
+{
+    VERIFY(skip_to >= skip_from);
+    for (u32 i = 0; i < s_jis0208_index.size(); ++i) {
+        if (i >= skip_from && i <= skip_to)
+            continue;
+        if (s_jis0208_index[i] == code_point)
+            return i;
+    }
+    return {};
+}
+
+// https://encoding.spec.whatwg.org/#index-shift_jis-pointer
+static Optional<u32> index_shift_jis_pointer(u32 code_point)
+{
+    // 1. Let index be index jis0208 excluding all entries whose pointer is in the range 8272 to 8835, inclusive.
+    auto pointer = code_point_jis0208_index_skipping_range(code_point, 8272, 8835);
+    if (!pointer.has_value())
+        return {};
+
+    // 2. Return the index pointer for code point in index.
+    return *pointer;
+}
+
+// https://encoding.spec.whatwg.org/#shift_jis-encoder
+ErrorOr<void> ShiftJISEncoder::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte)
+{
+    for (u32 item : input) {
+        // 1. If code point is end-of-queue, return finished.
+
+        // 2. If code point is an ASCII code point or U+0080, return a byte whose value is code point.
+        if (is_ascii(item) || item == 0x0080) {
+            TRY(on_byte(static_cast<u8>(item)));
+            continue;
+        }
+
+        // 3. If code point is U+00A5, return byte 0x5C.
+        if (item == 0x00A5) {
+            TRY(on_byte(0x5C));
+            continue;
+        }
+
+        // 4. If code point is U+203E, return byte 0x7E.
+        if (item == 0x203E) {
+            TRY(on_byte(0x7E));
+            continue;
+        }
+
+        // 5. If code point is in the range U+FF61 to U+FF9F, inclusive, return a byte whose value is code point − 0xFF61 + 0xA1.
+        if (item >= 0xFF61 && item <= 0xFF9F) {
+            TRY(on_byte(static_cast<u8>(item - 0xFF61 + 0xA1)));
+            continue;
+        }
+
+        // 6. If code point is U+2212, set it to U+FF0D.
+        if (item == 0x2212)
+            item = 0xFF0D;
+
+        // 7. Let pointer be the index Shift_JIS pointer for code point.
+        auto pointer = index_shift_jis_pointer(item);
+
+        // 8. If pointer is null, return error with code point.
+        if (!pointer.has_value()) {
+            // TODO: Report error.
+            continue;
+        }
+
+        // 9. Let lead be pointer / 188.
+        auto lead = *pointer / 188;
+
+        // 10. Let lead offset be 0x81 if lead is less than 0x1F, otherwise 0xC1.
+        auto lead_offset = 0xC1;
+        if (lead < 0x1F)
+            lead_offset = 0x81;
+
+        // 11. Let trail be pointer % 188.
+        auto trail = *pointer % 188;
+
+        // 12. Let offset be 0x40 if trail is less than 0x3F, otherwise 0x41.
+        auto offset = 0x41;
+        if (trail < 0x3F)
+            offset = 0x40;
+
+        // 13. Return two bytes whose values are lead + lead offset and trail + offset.
+        TRY(on_byte(static_cast<u8>(lead + lead_offset)));
+        TRY(on_byte(static_cast<u8>(trail + offset)));
     }
 
     return {};
