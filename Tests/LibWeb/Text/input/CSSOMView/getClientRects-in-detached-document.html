@@ -1,0 +1,16 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let doc = document.implementation.createHTMLDocument();
+        let div = doc.createElement("div");
+        doc.body.appendChild(div);
+
+        // NOTE: We do a getComputedStyle() to trick the document into doing some style/layout work.
+        //       In the future, we may optimize away some of this work, which would potentially
+        //       make the test not work as intended anymore.
+        println(getComputedStyle(div));
+
+        println(div.getClientRects());
+        println("PASS (didn't crash)");
+    });
+</script>

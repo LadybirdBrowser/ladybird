@@ -949,7 +949,9 @@ JS::NonnullGCPtr<Geometry::DOMRect> Element::get_bounding_client_rect() const
 // https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
 JS::NonnullGCPtr<Geometry::DOMRectList> Element::get_client_rects() const
 {
-    Vector<JS::Handle<Geometry::DOMRect>> rects;
+    auto navigable = document().navigable();
+    if (!navigable)
+        return Geometry::DOMRectList::create(realm(), {});
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     const_cast<Document&>(document()).update_layout();
@@ -957,7 +959,7 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Element::get_client_rects() const
     // 1. If the element on which it was invoked does not have an associated layout box return an empty DOMRectList
     //    object and stop this algorithm.
     if (!layout_node())
-        return Geometry::DOMRectList::create(realm(), move(rects));
+        return Geometry::DOMRectList::create(realm(), {});
 
     // FIXME: 2. If the element has an associated SVG layout box return a DOMRectList object containing a single
     //          DOMRect object that describes the bounding box of the element as defined by the SVG specification,
@@ -970,9 +972,6 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Element::get_client_rects() const
     //          or inline-table include both the table box and the caption box, if any, but not the anonymous container box.
     // FIXME: - Replace each anonymous block box with its child box(es) and repeat this until no anonymous block boxes
     //          are left in the final list.
-    const_cast<Document&>(document()).update_layout();
-    auto navigable = document().navigable();
-    VERIFY(navigable);
     auto viewport_offset = navigable->viewport_scroll_offset();
 
     // NOTE: Make sure CSS transforms are resolved before it is used to calculate the rect position.
@@ -982,6 +981,7 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Element::get_client_rects() const
     CSSPixelPoint scroll_offset;
     auto const* paintable = this->paintable();
 
+    Vector<JS::Handle<Geometry::DOMRect>> rects;
     if (auto const* paintable_box = this->paintable_box()) {
         transform = Gfx::extract_2d_affine_transform(paintable_box->transform());
         for (auto const* containing_block = paintable->containing_block(); !containing_block->is_viewport(); containing_block = containing_block->containing_block()) {
