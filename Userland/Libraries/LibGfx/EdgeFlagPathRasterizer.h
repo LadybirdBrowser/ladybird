@@ -220,15 +220,15 @@ private:
 
         void set_scanline_range(int min_scanline, int max_scanline)
         {
-            this->min_scanline = min_scanline;
-            edges.resize(max_scanline - min_scanline + 1);
+            m_min_scanline = min_scanline;
+            m_edges.resize(max_scanline - min_scanline + 1);
         }
 
-        auto& operator[](int scanline) { return edges[scanline - min_scanline]; }
+        auto& operator[](int scanline) { return m_edges[scanline - m_min_scanline]; }
 
     private:
-        Vector<Detail::Edge*> edges;
-        int min_scanline { 0 };
+        Vector<Detail::Edge*> m_edges;
+        int m_min_scanline { 0 };
     } m_edge_table;
 };
 
