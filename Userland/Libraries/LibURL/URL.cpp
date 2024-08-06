@@ -187,22 +187,6 @@ URL create_with_file_scheme(ByteString const& path, ByteString const& fragment, 
     return url;
 }
 
-URL create_with_help_scheme(ByteString const& path, ByteString const& fragment, ByteString const& hostname)
-{
-    LexicalPath lexical_path(path);
-
-    URL url;
-    url.set_scheme("help"_string);
-    url.set_host(hostname == "localhost" ? String {} : String::from_byte_string(hostname).release_value_but_fixme_should_propagate_errors());
-
-    url.set_paths(lexical_path.parts());
-    if (path.ends_with('/'))
-        url.append_slash();
-    if (!fragment.is_empty())
-        url.set_fragment(String::from_byte_string(fragment).release_value_but_fixme_should_propagate_errors());
-    return url;
-}
-
 URL create_with_url_or_path(ByteString const& url_or_path)
 {
     URL url = url_or_path;
