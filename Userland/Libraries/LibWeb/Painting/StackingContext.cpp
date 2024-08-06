@@ -345,11 +345,6 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     };
     auto transformed_position = affine_transform_matrix().inverse().value_or({}).map(offset_position).to_type<CSSPixels>() + transform_origin;
 
-    if (paintable().is_fixed_position()) {
-        auto scroll_offset = paintable().document().navigable()->viewport_scroll_offset();
-        transformed_position.translate_by(-scroll_offset);
-    }
-
     // NOTE: Hit testing basically happens in reverse painting order.
     // https://www.w3.org/TR/CSS22/visuren.html#z-index
 
