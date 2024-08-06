@@ -794,8 +794,6 @@ ErrorOr<String> Parser::percent_encode_after_encoding(StringView input, PercentE
 URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Optional<URL> url, Optional<State> state_override)
 {
     dbgln_if(URL_PARSER_DEBUG, "URL::Parser::basic_parse: Parsing '{}'", raw_input);
-    if (raw_input.is_empty())
-        return base_url.has_value() ? *base_url : URL {};
 
     size_t start_index = 0;
     size_t end_index = raw_input.length();
