@@ -1362,7 +1362,10 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
 
     MUST((object.add("visible"sv, !!layout_node())));
 
-    if (has_child_nodes() || (is_element() && static_cast<DOM::Element const*>(this)->is_shadow_host())) {
+    auto const* element = is_element() ? static_cast<DOM::Element const*>(this) : nullptr;
+
+    if (has_child_nodes()
+        || (element && (element->is_shadow_host() || element->has_pseudo_elements()))) {
         auto children = MUST(object.add_array("children"sv));
         auto add_child = [&children](DOM::Node const& child) {
             if (child.is_uninteresting_whitespace_node())
@@ -1374,9 +1377,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
         };
         for_each_child(add_child);
 
-        if (is_element()) {
-            auto const* element = static_cast<DOM::Element const*>(this);
-
+        if (element) {
             // Pseudo-elements don't have DOM nodes,so we have to add them separately.
             element->serialize_pseudo_elements_as_json(children);
 
