@@ -775,31 +775,42 @@ ErrorOr<String> Parser::percent_encode_after_encoding(TextCodec::Encoder& encode
     // 1. Let encodeOutput be an empty I/O queue.
     StringBuilder output;
 
-    // 3. For each byte of encodeOutput converted to a byte sequence:
-    TRY(encoder.process(Utf8View(input), [&](u8 byte) -> ErrorOr<void> {
-        // 1. If spaceAsPlus is true and byte is 0x20 (SP), then append U+002B (+) to output and continue.
-        if (space_as_plus && byte == ' ') {
-            output.append('+');
+    // 2. Set potentialError to the result of running encode or fail with inputQueue, encoder, and encodeOutput.
+    TRY(encoder.process(
+        Utf8View(input),
+
+        // 3. For each byte of encodeOutput converted to a byte sequence:
+        [&](u8 byte) -> ErrorOr<void> {
+            // 1. If spaceAsPlus is true and byte is 0x20 (SP), then append U+002B (+) to output and continue.
+            if (space_as_plus && byte == ' ') {
+                output.append('+');
+                return {};
+            }
+
+            // 2. Let isomorph be a code point whose value is byte’s value.
+            u32 isomorph = byte;
+
+            // 3. Assert: percentEncodeSet includes all non-ASCII code points.
+
+            // 4. If isomorphic is not in percentEncodeSet, then append isomorph to output.
+            if (!code_point_is_in_percent_encode_set(isomorph, percent_encode_set)) {
+                output.append_code_point(isomorph);
+            }
+
+            // 5. Otherwise, percent-encode byte and append the result to output.
+            else {
+                output.appendff("%{:02X}", byte);
+            }
+
             return {};
-        }
+        },
 
-        // 2. Let isomorph be a code point whose value is byte’s value.
-        u32 isomorph = byte;
-
-        // 3. Assert: percentEncodeSet includes all non-ASCII code points.
-
-        // 4. If isomorphic is not in percentEncodeSet, then append isomorph to output.
-        if (!code_point_is_in_percent_encode_set(isomorph, percent_encode_set)) {
-            output.append_code_point(isomorph);
-        }
-
-        // 5. Otherwise, percent-encode byte and append the result to output.
-        else {
-            output.appendff("%{:02X}", byte);
-        }
-
-        return {};
-    }));
+        // 4. If potentialError is non-null, then append "%26%23", followed by the shortest sequence of ASCII digits
+        //    representing potentialError in base ten, followed by "%3B", to output.
+        [&](u32 error) -> ErrorOr<void> {
+            output.appendff("%26%23{}%3B", error);
+            return {};
+        }));
 
     // 6. Return output.
     return output.to_string();

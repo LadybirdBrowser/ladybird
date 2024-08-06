@@ -14,9 +14,10 @@ TEST_CASE(test_utf8_encode)
     auto test_string = "\U0001F600"sv;
 
     Vector<u8> processed_bytes;
-    MUST(encoder.process(Utf8View(test_string), [&](u8 byte) {
-        return processed_bytes.try_append(byte);
-    }));
+    MUST(encoder.process(
+        Utf8View(test_string),
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
+        [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
     EXPECT(processed_bytes.size() == 4);
     EXPECT(processed_bytes[0] == 0xF0);
     EXPECT(processed_bytes[1] == 0x9F);
@@ -33,15 +34,46 @@ TEST_CASE(test_euc_jp_encoder)
     auto test_string = "\U000000A5\U00003088\U000030C4"sv;
 
     Vector<u8> processed_bytes;
-    MUST(encoder.process(Utf8View(test_string), [&](u8 byte) {
-        return processed_bytes.try_append(byte);
-    }));
+    MUST(encoder.process(
+        Utf8View(test_string),
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
+        [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
     EXPECT(processed_bytes.size() == 5);
     EXPECT(processed_bytes[0] == 0x5C);
     EXPECT(processed_bytes[1] == 0xA4);
     EXPECT(processed_bytes[2] == 0xE8);
     EXPECT(processed_bytes[3] == 0xA5);
     EXPECT(processed_bytes[4] == 0xC4);
+}
+
+TEST_CASE(test_iso_2022_jp_encoder)
+{
+    TextCodec::ISO2022JPEncoder encoder;
+    // U+A5 Yen Sign
+    // U+3088 Hiragana Letter Yo
+    // U+30C4 Katakana Letter Tu
+    auto test_string = "\U000000A5\U00003088\U000030C4"sv;
+
+    Vector<u8> processed_bytes;
+    MUST(encoder.process(
+        Utf8View(test_string),
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
+        [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
+    EXPECT(processed_bytes.size() == 14);
+    EXPECT(processed_bytes[0] == 0x1B);
+    EXPECT(processed_bytes[1] == 0x28);
+    EXPECT(processed_bytes[2] == 0x4A);
+    EXPECT(processed_bytes[3] == 0x5C);
+    EXPECT(processed_bytes[4] == 0x1B);
+    EXPECT(processed_bytes[5] == 0x24);
+    EXPECT(processed_bytes[6] == 0x42);
+    EXPECT(processed_bytes[7] == 0x24);
+    EXPECT(processed_bytes[8] == 0x68);
+    EXPECT(processed_bytes[9] == 0x25);
+    EXPECT(processed_bytes[10] == 0x44);
+    EXPECT(processed_bytes[11] == 0x1B);
+    EXPECT(processed_bytes[12] == 0x28);
+    EXPECT(processed_bytes[13] == 0x42);
 }
 
 TEST_CASE(test_shift_jis_encoder)
@@ -53,9 +85,10 @@ TEST_CASE(test_shift_jis_encoder)
     auto test_string = "\U000000A5\U00003088\U000030C4"sv;
 
     Vector<u8> processed_bytes;
-    MUST(encoder.process(Utf8View(test_string), [&](u8 byte) {
-        return processed_bytes.try_append(byte);
-    }));
+    MUST(encoder.process(
+        Utf8View(test_string),
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
+        [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
     EXPECT(processed_bytes.size() == 5);
     EXPECT(processed_bytes[0] == 0x5C);
     EXPECT(processed_bytes[1] == 0x82);
@@ -72,9 +105,10 @@ TEST_CASE(test_euc_kr_encoder)
     auto test_string = "\U0000B29F\U00007C97"sv;
 
     Vector<u8> processed_bytes;
-    MUST(encoder.process(Utf8View(test_string), [&](u8 byte) {
-        return processed_bytes.try_append(byte);
-    }));
+    MUST(encoder.process(
+        Utf8View(test_string),
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
+        [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
     EXPECT(processed_bytes.size() == 4);
     EXPECT(processed_bytes[0] == 0x88);
     EXPECT(processed_bytes[1] == 0x6B);
@@ -90,9 +124,10 @@ TEST_CASE(test_big5_encoder)
     auto test_string = "\U000000A7\U000070D7"sv;
 
     Vector<u8> processed_bytes;
-    MUST(encoder.process(Utf8View(test_string), [&](u8 byte) {
-        return processed_bytes.try_append(byte);
-    }));
+    MUST(encoder.process(
+        Utf8View(test_string),
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
+        [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
     EXPECT(processed_bytes.size() == 4);
     EXPECT(processed_bytes[0] == 0xA1);
     EXPECT(processed_bytes[1] == 0xB1);
@@ -108,10 +143,10 @@ TEST_CASE(test_gb18030_encoder)
     auto test_string = "\U000020AC\U0000E4C5"sv;
 
     Vector<u8> processed_bytes;
-    MUST(encoder.process(Utf8View(test_string), [&](u8 byte) {
-        return processed_bytes.try_append(byte);
-    }));
-
+    MUST(encoder.process(
+        Utf8View(test_string),
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
+        [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
     EXPECT(processed_bytes.size() == 4);
     EXPECT(processed_bytes[0] == 0xA2);
     EXPECT(processed_bytes[1] == 0xE3);
