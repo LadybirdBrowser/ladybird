@@ -206,6 +206,40 @@ TraversalDecision InlinePaintable::hit_test(CSSPixelPoint position, HitTestType 
             auto hit_test_result = HitTestResult { const_cast<Paintable&>(fragment.paintable()), fragment.text_index_at(position_adjusted_by_scroll_offset.x()) };
             if (callback(hit_test_result) == TraversalDecision::Break)
                 return TraversalDecision::Break;
+        } else if (type == HitTestType::TextCursor) {
+            // If we reached this point, the position is not within the fragment. However, the fragment start or end might be
+            // the place to place the cursor. To determine the best place, we first find the closest fragment horizontally to
+            // the cursor. If we could not find one, then find for the closest vertically above the cursor.
+            // If we knew the direction of selection, we would look above if selecting upward.
+            if (fragment_absolute_rect.bottom() - 1 <= position_adjusted_by_scroll_offset.y()) { // fully below the fragment
+                HitTestResult hit_test_result {
+                    .paintable = const_cast<Paintable&>(fragment.paintable()),
+                    .index_in_node = fragment.start() + fragment.length(),
+                    .vertical_distance = position_adjusted_by_scroll_offset.y() - fragment_absolute_rect.bottom(),
+                };
+                if (callback(hit_test_result) == TraversalDecision::Break)
+                    return TraversalDecision::Break;
+            } else if (fragment_absolute_rect.top() <= position_adjusted_by_scroll_offset.y()) { // vertically within the fragment
+                if (position_adjusted_by_scroll_offset.x() < fragment_absolute_rect.left()) {
+                    HitTestResult hit_test_result {
+                        .paintable = const_cast<Paintable&>(fragment.paintable()),
+                        .index_in_node = fragment.start(),
+                        .vertical_distance = 0,
+                        .horizontal_distance = fragment_absolute_rect.left() - position_adjusted_by_scroll_offset.x(),
+                    };
+                    if (callback(hit_test_result) == TraversalDecision::Break)
+                        return TraversalDecision::Break;
+                } else if (position_adjusted_by_scroll_offset.x() > fragment_absolute_rect.right()) {
+                    HitTestResult hit_test_result {
+                        .paintable = const_cast<Paintable&>(fragment.paintable()),
+                        .index_in_node = fragment.start() + fragment.length(),
+                        .vertical_distance = 0,
+                        .horizontal_distance = position_adjusted_by_scroll_offset.x() - fragment_absolute_rect.right(),
+                    };
+                    if (callback(hit_test_result) == TraversalDecision::Break)
+                        return TraversalDecision::Break;
+                }
+            }
         }
     }
 

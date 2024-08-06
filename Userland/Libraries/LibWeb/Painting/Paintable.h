@@ -25,6 +25,8 @@ enum class PaintPhase {
 struct HitTestResult {
     JS::Handle<Paintable> paintable;
     int index_in_node { 0 };
+    Optional<CSSPixels> vertical_distance {};
+    Optional<CSSPixels> horizontal_distance {};
 
     enum InternalPosition {
         None,
