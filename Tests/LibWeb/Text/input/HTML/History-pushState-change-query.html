@@ -1,0 +1,24 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        try {
+            history.pushState({}, null, "?tweaked");
+            println("Good: changing the query via pushState()");
+        } catch (e) {
+            println("FAIL: Threw!");
+        }
+        try {
+            history.pushState({}, null, "other.html");
+            println("FAIL: Should have thrown!");
+        } catch (e) {
+            println("Good: threw on changing the filename via pushState()");
+        }
+        try {
+            history.pushState({}, null, "History-pushState-change-query.html");
+            println("Good: going back to the original filename");
+        } catch (e) {
+            println("FAIL: threw on going back to original filename");
+        }
+        done();
+    });
+</script>
