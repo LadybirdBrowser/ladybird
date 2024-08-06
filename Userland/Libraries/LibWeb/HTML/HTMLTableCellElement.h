@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -22,6 +23,8 @@ public:
 
     WebIDL::ExceptionOr<void> set_col_span(unsigned);
     WebIDL::ExceptionOr<void> set_row_span(unsigned);
+
+    WebIDL::Long cell_index() const;
 
     virtual Optional<ARIA::Role> default_role() const override;
 
