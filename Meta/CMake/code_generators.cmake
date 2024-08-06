@@ -23,6 +23,31 @@ function(embed_as_string_view name source_file output source_variable_name)
     add_dependencies(all_generated "generate_${name}")
 endfunction()
 
+function(generate_clang_module_map target_name)
+    cmake_parse_arguments(PARSE_ARGV 1 MODULE_MAP "" "DIRECTORY" "GENERATED_FILES")
+    if (NOT MODULE_MAP_DIRECTORY)
+        set(MODULE_MAP_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
+
+    set(module_map_file "${CMAKE_CURRENT_BINARY_DIR}/module/module.modulemap")
+    set(vfs_overlay_file "${CMAKE_CURRENT_BINARY_DIR}/vfs_overlay.yaml")
+
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    # FIXME: Make this depend on the public headers of the target
+    add_custom_command(
+        OUTPUT "${module_map_file}"
+        COMMAND "${Python3_EXECUTABLE}" "${SerenityOS_SOURCE_DIR}/Meta/generate_clang_module_map.py" "${MODULE_MAP_DIRECTORY}" --module-map "${module_map_file}" --vfs-map ${vfs_overlay_file} ${MODULE_MAP_GENERATED_FILES}
+        VERBATIM
+        DEPENDS "${SerenityOS_SOURCE_DIR}/Meta/generate_clang_module_map.py"
+    )
+
+    add_custom_target("generate_${target_name}_module_map" DEPENDS "${module_map_file}")
+    add_dependencies(all_generated "generate_${target_name}_module_map")
+    add_dependencies("${target_name}" "generate_${target_name}_module_map")
+
+    target_compile_options(${target_name} PUBLIC "SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Xcc -ivfsoverlay${vfs_overlay_file}>")
+endfunction()
+
 function(compile_ipc source output)
     if (NOT IS_ABSOLUTE ${source})
         set(source ${CMAKE_CURRENT_SOURCE_DIR}/${source})

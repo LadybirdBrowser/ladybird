@@ -53,7 +53,7 @@ runs:
         set -e
         sudo xcode-select --switch /Applications/Xcode_16.0.app
         brew update
-        brew install autoconf autoconf-archive automake bash ccache coreutils ffmpeg llvm@18 nasm ninja qt unzip wabt
+        brew install autoconf autoconf-archive automake bash ccache coreutils ffmpeg llvm@18 nasm ninja qt unzip wabt pyyaml
 
     - name: 'Install vcpkg'
       shell: bash
