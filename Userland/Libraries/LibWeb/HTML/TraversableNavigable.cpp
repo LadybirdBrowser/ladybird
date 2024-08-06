@@ -648,7 +648,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     }
 
     // 13. Let navigablesThatMustWaitBeforeHandlingSyncNavigation be an empty set.
-    Vector<JS::GCPtr<Navigable>> navigables_that_must_wait_before_handling_sync_navigation;
+    HashTable<JS::NonnullGCPtr<Navigable>> navigables_that_must_wait_before_handling_sync_navigation;
 
     // 14. While completedChangeJobs does not equal totalChangeJobs:
     while (!changing_navigable_continuations.is_empty()) {
@@ -701,7 +701,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
         auto script_history_index = history_object_length_and_index.script_history_index;
 
         // 8. Append navigable to navigablesThatMustWaitBeforeHandlingSyncNavigation.
-        navigables_that_must_wait_before_handling_sync_navigation.append(*navigable);
+        navigables_that_must_wait_before_handling_sync_navigation.set(*navigable);
 
         // 9. Let entriesForNavigationAPI be the result of getting session history entries for the navigation API given navigable and targetStep.
         auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*navigable, target_step);
