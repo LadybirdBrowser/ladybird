@@ -353,6 +353,8 @@ struct AddMask {
     RefPtr<DisplayList> display_list;
     Gfx::IntRect rect;
 
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+
     void translate_by(Gfx::IntPoint const& offset)
     {
         rect.translate_by(offset);
