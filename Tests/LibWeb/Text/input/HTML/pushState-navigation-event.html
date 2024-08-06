@@ -1,0 +1,14 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        let handler = function() {
+            println("PASS");
+
+            window.navigation.removeEventListener("navigate", handler);
+            history.pushState({}, null, "pushState-navigation-event.html");
+            done();
+        };
+        window.navigation.addEventListener("navigate", handler);
+        history.pushState({}, null, "?ok");
+    });
+</script>

@@ -8,8 +8,10 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/History.h>
+#include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HTML/Window.h>
 
 namespace Web::HTML {
 
@@ -206,11 +208,17 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value d
             return WebIDL::SecurityError::create(realm(), "Cannot pushState or replaceState to incompatible URL"_fly_string);
     }
 
-    // FIXME: 7. Let navigation be history's relevant global object's navigation API.
-    // FIXME: 8. Let continue be the result of firing a push/replace/reload navigate event at navigation
-    ///          with navigationType set to historyHandling, isSameDocument set to true, destinationURL set to newURL,
-    //           and classicHistoryAPIState set to serializedData.
-    // FIXME: 9. If continue is false, then return.
+    // 7. Let navigation be history's relevant global object's navigation API.
+    auto navigation = verify_cast<Window>(relevant_global_object(*this)).navigation();
+
+    // 8. Let continue be the result of firing a push/replace/reload navigate event at navigation
+    //    with navigationType set to historyHandling, isSameDocument set to true, destinationURL set to newURL,
+    //    and classicHistoryAPIState set to serializedData.
+    auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? Bindings::NavigationType::Push : Bindings::NavigationType::Replace;
+    auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, new_url, true, UserNavigationInvolvement::None, {}, {}, serialized_data);
+    // 9. If continue is false, then return.
+    if (!continue_)
+        return {};
 
     // 10. Run the URL and history update steps given document and newURL, with serializedData set to
     //     serializedData and historyHandling set to historyHandling.
