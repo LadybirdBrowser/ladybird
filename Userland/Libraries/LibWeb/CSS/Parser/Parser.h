@@ -60,6 +60,8 @@ public:
     Optional<SelectorList> parse_as_selector(SelectorParsingMode = SelectorParsingMode::Standard);
     Optional<SelectorList> parse_as_relative_selector(SelectorParsingMode = SelectorParsingMode::Standard);
 
+    Optional<Selector::PseudoElement> parse_as_pseudo_element_selector();
+
     Vector<NonnullRefPtr<MediaQuery>> parse_as_media_query_list();
     RefPtr<MediaQuery> parse_as_media_query();
 
@@ -412,6 +414,7 @@ CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingContext const&, Str
 CSS::ElementInlineCSSStyleDeclaration* parse_css_style_attribute(CSS::Parser::ParsingContext const&, StringView, DOM::Element&);
 RefPtr<CSS::StyleValue> parse_css_value(CSS::Parser::ParsingContext const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingContext const&, StringView);
+Optional<CSS::Selector::PseudoElement> parse_pseudo_element_selector(CSS::Parser::ParsingContext const&, StringView);
 CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingContext const&, StringView);
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingContext const&, StringView);
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingContext const&, StringView);
