@@ -124,6 +124,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> URLSearchParams::create(J
     return realm.heap().allocate<URLSearchParams>(realm, realm, move(list));
 }
 
+// https://url.spec.whatwg.org/#urlsearchparams-initialize
+WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> URLSearchParams::create(JS::Realm& realm, StringView init)
+{
+    // NOTE: We skip the other steps since we know it is a string at this point.
+    // b. Set query’s list to the result of parsing init.
+    return URLSearchParams::create(realm, MUST(url_decode(init)));
+}
+
 // https://url.spec.whatwg.org/#dom-urlsearchparams-urlsearchparams
 // https://url.spec.whatwg.org/#urlsearchparams-initialize
 WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> URLSearchParams::construct_impl(JS::Realm& realm, Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init)
@@ -179,7 +187,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> URLSearchParams::construc
     auto stripped_init = init_string_view.substring_view(init_string_view.starts_with('?'));
 
     // b. Set query’s list to the result of parsing init.
-    return URLSearchParams::create(realm, TRY_OR_THROW_OOM(vm, url_decode(stripped_init)));
+    return URLSearchParams::create(realm, stripped_init);
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-size

@@ -59,7 +59,7 @@ JS::NonnullGCPtr<DOMURL> DOMURL::initialize_a_url(JS::Realm& realm, URL::URL con
 
     // 2. Set url’s URL to urlRecord.
     // 3. Set url’s query object to a new URLSearchParams object.
-    auto query_object = MUST(URLSearchParams::construct_impl(realm, query));
+    auto query_object = MUST(URLSearchParams::create(realm, query));
 
     // 4. Initialize url’s query object with query.
     auto result_url = DOMURL::create(realm, url_record, move(query_object));

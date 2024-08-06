@@ -24,6 +24,7 @@ class URLSearchParams : public Bindings::PlatformObject {
     JS_DECLARE_ALLOCATOR(URLSearchParams);
 
 public:
+    static WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> create(JS::Realm&, StringView);
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> create(JS::Realm&, Vector<QueryParam> list);
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> construct_impl(JS::Realm&, Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init);
 

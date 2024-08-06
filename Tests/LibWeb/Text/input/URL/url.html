@@ -36,6 +36,7 @@
             { input: '  \t', base: 'http://ladybird.org/foo/bar' },
             { input: '/c:/foo/bar', base: 'file:///c:/baz/qux' },
             { input: '', base: 'file:///test?test#test' },
+            { input: '??a=b&c=d', base: 'http://example.org/foo/bar' },
         ];
 
         for (url of urls) {
