@@ -793,7 +793,7 @@ ErrorOr<String> Parser::percent_encode_after_encoding(StringView input, PercentE
 // NOTE: This parser assumes a UTF-8 encoding.
 URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Optional<URL> url, Optional<State> state_override)
 {
-    dbgln_if(URL_PARSER_DEBUG, "URL::Parser::parse: Parsing '{}'", raw_input);
+    dbgln_if(URL_PARSER_DEBUG, "URL::Parser::basic_parse: Parsing '{}'", raw_input);
     if (raw_input.is_empty())
         return base_url.has_value() ? *base_url : URL {};
 
@@ -1729,7 +1729,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
     }
 
     url->m_data->valid = true;
-    dbgln_if(URL_PARSER_DEBUG, "URL::Parser::parse: Parsed URL to be '{}'.", url->serialize());
+    dbgln_if(URL_PARSER_DEBUG, "URL::Parser::basic_parse: Parsed URL to be '{}'.", url->serialize());
 
     // 10. Return url.
     return url.release_value();
