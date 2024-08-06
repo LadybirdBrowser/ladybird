@@ -1444,10 +1444,6 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
                     // 1. Set url’s host to base’s host.
                     url->m_data->host = base_url->m_data->host;
 
-                    // FIXME: The spec does not seem to mention these steps.
-                    url->m_data->paths = base_url->m_data->paths;
-                    url->m_data->paths.remove(url->m_data->paths.size() - 1);
-
                     // 2. If the code point substring from pointer to the end of input does not start with a Windows drive letter and base’s path[0] is a normalized Windows drive letter, then append base’s path[0] to url’s path.
                     auto substring_from_pointer = input.substring_view(iterator - input.begin()).as_string();
                     if (!starts_with_windows_drive_letter(substring_from_pointer) && is_normalized_windows_drive_letter(base_url->m_data->paths[0]))
