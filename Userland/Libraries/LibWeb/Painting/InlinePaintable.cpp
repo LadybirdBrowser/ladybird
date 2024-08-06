@@ -278,6 +278,9 @@ void InlinePaintable::resolve_paint_properties()
             bottom_left_border_radius);
         fragment.set_border_radii_data(border_radii_data);
 
+        absolute_fragment_rect.translate_by(0, -box_model().padding.top);
+        absolute_fragment_rect.set_height(absolute_fragment_rect.height() + box_model().padding.top + box_model().padding.bottom);
+
         auto resolved_background = resolve_background_layers(computed_values.background_layers(), layout_node, computed_values.background_color(), absolute_fragment_rect, border_radii_data);
         fragment.set_resolved_background(move(resolved_background));
     }
