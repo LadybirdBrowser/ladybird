@@ -1,0 +1,2 @@
+new URL('file://xn--/p', undefined)
+error creating URL: 'TypeError: Invalid URL'
