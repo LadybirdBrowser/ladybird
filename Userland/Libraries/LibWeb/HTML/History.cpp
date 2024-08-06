@@ -148,9 +148,12 @@ bool can_have_its_url_rewritten(DOM::Document const& document, URL::URL const& t
 
     // 4. If targetURL's scheme is "file", and targetURL and documentURL differ in their path component,
     //    then return false. (Differences in query and fragment are allowed for file: URLs.)
+    // FIXME: There's a bug in the spec here. We should return true if the scheme is "file" and the path components don't differ.
+    //        Spec bug: https://github.com/whatwg/html/issues/10551
     bool path_components_match = target_url.paths() == document_url.paths();
-    if (target_url.scheme() == "file"sv && !path_components_match)
-        return false;
+    if (target_url.scheme() == "file"sv) {
+        return path_components_match;
+    }
 
     // 5. If targetURL and documentURL differ in their path component or query components, then return false.
     //    (Only differences in fragment are allowed for other types of URLs.)

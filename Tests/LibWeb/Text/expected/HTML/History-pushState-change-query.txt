@@ -1,0 +1,3 @@
+Good: changing the query via pushState()
+Good: threw on changing the filename via pushState()
+Good: going back to the original filename
