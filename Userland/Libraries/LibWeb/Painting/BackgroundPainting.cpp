@@ -56,10 +56,12 @@ static CSSPixelSize run_default_sizing_algorithm(
     return default_size;
 }
 
-static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Paintable const& paintable)
+static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Paintable const& paintable, CSSPixelPoint containing_block_location)
 {
     auto text_clip_paths = DisplayList::create();
     DisplayListRecorder display_list_recorder(*text_clip_paths);
+    // Remove containing block offset, so executing the display list will produce mask at (0, 0)
+    display_list_recorder.translate(-context.floored_device_point(containing_block_location).to_type<int>());
     auto add_text_clip_path = [&](PaintableFragment const& fragment) {
         auto glyph_run = fragment.glyph_run();
         if (!glyph_run || glyph_run->glyphs().is_empty())
@@ -116,12 +118,14 @@ static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_b
 // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
 void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, CSS::ImageRendering image_rendering, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
 {
-    RefPtr<DisplayList> text_clip;
-    if (resolved_background.needs_text_clip) {
-        text_clip = compute_text_clip_paths(context, *layout_node.paintable());
-    }
-
     auto& display_list_recorder = context.display_list_recorder();
+
+    DisplayListRecorderStateSaver state { display_list_recorder };
+    if (resolved_background.needs_text_clip) {
+        auto display_list = compute_text_clip_paths(context, *layout_node.paintable(), resolved_background.background_rect.location());
+        auto rect = context.rounded_device_rect(resolved_background.background_rect);
+        display_list_recorder.add_mask(move(display_list), rect.to_type<int>());
+    }
 
     BackgroundBox border_box {
         resolved_background.background_rect,
@@ -136,8 +140,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         color_box.radii.top_left.as_corner(context),
         color_box.radii.top_right.as_corner(context),
         color_box.radii.bottom_right.as_corner(context),
-        color_box.radii.bottom_left.as_corner(context),
-        text_clip);
+        color_box.radii.bottom_left.as_corner(context));
 
     struct {
         DevicePixels top { 0 };
@@ -332,17 +335,17 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
                     fill_rect = fill_rect->united(image_device_rect);
                 }
             });
-            display_list_recorder.fill_rect(fill_rect->to_type<int>(), color.value(), text_clip);
+            display_list_recorder.fill_rect(fill_rect->to_type<int>(), color.value());
         } else if (is<CSS::ImageStyleValue>(image) && repeat_x && repeat_y && !repeat_x_has_gap && !repeat_y_has_gap) {
             // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
             // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
             auto dest_rect = context.rounded_device_rect(image_rect);
             auto const* bitmap = static_cast<CSS::ImageStyleValue const&>(image).current_frame_bitmap(dest_rect);
             auto scaling_mode = to_gfx_scaling_mode(image_rendering, bitmap->rect(), dest_rect.to_type<int>());
-            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y }, text_clip);
+            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y });
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
-                image.paint(context, image_device_rect, image_rendering, text_clip);
+                image.paint(context, image_device_rect, image_rendering);
             });
         }
     }

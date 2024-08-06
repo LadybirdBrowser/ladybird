@@ -76,10 +76,9 @@ private:
     void paint_conic_gradient(PaintConicGradient const&) override;
     void draw_triangle_wave(DrawTriangleWave const&) override;
     void add_rounded_rect_clip(AddRoundedRectClip const&) override;
+    void add_mask(AddMask const&) override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
-
-    void apply_mask_painted_from(DisplayList&, Gfx::IntRect);
 
     class SkiaSurface;
     SkiaSurface& surface() const;

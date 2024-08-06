@@ -85,6 +85,7 @@ void DisplayListPlayer::execute(DisplayList& display_list)
         else HANDLE_COMMAND(DrawRect, draw_rect)
         else HANDLE_COMMAND(DrawTriangleWave, draw_triangle_wave)
         else HANDLE_COMMAND(AddRoundedRectClip, add_rounded_rect_clip)
+        else HANDLE_COMMAND(AddMask, add_mask)
         else VERIFY_NOT_REACHED();
         // clang-format on
     }

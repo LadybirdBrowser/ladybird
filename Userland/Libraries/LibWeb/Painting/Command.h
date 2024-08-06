@@ -50,7 +50,6 @@ struct DrawGlyphRun {
 struct FillRect {
     Gfx::IntRect rect;
     Color color;
-    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
@@ -71,7 +70,6 @@ struct DrawScaledImmutableBitmap {
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::IntRect src_rect;
     Gfx::ScalingMode scaling_mode;
-    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
@@ -88,7 +86,6 @@ struct DrawRepeatedImmutableBitmap {
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
-    RefPtr<DisplayList> text_clip;
 
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
 };
@@ -133,7 +130,6 @@ struct PopStackingContext { };
 struct PaintLinearGradient {
     Gfx::IntRect gradient_rect;
     LinearGradientData linear_gradient_data;
-    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return gradient_rect; }
 
@@ -174,7 +170,6 @@ struct FillRectWithRoundedCorners {
     Gfx::IntRect rect;
     Color color;
     CornerRadii corner_radii;
-    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
@@ -314,7 +309,6 @@ struct PaintRadialGradient {
     RadialGradientData radial_gradient_data;
     Gfx::IntPoint center;
     Gfx::IntSize size;
-    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 
@@ -325,7 +319,6 @@ struct PaintConicGradient {
     Gfx::IntRect rect;
     ConicGradientData conic_gradient_data;
     Gfx::IntPoint position;
-    RefPtr<DisplayList> text_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 
@@ -356,6 +349,16 @@ struct AddRoundedRectClip {
     void translate_by(Gfx::IntPoint const& offset) { border_rect.translate_by(offset); }
 };
 
+struct AddMask {
+    RefPtr<DisplayList> display_list;
+    Gfx::IntRect rect;
+
+    void translate_by(Gfx::IntPoint const& offset)
+    {
+        rect.translate_by(offset);
+    }
+};
+
 using Command = Variant<
     DrawGlyphRun,
     FillRect,
@@ -384,6 +387,7 @@ using Command = Variant<
     ApplyBackdropFilter,
     DrawRect,
     DrawTriangleWave,
-    AddRoundedRectClip>;
+    AddRoundedRectClip,
+    AddMask>;
 
 }

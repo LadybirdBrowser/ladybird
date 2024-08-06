@@ -25,7 +25,7 @@ public:
 
     virtual String to_string() const override;
 
-    void paint(PaintContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering, RefPtr<Painting::DisplayList> text_clip = {}) const override;
+    void paint(PaintContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 
     virtual bool equals(StyleValue const& other) const override;
 
