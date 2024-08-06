@@ -1,6 +1,0 @@
-module AK [system] {
-    requires cplusplus
-    umbrella "."
-
-    config_macros USING_AK_GLOBALLY
-}
