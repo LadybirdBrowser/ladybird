@@ -196,7 +196,9 @@ TEST_CASE(file_url_serialization)
 TEST_CASE(file_url_relative)
 {
     EXPECT_EQ(URL::URL("https://vkoskiv.com/index.html"sv).complete_url("/static/foo.js"sv).serialize(), "https://vkoskiv.com/static/foo.js");
-    EXPECT_EQ(URL::URL("file:///home/vkoskiv/test/index.html"sv).complete_url("/static/foo.js"sv).serialize(), "file:///home/vkoskiv/test/static/foo.js");
+    EXPECT_EQ(URL::URL("file:///home/vkoskiv/test/index.html"sv).complete_url("/static/foo.js"sv).serialize(), "file:///static/foo.js");
+    EXPECT_EQ(URL::URL("https://vkoskiv.com/index.html"sv).complete_url("static/foo.js"sv).serialize(), "https://vkoskiv.com/static/foo.js");
+    EXPECT_EQ(URL::URL("file:///home/vkoskiv/test/index.html"sv).complete_url("static/foo.js"sv).serialize(), "file:///home/vkoskiv/test/static/foo.js");
 }
 
 TEST_CASE(about_url)
