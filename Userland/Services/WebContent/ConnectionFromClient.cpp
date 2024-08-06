@@ -553,12 +553,9 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
                 return;
             }
 
-            // FIXME: Pseudo-elements only exist as Layout::Nodes, which don't have style information
-            //        in a format we can use. So, we run the StyleComputer again to get the specified
-            //        values, and have to ignore the computed values and custom properties.
-            auto pseudo_element_style = page->page().focused_navigable().active_document()->style_computer().compute_style(element, pseudo_element);
-            ByteString computed_values = serialize_json(pseudo_element_style);
-            ByteString resolved_values = "{}";
+            auto pseudo_element_style = element.pseudo_element_computed_css_values(pseudo_element.value());
+            ByteString computed_values = serialize_json(*pseudo_element_style);
+            ByteString resolved_values = serialize_json(*element.resolved_css_values(pseudo_element.value()));
             ByteString custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
             ByteString node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr());
 
