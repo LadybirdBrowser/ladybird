@@ -1,0 +1,21 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const urls = [
+            { input: 'file://xn--/p' },
+        ];
+
+        for (url of urls) {
+            if (url.base === undefined)
+                println(`new URL('${url.input}', ${url.base})`);
+            else
+                println(`new URL('${url.input}', '${url.base}')`);
+
+            try {
+                new URL(url.input, url.base);
+            } catch (e) {
+                println(`error creating URL: '${e}'`);
+            }
+        }
+    });
+</script>
