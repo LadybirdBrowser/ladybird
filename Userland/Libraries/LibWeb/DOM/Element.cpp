@@ -395,7 +395,7 @@ JS::GCPtr<Layout::Node> Element::create_layout_node(NonnullRefPtr<CSS::StyleProp
     return create_layout_node_for_display_type(document(), display, move(style), this);
 }
 
-JS::GCPtr<Layout::Node> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, NonnullRefPtr<CSS::StyleProperties> style, Element* element)
+JS::GCPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, NonnullRefPtr<CSS::StyleProperties> style, Element* element)
 {
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
         return document.heap().allocate_without_realm<Layout::Box>(document, element, move(style));
@@ -1125,7 +1125,7 @@ void Element::children_changed()
     set_needs_style_update(true);
 }
 
-void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type pseudo_element, JS::GCPtr<Layout::Node> pseudo_element_node)
+void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type pseudo_element, JS::GCPtr<Layout::NodeWithStyle> pseudo_element_node)
 {
     auto existing_pseudo_element = get_pseudo_element(pseudo_element);
     if (!existing_pseudo_element.has_value() && !pseudo_element_node)
@@ -1134,7 +1134,7 @@ void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector:
     ensure_pseudo_element(pseudo_element).layout_node = move(pseudo_element_node);
 }
 
-JS::GCPtr<Layout::Node> Element::get_pseudo_element_node(CSS::Selector::PseudoElement::Type pseudo_element) const
+JS::GCPtr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::Selector::PseudoElement::Type pseudo_element) const
 {
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
         return element_data->layout_node;
