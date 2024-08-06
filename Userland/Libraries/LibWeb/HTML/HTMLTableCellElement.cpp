@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +14,7 @@
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/HTML/Numbers.h>
@@ -148,6 +150,24 @@ unsigned int HTMLTableCellElement::row_span() const
 WebIDL::ExceptionOr<void> HTMLTableCellElement::set_row_span(unsigned int value)
 {
     return set_attribute(HTML::AttributeNames::rowspan, MUST(String::number(value)));
+}
+
+// https://html.spec.whatwg.org/multipage/tables.html#dom-tdth-cellindex
+WebIDL::Long HTMLTableCellElement::cell_index() const
+{
+    // The cellIndex IDL attribute must, if the element has a parent tr element, return the index of the cell's
+    // element in the parent element's cells collection. If there is no such parent element, then the attribute
+    // must return −1.
+    auto const* parent = first_ancestor_of_type<HTMLTableRowElement>();
+    if (!parent)
+        return -1;
+
+    auto rows = parent->cells()->collect_matching_elements();
+    for (size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i] == this)
+            return i;
+    }
+    return -1;
 }
 
 Optional<ARIA::Role> HTMLTableCellElement::default_role() const
