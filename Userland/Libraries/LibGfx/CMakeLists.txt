@@ -88,6 +88,11 @@ add_custom_target(generate_tiff_files_handler DEPENDS ${generated_sources})
 add_dependencies(all_generated generate_tiff_files_handler)
 add_dependencies(LibGfx generate_tiff_files_handler)
 
+set(generated_headers ${generated_sources})
+list(FILTER generated_headers INCLUDE REGEX "\\.h$")
+list(TRANSFORM generated_headers PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+generate_clang_module_map(LibGfx GENERATED_FILES ${generated_headers})
+
 if (ENABLE_INSTALL_HEADERS)
     list(TRANSFORM generated_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
     install(FILES ${generated_sources} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibGfx/ImageFormats")
@@ -113,11 +118,17 @@ if (ENABLE_SWIFT)
         Color.swift
     )
     target_compile_definitions(LibGfx PRIVATE LIBGFX_USE_SWIFT)
-    set_target_properties(LibGfx PROPERTIES Swift_MODULE_NAME "SwiftLibGfx" LINKER_LANGUAGE Swift)
+    set_target_properties(LibGfx PROPERTIES Swift_MODULE_NAME "SwiftLibGfx")
 
+    # FIXME: These should be pulled automatically from interface compile options for the target
+    set(VFS_OVERLAY_OPTIONS
+        -Xcc -ivfsoverlay${CMAKE_CURRENT_BINARY_DIR}/vfs_overlay.yaml
+        -Xcc -ivfsoverlay${Lagom_BINARY_DIR}/AK/vfs_overlay.yaml
+    )
     get_target_property(LIBGFX_NATIVE_DIRS LibGfx INCLUDE_DIRECTORIES)
     _swift_generate_cxx_header(LibGfx "LibGfx-Swift.h"
-            SEARCH_PATHS ${LIBGFX_NATIVE_DIRS}
+        SEARCH_PATHS ${LIBGFX_NATIVE_DIRS}
+        COMPILE_OPTIONS ${VFS_OVERLAY_OPTIONS}
     )
 
     # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26175
