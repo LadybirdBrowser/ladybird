@@ -53,7 +53,7 @@ public:
     void append_sync(Function<void()> steps, JS::GCPtr<Navigable> target_navigable);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
-    JS::GCPtr<SessionHistoryTraversalQueueEntry> first_synchronous_navigation_steps_with_target_navigable_not_contained_in(Vector<JS::GCPtr<Navigable>> const& list);
+    JS::GCPtr<SessionHistoryTraversalQueueEntry> first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<JS::NonnullGCPtr<Navigable>> const&);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

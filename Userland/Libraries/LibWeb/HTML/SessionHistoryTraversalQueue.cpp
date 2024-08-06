@@ -63,10 +63,10 @@ void SessionHistoryTraversalQueue::append_sync(Function<void()> steps, JS::GCPtr
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
-JS::GCPtr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueue::first_synchronous_navigation_steps_with_target_navigable_not_contained_in(Vector<JS::GCPtr<Navigable>> const& list)
+JS::GCPtr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueue::first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<JS::NonnullGCPtr<Navigable>> const& set)
 {
-    auto index = m_queue.find_first_index_if([&list](auto const& entry) -> bool {
-        return (entry->target_navigable() != nullptr) && !list.contains_slow(entry->target_navigable());
+    auto index = m_queue.find_first_index_if([&set](auto const& entry) -> bool {
+        return (entry->target_navigable() != nullptr) && !set.contains(*entry->target_navigable());
     });
     if (index.has_value())
         return m_queue.take(*index);
