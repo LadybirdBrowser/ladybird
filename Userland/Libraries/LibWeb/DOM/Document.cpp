@@ -3251,16 +3251,35 @@ void Document::destroy()
     // FIXME: 9. For each workletGlobalScope in document's worklet global scopes, terminate workletGlobalScope.
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-document-unsalvageable
+void Document::make_unsalvageable([[maybe_unused]] String reason)
+{
+    // FIXME: 1. Let details be a new not restored reason details whose reason is reason.
+    // FIXME: 2. Append details to document's bfcache blocking details.
+
+    // 3. Set document's salvageable state to false.
+    set_salvageable(false);
+}
+
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
 void Document::destroy_a_document_and_its_descendants(JS::GCPtr<JS::HeapFunction<void()>> after_all_destruction)
 {
-    // 1. Let childNavigables be document's child navigables.
+    // 1. If document is not fully active, then:
+    if (!is_fully_active()) {
+        // 1. Make document unsalvageable given document and "masked".
+        make_unsalvageable("masked"_string);
+
+        // FIXME: 2. If document's node navigable is a top-level traversable,
+        //           build not restored reasons for a top-level traversable and its descendants given document's node navigable.
+    }
+
+    // 2. Let childNavigables be document's child navigables.
     auto child_navigables = document_tree_child_navigables();
 
     // 3. Let numberDestroyed be 0.
     IGNORE_USE_IN_ESCAPING_LAMBDA size_t number_destroyed = 0;
 
-    // 3. For each childNavigable of childNavigable's, queue a global task on the navigation and traversal task source
+    // 4. For each childNavigable of childNavigable's, queue a global task on the navigation and traversal task source
     //    given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
         HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(), JS::create_heap_function(heap(), [&heap = heap(), &number_destroyed, child_navigable = child_navigable.ptr()] {
@@ -3272,12 +3291,12 @@ void Document::destroy_a_document_and_its_descendants(JS::GCPtr<JS::HeapFunction
         }));
     }
 
-    // 4. Wait until numberDestroyed equals childNavigable's size.
+    // 5. Wait until numberDestroyed equals childNavigable's size.
     HTML::main_thread_event_loop().spin_until([&] {
         return number_destroyed == child_navigables.size();
     });
 
-    // 4. Queue a global task on the navigation and traversal task source given document's relevant global object to perform the following steps:
+    // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to perform the following steps:
     HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), JS::create_heap_function(heap(), [after_all_destruction = move(after_all_destruction), this] {
         // 1. Destroy document.
         destroy();

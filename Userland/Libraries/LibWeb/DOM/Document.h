@@ -729,6 +729,8 @@ private:
 
     void reset_cursor_blink_cycle();
 
+    void make_unsalvageable(String reason);
+
     JS::NonnullGCPtr<Page> m_page;
     OwnPtr<CSS::StyleComputer> m_style_computer;
     JS::GCPtr<CSS::StyleSheetList> m_style_sheets;
