@@ -34,6 +34,7 @@
             { input: 'h\tt\nt\rp://h\to\ns\rt:9\t0\n0\r0/p\ta\nt\rh?q\tu\ne\rry#f\tr\na\rg' },
             { input: '  \t', base: 'http://ladybird.org/foo/bar' },
             { input: '/c:/foo/bar', base: 'file:///c:/baz/qux' },
+            { input: '', base: 'file:///test?test#test' },
         ];
 
         for (url of urls) {
