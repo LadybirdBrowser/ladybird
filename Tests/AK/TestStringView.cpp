@@ -40,6 +40,11 @@ TEST_CASE(compare_views)
     EXPECT_EQ(view1, "foo");
 }
 
+TEST_CASE(conforms_to_iterator_protocol)
+{
+    static_assert(std::random_access_iterator<StringView::ConstIterator>);
+}
+
 TEST_CASE(string_view_literal_operator)
 {
     StringView literal_view = "foo"sv;

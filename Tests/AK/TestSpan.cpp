@@ -16,6 +16,19 @@ TEST_CASE(constexpr_default_constructor_is_empty)
     static_assert(span.is_empty(), "Default constructed span should be empty.");
 }
 
+TEST_CASE(conforms_to_iterator_protocol)
+{
+    static_assert(std::random_access_iterator<Span<int>::Iterator>);
+    static_assert(std::random_access_iterator<Span<int>::ConstIterator>);
+    static_assert(std::random_access_iterator<Span<int const>::Iterator>);
+    static_assert(std::random_access_iterator<Span<int const>::ConstIterator>);
+
+    static_assert(std::random_access_iterator<Bytes::Iterator>);
+    static_assert(std::random_access_iterator<Bytes::ConstIterator>);
+    static_assert(std::random_access_iterator<ReadonlyBytes::Iterator>);
+    static_assert(std::random_access_iterator<ReadonlyBytes::ConstIterator>);
+}
+
 TEST_CASE(implicit_conversion_to_const)
 {
     constexpr Bytes bytes0;
