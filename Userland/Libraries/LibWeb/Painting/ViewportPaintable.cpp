@@ -61,13 +61,16 @@ void ViewportPaintable::build_stacking_context_tree()
 void ViewportPaintable::paint_all_phases(PaintContext& context)
 {
     build_stacking_context_tree_if_needed();
-    context.display_list_recorder().translate(-context.device_viewport_rect().location().to_type<int>());
     stacking_context()->paint(context);
 }
 
 void ViewportPaintable::assign_scroll_frames()
 {
-    int next_id = 0;
+    auto viewport_scroll_frame = adopt_ref(*new ScrollFrame());
+    viewport_scroll_frame->id = 0;
+    scroll_state.set(this, move(viewport_scroll_frame));
+
+    int next_id = 1;
     for_each_in_subtree_of_type<PaintableBox>([&](auto const& paintable_box) {
         if (paintable_box.has_scrollable_overflow()) {
             auto scroll_frame = adopt_ref(*new ScrollFrame());
@@ -78,7 +81,10 @@ void ViewportPaintable::assign_scroll_frames()
     });
 
     for_each_in_subtree([&](auto const& paintable) {
-        for (auto block = paintable.containing_block(); !block->is_viewport(); block = block->containing_block()) {
+        if (paintable.is_fixed_position()) {
+            return TraversalDecision::Continue;
+        }
+        for (auto block = paintable.containing_block(); block; block = block->containing_block()) {
             if (auto scroll_frame = scroll_state.get(block); scroll_frame.has_value()) {
                 if (paintable.is_paintable_box()) {
                     auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
@@ -87,10 +93,13 @@ void ViewportPaintable::assign_scroll_frames()
                     auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable);
                     const_cast<InlinePaintable&>(inline_paintable).set_enclosing_scroll_frame(scroll_frame.value());
                 }
-                break;
+                return TraversalDecision::Continue;
+            }
+            if (block->is_fixed_position()) {
+                return TraversalDecision::Continue;
             }
         }
-        return TraversalDecision::Continue;
+        VERIFY_NOT_REACHED();
     });
 }
 
@@ -137,9 +146,11 @@ void ViewportPaintable::refresh_scroll_state()
         auto const& paintable_box = *it.key;
         auto& scroll_frame = *it.value;
         CSSPixelPoint offset;
-        for (auto const* block = &paintable_box.layout_box(); !block->is_viewport(); block = block->containing_block()) {
+        for (auto const* block = &paintable_box.layout_box(); block; block = block->containing_block()) {
             auto const& block_paintable_box = *block->paintable_box();
             offset.translate_by(block_paintable_box.scroll_offset());
+            if (block->is_fixed_position())
+                break;
         }
         scroll_frame.offset = -offset;
     }

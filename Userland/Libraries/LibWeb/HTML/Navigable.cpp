@@ -2012,8 +2012,11 @@ void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
         scroll_offset_did_change();
         set_needs_display();
 
-        if (auto document = active_document())
+        if (auto document = active_document()) {
+            document->set_needs_to_refresh_scroll_state(true);
+            document->set_needs_to_refresh_clip_state(true);
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
+        }
     }
 
     // Schedule the HTML event loop to ensure that a `resize` event gets fired.

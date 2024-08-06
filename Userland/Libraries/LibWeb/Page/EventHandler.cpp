@@ -166,8 +166,7 @@ bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPo
     if (!m_navigable->active_document()->is_fully_active())
         return false;
 
-    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
-    auto position = viewport_position.translated(scroll_offset);
+    auto position = viewport_position;
 
     m_navigable->active_document()->update_layout();
 
@@ -232,8 +231,7 @@ bool EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint
     if (!m_navigable->active_document()->is_fully_active())
         return false;
 
-    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
-    auto position = viewport_position.translated(scroll_offset);
+    auto position = viewport_position;
 
     m_navigable->active_document()->update_layout();
 
@@ -359,8 +357,7 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
     if (!m_navigable->active_document()->is_fully_active())
         return false;
 
-    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
-    auto position = viewport_position.translated(scroll_offset);
+    auto position = viewport_position;
 
     m_navigable->active_document()->update_layout();
 
@@ -467,8 +464,7 @@ bool EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSPixelPoi
     if (!m_navigable->active_document()->is_fully_active())
         return false;
 
-    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
-    auto position = viewport_position.translated(scroll_offset);
+    auto position = viewport_position;
 
     m_navigable->active_document()->update_layout();
 

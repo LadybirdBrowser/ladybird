@@ -294,9 +294,6 @@ Optional<CSSPixelRect> PaintableBox::scroll_thumb_rect(ScrollDirection direction
         };
     }
 
-    if (is_viewport())
-        thumb_rect.translate_by(this->scroll_offset());
-
     return thumb_rect;
 }
 
@@ -751,14 +748,10 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mousedown(Badge<EventHan
     auto vertical_scroll_thumb_rect = scroll_thumb_rect(ScrollDirection::Vertical);
     auto horizontal_scroll_thumb_rect = scroll_thumb_rect(ScrollDirection::Horizontal);
     if (vertical_scroll_thumb_rect.has_value() && vertical_scroll_thumb_rect.value().contains(position)) {
-        if (is_viewport())
-            position.translate_by(-scroll_offset());
         m_last_mouse_tracking_position = position;
         m_scroll_thumb_dragging_direction = ScrollDirection::Vertical;
         const_cast<HTML::Navigable&>(*navigable()).event_handler().set_mouse_event_tracking_paintable(this);
     } else if (horizontal_scroll_thumb_rect.has_value() && horizontal_scroll_thumb_rect.value().contains(position)) {
-        if (is_viewport())
-            position.translate_by(-scroll_offset());
         m_last_mouse_tracking_position = position;
         m_scroll_thumb_dragging_direction = ScrollDirection::Horizontal;
         const_cast<HTML::Navigable&>(*navigable()).event_handler().set_mouse_event_tracking_paintable(this);
@@ -779,9 +772,6 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mouseup(Badge<EventHandl
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
     if (m_last_mouse_tracking_position.has_value()) {
-        if (is_viewport())
-            position.translate_by(-scroll_offset());
-
         Gfx::Point<double> scroll_delta;
         if (m_scroll_thumb_dragging_direction == ScrollDirection::Horizontal)
             scroll_delta.set_x((position.x() - m_last_mouse_tracking_position->x()).to_double());
