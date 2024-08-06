@@ -33,6 +33,7 @@
             { input: 'http://user%20name:pa%40ss%3Aword@www.ladybird.org' },
             { input: 'h\tt\nt\rp://h\to\ns\rt:9\t0\n0\r0/p\ta\nt\rh?q\tu\ne\rry#f\tr\na\rg' },
             { input: '  \t', base: 'http://ladybird.org/foo/bar' },
+            { input: '/c:/foo/bar', base: 'file:///c:/baz/qux' },
         ];
 
         for (url of urls) {
