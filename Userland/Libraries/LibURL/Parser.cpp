@@ -583,7 +583,8 @@ static bool ends_in_a_number_checker(StringView input)
         return true;
 
     // 5. If parsing last as an IPv4 number does not return failure, then return true.
-    if (parse_ipv4_number(last).has_value())
+    // NOTE: This is equivalent to checking that last is "0X" or "0x", followed by zero or more ASCII hex digits.
+    if (last.starts_with("0x"sv, CaseSensitivity::CaseInsensitive) && all_of(last.substring_view(2), is_ascii_hex_digit))
         return true;
 
     // 6. Return false.
