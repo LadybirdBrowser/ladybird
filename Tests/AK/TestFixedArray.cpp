@@ -27,6 +27,14 @@ TEST_CASE(ints)
     EXPECT_EQ(ints[2], 2);
 }
 
+TEST_CASE(conforms_to_iterator_procotol)
+{
+    static_assert(std::random_access_iterator<FixedArray<int>::Iterator>);
+    static_assert(std::random_access_iterator<FixedArray<int>::ConstIterator>);
+    static_assert(std::random_access_iterator<FixedArray<int const>::Iterator>);
+    static_assert(std::random_access_iterator<FixedArray<int const>::ConstIterator>);
+}
+
 TEST_CASE(swap)
 {
     FixedArray<int> first = FixedArray<int>::must_create_but_fixme_should_propagate_errors(4);
