@@ -1136,9 +1136,51 @@ Variant<JS::Handle<DOM::Event>, JS::Value> Window::event() const
 // https://w3c.github.io/csswg-drafts/cssom/#dom-window-getcomputedstyle
 JS::NonnullGCPtr<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& element, Optional<String> const& pseudo_element) const
 {
-    // FIXME: Make this fully spec compliant.
-    (void)pseudo_element;
-    return heap().allocate<CSS::ResolvedCSSStyleDeclaration>(realm(), element);
+    // 1. Let doc be elt’s node document.
+
+    // 2. Let obj be elt.
+    Optional<CSS::Selector::PseudoElement::Type> obj_pseudo;
+
+    // 3. If pseudoElt is provided, is not the empty string, and starts with a colon, then:
+    if (pseudo_element.has_value() && pseudo_element.value().starts_with(':')) {
+        // 1. Parse pseudoElt as a <pseudo-element-selector>, and let type be the result.
+        auto type = parse_pseudo_element_selector(CSS::Parser::ParsingContext(associated_document()), pseudo_element.value());
+
+        // 2. If type is failure, or is an ::slotted() or ::part() pseudo-element, let obj be null.
+        // FIXME: We can't pass a null element to ResolvedCSSStyleDeclaration
+        if (!type.has_value()) {
+        }
+        // 3. Otherwise let obj be the given pseudo-element of elt.
+        else {
+            // TODO: Keep the function arguments of the pseudo-element if there are any.
+            obj_pseudo = type.value().type();
+        }
+    }
+
+    // AD-HOC: Just return a ResolvedCSSStyleDeclaration because that's what we have for now.
+    // FIXME: Implement CSSStyleProperties, and then follow the rest of these steps instead.
+    return heap().allocate<CSS::ResolvedCSSStyleDeclaration>(realm(), element, obj_pseudo);
+
+    // 4. Let decls be an empty list of CSS declarations.
+
+    // 5. If obj is not null, and elt is connected, part of the flat tree, and its shadow-including root
+    //    has a browsing context which either doesn’t have a browsing context container, or whose browsing
+    //    context container is being rendered, set decls to a list of all longhand properties that are
+    //    supported CSS properties, in lexicographical order, with the value being the resolved value
+    //    computed for obj using the style rules associated with doc. Additionally, append to decls all
+    //    the custom properties whose computed value for obj is not the guaranteed-invalid value.
+
+    // 6. Return a live CSSStyleProperties object with the following properties:
+    //    computed flag
+    //        Set.
+    //    readonly flag
+    //        Set.
+    //    declarations
+    //        decls.
+    //    parent CSS rule
+    //        Null.
+    //    owner node
+    //        obj.
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-window-matchmedia

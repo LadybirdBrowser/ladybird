@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
+#include <LibWeb/CSS/Selector.h>
 
 namespace Web::CSS {
 
@@ -15,7 +16,7 @@ class ResolvedCSSStyleDeclaration final : public CSSStyleDeclaration {
     JS_DECLARE_ALLOCATOR(ResolvedCSSStyleDeclaration);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ResolvedCSSStyleDeclaration> create(DOM::Element&);
+    [[nodiscard]] static JS::NonnullGCPtr<ResolvedCSSStyleDeclaration> create(DOM::Element&, Optional<Selector::PseudoElement::Type> = {});
 
     virtual ~ResolvedCSSStyleDeclaration() override = default;
 
@@ -32,13 +33,14 @@ public:
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
 private:
-    explicit ResolvedCSSStyleDeclaration(DOM::Element&);
+    explicit ResolvedCSSStyleDeclaration(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
     RefPtr<StyleValue const> style_value_for_property(Layout::NodeWithStyle const&, PropertyID) const;
 
     JS::NonnullGCPtr<DOM::Element> m_element;
+    Optional<CSS::Selector::PseudoElement::Type> m_pseudo_element;
 };
 
 }

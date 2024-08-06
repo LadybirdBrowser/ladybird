@@ -46,14 +46,15 @@ namespace Web::CSS {
 
 JS_DEFINE_ALLOCATOR(ResolvedCSSStyleDeclaration);
 
-JS::NonnullGCPtr<ResolvedCSSStyleDeclaration> ResolvedCSSStyleDeclaration::create(DOM::Element& element)
+JS::NonnullGCPtr<ResolvedCSSStyleDeclaration> ResolvedCSSStyleDeclaration::create(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element)
 {
-    return element.realm().heap().allocate<ResolvedCSSStyleDeclaration>(element.realm(), element);
+    return element.realm().heap().allocate<ResolvedCSSStyleDeclaration>(element.realm(), element, move(pseudo_element));
 }
 
-ResolvedCSSStyleDeclaration::ResolvedCSSStyleDeclaration(DOM::Element& element)
+ResolvedCSSStyleDeclaration::ResolvedCSSStyleDeclaration(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
     : CSSStyleDeclaration(element.realm())
     , m_element(element)
+    , m_pseudo_element(move(pseudo_element))
 {
 }
 
@@ -208,6 +209,12 @@ RefPtr<StyleValue const> ResolvedCSSStyleDeclaration::style_value_for_property(L
         return {};
     };
 
+    auto get_computed_value = [this](PropertyID property_id) {
+        if (m_pseudo_element.has_value())
+            return m_element->pseudo_element_computed_css_values(m_pseudo_element.value())->property(property_id);
+        return m_element->computed_css_values()->property(property_id);
+    };
+
     // A limited number of properties have special rules for producing their "resolved value".
     // We also have to manually construct shorthands from their longhands here.
     // Everything else uses the computed value.
@@ -255,7 +262,7 @@ RefPtr<StyleValue const> ResolvedCSSStyleDeclaration::style_value_for_property(L
         // -> line-height
         //    The resolved value is normal if the computed value is normal, or the used value otherwise.
     case PropertyID::LineHeight: {
-        auto line_height = static_cast<DOM::Element const&>(*layout_node.dom_node()).computed_css_values()->property(property_id);
+        auto line_height = get_computed_value(property_id);
         if (line_height->is_identifier() && line_height->to_identifier() == ValueID::Normal)
             return line_height;
         return LengthStyleValue::create(Length::make_px(layout_node.computed_values().line_height()));
@@ -515,7 +522,7 @@ RefPtr<StyleValue const> ResolvedCSSStyleDeclaration::style_value_for_property(L
         return nullptr;
     default:
         if (!property_is_shorthand(property_id))
-            return static_cast<DOM::Element const&>(*layout_node.dom_node()).computed_css_values()->property(property_id);
+            return get_computed_value(property_id);
 
         // Handle shorthands in a generic way
         auto longhand_ids = longhands_for_shorthand(property_id);
@@ -534,18 +541,27 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
     if (!m_element->is_connected())
         return {};
 
+    auto get_layout_node = [&]() {
+        if (m_pseudo_element.has_value())
+            return m_element->get_pseudo_element_node(m_pseudo_element.value());
+        return m_element->layout_node();
+    };
+
+    Layout::NodeWithStyle* layout_node = get_layout_node();
+
     // FIXME: Be smarter about updating layout if there's no layout node.
     //        We may legitimately have no layout node if we're not visible, but this protects against situations
     //        where we're requesting the computed style before layout has happened.
-    if (!m_element->layout_node() || property_affects_layout(property_id)) {
+    if (!layout_node || property_affects_layout(property_id)) {
         const_cast<DOM::Document&>(m_element->document()).update_layout();
+        layout_node = get_layout_node();
     } else {
         // FIXME: If we had a way to update style for a single element, this would be a good place to use it.
         const_cast<DOM::Document&>(m_element->document()).update_style();
     }
 
-    if (!m_element->layout_node()) {
-        auto style = m_element->document().style_computer().compute_style(const_cast<DOM::Element&>(*m_element));
+    if (!layout_node) {
+        auto style = m_element->document().style_computer().compute_style(const_cast<DOM::Element&>(*m_element), m_pseudo_element);
 
         // FIXME: This is a stopgap until we implement shorthand -> longhand conversion.
         auto value = style->maybe_null_property(property_id);
@@ -559,8 +575,7 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
         };
     }
 
-    auto& layout_node = *m_element->layout_node();
-    auto value = style_value_for_property(layout_node, property_id);
+    auto value = style_value_for_property(*layout_node, property_id);
     if (!value)
         return {};
     return StyleProperty {
