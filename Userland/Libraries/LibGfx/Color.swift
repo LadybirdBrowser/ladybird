@@ -5,7 +5,7 @@
  */
 
 import AK
-import LibGfx.Color
+import LibGfx
 
 // FIXME: Do this without extending String with an index operation that was explicitly deleted :^)
 extension Swift.String {
