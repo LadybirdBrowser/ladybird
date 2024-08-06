@@ -186,7 +186,7 @@ public:
     CSS::StyleProperties* computed_css_values() { return m_computed_css_values.ptr(); }
     CSS::StyleProperties const* computed_css_values() const { return m_computed_css_values.ptr(); }
     void set_computed_css_values(RefPtr<CSS::StyleProperties>);
-    NonnullRefPtr<CSS::StyleProperties> resolved_css_values();
+    NonnullRefPtr<CSS::StyleProperties> resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> = {});
 
     void set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type, RefPtr<CSS::StyleProperties>);
     RefPtr<CSS::StyleProperties> pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type);

@@ -607,9 +607,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     return invalidation;
 }
 
-NonnullRefPtr<CSS::StyleProperties> Element::resolved_css_values()
+NonnullRefPtr<CSS::StyleProperties> Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
 {
-    auto element_computed_style = CSS::ResolvedCSSStyleDeclaration::create(*this);
+    auto element_computed_style = CSS::ResolvedCSSStyleDeclaration::create(*this, type);
     auto properties = CSS::StyleProperties::create();
 
     for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
