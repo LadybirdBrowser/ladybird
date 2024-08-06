@@ -1141,6 +1141,17 @@ JS::GCPtr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::Selector:
     return nullptr;
 }
 
+bool Element::has_pseudo_elements() const
+{
+    if (m_pseudo_element_data) {
+        for (auto& pseudo_element : *m_pseudo_element_data) {
+            if (pseudo_element.layout_node)
+                return true;
+        }
+    }
+    return false;
+}
+
 void Element::clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>)
 {
     if (m_pseudo_element_data) {
