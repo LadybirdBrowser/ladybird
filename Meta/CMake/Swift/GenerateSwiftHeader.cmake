@@ -23,7 +23,7 @@ function(_swift_generate_cxx_header target header)
     return()
   endif()
 
-  cmake_parse_arguments(ARG "" "" "SEARCH_PATHS;MODULE_NAME;CXX_STD_VERSION" ${ARGN})
+  cmake_parse_arguments(PARSE_ARGV 2 "ARG" "" "MODULE_NAME;CXX_STD_VERSION" "SEARCH_PATHS")
 
   if(NOT ARG_MODULE_NAME)
     set(target_module_name $<TARGET_PROPERTY:${target},Swift_MODULE_NAME>)
@@ -70,6 +70,9 @@ function(_swift_generate_cxx_header target header)
       ${_SwiftSources}
       ${SDK_FLAGS}
       ${CXX_STD_FLAGS}
+      -Xcc -Wno-unqualified-std-cast-call
+      -Xcc -Wno-user-defined-literals
+      -Xcc -Wno-unknown-warning-option
       -module-name "${ARG_MODULE_NAME}"
       -cxx-interoperability-mode=default
       -emit-clang-header-path ${header_path}
