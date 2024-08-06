@@ -69,6 +69,7 @@ private:
     virtual void draw_rect(DrawRect const&) = 0;
     virtual void draw_triangle_wave(DrawTriangleWave const&) = 0;
     virtual void add_rounded_rect_clip(AddRoundedRectClip const&) = 0;
+    virtual void add_mask(AddMask const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 };
 
