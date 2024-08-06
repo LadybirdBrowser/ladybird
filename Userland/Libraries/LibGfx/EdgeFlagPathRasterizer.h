@@ -8,11 +8,13 @@
 
 #include <AK/Array.h>
 #include <AK/GenericShorthands.h>
+#include <AK/IntegralMath.h>
 #include <AK/Vector.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Path.h>
+#include <LibGfx/WindingRule.h>
 
 namespace Gfx {
 
