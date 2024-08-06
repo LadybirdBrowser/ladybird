@@ -1280,6 +1280,9 @@ void DisplayListPlayerSkia::add_rounded_rect_clip(AddRoundedRectClip const& comm
 void DisplayListPlayerSkia::add_mask(AddMask const& command)
 {
     auto const& rect = command.rect;
+    if (rect.is_empty())
+        return;
+
     auto mask_surface = m_surface->make_surface(rect.width(), rect.height());
 
     auto previous_surface = move(m_surface);
