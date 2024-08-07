@@ -332,6 +332,11 @@ static void emit_includes_for_all_imports(auto& interface, auto& generator, bool
 template<typename ParameterType>
 static void generate_to_string(SourceGenerator& scoped_generator, ParameterType const& parameter, bool variadic, bool optional, Optional<ByteString> const& optional_default_value)
 {
+    if (parameter.type->name() == "USVString")
+        scoped_generator.set("to_string", "to_well_formed_string"sv);
+    else
+        scoped_generator.set("to_string", "to_string"sv);
+
     if (variadic) {
         scoped_generator.append(R"~~~(
     Vector<String> @cpp_name@;
@@ -340,7 +345,7 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
         @cpp_name@.ensure_capacity(vm.argument_count() - @js_suffix@);
 
         for (size_t i = @js_suffix@; i < vm.argument_count(); ++i) {
-            auto to_string_result = TRY(vm.argument(i).to_string(vm));
+            auto to_string_result = TRY(vm.argument(i).@to_string@(vm));
             @cpp_name@.unchecked_append(move(to_string_result));
         }
     }
@@ -350,14 +355,14 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
             scoped_generator.append(R"~~~(
     @string_type@ @cpp_name@;
     if (!@legacy_null_to_empty_string@ || !@js_name@@js_suffix@.is_null()) {
-        @cpp_name@ = TRY(@js_name@@js_suffix@.to_string(vm));
+        @cpp_name@ = TRY(@js_name@@js_suffix@.@to_string@(vm));
     }
 )~~~");
         } else {
             scoped_generator.append(R"~~~(
     Optional<@string_type@> @cpp_name@;
     if (!@js_name@@js_suffix@.is_nullish())
-        @cpp_name@ = TRY(@js_name@@js_suffix@.to_string(vm));
+        @cpp_name@ = TRY(@js_name@@js_suffix@.@to_string@(vm));
 )~~~");
         }
     } else {
@@ -375,7 +380,7 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
         scoped_generator.append(R"~~~(
     if (!@js_name@@js_suffix@.is_undefined()) {
         if (!@legacy_null_to_empty_string@ || !@js_name@@js_suffix@.is_null())
-            @cpp_name@ = TRY(@js_name@@js_suffix@.to_string(vm));
+            @cpp_name@ = TRY(@js_name@@js_suffix@.@to_string@(vm));
     })~~~");
         if (!may_be_null) {
             scoped_generator.append(R"~~~( else {
