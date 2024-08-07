@@ -15,9 +15,13 @@
 #include <AK/Error.h>
 #include <AK/Noncopyable.h>
 
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+#    include <mach/mach.h>
+#else
 extern "C" {
-#include <mach/mach.h>
+#    include <mach/mach.h>
 }
+#endif
 
 namespace Core {
 
