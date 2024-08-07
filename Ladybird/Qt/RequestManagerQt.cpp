@@ -105,12 +105,12 @@ RequestManagerQt::Request::Request(QNetworkReply& reply)
 
 RequestManagerQt::Request::~Request() = default;
 
-void RequestManagerQt::Request::set_buffered_request_finished_callback(Protocol::Request::BufferedRequestFinished on_buffered_request_finished)
+void RequestManagerQt::Request::set_buffered_request_finished_callback(Requests::Request::BufferedRequestFinished on_buffered_request_finished)
 {
     this->on_buffered_request_finish = move(on_buffered_request_finished);
 }
 
-void RequestManagerQt::Request::set_unbuffered_request_callbacks(Protocol::Request::HeadersReceived, Protocol::Request::DataReceived, Protocol::Request::RequestFinished on_request_finished)
+void RequestManagerQt::Request::set_unbuffered_request_callbacks(Requests::Request::HeadersReceived, Requests::Request::DataReceived, Requests::Request::RequestFinished on_request_finished)
 {
     dbgln("Unbuffered requests are not yet supported with Qt networking");
     on_request_finished(false, 0);

@@ -19,7 +19,7 @@ set_target_properties(webworker PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
 target_include_directories(webworker PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
 target_include_directories(webworker PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
 target_include_directories(webworker PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
-target_link_libraries(webworker PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibProtocol LibWeb LibWebView LibUnicode LibImageDecoderClient LibMain LibURL)
+target_link_libraries(webworker PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibRequests LibWeb LibWebView LibUnicode LibImageDecoderClient LibMain LibURL)
 
 if (HAS_FONTCONFIG)
     target_link_libraries(webworker PRIVATE Fontconfig::Fontconfig)

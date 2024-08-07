@@ -11,7 +11,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/WebSockets/WebSocket.h>
 
-namespace Protocol {
+namespace Requests {
 class Request;
 class RequestClient;
 }
@@ -22,23 +22,23 @@ class RequestServerRequestAdapter
     : public Web::ResourceLoaderConnectorRequest
     , public Weakable<RequestServerRequestAdapter> {
 public:
-    static ErrorOr<NonnullRefPtr<RequestServerRequestAdapter>> try_create(NonnullRefPtr<Protocol::Request>);
+    static ErrorOr<NonnullRefPtr<RequestServerRequestAdapter>> try_create(NonnullRefPtr<Requests::Request>);
     virtual ~RequestServerRequestAdapter() override;
 
-    virtual void set_buffered_request_finished_callback(Protocol::Request::BufferedRequestFinished) override;
-    virtual void set_unbuffered_request_callbacks(Protocol::Request::HeadersReceived, Protocol::Request::DataReceived, Protocol::Request::RequestFinished) override;
+    virtual void set_buffered_request_finished_callback(Requests::Request::BufferedRequestFinished) override;
+    virtual void set_unbuffered_request_callbacks(Requests::Request::HeadersReceived, Requests::Request::DataReceived, Requests::Request::RequestFinished) override;
     virtual bool stop() override;
 
 private:
-    RequestServerRequestAdapter(NonnullRefPtr<Protocol::Request>);
-    NonnullRefPtr<Protocol::Request> m_request;
+    RequestServerRequestAdapter(NonnullRefPtr<Requests::Request>);
+    NonnullRefPtr<Requests::Request> m_request;
 };
 
 class RequestServerAdapter : public Web::ResourceLoaderConnector {
 public:
-    explicit RequestServerAdapter(NonnullRefPtr<Protocol::RequestClient> protocol_client);
+    explicit RequestServerAdapter(NonnullRefPtr<Requests::RequestClient> protocol_client);
 
-    static ErrorOr<NonnullRefPtr<RequestServerAdapter>> try_create(NonnullRefPtr<Protocol::RequestClient>);
+    static ErrorOr<NonnullRefPtr<RequestServerAdapter>> try_create(NonnullRefPtr<Requests::RequestClient>);
     static ErrorOr<NonnullRefPtr<RequestServerAdapter>> try_create();
     virtual ~RequestServerAdapter() override;
 
@@ -49,7 +49,7 @@ public:
     virtual RefPtr<Web::WebSockets::WebSocketClientSocket> websocket_connect(const URL::URL&, ByteString const& origin, Vector<ByteString> const& protocols) override;
 
 private:
-    RefPtr<Protocol::RequestClient> m_protocol_client;
+    RefPtr<Requests::RequestClient> m_protocol_client;
 };
 
 }

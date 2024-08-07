@@ -390,8 +390,8 @@ set(lagom_standard_libraries
     IPC
     JS
     Line
-    Protocol
     Regex
+    Requests
     RIFF
     Syntax
     TextCodec

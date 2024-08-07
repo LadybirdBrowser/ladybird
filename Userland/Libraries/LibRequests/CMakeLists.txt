@@ -9,5 +9,5 @@ set(GENERATED_SOURCES
     ../../Services/RequestServer/RequestServerEndpoint.h
 )
 
-serenity_lib(LibProtocol protocol)
-target_link_libraries(LibProtocol PRIVATE LibCore LibIPC)
+serenity_lib(LibRequests requests)
+target_link_libraries(LibRequests PRIVATE LibCore LibIPC)

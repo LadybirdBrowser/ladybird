@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibProtocol/Request.h>
-#include <LibProtocol/RequestClient.h>
+#include <LibRequests/Request.h>
+#include <LibRequests/RequestClient.h>
 
-namespace Protocol {
+namespace Requests {
 
 RequestClient::RequestClient(NonnullOwnPtr<Core::LocalSocket> socket)
     : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(socket))

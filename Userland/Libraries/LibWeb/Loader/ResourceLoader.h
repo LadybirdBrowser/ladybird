@@ -13,7 +13,7 @@
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Proxy.h>
 #include <LibJS/SafeFunction.h>
-#include <LibProtocol/Request.h>
+#include <LibRequests/Request.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Loader/Resource.h>
 #include <LibWeb/Loader/UserAgent.h>
@@ -36,11 +36,11 @@ public:
 
     // Configure the request such that the entirety of the response data is buffered. The callback receives that data and
     // the response headers all at once. Using this method is mutually exclusive with `set_unbuffered_data_received_callback`.
-    virtual void set_buffered_request_finished_callback(Protocol::Request::BufferedRequestFinished) = 0;
+    virtual void set_buffered_request_finished_callback(Requests::Request::BufferedRequestFinished) = 0;
 
     // Configure the request such that the response data is provided unbuffered as it is received. Using this method is
     // mutually exclusive with `set_buffered_request_finished_callback`.
-    virtual void set_unbuffered_request_callbacks(Protocol::Request::HeadersReceived, Protocol::Request::DataReceived, Protocol::Request::RequestFinished) = 0;
+    virtual void set_unbuffered_request_callbacks(Requests::Request::HeadersReceived, Requests::Request::DataReceived, Requests::Request::RequestFinished) = 0;
 
     virtual bool stop() = 0;
 

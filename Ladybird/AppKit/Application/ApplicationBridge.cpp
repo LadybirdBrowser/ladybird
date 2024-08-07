@@ -9,16 +9,17 @@
 #include <Ladybird/HelperProcess.h>
 #include <Ladybird/Utilities.h>
 #include <LibImageDecoderClient/Client.h>
-#include <LibProtocol/RequestClient.h>
+#include <LibRequests/RequestClient.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace Ladybird {
 
+// FIXME: LibProtocol is renamed to LibRequests, remove this workaround
 // Unfortunately, the Protocol namespace conflicts hard with a @Protocol interface defined by Objective-C. And the #define
 // trick we use for e.g. Duration does not work for Protocol. So here, we make sure that any use of the Protocol namespace
 // is limited to .cpp files (i.e. not .h files that an Objective-C file can include).
 struct ApplicationBridgeImpl {
-    RefPtr<Protocol::RequestClient> request_server_client;
+    RefPtr<Requests::RequestClient> request_server_client;
     RefPtr<ImageDecoderClient::Client> image_decoder_client;
 };
 

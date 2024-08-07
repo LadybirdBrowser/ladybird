@@ -43,8 +43,8 @@ private:
 
         virtual ~Request() override;
 
-        virtual void set_buffered_request_finished_callback(Protocol::Request::BufferedRequestFinished) override;
-        virtual void set_unbuffered_request_callbacks(Protocol::Request::HeadersReceived, Protocol::Request::DataReceived, Protocol::Request::RequestFinished) override;
+        virtual void set_buffered_request_finished_callback(Requests::Request::BufferedRequestFinished) override;
+        virtual void set_unbuffered_request_callbacks(Requests::Request::HeadersReceived, Requests::Request::DataReceived, Requests::Request::RequestFinished) override;
         virtual bool stop() override { return false; }
 
         void did_finish();
@@ -56,7 +56,7 @@ private:
 
         QNetworkReply& m_reply;
 
-        Protocol::Request::BufferedRequestFinished on_buffered_request_finish;
+        Requests::Request::BufferedRequestFinished on_buffered_request_finish;
     };
 
     HashMap<QNetworkReply*, NonnullRefPtr<Request>> m_pending;

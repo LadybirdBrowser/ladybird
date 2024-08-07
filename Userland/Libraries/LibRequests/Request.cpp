@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibProtocol/Request.h>
-#include <LibProtocol/RequestClient.h>
+#include <LibRequests/Request.h>
+#include <LibRequests/RequestClient.h>
 
-namespace Protocol {
+namespace Requests {
 
 Request::Request(RequestClient& client, i32 request_id)
     : m_client(client)
@@ -29,7 +29,7 @@ bool Request::stop()
     return m_client->stop_request({}, *this);
 }
 
-void Request::set_request_fd(Badge<Protocol::RequestClient>, int fd)
+void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
 {
     VERIFY(m_fd == -1);
     m_fd = fd;

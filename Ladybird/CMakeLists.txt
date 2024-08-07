@@ -90,7 +90,7 @@ else()
     set(LADYBIRD_TARGET ladybird PRIVATE)
 endif()
 
-target_link_libraries(${LADYBIRD_TARGET} AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibProtocol LibURL)
+target_link_libraries(${LADYBIRD_TARGET} AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibRequests LibURL)
 
 target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Userland/)
@@ -118,7 +118,7 @@ add_executable(headless-browser
 
 target_include_directories(headless-browser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(headless-browser PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
-target_link_libraries(headless-browser PRIVATE AK LibCore LibWeb LibWebView LibWebSocket LibCrypto LibFileSystem LibHTTP LibImageDecoderClient LibJS LibGfx LibMain LibTLS LibIPC LibDiff LibProtocol LibURL)
+target_link_libraries(headless-browser PRIVATE AK LibCore LibWeb LibWebView LibWebSocket LibCrypto LibFileSystem LibHTTP LibImageDecoderClient LibJS LibGfx LibMain LibTLS LibIPC LibDiff LibRequests LibURL)
 
 add_custom_target(run
     COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}

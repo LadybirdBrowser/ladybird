@@ -4,18 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibProtocol/RequestClient.h>
-#include <LibProtocol/WebSocket.h>
+#include <LibRequests/RequestClient.h>
+#include <LibRequests/WebSocket.h>
 #include <LibWebView/WebSocketClientAdapter.h>
 
 namespace WebView {
 
-RefPtr<WebSocketClientSocketAdapter> WebSocketClientSocketAdapter::create(NonnullRefPtr<Protocol::WebSocket> websocket)
+RefPtr<WebSocketClientSocketAdapter> WebSocketClientSocketAdapter::create(NonnullRefPtr<Requests::WebSocket> websocket)
 {
     return adopt_ref(*new WebSocketClientSocketAdapter(move(websocket)));
 }
 
-WebSocketClientSocketAdapter::WebSocketClientSocketAdapter(NonnullRefPtr<Protocol::WebSocket> websocket)
+WebSocketClientSocketAdapter::WebSocketClientSocketAdapter(NonnullRefPtr<Requests::WebSocket> websocket)
     : m_websocket(move(websocket))
 {
     m_websocket->on_open = [weak_this = make_weak_ptr()] {
@@ -37,13 +37,13 @@ WebSocketClientSocketAdapter::WebSocketClientSocketAdapter(NonnullRefPtr<Protoco
         if (auto strong_this = weak_this.strong_ref()) {
             if (strong_this->on_error) {
                 switch (error) {
-                case Protocol::WebSocket::Error::CouldNotEstablishConnection:
+                case Requests::WebSocket::Error::CouldNotEstablishConnection:
                     strong_this->on_error(Web::WebSockets::WebSocketClientSocket::Error::CouldNotEstablishConnection);
                     return;
-                case Protocol::WebSocket::Error::ConnectionUpgradeFailed:
+                case Requests::WebSocket::Error::ConnectionUpgradeFailed:
                     strong_this->on_error(Web::WebSockets::WebSocketClientSocket::Error::ConnectionUpgradeFailed);
                     return;
-                case Protocol::WebSocket::Error::ServerClosedSocket:
+                case Requests::WebSocket::Error::ServerClosedSocket:
                     strong_this->on_error(Web::WebSockets::WebSocketClientSocket::Error::ServerClosedSocket);
                     return;
                 }
@@ -60,13 +60,13 @@ WebSocketClientSocketAdapter::WebSocketClientSocketAdapter(NonnullRefPtr<Protoco
         if (auto strong_this = weak_this.strong_ref()) {
             if (strong_this->on_certificate_requested) {
                 auto certificate_and_key = weak_this->on_certificate_requested();
-                return Protocol::WebSocket::CertificateAndKey {
+                return Requests::WebSocket::CertificateAndKey {
                     .certificate = move(certificate_and_key.certificate),
                     .key = move(certificate_and_key.key),
                 };
             }
         }
-        return Protocol::WebSocket::CertificateAndKey {};
+        return Requests::WebSocket::CertificateAndKey {};
     };
 }
 
@@ -75,13 +75,13 @@ WebSocketClientSocketAdapter::~WebSocketClientSocketAdapter() = default;
 Web::WebSockets::WebSocket::ReadyState WebSocketClientSocketAdapter::ready_state()
 {
     switch (m_websocket->ready_state()) {
-    case Protocol::WebSocket::ReadyState::Connecting:
+    case Requests::WebSocket::ReadyState::Connecting:
         return Web::WebSockets::WebSocket::ReadyState::Connecting;
-    case Protocol::WebSocket::ReadyState::Open:
+    case Requests::WebSocket::ReadyState::Open:
         return Web::WebSockets::WebSocket::ReadyState::Open;
-    case Protocol::WebSocket::ReadyState::Closing:
+    case Requests::WebSocket::ReadyState::Closing:
         return Web::WebSockets::WebSocket::ReadyState::Closing;
-    case Protocol::WebSocket::ReadyState::Closed:
+    case Requests::WebSocket::ReadyState::Closed:
         return Web::WebSockets::WebSocket::ReadyState::Closed;
     }
     VERIFY_NOT_REACHED();

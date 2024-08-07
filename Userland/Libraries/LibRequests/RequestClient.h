@@ -9,12 +9,12 @@
 #include <AK/HashMap.h>
 #include <LibHTTP/HeaderMap.h>
 #include <LibIPC/ConnectionToServer.h>
-#include <LibProtocol/WebSocket.h>
+#include <LibRequests/WebSocket.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/RequestClientEndpoint.h>
 #include <RequestServer/RequestServerEndpoint.h>
 
-namespace Protocol {
+namespace Requests {
 
 class Request;
 
