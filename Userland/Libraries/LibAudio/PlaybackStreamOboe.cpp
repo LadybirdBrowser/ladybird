@@ -17,7 +17,7 @@ namespace Audio {
 
 class OboeCallback : public oboe::AudioStreamDataCallback {
 public:
-    virtual oboe::DataCallbackResult onAudioReady(oboe::AudioStream* oboeStream, void* audioData, int32_t numFrames)
+    virtual oboe::DataCallbackResult onAudioReady(oboe::AudioStream* oboeStream, void* audioData, int32_t numFrames) override
     {
         Bytes output_buffer {
             reinterpret_cast<u8*>(audioData),
