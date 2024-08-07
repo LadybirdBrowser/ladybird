@@ -91,7 +91,6 @@ add_dependencies(LibGfx generate_tiff_files_handler)
 set(generated_headers ${generated_sources})
 list(FILTER generated_headers INCLUDE REGEX "\\.h$")
 list(TRANSFORM generated_headers PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
-generate_clang_module_map(LibGfx GENERATED_FILES ${generated_headers})
 
 if (ENABLE_INSTALL_HEADERS)
     list(TRANSFORM generated_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
@@ -112,6 +111,8 @@ target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PkgConfig::Jxl 
             WebP::webpdemux WebP::libwebpmux)
 
 if (ENABLE_SWIFT)
+    generate_clang_module_map(LibGfx GENERATED_FILES ${generated_headers})
+
     target_compile_features(LibGfx PUBLIC cxx_std_23)
 
     target_sources(LibGfx PRIVATE
