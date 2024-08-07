@@ -453,6 +453,11 @@ ThrowCompletionOr<Utf16String> Value::to_utf16_string(VM& vm) const
     return Utf16String::create(utf8_string.bytes_as_string_view());
 }
 
+ThrowCompletionOr<String> Value::to_well_formed_string(VM& vm) const
+{
+    return ::JS::to_well_formed_string(TRY(to_utf16_string(vm)));
+}
+
 // 7.1.2 ToBoolean ( argument ), https://tc39.es/ecma262/#sec-toboolean
 bool Value::to_boolean_slow_case() const
 {
