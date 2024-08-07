@@ -169,13 +169,13 @@ public:
         if constexpr (IsSame<T, Reference>) {
             switch (m_value.high()) {
             case 0:
-                return Reference { Reference::Func(bit_cast<FunctionAddress>(m_value.low())) };
+                return Reference { Reference::Func { bit_cast<FunctionAddress>(m_value.low()) } };
             case 1:
-                return Reference { Reference::Extern(bit_cast<ExternAddress>(m_value.low())) };
+                return Reference { Reference::Extern { bit_cast<ExternAddress>(m_value.low()) } };
             case 2:
-                return Reference { Reference::Null(ValueType(ValueType::Kind::FunctionReference)) };
+                return Reference { Reference::Null { ValueType(ValueType::Kind::FunctionReference) } };
             case 3:
-                return Reference { Reference::Null(ValueType(ValueType::Kind::ExternReference)) };
+                return Reference { Reference::Null { ValueType(ValueType::Kind::ExternReference) } };
             default:
                 VERIFY_NOT_REACHED();
             }
