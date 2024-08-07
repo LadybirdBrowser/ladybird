@@ -23,7 +23,7 @@ public:
     void set_enclosing_clip_frame(RefPtr<ClipFrame> clip_frame) { m_enclosing_clip_frame = clip_frame; }
 
     [[nodiscard]] Optional<int> scroll_frame_id() const;
-    [[nodiscard]] Optional<CSSPixelPoint> enclosing_scroll_frame_offset() const;
+    [[nodiscard]] CSSPixelPoint enclosing_scroll_frame_offset() const;
     [[nodiscard]] Optional<CSSPixelRect> clip_rect() const;
     [[nodiscard]] Span<BorderRadiiClip const> border_radii_clips() const;
 

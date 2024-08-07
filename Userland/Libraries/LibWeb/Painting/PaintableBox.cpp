@@ -161,9 +161,7 @@ CSSPixelRect PaintableBox::compute_absolute_rect() const
 CSSPixelRect PaintableBox::compute_absolute_padding_rect_with_scroll_offset_applied() const
 {
     auto rect = absolute_rect();
-    auto scroll_offset = this->enclosing_scroll_frame_offset();
-    if (scroll_offset.has_value())
-        rect.translate_by(scroll_offset.value());
+    rect.translate_by(enclosing_scroll_frame_offset());
 
     CSSPixelRect padding_rect;
     padding_rect.set_x(rect.x() - box_model().padding.left);
@@ -700,8 +698,7 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         context.display_list_recorder().save();
         // FIXME: Handle overflow-x and overflow-y being different values.
         auto clip_box_with_enclosing_scroll_frame_offset = clip_box;
-        if (enclosing_scroll_frame_offset().has_value())
-            clip_box_with_enclosing_scroll_frame_offset.translate_by(enclosing_scroll_frame_offset().value());
+        clip_box_with_enclosing_scroll_frame_offset.translate_by(enclosing_scroll_frame_offset());
         context.display_list_recorder().add_clip_rect(context.rounded_device_rect(clip_box_with_enclosing_scroll_frame_offset).to_type<int>());
 
         auto border_radii = normalized_border_radii_data(ShrinkRadiiForBorders::Yes);
@@ -850,8 +847,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
         return TraversalDecision::Continue;
 
     auto position_adjusted_by_scroll_offset = position;
-    if (enclosing_scroll_frame_offset().has_value())
-        position_adjusted_by_scroll_offset.translate_by(-enclosing_scroll_frame_offset().value());
+    position_adjusted_by_scroll_offset.translate_by(-enclosing_scroll_frame_offset());
 
     if (!is_visible())
         return TraversalDecision::Continue;
@@ -904,8 +900,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
         return TraversalDecision::Continue;
 
     auto position_adjusted_by_scroll_offset = position;
-    if (enclosing_scroll_frame_offset().has_value())
-        position_adjusted_by_scroll_offset.translate_by(-enclosing_scroll_frame_offset().value());
+    position_adjusted_by_scroll_offset.translate_by(-enclosing_scroll_frame_offset());
 
     if (!layout_box().children_are_inline() || m_fragments.is_empty()) {
         return PaintableBox::hit_test(position, type, callback);

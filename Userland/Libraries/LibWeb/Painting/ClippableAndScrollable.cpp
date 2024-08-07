@@ -15,7 +15,7 @@ Optional<int> ClippableAndScrollable::scroll_frame_id() const
     return {};
 }
 
-Optional<CSSPixelPoint> ClippableAndScrollable::enclosing_scroll_frame_offset() const
+CSSPixelPoint ClippableAndScrollable::enclosing_scroll_frame_offset() const
 {
     if (m_enclosing_scroll_frame)
         return m_enclosing_scroll_frame->offset;
