@@ -8,6 +8,7 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DecodedImageData.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::SVG {
 
