@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/Fetch/BodyInit.h>
-#include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
