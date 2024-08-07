@@ -10,6 +10,9 @@
 #include <jni.h>
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_TimerExecutorService_00024Timer_nativeRun(JNIEnv*, jobject /* thiz */, jlong, jlong);
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_TimerExecutorService_00024Timer_nativeRun(JNIEnv*, jobject /* thiz */, jlong native_data, jlong id)
 {
     static Core::EventLoop s_event_loop; // Here to exist for this thread
