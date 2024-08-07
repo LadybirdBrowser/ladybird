@@ -30,6 +30,10 @@ static OwnPtr<Core::EventLoop> s_main_event_loop;
 static jobject s_java_instance;
 static jmethodID s_schedule_event_loop_method;
 
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv*, jobject, jstring, jstring, jobject);
+
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv* env, jobject thiz, jstring resource_dir, jstring tag_name, jobject timer_service)
 {
@@ -79,12 +83,18 @@ Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv* env, jobjec
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_LadybirdActivity_execMainEventLoop(JNIEnv*, jobject /* thiz */);
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_LadybirdActivity_execMainEventLoop(JNIEnv*, jobject /* thiz */)
 {
     if (s_main_event_loop) {
         s_main_event_loop->pump(Core::EventLoop::WaitMode::PollForEvents);
     }
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_LadybirdActivity_disposeNativeCode(JNIEnv*, jobject /* thiz */);
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_LadybirdActivity_disposeNativeCode(JNIEnv* env, jobject /* thiz */)
