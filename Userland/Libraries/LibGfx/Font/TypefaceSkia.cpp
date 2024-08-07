@@ -14,6 +14,8 @@
 
 #ifdef AK_OS_MACOS
 #    include <ports/SkFontMgr_mac_ct.h>
+#elifdef AK_OS_ANDROID
+#    include <ports/SkFontMgr_android.h>
 #else
 #    include <ports/SkFontMgr_fontconfig.h>
 #endif
@@ -27,6 +29,8 @@ RefPtr<SkTypeface> const& Typeface::skia_typeface() const
     if (!s_font_manager) {
 #ifdef AK_OS_MACOS
         s_font_manager = SkFontMgr_New_CoreText(nullptr);
+#elifdef AK_OS_ANDROID
+        s_font_manager = SkFontMgr_New_Android(nullptr);
 #else
         s_font_manager = SkFontMgr_New_FontConfig(nullptr);
 #endif
