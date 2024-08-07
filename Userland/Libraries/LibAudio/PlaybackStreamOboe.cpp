@@ -49,9 +49,9 @@ public:
         : m_data_request_callback(move(data_request_callback))
     {
     }
-    Duration last_sample_time() const
+    AK::Duration last_sample_time() const
     {
-        return Duration::from_seconds(m_last_sample_time.load());
+        return AK::Duration::from_seconds(m_last_sample_time.load());
     }
     void set_volume(float volume)
     {
@@ -115,9 +115,9 @@ void PlaybackStreamOboe::set_underrun_callback(Function<void()>)
     // FIXME: Implement this.
 }
 
-NonnullRefPtr<Core::ThreadedPromise<Duration>> PlaybackStreamOboe::resume()
+NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamOboe::resume()
 {
-    auto promise = Core::ThreadedPromise<Duration>::create();
+    auto promise = Core::ThreadedPromise<AK::Duration>::create();
     auto time = MUST(total_time_played());
     m_storage->stream()->start();
     promise->resolve(move(time));
@@ -141,7 +141,7 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamOboe::discard_buffer_an
     return promise;
 }
 
-ErrorOr<Duration> PlaybackStreamOboe::total_time_played()
+ErrorOr<AK::Duration> PlaybackStreamOboe::total_time_played()
 {
     return m_storage->oboe_callback()->last_sample_time();
 }
