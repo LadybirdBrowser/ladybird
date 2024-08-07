@@ -1994,7 +1994,7 @@ void Navigable::set_viewport_size(CSSPixelSize size)
         document->invalidate_style();
         document->set_needs_layout();
     }
-    m_needs_repaint = true;
+    set_needs_display();
 
     if (auto document = active_document()) {
         document->inform_all_viewport_clients_about_the_current_viewport_rect();
@@ -2009,7 +2009,7 @@ void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
     if (m_viewport_scroll_offset != new_position) {
         m_viewport_scroll_offset = new_position;
         scroll_offset_did_change();
-        m_needs_repaint = true;
+        set_needs_display();
 
         if (auto document = active_document())
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
