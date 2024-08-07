@@ -43,7 +43,7 @@
 #include <LibGfx/SystemTheme.h>
 #include <LibIPC/File.h>
 #include <LibImageDecoderClient/Client.h>
-#include <LibProtocol/RequestClient.h>
+#include <LibRequests/RequestClient.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
@@ -65,7 +65,7 @@ class HeadlessWebContentView final : public WebView::ViewImplementation {
 public:
     static ErrorOr<NonnullOwnPtr<HeadlessWebContentView>> create(Core::AnonymousBuffer theme, Gfx::IntSize const& window_size, StringView resources_folder)
     {
-        RefPtr<Protocol::RequestClient> request_client;
+        RefPtr<Requests::RequestClient> request_client;
         RefPtr<ImageDecoderClient::Client> image_decoder_client;
 
         auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
@@ -145,7 +145,7 @@ public:
     }
 
 private:
-    HeadlessWebContentView(NonnullRefPtr<WebView::Database> database, NonnullOwnPtr<WebView::CookieJar> cookie_jar, RefPtr<ImageDecoderClient::Client> image_decoder_client, RefPtr<Protocol::RequestClient> request_client)
+    HeadlessWebContentView(NonnullRefPtr<WebView::Database> database, NonnullOwnPtr<WebView::CookieJar> cookie_jar, RefPtr<ImageDecoderClient::Client> image_decoder_client, RefPtr<Requests::RequestClient> request_client)
         : m_database(move(database))
         , m_cookie_jar(move(cookie_jar))
         , m_request_client(move(request_client))
@@ -178,7 +178,7 @@ private:
 
     NonnullRefPtr<WebView::Database> m_database;
     NonnullOwnPtr<WebView::CookieJar> m_cookie_jar;
-    RefPtr<Protocol::RequestClient> m_request_client;
+    RefPtr<Requests::RequestClient> m_request_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
 };
 

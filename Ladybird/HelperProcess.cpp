@@ -130,7 +130,7 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
     return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, arguments);
 }
 
-ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, RefPtr<Protocol::RequestClient> request_client)
+ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, RefPtr<Requests::RequestClient> request_client)
 {
     Vector<ByteString> arguments;
     if (request_client) {
@@ -144,7 +144,7 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Rea
     return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments));
 }
 
-ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(ReadonlySpan<ByteString> candidate_request_server_paths, StringView serenity_resource_root)
+ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process(ReadonlySpan<ByteString> candidate_request_server_paths, StringView serenity_resource_root)
 {
     Vector<ByteString> arguments;
 
@@ -161,10 +161,10 @@ ErrorOr<NonnullRefPtr<Protocol::RequestClient>> launch_request_server_process(Re
         arguments.append(server.value());
     }
 
-    return launch_server_process<Protocol::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments));
+    return launch_server_process<Requests::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments));
 }
 
-ErrorOr<IPC::File> connect_new_request_server_client(Protocol::RequestClient& client)
+ErrorOr<IPC::File> connect_new_request_server_client(Requests::RequestClient& client)
 {
     auto new_socket = client.send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>();
     if (!new_socket)

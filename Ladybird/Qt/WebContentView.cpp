@@ -131,7 +131,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     };
 
     on_request_worker_agent = [&]() {
-        RefPtr<Protocol::RequestClient> request_server_client {};
+        RefPtr<Requests::RequestClient> request_server_client {};
         if (WebView::Application::web_content_options().use_lagom_networking == WebView::UseLagomNetworking::Yes)
             request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
 

@@ -5,18 +5,18 @@
  */
 
 #include "WebSocketClientAdapter.h"
-#include <LibProtocol/Request.h>
-#include <LibProtocol/RequestClient.h>
+#include <LibRequests/Request.h>
+#include <LibRequests/RequestClient.h>
 #include <LibWebView/RequestServerAdapter.h>
 
 namespace WebView {
 
-ErrorOr<NonnullRefPtr<RequestServerRequestAdapter>> RequestServerRequestAdapter::try_create(NonnullRefPtr<Protocol::Request> request)
+ErrorOr<NonnullRefPtr<RequestServerRequestAdapter>> RequestServerRequestAdapter::try_create(NonnullRefPtr<Requests::Request> request)
 {
     return adopt_nonnull_ref_or_enomem(new (nothrow) RequestServerRequestAdapter(move(request)));
 }
 
-RequestServerRequestAdapter::RequestServerRequestAdapter(NonnullRefPtr<Protocol::Request> request)
+RequestServerRequestAdapter::RequestServerRequestAdapter(NonnullRefPtr<Requests::Request> request)
     : m_request(request)
 {
     request->on_progress = [weak_this = make_weak_ptr()](Optional<u64> total_size, u64 downloaded_size) {
@@ -29,25 +29,25 @@ RequestServerRequestAdapter::RequestServerRequestAdapter(NonnullRefPtr<Protocol:
         if (auto strong_this = weak_this.strong_ref()) {
             if (strong_this->on_certificate_requested) {
                 auto certificate_and_key = strong_this->on_certificate_requested();
-                return Protocol::Request::CertificateAndKey {
+                return Requests::Request::CertificateAndKey {
                     .certificate = move(certificate_and_key.certificate),
                     .key = move(certificate_and_key.key),
                 };
             }
         }
 
-        return Protocol::Request::CertificateAndKey {};
+        return Requests::Request::CertificateAndKey {};
     };
 }
 
 RequestServerRequestAdapter::~RequestServerRequestAdapter() = default;
 
-void RequestServerRequestAdapter::set_buffered_request_finished_callback(Protocol::Request::BufferedRequestFinished on_buffered_request_finished)
+void RequestServerRequestAdapter::set_buffered_request_finished_callback(Requests::Request::BufferedRequestFinished on_buffered_request_finished)
 {
     m_request->set_buffered_request_finished_callback(move(on_buffered_request_finished));
 }
 
-void RequestServerRequestAdapter::set_unbuffered_request_callbacks(Protocol::Request::HeadersReceived on_headers_received, Protocol::Request::DataReceived on_data_received, Protocol::Request::RequestFinished on_finished)
+void RequestServerRequestAdapter::set_unbuffered_request_callbacks(Requests::Request::HeadersReceived on_headers_received, Requests::Request::DataReceived on_data_received, Requests::Request::RequestFinished on_finished)
 {
     m_request->set_unbuffered_request_callbacks(move(on_headers_received), move(on_data_received), move(on_finished));
 }
@@ -57,18 +57,18 @@ bool RequestServerRequestAdapter::stop()
     return m_request->stop();
 }
 
-ErrorOr<NonnullRefPtr<RequestServerAdapter>> RequestServerAdapter::try_create(NonnullRefPtr<Protocol::RequestClient> protocol_client)
+ErrorOr<NonnullRefPtr<RequestServerAdapter>> RequestServerAdapter::try_create(NonnullRefPtr<Requests::RequestClient> protocol_client)
 {
     return try_make_ref_counted<RequestServerAdapter>(move(protocol_client));
 }
 
 ErrorOr<NonnullRefPtr<RequestServerAdapter>> RequestServerAdapter::try_create()
 {
-    auto protocol_client = TRY(Protocol::RequestClient::try_create());
+    auto protocol_client = TRY(Requests::RequestClient::try_create());
     return try_make_ref_counted<RequestServerAdapter>(move(protocol_client));
 }
 
-RequestServerAdapter::RequestServerAdapter(NonnullRefPtr<Protocol::RequestClient> protocol_client)
+RequestServerAdapter::RequestServerAdapter(NonnullRefPtr<Requests::RequestClient> protocol_client)
     : m_protocol_client(protocol_client)
 {
 }

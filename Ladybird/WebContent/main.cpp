@@ -18,7 +18,7 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibMain/Main.h>
-#include <LibProtocol/RequestClient.h>
+#include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Loader/ContentFilter.h>
@@ -248,7 +248,7 @@ ErrorOr<void> initialize_lagom_networking(int request_server_socket)
     auto socket = TRY(Core::LocalSocket::adopt_fd(request_server_socket));
     TRY(socket->set_blocking(true));
 
-    auto new_client = TRY(try_make_ref_counted<Protocol::RequestClient>(move(socket)));
+    auto new_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(socket)));
 
     Web::ResourceLoader::initialize(TRY(WebView::RequestServerAdapter::try_create(move(new_client))));
     return {};

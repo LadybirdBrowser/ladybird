@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibProtocol/RequestClient.h>
-#include <LibProtocol/WebSocket.h>
+#include <LibRequests/RequestClient.h>
+#include <LibRequests/WebSocket.h>
 
-namespace Protocol {
+namespace Requests {
 
 WebSocket::WebSocket(RequestClient& client, i32 connection_id)
     : m_client(client)

@@ -15,7 +15,7 @@
 #include <LibCore/Notifier.h>
 #include <LibIPC/Forward.h>
 
-namespace Protocol {
+namespace Requests {
 
 class RequestClient;
 

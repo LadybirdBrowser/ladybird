@@ -773,7 +773,7 @@ set(GENERATED_SOURCES
 
 serenity_lib(LibWeb web)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibWasm LibXML LibIDL LibURL LibTLS ${SKIA_LIBRARIES})
+target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests ${SKIA_LIBRARIES})
 
 generate_js_bindings(LibWeb)
 

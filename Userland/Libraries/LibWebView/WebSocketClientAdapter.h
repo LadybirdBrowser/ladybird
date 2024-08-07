@@ -11,7 +11,7 @@
 #include <AK/Weakable.h>
 #include <LibWeb/WebSockets/WebSocket.h>
 
-namespace Protocol {
+namespace Requests {
 class WebSocket;
 class RequestClient;
 };
@@ -22,7 +22,7 @@ class WebSocketClientSocketAdapter
     : public Web::WebSockets::WebSocketClientSocket
     , public Weakable<WebSocketClientSocketAdapter> {
 public:
-    static RefPtr<WebSocketClientSocketAdapter> create(NonnullRefPtr<Protocol::WebSocket>);
+    static RefPtr<WebSocketClientSocketAdapter> create(NonnullRefPtr<Requests::WebSocket>);
     virtual ~WebSocketClientSocketAdapter() override;
 
     virtual Web::WebSockets::WebSocket::ReadyState ready_state() override;
@@ -33,9 +33,9 @@ public:
     virtual void close(u16 code = 1005, ByteString reason = {}) override;
 
 private:
-    WebSocketClientSocketAdapter(NonnullRefPtr<Protocol::WebSocket>);
+    WebSocketClientSocketAdapter(NonnullRefPtr<Requests::WebSocket>);
 
-    NonnullRefPtr<Protocol::WebSocket> m_websocket;
+    NonnullRefPtr<Requests::WebSocket> m_websocket;
 };
 
 }
