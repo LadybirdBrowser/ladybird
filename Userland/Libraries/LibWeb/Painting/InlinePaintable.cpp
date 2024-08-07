@@ -193,8 +193,7 @@ TraversalDecision InlinePaintable::hit_test(CSSPixelPoint position, HitTestType 
         return TraversalDecision::Continue;
 
     auto position_adjusted_by_scroll_offset = position;
-    if (enclosing_scroll_frame_offset().has_value())
-        position_adjusted_by_scroll_offset.translate_by(-enclosing_scroll_frame_offset().value());
+    position_adjusted_by_scroll_offset.translate_by(-enclosing_scroll_frame_offset());
 
     for (auto const& fragment : m_fragments) {
         if (fragment.paintable().stacking_context())

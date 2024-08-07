@@ -33,7 +33,7 @@ void SVGSVGPaintable::before_children_paint(PaintContext& context, PaintPhase ph
         return;
     context.display_list_recorder().save();
     auto clip_rect = absolute_rect();
-    clip_rect.translate_by(enclosing_scroll_frame_offset().value_or({}));
+    clip_rect.translate_by(enclosing_scroll_frame_offset());
     context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(clip_rect).to_type<int>());
 }
 

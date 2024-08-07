@@ -165,10 +165,10 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
     CSSPixelPoint enclosing_scroll_offset;
     if (is<PaintableBox>(layout_node.paintable())) {
         auto const& paintable_box = static_cast<PaintableBox const&>(*layout_node.paintable());
-        enclosing_scroll_offset = paintable_box.enclosing_scroll_frame_offset().value_or({});
+        enclosing_scroll_offset = paintable_box.enclosing_scroll_frame_offset();
     } else if (is<InlinePaintable>(layout_node.paintable())) {
         auto const& inline_paintable = static_cast<InlinePaintable const&>(*layout_node.paintable());
-        enclosing_scroll_offset = inline_paintable.enclosing_scroll_frame_offset().value_or({});
+        enclosing_scroll_offset = inline_paintable.enclosing_scroll_frame_offset();
     }
 
     // Note: Background layers are ordered front-to-back, so we paint them in reverse
