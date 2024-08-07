@@ -15,6 +15,9 @@ jmethodID WebViewImplementationNative::invalidate_layout_method;
 jmethodID WebViewImplementationNative::on_load_start_method;
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_00024Companion_nativeClassInit(JNIEnv*, jobject /* thiz */);
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_00024Companion_nativeClassInit(JNIEnv* env, jobject /* thiz */)
 {
     auto local_class = env->FindClass("org/serenityos/ladybird/WebViewImplementation");
@@ -40,6 +43,9 @@ Java_org_serenityos_ladybird_WebViewImplementation_00024Companion_nativeClassIni
 }
 
 extern "C" JNIEXPORT jlong JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeObjectInit(JNIEnv*, jobject);
+
+extern "C" JNIEXPORT jlong JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeObjectInit(JNIEnv* env, jobject thiz)
 {
     auto ref = env->NewGlobalRef(thiz);
@@ -48,12 +54,18 @@ Java_org_serenityos_ladybird_WebViewImplementation_nativeObjectInit(JNIEnv* env,
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeObjectDispose(JNIEnv*, jobject /* thiz */, jlong);
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeObjectDispose(JNIEnv* env, jobject /* thiz */, jlong instance)
 {
     auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
     env->DeleteGlobalRef(impl->java_instance());
     delete impl;
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeDrawIntoBitmap(JNIEnv*, jobject /* thiz */, jlong, jobject);
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeDrawIntoBitmap(JNIEnv* env, jobject /* thiz */, jlong instance, jobject bitmap)
@@ -71,11 +83,17 @@ Java_org_serenityos_ladybird_WebViewImplementation_nativeDrawIntoBitmap(JNIEnv* 
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeSetViewportGeometry(JNIEnv*, jobject /* thiz */, jlong, jint, jint);
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeSetViewportGeometry(JNIEnv*, jobject /* thiz */, jlong instance, jint w, jint h)
 {
     auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
     impl->set_viewport_geometry(w, h);
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeLoadURL(JNIEnv*, jobject /* thiz */, jlong, jstring);
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeLoadURL(JNIEnv* env, jobject /* thiz */, jlong instance, jstring url)
@@ -88,11 +106,17 @@ Java_org_serenityos_ladybird_WebViewImplementation_nativeLoadURL(JNIEnv* env, jo
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeSetDevicePixelRatio(JNIEnv*, jobject /* thiz */, jlong instance, jfloat);
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeSetDevicePixelRatio(JNIEnv*, jobject /* thiz */, jlong instance, jfloat ratio)
 {
     auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
     impl->set_device_pixel_ratio(ratio);
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeMouseEvent(JNIEnv*, jobject /* thiz */, jlong, jint, jfloat, jfloat, jfloat, jfloat);
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeMouseEvent(JNIEnv*, jobject /* thiz */, jlong instance, jint event_type, jfloat x, jfloat y, jfloat raw_x, jfloat raw_y)

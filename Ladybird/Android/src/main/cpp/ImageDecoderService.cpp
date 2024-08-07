@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LadybirdServiceBase.h"
 #include <ImageDecoder/ConnectionFromClient.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/SingleServer.h>

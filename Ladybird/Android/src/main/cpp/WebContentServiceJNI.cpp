@@ -6,12 +6,16 @@
 
 #include "JNIHelpers.h"
 #include "LadybirdServiceBase.h"
+#include "WebContentService.h"
 #include <jni.h>
 
 jobject global_instance;
 jclass global_class_reference;
 jmethodID bind_request_server_method;
 jmethodID bind_image_decoder_method;
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebContentService_nativeInit(JNIEnv*, jobject);
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebContentService_nativeInit(JNIEnv* env, jobject thiz)

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "LadybirdServiceBase.h"
 #include <AK/LexicalPath.h>
 #include <AK/OwnPtr.h>
 #include <Ladybird/Utilities.h>
@@ -20,7 +21,7 @@
 #include <RequestServer/HttpsProtocol.h>
 
 // FIXME: Share b/w RequestServer and WebSocket
-ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
+static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
 {
     auto cert_path = ByteString::formatted("{}/res/ladybird/cacert.pem", serenity_resource_root);
     if (!FileSystem::exists(cert_path))
