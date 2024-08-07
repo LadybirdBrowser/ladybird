@@ -304,7 +304,6 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
         .post_transform_translation = params.is_fixed_position
             ? Gfx::IntPoint {}
             : state().translation.translation().to_rounded<int>(),
-        .image_rendering = params.image_rendering,
         .transform = {
             .origin = params.transform.origin,
             .matrix = params.transform.matrix,

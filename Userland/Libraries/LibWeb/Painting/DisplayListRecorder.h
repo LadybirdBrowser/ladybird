@@ -115,7 +115,6 @@ public:
         float opacity;
         bool is_fixed_position;
         Gfx::IntRect source_paintable_rect;
-        CSS::ImageRendering image_rendering;
         StackingContextTransform transform;
         Optional<StackingContextMask> mask = {};
     };

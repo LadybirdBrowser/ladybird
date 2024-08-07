@@ -293,7 +293,6 @@ void StackingContext::paint(PaintContext& context) const
         .opacity = opacity,
         .is_fixed_position = paintable().is_fixed_position(),
         .source_paintable_rect = source_paintable_rect,
-        .image_rendering = paintable().computed_values().image_rendering(),
         .transform = {
             .origin = transform_origin.scaled(to_device_pixels_scale),
             .matrix = matrix_with_scaled_translation(transform_matrix, to_device_pixels_scale),
