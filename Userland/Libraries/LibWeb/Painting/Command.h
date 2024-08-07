@@ -114,7 +114,6 @@ struct PushStackingContext {
     Gfx::IntRect source_paintable_rect;
     // A translation to be applied after the stacking context has been transformed.
     Gfx::IntPoint post_transform_translation;
-    CSS::ImageRendering image_rendering;
     StackingContextTransform transform;
     Optional<StackingContextMask> mask = {};
 
