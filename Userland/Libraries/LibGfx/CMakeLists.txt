@@ -101,10 +101,18 @@ find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
 find_package(LIBAVIF REQUIRED)
 find_package(WebP REQUIRED)
-pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)
 
-target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PkgConfig::Jxl PNG::PNG avif WebP::webp WebP::webpdecoder
+target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
             WebP::webpdemux WebP::libwebpmux)
+
+if (NOT ANDROID)
+    pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)
+    target_link_libraries(LibGfx PRIVATE PkgConfig::Jxl)
+else()
+    find_package(libjxl REQUIRED)
+    find_package(hwy REQUIRED)
+    target_link_libraries(LibGfx PRIVATE libjxl::libjxl hwy::hwy)
+endif()
 
 if (ENABLE_SWIFT)
     target_compile_features(LibGfx PUBLIC cxx_std_23)
