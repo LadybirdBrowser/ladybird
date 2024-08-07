@@ -60,9 +60,11 @@ endif()
 find_package(simdutf REQUIRED)
 target_link_libraries(AK PRIVATE simdutf::simdutf)
 
-generate_clang_module_map(
-   AK
-   GENERATED_FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/Backtrace.h"
-    "${CMAKE_CURRENT_BINARY_DIR}/Debug.h"
-)
+if (ENABLE_SWIFT)
+    generate_clang_module_map(
+       AK
+       GENERATED_FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/Backtrace.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/Debug.h"
+    )
+endif()
