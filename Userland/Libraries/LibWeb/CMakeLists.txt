@@ -777,5 +777,11 @@ target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibI
 
 generate_js_bindings(LibWeb)
 
-# Note: If you're looking for the calls to "libweb_js_bindings()",
-# they have been moved to "idl_files.cmake"
+if (ENABLE_SWIFT)
+    set(generated_headers ${GENERATED_SOURCES})
+    list(FILTER generated_headers INCLUDE REGEX "\\.h$")
+    list(TRANSFORM generated_headers PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+    list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${generated_headers})
+
+    generate_clang_module_map(LibWeb GENERATED_FILES ${LIBWEB_ALL_GENERATED_HEADERS})
+endif()

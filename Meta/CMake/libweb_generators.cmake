@@ -96,20 +96,21 @@ function (generate_css_implementation)
         NAMESPACE "Web::CSS"
     )
 
+    set(CSS_GENERATED_HEADERS
+       "CSS/Enums.h"
+       "CSS/Keyword.h"
+       "CSS/MathFunctions.h"
+       "CSS/MediaFeatureID.h"
+       "CSS/PropertyID.h"
+       "CSS/PseudoClass.h"
+       "CSS/TransformFunctions.h"
+    )
+    list(TRANSFORM CSS_GENERATED_HEADERS PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
     if (ENABLE_INSTALL_HEADERS)
-        set(CSS_GENERATED_TO_INSTALL
-            "CSS/Enums.h"
-            "CSS/Keyword.h"
-            "CSS/MathFunctions.h"
-            "CSS/MediaFeatureID.h"
-            "CSS/PropertyID.h"
-            "CSS/PseudoClass.h"
-            "CSS/TransformFunctions.h"
-        )
-        list(TRANSFORM CSS_GENERATED_TO_INSTALL PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
-        install(FILES ${CSS_GENERATED_TO_INSTALL} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/CSS")
+        install(FILES ${CSS_GENERATED_HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/CSS")
     endif()
-
+    list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${CSS_GENERATED_HEADERS})
+    set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
 endfunction()
 
 function (generate_js_bindings target)
@@ -175,11 +176,15 @@ function (generate_js_bindings target)
         add_dependencies(all_generated generate_${basename})
         add_dependencies(${target} generate_${basename})
 
+        set(BINDINGS_HEADERS ${BINDINGS_SOURCES})
+        list(FILTER BINDINGS_HEADERS INCLUDE REGEX "\.h$")
+
         if (ENABLE_INSTALL_HEADERS)
-            # install generated sources
-            list(FILTER BINDINGS_SOURCES INCLUDE REGEX "\.h$")
-            install(FILES ${BINDINGS_SOURCES} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
+            install(FILES ${BINDINGS_HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
         endif()
+
+        list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${BINDINGS_HEADERS})
+        set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
 
         list(APPEND LIBWEB_ALL_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
         set(LIBWEB_ALL_IDL_FILES ${LIBWEB_ALL_IDL_FILES} PARENT_SCOPE)
@@ -212,14 +217,20 @@ function (generate_js_bindings target)
         add_dependencies(all_generated generate_exposed_interfaces)
         add_dependencies(${target} generate_exposed_interfaces)
 
+        list(TRANSFORM exposed_interface_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+        set(exposed_interface_headers ${exposed_interface_sources})
+        list(FILTER exposed_interface_headers INCLUDE REGEX "\.h$")
+
         if (ENABLE_INSTALL_HEADERS)
-            list(FILTER exposed_interface_sources INCLUDE REGEX "\.h$")
-            list(TRANSFORM exposed_interface_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
-            install(FILES ${exposed_interface_sources} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
+            install(FILES ${exposed_interface_headers} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
         endif()
+
+        list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${exposed_interface_headers})
+        set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
     endfunction()
 
     include("idl_files.cmake")
     generate_exposed_interface_files()
 
+    set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
 endfunction()
