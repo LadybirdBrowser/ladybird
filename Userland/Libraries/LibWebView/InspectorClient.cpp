@@ -194,8 +194,6 @@ void InspectorClient::inspect()
 {
     if (!m_inspector_loaded)
         return;
-    if (m_dom_tree_loaded)
-        return;
 
     m_content_web_view.inspect_dom_tree();
     m_content_web_view.inspect_accessibility_tree();
