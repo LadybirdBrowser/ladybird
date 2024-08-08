@@ -46,7 +46,7 @@ void SVGCircleElement::apply_presentational_hints(CSS::StyleProperties& style) c
         style.set_property(CSS::PropertyID::R, r_value.release_nonnull());
 }
 
-Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
+Gfx::DeprecatedPath SVGCircleElement::get_path(CSSPixelSize viewport_size)
 {
     auto node = layout_node();
     auto cx = float(node->computed_values().cx().to_px(*node, viewport_size.width()));
@@ -59,7 +59,7 @@ Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
     if (r == 0)
         return {};
 
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     bool large_arc = false;
     bool sweep = true;
 

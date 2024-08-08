@@ -8,6 +8,7 @@ set(SOURCES
     Color.cpp
     DeltaE.cpp
     DeprecatedPainter.cpp
+    DeprecatedPath.cpp
     EdgeFlagPathRasterizer.cpp
     FontCascadeList.cpp
     Font/Emoji.cpp
@@ -56,7 +57,6 @@ set(SOURCES
     ImmutableBitmap.cpp
     MedianCut.cpp
     Palette.cpp
-    Path.cpp
     PathClipper.cpp
     Painter.cpp
     PainterSkia.cpp

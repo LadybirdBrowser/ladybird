@@ -7,8 +7,8 @@
 
 #pragma once
 
+#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Path.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedTransformList.h>

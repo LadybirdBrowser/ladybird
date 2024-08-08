@@ -7,14 +7,14 @@
 #pragma once
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/WindingRule.h>
 
 namespace Gfx {
 
 struct ClipPath {
-    Path path;
+    DeprecatedPath path;
     WindingRule winding_rule;
 };
 

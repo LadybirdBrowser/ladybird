@@ -7,10 +7,10 @@
 #pragma once
 
 #include <LibGfx/Color.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/LineStyle.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/WindingRule.h>
 
@@ -37,11 +37,11 @@ public:
         draw_line(line.a(), line.b(), color, thickness, style, alternate_color, line_length_mode);
     }
 
-    void fill_path(Path const&, Color, WindingRule rule = WindingRule::Nonzero);
-    void fill_path(Path const&, PaintStyle const& paint_style, float opacity = 1.0f, WindingRule rule = WindingRule::Nonzero);
+    void fill_path(DeprecatedPath const&, Color, WindingRule rule = WindingRule::Nonzero);
+    void fill_path(DeprecatedPath const&, PaintStyle const& paint_style, float opacity = 1.0f, WindingRule rule = WindingRule::Nonzero);
 
-    void stroke_path(Path const&, Color, float thickness);
-    void stroke_path(Path const&, PaintStyle const& paint_style, float thickness, float opacity = 1.0f);
+    void stroke_path(DeprecatedPath const&, Color, float thickness);
+    void stroke_path(DeprecatedPath const&, PaintStyle const& paint_style, float thickness, float opacity = 1.0f);
 
     void translate(float dx, float dy) { m_transform.translate(dx, dy); }
     void translate(FloatPoint delta) { m_transform.translate(delta); }

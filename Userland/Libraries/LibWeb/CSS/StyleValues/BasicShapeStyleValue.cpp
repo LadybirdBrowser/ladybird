@@ -8,9 +8,9 @@
 
 namespace Web::CSS {
 
-Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
+Gfx::DeprecatedPath Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     bool first = true;
     for (auto const& point : points) {
         Gfx::FloatPoint resolved_point {
@@ -44,7 +44,7 @@ String Polygon::to_string() const
 
 BasicShapeStyleValue::~BasicShapeStyleValue() = default;
 
-Gfx::Path BasicShapeStyleValue::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
+Gfx::DeprecatedPath BasicShapeStyleValue::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
     return m_basic_shape.visit([&](auto const& shape) {
         return shape.to_path(reference_box, node);

@@ -11,9 +11,9 @@
 #include <AK/Vector.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/OpenType/Tables.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/Size.h>
 #include <math.h>
 
@@ -74,7 +74,7 @@ public:
         }
 
         template<typename GlyphCb>
-        bool append_path(Gfx::Path& path, i16 font_ascender, i16 font_descender, float x_scale, float y_scale, GlyphCb glyph_callback) const
+        bool append_path(Gfx::DeprecatedPath& path, i16 font_ascender, i16 font_descender, float x_scale, float y_scale, GlyphCb glyph_callback) const
         {
             switch (m_type) {
             case Type::Simple:
@@ -118,11 +118,11 @@ public:
             u32 m_offset { 0 };
         };
 
-        void append_path_impl(Gfx::Path&, Gfx::AffineTransform const&) const;
-        bool append_simple_path(Gfx::Path&, i16 ascender, i16 descender, float x_scale, float y_scale) const;
+        void append_path_impl(Gfx::DeprecatedPath&, Gfx::AffineTransform const&) const;
+        bool append_simple_path(Gfx::DeprecatedPath&, i16 ascender, i16 descender, float x_scale, float y_scale) const;
 
         template<typename GlyphCb>
-        void resolve_composite_path_loop(Gfx::Path& path, Gfx::AffineTransform const& transform, GlyphCb glyph_callback) const
+        void resolve_composite_path_loop(Gfx::DeprecatedPath& path, Gfx::AffineTransform const& transform, GlyphCb glyph_callback) const
         {
             ComponentIterator component_iterator(m_slice);
 
@@ -147,7 +147,7 @@ public:
         }
 
         template<typename GlyphCb>
-        bool append_composite_path(Gfx::Path& path, i16 font_ascender, float x_scale, float y_scale, GlyphCb glyph_callback) const
+        bool append_composite_path(Gfx::DeprecatedPath& path, i16 font_ascender, float x_scale, float y_scale, GlyphCb glyph_callback) const
         {
             auto affine = Gfx::AffineTransform()
                               .translate(path.last_point())

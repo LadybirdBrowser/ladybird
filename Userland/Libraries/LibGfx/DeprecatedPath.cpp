@@ -9,13 +9,13 @@
 #include <AK/TypeCasts.h>
 #include <LibGfx/BoundingBox.h>
 #include <LibGfx/DeprecatedPainter.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Font/ScaledFont.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
 
 namespace Gfx {
 
-void Path::approximate_elliptical_arc_with_cubic_beziers(FloatPoint center, FloatSize radii, float x_axis_rotation, float theta, float theta_delta)
+void DeprecatedPath::approximate_elliptical_arc_with_cubic_beziers(FloatPoint center, FloatSize radii, float x_axis_rotation, float theta, float theta_delta)
 {
     float sin_x_rotation;
     float cos_x_rotation;
@@ -63,7 +63,7 @@ void Path::approximate_elliptical_arc_with_cubic_beziers(FloatPoint center, Floa
         approximate_arc_between(prev, t);
 }
 
-void Path::elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rotation, bool large_arc, bool sweep)
+void DeprecatedPath::elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rotation, bool large_arc, bool sweep)
 {
     auto next_point = point;
 
@@ -77,7 +77,7 @@ void Path::elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rot
 
     // Step 1 of out-of-range radii correction
     if (rx == 0.0 || ry == 0.0) {
-        append_segment<PathSegment::LineTo>(next_point);
+        append_segment<DeprecatedPathSegment::LineTo>(next_point);
         return;
     }
 
@@ -158,7 +158,7 @@ void Path::elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rot
         theta_delta);
 }
 
-void Path::text(Utf8View text, Font const& font)
+void DeprecatedPath::text(Utf8View text, Font const& font)
 {
     if (!is<ScaledFont>(font)) {
         // FIXME: This API only accepts Gfx::Font for ease of use.
@@ -178,7 +178,7 @@ void Path::text(Utf8View text, Font const& font)
         IncludeLeftBearing::Yes);
 }
 
-Path Path::place_text_along(Utf8View text, Font const& font) const
+DeprecatedPath DeprecatedPath::place_text_along(Utf8View text, Font const& font) const
 {
     if (!is<ScaledFont>(font)) {
         // FIXME: This API only accepts Gfx::Font for ease of use.
@@ -206,7 +206,7 @@ Path Path::place_text_along(Utf8View text, Font const& font) const
     };
 
     auto& scaled_font = static_cast<Gfx::ScaledFont const&>(font);
-    Gfx::Path result_path;
+    Gfx::DeprecatedPath result_path;
     Gfx::for_each_glyph_position(
         {}, text, font, [&](Gfx::DrawGlyphOrEmoji glyph_or_emoji) {
             auto* glyph = glyph_or_emoji.get_pointer<Gfx::DrawGlyph>();
@@ -223,7 +223,7 @@ Path Path::place_text_along(Utf8View text, Font const& font) const
             // Find the angle between the start and end points on the path.
             auto delta = *end - *start;
             auto angle = AK::atan2(delta.y(), delta.x());
-            Gfx::Path glyph_path;
+            Gfx::DeprecatedPath glyph_path;
             // Rotate the glyph then move it to start point.
             scaled_font.append_glyph_path_to(glyph_path, glyph->glyph_id);
             auto transform = Gfx::AffineTransform {}
@@ -237,13 +237,13 @@ Path Path::place_text_along(Utf8View text, Font const& font) const
     return result_path;
 }
 
-void Path::close()
+void DeprecatedPath::close()
 {
     // If there's no `moveto` starting this subpath assume the start is (0, 0).
     FloatPoint first_point_in_subpath = { 0, 0 };
     for (auto it = end(); it-- != begin();) {
         auto segment = *it;
-        if (segment.command() == PathSegment::MoveTo) {
+        if (segment.command() == DeprecatedPathSegment::MoveTo) {
             first_point_in_subpath = segment.point();
             break;
         }
@@ -252,7 +252,7 @@ void Path::close()
         line_to(first_point_in_subpath);
 }
 
-void Path::close_all_subpaths()
+void DeprecatedPath::close_all_subpaths()
 {
     auto it = begin();
     // Note: Get the end outside the loop as closing subpaths will move the end.
@@ -261,7 +261,7 @@ void Path::close_all_subpaths()
         // If there's no `moveto` starting this subpath assume the start is (0, 0).
         FloatPoint first_point_in_subpath = { 0, 0 };
         auto segment = *it;
-        if (segment.command() == PathSegment::MoveTo) {
+        if (segment.command() == DeprecatedPathSegment::MoveTo) {
             first_point_in_subpath = segment.point();
             ++it;
         }
@@ -269,7 +269,7 @@ void Path::close_all_subpaths()
         FloatPoint cursor = first_point_in_subpath;
         while (it < end) {
             auto segment = *it;
-            if (segment.command() == PathSegment::MoveTo)
+            if (segment.command() == DeprecatedPathSegment::MoveTo)
                 break;
             cursor = segment.point();
             ++it;
@@ -282,26 +282,26 @@ void Path::close_all_subpaths()
     }
 }
 
-ByteString Path::to_byte_string() const
+ByteString DeprecatedPath::to_byte_string() const
 {
     // Dumps this path as an SVG compatible string.
     StringBuilder builder;
-    if (is_empty() || m_commands.first() != PathSegment::MoveTo)
+    if (is_empty() || m_commands.first() != DeprecatedPathSegment::MoveTo)
         builder.append("M 0,0"sv);
     for (auto segment : *this) {
         if (!builder.is_empty())
             builder.append(' ');
         switch (segment.command()) {
-        case PathSegment::MoveTo:
+        case DeprecatedPathSegment::MoveTo:
             builder.append('M');
             break;
-        case PathSegment::LineTo:
+        case DeprecatedPathSegment::LineTo:
             builder.append('L');
             break;
-        case PathSegment::QuadraticBezierCurveTo:
+        case DeprecatedPathSegment::QuadraticBezierCurveTo:
             builder.append('Q');
             break;
-        case PathSegment::CubicBezierCurveTo:
+        case DeprecatedPathSegment::CubicBezierCurveTo:
             builder.append('C');
             break;
         }
@@ -311,7 +311,7 @@ ByteString Path::to_byte_string() const
     return builder.to_byte_string();
 }
 
-void Path::segmentize_path()
+void DeprecatedPath::segmentize_path()
 {
     Vector<FloatLine> segments;
     FloatBoundingBox bounding_box;
@@ -324,20 +324,20 @@ void Path::segmentize_path()
     FloatPoint cursor { 0, 0 };
     for (auto segment : *this) {
         switch (segment.command()) {
-        case PathSegment::MoveTo:
+        case DeprecatedPathSegment::MoveTo:
             bounding_box.add_point(segment.point());
             break;
-        case PathSegment::LineTo: {
+        case DeprecatedPathSegment::LineTo: {
             add_line(cursor, segment.point());
             break;
         }
-        case PathSegment::QuadraticBezierCurveTo: {
+        case DeprecatedPathSegment::QuadraticBezierCurveTo: {
             DeprecatedPainter::for_each_line_segment_on_bezier_curve(segment.through(), cursor, segment.point(), [&](FloatPoint p0, FloatPoint p1) {
                 add_line(p0, p1);
             });
             break;
         }
-        case PathSegment::CubicBezierCurveTo: {
+        case DeprecatedPathSegment::CubicBezierCurveTo: {
             DeprecatedPainter::for_each_line_segment_on_cubic_bezier_curve(segment.through_0(), segment.through_1(), cursor, segment.point(), [&](FloatPoint p0, FloatPoint p1) {
                 add_line(p0, p1);
             });
@@ -350,9 +350,9 @@ void Path::segmentize_path()
     m_split_lines = SplitLines { move(segments), bounding_box };
 }
 
-Path Path::copy_transformed(Gfx::AffineTransform const& transform) const
+DeprecatedPath DeprecatedPath::copy_transformed(Gfx::AffineTransform const& transform) const
 {
-    Path result;
+    DeprecatedPath result;
     result.m_commands = m_commands;
     result.m_points.ensure_capacity(m_points.size());
     for (auto point : m_points)
@@ -388,7 +388,7 @@ private:
     ReadonlySpan<T> m_span;
 };
 
-Path Path::stroke_to_fill(float thickness) const
+DeprecatedPath DeprecatedPath::stroke_to_fill(float thickness) const
 {
     // Note: This convolves a polygon with the path using the algorithm described
     // in https://keithp.com/~keithp/talks/cairo2003.pdf (3.1 Stroking Splines via Convolution)
@@ -397,7 +397,7 @@ Path Path::stroke_to_fill(float thickness) const
 
     auto lines = split_lines();
     if (lines.is_empty())
-        return Path {};
+        return DeprecatedPath {};
 
     // Paths can be disconnected, which a pain to deal with, so split it up.
     Vector<Vector<FloatPoint>> segments;
@@ -476,7 +476,7 @@ Path Path::stroke_to_fill(float thickness) const
         return (target_angle - current_angle) <= AK::Pi<float>;
     };
 
-    Path convolution;
+    DeprecatedPath convolution;
     for (auto& segment : segments) {
         RoundTrip<FloatPoint> shape { segment };
 

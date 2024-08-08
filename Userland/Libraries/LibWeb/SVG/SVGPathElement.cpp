@@ -6,7 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/Optional.h>
-#include <LibGfx/Path.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibWeb/Bindings/SVGPathElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -104,9 +104,9 @@ void SVGPathElement::attribute_changed(FlyString const& name, Optional<String> c
         m_instructions = AttributeParser::parse_path_data(value.value_or(String {}));
 }
 
-Gfx::Path path_from_path_instructions(ReadonlySpan<PathInstruction> instructions)
+Gfx::DeprecatedPath path_from_path_instructions(ReadonlySpan<PathInstruction> instructions)
 {
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     Optional<Gfx::FloatPoint> previous_control_point;
     PathInstructionType last_instruction = PathInstructionType::Invalid;
 
@@ -272,7 +272,7 @@ Gfx::Path path_from_path_instructions(ReadonlySpan<PathInstruction> instructions
     return path;
 }
 
-Gfx::Path SVGPathElement::get_path(CSSPixelSize)
+Gfx::DeprecatedPath SVGPathElement::get_path(CSSPixelSize)
 {
     return path_from_path_instructions(m_instructions);
 }

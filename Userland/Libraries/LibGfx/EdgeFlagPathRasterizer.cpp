@@ -99,13 +99,13 @@ EdgeFlagPathRasterizer<SamplesPerPixel>::EdgeFlagPathRasterizer(IntSize size)
 }
 
 template<unsigned SamplesPerPixel>
-void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(DeprecatedPainter& painter, Path const& path, Color color, WindingRule winding_rule, FloatPoint offset)
+void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(DeprecatedPainter& painter, DeprecatedPath const& path, Color color, WindingRule winding_rule, FloatPoint offset)
 {
     fill_internal(painter, path, color, winding_rule, offset);
 }
 
 template<unsigned SamplesPerPixel>
-void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(DeprecatedPainter& painter, Path const& path, PaintStyle const& style, float opacity, WindingRule winding_rule, FloatPoint offset)
+void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(DeprecatedPainter& painter, DeprecatedPath const& path, PaintStyle const& style, float opacity, WindingRule winding_rule, FloatPoint offset)
 {
     style.paint(enclosing_int_rect(path.bounding_box()), [&](PaintStyle::SamplerFunction sampler) {
         if (opacity == 0.0f)
@@ -122,7 +122,7 @@ void EdgeFlagPathRasterizer<SamplesPerPixel>::fill(DeprecatedPainter& painter, P
 }
 
 template<unsigned SamplesPerPixel>
-void EdgeFlagPathRasterizer<SamplesPerPixel>::fill_internal(DeprecatedPainter& painter, Path const& path, auto color_or_function, WindingRule winding_rule, FloatPoint offset)
+void EdgeFlagPathRasterizer<SamplesPerPixel>::fill_internal(DeprecatedPainter& painter, DeprecatedPath const& path, auto color_or_function, WindingRule winding_rule, FloatPoint offset)
 {
     auto bounding_box = enclosing_int_rect(path.bounding_box().translated(offset));
     auto dest_rect = bounding_box.translated(painter.translation());
@@ -430,7 +430,7 @@ FLATTEN __attribute__((hot)) void EdgeFlagPathRasterizer<SamplesPerPixel>::write
         color_or_function, write_scanline_with_fast_fills, write_scanline_pixelwise);
 }
 
-static IntSize path_bounds(Gfx::Path const& path)
+static IntSize path_bounds(Gfx::DeprecatedPath const& path)
 {
     return enclosing_int_rect(path.bounding_box()).size();
 }
@@ -439,25 +439,25 @@ static IntSize path_bounds(Gfx::Path const& path)
 // since it would be harder to turn it off for the standard painter.
 // The samples are reduced to 8 for Gfx::DeprecatedPainter though as a "speedy" option.
 
-void DeprecatedPainter::fill_path(Path const& path, Color color, WindingRule winding_rule)
+void DeprecatedPainter::fill_path(DeprecatedPath const& path, Color color, WindingRule winding_rule)
 {
     EdgeFlagPathRasterizer<8> rasterizer(path_bounds(path));
     rasterizer.fill(*this, path, color, winding_rule);
 }
 
-void DeprecatedPainter::fill_path(Path const& path, PaintStyle const& paint_style, float opacity, WindingRule winding_rule)
+void DeprecatedPainter::fill_path(DeprecatedPath const& path, PaintStyle const& paint_style, float opacity, WindingRule winding_rule)
 {
     EdgeFlagPathRasterizer<8> rasterizer(path_bounds(path));
     rasterizer.fill(*this, path, paint_style, opacity, winding_rule);
 }
 
-void AntiAliasingPainter::fill_path(Path const& path, Color color, WindingRule winding_rule)
+void AntiAliasingPainter::fill_path(DeprecatedPath const& path, Color color, WindingRule winding_rule)
 {
     EdgeFlagPathRasterizer<32> rasterizer(path_bounds(path));
     rasterizer.fill(m_underlying_painter, path, color, winding_rule, m_transform.translation());
 }
 
-void AntiAliasingPainter::fill_path(Path const& path, PaintStyle const& paint_style, float opacity, WindingRule winding_rule)
+void AntiAliasingPainter::fill_path(DeprecatedPath const& path, PaintStyle const& paint_style, float opacity, WindingRule winding_rule)
 {
     EdgeFlagPathRasterizer<32> rasterizer(path_bounds(path));
     rasterizer.fill(m_underlying_painter, path, paint_style, opacity, winding_rule, m_transform.translation());

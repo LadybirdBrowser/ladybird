@@ -46,14 +46,14 @@ void SVGRectElement::attribute_changed(FlyString const& name, Optional<String> c
     }
 }
 
-Gfx::Path SVGRectElement::get_path(CSSPixelSize)
+Gfx::DeprecatedPath SVGRectElement::get_path(CSSPixelSize)
 {
     float width = m_width.value_or(0);
     float height = m_height.value_or(0);
     float x = m_x.value_or(0);
     float y = m_y.value_or(0);
 
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     // If width or height is zero, rendering is disabled.
     if (width == 0 || height == 0)
         return path;

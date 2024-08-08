@@ -43,7 +43,7 @@ public:
     void fill_rect(Gfx::IntRect const& rect, Color color);
 
     struct FillPathUsingColorParams {
-        Gfx::Path path;
+        Gfx::DeprecatedPath path;
         Gfx::Color color;
         Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
         Optional<Gfx::FloatPoint> translation = {};
@@ -51,7 +51,7 @@ public:
     void fill_path(FillPathUsingColorParams params);
 
     struct FillPathUsingPaintStyleParams {
-        Gfx::Path path;
+        Gfx::DeprecatedPath path;
         PaintStyle paint_style;
         Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
         float opacity;
@@ -60,7 +60,7 @@ public:
     void fill_path(FillPathUsingPaintStyleParams params);
 
     struct StrokePathUsingColorParams {
-        Gfx::Path path;
+        Gfx::DeprecatedPath path;
         Gfx::Color color;
         float thickness;
         Optional<Gfx::FloatPoint> translation = {};
@@ -68,7 +68,7 @@ public:
     void stroke_path(StrokePathUsingColorParams params);
 
     struct StrokePathUsingPaintStyleParams {
-        Gfx::Path path;
+        Gfx::DeprecatedPath path;
         PaintStyle paint_style;
         float thickness;
         float opacity;

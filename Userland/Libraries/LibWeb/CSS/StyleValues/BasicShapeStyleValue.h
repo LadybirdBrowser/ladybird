@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Variant.h>
-#include <LibGfx/Path.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/PercentageOr.h>
 
@@ -20,7 +20,7 @@ struct Polygon {
         LengthPercentage y;
     };
 
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::DeprecatedPath to_path(CSSPixelRect reference_box, Layout::Node const&) const;
     String to_string() const;
 
     bool operator==(Polygon const&) const = default;
@@ -46,7 +46,7 @@ public:
 
     bool properties_equal(BasicShapeStyleValue const& other) const { return m_basic_shape == other.m_basic_shape; }
 
-    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::DeprecatedPath to_path(CSSPixelRect reference_box, Layout::Node const&) const;
 
 private:
     BasicShapeStyleValue(BasicShape basic_shape)

@@ -18,7 +18,7 @@ class SVGGeometryElement : public SVGGraphicsElement {
 public:
     virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
 
-    virtual Gfx::Path get_path(CSSPixelSize viewport_size) = 0;
+    virtual Gfx::DeprecatedPath get_path(CSSPixelSize viewport_size) = 0;
 
     float get_total_length();
     JS::NonnullGCPtr<Geometry::DOMPoint> get_point_at_length(float distance);

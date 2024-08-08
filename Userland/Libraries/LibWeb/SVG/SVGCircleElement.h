@@ -20,7 +20,7 @@ public:
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
-    virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
+    virtual Gfx::DeprecatedPath get_path(CSSPixelSize viewport_size) override;
 
     JS::NonnullGCPtr<SVGAnimatedLength> cx() const;
     JS::NonnullGCPtr<SVGAnimatedLength> cy() const;

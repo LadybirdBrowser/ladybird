@@ -71,7 +71,7 @@ JS::NonnullGCPtr<HTMLCanvasElement> CanvasRenderingContext2D::canvas_for_binding
     return *m_element;
 }
 
-Gfx::Path CanvasRenderingContext2D::rect_path(float x, float y, float width, float height)
+Gfx::DeprecatedPath CanvasRenderingContext2D::rect_path(float x, float y, float width, float height)
 {
     auto& drawing_state = this->drawing_state();
 
@@ -80,7 +80,7 @@ Gfx::Path CanvasRenderingContext2D::rect_path(float x, float y, float width, flo
     auto bottom_left = drawing_state.transform.map(Gfx::FloatPoint(x, y + height));
     auto bottom_right = drawing_state.transform.map(Gfx::FloatPoint(x + width, y + height));
 
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     path.move_to(top_left);
     path.line_to(top_right);
     path.line_to(bottom_right);
@@ -191,7 +191,7 @@ Gfx::Painter* CanvasRenderingContext2D::painter()
     return m_painter.ptr();
 }
 
-Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y, Optional<double> max_width)
+Gfx::DeprecatedPath CanvasRenderingContext2D::text_path(StringView text, float x, float y, Optional<double> max_width)
 {
     if (max_width.has_value() && max_width.value() <= 0)
         return {};
@@ -199,7 +199,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
     auto& drawing_state = this->drawing_state();
     auto font = current_font();
 
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     path.move_to({ x, y });
     path.text(Utf8View { text }, *font);
 
@@ -260,7 +260,7 @@ void CanvasRenderingContext2D::begin_path()
     path().clear();
 }
 
-void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
+void CanvasRenderingContext2D::stroke_internal(Gfx::DeprecatedPath const& path)
 {
     auto* painter = this->painter();
     if (!painter)
@@ -298,7 +298,7 @@ static Gfx::WindingRule parse_fill_rule(StringView fill_rule)
     return Gfx::WindingRule::Nonzero;
 }
 
-void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+void CanvasRenderingContext2D::fill_internal(Gfx::DeprecatedPath const& path, Gfx::WindingRule winding_rule)
 {
     auto* painter = this->painter();
     if (!painter)
@@ -543,7 +543,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     return prepared_text;
 }
 
-void CanvasRenderingContext2D::clip_internal(Gfx::Path& path, Gfx::WindingRule winding_rule)
+void CanvasRenderingContext2D::clip_internal(Gfx::DeprecatedPath& path, Gfx::WindingRule winding_rule)
 {
     // FIXME: This should calculate the new clip path by intersecting the given path with the current one.
     // See: https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-clip-dev

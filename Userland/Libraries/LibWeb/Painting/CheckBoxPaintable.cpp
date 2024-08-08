@@ -18,9 +18,9 @@ namespace Web::Painting {
 
 JS_DEFINE_ALLOCATOR(CheckBoxPaintable);
 
-static Gfx::Path check_mark_path(Gfx::IntRect checkbox_rect)
+static Gfx::DeprecatedPath check_mark_path(Gfx::IntRect checkbox_rect)
 {
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     path.move_to({ 72, 14 });
     path.line_to({ 37, 64 });
     path.line_to({ 19, 47 });
