@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Concepts.h>
 #include <AK/Forward.h>
 #include <AK/Platform.h>
 
@@ -15,6 +16,7 @@ namespace AK {
 template<typename OutputType, typename InputType>
 ALWAYS_INLINE bool is(InputType& input)
 {
+    static_assert(!SameAs<OutputType, InputType>);
     if constexpr (requires { input.template fast_is<OutputType>(); }) {
         return input.template fast_is<OutputType>();
     }
