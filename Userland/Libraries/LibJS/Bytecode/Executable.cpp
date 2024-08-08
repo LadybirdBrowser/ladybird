@@ -98,15 +98,15 @@ Optional<Executable::ExceptionHandlers const&> Executable::exception_handlers_fo
     return {};
 }
 
-UnrealizedSourceRange Executable::source_range_at(size_t offset) const
+Optional<UnrealizedSourceRange> Executable::source_range_at(size_t offset) const
 {
     if (offset >= bytecode.size())
-        return {};
+        return OptionalNone {};
     auto it = InstructionStreamIterator(bytecode.span().slice(offset), this);
     VERIFY(!it.at_end());
     auto mapping = source_map.get(offset);
     if (!mapping.has_value())
-        return {};
+        return OptionalNone {};
     return UnrealizedSourceRange {
         .source_code = source_code,
         .start_offset = mapping->source_start_offset,
