@@ -121,6 +121,8 @@ public:
     void push_stacking_context(PushStackingContextParams params);
     void pop_stacking_context();
 
+    void paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
+
     void add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip);
     void add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
 

@@ -1299,6 +1299,13 @@ void DisplayListPlayerSkia::add_mask(AddMask const& command)
     surface().canvas().clipShader(shader);
 }
 
+void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList const& command)
+{
+    auto& canvas = surface().canvas();
+    canvas.translate(command.rect.x(), command.rect.y());
+    execute(*command.display_list);
+}
+
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const
 {
     return surface().canvas().quickReject(to_skia_rect(rect));
