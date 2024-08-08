@@ -449,6 +449,7 @@ WebIDL::ExceptionOr<void> HTMLHyperlinkElementUtils::set_href(String href)
 void HTMLHyperlinkElementUtils::update_href()
 {
     // To update href, set the element's href content attribute's value to the element's url, serialized.
+    MUST(set_hyperlink_element_utils_href(MUST(String::from_byte_string(m_url->serialize()))));
 }
 
 bool HTMLHyperlinkElementUtils::cannot_navigate() const
