@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -2082,11 +2083,18 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
     }));
 }
 
-void Navigable::record_display_list(Painting::DisplayListRecorder& display_list_recorder, PaintConfig config)
+RefPtr<Painting::DisplayList> Navigable::record_display_list(PaintConfig config)
 {
     auto document = active_document();
     if (!document)
-        return;
+        return {};
+
+    auto display_list = Painting::DisplayList::create();
+    Painting::DisplayListRecorder display_list_recorder(display_list);
+
+    if (config.canvas_fill_rect.has_value()) {
+        display_list_recorder.fill_rect(config.canvas_fill_rect.value(), CSS::SystemColor::canvas());
+    }
 
     auto const& page = traversable_navigable()->page();
     auto viewport_rect = page.css_to_device_rect(this->viewport_rect());
@@ -2109,27 +2117,22 @@ void Navigable::record_display_list(Painting::DisplayListRecorder& display_list_
 
     auto& viewport_paintable = *document->paintable();
 
-    // NOTE: We only need to refresh the scroll state for traversables because they are responsible
-    //       for tracking the state of all nested navigables.
-    if (is_traversable()) {
-        viewport_paintable.refresh_scroll_state();
-        viewport_paintable.refresh_clip_state();
-    }
+    viewport_paintable.refresh_scroll_state();
+    viewport_paintable.refresh_clip_state();
 
     viewport_paintable.paint_all_phases(context);
 
-    // FIXME: Support scrollable frames inside iframes.
-    if (is_traversable()) {
-        Vector<Gfx::IntPoint> scroll_offsets_by_frame_id;
-        scroll_offsets_by_frame_id.resize(viewport_paintable.scroll_state.size());
-        for (auto [_, scrollable_frame] : viewport_paintable.scroll_state) {
-            auto scroll_offset = context.rounded_device_point(scrollable_frame->offset).to_type<int>();
-            scroll_offsets_by_frame_id[scrollable_frame->id] = scroll_offset;
-        }
-        display_list_recorder.display_list().apply_scroll_offsets(scroll_offsets_by_frame_id);
+    Vector<Gfx::IntPoint> scroll_offsets_by_frame_id;
+    scroll_offsets_by_frame_id.resize(viewport_paintable.scroll_state.size());
+    for (auto [_, scrollable_frame] : viewport_paintable.scroll_state) {
+        auto scroll_offset = context.rounded_device_point(scrollable_frame->offset).to_type<int>();
+        scroll_offsets_by_frame_id[scrollable_frame->id] = scroll_offset;
     }
+    display_list_recorder.display_list().apply_scroll_offsets(scroll_offsets_by_frame_id);
 
     m_needs_repaint = false;
+
+    return display_list;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#event-uni

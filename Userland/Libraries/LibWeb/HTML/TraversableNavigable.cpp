@@ -6,7 +6,6 @@
 
 #include <AK/QuickSort.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
@@ -1190,17 +1189,15 @@ JS::GCPtr<DOM::Node> TraversableNavigable::currently_focused_area()
 
 void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::BackingStore& target, PaintOptions paint_options)
 {
-    auto display_list = Painting::DisplayList::create();
-    Painting::DisplayListRecorder display_list_recorder(display_list);
-
-    Gfx::IntRect bitmap_rect { {}, content_rect.size().to_type<int>() };
-    display_list_recorder.fill_rect(bitmap_rect, CSS::SystemColor::canvas());
-
     HTML::Navigable::PaintConfig paint_config;
     paint_config.paint_overlay = paint_options.paint_overlay == PaintOptions::PaintOverlay::Yes;
     paint_config.should_show_line_box_borders = paint_options.should_show_line_box_borders;
     paint_config.has_focus = paint_options.has_focus;
-    record_display_list(display_list_recorder, paint_config);
+    paint_config.canvas_fill_rect = Gfx::IntRect { {}, content_rect.size() };
+    auto display_list = record_display_list(paint_config);
+    if (!display_list) {
+        return;
+    }
 
     switch (page().client().display_list_player_type()) {
     case DisplayListPlayerType::SkiaGPUIfAvailable: {
@@ -1209,7 +1206,7 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
             auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
             auto texture = m_metal_context->create_texture_from_iosurface(iosurface_backing_store.iosurface_handle());
             Painting::DisplayListPlayerSkia player(*m_skia_backend_context, *texture);
-            player.execute(display_list);
+            player.execute(*display_list);
             return;
         }
 #endif
@@ -1217,19 +1214,19 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
 #ifdef USE_VULKAN
         if (m_skia_backend_context) {
             Painting::DisplayListPlayerSkia player(*m_skia_backend_context, target.bitmap());
-            player.execute(display_list);
+            player.execute(*display_list);
             return;
         }
 #endif
 
         // Fallback to CPU backend if GPU is not available
         Painting::DisplayListPlayerSkia player(target.bitmap());
-        player.execute(display_list);
+        player.execute(*display_list);
         break;
     }
     case DisplayListPlayerType::SkiaCPU: {
         Painting::DisplayListPlayerSkia player(target.bitmap());
-        player.execute(display_list);
+        player.execute(*display_list);
         break;
     }
     default:
