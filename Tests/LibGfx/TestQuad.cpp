@@ -73,3 +73,33 @@ TEST_CASE(quad_contains)
     Gfx::Point<u8> out_bounds_point { 7, 12 };
     EXPECT(quad.contains(out_bounds_point) == false);
 }
+
+TEST_CASE(quad_contains_boundary_points)
+{
+    Gfx::Point<int> p1 { 0, 0 };
+    Gfx::Point<int> p2 { 2, 0 };
+    Gfx::Point<int> p3 { 2, 2 };
+    Gfx::Point<int> p4 { 0, 2 };
+    Gfx::Quad<int> square_quad { p1, p2, p3, p4 };
+    Gfx::Rect<int> square_quad_as_rect = square_quad.bounding_rect();
+
+    auto const& point_at_top_left_vertex = p1;
+    Gfx::Point<int> point_on_top_edge { 1, 0 };
+    EXPECT_EQ(square_quad.contains(point_at_top_left_vertex), square_quad_as_rect.contains(point_at_top_left_vertex));
+    EXPECT_EQ(square_quad.contains(point_on_top_edge), square_quad_as_rect.contains(point_on_top_edge));
+
+    auto const& point_at_top_right_vertex = p2;
+    Gfx::Point<int> point_on_right_edge { 2, 1 };
+    EXPECT_EQ(square_quad.contains(point_at_top_right_vertex), square_quad_as_rect.contains(point_at_top_right_vertex));
+    EXPECT_EQ(square_quad.contains(point_on_right_edge), square_quad_as_rect.contains(point_on_right_edge));
+
+    auto const& point_at_bottom_left_vertex = p4;
+    Gfx::Point<int> point_on_bottom_edge { 1, 2 };
+    EXPECT_EQ(square_quad.contains(point_at_bottom_left_vertex), square_quad_as_rect.contains(point_at_bottom_left_vertex));
+    EXPECT_EQ(square_quad.contains(point_on_bottom_edge), square_quad_as_rect.contains(point_on_bottom_edge));
+
+    auto const& point_at_bottom_right_vertex = p3;
+    Gfx::Point<int> point_on_left_edge { 0, 1 };
+    EXPECT_EQ(square_quad.contains(point_at_bottom_right_vertex), square_quad_as_rect.contains(point_at_bottom_right_vertex));
+    EXPECT_EQ(square_quad.contains(point_on_left_edge), square_quad_as_rect.contains(point_on_left_edge));
+}
