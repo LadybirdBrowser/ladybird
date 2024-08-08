@@ -1,0 +1,10 @@
+<a id="a" href="http://serenityos.org"></a>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const aElement = document.getElementById("a");
+        println(a.protocol);
+        a.protocol = "https";
+        println(a.protocol);
+    })
+</script>
