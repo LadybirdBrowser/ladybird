@@ -1019,7 +1019,7 @@ void FlexFormattingContext::resolve_flexible_lengths()
     }
 }
 
-// https://drafts.csswg.org/css-flexbox-1/#algo-cross-item
+// https://www.w3.org/TR/css-flexbox-1/#hypothetical-cross-size
 void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& item, bool resolve_percentage_min_max_sizes)
 {
     // Determine the hypothetical cross size of each item by performing layout
@@ -1149,7 +1149,7 @@ void FlexFormattingContext::calculate_cross_size_of_each_flex_line()
     }
 }
 
-// https://www.w3.org/TR/css-flexbox-1/#algo-stretch
+// https://www.w3.org/TR/css-flexbox-1/#cross-sizing
 void FlexFormattingContext::determine_used_cross_size_of_each_flex_item()
 {
     for (auto& flex_line : m_flex_lines) {
