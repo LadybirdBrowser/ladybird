@@ -1,0 +1,15 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+       const p1 = Object.getPrototypeOf(console)
+       const p2 = Object.getPrototypeOf(p1)
+
+       println(Object.getOwnPropertyNames(p1).length)
+
+       if (p2 == Object.prototype) {
+        println("Prototype of console prototype is Object.prototype")
+       } else {
+        println("Prototype of console prototype is NOT Object.prototype")
+       }
+    });
+</script>

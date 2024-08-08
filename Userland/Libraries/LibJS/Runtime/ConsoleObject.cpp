@@ -8,14 +8,20 @@
 
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
+#include <LibJS/Runtime/ConsoleObjectPrototype.h>
 #include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 
 JS_DEFINE_ALLOCATOR(ConsoleObject);
 
+static NonnullGCPtr<ConsoleObjectPrototype> create_console_prototype(Realm& realm)
+{
+    return realm.heap().allocate<ConsoleObjectPrototype>(realm, realm);
+}
+
 ConsoleObject::ConsoleObject(Realm& realm)
-    : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())
+    : Object(ConstructWithPrototypeTag::Tag, create_console_prototype(realm))
 {
 }
 
