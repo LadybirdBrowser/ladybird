@@ -20,8 +20,8 @@
 #include <AK/Stack.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Utf8View.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Palette.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/TextLayout.h>
 #include <stdio.h>
@@ -1227,7 +1227,7 @@ DeprecatedPainterStateSaver::~DeprecatedPainterStateSaver()
     m_painter.restore();
 }
 
-void DeprecatedPainter::stroke_path(Path const& path, Color color, int thickness)
+void DeprecatedPainter::stroke_path(DeprecatedPath const& path, Color color, int thickness)
 {
     if (thickness <= 0)
         return;

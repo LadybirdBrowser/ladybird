@@ -79,10 +79,10 @@ public:
     static void for_each_line_segment_on_cubic_bezier_curve(FloatPoint control_point_0, FloatPoint control_point_1, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>&);
     static void for_each_line_segment_on_cubic_bezier_curve(FloatPoint control_point_0, FloatPoint control_point_1, FloatPoint p1, FloatPoint p2, Function<void(FloatPoint, FloatPoint)>&&);
 
-    void stroke_path(Path const&, Color, int thickness);
+    void stroke_path(DeprecatedPath const&, Color, int thickness);
 
-    void fill_path(Path const&, Color, WindingRule rule = WindingRule::Nonzero);
-    void fill_path(Path const&, PaintStyle const& paint_style, float opacity = 1.0f, WindingRule rule = WindingRule::Nonzero);
+    void fill_path(DeprecatedPath const&, Color, WindingRule rule = WindingRule::Nonzero);
+    void fill_path(DeprecatedPath const&, PaintStyle const& paint_style, float opacity = 1.0f, WindingRule rule = WindingRule::Nonzero);
 
     void add_clip_rect(IntRect const& rect);
     void clear_clip_rect();

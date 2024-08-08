@@ -11,9 +11,9 @@
 #include <AK/IntegralMath.h>
 #include <AK/Vector.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/WindingRule.h>
 
 namespace Gfx {
@@ -147,8 +147,8 @@ class EdgeFlagPathRasterizer {
 public:
     EdgeFlagPathRasterizer(IntSize);
 
-    void fill(DeprecatedPainter&, Path const&, Color, WindingRule, FloatPoint offset = {});
-    void fill(DeprecatedPainter&, Path const&, PaintStyle const&, float opacity, WindingRule, FloatPoint offset = {});
+    void fill(DeprecatedPainter&, DeprecatedPath const&, Color, WindingRule, FloatPoint offset = {});
+    void fill(DeprecatedPainter&, DeprecatedPath const&, PaintStyle const&, float opacity, WindingRule, FloatPoint offset = {});
 
 private:
     using SubpixelSample = Detail::Sample<SamplesPerPixel>;
@@ -174,7 +174,7 @@ private:
         }
     };
 
-    void fill_internal(DeprecatedPainter&, Path const&, auto color_or_function, WindingRule, FloatPoint offset);
+    void fill_internal(DeprecatedPainter&, DeprecatedPath const&, auto color_or_function, WindingRule, FloatPoint offset);
     Detail::Edge* plot_edges_for_scanline(int scanline, auto plot_edge, EdgeExtent&, Detail::Edge* active_edges = nullptr);
 
     template<WindingRule>

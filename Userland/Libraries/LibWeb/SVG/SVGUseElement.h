@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibGfx/Path.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>

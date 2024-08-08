@@ -22,7 +22,7 @@ public:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
-    virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
+    virtual Gfx::DeprecatedPath get_path(CSSPixelSize viewport_size) override;
 
 private:
     SVGPathElement(DOM::Document&, DOM::QualifiedName);
@@ -32,6 +32,6 @@ private:
     Vector<PathInstruction> m_instructions;
 };
 
-Gfx::Path path_from_path_instructions(ReadonlySpan<PathInstruction>);
+Gfx::DeprecatedPath path_from_path_instructions(ReadonlySpan<PathInstruction>);
 
 }

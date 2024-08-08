@@ -237,7 +237,7 @@ static SkColor4f to_skia_color4f(Gfx::Color const& color)
     };
 }
 
-static SkPath to_skia_path(Gfx::Path const& path)
+static SkPath to_skia_path(Gfx::DeprecatedPath const& path)
 {
     Optional<Gfx::FloatPoint> subpath_start_point;
     Optional<Gfx::FloatPoint> subpath_last_point;
@@ -249,20 +249,20 @@ static SkPath to_skia_path(Gfx::Path const& path)
     for (auto const& segment : path) {
         auto point = segment.point();
         switch (segment.command()) {
-        case Gfx::PathSegment::Command::MoveTo: {
+        case Gfx::DeprecatedPathSegment::Command::MoveTo: {
             if (subpath_start_point.has_value() && subpath_last_point.has_value())
                 close_subpath_if_needed(subpath_last_point.value());
             subpath_start_point = point;
             path_builder.moveTo({ point.x(), point.y() });
             break;
         }
-        case Gfx::PathSegment::Command::LineTo: {
+        case Gfx::DeprecatedPathSegment::Command::LineTo: {
             if (!subpath_start_point.has_value())
                 subpath_start_point = Gfx::FloatPoint { 0.0f, 0.0f };
             path_builder.lineTo({ point.x(), point.y() });
             break;
         }
-        case Gfx::PathSegment::Command::QuadraticBezierCurveTo: {
+        case Gfx::DeprecatedPathSegment::Command::QuadraticBezierCurveTo: {
             if (!subpath_start_point.has_value())
                 subpath_start_point = Gfx::FloatPoint { 0.0f, 0.0f };
             SkPoint pt1 = { segment.through().x(), segment.through().y() };
@@ -270,7 +270,7 @@ static SkPath to_skia_path(Gfx::Path const& path)
             path_builder.quadTo(pt1, pt2);
             break;
         }
-        case Gfx::PathSegment::Command::CubicBezierCurveTo: {
+        case Gfx::DeprecatedPathSegment::Command::CubicBezierCurveTo: {
             if (!subpath_start_point.has_value())
                 subpath_start_point = Gfx::FloatPoint { 0.0f, 0.0f };
             SkPoint pt1 = { segment.through_0().x(), segment.through_0().y() };

@@ -46,7 +46,7 @@ Optional<DevicePixelPoint> MediaPaintable::mouse_position(PaintContext& context,
 
 void MediaPaintable::fill_triangle(DisplayListRecorder& painter, Gfx::IntPoint location, Array<Gfx::IntPoint, 3> coordinates, Color color)
 {
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     path.move_to((coordinates[0] + location).to_type<float>());
     path.line_to((coordinates[1] + location).to_type<float>());
     path.line_to((coordinates[2] + location).to_type<float>());
@@ -217,7 +217,7 @@ void MediaPaintable::paint_control_bar_speaker(PaintContext& context, HTML::HTML
     auto speaker_button_is_hovered = rect_is_hovered(media_element, components.speaker_button_rect, mouse_position);
     auto speaker_button_color = control_button_color(speaker_button_is_hovered);
 
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
 
     path.move_to(device_point(0, 4));
     path.line_to(device_point(5, 4));

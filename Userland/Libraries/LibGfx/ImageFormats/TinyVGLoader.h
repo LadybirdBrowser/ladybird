@@ -10,10 +10,10 @@
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/VectorGraphic.h>
 
 namespace Gfx {
@@ -41,7 +41,7 @@ public:
     using Style = Variant<Color, NonnullRefPtr<SVGGradientPaintStyle>>;
 
     struct DrawCommand {
-        Path path;
+        DeprecatedPath path;
         Optional<Style> fill {};
         Optional<Style> stroke {};
         float stroke_width { 0.0f };

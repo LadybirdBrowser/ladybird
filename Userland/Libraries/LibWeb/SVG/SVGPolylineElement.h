@@ -19,7 +19,7 @@ public:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
-    virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
+    virtual Gfx::DeprecatedPath get_path(CSSPixelSize viewport_size) override;
 
 private:
     SVGPolylineElement(DOM::Document&, DOM::QualifiedName);

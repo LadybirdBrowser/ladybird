@@ -24,17 +24,17 @@ public:
 
     Layout::SVGGraphicsBox const& layout_box() const;
 
-    void set_computed_path(Gfx::Path path)
+    void set_computed_path(Gfx::DeprecatedPath path)
     {
         m_computed_path = move(path);
     }
 
-    Optional<Gfx::Path> const& computed_path() const { return m_computed_path; }
+    Optional<Gfx::DeprecatedPath> const& computed_path() const { return m_computed_path; }
 
 protected:
     SVGPathPaintable(Layout::SVGGraphicsBox const&);
 
-    Optional<Gfx::Path> m_computed_path = {};
+    Optional<Gfx::DeprecatedPath> m_computed_path = {};
 };
 
 }

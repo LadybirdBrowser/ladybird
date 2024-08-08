@@ -33,9 +33,9 @@ void SVGPolygonElement::attribute_changed(FlyString const& name, Optional<String
         m_points = AttributeParser::parse_points(value.value_or(String {}));
 }
 
-Gfx::Path SVGPolygonElement::get_path(CSSPixelSize)
+Gfx::DeprecatedPath SVGPolygonElement::get_path(CSSPixelSize)
 {
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
 
     if (m_points.is_empty())
         return path;

@@ -6,8 +6,8 @@
 
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/DeprecatedPainter.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Font/OpenType/Glyf.h>
-#include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
 
 namespace OpenType {
@@ -246,7 +246,7 @@ ReadonlyBytes Glyf::Glyph::program() const
     return m_slice.slice(instructions_start + 2, num_instructions);
 }
 
-void Glyf::Glyph::append_path_impl(Gfx::Path& path, Gfx::AffineTransform const& transform) const
+void Glyf::Glyph::append_path_impl(Gfx::DeprecatedPath& path, Gfx::AffineTransform const& transform) const
 {
     if (m_num_contours == 0)
         return;
@@ -302,7 +302,7 @@ void Glyf::Glyph::append_path_impl(Gfx::Path& path, Gfx::AffineTransform const& 
     }
 }
 
-bool Glyf::Glyph::append_simple_path(Gfx::Path& path, i16 font_ascender, i16 font_descender, float x_scale, float y_scale) const
+bool Glyf::Glyph::append_simple_path(Gfx::DeprecatedPath& path, i16 font_ascender, i16 font_descender, float x_scale, float y_scale) const
 {
     if (m_xmin > m_xmax) [[unlikely]] {
         dbgln("OpenType: Glyph has invalid xMin ({}) > xMax ({})", m_xmin, m_xmax);

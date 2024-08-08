@@ -193,7 +193,7 @@ void AntiAliasingPainter::draw_line(FloatPoint actual_from, FloatPoint actual_to
     draw_anti_aliased_line(actual_from, actual_to, color, thickness, style, alternate_color, line_length_mode);
 }
 
-void AntiAliasingPainter::stroke_path(Path const& path, Color color, float thickness)
+void AntiAliasingPainter::stroke_path(DeprecatedPath const& path, Color color, float thickness)
 {
     if (thickness <= 0)
         return;
@@ -201,7 +201,7 @@ void AntiAliasingPainter::stroke_path(Path const& path, Color color, float thick
     fill_path(path.stroke_to_fill(thickness), color);
 }
 
-void AntiAliasingPainter::stroke_path(Path const& path, Gfx::PaintStyle const& paint_style, float thickness, float opacity)
+void AntiAliasingPainter::stroke_path(DeprecatedPath const& path, Gfx::PaintStyle const& paint_style, float thickness, float opacity)
 {
     if (thickness <= 0)
         return;

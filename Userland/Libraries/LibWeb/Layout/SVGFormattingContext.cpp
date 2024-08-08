@@ -301,7 +301,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
     nested_context.run(static_cast<Box const&>(viewport), LayoutMode::Normal, *m_available_space);
 }
 
-Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box)
+Gfx::DeprecatedPath SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box)
 {
     auto& text_element = static_cast<SVG::SVGTextPositioningElement const&>(text_box.dom_node());
     auto& font = text_box.first_available_font();
@@ -333,13 +333,13 @@ Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box
         VERIFY_NOT_REACHED();
     }
 
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     path.move_to(text_offset);
     path.text(text_utf8, font);
     return path;
 }
 
-Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const& text_path_box)
+Gfx::DeprecatedPath SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const& text_path_box)
 {
     auto& text_path_element = static_cast<SVG::SVGTextPathElement const&>(text_path_box.dom_node());
     auto path_or_shape = text_path_element.path_or_shape();
@@ -363,7 +363,7 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
                                        .multiply(m_current_viewbox_transform)
                                        .multiply(graphics_box_state.computed_svg_transforms()->svg_transform());
 
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
     if (is<SVGGeometryBox>(graphics_box)) {
         auto& geometry_box = static_cast<SVGGeometryBox const&>(graphics_box);
         path = const_cast<SVGGeometryBox&>(geometry_box).dom_node().get_path(m_viewport_size);

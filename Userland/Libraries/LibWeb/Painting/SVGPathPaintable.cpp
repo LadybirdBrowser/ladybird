@@ -72,7 +72,7 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
     auto maybe_view_box = svg_node->dom_node().view_box();
 
     auto paint_transform = computed_transforms().svg_to_device_pixels_transform(context);
-    Gfx::Path path = computed_path()->copy_transformed(paint_transform);
+    Gfx::DeprecatedPath path = computed_path()->copy_transformed(paint_transform);
 
     // Fills are computed as though all subpaths are closed (https://svgwg.org/svg2-draft/painting.html#FillProperties)
     auto closed_path = [&] {

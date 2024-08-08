@@ -526,7 +526,7 @@ Typeface::AscenderAndDescender Typeface::resolve_ascender_and_descender() const
     return { ascender, descender };
 }
 
-Optional<Glyf::Glyph> Typeface::extract_and_append_glyph_path_to(Gfx::Path& path, u32 glyph_id, i16 ascender, i16 descender, float x_scale, float y_scale) const
+Optional<Glyf::Glyph> Typeface::extract_and_append_glyph_path_to(Gfx::DeprecatedPath& path, u32 glyph_id, i16 ascender, i16 descender, float x_scale, float y_scale) const
 {
     if (!m_loca.has_value() || !m_glyf.has_value()) {
         return {};
@@ -560,7 +560,7 @@ Optional<Glyf::Glyph> Typeface::extract_and_append_glyph_path_to(Gfx::Path& path
     return {};
 }
 
-bool Typeface::append_glyph_path_to(Gfx::Path& path, u32 glyph_id, float x_scale, float y_scale) const
+bool Typeface::append_glyph_path_to(Gfx::DeprecatedPath& path, u32 glyph_id, float x_scale, float y_scale) const
 {
     auto ascender_and_descender = resolve_ascender_and_descender();
     return extract_and_append_glyph_path_to(path, glyph_id, ascender_and_descender.ascender, ascender_and_descender.descender, x_scale, y_scale).has_value();

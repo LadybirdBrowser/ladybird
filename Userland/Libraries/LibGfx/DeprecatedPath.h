@@ -16,9 +16,9 @@
 
 namespace Gfx {
 
-class Path;
+class DeprecatedPath;
 
-class PathSegment {
+class DeprecatedPathSegment {
 public:
     enum Command : u8 {
         MoveTo,
@@ -60,7 +60,7 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    PathSegment(Command command, ReadonlySpan<FloatPoint> points)
+    DeprecatedPathSegment(Command command, ReadonlySpan<FloatPoint> points)
         : m_command(command)
         , m_points(points) {};
 
@@ -85,7 +85,7 @@ public:
     PathSegmentIterator operator++()
     {
         if (m_command_index < m_commands.size())
-            m_point_index += PathSegment::points_per_command(m_commands[m_command_index++]);
+            m_point_index += DeprecatedPathSegment::points_per_command(m_commands[m_command_index++]);
         return *this;
     }
     PathSegmentIterator operator++(int)
@@ -98,7 +98,7 @@ public:
     PathSegmentIterator operator--()
     {
         if (m_command_index > 0)
-            m_point_index -= PathSegment::points_per_command(m_commands[--m_command_index]);
+            m_point_index -= DeprecatedPathSegment::points_per_command(m_commands[--m_command_index]);
         return *this;
     }
     PathSegmentIterator operator--(int)
@@ -108,10 +108,10 @@ public:
         return old;
     }
 
-    PathSegment operator*() const
+    DeprecatedPathSegment operator*() const
     {
         auto command = m_commands[m_command_index];
-        return PathSegment { command, m_points.span().slice(m_point_index, PathSegment::points_per_command(command)) };
+        return DeprecatedPathSegment { command, m_points.span().slice(m_point_index, DeprecatedPathSegment::points_per_command(command)) };
     }
 
     PathSegmentIterator& operator=(PathSegmentIterator const& other)
@@ -122,10 +122,10 @@ public:
     }
     PathSegmentIterator(PathSegmentIterator const&) = default;
 
-    friend Path;
+    friend DeprecatedPath;
 
 private:
-    PathSegmentIterator(Vector<FloatPoint> const& points, Vector<PathSegment::Command> const& commands, size_t point_index = 0, size_t command_index = 0)
+    PathSegmentIterator(Vector<FloatPoint> const& points, Vector<DeprecatedPathSegment::Command> const& commands, size_t point_index = 0, size_t command_index = 0)
         : m_points(points)
         , m_commands(commands)
         , m_point_index(point_index)
@@ -133,25 +133,25 @@ private:
     {
     }
 
-    // Note: Store reference to vectors from Gfx::Path so appending segments does not invalidate iterators.
+    // Note: Store reference to vectors from Gfx::DeprecatedPath so appending segments does not invalidate iterators.
     Vector<FloatPoint> const& m_points;
-    Vector<PathSegment::Command> const& m_commands;
+    Vector<DeprecatedPathSegment::Command> const& m_commands;
     size_t m_point_index { 0 };
     size_t m_command_index { 0 };
 };
 
-class Path {
+class DeprecatedPath {
 public:
-    Path() = default;
+    DeprecatedPath() = default;
 
     void move_to(FloatPoint point)
     {
-        append_segment<PathSegment::MoveTo>(point);
+        append_segment<DeprecatedPathSegment::MoveTo>(point);
     }
 
     void line_to(FloatPoint point)
     {
-        append_segment<PathSegment::LineTo>(point);
+        append_segment<DeprecatedPathSegment::LineTo>(point);
         invalidate_split_lines();
     }
 
@@ -167,13 +167,13 @@ public:
 
     void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point)
     {
-        append_segment<PathSegment::QuadraticBezierCurveTo>(through, point);
+        append_segment<DeprecatedPathSegment::QuadraticBezierCurveTo>(through, point);
         invalidate_split_lines();
     }
 
     void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2)
     {
-        append_segment<PathSegment::CubicBezierCurveTo>(c1, c2, p2);
+        append_segment<DeprecatedPathSegment::CubicBezierCurveTo>(c1, c2, p2);
         invalidate_split_lines();
     }
 
@@ -195,16 +195,16 @@ public:
     void close();
     void close_all_subpaths();
 
-    Path stroke_to_fill(float thickness) const;
+    DeprecatedPath stroke_to_fill(float thickness) const;
 
-    Path place_text_along(Utf8View text, Font const&) const;
+    DeprecatedPath place_text_along(Utf8View text, Font const&) const;
 
-    Path copy_transformed(AffineTransform const&) const;
+    DeprecatedPath copy_transformed(AffineTransform const&) const;
 
     ReadonlySpan<FloatLine> split_lines() const
     {
         if (!m_split_lines.has_value()) {
-            const_cast<Path*>(this)->segmentize_path();
+            const_cast<DeprecatedPath*>(this)->segmentize_path();
             VERIFY(m_split_lines.has_value());
         }
         return m_split_lines->lines;
@@ -216,7 +216,7 @@ public:
         return m_split_lines->bounding_box;
     }
 
-    void append_path(Path const& path)
+    void append_path(DeprecatedPath const& path)
     {
         m_commands.extend(path.m_commands);
         m_points.extend(path.m_points);
@@ -242,7 +242,7 @@ public:
 
     void clear()
     {
-        *this = Path {};
+        *this = DeprecatedPath {};
     }
 
 private:
@@ -254,11 +254,11 @@ private:
     }
     void segmentize_path();
 
-    template<PathSegment::Command command, typename... Args>
+    template<DeprecatedPathSegment::Command command, typename... Args>
     void append_segment(Args&&... args)
     {
         constexpr auto point_count = sizeof...(Args);
-        static_assert(point_count == PathSegment::points_per_command(command));
+        static_assert(point_count == DeprecatedPathSegment::points_per_command(command));
         FloatPoint points[] { args... };
         // Note: This should maintain the invariant that `m_points.last()` is always the last point in the path.
         m_points.append(points, point_count);
@@ -266,7 +266,7 @@ private:
     }
 
     Vector<FloatPoint> m_points {};
-    Vector<PathSegment::Command> m_commands {};
+    Vector<DeprecatedPathSegment::Command> m_commands {};
 
     struct SplitLines {
         Vector<FloatLine> lines;

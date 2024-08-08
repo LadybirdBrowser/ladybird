@@ -63,7 +63,7 @@ ALWAYS_INLINE float ScaledFont::unicode_view_width(T const& view) const
     return longest_width;
 }
 
-bool ScaledFont::append_glyph_path_to(Gfx::Path& path, u32 glyph_id) const
+bool ScaledFont::append_glyph_path_to(Gfx::DeprecatedPath& path, u32 glyph_id) const
 {
     return m_typeface->append_glyph_path_to(path, glyph_id, m_x_scale, m_y_scale);
 }

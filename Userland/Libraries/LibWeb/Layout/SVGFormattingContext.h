@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/Path.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
@@ -32,8 +32,8 @@ private:
     void layout_path_like_element(SVGGraphicsBox const&);
     void layout_mask_or_clip(SVGBox const&);
 
-    Gfx::Path compute_path_for_text(SVGTextBox const&);
-    Gfx::Path compute_path_for_text_path(SVGTextPathBox const&);
+    Gfx::DeprecatedPath compute_path_for_text(SVGTextBox const&);
+    Gfx::DeprecatedPath compute_path_for_text_path(SVGTextPathBox const&);
 
     Gfx::AffineTransform m_parent_viewbox_transform {};
 

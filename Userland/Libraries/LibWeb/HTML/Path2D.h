@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibGfx/Path.h>
+#include <LibGfx/DeprecatedPath.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
 #include <LibWeb/HTML/Canvas/CanvasPath.h>

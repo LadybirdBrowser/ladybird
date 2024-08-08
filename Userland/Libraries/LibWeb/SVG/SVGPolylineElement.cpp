@@ -33,9 +33,9 @@ void SVGPolylineElement::attribute_changed(FlyString const& name, Optional<Strin
         m_points = AttributeParser::parse_points(value.value_or(String {}));
 }
 
-Gfx::Path SVGPolylineElement::get_path(CSSPixelSize)
+Gfx::DeprecatedPath SVGPolylineElement::get_path(CSSPixelSize)
 {
-    Gfx::Path path;
+    Gfx::DeprecatedPath path;
 
     if (m_points.is_empty())
         return path;

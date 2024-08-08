@@ -25,11 +25,11 @@ public:
 
     virtual void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::Bitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode, float global_alpha) = 0;
 
-    virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness) = 0;
-    virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, float thickness, float global_alpha) = 0;
+    virtual void stroke_path(Gfx::DeprecatedPath const&, Gfx::Color, float thickness) = 0;
+    virtual void stroke_path(Gfx::DeprecatedPath const&, Gfx::PaintStyle const&, float thickness, float global_alpha) = 0;
 
-    virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule) = 0;
-    virtual void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, float global_alpha, Gfx::WindingRule) = 0;
+    virtual void fill_path(Gfx::DeprecatedPath const&, Gfx::Color, Gfx::WindingRule) = 0;
+    virtual void fill_path(Gfx::DeprecatedPath const&, Gfx::PaintStyle const&, float global_alpha, Gfx::WindingRule) = 0;
 
     virtual void set_transform(Gfx::AffineTransform const&) = 0;
 
