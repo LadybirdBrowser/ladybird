@@ -13,7 +13,8 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/PathClipper.h>
+#include <LibGfx/Path.h>
+#include <LibGfx/WindingRule.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
@@ -23,6 +24,11 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasstate
 class CanvasState {
 public:
+    struct ClipPath {
+        Gfx::Path path;
+        Gfx::WindingRule winding_rule;
+    };
+
     virtual ~CanvasState() = default;
 
     void save();
@@ -81,7 +87,7 @@ public:
         bool image_smoothing_enabled { true };
         Bindings::ImageSmoothingQuality image_smoothing_quality { Bindings::ImageSmoothingQuality::Low };
         float global_alpha = { 1 };
-        Optional<Gfx::ClipPath> clip;
+        Optional<ClipPath> clip;
         RefPtr<CSS::CSSStyleValue> font_style_value { nullptr };
         RefPtr<Gfx::Font const> current_font { nullptr };
         Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };

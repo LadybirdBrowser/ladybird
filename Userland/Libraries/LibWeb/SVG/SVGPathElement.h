@@ -32,6 +32,7 @@ private:
     Vector<PathInstruction> m_instructions;
 };
 
-Gfx::DeprecatedPath path_from_path_instructions(ReadonlySpan<PathInstruction>);
+[[nodiscard]] Gfx::Path path_from_path_instructions(ReadonlySpan<PathInstruction>);
+[[nodiscard]] Gfx::DeprecatedPath deprecated_path_from_path_instructions(ReadonlySpan<PathInstruction>);
 
 }
