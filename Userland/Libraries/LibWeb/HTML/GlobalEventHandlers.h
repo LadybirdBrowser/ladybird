@@ -12,6 +12,7 @@
 #define ENUMERATE_GLOBAL_EVENT_HANDLERS(E)                                    \
     E(onabort, HTML::EventNames::abort)                                       \
     E(onauxclick, UIEvents::EventNames::auxclick)                             \
+    E(onbeforeinput, UIEvents::EventNames::beforeinput)                       \
     E(onblur, HTML::EventNames::blur)                                         \
     E(oncancel, HTML::EventNames::cancel)                                     \
     E(oncanplay, HTML::EventNames::canplay)                                   \

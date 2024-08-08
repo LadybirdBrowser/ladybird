@@ -691,6 +691,8 @@ class SVGTitleElement;
 }
 
 namespace Web::UIEvents {
+class CompositionEvent;
+class InputEvent;
 class KeyboardEvent;
 class MouseEvent;
 class PointerEvent;

@@ -16,6 +16,7 @@ typedef OnBeforeUnloadEventHandlerNonNull? OnBeforeUnloadEventHandler;
 interface mixin GlobalEventHandlers {
     attribute EventHandler onabort;
     attribute EventHandler onauxclick;
+    attribute EventHandler onbeforeinput;
     // TODO: attribute EventHandler onbeforematch;
     attribute EventHandler onblur;
     attribute EventHandler oncancel;

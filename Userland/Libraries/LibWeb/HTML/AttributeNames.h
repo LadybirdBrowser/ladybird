@@ -123,6 +123,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onabort)                    \
     __ENUMERATE_HTML_ATTRIBUTE(onafterprint)               \
     __ENUMERATE_HTML_ATTRIBUTE(onauxclick)                 \
+    __ENUMERATE_HTML_ATTRIBUTE(onbeforeinput)              \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforeprint)              \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforeunload)             \
     __ENUMERATE_HTML_ATTRIBUTE(onblur)                     \
