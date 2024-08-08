@@ -7,7 +7,7 @@ interface HTMLObjectElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions] attribute DOMString data;
+    [CEReactions, URL] attribute USVString data;
     [CEReactions, Reflect] attribute DOMString type;
     [CEReactions, Reflect] attribute DOMString name;
     readonly attribute HTMLFormElement? form;
@@ -32,7 +32,7 @@ interface HTMLObjectElement : HTMLElement {
     [CEReactions, Reflect] attribute unsigned long hspace;
     [CEReactions, Reflect] attribute DOMString standby;
     [CEReactions, Reflect] attribute unsigned long vspace;
-    [CEReactions, Reflect=codebase] attribute DOMString codeBase;
+    [CEReactions, Reflect=codebase, URL] attribute USVString codeBase;
     [CEReactions, Reflect=codetype] attribute DOMString codeType;
     [CEReactions, Reflect=usemap] attribute DOMString useMap;
 

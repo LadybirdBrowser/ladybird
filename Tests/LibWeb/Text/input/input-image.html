@@ -9,7 +9,8 @@
 
         return new Promise((resolve, reject) => {
             input.addEventListener("load", () => {
-                resolve(`${input.src} loaded`);
+                const filename = input.src.split('/').pop();
+                resolve(`${filename} loaded`);
             });
             input.addEventListener("error", () => {
                 resolve(`${input.src} failed`);

@@ -6,7 +6,7 @@ interface HTMLEmbedElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString src;
+    [CEReactions, Reflect, URL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString type;
     [CEReactions, Reflect] attribute DOMString width;
     [CEReactions, Reflect] attribute DOMString height;
