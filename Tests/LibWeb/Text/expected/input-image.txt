@@ -1,2 +1,2 @@
-../../Layout/input/120.png loaded
+120.png loaded
 file:///i-do-no-exist-i-swear.png failed

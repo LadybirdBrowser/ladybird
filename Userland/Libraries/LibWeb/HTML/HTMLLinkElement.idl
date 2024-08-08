@@ -9,7 +9,7 @@ interface HTMLLinkElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString href;
+    [CEReactions, Reflect, URL] attribute USVString href;
     [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
     [CEReactions, Reflect] attribute DOMString rel;
     [CEReactions] attribute DOMString as;
@@ -19,7 +19,7 @@ interface HTMLLinkElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString hreflang;
     [CEReactions, Reflect] attribute DOMString type;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList sizes;
-    [CEReactions, Reflect=imagesrcset] attribute DOMString imageSrcset;
+    [CEReactions, Reflect=imagesrcset] attribute USVString imageSrcset;
     [CEReactions, Reflect=imagesizes] attribute DOMString imageSizes;
     [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
     [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
