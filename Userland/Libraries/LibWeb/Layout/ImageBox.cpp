@@ -6,7 +6,6 @@
 
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DecodedImageData.h>
-#include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Painting/ImagePaintable.h>

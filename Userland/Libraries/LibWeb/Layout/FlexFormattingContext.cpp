@@ -6,7 +6,6 @@
  */
 
 #include "InlineFormattingContext.h"
-#include <AK/Function.h>
 #include <AK/QuickSort.h>
 #include <AK/StdLibExtras.h>
 #include <LibWeb/Layout/BlockContainer.h>
