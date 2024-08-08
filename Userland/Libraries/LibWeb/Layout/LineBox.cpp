@@ -50,6 +50,9 @@ void LineBox::trim_trailing_whitespace()
             return;
         // last_fragment cannot be null from here on down, as m_fragments is not empty.
         last_fragment = &m_fragments.last();
+        auto dom_node = last_fragment->layout_node().dom_node();
+        if (dom_node && dom_node->is_editable() && dom_node->document().cursor_position())
+            return;
         if (!should_trim(last_fragment))
             return;
         if (last_fragment->is_justifiable_whitespace()) {
