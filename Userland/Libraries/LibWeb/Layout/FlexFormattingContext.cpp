@@ -621,19 +621,19 @@ void FlexFormattingContext::determine_flex_base_size_and_hypothetical_main_size(
         //       in the various helpers that calculate the intrinsic sizes of a flex item,
         //       e.g. calculate_min_content_main_size().
 
-        if (item.used_flex_basis->has<CSS::FlexBasisContent>()) {
+        if (item.used_flex_basis->has<CSS::FlexBasisContent>())
             return calculate_max_content_main_size(item);
-        }
 
         return calculate_fit_content_main_size(item);
     }();
 
-    // AD-HOC: This is not mentioned in the spec, but if the item has an aspect ratio,
-    //         we may need to adjust the main size in these ways:
-    //         - using stretch-fit main size if the flex basis is indefinite and there is no cross size to resolve the ratio against.
+    // AD-HOC: This is not mentioned in the spec, but if the item has an aspect ratio, we may need
+    //         to adjust the main size in these ways:
+    //         - using stretch-fit main size if the flex basis is indefinite, there is no
+    //           intrinsic size and no cross size to resolve the ratio against.
     //         - in response to cross size min/max constraints.
     if (item.box->has_natural_aspect_ratio()) {
-        if (!item.used_flex_basis_is_definite && !has_definite_cross_size(item)) {
+        if (!item.used_flex_basis_is_definite && !item.box->has_natural_width() && !item.box->has_natural_height() && !has_definite_cross_size(item)) {
             item.flex_base_size = inner_main_size(m_flex_container_state);
         }
         item.flex_base_size = adjust_main_size_through_aspect_ratio_for_cross_size_min_max_constraints(child_box, item.flex_base_size, computed_cross_min_size(child_box), computed_cross_max_size(child_box));
