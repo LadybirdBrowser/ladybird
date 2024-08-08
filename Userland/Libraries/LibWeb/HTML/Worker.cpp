@@ -119,6 +119,13 @@ WebIDL::ExceptionOr<void> Worker::terminate()
 {
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Terminate");
 
+    m_agent->terminate();
+
+    // 4. If the worker's WorkerGlobalScope object is actually a DedicatedWorkerGlobalScope object (i.e. the worker is a dedicated worker),
+    //    then empty the port message queue of the port that the worker's implicit port is entangled with.
+    m_outside_port->close();
+    m_outside_port = nullptr;
+
     return {};
 }
 
