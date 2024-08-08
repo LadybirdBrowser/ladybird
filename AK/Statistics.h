@@ -26,8 +26,13 @@ public:
     explicit Statistics(ContainerType&& existing_container)
         : m_values(forward<ContainerType>(existing_container))
     {
-        for (auto const& value : m_values)
-            m_sum += value;
+        T c = 0.0; // correction term
+        for (auto const& value : m_values) {
+            T const y = value - c;
+            T const t = m_sum + y;
+            c = (t - m_sum) - y;
+            m_sum = t;
+        }
     }
 
     void add(T const& value)
