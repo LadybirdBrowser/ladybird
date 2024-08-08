@@ -74,9 +74,10 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(StringView value)
 
     // 2. Let context be this's host.
     auto context = this->host();
+    VERIFY(context);
 
     // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString. FIXME: Use compliantString instead of markup.
-    auto fragment = TRY(verify_cast<Element>(*context).parse_fragment(value));
+    auto fragment = TRY(context->parse_fragment(value));
 
     // 4. Replace all with fragment within this.
     this->replace_all(fragment);

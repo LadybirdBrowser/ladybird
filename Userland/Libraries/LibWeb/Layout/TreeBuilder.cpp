@@ -229,7 +229,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
         auto text_node = document.heap().allocate_without_realm<Layout::TextNode>(document, *text);
         text_node->set_generated_for(generated_for, element);
 
-        push_parent(verify_cast<NodeWithStyle>(*pseudo_element_node));
+        push_parent(*pseudo_element_node);
         insert_node_into_inline_or_block_ancestor(*text_node, text_node->display(), AppendOrPrepend::Append);
         pop_parent();
     } else {
