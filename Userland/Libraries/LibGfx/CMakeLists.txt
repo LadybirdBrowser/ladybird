@@ -57,7 +57,9 @@ set(SOURCES
     ImmutableBitmap.cpp
     MedianCut.cpp
     Palette.cpp
+    Path.cpp
     PathClipper.cpp
+    PathSkia.cpp
     Painter.cpp
     PainterSkia.cpp
     Point.cpp

@@ -11,10 +11,9 @@
 #include <AK/Variant.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Painter.h>
-#include <LibGfx/PathClipper.h>
+#include <LibGfx/Path.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
@@ -124,13 +123,12 @@ private:
 
     PreparedText prepare_text(ByteString const& text, float max_width = INFINITY);
 
-    Gfx::DeprecatedPath rect_path(float x, float y, float width, float height);
+    [[nodiscard]] Gfx::Path rect_path(float x, float y, float width, float height);
+    [[nodiscard]] Gfx::Path text_path(StringView text, float x, float y, Optional<double> max_width);
 
-    Gfx::DeprecatedPath text_path(StringView text, float x, float y, Optional<double> max_width);
-
-    void stroke_internal(Gfx::DeprecatedPath const&);
-    void fill_internal(Gfx::DeprecatedPath const&, Gfx::WindingRule);
-    void clip_internal(Gfx::DeprecatedPath&, Gfx::WindingRule);
+    void stroke_internal(Gfx::Path const&);
+    void fill_internal(Gfx::Path const&, Gfx::WindingRule);
+    void clip_internal(Gfx::Path&, Gfx::WindingRule);
 
     JS::NonnullGCPtr<HTMLCanvasElement> m_element;
     OwnPtr<Gfx::Painter> m_painter;

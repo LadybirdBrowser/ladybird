@@ -7,8 +7,8 @@
 #define AK_DONT_REPLACE_STD
 
 #include <AK/OwnPtr.h>
-#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/PainterSkia.h>
+#include <LibGfx/PathSkia.h>
 
 #include <AK/TypeCasts.h>
 #include <core/SkBitmap.h>
@@ -56,57 +56,9 @@ static constexpr SkColor to_skia_color(Gfx::Color const& color)
     return SkColorSetARGB(color.alpha(), color.red(), color.green(), color.blue());
 }
 
-static SkPath to_skia_path(Gfx::DeprecatedPath const& path)
+static SkPath to_skia_path(Gfx::Path const& path)
 {
-    Optional<Gfx::FloatPoint> subpath_start_point;
-    Optional<Gfx::FloatPoint> subpath_last_point;
-    SkPathBuilder path_builder;
-    auto close_subpath_if_needed = [&](auto last_point) {
-        if (subpath_start_point == last_point)
-            path_builder.close();
-    };
-    for (auto const& segment : path) {
-        auto point = segment.point();
-        switch (segment.command()) {
-        case Gfx::DeprecatedPathSegment::Command::MoveTo: {
-            if (subpath_start_point.has_value() && subpath_last_point.has_value())
-                close_subpath_if_needed(subpath_last_point.value());
-            subpath_start_point = point;
-            path_builder.moveTo({ point.x(), point.y() });
-            break;
-        }
-        case Gfx::DeprecatedPathSegment::Command::LineTo: {
-            if (!subpath_start_point.has_value())
-                subpath_start_point = Gfx::FloatPoint { 0.0f, 0.0f };
-            path_builder.lineTo({ point.x(), point.y() });
-            break;
-        }
-        case Gfx::DeprecatedPathSegment::Command::QuadraticBezierCurveTo: {
-            if (!subpath_start_point.has_value())
-                subpath_start_point = Gfx::FloatPoint { 0.0f, 0.0f };
-            SkPoint pt1 = { segment.through().x(), segment.through().y() };
-            SkPoint pt2 = { segment.point().x(), segment.point().y() };
-            path_builder.quadTo(pt1, pt2);
-            break;
-        }
-        case Gfx::DeprecatedPathSegment::Command::CubicBezierCurveTo: {
-            if (!subpath_start_point.has_value())
-                subpath_start_point = Gfx::FloatPoint { 0.0f, 0.0f };
-            SkPoint pt1 = { segment.through_0().x(), segment.through_0().y() };
-            SkPoint pt2 = { segment.through_1().x(), segment.through_1().y() };
-            SkPoint pt3 = { segment.point().x(), segment.point().y() };
-            path_builder.cubicTo(pt1, pt2, pt3);
-            break;
-        }
-        default:
-            VERIFY_NOT_REACHED();
-        }
-        subpath_last_point = point;
-    }
-
-    close_subpath_if_needed(subpath_last_point);
-
-    return path_builder.snapshot();
+    return static_cast<PathImplSkia const&>(path.impl()).sk_path();
 }
 
 static SkPathFillType to_skia_path_fill_type(Gfx::WindingRule winding_rule)
@@ -200,7 +152,7 @@ void PainterSkia::set_transform(Gfx::AffineTransform const& transform)
     impl().canvas()->setMatrix(matrix);
 }
 
-void PainterSkia::stroke_path(Gfx::DeprecatedPath const& path, Gfx::Color color, float thickness)
+void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thickness)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (!thickness)
@@ -278,7 +230,7 @@ static SkPaint to_skia_paint(Gfx::PaintStyle const& style, Gfx::FloatRect const&
     return {};
 }
 
-void PainterSkia::stroke_path(Gfx::DeprecatedPath const& path, Gfx::PaintStyle const& paint_style, float thickness, float global_alpha)
+void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, float thickness, float global_alpha)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (!thickness)
@@ -293,7 +245,7 @@ void PainterSkia::stroke_path(Gfx::DeprecatedPath const& path, Gfx::PaintStyle c
     impl().canvas()->drawPath(sk_path, paint);
 }
 
-void PainterSkia::fill_path(Gfx::DeprecatedPath const& path, Gfx::Color color, Gfx::WindingRule winding_rule)
+void PainterSkia::fill_path(Gfx::Path const& path, Gfx::Color color, Gfx::WindingRule winding_rule)
 {
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -303,7 +255,7 @@ void PainterSkia::fill_path(Gfx::DeprecatedPath const& path, Gfx::Color color, G
     impl().canvas()->drawPath(sk_path, paint);
 }
 
-void PainterSkia::fill_path(Gfx::DeprecatedPath const& path, Gfx::PaintStyle const& paint_style, float global_alpha, Gfx::WindingRule winding_rule)
+void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, float global_alpha, Gfx::WindingRule winding_rule)
 {
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));

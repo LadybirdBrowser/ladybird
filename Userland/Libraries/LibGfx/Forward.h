@@ -31,6 +31,7 @@ class Painter;
 class Palette;
 class PaletteImpl;
 class DeprecatedPath;
+class Path;
 class ShareableBitmap;
 struct SystemTheme;
 
