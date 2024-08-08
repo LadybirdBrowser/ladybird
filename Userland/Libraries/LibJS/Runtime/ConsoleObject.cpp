@@ -50,6 +50,8 @@ void ConsoleObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.time, time, 0, attr);
     define_native_function(realm, vm.names.timeLog, time_log, 0, attr);
     define_native_function(realm, vm.names.timeEnd, time_end, 0, attr);
+
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "console"_string), Attribute::Configurable);
 }
 
 // 1.1.1. assert(condition, ...data), https://console.spec.whatwg.org/#assert
