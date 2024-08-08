@@ -203,7 +203,7 @@ ThrowCompletionOr<Value> Console::dir()
 
 static ThrowCompletionOr<String> label_or_fallback(VM& vm, StringView fallback)
 {
-    return vm.argument_count() > 0
+    return vm.argument_count() > 0 && !vm.argument(0).is_undefined()
         ? vm.argument(0).to_string(vm)
         : TRY_OR_THROW_OOM(vm, String::from_utf8(fallback));
 }
