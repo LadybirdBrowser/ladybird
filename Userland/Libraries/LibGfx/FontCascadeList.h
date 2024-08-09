@@ -22,6 +22,13 @@ public:
     bool is_empty() const { return m_fonts.is_empty(); }
     Font const& first() const { return *m_fonts.first().font; }
 
+    template<typename Callback>
+    void for_each_font_entry(Callback callback) const
+    {
+        for (auto const& font : m_fonts)
+            callback(font);
+    }
+
     void add(NonnullRefPtr<Font> font);
     void add(NonnullRefPtr<Font> font, Vector<UnicodeRange> unicode_ranges);
 

@@ -282,7 +282,7 @@ void WebContentClient::did_inspect_dom_tree(u64 page_id, ByteString const& dom_t
     }
 }
 
-void WebContentClient::did_inspect_dom_node(u64 page_id, bool has_style, ByteString const& computed_style, ByteString const& resolved_style, ByteString const& custom_properties, ByteString const& node_box_sizing, ByteString const& aria_properties_state)
+void WebContentClient::did_inspect_dom_node(u64 page_id, bool has_style, ByteString const& computed_style, ByteString const& resolved_style, ByteString const& custom_properties, ByteString const& node_box_sizing, ByteString const& aria_properties_state, ByteString const& fonts)
 {
     auto view = view_for_page_id(page_id);
     if (!view.has_value() || !view->on_received_dom_node_properties)
@@ -297,6 +297,7 @@ void WebContentClient::did_inspect_dom_node(u64 page_id, bool has_style, ByteStr
             .custom_properties_json = MUST(String::from_byte_string(custom_properties)),
             .node_box_sizing_json = MUST(String::from_byte_string(node_box_sizing)),
             .aria_properties_state_json = MUST(String::from_byte_string(aria_properties_state)),
+            .fonts_json = MUST(String::from_byte_string(fonts))
         };
     }
 
