@@ -14,33 +14,8 @@
 
 namespace Gfx {
 
-static DrawGlyphOrEmoji construct_glyph_or_emoji(size_t index, FloatPoint const& position, Gfx::Font const& font, Span<hb_glyph_info_t const> glyph_info, Span<hb_glyph_info_t const> input_glyph_info)
+static DrawGlyphOrEmoji construct_glyph_or_emoji(size_t index, FloatPoint const& position, Gfx::Font const&, Span<hb_glyph_info_t const> glyph_info, Span<hb_glyph_info_t const>)
 {
-    if (font.has_color_bitmaps()) {
-        auto cluster_start = glyph_info[index].cluster;
-        auto cluster_end = [&]() -> u32 {
-            if (index + 1 < glyph_info.size())
-                return glyph_info[index + 1].cluster;
-            return input_glyph_info.last().cluster + 1;
-        }();
-
-        Vector<u32> cluster;
-        for (size_t j = 0; j < input_glyph_info.size(); ++j) {
-            auto const& glyph = input_glyph_info[j];
-            if (glyph.cluster >= cluster_end)
-                break;
-            if (glyph.cluster >= cluster_start)
-                cluster.append(glyph.codepoint);
-        }
-
-        if (auto const* emoji = Emoji::emoji_for_code_points(cluster)) {
-            return DrawEmoji {
-                .position = position,
-                .emoji = emoji,
-            };
-        }
-    }
-
     return DrawGlyph {
         .position = position,
         .glyph_id = glyph_info[index].codepoint,

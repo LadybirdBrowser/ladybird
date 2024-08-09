@@ -35,7 +35,6 @@ public:
     virtual float glyph_or_emoji_width(Utf8CodePointIterator&) const override;
     virtual float glyphs_horizontal_kerning(u32 left_code_point, u32 right_code_point) const override;
     virtual u32 glyph_id_for_code_point(u32 code_point) const override { return m_typeface->glyph_id_for_code_point(code_point); }
-    virtual bool append_glyph_path_to(Gfx::DeprecatedPath&, u32 glyph_id) const override;
     virtual float preferred_line_height() const override { return metrics().height() + metrics().line_gap; }
     virtual int x_height() const override { return m_point_height; } // FIXME: Read from font
     virtual u8 baseline() const override { return m_point_height; }  // FIXME: Read from font
@@ -46,8 +45,6 @@ public:
 
     virtual NonnullRefPtr<ScaledFont> scaled_with_size(float point_size) const;
     virtual NonnullRefPtr<Font> with_size(float point_size) const override;
-
-    virtual bool has_color_bitmaps() const override { return m_typeface->has_color_bitmaps(); }
 
     virtual Typeface const& typeface() const override { return m_typeface; }
 
