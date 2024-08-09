@@ -261,7 +261,7 @@ private:
     Optional<GridRepeat> parse_repeat(Vector<ComponentValue> const&);
     Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);
 
-    Optional<URL::URL> parse_url_function(ComponentValue const&);
+    Optional<URL::URL> parse_url_function(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_url_value(TokenStream<ComponentValue>&);
 
     RefPtr<StyleValue> parse_basic_shape_value(TokenStream<ComponentValue>&);
