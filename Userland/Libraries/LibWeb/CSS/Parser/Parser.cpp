@@ -1538,18 +1538,28 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
     return StyleProperty { declaration.importance(), property_id.value(), value.release_value(), {} };
 }
 
-RefPtr<StyleValue> Parser::parse_builtin_value(ComponentValue const& component_value)
+RefPtr<StyleValue> Parser::parse_builtin_value(TokenStream<ComponentValue>& tokens)
 {
+    auto transaction = tokens.begin_transaction();
+    auto& component_value = tokens.next_token();
     if (component_value.is(Token::Type::Ident)) {
         auto ident = component_value.token().ident();
-        if (ident.equals_ignoring_ascii_case("inherit"sv))
+        if (ident.equals_ignoring_ascii_case("inherit"sv)) {
+            transaction.commit();
             return InheritStyleValue::the();
-        if (ident.equals_ignoring_ascii_case("initial"sv))
+        }
+        if (ident.equals_ignoring_ascii_case("initial"sv)) {
+            transaction.commit();
             return InitialStyleValue::the();
-        if (ident.equals_ignoring_ascii_case("unset"sv))
+        }
+        if (ident.equals_ignoring_ascii_case("unset"sv)) {
+            transaction.commit();
             return UnsetStyleValue::the();
-        if (ident.equals_ignoring_ascii_case("revert"sv))
+        }
+        if (ident.equals_ignoring_ascii_case("revert"sv)) {
+            transaction.commit();
             return RevertStyleValue::the();
+        }
         // FIXME: Implement `revert-layer` from CSS-CASCADE-5.
     }
 
@@ -4997,7 +5007,7 @@ RefPtr<StyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue>& 
             // If this is a valid identifier, it's NOT a custom-ident and can't be part of a larger name.
 
             // CSS-wide keywords are not allowed
-            if (auto builtin = parse_builtin_value(peek))
+            if (auto builtin = parse_builtin_value(tokens))
                 return nullptr;
 
             auto maybe_ident = value_id_from_string(peek.token().ident());
@@ -6901,13 +6911,14 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue>> Parser::parse_css_value(Property
     if (component_values.is_empty())
         return ParseError::SyntaxError;
 
+    auto tokens = TokenStream { component_values };
+
     if (component_values.size() == 1) {
-        if (auto parsed_value = parse_builtin_value(component_values.first()))
+        if (auto parsed_value = parse_builtin_value(tokens))
             return parsed_value.release_nonnull();
     }
 
     // Special-case property handling
-    auto tokens = TokenStream { component_values };
     switch (property_id) {
     case PropertyID::AspectRatio:
         if (auto parsed_value = parse_aspect_ratio_value(tokens); parsed_value && !tokens.has_next_token())
