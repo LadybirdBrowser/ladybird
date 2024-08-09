@@ -185,8 +185,9 @@ public:
         bool paint_overlay { false };
         bool should_show_line_box_borders { false };
         bool has_focus { false };
+        Optional<Gfx::IntRect> canvas_fill_rect {};
     };
-    void record_display_list(Painting::DisplayListRecorder& display_list_recorder, PaintConfig);
+    RefPtr<Painting::DisplayList> record_display_list(PaintConfig);
 
     Page& page() { return m_page; }
     Page const& page() const { return m_page; }

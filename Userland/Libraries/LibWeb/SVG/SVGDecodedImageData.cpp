@@ -92,17 +92,16 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout();
 
-    auto display_list = Painting::DisplayList::create();
-    Painting::DisplayListRecorder display_list_recorder(display_list);
-
-    m_document->navigable()->record_display_list(display_list_recorder, {});
+    auto display_list = m_document->navigable()->record_display_list({});
+    if (!display_list)
+        return {};
 
     auto painting_command_executor_type = m_page_client->display_list_player_type();
     switch (painting_command_executor_type) {
     case DisplayListPlayerType::SkiaGPUIfAvailable:
     case DisplayListPlayerType::SkiaCPU: {
         Painting::DisplayListPlayerSkia display_list_player { *bitmap };
-        display_list_player.execute(display_list);
+        display_list_player.execute(*display_list);
         break;
     }
     default:

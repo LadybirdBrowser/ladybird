@@ -22,6 +22,13 @@ void DisplayListRecorder::append(Command&& command)
     m_command_list.append(move(command), state().scroll_frame_id);
 }
 
+void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
+{
+    append(PaintNestedDisplayList {
+        .display_list = move(display_list),
+        .rect = state().translation.map(rect) });
+}
+
 void DisplayListRecorder::add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip)
 {
     append(AddRoundedRectClip {

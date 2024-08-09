@@ -1156,12 +1156,10 @@ void Document::update_layout()
     navigable->set_needs_display();
     set_needs_to_resolve_paint_only_properties();
 
-    if (navigable->is_traversable()) {
-        // NOTE: The assignment of scroll frames only needs to occur for traversables because they take care of all
-        //       nested navigable documents.
-        paintable()->assign_scroll_frames();
-        paintable()->assign_clip_frames();
+    paintable()->assign_scroll_frames();
+    paintable()->assign_clip_frames();
 
+    if (navigable->is_traversable()) {
         page().client().page_did_layout();
     }
 

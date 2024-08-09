@@ -40,8 +40,7 @@ void NestedBrowsingContextPaintable::paint(PaintContext& context, PaintPhase pha
 
     if (phase == PaintPhase::Foreground) {
         auto absolute_rect = this->absolute_rect();
-        absolute_rect.translate_by(enclosing_scroll_frame_offset());
-        auto clip_rect = context.rounded_device_rect(absolute_rect);
+        auto clip_rect = context.rounded_device_rect(absolute_rect.translated(enclosing_scroll_frame_offset()));
         ScopedCornerRadiusClip corner_clip { context, clip_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
         auto const* hosted_document = layout_box().dom_node().content_document_without_origin_check();
@@ -54,14 +53,13 @@ void NestedBrowsingContextPaintable::paint(PaintContext& context, PaintPhase pha
         context.display_list_recorder().save();
 
         context.display_list_recorder().add_clip_rect(clip_rect.to_type<int>());
-        auto absolute_device_rect = context.enclosing_device_rect(absolute_rect);
-        context.display_list_recorder().translate(absolute_device_rect.x().value(), absolute_device_rect.y().value());
 
         HTML::Navigable::PaintConfig paint_config;
         paint_config.paint_overlay = context.should_paint_overlay();
         paint_config.should_show_line_box_borders = context.should_show_line_box_borders();
         paint_config.has_focus = context.has_focus();
-        const_cast<DOM::Document*>(hosted_document)->navigable()->record_display_list(context.display_list_recorder(), paint_config);
+        auto display_list = const_cast<DOM::Document*>(hosted_document)->navigable()->record_display_list(paint_config);
+        context.display_list_recorder().paint_nested_display_list(display_list, context.enclosing_device_rect(absolute_rect).to_type<int>());
 
         context.display_list_recorder().restore();
 
