@@ -2190,7 +2190,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     float const font_size_in_pt = font_size_in_px * 0.75f;
 
     auto find_font = [&](FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
-        FontFaceKey key {
+        FontFaceKey const key {
             .family_name = family,
             .weight = weight,
             .slope = slope,
@@ -2218,7 +2218,15 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         return {};
     };
 
-    auto find_generic_font = [&](ValueID font_id) -> RefPtr<Gfx::FontCascadeList const> {
+    auto find_fallback_font_names = [](String const& family) -> Vector<String> {
+        auto names = Platform::FontPlugin::the().fallback_font_names(family);
+        if (!names.has_value()) {
+            return {};
+        }
+        return names.value();
+    };
+
+    auto identifier_to_family = [&monospace](ValueID font_id) -> FlyString {
         Platform::GenericFont generic_font {};
         switch (font_id) {
         case ValueID::Monospace:
@@ -2250,33 +2258,43 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         default:
             return {};
         }
-        return find_font(Platform::FontPlugin::the().generic_font_name(generic_font));
+        return Platform::FontPlugin::the().generic_font_name(generic_font);
     };
 
-    auto font_list = Gfx::FontCascadeList::create();
+    Vector<String> font_names;
     if (font_family.is_value_list()) {
         auto const& family_list = static_cast<StyleValueList const&>(font_family).values();
         for (auto const& family : family_list) {
-            RefPtr<Gfx::FontCascadeList const> other_font_list;
             if (family->is_identifier()) {
-                other_font_list = find_generic_font(family->to_identifier());
+                font_names.append(identifier_to_family(family->to_identifier()).to_string());
             } else if (family->is_string()) {
-                other_font_list = find_font(family->as_string().string_value());
+                font_names.append(family->as_string().string_value());
             } else if (family->is_custom_ident()) {
-                other_font_list = find_font(family->as_custom_ident().custom_ident());
+                font_names.append(family->as_custom_ident().custom_ident().to_string());
             }
-            if (other_font_list)
-                font_list->extend(*other_font_list);
         }
     } else if (font_family.is_identifier()) {
-        if (auto other_font_list = find_generic_font(font_family.to_identifier()))
-            font_list->extend(*other_font_list);
+        font_names.append(identifier_to_family(font_family.to_identifier()).to_string());
     } else if (font_family.is_string()) {
-        if (auto other_font_list = find_font(font_family.as_string().string_value()))
-            font_list->extend(*other_font_list);
+        font_names.append(font_family.as_string().string_value());
     } else if (font_family.is_custom_ident()) {
-        if (auto other_font_list = find_font(font_family.as_custom_ident().custom_ident()))
-            font_list->extend(*other_font_list);
+        font_names.append(font_family.as_custom_ident().custom_ident().to_string());
+    }
+
+    for (auto const& family : font_names) {
+        auto const& fallback_font_names = find_fallback_font_names(family);
+        for (auto const& name : fallback_font_names) {
+            if (!font_names.contains_slow(name)) {
+                font_names.append(name);
+            }
+        }
+    }
+
+    auto font_list = Gfx::FontCascadeList::create();
+    for (auto const& family : font_names) {
+        if (auto ft = find_font(family)) {
+            font_list->extend(*ft);
+        }
     }
 
     auto found_font = StyleProperties::font_fallback(monospace, bold);

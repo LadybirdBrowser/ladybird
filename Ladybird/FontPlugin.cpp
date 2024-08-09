@@ -196,4 +196,59 @@ FlyString FontPlugin::generic_font_name(Web::Platform::GenericFont generic_font)
     return m_generic_font_names[static_cast<size_t>(generic_font)];
 }
 
+#ifdef USE_FONTCONFIG
+Vector<String> query_fontconfig_for_fallback_fonts(String const& font_family)
+{
+    auto* config = FcConfigGetCurrent();
+    VERIFY(config);
+
+    FcPattern* pattern = FcPatternCreate();
+    FcPatternAddString(pattern, FC_FAMILY, reinterpret_cast<FcChar8 const*>(font_family.to_byte_string().characters()));
+    VERIFY(pattern);
+
+    auto success = FcConfigSubstitute(config, pattern, FcMatchPattern);
+    VERIFY(success);
+
+    FcDefaultSubstitute(pattern);
+
+    // Never select bitmap fonts.
+    success = FcPatternAddBool(pattern, FC_SCALABLE, FcTrue);
+    VERIFY(success);
+
+    // FIXME: Enable this once we can handle OpenType variable fonts.
+    success = FcPatternAddBool(pattern, FC_VARIABLE, FcFalse);
+    VERIFY(success);
+
+    Vector<String> names;
+    FcResult result {};
+
+    FcFontSet* font_set = FcFontSort(config, pattern, FcTrue, nullptr, &result);
+    if (font_set) {
+        for (auto i = 0; i < font_set->nfont; i++) {
+            FcChar8* family;
+            if (FcPatternGetString(font_set->fonts[i], FC_FAMILY, 0, &family) == FcResultMatch) {
+                auto const* family_cstring = reinterpret_cast<char const*>(family);
+                if (auto string = String::from_utf8(StringView { family_cstring, strlen(family_cstring) }); !string.is_error()) {
+                    names.append(string.release_value());
+                }
+            }
+        }
+        FcFontSetDestroy(font_set);
+    }
+    FcPatternDestroy(pattern);
+
+    return names;
+}
+#endif
+
+Optional<Vector<String>> FontPlugin::fallback_font_names(String const& font_family)
+{
+    if (!m_fallback_font_names.contains(font_family)) {
+#ifdef USE_FONTCONFIG
+        m_fallback_font_names.set(font_family, query_fontconfig_for_fallback_fonts(font_family));
+#endif
+    }
+    return m_fallback_font_names.get(font_family);
+}
+
 }
