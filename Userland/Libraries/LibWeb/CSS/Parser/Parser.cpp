@@ -149,7 +149,7 @@ CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     JS::MarkedVector<CSSRule*> rules(m_context.realm().heap());
     for (auto& raw_rule : style_sheet.rules) {
-        auto* rule = convert_to_rule(raw_rule);
+        auto rule = convert_to_rule(raw_rule);
         // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error. Discard that rule.
         if (rule)
             rules.append(rule);
@@ -1157,14 +1157,17 @@ ElementInlineCSSStyleDeclaration* Parser::parse_as_style_attribute(DOM::Element&
     return ElementInlineCSSStyleDeclaration::create(element, move(properties), move(custom_properties));
 }
 
-Optional<URL::URL> Parser::parse_url_function(ComponentValue const& component_value)
+Optional<URL::URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
 {
-    // FIXME: Handle list of media queries. https://www.w3.org/TR/css-cascade-3/#conditional-import
+    auto transaction = tokens.begin_transaction();
+    auto& component_value = tokens.next_token();
 
     auto convert_string_to_url = [&](StringView url_string) -> Optional<URL::URL> {
         auto url = m_context.complete_url(url_string);
-        if (url.is_valid())
+        if (url.is_valid()) {
+            transaction.commit();
             return url;
+        }
         return {};
     };
 
@@ -1192,15 +1195,16 @@ Optional<URL::URL> Parser::parse_url_function(ComponentValue const& component_va
 
 RefPtr<StyleValue> Parser::parse_url_value(TokenStream<ComponentValue>& tokens)
 {
-    auto url = parse_url_function(tokens.peek_token());
+    auto url = parse_url_function(tokens);
     if (!url.has_value())
         return nullptr;
-    (void)tokens.next_token();
     return URLStyleValue::create(*url);
 }
 
-RefPtr<StyleValue> Parser::parse_basic_shape_function(ComponentValue const& component_value)
+RefPtr<StyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& tokens)
 {
+    auto transaction = tokens.begin_transaction();
+    auto& component_value = tokens.next_token();
     if (!component_value.is_function())
         return nullptr;
 
@@ -1236,19 +1240,11 @@ RefPtr<StyleValue> Parser::parse_basic_shape_function(ComponentValue const& comp
         points.append(Polygon::Point { *x_pos, *y_pos });
     }
 
+    transaction.commit();
     return BasicShapeStyleValue::create(Polygon { FillRule::Nonzero, move(points) });
 }
 
-RefPtr<StyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& tokens)
-{
-    auto basic_shape = parse_basic_shape_function(tokens.peek_token());
-    if (!basic_shape)
-        return nullptr;
-    (void)tokens.next_token();
-    return basic_shape;
-}
-
-CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
+JS::GCPtr<CSSRule> Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
 {
     if (rule->is_at_rule()) {
         if (has_ignored_vendor_prefix(rule->at_rule_name()))
@@ -1261,187 +1257,21 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
             TokenStream tokens { rule->block()->values() };
             return parse_font_face_rule(tokens);
         }
-        if (rule->at_rule_name().equals_ignoring_ascii_case("import"sv) && !rule->prelude().is_empty()) {
-            Optional<URL::URL> url;
-            for (auto const& token : rule->prelude()) {
-                if (token.is(Token::Type::Whitespace))
-                    continue;
 
-                if (token.is(Token::Type::String)) {
-                    url = m_context.complete_url(token.token().string());
-                } else {
-                    url = parse_url_function(token);
-                }
+        if (rule->at_rule_name().equals_ignoring_ascii_case("import"sv))
+            return convert_to_import_rule(rule);
 
-                // FIXME: Handle list of media queries. https://www.w3.org/TR/css-cascade-3/#conditional-import
-                if (url.has_value())
-                    break;
-            }
+        if (rule->at_rule_name().equals_ignoring_ascii_case("keyframes"sv))
+            return convert_to_keyframes_rule(rule);
 
-            if (url.has_value())
-                return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*m_context.document()));
-            dbgln_if(CSS_PARSER_DEBUG, "Unable to parse url from @import rule");
-            return {};
-        }
         if (rule->at_rule_name().equals_ignoring_ascii_case("media"sv))
             return convert_to_media_rule(rule);
-        if (rule->at_rule_name().equals_ignoring_ascii_case("supports"sv)) {
-            auto supports_tokens = TokenStream { rule->prelude() };
-            auto supports = parse_a_supports(supports_tokens);
-            if (!supports) {
-                if constexpr (CSS_PARSER_DEBUG) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @supports rule invalid; discarding.");
-                    supports_tokens.dump_all_tokens();
-                }
-                return {};
-            }
 
-            if (!rule->block())
-                return {};
-            auto child_tokens = TokenStream { rule->block()->values() };
-            auto parser_rules = parse_a_list_of_rules(child_tokens);
-            JS::MarkedVector<CSSRule*> child_rules(m_context.realm().heap());
-            for (auto& raw_rule : parser_rules) {
-                if (auto* child_rule = convert_to_rule(raw_rule))
-                    child_rules.append(child_rule);
-            }
+        if (rule->at_rule_name().equals_ignoring_ascii_case("namespace"sv))
+            return convert_to_namespace_rule(rule);
 
-            auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
-            return CSSSupportsRule::create(m_context.realm(), supports.release_nonnull(), rule_list);
-        }
-        if (rule->at_rule_name().equals_ignoring_ascii_case("keyframes"sv)) {
-            auto prelude_stream = TokenStream { rule->prelude() };
-            prelude_stream.skip_whitespace();
-            auto token = prelude_stream.next_token();
-            if (!token.is_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule->prelude());
-                return {};
-            }
-
-            auto name_token = token.token();
-            prelude_stream.skip_whitespace();
-
-            if (prelude_stream.has_next_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule->prelude());
-                return {};
-            }
-
-            if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().equals_ignoring_ascii_case("none"sv))) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.ident());
-                return {};
-            }
-
-            if (!name_token.is(Token::Type::String) && !name_token.is(Token::Type::Ident)) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.to_debug_string());
-                return {};
-            }
-
-            auto name = name_token.to_string();
-
-            if (!rule->block())
-                return {};
-
-            auto child_tokens = TokenStream { rule->block()->values() };
-
-            JS::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
-            while (child_tokens.has_next_token()) {
-                child_tokens.skip_whitespace();
-                // keyframe-selector = <keyframe-keyword> | <percentage>
-                // keyframe-keyword = "from" | "to"
-                // selector = <keyframe-selector>#
-                // keyframes-block = "{" <declaration-list>? "}"
-                // keyframe-rule = <selector> <keyframes-block>
-
-                auto selectors = Vector<CSS::Percentage> {};
-                while (child_tokens.has_next_token()) {
-                    child_tokens.skip_whitespace();
-                    if (!child_tokens.has_next_token())
-                        break;
-                    auto tok = child_tokens.next_token();
-                    if (!tok.is_token()) {
-                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule has invalid selector: {}; discarding.", tok.to_debug_string());
-                        child_tokens.reconsume_current_input_token();
-                        break;
-                    }
-                    auto token = tok.token();
-                    auto read_a_selector = false;
-                    if (token.is(Token::Type::Ident)) {
-                        if (token.ident().equals_ignoring_ascii_case("from"sv)) {
-                            selectors.append(CSS::Percentage(0));
-                            read_a_selector = true;
-                        }
-                        if (token.ident().equals_ignoring_ascii_case("to"sv)) {
-                            selectors.append(CSS::Percentage(100));
-                            read_a_selector = true;
-                        }
-                    } else if (token.is(Token::Type::Percentage)) {
-                        selectors.append(CSS::Percentage(token.percentage()));
-                        read_a_selector = true;
-                    }
-
-                    if (read_a_selector) {
-                        child_tokens.skip_whitespace();
-                        if (child_tokens.next_token().is(Token::Type::Comma))
-                            continue;
-                    }
-
-                    child_tokens.reconsume_current_input_token();
-                    break;
-                }
-
-                if (!child_tokens.has_next_token())
-                    break;
-
-                child_tokens.skip_whitespace();
-                auto token = child_tokens.next_token();
-                if (token.is_block()) {
-                    auto block_tokens = token.block().values();
-                    auto block_stream = TokenStream { block_tokens };
-
-                    auto block_declarations = parse_a_list_of_declarations(block_stream);
-                    auto style = convert_to_style_declaration(block_declarations);
-                    for (auto& selector : selectors) {
-                        auto keyframe_rule = CSSKeyframeRule::create(m_context.realm(), selector, *style);
-                        keyframes.append(keyframe_rule);
-                    }
-                } else {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule has invalid block: {}; discarding.", token.to_debug_string());
-                }
-            }
-
-            return CSSKeyframesRule::create(m_context.realm(), name, CSSRuleList::create(m_context.realm(), move(keyframes)));
-        }
-        if (rule->at_rule_name().equals_ignoring_ascii_case("namespace"sv)) {
-            // https://drafts.csswg.org/css-namespaces/#syntax
-            auto token_stream = TokenStream { rule->prelude() };
-            token_stream.skip_whitespace();
-
-            auto token = token_stream.next_token();
-            Optional<FlyString> prefix = {};
-            if (token.is(Token::Type::Ident)) {
-                prefix = token.token().ident();
-                token_stream.skip_whitespace();
-                token = token_stream.next_token();
-            }
-
-            FlyString namespace_uri;
-            if (token.is(Token::Type::String)) {
-                namespace_uri = token.token().string();
-            } else if (auto url = parse_url_function(token); url.has_value()) {
-                namespace_uri = MUST(url.value().to_string());
-            } else {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @namespace rule invalid; discarding.");
-                return {};
-            }
-
-            token_stream.skip_whitespace();
-            if (token_stream.has_next_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @namespace rule invalid; discarding.");
-                return {};
-            }
-
-            return CSSNamespaceRule::create(m_context.realm(), prefix, namespace_uri);
-        }
+        if (rule->at_rule_name().equals_ignoring_ascii_case("supports"sv))
+            return convert_to_supports_rule(rule);
 
         // FIXME: More at rules!
         dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS at-rule: @{}", rule->at_rule_name());
@@ -1479,6 +1309,250 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
     }
 
     return CSSStyleRule::create(m_context.realm(), move(selectors.value()), *declaration);
+}
+
+JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)
+{
+    // https://drafts.csswg.org/css-cascade-5/#at-import
+    // @import [ <url> | <string> ]
+    //         [ layer | layer(<layer-name>) ]?
+    //         <import-conditions> ;
+    //
+    // <import-conditions> = [ supports( [ <supports-condition> | <declaration> ] ) ]?
+    //                      <media-query-list>?
+
+    if (rule.prelude().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Empty prelude.");
+        return {};
+    }
+
+    if (rule.block()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Block is not allowed.");
+        return {};
+    }
+
+    TokenStream tokens { rule.prelude() };
+    tokens.skip_whitespace();
+
+    Optional<URL::URL> url = parse_url_function(tokens);
+    if (!url.has_value() && tokens.peek_token().is(Token::Type::String))
+        url = m_context.complete_url(tokens.next_token().token().string());
+
+    if (!url.has_value()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Unable to parse `{}` as URL.", tokens.peek_token().to_debug_string());
+        return {};
+    }
+
+    tokens.skip_whitespace();
+    // TODO: Support layers and import-conditions
+    if (tokens.has_next_token()) {
+        if constexpr (CSS_PARSER_DEBUG) {
+            dbgln("Failed to parse @import rule: Trailing tokens after URL are not yet supported.");
+            tokens.dump_all_tokens();
+        }
+        return {};
+    }
+
+    return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*m_context.document()));
+}
+
+JS::GCPtr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(Rule& rule)
+{
+    // https://www.w3.org/TR/css-animations-1/#keyframes
+
+    if (rule.prelude().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @keyframes rule: Empty prelude.");
+        return {};
+    }
+
+    if (!rule.block()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @keyframes rule: No block.");
+        return {};
+    }
+
+    auto prelude_stream = TokenStream { rule.prelude() };
+    prelude_stream.skip_whitespace();
+    auto& token = prelude_stream.next_token();
+    if (!token.is_token()) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule.prelude());
+        return {};
+    }
+
+    auto name_token = token.token();
+    prelude_stream.skip_whitespace();
+
+    if (prelude_stream.has_next_token()) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule.prelude());
+        return {};
+    }
+
+    if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().equals_ignoring_ascii_case("none"sv))) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.ident());
+        return {};
+    }
+
+    if (!name_token.is(Token::Type::String) && !name_token.is(Token::Type::Ident)) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.to_debug_string());
+        return {};
+    }
+
+    auto name = name_token.to_string();
+
+    auto child_tokens = TokenStream { rule.block()->values() };
+
+    JS::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
+    while (child_tokens.has_next_token()) {
+        child_tokens.skip_whitespace();
+        // keyframe-selector = <keyframe-keyword> | <percentage>
+        // keyframe-keyword = "from" | "to"
+        // selector = <keyframe-selector>#
+        // keyframes-block = "{" <declaration-list>? "}"
+        // keyframe-rule = <selector> <keyframes-block>
+
+        auto selectors = Vector<CSS::Percentage> {};
+        while (child_tokens.has_next_token()) {
+            child_tokens.skip_whitespace();
+            if (!child_tokens.has_next_token())
+                break;
+            auto tok = child_tokens.next_token();
+            if (!tok.is_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule has invalid selector: {}; discarding.", tok.to_debug_string());
+                child_tokens.reconsume_current_input_token();
+                break;
+            }
+            auto token = tok.token();
+            auto read_a_selector = false;
+            if (token.is(Token::Type::Ident)) {
+                if (token.ident().equals_ignoring_ascii_case("from"sv)) {
+                    selectors.append(CSS::Percentage(0));
+                    read_a_selector = true;
+                }
+                if (token.ident().equals_ignoring_ascii_case("to"sv)) {
+                    selectors.append(CSS::Percentage(100));
+                    read_a_selector = true;
+                }
+            } else if (token.is(Token::Type::Percentage)) {
+                selectors.append(CSS::Percentage(token.percentage()));
+                read_a_selector = true;
+            }
+
+            if (read_a_selector) {
+                child_tokens.skip_whitespace();
+                if (child_tokens.next_token().is(Token::Type::Comma))
+                    continue;
+            }
+
+            child_tokens.reconsume_current_input_token();
+            break;
+        }
+
+        if (!child_tokens.has_next_token())
+            break;
+
+        child_tokens.skip_whitespace();
+        auto token = child_tokens.next_token();
+        if (token.is_block()) {
+            auto block_tokens = token.block().values();
+            auto block_stream = TokenStream { block_tokens };
+
+            auto block_declarations = parse_a_list_of_declarations(block_stream);
+            auto style = convert_to_style_declaration(block_declarations);
+            for (auto& selector : selectors) {
+                auto keyframe_rule = CSSKeyframeRule::create(m_context.realm(), selector, *style);
+                keyframes.append(keyframe_rule);
+            }
+        } else {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule has invalid block: {}; discarding.", token.to_debug_string());
+        }
+    }
+
+    return CSSKeyframesRule::create(m_context.realm(), name, CSSRuleList::create(m_context.realm(), move(keyframes)));
+}
+
+JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(Rule& rule)
+{
+    // https://drafts.csswg.org/css-namespaces/#syntax
+    // @namespace <namespace-prefix>? [ <string> | <url> ] ;
+    // <namespace-prefix> = <ident>
+
+    if (rule.prelude().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Empty prelude.");
+        return {};
+    }
+
+    if (rule.block()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Block is not allowed.");
+        return {};
+    }
+
+    auto tokens = TokenStream { rule.prelude() };
+    tokens.skip_whitespace();
+
+    Optional<FlyString> prefix = {};
+    if (tokens.peek_token().is(Token::Type::Ident)) {
+        prefix = tokens.next_token().token().ident();
+        tokens.skip_whitespace();
+    }
+
+    FlyString namespace_uri;
+    if (auto url = parse_url_function(tokens); url.has_value()) {
+        namespace_uri = MUST(url.value().to_string());
+    } else if (auto& url_token = tokens.next_token(); url_token.is(Token::Type::String)) {
+        namespace_uri = url_token.token().string();
+    } else {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Unable to parse `{}` as URL.", tokens.peek_token().to_debug_string());
+        return {};
+    }
+
+    tokens.skip_whitespace();
+    if (tokens.has_next_token()) {
+        if constexpr (CSS_PARSER_DEBUG) {
+            dbgln("Failed to parse @namespace rule: Trailing tokens after URL.");
+            tokens.dump_all_tokens();
+        }
+        return {};
+    }
+
+    return CSSNamespaceRule::create(m_context.realm(), prefix, namespace_uri);
+}
+
+JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(Rule& rule)
+{
+    // https://drafts.csswg.org/css-conditional-3/#at-supports
+    // @supports <supports-condition> {
+    //   <rule-list>
+    // }
+
+    if (rule.prelude().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @supports rule: Empty prelude.");
+        return {};
+    }
+
+    if (!rule.block()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @supports rule: No block.");
+        return {};
+    }
+
+    auto supports_tokens = TokenStream { rule.prelude() };
+    auto supports = parse_a_supports(supports_tokens);
+    if (!supports) {
+        if constexpr (CSS_PARSER_DEBUG) {
+            dbgln("Failed to parse @supports rule: supports clause invalid.");
+            supports_tokens.dump_all_tokens();
+        }
+        return {};
+    }
+
+    auto child_tokens = TokenStream { rule.block()->values() };
+    auto parser_rules = parse_a_list_of_rules(child_tokens);
+    JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+    for (auto& raw_rule : parser_rules) {
+        if (auto child_rule = convert_to_rule(raw_rule))
+            child_rules.append(child_rule);
+    }
+
+    auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
+    return CSSSupportsRule::create(m_context.realm(), supports.release_nonnull(), rule_list);
 }
 
 auto Parser::extract_properties(Vector<DeclarationOrAtRule> const& declarations_and_at_rules) -> PropertiesAndCustomProperties
@@ -1544,18 +1618,28 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
     return StyleProperty { declaration.importance(), property_id.value(), value.release_value(), {} };
 }
 
-RefPtr<StyleValue> Parser::parse_builtin_value(ComponentValue const& component_value)
+RefPtr<StyleValue> Parser::parse_builtin_value(TokenStream<ComponentValue>& tokens)
 {
+    auto transaction = tokens.begin_transaction();
+    auto& component_value = tokens.next_token();
     if (component_value.is(Token::Type::Ident)) {
         auto ident = component_value.token().ident();
-        if (ident.equals_ignoring_ascii_case("inherit"sv))
+        if (ident.equals_ignoring_ascii_case("inherit"sv)) {
+            transaction.commit();
             return InheritStyleValue::the();
-        if (ident.equals_ignoring_ascii_case("initial"sv))
+        }
+        if (ident.equals_ignoring_ascii_case("initial"sv)) {
+            transaction.commit();
             return InitialStyleValue::the();
-        if (ident.equals_ignoring_ascii_case("unset"sv))
+        }
+        if (ident.equals_ignoring_ascii_case("unset"sv)) {
+            transaction.commit();
             return UnsetStyleValue::the();
-        if (ident.equals_ignoring_ascii_case("revert"sv))
+        }
+        if (ident.equals_ignoring_ascii_case("revert"sv)) {
+            transaction.commit();
             return RevertStyleValue::the();
+        }
         // FIXME: Implement `revert-layer` from CSS-CASCADE-5.
     }
 
@@ -2806,37 +2890,46 @@ Optional<Color> Parser::parse_oklch_color(Vector<ComponentValue> const& componen
     return Color::from_oklab(L_val, c_val * cos(h_val), c_val * sin(h_val), alpha_val);
 }
 
-Optional<Color> Parser::parse_color(ComponentValue const& component_value)
+Optional<Color> Parser::parse_color(TokenStream<ComponentValue>& tokens)
 {
+    auto transaction = tokens.begin_transaction();
+    auto commit_if_valid = [&](Optional<Color> color) {
+        if (color.has_value())
+            transaction.commit();
+        return color;
+    };
+
+    tokens.skip_whitespace();
+    auto component_value = tokens.next_token();
+
     // https://www.w3.org/TR/css-color-4/
     if (component_value.is(Token::Type::Ident)) {
         auto ident = component_value.token().ident();
 
         auto color = Color::from_string(ident);
-        if (color.has_value())
+        if (color.has_value()) {
+            transaction.commit();
             return color;
-
+        }
+        // Otherwise, fall through to the hashless-hex-color case
     } else if (component_value.is(Token::Type::Hash)) {
         auto color = Color::from_string(MUST(String::formatted("#{}", component_value.token().hash_value())));
-        if (color.has_value())
-            return color;
-        return {};
-
+        return commit_if_valid(color);
     } else if (component_value.is_function()) {
         auto const& function = component_value.function();
         auto const& values = function.values();
         auto const function_name = function.name();
 
         if (function_name.equals_ignoring_ascii_case("rgb"sv) || function_name.equals_ignoring_ascii_case("rgba"sv))
-            return parse_rgb_color(values);
+            return commit_if_valid(parse_rgb_color(values));
         if (function_name.equals_ignoring_ascii_case("hsl"sv) || function_name.equals_ignoring_ascii_case("hsla"sv))
-            return parse_hsl_color(values);
+            return commit_if_valid(parse_hsl_color(values));
         if (function_name.equals_ignoring_ascii_case("hwb"sv))
-            return parse_hwb_color(values);
+            return commit_if_valid(parse_hwb_color(values));
         if (function_name.equals_ignoring_ascii_case("oklab"sv))
-            return parse_oklab_color(values);
+            return commit_if_valid(parse_oklab_color(values));
         if (function_name.equals_ignoring_ascii_case("oklch"sv))
-            return parse_oklch_color(values);
+            return commit_if_valid(parse_oklch_color(values));
 
         return {};
     }
@@ -2897,7 +2990,7 @@ Optional<Color> Parser::parse_color(ComponentValue const& component_value)
         }
 
         // 6. Return the concatenation of "#" (U+0023) and serialization.
-        return Color::from_string(MUST(String::formatted("#{}", serialization)));
+        return commit_if_valid(Color::from_string(MUST(String::formatted("#{}", serialization))));
     }
 
     return {};
@@ -2905,20 +2998,13 @@ Optional<Color> Parser::parse_color(ComponentValue const& component_value)
 
 RefPtr<StyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto component_value = tokens.next_token();
-
-    if (auto color = parse_color(component_value); color.has_value()) {
-        transaction.commit();
+    if (auto color = parse_color(tokens); color.has_value())
         return ColorStyleValue::create(color.value());
-    }
 
-    if (component_value.is(Token::Type::Ident)) {
-        auto ident = value_id_from_string(component_value.token().ident());
-        if (ident.has_value() && IdentifierStyleValue::is_color(ident.value())) {
-            transaction.commit();
-            return IdentifierStyleValue::create(ident.value());
-        }
+    auto transaction = tokens.begin_transaction();
+    if (auto identifier = parse_identifier_value(tokens); identifier && identifier->has_color()) {
+        transaction.commit();
+        return identifier;
     }
 
     return nullptr;
@@ -3113,25 +3199,18 @@ RefPtr<StyleValue> Parser::parse_string_value(TokenStream<ComponentValue>& token
 
 RefPtr<StyleValue> Parser::parse_image_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.next_token();
-
-    if (auto url = parse_url_function(token); url.has_value()) {
-        transaction.commit();
+    if (auto url = parse_url_function(tokens); url.has_value())
         return ImageStyleValue::create(url.value());
-    }
-    if (auto linear_gradient = parse_linear_gradient_function(token)) {
-        transaction.commit();
+
+    if (auto linear_gradient = parse_linear_gradient_function(tokens))
         return linear_gradient;
-    }
-    if (auto conic_gradient = parse_conic_gradient_function(token)) {
-        transaction.commit();
+
+    if (auto conic_gradient = parse_conic_gradient_function(tokens))
         return conic_gradient;
-    }
-    if (auto radial_gradient = parse_radial_gradient_function(token)) {
-        transaction.commit();
+
+    if (auto radial_gradient = parse_radial_gradient_function(tokens))
         return radial_gradient;
-    }
+
     return nullptr;
 }
 
@@ -4221,16 +4300,14 @@ RefPtr<StyleValue> Parser::parse_single_shadow_value(TokenStream<ComponentValue>
     };
 
     while (tokens.has_next_token()) {
-        auto const& token = tokens.peek_token();
-
-        if (auto maybe_color = parse_color(token); maybe_color.has_value()) {
+        if (auto maybe_color = parse_color(tokens); maybe_color.has_value()) {
             if (color.has_value())
                 return nullptr;
             color = maybe_color.release_value();
-            tokens.next_token();
             continue;
         }
 
+        auto const& token = tokens.peek_token();
         if (auto maybe_offset_x = possibly_dynamic_length(token); maybe_offset_x) {
             // horizontal offset
             if (offset_x)
@@ -4622,9 +4699,7 @@ RefPtr<StyleValue> Parser::parse_filter_value_list_value(TokenStream<ComponentVa
             // drop-shadow( [ <color>? && <length>{2,3} ] )
             // Note: The following code is a little awkward to allow the color to be before or after the lengths.
             Optional<LengthOrCalculated> maybe_radius = {};
-            auto maybe_color = parse_color(tokens.peek_token());
-            if (maybe_color.has_value())
-                (void)tokens.next_token();
+            auto maybe_color = parse_color(tokens);
             auto x_offset = parse_length(tokens);
             tokens.skip_whitespace();
             if (!x_offset.has_value() || !tokens.has_next_token()) {
@@ -4637,7 +4712,7 @@ RefPtr<StyleValue> Parser::parse_filter_value_list_value(TokenStream<ComponentVa
             if (tokens.has_next_token()) {
                 maybe_radius = parse_length(tokens);
                 if (!maybe_color.has_value() && (!maybe_radius.has_value() || tokens.has_next_token())) {
-                    maybe_color = parse_color(tokens.next_token());
+                    maybe_color = parse_color(tokens);
                     tokens.skip_whitespace();
                     if (!maybe_color.has_value()) {
                         return {};
@@ -5005,7 +5080,7 @@ RefPtr<StyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue>& 
             // If this is a valid identifier, it's NOT a custom-ident and can't be part of a larger name.
 
             // CSS-wide keywords are not allowed
-            if (auto builtin = parse_builtin_value(peek))
+            if (auto builtin = parse_builtin_value(tokens))
                 return nullptr;
 
             auto maybe_ident = value_id_from_string(peek.token().ident());
@@ -5051,7 +5126,7 @@ RefPtr<StyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue>& 
     return StyleValueList::create(move(font_families), StyleValueList::Separator::Comma);
 }
 
-CSSRule* Parser::parse_font_face_rule(TokenStream<ComponentValue>& tokens)
+JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentValue>& tokens)
 {
     auto declarations_and_at_rules = parse_a_list_of_declarations(tokens);
 
@@ -5181,11 +5256,10 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
     for (auto const& source_token_list : list_of_source_token_lists) {
         TokenStream source_tokens { source_token_list };
         source_tokens.skip_whitespace();
-        auto const& first = source_tokens.next_token();
 
         // <url> [ format(<font-format>)]?
         // FIXME: Implement optional tech() function from CSS-Fonts-4.
-        if (auto maybe_url = parse_url_function(first); maybe_url.has_value()) {
+        if (auto maybe_url = parse_url_function(source_tokens); maybe_url.has_value()) {
             auto url = maybe_url.release_value();
             if (!url.is_valid()) {
                 continue;
@@ -5241,6 +5315,7 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
             continue;
         }
 
+        auto const& first = source_tokens.next_token();
         if (first.is_function("local"sv)) {
             if (first.function().values().is_empty()) {
                 continue;
@@ -6909,13 +6984,14 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue>> Parser::parse_css_value(Property
     if (component_values.is_empty())
         return ParseError::SyntaxError;
 
+    auto tokens = TokenStream { component_values };
+
     if (component_values.size() == 1) {
-        if (auto parsed_value = parse_builtin_value(component_values.first()))
+        if (auto parsed_value = parse_builtin_value(tokens))
             return parsed_value.release_nonnull();
     }
 
     // Special-case property handling
-    auto tokens = TokenStream { component_values };
     switch (property_id) {
     case PropertyID::AspectRatio:
         if (auto parsed_value = parse_aspect_ratio_value(tokens); parsed_value && !tokens.has_next_token())

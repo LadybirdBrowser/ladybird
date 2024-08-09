@@ -215,13 +215,17 @@ private:
 
     Optional<GeneralEnclosed> parse_general_enclosed(TokenStream<ComponentValue>&);
 
-    CSSRule* parse_font_face_rule(TokenStream<ComponentValue>&);
+    JS::GCPtr<CSSFontFaceRule> parse_font_face_rule(TokenStream<ComponentValue>&);
 
     template<typename T>
     Vector<ParsedFontFace::Source> parse_font_face_src(TokenStream<T>&);
 
-    CSSRule* convert_to_rule(NonnullRefPtr<Rule>);
-    CSSMediaRule* convert_to_media_rule(NonnullRefPtr<Rule>);
+    JS::GCPtr<CSSRule> convert_to_rule(NonnullRefPtr<Rule>);
+    JS::GCPtr<CSSMediaRule> convert_to_media_rule(Rule&);
+    JS::GCPtr<CSSKeyframesRule> convert_to_keyframes_rule(Rule&);
+    JS::GCPtr<CSSImportRule> convert_to_import_rule(Rule&);
+    JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(Rule&);
+    JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(Rule&);
 
     PropertyOwningCSSStyleDeclaration* convert_to_style_declaration(Vector<DeclarationOrAtRule> const& declarations);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);
@@ -245,7 +249,7 @@ private:
     Optional<Color> parse_hwb_color(Vector<ComponentValue> const&);
     Optional<Color> parse_oklab_color(Vector<ComponentValue> const&);
     Optional<Color> parse_oklch_color(Vector<ComponentValue> const&);
-    Optional<Color> parse_color(ComponentValue const&);
+    Optional<Color> parse_color(TokenStream<ComponentValue>&);
     Optional<LengthOrCalculated> parse_source_size_value(TokenStream<ComponentValue>&);
     Optional<Ratio> parse_ratio(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(TokenStream<ComponentValue>&);
@@ -257,10 +261,9 @@ private:
     Optional<GridRepeat> parse_repeat(Vector<ComponentValue> const&);
     Optional<ExplicitGridTrack> parse_track_sizing_function(ComponentValue const&);
 
-    Optional<URL::URL> parse_url_function(ComponentValue const&);
+    Optional<URL::URL> parse_url_function(TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_url_value(TokenStream<ComponentValue>&);
 
-    RefPtr<StyleValue> parse_basic_shape_function(ComponentValue const&);
     RefPtr<StyleValue> parse_basic_shape_value(TokenStream<ComponentValue>&);
 
     template<typename TElement>
@@ -268,9 +271,9 @@ private:
     Optional<Vector<LinearColorStopListElement>> parse_linear_color_stop_list(TokenStream<ComponentValue>&);
     Optional<Vector<AngularColorStopListElement>> parse_angular_color_stop_list(TokenStream<ComponentValue>&);
 
-    RefPtr<StyleValue> parse_linear_gradient_function(ComponentValue const&);
-    RefPtr<StyleValue> parse_conic_gradient_function(ComponentValue const&);
-    RefPtr<StyleValue> parse_radial_gradient_function(ComponentValue const&);
+    RefPtr<StyleValue> parse_linear_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_conic_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_radial_gradient_function(TokenStream<ComponentValue>&);
 
     ParseErrorOr<NonnullRefPtr<StyleValue>> parse_css_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
@@ -279,7 +282,7 @@ private:
         RefPtr<StyleValue> style_value;
     };
     Optional<PropertyAndValue> parse_css_value_for_properties(ReadonlySpan<PropertyID>, TokenStream<ComponentValue>&);
-    RefPtr<StyleValue> parse_builtin_value(ComponentValue const&);
+    RefPtr<StyleValue> parse_builtin_value(TokenStream<ComponentValue>&);
     RefPtr<CalculatedStyleValue> parse_calculated_value(ComponentValue const&);
     RefPtr<CustomIdentStyleValue> parse_custom_ident_value(TokenStream<ComponentValue>&, std::initializer_list<StringView> blacklist);
     // NOTE: Implemented in generated code. (GenerateCSSMathFunctions.cpp)

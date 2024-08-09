@@ -135,9 +135,12 @@ Optional<Vector<AngularColorStopListElement>> Parser::parse_angular_color_stop_l
         [](Dimension& dimension) { return dimension.angle_percentage(); });
 }
 
-RefPtr<StyleValue> Parser::parse_linear_gradient_function(ComponentValue const& component_value)
+RefPtr<StyleValue> Parser::parse_linear_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using GradientType = LinearGradientStyleValue::GradientType;
+
+    auto transaction = outer_tokens.begin_transaction();
+    auto& component_value = outer_tokens.next_token();
 
     if (!component_value.is_function())
         return nullptr;
@@ -260,11 +263,15 @@ RefPtr<StyleValue> Parser::parse_linear_gradient_function(ComponentValue const& 
     if (!color_stops.has_value())
         return nullptr;
 
+    transaction.commit();
     return LinearGradientStyleValue::create(gradient_direction, move(*color_stops), gradient_type, repeating_gradient);
 }
 
-RefPtr<StyleValue> Parser::parse_conic_gradient_function(ComponentValue const& component_value)
+RefPtr<StyleValue> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
+    auto transaction = outer_tokens.begin_transaction();
+    auto& component_value = outer_tokens.next_token();
+
     if (!component_value.is_function())
         return nullptr;
 
@@ -360,16 +367,20 @@ RefPtr<StyleValue> Parser::parse_conic_gradient_function(ComponentValue const& c
     if (!at_position)
         at_position = PositionStyleValue::create_center();
 
+    transaction.commit();
     return ConicGradientStyleValue::create(from_angle, at_position.release_nonnull(), move(*color_stops), repeating_gradient);
 }
 
-RefPtr<StyleValue> Parser::parse_radial_gradient_function(ComponentValue const& component_value)
+RefPtr<StyleValue> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using EndingShape = RadialGradientStyleValue::EndingShape;
     using Extent = RadialGradientStyleValue::Extent;
     using CircleSize = RadialGradientStyleValue::CircleSize;
     using EllipseSize = RadialGradientStyleValue::EllipseSize;
     using Size = RadialGradientStyleValue::Size;
+
+    auto transaction = outer_tokens.begin_transaction();
+    auto& component_value = outer_tokens.next_token();
 
     if (!component_value.is_function())
         return nullptr;
@@ -511,6 +522,7 @@ RefPtr<StyleValue> Parser::parse_radial_gradient_function(ComponentValue const& 
     if (!at_position)
         at_position = PositionStyleValue::create_center();
 
+    transaction.commit();
     return RadialGradientStyleValue::create(ending_shape, size, at_position.release_nonnull(), move(*color_stops), repeating_gradient);
 }
 
