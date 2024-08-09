@@ -245,3 +245,29 @@ details > :not(:first-child) {
 .property-table th {
     background-color: var(--property-table-head);
 }
+
+#fonts {
+    display: flex;
+    flex-direction: row;
+}
+
+#fonts-list {
+    display: flex;
+    flex-direction: column;
+}
+
+#fonts-list .font {
+    display: flex;
+    flex-direction: row;
+}
+
+#fonts-list .font div {
+    padding: 4px;
+}
+
+#fonts-list .font div.name {
+    background-color: var(--property-table-head);
+    font-weight: bold;
+    padding-left: 10px;
+    padding-right: 10px;
+}

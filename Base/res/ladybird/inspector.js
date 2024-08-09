@@ -227,6 +227,47 @@ inspector.createPropertyTables = (computedStyle, resolvedStyle, customProperties
     createPropertyTable("custom-properties-table", JSON.parse(customProperties));
 };
 
+inspector.createFontList = fonts => {
+    let fontsJSON = JSON.parse(fonts);
+    if (!Array.isArray(fontsJSON)) return;
+
+    const listId = "fonts-list";
+    let oldList = document.getElementById(listId);
+
+    let newList = document.createElement("div");
+    newList.setAttribute("id", listId);
+    const createFontEntry = (listContainer, font) => {
+        let fontEntry = document.createElement("div");
+        fontEntry.classList.add("font");
+
+        let fontName = document.createElement("div");
+        fontName.classList.add("name");
+        fontName.innerText = font.name;
+        fontEntry.appendChild(fontName);
+
+        let fontSize = document.createElement("div");
+        fontSize.classList.add("size");
+        fontSize.innerText = font.size;
+        fontEntry.appendChild(fontSize);
+
+        let fontWeight = document.createElement("div");
+        fontWeight.classList.add("Weight");
+        fontWeight.innerText = font.weight;
+        fontEntry.appendChild(fontWeight);
+
+        let fontVariant = document.createElement("div");
+        fontVariant.classList.add("Variant");
+        fontVariant.innerText = font.variant;
+        fontEntry.appendChild(fontVariant);
+
+        listContainer.appendChild(fontEntry);
+    };
+
+    for (let font of fontsJSON) createFontEntry(newList, font);
+
+    oldList.parentNode.replaceChild(newList, oldList);
+};
+
 const inspectDOMNode = domNode => {
     if (selectedDOMNode === domNode) {
         return;

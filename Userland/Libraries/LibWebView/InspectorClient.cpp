@@ -53,7 +53,7 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         StringBuilder builder;
 
         // FIXME: Support box model metrics and ARIA properties.
-        auto generate_property_script = [&](auto const& computed_style, auto const& resolved_style, auto const& custom_properties) {
+        auto generate_property_script = [&](auto const& computed_style, auto const& resolved_style, auto const& custom_properties, auto const& fonts) {
             builder.append("inspector.createPropertyTables(\""sv);
             builder.append_escaped_for_json(computed_style);
             builder.append("\", \""sv);
@@ -61,15 +61,19 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
             builder.append("\", \""sv);
             builder.append_escaped_for_json(custom_properties);
             builder.append("\");"sv);
+            builder.append("inspector.createFontList(\""sv);
+            builder.append_escaped_for_json(fonts);
+            builder.append("\");"sv);
         };
 
         if (inspected_node_properties.has_value()) {
             generate_property_script(
                 inspected_node_properties->computed_style_json,
                 inspected_node_properties->resolved_style_json,
-                inspected_node_properties->custom_properties_json);
+                inspected_node_properties->custom_properties_json,
+                inspected_node_properties->fonts_json);
         } else {
-            generate_property_script("{}"sv, "{}"sv, "{}"sv);
+            generate_property_script("{}"sv, "{}"sv, "{}"sv, "{}"sv);
         }
 
         m_inspector_web_view.run_javascript(builder.string_view());
@@ -385,6 +389,7 @@ void InspectorClient::load_inspector()
                     <button id="computed-style-button" onclick="selectBottomTab(this, 'computed-style')">Computed Style</button>
                     <button id="resolved-style-button" onclick="selectBottomTab(this, 'resolved-style')">Resolved Style</button>
                     <button id="custom-properties-button" onclick="selectBottomTab(this, 'custom-properties')">Custom Properties</button>
+                    <button id="font-button" onclick="selectBottomTab(this, 'fonts')">Fonts</button>
                 </div>
             </div>
             <div id="console" class="tab-content">
@@ -420,6 +425,15 @@ void InspectorClient::load_inspector()
     generate_property_table("computed-style"sv);
     generate_property_table("resolved-style"sv);
     generate_property_table("custom-properties"sv);
+
+    builder.append(R"~~~(
+        <div id="fonts" class="tab-content">
+            <div id="fonts-list">
+            </div>
+            <div id="fonts-details">
+            </div>
+        </div>
+)~~~"sv);
 
     builder.append(R"~~~(
         </div>
