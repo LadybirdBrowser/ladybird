@@ -45,6 +45,13 @@
 #    undef Duration
 #endif
 
+#ifndef AK_OS_MACOS
+#    include <EGL/egl.h>
+#    include <gpu/ganesh/gl/GrGLDirectContext.h>
+#    include <gpu/gl/GrGLAssembleInterface.h>
+#    include <gpu/gl/GrGLTypes.h>
+#endif
+
 namespace Web::Painting {
 
 class DisplayListPlayerSkia::SkiaSurface {
@@ -195,6 +202,58 @@ DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Core::
         context.flush_and_submit();
     };
 }
+#endif
+
+#ifndef AK_OS_MACOS
+class SkiaEGLBackendContext final : public SkiaBackendContext {
+    AK_MAKE_NONCOPYABLE(SkiaEGLBackendContext);
+    AK_MAKE_NONMOVABLE(SkiaEGLBackendContext);
+
+public:
+    SkiaEGLBackendContext(sk_sp<GrDirectContext> context)
+        : m_context(move(context))
+    {
+    }
+
+    ~SkiaEGLBackendContext() override {};
+
+    void flush_and_submit() override
+    {
+        m_context->flush();
+        m_context->submit(GrSyncCpu::kYes);
+    }
+
+    sk_sp<SkSurface> create_surface(int width, int height)
+    {
+        auto image_info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+        return SkSurfaces::RenderTarget(m_context.get(), skgpu::Budgeted::kYes, image_info);
+    }
+
+private:
+    sk_sp<GrDirectContext> m_context;
+};
+
+OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_egl_context()
+{
+    sk_sp<GrGLInterface const> gl_interface = GrGLMakeAssembledInterface(nullptr, [](void* ctx, char const name[]) -> GrGLFuncPtr { (void)ctx; return eglGetProcAddress(name); });
+    VERIFY(gl_interface);
+    sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeGL(gl_interface);
+    VERIFY(ctx);
+    return make<SkiaEGLBackendContext>(ctx);
+}
+
+#    ifndef USE_VULKAN
+DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Gfx::Bitmap& bitmap)
+{
+    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
+    auto surface = static_cast<SkiaEGLBackendContext&>(context).create_surface(bitmap.width(), bitmap.height());
+    m_surface = make<SkiaSurface>(surface);
+    m_flush_context = [&bitmap, &surface = m_surface, &context] {
+        context.flush_and_submit();
+        surface->read_into_bitmap(bitmap);
+    };
+}
+#    endif
 #endif
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::Bitmap& bitmap)

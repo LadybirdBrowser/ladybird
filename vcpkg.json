@@ -2,6 +2,10 @@
   "builtin-baseline": "f7423ee180c4b7f40d43402c2feb3859161ef625",
   "dependencies": [
     {
+      "name": "egl",
+      "platform": "!osx"
+    },
+    {
       "name": "fontconfig",
       "platform": "linux | freebsd | openbsd"
     },

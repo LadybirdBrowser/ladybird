@@ -27,8 +27,8 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
     : Navigable(page)
     , m_session_history_traversal_queue(vm().heap().allocate_without_realm<SessionHistoryTraversalQueue>())
 {
-#ifdef AK_OS_MACOS
     auto display_list_player_type = page->client().display_list_player_type();
+#ifdef AK_OS_MACOS
     if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
         m_metal_context = Core::get_metal_context();
         m_skia_backend_context = Painting::DisplayListPlayerSkia::create_metal_context(*m_metal_context);
@@ -36,14 +36,26 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
 #endif
 
 #ifdef USE_VULKAN
-    auto display_list_player_type = page->client().display_list_player_type();
     if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
         auto maybe_vulkan_context = Core::create_vulkan_context();
         if (!maybe_vulkan_context.is_error()) {
             auto vulkan_context = maybe_vulkan_context.release_value();
             m_skia_backend_context = Painting::DisplayListPlayerSkia::create_vulkan_context(vulkan_context);
+            return;
         } else {
             dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
+        }
+    }
+#endif
+
+#ifndef AK_OS_MACOS
+    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
+        dbgln("called");
+        auto maybe_egl_interface = Core::create_egl_interface();
+        if (!maybe_egl_interface.is_error()) {
+            m_skia_backend_context = Painting::DisplayListPlayerSkia::create_egl_context();
+        } else {
+            dbgln("EGL interface creation failed: {}", maybe_egl_interface.error());
         }
     }
 #endif
@@ -1212,16 +1224,13 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
             player.execute(display_list);
             return;
         }
-#endif
-
-#ifdef USE_VULKAN
+#else
         if (m_skia_backend_context) {
             Painting::DisplayListPlayerSkia player(*m_skia_backend_context, target.bitmap());
             player.execute(display_list);
             return;
         }
 #endif
-
         // Fallback to CPU backend if GPU is not available
         Painting::DisplayListPlayerSkia player(target.bitmap());
         player.execute(display_list);

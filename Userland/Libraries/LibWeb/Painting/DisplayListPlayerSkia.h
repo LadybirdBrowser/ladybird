@@ -18,6 +18,10 @@
 #    include <LibCore/VulkanContext.h>
 #endif
 
+#ifndef AK_OS_MACOS
+#    include <LibCore/EGLInterface.h>
+#endif
+
 namespace Web::Painting {
 
 class SkiaBackendContext {
@@ -43,6 +47,13 @@ public:
 #ifdef AK_OS_MACOS
     static OwnPtr<SkiaBackendContext> create_metal_context(Core::MetalContext const&);
     DisplayListPlayerSkia(SkiaBackendContext&, Core::MetalTexture&);
+#endif
+
+#ifndef AK_OS_MACOS
+    static OwnPtr<SkiaBackendContext> create_egl_context();
+#    ifndef USE_VULKAN
+    DisplayListPlayerSkia(SkiaBackendContext&, Gfx::Bitmap&);
+#    endif
 #endif
 
     virtual ~DisplayListPlayerSkia() override;
