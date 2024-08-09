@@ -32,8 +32,8 @@ private:
     void layout_path_like_element(SVGGraphicsBox const&);
     void layout_mask_or_clip(SVGBox const&);
 
-    Gfx::DeprecatedPath compute_path_for_text(SVGTextBox const&);
-    Gfx::DeprecatedPath compute_path_for_text_path(SVGTextPathBox const&);
+    [[nodiscard]] Gfx::Path compute_path_for_text(SVGTextBox const&);
+    [[nodiscard]] Gfx::Path compute_path_for_text_path(SVGTextPathBox const&);
 
     Gfx::AffineTransform m_parent_viewbox_transform {};
 

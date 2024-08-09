@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Path.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGLineElementPrototype.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -40,12 +41,12 @@ void SVGLineElement::attribute_changed(FlyString const& name, Optional<String> c
     }
 }
 
-Gfx::DeprecatedPath SVGLineElement::get_path(CSSPixelSize viewport_size)
+Gfx::Path SVGLineElement::get_path(CSSPixelSize viewport_size)
 {
     auto const viewport_width = viewport_size.width().to_float();
     auto const viewport_height = viewport_size.height().to_float();
 
-    Gfx::DeprecatedPath path;
+    Gfx::Path path;
     float const x1 = m_x1.value_or({ 0, false }).resolve_relative_to(viewport_width);
     float const y1 = m_y1.value_or({ 0, false }).resolve_relative_to(viewport_height);
     float const x2 = m_x2.value_or({ 0, false }).resolve_relative_to(viewport_width);

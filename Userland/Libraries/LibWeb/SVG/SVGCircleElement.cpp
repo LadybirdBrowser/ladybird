@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Path.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGCircleElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -46,7 +47,7 @@ void SVGCircleElement::apply_presentational_hints(CSS::StyleProperties& style) c
         style.set_property(CSS::PropertyID::R, r_value.release_nonnull());
 }
 
-Gfx::DeprecatedPath SVGCircleElement::get_path(CSSPixelSize viewport_size)
+Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
 {
     auto node = layout_node();
     auto cx = float(node->computed_values().cx().to_px(*node, viewport_size.width()));
@@ -59,7 +60,7 @@ Gfx::DeprecatedPath SVGCircleElement::get_path(CSSPixelSize viewport_size)
     if (r == 0)
         return {};
 
-    Gfx::DeprecatedPath path;
+    Gfx::Path path;
     bool large_arc = false;
     bool sweep = true;
 

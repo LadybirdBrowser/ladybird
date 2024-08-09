@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/Path.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 
@@ -24,17 +25,17 @@ public:
 
     Layout::SVGGraphicsBox const& layout_box() const;
 
-    void set_computed_path(Gfx::DeprecatedPath path)
+    void set_computed_path(Gfx::Path path)
     {
         m_computed_path = move(path);
     }
 
-    Optional<Gfx::DeprecatedPath> const& computed_path() const { return m_computed_path; }
+    Optional<Gfx::Path> const& computed_path() const { return m_computed_path; }
 
 protected:
     SVGPathPaintable(Layout::SVGGraphicsBox const&);
 
-    Optional<Gfx::DeprecatedPath> m_computed_path = {};
+    Optional<Gfx::Path> m_computed_path = {};
 };
 
 }

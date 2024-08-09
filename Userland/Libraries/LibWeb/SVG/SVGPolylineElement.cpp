@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Path.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGPolylineElementPrototype.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -33,9 +34,9 @@ void SVGPolylineElement::attribute_changed(FlyString const& name, Optional<Strin
         m_points = AttributeParser::parse_points(value.value_or(String {}));
 }
 
-Gfx::DeprecatedPath SVGPolylineElement::get_path(CSSPixelSize)
+Gfx::Path SVGPolylineElement::get_path(CSSPixelSize)
 {
-    Gfx::DeprecatedPath path;
+    Gfx::Path path;
 
     if (m_points.is_empty())
         return path;

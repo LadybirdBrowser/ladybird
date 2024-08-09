@@ -9,8 +9,11 @@
 #include <AK/TypeCasts.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/PathSkia.h>
+#include <core/SkContourMeasure.h>
 #include <core/SkFont.h>
 #include <core/SkPath.h>
+#include <core/SkPathMeasure.h>
+#include <core/SkTextBlob.h>
 #include <pathops/SkPathOps.h>
 #include <utils/SkTextUtils.h>
 
@@ -128,6 +131,43 @@ void PathImplSkia::cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoin
 void PathImplSkia::text(Utf8View string, Font const& font)
 {
     SkTextUtils::GetPath(string.as_string().characters_without_null_termination(), string.as_string().length(), SkTextEncoding::kUTF8, last_point().x(), last_point().y(), verify_cast<ScaledFont>(font).skia_font(1), m_path.ptr());
+}
+NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf8View text, Font const& font) const
+{
+    auto sk_font = verify_cast<ScaledFont>(font).skia_font(1);
+    size_t const text_length = text.length();
+    SkScalar x = 0;
+    SkScalar y = 0;
+    SkTextBlobBuilder builder;
+    SkTextBlobBuilder::RunBuffer runBuffer = builder.allocRun(sk_font, text_length, x, y, nullptr);
+    sk_font.textToGlyphs(text.as_string().characters_without_null_termination(), text.as_string().length(), SkTextEncoding::kUTF8, runBuffer.glyphs, text_length);
+    SkPathMeasure pathMeasure(*m_path, false);
+    SkScalar accumulated_distance = 0;
+    auto output_path = PathImplSkia::create();
+    for (size_t i = 0; i < text_length; ++i) {
+        SkGlyphID glyph = runBuffer.glyphs[i];
+        SkPath glyphPath;
+        sk_font.getPath(glyph, &glyphPath);
+
+        SkScalar advance;
+        sk_font.getWidths(&glyph, 1, &advance);
+
+        SkPoint position;
+        SkVector tangent;
+        if (!pathMeasure.getPosTan(accumulated_distance, &position, &tangent))
+            continue;
+
+        SkMatrix matrix;
+        matrix.setTranslate(position.x(), position.y());
+        matrix.preRotate(SkRadiansToDegrees(std::atan2(tangent.y(), tangent.x())));
+
+        glyphPath.transform(matrix);
+        output_path->sk_path().addPath(glyphPath);
+
+        accumulated_distance += advance;
+    }
+
+    return output_path;
 }
 
 void PathImplSkia::append_path(Gfx::Path const& other)

@@ -61,7 +61,7 @@ Gfx::Color border_color(BorderEdge edge, BordersDataDevicePixels const& borders_
     return border_data.color;
 }
 
-void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect const& rect, Gfx::AntiAliasingPainter::CornerRadius const& radius, Gfx::AntiAliasingPainter::CornerRadius const& opposite_radius, BordersDataDevicePixels const& borders_data, Gfx::DeprecatedPath& path, bool last)
+void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect const& rect, Gfx::AntiAliasingPainter::CornerRadius const& radius, Gfx::AntiAliasingPainter::CornerRadius const& opposite_radius, BordersDataDevicePixels const& borders_data, Gfx::Path& path, bool last)
 {
     auto const& border_data = [&] {
         switch (edge) {
@@ -553,7 +553,7 @@ void paint_all_borders(DisplayListRecorder& painter, DevicePixelRect const& bord
         borders.enqueue(borders.dequeue());
     }
 
-    Gfx::DeprecatedPath path;
+    Gfx::Path path;
     for (BorderEdge edge : borders) {
         switch (edge) {
         case BorderEdge::Top:

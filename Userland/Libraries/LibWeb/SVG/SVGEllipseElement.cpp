@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Path.h>
 #include <LibWeb/Bindings/SVGEllipseElementPrototype.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -40,13 +41,13 @@ void SVGEllipseElement::attribute_changed(FlyString const& name, Optional<String
     }
 }
 
-Gfx::DeprecatedPath SVGEllipseElement::get_path(CSSPixelSize)
+Gfx::Path SVGEllipseElement::get_path(CSSPixelSize)
 {
     float rx = m_radius_x.value_or(0);
     float ry = m_radius_y.value_or(0);
     float cx = m_center_x.value_or(0);
     float cy = m_center_y.value_or(0);
-    Gfx::DeprecatedPath path;
+    Gfx::Path path;
 
     // A computed value of zero for either dimension, or a computed value of auto for both dimensions, disables rendering of the element.
     if (rx == 0 || ry == 0)
