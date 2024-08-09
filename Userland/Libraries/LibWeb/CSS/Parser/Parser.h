@@ -222,6 +222,7 @@ private:
 
     CSSRule* convert_to_rule(NonnullRefPtr<Rule>);
     CSSMediaRule* convert_to_media_rule(NonnullRefPtr<Rule>);
+    JS::GCPtr<CSSImportRule> convert_to_import_rule(Rule&);
 
     PropertyOwningCSSStyleDeclaration* convert_to_style_declaration(Vector<DeclarationOrAtRule> const& declarations);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);

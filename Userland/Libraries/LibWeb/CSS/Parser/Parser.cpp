@@ -1255,30 +1255,13 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
             TokenStream tokens { rule->block()->values() };
             return parse_font_face_rule(tokens);
         }
-        if (rule->at_rule_name().equals_ignoring_ascii_case("import"sv) && !rule->prelude().is_empty()) {
-            Optional<URL::URL> url;
-            for (auto const& token : rule->prelude()) {
-                if (token.is(Token::Type::Whitespace))
-                    continue;
 
-                if (token.is(Token::Type::String)) {
-                    url = m_context.complete_url(token.token().string());
-                } else {
-                    url = parse_url_function(token);
-                }
+        if (rule->at_rule_name().equals_ignoring_ascii_case("import"sv))
+            return convert_to_import_rule(rule);
 
-                // FIXME: Handle list of media queries. https://www.w3.org/TR/css-cascade-3/#conditional-import
-                if (url.has_value())
-                    break;
-            }
-
-            if (url.has_value())
-                return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*m_context.document()));
-            dbgln_if(CSS_PARSER_DEBUG, "Unable to parse url from @import rule");
-            return {};
-        }
         if (rule->at_rule_name().equals_ignoring_ascii_case("media"sv))
             return convert_to_media_rule(rule);
+
         if (rule->at_rule_name().equals_ignoring_ascii_case("supports"sv)) {
             auto supports_tokens = TokenStream { rule->prelude() };
             auto supports = parse_a_supports(supports_tokens);
@@ -1473,6 +1456,55 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
     }
 
     return CSSStyleRule::create(m_context.realm(), move(selectors.value()), *declaration);
+}
+
+JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)
+{
+    // https://drafts.csswg.org/css-cascade-5/#at-import
+    // @import [ <url> | <string> ]
+    //         [ layer | layer(<layer-name>) ]?
+    //         <import-conditions> ;
+    //
+    // <import-conditions> = [ supports( [ <supports-condition> | <declaration> ] ) ]?
+    //                      <media-query-list>?
+
+    if (rule.prelude().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Empty prelude.");
+        return {};
+    }
+
+    if (rule.block()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Block is not allowed.");
+        return {};
+    }
+
+    TokenStream tokens { rule.prelude() };
+    tokens.skip_whitespace();
+
+    Optional<URL::URL> url;
+    auto& url_token = tokens.next_token();
+    if (url_token.is(Token::Type::String)) {
+        url = m_context.complete_url(url_token.token().string());
+    } else {
+        url = parse_url_function(url_token);
+    }
+
+    if (!url.has_value()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Unable to parse `{}` as URL.", url_token.to_debug_string());
+        return {};
+    }
+
+    tokens.skip_whitespace();
+    // TODO: Support layers and import-conditions
+    if (tokens.has_next_token()) {
+        if constexpr (CSS_PARSER_DEBUG) {
+            dbgln("Failed to parse @import rule: Trailing tokens after URL are not yet supported.");
+            tokens.dump_all_tokens();
+        }
+        return {};
+    }
+
+    return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*m_context.document()));
 }
 
 auto Parser::extract_properties(Vector<DeclarationOrAtRule> const& declarations_and_at_rules) -> PropertiesAndCustomProperties
