@@ -215,13 +215,13 @@ private:
 
     Optional<GeneralEnclosed> parse_general_enclosed(TokenStream<ComponentValue>&);
 
-    CSSRule* parse_font_face_rule(TokenStream<ComponentValue>&);
+    JS::GCPtr<CSSFontFaceRule> parse_font_face_rule(TokenStream<ComponentValue>&);
 
     template<typename T>
     Vector<ParsedFontFace::Source> parse_font_face_src(TokenStream<T>&);
 
-    CSSRule* convert_to_rule(NonnullRefPtr<Rule>);
-    CSSMediaRule* convert_to_media_rule(NonnullRefPtr<Rule>);
+    JS::GCPtr<CSSRule> convert_to_rule(NonnullRefPtr<Rule>);
+    JS::GCPtr<CSSMediaRule> convert_to_media_rule(Rule&);
     JS::GCPtr<CSSKeyframesRule> convert_to_keyframes_rule(Rule&);
     JS::GCPtr<CSSImportRule> convert_to_import_rule(Rule&);
     JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(Rule&);

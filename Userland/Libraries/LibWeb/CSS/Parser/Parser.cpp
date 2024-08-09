@@ -149,7 +149,7 @@ CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     JS::MarkedVector<CSSRule*> rules(m_context.realm().heap());
     for (auto& raw_rule : style_sheet.rules) {
-        auto* rule = convert_to_rule(raw_rule);
+        auto rule = convert_to_rule(raw_rule);
         // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error. Discard that rule.
         if (rule)
             rules.append(rule);
@@ -1244,7 +1244,7 @@ RefPtr<StyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& 
     return BasicShapeStyleValue::create(Polygon { FillRule::Nonzero, move(points) });
 }
 
-CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
+JS::GCPtr<CSSRule> Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
 {
     if (rule->is_at_rule()) {
         if (has_ignored_vendor_prefix(rule->at_rule_name()))
@@ -1547,7 +1547,7 @@ JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(Rule& rule)
     auto parser_rules = parse_a_list_of_rules(child_tokens);
     JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
     for (auto& raw_rule : parser_rules) {
-        if (auto* child_rule = convert_to_rule(raw_rule))
+        if (auto child_rule = convert_to_rule(raw_rule))
             child_rules.append(child_rule);
     }
 
@@ -5126,7 +5126,7 @@ RefPtr<StyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue>& 
     return StyleValueList::create(move(font_families), StyleValueList::Separator::Comma);
 }
 
-CSSRule* Parser::parse_font_face_rule(TokenStream<ComponentValue>& tokens)
+JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentValue>& tokens)
 {
     auto declarations_and_at_rules = parse_a_list_of_declarations(tokens);
 

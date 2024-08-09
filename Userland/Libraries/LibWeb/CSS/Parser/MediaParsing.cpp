@@ -614,18 +614,28 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     return {};
 }
 
-CSSMediaRule* Parser::convert_to_media_rule(NonnullRefPtr<Web::CSS::Parser::Rule> rule)
+JS::GCPtr<CSSMediaRule> Parser::convert_to_media_rule(Rule& rule)
 {
-    auto media_query_tokens = TokenStream { rule->prelude() };
+    if (rule.prelude().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @media rule: Empty prelude.");
+        return {};
+    }
+
+    if (!rule.block()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @media rule: No block.");
+        return {};
+    }
+
+    auto media_query_tokens = TokenStream { rule.prelude() };
     auto media_query_list = parse_a_media_query_list(media_query_tokens);
-    if (media_query_list.is_empty() || !rule->block())
+    if (media_query_list.is_empty())
         return {};
 
-    auto child_tokens = TokenStream { rule->block()->values() };
+    auto child_tokens = TokenStream { rule.block()->values() };
     auto parser_rules = parse_a_list_of_rules(child_tokens);
     JS::MarkedVector<CSSRule*> child_rules(m_context.realm().heap());
     for (auto& raw_rule : parser_rules) {
-        if (auto* child_rule = convert_to_rule(raw_rule))
+        if (auto child_rule = convert_to_rule(raw_rule))
             child_rules.append(child_rule);
     }
     auto media_list = MediaList::create(m_context.realm(), move(media_query_list));
