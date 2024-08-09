@@ -1262,30 +1262,6 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
         if (rule->at_rule_name().equals_ignoring_ascii_case("media"sv))
             return convert_to_media_rule(rule);
 
-        if (rule->at_rule_name().equals_ignoring_ascii_case("supports"sv)) {
-            auto supports_tokens = TokenStream { rule->prelude() };
-            auto supports = parse_a_supports(supports_tokens);
-            if (!supports) {
-                if constexpr (CSS_PARSER_DEBUG) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @supports rule invalid; discarding.");
-                    supports_tokens.dump_all_tokens();
-                }
-                return {};
-            }
-
-            if (!rule->block())
-                return {};
-            auto child_tokens = TokenStream { rule->block()->values() };
-            auto parser_rules = parse_a_list_of_rules(child_tokens);
-            JS::MarkedVector<CSSRule*> child_rules(m_context.realm().heap());
-            for (auto& raw_rule : parser_rules) {
-                if (auto* child_rule = convert_to_rule(raw_rule))
-                    child_rules.append(child_rule);
-            }
-
-            auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
-            return CSSSupportsRule::create(m_context.realm(), supports.release_nonnull(), rule_list);
-        }
         if (rule->at_rule_name().equals_ignoring_ascii_case("keyframes"sv)) {
             auto prelude_stream = TokenStream { rule->prelude() };
             prelude_stream.skip_whitespace();
@@ -1391,6 +1367,9 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
 
         if (rule->at_rule_name().equals_ignoring_ascii_case("namespace"sv))
             return convert_to_namespace_rule(rule);
+
+        if (rule->at_rule_name().equals_ignoring_ascii_case("supports"sv))
+            return convert_to_supports_rule(rule);
 
         // FIXME: More at rules!
         dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS at-rule: @{}", rule->at_rule_name());
@@ -1525,6 +1504,45 @@ JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(Rule& rule)
     }
 
     return CSSNamespaceRule::create(m_context.realm(), prefix, namespace_uri);
+}
+
+JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(Rule& rule)
+{
+    // https://drafts.csswg.org/css-conditional-3/#at-supports
+    // @supports <supports-condition> {
+    //   <rule-list>
+    // }
+
+    if (rule.prelude().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @supports rule: Empty prelude.");
+        return {};
+    }
+
+    if (!rule.block()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @supports rule: No block.");
+        return {};
+    }
+
+    auto supports_tokens = TokenStream { rule.prelude() };
+    auto supports = parse_a_supports(supports_tokens);
+    if (!supports) {
+        if constexpr (CSS_PARSER_DEBUG) {
+            dbgln("Failed to parse @supports rule: supports clause invalid.");
+            supports_tokens.dump_all_tokens();
+        }
+        return {};
+    }
+
+    auto child_tokens = TokenStream { rule.block()->values() };
+    auto parser_rules = parse_a_list_of_rules(child_tokens);
+    JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+    for (auto& raw_rule : parser_rules) {
+        if (auto* child_rule = convert_to_rule(raw_rule))
+            child_rules.append(child_rule);
+    }
+
+    auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
+    return CSSSupportsRule::create(m_context.realm(), supports.release_nonnull(), rule_list);
 }
 
 auto Parser::extract_properties(Vector<DeclarationOrAtRule> const& declarations_and_at_rules) -> PropertiesAndCustomProperties
