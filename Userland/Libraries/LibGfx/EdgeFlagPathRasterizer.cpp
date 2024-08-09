@@ -454,13 +454,13 @@ void DeprecatedPainter::fill_path(DeprecatedPath const& path, PaintStyle const& 
 void AntiAliasingPainter::fill_path(DeprecatedPath const& path, Color color, WindingRule winding_rule)
 {
     EdgeFlagPathRasterizer<32> rasterizer(path_bounds(path));
-    rasterizer.fill(m_underlying_painter, path, color, winding_rule, m_transform.translation());
+    rasterizer.fill(m_underlying_painter, path, color, winding_rule, {});
 }
 
 void AntiAliasingPainter::fill_path(DeprecatedPath const& path, PaintStyle const& paint_style, float opacity, WindingRule winding_rule)
 {
     EdgeFlagPathRasterizer<32> rasterizer(path_bounds(path));
-    rasterizer.fill(m_underlying_painter, path, paint_style, opacity, winding_rule, m_transform.translation());
+    rasterizer.fill(m_underlying_painter, path, paint_style, opacity, winding_rule, {});
 }
 
 template class EdgeFlagPathRasterizer<8>;
