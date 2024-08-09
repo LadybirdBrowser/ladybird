@@ -19,6 +19,8 @@
 #include <RequestServer/HttpProtocol.h>
 #include <RequestServer/HttpsProtocol.h>
 
+ErrorOr<ByteString> find_certificates(StringView);
+
 // FIXME: Share b/w RequestServer and WebSocket
 ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
 {
@@ -27,6 +29,8 @@ ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
         return Error::from_string_view("Don't know how to load certs!"sv);
     return cert_path;
 }
+
+ErrorOr<int> service_main(int);
 
 ErrorOr<int> service_main(int ipc_socket)
 {

@@ -10,6 +10,8 @@
 #include <LibCore/EventLoop.h>
 #include <LibIPC/SingleServer.h>
 
+ErrorOr<int> service_main(int);
+
 ErrorOr<int> service_main(int ipc_socket)
 {
     Core::EventLoop event_loop;

@@ -30,6 +30,17 @@ static OwnPtr<Core::EventLoop> s_main_event_loop;
 static jobject s_java_instance;
 static jmethodID s_schedule_event_loop_method;
 
+struct Application : public WebView::Application {
+    WEB_VIEW_APPLICATION(Application);
+};
+
+Application::Application(Badge<WebView::Application>, Main::Arguments&)
+{
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv*, jobject, jstring, jstring, jobject);
+
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv* env, jobject thiz, jstring resource_dir, jstring tag_name, jobject timer_service)
 {
@@ -72,11 +83,24 @@ Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv* env, jobjec
     Core::EventLoopManager::install(*event_loop_manager);
     s_main_event_loop = make<Core::EventLoop>();
 
+    // The arguments cannot be empty
+    Vector<StringView> strings;
+    strings.append("ladybird"sv);
+    char argv[1][9] = { { 'l', 'a', 'd', 'y', 'b', 'i', 'r', 'd', '\0' } };
+    Main::Arguments arguments = {
+        .argc = 1,
+        .argv = (char**)argv,
+        .strings = strings
+    };
+
     // FIXME: We are not making use of this Application object to track our processes.
     // So, right now, the Application's ProcessManager is constantly empty.
     // (However, LibWebView depends on an Application object existing, so we do have to actually create one.)
-    s_application = make<WebView::Application>(0, nullptr);
+    s_application = Application::create(arguments, "about:newtab"sv);
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_LadybirdActivity_execMainEventLoop(JNIEnv*, jobject /* thiz */);
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_LadybirdActivity_execMainEventLoop(JNIEnv*, jobject /* thiz */)
@@ -85,6 +109,9 @@ Java_org_serenityos_ladybird_LadybirdActivity_execMainEventLoop(JNIEnv*, jobject
         s_main_event_loop->pump(Core::EventLoop::WaitMode::PollForEvents);
     }
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_LadybirdActivity_disposeNativeCode(JNIEnv*, jobject /* thiz */);
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_LadybirdActivity_disposeNativeCode(JNIEnv* env, jobject /* thiz */)

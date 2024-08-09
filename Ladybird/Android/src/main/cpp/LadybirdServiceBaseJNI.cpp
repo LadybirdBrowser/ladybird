@@ -14,6 +14,9 @@
 JavaVM* global_vm;
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_LadybirdServiceBase_nativeThreadLoop(JNIEnv*, jobject /* thiz */, jint);
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_LadybirdServiceBase_nativeThreadLoop(JNIEnv*, jobject /* thiz */, jint ipc_socket)
 {
     auto ret = service_main(ipc_socket);
@@ -23,6 +26,9 @@ Java_org_serenityos_ladybird_LadybirdServiceBase_nativeThreadLoop(JNIEnv*, jobje
         outln("Thread exited with code {}", ret.release_value());
     }
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_LadybirdServiceBase_initNativeCode(JNIEnv*, jobject /* thiz */, jstring, jstring);
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_LadybirdServiceBase_initNativeCode(JNIEnv* env, jobject /* thiz */, jstring resource_dir, jstring tag_name)
