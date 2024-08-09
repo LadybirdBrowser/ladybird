@@ -128,7 +128,6 @@ namespace OpenType {
 u16 be_u16(u8 const*);
 u32 be_u32(u8 const*);
 i16 be_i16(u8 const*);
-float be_fword(u8 const*);
 
 u16 be_u16(u8 const* ptr)
 {
@@ -143,11 +142,6 @@ u32 be_u32(u8 const* ptr)
 i16 be_i16(u8 const* ptr)
 {
     return (((i16)ptr[0]) << 8) | ((i16)ptr[1]);
-}
-
-float be_fword(u8 const* ptr)
-{
-    return (float)be_i16(ptr) / (float)(1 << 14);
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, unsigned index)
@@ -229,11 +223,7 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_offset(ReadonlyBytes bu
     Optional<ReadonlyBytes> opt_glyf_slice = {};
     Optional<ReadonlyBytes> opt_os2_slice = {};
     Optional<ReadonlyBytes> opt_kern_slice = {};
-    Optional<ReadonlyBytes> opt_fpgm_slice = {};
-    Optional<ReadonlyBytes> opt_prep_slice = {};
 
-    Optional<CBLC> cblc;
-    Optional<CBDT> cbdt;
     Optional<GPOS> gpos;
 
     TRY(for_each_table_record(buffer, offset, [&](Tag table_tag, ReadonlyBytes tag_buffer) -> ErrorOr<void> {
@@ -258,14 +248,6 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_offset(ReadonlyBytes bu
             opt_os2_slice = tag_buffer;
         } else if (table_tag == Tag("kern")) {
             opt_kern_slice = tag_buffer;
-        } else if (table_tag == Tag("fpgm")) {
-            opt_fpgm_slice = tag_buffer;
-        } else if (table_tag == Tag("prep")) {
-            opt_prep_slice = tag_buffer;
-        } else if (table_tag == Tag("CBLC")) {
-            cblc = TRY(CBLC::from_slice(tag_buffer));
-        } else if (table_tag == Tag("CBDT")) {
-            cbdt = TRY(CBDT::from_slice(tag_buffer));
         } else if (table_tag == Tag("GPOS")) {
             gpos = TRY(GPOS::from_slice(tag_buffer));
         }
@@ -329,14 +311,6 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_offset(ReadonlyBytes bu
     if (opt_kern_slice.has_value())
         kern = TRY(Kern::from_slice(opt_kern_slice.value()));
 
-    Optional<Fpgm> fpgm;
-    if (opt_fpgm_slice.has_value())
-        fpgm = Fpgm(opt_fpgm_slice.value());
-
-    Optional<Prep> prep;
-    if (opt_prep_slice.has_value())
-        prep = Prep(opt_prep_slice.value());
-
     return adopt_ref(*new Typeface(
         move(head),
         move(name),
@@ -348,10 +322,6 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_offset(ReadonlyBytes bu
         move(glyf),
         move(os2),
         move(kern),
-        move(fpgm),
-        move(prep),
-        move(cblc),
-        move(cbdt),
         move(gpos),
         buffer.slice(offset),
         options.index));
@@ -387,46 +357,8 @@ Gfx::ScaledFontMetrics Typeface::metrics([[maybe_unused]] float x_scale, float y
     };
 }
 
-Typeface::EmbeddedBitmapData Typeface::embedded_bitmap_data_for_glyph(u32 glyph_id) const
+float Typeface::glyph_advance(u32 glyph_id, float x_scale, float, float, float) const
 {
-    if (!has_color_bitmaps())
-        return Empty {};
-
-    u16 first_glyph_index {};
-    u16 last_glyph_index {};
-    auto maybe_index_subtable = m_cblc->index_subtable_for_glyph_id(glyph_id, first_glyph_index, last_glyph_index);
-    if (!maybe_index_subtable.has_value())
-        return Empty {};
-
-    auto const& index_subtable = maybe_index_subtable.value();
-    auto const& bitmap_size = m_cblc->bitmap_size_for_glyph_id(glyph_id).value();
-
-    if (index_subtable.index_format == 1) {
-        auto const& index_subtable1 = *bit_cast<EBLC::IndexSubTable1 const*>(&index_subtable);
-        size_t size_of_array = (last_glyph_index - first_glyph_index + 1) + 1;
-        auto sbit_offsets = ReadonlySpan<Offset32> { index_subtable1.sbit_offsets, size_of_array };
-        auto sbit_offset = sbit_offsets[glyph_id - first_glyph_index];
-        size_t glyph_data_offset = sbit_offset + index_subtable.image_data_offset;
-
-        if (index_subtable.image_format == 17) {
-            return EmbeddedBitmapWithFormat17 {
-                .bitmap_size = bitmap_size,
-                .format17 = *bit_cast<CBDT::Format17 const*>(m_cbdt->bytes().slice(glyph_data_offset, size_of_array).data()),
-            };
-        }
-        dbgln("FIXME: Implement OpenType embedded bitmap image format {}", index_subtable.image_format);
-    } else {
-        dbgln("FIXME: Implement OpenType embedded bitmap index format {}", index_subtable.index_format);
-    }
-
-    return Empty {};
-}
-
-float Typeface::glyph_advance(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const
-{
-    if (has_color_bitmaps())
-        return glyph_metrics(glyph_id, x_scale, y_scale, point_width, point_height).advance_width;
-
     if (!m_hmtx.has_value())
         return 0;
 
@@ -437,33 +369,8 @@ float Typeface::glyph_advance(u32 glyph_id, float x_scale, float y_scale, float 
     return static_cast<float>(horizontal_metrics.advance_width) * x_scale;
 }
 
-Gfx::ScaledGlyphMetrics Typeface::glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const
+Gfx::ScaledGlyphMetrics Typeface::glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float, float) const
 {
-    auto embedded_bitmap_metrics = embedded_bitmap_data_for_glyph(glyph_id).visit(
-        [&](EmbeddedBitmapWithFormat17 const& data) -> Optional<Gfx::ScaledGlyphMetrics> {
-            // FIXME: This is a pretty ugly hack to work out new scale factors based on the relationship between
-            //        the pixels-per-em values and the font point size. It appears that bitmaps are not in the same
-            //        coordinate space as the head table's "units per em" value.
-            //        There's definitely some cleaner way to do this.
-            float x_scale = (point_width * DEFAULT_DPI) / (POINTS_PER_INCH * data.bitmap_size.ppem_x);
-            float y_scale = (point_height * DEFAULT_DPI) / (POINTS_PER_INCH * data.bitmap_size.ppem_y);
-
-            return Gfx::ScaledGlyphMetrics {
-                .ascender = static_cast<float>(data.bitmap_size.hori.ascender) * y_scale,
-                .descender = static_cast<float>(data.bitmap_size.hori.descender) * y_scale,
-                .advance_width = static_cast<float>(data.format17.glyph_metrics.advance) * x_scale,
-                .left_side_bearing = static_cast<float>(data.format17.glyph_metrics.bearing_x) * x_scale,
-            };
-        },
-        [&](Empty) -> Optional<Gfx::ScaledGlyphMetrics> {
-            // Unsupported format or no embedded bitmap for this glyph ID.
-            return {};
-        });
-
-    if (embedded_bitmap_metrics.has_value()) {
-        return embedded_bitmap_metrics.release_value();
-    }
-
     if (!m_loca.has_value() || !m_glyf.has_value() || !m_hmtx.has_value()) {
         return Gfx::ScaledGlyphMetrics {};
     }
@@ -509,61 +416,6 @@ float Typeface::glyphs_horizontal_kerning(u32 left_glyph_id, u32 right_glyph_id,
 
     m_kerning_cache.set(cache_key, 0);
     return 0.0f;
-}
-
-Typeface::AscenderAndDescender Typeface::resolve_ascender_and_descender() const
-{
-    i16 ascender = 0;
-    i16 descender = 0;
-
-    if (m_os2.has_value() && m_os2->use_typographic_metrics()) {
-        ascender = m_os2->typographic_ascender();
-        descender = m_os2->typographic_descender();
-    } else {
-        ascender = m_hhea.ascender();
-        descender = m_hhea.descender();
-    }
-    return { ascender, descender };
-}
-
-Optional<Glyf::Glyph> Typeface::extract_and_append_glyph_path_to(Gfx::DeprecatedPath& path, u32 glyph_id, i16 ascender, i16 descender, float x_scale, float y_scale) const
-{
-    if (!m_loca.has_value() || !m_glyf.has_value()) {
-        return {};
-    }
-
-    if (glyph_id >= glyph_count()) {
-        glyph_id = 0;
-    }
-
-    auto glyph_offset0 = m_loca->get_glyph_offset(glyph_id);
-    auto glyph_offset1 = m_loca->get_glyph_offset(glyph_id + 1);
-
-    // If a glyph has no outline, then loca[n] = loca [n+1].
-    if (glyph_offset0 == glyph_offset1)
-        return {};
-
-    auto glyph = m_glyf->glyph(glyph_offset0);
-    if (!glyph.has_value())
-        return {};
-
-    bool success = glyph->append_path(path, ascender, descender, x_scale, y_scale, [&](u16 glyph_id) {
-        if (glyph_id >= glyph_count()) {
-            glyph_id = 0;
-        }
-        auto glyph_offset = m_loca->get_glyph_offset(glyph_id);
-        return m_glyf->glyph(glyph_offset);
-    });
-
-    if (success)
-        return glyph;
-    return {};
-}
-
-bool Typeface::append_glyph_path_to(Gfx::DeprecatedPath& path, u32 glyph_id, float x_scale, float y_scale) const
-{
-    auto ascender_and_descender = resolve_ascender_and_descender();
-    return extract_and_append_glyph_path_to(path, glyph_id, ascender_and_descender.ascender, ascender_and_descender.descender, x_scale, y_scale).has_value();
 }
 
 u32 Typeface::glyph_count() const
@@ -652,40 +504,6 @@ u8 Typeface::slope() const
     return *m_slope;
 }
 
-bool Typeface::is_fixed_width() const
-{
-    // FIXME: Read this information from the font file itself.
-    // FIXME: Although, it appears some application do similar hacks
-    return glyph_metrics(glyph_id_for_code_point('.'), 1, 1, 1, 1).advance_width == glyph_metrics(glyph_id_for_code_point('X'), 1, 1, 1, 1).advance_width;
-}
-
-Optional<ReadonlyBytes> Typeface::font_program() const
-{
-    if (m_fpgm.has_value())
-        return m_fpgm->program_data();
-    return {};
-}
-
-Optional<ReadonlyBytes> Typeface::control_value_program() const
-{
-    if (m_prep.has_value())
-        return m_prep->program_data();
-    return {};
-}
-
-Optional<ReadonlyBytes> Typeface::glyph_program(u32 glyph_id) const
-{
-    if (!m_loca.has_value() || !m_glyf.has_value()) {
-        return {};
-    }
-
-    auto glyph_offset = m_loca->get_glyph_offset(glyph_id);
-    auto glyph = m_glyf->glyph(glyph_offset);
-    if (!glyph.has_value())
-        return {};
-    return glyph->program();
-}
-
 u32 Typeface::glyph_id_for_code_point(u32 code_point) const
 {
     return glyph_page(code_point / GlyphPage::glyphs_per_page).glyph_ids[code_point % GlyphPage::glyphs_per_page];
@@ -718,29 +536,6 @@ void Typeface::populate_glyph_page(GlyphPage& glyph_page, size_t page_index) con
         u32 code_point = first_code_point + i;
         glyph_page.glyph_ids[i] = m_cmap->glyph_id_for_code_point(code_point);
     }
-}
-bool Typeface::has_color_bitmaps() const
-{
-    return m_cblc.has_value() && m_cbdt.has_value();
-}
-
-RefPtr<Gfx::Bitmap> Typeface::color_bitmap(u32 glyph_id) const
-{
-    return embedded_bitmap_data_for_glyph(glyph_id).visit(
-        [&](EmbeddedBitmapWithFormat17 const& data) -> RefPtr<Gfx::Bitmap> {
-            auto data_slice = ReadonlyBytes { data.format17.data, static_cast<u32>(data.format17.data_len) };
-            auto decoder = Gfx::PNGImageDecoderPlugin::create(data_slice).release_value_but_fixme_should_propagate_errors();
-            auto frame = decoder->frame(0);
-            if (frame.is_error()) {
-                dbgln("PNG decode failed");
-                return nullptr;
-            }
-            return frame.value().image;
-        },
-        [&](Empty) -> RefPtr<Gfx::Bitmap> {
-            // Unsupported format or no image for this glyph ID.
-            return nullptr;
-        });
 }
 
 }

@@ -183,8 +183,6 @@ public:
         elliptical_arc_to(point, { radius, radius }, 0, large_arc, sweep);
     }
 
-    void text(Utf8View, Font const&);
-
     FloatPoint last_point()
     {
         if (!m_points.is_empty())
@@ -196,9 +194,6 @@ public:
     void close_all_subpaths();
 
     DeprecatedPath stroke_to_fill(float thickness) const;
-
-    DeprecatedPath place_text_along(Utf8View text, Font const&) const;
-
     DeprecatedPath copy_transformed(AffineTransform const&) const;
 
     ReadonlySpan<FloatLine> split_lines() const

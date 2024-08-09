@@ -63,11 +63,6 @@ ALWAYS_INLINE float ScaledFont::unicode_view_width(T const& view) const
     return longest_width;
 }
 
-bool ScaledFont::append_glyph_path_to(Gfx::DeprecatedPath& path, u32 glyph_id) const
-{
-    return m_typeface->append_glyph_path_to(path, glyph_id, m_x_scale, m_y_scale);
-}
-
 float ScaledFont::glyph_left_bearing(u32 code_point) const
 {
     auto id = glyph_id_for_code_point(code_point);
@@ -83,10 +78,8 @@ float ScaledFont::glyph_width(u32 code_point) const
 template<typename CodePointIterator>
 static float glyph_or_emoji_width_impl(ScaledFont const& font, CodePointIterator& it)
 {
-    if (!font.has_color_bitmaps()) {
-        if (auto const* emoji = Emoji::emoji_for_code_point_iterator(it))
-            return font.pixel_size() * emoji->width() / emoji->height();
-    }
+    if (auto const* emoji = Emoji::emoji_for_code_point_iterator(it))
+        return font.pixel_size() * emoji->width() / emoji->height();
 
     return font.glyph_width(*it);
 }
