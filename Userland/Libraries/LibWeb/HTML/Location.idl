@@ -1,3 +1,5 @@
+#import <HTML/DOMStringList.idl>
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#location
 [Exposed=Window]
 interface Location { // but see also additional creation steps and overridden internal methods
@@ -15,5 +17,5 @@ interface Location { // but see also additional creation steps and overridden in
     [LegacyUnforgeable] undefined replace(USVString url);
     [LegacyUnforgeable] undefined reload();
 
-    [FIXME, LegacyUnforgeable, SameObject] readonly attribute DOMStringList ancestorOrigins;
+    [LegacyUnforgeable, SameObject] readonly attribute DOMStringList ancestorOrigins;
 };
