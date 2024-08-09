@@ -23,6 +23,12 @@ TEST_CASE(compile_time_constructible)
     static_assert(array.size() == 4);
 }
 
+TEST_CASE(conforms_to_iterator_protocol)
+{
+    static_assert(std::random_access_iterator<Array<int, 8>::Iterator>);
+    static_assert(std::random_access_iterator<Array<int, 8>::ConstIterator>);
+}
+
 TEST_CASE(compile_time_iterable)
 {
     constexpr Array<int, 8> array = { 0, 1, 2, 3, 4, 5, 6, 7 };
