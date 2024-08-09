@@ -514,6 +514,7 @@ if (BUILD_TESTING)
         LibCompress
         LibTest
         LibTextCodec
+        LibThreading
         LibUnicode
         LibURL
         LibXML

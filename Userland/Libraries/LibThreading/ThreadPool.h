@@ -22,6 +22,7 @@ struct ThreadPoolLooper {
     {
         Optional<typename Pool::Work> entry;
         while (true) {
+            pool.m_busy_count++;
             entry = pool.m_work_queue.with_locked([&](auto& queue) -> Optional<typename Pool::Work> {
                 if (queue.is_empty())
                     return {};
@@ -29,6 +30,8 @@ struct ThreadPoolLooper {
             });
             if (entry.has_value())
                 break;
+
+            pool.m_busy_count--;
             if (pool.m_should_exit)
                 return IterationDecision::Break;
 
@@ -36,12 +39,20 @@ struct ThreadPoolLooper {
                 return IterationDecision::Continue;
 
             pool.m_mutex.lock();
+            // broadcast on m_work_done here since it is possible the
+            // wait_for_all loop missed the previous broadcast when work was
+            // actually done. Without this broadcast the ThreadPool could
+            // deadlock as there is no remaining work to be done, so this thread
+            // never resumes and the wait_for_all loop never wakes as there is no
+            // more work to be completed.
+            pool.m_work_done.broadcast();
             pool.m_work_available.wait();
             pool.m_mutex.unlock();
         }
 
-        pool.m_busy_count++;
         pool.m_handler(entry.release_value());
+        pool.m_busy_count--;
+        pool.m_work_done.signal();
         return IterationDecision::Continue;
     }
 };
@@ -76,7 +87,9 @@ public:
     {
         m_should_exit.store(true, AK::MemoryOrder::memory_order_release);
         for (auto& worker : m_workers) {
-            m_work_available.broadcast();
+            while (!worker->has_exited()) {
+                m_work_available.broadcast();
+            }
             (void)worker->join();
         }
     }
@@ -91,18 +104,19 @@ public:
 
     void wait_for_all()
     {
-        while (true) {
-            if (m_work_queue.with_locked([](auto& queue) { return queue.is_empty(); }))
-                break;
-            m_mutex.lock();
-            m_work_done.wait();
-            m_mutex.unlock();
+        {
+            MutexLocker lock(m_mutex);
+            m_work_done.wait_while([this]() {
+                return m_work_queue.with_locked([](auto& queue) {
+                    return !queue.is_empty();
+                });
+            });
         }
-
-        while (m_busy_count.load(AK::MemoryOrder::memory_order_acquire) > 0) {
-            m_mutex.lock();
-            m_work_done.wait();
-            m_mutex.unlock();
+        {
+            MutexLocker lock(m_mutex);
+            m_work_done.wait_while([this] {
+                return m_busy_count.load(AK::MemoryOrder::memory_order_acquire) > 0;
+            });
         }
     }
 
@@ -114,8 +128,6 @@ private:
                 Looper<ThreadPool> thread_looper;
                 for (; !m_should_exit;) {
                     auto result = thread_looper.next(*this, true);
-                    m_busy_count--;
-                    m_work_done.signal();
                     if (result == IterationDecision::Break)
                         break;
                 }
