@@ -271,9 +271,9 @@ private:
     Optional<Vector<LinearColorStopListElement>> parse_linear_color_stop_list(TokenStream<ComponentValue>&);
     Optional<Vector<AngularColorStopListElement>> parse_angular_color_stop_list(TokenStream<ComponentValue>&);
 
-    RefPtr<StyleValue> parse_linear_gradient_function(ComponentValue const&);
-    RefPtr<StyleValue> parse_conic_gradient_function(ComponentValue const&);
-    RefPtr<StyleValue> parse_radial_gradient_function(ComponentValue const&);
+    RefPtr<StyleValue> parse_linear_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_conic_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue> parse_radial_gradient_function(TokenStream<ComponentValue>&);
 
     ParseErrorOr<NonnullRefPtr<StyleValue>> parse_css_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
