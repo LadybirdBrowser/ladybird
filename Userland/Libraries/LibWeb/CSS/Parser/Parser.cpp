@@ -1157,14 +1157,17 @@ ElementInlineCSSStyleDeclaration* Parser::parse_as_style_attribute(DOM::Element&
     return ElementInlineCSSStyleDeclaration::create(element, move(properties), move(custom_properties));
 }
 
-Optional<URL::URL> Parser::parse_url_function(ComponentValue const& component_value)
+Optional<URL::URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
 {
-    // FIXME: Handle list of media queries. https://www.w3.org/TR/css-cascade-3/#conditional-import
+    auto transaction = tokens.begin_transaction();
+    auto& component_value = tokens.next_token();
 
     auto convert_string_to_url = [&](StringView url_string) -> Optional<URL::URL> {
         auto url = m_context.complete_url(url_string);
-        if (url.is_valid())
+        if (url.is_valid()) {
+            transaction.commit();
             return url;
+        }
         return {};
     };
 
@@ -1192,10 +1195,9 @@ Optional<URL::URL> Parser::parse_url_function(ComponentValue const& component_va
 
 RefPtr<StyleValue> Parser::parse_url_value(TokenStream<ComponentValue>& tokens)
 {
-    auto url = parse_url_function(tokens.peek_token());
+    auto url = parse_url_function(tokens);
     if (!url.has_value())
         return nullptr;
-    (void)tokens.next_token();
     return URLStyleValue::create(*url);
 }
 
@@ -1332,16 +1334,12 @@ JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)
     TokenStream tokens { rule.prelude() };
     tokens.skip_whitespace();
 
-    Optional<URL::URL> url;
-    auto& url_token = tokens.next_token();
-    if (url_token.is(Token::Type::String)) {
-        url = m_context.complete_url(url_token.token().string());
-    } else {
-        url = parse_url_function(url_token);
-    }
+    Optional<URL::URL> url = parse_url_function(tokens);
+    if (!url.has_value() && tokens.peek_token().is(Token::Type::String))
+        url = m_context.complete_url(tokens.next_token().token().string());
 
     if (!url.has_value()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Unable to parse `{}` as URL.", url_token.to_debug_string());
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @import rule: Unable to parse `{}` as URL.", tokens.peek_token().to_debug_string());
         return {};
     }
 
@@ -1497,13 +1495,12 @@ JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(Rule& rule)
     }
 
     FlyString namespace_uri;
-    auto& url_token = tokens.next_token();
-    if (url_token.is(Token::Type::String)) {
-        namespace_uri = url_token.token().string();
-    } else if (auto url = parse_url_function(url_token); url.has_value()) {
+    if (auto url = parse_url_function(tokens); url.has_value()) {
         namespace_uri = MUST(url.value().to_string());
+    } else if (auto& url_token = tokens.next_token(); url_token.is(Token::Type::String)) {
+        namespace_uri = url_token.token().string();
     } else {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Unable to parse `{}` as URL.", url_token.to_debug_string());
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Unable to parse `{}` as URL.", tokens.peek_token().to_debug_string());
         return {};
     }
 
@@ -3203,12 +3200,13 @@ RefPtr<StyleValue> Parser::parse_string_value(TokenStream<ComponentValue>& token
 RefPtr<StyleValue> Parser::parse_image_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
-    auto& token = tokens.next_token();
 
-    if (auto url = parse_url_function(token); url.has_value()) {
+    if (auto url = parse_url_function(tokens); url.has_value()) {
         transaction.commit();
         return ImageStyleValue::create(url.value());
     }
+
+    auto& token = tokens.next_token();
     if (auto linear_gradient = parse_linear_gradient_function(token)) {
         transaction.commit();
         return linear_gradient;
@@ -5266,11 +5264,10 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
     for (auto const& source_token_list : list_of_source_token_lists) {
         TokenStream source_tokens { source_token_list };
         source_tokens.skip_whitespace();
-        auto const& first = source_tokens.next_token();
 
         // <url> [ format(<font-format>)]?
         // FIXME: Implement optional tech() function from CSS-Fonts-4.
-        if (auto maybe_url = parse_url_function(first); maybe_url.has_value()) {
+        if (auto maybe_url = parse_url_function(source_tokens); maybe_url.has_value()) {
             auto url = maybe_url.release_value();
             if (!url.is_valid()) {
                 continue;
@@ -5326,6 +5323,7 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
             continue;
         }
 
+        auto const& first = source_tokens.next_token();
         if (first.is_function("local"sv)) {
             if (first.function().values().is_empty()) {
                 continue;
