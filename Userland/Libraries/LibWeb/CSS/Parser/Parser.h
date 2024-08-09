@@ -260,7 +260,6 @@ private:
     Optional<URL::URL> parse_url_function(ComponentValue const&);
     RefPtr<StyleValue> parse_url_value(TokenStream<ComponentValue>&);
 
-    RefPtr<StyleValue> parse_basic_shape_function(ComponentValue const&);
     RefPtr<StyleValue> parse_basic_shape_value(TokenStream<ComponentValue>&);
 
     template<typename TElement>

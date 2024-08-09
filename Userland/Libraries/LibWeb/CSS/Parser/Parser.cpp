@@ -1199,8 +1199,10 @@ RefPtr<StyleValue> Parser::parse_url_value(TokenStream<ComponentValue>& tokens)
     return URLStyleValue::create(*url);
 }
 
-RefPtr<StyleValue> Parser::parse_basic_shape_function(ComponentValue const& component_value)
+RefPtr<StyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& tokens)
 {
+    auto transaction = tokens.begin_transaction();
+    auto& component_value = tokens.next_token();
     if (!component_value.is_function())
         return nullptr;
 
@@ -1236,16 +1238,8 @@ RefPtr<StyleValue> Parser::parse_basic_shape_function(ComponentValue const& comp
         points.append(Polygon::Point { *x_pos, *y_pos });
     }
 
+    transaction.commit();
     return BasicShapeStyleValue::create(Polygon { FillRule::Nonzero, move(points) });
-}
-
-RefPtr<StyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& tokens)
-{
-    auto basic_shape = parse_basic_shape_function(tokens.peek_token());
-    if (!basic_shape)
-        return nullptr;
-    (void)tokens.next_token();
-    return basic_shape;
 }
 
 CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
