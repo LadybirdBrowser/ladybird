@@ -513,6 +513,7 @@ namespace JS {
     P(supportedLocalesOf)                    \
     P(supportedValuesOf)                     \
     P(symmetricDifference)                   \
+    P(table)                                 \
     P(take)                                  \
     P(tan)                                   \
     P(tanh)                                  \

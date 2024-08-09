@@ -45,6 +45,7 @@ public:
         Log,
         TimeEnd,
         TimeLog,
+        Table,
         Trace,
         Warn,
     };
@@ -73,6 +74,7 @@ public:
     ThrowCompletionOr<Value> error();
     ThrowCompletionOr<Value> info();
     ThrowCompletionOr<Value> log();
+    ThrowCompletionOr<Value> table();
     ThrowCompletionOr<Value> trace();
     ThrowCompletionOr<Value> warn();
     ThrowCompletionOr<Value> dir();
