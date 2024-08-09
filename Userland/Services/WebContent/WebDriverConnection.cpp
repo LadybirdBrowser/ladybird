@@ -1975,10 +1975,15 @@ void WebDriverConnection::restore_the_window()
     m_page_client->page_did_request_restore_window();
 
     // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the visible state, or until the operation times out.
-    // FIXME: Implement timeouts.
-    Web::Platform::EventLoopPlugin::the().spin_until([this]() {
+    // FIXME: It isn't clear which timeout should be used here.
+    auto page_load_timeout_fired = false;
+    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
+        page_load_timeout_fired = true;
+    });
+
+    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
         auto state = m_page_client->page().top_level_traversable()->system_visibility_state();
-        return state == Web::HTML::VisibilityState::Visible;
+        return page_load_timeout_fired || state == Web::HTML::VisibilityState::Visible;
     });
 }
 
@@ -1999,10 +2004,15 @@ Gfx::IntRect WebDriverConnection::iconify_the_window()
     auto rect = m_page_client->page_did_request_minimize_window();
 
     // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the hidden state, or until the operation times out.
-    // FIXME: Implement timeouts.
-    Web::Platform::EventLoopPlugin::the().spin_until([this]() {
+    // FIXME: It isn't clear which timeout should be used here.
+    auto page_load_timeout_fired = false;
+    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
+        page_load_timeout_fired = true;
+    });
+
+    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
         auto state = m_page_client->page().top_level_traversable()->system_visibility_state();
-        return state == Web::HTML::VisibilityState::Hidden;
+        return page_load_timeout_fired || state == Web::HTML::VisibilityState::Hidden;
     });
 
     return rect;
