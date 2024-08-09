@@ -5,6 +5,49 @@ body {
     margin: 0;
 }
 
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background: rgb(23, 23, 23);
+        --separator: dimgray;
+        --separator-accent: rgb(57, 57, 57);
+        --tab-controls: rgb(57, 57, 57);
+        --tab-button-background: rgb(43, 42, 50);
+        --text-color: white;
+        --tab-button-active-background: rgb(22 100 219);
+        --tab-button-active-color: var(--text-color);
+        --tab-button-border: rgb(96, 96, 96);
+        --hoverable-background: #31383e;
+        --selected-border: cyan;
+        --console-prompt-color: cyan;
+        --console-message-color: lightskyblue;
+        --console-warning-color: orange;
+        --console-input-color: rgb(57, 57, 57);
+        --console-input-focus-color: cyan;
+        --property-table-head: rgb(57, 57, 57);
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --background: white;
+        --separator: lightgray;
+        --separator-accent: white;
+        --tab-controls: rgb(229, 229, 229);
+        --tab-button-background: white;
+        --text-color: black;
+        --tab-button-active: rgb(22 100 219);
+        --tab-button-border: rgb(242, 242, 242);
+        --hoverable-background: rgb(236, 236, 236);
+        --selected-border: blue;
+        --console-prompt-color: blue;
+        --console-message-color: blue;
+        --console-warning-color: darkorange;
+        --console-input-color: rgb(229, 229, 229);
+        --console-input-focus-color: blue;
+        --property-table-head: rgb(229, 229, 229);
+    }
+}
+
 .split-view {
     width: 100vw;
     height: 100vh;
@@ -78,63 +121,34 @@ body {
     overflow: auto scroll;
 }
 
-@media (prefers-color-scheme: dark) {
-    html {
-        background-color: rgb(23, 23, 23);
-    }
-
-    .split-view-separator {
-        background-color: dimgray;
-    }
-
-    .split-view-separator circle {
-        fill: rgb(57, 57, 57);
-    }
-
-    .tab-controls-container {
-        background-color: rgb(57, 57, 57);
-    }
-
-    .tab-controls button {
-        color: white;
-        background-color: rgb(43, 42, 50);
-    }
-
-    .tab-controls button.active {
-        background-color: rgb(22 100 219);
-    }
-
-    .tab-controls button + button {
-        border-left: 1px solid rgb(96, 96, 96);
-    }
+html {
+    background-color: var(--background);
 }
 
-@media (prefers-color-scheme: light) {
-    .split-view-separator {
-        background-color: lightgray;
-    }
+.split-view-separator {
+    background-color: var(--separator);
+}
 
-    .split-view-separator circle {
-        fill: white;
-    }
+.split-view-separator circle {
+    fill: var(--separator-accent);
+}
 
-    .tab-controls-container {
-        background-color: rgb(229, 229, 229);
-    }
+.tab-controls-container {
+    background-color: var(--tab-controls);
+}
 
-    .tab-controls button {
-        color: black;
-        background-color: white;
-    }
+.tab-controls button {
+    color: var(--text-color);
+    background-color: var(--tab-button-background);
+}
 
-    .tab-controls button.active {
-        color: white;
-        background-color: rgb(28, 138, 255);
-    }
+.tab-controls button.active {
+    background-color: var(--tab-button-active-background);
+    color: var(--tab-button-active-color);
+}
 
-    .tab-controls button + button {
-        border-left: 1px solid rgb(242, 242, 242);
-    }
+.tab-controls button + button {
+    border-left: 1px solid var(--tab-button-border);
 }
 
 details > :not(:first-child) {
@@ -153,26 +167,13 @@ details > :not(:first-child) {
     outline: none;
 }
 
-@media (prefers-color-scheme: dark) {
-    .hoverable:hover {
-        background-color: #31383e;
-    }
-
-    .selected {
-        border: 1px dashed cyan;
-        padding: 0;
-    }
+.hoverable:hover {
+    background-color: var(--hoverable-background);
 }
 
-@media (prefers-color-scheme: light) {
-    .hoverable:hover {
-        background-color: rgb(236, 236, 236);
-    }
-
-    .selected {
-        border: 1px dashed blue;
-        padding: 0;
-    }
+.selected {
+    border: 1px dashed var(--selected-border);
+    padding: 0;
 }
 
 #console {
@@ -203,48 +204,24 @@ details > :not(:first-child) {
     width: calc(100% - 60px);
 }
 
-@media (prefers-color-scheme: dark) {
-    .console-prompt {
-        color: cyan;
-    }
-
-    .console-message {
-        color: lightskyblue;
-    }
-
-    .console-warning {
-        color: orange;
-    }
-
-    .console-input {
-        background-color: rgb(57, 57, 57);
-    }
-
-    .console-input input:focus {
-        outline: 1px dashed cyan;
-    }
+.console-prompt {
+    color: var(--console-prompt-color);
 }
 
-@media (prefers-color-scheme: light) {
-    .console-prompt {
-        color: blue;
-    }
+.console-message {
+    color: var(--console-message-color);
+}
 
-    .console-message {
-        color: blue;
-    }
+.console-warning {
+    color: var(--console-warning-color);
+}
 
-    .console-warning {
-        color: darkorange;
-    }
+.console-input {
+    background-color: var(--console-input-color);
+}
 
-    .console-input {
-        background-color: rgb(229, 229, 229);
-    }
-
-    .console-input input:focus {
-        outline: 1px dashed blue;
-    }
+.console-input input:focus {
+    outline: 1px dashed var(--console-input-focus-color);
 }
 
 .property-table {
@@ -265,14 +242,6 @@ details > :not(:first-child) {
     text-align: left;
 }
 
-@media (prefers-color-scheme: dark) {
-    .property-table th {
-        background-color: rgb(57, 57, 57);
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    .property-table th {
-        background-color: rgb(229, 229, 229);
-    }
+.property-table th {
+    background-color: var(--property-table-head);
 }
