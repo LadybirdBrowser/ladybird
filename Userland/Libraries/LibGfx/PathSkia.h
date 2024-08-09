@@ -38,6 +38,7 @@ public:
 
     virtual NonnullOwnPtr<PathImpl> clone() const override;
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const override;
+    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View text, Font const&) const override;
 
     SkPath const& sk_path() const { return *m_path; }
     SkPath& sk_path() { return *m_path; }

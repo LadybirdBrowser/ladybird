@@ -24,6 +24,7 @@
 #include <pathops/SkPathOps.h>
 
 #include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/PathSkia.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ShadowPainting.h>
@@ -237,57 +238,9 @@ static SkColor4f to_skia_color4f(Gfx::Color const& color)
     };
 }
 
-static SkPath to_skia_path(Gfx::DeprecatedPath const& path)
+static SkPath to_skia_path(Gfx::Path const& path)
 {
-    Optional<Gfx::FloatPoint> subpath_start_point;
-    Optional<Gfx::FloatPoint> subpath_last_point;
-    SkPathBuilder path_builder;
-    auto close_subpath_if_needed = [&](auto last_point) {
-        if (subpath_start_point == last_point)
-            path_builder.close();
-    };
-    for (auto const& segment : path) {
-        auto point = segment.point();
-        switch (segment.command()) {
-        case Gfx::DeprecatedPathSegment::Command::MoveTo: {
-            if (subpath_start_point.has_value() && subpath_last_point.has_value())
-                close_subpath_if_needed(subpath_last_point.value());
-            subpath_start_point = point;
-            path_builder.moveTo({ point.x(), point.y() });
-            break;
-        }
-        case Gfx::DeprecatedPathSegment::Command::LineTo: {
-            if (!subpath_start_point.has_value())
-                subpath_start_point = Gfx::FloatPoint { 0.0f, 0.0f };
-            path_builder.lineTo({ point.x(), point.y() });
-            break;
-        }
-        case Gfx::DeprecatedPathSegment::Command::QuadraticBezierCurveTo: {
-            if (!subpath_start_point.has_value())
-                subpath_start_point = Gfx::FloatPoint { 0.0f, 0.0f };
-            SkPoint pt1 = { segment.through().x(), segment.through().y() };
-            SkPoint pt2 = { segment.point().x(), segment.point().y() };
-            path_builder.quadTo(pt1, pt2);
-            break;
-        }
-        case Gfx::DeprecatedPathSegment::Command::CubicBezierCurveTo: {
-            if (!subpath_start_point.has_value())
-                subpath_start_point = Gfx::FloatPoint { 0.0f, 0.0f };
-            SkPoint pt1 = { segment.through_0().x(), segment.through_0().y() };
-            SkPoint pt2 = { segment.through_1().x(), segment.through_1().y() };
-            SkPoint pt3 = { segment.point().x(), segment.point().y() };
-            path_builder.cubicTo(pt1, pt2, pt3);
-            break;
-        }
-        default:
-            VERIFY_NOT_REACHED();
-        }
-        subpath_last_point = point;
-    }
-
-    close_subpath_if_needed(subpath_last_point);
-
-    return path_builder.snapshot();
+    return static_cast<Gfx::PathImplSkia const&>(path.impl()).sk_path();
 }
 
 static SkPathFillType to_skia_path_fill_type(Gfx::WindingRule winding_rule)

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Path.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGRectElementPrototype.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -46,14 +47,14 @@ void SVGRectElement::attribute_changed(FlyString const& name, Optional<String> c
     }
 }
 
-Gfx::DeprecatedPath SVGRectElement::get_path(CSSPixelSize)
+Gfx::Path SVGRectElement::get_path(CSSPixelSize)
 {
     float width = m_width.value_or(0);
     float height = m_height.value_or(0);
     float x = m_x.value_or(0);
     float y = m_y.value_or(0);
 
-    Gfx::DeprecatedPath path;
+    Gfx::Path path;
     // If width or height is zero, rendering is disabled.
     if (width == 0 || height == 0)
         return path;
@@ -105,6 +106,8 @@ Gfx::DeprecatedPath SVGRectElement::get_path(CSSPixelSize)
     //    using the same parameters as previously.
     if (rx > 0 && ry > 0)
         path.elliptical_arc_to({ x + rx, y }, corner_radii, x_axis_rotation, large_arc_flag, sweep_flag);
+
+    path.close();
 
     return path;
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LineBox.h>
@@ -132,7 +133,7 @@ struct LayoutState {
         void set_table_cell_coordinates(Painting::PaintableBox::TableCellCoordinates const& table_cell_coordinates) { m_table_cell_coordinates = table_cell_coordinates; }
         auto const& table_cell_coordinates() const { return m_table_cell_coordinates; }
 
-        void set_computed_svg_path(Gfx::DeprecatedPath const& svg_path) { m_computed_svg_path = svg_path; }
+        void set_computed_svg_path(Gfx::Path const& svg_path) { m_computed_svg_path = svg_path; }
         auto& computed_svg_path() { return m_computed_svg_path; }
 
         void set_computed_svg_transforms(Painting::SVGGraphicsPaintable::ComputedTransforms const& computed_transforms) { m_computed_svg_transforms = computed_transforms; }
@@ -163,7 +164,7 @@ struct LayoutState {
         Optional<Painting::PaintableBox::BordersDataWithElementKind> m_override_borders_data;
         Optional<Painting::PaintableBox::TableCellCoordinates> m_table_cell_coordinates;
 
-        Optional<Gfx::DeprecatedPath> m_computed_svg_path;
+        Optional<Gfx::Path> m_computed_svg_path;
         Optional<Painting::SVGGraphicsPaintable::ComputedTransforms> m_computed_svg_transforms;
     };
 

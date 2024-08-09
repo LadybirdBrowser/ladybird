@@ -83,7 +83,7 @@ void MarkerPaintable::paint(PaintContext& context, PaintPhase phase) const
         // FIXME: If the image is directional, it must respond to the writing mode of the element, similar to the bidi-sensitive images feature of the Images 4 module.
 
         // Draw an equilateral triangle pointing right.
-        auto path = Gfx::DeprecatedPath();
+        auto path = Gfx::Path();
         path.move_to({ left, top });
         path.line_to({ left + sin_60_deg * (right - left), (top + bottom) / 2 });
         path.line_to({ left, bottom });
@@ -97,7 +97,7 @@ void MarkerPaintable::paint(PaintContext& context, PaintPhase phase) const
         // FIXME: If the image is directional, it must respond to the writing mode of the element, similar to the bidi-sensitive images feature of the Images 4 module.
 
         // Draw an equilateral triangle pointing down.
-        auto path = Gfx::DeprecatedPath();
+        auto path = Gfx::Path();
         path.move_to({ left, top });
         path.line_to({ right, top });
         path.line_to({ (left + right) / 2, top + sin_60_deg * (bottom - top) });

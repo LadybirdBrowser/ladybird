@@ -18,6 +18,7 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Palette.h>
+#include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
@@ -43,7 +44,7 @@ public:
     void fill_rect(Gfx::IntRect const& rect, Color color);
 
     struct FillPathUsingColorParams {
-        Gfx::DeprecatedPath path;
+        Gfx::Path path;
         Gfx::Color color;
         Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
         Optional<Gfx::FloatPoint> translation = {};
@@ -51,7 +52,7 @@ public:
     void fill_path(FillPathUsingColorParams params);
 
     struct FillPathUsingPaintStyleParams {
-        Gfx::DeprecatedPath path;
+        Gfx::Path path;
         PaintStyle paint_style;
         Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
         float opacity;
@@ -60,7 +61,7 @@ public:
     void fill_path(FillPathUsingPaintStyleParams params);
 
     struct StrokePathUsingColorParams {
-        Gfx::DeprecatedPath path;
+        Gfx::Path path;
         Gfx::Color color;
         float thickness;
         Optional<Gfx::FloatPoint> translation = {};
@@ -68,7 +69,7 @@ public:
     void stroke_path(StrokePathUsingColorParams params);
 
     struct StrokePathUsingPaintStyleParams {
-        Gfx::DeprecatedPath path;
+        Gfx::Path path;
         PaintStyle paint_style;
         float thickness;
         float opacity;

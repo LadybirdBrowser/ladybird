@@ -62,7 +62,7 @@ void DisplayListRecorder::fill_path(FillPathUsingColorParams params)
         return;
     append(FillPathUsingColor {
         .path_bounding_rect = path_bounding_rect,
-        .path = params.path,
+        .path = move(params.path),
         .color = params.color,
         .winding_rule = params.winding_rule,
         .aa_translation = aa_translation,
@@ -77,7 +77,7 @@ void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
         return;
     append(FillPathUsingPaintStyle {
         .path_bounding_rect = path_bounding_rect,
-        .path = params.path,
+        .path = move(params.path),
         .paint_style = params.paint_style,
         .winding_rule = params.winding_rule,
         .opacity = params.opacity,
@@ -95,7 +95,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
         return;
     append(StrokePathUsingColor {
         .path_bounding_rect = path_bounding_rect,
-        .path = params.path,
+        .path = move(params.path),
         .color = params.color,
         .thickness = params.thickness,
         .aa_translation = aa_translation,
@@ -112,7 +112,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
         return;
     append(StrokePathUsingPaintStyle {
         .path_bounding_rect = path_bounding_rect,
-        .path = params.path,
+        .path = move(params.path),
         .paint_style = params.paint_style,
         .thickness = params.thickness,
         .opacity = params.opacity,

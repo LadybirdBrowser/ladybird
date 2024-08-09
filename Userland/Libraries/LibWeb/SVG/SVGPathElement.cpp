@@ -105,10 +105,9 @@ void SVGPathElement::attribute_changed(FlyString const& name, Optional<String> c
         m_instructions = AttributeParser::parse_path_data(value.value_or(String {}));
 }
 
-template<typename PathType>
-PathType path_from_path_instructions(ReadonlySpan<PathInstruction> instructions)
+Gfx::Path path_from_path_instructions(ReadonlySpan<PathInstruction> instructions)
 {
-    PathType path;
+    Gfx::Path path;
     Optional<Gfx::FloatPoint> previous_control_point;
     PathInstructionType last_instruction = PathInstructionType::Invalid;
 
@@ -274,19 +273,9 @@ PathType path_from_path_instructions(ReadonlySpan<PathInstruction> instructions)
     return path;
 }
 
-Gfx::Path path_from_path_instructions(ReadonlySpan<PathInstruction> instructions)
+Gfx::Path SVGPathElement::get_path(CSSPixelSize)
 {
-    return path_from_path_instructions<Gfx::Path>(instructions);
-}
-
-Gfx::DeprecatedPath deprecated_path_from_path_instructions(ReadonlySpan<PathInstruction> instructions)
-{
-    return path_from_path_instructions<Gfx::DeprecatedPath>(instructions);
-}
-
-Gfx::DeprecatedPath SVGPathElement::get_path(CSSPixelSize)
-{
-    return deprecated_path_from_path_instructions(m_instructions);
+    return path_from_path_instructions(m_instructions);
 }
 
 }
