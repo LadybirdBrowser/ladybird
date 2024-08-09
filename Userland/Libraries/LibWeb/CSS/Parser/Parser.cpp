@@ -1259,111 +1259,11 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
         if (rule->at_rule_name().equals_ignoring_ascii_case("import"sv))
             return convert_to_import_rule(rule);
 
+        if (rule->at_rule_name().equals_ignoring_ascii_case("keyframes"sv))
+            return convert_to_keyframes_rule(rule);
+
         if (rule->at_rule_name().equals_ignoring_ascii_case("media"sv))
             return convert_to_media_rule(rule);
-
-        if (rule->at_rule_name().equals_ignoring_ascii_case("keyframes"sv)) {
-            auto prelude_stream = TokenStream { rule->prelude() };
-            prelude_stream.skip_whitespace();
-            auto token = prelude_stream.next_token();
-            if (!token.is_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule->prelude());
-                return {};
-            }
-
-            auto name_token = token.token();
-            prelude_stream.skip_whitespace();
-
-            if (prelude_stream.has_next_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule->prelude());
-                return {};
-            }
-
-            if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().equals_ignoring_ascii_case("none"sv))) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.ident());
-                return {};
-            }
-
-            if (!name_token.is(Token::Type::String) && !name_token.is(Token::Type::Ident)) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.to_debug_string());
-                return {};
-            }
-
-            auto name = name_token.to_string();
-
-            if (!rule->block())
-                return {};
-
-            auto child_tokens = TokenStream { rule->block()->values() };
-
-            JS::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
-            while (child_tokens.has_next_token()) {
-                child_tokens.skip_whitespace();
-                // keyframe-selector = <keyframe-keyword> | <percentage>
-                // keyframe-keyword = "from" | "to"
-                // selector = <keyframe-selector>#
-                // keyframes-block = "{" <declaration-list>? "}"
-                // keyframe-rule = <selector> <keyframes-block>
-
-                auto selectors = Vector<CSS::Percentage> {};
-                while (child_tokens.has_next_token()) {
-                    child_tokens.skip_whitespace();
-                    if (!child_tokens.has_next_token())
-                        break;
-                    auto tok = child_tokens.next_token();
-                    if (!tok.is_token()) {
-                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule has invalid selector: {}; discarding.", tok.to_debug_string());
-                        child_tokens.reconsume_current_input_token();
-                        break;
-                    }
-                    auto token = tok.token();
-                    auto read_a_selector = false;
-                    if (token.is(Token::Type::Ident)) {
-                        if (token.ident().equals_ignoring_ascii_case("from"sv)) {
-                            selectors.append(CSS::Percentage(0));
-                            read_a_selector = true;
-                        }
-                        if (token.ident().equals_ignoring_ascii_case("to"sv)) {
-                            selectors.append(CSS::Percentage(100));
-                            read_a_selector = true;
-                        }
-                    } else if (token.is(Token::Type::Percentage)) {
-                        selectors.append(CSS::Percentage(token.percentage()));
-                        read_a_selector = true;
-                    }
-
-                    if (read_a_selector) {
-                        child_tokens.skip_whitespace();
-                        if (child_tokens.next_token().is(Token::Type::Comma))
-                            continue;
-                    }
-
-                    child_tokens.reconsume_current_input_token();
-                    break;
-                }
-
-                if (!child_tokens.has_next_token())
-                    break;
-
-                child_tokens.skip_whitespace();
-                auto token = child_tokens.next_token();
-                if (token.is_block()) {
-                    auto block_tokens = token.block().values();
-                    auto block_stream = TokenStream { block_tokens };
-
-                    auto block_declarations = parse_a_list_of_declarations(block_stream);
-                    auto style = convert_to_style_declaration(block_declarations);
-                    for (auto& selector : selectors) {
-                        auto keyframe_rule = CSSKeyframeRule::create(m_context.realm(), selector, *style);
-                        keyframes.append(keyframe_rule);
-                    }
-                } else {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule has invalid block: {}; discarding.", token.to_debug_string());
-                }
-            }
-
-            return CSSKeyframesRule::create(m_context.realm(), name, CSSRuleList::create(m_context.realm(), move(keyframes)));
-        }
 
         if (rule->at_rule_name().equals_ignoring_ascii_case("namespace"sv))
             return convert_to_namespace_rule(rule);
@@ -1456,6 +1356,119 @@ JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)
     }
 
     return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*m_context.document()));
+}
+
+JS::GCPtr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(Rule& rule)
+{
+    // https://www.w3.org/TR/css-animations-1/#keyframes
+
+    if (rule.prelude().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @keyframes rule: Empty prelude.");
+        return {};
+    }
+
+    if (!rule.block()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @keyframes rule: No block.");
+        return {};
+    }
+
+    auto prelude_stream = TokenStream { rule.prelude() };
+    prelude_stream.skip_whitespace();
+    auto& token = prelude_stream.next_token();
+    if (!token.is_token()) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule.prelude());
+        return {};
+    }
+
+    auto name_token = token.token();
+    prelude_stream.skip_whitespace();
+
+    if (prelude_stream.has_next_token()) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes has invalid prelude, prelude = {}; discarding.", rule.prelude());
+        return {};
+    }
+
+    if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().equals_ignoring_ascii_case("none"sv))) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.ident());
+        return {};
+    }
+
+    if (!name_token.is(Token::Type::String) && !name_token.is(Token::Type::Ident)) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule name is invalid: {}; discarding.", name_token.to_debug_string());
+        return {};
+    }
+
+    auto name = name_token.to_string();
+
+    auto child_tokens = TokenStream { rule.block()->values() };
+
+    JS::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
+    while (child_tokens.has_next_token()) {
+        child_tokens.skip_whitespace();
+        // keyframe-selector = <keyframe-keyword> | <percentage>
+        // keyframe-keyword = "from" | "to"
+        // selector = <keyframe-selector>#
+        // keyframes-block = "{" <declaration-list>? "}"
+        // keyframe-rule = <selector> <keyframes-block>
+
+        auto selectors = Vector<CSS::Percentage> {};
+        while (child_tokens.has_next_token()) {
+            child_tokens.skip_whitespace();
+            if (!child_tokens.has_next_token())
+                break;
+            auto tok = child_tokens.next_token();
+            if (!tok.is_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule has invalid selector: {}; discarding.", tok.to_debug_string());
+                child_tokens.reconsume_current_input_token();
+                break;
+            }
+            auto token = tok.token();
+            auto read_a_selector = false;
+            if (token.is(Token::Type::Ident)) {
+                if (token.ident().equals_ignoring_ascii_case("from"sv)) {
+                    selectors.append(CSS::Percentage(0));
+                    read_a_selector = true;
+                }
+                if (token.ident().equals_ignoring_ascii_case("to"sv)) {
+                    selectors.append(CSS::Percentage(100));
+                    read_a_selector = true;
+                }
+            } else if (token.is(Token::Type::Percentage)) {
+                selectors.append(CSS::Percentage(token.percentage()));
+                read_a_selector = true;
+            }
+
+            if (read_a_selector) {
+                child_tokens.skip_whitespace();
+                if (child_tokens.next_token().is(Token::Type::Comma))
+                    continue;
+            }
+
+            child_tokens.reconsume_current_input_token();
+            break;
+        }
+
+        if (!child_tokens.has_next_token())
+            break;
+
+        child_tokens.skip_whitespace();
+        auto token = child_tokens.next_token();
+        if (token.is_block()) {
+            auto block_tokens = token.block().values();
+            auto block_stream = TokenStream { block_tokens };
+
+            auto block_declarations = parse_a_list_of_declarations(block_stream);
+            auto style = convert_to_style_declaration(block_declarations);
+            for (auto& selector : selectors) {
+                auto keyframe_rule = CSSKeyframeRule::create(m_context.realm(), selector, *style);
+                keyframes.append(keyframe_rule);
+            }
+        } else {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes rule has invalid block: {}; discarding.", token.to_debug_string());
+        }
+    }
+
+    return CSSKeyframesRule::create(m_context.realm(), name, CSSRuleList::create(m_context.realm(), move(keyframes)));
 }
 
 JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(Rule& rule)
