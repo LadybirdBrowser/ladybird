@@ -58,7 +58,6 @@ set(SOURCES
     MedianCut.cpp
     Palette.cpp
     Path.cpp
-    PathClipper.cpp
     PathSkia.cpp
     Painter.cpp
     PainterSkia.cpp
