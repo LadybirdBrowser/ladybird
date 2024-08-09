@@ -2806,37 +2806,46 @@ Optional<Color> Parser::parse_oklch_color(Vector<ComponentValue> const& componen
     return Color::from_oklab(L_val, c_val * cos(h_val), c_val * sin(h_val), alpha_val);
 }
 
-Optional<Color> Parser::parse_color(ComponentValue const& component_value)
+Optional<Color> Parser::parse_color(TokenStream<ComponentValue>& tokens)
 {
+    auto transaction = tokens.begin_transaction();
+    auto commit_if_valid = [&](Optional<Color> color) {
+        if (color.has_value())
+            transaction.commit();
+        return color;
+    };
+
+    tokens.skip_whitespace();
+    auto component_value = tokens.next_token();
+
     // https://www.w3.org/TR/css-color-4/
     if (component_value.is(Token::Type::Ident)) {
         auto ident = component_value.token().ident();
 
         auto color = Color::from_string(ident);
-        if (color.has_value())
+        if (color.has_value()) {
+            transaction.commit();
             return color;
-
+        }
+        // Otherwise, fall through to the hashless-hex-color case
     } else if (component_value.is(Token::Type::Hash)) {
         auto color = Color::from_string(MUST(String::formatted("#{}", component_value.token().hash_value())));
-        if (color.has_value())
-            return color;
-        return {};
-
+        return commit_if_valid(color);
     } else if (component_value.is_function()) {
         auto const& function = component_value.function();
         auto const& values = function.values();
         auto const function_name = function.name();
 
         if (function_name.equals_ignoring_ascii_case("rgb"sv) || function_name.equals_ignoring_ascii_case("rgba"sv))
-            return parse_rgb_color(values);
+            return commit_if_valid(parse_rgb_color(values));
         if (function_name.equals_ignoring_ascii_case("hsl"sv) || function_name.equals_ignoring_ascii_case("hsla"sv))
-            return parse_hsl_color(values);
+            return commit_if_valid(parse_hsl_color(values));
         if (function_name.equals_ignoring_ascii_case("hwb"sv))
-            return parse_hwb_color(values);
+            return commit_if_valid(parse_hwb_color(values));
         if (function_name.equals_ignoring_ascii_case("oklab"sv))
-            return parse_oklab_color(values);
+            return commit_if_valid(parse_oklab_color(values));
         if (function_name.equals_ignoring_ascii_case("oklch"sv))
-            return parse_oklch_color(values);
+            return commit_if_valid(parse_oklch_color(values));
 
         return {};
     }
@@ -2897,7 +2906,7 @@ Optional<Color> Parser::parse_color(ComponentValue const& component_value)
         }
 
         // 6. Return the concatenation of "#" (U+0023) and serialization.
-        return Color::from_string(MUST(String::formatted("#{}", serialization)));
+        return commit_if_valid(Color::from_string(MUST(String::formatted("#{}", serialization))));
     }
 
     return {};
@@ -2905,20 +2914,13 @@ Optional<Color> Parser::parse_color(ComponentValue const& component_value)
 
 RefPtr<StyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto component_value = tokens.next_token();
-
-    if (auto color = parse_color(component_value); color.has_value()) {
-        transaction.commit();
+    if (auto color = parse_color(tokens); color.has_value())
         return ColorStyleValue::create(color.value());
-    }
 
-    if (component_value.is(Token::Type::Ident)) {
-        auto ident = value_id_from_string(component_value.token().ident());
-        if (ident.has_value() && IdentifierStyleValue::is_color(ident.value())) {
-            transaction.commit();
-            return IdentifierStyleValue::create(ident.value());
-        }
+    auto transaction = tokens.begin_transaction();
+    if (auto identifier = parse_identifier_value(tokens); identifier && identifier->has_color()) {
+        transaction.commit();
+        return identifier;
     }
 
     return nullptr;
@@ -4221,16 +4223,14 @@ RefPtr<StyleValue> Parser::parse_single_shadow_value(TokenStream<ComponentValue>
     };
 
     while (tokens.has_next_token()) {
-        auto const& token = tokens.peek_token();
-
-        if (auto maybe_color = parse_color(token); maybe_color.has_value()) {
+        if (auto maybe_color = parse_color(tokens); maybe_color.has_value()) {
             if (color.has_value())
                 return nullptr;
             color = maybe_color.release_value();
-            tokens.next_token();
             continue;
         }
 
+        auto const& token = tokens.peek_token();
         if (auto maybe_offset_x = possibly_dynamic_length(token); maybe_offset_x) {
             // horizontal offset
             if (offset_x)
@@ -4622,9 +4622,7 @@ RefPtr<StyleValue> Parser::parse_filter_value_list_value(TokenStream<ComponentVa
             // drop-shadow( [ <color>? && <length>{2,3} ] )
             // Note: The following code is a little awkward to allow the color to be before or after the lengths.
             Optional<LengthOrCalculated> maybe_radius = {};
-            auto maybe_color = parse_color(tokens.peek_token());
-            if (maybe_color.has_value())
-                (void)tokens.next_token();
+            auto maybe_color = parse_color(tokens);
             auto x_offset = parse_length(tokens);
             tokens.skip_whitespace();
             if (!x_offset.has_value() || !tokens.has_next_token()) {
@@ -4637,7 +4635,7 @@ RefPtr<StyleValue> Parser::parse_filter_value_list_value(TokenStream<ComponentVa
             if (tokens.has_next_token()) {
                 maybe_radius = parse_length(tokens);
                 if (!maybe_color.has_value() && (!maybe_radius.has_value() || tokens.has_next_token())) {
-                    maybe_color = parse_color(tokens.next_token());
+                    maybe_color = parse_color(tokens);
                     tokens.skip_whitespace();
                     if (!maybe_color.has_value()) {
                         return {};

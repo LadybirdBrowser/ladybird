@@ -245,7 +245,7 @@ private:
     Optional<Color> parse_hwb_color(Vector<ComponentValue> const&);
     Optional<Color> parse_oklab_color(Vector<ComponentValue> const&);
     Optional<Color> parse_oklch_color(Vector<ComponentValue> const&);
-    Optional<Color> parse_color(ComponentValue const&);
+    Optional<Color> parse_color(TokenStream<ComponentValue>&);
     Optional<LengthOrCalculated> parse_source_size_value(TokenStream<ComponentValue>&);
     Optional<Ratio> parse_ratio(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(TokenStream<ComponentValue>&);
