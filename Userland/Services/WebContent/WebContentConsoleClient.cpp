@@ -2,13 +2,16 @@
  * Copyright (c) 2021, Brandon Scott <xeon.productions@gmail.com>
  * Copyright (c) 2020, Hunter Salyer <thefalsehonesty@gmail.com>
  * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024, Gasim Gasimzada <gasim@gasimzada.net>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/MemoryStream.h>
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
 #include <LibJS/MarkupGenerator.h>
+#include <LibJS/Print.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
@@ -146,6 +149,82 @@ JS::ThrowCompletionOr<JS::Value> WebContentConsoleClient::printer(JS::Console::L
 {
     auto styling = escape_html_entities(m_current_message_style.string_view());
     m_current_message_style.clear();
+
+    if (log_level == JS::Console::LogLevel::Table) {
+        auto& vm = m_console->realm().vm();
+
+        auto table_args = arguments.get<JS::MarkedVector<JS::Value>>();
+        auto& table = table_args.at(0).as_object();
+        auto& columns = TRY(table.get(JS::PropertyKey("columns"))).as_array().indexed_properties();
+        auto& rows = TRY(table.get(JS::PropertyKey("rows"))).as_array().indexed_properties();
+
+        StringBuilder html;
+
+        html.appendff("<div class=\"console-log-table\">");
+        html.appendff("<table>");
+        html.appendff("<thead>");
+        html.appendff("<tr>");
+        for (auto const& col : columns) {
+            auto index = col.index();
+            auto value = columns.storage()->get(index).value().value;
+            html.appendff("<td>{}</td>", value);
+        }
+
+        html.appendff("</tr>");
+        html.appendff("</thead>");
+        html.appendff("<tbody>");
+
+        for (auto const& row : rows) {
+            auto row_index = row.index();
+            auto& row_obj = rows.storage()->get(row_index).value().value.as_object();
+            html.appendff("<tr>");
+
+            for (auto const& col : columns) {
+                auto col_index = col.index();
+                auto col_name = columns.storage()->get(col_index).value().value;
+
+                auto property_key = TRY(JS::PropertyKey::from_value(vm, col_name));
+                auto cell = TRY(row_obj.get(property_key));
+                html.appendff("<td>");
+                if (TRY(cell.is_array(vm))) {
+                    AllocatingMemoryStream stream;
+                    JS::PrintContext ctx { vm, stream, true };
+                    TRY_OR_THROW_OOM(vm, stream.write_until_depleted(" "sv.bytes()));
+                    TRY_OR_THROW_OOM(vm, JS::print(cell, ctx));
+                    auto output = TRY_OR_THROW_OOM(vm, String::from_stream(stream, stream.used_buffer_size()));
+
+                    auto size = cell.as_array().indexed_properties().array_like_size();
+                    html.appendff("<details><summary>Array({})</summary>{}</details>", size, output);
+
+                } else if (cell.is_object()) {
+                    AllocatingMemoryStream stream;
+                    JS::PrintContext ctx { vm, stream, true };
+                    TRY_OR_THROW_OOM(vm, stream.write_until_depleted(" "sv.bytes()));
+                    TRY_OR_THROW_OOM(vm, JS::print(cell, ctx));
+                    auto output = TRY_OR_THROW_OOM(vm, String::from_stream(stream, stream.used_buffer_size()));
+
+                    html.appendff("<details><summary>Object({{...}})</summary>{}</details>", output);
+                } else if (cell.is_function() || cell.is_constructor()) {
+                    html.appendff("ƒ");
+                } else if (!cell.is_undefined()) {
+                    html.appendff("{}", cell);
+                }
+                html.appendff("</td>");
+            }
+
+            html.appendff("</tr>");
+        }
+
+        html.appendff("</tbody>");
+        html.appendff("</table>");
+        html.appendff("</div>");
+        print_html(html.string_view());
+
+        auto output = TRY(generically_format_values(table_args));
+        m_console->output_debug_message(log_level, output);
+
+        return JS::js_undefined();
+    }
 
     if (log_level == JS::Console::LogLevel::Trace) {
         auto trace = arguments.get<JS::Console::Trace>();

@@ -45,6 +45,7 @@ void ConsoleObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.error, error, 0, attr);
     define_native_function(realm, vm.names.info, info, 0, attr);
     define_native_function(realm, vm.names.log, log, 0, attr);
+    define_native_function(realm, vm.names.table, table, 0, attr);
     define_native_function(realm, vm.names.trace, trace, 0, attr);
     define_native_function(realm, vm.names.warn, warn, 0, attr);
     define_native_function(realm, vm.names.dir, dir, 0, attr);
@@ -100,6 +101,13 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleObject::log)
 {
     auto& console_object = *vm.current_realm()->intrinsics().console_object();
     return console_object.console().log();
+}
+
+// 1.1.7. table(tabularData, properties), https://console.spec.whatwg.org/#table
+JS_DEFINE_NATIVE_FUNCTION(ConsoleObject::table)
+{
+    auto& console_object = *vm.current_realm()->intrinsics().console_object();
+    return console_object.console().table();
 }
 
 // 1.1.8. trace(...data), https://console.spec.whatwg.org/#trace

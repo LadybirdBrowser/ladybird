@@ -16,6 +16,9 @@
         --console-warning-color: orange;
         --console-input-color: rgb(57, 57, 57);
         --console-input-focus-color: cyan;
+        --console-table-row-odd: rgb(57, 57, 57);
+        --console-table-row-hover: rgb(80, 79, 79);
+        --console-table-border: gray;
         --property-table-head: rgb(57, 57, 57);
     }
 }
@@ -37,6 +40,9 @@
         --console-warning-color: darkorange;
         --console-input-color: rgb(229, 229, 229);
         --console-input-focus-color: blue;
+        --console-table-row-odd: rgb(229, 229, 229);
+        --console-table-row-hover: rgb(199, 198, 198);
+        --console-table-border: gray;
         --property-table-head: rgb(229, 229, 229);
     }
 }
@@ -282,4 +288,46 @@ details > :not(:first-child) {
     font-weight: bold;
     padding-left: 10px;
     padding-right: 10px;
+}
+
+.console-log-table {
+    width: 100%;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+
+.console-log-table table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: 1px solid var(--console-table-border);
+}
+
+.console-log-table thead {
+    border-bottom: 1px solid var(--console-table-border);
+}
+
+.console-log-table th {
+    position: sticky;
+    top: 0px;
+    border: 1px solid var(--console-table-border);
+}
+
+.console-log-table td {
+    border-left: 1px solid var(--console-table-border);
+    border-right: 1px solid var(--console-table-border);
+}
+
+.console-log-table tbody tr:nth-of-type(2n + 1) {
+    background-color: var(--console-table-row-odd);
+}
+
+.console-log-table tbody tr:hover {
+    background-color: var(--console-table-row-hover);
+}
+
+.console-log-table th,
+.console-log-table td {
+    padding: 4px;
+    text-align: left;
 }

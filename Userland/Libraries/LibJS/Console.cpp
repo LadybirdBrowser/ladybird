@@ -2,6 +2,7 @@
  * Copyright (c) 2020, Emanuele Torre <torreemanuele6@gmail.com>
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024, Gasim Gasimzada <gasim@gasimzada.net>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +12,7 @@
 #include <LibJS/Console.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/StringConstructor.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
@@ -138,6 +140,202 @@ ThrowCompletionOr<Value> Console::log()
         return m_client->logger(LogLevel::Log, data);
     }
     return js_undefined();
+}
+
+// To [create table row] given tabularDataItem, rowIndex, list finalColumns, and optional list properties, perform the following steps:
+static ThrowCompletionOr<NonnullGCPtr<Object>> create_table_row(Realm& realm, Value row_index, Value tabular_data_item, Vector<Value>& final_columns, HashMap<PropertyKey, bool>& visited_columns, HashMap<PropertyKey, bool>& properties)
+{
+    auto& vm = realm.vm();
+
+    auto add_column = [&](PropertyKey const& column_name) -> Optional<Completion> {
+        // In order to not iterate over the final_columns to find if a column is
+        // already in the list, an additional hash map is used to identify
+        // if a column is already visited without needing to loop through the whole
+        // array.
+        if (!visited_columns.contains(column_name)) {
+            visited_columns.set(column_name, true);
+
+            if (column_name.is_string()) {
+                final_columns.append(PrimitiveString::create(vm, column_name.as_string()));
+            } else if (column_name.is_symbol()) {
+                final_columns.append(column_name.as_symbol());
+            } else if (column_name.is_number()) {
+                final_columns.append(Value(column_name.as_number()));
+            }
+        }
+
+        return {};
+    };
+
+    // 1. Let `row` be a new map
+    auto row = Object::create(realm, nullptr);
+
+    // 2. Set `row["(index)"]` to `rowIndex`
+    {
+        auto key = PropertyKey("(index)");
+        TRY(row->set(key, row_index, Object::ShouldThrowExceptions::No));
+
+        add_column(key);
+    }
+
+    // 3. If `tabularDataItem` is a list, then:
+    if (TRY(tabular_data_item.is_array(vm))) {
+        auto& array = tabular_data_item.as_array();
+
+        // 3.1. Let `indices` be get the indices of `tabularDataItem`
+        auto& indices = array.indexed_properties();
+
+        // 3.2. For each `index` of `indices`
+        for (auto const& prop : indices) {
+            PropertyKey key(prop.index());
+
+            // 3.2.1. Let `value` be `tabularDataItem[index]`
+            Value value = TRY(array.get(key));
+
+            // 3.2.2. If `properties` is not empty and `properties` does not contain `index`, continue
+            if (properties.size() > 0 && !properties.contains(key)) {
+                continue;
+            }
+
+            // 3.2.3. Set `row[index]` to `value`
+            TRY(row->set(key, value, Object::ShouldThrowExceptions::No));
+
+            // 3.2.4. If `finalColumns` does not contain `index`, append `index` to `finalColumns`
+            add_column(key);
+        }
+    }
+    // 4. Otherwise, if `tabularDataItem` is a map, then:
+    else if (tabular_data_item.is_object()) {
+        auto& object = tabular_data_item.as_object();
+
+        // 4.1. For each `key` -> `value` of `tabularDataItem`
+        object.enumerate_object_properties([&](Value key_v) -> Optional<Completion> {
+            auto key = TRY(PropertyKey::from_value(vm, key_v));
+
+            // 4.1.1. If `properties` is not empty and `properties` does not contain `key`, continue
+            if (properties.size() > 0 && !properties.contains(key)) {
+                return {};
+            }
+
+            // 4.1.2. Set `row[key]` to `value`
+            TRY(row->set(key, TRY(object.get(key)), Object::ShouldThrowExceptions::No));
+
+            // 4.1.3. If `finalColumns` does not contain `key`, append `key` to `finalColumns`
+            add_column(key);
+
+            return {};
+        });
+    }
+    // 5. Otherwise,
+    else {
+        PropertyKey key("Value");
+        // 5.1. Set `row["Value"]` to `tabularDataItem`
+        TRY(row->set(key, tabular_data_item, Object::ShouldThrowExceptions::No));
+
+        // 5.2. If `finalColumns` does not contain "Value", append "Value" to `finalColumns`
+        add_column(key);
+    }
+
+    // 6. Return row
+    return row;
+}
+
+// 1.1.7. table(tabularData, properties), https://console.spec.whatwg.org/#table, WIP
+ThrowCompletionOr<Value> Console::table()
+{
+    if (!m_client) {
+        return js_undefined();
+    }
+
+    auto& vm = realm().vm();
+
+    if (vm.argument_count() > 0) {
+        auto tabular_data = vm.argument(0);
+        auto properties_arg = vm.argument(1);
+
+        HashMap<PropertyKey, bool> properties;
+
+        if (TRY(properties_arg.is_array(vm))) {
+            auto& properties_array = properties_arg.as_array().indexed_properties();
+            auto* properties_storage = properties_array.storage();
+            for (auto const& col : properties_array) {
+                auto col_name = properties_storage->get(col.index()).value().value;
+                properties.set(TRY(PropertyKey::from_value(vm, col_name)), true);
+            }
+        }
+
+        // 1. Let `finalRows` be the new list, initially empty
+        Vector<Value> final_rows;
+
+        // 2. Let `finalColumns` be the new list, initially empty
+        Vector<Value> final_columns;
+
+        HashMap<PropertyKey, bool> visited_columns;
+
+        // 3. If `tabularData` is a list, then:
+        if (TRY(tabular_data.is_array(vm))) {
+            auto& array = tabular_data.as_array();
+
+            // 3.1. Let `indices` be get the indices of `tabularData`
+            auto& indices = array.indexed_properties();
+
+            // 3.2. For each `index` of `indices`
+            for (auto const& prop : indices) {
+                PropertyKey index(prop.index());
+
+                // 3.2.1. Let `value` be `tabularData[index]`
+                Value value = TRY(array.get(index));
+
+                // 3.2.2. Perform create table row with `value`, `key`, `finalColumns`, and `properties` that returns `row`
+                auto row = TRY(create_table_row(realm(), Value(index.as_number()), value, final_columns, visited_columns, properties));
+
+                // 3.2.3. Append `row` to `finalRows`
+                final_rows.append(row);
+            }
+
+        }
+        // 4. Otherwise, if `tabularData` is a map, then:
+        else if (tabular_data.is_object()) {
+            auto& object = tabular_data.as_object();
+
+            // 4.1. For each `key` -> `value` of `tabularData`
+            object.enumerate_object_properties([&](Value key) -> Optional<Completion> {
+                auto index = TRY(PropertyKey::from_value(vm, key));
+                auto value = TRY(object.get(index));
+
+                // 4.1.1. Perform create table row with `key`, `value`, `finalColumns`, and `properties` that returns `row`
+                auto row = TRY(create_table_row(realm(), key, value, final_columns, visited_columns, properties));
+
+                // 4.1.2. Append `row` to `finalRows`
+                final_rows.append(row);
+
+                return {};
+            });
+        }
+
+        // 5. If `finalRows` is not empty, then:
+        if (final_rows.size() > 0) {
+            auto table_rows = Array::create_from(realm(), final_rows);
+            auto table_cols = Array::create_from(realm(), final_columns);
+
+            // 5.1. Let `finalData` to be a new map:
+            auto final_data = Object::create(realm(), nullptr);
+
+            // 5.2. Set `finalData["rows"]` to `finalRows`
+            TRY(final_data->set(PropertyKey("rows"), table_rows, Object::ShouldThrowExceptions::No));
+
+            // 5.3. Set finalData["columns"] to finalColumns
+            TRY(final_data->set(PropertyKey("columns"), table_cols, Object::ShouldThrowExceptions::No));
+
+            // 5.4. Perform `Printer("table", finalData)`
+            MarkedVector<Value> args(vm.heap());
+            args.append(Value(final_data));
+            return m_client->printer(LogLevel::Table, args);
+        }
+    }
+
+    // 6. Otherwise, perform `Printer("log", tabularData)`
+    return m_client->printer(LogLevel::Log, vm_arguments());
 }
 
 // 1.1.8. trace(...data), https://console.spec.whatwg.org/#trace
