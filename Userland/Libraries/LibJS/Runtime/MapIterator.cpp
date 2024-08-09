@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/MapIterator.h>
+#include <LibJS/Runtime/Realm.h>
 
 namespace JS {
 

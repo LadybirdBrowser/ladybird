@@ -26,7 +26,6 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/NumberObject.h>
 #include <LibJS/Runtime/Object.h>
@@ -2377,8 +2376,8 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
         // b. Let ly be the length of py.
         // c. For each integer i such that 0 ≤ i < min(lx, ly), in ascending order, do
         for (auto k = x_code_points.begin(), l = y_code_points.begin();
-             k != x_code_points.end() && l != y_code_points.end();
-             ++k, ++l) {
+            k != x_code_points.end() && l != y_code_points.end();
+            ++k, ++l) {
             // i. Let cx be the integer that is the numeric value of the code unit at index i within px.
             // ii. Let cy be the integer that is the numeric value of the code unit at index i within py.
             if (*k != *l) {

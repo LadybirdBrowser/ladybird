@@ -10,7 +10,6 @@
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/Locale.h>
 #include <LibJS/Runtime/Intl/SingleUnitIdentifiers.h>

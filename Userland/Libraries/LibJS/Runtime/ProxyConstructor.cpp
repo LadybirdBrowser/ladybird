@@ -7,7 +7,6 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/ProxyConstructor.h>
 #include <LibJS/Runtime/ProxyObject.h>
 

@@ -13,7 +13,6 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GeneratorPrototype.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Realm.h>
 
 namespace JS {
@@ -50,7 +49,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
         new_target = &constructor;
 
     StringView prefix;
-    NonnullGCPtr<Object> (Intrinsics::*fallback_prototype)() = nullptr;
+    NonnullGCPtr<Object> (Intrinsics::* fallback_prototype)() = nullptr;
 
     switch (kind) {
     // 4. If kind is normal, then

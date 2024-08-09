@@ -12,12 +12,12 @@
 #include <LibJS/Runtime/BooleanObject.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Date.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/NumberObject.h>
 #include <LibJS/Runtime/ObjectPrototype.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibJS/Runtime/ValueInvoke.h>
 
 namespace JS {
 

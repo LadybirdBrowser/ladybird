@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/SuppressedErrorPrototype.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 

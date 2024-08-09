@@ -14,7 +14,6 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/Collator.h>
 #include <LibJS/Runtime/Intl/CollatorCompareFunction.h>
@@ -27,6 +26,7 @@
 #include <LibJS/Runtime/Utf16String.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/Runtime/ValueInvoke.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/Normalize.h>

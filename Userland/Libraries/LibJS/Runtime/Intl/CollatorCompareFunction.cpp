@@ -5,9 +5,9 @@
  */
 
 #include <AK/Utf8View.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/Collator.h>
 #include <LibJS/Runtime/Intl/CollatorCompareFunction.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS::Intl {
 

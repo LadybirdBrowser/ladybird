@@ -5,7 +5,6 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/PlainTimeConstructor.h>

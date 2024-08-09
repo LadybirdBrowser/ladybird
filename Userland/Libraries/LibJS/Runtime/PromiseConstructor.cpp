@@ -10,12 +10,12 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/PromiseResolvingElementFunctions.h>
+#include <LibJS/Runtime/ValueInvoke.h>
 
 namespace JS {
 

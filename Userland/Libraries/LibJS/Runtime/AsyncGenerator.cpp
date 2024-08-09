@@ -9,7 +9,6 @@
 #include <LibJS/Runtime/AsyncGeneratorPrototype.h>
 #include <LibJS/Runtime/AsyncGeneratorRequest.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 
 namespace JS {

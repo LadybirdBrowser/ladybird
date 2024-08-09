@@ -5,7 +5,8 @@
  */
 
 #include <AK/Utf8View.h>
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Heap/Heap.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/StringIterator.h>
 
 namespace JS {

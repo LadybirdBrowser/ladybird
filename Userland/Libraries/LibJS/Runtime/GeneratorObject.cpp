@@ -9,7 +9,6 @@
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/GeneratorPrototype.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 
 namespace JS {

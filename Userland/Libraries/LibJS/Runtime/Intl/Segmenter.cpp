@@ -6,8 +6,8 @@
  */
 
 #include <AK/Utf16View.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/Segmenter.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS::Intl {
 

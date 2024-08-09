@@ -10,10 +10,10 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayIterator.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/TypedArrayPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/Runtime/ValueInvoke.h>
 
 namespace JS {
 

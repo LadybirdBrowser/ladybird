@@ -18,12 +18,12 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/DatePrototype.h>
 #include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/DateTimeFormat.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/Runtime/ValueInvoke.h>
 #include <LibUnicode/DisplayNames.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/TimeZone.h>
