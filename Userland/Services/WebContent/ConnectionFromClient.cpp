@@ -453,7 +453,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
     Web::DOM::Node* node = Web::DOM::Node::from_unique_id(node_id);
     // Note: Nodes without layout (aka non-visible nodes, don't have style computed)
     if (!node || !node->layout_node()) {
-        async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {});
+        async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
         return;
     }
 
@@ -462,7 +462,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
     if (node->is_element()) {
         auto& element = verify_cast<Web::DOM::Element>(*node);
         if (!element.computed_css_values()) {
-            async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {});
+            async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
             return;
         }
 
@@ -546,10 +546,28 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
             return builder.to_byte_string();
         };
 
+        auto serialize_fonts_json = [](Web::CSS::StyleProperties const& properties) -> ByteString {
+            StringBuilder builder;
+            auto serializer = MUST(JsonArraySerializer<>::try_create(builder));
+
+            auto const& font_list = properties.computed_font_list();
+            font_list.for_each_font_entry([&serializer](Gfx::FontCascadeList::Entry const& entry) {
+                auto const& font = entry.font;
+                auto font_json_object = MUST(serializer.add_object());
+                MUST(font_json_object.add("name"sv, font->family()));
+                MUST(font_json_object.add("size"sv, font->point_size()));
+                MUST(font_json_object.add("weight"sv, font->weight()));
+                MUST(font_json_object.add("variant"sv, font->variant()));
+                MUST(font_json_object.finish());
+            });
+            MUST(serializer.finish());
+            return builder.to_byte_string();
+        };
+
         if (pseudo_element.has_value()) {
             auto pseudo_element_node = element.get_pseudo_element_node(pseudo_element.value());
             if (!pseudo_element_node) {
-                async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {});
+                async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
                 return;
             }
 
@@ -558,8 +576,9 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
             ByteString resolved_values = serialize_json(*element.resolved_css_values(pseudo_element.value()));
             ByteString custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
             ByteString node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr());
+            ByteString fonts_json = serialize_fonts_json(*pseudo_element_style);
 
-            async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), {});
+            async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), {}, move(fonts_json));
             return;
         }
 
@@ -568,12 +587,13 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
         ByteString custom_properties_json = serialize_custom_properties_json(element, {});
         ByteString node_box_sizing_json = serialize_node_box_sizing_json(element.layout_node());
         ByteString aria_properties_state_json = serialize_aria_properties_state_json(element);
+        ByteString fonts_json = serialize_fonts_json(*element.computed_css_values());
 
-        async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), move(aria_properties_state_json));
+        async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), move(aria_properties_state_json), move(fonts_json));
         return;
     }
 
-    async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {});
+    async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
 }
 
 void ConnectionFromClient::inspect_accessibility_tree(u64 page_id)
