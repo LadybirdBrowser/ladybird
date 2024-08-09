@@ -3199,26 +3199,18 @@ RefPtr<StyleValue> Parser::parse_string_value(TokenStream<ComponentValue>& token
 
 RefPtr<StyleValue> Parser::parse_image_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-
-    if (auto url = parse_url_function(tokens); url.has_value()) {
-        transaction.commit();
+    if (auto url = parse_url_function(tokens); url.has_value())
         return ImageStyleValue::create(url.value());
-    }
 
-    auto& token = tokens.next_token();
-    if (auto linear_gradient = parse_linear_gradient_function(token)) {
-        transaction.commit();
+    if (auto linear_gradient = parse_linear_gradient_function(tokens))
         return linear_gradient;
-    }
-    if (auto conic_gradient = parse_conic_gradient_function(token)) {
-        transaction.commit();
+
+    if (auto conic_gradient = parse_conic_gradient_function(tokens))
         return conic_gradient;
-    }
-    if (auto radial_gradient = parse_radial_gradient_function(token)) {
-        transaction.commit();
+
+    if (auto radial_gradient = parse_radial_gradient_function(tokens))
         return radial_gradient;
-    }
+
     return nullptr;
 }
 
