@@ -68,6 +68,7 @@ set(SOURCES
     Runtime/BooleanPrototype.cpp
     Runtime/BoundFunction.cpp
     Runtime/Completion.cpp
+    Runtime/ConsoleObjectPrototype.cpp
     Runtime/ConsoleObject.cpp
     Runtime/DataView.cpp
     Runtime/DataViewConstructor.cpp
