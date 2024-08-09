@@ -1388,37 +1388,9 @@ CSSRule* Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
 
             return CSSKeyframesRule::create(m_context.realm(), name, CSSRuleList::create(m_context.realm(), move(keyframes)));
         }
-        if (rule->at_rule_name().equals_ignoring_ascii_case("namespace"sv)) {
-            // https://drafts.csswg.org/css-namespaces/#syntax
-            auto token_stream = TokenStream { rule->prelude() };
-            token_stream.skip_whitespace();
 
-            auto token = token_stream.next_token();
-            Optional<FlyString> prefix = {};
-            if (token.is(Token::Type::Ident)) {
-                prefix = token.token().ident();
-                token_stream.skip_whitespace();
-                token = token_stream.next_token();
-            }
-
-            FlyString namespace_uri;
-            if (token.is(Token::Type::String)) {
-                namespace_uri = token.token().string();
-            } else if (auto url = parse_url_function(token); url.has_value()) {
-                namespace_uri = MUST(url.value().to_string());
-            } else {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @namespace rule invalid; discarding.");
-                return {};
-            }
-
-            token_stream.skip_whitespace();
-            if (token_stream.has_next_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @namespace rule invalid; discarding.");
-                return {};
-            }
-
-            return CSSNamespaceRule::create(m_context.realm(), prefix, namespace_uri);
-        }
+        if (rule->at_rule_name().equals_ignoring_ascii_case("namespace"sv))
+            return convert_to_namespace_rule(rule);
 
         // FIXME: More at rules!
         dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS at-rule: @{}", rule->at_rule_name());
@@ -1505,6 +1477,54 @@ JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)
     }
 
     return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*m_context.document()));
+}
+
+JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(Rule& rule)
+{
+    // https://drafts.csswg.org/css-namespaces/#syntax
+    // @namespace <namespace-prefix>? [ <string> | <url> ] ;
+    // <namespace-prefix> = <ident>
+
+    if (rule.prelude().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Empty prelude.");
+        return {};
+    }
+
+    if (rule.block()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Block is not allowed.");
+        return {};
+    }
+
+    auto tokens = TokenStream { rule.prelude() };
+    tokens.skip_whitespace();
+
+    Optional<FlyString> prefix = {};
+    if (tokens.peek_token().is(Token::Type::Ident)) {
+        prefix = tokens.next_token().token().ident();
+        tokens.skip_whitespace();
+    }
+
+    FlyString namespace_uri;
+    auto& url_token = tokens.next_token();
+    if (url_token.is(Token::Type::String)) {
+        namespace_uri = url_token.token().string();
+    } else if (auto url = parse_url_function(url_token); url.has_value()) {
+        namespace_uri = MUST(url.value().to_string());
+    } else {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @namespace rule: Unable to parse `{}` as URL.", url_token.to_debug_string());
+        return {};
+    }
+
+    tokens.skip_whitespace();
+    if (tokens.has_next_token()) {
+        if constexpr (CSS_PARSER_DEBUG) {
+            dbgln("Failed to parse @namespace rule: Trailing tokens after URL.");
+            tokens.dump_all_tokens();
+        }
+        return {};
+    }
+
+    return CSSNamespaceRule::create(m_context.realm(), prefix, namespace_uri);
 }
 
 auto Parser::extract_properties(Vector<DeclarationOrAtRule> const& declarations_and_at_rules) -> PropertiesAndCustomProperties
