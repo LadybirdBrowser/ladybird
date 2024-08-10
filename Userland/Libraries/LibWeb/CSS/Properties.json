@@ -1065,9 +1065,8 @@
     "animation-type": "none",
     "inherited": true,
     "initial": "ltr",
-    "valid-identifiers": [
-      "ltr",
-      "rtl"
+    "valid-types": [
+      "direction"
     ]
   },
   "display": {

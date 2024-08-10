@@ -194,6 +194,19 @@ void FlexFormattingContext::parent_context_did_dimension_child_root_box()
     });
 }
 
+// https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
+bool FlexFormattingContext::is_direction_reverse() const
+{
+    switch (flex_container().computed_values().direction()) {
+    case CSS::Direction::Ltr:
+        return m_flex_direction == CSS::FlexDirection::ColumnReverse || m_flex_direction == CSS::FlexDirection::RowReverse;
+    case CSS::Direction::Rtl:
+        return m_flex_direction == CSS::FlexDirection::ColumnReverse || m_flex_direction == CSS::FlexDirection::Row;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 void FlexFormattingContext::populate_specified_margins(FlexItem& item, CSS::FlexDirection flex_direction) const
 {
     auto width_of_containing_block = m_flex_container_state.content_width();
