@@ -1,0 +1,11 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const params = new URLSearchParams('animal=octopus&place=ocean');
+        println(params.has('non-existing-key'));
+        println(params.has('animal'));
+        println(params.has('place', 'non-existing-value'));
+        println(params.has('place', 'ocean'));
+        println(params.has('animal', 'ocean'));
+    });
+</script>

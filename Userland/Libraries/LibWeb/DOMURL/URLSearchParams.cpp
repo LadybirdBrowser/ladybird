@@ -278,13 +278,30 @@ WebIDL::ExceptionOr<Vector<String>> URLSearchParams::get_all(String const& name)
     return values;
 }
 
-bool URLSearchParams::has(String const& name)
+// https://url.spec.whatwg.org/#dom-urlsearchparams-has
+bool URLSearchParams::has(String const& name, Optional<String> const& value)
 {
-    // return true if there is a name-value pair whose name is name in this’s list, and false otherwise.
-    return !m_list.find_if([&name](auto& entry) {
-                      return entry.name == name;
-                  })
-                .is_end();
+    // 1. If value is given and there is a tuple whose name is name and value is value in this’s list, then return true.
+    if (value.has_value()) {
+        if (!m_list.find_if([&name, &value](auto& entry) {
+                       return entry.name == name && entry.value == value.value();
+                   })
+                 .is_end()) {
+            return true;
+        }
+    }
+    // 2. If value is not given and there is a tuple whose name is name in this’s list, then return true.
+    else {
+        if (!m_list.find_if([&name](auto& entry) {
+                       return entry.name == name;
+                   })
+                 .is_end()) {
+            return true;
+        }
+    }
+
+    // 3. Return false.
+    return false;
 }
 
 WebIDL::ExceptionOr<void> URLSearchParams::set(String const& name, String const& value)
