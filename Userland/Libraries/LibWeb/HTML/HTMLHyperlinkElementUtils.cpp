@@ -114,7 +114,7 @@ void HTMLHyperlinkElementUtils::set_username(StringView username)
         return;
 
     // 4. Set the username given this’s URL and the given value.
-    MUST(url->set_username(username));
+    url->set_username(username);
 
     // 5. Update href.
     update_href();
@@ -151,7 +151,7 @@ void HTMLHyperlinkElementUtils::set_password(StringView password)
         return;
 
     // 4. Set the password, given url and the given value.
-    MUST(url->set_password(password));
+    url->set_password(password);
 
     // 5. Update href.
     update_href();

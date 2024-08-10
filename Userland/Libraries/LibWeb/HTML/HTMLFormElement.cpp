@@ -845,8 +845,7 @@ ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, Vector<XHR::
         // 2. Set body to the result of running UTF-8 percent-encode on body using the default encode set. [URL]
         // NOTE: body is already UTF-8 encoded due to using AK::String, so we only have to do the percent encoding.
         // NOTE: "default encode set" links to "path percent-encode-set": https://url.spec.whatwg.org/#default-encode-set
-        auto percent_encoded_body = URL::percent_encode(body, URL::PercentEncodeSet::Path);
-        body = TRY(String::from_utf8(percent_encoded_body.view()));
+        body = URL::percent_encode(body, URL::PercentEncodeSet::Path);
         break;
     }
     default:

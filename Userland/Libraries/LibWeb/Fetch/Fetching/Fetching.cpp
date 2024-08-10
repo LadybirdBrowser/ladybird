@@ -2024,10 +2024,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
                 auto password = ByteString::empty();
 
                 // 3. Set the username given request’s current URL and username.
-                MUST(request->current_url().set_username(username));
+                request->current_url().set_username(username);
 
                 // 4. Set the password given request’s current URL and password.
-                MUST(request->current_url().set_password(password));
+                request->current_url().set_password(password);
             }
 
             // 4. Set response to the result of running HTTP-network-or-cache fetch given fetchParams and true.

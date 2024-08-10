@@ -495,10 +495,10 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
     if (!parsed_url.host().has<Empty>()) {
         // 1. If the username argument is not null, set the username given parsedURL and username.
         if (username.has_value())
-            MUST(parsed_url.set_username(username.value()));
+            parsed_url.set_username(username.value());
         // 2. If the password argument is not null, set the password given parsedURL and password.
         if (password.has_value())
-            MUST(parsed_url.set_password(password.value()));
+            parsed_url.set_password(password.value());
     }
 
     // 9. If async is false, the current global object is a Window object, and either this’s timeout is
