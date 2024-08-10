@@ -45,7 +45,6 @@ public:
 
     JS::NonnullGCPtr<HTML::TraversableNavigable> top_level_traversable() const;
 
-    JS::GCPtr<BrowsingContext> parent() const { return m_parent; }
     JS::GCPtr<BrowsingContext> first_child() const;
     JS::GCPtr<BrowsingContext> next_sibling() const;
 
@@ -112,6 +111,8 @@ public:
     Page& page() { return m_page; }
     Page const& page() const { return m_page; }
 
+    u64 virtual_browsing_context_group_id() const { return m_virtual_browsing_context_group_id; }
+
     JS::GCPtr<BrowsingContext> top_level_browsing_context() const;
 
     BrowsingContextGroup* group();
@@ -161,7 +162,6 @@ private:
     // https://html.spec.whatwg.org/multipage/browsers.html#tlbc-group
     JS::GCPtr<BrowsingContextGroup> m_group;
 
-    JS::GCPtr<BrowsingContext> m_parent;
     JS::GCPtr<BrowsingContext> m_first_child;
     JS::GCPtr<BrowsingContext> m_last_child;
     JS::GCPtr<BrowsingContext> m_next_sibling;
