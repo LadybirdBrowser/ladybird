@@ -202,8 +202,6 @@ public:
     void set_outline_offset(CSSPixels outline_offset) { m_outline_offset = outline_offset; }
     CSSPixels outline_offset() const { return m_outline_offset; }
 
-    CSSPixelRect compute_absolute_padding_rect_with_scroll_offset_applied() const;
-
     Optional<CSSPixelRect> get_clip_rect() const;
 
     bool is_viewport() const { return layout_box().is_viewport(); }

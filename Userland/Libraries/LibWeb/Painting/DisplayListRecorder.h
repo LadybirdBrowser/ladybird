@@ -103,9 +103,14 @@ public:
     void translate(int dx, int dy);
     void translate(Gfx::IntPoint delta);
 
-    void set_scroll_frame_id(i32 id)
+    void set_scroll_frame_id(Optional<i32> id)
     {
         state().scroll_frame_id = id;
+    }
+
+    Optional<i32> scroll_frame_id() const
+    {
+        return state().scroll_frame_id;
     }
 
     void save();

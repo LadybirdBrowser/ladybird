@@ -32,22 +32,20 @@ Layout::InlineNode const& InlinePaintable::layout_node() const
 
 void InlinePaintable::before_paint(PaintContext& context, PaintPhase) const
 {
+    apply_clip(context);
+
     if (scroll_frame_id().has_value()) {
         context.display_list_recorder().save();
         context.display_list_recorder().set_scroll_frame_id(scroll_frame_id().value());
-    }
-    if (clip_rect().has_value()) {
-        context.display_list_recorder().save();
-        context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(*clip_rect()).to_type<int>());
     }
 }
 
 void InlinePaintable::after_paint(PaintContext& context, PaintPhase) const
 {
-    if (clip_rect().has_value())
-        context.display_list_recorder().restore();
     if (scroll_frame_id().has_value())
         context.display_list_recorder().restore();
+
+    restore_clip(context);
 }
 
 void InlinePaintable::paint(PaintContext& context, PaintPhase phase) const
@@ -189,7 +187,7 @@ void InlinePaintable::for_each_fragment(Callback callback) const
 
 TraversalDecision InlinePaintable::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (clip_rect().has_value() && !clip_rect().value().contains(position))
+    if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing().value().contains(position))
         return TraversalDecision::Continue;
 
     auto position_adjusted_by_scroll_offset = position;

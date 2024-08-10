@@ -95,6 +95,8 @@ struct Restore { };
 
 struct AddClipRect {
     Gfx::IntRect rect;
+
+    void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
 };
 
 struct StackingContextTransform {
