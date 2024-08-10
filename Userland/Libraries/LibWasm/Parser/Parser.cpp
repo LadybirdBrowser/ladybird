@@ -1213,6 +1213,41 @@ ParseResult<DataCountSection> DataCountSection::parse([[maybe_unused]] Stream& s
     return DataCountSection { value };
 }
 
+ParseResult<SectionId> SectionId::parse(Stream& stream)
+{
+    u8 id = TRY_READ(stream, u8, ParseError::ExpectedIndex);
+    switch (id) {
+    case 0x00:
+        return SectionId(SectionIdKind::Custom);
+    case 0x01:
+        return SectionId(SectionIdKind::Type);
+    case 0x02:
+        return SectionId(SectionIdKind::Import);
+    case 0x03:
+        return SectionId(SectionIdKind::Function);
+    case 0x04:
+        return SectionId(SectionIdKind::Table);
+    case 0x05:
+        return SectionId(SectionIdKind::Memory);
+    case 0x06:
+        return SectionId(SectionIdKind::Global);
+    case 0x07:
+        return SectionId(SectionIdKind::Export);
+    case 0x08:
+        return SectionId(SectionIdKind::Start);
+    case 0x09:
+        return SectionId(SectionIdKind::Element);
+    case 0x0a:
+        return SectionId(SectionIdKind::Code);
+    case 0x0b:
+        return SectionId(SectionIdKind::Data);
+    case 0x0c:
+        return SectionId(SectionIdKind::DataCount);
+    default:
+        return ParseError::InvalidIndex;
+    }
+}
+
 ParseResult<Module> Module::parse(Stream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Module"sv);
@@ -1227,61 +1262,64 @@ ParseResult<Module> Module::parse(Stream& stream)
     if (Bytes { buf, 4 } != wasm_version.span())
         return with_eof_check(stream, ParseError::InvalidModuleVersion);
 
-    auto last_section_id = CustomSection::section_id;
+    auto last_section_id = SectionId::SectionIdKind::Custom;
     Module module;
     while (!stream.is_eof()) {
-        auto section_id = TRY_READ(stream, u8, ParseError::ExpectedIndex);
+        auto section_id = TRY(SectionId::parse(stream));
         size_t section_size = TRY_READ(stream, LEB128<u32>, ParseError::ExpectedSize);
         auto section_stream = ConstrainedStream { MaybeOwned<Stream>(stream), section_size };
 
-        if (section_id != CustomSection::section_id && section_id == last_section_id)
+        if (section_id.kind() != SectionId::SectionIdKind::Custom && section_id.kind() == last_section_id)
             return ParseError::DuplicateSection;
 
-        switch (section_id) {
-        case CustomSection::section_id:
+        switch (section_id.kind()) {
+        case SectionId::SectionIdKind::Custom:
             module.custom_sections().append(TRY(CustomSection::parse(section_stream)));
             break;
-        case TypeSection::section_id:
+        case SectionId::SectionIdKind::Type:
             module.type_section() = TRY(TypeSection::parse(section_stream));
             break;
-        case ImportSection::section_id:
+        case SectionId::SectionIdKind::Import:
             module.import_section() = TRY(ImportSection::parse(section_stream));
             break;
-        case FunctionSection::section_id:
+        case SectionId::SectionIdKind::Function:
             module.function_section() = TRY(FunctionSection::parse(section_stream));
             break;
-        case TableSection::section_id:
+        case SectionId::SectionIdKind::Table:
             module.table_section() = TRY(TableSection::parse(section_stream));
             break;
-        case MemorySection::section_id:
+        case SectionId::SectionIdKind::Memory:
             module.memory_section() = TRY(MemorySection::parse(section_stream));
             break;
-        case GlobalSection::section_id:
+        case SectionId::SectionIdKind::Global:
             module.global_section() = TRY(GlobalSection::parse(section_stream));
             break;
-        case ExportSection::section_id:
+        case SectionId::SectionIdKind::Export:
             module.export_section() = TRY(ExportSection::parse(section_stream));
             break;
-        case StartSection::section_id:
+        case SectionId::SectionIdKind::Start:
             module.start_section() = TRY(StartSection::parse(section_stream));
             break;
-        case ElementSection::section_id:
+        case SectionId::SectionIdKind::Element:
             module.element_section() = TRY(ElementSection::parse(section_stream));
             break;
-        case CodeSection::section_id:
+        case SectionId::SectionIdKind::Code:
             module.code_section() = TRY(CodeSection::parse(section_stream));
             break;
-        case DataSection::section_id:
+        case SectionId::SectionIdKind::Data:
             module.data_section() = TRY(DataSection::parse(section_stream));
             break;
-        case DataCountSection::section_id:
+        case SectionId::SectionIdKind::DataCount:
             module.data_count_section() = TRY(DataCountSection::parse(section_stream));
             break;
         default:
             return ParseError::InvalidIndex;
         }
-        if (section_id != CustomSection::section_id)
-            last_section_id = section_id;
+        if (section_id.kind() != SectionId::SectionIdKind::Custom) {
+            if (section_id.kind() < last_section_id)
+                return ParseError::SectionOutOfOrder;
+            last_section_id = section_id.kind();
+        }
         if (section_stream.remaining() != 0)
             return ParseError::SectionSizeMismatch;
     }
@@ -1334,6 +1372,8 @@ ByteString parse_error_to_byte_string(ParseError error)
         return "A parsed instruction was not known to this parser";
     case ParseError::DuplicateSection:
         return "Two sections of the same type were encountered";
+    case ParseError::SectionOutOfOrder:
+        return "A section encountered was not in the correct ordering";
     }
     return "Unknown error";
 }
