@@ -7,6 +7,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/NavigatorBeacon.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -50,7 +51,8 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconMixin::send_beacon(String const& url, O
         auto& content_type = body_with_type.type;
 
         // 6.2 If the amount of data that can be queued to be sent by keepalive enabled requests is exceeded by the size of transmittedData (as defined in HTTP-network-or-cache fetch), set the return value to false and terminate these steps.
-        // FIXME: We don't have a size limit in Fetching::fetch
+        if (transmitted_data->length().has_value() && transmitted_data->length().value() > Fetch::Fetching::keepalive_maximum_size)
+            return false;
 
         // 6.3 If contentType is not null:
         if (content_type.has_value()) {
