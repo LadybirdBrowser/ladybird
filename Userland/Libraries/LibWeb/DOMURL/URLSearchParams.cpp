@@ -62,10 +62,10 @@ ErrorOr<String> url_encode(Vector<QueryParam> const& tuples, StringView encoding
         // 1. Assert: tuple’s name and tuple’s value are scalar value strings.
 
         // 2. Let name be the result of running percent-encode after encoding with encoding, tuple’s name, the application/x-www-form-urlencoded percent-encode set, and true.
-        auto name = TRY(URL::Parser::percent_encode_after_encoding(*encoder, tuple.name, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true));
+        auto name = URL::Parser::percent_encode_after_encoding(*encoder, tuple.name, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true);
 
         // 3. Let value be the result of running percent-encode after encoding with encoding, tuple’s value, the application/x-www-form-urlencoded percent-encode set, and true.
-        auto value = TRY(URL::Parser::percent_encode_after_encoding(*encoder, tuple.value, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true));
+        auto value = URL::Parser::percent_encode_after_encoding(*encoder, tuple.value, URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true);
 
         // 4. If output is not the empty string, then append U+0026 (&) to output.
         if (!output.is_empty())

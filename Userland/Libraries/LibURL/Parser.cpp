@@ -770,13 +770,13 @@ void Parser::shorten_urls_path(URL& url)
 }
 
 // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
-ErrorOr<String> Parser::percent_encode_after_encoding(TextCodec::Encoder& encoder, StringView input, PercentEncodeSet percent_encode_set, bool space_as_plus)
+String Parser::percent_encode_after_encoding(TextCodec::Encoder& encoder, StringView input, PercentEncodeSet percent_encode_set, bool space_as_plus)
 {
     // 1. Let encodeOutput be an empty I/O queue.
     StringBuilder output;
 
     // 2. Set potentialError to the result of running encode or fail with inputQueue, encoder, and encodeOutput.
-    TRY(encoder.process(
+    MUST(encoder.process(
         Utf8View(input),
 
         // 3. For each byte of encodeOutput converted to a byte sequence:
@@ -813,7 +813,7 @@ ErrorOr<String> Parser::percent_encode_after_encoding(TextCodec::Encoder& encode
         }));
 
     // 6. Return output.
-    return output.to_string();
+    return MUST(output.to_string());
 }
 
 // https://url.spec.whatwg.org/#concept-basic-url-parser
@@ -1703,7 +1703,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
                 auto query_percent_encode_set = url->is_special() ? PercentEncodeSet::SpecialQuery : PercentEncodeSet::Query;
 
                 // 2. Percent-encode after encoding, with encoding, buffer, and queryPercentEncodeSet, and append the result to url’s query.
-                url->m_data->query = percent_encode_after_encoding(*encoder, buffer.string_view(), query_percent_encode_set).release_value_but_fixme_should_propagate_errors();
+                url->m_data->query = percent_encode_after_encoding(*encoder, buffer.string_view(), query_percent_encode_set);
 
                 // 3. Set buffer to the empty string.
                 buffer.clear();
@@ -1745,7 +1745,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
                 // NOTE: The percent-encode is done on EOF on the entire buffer.
                 buffer.append_code_point(code_point);
             } else {
-                url->m_data->fragment = percent_encode_after_encoding(*encoder, buffer.string_view(), PercentEncodeSet::Fragment).release_value_but_fixme_should_propagate_errors();
+                url->m_data->fragment = percent_encode_after_encoding(*encoder, buffer.string_view(), PercentEncodeSet::Fragment);
                 buffer.clear();
             }
             break;
