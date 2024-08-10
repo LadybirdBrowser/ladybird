@@ -1085,6 +1085,12 @@ Optional<CSS::TableLayout> StyleProperties::table_layout() const
     return value_id_to_table_layout(value->to_identifier());
 }
 
+Optional<CSS::Direction> StyleProperties::direction() const
+{
+    auto value = property(CSS::PropertyID::Direction);
+    return value_id_to_direction(value->to_identifier());
+}
+
 Optional<CSS::MaskType> StyleProperties::mask_type() const
 {
     auto value = property(CSS::PropertyID::MaskType);
