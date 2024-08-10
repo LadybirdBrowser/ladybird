@@ -59,7 +59,7 @@ JS::NonnullGCPtr<DOMURL> DOMURL::initialize_a_url(JS::Realm& realm, URL::URL con
 
     // 2. Set url’s URL to urlRecord.
     // 3. Set url’s query object to a new URLSearchParams object.
-    auto query_object = MUST(URLSearchParams::create(realm, query));
+    auto query_object = URLSearchParams::create(realm, query);
 
     // 4. Initialize url’s query object with query.
     auto result_url = DOMURL::create(realm, url_record, move(query_object));
@@ -190,8 +190,6 @@ WebIDL::ExceptionOr<String> DOMURL::to_json() const
 // https://url.spec.whatwg.org/#ref-for-dom-url-href②
 WebIDL::ExceptionOr<void> DOMURL::set_href(String const& href)
 {
-    auto& vm = realm().vm();
-
     // 1. Let parsedURL be the result of running the basic URL parser on the given value.
     URL::URL parsed_url = href;
 
@@ -210,7 +208,7 @@ WebIDL::ExceptionOr<void> DOMURL::set_href(String const& href)
 
     // 6. If query is non-null, then set this’s query object’s list to the result of parsing query.
     if (query.has_value())
-        m_query->m_list = TRY_OR_THROW_OOM(vm, url_decode(*query));
+        m_query->m_list = url_decode(*query);
     return {};
 }
 
@@ -411,10 +409,8 @@ WebIDL::ExceptionOr<String> DOMURL::search() const
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-search%E2%91%A0
-WebIDL::ExceptionOr<void> DOMURL::set_search(String const& search)
+void DOMURL::set_search(String const& search)
 {
-    auto& vm = realm().vm();
-
     // 1. Let url be this’s URL.
     auto& url = m_url;
 
@@ -430,7 +426,7 @@ WebIDL::ExceptionOr<void> DOMURL::set_search(String const& search)
         strip_trailing_spaces_from_an_opaque_path(*this);
 
         // 4. Return.
-        return {};
+        return;
     }
 
     // 3. Let input be the given value with a single leading U+003F (?) removed, if any.
@@ -447,10 +443,8 @@ WebIDL::ExceptionOr<void> DOMURL::set_search(String const& search)
         m_url = move(result_url);
 
         // 6. Set this’s query object’s list to the result of parsing input.
-        m_query->m_list = TRY_OR_THROW_OOM(vm, url_decode(input));
+        m_query->m_list = url_decode(input);
     }
-
-    return {};
 }
 
 // https://url.spec.whatwg.org/#dom-url-searchparams

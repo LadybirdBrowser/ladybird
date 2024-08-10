@@ -43,7 +43,7 @@ void URLSearchParams::visit_edges(Cell::Visitor& visitor)
 
 // https://url.spec.whatwg.org/#concept-urlencoded-serializer
 // The application/x-www-form-urlencoded serializer takes a list of name-value tuples tuples, with an optional encoding encoding (default UTF-8), and then runs these steps. They return an ASCII string.
-ErrorOr<String> url_encode(Vector<QueryParam> const& tuples, StringView encoding)
+String url_encode(Vector<QueryParam> const& tuples, StringView encoding)
 {
     // 1. Set encoding to the result of getting an output encoding from encoding.
     encoding = TextCodec::get_output_encoding(encoding);
@@ -69,21 +69,21 @@ ErrorOr<String> url_encode(Vector<QueryParam> const& tuples, StringView encoding
 
         // 4. If output is not the empty string, then append U+0026 (&) to output.
         if (!output.is_empty())
-            TRY(output.try_append('&'));
+            output.append('&');
 
         // 5. Append name, followed by U+003D (=), followed by value, to output.
-        TRY(output.try_append(name));
-        TRY(output.try_append('='));
-        TRY(output.try_append(value));
+        output.append(name);
+        output.append('=');
+        output.append(value);
     }
 
     // 4. Return output.
-    return output.to_string();
+    return MUST(output.to_string());
 }
 
 // https://url.spec.whatwg.org/#concept-urlencoded-parser
 // The application/x-www-form-urlencoded parser takes a byte sequence input, and then runs these steps:
-ErrorOr<Vector<QueryParam>> url_decode(StringView input)
+Vector<QueryParam> url_decode(StringView input)
 {
     // 1. Let sequences be the result of splitting input on 0x26 (&).
     auto sequences = input.split_view('&');
@@ -119,23 +119,23 @@ ErrorOr<Vector<QueryParam>> url_decode(StringView input)
         auto name_string = String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_name));
         auto value_string = String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_value));
 
-        TRY(output.try_empend(move(name_string), move(value_string)));
+        output.empend(move(name_string), move(value_string));
     }
 
     return output;
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> URLSearchParams::create(JS::Realm& realm, Vector<QueryParam> list)
+JS::NonnullGCPtr<URLSearchParams> URLSearchParams::create(JS::Realm& realm, Vector<QueryParam> list)
 {
     return realm.heap().allocate<URLSearchParams>(realm, realm, move(list));
 }
 
 // https://url.spec.whatwg.org/#urlsearchparams-initialize
-WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> URLSearchParams::create(JS::Realm& realm, StringView init)
+JS::NonnullGCPtr<URLSearchParams> URLSearchParams::create(JS::Realm& realm, StringView init)
 {
     // NOTE: We skip the other steps since we know it is a string at this point.
     // b. Set query’s list to the result of parsing init.
-    return URLSearchParams::create(realm, MUST(url_decode(init)));
+    return URLSearchParams::create(realm, url_decode(init));
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-urlsearchparams
@@ -203,36 +203,35 @@ size_t URLSearchParams::size() const
     return m_list.size();
 }
 
-WebIDL::ExceptionOr<void> URLSearchParams::append(String const& name, String const& value)
+// https://url.spec.whatwg.org/#dom-urlsearchparams-append
+void URLSearchParams::append(String const& name, String const& value)
 {
-    auto& vm = realm().vm();
-
     // 1. Append a new name-value pair whose name is name and value is value, to list.
-    TRY_OR_THROW_OOM(vm, m_list.try_empend(name, value));
-    // 2. Update this.
-    TRY(update());
+    m_list.empend(name, value);
 
-    return {};
+    // 2. Update this.
+    update();
 }
 
-WebIDL::ExceptionOr<void> URLSearchParams::update()
+void URLSearchParams::update()
 {
     // 1. If query’s URL object is null, then return.
     if (!m_url)
-        return {};
+        return;
+
     // 2. Let serializedQuery be the serialization of query’s list.
-    auto serialized_query = TRY(to_string());
+    auto serialized_query = to_string();
+
     // 3. If serializedQuery is the empty string, then set serializedQuery to null.
     if (serialized_query.is_empty())
         serialized_query = {};
+
     // 4. Set query’s URL object’s URL’s query to serializedQuery.
     m_url->set_query({}, move(serialized_query));
-
-    return {};
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-delete
-WebIDL::ExceptionOr<void> URLSearchParams::delete_(String const& name, Optional<String> const& value)
+void URLSearchParams::delete_(String const& name, Optional<String> const& value)
 {
     // 1. If value is given, then remove all tuples whose name is name and value is value from this’s list.
     if (value.has_value()) {
@@ -248,9 +247,7 @@ WebIDL::ExceptionOr<void> URLSearchParams::delete_(String const& name, Optional<
     }
 
     // 2. Update this.
-    TRY(update());
-
-    return {};
+    update();
 }
 
 Optional<String> URLSearchParams::get(String const& name)
@@ -265,15 +262,13 @@ Optional<String> URLSearchParams::get(String const& name)
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-getall
-WebIDL::ExceptionOr<Vector<String>> URLSearchParams::get_all(String const& name)
+Vector<String> URLSearchParams::get_all(String const& name)
 {
-    auto& vm = realm().vm();
-
     // return the values of all name-value pairs whose name is name, in this’s list, in list order, and the empty sequence otherwise.
     Vector<String> values;
     for (auto& entry : m_list) {
         if (entry.name == name)
-            TRY_OR_THROW_OOM(vm, values.try_append(entry.value));
+            values.append(entry.value);
     }
     return values;
 }
@@ -304,10 +299,8 @@ bool URLSearchParams::has(String const& name, Optional<String> const& value)
     return false;
 }
 
-WebIDL::ExceptionOr<void> URLSearchParams::set(String const& name, String const& value)
+void URLSearchParams::set(String const& name, String const& value)
 {
-    auto& vm = realm().vm();
-
     // 1. If this’s list contains any name-value pairs whose name is name, then set the value of the first such name-value pair to value and remove the others.
     auto existing = m_list.find_if([&name](auto& entry) {
         return entry.name == name;
@@ -320,15 +313,14 @@ WebIDL::ExceptionOr<void> URLSearchParams::set(String const& name, String const&
     }
     // 2. Otherwise, append a new name-value pair whose name is name and value is value, to this’s list.
     else {
-        TRY_OR_THROW_OOM(vm, m_list.try_empend(name, value));
+        m_list.empend(name, value);
     }
-    // 3. Update this.
-    TRY(update());
 
-    return {};
+    // 3. Update this.
+    update();
 }
 
-WebIDL::ExceptionOr<void> URLSearchParams::sort()
+void URLSearchParams::sort()
 {
     // 1. Sort all name-value pairs, if any, by their names. Sorting must be done by comparison of code units. The relative order between name-value pairs with equal names must be preserved.
     quick_sort(m_list.begin(), m_list.end(), [](auto& a, auto& b) {
@@ -349,18 +341,15 @@ WebIDL::ExceptionOr<void> URLSearchParams::sort()
         }
         VERIFY_NOT_REACHED();
     });
-    // 2. Update this.
-    TRY(update());
 
-    return {};
+    // 2. Update this.
+    update();
 }
 
-WebIDL::ExceptionOr<String> URLSearchParams::to_string() const
+String URLSearchParams::to_string() const
 {
-    auto& vm = realm().vm();
-
     // return the serialization of this’s list.
-    return TRY_OR_THROW_OOM(vm, url_encode(m_list));
+    return url_encode(m_list);
 }
 
 JS::ThrowCompletionOr<void> URLSearchParams::for_each(ForEachCallback callback)

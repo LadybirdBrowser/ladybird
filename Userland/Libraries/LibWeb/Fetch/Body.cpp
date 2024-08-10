@@ -149,11 +149,10 @@ WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm& realm, ByteBuffer bytes, 
             auto entries = DOMURL::url_decode(StringView { bytes });
 
             // 2. If entries is failure, then throw a TypeError.
-            if (entries.is_error())
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, entries.error().string_literal() };
+            // FIXME: Spec bug? It doesn't seem possible to throw an error here.
 
             // 3. Return a new FormData object whose entry list is entries.
-            return TRY(XHR::FormData::create(realm, entries.release_value()));
+            return TRY(XHR::FormData::create(realm, entries));
         }
         // Otherwise, throw a TypeError.
         else {

@@ -731,7 +731,7 @@ ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, Vector<
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
 
     // 2. Let query be the result of running the application/x-www-form-urlencoded serializer with pairs and encoding.
-    auto query = TRY(url_encode(pairs, encoding));
+    auto query = url_encode(pairs, encoding);
 
     // 3. Set parsed action's query component to query.
     parsed_action.set_query(query);
@@ -757,7 +757,7 @@ ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, Vec
         auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
 
         // 2. Let body be the result of running the application/x-www-form-urlencoded serializer with pairs and encoding.
-        body = TRY(ByteBuffer::copy(TRY(url_encode(pairs, encoding)).bytes()));
+        body = TRY(ByteBuffer::copy(url_encode(pairs, encoding).bytes()));
 
         // 3. Set body to the result of encoding body.
         // NOTE: `encoding` refers to `UTF-8 encode`, which body already is encoded as because it uses AK::String.
@@ -815,7 +815,7 @@ ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, Vector<
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
 
     // 2. Let headers be the result of running the application/x-www-form-urlencoded serializer with pairs and encoding.
-    auto headers = TRY(url_encode(pairs, encoding));
+    auto headers = url_encode(pairs, encoding);
 
     // 3. Replace occurrences of U+002B PLUS SIGN characters (+) in headers with the string "%20".
     TRY(headers.replace("+"sv, "%20"sv, ReplaceMode::All));
@@ -851,7 +851,7 @@ ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, Vector<XHR::
     default:
         // -> Otherwise
         // Let body be the result of running the application/x-www-form-urlencoded serializer with pairs and encoding.
-        body = TRY(url_encode(pairs, encoding));
+        body = url_encode(pairs, encoding);
         break;
     }
 
