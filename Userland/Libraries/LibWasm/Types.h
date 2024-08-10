@@ -57,6 +57,7 @@ enum class ParseError {
     SectionSizeMismatch,
     InvalidUtf8,
     DuplicateSection,
+    SectionOutOfOrder,
 };
 
 ByteString parse_error_to_byte_string(ParseError);
@@ -499,10 +500,39 @@ private:
         m_arguments;
 };
 
+struct SectionId {
+public:
+    enum class SectionIdKind : u8 {
+        Custom,
+        Type,
+        Import,
+        Function,
+        Table,
+        Memory,
+        Global,
+        Export,
+        Start,
+        Element,
+        DataCount,
+        Code,
+        Data,
+    };
+
+    explicit SectionId(SectionIdKind kind)
+        : m_kind(kind)
+    {
+    }
+
+    SectionIdKind kind() const { return m_kind; }
+
+    static ParseResult<SectionId> parse(Stream& stream);
+
+private:
+    SectionIdKind m_kind;
+};
+
 class CustomSection {
 public:
-    static constexpr u8 section_id = 0;
-
     CustomSection(ByteString name, ByteBuffer contents)
         : m_name(move(name))
         , m_contents(move(contents))
@@ -521,8 +551,6 @@ private:
 
 class TypeSection {
 public:
-    static constexpr u8 section_id = 1;
-
     TypeSection() = default;
 
     explicit TypeSection(Vector<FunctionType> types)
@@ -570,8 +598,6 @@ public:
     };
 
 public:
-    static constexpr u8 section_id = 2;
-
     ImportSection() = default;
 
     explicit ImportSection(Vector<Import> imports)
@@ -589,8 +615,6 @@ private:
 
 class FunctionSection {
 public:
-    static constexpr u8 section_id = 3;
-
     FunctionSection() = default;
 
     explicit FunctionSection(Vector<TypeIndex> types)
@@ -624,8 +648,6 @@ public:
     };
 
 public:
-    static constexpr u8 section_id = 4;
-
     TableSection() = default;
 
     explicit TableSection(Vector<Table> tables)
@@ -659,8 +681,6 @@ public:
     };
 
 public:
-    static constexpr u8 section_id = 5;
-
     MemorySection() = default;
 
     explicit MemorySection(Vector<Memory> memories)
@@ -712,8 +732,6 @@ public:
     };
 
 public:
-    static constexpr u8 section_id = 6;
-
     GlobalSection() = default;
 
     explicit GlobalSection(Vector<Global> entries)
@@ -752,8 +770,6 @@ public:
         ExportDesc m_description;
     };
 
-    static constexpr u8 section_id = 7;
-
     ExportSection() = default;
 
     explicit ExportSection(Vector<Export> entries)
@@ -785,8 +801,6 @@ public:
     private:
         FunctionIndex m_index;
     };
-
-    static constexpr u8 section_id = 8;
 
     StartSection() = default;
 
@@ -821,8 +835,6 @@ public:
         Vector<Expression> init;
         Variant<Active, Passive, Declarative> mode;
     };
-
-    static constexpr u8 section_id = 9;
 
     ElementSection() = default;
 
@@ -896,8 +908,6 @@ public:
         Func m_func;
     };
 
-    static constexpr u8 section_id = 10;
-
     CodeSection() = default;
 
     explicit CodeSection(Vector<Code> funcs)
@@ -940,8 +950,6 @@ public:
         Value m_value;
     };
 
-    static constexpr u8 section_id = 11;
-
     DataSection() = default;
 
     explicit DataSection(Vector<Data> data)
@@ -959,8 +967,6 @@ private:
 
 class DataCountSection {
 public:
-    static constexpr u8 section_id = 12;
-
     DataCountSection() = default;
 
     explicit DataCountSection(Optional<u32> count)
