@@ -872,6 +872,9 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
 
     computed_values.set_object_position(computed_style.object_position());
 
+    if (auto direction = computed_style.direction(); direction.has_value())
+        computed_values.set_direction(direction.value());
+
     if (auto scrollbar_width = computed_style.scrollbar_width(); scrollbar_width.has_value())
         computed_values.set_scrollbar_width(scrollbar_width.value());
 

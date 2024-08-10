@@ -1,0 +1,53 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x50 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x34 children: not-inline
+      Box <div> at (8,8) content-size 784x17 flex-container(row) [FFC] children: not-inline
+        BlockContainer <div> at (763.96875,8) content-size 28.03125x17 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [763.96875,8 28.03125x17] baseline: 13.296875
+              "aaa"
+          TextNode <#text>
+        BlockContainer <div> at (735.5625,8) content-size 28.40625x17 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [735.5625,8 28.40625x17] baseline: 13.296875
+              "bbb"
+          TextNode <#text>
+        BlockContainer <div> at (708.890625,8) content-size 26.671875x17 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [708.890625,8 26.671875x17] baseline: 13.296875
+              "ccc"
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,25) content-size 784x0 children: inline
+        TextNode <#text>
+      Box <div> at (8,25) content-size 784x17 flex-container(row-reverse) [FFC] children: not-inline
+        BlockContainer <div> at (8,25) content-size 28.03125x17 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [8,25 28.03125x17] baseline: 13.296875
+              "aaa"
+          TextNode <#text>
+        BlockContainer <div> at (36.03125,25) content-size 28.40625x17 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [36.03125,25 28.40625x17] baseline: 13.296875
+              "bbb"
+          TextNode <#text>
+        BlockContainer <div> at (64.4375,25) content-size 26.671875x17 flex-item [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [64.4375,25 26.671875x17] baseline: 13.296875
+              "ccc"
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,42) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x50]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x34]
+      PaintableBox (Box<DIV>) [8,8 784x17]
+        PaintableWithLines (BlockContainer<DIV>) [763.96875,8 28.03125x17]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [735.5625,8 28.40625x17]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [708.890625,8 26.671875x17]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,25 784x0]
+      PaintableBox (Box<DIV>) [8,25 784x17]
+        PaintableWithLines (BlockContainer<DIV>) [8,25 28.03125x17]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [36.03125,25 28.40625x17]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [64.4375,25 26.671875x17]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,42 784x0]

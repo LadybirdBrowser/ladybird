@@ -144,6 +144,10 @@
     "zoom-in",
     "zoom-out"
   ],
+  "direction": [
+    "ltr",
+    "rtl"
+  ],
   "display-box": [
     "contents",
     "none"
