@@ -32,7 +32,7 @@ public:
 
     size_t size() const;
     WebIDL::ExceptionOr<void> append(String const& name, String const& value);
-    WebIDL::ExceptionOr<void> delete_(String const& name);
+    WebIDL::ExceptionOr<void> delete_(String const& name, Optional<String> const& value = {});
     Optional<String> get(String const& name);
     WebIDL::ExceptionOr<Vector<String>> get_all(String const& name);
     bool has(String const& name);

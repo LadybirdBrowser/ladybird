@@ -231,12 +231,22 @@ WebIDL::ExceptionOr<void> URLSearchParams::update()
     return {};
 }
 
-WebIDL::ExceptionOr<void> URLSearchParams::delete_(String const& name)
+// https://url.spec.whatwg.org/#dom-urlsearchparams-delete
+WebIDL::ExceptionOr<void> URLSearchParams::delete_(String const& name, Optional<String> const& value)
 {
-    // 1. Remove all name-value pairs whose name is name from list.
-    m_list.remove_all_matching([&name](auto& entry) {
-        return entry.name == name;
-    });
+    // 1. If value is given, then remove all tuples whose name is name and value is value from this’s list.
+    if (value.has_value()) {
+        m_list.remove_all_matching([&name, &value](auto& entry) {
+            return entry.name == name && entry.value == value.value();
+        });
+    }
+    // 2. Otherwise, remove all tuples whose name is name from this’s list.
+    else {
+        m_list.remove_all_matching([&name](auto& entry) {
+            return entry.name == name;
+        });
+    }
+
     // 2. Update this.
     TRY(update());
 
