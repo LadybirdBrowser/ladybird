@@ -80,7 +80,8 @@ Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_bloc
         || false
 
         // 4. request’s destination is "document", and request’s target browsing context has no parent browsing context.
-        || (request.destination() == Fetch::Infrastructure::Request::Destination::Document && !(request.client()->target_browsing_context && request.client()->target_browsing_context->parent()))) {
+        // TODO: "parent browsing context" doesn't exist anymore and is a spec bug, seems like it should be `is_top_level`
+        || (request.destination() == Fetch::Infrastructure::Request::Destination::Document && request.client()->target_browsing_context && request.client()->target_browsing_context->is_top_level())) {
         return Fetch::Infrastructure::RequestOrResponseBlocking::Allowed;
     }
 
@@ -104,7 +105,8 @@ Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request
         || false
 
         // 4. request’s destination is "document", and request’s target browsing context has no parent browsing context.
-        || (request.destination() == Fetch::Infrastructure::Request::Destination::Document && !(request.client()->target_browsing_context && request.client()->target_browsing_context->parent()))) {
+        // TODO: "parent browsing context" doesn't exist anymore and is a spec bug, seems like it should be `is_top_level`
+        || (request.destination() == Fetch::Infrastructure::Request::Destination::Document && request.client()->target_browsing_context && request.client()->target_browsing_context->is_top_level())) {
         return Fetch::Infrastructure::RequestOrResponseBlocking::Allowed;
     }
 

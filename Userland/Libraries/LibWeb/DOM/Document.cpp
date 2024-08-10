@@ -3672,7 +3672,9 @@ void Document::make_active()
         m_visibility_state = navigable()->traversable_navigable()->system_visibility_state();
     }
 
-    // 4. Set window's relevant settings object's execution ready flag.
+    // TODO: 4. Queue a new VisibilityStateEntry whose visibility state is document's visibility state and whose timestamp is zero.
+
+    // 5. Set window's relevant settings object's execution ready flag.
     HTML::relevant_settings_object(window).execution_ready = true;
 
     if (m_needs_to_call_page_did_load) {

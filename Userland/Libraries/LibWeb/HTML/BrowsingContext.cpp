@@ -300,7 +300,6 @@ void BrowsingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_page);
     visitor.visit(m_window_proxy);
     visitor.visit(m_group);
-    visitor.visit(m_parent);
     visitor.visit(m_first_child);
     visitor.visit(m_last_child);
     visitor.visit(m_next_sibling);
@@ -321,8 +320,10 @@ JS::NonnullGCPtr<HTML::TraversableNavigable> BrowsingContext::top_level_traversa
 // https://html.spec.whatwg.org/multipage/browsers.html#top-level-browsing-context
 bool BrowsingContext::is_top_level() const
 {
-    // A browsing context that has no parent browsing context is the top-level browsing context for itself and all of the browsing contexts for which it is an ancestor browsing context.
-    return !parent();
+    // FIXME: Remove this. The active document's navigable is sometimes null when it shouldn't be, failing assertions.
+    return true;
+    // A top-level browsing context is a browsing context whose active document's node navigable is a traversable navigable.
+    return active_document() != nullptr && active_document()->navigable() != nullptr && active_document()->navigable()->is_traversable();
 }
 
 JS::GCPtr<BrowsingContext> BrowsingContext::top_level_browsing_context() const
@@ -434,12 +435,28 @@ JS::GCPtr<BrowsingContext> BrowsingContext::next_sibling() const
     return m_next_sibling;
 }
 
-bool BrowsingContext::is_ancestor_of(BrowsingContext const& other) const
+// https://html.spec.whatwg.org/multipage/document-sequences.html#ancestor-browsing-context
+bool BrowsingContext::is_ancestor_of(BrowsingContext const& potential_descendant) const
 {
-    for (auto ancestor = other.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor == this)
+    // A browsing context potentialDescendant is said to be an ancestor of a browsing context potentialAncestor if the following algorithm returns true:
+
+    // 1. Let potentialDescendantDocument be potentialDescendant's active document.
+    auto const* potential_descendant_document = potential_descendant.active_document();
+
+    // 2. If potentialDescendantDocument is not fully active, then return false.
+    if (!potential_descendant_document->is_fully_active())
+        return false;
+
+    // 3. Let ancestorBCs be the list obtained by taking the browsing context of the active document of each member of potentialDescendantDocument's ancestor navigables.
+    for (auto const& ancestor : potential_descendant_document->ancestor_navigables()) {
+        auto ancestor_browsing_context = ancestor->active_browsing_context();
+
+        // 4. If ancestorBCs contains potentialAncestor, then return true.
+        if (ancestor_browsing_context == this)
             return true;
     }
+
+    // 5. Return false.
     return false;
 }
 
@@ -464,7 +481,12 @@ bool BrowsingContext::is_familiar_with(BrowsingContext const& other) const
 
     // 4. If there exists an ancestor browsing context of B whose active document has the same origin as the active document of A, then return true.
     // NOTE: This includes the case where A is an ancestor browsing context of B.
-    for (auto ancestor = B.parent(); ancestor; ancestor = ancestor->parent()) {
+
+    // If B's active document is not fully active then it cannot have ancestor browsing context
+    if (!B.active_document()->is_fully_active())
+        return false;
+
+    for (auto const& ancestor : B.active_document()->ancestor_navigables()) {
         if (ancestor->active_document()->origin().is_same_origin(A.active_document()->origin()))
             return true;
     }
