@@ -1,0 +1,9 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let url = new URL("https://www.birdoftheyear.org.nz/?")
+        println(url.href);
+        url.searchParams.sort()
+        println(url.href);
+    });
+</script>

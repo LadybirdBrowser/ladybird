@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2023, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -213,6 +213,7 @@ void URLSearchParams::append(String const& name, String const& value)
     update();
 }
 
+// https://url.spec.whatwg.org/#concept-urlsearchparams-update
 void URLSearchParams::update()
 {
     // 1. If query’s URL object is null, then return.
@@ -220,10 +221,10 @@ void URLSearchParams::update()
         return;
 
     // 2. Let serializedQuery be the serialization of query’s list.
-    auto serialized_query = to_string();
+    Optional<String> serialized_query = to_string();
 
     // 3. If serializedQuery is the empty string, then set serializedQuery to null.
-    if (serialized_query.is_empty())
+    if (serialized_query == String {})
         serialized_query = {};
 
     // 4. Set query’s URL object’s URL’s query to serializedQuery.
