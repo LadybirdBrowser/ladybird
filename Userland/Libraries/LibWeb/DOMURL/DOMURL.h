@@ -68,7 +68,7 @@ public:
     bool cannot_be_a_base_url() const { return m_url.cannot_be_a_base_url(); }
 
     WebIDL::ExceptionOr<String> search() const;
-    WebIDL::ExceptionOr<void> set_search(String const&);
+    void set_search(String const&);
 
     JS::NonnullGCPtr<URLSearchParams const> search_params() const;
 

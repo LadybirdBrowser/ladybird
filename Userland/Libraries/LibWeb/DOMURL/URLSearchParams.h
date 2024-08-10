@@ -16,31 +16,31 @@ struct QueryParam {
     String name;
     String value;
 };
-ErrorOr<String> url_encode(Vector<QueryParam> const&, StringView encoding = "UTF-8"sv);
-ErrorOr<Vector<QueryParam>> url_decode(StringView);
+String url_encode(Vector<QueryParam> const&, StringView encoding = "UTF-8"sv);
+Vector<QueryParam> url_decode(StringView);
 
 class URLSearchParams : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(URLSearchParams, Bindings::PlatformObject);
     JS_DECLARE_ALLOCATOR(URLSearchParams);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> create(JS::Realm&, StringView);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> create(JS::Realm&, Vector<QueryParam> list);
+    static JS::NonnullGCPtr<URLSearchParams> create(JS::Realm&, StringView);
+    static JS::NonnullGCPtr<URLSearchParams> create(JS::Realm&, Vector<QueryParam> list);
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> construct_impl(JS::Realm&, Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init);
 
     virtual ~URLSearchParams() override;
 
     size_t size() const;
-    WebIDL::ExceptionOr<void> append(String const& name, String const& value);
-    WebIDL::ExceptionOr<void> delete_(String const& name, Optional<String> const& value = {});
+    void append(String const& name, String const& value);
+    void delete_(String const& name, Optional<String> const& value = {});
     Optional<String> get(String const& name);
-    WebIDL::ExceptionOr<Vector<String>> get_all(String const& name);
+    Vector<String> get_all(String const& name);
     bool has(String const& name, Optional<String> const& value = {});
-    WebIDL::ExceptionOr<void> set(String const& name, String const& value);
+    void set(String const& name, String const& value);
 
-    WebIDL::ExceptionOr<void> sort();
+    void sort();
 
-    WebIDL::ExceptionOr<String> to_string() const;
+    String to_string() const;
 
     using ForEachCallback = Function<JS::ThrowCompletionOr<void>(String const&, String const&)>;
     JS::ThrowCompletionOr<void> for_each(ForEachCallback);
@@ -54,7 +54,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> update();
+    void update();
 
     Vector<QueryParam> m_list;
     JS::GCPtr<DOMURL> m_url;
