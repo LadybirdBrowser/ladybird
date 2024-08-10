@@ -173,6 +173,19 @@ TEST_CASE(invalid_utf8)
     EXPECT(string3.error().string_literal().contains("Input was not valid UTF-8"sv));
 }
 
+TEST_CASE(with_replacement_character)
+{
+    auto string1 = String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv); // U+110000
+    Array<u8, 24> string1_expected { 0x6c, 0x6f, 0x6e, 0x67, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd };
+    EXPECT_EQ(string1.bytes(), string1_expected);
+
+    auto string3 = String::from_utf8_with_replacement_character("A valid string!"sv);
+    EXPECT_EQ(string3, "A valid string!"sv);
+
+    auto string4 = String::from_utf8_with_replacement_character(""sv);
+    EXPECT_EQ(string4, ""sv);
+}
+
 TEST_CASE(from_code_points)
 {
     for (u32 code_point = 0; code_point < 0x80; ++code_point) {
