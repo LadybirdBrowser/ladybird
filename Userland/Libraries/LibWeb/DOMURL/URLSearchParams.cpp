@@ -323,7 +323,7 @@ void URLSearchParams::set(String const& name, String const& value)
 void URLSearchParams::sort()
 {
     // 1. Sort all name-value pairs, if any, by their names. Sorting must be done by comparison of code units. The relative order between name-value pairs with equal names must be preserved.
-    quick_sort(m_list.begin(), m_list.end(), [](auto& a, auto& b) {
+    insertion_sort(m_list, [](auto& a, auto& b) {
         Utf8View a_code_points { a.name };
         Utf8View b_code_points { b.name };
 

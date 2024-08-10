@@ -1,0 +1,11 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let params = new URLSearchParams("z=z&=f&=t&=x");
+        params.sort();
+        println(params.toString())
+        for (const [key, value] of params) {
+            println(`'${key}' => '${value}'`);
+        }
+    })
+</script>
