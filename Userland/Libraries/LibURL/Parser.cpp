@@ -75,7 +75,7 @@ static Optional<Host> parse_opaque_host(StringView input)
     //       currently report validation errors, they are only useful for debugging efforts in the URL parsing code.
 
     // 4. Return the result of running UTF-8 percent-encode on input using the C0 control percent-encode set.
-    return String::from_byte_string(percent_encode(input, PercentEncodeSet::C0Control)).release_value_but_fixme_should_propagate_errors();
+    return percent_encode(input, PercentEncodeSet::C0Control);
 }
 
 struct ParsedIPv4Number {

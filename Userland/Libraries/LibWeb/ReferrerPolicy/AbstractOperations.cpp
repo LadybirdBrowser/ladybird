@@ -210,10 +210,10 @@ Optional<URL::URL> strip_url_for_use_as_referrer(Optional<URL::URL> url, OriginO
         return {};
 
     // 3. Set url’s username to the empty string.
-    MUST(url->set_username(""sv));
+    url->set_username(""sv);
 
     // 4. Set url’s password to the empty string.
-    MUST(url->set_password(""sv));
+    url->set_password(""sv);
 
     // 5. Set url’s fragment to null.
     url->set_fragment({});

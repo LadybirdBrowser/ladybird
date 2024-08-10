@@ -70,7 +70,7 @@ enum class SpaceAsPlus {
     No,
     Yes,
 };
-ByteString percent_encode(StringView input, PercentEncodeSet set = PercentEncodeSet::Userinfo, SpaceAsPlus = SpaceAsPlus::No);
+String percent_encode(StringView input, PercentEncodeSet set = PercentEncodeSet::Userinfo, SpaceAsPlus = SpaceAsPlus::No);
 ByteString percent_decode(StringView input);
 
 template<typename T>
@@ -140,8 +140,8 @@ public:
     bool is_special() const { return is_special_scheme(m_data->scheme); }
 
     void set_scheme(String);
-    ErrorOr<void> set_username(StringView);
-    ErrorOr<void> set_password(StringView);
+    void set_username(StringView);
+    void set_password(StringView);
     void set_host(Host);
     void set_port(Optional<u16>);
     void set_paths(Vector<ByteString> const&);

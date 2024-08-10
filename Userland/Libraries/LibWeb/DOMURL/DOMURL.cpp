@@ -260,7 +260,7 @@ void DOMURL::set_username(String const& username)
         return;
 
     // 2. Set the username given this’s URL and the given value.
-    MUST(m_url.set_username(username));
+    m_url.set_username(username);
 }
 
 // https://url.spec.whatwg.org/#dom-url-password
@@ -278,7 +278,7 @@ void DOMURL::set_password(String const& password)
         return;
 
     // 2. Set the password given this’s URL and the given value.
-    MUST(m_url.set_password(password));
+    m_url.set_password(password);
 }
 
 // https://url.spec.whatwg.org/#dom-url-host

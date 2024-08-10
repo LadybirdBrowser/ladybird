@@ -59,21 +59,19 @@ void URL::set_scheme(String scheme)
 }
 
 // https://url.spec.whatwg.org/#set-the-username
-ErrorOr<void> URL::set_username(StringView username)
+void URL::set_username(StringView username)
 {
     // To set the username given a url and username, set url’s username to the result of running UTF-8 percent-encode on username using the userinfo percent-encode set.
-    m_data->username = TRY(String::from_byte_string(percent_encode(username, PercentEncodeSet::Userinfo)));
+    m_data->username = percent_encode(username, PercentEncodeSet::Userinfo);
     m_data->valid = compute_validity();
-    return {};
 }
 
 // https://url.spec.whatwg.org/#set-the-password
-ErrorOr<void> URL::set_password(StringView password)
+void URL::set_password(StringView password)
 {
     // To set the password given a url and password, set url’s password to the result of running UTF-8 percent-encode on password using the userinfo percent-encode set.
-    m_data->password = TRY(String::from_byte_string(percent_encode(password, PercentEncodeSet::Userinfo)));
+    m_data->password = percent_encode(password, PercentEncodeSet::Userinfo);
     m_data->valid = compute_validity();
-    return {};
 }
 
 void URL::set_host(Host host)
@@ -103,13 +101,13 @@ void URL::set_paths(Vector<ByteString> const& paths)
     m_data->paths.clear_with_capacity();
     m_data->paths.ensure_capacity(paths.size());
     for (auto const& segment : paths)
-        m_data->paths.unchecked_append(String::from_byte_string(percent_encode(segment, PercentEncodeSet::Path)).release_value_but_fixme_should_propagate_errors());
+        m_data->paths.unchecked_append(percent_encode(segment, PercentEncodeSet::Path));
     m_data->valid = compute_validity();
 }
 
 void URL::append_path(StringView path)
 {
-    m_data->paths.append(String::from_byte_string(percent_encode(path, PercentEncodeSet::Path)).release_value_but_fixme_should_propagate_errors());
+    m_data->paths.append(percent_encode(path, PercentEncodeSet::Path));
 }
 
 // https://url.spec.whatwg.org/#cannot-have-a-username-password-port
@@ -444,7 +442,7 @@ void append_percent_encoded_if_necessary(StringBuilder& builder, u32 code_point,
         builder.append_code_point(code_point);
 }
 
-ByteString percent_encode(StringView input, PercentEncodeSet set, SpaceAsPlus space_as_plus)
+String percent_encode(StringView input, PercentEncodeSet set, SpaceAsPlus space_as_plus)
 {
     StringBuilder builder;
     for (auto code_point : Utf8View(input)) {
@@ -453,7 +451,7 @@ ByteString percent_encode(StringView input, PercentEncodeSet set, SpaceAsPlus sp
         else
             append_percent_encoded_if_necessary(builder, code_point, set);
     }
-    return builder.to_byte_string();
+    return MUST(builder.to_string());
 }
 
 ByteString percent_decode(StringView input)
