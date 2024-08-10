@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const params = new URLSearchParams('%FE%FF');
+        for (const [key, value] of params) {
+            println(`key equals   = ${"\uFFFD\uFFFD" === key}`);
+            println(`value equals = ${"" === value}`);
+        }
+    });
+</script>
