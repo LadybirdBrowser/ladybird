@@ -7,35 +7,26 @@
 #pragma once
 
 #include <LibWeb/Painting/BorderRadiiData.h>
+#include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
 
-struct BorderRadiiClip {
+struct ClipRectWithScrollFrame {
     CSSPixelRect rect;
-    BorderRadiiData radii;
+    BorderRadiiData corner_radii;
+    RefPtr<ScrollFrame const> enclosing_scroll_frame;
 };
 
 struct ClipFrame : public RefCounted<ClipFrame> {
-    Vector<BorderRadiiClip> const& border_radii_clips() const { return m_border_radii_clips; }
-    void add_border_radii_clip(BorderRadiiClip border_radii_clip)
-    {
-        for (auto& existing_clip : m_border_radii_clips) {
-            if (border_radii_clip.rect == existing_clip.rect) {
-                existing_clip.radii.union_max_radii(border_radii_clip.radii);
-                return;
-            }
-        }
-        m_border_radii_clips.append(border_radii_clip);
-    }
-    void clear_border_radii_clips() { m_border_radii_clips.clear(); }
+    Vector<ClipRectWithScrollFrame> const& clip_rects() const { return m_clip_rects; }
+    void add_clip_rect(CSSPixelRect rect, BorderRadiiData radii, RefPtr<ScrollFrame const> enclosing_scroll_frame);
+    void clear_rects();
 
-    CSSPixelRect rect() const { return m_rect; }
-    void set_rect(CSSPixelRect rect) { m_rect = rect; }
+    CSSPixelRect clip_rect_for_hit_testing() const;
 
 private:
-    CSSPixelRect m_rect;
-    Vector<BorderRadiiClip> m_border_radii_clips;
+    Vector<ClipRectWithScrollFrame> m_clip_rects;
 };
 
 }

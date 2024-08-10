@@ -158,19 +158,6 @@ CSSPixelRect PaintableBox::compute_absolute_rect() const
     return rect;
 }
 
-CSSPixelRect PaintableBox::compute_absolute_padding_rect_with_scroll_offset_applied() const
-{
-    auto rect = absolute_rect();
-    rect.translate_by(enclosing_scroll_frame_offset());
-
-    CSSPixelRect padding_rect;
-    padding_rect.set_x(rect.x() - box_model().padding.left);
-    padding_rect.set_width(content_width() + box_model().padding.left + box_model().padding.right);
-    padding_rect.set_y(rect.y() - box_model().padding.top);
-    padding_rect.set_height(content_height() + box_model().padding.top + box_model().padding.bottom);
-    return padding_rect;
-}
-
 CSSPixelRect PaintableBox::absolute_rect() const
 {
     if (!m_absolute_rect.has_value())
@@ -503,19 +490,7 @@ void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase ph
     if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
         return;
 
-    if (clip_rect().has_value()) {
-        auto overflow_clip_rect = clip_rect().value();
-        context.display_list_recorder().save();
-        context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(overflow_clip_rect).to_type<int>());
-        auto const& border_radii_clips = this->border_radii_clips();
-        for (size_t corner_clip_index = 0; corner_clip_index < border_radii_clips.size(); ++corner_clip_index) {
-            auto const& corner_clip = border_radii_clips[corner_clip_index];
-            auto corners = corner_clip.radii.as_corners(context);
-            if (!corners.has_any_radius())
-                continue;
-            context.display_list_recorder().add_rounded_rect_clip(corner_clip.radii.as_corners(context), context.rounded_device_rect(corner_clip.rect).to_type<int>(), CornerClip::Outside);
-        }
-    }
+    apply_clip(context);
 }
 
 void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
@@ -523,9 +498,7 @@ void PaintableBox::clear_clip_overflow_rect(PaintContext& context, PaintPhase ph
     if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
         return;
 
-    if (clip_rect().has_value()) {
-        context.display_list_recorder().restore();
-    }
+    restore_clip(context);
 }
 
 void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
@@ -694,9 +667,7 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
     if (should_clip_overflow) {
         context.display_list_recorder().save();
         // FIXME: Handle overflow-x and overflow-y being different values.
-        auto clip_box_with_enclosing_scroll_frame_offset = clip_box;
-        clip_box_with_enclosing_scroll_frame_offset.translate_by(enclosing_scroll_frame_offset());
-        context.display_list_recorder().add_clip_rect(context.rounded_device_rect(clip_box_with_enclosing_scroll_frame_offset).to_type<int>());
+        context.display_list_recorder().add_clip_rect(context.rounded_device_rect(clip_box).to_type<int>());
 
         auto border_radii = normalized_border_radii_data(ShrinkRadiiForBorders::Yes);
         CornerRadii corner_radii {
@@ -833,7 +804,7 @@ TraversalDecision PaintableBox::hit_test_scrollbars(CSSPixelPoint position, Func
 
 TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (clip_rect().has_value() && !clip_rect()->contains(position))
+    if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
         return TraversalDecision::Continue;
 
     auto position_adjusted_by_scroll_offset = position;
@@ -886,7 +857,7 @@ Optional<HitTestResult> PaintableBox::hit_test(CSSPixelPoint position, HitTestTy
 
 TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (clip_rect().has_value() && !clip_rect()->contains(position))
+    if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
         return TraversalDecision::Continue;
 
     auto position_adjusted_by_scroll_offset = position;

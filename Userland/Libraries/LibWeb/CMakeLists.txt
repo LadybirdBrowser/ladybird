@@ -554,6 +554,7 @@ set(SOURCES
     Painting/CanvasPaintable.cpp
     Painting/Command.cpp
     Painting/CheckBoxPaintable.cpp
+    Painting/ClipFrame.cpp
     Painting/ClippableAndScrollable.cpp
     Painting/DisplayList.cpp
     Painting/DisplayListPlayerSkia.cpp
