@@ -1237,7 +1237,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
                 || (url->is_special() && code_point == '\\')) {
                 // then:
 
-                // 1. If atSignSeen is true and buffer is the empty string, invalid-credentials validation error, return failure.
+                // 1. If atSignSeen is true and buffer is the empty string, host-missing validation error, return failure.
                 if (at_sign_seen && buffer.is_empty()) {
                     report_validation_error();
                     return {};
