@@ -115,8 +115,8 @@ ErrorOr<Vector<QueryParam>> url_decode(StringView input)
         auto space_decoded_name = name.replace("+"sv, " "sv, ReplaceMode::All);
 
         // 5. Let nameString and valueString be the result of running UTF-8 decode without BOM on the percent-decoding of name and value, respectively.
-        auto name_string = TRY(String::from_byte_string(URL::percent_decode(space_decoded_name)));
-        auto value_string = TRY(String::from_byte_string(URL::percent_decode(value)));
+        auto name_string = String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_name));
+        auto value_string = String::from_utf8_with_replacement_character(URL::percent_decode(value));
 
         TRY(output.try_empend(move(name_string), move(value_string)));
     }
