@@ -51,8 +51,13 @@ public:
     // Creates a new String from a sequence of UTF-8 encoded code points.
     static ErrorOr<String> from_utf8(StringView);
 
+    enum class WithBOMHandling {
+        Yes,
+        No,
+    };
+
     // Creates a new String using the replacement character for invalid bytes
-    [[nodiscard]] static String from_utf8_with_replacement_character(StringView);
+    [[nodiscard]] static String from_utf8_with_replacement_character(StringView, WithBOMHandling = WithBOMHandling::Yes);
 
     template<typename T>
     requires(IsOneOf<RemoveCVReference<T>, ByteString, DeprecatedFlyString, FlyString, String>)
