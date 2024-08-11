@@ -308,12 +308,13 @@ bool CSSStyleSheet::evaluate_media_queries(HTML::Window const& window)
 {
     bool any_media_queries_changed_match_state = false;
 
-    bool did_match = m_media->matches();
     bool now_matches = m_media->evaluate(window);
-    if (did_match != now_matches)
+    if (!m_did_match.has_value() || m_did_match.value() != now_matches)
         any_media_queries_changed_match_state = true;
     if (now_matches && m_rules->evaluate_media_queries(window))
         any_media_queries_changed_match_state = true;
+
+    m_did_match = now_matches;
 
     return any_media_queries_changed_match_state;
 }

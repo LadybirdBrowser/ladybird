@@ -100,6 +100,7 @@ private:
     JS::GCPtr<DOM::Document const> m_constructor_document;
     bool m_constructed { false };
     bool m_disallow_modification { false };
+    Optional<bool> m_did_match;
 };
 
 }
