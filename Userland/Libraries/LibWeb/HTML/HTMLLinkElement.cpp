@@ -228,8 +228,8 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
     // referrer policy                  the state of el's referrerpolicy content attribute
     options.referrer_policy = ReferrerPolicy::from_string(get_attribute(AttributeNames::referrerpolicy).value_or(""_string)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
     // FIXME: source set                       el's source set
-    // base URL                         document's URL
-    options.base_url = document.url();
+    // base URL                         document's document base URL
+    options.base_url = document.base_url();
     // origin                           document's origin
     options.origin = document.origin();
     // environment                      document's relevant settings object
