@@ -18,6 +18,10 @@ namespace Web::Fetch::Fetching {
 // The document `Accept` header value is `text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`.
 constexpr auto document_accept_header_value = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"sv;
 
+// https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
+// If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
+constexpr auto keepalive_maximum_size = 64 * KiB;
+
 #define ENUMERATE_BOOL_PARAMS                     \
     __ENUMERATE_BOOL_PARAM(IncludeCredentials)    \
     __ENUMERATE_BOOL_PARAM(IsAuthenticationFetch) \

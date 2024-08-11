@@ -1670,7 +1670,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
             }
 
             // 5. If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
-            if ((content_length.value() + inflight_keep_alive_bytes) > 65536)
+            if ((content_length.value() + inflight_keep_alive_bytes) > keepalive_maximum_size)
                 return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Keepalive request exceeded maximum allowed size of 64 KiB"sv));
 
             // NOTE: The above limit ensures that requests that are allowed to outlive the environment settings object
