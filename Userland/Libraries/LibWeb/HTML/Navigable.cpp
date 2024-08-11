@@ -2128,13 +2128,15 @@ RefPtr<Painting::DisplayList> Navigable::record_display_list(PaintConfig config)
 
     viewport_paintable.paint_all_phases(context);
 
-    Vector<Gfx::IntPoint> scroll_offsets_by_frame_id;
-    scroll_offsets_by_frame_id.resize(viewport_paintable.scroll_state.size());
-    for (auto [_, scrollable_frame] : viewport_paintable.scroll_state) {
-        auto scroll_offset = context.rounded_device_point(scrollable_frame->cumulative_offset).to_type<int>();
-        scroll_offsets_by_frame_id[scrollable_frame->id] = scroll_offset;
+    display_list->set_device_pixels_per_css_pixel(page.client().device_pixels_per_css_pixel());
+
+    Vector<RefPtr<Painting::ScrollFrame>> scroll_state;
+    scroll_state.resize(viewport_paintable.scroll_state.size());
+    for (auto& [_, scrollable_frame] : viewport_paintable.scroll_state) {
+        scroll_state[scrollable_frame->id] = scrollable_frame;
     }
-    display_list_recorder.display_list().apply_scroll_offsets(scroll_offsets_by_frame_id);
+
+    display_list->set_scroll_state(move(scroll_state));
 
     m_needs_repaint = false;
 

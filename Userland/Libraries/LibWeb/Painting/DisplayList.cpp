@@ -24,28 +24,26 @@ static Optional<Gfx::IntRect> command_bounding_rectangle(Command const& command)
         });
 }
 
-void DisplayList::apply_scroll_offsets(Vector<Gfx::IntPoint> const& offsets_by_frame_id)
-{
-    for (auto& command_with_scroll_id : m_commands) {
-        if (command_with_scroll_id.scroll_frame_id.has_value()) {
-            auto const& scroll_frame_id = command_with_scroll_id.scroll_frame_id.value();
-            auto const& scroll_offset = offsets_by_frame_id[scroll_frame_id];
-            command_with_scroll_id.command.visit(
-                [&](auto& command) {
-                    if constexpr (requires { command.translate_by(scroll_offset); })
-                        command.translate_by(scroll_offset);
-                });
-        }
-    }
-}
-
 void DisplayListPlayer::execute(DisplayList& display_list)
 {
     auto const& commands = display_list.commands();
+    auto const& scroll_state = display_list.scroll_state();
+    auto device_pixels_per_css_pixel = display_list.device_pixels_per_css_pixel();
 
     size_t next_command_index = 0;
     while (next_command_index < commands.size()) {
-        auto const& command = commands[next_command_index++].command;
+        auto scroll_frame_id = commands[next_command_index].scroll_frame_id;
+        auto command = commands[next_command_index++].command;
+        if (scroll_frame_id.has_value()) {
+            auto const& scroll_offset = scroll_state[scroll_frame_id.value()]->cumulative_offset.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
+            command.visit(
+                [&](auto& command) {
+                    if constexpr (requires { command.translate_by(scroll_offset); }) {
+                        command.translate_by(scroll_offset);
+                    }
+                });
+        }
+
         auto bounding_rect = command_bounding_rectangle(command);
         if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
             continue;
