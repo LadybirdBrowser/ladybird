@@ -63,9 +63,9 @@ struct JobData {
         bool valid { true };
         Core::ElapsedTimer timer {};
         URL::URL url {};
-        Duration waiting_in_queue {};
-        Duration starting_connection {};
-        Duration performing_request {};
+        AK::Duration waiting_in_queue {};
+        AK::Duration starting_connection {};
+        AK::Duration performing_request {};
 #endif
     } timing_info {};
 
