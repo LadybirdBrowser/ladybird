@@ -187,6 +187,10 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
                 )) {
             fetch_and_process_linked_resource();
         }
+
+        if (name == HTML::AttributeNames::media && m_loaded_style_sheet) {
+            m_loaded_style_sheet->set_media(value.value_or(String {}));
+        }
     }
 }
 
