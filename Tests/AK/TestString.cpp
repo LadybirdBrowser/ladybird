@@ -175,15 +175,21 @@ TEST_CASE(invalid_utf8)
 
 TEST_CASE(with_replacement_character)
 {
-    auto string1 = String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv); // U+110000
+    auto string1 = String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv, String::WithBOMHandling::No); // U+110000
     Array<u8, 24> string1_expected { 0x6c, 0x6f, 0x6e, 0x67, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd };
     EXPECT_EQ(string1.bytes(), string1_expected);
 
-    auto string3 = String::from_utf8_with_replacement_character("A valid string!"sv);
+    auto string3 = String::from_utf8_with_replacement_character("A valid string!"sv, String::WithBOMHandling::No);
     EXPECT_EQ(string3, "A valid string!"sv);
 
-    auto string4 = String::from_utf8_with_replacement_character(""sv);
+    auto string4 = String::from_utf8_with_replacement_character(""sv, String::WithBOMHandling::No);
     EXPECT_EQ(string4, ""sv);
+
+    auto string5 = String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, String::WithBOMHandling::Yes);
+    EXPECT_EQ(string5, "WHF!"sv);
+
+    auto string6 = String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, String::WithBOMHandling::No);
+    EXPECT_EQ(string6, "\xEF\xBB\xBFWHF!"sv);
 }
 
 TEST_CASE(from_code_points)
