@@ -380,9 +380,11 @@ Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFr
         if (!node)
             return;
 
-        if (auto navigable = this->navigable(); !navigable || !navigable->is_focused())
+        auto navigable = this->navigable();
+        if (!navigable || !navigable->is_focused())
             return;
 
+        node->document().invalidate_display_list();
         node->document().update_layout();
 
         if (node->paintable()) {
@@ -1112,6 +1114,8 @@ void Document::update_layout()
     if (m_created_for_appropriate_template_contents)
         return;
 
+    invalidate_display_list();
+
     auto* document_element = this->document_element();
     auto viewport_rect = navigable->viewport_rect();
 
@@ -1250,6 +1254,9 @@ void Document::update_style()
     style_computer().reset_ancestor_filter();
 
     auto invalidation = update_style_recursively(*this, style_computer());
+    if (!invalidation.is_none()) {
+        invalidate_display_list();
+    }
     if (invalidation.rebuild_layout_tree) {
         invalidate_layout();
     } else {
@@ -1265,6 +1272,8 @@ void Document::update_animated_style_if_needed()
 {
     if (!m_needs_animated_style_update)
         return;
+
+    invalidate_display_list();
 
     for (auto& timeline : m_associated_animation_timelines) {
         for (auto& animation : timeline->associated_animations()) {
@@ -5393,8 +5402,24 @@ void Document::set_needs_display(CSSPixelRect const&)
     }
 }
 
+void Document::invalidate_display_list()
+{
+    m_cached_display_list.clear();
+
+    auto navigable = this->navigable();
+    if (!navigable)
+        return;
+
+    if (navigable->container()) {
+        navigable->container()->document().invalidate_display_list();
+    }
+}
+
 RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
 {
+    if (m_cached_display_list && m_cached_display_list_paint_config == config)
+        return m_cached_display_list;
+
     auto display_list = Painting::DisplayList::create();
     Painting::DisplayListRecorder display_list_recorder(display_list);
 
@@ -5435,6 +5460,9 @@ RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
     display_list->set_scroll_state(move(scroll_state));
 
     m_needs_repaint = false;
+
+    m_cached_display_list = display_list;
+    m_cached_display_list_paint_config = config;
 
     return display_list;
 }

@@ -186,6 +186,7 @@ Gfx::Painter* CanvasRenderingContext2D::painter()
     if (!canvas_element().bitmap()) {
         if (!canvas_element().create_bitmap())
             return nullptr;
+        canvas_element().document().invalidate_display_list();
         m_painter = make<Gfx::Painter>(*canvas_element().bitmap());
     }
     return m_painter.ptr();

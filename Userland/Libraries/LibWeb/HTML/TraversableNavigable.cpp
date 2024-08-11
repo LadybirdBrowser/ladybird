@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
@@ -1192,6 +1193,12 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
     auto document = active_document();
     if (!document)
         return;
+
+    for (auto& navigable : all_navigables()) {
+        if (auto active_document = navigable->active_document(); active_document && active_document->paintable()) {
+            active_document->paintable()->refresh_scroll_state();
+        }
+    }
 
     DOM::Document::PaintConfig paint_config;
     paint_config.paint_overlay = paint_options.paint_overlay == PaintOptions::PaintOverlay::Yes;

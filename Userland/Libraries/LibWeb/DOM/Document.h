@@ -708,8 +708,12 @@ public:
         bool should_show_line_box_borders { false };
         bool has_focus { false };
         Optional<Gfx::IntRect> canvas_fill_rect {};
+
+        bool operator==(PaintConfig const& other) const = default;
     };
     RefPtr<Painting::DisplayList> record_display_list(PaintConfig);
+
+    void invalidate_display_list();
 
 protected:
     virtual void initialize(JS::Realm&) override;
@@ -986,6 +990,9 @@ private:
     WeakPtr<HTML::Navigable> m_cached_navigable;
 
     bool m_needs_repaint { false };
+
+    Optional<PaintConfig> m_cached_display_list_paint_config;
+    RefPtr<Painting::DisplayList> m_cached_display_list;
 };
 
 template<>
