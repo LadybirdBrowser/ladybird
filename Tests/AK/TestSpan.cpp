@@ -159,3 +159,11 @@ TEST_CASE(contains_slow)
     EXPECT(!span.contains_slow(String {}));
     EXPECT(!span.contains_slow(StringView {}));
 }
+
+TEST_CASE(compare_different_constness)
+{
+    constexpr Array<int, 3> array { 4, 5, 6 };
+    Vector<int> vector { 4, 5, 6 };
+
+    EXPECT_EQ(array, vector.span());
+}
