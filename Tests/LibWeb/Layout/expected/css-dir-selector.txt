@@ -18,9 +18,9 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <(anonymous)> at (200,212) content-size 592x0 children: inline
         TextNode <#text>
       BlockContainer <div> at (401,213) content-size 100x100 children: inline
-        frag 0 from TextNode start: 0, length: 11, rect: [401,213 79.96875x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 11, rect: [421,213 79.96875x17] baseline: 13.296875
             "Well, hello"
-        frag 1 from TextNode start: 12, length: 8, rect: [401,230 59.21875x17] baseline: 13.296875
+        frag 1 from TextNode start: 12, length: 8, rect: [442,230 59.21875x17] baseline: 13.296875
             "friends!"
         TextNode <#text>
       BlockContainer <(anonymous)> at (200,314) content-size 592x0 children: inline
@@ -50,17 +50,17 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <(anonymous)> at (200,620) content-size 592x0 children: inline
         TextNode <#text>
       BlockContainer <div> at (401,621) content-size 100x100 children: inline
-        frag 0 from TextNode start: 0, length: 26, rect: [401,621 86.125x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 26, rect: [415,621 86.125x17] baseline: 13.296875
             "حسنًا ، مرحباً"
-        frag 1 from TextNode start: 27, length: 25, rect: [401,638 78.125x17] baseline: 13.296875
+        frag 1 from TextNode start: 27, length: 25, rect: [423,638 78.125x17] baseline: 13.296875
             "أيها الأصدقاء"
         TextNode <#text>
       BlockContainer <(anonymous)> at (200,722) content-size 592x0 children: inline
         TextNode <#text>
       BlockContainer <div> at (401,723) content-size 100x100 children: inline
-        frag 0 from TextNode start: 0, length: 26, rect: [401,723 86.125x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 26, rect: [415,723 86.125x17] baseline: 13.296875
             "حسنًا ، مرحباً"
-        frag 1 from TextNode start: 27, length: 25, rect: [401,740 78.125x17] baseline: 13.296875
+        frag 1 from TextNode start: 27, length: 25, rect: [423,740 78.125x17] baseline: 13.296875
             "أيها الأصدقاء"
         TextNode <#text>
       BlockContainer <(anonymous)> at (200,824) content-size 592x0 children: inline
@@ -75,7 +75,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x832]
       PaintableWithLines (BlockContainer<DIV>) [300,110 102x102]
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,212 592x0]
-      PaintableWithLines (BlockContainer<DIV>) [400,212 102x102]
+      PaintableWithLines (BlockContainer<DIV>) [400,212 102x102] overflow: [401,213 100.21875x100]
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,314 592x0]
       PaintableWithLines (BlockContainer<DIV>) [300,314 102x102]
@@ -87,9 +87,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x832]
       PaintableWithLines (BlockContainer<DIV>) [300,518 102x102]
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,620 592x0]
-      PaintableWithLines (BlockContainer<DIV>) [400,620 102x102]
+      PaintableWithLines (BlockContainer<DIV>) [400,620 102x102] overflow: [401,621 100.125x100]
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,722 592x0]
-      PaintableWithLines (BlockContainer<DIV>) [400,722 102x102]
+      PaintableWithLines (BlockContainer<DIV>) [400,722 102x102] overflow: [401,723 100.125x100]
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [200,824 592x0]

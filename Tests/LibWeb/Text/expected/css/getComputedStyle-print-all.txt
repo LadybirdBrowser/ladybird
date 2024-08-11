@@ -192,7 +192,7 @@ stroke: none
 stroke-opacity: 1
 stroke-width: 1px
 table-layout: auto
-text-align: left
+text-align: start
 text-anchor: start
 text-decoration-color: rgb(0, 0, 0)
 text-decoration-line: none

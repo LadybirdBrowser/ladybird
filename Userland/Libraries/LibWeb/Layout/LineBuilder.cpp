@@ -163,6 +163,7 @@ void LineBuilder::update_last_line()
     auto& line_box = line_boxes.last();
 
     auto text_align = m_context.containing_block().computed_values().text_align();
+    auto direction = m_context.containing_block().computed_values().direction();
 
     auto current_line_height = max(m_max_height_on_current_line, m_context.containing_block().computed_values().line_height());
     CSSPixels x_offset_top = m_context.leftmost_x_offset_at(m_current_y);
@@ -178,6 +179,14 @@ void LineBuilder::update_last_line()
         case CSS::TextAlign::Center:
         case CSS::TextAlign::LibwebCenter:
             x_offset += excess_horizontal_space / 2;
+            break;
+        case CSS::TextAlign::Start:
+            if (direction == CSS::Direction::Rtl)
+                x_offset += excess_horizontal_space;
+            break;
+        case CSS::TextAlign::End:
+            if (direction == CSS::Direction::Ltr)
+                x_offset += excess_horizontal_space;
             break;
         case CSS::TextAlign::Right:
         case CSS::TextAlign::LibwebRight:
