@@ -98,6 +98,7 @@ void Range::update_associated_selection()
 {
     if (auto* viewport = m_start_container->document().paintable()) {
         viewport->recompute_selection_states();
+        m_start_container->document().invalidate_display_list();
         viewport->set_needs_display();
     }
 

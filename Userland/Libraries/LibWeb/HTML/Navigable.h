@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/XHR/FormDataEntry.h>
 
