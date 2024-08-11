@@ -296,6 +296,12 @@ public:
         return TypedTransfer<T>::compare(data(), other.data(), size());
     }
 
+    constexpr bool operator==(Span<T const> const& other) const
+    requires(!IsConst<T>)
+    {
+        return Span<T const>(*this) == other;
+    }
+
     ALWAYS_INLINE constexpr operator ReadonlySpan<T>() const
     {
         return { data(), size() };
