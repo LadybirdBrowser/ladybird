@@ -2471,7 +2471,7 @@
   "text-align": {
     "animation-type": "discrete",
     "inherited": true,
-    "initial": "left",
+    "initial": "start",
     "valid-types": [
       "text-align"
     ]

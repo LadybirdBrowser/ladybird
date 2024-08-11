@@ -1,0 +1,24 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x33 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x17 children: inline
+      frag 0 from TextNode start: 0, length: 1, rect: [737,8 8x17] baseline: 13.296875
+          " "
+      InlineNode <span>
+        frag 0 from TextNode start: 0, length: 5, rect: [690,8 46.71875x17] baseline: 13.296875
+            "aaaaa"
+        TextNode <#text>
+      TextNode <#text>
+      InlineNode <span>
+        frag 0 from TextNode start: 0, length: 5, rect: [745,8 47.34375x17] baseline: 13.296875
+            "bbbbb"
+        TextNode <#text>
+      TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x33]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x17] overflow: [8,8 784.34375x17]
+      InlinePaintable (InlineNode<SPAN>)
+        TextPaintable (TextNode<#text>)
+      TextPaintable (TextNode<#text>)
+      InlinePaintable (InlineNode<SPAN>)
+        TextPaintable (TextNode<#text>)
