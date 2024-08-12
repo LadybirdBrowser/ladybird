@@ -888,7 +888,11 @@ void BrowserWindow::device_pixel_ratio_changed(qreal dpi)
 
 void BrowserWindow::tab_title_changed(int index, QString const& title)
 {
-    m_tabs_container->setTabText(index, title);
+    // NOTE: Qt uses ampersands for shortcut keys in tab titles, so we need to escape them.
+    QString title_escaped = title;
+    title_escaped.replace("&", "&&");
+
+    m_tabs_container->setTabText(index, title_escaped);
     m_tabs_container->setTabToolTip(index, title);
 
     if (m_tabs_container->currentIndex() == index)
