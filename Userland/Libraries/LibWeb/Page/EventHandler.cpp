@@ -311,7 +311,7 @@ bool EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint
                     auto href = link->href();
                     auto url = document->parse_url(href);
 
-                    if (button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::Mod_PlatformCtrl) != 0) {
+                    if (button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::KeyModifier::Mod_Ctrl) != 0) {
                         m_navigable->page().client().page_did_click_link(url, link->target().to_byte_string(), modifiers);
                     } else if (button == UIEvents::MouseButton::Middle) {
                         m_navigable->page().client().page_did_middle_click_link(url, link->target().to_byte_string(), modifiers);
@@ -899,6 +899,14 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
             m_edit_event_handler->handle_insert(document, JS::NonnullGCPtr { *document->cursor_position() }, code_point);
             document->increment_cursor_position_offset();
             return true;
+        }
+    }
+
+    // Handle keys pressed with Ctrl
+    if (modifiers & UIEvents::KeyModifier::Mod_Ctrl) {
+        if (key >= UIEvents::KeyCode::Key_A && key <= UIEvents::KeyCode::Key_Z) {
+            // Convert to corresponding uppercase letter
+            code_point = key + 0x40;
         }
     }
 
