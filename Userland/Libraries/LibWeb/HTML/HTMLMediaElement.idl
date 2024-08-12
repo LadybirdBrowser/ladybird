@@ -7,6 +7,15 @@
 #import <HTML/VideoTrackList.idl>
 #import <HTML/Scripting/Fetching.idl>
 
+// https://html.spec.whatwg.org/multipage/media.html#attr-media-preload
+[MissingValueDefault=metadata, InvalidValueDefault=metadata]
+enum Preload {
+    "auto",
+    "none",
+    "metadata"
+};
+
+// https://html.spec.whatwg.org/multipage/media.html#canplaytyperesult
 enum CanPlayTypeResult {
     "",
     "maybe",
@@ -30,7 +39,7 @@ interface HTMLMediaElement : HTMLElement {
     const unsigned short NETWORK_LOADING = 2;
     const unsigned short NETWORK_NO_SOURCE = 3;
     readonly attribute unsigned short networkState;
-    [FIXME, CEReactions] attribute DOMString preload;
+    [Reflect, CEReactions, Enumerated=Preload] attribute DOMString preload;
     readonly attribute TimeRanges buffered;
     undefined load();
     CanPlayTypeResult canPlayType(DOMString type);
