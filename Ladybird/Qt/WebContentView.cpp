@@ -36,7 +36,6 @@
 #include <QCursor>
 #include <QGuiApplication>
 #include <QIcon>
-#include <QLineEdit>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPaintEvent>
@@ -60,6 +59,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     m_client_state.client = parent_client;
     m_client_state.page_index = page_index;
 
+    setAttribute(Qt::WA_InputMethodEnabled, true);
     setMouseTracking(true);
     setAcceptDrops(true);
 
@@ -344,6 +344,20 @@ void WebContentView::keyPressEvent(QKeyEvent* event)
 void WebContentView::keyReleaseEvent(QKeyEvent* event)
 {
     enqueue_native_event(Web::KeyEvent::Type::KeyUp, *event);
+}
+
+void WebContentView::inputMethodEvent(QInputMethodEvent* event)
+{
+    if (!event->commitString().isEmpty()) {
+        QKeyEvent keyEvent(QEvent::KeyPress, 0, Qt::NoModifier, event->commitString());
+        keyPressEvent(&keyEvent);
+    }
+    event->accept();
+}
+
+QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery) const
+{
+    return QVariant();
 }
 
 void WebContentView::mouseMoveEvent(QMouseEvent* event)
