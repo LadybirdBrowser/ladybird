@@ -16,11 +16,18 @@ namespace Web::UIEvents {
 GC_DEFINE_ALLOCATOR(KeyboardEvent);
 
 // https://www.w3.org/TR/uievents/#determine-keydown-keyup-keyCode
-static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
+static unsigned long determine_key_code(KeyCode platform_key, u32 code_point, unsigned modifiers)
 {
     // If input key when pressed without modifiers would insert a numerical character (0-9), return the ASCII code of that numerical character.
     if (is_ascii_digit(code_point))
         return code_point;
+
+    // Handle keys pressed with Ctrl
+    if (modifiers & Mod_Ctrl) {
+        if (code_point >= 1 && code_point <= 26) {
+            return code_point + 64; // Convert to corresponding uppercase letter
+        }
+    }
 
     switch (platform_key) {
     case KeyCode::Key_ExclamationPoint:
@@ -153,8 +160,15 @@ static u32 determine_char_code(FlyString const& event_name, u32 code_point)
 }
 
 // 3. Named key Attribute Values, https://www.w3.org/TR/uievents-key/#named-key-attribute-values
-static ErrorOr<Optional<String>> get_event_named_key(KeyCode platform_key)
+static ErrorOr<Optional<String>> get_event_named_key(KeyCode platform_key, unsigned modifiers)
 {
+    // Handle keys pressed with Ctrl
+    if (modifiers & Mod_Ctrl) {
+        if (platform_key >= KeyCode::Key_A && platform_key <= KeyCode::Key_Z) {
+            return String::from_code_point(platform_key + 0x40); // Convert to corresponding uppercase letter
+        }
+    }
+
     switch (platform_key) {
     // 3.1. Special Keys, https://www.w3.org/TR/uievents-key/#keys-special
     case KeyCode::Key_Invalid:
@@ -283,20 +297,15 @@ static ErrorOr<Optional<String>> get_event_key_string(u32 code_point)
 }
 
 // 2.2. Selecting key Attribute Values, https://www.w3.org/TR/uievents-key/#selecting-key-attribute-values
-static ErrorOr<String> get_event_key(KeyCode platform_key, u32 code_point)
+static ErrorOr<String> get_event_key(KeyCode platform_key, u32 code_point, unsigned modifiers)
 {
     // 1. Let key be a DOMString initially set to "Unidentified".
     // NOTE: We return "Unidentified" at the end to avoid needlessly allocating it here.
 
     // 2. If there exists an appropriate named key attribute value for this key event, then
-    // AD-HOC: Key_Invalid would be interpreted as "Unidentified" here. But we also use Key_Invalid for key presses that
-    //         are not on a standard US keyboard. If such a key would generate a valid key string below, let's allow that
-    //         to happen; otherwise, we will still return "Unidentified" at the end.
-    if (platform_key != KeyCode::Key_Invalid) {
-        if (auto named_key = TRY(get_event_named_key(platform_key)); named_key.has_value()) {
-            // 1. Set key to that named key attribute value.
-            return named_key.release_value();
-        }
+    if (auto named_key = TRY(get_event_named_key(platform_key, modifiers)); named_key.has_value()) {
+        // 1. Set key to that named key attribute value.
+        return named_key.release_value();
     }
 
     // 3. Else, if the key event generates a valid key string, then
@@ -670,11 +679,10 @@ static DOMKeyLocation get_event_location(KeyCode platform_key, unsigned modifier
 
 GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
 {
-    auto event_key = MUST(get_event_key(platform_key, code_point));
+    auto event_key = MUST(get_event_key(platform_key, code_point, modifiers));
     auto event_code = MUST(get_event_code(platform_key, modifiers));
-    auto key_code = determine_key_code(platform_key, code_point);
-    auto char_code = determine_char_code(event_name, code_point);
 
+    auto key_code = determine_key_code(platform_key, code_point, modifiers);
     KeyboardEventInit event_init {};
     event_init.key = move(event_key);
     event_init.code = move(event_code);
@@ -686,7 +694,7 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& real
     event_init.repeat = repeat;
     event_init.is_composing = false;
     event_init.key_code = key_code;
-    event_init.char_code = char_code;
+    event_init.char_code = determine_char_code(event_name, code_point);
     event_init.bubbles = true;
     event_init.cancelable = true;
     event_init.composed = true;
