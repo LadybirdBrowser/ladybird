@@ -67,3 +67,24 @@ cd Build/lagom
 ninja
 CTEST_OUTPUT_ON_FAILURE=1 LADYBIRD_SOURCE_DIR=${PWD}/../.. ninja test
 ```
+
+# Running the Web Platform Tests
+
+The Web Platform Tests can be run with the `WPT.sh` script. This script can also be used to compare the results of two 
+test runs.
+
+Example usage:
+
+```sh
+# Run the WPT tests then run them again, comparing the results from the two runs
+./Meta/WPT.sh run --log expectations.log css
+git checkout my-css-change
+./Meta/WPT.sh compare --log results.log expectations.log css
+```
+
+```sh
+# Pull the latest changes from the upstream WPT repository
+./Meta/WPT.sh update
+# Run all of the Web Platform Tests, outputting the results to results.log
+./Meta/WPT.sh run --log results.log 
+```
