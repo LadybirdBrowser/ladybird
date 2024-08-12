@@ -17,6 +17,6 @@ else()
     endforeach()
 
     pkg_check_modules(SKIA skia=${SKIA_REQUIRED_VERSION} REQUIRED)
-    target_include_directories(LibWeb PRIVATE ${SKIA_INCLUDE_DIRS})
-    target_link_directories(LibWeb PRIVATE ${SKIA_LIBRARY_DIRS})
+    include_directories(${SKIA_INCLUDE_DIRS})
+    link_directories(${SKIA_LIBRARY_DIRS})
 endif()
