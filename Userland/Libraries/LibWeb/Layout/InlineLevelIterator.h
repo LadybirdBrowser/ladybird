@@ -50,7 +50,12 @@ public:
         }
     };
 
-    InlineLevelIterator(Layout::InlineFormattingContext&, LayoutState&, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutMode);
+    enum class Direction {
+        Forward,
+        Reverse,
+    };
+
+    InlineLevelIterator(Layout::InlineFormattingContext&, LayoutState&, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutMode, Direction);
 
     Optional<Item> next();
     CSSPixels next_non_whitespace_sequence_width();
@@ -100,6 +105,7 @@ private:
 
     Vector<JS::NonnullGCPtr<NodeWithStyleAndBoxModelMetrics const>> m_box_model_node_stack;
     Queue<InlineLevelIterator::Item> m_lookahead_items;
+    Direction m_direction;
 };
 
 }

@@ -13,13 +13,26 @@
 
 namespace Web::Layout {
 
-InlineLevelIterator::InlineLevelIterator(Layout::InlineFormattingContext& inline_formatting_context, Layout::LayoutState& layout_state, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutMode layout_mode)
+static Layout::Node const* start_node(Layout::BlockContainer const& containing_block, InlineLevelIterator::Direction direction)
+{
+    switch (direction) {
+    case InlineLevelIterator::Direction::Forward:
+        return containing_block.first_child();
+    case InlineLevelIterator::Direction::Reverse:
+        return containing_block.last_child();
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+InlineLevelIterator::InlineLevelIterator(Layout::InlineFormattingContext& inline_formatting_context, Layout::LayoutState& layout_state, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutMode layout_mode, Direction direction)
     : m_inline_formatting_context(inline_formatting_context)
     , m_layout_state(layout_state)
     , m_containing_block(containing_block)
     , m_containing_block_used_values(containing_block_used_values)
-    , m_next_node(containing_block.first_child())
+    , m_next_node(start_node(containing_block, direction))
     , m_layout_mode(layout_mode)
+    , m_direction(direction)
 {
     skip_to_next();
 }
@@ -71,20 +84,47 @@ void InlineLevelIterator::exit_node_with_box_model_metrics()
     m_box_model_node_stack.take_last();
 }
 
+static Layout::Node const* next_node_sibling(Layout::Node const* node, InlineLevelIterator::Direction direction)
+{
+    switch (direction) {
+    case InlineLevelIterator::Direction::Forward:
+        return node->next_sibling();
+    case InlineLevelIterator::Direction::Reverse:
+        return node->previous_sibling();
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 // This is similar to Layout::Node::next_in_pre_order() but will not descend into inline-block nodes.
 Layout::Node const* InlineLevelIterator::next_inline_node_in_pre_order(Layout::Node const& current, Layout::Node const* stay_within)
 {
-    if (current.first_child()
-        && current.first_child()->display().is_inline_outside()
-        && current.display().is_flow_inside()
-        && !current.is_replaced_box()) {
-        if (!current.is_box() || !static_cast<Box const&>(current).is_out_of_flow(m_inline_formatting_context))
-            return current.first_child();
+    switch (m_direction) {
+    case Direction::Forward:
+        if (current.first_child()
+            && current.first_child()->display().is_inline_outside()
+            && current.display().is_flow_inside()
+            && !current.is_replaced_box()) {
+            if (!current.is_box() || !static_cast<Box const&>(current).is_out_of_flow(m_inline_formatting_context))
+                return current.first_child();
+        }
+        break;
+    case Direction::Reverse:
+        if (current.last_child()
+            && current.last_child()->display().is_inline_outside()
+            && current.display().is_flow_inside()
+            && !current.is_replaced_box()) {
+            if (!current.is_box() || !static_cast<Box const&>(current).is_out_of_flow(m_inline_formatting_context))
+                return current.last_child();
+        }
+        break;
+    default:
+        VERIFY_NOT_REACHED();
     }
 
     Layout::Node const* node = &current;
     Layout::Node const* next = nullptr;
-    while (!(next = node->next_sibling())) {
+    while (!(next = next_node_sibling(node, m_direction))) {
         node = node->parent();
 
         // If node is the last node on the "box model node stack", pop it off.
@@ -114,7 +154,7 @@ void InlineLevelIterator::compute_next()
         if (m_next_node && m_next_node->is_svg_mask_box()) {
             // NOTE: It is possible to encounter SVGMaskBox nodes while doing layout of formatting context established by <foreignObject> with a mask.
             //       We should skip and let SVGFormattingContext take care of them.
-            m_next_node = m_next_node->next_sibling();
+            m_next_node = next_node_sibling(m_next_node, m_direction);
         }
     } while (m_next_node && (!m_next_node->is_inline() && !m_next_node->is_out_of_flow(m_inline_formatting_context)));
 }

@@ -249,7 +249,18 @@ void InlineFormattingContext::generate_line_boxes(LayoutMode layout_mode)
     auto& line_boxes = m_containing_block_used_values.line_boxes;
     line_boxes.clear_with_capacity();
 
-    InlineLevelIterator iterator(*this, m_state, containing_block(), m_containing_block_used_values, layout_mode);
+    auto iterator_direction = [&]() {
+        switch (m_context_box->computed_values().direction()) {
+        case CSS::Direction::Ltr:
+            return InlineLevelIterator::Direction::Forward;
+        case CSS::Direction::Rtl:
+            return InlineLevelIterator::Direction::Reverse;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }();
+
+    InlineLevelIterator iterator(*this, m_state, containing_block(), m_containing_block_used_values, layout_mode, iterator_direction);
     LineBuilder line_builder(*this, m_state, m_containing_block_used_values);
 
     // NOTE: When we ignore collapsible whitespace chunks at the start of a line,
