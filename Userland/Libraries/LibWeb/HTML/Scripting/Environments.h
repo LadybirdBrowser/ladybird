@@ -122,6 +122,8 @@ public:
 
     SerializedEnvironmentSettingsObject serialize();
 
+    JS::NonnullGCPtr<StorageAPI::StorageManager> storage_manager();
+
 protected:
     explicit EnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext>);
 
@@ -143,6 +145,10 @@ private:
     // https://fetch.spec.whatwg.org/#concept-fetch-record
     // A fetch group holds an ordered list of fetch records
     Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>> m_fetch_group;
+
+    // https://storage.spec.whatwg.org/#api
+    // Each environment settings object has an associated StorageManager object.
+    JS::GCPtr<StorageAPI::StorageManager> m_storage_manager;
 };
 
 EnvironmentSettingsObject& incumbent_settings_object();
