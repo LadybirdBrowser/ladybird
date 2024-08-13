@@ -7,7 +7,7 @@
 interface HTMLSelectElement : HTMLElement {
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute DOMString autocomplete;
+    [CEReactions, Enumerated=Autocomplete, Reflect] attribute DOMString autocomplete;
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;
     [CEReactions, Reflect] attribute boolean multiple;

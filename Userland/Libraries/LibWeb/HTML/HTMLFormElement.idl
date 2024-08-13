@@ -1,6 +1,13 @@
 #import <DOM/HTMLFormControlsCollection.idl>
 #import <HTML/HTMLElement.idl>
 
+// https://html.spec.whatwg.org/multipage/forms.html#attr-form-autocomplete
+[MissingValueDefault=on, InvalidValueDefault=on]
+enum Autocomplete {
+    "on",
+    "off"
+};
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fs-enctype
 [MissingValueDefault=application/x-www-form-urlencoded, InvalidValueDefault=application/x-www-form-urlencoded]
 enum EnctypeAttribute {
@@ -17,7 +24,7 @@ interface HTMLFormElement : HTMLElement {
 
     [CEReactions, Reflect=accept-charset] attribute DOMString acceptCharset;
     [CEReactions] attribute USVString action;
-    [FIXME, CEReactions] attribute DOMString autocomplete;
+    [CEReactions, Enumerated=Autocomplete, Reflect] attribute DOMString autocomplete;
     [CEReactions, Enumerated=EnctypeAttribute, Reflect] attribute DOMString enctype;
     [CEReactions, Enumerated=EnctypeAttribute, Reflect=enctype] attribute DOMString encoding;
     [CEReactions] attribute DOMString method;
