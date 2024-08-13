@@ -78,9 +78,7 @@ void HTMLHyperlinkElementUtils::set_protocol(StringView protocol)
         return;
 
     // 3. Basic URL parse the given value, followed by ":", with this element's url as url and scheme start state as state override.
-    auto result_url = URL::Parser::basic_parse(MUST(String::formatted("{}:", protocol)), {}, m_url, URL::Parser::State::SchemeStart);
-    if (result_url.is_valid())
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(MUST(String::formatted("{}:", protocol)), {}, &m_url.value(), URL::Parser::State::SchemeStart);
 
     // 4. Update href.
     update_href();
@@ -192,9 +190,7 @@ void HTMLHyperlinkElementUtils::set_host(StringView host)
         return;
 
     // 4. Basic URL parse the given value, with url as url and host state as state override.
-    auto result_url = URL::Parser::basic_parse(host, {}, url, URL::Parser::State::Host);
-    if (result_url.is_valid())
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(host, {}, &url.value(), URL::Parser::State::Host);
 
     // 5. Update href.
     update_href();
@@ -228,9 +224,7 @@ void HTMLHyperlinkElementUtils::set_hostname(StringView hostname)
         return;
 
     // 4. Basic URL parse the given value, with url as url and hostname state as state override.
-    auto result_url = URL::Parser::basic_parse(hostname, {}, m_url, URL::Parser::State::Hostname);
-    if (result_url.is_valid())
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(hostname, {}, &url.value(), URL::Parser::State::Hostname);
 
     // 5. Update href.
     update_href();
@@ -268,11 +262,10 @@ void HTMLHyperlinkElementUtils::set_port(StringView port)
     // 4. If the given value is the empty string, then set url's port to null.
     if (port.is_empty()) {
         m_url->set_port({});
-    } else {
-        // 5. Otherwise, basic URL parse the given value, with url as url and port state as state override.
-        auto result_url = URL::Parser::basic_parse(port, {}, m_url, URL::Parser::State::Port);
-        if (result_url.is_valid())
-            m_url = move(result_url);
+    }
+    // 5. Otherwise, basic URL parse the given value, with url as url and port state as state override.
+    else {
+        (void)URL::Parser::basic_parse(port, {}, &m_url.value(), URL::Parser::State::Port);
     }
 
     // 6. Update href.
@@ -308,13 +301,10 @@ void HTMLHyperlinkElementUtils::set_pathname(StringView pathname)
         return;
 
     // 4. Set url's path to the empty list.
-    auto url = m_url; // We copy the URL here to follow other browser's behavior of reverting the path change if the parse failed.
-    url->set_paths({});
+    m_url->set_paths({});
 
     // 5. Basic URL parse the given value, with url as url and path start state as state override.
-    auto result_url = URL::Parser::basic_parse(pathname, {}, move(url), URL::Parser::State::PathStart);
-    if (result_url.is_valid())
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(pathname, {}, &m_url.value(), URL::Parser::State::PathStart);
 
     // 6. Update href.
     update_href();
@@ -355,13 +345,10 @@ void HTMLHyperlinkElementUtils::set_search(StringView search)
         auto input = search.substring_view(search.starts_with('?'));
 
         //    2. Set url's query to the empty string.
-        auto url_copy = m_url; // We copy the URL here to follow other browser's behavior of reverting the search change if the parse failed.
-        url_copy->set_query(String {});
+        m_url->set_query(String {});
 
         //    3. Basic URL parse input, with null, this element's node document's document's character encoding, url as url, and query state as state override.
-        auto result_url = URL::Parser::basic_parse(input, {}, move(url_copy), URL::Parser::State::Query);
-        if (result_url.is_valid())
-            m_url = move(result_url);
+        (void)URL::Parser::basic_parse(input, {}, &m_url.value(), URL::Parser::State::Query);
     }
 
     // 6. Update href.
@@ -403,13 +390,10 @@ void HTMLHyperlinkElementUtils::set_hash(StringView hash)
         auto input = hash.substring_view(hash.starts_with('#'));
 
         //    2. Set url's fragment to the empty string.
-        auto url_copy = m_url; // We copy the URL here to follow other browser's behavior of reverting the hash change if the parse failed.
-        url_copy->set_fragment(String {});
+        m_url->set_fragment(String {});
 
         //    3. Basic URL parse input, with url as url and fragment state as state override.
-        auto result_url = URL::Parser::basic_parse(input, {}, move(url_copy), URL::Parser::State::Fragment);
-        if (result_url.is_valid())
-            m_url = move(result_url);
+        (void)URL::Parser::basic_parse(input, {}, &m_url.value(), URL::Parser::State::Fragment);
     }
 
     // 6. Update href.

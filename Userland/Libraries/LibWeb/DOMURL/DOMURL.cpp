@@ -237,9 +237,7 @@ WebIDL::ExceptionOr<void> DOMURL::set_protocol(String const& protocol)
 
     // The protocol setter steps are to basic URL parse the given value, followed by U+003A (:), with this’s URL as
     // url and scheme start state as state override.
-    auto result_url = URL::Parser::basic_parse(TRY_OR_THROW_OOM(vm, String::formatted("{}:", protocol)), {}, m_url, URL::Parser::State::SchemeStart);
-    if (result_url.is_valid())
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(TRY_OR_THROW_OOM(vm, String::formatted("{}:", protocol)), {}, &m_url, URL::Parser::State::SchemeStart);
     return {};
 }
 
@@ -307,9 +305,7 @@ void DOMURL::set_host(String const& host)
         return;
 
     // 2. Basic URL parse the given value with this’s URL as url and host state as state override.
-    auto result_url = URL::Parser::basic_parse(host, {}, m_url, URL::Parser::State::Host);
-    if (result_url.is_valid())
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(host, {}, &m_url, URL::Parser::State::Host);
 }
 
 // https://url.spec.whatwg.org/#dom-url-hostname
@@ -333,9 +329,7 @@ void DOMURL::set_hostname(String const& hostname)
         return;
 
     // 2. Basic URL parse the given value with this’s URL as url and hostname state as state override.
-    auto result_url = URL::Parser::basic_parse(hostname, {}, m_url, URL::Parser::State::Hostname);
-    if (result_url.is_valid())
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(hostname, {}, &m_url, URL::Parser::State::Hostname);
 }
 
 // https://url.spec.whatwg.org/#dom-url-port
@@ -364,9 +358,7 @@ void DOMURL::set_port(String const& port)
     }
     // 3. Otherwise, basic URL parse the given value with this’s URL as url and port state as state override.
     else {
-        auto result_url = URL::Parser::basic_parse(port, {}, m_url, URL::Parser::State::Port);
-        if (result_url.is_valid())
-            m_url = move(result_url);
+        (void)URL::Parser::basic_parse(port, {}, &m_url, URL::Parser::State::Port);
     }
 }
 
@@ -386,13 +378,10 @@ void DOMURL::set_pathname(String const& pathname)
         return;
 
     // 2. Empty this’s URL’s path.
-    auto url = m_url; // We copy the URL here to follow other browser's behavior of reverting the path change if the parse failed.
-    url.set_paths({});
+    m_url.set_paths({});
 
     // 3. Basic URL parse the given value with this’s URL as url and path start state as state override.
-    auto result_url = URL::Parser::basic_parse(pathname, {}, move(url), URL::Parser::State::PathStart);
-    if (result_url.is_valid())
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(pathname, {}, &m_url, URL::Parser::State::PathStart);
 }
 
 // https://url.spec.whatwg.org/#dom-url-search
@@ -434,17 +423,13 @@ void DOMURL::set_search(String const& search)
     auto input = search_as_string_view.substring_view(search_as_string_view.starts_with('?'));
 
     // 4. Set url’s query to the empty string.
-    auto url_copy = url; // We copy the URL here to follow other browser's behavior of reverting the search change if the parse failed.
-    url_copy.set_query(String {});
+    url.set_query(String {});
 
     // 5. Basic URL parse input with url as url and query state as state override.
-    auto result_url = URL::Parser::basic_parse(input, {}, move(url_copy), URL::Parser::State::Query);
-    if (result_url.is_valid()) {
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(input, {}, &url, URL::Parser::State::Query);
 
-        // 6. Set this’s query object’s list to the result of parsing input.
-        m_query->m_list = url_decode(input);
-    }
+    // 6. Set this’s query object’s list to the result of parsing input.
+    m_query->m_list = url_decode(input);
 }
 
 // https://url.spec.whatwg.org/#dom-url-searchparams
@@ -487,13 +472,10 @@ void DOMURL::set_hash(String const& hash)
     auto input = hash_as_string_view.substring_view(hash_as_string_view.starts_with('#'));
 
     // 3. Set this’s URL’s fragment to the empty string.
-    auto url = m_url; // We copy the URL here to follow other browser's behavior of reverting the hash change if the parse failed.
-    url.set_fragment(String {});
+    m_url.set_fragment(String {});
 
     // 4. Basic URL parse input with this’s URL as url and fragment state as state override.
-    auto result_url = URL::Parser::basic_parse(input, {}, move(url), URL::Parser::State::Fragment);
-    if (result_url.is_valid())
-        m_url = move(result_url);
+    (void)URL::Parser::basic_parse(input, {}, &m_url, URL::Parser::State::Fragment);
 }
 
 // https://url.spec.whatwg.org/#concept-url-origin
