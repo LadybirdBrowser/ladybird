@@ -442,13 +442,16 @@ Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& du
         MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"sv)));
     }
 
-    // 9. Let nf be ! Construct(%NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
+    // 9. Perform ! CreateDataPropertyOrThrow(nfOpts, "useGrouping", false).
+    MUST(number_format_options->create_data_property_or_throw(vm.names.useGrouping, Value { false }));
+
+    // 10. Let nf be ! Construct(%NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
     auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
-    // 10. Let hoursParts be ! PartitionNumberPattern(nf, hoursValue).
+    // 11. Let hoursParts be ! PartitionNumberPattern(nf, hoursValue).
     auto hours_parts = partition_number_pattern(number_format, MathematicalValue { hours_value });
 
-    // 11. For each Record { [[Type]], [[Value]] } part of hoursParts, do
+    // 12. For each Record { [[Type]], [[Value]] } part of hoursParts, do
     result.ensure_capacity(hours_parts.size());
 
     for (auto& part : hours_parts) {
@@ -456,7 +459,7 @@ Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& du
         result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "hour"sv });
     }
 
-    // 12. Return result.
+    // 13. Return result.
     return result;
 }
 
@@ -504,13 +507,16 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
         MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"sv)));
     }
 
-    // 10. Let nf be ! Construct(%NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
+    // 10. Perform ! CreateDataPropertyOrThrow(nfOpts, "useGrouping", false).
+    MUST(number_format_options->create_data_property_or_throw(vm.names.useGrouping, Value { false }));
+
+    // 11. Let nf be ! Construct(%NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
     auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
-    // 11. Let minutesParts be ! PartitionNumberPattern(nf, minutesValue).
+    // 12. Let minutesParts be ! PartitionNumberPattern(nf, minutesValue).
     auto minutes_parts = partition_number_pattern(number_format, MathematicalValue { minutes_value });
 
-    // 12. For each Record { [[Type]], [[Value]] } part of minutesParts, do
+    // 13. For each Record { [[Type]], [[Value]] } part of minutesParts, do
     result.ensure_capacity(result.size() + minutes_parts.size());
 
     for (auto& part : minutes_parts) {
@@ -518,7 +524,7 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
         result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "minute"sv });
     }
 
-    // 13. Return result.
+    // 14. Return result.
     return result;
 }
 
@@ -566,10 +572,13 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
         MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"sv)));
     }
 
+    // 10. Perform ! CreateDataPropertyOrThrow(nfOpts, "useGrouping", false).
+    MUST(number_format_options->create_data_property_or_throw(vm.names.useGrouping, Value { false }));
+
     u8 maximum_fraction_digits = 0;
     u8 minimum_fraction_digits = 0;
 
-    // 11. If durationFormat.[[FractionalDigits]] is undefined, then
+    // 12. If durationFormat.[[FractionalDigits]] is undefined, then
     if (!duration_format.has_fractional_digits()) {
         // a. Let maximumFractionDigits be 9𝔽.
         maximum_fraction_digits = 9;
@@ -577,7 +586,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
         // b. Let minimumFractionDigits be +0𝔽.
         minimum_fraction_digits = 0;
     }
-    // 12. Else,
+    // 13. Else,
     else {
         // a. Let maximumFractionDigits be durationFormat.[[FractionalDigits]].
         maximum_fraction_digits = duration_format.fractional_digits();
@@ -586,24 +595,24 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
         minimum_fraction_digits = duration_format.fractional_digits();
     }
 
-    // 13. Perform ! CreateDataPropertyOrThrow(nfOpts, "maximumFractionDigits", maximumFractionDigits).
+    // 14. Perform ! CreateDataPropertyOrThrow(nfOpts, "maximumFractionDigits", maximumFractionDigits).
     MUST(number_format_options->create_data_property_or_throw(vm.names.maximumFractionDigits, Value { maximum_fraction_digits }));
 
-    // 14. Perform ! CreateDataPropertyOrThrow(nfOpts, "minimumFractionDigits", minimumFractionDigits).
+    // 15. Perform ! CreateDataPropertyOrThrow(nfOpts, "minimumFractionDigits", minimumFractionDigits).
     MUST(number_format_options->create_data_property_or_throw(vm.names.minimumFractionDigits, Value { minimum_fraction_digits }));
 
-    // 15. Perform ! CreateDataPropertyOrThrow(nfOpts, "roundingMode", "trunc").
+    // 16. Perform ! CreateDataPropertyOrThrow(nfOpts, "roundingMode", "trunc").
     MUST(number_format_options->create_data_property_or_throw(vm.names.roundingMode, PrimitiveString::create(vm, "trunc"sv)));
 
     // FIXME: We obviously have to create the NumberFormat object after its options are fully initialized.
     //        https://github.com/tc39/proposal-intl-duration-format/pull/203
-    // 10. Let nf be ! Construct(%NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
+    // 11. Let nf be ! Construct(%NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
     auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
-    // 16. Let secondsParts be ! PartitionNumberPattern(nf, secondsValue).
+    // 17. Let secondsParts be ! PartitionNumberPattern(nf, secondsValue).
     auto seconds_parts = partition_number_pattern(number_format, MathematicalValue { seconds_value });
 
-    // 17. For each Record { [[Type]], [[Value]] } part of secondsParts, do
+    // 18. For each Record { [[Type]], [[Value]] } part of secondsParts, do
     result.ensure_capacity(result.size() + seconds_parts.size());
 
     for (auto& part : seconds_parts) {
@@ -611,7 +620,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
         result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "second"sv });
     }
 
-    // 18. Return result.
+    // 19. Return result.
     return result;
 }
 
