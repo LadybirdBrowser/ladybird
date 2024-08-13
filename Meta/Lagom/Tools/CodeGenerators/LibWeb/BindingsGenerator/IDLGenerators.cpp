@@ -4163,6 +4163,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     using namespace Web::NavigationTiming;
     using namespace Web::PerformanceTimeline;
     using namespace Web::UserTiming;
+    using namespace Web::StorageAPI;
     using namespace Web::Streams;
     using namespace Web::SVG;
     using namespace Web::UIEvents;
