@@ -16,9 +16,14 @@ describe("errors", () => {
         expect(() => {
             new Temporal.TimeZone("0123456");
         }).toThrowWithMessage(RangeError, "Invalid time zone name '0123456'");
+
         expect(() => {
             new Temporal.TimeZone("23:59:59.9999999999");
         }).toThrowWithMessage(RangeError, "Invalid time zone name '23:59:59.9999999999'");
+
+        expect(() => {
+            new Temporal.TimeZone("\u221201");
+        }).toThrowWithMessage(RangeError, "Invalid time zone name '\u221201'");
     });
 });
 
@@ -58,7 +63,6 @@ describe("normal behavior", () => {
         const signs = [
             ["+", "+"],
             ["-", "-"],
-            ["\u2212", "-"],
         ];
         const values = [
             ["01", "01:00"],

@@ -608,21 +608,21 @@ bool is_time_zone_offset_string(StringView offset_string)
 // 21.4.1.33.2 ParseTimeZoneOffsetString ( offsetString ), https://tc39.es/ecma262/#sec-parsetimezoneoffsetstring
 double parse_time_zone_offset_string(StringView offset_string)
 {
-    // 1. Let parseResult be ParseText(StringToCodePoints(offsetString), UTCOffset).
+    // 1. Let parseResult be ParseText(offsetString, UTCOffset).
     auto parse_result = Temporal::parse_iso8601(Temporal::Production::TimeZoneNumericUTCOffset, offset_string);
 
     // 2. Assert: parseResult is not a List of errors.
     VERIFY(parse_result.has_value());
 
-    // 3. Assert: parseResult contains a TemporalSign Parse Node.
+    // 3. Assert: parseResult contains a ASCIISign Parse Node.
     VERIFY(parse_result->time_zone_utc_offset_sign.has_value());
 
-    // 4. Let parsedSign be the source text matched by the TemporalSign Parse Node contained within parseResult.
+    // 4. Let parsedSign be the source text matched by the ASCIISign Parse Node contained within parseResult.
     auto parsed_sign = *parse_result->time_zone_utc_offset_sign;
     i8 sign { 0 };
 
-    // 5. If parsedSign is the single code point U+002D (HYPHEN-MINUS) or U+2212 (MINUS SIGN), then
-    if (parsed_sign.is_one_of("-"sv, "\xE2\x88\x92"sv)) {
+    // 5. If parsedSign is the single code point U+002D (HYPHEN-MINUS), then
+    if (parsed_sign == "-"sv) {
         // a. Let sign be -1.
         sign = -1;
     }

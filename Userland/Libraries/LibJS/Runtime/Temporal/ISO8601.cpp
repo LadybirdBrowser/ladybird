@@ -64,11 +64,8 @@ bool ISO8601Parser::parse_sign()
 {
     // Sign :
     //     ASCIISign
-    //     U+2212
     StateTransaction transaction { *this };
-    auto success = parse_ascii_sign()
-        || m_state.lexer.consume_specific("\xE2\x88\x92"sv);
-    if (!success)
+    if (!parse_ascii_sign())
         return false;
     m_state.parse_result.sign = transaction.parsed_string_view();
     transaction.commit();
