@@ -4,7 +4,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <p> at (8,20) content-size 784x22 children: inline
         TextNode <#text>
         InlineNode <a>
-          frag 0 from TextNode start: 0, length: 15, rect: [18,20 163.890625x22] baseline: 17
+          frag 0 from TextNode start: 0, length: 15, rect: [18,20 163.9375x22] baseline: 17
               "Should be green"
           TextNode <#text>
         TextNode <#text>

@@ -168,12 +168,11 @@ void Path::text(Utf8View text, Font const& font)
 
     auto& scaled_font = static_cast<ScaledFont const&>(font);
     for_each_glyph_position(
-        last_point(), text, scaled_font, [&](DrawGlyphOrEmoji glyph_or_emoji) {
+        last_point(), text, scaled_font, [&](DrawGlyphOrEmoji const& glyph_or_emoji) {
             if (glyph_or_emoji.has<DrawGlyph>()) {
                 auto& glyph = glyph_or_emoji.get<DrawGlyph>();
                 move_to(glyph.position);
-                auto glyph_id = scaled_font.glyph_id_for_code_point(glyph.code_point);
-                scaled_font.append_glyph_path_to(*this, glyph_id);
+                scaled_font.append_glyph_path_to(*this, glyph.glyph_id);
             }
         },
         IncludeLeftBearing::Yes);
@@ -214,7 +213,7 @@ Path Path::place_text_along(Utf8View text, Font const& font) const
             if (!glyph)
                 return;
             auto offset = glyph->position.x();
-            auto width = font.glyph_width(glyph->code_point);
+            auto width = scaled_font.glyph_metrics(glyph->glyph_id).advance_width;
             auto start = next_point_for_offset(offset);
             if (!start.has_value())
                 return;
@@ -226,8 +225,7 @@ Path Path::place_text_along(Utf8View text, Font const& font) const
             auto angle = AK::atan2(delta.y(), delta.x());
             Gfx::Path glyph_path;
             // Rotate the glyph then move it to start point.
-            auto glyph_id = scaled_font.glyph_id_for_code_point(glyph->code_point);
-            scaled_font.append_glyph_path_to(glyph_path, glyph_id);
+            scaled_font.append_glyph_path_to(glyph_path, glyph->glyph_id);
             auto transform = Gfx::AffineTransform {}
                                  .translate(*start)
                                  .multiply(Gfx::AffineTransform {}.rotate_radians(angle))

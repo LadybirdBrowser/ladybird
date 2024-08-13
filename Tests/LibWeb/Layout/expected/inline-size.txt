@@ -2,7 +2,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x986 [BFC] children: not-inline
     BlockContainer <body> at (8,70) content-size 784x908 children: not-inline
       BlockContainer <p.min-inline-test> at (8,70) content-size 784x200 children: inline
-        frag 0 from TextNode start: 0, length: 2, rect: [8,70 85.859375x76] baseline: 58.984375
+        frag 0 from TextNode start: 0, length: 2, rect: [8,70 85.875x76] baseline: 58.984375
             "KK"
         TextNode <#text>
       BlockContainer <(anonymous)> at (8,340) content-size 784x76 children: inline
@@ -10,7 +10,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BreakNode <br>
         TextNode <#text>
       BlockContainer <p.max-inline-test> at (8,486) content-size 100x76 children: inline
-        frag 0 from TextNode start: 0, length: 2, rect: [8,486 85.859375x76] baseline: 58.984375
+        frag 0 from TextNode start: 0, length: 2, rect: [8,486 85.875x76] baseline: 58.984375
             "KK"
         TextNode <#text>
       BlockContainer <(anonymous)> at (8,632) content-size 784x76 children: inline
@@ -18,7 +18,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BreakNode <br>
         TextNode <#text>
       BlockContainer <p.inline-size-test> at (8,778) content-size 400x200 children: inline
-        frag 0 from TextNode start: 0, length: 2, rect: [8,778 85.859375x76] baseline: 58.984375
+        frag 0 from TextNode start: 0, length: 2, rect: [8,778 85.875x76] baseline: 58.984375
             "KK"
         TextNode <#text>
       BlockContainer <(anonymous)> at (8,1048) content-size 784x0 children: inline

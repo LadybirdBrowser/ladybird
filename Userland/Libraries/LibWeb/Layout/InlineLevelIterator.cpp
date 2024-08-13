@@ -200,7 +200,6 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         Gfx::for_each_glyph_position(
             { 0, 0 }, chunk.view, chunk.font, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
                 glyph_run.append(glyph_or_emoji);
-                return IterationDecision::Continue;
             },
             Gfx::IncludeLeftBearing::No, glyph_run_width);
 

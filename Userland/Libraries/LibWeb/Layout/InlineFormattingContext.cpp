@@ -375,7 +375,7 @@ void InlineFormattingContext::generate_line_boxes(LayoutMode layout_mode)
                         glyphs.remove(last_glyph_index - 1, remove_item_count);
                         glyphs.append(Gfx::DrawGlyph {
                             .position = last_glyph_position,
-                            .code_point = ellipsis_codepoint });
+                            .glyph_id = glyph_run->font().glyph_id_for_code_point(ellipsis_codepoint) });
                     }
                 }
             }

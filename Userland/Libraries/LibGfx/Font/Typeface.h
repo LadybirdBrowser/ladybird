@@ -18,6 +18,8 @@
 #define DEFAULT_DPI 96
 
 class SkTypeface;
+struct hb_blob_t;
+struct hb_face_t;
 
 namespace Gfx {
 
@@ -65,6 +67,7 @@ public:
     [[nodiscard]] NonnullRefPtr<ScaledFont> scaled_font(float point_size) const;
 
     RefPtr<SkTypeface> const& skia_typeface() const;
+    hb_face_t* harfbuzz_typeface() const;
 
 protected:
     Typeface();
@@ -75,6 +78,8 @@ protected:
 private:
     mutable HashMap<float, NonnullRefPtr<ScaledFont>> m_scaled_fonts;
     mutable RefPtr<SkTypeface> m_skia_typeface;
+    mutable hb_blob_t* m_harfbuzz_blob { nullptr };
+    mutable hb_face_t* m_harfbuzz_face { nullptr };
 };
 
 }

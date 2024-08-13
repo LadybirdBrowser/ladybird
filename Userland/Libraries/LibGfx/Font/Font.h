@@ -17,6 +17,8 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Size.h>
 
+struct hb_font_t;
+
 namespace Gfx {
 
 struct FontPixelMetrics {
@@ -49,11 +51,13 @@ enum FontWidth {
     UltraExpanded = 9
 };
 
+constexpr float text_shaping_resolution = 64;
+
 class Typeface;
 
 class Font : public RefCounted<Font> {
 public:
-    virtual ~Font() {};
+    virtual ~Font();
 
     virtual FontPixelMetrics pixel_metrics() const = 0;
 
@@ -91,6 +95,7 @@ public:
     virtual NonnullRefPtr<Font> with_size(float point_size) const = 0;
 
     Font const& bold_variant() const;
+    hb_font_t* harfbuzz_font() const;
 
     virtual bool has_color_bitmaps() const = 0;
 
@@ -98,6 +103,7 @@ public:
 
 private:
     mutable RefPtr<Gfx::Font const> m_bold_variant;
+    mutable hb_font_t* m_harfbuzz_font { nullptr };
 };
 
 }
