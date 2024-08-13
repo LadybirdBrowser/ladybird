@@ -1,0 +1,14 @@
+// https://storage.spec.whatwg.org/#storagemanager
+[SecureContext, Exposed=(Window,Worker)]
+interface StorageManager {
+    [FIXME] Promise<boolean> persisted();
+    [FIXME, Exposed=Window] Promise<boolean> persist();
+
+    [FIXME] Promise<StorageEstimate> estimate();
+};
+
+// https://storage.spec.whatwg.org/#dictdef-storageestimate
+dictionary StorageEstimate {
+    unsigned long long usage;
+    unsigned long long quota;
+};

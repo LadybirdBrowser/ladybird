@@ -256,6 +256,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/ResizeObserver/ResizeObserverEntry.idl",
   "//Userland/Libraries/LibWeb/ResizeObserver/ResizeObserverSize.idl",
   "//Userland/Libraries/LibWeb/Selection/Selection.idl",
+  "//Userland/Libraries/LibWeb/StorageAPI/StorageManager.idl",
   "//Userland/Libraries/LibWeb/Streams/ByteLengthQueuingStrategy.idl",
   "//Userland/Libraries/LibWeb/Streams/CountQueuingStrategy.idl",
   "//Userland/Libraries/LibWeb/Streams/ReadableByteStreamController.idl",
