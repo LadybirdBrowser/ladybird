@@ -45,6 +45,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(classid)                    \
     __ENUMERATE_HTML_ATTRIBUTE(clear)                      \
     __ENUMERATE_HTML_ATTRIBUTE(code)                       \
+    __ENUMERATE_HTML_ATTRIBUTE(codebase)                   \
     __ENUMERATE_HTML_ATTRIBUTE(codetype)                   \
     __ENUMERATE_HTML_ATTRIBUTE(color)                      \
     __ENUMERATE_HTML_ATTRIBUTE(cols)                       \
