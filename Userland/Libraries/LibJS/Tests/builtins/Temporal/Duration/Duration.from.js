@@ -108,4 +108,26 @@ describe("errors", () => {
             );
         }
     });
+
+    test("invalid duration string: exceed duration limits", () => {
+        const values = [
+            "P4294967296Y", // abs(years) >= 2**32
+            "P4294967296M", // abs(months) >= 2**32
+            "P4294967296W", // abs(weeks) >= 2**32
+            "P104249991375D", // days >= 2*53 seconds
+            "PT2501999792984H", // hours >= 2*53 seconds
+            "PT150119987579017M", // minutes >= 2*53 seconds
+            "PT9007199254740992S", // seconds >= 2*53 seconds
+        ];
+
+        for (const value of values) {
+            expect(() => {
+                Temporal.Duration.from(value);
+            }).toThrowWithMessage(RangeError, `Invalid duration`);
+
+            expect(() => {
+                Temporal.Duration.from("-" + value);
+            }).toThrowWithMessage(RangeError, `Invalid duration`);
+        }
+    });
 });
