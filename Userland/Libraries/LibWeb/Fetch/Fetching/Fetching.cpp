@@ -1987,7 +1987,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
         if (response->status() == 401
             && http_request->response_tainting() != Infrastructure::Request::ResponseTainting::CORS
             && include_credentials == IncludeCredentials::Yes
-            && request->window().has<JS::GCPtr<HTML::EnvironmentSettingsObject>>()) {
+            && request->window().has<JS::GCPtr<HTML::EnvironmentSettingsObject>>()
+            // AD-HOC: Require at least one WWW-Authenticate header to be set before automatically retrying an authenticated
+            //         request (see rule 1 below). See: https://github.com/whatwg/fetch/issues/1766
+            && request->header_list()->contains("WWW-Authenticate"sv.bytes())) {
             // 1. Needs testing: multiple `WWW-Authenticate` headers, missing, parsing issues.
             // (Red box in the spec, no-op)
 
