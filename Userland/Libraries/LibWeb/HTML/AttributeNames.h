@@ -105,6 +105,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(longdesc)                   \
     __ENUMERATE_HTML_ATTRIBUTE(loop)                       \
     __ENUMERATE_HTML_ATTRIBUTE(low)                        \
+    __ENUMERATE_HTML_ATTRIBUTE(lowsrc)                     \
     __ENUMERATE_HTML_ATTRIBUTE(marginheight)               \
     __ENUMERATE_HTML_ATTRIBUTE(marginwidth)                \
     __ENUMERATE_HTML_ATTRIBUTE(max)                        \
