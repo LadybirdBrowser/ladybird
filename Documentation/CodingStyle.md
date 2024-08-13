@@ -1,4 +1,4 @@
-# Serenity C++ coding style
+# Ladybird C++ coding style
 
 For low-level styling (spaces, parentheses, brace placement, etc), all code should follow the format specified in `.clang-format` in the project root.
 

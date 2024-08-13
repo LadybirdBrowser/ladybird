@@ -1,4 +1,4 @@
-# SerenityOS smart pointers
+# AK smart pointers
 
 ----
 ## Introduction
