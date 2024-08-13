@@ -77,6 +77,10 @@ sudo apt install qt6-multimedia-dev
 
 ### Arch Linux/Manjaro:
 
+> [!NOTE]
+> Ladybird is also available in the [Arch Linux User Repository](https://aur.archlinux.org/packages?&K=ladybird). 
+>
+
 ```
 sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl ffmpeg libgl nasm ninja qt6-base qt6-multimedia qt6-tools qt6-wayland ttf-liberation tar unzip zip
 ```
