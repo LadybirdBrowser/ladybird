@@ -131,6 +131,20 @@ describe("correct behavior", () => {
         const de = new Intl.DurationFormat("de", { style: "digital" });
         expect(de.format(duration)).toBe("-1 J, 2 Mon., 3 Wo., 4 Tg. und 5:06:07,008009011");
     });
+
+    test("formatted fields do not have grouping separators", () => {
+        const duration = {
+            hours: 123456,
+            minutes: 456789,
+            seconds: 789123,
+        };
+
+        const en = new Intl.DurationFormat("en", { style: "digital" });
+        expect(en.format(duration)).toBe("123456:456789:789123");
+
+        const de = new Intl.DurationFormat("de", { style: "digital" });
+        expect(de.format(duration)).toBe("123456:456789:789123");
+    });
 });
 
 describe("errors", () => {
