@@ -1,0 +1,10 @@
+<a id="id" href="http://example.net/path">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let a = document.getElementById('id');
+        println(a.href);
+        a.host = "example.com:65536";
+        println(a.href);
+    })
+</script>

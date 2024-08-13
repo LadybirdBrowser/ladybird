@@ -817,7 +817,7 @@ String Parser::percent_encode_after_encoding(TextCodec::Encoder& encoder, String
 }
 
 // https://url.spec.whatwg.org/#concept-basic-url-parser
-URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Optional<URL> url, Optional<State> state_override, Optional<StringView> encoding)
+URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, URL* url, Optional<State> state_override, Optional<StringView> encoding)
 {
     dbgln_if(URL_PARSER_DEBUG, "URL::Parser::basic_parse: Parsing '{}'", raw_input);
 
@@ -825,9 +825,10 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
     size_t end_index = raw_input.length();
 
     // 1. If url is not given:
-    if (!url.has_value()) {
+    auto url_buffer = URL();
+    if (!url) {
         // 1. Set url to a new URL.
-        url = URL();
+        url = &url_buffer;
 
         // 2. If input contains any leading or trailing C0 control or space, invalid-URL-unit validation error.
         // 3. Remove any leading and trailing C0 control or space from input.
@@ -1762,7 +1763,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, Opt
     dbgln_if(URL_PARSER_DEBUG, "URL::Parser::basic_parse: Parsed URL to be '{}'.", url->serialize());
 
     // 10. Return url.
-    return url.release_value();
+    return *url;
 }
 
 }
