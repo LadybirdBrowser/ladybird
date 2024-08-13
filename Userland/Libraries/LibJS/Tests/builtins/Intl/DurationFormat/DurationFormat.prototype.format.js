@@ -110,6 +110,27 @@ describe("correct behavior", () => {
         const lt = new Intl.DurationFormat("lt", { style: "digital" });
         expect(lt.format(duration)).toBe("01:02:03");
     });
+
+    test("negative duration fields", () => {
+        const duration = {
+            years: -1,
+            months: -2,
+            weeks: -3,
+            days: -4,
+            hours: -5,
+            minutes: -6,
+            seconds: -7,
+            milliseconds: -8,
+            microseconds: -9,
+            nanoseconds: -11,
+        };
+
+        const en = new Intl.DurationFormat("en", { style: "digital" });
+        expect(en.format(duration)).toBe("-1 yr, 2 mths, 3 wks, 4 days, 5:06:07.008009011");
+
+        const de = new Intl.DurationFormat("de", { style: "digital" });
+        expect(de.format(duration)).toBe("-1 J, 2 Mon., 3 Wo., 4 Tg. und 5:06:07,008009011");
+    });
 });
 
 describe("errors", () => {

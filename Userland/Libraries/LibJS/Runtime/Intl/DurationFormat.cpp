@@ -615,7 +615,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
     return result;
 }
 
-// 1.1.12 FormatNumericUnits ( durationFormat, duration, firstNumericUnit, signDisplayed )
+// 1.1.12 FormatNumericUnits ( durationFormat, duration, firstNumericUnit, signDisplayed ), https://tc39.es/proposal-intl-duration-format/#sec-formatnumericunits
 Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& duration_format, Temporal::DurationRecord const& duration, StringView first_numeric_unit, bool sign_displayed)
 {
     // 1. Assert: firstNumericUnit is "hours", "minutes", or "seconds".
@@ -685,20 +685,38 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
 
     // 16. If hoursFormatted is true, then
     if (hours_formatted) {
-        // a. Append FormatNumericHours(durationFormat, hoursValue, signDisplayed) to numericPartsList.
+        // a. If signDisplayed is true, then
+        if (sign_displayed) {
+            // i. If hoursValue is 0 and DurationSign(duration.[[Years]], duration.[[Months]], duration.[[Weeks]], duration.[[Days]], duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]) is -1, then
+            if (hours_value == 0 && Temporal::duration_sign(duration.years, duration.months, duration.weeks, duration.days, duration.hours, duration.minutes, duration.seconds, duration.milliseconds, duration.microseconds, duration.nanoseconds) == -1) {
+                // 1. Set hoursValue to negative-zero.
+                hours_value = -0.0;
+            }
+        }
+
+        // b. Append FormatNumericHours(durationFormat, hoursValue, signDisplayed) to numericPartsList.
         numeric_parts_list.extend(format_numeric_hours(vm, duration_format, hours_value, sign_displayed));
 
-        // b. Set signDisplayed to false.
-        sign_displayed = hours_value < 0;
+        // c. Set signDisplayed to false.
+        sign_displayed = false;
     }
 
     // 17. If minutesFormatted is true, then
     if (minutes_formatted) {
-        // a. Append FormatNumericMinutes(durationFormat, minutesValue, hoursFormatted, signDisplayed) to numericPartsList.
+        // a. If signDisplayed is true, then
+        if (sign_displayed) {
+            // i. If minutesValue is 0 and DurationSign(duration.[[Years]], duration.[[Months]], duration.[[Weeks]], duration.[[Days]], duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]) is -1, then
+            if (minutes_value == 0 && Temporal::duration_sign(duration.years, duration.months, duration.weeks, duration.days, duration.hours, duration.minutes, duration.seconds, duration.milliseconds, duration.microseconds, duration.nanoseconds) == -1) {
+                // 1. Set minutesValue to negative-zero.
+                minutes_value = -0.0;
+            }
+        }
+
+        // b. Append FormatNumericMinutes(durationFormat, minutesValue, hoursFormatted, signDisplayed) to numericPartsList.
         numeric_parts_list.extend(format_numeric_minutes(vm, duration_format, minutes_value, hours_formatted, sign_displayed));
 
-        // b. Set signDisplayed to false.
-        sign_displayed = minutes_value < 0;
+        // c. Set signDisplayed to false.
+        sign_displayed = false;
     }
 
     // 18. If secondsFormatted is true, then
@@ -707,7 +725,7 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
         numeric_parts_list.extend(format_numeric_seconds(vm, duration_format, seconds_value, minutes_formatted, sign_displayed));
 
         // b. Set signDisplayed to false.
-        sign_displayed = seconds_value < 0;
+        sign_displayed = false;
     }
 
     // 19. Return numericPartsList.
