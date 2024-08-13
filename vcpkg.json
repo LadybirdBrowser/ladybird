@@ -5,6 +5,7 @@
       "name": "fontconfig",
       "platform": "linux | freebsd | openbsd"
     },
+    "harfbuzz",
     "icu",
     "libjpeg-turbo",
     "libjxl",

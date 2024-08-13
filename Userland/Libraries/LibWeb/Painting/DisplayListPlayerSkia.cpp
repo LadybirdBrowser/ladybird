@@ -383,7 +383,6 @@ DisplayListPlayerSkia::SkiaSurface& DisplayListPlayerSkia::surface() const
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
     auto const& gfx_font = static_cast<Gfx::ScaledFont const&>(command.glyph_run->font());
-    auto const& gfx_typeface = gfx_font.typeface();
     auto sk_font = gfx_font.skia_font(command.scale);
 
     auto glyph_count = command.glyph_run->glyphs().size();
@@ -401,8 +400,7 @@ void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
         if (transformed_glyph.has<Gfx::DrawGlyph>()) {
             auto& glyph = transformed_glyph.get<Gfx::DrawGlyph>();
             auto const& point = glyph.position;
-            auto const& code_point = glyph.code_point;
-            glyphs.append(gfx_typeface.glyph_id_for_code_point(code_point));
+            glyphs.append(glyph.glyph_id);
             positions.append(to_skia_point(point));
         }
     }

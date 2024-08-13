@@ -32,7 +32,7 @@ enum class IncludeLeftBearing {
 
 struct DrawGlyph {
     FloatPoint position;
-    u32 code_point;
+    u32 glyph_id;
 
     void translate_by(FloatPoint const& delta)
     {
@@ -72,47 +72,6 @@ private:
     NonnullRefPtr<Font> m_font;
 };
 
-Variant<DrawGlyph, DrawEmoji> prepare_draw_glyph_or_emoji(FloatPoint point, Utf8CodePointIterator& it, Font const& font);
-
-template<typename Callback>
-void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Callback callback, IncludeLeftBearing include_left_bearing = IncludeLeftBearing::No, Optional<float&> width = {})
-{
-    auto space_width = font.glyph_width(' ');
-
-    u32 last_code_point = 0;
-
-    auto point = baseline_start;
-    for (auto code_point_iterator = string.begin(); code_point_iterator != string.end(); ++code_point_iterator) {
-        auto it = code_point_iterator; // The callback function will advance the iterator, so create a copy for this lookup.
-        auto code_point = *code_point_iterator;
-
-        point.set_y(baseline_start.y() - font.pixel_metrics().ascent);
-
-        if (should_paint_as_space(code_point)) {
-            point.translate_by(space_width, 0);
-            last_code_point = code_point;
-            continue;
-        }
-
-        auto kerning = font.glyphs_horizontal_kerning(last_code_point, code_point);
-        if (kerning != 0.0f)
-            point.translate_by(kerning, 0);
-
-        auto glyph_width = font.glyph_or_emoji_width(it);
-        auto glyph_or_emoji = prepare_draw_glyph_or_emoji(point, code_point_iterator, font);
-        if (include_left_bearing == IncludeLeftBearing::Yes) {
-            if (glyph_or_emoji.has<DrawGlyph>())
-                glyph_or_emoji.get<DrawGlyph>().position += FloatPoint(font.glyph_left_bearing(code_point), 0);
-        }
-
-        callback(glyph_or_emoji);
-
-        point.translate_by(glyph_width, 0);
-        last_code_point = code_point;
-    }
-
-    if (width.has_value())
-        *width = point.x();
-}
+void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Function<void(DrawGlyphOrEmoji const&)> callback, IncludeLeftBearing include_left_bearing = IncludeLeftBearing::No, Optional<float&> width = {});
 
 }

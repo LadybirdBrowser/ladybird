@@ -70,7 +70,8 @@ set(SOURCES
 
 serenity_lib(LibGfx gfx)
 
-target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL ${SKIA_LIBRARIES})
+find_package(harfbuzz REQUIRED)
+target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL ${SKIA_LIBRARIES} harfbuzz)
 
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
 list(TRANSFORM generated_sources PREPEND "ImageFormats/")
