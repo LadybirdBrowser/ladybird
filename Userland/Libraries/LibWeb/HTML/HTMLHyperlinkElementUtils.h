@@ -61,6 +61,7 @@ protected:
     virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(StringView target) const = 0;
 
     virtual void hyperlink_element_utils_queue_an_element_task(HTML::Task::Source source, Function<void()> steps) = 0;
+    virtual Vector<StringView> hyperlink_element_utils_subject_link_types() const = 0;
 
     void set_the_url();
     void follow_the_hyperlink(Optional<String> hyperlink_suffix, UserNavigationInvolvement = UserNavigationInvolvement::None);

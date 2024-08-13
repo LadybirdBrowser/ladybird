@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
 
@@ -66,6 +67,12 @@ WebIDL::ExceptionOr<void> HTMLAreaElement::set_hyperlink_element_utils_href(Stri
 Optional<String> HTMLAreaElement::hyperlink_element_utils_referrerpolicy() const
 {
     return attribute(HTML::AttributeNames::referrerpolicy);
+}
+
+Vector<StringView> HTMLAreaElement::hyperlink_element_utils_subject_link_types() const
+{
+    String rel = MUST(this->rel().to_lowercase());
+    return rel.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
