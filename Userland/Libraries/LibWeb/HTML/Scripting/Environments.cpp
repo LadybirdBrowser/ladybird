@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
+#include <LibWeb/StorageAPI/StorageManager.h>
 
 namespace Web::HTML {
 
@@ -56,6 +57,7 @@ void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
     visitor.ignore(m_outstanding_rejected_promises_weak_set);
     m_realm_execution_context->visit_edges(visitor);
     visitor.visit(m_fetch_group);
+    visitor.visit(m_storage_manager);
 }
 
 JS::ExecutionContext& EnvironmentSettingsObject::realm_execution_context()
@@ -515,6 +517,13 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
     object.cross_origin_isolated_capability = cross_origin_isolated_capability();
 
     return object;
+}
+
+JS::NonnullGCPtr<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()
+{
+    if (!m_storage_manager)
+        m_storage_manager = realm().heap().allocate<StorageAPI::StorageManager>(realm(), realm());
+    return *m_storage_manager;
 }
 
 }
