@@ -3636,6 +3636,41 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         }
     }
 )~~~");
+            }
+
+            // If a reflected IDL attribute has the type USVString:
+            else if (attribute.type->name() == "USVString") {
+                // The getter steps are:
+                // 1. Let element be the result of running this's get the element.
+                // NOTE: this is "impl" above
+                // 2. Let contentAttributeValue be the result of running this's get the content attribute.
+                attribute_generator.append(R"~~~(
+    auto content_attribute_value = impl->attribute(HTML::AttributeNames::@attribute.reflect_name@);
+)~~~");
+                // 3. Let attributeDefinition be the attribute definition of element's content attribute whose namespace is null and local name is the reflected content attribute name.
+                // NOTE: this is "attribute" above
+
+                // 4. If attributeDefinition indicates it contains a URL:
+                if (attribute.extended_attributes.contains("URL")) {
+                    // 1. If contentAttributeValue is null, then return the empty string.
+                    // 2. Let urlString be the result of encoding-parsing-and-serializing a URL given contentAttributeValue, relative to element's node document.
+                    // 3. If urlString is not failure, then return urlString.
+                    attribute_generator.append(R"~~~(
+    if (!content_attribute_value.has_value())
+        return JS::PrimitiveString::create(vm, String {});
+
+    auto url_string = impl->document().parse_url(*content_attribute_value);
+    if (url_string.is_valid())
+        return JS::PrimitiveString::create(vm, MUST(url_string.to_string()));
+)~~~");
+                }
+
+                // 5. Return contentAttributeValue, converted to a scalar value string.
+                attribute_generator.append(R"~~~(
+    String retval;
+    if (content_attribute_value.has_value())
+        retval = MUST(Infra::convert_to_scalar_value_string(*content_attribute_value));
+)~~~");
             } else {
                 attribute_generator.append(R"~~~(
     auto retval = impl->get_attribute_value(HTML::AttributeNames::@attribute.reflect_name@);
@@ -4615,6 +4650,7 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Tracing.h>
