@@ -109,7 +109,7 @@ String ImageStyleValue::to_string() const
     return serialize_a_url(MUST(m_url.to_string()));
 }
 
-bool ImageStyleValue::equals(StyleValue const& other) const
+bool ImageStyleValue::equals(CSSStyleValue const& other) const
 {
     if (type() != other.type())
         return false;

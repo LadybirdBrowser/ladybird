@@ -199,7 +199,7 @@ void RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyleAndBoxModel
     };
 }
 
-bool RadialGradientStyleValue::equals(StyleValue const& other) const
+bool RadialGradientStyleValue::equals(CSSStyleValue const& other) const
 {
     if (type() != other.type())
         return false;

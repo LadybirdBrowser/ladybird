@@ -7,8 +7,8 @@
 #pragma once
 
 #include <LibURL/URL.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValue.h>
 
 namespace Web::CSS {
 

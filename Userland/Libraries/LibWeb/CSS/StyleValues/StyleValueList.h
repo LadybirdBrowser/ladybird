@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValue.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 
 namespace Web::CSS {
 
@@ -26,7 +26,7 @@ public:
 
     size_t size() const { return m_properties.values.size(); }
     StyleValueVector const& values() const { return m_properties.values; }
-    ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i, bool allow_loop) const
+    ValueComparingNonnullRefPtr<CSSStyleValue const> value_at(size_t i, bool allow_loop) const
     {
         if (allow_loop)
             return m_properties.values[i % size()];

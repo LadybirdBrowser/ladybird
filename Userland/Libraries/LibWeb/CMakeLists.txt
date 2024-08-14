@@ -51,6 +51,7 @@ set(SOURCES
     CSS/CSSStyleDeclaration.cpp
     CSS/CSSStyleRule.cpp
     CSS/CSSStyleSheet.cpp
+    CSS/CSSStyleValue.cpp
     CSS/CSSSupportsRule.cpp
     CSS/CSSTransition.cpp
     CSS/Display.cpp
@@ -101,7 +102,6 @@ set(SOURCES
     CSS/StyleProperty.cpp
     CSS/StyleSheet.cpp
     CSS/StyleSheetList.cpp
-    CSS/StyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp
     CSS/StyleValues/BackgroundRepeatStyleValue.cpp
     CSS/StyleValues/BackgroundSizeStyleValue.cpp

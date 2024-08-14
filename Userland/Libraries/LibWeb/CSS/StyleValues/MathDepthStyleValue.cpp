@@ -13,17 +13,17 @@ ValueComparingNonnullRefPtr<MathDepthStyleValue> MathDepthStyleValue::create_aut
     return adopt_ref(*new (nothrow) MathDepthStyleValue(MathDepthType::AutoAdd));
 }
 
-ValueComparingNonnullRefPtr<MathDepthStyleValue> MathDepthStyleValue::create_add(ValueComparingNonnullRefPtr<StyleValue const> integer_value)
+ValueComparingNonnullRefPtr<MathDepthStyleValue> MathDepthStyleValue::create_add(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value)
 {
     return adopt_ref(*new (nothrow) MathDepthStyleValue(MathDepthType::Add, move(integer_value)));
 }
 
-ValueComparingNonnullRefPtr<MathDepthStyleValue> MathDepthStyleValue::create_integer(ValueComparingNonnullRefPtr<StyleValue const> integer_value)
+ValueComparingNonnullRefPtr<MathDepthStyleValue> MathDepthStyleValue::create_integer(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value)
 {
     return adopt_ref(*new (nothrow) MathDepthStyleValue(MathDepthType::Integer, move(integer_value)));
 }
 
-MathDepthStyleValue::MathDepthStyleValue(MathDepthType type, ValueComparingRefPtr<StyleValue const> integer_value)
+MathDepthStyleValue::MathDepthStyleValue(MathDepthType type, ValueComparingRefPtr<CSSStyleValue const> integer_value)
     : StyleValueWithDefaultOperators(Type::MathDepth)
     , m_type(type)
     , m_integer_value(move(integer_value))

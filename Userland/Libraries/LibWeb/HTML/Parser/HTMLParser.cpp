@@ -4648,7 +4648,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#current-dimension-value
-static RefPtr<CSS::StyleValue> parse_current_dimension_value(float value, Utf8View input, Utf8View::Iterator position)
+static RefPtr<CSS::CSSStyleValue> parse_current_dimension_value(float value, Utf8View input, Utf8View::Iterator position)
 {
     // 1. If position is past the end of input, then return value as a length.
     if (position == input.end())
@@ -4663,7 +4663,7 @@ static RefPtr<CSS::StyleValue> parse_current_dimension_value(float value, Utf8Vi
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-dimension-values
-RefPtr<CSS::StyleValue> parse_dimension_value(StringView string)
+RefPtr<CSS::CSSStyleValue> parse_dimension_value(StringView string)
 {
     // 1. Let input be the string being parsed.
     auto input = Utf8View(string);
@@ -4740,7 +4740,7 @@ RefPtr<CSS::StyleValue> parse_dimension_value(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-zero-dimension-values
-RefPtr<CSS::StyleValue> parse_nonzero_dimension_value(StringView string)
+RefPtr<CSS::CSSStyleValue> parse_nonzero_dimension_value(StringView string)
 {
     // 1. Let input be the string being parsed.
     // 2. Let value be the result of parsing input using the rules for parsing dimension values.

@@ -429,7 +429,7 @@ static void sort_matching_rules(Vector<MatchingRule>& matching_rules)
     });
 }
 
-void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, StyleValue const& value, AllowUnresolved allow_unresolved, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property)
+void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, CSSStyleValue const& value, AllowUnresolved allow_unresolved, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property)
 {
     auto map_logical_property_to_real_property = [](PropertyID property_id) -> Optional<PropertyID> {
         // FIXME: Honor writing-mode, direction and text-orientation.
@@ -791,7 +791,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             return;
         }
         auto const& transitions = value.as_transition().transitions();
-        Array<Vector<ValueComparingNonnullRefPtr<StyleValue const>>, 4> transition_values;
+        Array<Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>, 4> transition_values;
         for (auto const& transition : transitions) {
             transition_values[0].append(*transition.property_name);
             transition_values[1].append(transition.duration.as_style_value());
@@ -835,9 +835,9 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     set_longhand_property(property_id, value);
 }
 
-void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, CSS::PropertyID property_id, StyleValue const& value, CSS::CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, Important important)
+void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, CSS::PropertyID property_id, CSSStyleValue const& value, CSS::CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, Important important)
 {
-    for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID shorthand_id, StyleValue const& shorthand_value) {
+    for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
         if (shorthand_value.is_revert()) {
             auto const& property_in_previous_cascade_origin = style_for_revert.m_property_values[to_underlying(shorthand_id)];
             if (property_in_previous_cascade_origin) {
@@ -853,7 +853,7 @@ void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, CS
     });
 }
 
-void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, StyleProperties& style, StyleValue const& value, DOM::Document& document, CSS::CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, Important important) const
+void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, StyleProperties& style, CSSStyleValue const& value, DOM::Document& document, CSS::CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, Important important) const
 {
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = (CSS::PropertyID)i;
@@ -880,7 +880,7 @@ void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Sele
             continue;
         }
 
-        NonnullRefPtr<StyleValue> property_value = value;
+        NonnullRefPtr<CSSStyleValue> property_value = value;
         if (property_value->is_unresolved())
             property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document }, element, pseudo_element, property_id, property_value->as_unresolved());
         if (!property_value->is_unresolved())
@@ -964,7 +964,7 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selec
     element.set_custom_properties(pseudo_element, move(custom_properties));
 }
 
-static NonnullRefPtr<StyleValue const> interpolate_value(DOM::Element& element, StyleValue const& from, StyleValue const& to, float delta);
+static NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSStyleValue const& from, CSSStyleValue const& to, float delta);
 
 template<typename T>
 static T interpolate_raw(T from, T to, float delta)
@@ -977,7 +977,7 @@ static T interpolate_raw(T from, T to, float delta)
 }
 
 // A null return value means the interpolated matrix was not invertible or otherwise invalid
-static RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, StyleValue const& from, StyleValue const& to, float delta)
+static RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
 {
     // Note that the spec uses column-major notation, so all the matrix indexing is reversed.
 
@@ -986,19 +986,19 @@ static RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Sty
 
         for (auto const& value : transformation.values()) {
             switch (value->type()) {
-            case StyleValue::Type::Angle:
+            case CSSStyleValue::Type::Angle:
                 values.append(AngleOrCalculated { value->as_angle().angle() });
                 break;
-            case StyleValue::Type::Calculated:
+            case CSSStyleValue::Type::Calculated:
                 values.append(LengthPercentage { value->as_calculated() });
                 break;
-            case StyleValue::Type::Length:
+            case CSSStyleValue::Type::Length:
                 values.append(LengthPercentage { value->as_length().length() });
                 break;
-            case StyleValue::Type::Percentage:
+            case CSSStyleValue::Type::Percentage:
                 values.append(LengthPercentage { value->as_percentage().percentage() });
                 break;
-            case StyleValue::Type::Number:
+            case CSSStyleValue::Type::Number:
                 values.append(NumberPercentage { Number(Number::Type::Number, value->as_number().number()) });
                 break;
             default:
@@ -1023,7 +1023,7 @@ static RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Sty
         return {};
     };
 
-    static constexpr auto style_value_to_matrix = [](DOM::Element& element, StyleValue const& value) -> FloatMatrix4x4 {
+    static constexpr auto style_value_to_matrix = [](DOM::Element& element, CSSStyleValue const& value) -> FloatMatrix4x4 {
         if (value.is_transformation())
             return transformation_style_value_to_matrix(element, value.as_transformation()).value_or(FloatMatrix4x4::identity());
 
@@ -1291,14 +1291,14 @@ static Color interpolate_color(Color from, Color to, float delta)
     return color;
 }
 
-static NonnullRefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, StyleValue const& from, StyleValue const& to, float delta)
+static NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
 {
     // https://drafts.csswg.org/css-backgrounds/#box-shadow
     // Animation type: by computed value, treating none as a zero-item list and appending blank shadows
     //                 (transparent 0 0 0 0) with a corresponding inset keyword as needed to match the longer list if
     //                 the shorter list is otherwise compatible with the longer one
 
-    static constexpr auto process_list = [](StyleValue const& value) {
+    static constexpr auto process_list = [](CSSStyleValue const& value) {
         StyleValueVector shadows;
         if (value.is_value_list()) {
             for (auto const& element : value.as_value_list().values()) {
@@ -1352,7 +1352,7 @@ static NonnullRefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& elem
     return StyleValueList::create(move(result_shadows), StyleValueList::Separator::Comma);
 }
 
-static NonnullRefPtr<StyleValue const> interpolate_value(DOM::Element& element, StyleValue const& from, StyleValue const& to, float delta)
+static NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
 {
     if (from.type() != to.type()) {
         // Handle mixed percentage and dimension types
@@ -1360,27 +1360,27 @@ static NonnullRefPtr<StyleValue const> interpolate_value(DOM::Element& element, 
 
         struct NumericBaseTypeAndDefault {
             CSSNumericType::BaseType base_type;
-            ValueComparingNonnullRefPtr<CSS::StyleValue> default_value;
+            ValueComparingNonnullRefPtr<CSSStyleValue> default_value;
         };
-        static constexpr auto numeric_base_type_and_default = [](StyleValue const& value) -> Optional<NumericBaseTypeAndDefault> {
+        static constexpr auto numeric_base_type_and_default = [](CSSStyleValue const& value) -> Optional<NumericBaseTypeAndDefault> {
             switch (value.type()) {
-            case StyleValue::Type::Angle: {
+            case CSSStyleValue::Type::Angle: {
                 static auto default_angle_value = AngleStyleValue::create(Angle::make_degrees(0));
                 return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Angle, default_angle_value };
             }
-            case StyleValue::Type::Frequency: {
+            case CSSStyleValue::Type::Frequency: {
                 static auto default_frequency_value = FrequencyStyleValue::create(Frequency::make_hertz(0));
                 return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Frequency, default_frequency_value };
             }
-            case StyleValue::Type::Length: {
+            case CSSStyleValue::Type::Length: {
                 static auto default_length_value = LengthStyleValue::create(Length::make_px(0));
                 return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Length, default_length_value };
             }
-            case StyleValue::Type::Percentage: {
+            case CSSStyleValue::Type::Percentage: {
                 static auto default_percentage_value = PercentageStyleValue::create(Percentage { 0.0 });
                 return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Percent, default_percentage_value };
             }
-            case StyleValue::Type::Time: {
+            case CSSStyleValue::Type::Time: {
                 static auto default_time_value = TimeStyleValue::create(Time::make_seconds(0));
                 return NumericBaseTypeAndDefault { CSSNumericType::BaseType::Time, default_time_value };
             }
@@ -1389,17 +1389,17 @@ static NonnullRefPtr<StyleValue const> interpolate_value(DOM::Element& element, 
             }
         };
 
-        static constexpr auto to_calculation_node = [](StyleValue const& value) -> NonnullOwnPtr<CalculationNode> {
+        static constexpr auto to_calculation_node = [](CSSStyleValue const& value) -> NonnullOwnPtr<CalculationNode> {
             switch (value.type()) {
-            case StyleValue::Type::Angle:
+            case CSSStyleValue::Type::Angle:
                 return NumericCalculationNode::create(value.as_angle().angle());
-            case StyleValue::Type::Frequency:
+            case CSSStyleValue::Type::Frequency:
                 return NumericCalculationNode::create(value.as_frequency().frequency());
-            case StyleValue::Type::Length:
+            case CSSStyleValue::Type::Length:
                 return NumericCalculationNode::create(value.as_length().length());
-            case StyleValue::Type::Percentage:
+            case CSSStyleValue::Type::Percentage:
                 return NumericCalculationNode::create(value.as_percentage().percentage());
-            case StyleValue::Type::Time:
+            case CSSStyleValue::Type::Time:
                 return NumericCalculationNode::create(value.as_time().time());
             default:
                 VERIFY_NOT_REACHED();
@@ -1430,22 +1430,22 @@ static NonnullRefPtr<StyleValue const> interpolate_value(DOM::Element& element, 
     }
 
     switch (from.type()) {
-    case StyleValue::Type::Angle:
+    case CSSStyleValue::Type::Angle:
         return AngleStyleValue::create(Angle::make_degrees(interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta)));
-    case StyleValue::Type::Color:
+    case CSSStyleValue::Type::Color:
         return ColorStyleValue::create(interpolate_color(from.as_color().color(), to.as_color().color(), delta));
-    case StyleValue::Type::Integer:
+    case CSSStyleValue::Type::Integer:
         return IntegerStyleValue::create(interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta));
-    case StyleValue::Type::Length: {
+    case CSSStyleValue::Type::Length: {
         auto& from_length = from.as_length().length();
         auto& to_length = to.as_length().length();
         return LengthStyleValue::create(Length(interpolate_raw(from_length.raw_value(), to_length.raw_value(), delta), from_length.type()));
     }
-    case StyleValue::Type::Number:
+    case CSSStyleValue::Type::Number:
         return NumberStyleValue::create(interpolate_raw(from.as_number().number(), to.as_number().number(), delta));
-    case StyleValue::Type::Percentage:
+    case CSSStyleValue::Type::Percentage:
         return PercentageStyleValue::create(Percentage(interpolate_raw(from.as_percentage().percentage().value(), to.as_percentage().percentage().value(), delta)));
-    case StyleValue::Type::Position: {
+    case CSSStyleValue::Type::Position: {
         // https://www.w3.org/TR/css-values-4/#combine-positions
         // FIXME: Interpolation of <position> is defined as the independent interpolation of each component (x, y) normalized as an offset from the top left corner as a <length-percentage>.
         auto& from_position = from.as_position();
@@ -1454,7 +1454,7 @@ static NonnullRefPtr<StyleValue const> interpolate_value(DOM::Element& element, 
             interpolate_value(element, from_position.edge_x(), to_position.edge_x(), delta)->as_edge(),
             interpolate_value(element, from_position.edge_y(), to_position.edge_y(), delta)->as_edge());
     }
-    case StyleValue::Type::Ratio: {
+    case CSSStyleValue::Type::Ratio: {
         auto from_ratio = from.as_ratio().ratio();
         auto to_ratio = to.as_ratio().ratio();
 
@@ -1468,7 +1468,7 @@ static NonnullRefPtr<StyleValue const> interpolate_value(DOM::Element& element, 
         auto interp_number = interpolate_raw(from_number, to_number, delta);
         return RatioStyleValue::create(Ratio(pow(M_E, interp_number)));
     }
-    case StyleValue::Type::Rect: {
+    case CSSStyleValue::Type::Rect: {
         auto from_rect = from.as_rect().rect();
         auto to_rect = to.as_rect().rect();
         return RectStyleValue::create({
@@ -1478,9 +1478,9 @@ static NonnullRefPtr<StyleValue const> interpolate_value(DOM::Element& element, 
             Length(interpolate_raw(from_rect.left_edge.raw_value(), to_rect.left_edge.raw_value(), delta), from_rect.left_edge.type()),
         });
     }
-    case StyleValue::Type::Transformation:
+    case CSSStyleValue::Type::Transformation:
         VERIFY_NOT_REACHED();
-    case StyleValue::Type::ValueList: {
+    case CSSStyleValue::Type::ValueList: {
         auto& from_list = from.as_value_list();
         auto& to_list = to.as_value_list();
         if (from_list.size() != to_list.size())
@@ -1498,7 +1498,7 @@ static NonnullRefPtr<StyleValue const> interpolate_value(DOM::Element& element, 
     }
 }
 
-static ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, StyleValue const& from, StyleValue const& to, float delta)
+static ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
 {
     auto animation_type = animation_type_from_longhand_property(property_id);
     switch (animation_type) {
@@ -1583,12 +1583,12 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
     for (auto const& it : keyframe_values.properties) {
         auto resolve_property = [&](auto& property) {
             return property.visit(
-                [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<StyleValue const> {
+                [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<CSSStyleValue const> {
                     if (refresh == AnimationRefresh::Yes)
                         return {};
                     return style_properties.maybe_null_property(it.key);
                 },
-                [&](RefPtr<StyleValue const> value) -> RefPtr<StyleValue const> {
+                [&](RefPtr<CSSStyleValue const> value) -> RefPtr<CSSStyleValue const> {
                     if (value->is_unresolved())
                         return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { element.document() }, element, pseudo_element, it.key, value->as_unresolved());
                     return value;
@@ -1858,7 +1858,7 @@ DOM::Element const* element_to_inherit_style_from(DOM::Element const* element, O
     return parent_element;
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::get_inherit_value(JS::Realm& initial_value_context_realm, CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(JS::Realm& initial_value_context_realm, CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
@@ -2039,7 +2039,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FontFa
     return {};
 }
 
-RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth) const
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
@@ -2685,9 +2685,9 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 auto const& keyframe_style = *keyframe.style_as_property_owning_style_declaration();
                 for (auto const& it : keyframe_style.properties()) {
                     // Unresolved properties will be resolved in collect_animation_into()
-                    for_each_property_expanding_shorthands(it.property_id, it.value, AllowUnresolved::Yes, [&](PropertyID shorthand_id, StyleValue const& shorthand_value) {
+                    for_each_property_expanding_shorthands(it.property_id, it.value, AllowUnresolved::Yes, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
                         animated_properties.set(shorthand_id);
-                        resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<StyleValue const> { shorthand_value });
+                        resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSSStyleValue const> { shorthand_value });
                     });
                 }
 
@@ -2826,7 +2826,7 @@ void StyleComputer::compute_math_depth(StyleProperties& style, DOM::Element cons
     }
     auto& math_depth = value->as_math_depth();
 
-    auto resolve_integer = [&](StyleValue const& integer_value) {
+    auto resolve_integer = [&](CSSStyleValue const& integer_value) {
         if (integer_value.is_integer())
             return integer_value.as_integer().integer();
         if (integer_value.is_calculated())

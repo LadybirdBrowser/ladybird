@@ -14,9 +14,9 @@
 #include <AK/Vector.h>
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleProperties.h>
-#include <LibWeb/CSS/StyleValue.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/Document.h>

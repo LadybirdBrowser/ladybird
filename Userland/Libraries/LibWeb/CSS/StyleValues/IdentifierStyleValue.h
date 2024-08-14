@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValue.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ValueID.h>
 
 namespace Web::CSS {

@@ -195,7 +195,7 @@ Optional<PropertyID> property_id_from_string(StringView);
 [[nodiscard]] FlyString const& string_from_property_id(PropertyID);
 [[nodiscard]] FlyString const& camel_case_string_from_property_id(PropertyID);
 bool is_inherited_property(PropertyID);
-NonnullRefPtr<StyleValue> property_initial_value(JS::Realm&, PropertyID);
+NonnullRefPtr<CSSStyleValue> property_initial_value(JS::Realm&, PropertyID);
 
 enum class ValueType {
     Angle,
@@ -373,7 +373,7 @@ ErrorOr<void> generate_implementation_file(JsonObject& properties, Core::File& f
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleValue.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/Infra/Strings.h>
@@ -628,9 +628,9 @@ bool property_affects_stacking_context(PropertyID property_id)
     }
 }
 
-NonnullRefPtr<StyleValue> property_initial_value(JS::Realm& context_realm, PropertyID property_id)
+NonnullRefPtr<CSSStyleValue> property_initial_value(JS::Realm& context_realm, PropertyID property_id)
 {
-    static Array<RefPtr<StyleValue>, to_underlying(last_property_id) + 1> initial_values;
+    static Array<RefPtr<CSSStyleValue>, to_underlying(last_property_id) + 1> initial_values;
     if (auto initial_value = initial_values[to_underlying(property_id)])
         return initial_value.release_nonnull();
 

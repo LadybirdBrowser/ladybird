@@ -41,7 +41,7 @@ public:
         return m_value.template get<T>();
     }
 
-    NonnullRefPtr<StyleValue> as_style_value() const
+    NonnullRefPtr<CSSStyleValue> as_style_value() const
     {
         if (is_calculated())
             return calculated();
@@ -82,7 +82,7 @@ public:
 
 protected:
     virtual T resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const = 0;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const = 0;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const = 0;
 
 private:
     Variant<T, NonnullRefPtr<CalculatedStyleValue>> m_value;
@@ -94,7 +94,7 @@ public:
 
 private:
     virtual Angle resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const override;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
 class FlexOrCalculated : public CalculatedOr<Flex> {
@@ -103,7 +103,7 @@ public:
 
 private:
     virtual Flex resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const override;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
 class FrequencyOrCalculated : public CalculatedOr<Frequency> {
@@ -112,7 +112,7 @@ public:
 
 private:
     virtual Frequency resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const override;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
 class IntegerOrCalculated : public CalculatedOr<i64> {
@@ -121,7 +121,7 @@ public:
 
 private:
     virtual i64 resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const override;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
 class LengthOrCalculated : public CalculatedOr<Length> {
@@ -132,7 +132,7 @@ public:
 
 private:
     virtual Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const override;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
 class NumberOrCalculated : public CalculatedOr<double> {
@@ -141,7 +141,7 @@ public:
 
 private:
     virtual double resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const override;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
 class PercentageOrCalculated : public CalculatedOr<Percentage> {
@@ -150,7 +150,7 @@ public:
 
 private:
     virtual Percentage resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const override;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
 class ResolutionOrCalculated : public CalculatedOr<Resolution> {
@@ -159,7 +159,7 @@ public:
 
 private:
     virtual Resolution resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const override;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
 class TimeOrCalculated : public CalculatedOr<Time> {
@@ -168,7 +168,7 @@ public:
 
 private:
     virtual Time resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
-    virtual NonnullRefPtr<StyleValue> create_style_value() const override;
+    virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
 }

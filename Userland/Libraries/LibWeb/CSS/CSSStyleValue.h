@@ -80,11 +80,12 @@ private:
     using RefPtr<T>::operator==;
 };
 
-using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
+using StyleValueVector = Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>>;
 
-class StyleValue : public RefCounted<StyleValue> {
+// https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue
+class CSSStyleValue : public RefCounted<CSSStyleValue> {
 public:
-    virtual ~StyleValue() = default;
+    virtual ~CSSStyleValue() = default;
 
     enum class Type {
         Angle,
@@ -145,203 +146,203 @@ public:
         return AK::first_is_one_of(type(), Type::Image, Type::LinearGradient, Type::ConicGradient, Type::RadialGradient);
     }
     AbstractImageStyleValue const& as_abstract_image() const;
-    AbstractImageStyleValue& as_abstract_image() { return const_cast<AbstractImageStyleValue&>(const_cast<StyleValue const&>(*this).as_abstract_image()); }
+    AbstractImageStyleValue& as_abstract_image() { return const_cast<AbstractImageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_abstract_image()); }
 
     bool is_angle() const { return type() == Type::Angle; }
     AngleStyleValue const& as_angle() const;
-    AngleStyleValue& as_angle() { return const_cast<AngleStyleValue&>(const_cast<StyleValue const&>(*this).as_angle()); }
+    AngleStyleValue& as_angle() { return const_cast<AngleStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_angle()); }
 
     bool is_background_repeat() const { return type() == Type::BackgroundRepeat; }
     BackgroundRepeatStyleValue const& as_background_repeat() const;
-    BackgroundRepeatStyleValue& as_background_repeat() { return const_cast<BackgroundRepeatStyleValue&>(const_cast<StyleValue const&>(*this).as_background_repeat()); }
+    BackgroundRepeatStyleValue& as_background_repeat() { return const_cast<BackgroundRepeatStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_background_repeat()); }
 
     bool is_background_size() const { return type() == Type::BackgroundSize; }
     BackgroundSizeStyleValue const& as_background_size() const;
-    BackgroundSizeStyleValue& as_background_size() { return const_cast<BackgroundSizeStyleValue&>(const_cast<StyleValue const&>(*this).as_background_size()); }
+    BackgroundSizeStyleValue& as_background_size() { return const_cast<BackgroundSizeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_background_size()); }
 
     bool is_basic_shape() const { return type() == Type::BasicShape; }
     BasicShapeStyleValue const& as_basic_shape() const;
-    BasicShapeStyleValue& as_basic_shape() { return const_cast<BasicShapeStyleValue&>(const_cast<StyleValue const&>(*this).as_basic_shape()); }
+    BasicShapeStyleValue& as_basic_shape() { return const_cast<BasicShapeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_basic_shape()); }
 
     bool is_border_radius() const { return type() == Type::BorderRadius; }
     BorderRadiusStyleValue const& as_border_radius() const;
-    BorderRadiusStyleValue& as_border_radius() { return const_cast<BorderRadiusStyleValue&>(const_cast<StyleValue const&>(*this).as_border_radius()); }
+    BorderRadiusStyleValue& as_border_radius() { return const_cast<BorderRadiusStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_border_radius()); }
 
     bool is_calculated() const { return type() == Type::Calculated; }
     CalculatedStyleValue const& as_calculated() const;
-    CalculatedStyleValue& as_calculated() { return const_cast<CalculatedStyleValue&>(const_cast<StyleValue const&>(*this).as_calculated()); }
+    CalculatedStyleValue& as_calculated() { return const_cast<CalculatedStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_calculated()); }
 
     bool is_color() const { return type() == Type::Color; }
     ColorStyleValue const& as_color() const;
-    ColorStyleValue& as_color() { return const_cast<ColorStyleValue&>(const_cast<StyleValue const&>(*this).as_color()); }
+    ColorStyleValue& as_color() { return const_cast<ColorStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_color()); }
 
     bool is_conic_gradient() const { return type() == Type::ConicGradient; }
     ConicGradientStyleValue const& as_conic_gradient() const;
-    ConicGradientStyleValue& as_conic_gradient() { return const_cast<ConicGradientStyleValue&>(const_cast<StyleValue const&>(*this).as_conic_gradient()); }
+    ConicGradientStyleValue& as_conic_gradient() { return const_cast<ConicGradientStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_conic_gradient()); }
 
     bool is_content() const { return type() == Type::Content; }
     ContentStyleValue const& as_content() const;
-    ContentStyleValue& as_content() { return const_cast<ContentStyleValue&>(const_cast<StyleValue const&>(*this).as_content()); }
+    ContentStyleValue& as_content() { return const_cast<ContentStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_content()); }
 
     bool is_counter() const { return type() == Type::Counter; }
     CounterStyleValue const& as_counter() const;
-    CounterStyleValue& as_counter() { return const_cast<CounterStyleValue&>(const_cast<StyleValue const&>(*this).as_counter()); }
+    CounterStyleValue& as_counter() { return const_cast<CounterStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_counter()); }
 
     bool is_counter_definitions() const { return type() == Type::CounterDefinitions; }
     CounterDefinitionsStyleValue const& as_counter_definitions() const;
-    CounterDefinitionsStyleValue& as_counter_definitions() { return const_cast<CounterDefinitionsStyleValue&>(const_cast<StyleValue const&>(*this).as_counter_definitions()); }
+    CounterDefinitionsStyleValue& as_counter_definitions() { return const_cast<CounterDefinitionsStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_counter_definitions()); }
 
     bool is_custom_ident() const { return type() == Type::CustomIdent; }
     CustomIdentStyleValue const& as_custom_ident() const;
-    CustomIdentStyleValue& as_custom_ident() { return const_cast<CustomIdentStyleValue&>(const_cast<StyleValue const&>(*this).as_custom_ident()); }
+    CustomIdentStyleValue& as_custom_ident() { return const_cast<CustomIdentStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_custom_ident()); }
 
     bool is_display() const { return type() == Type::Display; }
     DisplayStyleValue const& as_display() const;
-    DisplayStyleValue& as_display() { return const_cast<DisplayStyleValue&>(const_cast<StyleValue const&>(*this).as_display()); }
+    DisplayStyleValue& as_display() { return const_cast<DisplayStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_display()); }
 
     bool is_easing() const { return type() == Type::Easing; }
     EasingStyleValue const& as_easing() const;
-    EasingStyleValue& as_easing() { return const_cast<EasingStyleValue&>(const_cast<StyleValue const&>(*this).as_easing()); }
+    EasingStyleValue& as_easing() { return const_cast<EasingStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_easing()); }
 
     bool is_edge() const { return type() == Type::Edge; }
     EdgeStyleValue const& as_edge() const;
-    EdgeStyleValue& as_edge() { return const_cast<EdgeStyleValue&>(const_cast<StyleValue const&>(*this).as_edge()); }
+    EdgeStyleValue& as_edge() { return const_cast<EdgeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_edge()); }
 
     bool is_filter_value_list() const { return type() == Type::FilterValueList; }
     FilterValueListStyleValue const& as_filter_value_list() const;
-    FilterValueListStyleValue& as_filter_value_list() { return const_cast<FilterValueListStyleValue&>(const_cast<StyleValue const&>(*this).as_filter_value_list()); }
+    FilterValueListStyleValue& as_filter_value_list() { return const_cast<FilterValueListStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_filter_value_list()); }
 
     bool is_flex() const { return type() == Type::Flex; }
     FlexStyleValue const& as_flex() const;
-    FlexStyleValue& as_flex() { return const_cast<FlexStyleValue&>(const_cast<StyleValue const&>(*this).as_flex()); }
+    FlexStyleValue& as_flex() { return const_cast<FlexStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_flex()); }
 
     bool is_frequency() const { return type() == Type::Frequency; }
     FrequencyStyleValue const& as_frequency() const;
-    FrequencyStyleValue& as_frequency() { return const_cast<FrequencyStyleValue&>(const_cast<StyleValue const&>(*this).as_frequency()); }
+    FrequencyStyleValue& as_frequency() { return const_cast<FrequencyStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_frequency()); }
 
     bool is_grid_auto_flow() const { return type() == Type::GridAutoFlow; }
     GridAutoFlowStyleValue const& as_grid_auto_flow() const;
-    GridAutoFlowStyleValue& as_grid_auto_flow() { return const_cast<GridAutoFlowStyleValue&>(const_cast<StyleValue const&>(*this).as_grid_auto_flow()); }
+    GridAutoFlowStyleValue& as_grid_auto_flow() { return const_cast<GridAutoFlowStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_auto_flow()); }
 
     bool is_grid_template_area() const { return type() == Type::GridTemplateArea; }
     GridTemplateAreaStyleValue const& as_grid_template_area() const;
-    GridTemplateAreaStyleValue& as_grid_template_area() { return const_cast<GridTemplateAreaStyleValue&>(const_cast<StyleValue const&>(*this).as_grid_template_area()); }
+    GridTemplateAreaStyleValue& as_grid_template_area() { return const_cast<GridTemplateAreaStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_template_area()); }
 
     bool is_grid_track_placement() const { return type() == Type::GridTrackPlacement; }
     GridTrackPlacementStyleValue const& as_grid_track_placement() const;
-    GridTrackPlacementStyleValue& as_grid_track_placement() { return const_cast<GridTrackPlacementStyleValue&>(const_cast<StyleValue const&>(*this).as_grid_track_placement()); }
+    GridTrackPlacementStyleValue& as_grid_track_placement() { return const_cast<GridTrackPlacementStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_track_placement()); }
 
     bool is_grid_track_size_list() const { return type() == Type::GridTrackSizeList; }
     GridTrackSizeListStyleValue const& as_grid_track_size_list() const;
-    GridTrackSizeListStyleValue& as_grid_track_size_list() { return const_cast<GridTrackSizeListStyleValue&>(const_cast<StyleValue const&>(*this).as_grid_track_size_list()); }
+    GridTrackSizeListStyleValue& as_grid_track_size_list() { return const_cast<GridTrackSizeListStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_track_size_list()); }
 
     bool is_identifier() const { return type() == Type::Identifier; }
     IdentifierStyleValue const& as_identifier() const;
-    IdentifierStyleValue& as_identifier() { return const_cast<IdentifierStyleValue&>(const_cast<StyleValue const&>(*this).as_identifier()); }
+    IdentifierStyleValue& as_identifier() { return const_cast<IdentifierStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_identifier()); }
 
     bool is_image() const { return type() == Type::Image; }
     ImageStyleValue const& as_image() const;
-    ImageStyleValue& as_image() { return const_cast<ImageStyleValue&>(const_cast<StyleValue const&>(*this).as_image()); }
+    ImageStyleValue& as_image() { return const_cast<ImageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_image()); }
 
     bool is_inherit() const { return type() == Type::Inherit; }
     InheritStyleValue const& as_inherit() const;
-    InheritStyleValue& as_inherit() { return const_cast<InheritStyleValue&>(const_cast<StyleValue const&>(*this).as_inherit()); }
+    InheritStyleValue& as_inherit() { return const_cast<InheritStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_inherit()); }
 
     bool is_initial() const { return type() == Type::Initial; }
     InitialStyleValue const& as_initial() const;
-    InitialStyleValue& as_initial() { return const_cast<InitialStyleValue&>(const_cast<StyleValue const&>(*this).as_initial()); }
+    InitialStyleValue& as_initial() { return const_cast<InitialStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_initial()); }
 
     bool is_integer() const { return type() == Type::Integer; }
     IntegerStyleValue const& as_integer() const;
-    IntegerStyleValue& as_integer() { return const_cast<IntegerStyleValue&>(const_cast<StyleValue const&>(*this).as_integer()); }
+    IntegerStyleValue& as_integer() { return const_cast<IntegerStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_integer()); }
 
     bool is_length() const { return type() == Type::Length; }
     LengthStyleValue const& as_length() const;
-    LengthStyleValue& as_length() { return const_cast<LengthStyleValue&>(const_cast<StyleValue const&>(*this).as_length()); }
+    LengthStyleValue& as_length() { return const_cast<LengthStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_length()); }
 
     bool is_linear_gradient() const { return type() == Type::LinearGradient; }
     LinearGradientStyleValue const& as_linear_gradient() const;
-    LinearGradientStyleValue& as_linear_gradient() { return const_cast<LinearGradientStyleValue&>(const_cast<StyleValue const&>(*this).as_linear_gradient()); }
+    LinearGradientStyleValue& as_linear_gradient() { return const_cast<LinearGradientStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_linear_gradient()); }
 
     bool is_math_depth() const { return type() == Type::MathDepth; }
     MathDepthStyleValue const& as_math_depth() const;
-    MathDepthStyleValue& as_math_depth() { return const_cast<MathDepthStyleValue&>(const_cast<StyleValue const&>(*this).as_math_depth()); }
+    MathDepthStyleValue& as_math_depth() { return const_cast<MathDepthStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_math_depth()); }
 
     bool is_number() const { return type() == Type::Number; }
     NumberStyleValue const& as_number() const;
-    NumberStyleValue& as_number() { return const_cast<NumberStyleValue&>(const_cast<StyleValue const&>(*this).as_number()); }
+    NumberStyleValue& as_number() { return const_cast<NumberStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_number()); }
 
     bool is_percentage() const { return type() == Type::Percentage; }
     PercentageStyleValue const& as_percentage() const;
-    PercentageStyleValue& as_percentage() { return const_cast<PercentageStyleValue&>(const_cast<StyleValue const&>(*this).as_percentage()); }
+    PercentageStyleValue& as_percentage() { return const_cast<PercentageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_percentage()); }
 
     bool is_position() const { return type() == Type::Position; }
     PositionStyleValue const& as_position() const;
 
-    PositionStyleValue& as_position() { return const_cast<PositionStyleValue&>(const_cast<StyleValue const&>(*this).as_position()); }
+    PositionStyleValue& as_position() { return const_cast<PositionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_position()); }
     bool is_radial_gradient() const { return type() == Type::RadialGradient; }
     RadialGradientStyleValue const& as_radial_gradient() const;
-    RadialGradientStyleValue& as_radial_gradient() { return const_cast<RadialGradientStyleValue&>(const_cast<StyleValue const&>(*this).as_radial_gradient()); }
+    RadialGradientStyleValue& as_radial_gradient() { return const_cast<RadialGradientStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_radial_gradient()); }
 
     bool is_ratio() const { return type() == Type::Ratio; }
     RatioStyleValue const& as_ratio() const;
-    RatioStyleValue& as_ratio() { return const_cast<RatioStyleValue&>(const_cast<StyleValue const&>(*this).as_ratio()); }
+    RatioStyleValue& as_ratio() { return const_cast<RatioStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_ratio()); }
 
     bool is_rect() const { return type() == Type::Rect; }
     RectStyleValue const& as_rect() const;
-    RectStyleValue& as_rect() { return const_cast<RectStyleValue&>(const_cast<StyleValue const&>(*this).as_rect()); }
+    RectStyleValue& as_rect() { return const_cast<RectStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_rect()); }
 
     bool is_resolution() const { return type() == Type::Resolution; }
     ResolutionStyleValue const& as_resolution() const;
-    ResolutionStyleValue& as_resolution() { return const_cast<ResolutionStyleValue&>(const_cast<StyleValue const&>(*this).as_resolution()); }
+    ResolutionStyleValue& as_resolution() { return const_cast<ResolutionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_resolution()); }
 
     bool is_revert() const { return type() == Type::Revert; }
     RevertStyleValue const& as_revert() const;
-    RevertStyleValue& as_revert() { return const_cast<RevertStyleValue&>(const_cast<StyleValue const&>(*this).as_revert()); }
+    RevertStyleValue& as_revert() { return const_cast<RevertStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_revert()); }
 
     bool is_scrollbar_gutter() const { return type() == Type::ScrollbarGutter; }
     ScrollbarGutterStyleValue const& as_scrollbar_gutter() const;
-    ScrollbarGutterStyleValue& as_scrollbar_gutter() { return const_cast<ScrollbarGutterStyleValue&>(const_cast<StyleValue const&>(*this).as_scrollbar_gutter()); }
+    ScrollbarGutterStyleValue& as_scrollbar_gutter() { return const_cast<ScrollbarGutterStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_scrollbar_gutter()); }
 
     bool is_shadow() const { return type() == Type::Shadow; }
     ShadowStyleValue const& as_shadow() const;
-    ShadowStyleValue& as_shadow() { return const_cast<ShadowStyleValue&>(const_cast<StyleValue const&>(*this).as_shadow()); }
+    ShadowStyleValue& as_shadow() { return const_cast<ShadowStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_shadow()); }
 
     bool is_shorthand() const { return type() == Type::Shorthand; }
     ShorthandStyleValue const& as_shorthand() const;
-    ShorthandStyleValue& as_shorthand() { return const_cast<ShorthandStyleValue&>(const_cast<StyleValue const&>(*this).as_shorthand()); }
+    ShorthandStyleValue& as_shorthand() { return const_cast<ShorthandStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_shorthand()); }
 
     bool is_string() const { return type() == Type::String; }
     StringStyleValue const& as_string() const;
-    StringStyleValue& as_string() { return const_cast<StringStyleValue&>(const_cast<StyleValue const&>(*this).as_string()); }
+    StringStyleValue& as_string() { return const_cast<StringStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_string()); }
 
     bool is_time() const { return type() == Type::Time; }
     TimeStyleValue const& as_time() const;
-    TimeStyleValue& as_time() { return const_cast<TimeStyleValue&>(const_cast<StyleValue const&>(*this).as_time()); }
+    TimeStyleValue& as_time() { return const_cast<TimeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_time()); }
 
     bool is_transformation() const { return type() == Type::Transformation; }
     TransformationStyleValue const& as_transformation() const;
-    TransformationStyleValue& as_transformation() { return const_cast<TransformationStyleValue&>(const_cast<StyleValue const&>(*this).as_transformation()); }
+    TransformationStyleValue& as_transformation() { return const_cast<TransformationStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_transformation()); }
 
     bool is_transition() const { return type() == Type::Transition; }
     TransitionStyleValue const& as_transition() const;
-    TransitionStyleValue& as_transition() { return const_cast<TransitionStyleValue&>(const_cast<StyleValue const&>(*this).as_transition()); }
+    TransitionStyleValue& as_transition() { return const_cast<TransitionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_transition()); }
 
     bool is_unresolved() const { return type() == Type::Unresolved; }
     UnresolvedStyleValue const& as_unresolved() const;
-    UnresolvedStyleValue& as_unresolved() { return const_cast<UnresolvedStyleValue&>(const_cast<StyleValue const&>(*this).as_unresolved()); }
+    UnresolvedStyleValue& as_unresolved() { return const_cast<UnresolvedStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_unresolved()); }
 
     bool is_unset() const { return type() == Type::Unset; }
     UnsetStyleValue const& as_unset() const;
-    UnsetStyleValue& as_unset() { return const_cast<UnsetStyleValue&>(const_cast<StyleValue const&>(*this).as_unset()); }
+    UnsetStyleValue& as_unset() { return const_cast<UnsetStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_unset()); }
 
     bool is_url() const { return type() == Type::URL; }
     URLStyleValue const& as_url() const;
-    URLStyleValue& as_url() { return const_cast<URLStyleValue&>(const_cast<StyleValue const&>(*this).as_url()); }
+    URLStyleValue& as_url() { return const_cast<URLStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_url()); }
 
     bool is_value_list() const { return type() == Type::ValueList; }
     StyleValueList const& as_value_list() const;
-    StyleValueList& as_value_list() { return const_cast<StyleValueList&>(const_cast<StyleValue const&>(*this).as_value_list()); }
+    StyleValueList& as_value_list() { return const_cast<StyleValueList&>(const_cast<CSSStyleValue const&>(*this).as_value_list()); }
 
     // https://www.w3.org/TR/css-values-4/#common-keywords
     // https://drafts.csswg.org/css-cascade-4/#valdef-all-revert
@@ -350,7 +351,7 @@ public:
     bool has_auto() const;
     virtual bool has_color() const { return false; }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
+    virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
 
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const { return {}; }
     ValueID to_identifier() const;
@@ -360,25 +361,25 @@ public:
     [[nodiscard]] int to_font_slope() const;
     [[nodiscard]] int to_font_stretch_width() const;
 
-    virtual bool equals(StyleValue const& other) const = 0;
+    virtual bool equals(CSSStyleValue const& other) const = 0;
 
-    bool operator==(StyleValue const& other) const
+    bool operator==(CSSStyleValue const& other) const
     {
         return this->equals(other);
     }
 
 protected:
-    explicit StyleValue(Type);
+    explicit CSSStyleValue(Type);
 
 private:
     Type m_type;
 };
 
 template<typename T>
-struct StyleValueWithDefaultOperators : public StyleValue {
-    using StyleValue::StyleValue;
+struct StyleValueWithDefaultOperators : public CSSStyleValue {
+    using CSSStyleValue::CSSStyleValue;
 
-    virtual bool equals(StyleValue const& other) const override
+    virtual bool equals(CSSStyleValue const& other) const override
     {
         if (type() != other.type())
             return false;
@@ -390,8 +391,8 @@ struct StyleValueWithDefaultOperators : public StyleValue {
 }
 
 template<>
-struct AK::Formatter<Web::CSS::StyleValue> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::StyleValue const& style_value)
+struct AK::Formatter<Web::CSS::CSSStyleValue> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSStyleValue const& style_value)
     {
         return Formatter<StringView>::format(builder, style_value.to_string());
     }

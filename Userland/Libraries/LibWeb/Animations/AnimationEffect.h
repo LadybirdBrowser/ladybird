@@ -65,7 +65,7 @@ class AnimationEffect : public Bindings::PlatformObject {
     JS_DECLARE_ALLOCATOR(AnimationEffect);
 
 public:
-    static RefPtr<CSS::StyleValue const> parse_easing_string(JS::Realm& realm, StringView value);
+    static RefPtr<CSS::CSSStyleValue const> parse_easing_string(JS::Realm& realm, StringView value);
 
     EffectTiming get_timing() const;
     ComputedEffectTiming get_computed_timing() const;

@@ -37,7 +37,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    RefPtr<StyleValue const> style_value_for_property(Layout::NodeWithStyle const&, PropertyID) const;
+    RefPtr<CSSStyleValue const> style_value_for_property(Layout::NodeWithStyle const&, PropertyID) const;
 
     JS::NonnullGCPtr<DOM::Element> m_element;
     Optional<CSS::Selector::PseudoElement::Type> m_pseudo_element;

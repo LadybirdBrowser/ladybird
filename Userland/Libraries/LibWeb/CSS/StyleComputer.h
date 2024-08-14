@@ -112,9 +112,9 @@ public:
         Yes,
         No,
     };
-    static void for_each_property_expanding_shorthands(PropertyID, StyleValue const&, AllowUnresolved, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property);
-    static void set_property_expanding_shorthands(StyleProperties&, PropertyID, StyleValue const&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, Important = Important::No);
-    static NonnullRefPtr<StyleValue const> get_inherit_value(JS::Realm& initial_value_context_realm, CSS::PropertyID, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type> = {});
+    static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, AllowUnresolved, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
+    static void set_property_expanding_shorthands(StyleProperties&, PropertyID, CSSStyleValue const&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, Important = Important::No);
+    static NonnullRefPtr<CSSStyleValue const> get_inherit_value(JS::Realm& initial_value_context_realm, CSS::PropertyID, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type> = {});
 
     explicit StyleComputer(DOM::Document&);
     ~StyleComputer();
@@ -143,7 +143,7 @@ public:
 
     void load_fonts_from_sheet(CSSStyleSheet const&);
 
-    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, StyleValue const& font_family, StyleValue const& font_size, StyleValue const& font_style, StyleValue const& font_weight, StyleValue const& font_stretch, int math_depth = 0) const;
+    RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth = 0) const;
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
 
@@ -177,7 +177,7 @@ private:
 
     void compute_defaulted_property_value(StyleProperties&, DOM::Element const*, CSS::PropertyID, Optional<CSS::Selector::PseudoElement::Type>) const;
 
-    void set_all_properties(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, StyleProperties&, StyleValue const&, DOM::Document&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, Important = Important::No) const;
+    void set_all_properties(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, StyleProperties&, CSSStyleValue const&, DOM::Document&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, Important = Important::No) const;
 
     template<typename Callback>
     void for_each_stylesheet(CascadeOrigin, Callback) const;

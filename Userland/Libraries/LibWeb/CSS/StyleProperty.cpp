@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/StyleProperty.h>
-#include <LibWeb/CSS/StyleValue.h>
 
 namespace Web::CSS {
 

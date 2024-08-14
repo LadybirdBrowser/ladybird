@@ -42,7 +42,7 @@ public:
 
     static constexpr size_t number_of_properties = to_underlying(CSS::last_property_id) + 1;
 
-    HashMap<CSS::PropertyID, NonnullRefPtr<StyleValue const>> const& animated_property_values() const { return m_animated_property_values; }
+    HashMap<CSS::PropertyID, NonnullRefPtr<CSSStyleValue const>> const& animated_property_values() const { return m_animated_property_values; }
     void reset_animated_properties();
 
     bool is_property_important(CSS::PropertyID property_id) const;
@@ -50,10 +50,10 @@ public:
     void set_property_important(CSS::PropertyID, Important);
     void set_property_inherited(CSS::PropertyID, Inherited);
 
-    void set_property(CSS::PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
-    void set_animated_property(CSS::PropertyID, NonnullRefPtr<StyleValue const> value);
-    NonnullRefPtr<StyleValue const> property(CSS::PropertyID) const;
-    RefPtr<StyleValue const> maybe_null_property(CSS::PropertyID) const;
+    void set_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value, Inherited = Inherited::No, Important = Important::No);
+    void set_animated_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value);
+    NonnullRefPtr<CSSStyleValue const> property(CSS::PropertyID) const;
+    RefPtr<CSSStyleValue const> maybe_null_property(CSS::PropertyID) const;
     void revert_property(CSS::PropertyID, StyleProperties const& style_for_revert);
 
     JS::GCPtr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
@@ -132,7 +132,7 @@ public:
     Optional<CSS::TableLayout> table_layout() const;
     Optional<CSS::Direction> direction() const;
 
-    static Vector<CSS::Transformation> transformations_for_style_value(StyleValue const& value);
+    static Vector<CSS::Transformation> transformations_for_style_value(CSSStyleValue const& value);
     Vector<CSS::Transformation> transformations() const;
     Optional<CSS::TransformBox> transform_box() const;
     CSS::TransformOrigin transform_origin() const;
@@ -178,7 +178,7 @@ public:
 
     static NonnullRefPtr<Gfx::Font const> font_fallback(bool monospace, bool bold);
 
-    static float resolve_opacity_value(CSS::StyleValue const& value);
+    static float resolve_opacity_value(CSSStyleValue const& value);
 
 private:
     friend class StyleComputer;
@@ -186,11 +186,11 @@ private:
     // FIXME: This needs protection from GC!
     JS::GCPtr<CSS::CSSStyleDeclaration const> m_animation_name_source;
 
-    Array<RefPtr<CSS::StyleValue const>, number_of_properties> m_property_values;
+    Array<RefPtr<CSSStyleValue const>, number_of_properties> m_property_values;
     Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
     Array<u8, ceil_div(number_of_properties, 8uz)> m_property_inherited {};
 
-    HashMap<CSS::PropertyID, NonnullRefPtr<StyleValue const>> m_animated_property_values;
+    HashMap<CSS::PropertyID, NonnullRefPtr<CSSStyleValue const>> m_animated_property_values;
 
     Optional<CSS::Overflow> overflow(CSS::PropertyID) const;
     Vector<CSS::ShadowData> shadow(CSS::PropertyID, Layout::Node const&) const;

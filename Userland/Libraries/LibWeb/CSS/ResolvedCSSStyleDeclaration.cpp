@@ -83,7 +83,7 @@ String ResolvedCSSStyleDeclaration::item(size_t index) const
     return string_from_property_id(property_id).to_string();
 }
 
-static NonnullRefPtr<StyleValue const> style_value_for_background_property(Layout::NodeWithStyle const& layout_node, Function<NonnullRefPtr<StyleValue const>(BackgroundLayerData const&)> callback, Function<NonnullRefPtr<StyleValue const>()> default_value)
+static NonnullRefPtr<CSSStyleValue const> style_value_for_background_property(Layout::NodeWithStyle const& layout_node, Function<NonnullRefPtr<CSSStyleValue const>(BackgroundLayerData const&)> callback, Function<NonnullRefPtr<CSSStyleValue const>()> default_value)
 {
     auto const& background_layers = layout_node.background_layers();
     if (background_layers.is_empty())
@@ -97,7 +97,7 @@ static NonnullRefPtr<StyleValue const> style_value_for_background_property(Layou
     return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
 }
 
-static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
+static NonnullRefPtr<CSSStyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
     if (length_percentage.is_auto())
         return IdentifierStyleValue::create(ValueID::Auto);
@@ -108,7 +108,7 @@ static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthP
     return length_percentage.calculated();
 }
 
-static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
+static NonnullRefPtr<CSSStyleValue const> style_value_for_size(Size const& size)
 {
     if (size.is_none())
         return IdentifierStyleValue::create(ValueID::None);
@@ -130,7 +130,7 @@ static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
     TODO();
 }
 
-static NonnullRefPtr<StyleValue const> style_value_for_sided_shorthand(ValueComparingNonnullRefPtr<StyleValue const> top, ValueComparingNonnullRefPtr<StyleValue const> right, ValueComparingNonnullRefPtr<StyleValue const> bottom, ValueComparingNonnullRefPtr<StyleValue const> left)
+static NonnullRefPtr<CSSStyleValue const> style_value_for_sided_shorthand(ValueComparingNonnullRefPtr<CSSStyleValue const> top, ValueComparingNonnullRefPtr<CSSStyleValue const> right, ValueComparingNonnullRefPtr<CSSStyleValue const> bottom, ValueComparingNonnullRefPtr<CSSStyleValue const> left)
 {
     bool top_and_bottom_same = top == bottom;
     bool left_and_right_same = left == right;
@@ -153,7 +153,7 @@ enum class LogicalSide {
     InlineStart,
     InlineEnd,
 };
-static RefPtr<StyleValue const> style_value_for_length_box_logical_side(Layout::NodeWithStyle const&, LengthBox const& box, LogicalSide logical_side)
+static RefPtr<CSSStyleValue const> style_value_for_length_box_logical_side(Layout::NodeWithStyle const&, LengthBox const& box, LogicalSide logical_side)
 {
     // FIXME: Actually determine the logical sides based on layout_node's writing-mode and direction.
     switch (logical_side) {
@@ -169,7 +169,7 @@ static RefPtr<StyleValue const> style_value_for_length_box_logical_side(Layout::
     VERIFY_NOT_REACHED();
 }
 
-static RefPtr<StyleValue const> style_value_for_shadow(Vector<ShadowData> const& shadow_data)
+static RefPtr<CSSStyleValue const> style_value_for_shadow(Vector<ShadowData> const& shadow_data)
 {
     if (shadow_data.is_empty())
         return IdentifierStyleValue::create(ValueID::None);
@@ -195,7 +195,7 @@ static RefPtr<StyleValue const> style_value_for_shadow(Vector<ShadowData> const&
     return StyleValueList::create(move(style_values), StyleValueList::Separator::Comma);
 }
 
-RefPtr<StyleValue const> ResolvedCSSStyleDeclaration::style_value_for_property(Layout::NodeWithStyle const& layout_node, PropertyID property_id) const
+RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_property(Layout::NodeWithStyle const& layout_node, PropertyID property_id) const
 {
     auto used_value_for_property = [&layout_node, property_id](Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
         auto const& display = layout_node.computed_values().display();
@@ -457,12 +457,12 @@ RefPtr<StyleValue const> ResolvedCSSStyleDeclaration::style_value_for_property(L
     case PropertyID::BackgroundPosition:
         return style_value_for_background_property(
             layout_node,
-            [](auto& layer) -> NonnullRefPtr<StyleValue> {
+            [](auto& layer) -> NonnullRefPtr<CSSStyleValue> {
                 return PositionStyleValue::create(
                     EdgeStyleValue::create(layer.position_edge_x, layer.position_offset_x),
                     EdgeStyleValue::create(layer.position_edge_y, layer.position_offset_y));
             },
-            []() -> NonnullRefPtr<StyleValue> {
+            []() -> NonnullRefPtr<CSSStyleValue> {
                 return PositionStyleValue::create(
                     EdgeStyleValue::create(PositionEdge::Left, Percentage(0)),
                     EdgeStyleValue::create(PositionEdge::Top, Percentage(0)));

@@ -50,7 +50,7 @@ void ConicGradientStyleValue::paint(PaintContext& context, DevicePixelRect const
     context.display_list_recorder().fill_rect_with_conic_gradient(destination_rect, m_resolved->data, position);
 }
 
-bool ConicGradientStyleValue::equals(StyleValue const& other) const
+bool ConicGradientStyleValue::equals(CSSStyleValue const& other) const
 {
     if (type() != other.type())
         return false;

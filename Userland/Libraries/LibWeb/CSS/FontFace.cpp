@@ -59,7 +59,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_fo
 JS_DEFINE_ALLOCATOR(FontFace);
 
 template<CSS::PropertyID PropertyID>
-RefPtr<CSS::StyleValue const> parse_property_string(JS::Realm& realm, StringView value)
+RefPtr<CSSStyleValue const> parse_property_string(JS::Realm& realm, StringView value)
 {
     auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), value);
     return parser.parse_as_css_value(PropertyID);

@@ -9,8 +9,8 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/StyleProperty.h>
-#include <LibWeb/CSS/StyleValue.h>
 
 namespace Web::CSS {
 
@@ -91,7 +91,7 @@ protected:
     void set_the_declarations(Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties);
 
 private:
-    bool set_a_css_declaration(PropertyID, NonnullRefPtr<StyleValue const>, Important);
+    bool set_a_css_declaration(PropertyID, NonnullRefPtr<CSSStyleValue const>, Important);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

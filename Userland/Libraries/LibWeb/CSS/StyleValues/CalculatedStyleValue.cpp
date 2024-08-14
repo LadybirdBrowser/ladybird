@@ -2600,7 +2600,7 @@ String CalculatedStyleValue::to_string() const
     return MUST(String::formatted("calc({})", m_calculation->to_string()));
 }
 
-bool CalculatedStyleValue::equals(StyleValue const& other) const
+bool CalculatedStyleValue::equals(CSSStyleValue const& other) const
 {
     if (type() != other.type())
         return false;

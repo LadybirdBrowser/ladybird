@@ -10,7 +10,7 @@
 #pragma once
 
 #include <LibGfx/Color.h>
-#include <LibWeb/CSS/StyleValue.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 
 namespace Web::CSS {
 

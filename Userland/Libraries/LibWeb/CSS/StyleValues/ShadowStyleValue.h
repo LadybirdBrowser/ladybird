@@ -10,8 +10,8 @@
 #pragma once
 
 #include <LibGfx/Color.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/StyleValue.h>
 
 namespace Web::CSS {
 
@@ -24,10 +24,10 @@ class ShadowStyleValue final : public StyleValueWithDefaultOperators<ShadowStyle
 public:
     static ValueComparingNonnullRefPtr<ShadowStyleValue> create(
         Color color,
-        ValueComparingNonnullRefPtr<StyleValue const> offset_x,
-        ValueComparingNonnullRefPtr<StyleValue const> offset_y,
-        ValueComparingNonnullRefPtr<StyleValue const> blur_radius,
-        ValueComparingNonnullRefPtr<StyleValue const> spread_distance,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> offset_x,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> offset_y,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> blur_radius,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> spread_distance,
         ShadowPlacement placement)
     {
         return adopt_ref(*new (nothrow) ShadowStyleValue(color, move(offset_x), move(offset_y), move(blur_radius), move(spread_distance), placement));
@@ -35,10 +35,10 @@ public:
     virtual ~ShadowStyleValue() override = default;
 
     Color color() const { return m_properties.color; }
-    ValueComparingNonnullRefPtr<StyleValue const> const& offset_x() const { return m_properties.offset_x; }
-    ValueComparingNonnullRefPtr<StyleValue const> const& offset_y() const { return m_properties.offset_y; }
-    ValueComparingNonnullRefPtr<StyleValue const> const& blur_radius() const { return m_properties.blur_radius; }
-    ValueComparingNonnullRefPtr<StyleValue const> const& spread_distance() const { return m_properties.spread_distance; }
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const& offset_x() const { return m_properties.offset_x; }
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const& offset_y() const { return m_properties.offset_y; }
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const& blur_radius() const { return m_properties.blur_radius; }
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const& spread_distance() const { return m_properties.spread_distance; }
     ShadowPlacement placement() const { return m_properties.placement; }
 
     virtual String to_string() const override;
@@ -48,10 +48,10 @@ public:
 private:
     ShadowStyleValue(
         Color color,
-        ValueComparingNonnullRefPtr<StyleValue const> offset_x,
-        ValueComparingNonnullRefPtr<StyleValue const> offset_y,
-        ValueComparingNonnullRefPtr<StyleValue const> blur_radius,
-        ValueComparingNonnullRefPtr<StyleValue const> spread_distance,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> offset_x,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> offset_y,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> blur_radius,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> spread_distance,
         ShadowPlacement placement)
         : StyleValueWithDefaultOperators(Type::Shadow)
         , m_properties {
@@ -65,14 +65,14 @@ private:
     {
     }
 
-    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
+    virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
 
     struct Properties {
         Color color;
-        ValueComparingNonnullRefPtr<StyleValue const> offset_x;
-        ValueComparingNonnullRefPtr<StyleValue const> offset_y;
-        ValueComparingNonnullRefPtr<StyleValue const> blur_radius;
-        ValueComparingNonnullRefPtr<StyleValue const> spread_distance;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> offset_x;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> offset_y;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> blur_radius;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> spread_distance;
         ShadowPlacement placement;
         bool operator==(Properties const&) const = default;
     } m_properties;

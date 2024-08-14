@@ -9,8 +9,8 @@
 
 #pragma once
 
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Percentage.h>
-#include <LibWeb/CSS/StyleValue.h>
 
 namespace Web::CSS {
 

@@ -6,15 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValue.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 
 namespace Web::CSS {
 
 class MathDepthStyleValue : public StyleValueWithDefaultOperators<MathDepthStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<MathDepthStyleValue> create_auto_add();
-    static ValueComparingNonnullRefPtr<MathDepthStyleValue> create_add(ValueComparingNonnullRefPtr<StyleValue const> integer_value);
-    static ValueComparingNonnullRefPtr<MathDepthStyleValue> create_integer(ValueComparingNonnullRefPtr<StyleValue const> integer_value);
+    static ValueComparingNonnullRefPtr<MathDepthStyleValue> create_add(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value);
+    static ValueComparingNonnullRefPtr<MathDepthStyleValue> create_integer(ValueComparingNonnullRefPtr<CSSStyleValue const> integer_value);
     virtual ~MathDepthStyleValue() override = default;
 
     bool is_auto_add() const { return m_type == MathDepthType::AutoAdd; }
@@ -36,10 +36,10 @@ private:
         Integer,
     };
 
-    MathDepthStyleValue(MathDepthType type, ValueComparingRefPtr<StyleValue const> integer_value = nullptr);
+    MathDepthStyleValue(MathDepthType type, ValueComparingRefPtr<CSSStyleValue const> integer_value = nullptr);
 
     MathDepthType m_type;
-    ValueComparingRefPtr<StyleValue const> m_integer_value;
+    ValueComparingRefPtr<CSSStyleValue const> m_integer_value;
 };
 
 }
