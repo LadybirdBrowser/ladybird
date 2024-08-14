@@ -34,7 +34,7 @@ public:
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<EventSource>> construct_impl(JS::Realm&, StringView url, EventSourceInit event_source_init_dict = {});
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource-url
-    String url() const { return MUST(String::from_byte_string(m_url.serialize())); }
+    String url() const { return m_url.serialize(); }
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource-withcredentials
     bool with_credentials() const { return m_with_credentials; }

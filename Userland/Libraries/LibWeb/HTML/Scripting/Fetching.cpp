@@ -121,7 +121,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
     auto as_url = resolve_url_like_module_specifier(specifier, *base_url);
 
     // 8. Let normalizedSpecifier be the serialization of asURL, if asURL is non-null; otherwise, specifier.
-    auto normalized_specifier = as_url.has_value() ? as_url->serialize() : specifier;
+    auto normalized_specifier = as_url.has_value() ? as_url->serialize().to_byte_string() : specifier;
 
     // 9. For each scopePrefix → scopeImports of importMap's scopes:
     for (auto const& entry : import_map.scopes()) {
@@ -131,7 +131,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
         auto const& scope_imports = entry.value;
 
         // 1. If scopePrefix is baseURLString, or if scopePrefix ends with U+002F (/) and scopePrefix is a code unit prefix of baseURLString, then:
-        if (scope_prefix == base_url_string || (scope_prefix.ends_with("/"sv) && Infra::is_code_unit_prefix(scope_prefix, base_url_string))) {
+        if (scope_prefix == base_url_string || (scope_prefix.ends_with('/') && Infra::is_code_unit_prefix(scope_prefix, base_url_string))) {
             // 1. Let scopeImportsMatch be the result of resolving an imports match given normalizedSpecifier, asURL, and scopeImports.
             auto scope_imports_match = TRY(resolve_imports_match(normalized_specifier, as_url, scope_imports));
 
@@ -196,7 +196,7 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
             auto after_prefix = normalized_specifier.substring(specifier_key.length());
 
             // 4. Assert: resolutionResult, serialized, ends with U+002F (/), as enforced during parsing.
-            VERIFY(resolution_result->serialize().ends_with("/"sv));
+            VERIFY(resolution_result->serialize().ends_with('/'));
 
             // 5. Let url be the result of URL parsing afterPrefix with resolutionResult.
             auto url = DOMURL::parse(after_prefix, *resolution_result);

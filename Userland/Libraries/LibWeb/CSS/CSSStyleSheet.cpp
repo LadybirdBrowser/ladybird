@@ -33,7 +33,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CSSStyleSheet>> CSSStyleSheet::construct_im
 
     // 2. Set sheet’s location to the base URL of the associated Document for the current global object.
     auto associated_document = sheet->global_object().document();
-    sheet->set_location(MUST(associated_document->base_url().to_string()));
+    sheet->set_location(associated_document->base_url().to_string());
 
     // 3. Set sheet’s stylesheet base URL to the baseURL attribute value from options.
     if (options.has_value() && options->base_url.has_value()) {
@@ -96,7 +96,7 @@ CSSStyleSheet::CSSStyleSheet(JS::Realm& realm, CSSRuleList& rules, MediaList& me
     , m_rules(&rules)
 {
     if (location.has_value())
-        set_location(MUST(location->to_string()));
+        set_location(location->to_string());
 
     for (auto& rule : *m_rules)
         rule->set_parent_style_sheet(this);

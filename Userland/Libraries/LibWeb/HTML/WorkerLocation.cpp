@@ -14,11 +14,10 @@ namespace Web::HTML {
 JS_DEFINE_ALLOCATOR(WorkerLocation);
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-href
-WebIDL::ExceptionOr<String> WorkerLocation::href() const
+String WorkerLocation::href() const
 {
-    auto& vm = realm().vm();
     // The href getter steps are to return this's WorkerGlobalScope object's url, serialized.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_global_scope->url().serialize()));
+    return m_global_scope->url().serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-origin
@@ -38,10 +37,8 @@ WebIDL::ExceptionOr<String> WorkerLocation::protocol() const
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-host
-WebIDL::ExceptionOr<String> WorkerLocation::host() const
+String WorkerLocation::host() const
 {
-    auto& vm = realm().vm();
-
     // The host getter steps are:
     // 1. Let url be this's WorkerGlobalScope object's url.
     auto const& url = m_global_scope->url();
@@ -52,17 +49,15 @@ WebIDL::ExceptionOr<String> WorkerLocation::host() const
 
     // 3. If url's port is null, return url's host, serialized.
     if (!url.port().has_value())
-        return TRY_OR_THROW_OOM(vm, url.serialized_host());
+        return url.serialized_host();
 
     // 4. Return url's host, serialized, followed by ":" and url's port, serialized.
-    return TRY_OR_THROW_OOM(vm, String::formatted("{}:{}", TRY_OR_THROW_OOM(vm, url.serialized_host()), url.port().value()));
+    return MUST(String::formatted("{}:{}", url.serialized_host(), url.port().value()));
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-hostname
-WebIDL::ExceptionOr<String> WorkerLocation::hostname() const
+String WorkerLocation::hostname() const
 {
-    auto& vm = realm().vm();
-
     // The hostname getter steps are:
     // 1. Let host be this's WorkerGlobalScope object's url's host.
     auto const& host = m_global_scope->url().host();
@@ -72,7 +67,7 @@ WebIDL::ExceptionOr<String> WorkerLocation::hostname() const
         return String {};
 
     // 3. Return host, serialized.
-    return TRY_OR_THROW_OOM(vm, URL::Parser::serialize_host(host));
+    return URL::Parser::serialize_host(host);
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-port

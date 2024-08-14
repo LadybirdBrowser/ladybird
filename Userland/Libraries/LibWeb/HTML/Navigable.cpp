@@ -1546,7 +1546,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> Navigable::evaluate_javascript_url
     auto url_string = url.serialize();
 
     // 2. Let encodedScriptSource be the result of removing the leading "javascript:" from urlString.
-    auto encoded_script_source = url_string.substring_view(11, url_string.length() - 11);
+    auto encoded_script_source = url_string.bytes_as_string_view().substring_view(11);
 
     // 3. Let scriptSource be the UTF-8 decoding of the percent-decoding of encodedScriptSource.
     auto script_source = URL::percent_decode(encoded_script_source);

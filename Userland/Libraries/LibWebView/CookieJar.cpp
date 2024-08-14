@@ -214,7 +214,7 @@ Optional<String> CookieJar::canonicalize_domain(const URL::URL& url)
     if (url.host().has<Empty>())
         return {};
 
-    return MUST(MUST(url.serialized_host()).to_lowercase());
+    return MUST(url.serialized_host().to_lowercase());
 }
 
 bool CookieJar::domain_matches(StringView string, StringView domain_string)

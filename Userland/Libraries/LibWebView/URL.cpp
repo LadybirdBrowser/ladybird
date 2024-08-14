@@ -162,7 +162,7 @@ URLType url_type(URL::URL const& url)
 
 String url_text_to_copy(URL::URL const& url)
 {
-    auto url_text = MUST(url.to_string());
+    auto url_text = url.to_string();
 
     if (url.scheme() == "mailto"sv)
         return MUST(url_text.substring_from_byte_offset("mailto:"sv.length()));

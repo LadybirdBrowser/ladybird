@@ -326,7 +326,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(
 
         // 3. If referrer is a URL record, then set document's referrer to the serialization of referrer.
         if (referrer.has<URL::URL>()) {
-            document->m_referrer = MUST(String::from_byte_string(referrer.get<URL::URL>().serialize()));
+            document->m_referrer = referrer.get<URL::URL>().serialize();
         }
     }
 
@@ -3019,7 +3019,7 @@ String Document::domain() const
         return String {};
 
     // 3. Return effectiveDomain, serialized.
-    return MUST(URL::Parser::serialize_host(effective_domain.release_value()));
+    return URL::Parser::serialize_host(effective_domain.release_value());
 }
 
 void Document::set_domain(String const& domain)
@@ -4266,8 +4266,8 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
             //    initialized to the serialization of entry's URL.
             if (old_url.fragment() != entry->url().fragment()) {
                 HTML::HashChangeEventInit hashchange_event_init;
-                hashchange_event_init.old_url = MUST(String::from_byte_string(old_url.serialize()));
-                hashchange_event_init.new_url = MUST(String::from_byte_string(entry->url().serialize()));
+                hashchange_event_init.old_url = old_url.serialize();
+                hashchange_event_init.new_url = entry->url().serialize();
                 auto hashchange_event = HTML::HashChangeEvent::create(realm(), "hashchange"_fly_string, hashchange_event_init);
                 HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, JS::create_heap_function(heap(), [hashchange_event, &relevant_global_object]() {
                     relevant_global_object.dispatch_event(hashchange_event);

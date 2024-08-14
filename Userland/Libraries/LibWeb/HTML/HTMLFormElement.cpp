@@ -609,7 +609,7 @@ String HTMLFormElement::action() const
         return maybe_action.value();
     }
 
-    return MUST(document().url().to_string());
+    return document().url().to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-action

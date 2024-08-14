@@ -21,7 +21,7 @@ TEST_CASE(basic)
         URL::URL url("http://www.serenityos.org"sv);
         EXPECT_EQ(url.is_valid(), true);
         EXPECT_EQ(url.scheme(), "http");
-        EXPECT_EQ(MUST(url.serialized_host()), "www.serenityos.org");
+        EXPECT_EQ(url.serialized_host(), "www.serenityos.org");
         EXPECT_EQ(url.port_or_default(), 80);
         EXPECT_EQ(url.serialize_path(), "/");
         EXPECT(!url.query().has_value());
@@ -31,7 +31,7 @@ TEST_CASE(basic)
         URL::URL url("https://www.serenityos.org/index.html"sv);
         EXPECT_EQ(url.is_valid(), true);
         EXPECT_EQ(url.scheme(), "https");
-        EXPECT_EQ(MUST(url.serialized_host()), "www.serenityos.org");
+        EXPECT_EQ(url.serialized_host(), "www.serenityos.org");
         EXPECT_EQ(url.port_or_default(), 443);
         EXPECT_EQ(url.serialize_path(), "/index.html");
         EXPECT(!url.query().has_value());
@@ -41,7 +41,7 @@ TEST_CASE(basic)
         URL::URL url("https://www.serenityos.org1/index.html"sv);
         EXPECT_EQ(url.is_valid(), true);
         EXPECT_EQ(url.scheme(), "https");
-        EXPECT_EQ(MUST(url.serialized_host()), "www.serenityos.org1");
+        EXPECT_EQ(url.serialized_host(), "www.serenityos.org1");
         EXPECT_EQ(url.port_or_default(), 443);
         EXPECT_EQ(url.serialize_path(), "/index.html");
         EXPECT(!url.query().has_value());
@@ -51,7 +51,7 @@ TEST_CASE(basic)
         URL::URL url("https://localhost:1234/~anon/test/page.html"sv);
         EXPECT_EQ(url.is_valid(), true);
         EXPECT_EQ(url.scheme(), "https");
-        EXPECT_EQ(MUST(url.serialized_host()), "localhost");
+        EXPECT_EQ(url.serialized_host(), "localhost");
         EXPECT_EQ(url.port_or_default(), 1234);
         EXPECT_EQ(url.serialize_path(), "/~anon/test/page.html");
         EXPECT(!url.query().has_value());
@@ -61,7 +61,7 @@ TEST_CASE(basic)
         URL::URL url("http://www.serenityos.org/index.html?#"sv);
         EXPECT_EQ(url.is_valid(), true);
         EXPECT_EQ(url.scheme(), "http");
-        EXPECT_EQ(MUST(url.serialized_host()), "www.serenityos.org");
+        EXPECT_EQ(url.serialized_host(), "www.serenityos.org");
         EXPECT_EQ(url.port_or_default(), 80);
         EXPECT_EQ(url.serialize_path(), "/index.html");
         EXPECT_EQ(url.query(), "");
@@ -71,7 +71,7 @@ TEST_CASE(basic)
         URL::URL url("http://www.serenityos.org/index.html?foo=1&bar=2"sv);
         EXPECT_EQ(url.is_valid(), true);
         EXPECT_EQ(url.scheme(), "http");
-        EXPECT_EQ(MUST(url.serialized_host()), "www.serenityos.org");
+        EXPECT_EQ(url.serialized_host(), "www.serenityos.org");
         EXPECT_EQ(url.port_or_default(), 80);
         EXPECT_EQ(url.serialize_path(), "/index.html");
         EXPECT_EQ(url.query(), "foo=1&bar=2");
@@ -81,7 +81,7 @@ TEST_CASE(basic)
         URL::URL url("http://www.serenityos.org/index.html#fragment"sv);
         EXPECT_EQ(url.is_valid(), true);
         EXPECT_EQ(url.scheme(), "http");
-        EXPECT_EQ(MUST(url.serialized_host()), "www.serenityos.org");
+        EXPECT_EQ(url.serialized_host(), "www.serenityos.org");
         EXPECT_EQ(url.port_or_default(), 80);
         EXPECT_EQ(url.serialize_path(), "/index.html");
         EXPECT(!url.query().has_value());
@@ -91,7 +91,7 @@ TEST_CASE(basic)
         URL::URL url("http://www.serenityos.org/index.html?foo=1&bar=2&baz=/?#frag/ment?test#"sv);
         EXPECT_EQ(url.is_valid(), true);
         EXPECT_EQ(url.scheme(), "http");
-        EXPECT_EQ(MUST(url.serialized_host()), "www.serenityos.org");
+        EXPECT_EQ(url.serialized_host(), "www.serenityos.org");
         EXPECT_EQ(url.port_or_default(), 80);
         EXPECT_EQ(url.serialize_path(), "/index.html");
         EXPECT_EQ(url.query(), "foo=1&bar=2&baz=/?");
@@ -126,7 +126,7 @@ TEST_CASE(file_url_with_hostname)
     URL::URL url("file://courage/my/file"sv);
     EXPECT(url.is_valid());
     EXPECT_EQ(url.scheme(), "file");
-    EXPECT_EQ(MUST(url.serialized_host()), "courage");
+    EXPECT_EQ(url.serialized_host(), "courage");
     EXPECT_EQ(url.port_or_default(), 0);
     EXPECT_EQ(url.serialize_path(), "/my/file");
     EXPECT_EQ(url.serialize(), "file://courage/my/file");
@@ -139,7 +139,7 @@ TEST_CASE(file_url_with_localhost)
     URL::URL url("file://localhost/my/file"sv);
     EXPECT(url.is_valid());
     EXPECT_EQ(url.scheme(), "file");
-    EXPECT_EQ(MUST(url.serialized_host()), "");
+    EXPECT_EQ(url.serialized_host(), "");
     EXPECT_EQ(url.serialize_path(), "/my/file");
     EXPECT_EQ(url.serialize(), "file:///my/file");
 }
@@ -149,7 +149,7 @@ TEST_CASE(file_url_without_hostname)
     URL::URL url("file:///my/file"sv);
     EXPECT(url.is_valid());
     EXPECT_EQ(url.scheme(), "file");
-    EXPECT_EQ(MUST(url.serialized_host()), "");
+    EXPECT_EQ(url.serialized_host(), "");
     EXPECT_EQ(url.serialize_path(), "/my/file");
     EXPECT_EQ(url.serialize(), "file:///my/file");
 }
@@ -300,7 +300,7 @@ TEST_CASE(complete_url)
     URL::URL url = base_url.complete_url("test.html"sv);
     EXPECT(url.is_valid());
     EXPECT_EQ(url.scheme(), "http");
-    EXPECT_EQ(MUST(url.serialized_host()), "serenityos.org");
+    EXPECT_EQ(url.serialized_host(), "serenityos.org");
     EXPECT_EQ(url.serialize_path(), "/test.html");
     EXPECT(!url.query().has_value());
     EXPECT_EQ(url.cannot_be_a_base_url(), false);
@@ -383,7 +383,7 @@ TEST_CASE(ipv6_address)
         constexpr auto ipv6_url = "http://[::1]/index.html"sv;
         URL::URL url(ipv6_url);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "[::1]"sv);
+        EXPECT_EQ(url.serialized_host(), "[::1]"sv);
         EXPECT_EQ(url, ipv6_url);
     }
 
@@ -391,7 +391,7 @@ TEST_CASE(ipv6_address)
         constexpr auto ipv6_url = "http://[0:f:0:0:f:f:0:0]/index.html"sv;
         URL::URL url(ipv6_url);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "[0:f::f:f:0:0]"sv);
+        EXPECT_EQ(url.serialized_host(), "[0:f::f:f:0:0]"sv);
         EXPECT_EQ(url, ipv6_url);
     }
 
@@ -399,7 +399,7 @@ TEST_CASE(ipv6_address)
         constexpr auto ipv6_url = "https://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]/index.html"sv;
         URL::URL url(ipv6_url);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "[2001:db8:85a3::8a2e:370:7334]"sv);
+        EXPECT_EQ(url.serialized_host(), "[2001:db8:85a3::8a2e:370:7334]"sv);
         EXPECT_EQ(url, ipv6_url);
     }
 
@@ -416,14 +416,14 @@ TEST_CASE(ipv4_address)
         constexpr auto ipv4_url = "http://127.0.0.1/index.html"sv;
         URL::URL url(ipv4_url);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "127.0.0.1"sv);
+        EXPECT_EQ(url.serialized_host(), "127.0.0.1"sv);
     }
 
     {
         constexpr auto ipv4_url = "http://0x.0x.0"sv;
         URL::URL url(ipv4_url);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "0.0.0.0"sv);
+        EXPECT_EQ(url.serialized_host(), "0.0.0.0"sv);
     }
 
     {
@@ -436,14 +436,14 @@ TEST_CASE(ipv4_address)
         constexpr auto ipv4_url = "http://256"sv;
         URL::URL url(ipv4_url);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "0.0.1.0"sv);
+        EXPECT_EQ(url.serialized_host(), "0.0.1.0"sv);
     }
 
     {
         constexpr auto ipv4_url = "http://888888888"sv;
         URL::URL url(ipv4_url);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "52.251.94.56"sv);
+        EXPECT_EQ(url.serialized_host(), "52.251.94.56"sv);
     }
 
     {
@@ -459,7 +459,7 @@ TEST_CASE(username_and_password)
         constexpr auto url_with_username_and_password = "http://username:password@test.com/index.html"sv;
         URL::URL url(url_with_username_and_password);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "test.com"sv);
+        EXPECT_EQ(url.serialized_host(), "test.com"sv);
         EXPECT_EQ(url.username(), "username"sv);
         EXPECT_EQ(url.password(), "password"sv);
     }
@@ -468,7 +468,7 @@ TEST_CASE(username_and_password)
         constexpr auto url_with_percent_encoded_credentials = "http://username%21%24%25:password%21%24%25@test.com/index.html"sv;
         URL::URL url(url_with_percent_encoded_credentials);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "test.com"sv);
+        EXPECT_EQ(url.serialized_host(), "test.com"sv);
         EXPECT_EQ(url.username(), "username%21%24%25");
         EXPECT_EQ(url.password(), "password%21%24%25");
         EXPECT_EQ(URL::percent_decode(url.username()), "username!$%"sv);
@@ -480,7 +480,7 @@ TEST_CASE(username_and_password)
         auto const& url_with_long_username = MUST(String::formatted("http://{}:@test.com/index.html", username));
         URL::URL url(url_with_long_username);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "test.com"sv);
+        EXPECT_EQ(url.serialized_host(), "test.com"sv);
         EXPECT_EQ(url.username(), username);
         EXPECT(url.password().is_empty());
     }
@@ -490,7 +490,7 @@ TEST_CASE(username_and_password)
         auto const& url_with_long_password = MUST(String::formatted("http://:{}@test.com/index.html", password));
         URL::URL url(url_with_long_password);
         EXPECT(url.is_valid());
-        EXPECT_EQ(MUST(url.serialized_host()), "test.com"sv);
+        EXPECT_EQ(url.serialized_host(), "test.com"sv);
         EXPECT(url.username().is_empty());
         EXPECT_EQ(url.password(), password);
     }
@@ -503,7 +503,7 @@ TEST_CASE(ascii_only_url)
         URL::URL url(upper_case_url);
         EXPECT(url.is_valid());
         EXPECT_EQ(url.scheme(), "http");
-        EXPECT_EQ(MUST(url.serialized_host()), "example.com"sv);
+        EXPECT_EQ(url.serialized_host(), "example.com"sv);
         EXPECT_EQ(url.to_byte_string(), "http://example.com/INDEX.HTML#FRAGMENT");
     }
 
@@ -512,7 +512,7 @@ TEST_CASE(ascii_only_url)
         URL::URL url(mixed_case_url);
         EXPECT(url.is_valid());
         EXPECT_EQ(url.scheme(), "http");
-        EXPECT_EQ(MUST(url.serialized_host()), "example.com"sv);
+        EXPECT_EQ(url.serialized_host(), "example.com"sv);
         EXPECT_EQ(url.to_byte_string(), "http://example.com/iNdEx.HtMl#fRaGmEnT");
     }
 }

@@ -43,7 +43,7 @@ public:
 
     virtual ~WebSocket() override;
 
-    WebIDL::ExceptionOr<String> url() const { return TRY_OR_THROW_OOM(vm(), m_url.to_string()); }
+    String url() const { return m_url.to_string(); }
     void set_url(URL::URL url) { m_url = move(url); }
 
 #undef __ENUMERATE

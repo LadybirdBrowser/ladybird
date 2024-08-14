@@ -170,21 +170,17 @@ bool DOMURL::can_parse(JS::VM&, String const& url, Optional<String> const& base)
 }
 
 // https://url.spec.whatwg.org/#dom-url-href
-WebIDL::ExceptionOr<String> DOMURL::href() const
+String DOMURL::href() const
 {
-    auto& vm = realm().vm();
-
     // The href getter steps and the toJSON() method steps are to return the serialization of this’s URL.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_url.serialize()));
+    return m_url.serialize();
 }
 
 // https://url.spec.whatwg.org/#dom-url-tojson
-WebIDL::ExceptionOr<String> DOMURL::to_json() const
+String DOMURL::to_json() const
 {
-    auto& vm = realm().vm();
-
     // The href getter steps and the toJSON() method steps are to return the serialization of this’s URL.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_url.serialize()));
+    return m_url.serialize();
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-href②
@@ -278,10 +274,8 @@ void DOMURL::set_password(String const& password)
 }
 
 // https://url.spec.whatwg.org/#dom-url-host
-WebIDL::ExceptionOr<String> DOMURL::host() const
+String DOMURL::host() const
 {
-    auto& vm = realm().vm();
-
     // 1. Let url be this’s URL.
     auto& url = m_url;
 
@@ -291,10 +285,10 @@ WebIDL::ExceptionOr<String> DOMURL::host() const
 
     // 3. If url’s port is null, return url’s host, serialized.
     if (!url.port().has_value())
-        return TRY_OR_THROW_OOM(vm, url.serialized_host());
+        return url.serialized_host();
 
     // 4. Return url’s host, serialized, followed by U+003A (:) and url’s port, serialized.
-    return TRY_OR_THROW_OOM(vm, String::formatted("{}:{}", TRY_OR_THROW_OOM(vm, url.serialized_host()), *url.port()));
+    return MUST(String::formatted("{}:{}", url.serialized_host(), *url.port()));
 }
 
 // https://url.spec.whatwg.org/#dom-url-hostref-for-dom-url-host%E2%91%A0
@@ -309,16 +303,14 @@ void DOMURL::set_host(String const& host)
 }
 
 // https://url.spec.whatwg.org/#dom-url-hostname
-WebIDL::ExceptionOr<String> DOMURL::hostname() const
+String DOMURL::hostname() const
 {
-    auto& vm = realm().vm();
-
     // 1. If this’s URL’s host is null, then return the empty string.
     if (m_url.host().has<Empty>())
         return String {};
 
     // 2. Return this’s URL’s host, serialized.
-    return TRY_OR_THROW_OOM(vm, m_url.serialized_host());
+    return m_url.serialized_host();
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-hostname①
@@ -486,7 +478,7 @@ HTML::Origin url_origin(URL::URL const& url)
     // The origin of a URL url is the origin returned by running these steps, switching on url’s scheme:
     // -> "blob"
     if (url.scheme() == "blob"sv) {
-        auto url_string = url.to_string().release_value_but_fixme_should_propagate_errors();
+        auto url_string = url.to_string();
 
         // 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
         if (auto blob_url_entry = FileAPI::blob_url_store().get(url_string); blob_url_entry.has_value())

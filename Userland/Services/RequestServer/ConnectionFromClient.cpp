@@ -150,7 +150,7 @@ void ConnectionFromClient::worker_do_work(Work work)
             auto& cache_level = ensure_connection.cache_level;
 
             if (cache_level == CacheLevel::ResolveOnly) {
-                Core::deferred_invoke([host = url.serialized_host().release_value_but_fixme_should_propagate_errors().to_byte_string()] {
+                Core::deferred_invoke([host = url.serialized_host().to_byte_string()] {
                     dbgln("EnsureConnection: DNS-preload for {}", host);
                     auto resolved_host = Core::Socket::resolve_host(host, Core::Socket::SocketType::Stream);
                     if (resolved_host.is_error())

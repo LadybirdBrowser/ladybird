@@ -170,10 +170,10 @@ String HTMLHyperlinkElementUtils::host() const
 
     // 4. If url's port is null, return url's host, serialized.
     if (!url->port().has_value())
-        return MUST(url->serialized_host());
+        return url->serialized_host();
 
     // 5. Return url's host, serialized, followed by ":" and url's port, serialized.
-    return MUST(String::formatted("{}:{}", MUST(url->serialized_host()), url->port().value()));
+    return MUST(String::formatted("{}:{}", url->serialized_host(), url->port().value()));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-host
@@ -208,7 +208,7 @@ String HTMLHyperlinkElementUtils::hostname() const
         return String {};
 
     // 4. Return url's host, serialized.
-    return MUST(url.serialized_host());
+    return url.serialized_host();
 }
 
 void HTMLHyperlinkElementUtils::set_hostname(StringView hostname)
@@ -419,7 +419,7 @@ String HTMLHyperlinkElementUtils::href() const
         return href_content_attribute.release_value();
 
     // 5. Return url, serialized.
-    return MUST(String::from_byte_string(url->serialize()));
+    return url->serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-href
@@ -433,7 +433,7 @@ WebIDL::ExceptionOr<void> HTMLHyperlinkElementUtils::set_href(String href)
 void HTMLHyperlinkElementUtils::update_href()
 {
     // To update href, set the element's href content attribute's value to the element's url, serialized.
-    MUST(set_hyperlink_element_utils_href(MUST(String::from_byte_string(m_url->serialize()))));
+    MUST(set_hyperlink_element_utils_href(m_url->serialize()));
 }
 
 bool HTMLHyperlinkElementUtils::cannot_navigate() const
@@ -487,7 +487,7 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
     if (!url.is_valid())
         return;
 
-    auto url_string = MUST(url.to_string());
+    auto url_string = url.to_string();
 
     // 10. If hyperlinkSuffix is non-null, then append it to urlString.
     if (hyperlink_suffix.has_value()) {

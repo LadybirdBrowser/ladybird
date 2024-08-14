@@ -81,7 +81,7 @@ void URL::set_host(Host host)
 }
 
 // https://url.spec.whatwg.org/#concept-host-serializer
-ErrorOr<String> URL::serialized_host() const
+String URL::serialized_host() const
 {
     return Parser::serialize_host(m_data->host);
 }
@@ -239,7 +239,7 @@ String URL::serialize_path() const
 }
 
 // https://url.spec.whatwg.org/#concept-url-serializer
-ByteString URL::serialize(ExcludeFragment exclude_fragment) const
+String URL::serialize(ExcludeFragment exclude_fragment) const
 {
     // 1. Let output be url’s scheme and U+003A (:) concatenated.
     StringBuilder output;
@@ -267,7 +267,7 @@ ByteString URL::serialize(ExcludeFragment exclude_fragment) const
         }
 
         // 3. Append url’s host, serialized, to output.
-        output.append(serialized_host().release_value_but_fixme_should_propagate_errors());
+        output.append(serialized_host());
 
         // 4. If url’s port is non-null, append U+003A (:) followed by url’s port, serialized, to output.
         if (m_data->port.has_value())
@@ -301,7 +301,7 @@ ByteString URL::serialize(ExcludeFragment exclude_fragment) const
     }
 
     // 7. Return output.
-    return output.to_byte_string();
+    return output.to_string_without_validation();
 }
 
 // https://url.spec.whatwg.org/#url-rendering
@@ -318,7 +318,7 @@ ByteString URL::serialize_for_display() const
 
     if (!m_data->host.has<Empty>()) {
         builder.append("//"sv);
-        builder.append(serialized_host().release_value_but_fixme_should_propagate_errors());
+        builder.append(serialized_host());
         if (m_data->port.has_value())
             builder.appendff(":{}", *m_data->port);
     }
@@ -347,9 +347,9 @@ ByteString URL::serialize_for_display() const
     return builder.to_byte_string();
 }
 
-ErrorOr<String> URL::to_string() const
+String URL::to_string() const
 {
-    return String::from_byte_string(serialize());
+    return serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
@@ -374,7 +374,7 @@ ByteString URL::serialize_origin() const
     StringBuilder builder;
     builder.append(m_data->scheme);
     builder.append("://"sv);
-    builder.append(serialized_host().release_value_but_fixme_should_propagate_errors());
+    builder.append(serialized_host());
     if (m_data->port.has_value())
         builder.appendff(":{}", *m_data->port);
     return builder.to_byte_string();

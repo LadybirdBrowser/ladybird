@@ -516,7 +516,7 @@ String Request::method() const
 String Request::url() const
 {
     // The url getter steps are to return this’s request’s URL, serialized.
-    return MUST(String::from_byte_string(m_request->url().serialize()));
+    return m_request->url().serialize();
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-headers
@@ -551,7 +551,7 @@ String Request::referrer() const
         },
         [&](URL::URL const& url) {
             // 3. Return this’s request’s referrer, serialized.
-            return MUST(String::from_byte_string(url.serialize()));
+            return url.serialize();
         });
 }
 

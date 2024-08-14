@@ -38,14 +38,14 @@ struct Proxy {
     ErrorOr<NonnullOwnPtr<StorageType>> tunnel(URL::URL const& url, Args&&... args)
     {
         if (data.type == Core::ProxyData::Direct) {
-            return TRY(SocketType::connect(TRY(url.serialized_host()).to_byte_string(), url.port_or_default(), forward<Args>(args)...));
+            return TRY(SocketType::connect(url.serialized_host().to_byte_string(), url.port_or_default(), forward<Args>(args)...));
         }
         if (data.type == Core::ProxyData::SOCKS5) {
             if constexpr (requires { SocketType::connect(declval<ByteString>(), *proxy_client_storage, forward<Args>(args)...); }) {
-                proxy_client_storage = TRY(Core::SOCKSProxyClient::connect(data.host_ipv4, data.port, Core::SOCKSProxyClient::Version::V5, TRY(url.serialized_host()).to_byte_string(), url.port_or_default()));
-                return TRY(SocketType::connect(TRY(url.serialized_host()).to_byte_string(), *proxy_client_storage, forward<Args>(args)...));
+                proxy_client_storage = TRY(Core::SOCKSProxyClient::connect(data.host_ipv4, data.port, Core::SOCKSProxyClient::Version::V5, url.serialized_host().to_byte_string(), url.port_or_default()));
+                return TRY(SocketType::connect(url.serialized_host().to_byte_string(), *proxy_client_storage, forward<Args>(args)...));
             } else if constexpr (IsSame<SocketType, Core::TCPSocket>) {
-                return TRY(Core::SOCKSProxyClient::connect(data.host_ipv4, data.port, Core::SOCKSProxyClient::Version::V5, TRY(url.serialized_host()).to_byte_string(), url.port_or_default()));
+                return TRY(Core::SOCKSProxyClient::connect(data.host_ipv4, data.port, Core::SOCKSProxyClient::Version::V5, url.serialized_host().to_byte_string(), url.port_or_default()));
             } else {
                 return Error::from_string_literal("SOCKS5 not supported for this socket type");
             }
@@ -233,7 +233,7 @@ void ensure_connection(auto& cache, const URL::URL& url, auto job, Core::ProxyDa
 {
     using CacheEntryType = RemoveCVReference<decltype(*declval<typename RemoveCVReference<decltype(cache)>::ProtectedType>().begin()->value)>;
 
-    auto hostname = url.serialized_host().release_value_but_fixme_should_propagate_errors().to_byte_string();
+    auto hostname = url.serialized_host().to_byte_string();
     auto& properties = g_inferred_server_properties.with_write_locked([&](auto& map) -> InferredServerProperties& { return map.ensure(hostname); });
 
     auto& sockets_for_url = *cache.with_write_locked([&](auto& map) -> NonnullOwnPtr<CacheEntryType>& {

@@ -252,7 +252,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     // 16. If creator is non-null, then:
     if (creator) {
         // 1. Set document's referrer to the serialization of creator's URL.
-        document->set_referrer(MUST(String::from_byte_string(creator->url().serialize())));
+        document->set_referrer(creator->url().serialize());
 
         // 2. Set document's policy container to a clone of creator's policy container.
         document->set_policy_container(creator->policy_container());

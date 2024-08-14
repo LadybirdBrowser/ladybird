@@ -85,7 +85,7 @@ Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_bloc
     }
 
     // 2. Return blocked.
-    dbgln("MixedContent: Blocked '{}' (request)", MUST(request.url().to_string()));
+    dbgln("MixedContent: Blocked '{}' (request)", request.url().to_string());
     return Fetch::Infrastructure::RequestOrResponseBlocking::Blocked;
 }
 
@@ -109,7 +109,7 @@ Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request
     }
 
     // 2. Return blocked.
-    dbgln("MixedContent: Blocked '{}' (response to request)", MUST(request.url().to_string()));
+    dbgln("MixedContent: Blocked '{}' (response to request)", request.url().to_string());
     return Fetch::Infrastructure::RequestOrResponseBlocking::Blocked;
 }
 

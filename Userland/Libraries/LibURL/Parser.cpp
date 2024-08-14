@@ -237,7 +237,7 @@ static Optional<IPv4Address> parse_ipv4_address(StringView input)
 }
 
 // https://url.spec.whatwg.org/#concept-ipv4-serializer
-static ErrorOr<String> serialize_ipv4_address(IPv4Address address)
+static String serialize_ipv4_address(IPv4Address address)
 {
     // 1. Let output be the empty string.
     // NOTE: Array to avoid prepend.
@@ -259,7 +259,7 @@ static ErrorOr<String> serialize_ipv4_address(IPv4Address address)
     }
 
     // 4. Return output.
-    return String::formatted("{}.{}.{}.{}", output[0], output[1], output[2], output[3]);
+    return MUST(String::formatted("{}.{}.{}.{}", output[0], output[1], output[2], output[3]));
 }
 
 // https://url.spec.whatwg.org/#concept-ipv6-serializer
@@ -698,7 +698,7 @@ static Optional<Host> parse_host(StringView input, bool is_opaque = false)
 }
 
 // https://url.spec.whatwg.org/#concept-host-serializer
-ErrorOr<String> Parser::serialize_host(Host const& host)
+String Parser::serialize_host(Host const& host)
 {
     // 1. If host is an IPv4 address, return the result of running the IPv4 serializer on host.
     if (host.has<IPv4Address>())
@@ -707,10 +707,10 @@ ErrorOr<String> Parser::serialize_host(Host const& host)
     // 2. Otherwise, if host is an IPv6 address, return U+005B ([), followed by the result of running the IPv6 serializer on host, followed by U+005D (]).
     if (host.has<IPv6Address>()) {
         StringBuilder output;
-        TRY(output.try_append('['));
+        output.append('[');
         serialize_ipv6_address(host.get<IPv6Address>(), output);
-        TRY(output.try_append(']'));
-        return output.to_string();
+        output.append(']');
+        return output.to_string_without_validation();
     }
 
     // 3. Otherwise, host is a domain, opaque host, or empty host, return host.

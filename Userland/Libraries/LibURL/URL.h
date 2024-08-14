@@ -124,7 +124,7 @@ public:
     String const& username() const { return m_data->username; }
     String const& password() const { return m_data->password; }
     Host const& host() const { return m_data->host; }
-    ErrorOr<String> serialized_host() const;
+    String serialized_host() const;
     ByteString basename() const;
     Optional<String> const& query() const { return m_data->query; }
     Optional<String> const& fragment() const { return m_data->fragment; }
@@ -157,10 +157,10 @@ public:
     }
 
     String serialize_path() const;
-    ByteString serialize(ExcludeFragment = ExcludeFragment::No) const;
+    String serialize(ExcludeFragment = ExcludeFragment::No) const;
     ByteString serialize_for_display() const;
-    ByteString to_byte_string() const { return serialize(); }
-    ErrorOr<String> to_string() const;
+    ByteString to_byte_string() const { return serialize().to_byte_string(); }
+    String to_string() const;
 
     // HTML origin
     ByteString serialize_origin() const;

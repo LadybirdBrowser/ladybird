@@ -27,7 +27,7 @@ public:
 
     virtual String to_string() const override
     {
-        return serialize_a_url(MUST(m_url.to_string()));
+        return serialize_a_url(m_url.to_string());
     }
 
 private:

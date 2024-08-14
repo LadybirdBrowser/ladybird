@@ -143,7 +143,7 @@ public:
     void update_base_element(Badge<HTML::HTMLBaseElement>);
     JS::GCPtr<HTML::HTMLBaseElement const> first_base_element_with_href_in_tree_order() const;
 
-    String url_string() const { return MUST(m_url.to_string()); }
+    String url_string() const { return m_url.to_string(); }
     String document_uri() const { return url_string(); }
 
     HTML::Origin origin() const;

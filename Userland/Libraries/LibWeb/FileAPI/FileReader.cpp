@@ -71,7 +71,7 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         // Return bytes as a DataURL [RFC2397] subject to the considerations below:
         // Use mimeType as part of the Data URL if it is available in keeping with the Data URL specification [RFC2397].
         // If mimeType is not available return a Data URL without a media-type. [RFC2397].
-        return MUST(URL::create_with_data(mime_type.value_or(String {}), MUST(encode_base64(bytes)), true).to_string());
+        return URL::create_with_data(mime_type.value_or(String {}), MUST(encode_base64(bytes)), true).to_string();
     case Type::Text: {
         // 1. Let encoding be failure.
         Optional<StringView> encoding;

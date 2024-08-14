@@ -276,7 +276,7 @@ String HTMLCanvasElement::to_data_url(StringView type, Optional<double> quality)
     if (base64_encoded_or_error.is_error()) {
         return "data:,"_string;
     }
-    return MUST(URL::create_with_data(file.value().mime_type, base64_encoded_or_error.release_value(), true).to_string());
+    return URL::create_with_data(file.value().mime_type, base64_encoded_or_error.release_value(), true).to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob

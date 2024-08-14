@@ -29,7 +29,7 @@ public:
 
     URL::URL const& url() const { return m_url; }
     // FIXME: This should return only the specified part of the url. eg, "stuff/foo.css", not "https://example.com/stuff/foo.css".
-    String href() const { return MUST(m_url.to_string()); }
+    String href() const { return m_url.to_string(); }
 
     CSSStyleSheet* loaded_style_sheet() { return m_style_sheet; }
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }

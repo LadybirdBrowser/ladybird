@@ -171,7 +171,7 @@ void WebSocket::send_client_handshake()
 
     // 4. Host
     auto url = m_connection.url();
-    builder.appendff("Host: {}", url.serialized_host().release_value_but_fixme_should_propagate_errors());
+    builder.appendff("Host: {}", url.serialized_host());
     if (!m_connection.is_secure() && url.port_or_default() != 80)
         builder.appendff(":{}", url.port_or_default());
     else if (m_connection.is_secure() && url.port_or_default() != 443)

@@ -24,7 +24,7 @@ void request_did_finish(URL::URL const& url, Core::Socket const* socket)
 
     dbgln_if(REQUESTSERVER_DEBUG, "Request for {} finished", url);
 
-    ConnectionKey partial_key { url.serialized_host().release_value_but_fixme_should_propagate_errors().to_byte_string(), url.port_or_default() };
+    ConnectionKey partial_key { url.serialized_host().to_byte_string(), url.port_or_default() };
     auto fire_off_next_job = [&](auto& cache) {
         using CacheType = typename RemoveCVReference<decltype(cache)>::ProtectedType;
         auto [it, end] = cache.with_read_locked([&](auto const& cache) {

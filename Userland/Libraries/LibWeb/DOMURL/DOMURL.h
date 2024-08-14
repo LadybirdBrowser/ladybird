@@ -32,7 +32,7 @@ public:
     static JS::GCPtr<DOMURL> parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base = {});
     static bool can_parse(JS::VM&, String const& url, Optional<String> const& base = {});
 
-    WebIDL::ExceptionOr<String> href() const;
+    String href() const;
     WebIDL::ExceptionOr<void> set_href(String const&);
 
     WebIDL::ExceptionOr<String> origin() const;
@@ -46,10 +46,10 @@ public:
     String const& password() const;
     void set_password(String const&);
 
-    WebIDL::ExceptionOr<String> host() const;
+    String host() const;
     void set_host(String const&);
 
-    WebIDL::ExceptionOr<String> hostname() const;
+    String hostname() const;
     void set_hostname(String const&);
 
     WebIDL::ExceptionOr<String> port() const;
@@ -75,7 +75,7 @@ public:
     WebIDL::ExceptionOr<String> hash() const;
     void set_hash(String const&);
 
-    WebIDL::ExceptionOr<String> to_json() const;
+    String to_json() const;
 
     Optional<String> const& query() const { return m_url.query(); }
     void set_query(Badge<URLSearchParams>, Optional<String> query) { m_url.set_query(move(query)); }
