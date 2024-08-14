@@ -77,8 +77,11 @@ void HTMLObjectElement::form_associated_element_was_removed(DOM::Node*)
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-object-data
 String HTMLObjectElement::data() const
 {
-    auto data = get_attribute_value(HTML::AttributeNames::data);
-    return MUST(document().parse_url(data).to_string());
+    auto data = get_attribute(HTML::AttributeNames::data);
+    if (!data.has_value())
+        return {};
+
+    return MUST(document().parse_url(*data).to_string());
 }
 
 JS::GCPtr<Layout::Node> HTMLObjectElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
