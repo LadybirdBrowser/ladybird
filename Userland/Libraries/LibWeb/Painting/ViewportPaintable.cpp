@@ -178,9 +178,6 @@ void ViewportPaintable::refresh_clip_state()
             auto overflow_clip_rect = paintable_box.absolute_padding_box_rect();
             clip_frame.add_clip_rect(overflow_clip_rect, paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), paintable_box.enclosing_scroll_frame());
             for (auto const* block = &paintable_box.layout_box(); !block->is_viewport(); block = block->containing_block()) {
-                if (block->has_css_transform()) {
-                    break;
-                }
                 auto const& block_paintable_box = *block->paintable_box();
                 auto block_overflow_x = block_paintable_box.computed_values().overflow_x();
                 auto block_overflow_y = block_paintable_box.computed_values().overflow_y();
@@ -190,6 +187,9 @@ void ViewportPaintable::refresh_clip_state()
                 }
                 if (auto css_clip_property_rect = block->paintable_box()->get_clip_rect(); css_clip_property_rect.has_value()) {
                     clip_frame.add_clip_rect(css_clip_property_rect.value(), {}, block_paintable_box.enclosing_scroll_frame());
+                }
+                if (block->has_css_transform()) {
+                    break;
                 }
             }
         }
