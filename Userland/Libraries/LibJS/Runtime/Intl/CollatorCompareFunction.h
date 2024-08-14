@@ -30,6 +30,6 @@ private:
     NonnullGCPtr<Collator> m_collator; // [[Collator]]
 };
 
-double compare_strings(Collator&, Utf8View const& x, Utf8View const& y);
+int compare_strings(Collator const&, StringView x, StringView y);
 
 }

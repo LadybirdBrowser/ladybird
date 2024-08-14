@@ -15,7 +15,7 @@ test("basic functionality", () => {
 
     compareBoth("a", "");
     compareBoth("1", "");
-    compareBoth("a", "A");
+    compareBoth("A", "a");
     compareBoth("7", "3");
     compareBoth("0000", "0");
 
