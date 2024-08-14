@@ -1307,6 +1307,7 @@ public:
     ByteBuffer body;
     Infrastructure::Response::BodyInfo body_info;
     ByteBuffer method;
+    Infrastructure::Status status;
     URL::URL url;
     UnixDateTime current_age;
 };
@@ -1347,6 +1348,7 @@ public:
         auto response = Infrastructure::Response::create(realm.vm());
         response->set_body(body);
         response->set_body_info(cached_response.body_info);
+        response->set_status(cached_response.status);
         for (auto& [name, value] : cached_response.headers.headers()) {
             response->header_list()->append(Infrastructure::Header::from_string_pair(name, value));
         }
@@ -1363,6 +1365,7 @@ public:
         cached_response->body = response.body()->source().get<ByteBuffer>();
         cached_response->body_info = response.body_info();
         cached_response->method = MUST(ByteBuffer::copy(http_request.method()));
+        cached_response->status = response.status();
         cached_response->url = http_request.current_url();
         cached_response->current_age = UnixDateTime::now();
         m_cache.set(http_request.current_url(), move(cached_response));
@@ -1458,10 +1461,6 @@ private:
         if (response.status() == 206 || response.status() == 304) {
             // FIXME: Implement must-understand cache directive
         }
-
-        // FIXME: This is just for now, ad-hoc — not adhering to any particular spec.
-        if (response.status() == 301 || response.status() == 302 || response.status() == 303 || response.status() == 307 || response.status() == 308)
-            return false;
 
         // - the no-store cache directive is not present in the response (see Section 5.2.2.5);
         if (request.cache_mode() == Infrastructure::Request::CacheMode::NoStore)
