@@ -1157,6 +1157,9 @@ void Document::update_layout()
     set_needs_to_resolve_paint_only_properties();
 
     paintable()->assign_scroll_frames();
+
+    // assign_clip_frames() needs border-radius be resolved
+    update_paint_and_hit_testing_properties_if_needed();
     paintable()->assign_clip_frames();
 
     if (navigable->is_traversable()) {
@@ -5194,12 +5197,6 @@ void Document::process_top_layer_removals()
             element->set_in_top_layer(false);
         }
     }
-}
-
-void Document::set_needs_to_refresh_clip_state(bool b)
-{
-    if (auto* paintable = this->paintable())
-        paintable->set_needs_to_refresh_clip_state(b);
 }
 
 void Document::set_needs_to_refresh_scroll_state(bool b)

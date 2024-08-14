@@ -135,6 +135,26 @@ void ViewportPaintable::assign_clip_frames()
         }
         return TraversalDecision::Continue;
     });
+
+    for (auto& it : clip_state) {
+        auto const& paintable_box = *it.key;
+        auto& clip_frame = *it.value;
+        for (auto const* block = &paintable_box.layout_box(); !block->is_viewport(); block = block->containing_block()) {
+            auto const& block_paintable_box = *block->paintable_box();
+            auto block_overflow_x = block_paintable_box.computed_values().overflow_x();
+            auto block_overflow_y = block_paintable_box.computed_values().overflow_y();
+            if (block_overflow_x != CSS::Overflow::Visible && block_overflow_y != CSS::Overflow::Visible) {
+                auto rect = block_paintable_box.absolute_padding_box_rect();
+                clip_frame.add_clip_rect(rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
+            }
+            if (auto css_clip_property_rect = block->paintable_box()->get_clip_rect(); css_clip_property_rect.has_value()) {
+                clip_frame.add_clip_rect(css_clip_property_rect.value(), {}, block_paintable_box.enclosing_scroll_frame());
+            }
+            if (block->has_css_transform()) {
+                break;
+            }
+        }
+    }
 }
 
 void ViewportPaintable::refresh_scroll_state()
@@ -154,36 +174,6 @@ void ViewportPaintable::refresh_scroll_state()
                 break;
         }
         scroll_frame.offset = -offset;
-    }
-}
-
-void ViewportPaintable::refresh_clip_state()
-{
-    if (!m_needs_to_refresh_clip_state)
-        return;
-    m_needs_to_refresh_clip_state = false;
-
-    for (auto& it : clip_state) {
-        auto const& paintable_box = *it.key;
-        auto& clip_frame = *it.value;
-
-        clip_frame.clear_rects();
-
-        for (auto const* block = &paintable_box.layout_box(); !block->is_viewport(); block = block->containing_block()) {
-            auto const& block_paintable_box = *block->paintable_box();
-            auto block_overflow_x = block_paintable_box.computed_values().overflow_x();
-            auto block_overflow_y = block_paintable_box.computed_values().overflow_y();
-            if (block_overflow_x != CSS::Overflow::Visible && block_overflow_y != CSS::Overflow::Visible) {
-                auto rect = block_paintable_box.absolute_padding_box_rect();
-                clip_frame.add_clip_rect(rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
-            }
-            if (auto css_clip_property_rect = block->paintable_box()->get_clip_rect(); css_clip_property_rect.has_value()) {
-                clip_frame.add_clip_rect(css_clip_property_rect.value(), {}, block_paintable_box.enclosing_scroll_frame());
-            }
-            if (block->has_css_transform()) {
-                break;
-            }
-        }
     }
 }
 

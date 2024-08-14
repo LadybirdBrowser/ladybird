@@ -2014,7 +2014,6 @@ void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
 
         if (auto document = active_document()) {
             document->set_needs_to_refresh_scroll_state(true);
-            document->set_needs_to_refresh_clip_state(true);
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
         }
     }
@@ -2121,7 +2120,6 @@ RefPtr<Painting::DisplayList> Navigable::record_display_list(PaintConfig config)
     auto& viewport_paintable = *document->paintable();
 
     viewport_paintable.refresh_scroll_state();
-    viewport_paintable.refresh_clip_state();
 
     viewport_paintable.paint_all_phases(context);
 
