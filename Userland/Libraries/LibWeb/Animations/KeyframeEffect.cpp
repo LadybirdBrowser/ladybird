@@ -561,7 +561,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
         if (!easing_value)
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid animation easing value: \"{}\"", easing_string)) };
 
-        keyframe.easing.set(NonnullRefPtr<CSS::StyleValue const> { *easing_value });
+        keyframe.easing.set(NonnullRefPtr<CSS::CSSStyleValue const> { *easing_value });
     }
 
     // 9. Parse each of the values in unused easings using the CSS syntax defined for easing member of the EffectTiming
@@ -843,7 +843,7 @@ WebIDL::ExceptionOr<JS::MarkedVector<JS::Object*>> KeyframeEffect::get_keyframes
             auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
             TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), ShouldThrowExceptions::Yes));
             TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), ShouldThrowExceptions::Yes));
-            auto easing_value = keyframe.easing.get<NonnullRefPtr<CSS::StyleValue const>>();
+            auto easing_value = keyframe.easing.get<NonnullRefPtr<CSS::CSSStyleValue const>>();
             TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value->to_string()), ShouldThrowExceptions::Yes));
 
             if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
@@ -894,9 +894,9 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(Optional<JS::Handle<JS::
         for (auto [property_id, property_value] : keyframe.parsed_properties()) {
             if (property_value->is_unresolved() && target)
                 property_value = CSS::Parser::Parser::resolve_unresolved_style_value(CSS::Parser::ParsingContext { target->document() }, *target, pseudo_element_type(), property_id, property_value->as_unresolved());
-            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, CSS::StyleComputer::AllowUnresolved::Yes, [&](CSS::PropertyID shorthand_id, CSS::StyleValue const& shorthand_value) {
+            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, CSS::StyleComputer::AllowUnresolved::Yes, [&](CSS::PropertyID shorthand_id, CSS::CSSStyleValue const& shorthand_value) {
                 m_target_properties.set(shorthand_id);
-                resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSS::StyleValue const> { shorthand_value });
+                resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSS::CSSStyleValue const> { shorthand_value });
             });
         }
 
@@ -927,7 +927,7 @@ void KeyframeEffect::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_keyframe_objects);
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& old_properties, HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& new_properties)
+static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(HashMap<CSS::PropertyID, NonnullRefPtr<CSS::CSSStyleValue const>> const& old_properties, HashMap<CSS::PropertyID, NonnullRefPtr<CSS::CSSStyleValue const>> const& new_properties)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
     auto old_and_new_properties = MUST(Bitmap::create(to_underlying(CSS::last_property_id) + 1, 0));

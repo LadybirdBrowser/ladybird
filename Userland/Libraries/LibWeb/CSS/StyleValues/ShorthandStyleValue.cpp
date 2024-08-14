@@ -15,7 +15,7 @@
 
 namespace Web::CSS {
 
-ShorthandStyleValue::ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>> values)
+ShorthandStyleValue::ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> values)
     : StyleValueWithDefaultOperators(Type::Shorthand)
     , m_properties { shorthand, move(sub_properties), move(values) }
 {
@@ -27,7 +27,7 @@ ShorthandStyleValue::ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID
 
 ShorthandStyleValue::~ShorthandStyleValue() = default;
 
-ValueComparingRefPtr<StyleValue const> ShorthandStyleValue::longhand(PropertyID longhand) const
+ValueComparingRefPtr<CSSStyleValue const> ShorthandStyleValue::longhand(PropertyID longhand) const
 {
     for (auto i = 0u; i < m_properties.sub_properties.size(); ++i) {
         if (m_properties.sub_properties[i] == longhand)
@@ -60,7 +60,7 @@ String ShorthandStyleValue::to_string() const
             return MUST(String::formatted("{} {} {} {} {} {} {} {}", color->to_string(), image->to_string(), position->to_string(), size->to_string(), repeat->to_string(), attachment->to_string(), origin->to_string(), clip->to_string()));
         }
 
-        auto get_layer_value_string = [](ValueComparingRefPtr<StyleValue const> const& style_value, size_t index) {
+        auto get_layer_value_string = [](ValueComparingRefPtr<CSSStyleValue const> const& style_value, size_t index) {
             if (style_value->is_value_list())
                 return style_value->as_value_list().value_at(index, true)->to_string();
             return style_value->to_string();

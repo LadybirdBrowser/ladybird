@@ -200,7 +200,7 @@ void ElementInlineCSSStyleDeclaration::update_style_attribute()
 }
 
 // https://drafts.csswg.org/cssom/#set-a-css-declaration
-bool PropertyOwningCSSStyleDeclaration::set_a_css_declaration(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important)
+bool PropertyOwningCSSStyleDeclaration::set_a_css_declaration(PropertyID property_id, NonnullRefPtr<CSSStyleValue const> value, Important important)
 {
     // FIXME: Handle logical property groups.
 

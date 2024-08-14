@@ -8,8 +8,8 @@
 
 #include <AK/Variant.h>
 #include <LibGfx/Path.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/PercentageOr.h>
-#include <LibWeb/CSS/StyleValue.h>
 
 namespace Web::CSS {
 

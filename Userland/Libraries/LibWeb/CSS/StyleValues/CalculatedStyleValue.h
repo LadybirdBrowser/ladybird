@@ -12,19 +12,19 @@
 #include <AK/Function.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/CSSNumericType.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
-#include <LibWeb/CSS/StyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
 
 class CalculationNode;
 
-class CalculatedStyleValue : public StyleValue {
+class CalculatedStyleValue : public CSSStyleValue {
 public:
     enum class ResolvedType {
         Angle,
@@ -78,7 +78,7 @@ public:
     }
 
     String to_string() const override;
-    virtual bool equals(StyleValue const& other) const override;
+    virtual bool equals(CSSStyleValue const& other) const override;
 
     bool resolves_to_angle() const { return m_resolved_type.matches_angle(); }
     bool resolves_to_angle_percentage() const { return m_resolved_type.matches_angle_percentage(); }
@@ -121,7 +121,7 @@ public:
 
 private:
     explicit CalculatedStyleValue(NonnullOwnPtr<CalculationNode> calculation, CSSNumericType resolved_type)
-        : StyleValue(Type::Calculated)
+        : CSSStyleValue(Type::Calculated)
         , m_resolved_type(resolved_type)
         , m_calculation(move(calculation))
     {

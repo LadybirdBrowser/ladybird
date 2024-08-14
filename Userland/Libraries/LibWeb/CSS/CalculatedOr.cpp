@@ -22,7 +22,7 @@ Angle AngleOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> 
     return calculated->resolve_angle().value();
 }
 
-NonnullRefPtr<StyleValue> AngleOrCalculated::create_style_value() const
+NonnullRefPtr<CSSStyleValue> AngleOrCalculated::create_style_value() const
 {
     return AngleStyleValue::create(value());
 }
@@ -32,7 +32,7 @@ Flex FlexOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> co
     return calculated->resolve_flex().value();
 }
 
-NonnullRefPtr<StyleValue> FlexOrCalculated::create_style_value() const
+NonnullRefPtr<CSSStyleValue> FlexOrCalculated::create_style_value() const
 {
     return FlexStyleValue::create(value());
 }
@@ -42,7 +42,7 @@ Frequency FrequencyOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyl
     return calculated->resolve_frequency().value();
 }
 
-NonnullRefPtr<StyleValue> FrequencyOrCalculated::create_style_value() const
+NonnullRefPtr<CSSStyleValue> FrequencyOrCalculated::create_style_value() const
 {
     return FrequencyStyleValue::create(value());
 }
@@ -52,7 +52,7 @@ i64 IntegerOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> 
     return calculated->resolve_integer().value();
 }
 
-NonnullRefPtr<StyleValue> IntegerOrCalculated::create_style_value() const
+NonnullRefPtr<CSSStyleValue> IntegerOrCalculated::create_style_value() const
 {
     return IntegerStyleValue::create(value());
 }
@@ -69,7 +69,7 @@ Length LengthOrCalculated::resolved(Length::ResolutionContext const& context) co
     return value();
 }
 
-NonnullRefPtr<StyleValue> LengthOrCalculated::create_style_value() const
+NonnullRefPtr<CSSStyleValue> LengthOrCalculated::create_style_value() const
 {
     return LengthStyleValue::create(value());
 }
@@ -79,7 +79,7 @@ double NumberOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue
     return calculated->resolve_number().value();
 }
 
-NonnullRefPtr<StyleValue> NumberOrCalculated::create_style_value() const
+NonnullRefPtr<CSSStyleValue> NumberOrCalculated::create_style_value() const
 {
     return NumberStyleValue::create(value());
 }
@@ -89,7 +89,7 @@ Percentage PercentageOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedSt
     return calculated->resolve_percentage().value();
 }
 
-NonnullRefPtr<StyleValue> PercentageOrCalculated::create_style_value() const
+NonnullRefPtr<CSSStyleValue> PercentageOrCalculated::create_style_value() const
 {
     return PercentageStyleValue::create(value());
 }
@@ -99,7 +99,7 @@ Resolution ResolutionOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedSt
     return calculated->resolve_resolution().value();
 }
 
-NonnullRefPtr<StyleValue> ResolutionOrCalculated::create_style_value() const
+NonnullRefPtr<CSSStyleValue> ResolutionOrCalculated::create_style_value() const
 {
     return ResolutionStyleValue::create(value());
 }
@@ -109,7 +109,7 @@ Time TimeOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> co
     return calculated->resolve_time().value();
 }
 
-NonnullRefPtr<StyleValue> TimeOrCalculated::create_style_value() const
+NonnullRefPtr<CSSStyleValue> TimeOrCalculated::create_style_value() const
 {
     return TimeStyleValue::create(value());
 }

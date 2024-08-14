@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/Resolution.h>
-#include <LibWeb/CSS/StyleValue.h>
 
 namespace Web::CSS {
 

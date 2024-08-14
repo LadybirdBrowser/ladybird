@@ -20,7 +20,7 @@ String UnresolvedStyleValue::to_string() const
     return MUST(builder.to_string());
 }
 
-bool UnresolvedStyleValue::equals(StyleValue const& other) const
+bool UnresolvedStyleValue::equals(CSSStyleValue const& other) const
 {
     if (type() != other.type())
         return false;

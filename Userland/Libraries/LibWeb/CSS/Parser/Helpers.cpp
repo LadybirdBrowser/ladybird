@@ -32,7 +32,7 @@ CSS::ElementInlineCSSStyleDeclaration* parse_css_style_attribute(CSS::Parser::Pa
     return CSS::Parser::Parser::create(context, css).parse_as_style_attribute(element);
 }
 
-RefPtr<CSS::StyleValue> parse_css_value(CSS::Parser::ParsingContext const& context, StringView string, CSS::PropertyID property_id)
+RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingContext const& context, StringView string, CSS::PropertyID property_id)
 {
     if (string.is_empty())
         return nullptr;

@@ -81,7 +81,7 @@ void StyleProperties::set_property_inherited(CSS::PropertyID property_id, Inheri
         m_property_inherited[n / 8] &= ~(1 << (n % 8));
 }
 
-void StyleProperties::set_property(CSS::PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
+void StyleProperties::set_property(CSS::PropertyID id, NonnullRefPtr<CSSStyleValue const> value, Inherited inherited, Important important)
 {
     m_property_values[to_underlying(id)] = move(value);
     set_property_important(id, important);
@@ -95,7 +95,7 @@ void StyleProperties::revert_property(CSS::PropertyID id, StyleProperties const&
     set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
 }
 
-void StyleProperties::set_animated_property(CSS::PropertyID id, NonnullRefPtr<StyleValue const> value)
+void StyleProperties::set_animated_property(CSS::PropertyID id, NonnullRefPtr<CSSStyleValue const> value)
 {
     m_animated_property_values.set(id, move(value));
 }
@@ -105,7 +105,7 @@ void StyleProperties::reset_animated_properties()
     m_animated_property_values.clear();
 }
 
-NonnullRefPtr<StyleValue const> StyleProperties::property(CSS::PropertyID property_id) const
+NonnullRefPtr<CSSStyleValue const> StyleProperties::property(CSS::PropertyID property_id) const
 {
     if (auto animated_value = m_animated_property_values.get(property_id).value_or(nullptr))
         return *animated_value;
@@ -114,7 +114,7 @@ NonnullRefPtr<StyleValue const> StyleProperties::property(CSS::PropertyID proper
     return *m_property_values[to_underlying(property_id)];
 }
 
-RefPtr<StyleValue const> StyleProperties::maybe_null_property(CSS::PropertyID property_id) const
+RefPtr<CSSStyleValue const> StyleProperties::maybe_null_property(CSS::PropertyID property_id) const
 {
     if (auto animated_value = m_animated_property_values.get(property_id).value_or(nullptr))
         return *animated_value;
@@ -275,7 +275,7 @@ Optional<int> StyleProperties::z_index() const
     return {};
 }
 
-float StyleProperties::resolve_opacity_value(CSS::StyleValue const& value)
+float StyleProperties::resolve_opacity_value(CSSStyleValue const& value)
 {
     float unclamped_opacity = 1.0f;
 
@@ -441,7 +441,7 @@ Optional<CSS::JustifySelf> StyleProperties::justify_self() const
     return value_id_to_justify_self(value->to_identifier());
 }
 
-Vector<CSS::Transformation> StyleProperties::transformations_for_style_value(StyleValue const& value)
+Vector<CSS::Transformation> StyleProperties::transformations_for_style_value(CSSStyleValue const& value)
 {
     if (value.is_identifier() && value.to_identifier() == CSS::ValueID::None)
         return {};
@@ -507,7 +507,7 @@ Vector<CSS::Transformation> StyleProperties::transformations() const
     return transformations_for_style_value(property(CSS::PropertyID::Transform));
 }
 
-static Optional<LengthPercentage> length_percentage_for_style_value(StyleValue const& value)
+static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValue const& value)
 {
     if (value.is_length())
         return value.as_length().length();
@@ -887,7 +887,7 @@ Vector<ShadowData> StyleProperties::shadow(PropertyID property_id, Layout::Node 
 {
     auto value = property(property_id);
 
-    auto resolve_to_length = [&layout_node](NonnullRefPtr<StyleValue const> const& value) -> Optional<Length> {
+    auto resolve_to_length = [&layout_node](NonnullRefPtr<CSSStyleValue const> const& value) -> Optional<Length> {
         if (value->is_length())
             return value->as_length().length();
         if (value->is_calculated())

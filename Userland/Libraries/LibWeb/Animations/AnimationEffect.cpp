@@ -154,7 +154,7 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
 
     // 4. If the easing member of input exists but cannot be parsed using the <easing-function> production
     //    [CSS-EASING-1], throw a TypeError and abort this procedure.
-    RefPtr<CSS::StyleValue const> easing_value;
+    RefPtr<CSS::CSSStyleValue const> easing_value;
     if (timing.easing.has_value()) {
         easing_value = parse_easing_string(realm(), timing.easing.value());
         if (!easing_value)
@@ -592,7 +592,7 @@ Optional<double> AnimationEffect::transformed_progress() const
     return m_timing_function.evaluate_at(directed_progress.value(), before_flag);
 }
 
-RefPtr<CSS::StyleValue const> AnimationEffect::parse_easing_string(JS::Realm& realm, StringView value)
+RefPtr<CSS::CSSStyleValue const> AnimationEffect::parse_easing_string(JS::Realm& realm, StringView value)
 {
     auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), value);
 

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/CSS/StyleValue.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 
 namespace Web::CSS {
 

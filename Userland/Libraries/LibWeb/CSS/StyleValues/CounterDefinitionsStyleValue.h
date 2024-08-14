@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/CSS/StyleValue.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 
 namespace Web::CSS {
 
 struct CounterDefinition {
     FlyString name;
     bool is_reversed;
-    ValueComparingRefPtr<StyleValue const> value;
+    ValueComparingRefPtr<CSSStyleValue const> value;
 };
 
 /**

@@ -21,7 +21,7 @@ struct StyleProperty {
 
     Important important { Important::No };
     CSS::PropertyID property_id;
-    NonnullRefPtr<StyleValue const> value;
+    NonnullRefPtr<CSSStyleValue const> value;
     FlyString custom_name {};
 };
 

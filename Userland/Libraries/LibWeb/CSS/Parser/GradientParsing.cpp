@@ -31,7 +31,7 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
         if (!tokens.has_next_token())
             return ElementType::Garbage;
 
-        RefPtr<StyleValue> color;
+        RefPtr<CSSStyleValue> color;
         Optional<typename TElement::PositionType> position;
         Optional<typename TElement::PositionType> second_position;
         if (auto dimension = parse_dimension(tokens.peek_token()); dimension.has_value() && is_position(*dimension)) {
@@ -135,7 +135,7 @@ Optional<Vector<AngularColorStopListElement>> Parser::parse_angular_color_stop_l
         [](Dimension& dimension) { return dimension.angle_percentage(); });
 }
 
-RefPtr<StyleValue> Parser::parse_linear_gradient_function(TokenStream<ComponentValue>& outer_tokens)
+RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using GradientType = LinearGradientStyleValue::GradientType;
 
@@ -267,7 +267,7 @@ RefPtr<StyleValue> Parser::parse_linear_gradient_function(TokenStream<ComponentV
     return LinearGradientStyleValue::create(gradient_direction, move(*color_stops), gradient_type, repeating_gradient);
 }
 
-RefPtr<StyleValue> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
+RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     auto transaction = outer_tokens.begin_transaction();
     auto& component_value = outer_tokens.next_token();
@@ -371,7 +371,7 @@ RefPtr<StyleValue> Parser::parse_conic_gradient_function(TokenStream<ComponentVa
     return ConicGradientStyleValue::create(from_angle, at_position.release_nonnull(), move(*color_stops), repeating_gradient);
 }
 
-RefPtr<StyleValue> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)
+RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using EndingShape = RadialGradientStyleValue::EndingShape;
     using Extent = RadialGradientStyleValue::Extent;

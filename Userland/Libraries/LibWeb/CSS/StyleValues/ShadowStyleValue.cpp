@@ -22,7 +22,7 @@ String ShadowStyleValue::to_string() const
     return MUST(builder.to_string());
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+ValueComparingNonnullRefPtr<CSSStyleValue const> ShadowStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
     auto absolutized_offset_x = m_properties.offset_x->absolutized(viewport_rect, font_metrics, root_font_metrics);
     auto absolutized_offset_y = m_properties.offset_y->absolutized(viewport_rect, font_metrics, root_font_metrics);

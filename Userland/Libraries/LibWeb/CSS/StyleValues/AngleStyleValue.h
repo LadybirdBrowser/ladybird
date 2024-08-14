@@ -10,7 +10,7 @@
 #pragma once
 
 #include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/StyleValue.h>
+#include <LibWeb/CSS/CSSStyleValue.h>
 
 namespace Web::CSS {
 

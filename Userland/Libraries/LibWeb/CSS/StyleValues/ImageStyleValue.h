@@ -31,12 +31,12 @@ public:
     void visit_edges(JS::Cell::Visitor& visitor) const
     {
         // FIXME: visit_edges in non-GC allocated classes is confusing pattern.
-        //        Consider making StyleValue to be GC allocated instead.
+        //        Consider making CSSStyleValue to be GC allocated instead.
         visitor.visit(m_resource_request);
     }
 
     virtual String to_string() const override;
-    virtual bool equals(StyleValue const& other) const override;
+    virtual bool equals(CSSStyleValue const& other) const override;
 
     virtual void load_any_resources(DOM::Document&) override;
 
