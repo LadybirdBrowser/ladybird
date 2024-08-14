@@ -212,9 +212,9 @@ class UnresolvedStyleValue;
 class UnsetStyleValue;
 class VisualViewport;
 
+enum class Keyword;
 enum class MediaFeatureID;
 enum class PropertyID;
-enum class ValueID;
 
 struct BackgroundLayerData;
 }

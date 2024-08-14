@@ -583,7 +583,7 @@ Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, 
         outline_color = layout_node.document().normal_link_color();
         outline_width = 2;
     } else {
-        line_style = CSS::value_id_to_line_style(CSS::to_value_id(outline_style)).value_or(CSS::LineStyle::None);
+        line_style = CSS::keyword_to_line_style(CSS::to_keyword(outline_style)).value_or(CSS::LineStyle::None);
     }
 
     if (outline_color.alpha() == 0 || line_style == CSS::LineStyle::None || outline_width == 0)

@@ -18,110 +18,110 @@ namespace Web::CSS {
 
 String CSSKeywordValue::to_string() const
 {
-    return MUST(String::from_utf8(CSS::string_from_value_id(m_id)));
+    return MUST(String::from_utf8(string_from_keyword(keyword())));
 }
 
-bool CSSKeywordValue::is_color(ValueID value_id)
+bool CSSKeywordValue::is_color(Keyword keyword)
 {
-    switch (value_id) {
-    case ValueID::Accentcolor:
-    case ValueID::Accentcolortext:
-    case ValueID::Activeborder:
-    case ValueID::Activecaption:
-    case ValueID::Activetext:
-    case ValueID::Appworkspace:
-    case ValueID::Background:
-    case ValueID::Buttonborder:
-    case ValueID::Buttonface:
-    case ValueID::Buttonhighlight:
-    case ValueID::Buttonshadow:
-    case ValueID::Buttontext:
-    case ValueID::Canvas:
-    case ValueID::Canvastext:
-    case ValueID::Captiontext:
-    case ValueID::Currentcolor:
-    case ValueID::Field:
-    case ValueID::Fieldtext:
-    case ValueID::Graytext:
-    case ValueID::Highlight:
-    case ValueID::Highlighttext:
-    case ValueID::Inactiveborder:
-    case ValueID::Inactivecaption:
-    case ValueID::Inactivecaptiontext:
-    case ValueID::Infobackground:
-    case ValueID::Infotext:
-    case ValueID::LibwebLink:
-    case ValueID::LibwebPaletteActiveLink:
-    case ValueID::LibwebPaletteActiveWindowBorder1:
-    case ValueID::LibwebPaletteActiveWindowBorder2:
-    case ValueID::LibwebPaletteActiveWindowTitle:
-    case ValueID::LibwebPaletteBase:
-    case ValueID::LibwebPaletteBaseText:
-    case ValueID::LibwebPaletteButton:
-    case ValueID::LibwebPaletteButtonText:
-    case ValueID::LibwebPaletteDesktopBackground:
-    case ValueID::LibwebPaletteFocusOutline:
-    case ValueID::LibwebPaletteHighlightWindowBorder1:
-    case ValueID::LibwebPaletteHighlightWindowBorder2:
-    case ValueID::LibwebPaletteHighlightWindowTitle:
-    case ValueID::LibwebPaletteHoverHighlight:
-    case ValueID::LibwebPaletteInactiveSelection:
-    case ValueID::LibwebPaletteInactiveSelectionText:
-    case ValueID::LibwebPaletteInactiveWindowBorder1:
-    case ValueID::LibwebPaletteInactiveWindowBorder2:
-    case ValueID::LibwebPaletteInactiveWindowTitle:
-    case ValueID::LibwebPaletteLink:
-    case ValueID::LibwebPaletteMenuBase:
-    case ValueID::LibwebPaletteMenuBaseText:
-    case ValueID::LibwebPaletteMenuSelection:
-    case ValueID::LibwebPaletteMenuSelectionText:
-    case ValueID::LibwebPaletteMenuStripe:
-    case ValueID::LibwebPaletteMovingWindowBorder1:
-    case ValueID::LibwebPaletteMovingWindowBorder2:
-    case ValueID::LibwebPaletteMovingWindowTitle:
-    case ValueID::LibwebPaletteRubberBandBorder:
-    case ValueID::LibwebPaletteRubberBandFill:
-    case ValueID::LibwebPaletteRuler:
-    case ValueID::LibwebPaletteRulerActiveText:
-    case ValueID::LibwebPaletteRulerBorder:
-    case ValueID::LibwebPaletteRulerInactiveText:
-    case ValueID::LibwebPaletteSelection:
-    case ValueID::LibwebPaletteSelectionText:
-    case ValueID::LibwebPaletteSyntaxComment:
-    case ValueID::LibwebPaletteSyntaxControlKeyword:
-    case ValueID::LibwebPaletteSyntaxIdentifier:
-    case ValueID::LibwebPaletteSyntaxKeyword:
-    case ValueID::LibwebPaletteSyntaxNumber:
-    case ValueID::LibwebPaletteSyntaxOperator:
-    case ValueID::LibwebPaletteSyntaxPreprocessorStatement:
-    case ValueID::LibwebPaletteSyntaxPreprocessorValue:
-    case ValueID::LibwebPaletteSyntaxPunctuation:
-    case ValueID::LibwebPaletteSyntaxString:
-    case ValueID::LibwebPaletteSyntaxType:
-    case ValueID::LibwebPaletteTextCursor:
-    case ValueID::LibwebPaletteThreedHighlight:
-    case ValueID::LibwebPaletteThreedShadow1:
-    case ValueID::LibwebPaletteThreedShadow2:
-    case ValueID::LibwebPaletteVisitedLink:
-    case ValueID::LibwebPaletteWindow:
-    case ValueID::LibwebPaletteWindowText:
-    case ValueID::Linktext:
-    case ValueID::Mark:
-    case ValueID::Marktext:
-    case ValueID::Menu:
-    case ValueID::Menutext:
-    case ValueID::Scrollbar:
-    case ValueID::Selecteditem:
-    case ValueID::Selecteditemtext:
-    case ValueID::Threeddarkshadow:
-    case ValueID::Threedface:
-    case ValueID::Threedhighlight:
-    case ValueID::Threedlightshadow:
-    case ValueID::Threedshadow:
-    case ValueID::Visitedtext:
-    case ValueID::Window:
-    case ValueID::Windowframe:
-    case ValueID::Windowtext:
+    switch (keyword) {
+    case Keyword::Accentcolor:
+    case Keyword::Accentcolortext:
+    case Keyword::Activeborder:
+    case Keyword::Activecaption:
+    case Keyword::Activetext:
+    case Keyword::Appworkspace:
+    case Keyword::Background:
+    case Keyword::Buttonborder:
+    case Keyword::Buttonface:
+    case Keyword::Buttonhighlight:
+    case Keyword::Buttonshadow:
+    case Keyword::Buttontext:
+    case Keyword::Canvas:
+    case Keyword::Canvastext:
+    case Keyword::Captiontext:
+    case Keyword::Currentcolor:
+    case Keyword::Field:
+    case Keyword::Fieldtext:
+    case Keyword::Graytext:
+    case Keyword::Highlight:
+    case Keyword::Highlighttext:
+    case Keyword::Inactiveborder:
+    case Keyword::Inactivecaption:
+    case Keyword::Inactivecaptiontext:
+    case Keyword::Infobackground:
+    case Keyword::Infotext:
+    case Keyword::LibwebLink:
+    case Keyword::LibwebPaletteActiveLink:
+    case Keyword::LibwebPaletteActiveWindowBorder1:
+    case Keyword::LibwebPaletteActiveWindowBorder2:
+    case Keyword::LibwebPaletteActiveWindowTitle:
+    case Keyword::LibwebPaletteBase:
+    case Keyword::LibwebPaletteBaseText:
+    case Keyword::LibwebPaletteButton:
+    case Keyword::LibwebPaletteButtonText:
+    case Keyword::LibwebPaletteDesktopBackground:
+    case Keyword::LibwebPaletteFocusOutline:
+    case Keyword::LibwebPaletteHighlightWindowBorder1:
+    case Keyword::LibwebPaletteHighlightWindowBorder2:
+    case Keyword::LibwebPaletteHighlightWindowTitle:
+    case Keyword::LibwebPaletteHoverHighlight:
+    case Keyword::LibwebPaletteInactiveSelection:
+    case Keyword::LibwebPaletteInactiveSelectionText:
+    case Keyword::LibwebPaletteInactiveWindowBorder1:
+    case Keyword::LibwebPaletteInactiveWindowBorder2:
+    case Keyword::LibwebPaletteInactiveWindowTitle:
+    case Keyword::LibwebPaletteLink:
+    case Keyword::LibwebPaletteMenuBase:
+    case Keyword::LibwebPaletteMenuBaseText:
+    case Keyword::LibwebPaletteMenuSelection:
+    case Keyword::LibwebPaletteMenuSelectionText:
+    case Keyword::LibwebPaletteMenuStripe:
+    case Keyword::LibwebPaletteMovingWindowBorder1:
+    case Keyword::LibwebPaletteMovingWindowBorder2:
+    case Keyword::LibwebPaletteMovingWindowTitle:
+    case Keyword::LibwebPaletteRubberBandBorder:
+    case Keyword::LibwebPaletteRubberBandFill:
+    case Keyword::LibwebPaletteRuler:
+    case Keyword::LibwebPaletteRulerActiveText:
+    case Keyword::LibwebPaletteRulerBorder:
+    case Keyword::LibwebPaletteRulerInactiveText:
+    case Keyword::LibwebPaletteSelection:
+    case Keyword::LibwebPaletteSelectionText:
+    case Keyword::LibwebPaletteSyntaxComment:
+    case Keyword::LibwebPaletteSyntaxControlKeyword:
+    case Keyword::LibwebPaletteSyntaxIdentifier:
+    case Keyword::LibwebPaletteSyntaxKeyword:
+    case Keyword::LibwebPaletteSyntaxNumber:
+    case Keyword::LibwebPaletteSyntaxOperator:
+    case Keyword::LibwebPaletteSyntaxPreprocessorStatement:
+    case Keyword::LibwebPaletteSyntaxPreprocessorValue:
+    case Keyword::LibwebPaletteSyntaxPunctuation:
+    case Keyword::LibwebPaletteSyntaxString:
+    case Keyword::LibwebPaletteSyntaxType:
+    case Keyword::LibwebPaletteTextCursor:
+    case Keyword::LibwebPaletteThreedHighlight:
+    case Keyword::LibwebPaletteThreedShadow1:
+    case Keyword::LibwebPaletteThreedShadow2:
+    case Keyword::LibwebPaletteVisitedLink:
+    case Keyword::LibwebPaletteWindow:
+    case Keyword::LibwebPaletteWindowText:
+    case Keyword::Linktext:
+    case Keyword::Mark:
+    case Keyword::Marktext:
+    case Keyword::Menu:
+    case Keyword::Menutext:
+    case Keyword::Scrollbar:
+    case Keyword::Selecteditem:
+    case Keyword::Selecteditemtext:
+    case Keyword::Threeddarkshadow:
+    case Keyword::Threedface:
+    case Keyword::Threedhighlight:
+    case Keyword::Threedlightshadow:
+    case Keyword::Threedshadow:
+    case Keyword::Visitedtext:
+    case Keyword::Window:
+    case Keyword::Windowframe:
+    case Keyword::Windowtext:
         return true;
     default:
         return false;
@@ -130,12 +130,12 @@ bool CSSKeywordValue::is_color(ValueID value_id)
 
 bool CSSKeywordValue::has_color() const
 {
-    return is_color(m_id);
+    return is_color(keyword());
 }
 
 Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) const
 {
-    if (id() == CSS::ValueID::Currentcolor) {
+    if (keyword() == Keyword::Currentcolor) {
         if (!node.has_value() || !node->has_style())
             return Color::Black;
         return node->computed_values().color();
@@ -144,65 +144,65 @@ Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) con
     // First, handle <system-color>s, since they don't require a node.
     // https://www.w3.org/TR/css-color-4/#css-system-colors
     // https://www.w3.org/TR/css-color-4/#deprecated-system-colors
-    switch (id()) {
-    case ValueID::Accentcolor:
+    switch (keyword()) {
+    case Keyword::Accentcolor:
         return SystemColor::accent_color();
-    case ValueID::Accentcolortext:
+    case Keyword::Accentcolortext:
         return SystemColor::accent_color_text();
-    case ValueID::Activetext:
+    case Keyword::Activetext:
         return SystemColor::active_text();
-    case ValueID::Buttonborder:
-    case ValueID::Activeborder:
-    case ValueID::Inactiveborder:
-    case ValueID::Threeddarkshadow:
-    case ValueID::Threedhighlight:
-    case ValueID::Threedlightshadow:
-    case ValueID::Threedshadow:
-    case ValueID::Windowframe:
+    case Keyword::Buttonborder:
+    case Keyword::Activeborder:
+    case Keyword::Inactiveborder:
+    case Keyword::Threeddarkshadow:
+    case Keyword::Threedhighlight:
+    case Keyword::Threedlightshadow:
+    case Keyword::Threedshadow:
+    case Keyword::Windowframe:
         return SystemColor::button_border();
-    case ValueID::Buttonface:
-    case ValueID::Buttonhighlight:
-    case ValueID::Buttonshadow:
-    case ValueID::Threedface:
+    case Keyword::Buttonface:
+    case Keyword::Buttonhighlight:
+    case Keyword::Buttonshadow:
+    case Keyword::Threedface:
         return SystemColor::button_face();
-    case ValueID::Buttontext:
+    case Keyword::Buttontext:
         return SystemColor::button_text();
-    case ValueID::Canvas:
-    case ValueID::Appworkspace:
-    case ValueID::Background:
-    case ValueID::Inactivecaption:
-    case ValueID::Infobackground:
-    case ValueID::Menu:
-    case ValueID::Scrollbar:
-    case ValueID::Window:
+    case Keyword::Canvas:
+    case Keyword::Appworkspace:
+    case Keyword::Background:
+    case Keyword::Inactivecaption:
+    case Keyword::Infobackground:
+    case Keyword::Menu:
+    case Keyword::Scrollbar:
+    case Keyword::Window:
         return SystemColor::canvas();
-    case ValueID::Canvastext:
-    case ValueID::Activecaption:
-    case ValueID::Captiontext:
-    case ValueID::Infotext:
-    case ValueID::Menutext:
-    case ValueID::Windowtext:
+    case Keyword::Canvastext:
+    case Keyword::Activecaption:
+    case Keyword::Captiontext:
+    case Keyword::Infotext:
+    case Keyword::Menutext:
+    case Keyword::Windowtext:
         return SystemColor::canvas_text();
-    case ValueID::Field:
+    case Keyword::Field:
         return SystemColor::field();
-    case ValueID::Fieldtext:
+    case Keyword::Fieldtext:
         return SystemColor::field_text();
-    case ValueID::Graytext:
-    case ValueID::Inactivecaptiontext:
+    case Keyword::Graytext:
+    case Keyword::Inactivecaptiontext:
         return SystemColor::gray_text();
-    case ValueID::Highlight:
+    case Keyword::Highlight:
         return SystemColor::highlight();
-    case ValueID::Highlighttext:
+    case Keyword::Highlighttext:
         return SystemColor::highlight_text();
-    case ValueID::Mark:
+    case Keyword::Mark:
         return SystemColor::mark();
-    case ValueID::Marktext:
+    case Keyword::Marktext:
         return SystemColor::mark_text();
-    case ValueID::Selecteditem:
+    case Keyword::Selecteditem:
         return SystemColor::selected_item();
-    case ValueID::Selecteditemtext:
+    case Keyword::Selecteditemtext:
         return SystemColor::selected_item_text();
-    case ValueID::Visitedtext:
+    case Keyword::Visitedtext:
         return SystemColor::visited_text();
     default:
         break;
@@ -214,118 +214,118 @@ Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) con
     }
 
     auto& document = node->document();
-    if (id() == CSS::ValueID::LibwebLink || id() == ValueID::Linktext)
+    if (keyword() == Keyword::LibwebLink || keyword() == Keyword::Linktext)
         return document.normal_link_color();
 
     auto palette = document.page().palette();
-    switch (id()) {
-    case CSS::ValueID::LibwebPaletteDesktopBackground:
+    switch (keyword()) {
+    case Keyword::LibwebPaletteDesktopBackground:
         return palette.color(ColorRole::DesktopBackground);
-    case CSS::ValueID::LibwebPaletteActiveWindowBorder1:
+    case Keyword::LibwebPaletteActiveWindowBorder1:
         return palette.color(ColorRole::ActiveWindowBorder1);
-    case CSS::ValueID::LibwebPaletteActiveWindowBorder2:
+    case Keyword::LibwebPaletteActiveWindowBorder2:
         return palette.color(ColorRole::ActiveWindowBorder2);
-    case CSS::ValueID::LibwebPaletteActiveWindowTitle:
+    case Keyword::LibwebPaletteActiveWindowTitle:
         return palette.color(ColorRole::ActiveWindowTitle);
-    case CSS::ValueID::LibwebPaletteInactiveWindowBorder1:
+    case Keyword::LibwebPaletteInactiveWindowBorder1:
         return palette.color(ColorRole::InactiveWindowBorder1);
-    case CSS::ValueID::LibwebPaletteInactiveWindowBorder2:
+    case Keyword::LibwebPaletteInactiveWindowBorder2:
         return palette.color(ColorRole::InactiveWindowBorder2);
-    case CSS::ValueID::LibwebPaletteInactiveWindowTitle:
+    case Keyword::LibwebPaletteInactiveWindowTitle:
         return palette.color(ColorRole::InactiveWindowTitle);
-    case CSS::ValueID::LibwebPaletteMovingWindowBorder1:
+    case Keyword::LibwebPaletteMovingWindowBorder1:
         return palette.color(ColorRole::MovingWindowBorder1);
-    case CSS::ValueID::LibwebPaletteMovingWindowBorder2:
+    case Keyword::LibwebPaletteMovingWindowBorder2:
         return palette.color(ColorRole::MovingWindowBorder2);
-    case CSS::ValueID::LibwebPaletteMovingWindowTitle:
+    case Keyword::LibwebPaletteMovingWindowTitle:
         return palette.color(ColorRole::MovingWindowTitle);
-    case CSS::ValueID::LibwebPaletteHighlightWindowBorder1:
+    case Keyword::LibwebPaletteHighlightWindowBorder1:
         return palette.color(ColorRole::HighlightWindowBorder1);
-    case CSS::ValueID::LibwebPaletteHighlightWindowBorder2:
+    case Keyword::LibwebPaletteHighlightWindowBorder2:
         return palette.color(ColorRole::HighlightWindowBorder2);
-    case CSS::ValueID::LibwebPaletteHighlightWindowTitle:
+    case Keyword::LibwebPaletteHighlightWindowTitle:
         return palette.color(ColorRole::HighlightWindowTitle);
-    case CSS::ValueID::LibwebPaletteMenuStripe:
+    case Keyword::LibwebPaletteMenuStripe:
         return palette.color(ColorRole::MenuStripe);
-    case CSS::ValueID::LibwebPaletteMenuBase:
+    case Keyword::LibwebPaletteMenuBase:
         return palette.color(ColorRole::MenuBase);
-    case CSS::ValueID::LibwebPaletteMenuBaseText:
+    case Keyword::LibwebPaletteMenuBaseText:
         return palette.color(ColorRole::MenuBaseText);
-    case CSS::ValueID::LibwebPaletteMenuSelection:
+    case Keyword::LibwebPaletteMenuSelection:
         return palette.color(ColorRole::MenuSelection);
-    case CSS::ValueID::LibwebPaletteMenuSelectionText:
+    case Keyword::LibwebPaletteMenuSelectionText:
         return palette.color(ColorRole::MenuSelectionText);
-    case CSS::ValueID::LibwebPaletteWindow:
+    case Keyword::LibwebPaletteWindow:
         return palette.color(ColorRole::Window);
-    case CSS::ValueID::LibwebPaletteWindowText:
+    case Keyword::LibwebPaletteWindowText:
         return palette.color(ColorRole::WindowText);
-    case CSS::ValueID::LibwebPaletteButton:
+    case Keyword::LibwebPaletteButton:
         return palette.color(ColorRole::Button);
-    case CSS::ValueID::LibwebPaletteButtonText:
+    case Keyword::LibwebPaletteButtonText:
         return palette.color(ColorRole::ButtonText);
-    case CSS::ValueID::LibwebPaletteBase:
+    case Keyword::LibwebPaletteBase:
         return palette.color(ColorRole::Base);
-    case CSS::ValueID::LibwebPaletteBaseText:
+    case Keyword::LibwebPaletteBaseText:
         return palette.color(ColorRole::BaseText);
-    case CSS::ValueID::LibwebPaletteThreedHighlight:
+    case Keyword::LibwebPaletteThreedHighlight:
         return palette.color(ColorRole::ThreedHighlight);
-    case CSS::ValueID::LibwebPaletteThreedShadow1:
+    case Keyword::LibwebPaletteThreedShadow1:
         return palette.color(ColorRole::ThreedShadow1);
-    case CSS::ValueID::LibwebPaletteThreedShadow2:
+    case Keyword::LibwebPaletteThreedShadow2:
         return palette.color(ColorRole::ThreedShadow2);
-    case CSS::ValueID::LibwebPaletteHoverHighlight:
+    case Keyword::LibwebPaletteHoverHighlight:
         return palette.color(ColorRole::HoverHighlight);
-    case CSS::ValueID::LibwebPaletteSelection:
+    case Keyword::LibwebPaletteSelection:
         return palette.color(ColorRole::Selection);
-    case CSS::ValueID::LibwebPaletteSelectionText:
+    case Keyword::LibwebPaletteSelectionText:
         return palette.color(ColorRole::SelectionText);
-    case CSS::ValueID::LibwebPaletteInactiveSelection:
+    case Keyword::LibwebPaletteInactiveSelection:
         return palette.color(ColorRole::InactiveSelection);
-    case CSS::ValueID::LibwebPaletteInactiveSelectionText:
+    case Keyword::LibwebPaletteInactiveSelectionText:
         return palette.color(ColorRole::InactiveSelectionText);
-    case CSS::ValueID::LibwebPaletteRubberBandFill:
+    case Keyword::LibwebPaletteRubberBandFill:
         return palette.color(ColorRole::RubberBandFill);
-    case CSS::ValueID::LibwebPaletteRubberBandBorder:
+    case Keyword::LibwebPaletteRubberBandBorder:
         return palette.color(ColorRole::RubberBandBorder);
-    case CSS::ValueID::LibwebPaletteLink:
+    case Keyword::LibwebPaletteLink:
         return palette.color(ColorRole::Link);
-    case CSS::ValueID::LibwebPaletteActiveLink:
+    case Keyword::LibwebPaletteActiveLink:
         return palette.color(ColorRole::ActiveLink);
-    case CSS::ValueID::LibwebPaletteVisitedLink:
+    case Keyword::LibwebPaletteVisitedLink:
         return palette.color(ColorRole::VisitedLink);
-    case CSS::ValueID::LibwebPaletteRuler:
+    case Keyword::LibwebPaletteRuler:
         return palette.color(ColorRole::Ruler);
-    case CSS::ValueID::LibwebPaletteRulerBorder:
+    case Keyword::LibwebPaletteRulerBorder:
         return palette.color(ColorRole::RulerBorder);
-    case CSS::ValueID::LibwebPaletteRulerActiveText:
+    case Keyword::LibwebPaletteRulerActiveText:
         return palette.color(ColorRole::RulerActiveText);
-    case CSS::ValueID::LibwebPaletteRulerInactiveText:
+    case Keyword::LibwebPaletteRulerInactiveText:
         return palette.color(ColorRole::RulerInactiveText);
-    case CSS::ValueID::LibwebPaletteTextCursor:
+    case Keyword::LibwebPaletteTextCursor:
         return palette.color(ColorRole::TextCursor);
-    case CSS::ValueID::LibwebPaletteFocusOutline:
+    case Keyword::LibwebPaletteFocusOutline:
         return palette.color(ColorRole::FocusOutline);
-    case CSS::ValueID::LibwebPaletteSyntaxComment:
+    case Keyword::LibwebPaletteSyntaxComment:
         return palette.color(ColorRole::SyntaxComment);
-    case CSS::ValueID::LibwebPaletteSyntaxNumber:
+    case Keyword::LibwebPaletteSyntaxNumber:
         return palette.color(ColorRole::SyntaxNumber);
-    case CSS::ValueID::LibwebPaletteSyntaxString:
+    case Keyword::LibwebPaletteSyntaxString:
         return palette.color(ColorRole::SyntaxString);
-    case CSS::ValueID::LibwebPaletteSyntaxType:
+    case Keyword::LibwebPaletteSyntaxType:
         return palette.color(ColorRole::SyntaxType);
-    case CSS::ValueID::LibwebPaletteSyntaxPunctuation:
+    case Keyword::LibwebPaletteSyntaxPunctuation:
         return palette.color(ColorRole::SyntaxPunctuation);
-    case CSS::ValueID::LibwebPaletteSyntaxOperator:
+    case Keyword::LibwebPaletteSyntaxOperator:
         return palette.color(ColorRole::SyntaxOperator);
-    case CSS::ValueID::LibwebPaletteSyntaxKeyword:
+    case Keyword::LibwebPaletteSyntaxKeyword:
         return palette.color(ColorRole::SyntaxKeyword);
-    case CSS::ValueID::LibwebPaletteSyntaxControlKeyword:
+    case Keyword::LibwebPaletteSyntaxControlKeyword:
         return palette.color(ColorRole::SyntaxControlKeyword);
-    case CSS::ValueID::LibwebPaletteSyntaxIdentifier:
+    case Keyword::LibwebPaletteSyntaxIdentifier:
         return palette.color(ColorRole::SyntaxIdentifier);
-    case CSS::ValueID::LibwebPaletteSyntaxPreprocessorStatement:
+    case Keyword::LibwebPaletteSyntaxPreprocessorStatement:
         return palette.color(ColorRole::SyntaxPreprocessorStatement);
-    case CSS::ValueID::LibwebPaletteSyntaxPreprocessorValue:
+    case Keyword::LibwebPaletteSyntaxPreprocessorValue:
         return palette.color(ColorRole::SyntaxPreprocessorValue);
     default:
         return {};

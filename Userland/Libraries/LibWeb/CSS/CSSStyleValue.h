@@ -22,8 +22,8 @@
 #include <LibGfx/Color.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/ValueID.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -354,7 +354,7 @@ public:
     virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
 
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const { return {}; }
-    ValueID to_identifier() const;
+    Keyword to_keyword() const;
     virtual String to_string() const = 0;
 
     [[nodiscard]] int to_font_weight() const;

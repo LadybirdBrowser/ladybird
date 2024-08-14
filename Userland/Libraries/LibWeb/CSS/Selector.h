@@ -11,8 +11,8 @@
 #include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/PseudoClass.h>
-#include <LibWeb/CSS/ValueID.h>
 
 namespace Web::CSS {
 
@@ -145,7 +145,7 @@ public:
             Vector<FlyString> languages {};
 
             // Used by :dir()
-            Optional<ValueID> identifier {};
+            Optional<Keyword> keyword {};
         };
 
         struct Name {

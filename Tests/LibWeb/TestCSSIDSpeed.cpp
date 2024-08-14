@@ -6,22 +6,22 @@
 
 #include <LibTest/TestCase.h>
 
-#include <LibWeb/CSS/ValueID.h>
+#include <LibWeb/CSS/Keyword.h>
 
 TEST_CASE(basic)
 {
-    EXPECT_EQ(Web::CSS::value_id_from_string("italic"sv).value(), Web::CSS::ValueID::Italic);
-    EXPECT_EQ(Web::CSS::value_id_from_string("inline"sv).value(), Web::CSS::ValueID::Inline);
-    EXPECT_EQ(Web::CSS::value_id_from_string("small"sv).value(), Web::CSS::ValueID::Small);
-    EXPECT_EQ(Web::CSS::value_id_from_string("smalL"sv).value(), Web::CSS::ValueID::Small);
-    EXPECT_EQ(Web::CSS::value_id_from_string("SMALL"sv).value(), Web::CSS::ValueID::Small);
-    EXPECT_EQ(Web::CSS::value_id_from_string("Small"sv).value(), Web::CSS::ValueID::Small);
-    EXPECT_EQ(Web::CSS::value_id_from_string("smALl"sv).value(), Web::CSS::ValueID::Small);
+    EXPECT_EQ(Web::CSS::keyword_from_string("italic"sv).value(), Web::CSS::Keyword::Italic);
+    EXPECT_EQ(Web::CSS::keyword_from_string("inline"sv).value(), Web::CSS::Keyword::Inline);
+    EXPECT_EQ(Web::CSS::keyword_from_string("small"sv).value(), Web::CSS::Keyword::Small);
+    EXPECT_EQ(Web::CSS::keyword_from_string("smalL"sv).value(), Web::CSS::Keyword::Small);
+    EXPECT_EQ(Web::CSS::keyword_from_string("SMALL"sv).value(), Web::CSS::Keyword::Small);
+    EXPECT_EQ(Web::CSS::keyword_from_string("Small"sv).value(), Web::CSS::Keyword::Small);
+    EXPECT_EQ(Web::CSS::keyword_from_string("smALl"sv).value(), Web::CSS::Keyword::Small);
 }
 
-BENCHMARK_CASE(value_id_from_string)
+BENCHMARK_CASE(keyword_from_string)
 {
     for (size_t i = 0; i < 10'000'000; ++i) {
-        EXPECT_EQ(Web::CSS::value_id_from_string("inline"sv).value(), Web::CSS::ValueID::Inline);
+        EXPECT_EQ(Web::CSS::keyword_from_string("inline"sv).value(), Web::CSS::Keyword::Inline);
     }
 }

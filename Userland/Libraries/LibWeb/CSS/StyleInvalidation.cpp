@@ -33,7 +33,7 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     // OPTIMIZATION: Special handling for CSS `visibility`:
     if (property_id == CSS::PropertyID::Visibility) {
         // We don't need to relayout if the visibility changes from visible to hidden or vice versa. Only collapse requires relayout.
-        if ((old_value && old_value->to_identifier() == CSS::ValueID::Collapse) != (new_value && new_value->to_identifier() == CSS::ValueID::Collapse))
+        if ((old_value && old_value->to_keyword() == CSS::Keyword::Collapse) != (new_value && new_value->to_keyword() == CSS::Keyword::Collapse))
             invalidation.relayout = true;
         // Of course, we still have to repaint on any visibility change.
         invalidation.repaint = true;

@@ -46,7 +46,7 @@ ErrorOr<void> generate_header_file(JsonObject& media_feature_data, Core::File& f
 
 #include <AK/StringView.h>
 #include <AK/Traits.h>
-#include <LibWeb/CSS/ValueID.h>
+#include <LibWeb/CSS/Keyword.h>
 
 namespace Web::CSS {
 
@@ -75,7 +75,7 @@ StringView string_from_media_feature_id(MediaFeatureID);
 
 bool media_feature_type_is_range(MediaFeatureID);
 bool media_feature_accepts_type(MediaFeatureID, MediaFeatureValueType);
-bool media_feature_accepts_identifier(MediaFeatureID, ValueID);
+bool media_feature_accepts_keyword(MediaFeatureID, Keyword);
 
 }
 )~~~");
@@ -181,7 +181,7 @@ bool media_feature_accepts_type(MediaFeatureID media_feature_id, MediaFeatureVal
             for (auto& type : values_array.values()) {
                 VERIFY(type.is_string());
                 auto type_name = type.as_string();
-                // Skip identifiers.
+                // Skip keywords.
                 if (type_name[0] != '<')
                     continue;
                 if (type_name == "<mq-boolean>") {
@@ -231,7 +231,7 @@ bool media_feature_accepts_type(MediaFeatureID media_feature_id, MediaFeatureVal
     VERIFY_NOT_REACHED();
 }
 
-bool media_feature_accepts_identifier(MediaFeatureID media_feature_id, ValueID identifier)
+bool media_feature_accepts_keyword(MediaFeatureID media_feature_id, Keyword keyword)
 {
     switch (media_feature_id) {)~~~");
 
@@ -244,34 +244,34 @@ bool media_feature_accepts_identifier(MediaFeatureID media_feature_id, ValueID i
         member_generator.append(R"~~~(
     case MediaFeatureID::@name:titlecase@:)~~~");
 
-        bool have_output_identifier_switch = false;
+        bool have_output_keyword_switch = false;
         if (feature.has("values"sv)) {
-            auto append_identifier_switch_if_needed = [&] {
-                if (!have_output_identifier_switch) {
+            auto append_keyword_switch_if_needed = [&] {
+                if (!have_output_keyword_switch) {
                     member_generator.append(R"~~~(
-        switch (identifier) {)~~~");
+        switch (keyword) {)~~~");
                 }
-                have_output_identifier_switch = true;
+                have_output_keyword_switch = true;
             };
             auto values = feature.get_array("values"sv);
             VERIFY(values.has_value());
             auto& values_array = values.value();
-            for (auto& identifier : values_array.values()) {
-                VERIFY(identifier.is_string());
-                auto identifier_name = identifier.as_string();
+            for (auto& keyword : values_array.values()) {
+                VERIFY(keyword.is_string());
+                auto keyword_name = keyword.as_string();
                 // Skip types.
-                if (identifier_name[0] == '<')
+                if (keyword_name[0] == '<')
                     continue;
-                append_identifier_switch_if_needed();
+                append_keyword_switch_if_needed();
 
-                auto ident_generator = member_generator.fork();
-                ident_generator.set("identifier:titlecase", title_casify(identifier_name));
-                ident_generator.append(R"~~~(
-        case ValueID::@identifier:titlecase@:
+                auto keyword_generator = member_generator.fork();
+                keyword_generator.set("keyword:titlecase", title_casify(keyword_name));
+                keyword_generator.append(R"~~~(
+        case Keyword::@keyword:titlecase@:
             return true;)~~~");
             }
         }
-        if (have_output_identifier_switch) {
+        if (have_output_keyword_switch) {
             member_generator.append(R"~~~(
         default:
             return false;

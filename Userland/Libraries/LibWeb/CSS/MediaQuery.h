@@ -21,7 +21,7 @@ namespace Web::CSS {
 // https://www.w3.org/TR/mediaqueries-4/#typedef-mf-value
 class MediaFeatureValue {
 public:
-    explicit MediaFeatureValue(ValueID ident)
+    explicit MediaFeatureValue(Keyword ident)
         : m_value(move(ident))
     {
     }
@@ -48,17 +48,17 @@ public:
 
     String to_string() const;
 
-    bool is_ident() const { return m_value.has<ValueID>(); }
+    bool is_ident() const { return m_value.has<Keyword>(); }
     bool is_length() const { return m_value.has<Length>(); }
     bool is_number() const { return m_value.has<float>(); }
     bool is_ratio() const { return m_value.has<Ratio>(); }
     bool is_resolution() const { return m_value.has<Resolution>(); }
     bool is_same_type(MediaFeatureValue const& other) const;
 
-    ValueID const& ident() const
+    Keyword const& ident() const
     {
         VERIFY(is_ident());
-        return m_value.get<ValueID>();
+        return m_value.get<Keyword>();
     }
 
     Length const& length() const
@@ -86,7 +86,7 @@ public:
     }
 
 private:
-    Variant<ValueID, Length, Ratio, Resolution, float> m_value;
+    Variant<Keyword, Length, Ratio, Resolution, float> m_value;
 };
 
 // https://www.w3.org/TR/mediaqueries-4/#mq-features

@@ -34,13 +34,13 @@ void HTMLParagraphElement::apply_presentational_hints(CSS::StyleProperties& styl
     for_each_attribute([&](auto& name, auto& value) {
         if (name.equals_ignoring_ascii_case("align"sv)) {
             if (value == "left"sv)
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::Left));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Left));
             else if (value == "right"sv)
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::Right));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Right));
             else if (value == "center"sv)
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::Center));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
             else if (value == "justify"sv)
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::Justify));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Justify));
         }
     });
 }

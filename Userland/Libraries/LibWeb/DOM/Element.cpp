@@ -542,7 +542,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     if (is<HTML::HTMLTableElement>(*this)) {
         auto text_align = new_computed_css_values->text_align();
         if (text_align.has_value() && (text_align.value() == CSS::TextAlign::LibwebLeft || text_align.value() == CSS::TextAlign::LibwebCenter || text_align.value() == CSS::TextAlign::LibwebRight))
-            new_computed_css_values->set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::Start));
+            new_computed_css_values->set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Start));
     }
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
