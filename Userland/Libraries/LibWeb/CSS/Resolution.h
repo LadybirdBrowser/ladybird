@@ -29,6 +29,7 @@ public:
 
     Type type() const { return m_type; }
     double raw_value() const { return m_value; }
+    StringView unit_name() const;
 
     bool operator==(Resolution const& other) const
     {
@@ -48,8 +49,6 @@ public:
     }
 
 private:
-    StringView unit_name() const;
-
     Type m_type;
     double m_value { 0 };
 };

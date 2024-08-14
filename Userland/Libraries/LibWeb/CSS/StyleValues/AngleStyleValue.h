@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -10,11 +10,11 @@
 #pragma once
 
 #include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSUnitValue.h>
 
 namespace Web::CSS {
 
-class AngleStyleValue : public StyleValueWithDefaultOperators<AngleStyleValue> {
+class AngleStyleValue : public CSSUnitValue {
 public:
     static ValueComparingNonnullRefPtr<AngleStyleValue> create(Angle angle)
     {
@@ -23,10 +23,12 @@ public:
     virtual ~AngleStyleValue() override;
 
     Angle const& angle() const { return m_angle; }
+    virtual double value() const override { return m_angle.raw_value(); }
+    virtual StringView unit() const override { return m_angle.unit_name(); }
 
     virtual String to_string() const override;
 
-    bool properties_equal(AngleStyleValue const& other) const;
+    bool equals(CSSStyleValue const& other) const override;
 
 private:
     explicit AngleStyleValue(Angle angle);

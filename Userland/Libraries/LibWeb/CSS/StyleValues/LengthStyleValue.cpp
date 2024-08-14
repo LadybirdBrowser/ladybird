@@ -34,4 +34,12 @@ ValueComparingNonnullRefPtr<CSSStyleValue const> LengthStyleValue::absolutized(C
     return *this;
 }
 
+bool LengthStyleValue::equals(CSSStyleValue const& other) const
+{
+    if (type() != other.type())
+        return false;
+    auto const& other_length = other.as_length();
+    return m_length == other_length.m_length;
+}
+
 }
