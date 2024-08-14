@@ -229,6 +229,10 @@ void URLSearchParams::update()
 
     // 4. Set query’s URL object’s URL’s query to serializedQuery.
     m_url->set_query({}, move(serialized_query));
+
+    // 5. If serializedQuery is null, then potentially strip trailing spaces from an opaque path with query’s URL object.
+    if (!serialized_query.has_value())
+        strip_trailing_spaces_from_an_opaque_path(*m_url);
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-delete
