@@ -37,7 +37,7 @@ public:
     StringView usage_string() const { return Unicode::usage_to_string(m_usage); }
 
     Unicode::Sensitivity sensitivity() const { return m_sensitivity; }
-    void set_sensitivity(StringView sensitivity) { m_sensitivity = Unicode::sensitivity_from_string(sensitivity); }
+    void set_sensitivity(Unicode::Sensitivity sensitivity) { m_sensitivity = sensitivity; }
     StringView sensitivity_string() const { return Unicode::sensitivity_to_string(m_sensitivity); }
 
     Unicode::CaseFirst case_first() const { return m_case_first; }

@@ -92,6 +92,28 @@ static constexpr UColAttributeValue icu_sensitivity(Sensitivity sensitivity)
     VERIFY_NOT_REACHED();
 }
 
+static Sensitivity sensitivity_for_collator(icu::Collator const& collator)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto attribute = collator.getAttribute(UCOL_STRENGTH, status);
+    VERIFY(icu_success(status));
+
+    switch (attribute) {
+    case UCOL_PRIMARY:
+        attribute = collator.getAttribute(UCOL_CASE_LEVEL, status);
+        VERIFY(icu_success(status));
+
+        return attribute == UCOL_ON ? Sensitivity::Case : Sensitivity::Base;
+
+    case UCOL_SECONDARY:
+        return Sensitivity::Accent;
+
+    default:
+        return Sensitivity::Variant;
+    }
+}
+
 CaseFirst case_first_from_string(StringView case_first)
 {
     if (case_first == "upper"sv)
@@ -165,6 +187,11 @@ public:
         VERIFY_NOT_REACHED();
     }
 
+    virtual Sensitivity sensitivity() const override
+    {
+        return sensitivity_for_collator(*m_collator);
+    }
+
     virtual bool ignore_punctuation() const override
     {
         return ignore_punctuation_for_collator(*m_collator);
@@ -178,7 +205,7 @@ NonnullOwnPtr<Collator> Collator::create(
     StringView locale,
     Usage usage,
     StringView collation,
-    Sensitivity sensitivity,
+    Optional<Sensitivity> sensitivity,
     CaseFirst case_first,
     bool numeric,
     Optional<bool> ignore_punctuation)
@@ -198,10 +225,13 @@ NonnullOwnPtr<Collator> Collator::create(
         VERIFY(icu_success(status));
     };
 
+    if (!sensitivity.has_value())
+        sensitivity = sensitivity_for_collator(*collator);
+
     if (!ignore_punctuation.has_value())
         ignore_punctuation = ignore_punctuation_for_collator(*collator);
 
-    set_attribute(UCOL_STRENGTH, icu_sensitivity(sensitivity));
+    set_attribute(UCOL_STRENGTH, icu_sensitivity(*sensitivity));
     set_attribute(UCOL_CASE_LEVEL, sensitivity == Sensitivity::Case ? UCOL_ON : UCOL_OFF);
     set_attribute(UCOL_CASE_FIRST, icu_case_first(case_first));
     set_attribute(UCOL_NUMERIC_COLLATION, numeric ? UCOL_ON : UCOL_OFF);

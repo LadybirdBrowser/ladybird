@@ -152,24 +152,26 @@ ThrowCompletionOr<NonnullGCPtr<Object>> CollatorConstructor::construct(FunctionO
     // 31. Let resolvedLocaleData be r.[[LocaleData]].
 
     // 32. Let sensitivity be ? GetOption(options, "sensitivity", string, « "base", "accent", "case", "variant" », undefined).
-    auto sensitivity = TRY(get_option(vm, *options, vm.names.sensitivity, OptionType::String, { "base"sv, "accent"sv, "case"sv, "variant"sv }, Empty {}));
+    auto sensitivity_value = TRY(get_option(vm, *options, vm.names.sensitivity, OptionType::String, { "base"sv, "accent"sv, "case"sv, "variant"sv }, Empty {}));
 
     // 33. If sensitivity is undefined, then
-    if (sensitivity.is_undefined()) {
+    if (sensitivity_value.is_undefined()) {
         // a. If usage is "sort", then
         if (collator->usage() == Unicode::Usage::Sort) {
             // i. Set sensitivity to "variant".
-            sensitivity = PrimitiveString::create(vm, "variant"_string);
+            sensitivity_value = PrimitiveString::create(vm, "variant"_string);
         }
         // b. Else,
         else {
-            // FIXME: i. Set sensitivity to resolvedLocaleData.[[sensitivity]].
-            sensitivity = PrimitiveString::create(vm, "base"_string);
+            // i. Set sensitivity to resolvedLocaleData.[[sensitivity]].
+            // NOTE: We do not acquire the default [[sensitivity]] here. Instead, we default the option to null,
+            //       and let LibUnicode fill in the default value if an override was not provided here.
         }
     }
 
-    // 34. Set collator.[[Sensitivity]] to sensitivity.
-    collator->set_sensitivity(sensitivity.as_string().utf8_string_view());
+    Optional<Unicode::Sensitivity> sensitivity;
+    if (!sensitivity_value.is_undefined())
+        sensitivity = Unicode::sensitivity_from_string(sensitivity_value.as_string().utf8_string_view());
 
     // 35. Let defaultIgnorePunctuation be resolvedLocaleData.[[ignorePunctuation]].
     // NOTE: We do not acquire the default [[ignorePunctuation]] here. Instead, we default the option to null,
@@ -187,11 +189,14 @@ ThrowCompletionOr<NonnullGCPtr<Object>> CollatorConstructor::construct(FunctionO
         collator->locale(),
         collator->usage(),
         collator->collation(),
-        collator->sensitivity(),
+        sensitivity,
         collator->case_first(),
         collator->numeric(),
         ignore_punctuation);
     collator->set_collator(move(icu_collator));
+
+    // 34. Set collator.[[Sensitivity]] to sensitivity.
+    collator->set_sensitivity(collator->collator().sensitivity());
 
     // 37. Set collator.[[IgnorePunctuation]] to ignorePunctuation.
     collator->set_ignore_punctuation(collator->collator().ignore_punctuation());

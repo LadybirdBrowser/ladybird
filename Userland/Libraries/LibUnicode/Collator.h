@@ -41,7 +41,7 @@ public:
         StringView locale,
         Usage,
         StringView collation,
-        Sensitivity,
+        Optional<Sensitivity>,
         CaseFirst,
         bool numeric,
         Optional<bool> ignore_punctuation);
@@ -55,6 +55,7 @@ public:
     };
     virtual Order compare(StringView, StringView) const = 0;
 
+    virtual Sensitivity sensitivity() const = 0;
     virtual bool ignore_punctuation() const = 0;
 
 protected:
