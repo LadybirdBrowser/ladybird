@@ -1,0 +1,16 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const url = new URL('data:space    ?test');
+
+        println(`URL pathname is '${url.pathname}'`);
+        println(`URL href is '${url.href}'`);
+
+        println(url.searchParams.has('test'));
+        url.searchParams.delete('test');
+        println(url.searchParams.has('test'));
+
+        println(`URL pathname is '${url.pathname}'`);
+        println(`URL href is '${url.href}'`);
+    });
+</script>
