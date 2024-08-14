@@ -171,14 +171,16 @@ ThrowCompletionOr<NonnullGCPtr<Object>> CollatorConstructor::construct(FunctionO
     // 34. Set collator.[[Sensitivity]] to sensitivity.
     collator->set_sensitivity(sensitivity.as_string().utf8_string_view());
 
-    // FIXME: 35. Let defaultIgnorePunctuation be resolvedLocaleData.[[ignorePunctuation]].
-    auto default_ignore_punctuation = false;
+    // 35. Let defaultIgnorePunctuation be resolvedLocaleData.[[ignorePunctuation]].
+    // NOTE: We do not acquire the default [[ignorePunctuation]] here. Instead, we default the option to null,
+    //       and let LibUnicode fill in the default value if an override was not provided here.
 
     // 36. Let ignorePunctuation be ? GetOption(options, "ignorePunctuation", boolean, empty, defaultIgnorePunctuation).
-    auto ignore_punctuation = TRY(get_option(vm, *options, vm.names.ignorePunctuation, OptionType::Boolean, {}, default_ignore_punctuation));
+    auto ignore_punctuation_value = TRY(get_option(vm, *options, vm.names.ignorePunctuation, OptionType::Boolean, {}, Empty {}));
 
-    // 37. Set collator.[[IgnorePunctuation]] to ignorePunctuation.
-    collator->set_ignore_punctuation(ignore_punctuation.as_bool());
+    Optional<bool> ignore_punctuation;
+    if (!ignore_punctuation_value.is_undefined())
+        ignore_punctuation = ignore_punctuation_value.as_bool();
 
     // Non-standard, create an ICU collator for this Intl object.
     auto icu_collator = Unicode::Collator::create(
@@ -188,8 +190,11 @@ ThrowCompletionOr<NonnullGCPtr<Object>> CollatorConstructor::construct(FunctionO
         collator->sensitivity(),
         collator->case_first(),
         collator->numeric(),
-        collator->ignore_punctuation());
+        ignore_punctuation);
     collator->set_collator(move(icu_collator));
+
+    // 37. Set collator.[[IgnorePunctuation]] to ignorePunctuation.
+    collator->set_ignore_punctuation(collator->collator().ignore_punctuation());
 
     // 38. Return collator.
     return collator;

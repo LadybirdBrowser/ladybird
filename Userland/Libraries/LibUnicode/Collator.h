@@ -44,7 +44,7 @@ public:
         Sensitivity,
         CaseFirst,
         bool numeric,
-        bool ignore_punctuation);
+        Optional<bool> ignore_punctuation);
 
     virtual ~Collator() = default;
 
@@ -54,6 +54,8 @@ public:
         After,
     };
     virtual Order compare(StringView, StringView) const = 0;
+
+    virtual bool ignore_punctuation() const = 0;
 
 protected:
     Collator() = default;

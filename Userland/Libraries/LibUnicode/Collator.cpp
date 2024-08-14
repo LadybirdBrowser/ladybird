@@ -129,6 +129,16 @@ static constexpr UColAttributeValue icu_case_first(CaseFirst case_first)
     VERIFY_NOT_REACHED();
 }
 
+static bool ignore_punctuation_for_collator(icu::Collator const& collator)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto attribute = collator.getAttribute(UCOL_ALTERNATE_HANDLING, status);
+    VERIFY(icu_success(status));
+
+    return attribute == UCOL_SHIFTED;
+}
+
 class CollatorImpl : public Collator {
 public:
     explicit CollatorImpl(NonnullOwnPtr<icu::Collator> collator)
@@ -155,6 +165,11 @@ public:
         VERIFY_NOT_REACHED();
     }
 
+    virtual bool ignore_punctuation() const override
+    {
+        return ignore_punctuation_for_collator(*m_collator);
+    }
+
 private:
     NonnullOwnPtr<icu::Collator> m_collator;
 };
@@ -166,7 +181,7 @@ NonnullOwnPtr<Collator> Collator::create(
     Sensitivity sensitivity,
     CaseFirst case_first,
     bool numeric,
-    bool ignore_punctuation)
+    Optional<bool> ignore_punctuation)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -183,11 +198,14 @@ NonnullOwnPtr<Collator> Collator::create(
         VERIFY(icu_success(status));
     };
 
+    if (!ignore_punctuation.has_value())
+        ignore_punctuation = ignore_punctuation_for_collator(*collator);
+
     set_attribute(UCOL_STRENGTH, icu_sensitivity(sensitivity));
     set_attribute(UCOL_CASE_LEVEL, sensitivity == Sensitivity::Case ? UCOL_ON : UCOL_OFF);
     set_attribute(UCOL_CASE_FIRST, icu_case_first(case_first));
     set_attribute(UCOL_NUMERIC_COLLATION, numeric ? UCOL_ON : UCOL_OFF);
-    set_attribute(UCOL_ALTERNATE_HANDLING, ignore_punctuation ? UCOL_SHIFTED : UCOL_NON_IGNORABLE);
+    set_attribute(UCOL_ALTERNATE_HANDLING, *ignore_punctuation ? UCOL_SHIFTED : UCOL_NON_IGNORABLE);
     set_attribute(UCOL_NORMALIZATION_MODE, UCOL_ON);
 
     return adopt_own(*new CollatorImpl(move(collator)));
