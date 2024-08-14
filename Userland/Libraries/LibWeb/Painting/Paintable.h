@@ -60,12 +60,36 @@ public:
     [[nodiscard]] CSS::Display display() const { return layout_node().display(); }
 
     template<typename U, typename Callback>
+    TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback)
+    {
+        if (is<U>(*this)) {
+            if (auto decision = callback(static_cast<U&>(*this)); decision != TraversalDecision::Continue)
+                return decision;
+        }
+        for (auto* child = first_child(); child; child = child->next_sibling()) {
+            if (child->template for_each_in_inclusive_subtree_of_type<U>(callback) == TraversalDecision::Break)
+                return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    }
+
+    template<typename U, typename Callback>
     TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback) const
     {
         if (is<U>(*this)) {
             if (auto decision = callback(static_cast<U const&>(*this)); decision != TraversalDecision::Continue)
                 return decision;
         }
+        for (auto* child = first_child(); child; child = child->next_sibling()) {
+            if (child->template for_each_in_inclusive_subtree_of_type<U>(callback) == TraversalDecision::Break)
+                return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    }
+
+    template<typename U, typename Callback>
+    TraversalDecision for_each_in_subtree_of_type(Callback callback)
+    {
         for (auto* child = first_child(); child; child = child->next_sibling()) {
             if (child->template for_each_in_inclusive_subtree_of_type<U>(callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;

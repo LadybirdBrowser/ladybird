@@ -23,6 +23,9 @@ public:
     [[nodiscard]] CSSPixelPoint enclosing_scroll_frame_offset() const;
     [[nodiscard]] Optional<CSSPixelRect> clip_rect_for_hit_testing() const;
 
+    [[nodiscard]] Optional<int> own_scroll_frame_id() const;
+    void set_own_scroll_frame(RefPtr<ScrollFrame> scroll_frame) { m_own_scroll_frame = scroll_frame; }
+
     void apply_clip(PaintContext&) const;
     void restore_clip(PaintContext&) const;
 
@@ -31,6 +34,7 @@ public:
 
 private:
     RefPtr<ScrollFrame const> m_enclosing_scroll_frame;
+    RefPtr<ScrollFrame const> m_own_scroll_frame;
     RefPtr<ClipFrame const> m_enclosing_clip_frame;
 
     Gfx::AffineTransform m_combined_css_transform;
