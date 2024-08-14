@@ -1,6 +1,6 @@
-   focus target=<INPUT id="a">
-focusin target=<INPUT id="a">
-blur target=<INPUT id="a">
-focusout target=<INPUT id="a">
-focus target=<INPUT id="b">
-focusin target=<INPUT id="b">
+   focus target=<INPUT id="a"> bubbles=false composed=true
+focusin target=<INPUT id="a"> bubbles=true composed=true
+blur target=<INPUT id="a"> bubbles=false composed=true
+focusout target=<INPUT id="a"> bubbles=true composed=true
+focus target=<INPUT id="b"> bubbles=false composed=true
+focusin target=<INPUT id="b"> bubbles=true composed=true

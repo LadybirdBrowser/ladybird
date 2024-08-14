@@ -19,6 +19,24 @@
 
 namespace Web::HTML {
 
+// https://html.spec.whatwg.org/multipage/interaction.html#fire-a-focus-event
+static void fire_a_focus_event(JS::GCPtr<DOM::EventTarget> focus_event_target, JS::GCPtr<DOM::EventTarget> related_focus_target, FlyString const& event_name, bool bubbles)
+{
+    // To fire a focus event named e at an element t with a given related target r, fire an event named e at t, using FocusEvent,
+    // with the relatedTarget attribute initialized to r, the view attribute initialized to t's node document's relevant global
+    // object, and the composed flag set.
+    UIEvents::FocusEventInit focus_event_init {};
+    focus_event_init.related_target = related_focus_target;
+    focus_event_init.view = verify_cast<HTML::Window>(focus_event_target->realm().global_object());
+
+    auto focus_event = UIEvents::FocusEvent::create(focus_event_target->realm(), event_name, focus_event_init);
+    // AD-HOC: support bubbling focus events, used for focusin & focusout.
+    //         See: https://github.com/whatwg/html/issues/3514
+    focus_event->set_bubbles(bubbles);
+    focus_event->set_composed(true);
+    focus_event_target->dispatch_event(focus_event);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-update-steps
 static void run_focus_update_steps(Vector<JS::Handle<DOM::Node>> old_chain, Vector<JS::Handle<DOM::Node>> new_chain, DOM::Node* new_focus_target)
 {
@@ -74,16 +92,11 @@ static void run_focus_update_steps(Vector<JS::Handle<DOM::Node>> old_chain, Vect
         // 4. If blur event target is not null, fire a focus event named blur at blur event target,
         //    with related blur target as the related target.
         if (blur_event_target) {
-            // FIXME: Implement the "fire a focus event" spec operation.
-            auto blur_event = UIEvents::FocusEvent::create(blur_event_target->realm(), HTML::EventNames::blur);
-            blur_event->set_related_target(related_blur_target);
-            blur_event_target->dispatch_event(blur_event);
-        }
+            fire_a_focus_event(blur_event_target, related_blur_target, HTML::EventNames::blur, false);
 
-        auto focusout_event = UIEvents::FocusEvent::create(blur_event_target->realm(), HTML::EventNames::focusout);
-        focusout_event->set_bubbles(true);
-        focusout_event->set_related_target(related_blur_target);
-        blur_event_target->dispatch_event(focusout_event);
+            // AD-HOC: dispatch focusout
+            fire_a_focus_event(blur_event_target, related_blur_target, HTML::EventNames::focusout, true);
+        }
     }
 
     // FIXME: 3. Apply any relevant platform-specific conventions for focusing new focus target.
@@ -124,15 +137,10 @@ static void run_focus_update_steps(Vector<JS::Handle<DOM::Node>> old_chain, Vect
         // 4. If focus event target is not null, fire a focus event named focus at focus event target,
         //    with related focus target as the related target.
         if (focus_event_target) {
-            // FIXME: Implement the "fire a focus event" spec operation.
-            auto focus_event = UIEvents::FocusEvent::create(focus_event_target->realm(), HTML::EventNames::focus);
-            focus_event->set_related_target(related_focus_target);
-            focus_event_target->dispatch_event(focus_event);
+            fire_a_focus_event(focus_event_target, related_focus_target, HTML::EventNames::focus, false);
 
-            auto focusin_event = UIEvents::FocusEvent::create(focus_event_target->realm(), HTML::EventNames::focusin);
-            focusin_event->set_bubbles(true);
-            focusin_event->set_related_target(related_focus_target);
-            focus_event_target->dispatch_event(focusin_event);
+            // AD-HOC: dispatch focusin
+            fire_a_focus_event(focus_event_target, related_focus_target, HTML::EventNames::focusin, true);
         }
     }
 }
