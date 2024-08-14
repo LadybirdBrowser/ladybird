@@ -16,9 +16,9 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -106,10 +106,10 @@ CalculatedStyleValue const& CSSStyleValue::as_calculated() const
     return static_cast<CalculatedStyleValue const&>(*this);
 }
 
-ColorStyleValue const& CSSStyleValue::as_color() const
+CSSColorValue const& CSSStyleValue::as_color() const
 {
     VERIFY(is_color());
-    return static_cast<ColorStyleValue const&>(*this);
+    return static_cast<CSSColorValue const&>(*this);
 }
 
 ConicGradientStyleValue const& CSSStyleValue::as_conic_gradient() const

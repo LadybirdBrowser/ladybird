@@ -37,8 +37,8 @@
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
-#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
@@ -1432,7 +1432,7 @@ static NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& elemen
     case CSSStyleValue::Type::Angle:
         return AngleStyleValue::create(Angle::make_degrees(interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta)));
     case CSSStyleValue::Type::Color:
-        return ColorStyleValue::create(interpolate_color(from.as_color().color(), to.as_color().color(), delta));
+        return CSSColorValue::create(interpolate_color(from.as_color().color(), to.as_color().color(), delta));
     case CSSStyleValue::Type::Integer:
         return IntegerStyleValue::create(interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta));
     case CSSStyleValue::Type::Length: {

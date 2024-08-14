@@ -169,8 +169,8 @@ public:
     CalculatedStyleValue& as_calculated() { return const_cast<CalculatedStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_calculated()); }
 
     bool is_color() const { return type() == Type::Color; }
-    ColorStyleValue const& as_color() const;
-    ColorStyleValue& as_color() { return const_cast<ColorStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_color()); }
+    CSSColorValue const& as_color() const;
+    CSSColorValue& as_color() { return const_cast<CSSColorValue&>(const_cast<CSSStyleValue const&>(*this).as_color()); }
 
     bool is_conic_gradient() const { return type() == Type::ConicGradient; }
     ConicGradientStyleValue const& as_conic_gradient() const;

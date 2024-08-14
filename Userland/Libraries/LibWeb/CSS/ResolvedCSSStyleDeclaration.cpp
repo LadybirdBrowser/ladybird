@@ -15,9 +15,9 @@
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
@@ -237,23 +237,23 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // -> A resolved value special case property like color defined in another specification
         //    The resolved value is the used value.
     case PropertyID::BackgroundColor:
-        return ColorStyleValue::create(layout_node.computed_values().background_color());
+        return CSSColorValue::create(layout_node.computed_values().background_color());
     case PropertyID::BorderBottomColor:
-        return ColorStyleValue::create(layout_node.computed_values().border_bottom().color);
+        return CSSColorValue::create(layout_node.computed_values().border_bottom().color);
     case PropertyID::BorderLeftColor:
-        return ColorStyleValue::create(layout_node.computed_values().border_left().color);
+        return CSSColorValue::create(layout_node.computed_values().border_left().color);
     case PropertyID::BorderRightColor:
-        return ColorStyleValue::create(layout_node.computed_values().border_right().color);
+        return CSSColorValue::create(layout_node.computed_values().border_right().color);
     case PropertyID::BorderTopColor:
-        return ColorStyleValue::create(layout_node.computed_values().border_top().color);
+        return CSSColorValue::create(layout_node.computed_values().border_top().color);
     case PropertyID::BoxShadow:
         return style_value_for_shadow(layout_node.computed_values().box_shadow());
     case PropertyID::Color:
-        return ColorStyleValue::create(layout_node.computed_values().color());
+        return CSSColorValue::create(layout_node.computed_values().color());
     case PropertyID::OutlineColor:
-        return ColorStyleValue::create(layout_node.computed_values().outline_color());
+        return CSSColorValue::create(layout_node.computed_values().outline_color());
     case PropertyID::TextDecorationColor:
-        return ColorStyleValue::create(layout_node.computed_values().text_decoration_color());
+        return CSSColorValue::create(layout_node.computed_values().text_decoration_color());
         // NOTE: text-shadow isn't listed, but is computed the same as box-shadow.
     case PropertyID::TextShadow:
         return style_value_for_shadow(layout_node.computed_values().text_shadow());
@@ -513,7 +513,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         return style_value_for_sided_shorthand(top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull());
     }
     case PropertyID::WebkitTextFillColor:
-        return ColorStyleValue::create(layout_node.computed_values().webkit_text_fill_color());
+        return CSSColorValue::create(layout_node.computed_values().webkit_text_fill_color());
     case PropertyID::Invalid:
         return CSSKeywordValue::create(Keyword::Invalid);
     case PropertyID::Custom:

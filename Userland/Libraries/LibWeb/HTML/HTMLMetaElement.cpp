@@ -10,7 +10,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/ParsingContext.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/Infra/CharacterTypes.h>
