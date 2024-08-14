@@ -9,8 +9,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -54,11 +54,11 @@ void HTMLTableCellElement::apply_presentational_hints(CSS::StyleProperties& styl
         }
         if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case("center"sv) || value.equals_ignoring_ascii_case("middle"sv)) {
-                style.set_property(CSS::PropertyID::TextAlign, CSS::IdentifierStyleValue::create(CSS::ValueID::LibwebCenter));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::LibwebCenter));
             } else if (value.equals_ignoring_ascii_case("left"sv)) {
-                style.set_property(CSS::PropertyID::TextAlign, CSS::IdentifierStyleValue::create(CSS::ValueID::LibwebLeft));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::LibwebLeft));
             } else if (value.equals_ignoring_ascii_case("right"sv)) {
-                style.set_property(CSS::PropertyID::TextAlign, CSS::IdentifierStyleValue::create(CSS::ValueID::LibwebRight));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::LibwebRight));
             } else {
                 if (auto parsed_value = parse_css_value(CSS::Parser::ParsingContext { document() }, value, CSS::PropertyID::TextAlign))
                     style.set_property(CSS::PropertyID::TextAlign, parsed_value.release_nonnull());
@@ -96,7 +96,7 @@ void HTMLTableCellElement::apply_presentational_hints(CSS::StyleProperties& styl
     if (!border)
         return;
     auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property, CSS::PropertyID color_property) {
-        style.set_property(style_property, CSS::IdentifierStyleValue::create(CSS::ValueID::Inset));
+        style.set_property(style_property, CSS::CSSKeywordValue::create(CSS::ValueID::Inset));
         style.set_property(width_property, CSS::LengthStyleValue::create(CSS::Length::make_px(1)));
         style.set_property(color_property, table_element->computed_css_values()->property(color_property));
     };

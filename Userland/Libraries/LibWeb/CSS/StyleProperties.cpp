@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
@@ -18,7 +19,6 @@
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
@@ -124,7 +124,7 @@ RefPtr<CSSStyleValue const> StyleProperties::maybe_null_property(CSS::PropertyID
 CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
 {
     auto value = property(id);
-    if (value->is_identifier()) {
+    if (value->is_keyword()) {
         switch (value->to_identifier()) {
         case ValueID::Auto:
             return CSS::Size::make_auto();
@@ -219,7 +219,7 @@ CSSPixels StyleProperties::compute_line_height(CSSPixelRect const& viewport_rect
 {
     auto line_height = property(CSS::PropertyID::LineHeight);
 
-    if (line_height->is_identifier() && line_height->to_identifier() == ValueID::Normal)
+    if (line_height->is_keyword() && line_height->to_identifier() == ValueID::Normal)
         return font_metrics.line_height;
 
     if (line_height->is_length()) {
@@ -355,7 +355,7 @@ Optional<CSS::FlexBasis> StyleProperties::flex_basis() const
 {
     auto value = property(CSS::PropertyID::FlexBasis);
 
-    if (value->is_identifier() && value->to_identifier() == CSS::ValueID::Content)
+    if (value->is_keyword() && value->to_identifier() == CSS::ValueID::Content)
         return CSS::FlexBasisContent {};
 
     return size_value(CSS::PropertyID::FlexBasis);
@@ -443,7 +443,7 @@ Optional<CSS::JustifySelf> StyleProperties::justify_self() const
 
 Vector<CSS::Transformation> StyleProperties::transformations_for_style_value(CSSStyleValue const& value)
 {
-    if (value.is_identifier() && value.to_identifier() == CSS::ValueID::None)
+    if (value.is_keyword() && value.to_identifier() == CSS::ValueID::None)
         return {};
 
     if (!value.is_value_list())
@@ -729,7 +729,7 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::E
         for (auto const& item : content_style_value.content().values()) {
             if (item->is_string()) {
                 builder.append(item->as_string().string_value());
-            } else if (item->is_identifier()) {
+            } else if (item->is_keyword()) {
                 switch (item->to_identifier()) {
                 case ValueID::OpenQuote:
                     builder.append(get_quote_string(true, quote_nesting_level++));
@@ -809,7 +809,7 @@ Optional<CSS::Cursor> StyleProperties::cursor() const
 Optional<CSS::Visibility> StyleProperties::visibility() const
 {
     auto value = property(CSS::PropertyID::Visibility);
-    if (!value->is_identifier())
+    if (!value->is_keyword())
         return {};
     return value_id_to_visibility(value->to_identifier());
 }
@@ -836,7 +836,7 @@ Vector<CSS::TextDecorationLine> StyleProperties::text_decoration_line() const
         return lines;
     }
 
-    if (value->is_identifier() && value->to_identifier() == ValueID::None)
+    if (value->is_keyword() && value->to_identifier() == ValueID::None)
         return {};
 
     dbgln("FIXME: Unsupported value for text-decoration-line: {}", value->to_string());
@@ -963,7 +963,7 @@ Variant<CSS::VerticalAlign, CSS::LengthPercentage> StyleProperties::vertical_ali
 {
     auto value = property(CSS::PropertyID::VerticalAlign);
 
-    if (value->is_identifier())
+    if (value->is_keyword())
         return value_id_to_vertical_align(value->to_identifier()).release_value();
 
     if (value->is_length())
@@ -1100,9 +1100,9 @@ Optional<CSS::MaskType> StyleProperties::mask_type() const
 Color StyleProperties::stop_color() const
 {
     auto value = property(CSS::PropertyID::StopColor);
-    if (value->is_identifier()) {
+    if (value->is_keyword()) {
         // Workaround lack of layout node to resolve current color.
-        auto& ident = value->as_identifier();
+        auto& ident = value->as_keyword();
         if (ident.id() == CSS::ValueID::Currentcolor)
             value = property(CSS::PropertyID::Color);
     }
@@ -1124,7 +1124,7 @@ void StyleProperties::set_math_depth(int math_depth)
 QuotesData StyleProperties::quotes() const
 {
     auto value = property(CSS::PropertyID::Quotes);
-    if (value->is_identifier()) {
+    if (value->is_keyword()) {
         switch (value->to_identifier()) {
         case ValueID::Auto:
             return QuotesData { .type = QuotesData::Type::Auto };

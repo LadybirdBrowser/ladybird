@@ -7,7 +7,7 @@
 #include <LibWeb/Bindings/HTMLTableCaptionElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleProperties.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/HTML/HTMLTableCaptionElement.h>
 
 namespace Web::HTML {
@@ -34,7 +34,7 @@ void HTMLTableCaptionElement::apply_presentational_hints(CSS::StyleProperties& s
     for_each_attribute([&](auto& name, auto& value) {
         if (name.equals_ignoring_ascii_case("align"sv)) {
             if (value == "bottom"sv)
-                style.set_property(CSS::PropertyID::CaptionSide, CSS::IdentifierStyleValue::create(CSS::ValueID::Bottom));
+                style.set_property(CSS::PropertyID::CaptionSide, CSS::CSSKeywordValue::create(CSS::ValueID::Bottom));
         }
     });
 }

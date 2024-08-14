@@ -11,8 +11,8 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/Bindings/HTMLInputElementPrototype.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -135,7 +135,7 @@ void HTMLInputElement::adjust_computed_style(CSS::StyleProperties& style)
     double current_line_height = style.line_height().to_double();
 
     if (is_single_line() && current_line_height < normal_line_height)
-        style.set_property(CSS::PropertyID::LineHeight, CSS::IdentifierStyleValue::create(CSS::ValueID::Normal));
+        style.set_property(CSS::PropertyID::LineHeight, CSS::CSSKeywordValue::create(CSS::ValueID::Normal));
 }
 
 void HTMLInputElement::set_checked(bool checked, ChangeSource change_source)

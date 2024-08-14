@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -14,13 +14,14 @@
 
 namespace Web::CSS {
 
-class IdentifierStyleValue final : public StyleValueWithDefaultOperators<IdentifierStyleValue> {
+// https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
+class CSSKeywordValue final : public StyleValueWithDefaultOperators<CSSKeywordValue> {
 public:
-    static ValueComparingNonnullRefPtr<IdentifierStyleValue> create(ValueID id)
+    static ValueComparingNonnullRefPtr<CSSKeywordValue> create(ValueID id)
     {
-        return adopt_ref(*new (nothrow) IdentifierStyleValue(id));
+        return adopt_ref(*new (nothrow) CSSKeywordValue(id));
     }
-    virtual ~IdentifierStyleValue() override = default;
+    virtual ~CSSKeywordValue() override = default;
 
     ValueID id() const { return m_id; }
 
@@ -29,11 +30,11 @@ public:
     virtual Color to_color(Optional<Layout::NodeWithStyle const&> node) const override;
     virtual String to_string() const override;
 
-    bool properties_equal(IdentifierStyleValue const& other) const { return m_id == other.m_id; }
+    bool properties_equal(CSSKeywordValue const& other) const { return m_id == other.m_id; }
 
 private:
-    explicit IdentifierStyleValue(ValueID id)
-        : StyleValueWithDefaultOperators(Type::Identifier)
+    explicit CSSKeywordValue(ValueID id)
+        : StyleValueWithDefaultOperators(Type::Keyword)
         , m_id(id)
     {
     }

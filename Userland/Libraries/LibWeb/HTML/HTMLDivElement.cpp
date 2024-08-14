@@ -7,7 +7,7 @@
 #include <LibWeb/Bindings/HTMLDivElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleProperties.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/HTML/HTMLDivElement.h>
 
 namespace Web::HTML {
@@ -27,13 +27,13 @@ void HTMLDivElement::apply_presentational_hints(CSS::StyleProperties& style) con
     for_each_attribute([&](auto& name, auto& value) {
         if (name.equals_ignoring_ascii_case("align"sv)) {
             if (value.equals_ignoring_ascii_case("left"sv))
-                style.set_property(CSS::PropertyID::TextAlign, CSS::IdentifierStyleValue::create(CSS::ValueID::LibwebLeft));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::LibwebLeft));
             else if (value.equals_ignoring_ascii_case("right"sv))
-                style.set_property(CSS::PropertyID::TextAlign, CSS::IdentifierStyleValue::create(CSS::ValueID::LibwebRight));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::LibwebRight));
             else if (value.equals_ignoring_ascii_case("center"sv))
-                style.set_property(CSS::PropertyID::TextAlign, CSS::IdentifierStyleValue::create(CSS::ValueID::LibwebCenter));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::LibwebCenter));
             else if (value.equals_ignoring_ascii_case("justify"sv))
-                style.set_property(CSS::PropertyID::TextAlign, CSS::IdentifierStyleValue::create(CSS::ValueID::Justify));
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::Justify));
         }
     });
 }
