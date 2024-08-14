@@ -16,32 +16,21 @@
         return element_string;
     }
 
-    document.addEventListener("focusin", function (e) {
+    function printFocusEvent(e) {
         const target = elementToString(e.target);
-        println(`focusin target=${target}`);
-    });
-    document.addEventListener("focusout", function (e) {
-        const target = elementToString(e.target);
-        println(`focusout target=${target}`);
-    });
+        println(`${e.type} target=${target} bubbles=${e.bubbles} composed=${e.composed}`);
+    }
+
+    document.addEventListener('focusin', printFocusEvent);
+    document.addEventListener('focusout', printFocusEvent);
 
     const a = document.getElementById("a");
     const b = document.getElementById("b");
 
-    function onFocus(e) {
-        const target = elementToString(e.target);
-        println(`focus target=${target}`);
-    }
-
-    function onBlur(e) {
-        const target = elementToString(e.target);
-        println(`blur target=${target}`);
-    }
-
-    a.addEventListener("focus", onFocus);
-    a.addEventListener("blur", onBlur);
-    b.addEventListener("focus", onFocus);
-    b.addEventListener("blur", onBlur);
+    a.addEventListener('focus', printFocusEvent);
+    a.addEventListener('blur', printFocusEvent);
+    b.addEventListener('focus', printFocusEvent);
+    b.addEventListener('blur', printFocusEvent);
 
     asyncTest(async done => {
         a.focus();
