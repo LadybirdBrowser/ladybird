@@ -42,8 +42,8 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
-#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
@@ -2995,7 +2995,7 @@ Optional<Color> Parser::parse_color(TokenStream<ComponentValue>& tokens)
 RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto color = parse_color(tokens); color.has_value())
-        return ColorStyleValue::create(color.value());
+        return CSSColorValue::create(color.value());
 
     auto transaction = tokens.begin_transaction();
     if (auto keyword = parse_keyword_value(tokens); keyword && keyword->has_color()) {
