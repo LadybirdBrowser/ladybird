@@ -3,12 +3,12 @@
 ## Introduction
 
 Over time numerous reoccurring patterns have emerged from or were adopted by
-the serenity code base. This document aims to track and describe them, so they
+the Ladybird code base. This document aims to track and describe them, so they
 can be propagated further and the code base can be kept consistent. 
 
 ## `TRY(...)` Error Handling
 
-The `TRY(..)` macro is used for error propagation in the serenity code base.
+The `TRY(..)` macro is used for error propagation in the Ladybird code base.
 The goal being to reduce the amount of boiler plate error code required to
 properly handle and propagate errors throughout the code base. 
 
@@ -73,7 +73,7 @@ ErrorOr<void> insert_one_to_onehundred(Vector<int>& vector)
 
 ## Fallible Constructors
 
-The usual C++ constructors are incompatible with SerenityOS's method of handling errors,
+The usual C++ constructors are incompatible with Ladybird's method of handling errors,
 as potential errors are passed using the `ErrorOr` return type. As a replacement, classes
 that require fallible operations during their construction define a static function that
 is fallible instead.
@@ -112,10 +112,10 @@ private:
 
 ## The `serenity_main(..)` program entry point
 
-Serenity has moved to a pattern where executables do not expose a normal C
+Ladybird has moved to a pattern where executables do not expose a normal C
 main function. A `serenity_main(..)` is exposed instead. The main reasoning
 is that the `Main::Arguments` struct can provide arguments in a more idiomatic
-way that fits with the serenity API surface area. The ErrorOr<int> likewise
+way that fits with the Ladybird's internal API surface area. The ErrorOr<int> likewise
 allows the program to propagate errors seamlessly with the `TRY(...)` macro,
 avoiding a significant amount of clunky C style error handling.
 
@@ -150,8 +150,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 ## Intrusive Lists
 
-[Intrusive lists](https://www.data-structures-in-practice.com/intrusive-linked-lists/) are common in the Kernel and in some specific cases
-are used in the SerenityOS userland. A data structure is said to be
+[Intrusive lists](https://www.data-structures-in-practice.com/intrusive-linked-lists/) are used in some specific cases
+in Ladybird. A data structure is said to be
 "intrusive" when each element holds the metadata that tracks the
 element's membership in the data structure. In the case of a list, this
 means that every element in an intrusive linked list has a node embedded
@@ -164,41 +164,6 @@ to OOM.
 The common pattern for declaring an intrusive list is to add the storage
 for the intrusive list node as a private member. A public type alias is
 then used to expose the list type to anyone who might need to create it.
-Here is an example from the `Region` class in the Kernel:
-
-```cpp
-class Region final
-    : public Weakable<Region> {
-
-public:
-
-... snip ...
-
-private:
-    bool m_syscall_region : 1 { false };
-
-    IntrusiveListNode<Region> m_memory_manager_list_node;
-    IntrusiveListNode<Region> m_vmobject_list_node;
-
-public:
-    using ListInMemoryManager = IntrusiveList<&Region::m_memory_manager_list_node>;
-    using ListInVMObject = IntrusiveList<&Region::m_vmobject_list_node>;
-};
-```
-
-You can then use the list by referencing the public type alias like so:
-
-```cpp
-class MemoryManager {
-
-... snip ...
-
-    Region::ListInMemoryManager m_kernel_regions;
-    Vector<UsedMemoryRange> m_used_memory_ranges;
-    Vector<PhysicalMemoryRange> m_physical_memory_ranges;
-    Vector<ContiguousReservedMemoryRange> m_reserved_memory_ranges;
-};
-```
 
 ## Static Assertions of the size of a type
 
@@ -263,7 +228,7 @@ argument to functions.
 See: https://en.cppreference.com/w/cpp/utility/source_location
 
 `AK::SourceLocation` is the implementation of this feature in
-SerenityOS. It's become the idiomatic way to capture the location
+Ladybird's AK. It's become the idiomatic way to capture the location
 when adding extra debugging instrumentation, without resorting to
 littering the code with preprocessor macros.
 
