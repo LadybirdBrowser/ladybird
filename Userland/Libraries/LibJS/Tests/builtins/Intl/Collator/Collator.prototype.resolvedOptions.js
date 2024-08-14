@@ -28,9 +28,12 @@ describe("correct behavior", () => {
         const en1 = new Intl.Collator("en");
         expect(en1.resolvedOptions().sensitivity).toBe("variant");
 
+        const en2 = new Intl.Collator("en", { usage: "search" });
+        expect(en2.resolvedOptions().sensitivity).toBe("variant");
+
         ["base", "accent", "case", "variant"].forEach(sensitivity => {
-            const en2 = new Intl.Collator("en", { sensitivity: sensitivity });
-            expect(en2.resolvedOptions().sensitivity).toBe(sensitivity);
+            const en3 = new Intl.Collator("en", { sensitivity: sensitivity });
+            expect(en3.resolvedOptions().sensitivity).toBe(sensitivity);
         });
     });
 
