@@ -2,6 +2,7 @@ include(${SerenityOS_SOURCE_DIR}/Meta/CMake/unicode_data.cmake)
 
 set(SOURCES
     CharacterTypes.cpp
+    Collator.cpp
     CurrencyCode.cpp
     DateTimeFormat.cpp
     DisplayNames.cpp

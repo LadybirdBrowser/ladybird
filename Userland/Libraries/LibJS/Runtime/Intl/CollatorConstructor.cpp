@@ -114,7 +114,7 @@ static ThrowCompletionOr<NonnullGCPtr<Collator>> initialize_collator(VM& vm, Col
     // 27. If sensitivity is undefined, then
     if (sensitivity.is_undefined()) {
         // a. If usage is "sort", then
-        if (collator.usage() == Collator::Usage::Sort) {
+        if (collator.usage() == Unicode::Usage::Sort) {
             // i. Let sensitivity be "variant".
             sensitivity = PrimitiveString::create(vm, "variant"_string);
         }
@@ -135,6 +135,17 @@ static ThrowCompletionOr<NonnullGCPtr<Collator>> initialize_collator(VM& vm, Col
 
     // 30. Set collator.[[IgnorePunctuation]] to ignorePunctuation.
     collator.set_ignore_punctuation(ignore_punctuation.as_bool());
+
+    // Non-standard, create an ICU collator for this Intl object.
+    auto icu_collator = Unicode::Collator::create(
+        collator.locale(),
+        collator.usage(),
+        collator.collation(),
+        collator.sensitivity(),
+        collator.case_first(),
+        collator.numeric(),
+        collator.ignore_punctuation());
+    collator.set_collator(move(icu_collator));
 
     // 31. Return collator.
     return collator;

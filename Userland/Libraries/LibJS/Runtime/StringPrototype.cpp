@@ -566,7 +566,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::locale_compare)
     auto collator = TRY(construct(vm, realm.intrinsics().intl_collator_constructor(), vm.argument(1), vm.argument(2)));
 
     // 5. Return CompareStrings(collator, S, thatValue).
-    return Intl::compare_strings(static_cast<Intl::Collator&>(*collator), string.code_points(), that_value.code_points());
+    return Intl::compare_strings(static_cast<Intl::Collator const&>(*collator), string, that_value);
 }
 
 // 22.1.3.13 String.prototype.match ( regexp ), https://tc39.es/ecma262/#sec-string.prototype.match

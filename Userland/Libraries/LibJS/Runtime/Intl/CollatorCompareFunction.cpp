@@ -31,22 +31,10 @@ void CollatorCompareFunction::initialize(Realm&)
     define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
 }
 
-// 10.3.3.2 CompareStrings ( collator, x, y ), https://tc39.es/ecma402/#sec-collator-comparestrings
-double compare_strings(Collator& collator, Utf8View const& x, Utf8View const& y)
+void CollatorCompareFunction::visit_edges(Visitor& visitor)
 {
-    // FIXME: Implement https://unicode.org/reports/tr10
-    (void)collator;
-    auto x_iterator = x.begin();
-    auto y_iterator = y.begin();
-    for (; x_iterator != x.end() && y_iterator != y.end(); ++x_iterator, ++y_iterator) {
-        if (*x_iterator != *y_iterator)
-            return static_cast<double>(*x_iterator) - static_cast<double>(*y_iterator);
-    }
-    if (x_iterator != x.end())
-        return 1.0;
-    if (y_iterator != y.end())
-        return -1.0;
-    return 0.0;
+    Base::visit_edges(visitor);
+    visitor.visit(m_collator);
 }
 
 // 10.3.3.1 Collator Compare Functions, https://tc39.es/ecma402/#sec-collator-compare-functions
@@ -61,17 +49,32 @@ ThrowCompletionOr<Value> CollatorCompareFunction::call()
 
     // 5. Let X be ? ToString(x).
     auto x = TRY(vm.argument(0).to_string(vm));
+
     // 6. Let Y be ? ToString(y).
     auto y = TRY(vm.argument(1).to_string(vm));
 
     // 7. Return CompareStrings(collator, X, Y).
-    return compare_strings(m_collator, x.code_points(), y.code_points());
+    return compare_strings(m_collator, x, y);
 }
 
-void CollatorCompareFunction::visit_edges(Visitor& visitor)
+// 10.3.3.2 CompareStrings ( collator, x, y ), https://tc39.es/ecma402/#sec-collator-comparestrings
+int compare_strings(Collator const& collator, StringView x, StringView y)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_collator);
+    auto result = collator.collator().compare(x, y);
+
+    // The result is intended to correspond with a sort order of String values according to the effective locale and
+    // collation options of collator, and will be negative when x is ordered before y, positive when x is ordered after
+    // y, and zero in all other cases (representing no relative ordering between x and y).
+    switch (result) {
+    case Unicode::Collator::Order::Before:
+        return -1;
+    case Unicode::Collator::Order::Equal:
+        return 0;
+    case Unicode::Collator::Order::After:
+        return 1;
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 }
