@@ -56,12 +56,12 @@ function (generate_css_implementation)
     )
 
     invoke_generator(
-        "ValueID.cpp"
-        Lagom::GenerateCSSValueID
-        "${LIBWEB_INPUT_FOLDER}/CSS/Identifiers.json"
-        "CSS/ValueID.h"
-        "CSS/ValueID.cpp"
-        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Identifiers.json"
+        "Keyword.cpp"
+        Lagom::GenerateCSSKeyword
+        "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
+        "CSS/Keyword.h"
+        "CSS/Keyword.cpp"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
     )
 
     embed_as_string_view(
@@ -99,12 +99,12 @@ function (generate_css_implementation)
     if (ENABLE_INSTALL_HEADERS)
         set(CSS_GENERATED_TO_INSTALL
             "CSS/Enums.h"
+            "CSS/Keyword.h"
             "CSS/MathFunctions.h"
             "CSS/MediaFeatureID.h"
             "CSS/PropertyID.h"
             "CSS/PseudoClass.h"
             "CSS/TransformFunctions.h"
-            "CSS/ValueID.h"
         )
         list(TRANSFORM CSS_GENERATED_TO_INSTALL PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
         install(FILES ${CSS_GENERATED_TO_INSTALL} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/CSS")

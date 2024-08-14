@@ -25,7 +25,7 @@ NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()
 String MediaFeatureValue::to_string() const
 {
     return m_value.visit(
-        [](ValueID const& ident) { return MUST(String::from_utf8(string_from_value_id(ident))); },
+        [](Keyword const& ident) { return MUST(String::from_utf8(string_from_keyword(ident))); },
         [](Length const& length) { return length.to_string(); },
         [](Ratio const& ratio) { return ratio.to_string(); },
         [](Resolution const& resolution) { return resolution.to_string(); },
@@ -35,7 +35,7 @@ String MediaFeatureValue::to_string() const
 bool MediaFeatureValue::is_same_type(MediaFeatureValue const& other) const
 {
     return m_value.visit(
-        [&](ValueID const&) { return other.is_ident(); },
+        [&](Keyword const&) { return other.is_ident(); },
         [&](Length const&) { return other.is_length(); },
         [&](Ratio const&) { return other.is_ratio(); },
         [&](Resolution const&) { return other.is_resolution(); },
@@ -100,10 +100,10 @@ bool MediaFeature::evaluate(HTML::Window const& window) const
         if (queried_value.is_ident()) {
             // NOTE: It is not technically correct to always treat `no-preference` as false, but every
             //       media-feature that accepts it as a value treats it as false, so good enough. :^)
-            //       If other features gain this property for other identifiers in the future, we can
+            //       If other features gain this property for other keywords in the future, we can
             //       add more robust handling for them then.
-            return queried_value.ident() != ValueID::None
-                && queried_value.ident() != ValueID::NoPreference;
+            return queried_value.ident() != Keyword::None
+                && queried_value.ident() != Keyword::NoPreference;
         }
         return false;
 

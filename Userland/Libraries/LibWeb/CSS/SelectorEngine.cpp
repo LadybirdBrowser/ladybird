@@ -5,10 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleProperties.h>
-#include <LibWeb/CSS/ValueID.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -606,13 +606,13 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::Dir: {
         // "Values other than ltr and rtl are not invalid, but do not match anything."
         // - https://www.w3.org/TR/selectors-4/#the-dir-pseudo
-        if (!first_is_one_of(pseudo_class.identifier, CSS::ValueID::Ltr, CSS::ValueID::Rtl))
+        if (!first_is_one_of(pseudo_class.keyword, CSS::Keyword::Ltr, CSS::Keyword::Rtl))
             return false;
         switch (element.directionality()) {
         case DOM::Element::Directionality::Ltr:
-            return pseudo_class.identifier == CSS::ValueID::Ltr;
+            return pseudo_class.keyword == CSS::Keyword::Ltr;
         case DOM::Element::Directionality::Rtl:
-            return pseudo_class.identifier == CSS::ValueID::Rtl;
+            return pseudo_class.keyword == CSS::Keyword::Rtl;
         }
         VERIFY_NOT_REACHED();
     }

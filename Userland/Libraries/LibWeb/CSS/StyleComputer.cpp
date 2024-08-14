@@ -784,10 +784,10 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     if (property_id == CSS::PropertyID::Transition) {
         if (!value.is_transition()) {
             // Handle `none` as a shorthand for `all 0s ease 0s`.
-            set_longhand_property(CSS::PropertyID::TransitionProperty, CSSKeywordValue::create(CSS::ValueID::All));
+            set_longhand_property(CSS::PropertyID::TransitionProperty, CSSKeywordValue::create(Keyword::All));
             set_longhand_property(CSS::PropertyID::TransitionDuration, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionDelay, TimeStyleValue::create(CSS::Time::make_seconds(0)));
-            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, CSSKeywordValue::create(CSS::ValueID::Ease));
+            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, CSSKeywordValue::create(Keyword::Ease));
             return;
         }
         auto const& transitions = value.as_transition().transitions();
@@ -808,14 +808,14 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     }
 
     if (property_id == CSS::PropertyID::Float) {
-        auto ident = value.to_identifier();
+        auto keyword = value.to_keyword();
 
         // FIXME: Honor writing-mode, direction and text-orientation.
-        if (ident == CSS::ValueID::InlineStart) {
-            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(CSS::ValueID::Left));
+        if (keyword == Keyword::InlineStart) {
+            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(Keyword::Left));
             return;
-        } else if (ident == CSS::ValueID::InlineEnd) {
-            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(CSS::ValueID::Right));
+        } else if (keyword == Keyword::InlineEnd) {
+            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(Keyword::Right));
             return;
         }
     }
@@ -1307,7 +1307,7 @@ static NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& e
             }
         } else if (value.is_shadow()) {
             shadows.append(value);
-        } else if (!value.is_keyword() || value.as_keyword().id() != ValueID::None) {
+        } else if (!value.is_keyword() || value.as_keyword().keyword() != Keyword::None) {
             VERIFY_NOT_REACHED();
         }
         return shadows;
@@ -1627,7 +1627,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         } else {
             // If interpolate_property() fails, the element should not be rendered
             dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(), end->to_string());
-            style_properties.set_animated_property(PropertyID::Visibility, CSSKeywordValue::create(ValueID::Hidden));
+            style_properties.set_animated_property(PropertyID::Visibility, CSSKeywordValue::create(Keyword::Hidden));
         }
     }
 }
@@ -1640,7 +1640,7 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
     if (auto duration_value = style.maybe_null_property(PropertyID::AnimationDuration); duration_value) {
         if (duration_value->is_time()) {
             duration = duration_value->as_time().time();
-        } else if (duration_value->is_keyword() && duration_value->as_keyword().id() == ValueID::Auto) {
+        } else if (duration_value->is_keyword() && duration_value->as_keyword().keyword() == Keyword::Auto) {
             // We use empty optional to represent "auto".
             duration = {};
         }
@@ -1652,7 +1652,7 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
 
     double iteration_count = 1.0;
     if (auto iteration_count_value = style.maybe_null_property(PropertyID::AnimationIterationCount); iteration_count_value) {
-        if (iteration_count_value->is_keyword() && iteration_count_value->to_identifier() == ValueID::Infinite)
+        if (iteration_count_value->is_keyword() && iteration_count_value->to_keyword() == Keyword::Infinite)
             iteration_count = HUGE_VAL;
         else if (iteration_count_value->is_number())
             iteration_count = iteration_count_value->as_number().number();
@@ -1660,19 +1660,19 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
 
     CSS::AnimationFillMode fill_mode { CSS::AnimationFillMode::None };
     if (auto fill_mode_property = style.maybe_null_property(PropertyID::AnimationFillMode); fill_mode_property && fill_mode_property->is_keyword()) {
-        if (auto fill_mode_value = value_id_to_animation_fill_mode(fill_mode_property->to_identifier()); fill_mode_value.has_value())
+        if (auto fill_mode_value = keyword_to_animation_fill_mode(fill_mode_property->to_keyword()); fill_mode_value.has_value())
             fill_mode = *fill_mode_value;
     }
 
     CSS::AnimationDirection direction { CSS::AnimationDirection::Normal };
     if (auto direction_property = style.maybe_null_property(PropertyID::AnimationDirection); direction_property && direction_property->is_keyword()) {
-        if (auto direction_value = value_id_to_animation_direction(direction_property->to_identifier()); direction_value.has_value())
+        if (auto direction_value = keyword_to_animation_direction(direction_property->to_keyword()); direction_value.has_value())
             direction = *direction_value;
     }
 
     CSS::AnimationPlayState play_state { CSS::AnimationPlayState::Running };
     if (auto play_state_property = style.maybe_null_property(PropertyID::AnimationPlayState); play_state_property && play_state_property->is_keyword()) {
-        if (auto play_state_value = value_id_to_animation_play_state(play_state_property->to_identifier()); play_state_value.has_value())
+        if (auto play_state_value = keyword_to_animation_play_state(play_state_property->to_keyword()); play_state_value.has_value())
             play_state = *play_state_value;
     }
 
@@ -1924,7 +1924,7 @@ void StyleComputer::compute_defaulted_values(StyleProperties& style, DOM::Elemen
     // https://www.w3.org/TR/css-color-4/#resolving-other-colors
     // In the color property, the used value of currentcolor is the inherited value.
     auto color = style.property(CSS::PropertyID::Color);
-    if (color->to_identifier() == CSS::ValueID::Currentcolor) {
+    if (color->to_keyword() == Keyword::Currentcolor) {
         color = get_inherit_value(document().realm(), CSS::PropertyID::Color, element, pseudo_element);
         style.set_property(CSS::PropertyID::Color, color);
     }
@@ -2073,36 +2073,36 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
 
     if (font_size.is_keyword()) {
         // https://w3c.github.io/csswg-drafts/css-fonts/#absolute-size-mapping
-        auto get_absolute_size_mapping = [](Web::CSS::ValueID identifier) -> CSSPixelFraction {
-            switch (identifier) {
-            case CSS::ValueID::XxSmall:
+        auto get_absolute_size_mapping = [](Keyword keyword) -> CSSPixelFraction {
+            switch (keyword) {
+            case Keyword::XxSmall:
                 return CSSPixels(3) / 5;
-            case CSS::ValueID::XSmall:
+            case Keyword::XSmall:
                 return CSSPixels(3) / 4;
-            case CSS::ValueID::Small:
+            case Keyword::Small:
                 return CSSPixels(8) / 9;
-            case CSS::ValueID::Medium:
+            case Keyword::Medium:
                 return 1;
-            case CSS::ValueID::Large:
+            case Keyword::Large:
                 return CSSPixels(6) / 5;
-            case CSS::ValueID::XLarge:
+            case Keyword::XLarge:
                 return CSSPixels(3) / 2;
-            case CSS::ValueID::XxLarge:
+            case Keyword::XxLarge:
                 return 2;
-            case CSS::ValueID::XxxLarge:
+            case Keyword::XxxLarge:
                 return 3;
-            case CSS::ValueID::Smaller:
+            case Keyword::Smaller:
                 return CSSPixels(4) / 5;
-            case CSS::ValueID::Larger:
+            case Keyword::Larger:
                 return CSSPixels(5) / 4;
             default:
                 return 1;
             }
         };
 
-        auto const identifier = static_cast<CSSKeywordValue const&>(font_size).id();
+        auto const keyword = font_size.to_keyword();
 
-        if (identifier == ValueID::Math) {
+        if (keyword == Keyword::Math) {
             auto math_scaling_factor = [&]() {
                 // https://w3c.github.io/mathml-core/#the-math-script-level-property
                 // If the specified value font-size is math then the computed value of font-size is obtained by multiplying
@@ -2147,12 +2147,12 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             // TODO: If the parent element has a keyword font size in the absolute size keyword mapping table,
             //       larger may compute the font size to the next entry in the table,
             //       and smaller may compute the font size to the previous entry in the table.
-            if (identifier == CSS::ValueID::Smaller || identifier == CSS::ValueID::Larger) {
+            if (keyword == Keyword::Smaller || keyword == Keyword::Larger) {
                 if (parent_element && parent_element->computed_css_values()) {
                     font_size_in_px = CSSPixels::nearest_value_for(parent_element->computed_css_values()->first_available_computed_font().pixel_metrics().size);
                 }
             }
-            font_size_in_px *= get_absolute_size_mapping(identifier);
+            font_size_in_px *= get_absolute_size_mapping(keyword);
         }
     } else {
         Length::ResolutionContext const length_resolution_context {
@@ -2218,33 +2218,33 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         return {};
     };
 
-    auto find_generic_font = [&](ValueID font_id) -> RefPtr<Gfx::FontCascadeList const> {
+    auto find_generic_font = [&](Keyword font_id) -> RefPtr<Gfx::FontCascadeList const> {
         Platform::GenericFont generic_font {};
         switch (font_id) {
-        case ValueID::Monospace:
-        case ValueID::UiMonospace:
+        case Keyword::Monospace:
+        case Keyword::UiMonospace:
             generic_font = Platform::GenericFont::Monospace;
             monospace = true;
             break;
-        case ValueID::Serif:
+        case Keyword::Serif:
             generic_font = Platform::GenericFont::Serif;
             break;
-        case ValueID::Fantasy:
+        case Keyword::Fantasy:
             generic_font = Platform::GenericFont::Fantasy;
             break;
-        case ValueID::SansSerif:
+        case Keyword::SansSerif:
             generic_font = Platform::GenericFont::SansSerif;
             break;
-        case ValueID::Cursive:
+        case Keyword::Cursive:
             generic_font = Platform::GenericFont::Cursive;
             break;
-        case ValueID::UiSerif:
+        case Keyword::UiSerif:
             generic_font = Platform::GenericFont::UiSerif;
             break;
-        case ValueID::UiSansSerif:
+        case Keyword::UiSansSerif:
             generic_font = Platform::GenericFont::UiSansSerif;
             break;
-        case ValueID::UiRounded:
+        case Keyword::UiRounded:
             generic_font = Platform::GenericFont::UiRounded;
             break;
         default:
@@ -2259,7 +2259,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         for (auto const& family : family_list) {
             RefPtr<Gfx::FontCascadeList const> other_font_list;
             if (family->is_keyword()) {
-                other_font_list = find_generic_font(family->to_identifier());
+                other_font_list = find_generic_font(family->to_keyword());
             } else if (family->is_string()) {
                 other_font_list = find_font(family->as_string().string_value());
             } else if (family->is_custom_ident()) {
@@ -2269,7 +2269,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
                 font_list->extend(*other_font_list);
         }
     } else if (font_family.is_keyword()) {
-        if (auto other_font_list = find_generic_font(font_family.to_identifier()))
+        if (auto other_font_list = find_generic_font(font_family.to_keyword()))
             font_list->extend(*other_font_list);
     } else if (font_family.is_string()) {
         if (auto other_font_list = find_font(font_family.as_string().string_value()))
@@ -2366,19 +2366,19 @@ void StyleComputer::resolve_effective_overflow_values(StyleProperties& style) co
     // https://www.w3.org/TR/css-overflow-3/#overflow-control
     // The visible/clip values of overflow compute to auto/hidden (respectively) if one of overflow-x or
     // overflow-y is neither visible nor clip.
-    auto overflow_x = value_id_to_overflow(style.property(PropertyID::OverflowX)->to_identifier());
-    auto overflow_y = value_id_to_overflow(style.property(PropertyID::OverflowY)->to_identifier());
+    auto overflow_x = keyword_to_overflow(style.property(PropertyID::OverflowX)->to_keyword());
+    auto overflow_y = keyword_to_overflow(style.property(PropertyID::OverflowY)->to_keyword());
     auto overflow_x_is_visible_or_clip = overflow_x == Overflow::Visible || overflow_x == Overflow::Clip;
     auto overflow_y_is_visible_or_clip = overflow_y == Overflow::Visible || overflow_y == Overflow::Clip;
     if (!overflow_x_is_visible_or_clip || !overflow_y_is_visible_or_clip) {
         if (overflow_x == CSS::Overflow::Visible)
-            style.set_property(CSS::PropertyID::OverflowX, CSSKeywordValue::create(CSS::ValueID::Auto));
+            style.set_property(CSS::PropertyID::OverflowX, CSSKeywordValue::create(Keyword::Auto));
         if (overflow_x == CSS::Overflow::Clip)
-            style.set_property(CSS::PropertyID::OverflowX, CSSKeywordValue::create(CSS::ValueID::Hidden));
+            style.set_property(CSS::PropertyID::OverflowX, CSSKeywordValue::create(Keyword::Hidden));
         if (overflow_y == CSS::Overflow::Visible)
-            style.set_property(CSS::PropertyID::OverflowY, CSSKeywordValue::create(CSS::ValueID::Auto));
+            style.set_property(CSS::PropertyID::OverflowY, CSSKeywordValue::create(Keyword::Auto));
         if (overflow_y == CSS::Overflow::Clip)
-            style.set_property(CSS::PropertyID::OverflowY, CSSKeywordValue::create(CSS::ValueID::Hidden));
+            style.set_property(CSS::PropertyID::OverflowY, CSSKeywordValue::create(Keyword::Hidden));
     }
 }
 
@@ -2837,7 +2837,7 @@ void StyleComputer::compute_math_depth(StyleProperties& style, DOM::Element cons
     // The computed value of the math-depth value is determined as follows:
     // - If the specified value of math-depth is auto-add and the inherited value of math-style is compact
     //   then the computed value of math-depth of the element is its inherited value plus one.
-    if (math_depth.is_auto_add() && style.property(CSS::PropertyID::MathStyle)->to_identifier() == CSS::ValueID::Compact) {
+    if (math_depth.is_auto_add() && style.property(CSS::PropertyID::MathStyle)->to_keyword() == Keyword::Compact) {
         style.set_math_depth(inherited_math_depth() + 1);
         return;
     }

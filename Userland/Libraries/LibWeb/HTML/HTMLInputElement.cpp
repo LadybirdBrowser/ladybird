@@ -135,7 +135,7 @@ void HTMLInputElement::adjust_computed_style(CSS::StyleProperties& style)
     double current_line_height = style.line_height().to_double();
 
     if (is_single_line() && current_line_height < normal_line_height)
-        style.set_property(CSS::PropertyID::LineHeight, CSS::CSSKeywordValue::create(CSS::ValueID::Normal));
+        style.set_property(CSS::PropertyID::LineHeight, CSS::CSSKeywordValue::create(CSS::Keyword::Normal));
 }
 
 void HTMLInputElement::set_checked(bool checked, ChangeSource change_source)

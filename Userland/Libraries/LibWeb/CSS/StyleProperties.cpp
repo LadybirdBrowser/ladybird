@@ -125,16 +125,16 @@ CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
 {
     auto value = property(id);
     if (value->is_keyword()) {
-        switch (value->to_identifier()) {
-        case ValueID::Auto:
+        switch (value->to_keyword()) {
+        case Keyword::Auto:
             return CSS::Size::make_auto();
-        case ValueID::MinContent:
+        case Keyword::MinContent:
             return CSS::Size::make_min_content();
-        case ValueID::MaxContent:
+        case Keyword::MaxContent:
             return CSS::Size::make_max_content();
-        case ValueID::FitContent:
+        case Keyword::FitContent:
             return CSS::Size::make_fit_content();
-        case ValueID::None:
+        case Keyword::None:
             return CSS::Size::make_none();
         default:
             VERIFY_NOT_REACHED();
@@ -219,7 +219,7 @@ CSSPixels StyleProperties::compute_line_height(CSSPixelRect const& viewport_rect
 {
     auto line_height = property(CSS::PropertyID::LineHeight);
 
-    if (line_height->is_keyword() && line_height->to_identifier() == ValueID::Normal)
+    if (line_height->is_keyword() && line_height->to_keyword() == Keyword::Normal)
         return font_metrics.line_height;
 
     if (line_height->is_length()) {
@@ -330,32 +330,32 @@ float StyleProperties::stop_opacity() const
 Optional<CSS::FillRule> StyleProperties::fill_rule() const
 {
     auto value = property(CSS::PropertyID::FillRule);
-    return value_id_to_fill_rule(value->to_identifier());
+    return keyword_to_fill_rule(value->to_keyword());
 }
 
 Optional<CSS::ClipRule> StyleProperties::clip_rule() const
 {
     auto value = property(CSS::PropertyID::ClipRule);
-    return value_id_to_fill_rule(value->to_identifier());
+    return keyword_to_fill_rule(value->to_keyword());
 }
 
 Optional<CSS::FlexDirection> StyleProperties::flex_direction() const
 {
     auto value = property(CSS::PropertyID::FlexDirection);
-    return value_id_to_flex_direction(value->to_identifier());
+    return keyword_to_flex_direction(value->to_keyword());
 }
 
 Optional<CSS::FlexWrap> StyleProperties::flex_wrap() const
 {
     auto value = property(CSS::PropertyID::FlexWrap);
-    return value_id_to_flex_wrap(value->to_identifier());
+    return keyword_to_flex_wrap(value->to_keyword());
 }
 
 Optional<CSS::FlexBasis> StyleProperties::flex_basis() const
 {
     auto value = property(CSS::PropertyID::FlexBasis);
 
-    if (value->is_keyword() && value->to_identifier() == CSS::ValueID::Content)
+    if (value->is_keyword() && value->to_keyword() == CSS::Keyword::Content)
         return CSS::FlexBasisContent {};
 
     return size_value(CSS::PropertyID::FlexBasis);
@@ -388,7 +388,7 @@ int StyleProperties::order() const
 Optional<CSS::ImageRendering> StyleProperties::image_rendering() const
 {
     auto value = property(CSS::PropertyID::ImageRendering);
-    return value_id_to_image_rendering(value->to_identifier());
+    return keyword_to_image_rendering(value->to_keyword());
 }
 
 CSS::Length StyleProperties::border_spacing_horizontal() const
@@ -412,7 +412,7 @@ CSS::Length StyleProperties::border_spacing_vertical() const
 Optional<CSS::CaptionSide> StyleProperties::caption_side() const
 {
     auto value = property(CSS::PropertyID::CaptionSide);
-    return value_id_to_caption_side(value->to_identifier());
+    return keyword_to_caption_side(value->to_keyword());
 }
 
 CSS::Clip StyleProperties::clip() const
@@ -426,24 +426,24 @@ CSS::Clip StyleProperties::clip() const
 Optional<CSS::JustifyContent> StyleProperties::justify_content() const
 {
     auto value = property(CSS::PropertyID::JustifyContent);
-    return value_id_to_justify_content(value->to_identifier());
+    return keyword_to_justify_content(value->to_keyword());
 }
 
 Optional<CSS::JustifyItems> StyleProperties::justify_items() const
 {
     auto value = property(CSS::PropertyID::JustifyItems);
-    return value_id_to_justify_items(value->to_identifier());
+    return keyword_to_justify_items(value->to_keyword());
 }
 
 Optional<CSS::JustifySelf> StyleProperties::justify_self() const
 {
     auto value = property(CSS::PropertyID::JustifySelf);
-    return value_id_to_justify_self(value->to_identifier());
+    return keyword_to_justify_self(value->to_keyword());
 }
 
 Vector<CSS::Transformation> StyleProperties::transformations_for_style_value(CSSStyleValue const& value)
 {
-    if (value.is_keyword() && value.to_identifier() == CSS::ValueID::None)
+    if (value.is_keyword() && value.to_keyword() == CSS::Keyword::None)
         return {};
 
     if (!value.is_value_list())
@@ -519,7 +519,7 @@ static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValu
 Optional<CSS::TransformBox> StyleProperties::transform_box() const
 {
     auto value = property(CSS::PropertyID::TransformBox);
-    return value_id_to_transform_box(value->to_identifier());
+    return keyword_to_transform_box(value->to_keyword());
 }
 
 CSS::TransformOrigin StyleProperties::transform_origin() const
@@ -547,25 +547,25 @@ Optional<Color> StyleProperties::accent_color(Layout::NodeWithStyle const& node)
 Optional<CSS::AlignContent> StyleProperties::align_content() const
 {
     auto value = property(CSS::PropertyID::AlignContent);
-    return value_id_to_align_content(value->to_identifier());
+    return keyword_to_align_content(value->to_keyword());
 }
 
 Optional<CSS::AlignItems> StyleProperties::align_items() const
 {
     auto value = property(CSS::PropertyID::AlignItems);
-    return value_id_to_align_items(value->to_identifier());
+    return keyword_to_align_items(value->to_keyword());
 }
 
 Optional<CSS::AlignSelf> StyleProperties::align_self() const
 {
     auto value = property(CSS::PropertyID::AlignSelf);
-    return value_id_to_align_self(value->to_identifier());
+    return keyword_to_align_self(value->to_keyword());
 }
 
 Optional<CSS::Appearance> StyleProperties::appearance() const
 {
     auto value = property(CSS::PropertyID::Appearance);
-    auto appearance = value_id_to_appearance(value->to_identifier());
+    auto appearance = keyword_to_appearance(value->to_keyword());
     if (appearance.has_value()) {
         switch (*appearance) {
         // Note: All these compatibility values can be treated as 'auto'
@@ -603,7 +603,7 @@ CSS::BackdropFilter StyleProperties::backdrop_filter() const
 Optional<CSS::Positioning> StyleProperties::position() const
 {
     auto value = property(CSS::PropertyID::Position);
-    return value_id_to_positioning(value->to_identifier());
+    return keyword_to_positioning(value->to_keyword());
 }
 
 bool StyleProperties::operator==(StyleProperties const& other) const
@@ -635,61 +635,61 @@ bool StyleProperties::operator==(StyleProperties const& other) const
 Optional<CSS::TextAnchor> StyleProperties::text_anchor() const
 {
     auto value = property(CSS::PropertyID::TextAnchor);
-    return value_id_to_text_anchor(value->to_identifier());
+    return keyword_to_text_anchor(value->to_keyword());
 }
 
 Optional<CSS::TextAlign> StyleProperties::text_align() const
 {
     auto value = property(CSS::PropertyID::TextAlign);
-    return value_id_to_text_align(value->to_identifier());
+    return keyword_to_text_align(value->to_keyword());
 }
 
 Optional<CSS::TextJustify> StyleProperties::text_justify() const
 {
     auto value = property(CSS::PropertyID::TextJustify);
-    return value_id_to_text_justify(value->to_identifier());
+    return keyword_to_text_justify(value->to_keyword());
 }
 
 Optional<CSS::TextOverflow> StyleProperties::text_overflow() const
 {
     auto value = property(CSS::PropertyID::TextOverflow);
-    return value_id_to_text_overflow(value->to_identifier());
+    return keyword_to_text_overflow(value->to_keyword());
 }
 
 Optional<CSS::PointerEvents> StyleProperties::pointer_events() const
 {
     auto value = property(CSS::PropertyID::PointerEvents);
-    return value_id_to_pointer_events(value->to_identifier());
+    return keyword_to_pointer_events(value->to_keyword());
 }
 
 Optional<CSS::WhiteSpace> StyleProperties::white_space() const
 {
     auto value = property(CSS::PropertyID::WhiteSpace);
-    return value_id_to_white_space(value->to_identifier());
+    return keyword_to_white_space(value->to_keyword());
 }
 
 Optional<CSS::LineStyle> StyleProperties::line_style(CSS::PropertyID property_id) const
 {
     auto value = property(property_id);
-    return value_id_to_line_style(value->to_identifier());
+    return keyword_to_line_style(value->to_keyword());
 }
 
 Optional<CSS::OutlineStyle> StyleProperties::outline_style() const
 {
     auto value = property(CSS::PropertyID::OutlineStyle);
-    return value_id_to_outline_style(value->to_identifier());
+    return keyword_to_outline_style(value->to_keyword());
 }
 
 Optional<CSS::Float> StyleProperties::float_() const
 {
     auto value = property(CSS::PropertyID::Float);
-    return value_id_to_float(value->to_identifier());
+    return keyword_to_float(value->to_keyword());
 }
 
 Optional<CSS::Clear> StyleProperties::clear() const
 {
     auto value = property(CSS::PropertyID::Clear);
-    return value_id_to_clear(value->to_identifier());
+    return keyword_to_clear(value->to_keyword());
 }
 
 StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::Element& element, u32 initial_quote_nesting_level) const
@@ -730,11 +730,11 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::E
             if (item->is_string()) {
                 builder.append(item->as_string().string_value());
             } else if (item->is_keyword()) {
-                switch (item->to_identifier()) {
-                case ValueID::OpenQuote:
+                switch (item->to_keyword()) {
+                case Keyword::OpenQuote:
                     builder.append(get_quote_string(true, quote_nesting_level++));
                     break;
-                case ValueID::CloseQuote:
+                case Keyword::CloseQuote:
                     // A 'close-quote' or 'no-close-quote' that would make the depth negative is in error and is ignored
                     // (at rendering time): the depth stays at 0 and no quote mark is rendered (although the rest of the
                     // 'content' property's value is still inserted).
@@ -743,10 +743,10 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::E
                     if (quote_nesting_level > 0)
                         builder.append(get_quote_string(false, --quote_nesting_level));
                     break;
-                case ValueID::NoOpenQuote:
+                case Keyword::NoOpenQuote:
                     quote_nesting_level++;
                     break;
-                case ValueID::NoCloseQuote:
+                case Keyword::NoCloseQuote:
                     // NOTE: See CloseQuote
                     if (quote_nesting_level > 0)
                         quote_nesting_level--;
@@ -782,10 +782,10 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::E
         return { content_data, quote_nesting_level };
     }
 
-    switch (value->to_identifier()) {
-    case ValueID::None:
+    switch (value->to_keyword()) {
+    case Keyword::None:
         return { { ContentData::Type::None }, quote_nesting_level };
-    case ValueID::Normal:
+    case Keyword::Normal:
         return { { ContentData::Type::Normal }, quote_nesting_level };
     default:
         break;
@@ -797,13 +797,13 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::E
 Optional<CSS::ContentVisibility> StyleProperties::content_visibility() const
 {
     auto value = property(CSS::PropertyID::ContentVisibility);
-    return value_id_to_content_visibility(value->to_identifier());
+    return keyword_to_content_visibility(value->to_keyword());
 }
 
 Optional<CSS::Cursor> StyleProperties::cursor() const
 {
     auto value = property(CSS::PropertyID::Cursor);
-    return value_id_to_cursor(value->to_identifier());
+    return keyword_to_cursor(value->to_keyword());
 }
 
 Optional<CSS::Visibility> StyleProperties::visibility() const
@@ -811,7 +811,7 @@ Optional<CSS::Visibility> StyleProperties::visibility() const
     auto value = property(CSS::PropertyID::Visibility);
     if (!value->is_keyword())
         return {};
-    return value_id_to_visibility(value->to_identifier());
+    return keyword_to_visibility(value->to_keyword());
 }
 
 Display StyleProperties::display() const
@@ -831,12 +831,12 @@ Vector<CSS::TextDecorationLine> StyleProperties::text_decoration_line() const
         Vector<CSS::TextDecorationLine> lines;
         auto& values = value->as_value_list().values();
         for (auto const& item : values) {
-            lines.append(value_id_to_text_decoration_line(item->to_identifier()).value());
+            lines.append(keyword_to_text_decoration_line(item->to_keyword()).value());
         }
         return lines;
     }
 
-    if (value->is_keyword() && value->to_identifier() == ValueID::None)
+    if (value->is_keyword() && value->to_keyword() == Keyword::None)
         return {};
 
     dbgln("FIXME: Unsupported value for text-decoration-line: {}", value->to_string());
@@ -846,25 +846,25 @@ Vector<CSS::TextDecorationLine> StyleProperties::text_decoration_line() const
 Optional<CSS::TextDecorationStyle> StyleProperties::text_decoration_style() const
 {
     auto value = property(CSS::PropertyID::TextDecorationStyle);
-    return value_id_to_text_decoration_style(value->to_identifier());
+    return keyword_to_text_decoration_style(value->to_keyword());
 }
 
 Optional<CSS::TextTransform> StyleProperties::text_transform() const
 {
     auto value = property(CSS::PropertyID::TextTransform);
-    return value_id_to_text_transform(value->to_identifier());
+    return keyword_to_text_transform(value->to_keyword());
 }
 
 Optional<CSS::ListStyleType> StyleProperties::list_style_type() const
 {
     auto value = property(CSS::PropertyID::ListStyleType);
-    return value_id_to_list_style_type(value->to_identifier());
+    return keyword_to_list_style_type(value->to_keyword());
 }
 
 Optional<CSS::ListStylePosition> StyleProperties::list_style_position() const
 {
     auto value = property(CSS::PropertyID::ListStylePosition);
-    return value_id_to_list_style_position(value->to_identifier());
+    return keyword_to_list_style_position(value->to_keyword());
 }
 
 Optional<CSS::Overflow> StyleProperties::overflow_x() const
@@ -880,7 +880,7 @@ Optional<CSS::Overflow> StyleProperties::overflow_y() const
 Optional<CSS::Overflow> StyleProperties::overflow(CSS::PropertyID property_id) const
 {
     auto value = property(property_id);
-    return value_id_to_overflow(value->to_identifier());
+    return keyword_to_overflow(value->to_keyword());
 }
 
 Vector<ShadowData> StyleProperties::shadow(PropertyID property_id, Layout::Node const& layout_node) const
@@ -956,7 +956,7 @@ Vector<ShadowData> StyleProperties::text_shadow(Layout::Node const& layout_node)
 Optional<CSS::BoxSizing> StyleProperties::box_sizing() const
 {
     auto value = property(CSS::PropertyID::BoxSizing);
-    return value_id_to_box_sizing(value->to_identifier());
+    return keyword_to_box_sizing(value->to_keyword());
 }
 
 Variant<CSS::VerticalAlign, CSS::LengthPercentage> StyleProperties::vertical_align() const
@@ -964,7 +964,7 @@ Variant<CSS::VerticalAlign, CSS::LengthPercentage> StyleProperties::vertical_ali
     auto value = property(CSS::PropertyID::VerticalAlign);
 
     if (value->is_keyword())
-        return value_id_to_vertical_align(value->to_identifier()).release_value();
+        return keyword_to_vertical_align(value->to_keyword()).release_value();
 
     if (value->is_length())
         return CSS::LengthPercentage(value->as_length().length());
@@ -981,7 +981,7 @@ Variant<CSS::VerticalAlign, CSS::LengthPercentage> StyleProperties::vertical_ali
 Optional<CSS::FontVariant> StyleProperties::font_variant() const
 {
     auto value = property(CSS::PropertyID::FontVariant);
-    return value_id_to_font_variant(value->to_identifier());
+    return keyword_to_font_variant(value->to_keyword());
 }
 
 CSS::GridTrackSizeList StyleProperties::grid_auto_columns() const
@@ -1044,7 +1044,7 @@ CSS::GridTrackPlacement StyleProperties::grid_row_start() const
 Optional<CSS::BorderCollapse> StyleProperties::border_collapse() const
 {
     auto value = property(CSS::PropertyID::BorderCollapse);
-    return value_id_to_border_collapse(value->to_identifier());
+    return keyword_to_border_collapse(value->to_keyword());
 }
 
 Vector<Vector<String>> StyleProperties::grid_template_areas() const
@@ -1056,7 +1056,7 @@ Vector<Vector<String>> StyleProperties::grid_template_areas() const
 Optional<CSS::ObjectFit> StyleProperties::object_fit() const
 {
     auto value = property(CSS::PropertyID::ObjectFit);
-    return value_id_to_object_fit(value->to_identifier());
+    return keyword_to_object_fit(value->to_keyword());
 }
 
 CSS::ObjectPosition StyleProperties::object_position() const
@@ -1082,19 +1082,19 @@ CSS::ObjectPosition StyleProperties::object_position() const
 Optional<CSS::TableLayout> StyleProperties::table_layout() const
 {
     auto value = property(CSS::PropertyID::TableLayout);
-    return value_id_to_table_layout(value->to_identifier());
+    return keyword_to_table_layout(value->to_keyword());
 }
 
 Optional<CSS::Direction> StyleProperties::direction() const
 {
     auto value = property(CSS::PropertyID::Direction);
-    return value_id_to_direction(value->to_identifier());
+    return keyword_to_direction(value->to_keyword());
 }
 
 Optional<CSS::MaskType> StyleProperties::mask_type() const
 {
     auto value = property(CSS::PropertyID::MaskType);
-    return value_id_to_mask_type(value->to_identifier());
+    return keyword_to_mask_type(value->to_keyword());
 }
 
 Color StyleProperties::stop_color() const
@@ -1102,8 +1102,8 @@ Color StyleProperties::stop_color() const
     auto value = property(CSS::PropertyID::StopColor);
     if (value->is_keyword()) {
         // Workaround lack of layout node to resolve current color.
-        auto& ident = value->as_keyword();
-        if (ident.id() == CSS::ValueID::Currentcolor)
+        auto& keyword = value->as_keyword();
+        if (keyword.keyword() == CSS::Keyword::Currentcolor)
             value = property(CSS::PropertyID::Color);
     }
     if (value->has_color()) {
@@ -1125,10 +1125,10 @@ QuotesData StyleProperties::quotes() const
 {
     auto value = property(CSS::PropertyID::Quotes);
     if (value->is_keyword()) {
-        switch (value->to_identifier()) {
-        case ValueID::Auto:
+        switch (value->to_keyword()) {
+        case Keyword::Auto:
             return QuotesData { .type = QuotesData::Type::Auto };
-        case ValueID::None:
+        case Keyword::None:
             return QuotesData { .type = QuotesData::Type::None };
         default:
             break;
@@ -1178,7 +1178,7 @@ Vector<CounterData> StyleProperties::counter_data(PropertyID property_id) const
         return result;
     }
 
-    if (value->to_identifier() == ValueID::None)
+    if (value->to_keyword() == Keyword::None)
         return {};
 
     dbgln("Unhandled type for {} value: '{}'", string_from_property_id(property_id), value->to_string());
@@ -1188,7 +1188,7 @@ Vector<CounterData> StyleProperties::counter_data(PropertyID property_id) const
 Optional<CSS::ScrollbarWidth> StyleProperties::scrollbar_width() const
 {
     auto value = property(CSS::PropertyID::ScrollbarWidth);
-    return value_id_to_scrollbar_width(value->to_identifier());
+    return keyword_to_scrollbar_width(value->to_keyword());
 }
 
 }

@@ -10,36 +10,36 @@
 #pragma once
 
 #include <LibWeb/CSS/CSSStyleValue.h>
-#include <LibWeb/CSS/ValueID.h>
+#include <LibWeb/CSS/Keyword.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
 class CSSKeywordValue final : public StyleValueWithDefaultOperators<CSSKeywordValue> {
 public:
-    static ValueComparingNonnullRefPtr<CSSKeywordValue> create(ValueID id)
+    static ValueComparingNonnullRefPtr<CSSKeywordValue> create(Keyword keyword)
     {
-        return adopt_ref(*new (nothrow) CSSKeywordValue(id));
+        return adopt_ref(*new (nothrow) CSSKeywordValue(keyword));
     }
     virtual ~CSSKeywordValue() override = default;
 
-    ValueID id() const { return m_id; }
+    Keyword keyword() const { return m_keyword; }
 
-    static bool is_color(ValueID);
+    static bool is_color(Keyword);
     virtual bool has_color() const override;
     virtual Color to_color(Optional<Layout::NodeWithStyle const&> node) const override;
     virtual String to_string() const override;
 
-    bool properties_equal(CSSKeywordValue const& other) const { return m_id == other.m_id; }
+    bool properties_equal(CSSKeywordValue const& other) const { return m_keyword == other.m_keyword; }
 
 private:
-    explicit CSSKeywordValue(ValueID id)
+    explicit CSSKeywordValue(Keyword keyword)
         : StyleValueWithDefaultOperators(Type::Keyword)
-        , m_id(id)
+        , m_keyword(keyword)
     {
     }
 
-    ValueID m_id { ValueID::Invalid };
+    Keyword m_keyword { Keyword::Invalid };
 };
 
 }

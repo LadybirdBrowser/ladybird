@@ -375,28 +375,28 @@ ValueComparingNonnullRefPtr<CSSStyleValue const> CSSStyleValue::absolutized(CSSP
 
 bool CSSStyleValue::has_auto() const
 {
-    return is_keyword() && as_keyword().id() == ValueID::Auto;
+    return is_keyword() && as_keyword().keyword() == Keyword::Auto;
 }
 
-ValueID CSSStyleValue::to_identifier() const
+Keyword CSSStyleValue::to_keyword() const
 {
     if (is_keyword())
-        return as_keyword().id();
-    return ValueID::Invalid;
+        return as_keyword().keyword();
+    return Keyword::Invalid;
 }
 
 int CSSStyleValue::to_font_weight() const
 {
     if (is_keyword()) {
-        switch (static_cast<CSSKeywordValue const&>(*this).id()) {
-        case CSS::ValueID::Normal:
+        switch (as_keyword().keyword()) {
+        case Keyword::Normal:
             return Gfx::FontWeight::Regular;
-        case CSS::ValueID::Bold:
+        case Keyword::Bold:
             return Gfx::FontWeight::Bold;
-        case CSS::ValueID::Lighter:
+        case Keyword::Lighter:
             // FIXME: This should be relative to the parent.
             return Gfx::FontWeight::Regular;
-        case CSS::ValueID::Bolder:
+        case Keyword::Bolder:
             // FIXME: This should be relative to the parent.
             return Gfx::FontWeight::Bold;
         default:
@@ -418,15 +418,15 @@ int CSSStyleValue::to_font_slope() const
 {
     // FIXME: Implement oblique <angle>
     if (is_keyword()) {
-        switch (static_cast<CSSKeywordValue const&>(*this).id()) {
-        case CSS::ValueID::Italic: {
+        switch (as_keyword().keyword()) {
+        case Keyword::Italic: {
             static int italic_slope = Gfx::name_to_slope("Italic"sv);
             return italic_slope;
         }
-        case CSS::ValueID::Oblique:
+        case Keyword::Oblique:
             static int oblique_slope = Gfx::name_to_slope("Oblique"sv);
             return oblique_slope;
-        case CSS::ValueID::Normal:
+        case Keyword::Normal:
         default:
             break;
         }
@@ -439,32 +439,32 @@ int CSSStyleValue::to_font_stretch_width() const
 {
     int width = Gfx::FontWidth::Normal;
     if (is_keyword()) {
-        switch (static_cast<CSSKeywordValue const&>(*this).id()) {
-        case CSS::ValueID::UltraCondensed:
+        switch (as_keyword().keyword()) {
+        case Keyword::UltraCondensed:
             width = Gfx::FontWidth::UltraCondensed;
             break;
-        case CSS::ValueID::ExtraCondensed:
+        case Keyword::ExtraCondensed:
             width = Gfx::FontWidth::ExtraCondensed;
             break;
-        case CSS::ValueID::Condensed:
+        case Keyword::Condensed:
             width = Gfx::FontWidth::Condensed;
             break;
-        case CSS::ValueID::SemiCondensed:
+        case Keyword::SemiCondensed:
             width = Gfx::FontWidth::SemiCondensed;
             break;
-        case CSS::ValueID::Normal:
+        case Keyword::Normal:
             width = Gfx::FontWidth::Normal;
             break;
-        case CSS::ValueID::SemiExpanded:
+        case Keyword::SemiExpanded:
             width = Gfx::FontWidth::SemiExpanded;
             break;
-        case CSS::ValueID::Expanded:
+        case Keyword::Expanded:
             width = Gfx::FontWidth::Expanded;
             break;
-        case CSS::ValueID::ExtraExpanded:
+        case Keyword::ExtraExpanded:
             width = Gfx::FontWidth::ExtraExpanded;
             break;
-        case CSS::ValueID::UltraExpanded:
+        case Keyword::UltraExpanded:
             width = Gfx::FontWidth::UltraExpanded;
             break;
         default:

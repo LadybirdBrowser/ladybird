@@ -292,7 +292,7 @@ private:
     RefPtr<CSSStyleValue> parse_integer_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_number_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_number_or_percentage_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_identifier_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_keyword_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_value(TokenStream<ComponentValue>&);
     enum class AllowReversed {

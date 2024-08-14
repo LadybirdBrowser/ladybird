@@ -203,12 +203,12 @@ compiled_action("generate_css_transform_functions") {
   ]
 }
 
-compiled_action("generate_css_value_id") {
-  tool = "//Meta/Lagom/Tools/CodeGenerators/LibWeb:GenerateCSSValueID"
-  inputs = [ "CSS/Identifiers.json" ]
+compiled_action("generate_css_keyword") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/LibWeb:GenerateCSSKeyword"
+  inputs = [ "CSS/Keywords.json" ]
   outputs = [
-    "$target_gen_dir/CSS/ValueID.h",
-    "$target_gen_dir/CSS/ValueID.cpp",
+    "$target_gen_dir/CSS/Keyword.h",
+    "$target_gen_dir/CSS/Keyword.cpp",
   ]
   args = [
     "-h",
@@ -254,12 +254,12 @@ source_set("all_generated") {
     ":WebWorkerServerEndpoint",
     ":generate_aria_roles",
     ":generate_css_enums",
+    ":generate_css_keyword",
     ":generate_css_math_functions",
     ":generate_css_media_feature_id",
     ":generate_css_property_id",
     ":generate_css_pseudo_class",
     ":generate_css_transform_functions",
-    ":generate_css_value_id",
     ":generate_default_stylesheet_source",
     ":generate_mathml_stylesheet_source",
     ":generate_quirks_mode_stylesheet_source",

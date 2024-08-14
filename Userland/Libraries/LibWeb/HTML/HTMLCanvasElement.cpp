@@ -74,7 +74,7 @@ void HTMLCanvasElement::apply_presentational_hints(CSS::StyleProperties& style) 
         // then the user agent is expected to use the parsed integers as a presentational hint for the 'aspect-ratio' property of the form auto w / h.
         style.set_property(CSS::PropertyID::AspectRatio,
             CSS::StyleValueList::create(CSS::StyleValueVector {
-                                            CSS::CSSKeywordValue::create(CSS::ValueID::Auto),
+                                            CSS::CSSKeywordValue::create(CSS::Keyword::Auto),
                                             CSS::RatioStyleValue::create(CSS::Ratio { static_cast<double>(w.value()), static_cast<double>(h.value()) }) },
 
                 CSS::StyleValueList::Separator::Space));

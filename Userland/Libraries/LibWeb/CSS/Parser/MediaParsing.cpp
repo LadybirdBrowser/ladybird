@@ -550,10 +550,10 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     if (tokens.peek_token().is(Token::Type::Ident)) {
         auto transaction = tokens.begin_transaction();
         tokens.skip_whitespace();
-        auto ident = value_id_from_string(tokens.next_token().token().ident());
-        if (ident.has_value() && media_feature_accepts_identifier(media_feature, ident.value())) {
+        auto keyword = keyword_from_string(tokens.next_token().token().ident());
+        if (keyword.has_value() && media_feature_accepts_keyword(media_feature, keyword.value())) {
             transaction.commit();
-            return MediaFeatureValue(ident.value());
+            return MediaFeatureValue(keyword.value());
         }
     }
 

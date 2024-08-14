@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,35 +11,35 @@
 #include <LibCore/ArgsParser.h>
 #include <LibMain/Main.h>
 
-ErrorOr<void> generate_header_file(JsonArray& identifier_data, Core::File& file);
-ErrorOr<void> generate_implementation_file(JsonArray& identifier_data, Core::File& file);
+ErrorOr<void> generate_header_file(JsonArray& keyword_data, Core::File& file);
+ErrorOr<void> generate_implementation_file(JsonArray& keyword_data, Core::File& file);
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
     StringView generated_implementation_path;
-    StringView identifiers_json_path;
+    StringView json_path;
 
     Core::ArgsParser args_parser;
-    args_parser.add_option(generated_header_path, "Path to the ValueID header file to generate", "generated-header-path", 'h', "generated-header-path");
-    args_parser.add_option(generated_implementation_path, "Path to the ValueID implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
-    args_parser.add_option(identifiers_json_path, "Path to the JSON file to read from", "json-path", 'j', "json-path");
+    args_parser.add_option(generated_header_path, "Path to the Keyword header file to generate", "generated-header-path", 'h', "generated-header-path");
+    args_parser.add_option(generated_implementation_path, "Path to the Keyword implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
+    args_parser.add_option(json_path, "Path to the JSON file to read from", "json-path", 'j', "json-path");
     args_parser.parse(arguments);
 
-    auto json = TRY(read_entire_file_as_json(identifiers_json_path));
+    auto json = TRY(read_entire_file_as_json(json_path));
     VERIFY(json.is_array());
-    auto identifier_data = json.as_array();
+    auto keyword_data = json.as_array();
 
     auto generated_header_file = TRY(Core::File::open(generated_header_path, Core::File::OpenMode::Write));
     auto generated_implementation_file = TRY(Core::File::open(generated_implementation_path, Core::File::OpenMode::Write));
 
-    TRY(generate_header_file(identifier_data, *generated_header_file));
-    TRY(generate_implementation_file(identifier_data, *generated_implementation_file));
+    TRY(generate_header_file(keyword_data, *generated_header_file));
+    TRY(generate_implementation_file(keyword_data, *generated_implementation_file));
 
     return 0;
 }
 
-ErrorOr<void> generate_header_file(JsonArray& identifier_data, Core::File& file)
+ErrorOr<void> generate_header_file(JsonArray& keyword_data, Core::File& file)
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
@@ -51,11 +51,11 @@ ErrorOr<void> generate_header_file(JsonArray& identifier_data, Core::File& file)
 
 namespace Web::CSS {
 
-enum class ValueID {
+enum class Keyword {
     Invalid,
 )~~~");
 
-    identifier_data.for_each([&](auto& name) {
+    keyword_data.for_each([&](auto& name) {
         auto member_generator = generator.fork();
         member_generator.set("name:titlecase", title_casify(name.as_string()));
 
@@ -67,8 +67,8 @@ enum class ValueID {
     generator.append(R"~~~(
 };
 
-Optional<ValueID> value_id_from_string(StringView);
-StringView string_from_value_id(ValueID);
+Optional<Keyword> keyword_from_string(StringView);
+StringView string_from_keyword(Keyword);
 
 // https://www.w3.org/TR/css-values-4/#common-keywords
 // https://drafts.csswg.org/css-cascade-4/#valdef-all-revert
@@ -88,7 +88,7 @@ inline bool is_css_wide_keyword(StringView name)
     return {};
 }
 
-ErrorOr<void> generate_implementation_file(JsonArray& identifier_data, Core::File& file)
+ErrorOr<void> generate_implementation_file(JsonArray& keyword_data, Core::File& file)
 {
     StringBuilder builder;
     SourceGenerator generator { builder };
@@ -96,47 +96,47 @@ ErrorOr<void> generate_implementation_file(JsonArray& identifier_data, Core::Fil
     generator.append(R"~~~(
 #include <AK/Assertions.h>
 #include <AK/HashMap.h>
-#include <LibWeb/CSS/ValueID.h>
+#include <LibWeb/CSS/Keyword.h>
 
 namespace Web::CSS {
 
-HashMap<StringView, ValueID, AK::CaseInsensitiveASCIIStringViewTraits> g_stringview_to_value_id_map {
+HashMap<StringView, Keyword, AK::CaseInsensitiveASCIIStringViewTraits> g_stringview_to_keyword_map {
 )~~~");
 
-    identifier_data.for_each([&](auto& name) {
+    keyword_data.for_each([&](auto& name) {
         auto member_generator = generator.fork();
         member_generator.set("name", name.as_string());
         member_generator.set("name:titlecase", title_casify(name.as_string()));
         member_generator.append(R"~~~(
-    {"@name@"sv, ValueID::@name:titlecase@},
+    {"@name@"sv, Keyword::@name:titlecase@},
 )~~~");
     });
 
     generator.append(R"~~~(
 };
 
-Optional<ValueID> value_id_from_string(StringView string)
+Optional<Keyword> keyword_from_string(StringView string)
 {
-    return g_stringview_to_value_id_map.get(string);
+    return g_stringview_to_keyword_map.get(string);
 }
 
-StringView string_from_value_id(ValueID value_id) {
-    switch (value_id) {
+StringView string_from_keyword(Keyword keyword) {
+    switch (keyword) {
 )~~~");
 
-    identifier_data.for_each([&](auto& name) {
+    keyword_data.for_each([&](auto& name) {
         auto member_generator = generator.fork();
         member_generator.set("name", name.as_string());
         member_generator.set("name:titlecase", title_casify(name.as_string()));
         member_generator.append(R"~~~(
-    case ValueID::@name:titlecase@:
+    case Keyword::@name:titlecase@:
         return "@name@"sv;
         )~~~");
     });
 
     generator.append(R"~~~(
     default:
-        return "(invalid CSS::ValueID)"sv;
+        return "(invalid CSS::Keyword)"sv;
     }
 }
 

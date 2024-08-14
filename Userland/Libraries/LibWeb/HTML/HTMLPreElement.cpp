@@ -34,7 +34,7 @@ void HTMLPreElement::apply_presentational_hints(CSS::StyleProperties& style) con
 
     for_each_attribute([&](auto const& name, auto const&) {
         if (name.equals_ignoring_ascii_case(HTML::AttributeNames::wrap))
-            style.set_property(CSS::PropertyID::WhiteSpace, CSS::CSSKeywordValue::create(CSS::ValueID::PreWrap));
+            style.set_property(CSS::PropertyID::WhiteSpace, CSS::CSSKeywordValue::create(CSS::Keyword::PreWrap));
     });
 }
 

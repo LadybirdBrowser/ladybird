@@ -2371,14 +2371,14 @@ RefPtr<CSSStyleValue> Parser::parse_number_or_percentage_value(TokenStream<Compo
     return nullptr;
 }
 
-RefPtr<CSSStyleValue> Parser::parse_identifier_value(TokenStream<ComponentValue>& tokens)
+RefPtr<CSSStyleValue> Parser::parse_keyword_value(TokenStream<ComponentValue>& tokens)
 {
     auto peek_token = tokens.peek_token();
     if (peek_token.is(Token::Type::Ident)) {
-        auto value_id = value_id_from_string(peek_token.token().ident());
-        if (value_id.has_value()) {
+        auto keyword = keyword_from_string(peek_token.token().ident());
+        if (keyword.has_value()) {
             (void)tokens.next_token(); // ident
-            return CSSKeywordValue::create(value_id.value());
+            return CSSKeywordValue::create(keyword.value());
         }
     }
 
@@ -3002,9 +3002,9 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
         return ColorStyleValue::create(color.value());
 
     auto transaction = tokens.begin_transaction();
-    if (auto identifier = parse_identifier_value(tokens); identifier && identifier->has_color()) {
+    if (auto keyword = parse_keyword_value(tokens); keyword && keyword->has_color()) {
         transaction.commit();
-        return identifier;
+        return keyword;
     }
 
     return nullptr;
@@ -3225,13 +3225,13 @@ RefPtr<CSSStyleValue> Parser::parse_paint_value(TokenStream<ComponentValue>& tok
 
         // NOTE: <color> also accepts identifiers, so we do this identifier check last.
         if (tokens.peek_token().is(Token::Type::Ident)) {
-            auto maybe_ident = value_id_from_string(tokens.peek_token().token().ident());
-            if (maybe_ident.has_value()) {
+            auto maybe_keyword = keyword_from_string(tokens.peek_token().token().ident());
+            if (maybe_keyword.has_value()) {
                 // FIXME: Accept `context-fill` and `context-stroke`
-                switch (*maybe_ident) {
-                case ValueID::None:
+                switch (*maybe_keyword) {
+                case Keyword::None:
                     (void)tokens.next_token();
-                    return CSSKeywordValue::create(*maybe_ident);
+                    return CSSKeywordValue::create(*maybe_keyword);
                 default:
                     return nullptr;
                 }
@@ -3264,10 +3264,10 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
     auto parse_position_edge = [](ComponentValue const& token) -> Optional<PositionEdge> {
         if (!token.is(Token::Type::Ident))
             return {};
-        auto ident = value_id_from_string(token.token().ident());
-        if (!ident.has_value())
+        auto keyword = keyword_from_string(token.token().ident());
+        if (!keyword.has_value())
             return {};
-        return value_id_to_position_edge(*ident);
+        return keyword_to_position_edge(*keyword);
     };
 
     auto parse_length_percentage = [&](ComponentValue const& token) -> Optional<LengthPercentage> {
@@ -3626,7 +3626,7 @@ RefPtr<CSSStyleValue> Parser::parse_all_as_single_none_value(TokenStream<Compone
         return {};
 
     transaction.commit();
-    return CSSKeywordValue::create(ValueID::None);
+    return CSSKeywordValue::create(Keyword::None);
 }
 
 static void remove_property(Vector<PropertyID>& properties, PropertyID property_to_remove)
@@ -3654,7 +3654,7 @@ RefPtr<CSSStyleValue> Parser::parse_aspect_ratio_value(TokenStream<ComponentValu
             continue;
         }
 
-        if (maybe_value->is_keyword() && maybe_value->as_keyword().id() == ValueID::Auto) {
+        if (maybe_value->is_keyword() && maybe_value->as_keyword().keyword() == Keyword::Auto) {
             if (auto_value)
                 return nullptr;
             auto_value = maybe_value.release_nonnull();
@@ -3944,12 +3944,12 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_position_x_or_y_value(Toke
         return nullptr;
 
     if (value->is_keyword()) {
-        auto identifier = value->to_identifier();
-        if (identifier == ValueID::Center) {
+        auto keyword = value->to_keyword();
+        if (keyword == Keyword::Center) {
             transaction.commit();
             return EdgeStyleValue::create(relative_edge, Percentage { 50 });
         }
-        if (auto edge = value_id_to_position_edge(identifier); edge.has_value()) {
+        if (auto edge = keyword_to_position_edge(keyword); edge.has_value()) {
             relative_edge = *edge;
         } else {
             return nullptr;
@@ -3979,19 +3979,19 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_repeat_value(TokenStream<C
     auto transaction = tokens.begin_transaction();
 
     auto is_directional_repeat = [](CSSStyleValue const& value) -> bool {
-        auto value_id = value.to_identifier();
-        return value_id == ValueID::RepeatX || value_id == ValueID::RepeatY;
+        auto keyword = value.to_keyword();
+        return keyword == Keyword::RepeatX || keyword == Keyword::RepeatY;
     };
 
-    auto as_repeat = [](ValueID identifier) -> Optional<Repeat> {
-        switch (identifier) {
-        case ValueID::NoRepeat:
+    auto as_repeat = [](Keyword keyword) -> Optional<Repeat> {
+        switch (keyword) {
+        case Keyword::NoRepeat:
             return Repeat::NoRepeat;
-        case ValueID::Repeat:
+        case Keyword::Repeat:
             return Repeat::Repeat;
-        case ValueID::Round:
+        case Keyword::Round:
             return Repeat::Round;
-        case ValueID::Space:
+        case Keyword::Space:
             return Repeat::Space;
         default:
             return {};
@@ -4004,14 +4004,14 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_repeat_value(TokenStream<C
     auto x_value = maybe_x_value.release_nonnull();
 
     if (is_directional_repeat(*x_value)) {
-        auto value_id = x_value->to_identifier();
+        auto keyword = x_value->to_keyword();
         transaction.commit();
         return BackgroundRepeatStyleValue::create(
-            value_id == ValueID::RepeatX ? Repeat::Repeat : Repeat::NoRepeat,
-            value_id == ValueID::RepeatX ? Repeat::NoRepeat : Repeat::Repeat);
+            keyword == Keyword::RepeatX ? Repeat::Repeat : Repeat::NoRepeat,
+            keyword == Keyword::RepeatX ? Repeat::NoRepeat : Repeat::Repeat);
     }
 
-    auto x_repeat = as_repeat(x_value->to_identifier());
+    auto x_repeat = as_repeat(x_value->to_keyword());
     if (!x_repeat.has_value())
         return nullptr;
 
@@ -4026,7 +4026,7 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_repeat_value(TokenStream<C
     if (is_directional_repeat(*y_value))
         return nullptr;
 
-    auto y_repeat = as_repeat(y_value->to_identifier());
+    auto y_repeat = as_repeat(y_value->to_keyword());
     if (!y_repeat.has_value())
         return nullptr;
 
@@ -4055,7 +4055,7 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_size_value(TokenStream<Com
         return nullptr;
     auto x_value = maybe_x_value.release_nonnull();
 
-    if (x_value->to_identifier() == ValueID::Cover || x_value->to_identifier() == ValueID::Contain) {
+    if (x_value->to_keyword() == Keyword::Cover || x_value->to_keyword() == Keyword::Contain) {
         transaction.commit();
         return x_value;
     }
@@ -4385,10 +4385,10 @@ RefPtr<CSSStyleValue> Parser::parse_content_value(TokenStream<ComponentValue>& t
 {
     // FIXME: `content` accepts several kinds of function() type, which we don't handle in property_accepts_value() yet.
 
-    auto is_single_value_identifier = [](ValueID identifier) -> bool {
-        switch (identifier) {
-        case ValueID::None:
-        case ValueID::Normal:
+    auto is_single_value_keyword = [](Keyword keyword) -> bool {
+        switch (keyword) {
+        case Keyword::None:
+        case Keyword::Normal:
             return true;
         default:
             return false;
@@ -4397,10 +4397,10 @@ RefPtr<CSSStyleValue> Parser::parse_content_value(TokenStream<ComponentValue>& t
 
     if (tokens.remaining_token_count() == 1) {
         auto transaction = tokens.begin_transaction();
-        if (auto identifier = parse_identifier_value(tokens)) {
-            if (is_single_value_identifier(identifier->to_identifier())) {
+        if (auto keyword = parse_keyword_value(tokens)) {
+            if (is_single_value_keyword(keyword->to_keyword())) {
                 transaction.commit();
-                return identifier;
+                return keyword;
             }
         }
     }
@@ -4422,7 +4422,7 @@ RefPtr<CSSStyleValue> Parser::parse_content_value(TokenStream<ComponentValue>& t
         }
 
         if (auto style_value = parse_css_value_for_property(PropertyID::Content, tokens)) {
-            if (is_single_value_identifier(style_value->to_identifier()))
+            if (is_single_value_keyword(style_value->to_keyword()))
                 return nullptr;
 
             if (in_alt_text) {
@@ -4484,14 +4484,14 @@ RefPtr<CSSStyleValue> Parser::parse_display_value(TokenStream<ComponentValue>& t
 {
     auto parse_single_component_display = [this](TokenStream<ComponentValue>& tokens) -> Optional<Display> {
         auto transaction = tokens.begin_transaction();
-        if (auto identifier_value = parse_identifier_value(tokens)) {
-            auto identifier = identifier_value->to_identifier();
-            if (identifier == ValueID::ListItem) {
+        if (auto keyword_value = parse_keyword_value(tokens)) {
+            auto keyword = keyword_value->to_keyword();
+            if (keyword == Keyword::ListItem) {
                 transaction.commit();
                 return Display::from_short(Display::Short::ListItem);
             }
 
-            if (auto display_outside = value_id_to_display_outside(identifier); display_outside.has_value()) {
+            if (auto display_outside = keyword_to_display_outside(keyword); display_outside.has_value()) {
                 transaction.commit();
                 switch (display_outside.value()) {
                 case DisplayOutside::Block:
@@ -4503,7 +4503,7 @@ RefPtr<CSSStyleValue> Parser::parse_display_value(TokenStream<ComponentValue>& t
                 }
             }
 
-            if (auto display_inside = value_id_to_display_inside(identifier); display_inside.has_value()) {
+            if (auto display_inside = keyword_to_display_inside(keyword); display_inside.has_value()) {
                 transaction.commit();
                 switch (display_inside.value()) {
                 case DisplayInside::Flow:
@@ -4523,12 +4523,12 @@ RefPtr<CSSStyleValue> Parser::parse_display_value(TokenStream<ComponentValue>& t
                 }
             }
 
-            if (auto display_internal = value_id_to_display_internal(identifier); display_internal.has_value()) {
+            if (auto display_internal = keyword_to_display_internal(keyword); display_internal.has_value()) {
                 transaction.commit();
                 return Display { display_internal.value() };
             }
 
-            if (auto display_box = value_id_to_display_box(identifier); display_box.has_value()) {
+            if (auto display_box = keyword_to_display_box(keyword); display_box.has_value()) {
                 transaction.commit();
                 switch (display_box.value()) {
                 case DisplayBox::Contents:
@@ -4538,7 +4538,7 @@ RefPtr<CSSStyleValue> Parser::parse_display_value(TokenStream<ComponentValue>& t
                 }
             }
 
-            if (auto display_legacy = value_id_to_display_legacy(identifier); display_legacy.has_value()) {
+            if (auto display_legacy = keyword_to_display_legacy(keyword); display_legacy.has_value()) {
                 transaction.commit();
                 switch (display_legacy.value()) {
                 case DisplayLegacy::InlineBlock:
@@ -4562,21 +4562,21 @@ RefPtr<CSSStyleValue> Parser::parse_display_value(TokenStream<ComponentValue>& t
 
         auto transaction = tokens.begin_transaction();
         while (tokens.has_next_token()) {
-            if (auto value = parse_identifier_value(tokens)) {
-                auto identifier = value->to_identifier();
-                if (identifier == ValueID::ListItem) {
+            if (auto value = parse_keyword_value(tokens)) {
+                auto keyword = value->to_keyword();
+                if (keyword == Keyword::ListItem) {
                     if (list_item == Display::ListItem::Yes)
                         return {};
                     list_item = Display::ListItem::Yes;
                     continue;
                 }
-                if (auto inside_value = value_id_to_display_inside(identifier); inside_value.has_value()) {
+                if (auto inside_value = keyword_to_display_inside(keyword); inside_value.has_value()) {
                     if (inside.has_value())
                         return {};
                     inside = inside_value.value();
                     continue;
                 }
-                if (auto outside_value = value_id_to_display_outside(identifier); outside_value.has_value()) {
+                if (auto outside_value = keyword_to_display_outside(keyword); outside_value.has_value()) {
                     if (outside.has_value())
                         return {};
                     outside = outside_value.value();
@@ -4819,9 +4819,9 @@ RefPtr<CSSStyleValue> Parser::parse_flex_value(TokenStream<ComponentValue>& toke
             return make_flex_shorthand(one, one, *value);
         }
         case PropertyID::Flex: {
-            if (value->is_keyword() && value->to_identifier() == ValueID::None) {
+            if (value->is_keyword() && value->to_keyword() == Keyword::None) {
                 auto zero = NumberStyleValue::create(0);
-                return make_flex_shorthand(zero, zero, CSSKeywordValue::create(ValueID::Auto));
+                return make_flex_shorthand(zero, zero, CSSKeywordValue::create(Keyword::Auto));
             }
             break;
         }
@@ -4921,18 +4921,18 @@ RefPtr<CSSStyleValue> Parser::parse_flex_flow_value(TokenStream<ComponentValue>&
         { flex_direction.release_nonnull(), flex_wrap.release_nonnull() });
 }
 
-static bool is_generic_font_family(ValueID identifier)
+static bool is_generic_font_family(Keyword keyword)
 {
-    switch (identifier) {
-    case ValueID::Cursive:
-    case ValueID::Fantasy:
-    case ValueID::Monospace:
-    case ValueID::Serif:
-    case ValueID::SansSerif:
-    case ValueID::UiMonospace:
-    case ValueID::UiRounded:
-    case ValueID::UiSerif:
-    case ValueID::UiSansSerif:
+    switch (keyword) {
+    case Keyword::Cursive:
+    case Keyword::Fantasy:
+    case Keyword::Monospace:
+    case Keyword::Serif:
+    case Keyword::SansSerif:
+    case Keyword::UiMonospace:
+    case Keyword::UiRounded:
+    case Keyword::UiSerif:
+    case Keyword::UiSansSerif:
         return true;
     default:
         return false;
@@ -5083,15 +5083,15 @@ RefPtr<CSSStyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue
             if (auto builtin = parse_builtin_value(tokens))
                 return nullptr;
 
-            auto maybe_ident = value_id_from_string(peek.token().ident());
+            auto maybe_keyword = keyword_from_string(peek.token().ident());
             // Can't have a generic-font-name as a token in an unquoted font name.
-            if (maybe_ident.has_value() && is_generic_font_family(maybe_ident.value())) {
+            if (maybe_keyword.has_value() && is_generic_font_family(maybe_keyword.value())) {
                 if (!current_name_parts.is_empty())
                     return nullptr;
                 (void)tokens.next_token(); // Ident
                 if (!next_is_comma_or_eof())
                     return nullptr;
-                font_families.append(CSSKeywordValue::create(maybe_ident.value()));
+                font_families.append(CSSKeywordValue::create(maybe_keyword.value()));
                 (void)tokens.next_token(); // Comma
                 continue;
             }
@@ -5181,8 +5181,8 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
                         had_syntax_error = true;
                         break;
                     }
-                    auto value_id = value_id_from_string(part.token().ident());
-                    if (value_id.has_value() && is_generic_font_family(value_id.value())) {
+                    auto keyword = keyword_from_string(part.token().ident());
+                    if (keyword.has_value() && is_generic_font_family(keyword.value())) {
                         dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @font-face font-family format invalid; discarding.");
                         had_syntax_error = true;
                         break;
@@ -5381,14 +5381,14 @@ RefPtr<CSSStyleValue> Parser::parse_list_style_value(TokenStream<ComponentValue>
     if (found_nones == 2) {
         if (list_image || list_type)
             return nullptr;
-        auto none = CSSKeywordValue::create(ValueID::None);
+        auto none = CSSKeywordValue::create(Keyword::None);
         list_image = none;
         list_type = none;
 
     } else if (found_nones == 1) {
         if (list_image && list_type)
             return nullptr;
-        auto none = CSSKeywordValue::create(ValueID::None);
+        auto none = CSSKeywordValue::create(Keyword::None);
         if (!list_image)
             list_image = none;
         if (!list_type)
@@ -5483,7 +5483,7 @@ RefPtr<CSSStyleValue> Parser::parse_place_content_value(TokenStream<ComponentVal
         return nullptr;
 
     if (!tokens.has_next_token()) {
-        if (!property_accepts_identifier(PropertyID::JustifyContent, maybe_align_content_value->to_identifier()))
+        if (!property_accepts_keyword(PropertyID::JustifyContent, maybe_align_content_value->to_keyword()))
             return nullptr;
         transaction.commit();
         return ShorthandStyleValue::create(PropertyID::PlaceContent,
@@ -5508,7 +5508,7 @@ RefPtr<CSSStyleValue> Parser::parse_place_items_value(TokenStream<ComponentValue
         return nullptr;
 
     if (!tokens.has_next_token()) {
-        if (!property_accepts_identifier(PropertyID::JustifyItems, maybe_align_items_value->to_identifier()))
+        if (!property_accepts_keyword(PropertyID::JustifyItems, maybe_align_items_value->to_keyword()))
             return nullptr;
         transaction.commit();
         return ShorthandStyleValue::create(PropertyID::PlaceItems,
@@ -5533,7 +5533,7 @@ RefPtr<CSSStyleValue> Parser::parse_place_self_value(TokenStream<ComponentValue>
         return nullptr;
 
     if (!tokens.has_next_token()) {
-        if (!property_accepts_identifier(PropertyID::JustifySelf, maybe_align_self_value->to_identifier()))
+        if (!property_accepts_keyword(PropertyID::JustifySelf, maybe_align_self_value->to_keyword()))
             return nullptr;
         transaction.commit();
         return ShorthandStyleValue::create(PropertyID::PlaceSelf,
@@ -5557,10 +5557,10 @@ RefPtr<CSSStyleValue> Parser::parse_quotes_value(TokenStream<ComponentValue>& to
     auto transaction = tokens.begin_transaction();
 
     if (tokens.remaining_token_count() == 1) {
-        auto identifier = parse_identifier_value(tokens);
-        if (identifier && property_accepts_identifier(PropertyID::Quotes, identifier->to_identifier())) {
+        auto keyword = parse_keyword_value(tokens);
+        if (keyword && property_accepts_keyword(PropertyID::Quotes, keyword->to_keyword())) {
             transaction.commit();
-            return identifier;
+            return keyword;
         }
         return nullptr;
     }
@@ -5654,7 +5654,7 @@ RefPtr<CSSStyleValue> Parser::parse_text_decoration_line_value(TokenStream<Compo
             break;
         auto value = maybe_value.release_nonnull();
 
-        if (auto maybe_line = value_id_to_text_decoration_line(value->to_identifier()); maybe_line.has_value()) {
+        if (auto maybe_line = keyword_to_text_decoration_line(value->to_keyword()); maybe_line.has_value()) {
             if (maybe_line == TextDecorationLine::None) {
                 if (!style_values.is_empty())
                     break;
@@ -5801,26 +5801,26 @@ RefPtr<CSSStyleValue> Parser::parse_easing_value(TokenStream<ComponentValue>& to
 
         if (comma_separated_arguments.size() == 2) {
             TokenStream identifier_stream { comma_separated_arguments[1] };
-            auto ident = parse_identifier_value(identifier_stream);
-            if (!ident)
+            auto keyword_value = parse_keyword_value(identifier_stream);
+            if (!keyword_value)
                 return nullptr;
-            switch (ident->to_identifier()) {
-            case ValueID::JumpStart:
+            switch (keyword_value->to_keyword()) {
+            case Keyword::JumpStart:
                 steps.position = EasingStyleValue::Steps::Position::JumpStart;
                 break;
-            case ValueID::JumpEnd:
+            case Keyword::JumpEnd:
                 steps.position = EasingStyleValue::Steps::Position::JumpEnd;
                 break;
-            case ValueID::JumpBoth:
+            case Keyword::JumpBoth:
                 steps.position = EasingStyleValue::Steps::Position::JumpBoth;
                 break;
-            case ValueID::JumpNone:
+            case Keyword::JumpNone:
                 steps.position = EasingStyleValue::Steps::Position::JumpNone;
                 break;
-            case ValueID::Start:
+            case Keyword::Start:
                 steps.position = EasingStyleValue::Steps::Position::Start;
                 break;
-            case ValueID::End:
+            case Keyword::End:
                 steps.position = EasingStyleValue::Steps::Position::End;
                 break;
             default:
@@ -5916,11 +5916,11 @@ RefPtr<CSSStyleValue> Parser::parse_transform_value(TokenStream<ComponentValue>&
                     argument_tokens.reconsume_current_input_token();
 
                     if (function_metadata.parameters[argument_index].type == TransformFunctionParameterType::LengthNone) {
-                        auto ident_transaction = argument_tokens.begin_transaction();
-                        auto identifier_value = parse_identifier_value(argument_tokens);
-                        if (identifier_value && identifier_value->to_identifier() == ValueID::None) {
-                            values.append(identifier_value.release_nonnull());
-                            ident_transaction.commit();
+                        auto keyword_transaction = argument_tokens.begin_transaction();
+                        auto keyword_value = parse_keyword_value(argument_tokens);
+                        if (keyword_value && keyword_value->to_keyword() == Keyword::None) {
+                            values.append(keyword_value.release_nonnull());
+                            keyword_transaction.commit();
                             break;
                         }
                     }
@@ -6012,16 +6012,16 @@ RefPtr<CSSStyleValue> Parser::parse_transform_origin_value(TokenStream<Component
         if (value->is_length())
             return AxisOffset { Axis::None, value->as_length() };
         if (value->is_keyword()) {
-            switch (value->to_identifier()) {
-            case ValueID::Top:
+            switch (value->to_keyword()) {
+            case Keyword::Top:
                 return AxisOffset { Axis::Y, PercentageStyleValue::create(Percentage(0)) };
-            case ValueID::Left:
+            case Keyword::Left:
                 return AxisOffset { Axis::X, PercentageStyleValue::create(Percentage(0)) };
-            case ValueID::Center:
+            case Keyword::Center:
                 return AxisOffset { Axis::None, PercentageStyleValue::create(Percentage(50)) };
-            case ValueID::Bottom:
+            case Keyword::Bottom:
                 return AxisOffset { Axis::Y, PercentageStyleValue::create(Percentage(100)) };
-            case ValueID::Right:
+            case Keyword::Right:
                 return AxisOffset { Axis::X, PercentageStyleValue::create(Percentage(100)) };
             default:
                 return OptionalNone {};
@@ -7321,9 +7321,9 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         }
         return {};
     };
-    auto any_property_accepts_identifier = [](ReadonlySpan<PropertyID> property_ids, ValueID identifier) -> Optional<PropertyID> {
+    auto any_property_accepts_keyword = [](ReadonlySpan<PropertyID> property_ids, Keyword keyword) -> Optional<PropertyID> {
         for (auto const& property : property_ids) {
-            if (property_accepts_identifier(property, identifier))
+            if (property_accepts_keyword(property, keyword))
                 return property;
         }
         return {};
@@ -7339,11 +7339,11 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (peek_token.is(Token::Type::Ident)) {
         // NOTE: We do not try to parse "CSS-wide keywords" here. https://www.w3.org/TR/css-values-4/#common-keywords
         //       These are only valid on their own, and so should be parsed directly in `parse_css_value()`.
-        auto ident = value_id_from_string(peek_token.token().ident());
-        if (ident.has_value()) {
-            if (auto property = any_property_accepts_identifier(property_ids, ident.value()); property.has_value()) {
+        auto keyword = keyword_from_string(peek_token.token().ident());
+        if (keyword.has_value()) {
+            if (auto property = any_property_accepts_keyword(property_ids, keyword.value()); property.has_value()) {
                 (void)tokens.next_token();
-                return PropertyAndValue { *property, CSSKeywordValue::create(ident.value()) };
+                return PropertyAndValue { *property, CSSKeywordValue::create(keyword.value()) };
             }
         }
 
