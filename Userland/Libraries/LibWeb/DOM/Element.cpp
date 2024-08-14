@@ -1184,7 +1184,6 @@ i32 Element::default_tab_index_value() const
     // The default value is 0 if the element is an a, area, button, frame, iframe, input, object, select, textarea, or SVG a element, or is a summary element that is a summary for its parent details.
     // The default value is −1 otherwise.
     // Note: The varying default value based on element type is a historical artifact.
-    // FIXME: We currently do not have the SVG a element.
     return -1;
 }
 
