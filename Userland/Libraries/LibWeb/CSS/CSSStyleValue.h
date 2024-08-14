@@ -111,8 +111,6 @@ public:
         GridTrackPlacement,
         GridTrackSizeList,
         Image,
-        Inherit,
-        Initial,
         Integer,
         Keyword,
         Length,
@@ -125,7 +123,6 @@ public:
         Ratio,
         Rect,
         Resolution,
-        Revert,
         ScrollbarGutter,
         Shadow,
         Shorthand,
@@ -134,7 +131,6 @@ public:
         Transformation,
         Transition,
         Unresolved,
-        Unset,
         URL,
         ValueList,
     };
@@ -240,14 +236,6 @@ public:
     ImageStyleValue const& as_image() const;
     ImageStyleValue& as_image() { return const_cast<ImageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_image()); }
 
-    bool is_inherit() const { return type() == Type::Inherit; }
-    InheritStyleValue const& as_inherit() const;
-    InheritStyleValue& as_inherit() { return const_cast<InheritStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_inherit()); }
-
-    bool is_initial() const { return type() == Type::Initial; }
-    InitialStyleValue const& as_initial() const;
-    InitialStyleValue& as_initial() { return const_cast<InitialStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_initial()); }
-
     bool is_integer() const { return type() == Type::Integer; }
     IntegerStyleValue const& as_integer() const;
     IntegerStyleValue& as_integer() { return const_cast<IntegerStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_integer()); }
@@ -296,10 +284,6 @@ public:
     ResolutionStyleValue const& as_resolution() const;
     ResolutionStyleValue& as_resolution() { return const_cast<ResolutionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_resolution()); }
 
-    bool is_revert() const { return type() == Type::Revert; }
-    RevertStyleValue const& as_revert() const;
-    RevertStyleValue& as_revert() { return const_cast<RevertStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_revert()); }
-
     bool is_scrollbar_gutter() const { return type() == Type::ScrollbarGutter; }
     ScrollbarGutterStyleValue const& as_scrollbar_gutter() const;
     ScrollbarGutterStyleValue& as_scrollbar_gutter() { return const_cast<ScrollbarGutterStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_scrollbar_gutter()); }
@@ -332,10 +316,6 @@ public:
     UnresolvedStyleValue const& as_unresolved() const;
     UnresolvedStyleValue& as_unresolved() { return const_cast<UnresolvedStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_unresolved()); }
 
-    bool is_unset() const { return type() == Type::Unset; }
-    UnsetStyleValue const& as_unset() const;
-    UnsetStyleValue& as_unset() { return const_cast<UnsetStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_unset()); }
-
     bool is_url() const { return type() == Type::URL; }
     URLStyleValue const& as_url() const;
     URLStyleValue& as_url() { return const_cast<URLStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_url()); }
@@ -347,6 +327,10 @@ public:
     // https://www.w3.org/TR/css-values-4/#common-keywords
     // https://drafts.csswg.org/css-cascade-4/#valdef-all-revert
     bool is_css_wide_keyword() const { return is_inherit() || is_initial() || is_revert() || is_unset(); }
+    bool is_inherit() const { return to_keyword() == Keyword::Inherit; }
+    bool is_initial() const { return to_keyword() == Keyword::Initial; }
+    bool is_revert() const { return to_keyword() == Keyword::Revert; }
+    bool is_unset() const { return to_keyword() == Keyword::Unset; }
 
     bool has_auto() const;
     virtual bool has_color() const { return false; }

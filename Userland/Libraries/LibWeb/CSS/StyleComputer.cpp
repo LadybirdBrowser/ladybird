@@ -61,7 +61,6 @@
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/UnsetStyleValue.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -1869,7 +1868,7 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(JS::Realm& i
 
 void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
-    // FIXME: If we don't know the correct initial value for a property, we fall back to InitialStyleValue.
+    // FIXME: If we don't know the correct initial value for a property, we fall back to `initial`.
 
     auto& value_slot = style.m_property_values[to_underlying(property_id)];
     if (!value_slot) {
