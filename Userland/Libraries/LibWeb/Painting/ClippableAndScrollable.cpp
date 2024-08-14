@@ -9,6 +9,13 @@
 
 namespace Web::Painting {
 
+Optional<int> ClippableAndScrollable::own_scroll_frame_id() const
+{
+    if (m_own_scroll_frame)
+        return m_own_scroll_frame->id;
+    return {};
+}
+
 Optional<int> ClippableAndScrollable::scroll_frame_id() const
 {
     if (m_enclosing_scroll_frame)

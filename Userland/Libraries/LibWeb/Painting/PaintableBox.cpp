@@ -680,9 +680,9 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
             context.display_list_recorder().add_rounded_rect_clip(corner_radii, context.rounded_device_rect(clip_box).to_type<int>(), CornerClip::Outside);
         }
 
-        context.display_list_recorder().save();
-        auto scroll_offset = context.rounded_device_point(this->scroll_offset());
-        context.display_list_recorder().translate(-scroll_offset.to_type<int>());
+        if (own_scroll_frame_id().has_value()) {
+            context.display_list_recorder().set_scroll_frame_id(own_scroll_frame_id().value());
+        }
     }
 
     // Text shadows
@@ -709,7 +709,6 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
     }
 
     if (should_clip_overflow) {
-        context.display_list_recorder().restore();
         context.display_list_recorder().restore();
     }
 }
