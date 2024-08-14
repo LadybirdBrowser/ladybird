@@ -59,8 +59,6 @@
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/InheritStyleValue.h>
-#include <LibWeb/CSS/StyleValues/InitialStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
@@ -70,7 +68,6 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RevertStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -81,7 +78,6 @@
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/UnsetStyleValue.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
@@ -1626,19 +1622,19 @@ RefPtr<CSSStyleValue> Parser::parse_builtin_value(TokenStream<ComponentValue>& t
         auto ident = component_value.token().ident();
         if (ident.equals_ignoring_ascii_case("inherit"sv)) {
             transaction.commit();
-            return InheritStyleValue::the();
+            return CSSKeywordValue::create(Keyword::Inherit);
         }
         if (ident.equals_ignoring_ascii_case("initial"sv)) {
             transaction.commit();
-            return InitialStyleValue::the();
+            return CSSKeywordValue::create(Keyword::Initial);
         }
         if (ident.equals_ignoring_ascii_case("unset"sv)) {
             transaction.commit();
-            return UnsetStyleValue::the();
+            return CSSKeywordValue::create(Keyword::Unset);
         }
         if (ident.equals_ignoring_ascii_case("revert"sv)) {
             transaction.commit();
-            return RevertStyleValue::the();
+            return CSSKeywordValue::create(Keyword::Revert);
         }
         // FIXME: Implement `revert-layer` from CSS-CASCADE-5.
     }
@@ -7947,18 +7943,18 @@ NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(DOM::Element
 
     HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>> dependencies;
     if (!expand_variables(element, pseudo_element, string_from_property_id(property_id), dependencies, unresolved_values_without_variables_expanded, values_with_variables_expanded))
-        return UnsetStyleValue::the();
+        return CSSKeywordValue::create(Keyword::Unset);
 
     TokenStream unresolved_values_with_variables_expanded { values_with_variables_expanded };
     Vector<ComponentValue> expanded_values;
     if (!expand_unresolved_values(element, string_from_property_id(property_id), unresolved_values_with_variables_expanded, expanded_values))
-        return UnsetStyleValue::the();
+        return CSSKeywordValue::create(Keyword::Unset);
 
     auto expanded_value_tokens = TokenStream { expanded_values };
     if (auto parsed_value = parse_css_value(property_id, expanded_value_tokens); !parsed_value.is_error())
         return parsed_value.release_value();
 
-    return UnsetStyleValue::the();
+    return CSSKeywordValue::create(Keyword::Unset);
 }
 
 static RefPtr<CSSStyleValue const> get_custom_property(DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, FlyString const& custom_property_name)

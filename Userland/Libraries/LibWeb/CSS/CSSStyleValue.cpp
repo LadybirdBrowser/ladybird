@@ -35,8 +35,6 @@
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/InheritStyleValue.h>
-#include <LibWeb/CSS/StyleValues/InitialStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
@@ -48,7 +46,6 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RevertStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -59,7 +56,6 @@
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/UnsetStyleValue.h>
 
 namespace Web::CSS {
 
@@ -218,18 +214,6 @@ ImageStyleValue const& CSSStyleValue::as_image() const
     return static_cast<ImageStyleValue const&>(*this);
 }
 
-InheritStyleValue const& CSSStyleValue::as_inherit() const
-{
-    VERIFY(is_inherit());
-    return static_cast<InheritStyleValue const&>(*this);
-}
-
-InitialStyleValue const& CSSStyleValue::as_initial() const
-{
-    VERIFY(is_initial());
-    return static_cast<InitialStyleValue const&>(*this);
-}
-
 IntegerStyleValue const& CSSStyleValue::as_integer() const
 {
     VERIFY(is_integer());
@@ -296,12 +280,6 @@ ResolutionStyleValue const& CSSStyleValue::as_resolution() const
     return static_cast<ResolutionStyleValue const&>(*this);
 }
 
-RevertStyleValue const& CSSStyleValue::as_revert() const
-{
-    VERIFY(is_revert());
-    return static_cast<RevertStyleValue const&>(*this);
-}
-
 ScrollbarGutterStyleValue const& CSSStyleValue::as_scrollbar_gutter() const
 {
     VERIFY(is_scrollbar_gutter());
@@ -348,12 +326,6 @@ UnresolvedStyleValue const& CSSStyleValue::as_unresolved() const
 {
     VERIFY(is_unresolved());
     return static_cast<UnresolvedStyleValue const&>(*this);
-}
-
-UnsetStyleValue const& CSSStyleValue::as_unset() const
-{
-    VERIFY(is_unset());
-    return static_cast<UnsetStyleValue const&>(*this);
 }
 
 URLStyleValue const& CSSStyleValue::as_url() const
