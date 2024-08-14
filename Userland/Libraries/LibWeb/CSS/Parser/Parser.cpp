@@ -42,6 +42,7 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -57,7 +58,6 @@
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/InheritStyleValue.h>
 #include <LibWeb/CSS/StyleValues/InitialStyleValue.h>
@@ -2378,7 +2378,7 @@ RefPtr<CSSStyleValue> Parser::parse_identifier_value(TokenStream<ComponentValue>
         auto value_id = value_id_from_string(peek_token.token().ident());
         if (value_id.has_value()) {
             (void)tokens.next_token(); // ident
-            return IdentifierStyleValue::create(value_id.value());
+            return CSSKeywordValue::create(value_id.value());
         }
     }
 
@@ -3231,7 +3231,7 @@ RefPtr<CSSStyleValue> Parser::parse_paint_value(TokenStream<ComponentValue>& tok
                 switch (*maybe_ident) {
                 case ValueID::None:
                     (void)tokens.next_token();
-                    return IdentifierStyleValue::create(*maybe_ident);
+                    return CSSKeywordValue::create(*maybe_ident);
                 default:
                     return nullptr;
                 }
@@ -3626,7 +3626,7 @@ RefPtr<CSSStyleValue> Parser::parse_all_as_single_none_value(TokenStream<Compone
         return {};
 
     transaction.commit();
-    return IdentifierStyleValue::create(ValueID::None);
+    return CSSKeywordValue::create(ValueID::None);
 }
 
 static void remove_property(Vector<PropertyID>& properties, PropertyID property_to_remove)
@@ -3654,7 +3654,7 @@ RefPtr<CSSStyleValue> Parser::parse_aspect_ratio_value(TokenStream<ComponentValu
             continue;
         }
 
-        if (maybe_value->is_identifier() && maybe_value->as_identifier().id() == ValueID::Auto) {
+        if (maybe_value->is_keyword() && maybe_value->as_keyword().id() == ValueID::Auto) {
             if (auto_value)
                 return nullptr;
             auto_value = maybe_value.release_nonnull();
@@ -3943,7 +3943,7 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_position_x_or_y_value(Toke
     if (!value)
         return nullptr;
 
-    if (value->is_identifier()) {
+    if (value->is_keyword()) {
         auto identifier = value->to_identifier();
         if (identifier == ValueID::Center) {
             transaction.commit();
@@ -4819,9 +4819,9 @@ RefPtr<CSSStyleValue> Parser::parse_flex_value(TokenStream<ComponentValue>& toke
             return make_flex_shorthand(one, one, *value);
         }
         case PropertyID::Flex: {
-            if (value->is_identifier() && value->to_identifier() == ValueID::None) {
+            if (value->is_keyword() && value->to_identifier() == ValueID::None) {
                 auto zero = NumberStyleValue::create(0);
-                return make_flex_shorthand(zero, zero, IdentifierStyleValue::create(ValueID::Auto));
+                return make_flex_shorthand(zero, zero, CSSKeywordValue::create(ValueID::Auto));
             }
             break;
         }
@@ -5091,7 +5091,7 @@ RefPtr<CSSStyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue
                 (void)tokens.next_token(); // Ident
                 if (!next_is_comma_or_eof())
                     return nullptr;
-                font_families.append(IdentifierStyleValue::create(maybe_ident.value()));
+                font_families.append(CSSKeywordValue::create(maybe_ident.value()));
                 (void)tokens.next_token(); // Comma
                 continue;
             }
@@ -5381,14 +5381,14 @@ RefPtr<CSSStyleValue> Parser::parse_list_style_value(TokenStream<ComponentValue>
     if (found_nones == 2) {
         if (list_image || list_type)
             return nullptr;
-        auto none = IdentifierStyleValue::create(ValueID::None);
+        auto none = CSSKeywordValue::create(ValueID::None);
         list_image = none;
         list_type = none;
 
     } else if (found_nones == 1) {
         if (list_image && list_type)
             return nullptr;
-        auto none = IdentifierStyleValue::create(ValueID::None);
+        auto none = CSSKeywordValue::create(ValueID::None);
         if (!list_image)
             list_image = none;
         if (!list_type)
@@ -6011,7 +6011,7 @@ RefPtr<CSSStyleValue> Parser::parse_transform_origin_value(TokenStream<Component
             return AxisOffset { Axis::None, value->as_percentage() };
         if (value->is_length())
             return AxisOffset { Axis::None, value->as_length() };
-        if (value->is_identifier()) {
+        if (value->is_keyword()) {
             switch (value->to_identifier()) {
             case ValueID::Top:
                 return AxisOffset { Axis::Y, PercentageStyleValue::create(Percentage(0)) };
@@ -7343,7 +7343,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         if (ident.has_value()) {
             if (auto property = any_property_accepts_identifier(property_ids, ident.value()); property.has_value()) {
                 (void)tokens.next_token();
-                return PropertyAndValue { *property, IdentifierStyleValue::create(ident.value()) };
+                return PropertyAndValue { *property, CSSKeywordValue::create(ident.value()) };
             }
         }
 

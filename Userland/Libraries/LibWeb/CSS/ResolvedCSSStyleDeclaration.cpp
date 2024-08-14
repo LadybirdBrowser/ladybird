@@ -15,12 +15,12 @@
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
 #include <LibWeb/CSS/StyleValues/InitialStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -100,7 +100,7 @@ static NonnullRefPtr<CSSStyleValue const> style_value_for_background_property(La
 static NonnullRefPtr<CSSStyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
     if (length_percentage.is_auto())
-        return IdentifierStyleValue::create(ValueID::Auto);
+        return CSSKeywordValue::create(ValueID::Auto);
     if (length_percentage.is_percentage())
         return PercentageStyleValue::create(length_percentage.percentage());
     if (length_percentage.is_length())
@@ -111,22 +111,22 @@ static NonnullRefPtr<CSSStyleValue const> style_value_for_length_percentage(Leng
 static NonnullRefPtr<CSSStyleValue const> style_value_for_size(Size const& size)
 {
     if (size.is_none())
-        return IdentifierStyleValue::create(ValueID::None);
+        return CSSKeywordValue::create(ValueID::None);
     if (size.is_percentage())
         return PercentageStyleValue::create(size.percentage());
     if (size.is_length())
         return LengthStyleValue::create(size.length());
     if (size.is_auto())
-        return IdentifierStyleValue::create(ValueID::Auto);
+        return CSSKeywordValue::create(ValueID::Auto);
     if (size.is_calculated())
         return size.calculated();
     if (size.is_min_content())
-        return IdentifierStyleValue::create(ValueID::MinContent);
+        return CSSKeywordValue::create(ValueID::MinContent);
     if (size.is_max_content())
-        return IdentifierStyleValue::create(ValueID::MaxContent);
+        return CSSKeywordValue::create(ValueID::MaxContent);
     // FIXME: Support fit-content(<length>)
     if (size.is_fit_content())
-        return IdentifierStyleValue::create(ValueID::FitContent);
+        return CSSKeywordValue::create(ValueID::FitContent);
     TODO();
 }
 
@@ -172,7 +172,7 @@ static RefPtr<CSSStyleValue const> style_value_for_length_box_logical_side(Layou
 static RefPtr<CSSStyleValue const> style_value_for_shadow(Vector<ShadowData> const& shadow_data)
 {
     if (shadow_data.is_empty())
-        return IdentifierStyleValue::create(ValueID::None);
+        return CSSKeywordValue::create(ValueID::None);
 
     auto make_shadow_style_value = [](ShadowData const& shadow) {
         return ShadowStyleValue::create(
@@ -263,7 +263,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         //    The resolved value is normal if the computed value is normal, or the used value otherwise.
     case PropertyID::LineHeight: {
         auto line_height = get_computed_value(property_id);
-        if (line_height->is_identifier() && line_height->to_identifier() == ValueID::Normal)
+        if (line_height->is_keyword() && line_height->to_identifier() == ValueID::Normal)
             return line_height;
         return LengthStyleValue::create(Length::make_px(layout_node.computed_values().line_height()));
     }
@@ -370,7 +370,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
     case PropertyID::Transform: {
         auto transformations = layout_node.computed_values().transformations();
         if (transformations.is_empty())
-            return IdentifierStyleValue::create(ValueID::None);
+            return CSSKeywordValue::create(ValueID::None);
 
         // https://drafts.csswg.org/css-transforms-2/#serialization-of-the-computed-value
         // The transform property is a resolved value special case property. [CSSOM]
@@ -516,7 +516,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
     case PropertyID::WebkitTextFillColor:
         return ColorStyleValue::create(layout_node.computed_values().webkit_text_fill_color());
     case PropertyID::Invalid:
-        return IdentifierStyleValue::create(ValueID::Invalid);
+        return CSSKeywordValue::create(ValueID::Invalid);
     case PropertyID::Custom:
         dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for custom properties was requested (?)");
         return nullptr;

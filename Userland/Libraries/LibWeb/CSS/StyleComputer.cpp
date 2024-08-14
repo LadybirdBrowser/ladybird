@@ -37,6 +37,7 @@
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -45,7 +46,6 @@
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
@@ -784,10 +784,10 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     if (property_id == CSS::PropertyID::Transition) {
         if (!value.is_transition()) {
             // Handle `none` as a shorthand for `all 0s ease 0s`.
-            set_longhand_property(CSS::PropertyID::TransitionProperty, IdentifierStyleValue::create(CSS::ValueID::All));
+            set_longhand_property(CSS::PropertyID::TransitionProperty, CSSKeywordValue::create(CSS::ValueID::All));
             set_longhand_property(CSS::PropertyID::TransitionDuration, TimeStyleValue::create(CSS::Time::make_seconds(0)));
             set_longhand_property(CSS::PropertyID::TransitionDelay, TimeStyleValue::create(CSS::Time::make_seconds(0)));
-            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, IdentifierStyleValue::create(CSS::ValueID::Ease));
+            set_longhand_property(CSS::PropertyID::TransitionTimingFunction, CSSKeywordValue::create(CSS::ValueID::Ease));
             return;
         }
         auto const& transitions = value.as_transition().transitions();
@@ -812,10 +812,10 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
 
         // FIXME: Honor writing-mode, direction and text-orientation.
         if (ident == CSS::ValueID::InlineStart) {
-            set_longhand_property(CSS::PropertyID::Float, IdentifierStyleValue::create(CSS::ValueID::Left));
+            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(CSS::ValueID::Left));
             return;
         } else if (ident == CSS::ValueID::InlineEnd) {
-            set_longhand_property(CSS::PropertyID::Float, IdentifierStyleValue::create(CSS::ValueID::Right));
+            set_longhand_property(CSS::PropertyID::Float, CSSKeywordValue::create(CSS::ValueID::Right));
             return;
         }
     }
@@ -1307,7 +1307,7 @@ static NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& e
             }
         } else if (value.is_shadow()) {
             shadows.append(value);
-        } else if (!value.is_identifier() || value.as_identifier().id() != ValueID::None) {
+        } else if (!value.is_keyword() || value.as_keyword().id() != ValueID::None) {
             VERIFY_NOT_REACHED();
         }
         return shadows;
@@ -1627,7 +1627,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         } else {
             // If interpolate_property() fails, the element should not be rendered
             dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(), end->to_string());
-            style_properties.set_animated_property(PropertyID::Visibility, IdentifierStyleValue::create(ValueID::Hidden));
+            style_properties.set_animated_property(PropertyID::Visibility, CSSKeywordValue::create(ValueID::Hidden));
         }
     }
 }
@@ -1640,7 +1640,7 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
     if (auto duration_value = style.maybe_null_property(PropertyID::AnimationDuration); duration_value) {
         if (duration_value->is_time()) {
             duration = duration_value->as_time().time();
-        } else if (duration_value->is_identifier() && duration_value->as_identifier().id() == ValueID::Auto) {
+        } else if (duration_value->is_keyword() && duration_value->as_keyword().id() == ValueID::Auto) {
             // We use empty optional to represent "auto".
             duration = {};
         }
@@ -1652,26 +1652,26 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
 
     double iteration_count = 1.0;
     if (auto iteration_count_value = style.maybe_null_property(PropertyID::AnimationIterationCount); iteration_count_value) {
-        if (iteration_count_value->is_identifier() && iteration_count_value->to_identifier() == ValueID::Infinite)
+        if (iteration_count_value->is_keyword() && iteration_count_value->to_identifier() == ValueID::Infinite)
             iteration_count = HUGE_VAL;
         else if (iteration_count_value->is_number())
             iteration_count = iteration_count_value->as_number().number();
     }
 
     CSS::AnimationFillMode fill_mode { CSS::AnimationFillMode::None };
-    if (auto fill_mode_property = style.maybe_null_property(PropertyID::AnimationFillMode); fill_mode_property && fill_mode_property->is_identifier()) {
+    if (auto fill_mode_property = style.maybe_null_property(PropertyID::AnimationFillMode); fill_mode_property && fill_mode_property->is_keyword()) {
         if (auto fill_mode_value = value_id_to_animation_fill_mode(fill_mode_property->to_identifier()); fill_mode_value.has_value())
             fill_mode = *fill_mode_value;
     }
 
     CSS::AnimationDirection direction { CSS::AnimationDirection::Normal };
-    if (auto direction_property = style.maybe_null_property(PropertyID::AnimationDirection); direction_property && direction_property->is_identifier()) {
+    if (auto direction_property = style.maybe_null_property(PropertyID::AnimationDirection); direction_property && direction_property->is_keyword()) {
         if (auto direction_value = value_id_to_animation_direction(direction_property->to_identifier()); direction_value.has_value())
             direction = *direction_value;
     }
 
     CSS::AnimationPlayState play_state { CSS::AnimationPlayState::Running };
-    if (auto play_state_property = style.maybe_null_property(PropertyID::AnimationPlayState); play_state_property && play_state_property->is_identifier()) {
+    if (auto play_state_property = style.maybe_null_property(PropertyID::AnimationPlayState); play_state_property && play_state_property->is_keyword()) {
         if (auto play_state_value = value_id_to_animation_play_state(play_state_property->to_identifier()); play_state_value.has_value())
             play_state = *play_state_value;
     }
@@ -2071,7 +2071,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     };
     Length::FontMetrics font_metrics { parent_font_size(), font_pixel_metrics };
 
-    if (font_size.is_identifier()) {
+    if (font_size.is_keyword()) {
         // https://w3c.github.io/csswg-drafts/css-fonts/#absolute-size-mapping
         auto get_absolute_size_mapping = [](Web::CSS::ValueID identifier) -> CSSPixelFraction {
             switch (identifier) {
@@ -2100,7 +2100,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             }
         };
 
-        auto const identifier = static_cast<IdentifierStyleValue const&>(font_size).id();
+        auto const identifier = static_cast<CSSKeywordValue const&>(font_size).id();
 
         if (identifier == ValueID::Math) {
             auto math_scaling_factor = [&]() {
@@ -2258,7 +2258,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         auto const& family_list = static_cast<StyleValueList const&>(font_family).values();
         for (auto const& family : family_list) {
             RefPtr<Gfx::FontCascadeList const> other_font_list;
-            if (family->is_identifier()) {
+            if (family->is_keyword()) {
                 other_font_list = find_generic_font(family->to_identifier());
             } else if (family->is_string()) {
                 other_font_list = find_font(family->as_string().string_value());
@@ -2268,7 +2268,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             if (other_font_list)
                 font_list->extend(*other_font_list);
         }
-    } else if (font_family.is_identifier()) {
+    } else if (font_family.is_keyword()) {
         if (auto other_font_list = find_generic_font(font_family.to_identifier()))
             font_list->extend(*other_font_list);
     } else if (font_family.is_string()) {
@@ -2372,13 +2372,13 @@ void StyleComputer::resolve_effective_overflow_values(StyleProperties& style) co
     auto overflow_y_is_visible_or_clip = overflow_y == Overflow::Visible || overflow_y == Overflow::Clip;
     if (!overflow_x_is_visible_or_clip || !overflow_y_is_visible_or_clip) {
         if (overflow_x == CSS::Overflow::Visible)
-            style.set_property(CSS::PropertyID::OverflowX, IdentifierStyleValue::create(CSS::ValueID::Auto));
+            style.set_property(CSS::PropertyID::OverflowX, CSSKeywordValue::create(CSS::ValueID::Auto));
         if (overflow_x == CSS::Overflow::Clip)
-            style.set_property(CSS::PropertyID::OverflowX, IdentifierStyleValue::create(CSS::ValueID::Hidden));
+            style.set_property(CSS::PropertyID::OverflowX, CSSKeywordValue::create(CSS::ValueID::Hidden));
         if (overflow_y == CSS::Overflow::Visible)
-            style.set_property(CSS::PropertyID::OverflowY, IdentifierStyleValue::create(CSS::ValueID::Auto));
+            style.set_property(CSS::PropertyID::OverflowY, CSSKeywordValue::create(CSS::ValueID::Auto));
         if (overflow_y == CSS::Overflow::Clip)
-            style.set_property(CSS::PropertyID::OverflowY, IdentifierStyleValue::create(CSS::ValueID::Hidden));
+            style.set_property(CSS::PropertyID::OverflowY, CSSKeywordValue::create(CSS::ValueID::Hidden));
     }
 }
 

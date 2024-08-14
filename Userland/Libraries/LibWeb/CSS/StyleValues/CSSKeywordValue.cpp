@@ -1,13 +1,13 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "IdentifierStyleValue.h"
+#include "CSSKeywordValue.h"
 #include <LibGfx/Palette.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
@@ -16,12 +16,12 @@
 
 namespace Web::CSS {
 
-String IdentifierStyleValue::to_string() const
+String CSSKeywordValue::to_string() const
 {
     return MUST(String::from_utf8(CSS::string_from_value_id(m_id)));
 }
 
-bool IdentifierStyleValue::is_color(ValueID value_id)
+bool CSSKeywordValue::is_color(ValueID value_id)
 {
     switch (value_id) {
     case ValueID::Accentcolor:
@@ -128,12 +128,12 @@ bool IdentifierStyleValue::is_color(ValueID value_id)
     }
 }
 
-bool IdentifierStyleValue::has_color() const
+bool CSSKeywordValue::has_color() const
 {
     return is_color(m_id);
 }
 
-Color IdentifierStyleValue::to_color(Optional<Layout::NodeWithStyle const&> node) const
+Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) const
 {
     if (id() == CSS::ValueID::Currentcolor) {
         if (!node.has_value() || !node->has_style())

@@ -18,7 +18,7 @@
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperties.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -542,7 +542,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     if (is<HTML::HTMLTableElement>(*this)) {
         auto text_align = new_computed_css_values->text_align();
         if (text_align.has_value() && (text_align.value() == CSS::TextAlign::LibwebLeft || text_align.value() == CSS::TextAlign::LibwebCenter || text_align.value() == CSS::TextAlign::LibwebRight))
-            new_computed_css_values->set_property(CSS::PropertyID::TextAlign, CSS::IdentifierStyleValue::create(CSS::ValueID::Start));
+            new_computed_css_values->set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::ValueID::Start));
     }
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;

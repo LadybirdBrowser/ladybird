@@ -7,7 +7,7 @@
 #include <LibWeb/Bindings/HTMLPreElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleProperties.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/HTML/HTMLPreElement.h>
 #include <LibWeb/HTML/Numbers.h>
 
@@ -34,7 +34,7 @@ void HTMLPreElement::apply_presentational_hints(CSS::StyleProperties& style) con
 
     for_each_attribute([&](auto const& name, auto const&) {
         if (name.equals_ignoring_ascii_case(HTML::AttributeNames::wrap))
-            style.set_property(CSS::PropertyID::WhiteSpace, CSS::IdentifierStyleValue::create(CSS::ValueID::PreWrap));
+            style.set_property(CSS::PropertyID::WhiteSpace, CSS::CSSKeywordValue::create(CSS::ValueID::PreWrap));
     });
 }
 

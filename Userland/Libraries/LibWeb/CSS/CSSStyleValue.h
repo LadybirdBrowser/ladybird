@@ -110,11 +110,11 @@ public:
         GridTemplateArea,
         GridTrackPlacement,
         GridTrackSizeList,
-        Identifier,
         Image,
         Inherit,
         Initial,
         Integer,
+        Keyword,
         Length,
         LinearGradient,
         MathDepth,
@@ -236,10 +236,6 @@ public:
     GridTrackSizeListStyleValue const& as_grid_track_size_list() const;
     GridTrackSizeListStyleValue& as_grid_track_size_list() { return const_cast<GridTrackSizeListStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_grid_track_size_list()); }
 
-    bool is_identifier() const { return type() == Type::Identifier; }
-    IdentifierStyleValue const& as_identifier() const;
-    IdentifierStyleValue& as_identifier() { return const_cast<IdentifierStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_identifier()); }
-
     bool is_image() const { return type() == Type::Image; }
     ImageStyleValue const& as_image() const;
     ImageStyleValue& as_image() { return const_cast<ImageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_image()); }
@@ -255,6 +251,10 @@ public:
     bool is_integer() const { return type() == Type::Integer; }
     IntegerStyleValue const& as_integer() const;
     IntegerStyleValue& as_integer() { return const_cast<IntegerStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_integer()); }
+
+    bool is_keyword() const { return type() == Type::Keyword; }
+    CSSKeywordValue const& as_keyword() const;
+    CSSKeywordValue& as_keyword() { return const_cast<CSSKeywordValue&>(const_cast<CSSStyleValue const&>(*this).as_keyword()); }
 
     bool is_length() const { return type() == Type::Length; }
     LengthStyleValue const& as_length() const;

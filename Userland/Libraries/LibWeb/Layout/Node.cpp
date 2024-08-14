@@ -10,8 +10,8 @@
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
@@ -373,7 +373,7 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
                 }
             }
 
-            if (auto attachment_value = value_for_layer(attachments, layer_index); attachment_value && attachment_value->is_identifier()) {
+            if (auto attachment_value = value_for_layer(attachments, layer_index); attachment_value && attachment_value->is_keyword()) {
                 switch (attachment_value->to_identifier()) {
                 case CSS::ValueID::Fixed:
                     layer.attachment = CSS::BackgroundAttachment::Fixed;
@@ -404,11 +404,11 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
                 }
             };
 
-            if (auto origin_value = value_for_layer(origins, layer_index); origin_value && origin_value->is_identifier()) {
+            if (auto origin_value = value_for_layer(origins, layer_index); origin_value && origin_value->is_keyword()) {
                 layer.origin = as_box(origin_value->to_identifier());
             }
 
-            if (auto clip_value = value_for_layer(clips, layer_index); clip_value && clip_value->is_identifier()) {
+            if (auto clip_value = value_for_layer(clips, layer_index); clip_value && clip_value->is_keyword()) {
                 layer.clip = as_box(clip_value->to_identifier());
             }
 
@@ -430,7 +430,7 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
                     layer.size_type = CSS::BackgroundSize::LengthPercentage;
                     layer.size_x = size.size_x();
                     layer.size_y = size.size_y();
-                } else if (size_value->is_identifier()) {
+                } else if (size_value->is_keyword()) {
                     switch (size_value->to_identifier()) {
                     case CSS::ValueID::Contain:
                         layer.size_type = CSS::BackgroundSize::Contain;
@@ -720,7 +720,7 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
                     return max(CSSPixels { 0 }, value->as_calculated().resolve_length(*this)->to_px(*this));
                 if (value->is_length())
                     return value->as_length().length().to_px(*this);
-                if (value->is_identifier()) {
+                if (value->is_keyword()) {
                     // https://www.w3.org/TR/css-backgrounds-3/#valdef-line-width-thin
                     switch (value->to_identifier()) {
                     case CSS::ValueID::Thin:
@@ -843,11 +843,11 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (aspect_ratio->is_value_list()) {
         auto& values_list = aspect_ratio->as_value_list().values();
         if (values_list.size() == 2
-            && values_list[0]->is_identifier() && values_list[0]->as_identifier().id() == CSS::ValueID::Auto
+            && values_list[0]->is_keyword() && values_list[0]->as_keyword().id() == CSS::ValueID::Auto
             && values_list[1]->is_ratio()) {
             computed_values.set_aspect_ratio({ true, values_list[1]->as_ratio().ratio() });
         }
-    } else if (aspect_ratio->is_identifier() && aspect_ratio->as_identifier().id() == CSS::ValueID::Auto) {
+    } else if (aspect_ratio->is_keyword() && aspect_ratio->as_keyword().id() == CSS::ValueID::Auto) {
         computed_values.set_aspect_ratio({ true, {} });
     } else if (aspect_ratio->is_ratio()) {
         computed_values.set_aspect_ratio({ false, aspect_ratio->as_ratio().ratio() });

@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
@@ -33,7 +34,6 @@
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IdentifierStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/InheritStyleValue.h>
 #include <LibWeb/CSS/StyleValues/InitialStyleValue.h>
@@ -206,10 +206,10 @@ GridTrackSizeListStyleValue const& CSSStyleValue::as_grid_track_size_list() cons
     return static_cast<GridTrackSizeListStyleValue const&>(*this);
 }
 
-IdentifierStyleValue const& CSSStyleValue::as_identifier() const
+CSSKeywordValue const& CSSStyleValue::as_keyword() const
 {
-    VERIFY(is_identifier());
-    return static_cast<IdentifierStyleValue const&>(*this);
+    VERIFY(is_keyword());
+    return static_cast<CSSKeywordValue const&>(*this);
 }
 
 ImageStyleValue const& CSSStyleValue::as_image() const
@@ -375,20 +375,20 @@ ValueComparingNonnullRefPtr<CSSStyleValue const> CSSStyleValue::absolutized(CSSP
 
 bool CSSStyleValue::has_auto() const
 {
-    return is_identifier() && as_identifier().id() == ValueID::Auto;
+    return is_keyword() && as_keyword().id() == ValueID::Auto;
 }
 
 ValueID CSSStyleValue::to_identifier() const
 {
-    if (is_identifier())
-        return as_identifier().id();
+    if (is_keyword())
+        return as_keyword().id();
     return ValueID::Invalid;
 }
 
 int CSSStyleValue::to_font_weight() const
 {
-    if (is_identifier()) {
-        switch (static_cast<IdentifierStyleValue const&>(*this).id()) {
+    if (is_keyword()) {
+        switch (static_cast<CSSKeywordValue const&>(*this).id()) {
         case CSS::ValueID::Normal:
             return Gfx::FontWeight::Regular;
         case CSS::ValueID::Bold:
@@ -417,8 +417,8 @@ int CSSStyleValue::to_font_weight() const
 int CSSStyleValue::to_font_slope() const
 {
     // FIXME: Implement oblique <angle>
-    if (is_identifier()) {
-        switch (static_cast<IdentifierStyleValue const&>(*this).id()) {
+    if (is_keyword()) {
+        switch (static_cast<CSSKeywordValue const&>(*this).id()) {
         case CSS::ValueID::Italic: {
             static int italic_slope = Gfx::name_to_slope("Italic"sv);
             return italic_slope;
@@ -438,8 +438,8 @@ int CSSStyleValue::to_font_slope() const
 int CSSStyleValue::to_font_stretch_width() const
 {
     int width = Gfx::FontWidth::Normal;
-    if (is_identifier()) {
-        switch (static_cast<IdentifierStyleValue const&>(*this).id()) {
+    if (is_keyword()) {
+        switch (static_cast<CSSKeywordValue const&>(*this).id()) {
         case CSS::ValueID::UltraCondensed:
             width = Gfx::FontWidth::UltraCondensed;
             break;
