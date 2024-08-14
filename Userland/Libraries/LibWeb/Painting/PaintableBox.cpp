@@ -81,7 +81,6 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
     if (!scrollable_overflow_rect.has_value())
         return;
 
-    document().set_needs_to_refresh_clip_state(true);
     document().set_needs_to_refresh_scroll_state(true);
 
     auto padding_rect = absolute_padding_box_rect();
@@ -820,7 +819,6 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
         viewport_paintable.build_stacking_context_tree_if_needed();
         viewport_paintable.document().update_paint_and_hit_testing_properties_if_needed();
         viewport_paintable.refresh_scroll_state();
-        viewport_paintable.refresh_clip_state();
         return stacking_context()->hit_test(position, type, callback);
     }
 

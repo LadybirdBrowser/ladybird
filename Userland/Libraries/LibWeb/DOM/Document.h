@@ -482,7 +482,6 @@ public:
     bool needs_full_style_update() const { return m_needs_full_style_update; }
     void set_needs_full_style_update(bool b) { m_needs_full_style_update = b; }
 
-    void set_needs_to_refresh_clip_state(bool b);
     void set_needs_to_refresh_scroll_state(bool b);
 
     bool has_active_favicon() const { return m_active_favicon; }

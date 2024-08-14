@@ -27,7 +27,6 @@ public:
 
     HashMap<JS::GCPtr<PaintableBox const>, RefPtr<ClipFrame>> clip_state;
     void assign_clip_frames();
-    void refresh_clip_state();
 
     void resolve_paint_only_properties();
 
@@ -36,7 +35,6 @@ public:
 
     bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y) override;
 
-    void set_needs_to_refresh_clip_state(bool value) { m_needs_to_refresh_clip_state = value; }
     void set_needs_to_refresh_scroll_state(bool value) { m_needs_to_refresh_scroll_state = value; }
 
 private:
@@ -46,7 +44,6 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    bool m_needs_to_refresh_clip_state { true };
     bool m_needs_to_refresh_scroll_state { true };
 };
 

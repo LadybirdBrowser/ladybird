@@ -21,7 +21,6 @@ struct ClipRectWithScrollFrame {
 struct ClipFrame : public RefCounted<ClipFrame> {
     Vector<ClipRectWithScrollFrame> const& clip_rects() const { return m_clip_rects; }
     void add_clip_rect(CSSPixelRect rect, BorderRadiiData radii, RefPtr<ScrollFrame const> enclosing_scroll_frame);
-    void clear_rects();
 
     CSSPixelRect clip_rect_for_hit_testing() const;
 

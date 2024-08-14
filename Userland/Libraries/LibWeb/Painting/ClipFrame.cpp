@@ -19,11 +19,6 @@ void ClipFrame::add_clip_rect(CSSPixelRect rect, BorderRadiiData radii, RefPtr<S
     m_clip_rects.append({ rect, radii, move(enclosing_scroll_frame) });
 }
 
-void ClipFrame::clear_rects()
-{
-    m_clip_rects.clear_with_capacity();
-}
-
 CSSPixelRect ClipFrame::clip_rect_for_hit_testing() const
 {
     VERIFY(!m_clip_rects.is_empty());
