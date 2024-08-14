@@ -187,97 +187,97 @@ String Length::to_string() const
     return MUST(String::formatted("{:.5}{}", m_value, unit_name()));
 }
 
-char const* Length::unit_name() const
+StringView Length::unit_name() const
 {
     switch (m_type) {
     case Type::Em:
-        return "em";
+        return "em"sv;
     case Type::Rem:
-        return "rem";
+        return "rem"sv;
     case Type::Ex:
-        return "ex";
+        return "ex"sv;
     case Type::Rex:
-        return "rex";
+        return "rex"sv;
     case Type::Cap:
-        return "cap";
+        return "cap"sv;
     case Type::Rcap:
-        return "rcap";
+        return "rcap"sv;
     case Type::Ch:
-        return "ch";
+        return "ch"sv;
     case Type::Rch:
-        return "rch";
+        return "rch"sv;
     case Type::Ic:
-        return "ic";
+        return "ic"sv;
     case Type::Ric:
-        return "ric";
+        return "ric"sv;
     case Type::Lh:
-        return "lh";
+        return "lh"sv;
     case Type::Rlh:
-        return "rlh";
+        return "rlh"sv;
     case Type::Vw:
-        return "vw";
+        return "vw"sv;
     case Type::Svw:
-        return "svw";
+        return "svw"sv;
     case Type::Lvw:
-        return "lvw";
+        return "lvw"sv;
     case Type::Dvw:
-        return "dvw";
+        return "dvw"sv;
     case Type::Vh:
-        return "vh";
+        return "vh"sv;
     case Type::Svh:
-        return "svh";
+        return "svh"sv;
     case Type::Lvh:
-        return "lvh";
+        return "lvh"sv;
     case Type::Dvh:
-        return "dvh";
+        return "dvh"sv;
     case Type::Vi:
-        return "vi";
+        return "vi"sv;
     case Type::Svi:
-        return "svi";
+        return "svi"sv;
     case Type::Lvi:
-        return "lvi";
+        return "lvi"sv;
     case Type::Dvi:
-        return "dvi";
+        return "dvi"sv;
     case Type::Vb:
-        return "vb";
+        return "vb"sv;
     case Type::Svb:
-        return "svb";
+        return "svb"sv;
     case Type::Lvb:
-        return "lvb";
+        return "lvb"sv;
     case Type::Dvb:
-        return "dvb";
+        return "dvb"sv;
     case Type::Vmin:
-        return "vmin";
+        return "vmin"sv;
     case Type::Svmin:
-        return "svmin";
+        return "svmin"sv;
     case Type::Lvmin:
-        return "lvmin";
+        return "lvmin"sv;
     case Type::Dvmin:
-        return "dvmin";
+        return "dvmin"sv;
     case Type::Vmax:
-        return "vmax";
+        return "vmax"sv;
     case Type::Svmax:
-        return "svmax";
+        return "svmax"sv;
     case Type::Lvmax:
-        return "lvmax";
+        return "lvmax"sv;
     case Type::Dvmax:
-        return "dvmax";
+        return "dvmax"sv;
     case Type::Cm:
-        return "cm";
+        return "cm"sv;
     case Type::Mm:
-        return "mm";
+        return "mm"sv;
     case Type::Q:
-        return "Q";
+        return "Q"sv;
     case Type::In:
-        return "in";
+        return "in"sv;
     case Type::Pt:
-        return "pt";
+        return "pt"sv;
     case Type::Pc:
-        return "pc";
+        return "pc"sv;
     case Type::Px:
-        return "px";
+        return "px"sv;
     case Type::Auto:
-        return "auto";
+        return "auto"sv;
     }
     VERIFY_NOT_REACHED();
 }

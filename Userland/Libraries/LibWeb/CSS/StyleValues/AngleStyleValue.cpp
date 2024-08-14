@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
@@ -12,7 +12,7 @@
 namespace Web::CSS {
 
 AngleStyleValue::AngleStyleValue(Angle angle)
-    : StyleValueWithDefaultOperators(Type::Angle)
+    : CSSUnitValue(Type::Angle)
     , m_angle(move(angle))
 {
 }
@@ -24,9 +24,12 @@ String AngleStyleValue::to_string() const
     return m_angle.to_string();
 }
 
-bool AngleStyleValue::properties_equal(AngleStyleValue const& other) const
+bool AngleStyleValue::equals(CSSStyleValue const& other) const
 {
-    return m_angle == other.m_angle;
+    if (type() != other.type())
+        return false;
+    auto const& other_angle = other.as_angle();
+    return m_angle == other_angle.m_angle;
 }
 
 }
