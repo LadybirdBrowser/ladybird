@@ -20,7 +20,7 @@ Gfx::AffineTransform CanvasPath::active_transform() const
 void CanvasPath::ensure_subpath(float x, float y)
 {
     if (m_path.is_empty())
-        m_path.move_to(active_transform().map(Gfx::FloatPoint { x, y }));
+        m_path.move_to(Gfx::FloatPoint { x, y });
 }
 
 void CanvasPath::close_path()
@@ -36,7 +36,7 @@ void CanvasPath::move_to(float x, float y)
         return;
 
     // 2. Create a new subpath with the specified point as its first (and only) point.
-    m_path.move_to(active_transform().map(Gfx::FloatPoint { x, y }));
+    m_path.move_to(Gfx::FloatPoint { x, y });
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-lineto
@@ -52,7 +52,7 @@ void CanvasPath::line_to(float x, float y)
     } else {
         // 3. Otherwise, connect the last point in the subpath to the given point (x, y) using a straight line,
         // and then add the given point (x, y) to the subpath.
-        m_path.line_to(active_transform().map(Gfx::FloatPoint { x, y }));
+        m_path.line_to(Gfx::FloatPoint { x, y });
     }
 }
 
@@ -68,8 +68,7 @@ void CanvasPath::quadratic_curve_to(float cpx, float cpy, float x, float y)
 
     // 3. Connect the last point in the subpath to the given point (x, y) using a quadratic Bézier curve with control point (cpx, cpy).
     // 4. Add the given point (x, y) to the subpath.
-    auto transform = active_transform();
-    m_path.quadratic_bezier_curve_to(transform.map(Gfx::FloatPoint { cpx, cpy }), transform.map(Gfx::FloatPoint { x, y }));
+    m_path.quadratic_bezier_curve_to(Gfx::FloatPoint { cpx, cpy }, Gfx::FloatPoint { x, y });
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-beziercurveto
@@ -84,9 +83,8 @@ void CanvasPath::bezier_curve_to(double cp1x, double cp1y, double cp2x, double c
 
     // 3. Connect the last point in the subpath to the given point (x, y) using a cubic Bézier curve with control poits (cp1x, cp1y) and (cp2x, cp2y).
     // 4. Add the point (x, y) to the subpath.
-    auto transform = active_transform();
     m_path.cubic_bezier_curve_to(
-        transform.map(Gfx::FloatPoint { cp1x, cp1y }), transform.map(Gfx::FloatPoint { cp2x, cp2y }), transform.map(Gfx::FloatPoint { x, y }));
+        Gfx::FloatPoint { cp1x, cp1y }, Gfx::FloatPoint { cp2x, cp2y }, Gfx::FloatPoint { x, y });
 }
 
 WebIDL::ExceptionOr<void> CanvasPath::arc(float x, float y, float radius, float start_angle, float end_angle, bool counter_clockwise)
@@ -160,19 +158,17 @@ WebIDL::ExceptionOr<void> CanvasPath::ellipse(float x, float y, float radius_x, 
     if (delta_theta < 0)
         delta_theta += AK::Pi<float> * 2;
 
-    auto transform = active_transform();
-
     // 3. If canvasPath's path has any subpaths, then add a straight line from the last point in the subpath to the start point of the arc.
     if (!m_path.is_empty())
-        m_path.line_to(transform.map(start_point));
+        m_path.line_to(start_point);
     else
-        m_path.move_to(transform.map(start_point));
+        m_path.move_to(start_point);
 
     // 4. Add the start and end points of the arc to the subpath, and connect them with an arc.
     m_path.elliptical_arc_to(
-        transform.map(Gfx::FloatPoint { end_point }),
-        transform.map(Gfx::FloatSize { radius_x, radius_y }),
-        rotation + transform.rotation(),
+        Gfx::FloatPoint { end_point },
+        Gfx::FloatSize { radius_x, radius_y },
+        rotation,
         delta_theta > AK::Pi<float>, !counter_clockwise);
 
     return {};
@@ -198,11 +194,11 @@ WebIDL::ExceptionOr<void> CanvasPath::arc_to(double x1, double y1, double x2, do
     //    transformed by the inverse of the current transformation matrix
     //    (so that it is in the same coordinate system as the points passed to the method).
     // Point (x0, y0)
-    auto p0 = m_path.last_point();
+    auto p0 = transform.inverse().value_or(Gfx::AffineTransform()).map(m_path.last_point());
     // Point (x1, y1)
-    auto p1 = transform.map(Gfx::FloatPoint { x1, y1 });
+    auto p1 = Gfx::FloatPoint { x1, y1 };
     // Point (x2, y2)
-    auto p2 = transform.map(Gfx::FloatPoint { x2, y2 });
+    auto p2 = Gfx::FloatPoint { x2, y2 };
 
     // 5. If the point (x0, y0) is equal to the point (x1, y1),
     //    or if the point (x1, y1) is equal to the point (x2, y2),
@@ -259,17 +255,16 @@ void CanvasPath::rect(double x, double y, double w, double h)
         return;
 
     // 2. Create a new subpath containing just the four points (x, y), (x+w, y), (x+w, y+h), (x, y+h), in that order, with those four points connected by straight lines.
-    auto transform = active_transform();
-    m_path.move_to(transform.map(Gfx::FloatPoint { x, y }));
-    m_path.line_to(transform.map(Gfx::FloatPoint { x + w, y }));
-    m_path.line_to(transform.map(Gfx::FloatPoint { x + w, y + h }));
-    m_path.line_to(transform.map(Gfx::FloatPoint { x, y + h }));
+    m_path.move_to(Gfx::FloatPoint { x, y });
+    m_path.line_to(Gfx::FloatPoint { x + w, y });
+    m_path.line_to(Gfx::FloatPoint { x + w, y + h });
+    m_path.line_to(Gfx::FloatPoint { x, y + h });
 
     // 3. Mark the subpath as closed.
     m_path.close();
 
     // 4. Create a new subpath with the point (x, y) as the only point in the subpath.
-    m_path.move_to(transform.map(Gfx::FloatPoint { x, y }));
+    m_path.move_to(Gfx::FloatPoint { x, y });
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-roundrect
@@ -393,42 +388,41 @@ WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, d
     }
 
     // 12. Create a new subpath:
-    auto transform = active_transform();
     bool large_arc = false;
     bool sweep = true;
 
     // 12.1. Move to the point (x + upperLeft["x"], y).
-    m_path.move_to(transform.map(Gfx::FloatPoint { x + upper_left.x, y }));
+    m_path.move_to(Gfx::FloatPoint { x + upper_left.x, y });
 
     // 12.2. Draw a straight line to the point (x + w − upperRight["x"], y).
-    m_path.line_to(transform.map(Gfx::FloatPoint { x + w - upper_right.x, y }));
+    m_path.line_to(Gfx::FloatPoint { x + w - upper_right.x, y });
 
     // 12.3. Draw an arc to the point (x + w, y + upperRight["y"]).
-    m_path.elliptical_arc_to(transform.map(Gfx::FloatPoint { x + w, y + upper_right.y }), { upper_right.x, upper_right.y }, transform.rotation(), large_arc, sweep);
+    m_path.elliptical_arc_to(Gfx::FloatPoint { x + w, y + upper_right.y }, { upper_right.x, upper_right.y }, 0, large_arc, sweep);
 
     // 12.4. Draw a straight line to the point (x + w, y + h − lowerRight["y"]).
-    m_path.line_to(transform.map(Gfx::FloatPoint { x + w, y + h - lower_right.y }));
+    m_path.line_to(Gfx::FloatPoint { x + w, y + h - lower_right.y });
 
     // 12.5. Draw an arc to the point (x + w − lowerRight["x"], y + h).
-    m_path.elliptical_arc_to(transform.map(Gfx::FloatPoint { x + w - lower_right.x, y + h }), { lower_right.x, lower_right.y }, transform.rotation(), large_arc, sweep);
+    m_path.elliptical_arc_to(Gfx::FloatPoint { x + w - lower_right.x, y + h }, { lower_right.x, lower_right.y }, 0, large_arc, sweep);
 
     // 12.6. Draw a straight line to the point (x + lowerLeft["x"], y + h).
-    m_path.line_to(transform.map(Gfx::FloatPoint { x + lower_left.x, y + h }));
+    m_path.line_to(Gfx::FloatPoint { x + lower_left.x, y + h });
 
     // 12.7. Draw an arc to the point (x, y + h − lowerLeft["y"]).
-    m_path.elliptical_arc_to(transform.map(Gfx::FloatPoint { x, y + h - lower_left.y }), { lower_left.x, lower_left.y }, transform.rotation(), large_arc, sweep);
+    m_path.elliptical_arc_to(Gfx::FloatPoint { x, y + h - lower_left.y }, { lower_left.x, lower_left.y }, 0, large_arc, sweep);
 
     // 12.8. Draw a straight line to the point (x, y + upperLeft["y"]).
-    m_path.line_to(transform.map(Gfx::FloatPoint { x, y + upper_left.y }));
+    m_path.line_to(Gfx::FloatPoint { x, y + upper_left.y });
 
     // 12.9. Draw an arc to the point (x + upperLeft["x"], y).
-    m_path.elliptical_arc_to(transform.map(Gfx::FloatPoint { x + upper_left.x, y }), { upper_left.x, upper_left.y }, transform.rotation(), large_arc, sweep);
+    m_path.elliptical_arc_to(Gfx::FloatPoint { x + upper_left.x, y }, { upper_left.x, upper_left.y }, 0, large_arc, sweep);
 
     // 13. Mark the subpath as closed.
     m_path.close();
 
     // 14. Create a new subpath with the point (x, y) as the only point in the subpath.
-    m_path.move_to(transform.map(Gfx::FloatPoint { x, y }));
+    m_path.move_to(Gfx::FloatPoint { x, y });
     return {};
 }
 

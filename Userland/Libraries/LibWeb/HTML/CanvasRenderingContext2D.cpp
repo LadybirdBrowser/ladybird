@@ -73,12 +73,10 @@ JS::NonnullGCPtr<HTMLCanvasElement> CanvasRenderingContext2D::canvas_for_binding
 
 Gfx::Path CanvasRenderingContext2D::rect_path(float x, float y, float width, float height)
 {
-    auto& drawing_state = this->drawing_state();
-
-    auto top_left = drawing_state.transform.map(Gfx::FloatPoint(x, y));
-    auto top_right = drawing_state.transform.map(Gfx::FloatPoint(x + width, y));
-    auto bottom_left = drawing_state.transform.map(Gfx::FloatPoint(x, y + height));
-    auto bottom_right = drawing_state.transform.map(Gfx::FloatPoint(x + width, y + height));
+    auto top_left = Gfx::FloatPoint(x, y);
+    auto top_right = Gfx::FloatPoint(x + width, y);
+    auto bottom_left = Gfx::FloatPoint(x, y + height);
+    auto bottom_right = Gfx::FloatPoint(x + width, y + height);
 
     Gfx::Path path;
     path.move_to(top_left);
@@ -239,7 +237,6 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
         transform = Gfx::AffineTransform {}.set_translation({ 0, font->pixel_size() }).multiply(transform);
     }
 
-    transform = Gfx::AffineTransform { drawing_state.transform }.multiply(transform);
     return path.copy_transformed(transform);
 }
 
@@ -282,8 +279,7 @@ void CanvasRenderingContext2D::stroke()
 
 void CanvasRenderingContext2D::stroke(Path2D const& path)
 {
-    auto transformed_path = path.path().copy_transformed(drawing_state().transform);
-    stroke_internal(transformed_path);
+    stroke_internal(path.path());
 }
 
 static Gfx::WindingRule parse_fill_rule(StringView fill_rule)
@@ -321,8 +317,7 @@ void CanvasRenderingContext2D::fill(StringView fill_rule)
 
 void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
 {
-    auto transformed_path = path.path().copy_transformed(drawing_state().transform);
-    return fill_internal(transformed_path, parse_fill_rule(fill_rule));
+    fill_internal(path.path(), parse_fill_rule(fill_rule));
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<ImageDataSettings> const& settings) const
@@ -553,14 +548,12 @@ void CanvasRenderingContext2D::clip_internal(Gfx::Path& path, Gfx::WindingRule w
 
 void CanvasRenderingContext2D::clip(StringView fill_rule)
 {
-    auto transformed_path = path().copy_transformed(drawing_state().transform);
-    return clip_internal(transformed_path, parse_fill_rule(fill_rule));
+    clip_internal(path(), parse_fill_rule(fill_rule));
 }
 
 void CanvasRenderingContext2D::clip(Path2D& path, StringView fill_rule)
 {
-    auto transformed_path = path.path().copy_transformed(drawing_state().transform);
-    return clip_internal(transformed_path, parse_fill_rule(fill_rule));
+    clip_internal(path.path(), parse_fill_rule(fill_rule));
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument
