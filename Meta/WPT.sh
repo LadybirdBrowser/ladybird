@@ -8,10 +8,12 @@ LADYBIRD_SOURCE_DIR="$(realpath "${DIR}"/..)"
 WPT_SOURCE_DIR=${WPT_SOURCE_DIR:-"${LADYBIRD_SOURCE_DIR}/Tests/LibWeb/WPT/wpt"}
 WPT_REPOSITORY_URL=${WPT_REPOSITORY_URL:-"https://github.com/web-platform-tests/wpt.git"}
 
+# shellcheck source=/dev/null
+. "${DIR}/shell_include.sh"
+
 LADYBIRD_BINARY=${LADYBIRD_BINARY:-"${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin/Ladybird"}
 WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin/WebDriver"}
-
-WPT_PROCESSES=${WPT_PROCESSES:-$(nproc)}
+WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
   "tools/certs/cacert.pem"
   "${LADYBIRD_SOURCE_DIR}/Build/ladybird/Lagom/cacert.pem"
@@ -74,9 +76,6 @@ if [ "$ARG" = "--log" ]; then
     WPT_ARGS+=( "--log-raw=${LOG_NAME}" )
 fi
 TEST_LIST=( "$@" )
-
-# shellcheck source=/dev/null
-. "${DIR}/shell_include.sh"
 
 exit_if_running_as_root "Do not run WPT.sh as root"
 
