@@ -333,6 +333,7 @@ ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales
         // d. Increase k by 1.
     }
 
+    // 8. Return seen.
     return seen;
 }
 
@@ -586,7 +587,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
         found_locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), {}, move(supported_keywords));
     }
 
-    // 15. Set result.[[locale]] to foundLocale.
+    // 15. Set result.[[Locale]] to foundLocale.
     result.locale = move(found_locale);
 
     // 16. Return result.
@@ -609,27 +610,20 @@ ThrowCompletionOr<Array*> filter_locales(VM& vm, ReadonlySpan<String> requested_
 
     // 4. For each element locale of requestedLocales, do
     for (auto const& locale : requested_locales) {
-        auto locale_id = Unicode::parse_unicode_locale_id(locale);
-        VERIFY(locale_id.has_value());
-
-        // a. Let noExtensionsLocale be the String value that is locale with any Unicode locale extension sequences removed.
-        locale_id->remove_extension_type<Unicode::LocaleExtension>();
-        auto no_extensions_locale = locale_id->to_string();
-
         Optional<MatchedLocale> match;
 
-        // b. If matcher is "lookup", then
+        // a. If matcher is "lookup", then
         if (matcher.as_string().utf8_string_view() == "lookup"sv) {
-            // i. Let match be LookupMatchingLocaleByPrefix(availableLocales, noExtensionsLocale).
-            match = lookup_matching_locale_by_prefix({ { no_extensions_locale } });
+            // i. Let match be LookupMatchingLocaleByPrefix(availableLocales, « locale »).
+            match = lookup_matching_locale_by_prefix({ { locale } });
         }
-        // c. Else,
+        // b. Else,
         else {
-            // i. Let match be LookupMatchingLocaleByBestFit(availableLocales, noExtensionsLocale).
-            match = lookup_matching_locale_by_best_fit({ { no_extensions_locale } });
+            // i. Let match be LookupMatchingLocaleByBestFit(availableLocales, « locale »).
+            match = lookup_matching_locale_by_best_fit({ { locale } });
         }
 
-        // d. If match is not undefined, append locale to subset.
+        // c. If match is not undefined, append locale to subset.
         if (match.has_value())
             subset.append(locale);
     }

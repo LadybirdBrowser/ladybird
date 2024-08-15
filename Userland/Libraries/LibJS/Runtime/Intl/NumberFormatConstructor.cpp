@@ -51,7 +51,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> NumberFormatConstructor::construct(Funct
     auto locales = vm.argument(0);
     auto options = vm.argument(1);
 
-    // 2. Let numberFormat be ? OrdinaryCreateFromConstructor(newTarget, "%NumberFormat.prototype%", « [[InitializedNumberFormat]], [[Locale]], [[DataLocale]], [[NumberingSystem]], [[Style]], [[Unit]], [[UnitDisplay]], [[Currency]], [[CurrencyDisplay]], [[CurrencySign]], [[MinimumIntegerDigits]], [[MinimumFractionDigits]], [[MaximumFractionDigits]], [[MinimumSignificantDigits]], [[MaximumSignificantDigits]], [[RoundingType]], [[Notation]], [[CompactDisplay]], [[UseGrouping]], [[SignDisplay]], [[RoundingMode]], [[RoundingIncrement]], [[TrailingZeroDisplay]], [[BoundFormat]] »).
+    // 2. Let numberFormat be ? OrdinaryCreateFromConstructor(newTarget, "%Intl.NumberFormat.prototype%", « [[InitializedNumberFormat]], [[Locale]], [[DataLocale]], [[NumberingSystem]], [[Style]], [[Unit]], [[UnitDisplay]], [[Currency]], [[CurrencyDisplay]], [[CurrencySign]], [[MinimumIntegerDigits]], [[MinimumFractionDigits]], [[MaximumFractionDigits]], [[MinimumSignificantDigits]], [[MaximumSignificantDigits]], [[RoundingType]], [[Notation]], [[CompactDisplay]], [[UseGrouping]], [[SignDisplay]], [[RoundingMode]], [[RoundingIncrement]], [[TrailingZeroDisplay]], [[BoundFormat]] »).
     auto number_format = TRY(ordinary_create_from_constructor<NumberFormat>(vm, new_target, &Intrinsics::intl_number_format_prototype));
 
     // 3. Perform ? InitializeNumberFormat(numberFormat, locales, options).

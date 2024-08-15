@@ -70,20 +70,19 @@ ThrowCompletionOr<NonnullGCPtr<Object>> PluralRulesConstructor::construct(Functi
     // 7. Set opt.[[localeMatcher]] to matcher.
     opt.locale_matcher = matcher;
 
-    // 8. Let localeData be %Intl.PluralRules%.[[LocaleData]].
-    // 9. Let r be ResolveLocale(%Intl.PluralRules%.[[AvailableLocales]], requestedLocales, opt, %Intl.PluralRules%.[[RelevantExtensionKeys]], localeData).
+    // 8. Let r be ResolveLocale(%Intl.PluralRules%.[[AvailableLocales]], requestedLocales, opt, %Intl.PluralRules%.[[RelevantExtensionKeys]], %Intl.PluralRules%.[[LocaleData]]).
     auto result = resolve_locale(requested_locales, opt, {});
 
-    // 10. Set pluralRules.[[Locale]] to r.[[locale]].
+    // 9. Set pluralRules.[[Locale]] to r.[[locale]].
     plural_rules->set_locale(move(result.locale));
 
-    // 11. Let t be ? GetOption(options, "type", string, « "cardinal", "ordinal" », "cardinal").
+    // 10. Let t be ? GetOption(options, "type", string, « "cardinal", "ordinal" », "cardinal").
     auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, AK::Array { "cardinal"sv, "ordinal"sv }, "cardinal"sv));
 
-    // 12. Set pluralRules.[[Type]] to t.
+    // 11. Set pluralRules.[[Type]] to t.
     plural_rules->set_type(type.as_string().utf8_string_view());
 
-    // 13. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3, "standard").
+    // 12. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3, "standard").
     TRY(set_number_format_digit_options(vm, plural_rules, *options, 0, 3, Unicode::Notation::Standard));
 
     // Non-standard, create an ICU number formatter for this Intl object.
@@ -96,7 +95,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> PluralRulesConstructor::construct(Functi
     formatter->create_plural_rules(plural_rules->type());
     plural_rules->set_formatter(move(formatter));
 
-    // 14. Return pluralRules.
+    // 13. Return pluralRules.
     return plural_rules;
 }
 

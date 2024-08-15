@@ -53,7 +53,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> SegmenterConstructor::construct(Function
     auto options_value = vm.argument(1);
 
     // 2. Let internalSlotsList be « [[InitializedSegmenter]], [[Locale]], [[SegmenterGranularity]] ».
-    // 3. Let segmenter be ? OrdinaryCreateFromConstructor(NewTarget, "%Segmenter.prototype%", internalSlotsList).
+    // 3. Let segmenter be ? OrdinaryCreateFromConstructor(NewTarget, "%Intl.Segmenter.prototype%", internalSlotsList).
     auto segmenter = TRY(ordinary_create_from_constructor<Segmenter>(vm, new_target, &Intrinsics::intl_segmenter_prototype));
 
     // 4. Let requestedLocales be ? CanonicalizeLocaleList(locales).

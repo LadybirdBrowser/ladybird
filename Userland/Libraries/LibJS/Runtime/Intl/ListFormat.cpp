@@ -31,7 +31,7 @@ Vector<Unicode::ListFormat::Partition> create_parts_from_list(ListFormat const& 
 String format_list(ListFormat const& list_format, ReadonlySpan<String> list)
 {
     // 1. Let parts be ! CreatePartsFromList(listFormat, list).
-    // 2. Let result be an empty String.
+    // 2. Let result be the empty String.
     // 3. For each Record { [[Type]], [[Value]] } part in parts, do
     //     a. Set result to the string-concatenation of result and part.[[Value]].
     // 4. Return result.

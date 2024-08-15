@@ -88,7 +88,7 @@ ThrowCompletionOr<String> format_relative_time(VM& vm, RelativeTimeFormat& relat
         return TRY(singular_relative_time_unit(vm, unit));
     }());
 
-    // 2. Let result be an empty String.
+    // 2. Let result be the empty String.
     // 3. For each Record { [[Type]], [[Value]], [[Unit]] } part in parts, do
     //     a. Set result to the string-concatenation of result and part.[[Value]].
     // 4. Return result.
