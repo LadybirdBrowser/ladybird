@@ -21,7 +21,6 @@ struct ChromeInputData {
 };
 
 struct KeyEvent {
-public:
     enum class Type {
         KeyDown,
         KeyUp,
@@ -38,7 +37,6 @@ public:
 };
 
 struct MouseEvent {
-public:
     enum class Type {
         MouseDown,
         MouseUp,
