@@ -543,15 +543,12 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
 
 void CanvasRenderingContext2D::clip_internal(Gfx::Path& path, Gfx::WindingRule winding_rule)
 {
-    // FIXME: This should calculate the new clip path by intersecting the given path with the current one.
-    // See: https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-clip-dev
-    path.close_all_subpaths();
-    if (drawing_state().clip.has_value()) {
-        auto& current_clip = drawing_state().clip->path;
-        current_clip.intersect(path);
+    auto* painter = this->painter();
+    if (!painter)
         return;
-    }
-    drawing_state().clip = CanvasState::ClipPath { path, winding_rule };
+
+    path.close_all_subpaths();
+    painter->clip(path, winding_rule);
 }
 
 void CanvasRenderingContext2D::clip(StringView fill_rule)

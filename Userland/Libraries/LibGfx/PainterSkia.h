@@ -27,6 +27,7 @@ public:
     virtual void set_transform(Gfx::AffineTransform const&) override;
     virtual void save() override;
     virtual void restore() override;
+    virtual void clip(Gfx::Path const&, Gfx::WindingRule) override;
 
 private:
     struct Impl;

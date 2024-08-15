@@ -24,11 +24,6 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasstate
 class CanvasState {
 public:
-    struct ClipPath {
-        Gfx::Path path;
-        Gfx::WindingRule winding_rule;
-    };
-
     virtual ~CanvasState() = default;
 
     void save();
@@ -87,7 +82,6 @@ public:
         bool image_smoothing_enabled { true };
         Bindings::ImageSmoothingQuality image_smoothing_quality { Bindings::ImageSmoothingQuality::Low };
         float global_alpha = { 1 };
-        Optional<ClipPath> clip;
         RefPtr<CSS::CSSStyleValue> font_style_value { nullptr };
         RefPtr<Gfx::Font const> current_font { nullptr };
         Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };

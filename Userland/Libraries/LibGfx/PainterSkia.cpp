@@ -275,4 +275,11 @@ void PainterSkia::restore()
     impl().canvas()->restore();
 }
 
+void PainterSkia::clip(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+{
+    auto sk_path = to_skia_path(path);
+    sk_path.setFillType(to_skia_path_fill_type(winding_rule));
+    impl().canvas()->clipPath(sk_path, SkClipOp::kIntersect, true);
+}
+
 }
