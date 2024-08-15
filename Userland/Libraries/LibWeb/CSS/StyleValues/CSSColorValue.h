@@ -17,7 +17,7 @@ namespace Web::CSS {
 // https://drafts.css-houdini.org/css-typed-om-1/#csscolorvalue
 class CSSColorValue : public StyleValueWithDefaultOperators<CSSColorValue> {
 public:
-    static ValueComparingNonnullRefPtr<CSSColorValue> create(Color color);
+    static ValueComparingNonnullRefPtr<CSSColorValue> create_from_color(Color color);
     virtual ~CSSColorValue() override = default;
 
     Color color() const { return m_color; }

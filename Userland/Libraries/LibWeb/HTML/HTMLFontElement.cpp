@@ -119,7 +119,7 @@ void HTMLFontElement::apply_presentational_hints(CSS::StyleProperties& style) co
             // https://html.spec.whatwg.org/multipage/rendering.html#phrasing-content-3:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
-                style.set_property(CSS::PropertyID::Color, CSS::CSSColorValue::create(color.value()));
+                style.set_property(CSS::PropertyID::Color, CSS::CSSColorValue::create_from_color(color.value()));
         } else if (name.equals_ignoring_ascii_case("size"sv)) {
             // When a font element has a size attribute, the user agent is expected to use the following steps, known as the rules for parsing a legacy font size, to treat the attribute as a presentational hint setting the element's 'font-size' property:
             auto font_size_or_empty = parse_legacy_font_size(value);
