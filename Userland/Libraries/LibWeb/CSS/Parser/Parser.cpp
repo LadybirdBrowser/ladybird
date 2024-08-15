@@ -2995,7 +2995,7 @@ Optional<Color> Parser::parse_color(TokenStream<ComponentValue>& tokens)
 RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto color = parse_color(tokens); color.has_value())
-        return CSSColorValue::create(color.value());
+        return CSSColorValue::create_from_color(color.value());
 
     auto transaction = tokens.begin_transaction();
     if (auto keyword = parse_keyword_value(tokens); keyword && keyword->has_color()) {

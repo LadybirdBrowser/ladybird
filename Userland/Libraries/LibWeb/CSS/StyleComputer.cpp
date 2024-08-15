@@ -1316,7 +1316,7 @@ static NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& e
         values.ensure_capacity(other.size());
         for (size_t i = values.size(); i < other.size(); i++) {
             values.unchecked_append(ShadowStyleValue::create(
-                CSSColorValue::create(Color::Transparent),
+                CSSColorValue::create_from_color(Color::Transparent),
                 LengthStyleValue::create(Length::make_px(0)),
                 LengthStyleValue::create(Length::make_px(0)),
                 LengthStyleValue::create(Length::make_px(0)),
@@ -1339,7 +1339,7 @@ static NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& e
         auto const& from_shadow = from_shadows[i]->as_shadow();
         auto const& to_shadow = to_shadows[i]->as_shadow();
         auto result_shadow = ShadowStyleValue::create(
-            CSSColorValue::create(interpolate_color(from_shadow.color()->to_color({}), to_shadow.color()->to_color({}), delta)),
+            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color({}), to_shadow.color()->to_color({}), delta)),
             interpolate_value(element, from_shadow.offset_x(), to_shadow.offset_x(), delta),
             interpolate_value(element, from_shadow.offset_y(), to_shadow.offset_y(), delta),
             interpolate_value(element, from_shadow.blur_radius(), to_shadow.blur_radius(), delta),
@@ -1432,7 +1432,7 @@ static NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& elemen
     case CSSStyleValue::Type::Angle:
         return AngleStyleValue::create(Angle::make_degrees(interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta)));
     case CSSStyleValue::Type::Color:
-        return CSSColorValue::create(interpolate_color(from.as_color().color(), to.as_color().color(), delta));
+        return CSSColorValue::create_from_color(interpolate_color(from.as_color().color(), to.as_color().color(), delta));
     case CSSStyleValue::Type::Integer:
         return IntegerStyleValue::create(interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta));
     case CSSStyleValue::Type::Length: {

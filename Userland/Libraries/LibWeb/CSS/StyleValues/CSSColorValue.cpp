@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<CSSColorValue> CSSColorValue::create(Color color)
+ValueComparingNonnullRefPtr<CSSColorValue> CSSColorValue::create_from_color(Color color)
 {
     if (color.value() == 0) {
         static auto transparent = adopt_ref(*new (nothrow) CSSColorValue(color));
