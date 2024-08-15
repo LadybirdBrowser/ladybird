@@ -14,8 +14,8 @@
 
 namespace AK {
 
-static constexpr int ODD_NAIVE_MEDIAN_CUTOFF = 200;
-static constexpr int EVEN_NAIVE_MEDIAN_CUTOFF = 350;
+inline constexpr int ODD_NAIVE_MEDIAN_CUTOFF = 200;
+inline constexpr int EVEN_NAIVE_MEDIAN_CUTOFF = 350;
 
 template<Arithmetic T = float, typename ContainerType = Vector<T>>
 class Statistics {

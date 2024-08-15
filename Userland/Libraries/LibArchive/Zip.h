@@ -34,7 +34,7 @@ static bool read_helper(ReadonlyBytes buffer, T* self)
 
 // NOTE: Due to the format of zip files compression is streamed and decompression is random access.
 
-static constexpr auto signature_length = 4;
+inline constexpr auto signature_length = 4;
 
 struct [[gnu::packed]] EndOfCentralDirectory {
     static constexpr Array<u8, signature_length> signature = { 0x50, 0x4b, 0x05, 0x06 }; // 'PK\x05\x06'
@@ -182,7 +182,7 @@ struct [[gnu::packed]] CentralDirectoryRecord {
         return signature.size() + (sizeof(CentralDirectoryRecord) - (sizeof(u8*) * 3)) + name_length + extra_data_length + comment_length;
     }
 };
-static constexpr u32 zip_directory_external_attribute = 1 << 4;
+inline constexpr u32 zip_directory_external_attribute = 1 << 4;
 
 struct [[gnu::packed]] LocalFileHeader {
     static constexpr Array<u8, signature_length> signature = { 0x50, 0x4b, 0x03, 0x04 }; // 'PK\x03\x04'

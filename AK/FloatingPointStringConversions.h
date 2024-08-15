@@ -10,7 +10,7 @@
 
 namespace AK {
 
-static constexpr char floating_point_decimal_separator = '.';
+inline constexpr char floating_point_decimal_separator = '.';
 
 enum class FloatingPointError {
     None,

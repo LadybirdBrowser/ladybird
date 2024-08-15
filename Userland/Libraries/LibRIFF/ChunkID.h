@@ -14,7 +14,7 @@
 
 namespace RIFF {
 
-static constexpr size_t const chunk_id_size = 4;
+inline constexpr size_t const chunk_id_size = 4;
 
 // Also referred to as "FourCC" (four character code) in the context of some formats.
 struct ChunkID {

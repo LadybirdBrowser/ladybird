@@ -59,7 +59,7 @@ struct ReceivedMachMessage {
     } body;
 };
 
-static constexpr mach_msg_id_t SELF_TASK_PORT_MESSAGE_ID = 0x1234CAFE;
-static constexpr mach_msg_id_t BACKING_STORE_IOSURFACES_MESSAGE_ID = 0x1234CAFF;
+inline constexpr mach_msg_id_t SELF_TASK_PORT_MESSAGE_ID = 0x1234CAFE;
+inline constexpr mach_msg_id_t BACKING_STORE_IOSURFACES_MESSAGE_ID = 0x1234CAFF;
 
 }

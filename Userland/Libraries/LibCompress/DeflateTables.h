@@ -12,7 +12,7 @@
 namespace Compress {
 
 // RFC 1951 - 3.2.5
-static constexpr struct {
+inline constexpr struct {
     u16 symbol;
     u16 base_length;
     u16 extra_bits;
@@ -49,7 +49,7 @@ static constexpr struct {
 };
 
 // RFC 1951 - 3.2.5
-static constexpr struct {
+inline constexpr struct {
     u16 symbol;
     u16 base_distance;
     u16 extra_bits;
@@ -88,7 +88,7 @@ static constexpr struct {
 };
 
 // RFC 1951 - 3.2.6
-static constexpr struct {
+inline constexpr struct {
     u16 base_value;
     u16 bits;
 } fixed_literal_bits[5] = {
@@ -100,7 +100,7 @@ static constexpr struct {
 };
 
 // RFC 1951 - 3.2.7
-static constexpr size_t code_lengths_code_lengths_order[] { 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 };
+inline constexpr size_t code_lengths_code_lengths_order[] { 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 };
 
 static consteval Array<u16, 259> generate_length_to_symbol()
 {
@@ -113,7 +113,7 @@ static consteval Array<u16, 259> generate_length_to_symbol()
     }
     return array;
 }
-static constexpr auto length_to_symbol = generate_length_to_symbol();
+inline constexpr auto length_to_symbol = generate_length_to_symbol();
 
 static consteval Array<u16, 256> generate_distance_to_base_lo()
 {
@@ -126,7 +126,7 @@ static consteval Array<u16, 256> generate_distance_to_base_lo()
     }
     return array;
 }
-static constexpr auto distance_to_base_lo = generate_distance_to_base_lo();
+inline constexpr auto distance_to_base_lo = generate_distance_to_base_lo();
 static consteval Array<u16, 256> generate_distance_to_base_hi()
 {
     Array<u16, 256> array = { UINT16_MAX, UINT16_MAX };
@@ -138,7 +138,7 @@ static consteval Array<u16, 256> generate_distance_to_base_hi()
     }
     return array;
 }
-static constexpr auto distance_to_base_hi = generate_distance_to_base_hi();
+inline constexpr auto distance_to_base_hi = generate_distance_to_base_hi();
 
 static consteval Array<u8, 288> generate_fixed_literal_bit_lengths()
 {
@@ -148,7 +148,7 @@ static consteval Array<u8, 288> generate_fixed_literal_bit_lengths()
     }
     return array;
 }
-static constexpr auto fixed_literal_bit_lengths = generate_fixed_literal_bit_lengths();
+inline constexpr auto fixed_literal_bit_lengths = generate_fixed_literal_bit_lengths();
 
 static consteval Array<u8, 32> generate_fixed_distance_bit_lengths()
 {
@@ -156,7 +156,7 @@ static consteval Array<u8, 32> generate_fixed_distance_bit_lengths()
     array.fill(5);
     return array;
 }
-static constexpr auto fixed_distance_bit_lengths = generate_fixed_distance_bit_lengths();
+inline constexpr auto fixed_distance_bit_lengths = generate_fixed_distance_bit_lengths();
 
 static consteval u8 reverse8(u8 value)
 {
@@ -175,7 +175,7 @@ static consteval Array<u8, UINT8_MAX + 1> generate_reverse8_lookup_table()
     }
     return array;
 }
-static constexpr auto reverse8_lookup_table = generate_reverse8_lookup_table();
+inline constexpr auto reverse8_lookup_table = generate_reverse8_lookup_table();
 
 // Lookup-table based bit swap
 ALWAYS_INLINE static u16 fast_reverse16(u16 value, size_t bits)

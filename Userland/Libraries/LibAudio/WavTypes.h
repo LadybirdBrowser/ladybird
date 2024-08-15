@@ -10,10 +10,10 @@
 
 namespace Audio::Wav {
 
-static constexpr StringView const wave_subformat_id = "WAVE"sv;
-static constexpr StringView const data_chunk_id = "data"sv;
-static constexpr StringView const info_chunk_id = "INFO"sv;
-static constexpr StringView const format_chunk_id = "fmt "sv;
+inline constexpr StringView const wave_subformat_id = "WAVE"sv;
+inline constexpr StringView const data_chunk_id = "data"sv;
+inline constexpr StringView const info_chunk_id = "INFO"sv;
+inline constexpr StringView const format_chunk_id = "fmt "sv;
 
 // Constants for handling WAVE header data.
 enum class WaveFormat : u32 {
