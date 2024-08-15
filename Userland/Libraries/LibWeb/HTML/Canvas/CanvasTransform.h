@@ -26,18 +26,21 @@ public:
         dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasTransform::scale({}, {})", sx, sy);
 
         my_drawing_state().transform.scale(sx, sy);
+        flush_transform();
     }
 
     void translate(float tx, float ty)
     {
         dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasTransform::translate({}, {})", tx, ty);
         my_drawing_state().transform.translate(tx, ty);
+        flush_transform();
     }
 
     void rotate(float radians)
     {
         dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasTransform::rotate({})", radians);
         my_drawing_state().transform.rotate_radians(radians);
+        flush_transform();
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-transform
@@ -52,6 +55,7 @@ public:
         //    b d f
         //    0 0 1
         my_drawing_state().transform.multiply({ static_cast<float>(a), static_cast<float>(b), static_cast<float>(c), static_cast<float>(d), static_cast<float>(e), static_cast<float>(f) });
+        flush_transform();
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-gettransform
@@ -72,8 +76,7 @@ public:
 
         // 2. Reset the current transformation matrix to the identity matrix.
         my_drawing_state().transform = {};
-        if (auto* painter = static_cast<IncludingClass&>(*this).painter())
-            painter->set_transform({});
+        flush_transform();
 
         // 3. Invoke the transform(a, b, c, d, e, f) method with the same arguments.
         transform(a, b, c, d, e, f);
@@ -93,8 +96,7 @@ public:
         // 3. Reset the current transformation matrix to matrix.
         auto transform = Gfx::AffineTransform { static_cast<float>(matrix->a()), static_cast<float>(matrix->b()), static_cast<float>(matrix->c()), static_cast<float>(matrix->d()), static_cast<float>(matrix->e()), static_cast<float>(matrix->f()) };
         my_drawing_state().transform = transform;
-        if (auto* painter = static_cast<IncludingClass&>(*this).painter())
-            painter->set_transform(transform);
+        flush_transform();
         return {};
     }
 
@@ -103,8 +105,13 @@ public:
     {
         // The resetTransform() method, when invoked, must reset the current transformation matrix to the identity matrix.
         my_drawing_state().transform = {};
+        flush_transform();
+    }
+
+    void flush_transform()
+    {
         if (auto* painter = static_cast<IncludingClass&>(*this).painter())
-            painter->set_transform({});
+            painter->set_transform(my_drawing_state().transform);
     }
 
 protected:
