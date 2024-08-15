@@ -354,6 +354,7 @@ class CloseWatcherManager;
 class CustomElementDefinition;
 class CustomElementRegistry;
 class DataTransferItem;
+class DataTransferItemList;
 class DecodedImageData;
 class DocumentState;
 class DOMParser;
