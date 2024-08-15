@@ -32,8 +32,8 @@ struct Block {
 
 }
 
-static constexpr size_t const c_max_recursion = 5000;
-static constexpr size_t const c_match_preallocation_count = 0;
+inline constexpr size_t const c_max_recursion = 5000;
+inline constexpr size_t const c_match_preallocation_count = 0;
 
 struct RegexResult final {
     bool success { false };

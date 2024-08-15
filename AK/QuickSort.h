@@ -23,7 +23,7 @@ namespace AK {
 // a value between 5 and 15 should work well in most situations:
 // https://algs4.cs.princeton.edu/23quicksort/
 
-static constexpr int INSERTION_SORT_CUTOFF = 7;
+inline constexpr int INSERTION_SORT_CUTOFF = 7;
 
 template<typename Collection, typename LessThan>
 void dual_pivot_quick_sort(Collection& col, int start, int end, LessThan less_than)

@@ -24,9 +24,9 @@
 namespace JS {
 
 // 2 ** 53 - 1
-static constexpr double MAX_ARRAY_LIKE_INDEX = 9007199254740991.0;
+inline constexpr double MAX_ARRAY_LIKE_INDEX = 9007199254740991.0;
 // Unique bit representation of negative zero (only sign bit set)
-static constexpr u64 NEGATIVE_ZERO_BITS = ((u64)1 << 63);
+inline constexpr u64 NEGATIVE_ZERO_BITS = ((u64)1 << 63);
 
 static_assert(sizeof(double) == 8);
 static_assert(sizeof(void*) == sizeof(double) || sizeof(void*) == sizeof(u32));
@@ -34,15 +34,15 @@ static_assert(sizeof(void*) == sizeof(double) || sizeof(void*) == sizeof(u32));
 // doubles have a lot (2^52 - 2) of NaN bit patterns. The canonical form being
 // just 0x7FF8000000000000 i.e. sign = 0 exponent is all ones and the top most
 // bit of the mantissa set.
-static constexpr u64 CANON_NAN_BITS = bit_cast<u64>(__builtin_nan(""));
+inline constexpr u64 CANON_NAN_BITS = bit_cast<u64>(__builtin_nan(""));
 static_assert(CANON_NAN_BITS == 0x7FF8000000000000);
 // (Unfortunately all the other values are valid so we have to convert any
 // incoming NaNs to this pattern although in practice it seems only the negative
 // version of these CANON_NAN_BITS)
 // +/- Infinity are represented by a full exponent but without any bits of the
 // mantissa set.
-static constexpr u64 POSITIVE_INFINITY_BITS = bit_cast<u64>(__builtin_huge_val());
-static constexpr u64 NEGATIVE_INFINITY_BITS = bit_cast<u64>(-__builtin_huge_val());
+inline constexpr u64 POSITIVE_INFINITY_BITS = bit_cast<u64>(__builtin_huge_val());
+inline constexpr u64 NEGATIVE_INFINITY_BITS = bit_cast<u64>(-__builtin_huge_val());
 static_assert(POSITIVE_INFINITY_BITS == 0x7FF0000000000000);
 static_assert(NEGATIVE_INFINITY_BITS == 0xFFF0000000000000);
 // However as long as any bit is set in the mantissa with the exponent of all
@@ -53,13 +53,13 @@ static_assert(__builtin_isnan(bit_cast<double>(0xFFF0000000040000)));
 // This means we can use all of these NaNs to store all other options for Value.
 // To make sure all of these other representations we use 0x7FF8 as the base top
 // 2 bytes which ensures the value is always a NaN.
-static constexpr u64 BASE_TAG = 0x7FF8;
+inline constexpr u64 BASE_TAG = 0x7FF8;
 // This leaves the sign bit and the three lower bits for tagging a value and then
 // 48 bits of potential payload.
 // First the pointer backed types (Object, String etc.), to signify this category
 // and make stack scanning easier we use the sign bit (top most bit) of 1 to
 // signify that it is a pointer backed type.
-static constexpr u64 IS_CELL_BIT = 0x8000 | BASE_TAG;
+inline constexpr u64 IS_CELL_BIT = 0x8000 | BASE_TAG;
 // On all current 64-bit systems this code runs pointer actually only use the
 // lowest 6 bytes which fits neatly into our NaN payload with the top two bytes
 // left over for marking it as a NaN and tagging the type.
@@ -67,15 +67,15 @@ static constexpr u64 IS_CELL_BIT = 0x8000 | BASE_TAG;
 // is explained in the extract_pointer method.
 
 // This leaves us 3 bits to tag the type of pointer:
-static constexpr u64 OBJECT_TAG = 0b001 | IS_CELL_BIT;
-static constexpr u64 STRING_TAG = 0b010 | IS_CELL_BIT;
-static constexpr u64 SYMBOL_TAG = 0b011 | IS_CELL_BIT;
-static constexpr u64 ACCESSOR_TAG = 0b100 | IS_CELL_BIT;
-static constexpr u64 BIGINT_TAG = 0b101 | IS_CELL_BIT;
+inline constexpr u64 OBJECT_TAG = 0b001 | IS_CELL_BIT;
+inline constexpr u64 STRING_TAG = 0b010 | IS_CELL_BIT;
+inline constexpr u64 SYMBOL_TAG = 0b011 | IS_CELL_BIT;
+inline constexpr u64 ACCESSOR_TAG = 0b100 | IS_CELL_BIT;
+inline constexpr u64 BIGINT_TAG = 0b101 | IS_CELL_BIT;
 
 // We can then by extracting the top 13 bits quickly check if a Value is
 // pointer backed.
-static constexpr u64 IS_CELL_PATTERN = 0xFFF8ULL;
+inline constexpr u64 IS_CELL_PATTERN = 0xFFF8ULL;
 static_assert((OBJECT_TAG & IS_CELL_PATTERN) == IS_CELL_PATTERN);
 static_assert((STRING_TAG & IS_CELL_PATTERN) == IS_CELL_PATTERN);
 static_assert((CANON_NAN_BITS & IS_CELL_PATTERN) != IS_CELL_PATTERN);
@@ -83,16 +83,16 @@ static_assert((NEGATIVE_INFINITY_BITS & IS_CELL_PATTERN) != IS_CELL_PATTERN);
 
 // Then for the non pointer backed types we don't set the sign bit and use the
 // three lower bits for tagging as well.
-static constexpr u64 UNDEFINED_TAG = 0b110 | BASE_TAG;
-static constexpr u64 NULL_TAG = 0b111 | BASE_TAG;
-static constexpr u64 BOOLEAN_TAG = 0b001 | BASE_TAG;
-static constexpr u64 INT32_TAG = 0b010 | BASE_TAG;
-static constexpr u64 EMPTY_TAG = 0b011 | BASE_TAG;
+inline constexpr u64 UNDEFINED_TAG = 0b110 | BASE_TAG;
+inline constexpr u64 NULL_TAG = 0b111 | BASE_TAG;
+inline constexpr u64 BOOLEAN_TAG = 0b001 | BASE_TAG;
+inline constexpr u64 INT32_TAG = 0b010 | BASE_TAG;
+inline constexpr u64 EMPTY_TAG = 0b011 | BASE_TAG;
 // Notice how only undefined and null have the top bit set, this mean we can
 // quickly check for nullish values by checking if the top and bottom bits are set
 // but the middle one isn't.
-static constexpr u64 IS_NULLISH_EXTRACT_PATTERN = 0xFFFEULL;
-static constexpr u64 IS_NULLISH_PATTERN = 0x7FFEULL;
+inline constexpr u64 IS_NULLISH_EXTRACT_PATTERN = 0xFFFEULL;
+inline constexpr u64 IS_NULLISH_PATTERN = 0x7FFEULL;
 static_assert((UNDEFINED_TAG & IS_NULLISH_EXTRACT_PATTERN) == IS_NULLISH_PATTERN);
 static_assert((NULL_TAG & IS_NULLISH_EXTRACT_PATTERN) == IS_NULLISH_PATTERN);
 static_assert((BOOLEAN_TAG & IS_NULLISH_EXTRACT_PATTERN) != IS_NULLISH_PATTERN);
@@ -102,11 +102,11 @@ static_assert((EMPTY_TAG & IS_NULLISH_EXTRACT_PATTERN) != IS_NULLISH_PATTERN);
 // values are not valid anywhere else we can use this "value" to our advantage
 // in Optional<Value> to represent the empty optional.
 
-static constexpr u64 TAG_EXTRACTION = 0xFFFF000000000000;
-static constexpr u64 TAG_SHIFT = 48;
-static constexpr u64 SHIFTED_BOOLEAN_TAG = BOOLEAN_TAG << TAG_SHIFT;
-static constexpr u64 SHIFTED_INT32_TAG = INT32_TAG << TAG_SHIFT;
-static constexpr u64 SHIFTED_IS_CELL_PATTERN = IS_CELL_PATTERN << TAG_SHIFT;
+inline constexpr u64 TAG_EXTRACTION = 0xFFFF000000000000;
+inline constexpr u64 TAG_SHIFT = 48;
+inline constexpr u64 SHIFTED_BOOLEAN_TAG = BOOLEAN_TAG << TAG_SHIFT;
+inline constexpr u64 SHIFTED_INT32_TAG = INT32_TAG << TAG_SHIFT;
+inline constexpr u64 SHIFTED_IS_CELL_PATTERN = IS_CELL_PATTERN << TAG_SHIFT;
 
 // Summary:
 // To pack all the different value in to doubles we use the following schema:

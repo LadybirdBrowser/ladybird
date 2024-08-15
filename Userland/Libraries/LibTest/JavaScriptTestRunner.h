@@ -109,7 +109,7 @@ static consteval size_t __testjs_last()
     return values[values.size() - 1U];
 }
 
-static constexpr auto TOP_LEVEL_TEST_NAME = "__$$TOP_LEVEL$$__";
+inline constexpr auto TOP_LEVEL_TEST_NAME = "__$$TOP_LEVEL$$__";
 extern RefPtr<JS::VM> g_vm;
 extern bool g_collect_on_every_allocation;
 extern ByteString g_currently_running_test;

@@ -16,7 +16,7 @@ struct FontStyleMapping {
     StringView name;
 };
 
-static constexpr Array<FontStyleMapping, 10> font_weight_names = { {
+inline constexpr Array<FontStyleMapping, 10> font_weight_names = { {
     { 100, "Thin"sv },
     { 200, "Extra Light"sv },
     { 300, "Light"sv },
@@ -29,14 +29,14 @@ static constexpr Array<FontStyleMapping, 10> font_weight_names = { {
     { 950, "Extra Black"sv },
 } };
 
-static constexpr Array<FontStyleMapping, 4> font_slope_names = { {
+inline constexpr Array<FontStyleMapping, 4> font_slope_names = { {
     { 0, "Regular"sv },
     { 1, "Italic"sv },
     { 2, "Oblique"sv },
     { 3, "Reclined"sv },
 } };
 
-static constexpr Array<FontStyleMapping, 9> font_width_names = { {
+inline constexpr Array<FontStyleMapping, 9> font_width_names = { {
     { 1, "Ultra Condensed"sv },
     { 2, "Extra Condensed"sv },
     { 3, "Condensed"sv },

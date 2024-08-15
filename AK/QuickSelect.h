@@ -12,7 +12,7 @@
 
 namespace AK {
 
-static constexpr int MEDIAN_OF_MEDIAN_CUTOFF = 4500;
+inline constexpr int MEDIAN_OF_MEDIAN_CUTOFF = 4500;
 
 // FIXME: Stole and adapted these two functions from `Userland/Demos/Tubes/Tubes.cpp` we really need something like this in `AK/Random.h`
 static inline double random_double()

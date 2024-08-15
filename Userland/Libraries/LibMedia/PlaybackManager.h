@@ -88,7 +88,7 @@ private:
     AK::Duration m_timestamp { no_timestamp };
 };
 
-static constexpr size_t frame_buffer_count = 4;
+inline constexpr size_t frame_buffer_count = 4;
 using VideoFrameQueue = Core::SharedSingleProducerCircularQueue<FrameQueueItem, frame_buffer_count>;
 
 enum class PlaybackState {
