@@ -30,7 +30,6 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(supported_locales_of);
 };
 
-ThrowCompletionOr<NonnullGCPtr<NumberFormat>> initialize_number_format(VM&, NumberFormat&, Value locales_value, Value options_value);
 ThrowCompletionOr<void> set_number_format_digit_options(VM&, NumberFormatBase& intl_object, Object const& options, int default_min_fraction_digits, int default_max_fraction_digits, Unicode::Notation notation);
 ThrowCompletionOr<void> set_number_format_unit_options(VM&, NumberFormat& intl_object, Object const& options);
 
