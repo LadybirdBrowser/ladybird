@@ -73,6 +73,13 @@ CTEST_OUTPUT_ON_FAILURE=1 LADYBIRD_SOURCE_DIR=${PWD}/../.. ninja test
 The Web Platform Tests can be run with the `WPT.sh` script. This script can also be used to compare the results of two 
 test runs.
 
+Enabling the Qt chrome is recommended when running the Web Platform Tests on MacOS. This can be done by running the 
+following command:
+
+```sh
+cmake -GNinja Build/ladybird -DENABLE_QT=ON
+```
+
 Example usage:
 
 ```sh
