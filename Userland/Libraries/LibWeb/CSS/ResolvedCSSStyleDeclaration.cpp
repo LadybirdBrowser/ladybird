@@ -175,7 +175,7 @@ static RefPtr<CSSStyleValue const> style_value_for_shadow(Vector<ShadowData> con
 
     auto make_shadow_style_value = [](ShadowData const& shadow) {
         return ShadowStyleValue::create(
-            shadow.color,
+            CSSColorValue::create(shadow.color),
             style_value_for_length_percentage(shadow.offset_x),
             style_value_for_length_percentage(shadow.offset_y),
             style_value_for_length_percentage(shadow.blur_radius),
