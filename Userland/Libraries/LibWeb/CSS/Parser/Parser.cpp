@@ -4695,7 +4695,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             // drop-shadow( [ <color>? && <length>{2,3} ] )
             // Note: The following code is a little awkward to allow the color to be before or after the lengths.
             Optional<LengthOrCalculated> maybe_radius = {};
-            auto maybe_color = parse_color(tokens);
+            auto maybe_color = parse_color_value(tokens);
             auto x_offset = parse_length(tokens);
             tokens.skip_whitespace();
             if (!x_offset.has_value() || !tokens.has_next_token()) {
@@ -4707,18 +4707,17 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             }
             if (tokens.has_next_token()) {
                 maybe_radius = parse_length(tokens);
-                if (!maybe_color.has_value() && (!maybe_radius.has_value() || tokens.has_next_token())) {
-                    maybe_color = parse_color(tokens);
+                if (!maybe_color && (!maybe_radius.has_value() || tokens.has_next_token())) {
+                    maybe_color = parse_color_value(tokens);
                     tokens.skip_whitespace();
-                    if (!maybe_color.has_value()) {
+                    if (!maybe_color)
                         return {};
-                    }
                 } else if (!maybe_radius.has_value()) {
                     return {};
                 }
             }
             // FIXME: Support calculated offsets and radius
-            return if_no_more_tokens_return(Filter::DropShadow { x_offset->value(), y_offset->value(), maybe_radius.map([](auto& it) { return it.value(); }), maybe_color });
+            return if_no_more_tokens_return(Filter::DropShadow { x_offset->value(), y_offset->value(), maybe_radius.map([](auto& it) { return it.value(); }), maybe_color->to_color({}) });
         } else if (filter_token == FilterToken::HueRotate) {
             // hue-rotate( [ <angle> | <zero> ]? )
             if (!tokens.has_next_token())
