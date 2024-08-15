@@ -86,6 +86,12 @@ ensure_wpt_repository() {
         if [ ! -d .git ]; then
             git clone --depth 1 "${WPT_REPOSITORY_URL}" "${WPT_SOURCE_DIR}"
         fi
+
+        # Update hosts file if needed
+        if [ "$(comm -13 <(sort -u /etc/hosts) <(./wpt make-hosts-file | sort -u) | wc -l)" -gt 0 ]; then
+            echo "Enter superuser password to append wpt hosts to /etc/hosts"
+            ./wpt make-hosts-file | sudo tee -a /etc/hosts
+        fi
     popd > /dev/null
 }
 
