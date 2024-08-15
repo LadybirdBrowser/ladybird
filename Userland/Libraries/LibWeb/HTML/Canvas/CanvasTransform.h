@@ -24,7 +24,8 @@ public:
     void scale(float sx, float sy)
     {
         dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasTransform::scale({}, {})", sx, sy);
-
+        if (!isfinite(sx) || !isfinite(sy))
+            return;
         my_drawing_state().transform.scale(sx, sy);
         flush_transform();
     }
@@ -32,6 +33,8 @@ public:
     void translate(float tx, float ty)
     {
         dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasTransform::translate({}, {})", tx, ty);
+        if (!isfinite(tx) || !isfinite(ty))
+            return;
         my_drawing_state().transform.translate(tx, ty);
         flush_transform();
     }
@@ -39,6 +42,8 @@ public:
     void rotate(float radians)
     {
         dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasTransform::rotate({})", radians);
+        if (!isfinite(radians))
+            return;
         my_drawing_state().transform.rotate_radians(radians);
         flush_transform();
     }
