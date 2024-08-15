@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Painter.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 
 namespace Web::HTML {
@@ -15,6 +16,9 @@ void CanvasState::save()
 {
     // The save() method steps are to push a copy of the current drawing state onto the drawing state stack.
     m_drawing_state_stack.append(m_drawing_state);
+
+    if (auto* painter = painter_for_canvas_state())
+        painter->save();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-restore
@@ -24,6 +28,9 @@ void CanvasState::restore()
     if (m_drawing_state_stack.is_empty())
         return;
     m_drawing_state = m_drawing_state_stack.take_last();
+
+    if (auto* painter = painter_for_canvas_state())
+        painter->restore();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-reset
