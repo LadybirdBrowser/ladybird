@@ -1261,42 +1261,37 @@ static ThrowCompletionOr<String> transform_case(VM& vm, String const& string, Va
     // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
     auto requested_locales = TRY(Intl::canonicalize_locale_list(vm, locales));
 
-    Optional<Unicode::LocaleID> requested_locale;
+    String requested_locale;
 
     // 2. If requestedLocales is not an empty List, then
     if (!requested_locales.is_empty()) {
         // a. Let requestedLocale be requestedLocales[0].
-        requested_locale = Unicode::parse_unicode_locale_id(requested_locales[0]);
+        requested_locale = requested_locales[0];
     }
     // 3. Else,
     else {
         // a. Let requestedLocale be ! DefaultLocale().
-        requested_locale = Unicode::parse_unicode_locale_id(Unicode::default_locale());
+        requested_locale = String::from_utf8_without_validation(Unicode::default_locale().bytes());
     }
-    VERIFY(requested_locale.has_value());
 
-    // 4. Let noExtensionsLocale be the String value that is requestedLocale with any Unicode locale extension sequences removed.
-    requested_locale->remove_extension_type<Unicode::LocaleExtension>();
-    auto no_extensions_locale = requested_locale->to_string();
+    // 4. Let availableLocales be an Available Locales List which includes the language tags for which the Unicode Character Database contains language-sensitive case mappings. If the implementation supports additional locale-sensitive case mappings, availableLocales should also include their corresponding language tags.
+    // 5. Let match be LookupMatchingLocaleByPrefix(availableLocales, « requestedLocale »).
+    auto match = Intl::lookup_matching_locale_by_prefix({ { requested_locale } });
 
-    // 5. Let availableLocales be a List with language tags that includes the languages for which the Unicode Character Database contains language sensitive case mappings. Implementations may add additional language tags if they support case mapping for additional locales.
-    // 6. Let match be LookupMatchingLocaleByPrefix(availableLocales, noExtensionsLocale).
-    auto match = Intl::lookup_matching_locale_by_prefix({ { no_extensions_locale } });
-
-    // 7. If match is not undefined, let locale be match.[[locale]]; else let locale be "und".
+    // 6. If match is not undefined, let locale be match.[[locale]]; else let locale be "und".
     StringView locale = match.has_value() ? match->locale : "und"sv;
 
-    // 8. Let codePoints be StringToCodePoints(S).
+    // 7. Let codePoints be StringToCodePoints(S).
 
     String new_code_points;
 
     switch (target_case) {
-    // 9. If targetCase is lower, then
+    // 8. If targetCase is lower, then
     case TargetCase::Lower:
         // a. Let newCodePoints be a List whose elements are the result of a lowercase transformation of codePoints according to an implementation-derived algorithm using locale or the Unicode Default Case Conversion algorithm.
         new_code_points = MUST(string.to_lowercase(locale));
         break;
-    // 10. Else,
+    // 9. Else,
     case TargetCase::Upper:
         // a. Assert: targetCase is upper.
         // b. Let newCodePoints be a List whose elements are the result of an uppercase transformation of codePoints according to an implementation-derived algorithm using locale or the Unicode Default Case Conversion algorithm.
@@ -1306,7 +1301,7 @@ static ThrowCompletionOr<String> transform_case(VM& vm, String const& string, Va
         VERIFY_NOT_REACHED();
     }
 
-    // 11. Return CodePointsToString(newCodePoints).
+    // 10. Return CodePointsToString(newCodePoints).
     return new_code_points;
 }
 
