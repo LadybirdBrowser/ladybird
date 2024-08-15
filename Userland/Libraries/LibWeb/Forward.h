@@ -353,6 +353,7 @@ class CloseWatcher;
 class CloseWatcherManager;
 class CustomElementDefinition;
 class CustomElementRegistry;
+class DataTransferItem;
 class DecodedImageData;
 class DocumentState;
 class DOMParser;

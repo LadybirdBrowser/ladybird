@@ -1,0 +1,12 @@
+#import <FileAPI/File.idl>
+
+callback FunctionStringCallback = undefined (DOMString data);
+
+// https://html.spec.whatwg.org/multipage/dnd.html#datatransferitem
+[Exposed=Window]
+interface DataTransferItem {
+    [FIXME] readonly attribute DOMString kind;
+    [FIXME] readonly attribute DOMString type;
+    [FIXME] undefined getAsString(FunctionStringCallback? _callback);
+    [FIXME] File? getAsFile();
+};

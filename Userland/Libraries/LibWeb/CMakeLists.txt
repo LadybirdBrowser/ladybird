@@ -275,6 +275,7 @@ set(SOURCES
     HTML/CustomElements/CustomElementReactionNames.cpp
     HTML/CustomElements/CustomElementRegistry.cpp
     HTML/DataTransfer.cpp
+    HTML/DataTransferItem.cpp
     HTML/Dates.cpp
     HTML/DecodedImageData.cpp
     HTML/DedicatedWorkerGlobalScope.cpp
