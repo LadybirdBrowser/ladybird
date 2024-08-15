@@ -325,26 +325,23 @@ void URLSearchParams::set(String const& name, String const& value)
     update();
 }
 
+// https://url.spec.whatwg.org/#dom-urlsearchparams-sort
 void URLSearchParams::sort()
 {
     // 1. Sort all name-value pairs, if any, by their names. Sorting must be done by comparison of code units. The relative order between name-value pairs with equal names must be preserved.
     insertion_sort(m_list, [](auto& a, auto& b) {
-        Utf8View a_code_points { a.name };
-        Utf8View b_code_points { b.name };
+        // FIXME: There should be a way to do this without converting to utf16
+        auto a_utf16 = MUST(utf8_to_utf16(a.name));
+        auto b_utf16 = MUST(utf8_to_utf16(b.name));
 
-        if (a_code_points.starts_with(b_code_points))
-            return false;
-        if (b_code_points.starts_with(a_code_points))
-            return true;
+        auto common_length = min(a_utf16.size(), b_utf16.size());
 
-        for (auto k = a_code_points.begin(), l = b_code_points.begin();
-             k != a_code_points.end() && l != b_code_points.end();
-             ++k, ++l) {
-            if (*k != *l) {
-                return *k < *l;
-            }
+        for (size_t position = 0; position < common_length; ++position) {
+            if (a_utf16[position] != b_utf16[position])
+                return a_utf16[position] < b_utf16[position];
         }
-        VERIFY_NOT_REACHED();
+
+        return a_utf16.size() < b_utf16.size();
     });
 
     // 2. Update this.

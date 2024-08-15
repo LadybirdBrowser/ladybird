@@ -1,0 +1,17 @@
+<script src="../include.js"></script>
+<script>
+    function escapeUnicode(str) {
+        return str.replace(/[\s\S]/g, function(c) {
+            return '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4);
+        });
+    }
+
+    test(() => {
+        let params = new URLSearchParams("\uFFFD=x&\uFFFC&\uFFFD=a");
+        params.sort();
+        println(params.toString())
+        for (const [key, value] of params) {
+            println(`'${escapeUnicode(key)}' => '${escapeUnicode(value)}'`);
+        }
+    })
+</script>
