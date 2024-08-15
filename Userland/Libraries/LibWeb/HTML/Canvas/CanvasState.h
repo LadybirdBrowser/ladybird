@@ -26,6 +26,9 @@ class CanvasState {
 public:
     virtual ~CanvasState() = default;
 
+    virtual Gfx::Painter* painter_for_canvas_state() = 0;
+    virtual Gfx::Path& path_for_canvas_state() = 0;
+
     void save();
     void restore();
     void reset();
