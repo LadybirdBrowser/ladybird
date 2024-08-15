@@ -160,29 +160,34 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::resolved_options)
     // 4. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 5. For each row of Table 5, except the header row, in table order, do
-    //     a. Let p be the Property value of the current row.
-    //     b. If p is "hour12", then
-    //         i. Let hc be dtf.[[HourCycle]].
-    //         ii. If hc is "h11" or "h12", let v be true.
-    //         iii. Else if, hc is "h23" or "h24", let v be false.
-    //         iv. Else, let v be undefined.
-    //     c. Else,
-    //         i. Let v be the value of dtf's internal slot whose name is the Internal Slot value of the current row.
-    //     d. If the Internal Slot value of the current row is an Internal Slot value in Table 6, then
-    //         i. If dtf.[[DateStyle]] is not undefined or dtf.[[TimeStyle]] is not undefined, then
-    //             1. Let v be undefined.
-    //     e. If v is not undefined, then
-    //         i. Perform ! CreateDataPropertyOrThrow(options, p, v).
+    // 5. For each row of Table 15, except the header row, in table order, do
+    //    a. Let p be the Property value of the current row.
+    //    b. If there is an Internal Slot value in the current row, then
+    //        i. Let v be the value of dtf's internal slot whose name is the Internal Slot value of the current row.
+    //    c. Else,
+    //        i. Let format be dtf.[[DateTimeFormat]].
+    //        ii. If format has a field [[<p>]] and dtf.[[DateStyle]] is undefined and dtf.[[TimeStyle]] is undefined, then
+    //            1. Let v be format.[[<p>]].
+    //        iii. Else,
+    //            1. Let v be undefined.
+    //    d. If v is not undefined, then
+    //        i. If there is a Conversion value in the current row, then
+    //            1. Let conversion be the Conversion value of the current row.
+    //            2. If conversion is hour12, then
+    //                a. If v is "h11" or "h12", set v to true. Otherwise, set v to false.
+    //            3. Else,
+    //                a. Assert: conversion is number.
+    //                b. Set v to 𝔽(v).
+    //        ii. Perform ! CreateDataPropertyOrThrow(options, p, v).
     MUST(options->create_data_property_or_throw(vm.names.locale, PrimitiveString::create(vm, date_time_format->locale())));
     MUST(options->create_data_property_or_throw(vm.names.calendar, PrimitiveString::create(vm, date_time_format->calendar())));
     MUST(options->create_data_property_or_throw(vm.names.numberingSystem, PrimitiveString::create(vm, date_time_format->numbering_system())));
     MUST(options->create_data_property_or_throw(vm.names.timeZone, PrimitiveString::create(vm, date_time_format->time_zone())));
 
-    if (date_time_format->hour_cycle.has_value()) {
-        MUST(options->create_data_property_or_throw(vm.names.hourCycle, PrimitiveString::create(vm, Unicode::hour_cycle_to_string(*date_time_format->hour_cycle))));
+    if (auto const hour_cycle = date_time_format->date_time_format().hour_cycle; hour_cycle.has_value()) {
+        MUST(options->create_data_property_or_throw(vm.names.hourCycle, PrimitiveString::create(vm, Unicode::hour_cycle_to_string(*hour_cycle))));
 
-        switch (*date_time_format->hour_cycle) {
+        switch (*hour_cycle) {
         case Unicode::HourCycle::H11:
         case Unicode::HourCycle::H12:
             MUST(options->create_data_property_or_throw(vm.names.hour12, Value(true)));
@@ -195,7 +200,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::resolved_options)
     }
 
     if (!date_time_format->has_date_style() && !date_time_format->has_time_style()) {
-        MUST(for_each_calendar_field(vm, date_time_format, [&](auto& option, auto const& property, auto const&) -> ThrowCompletionOr<void> {
+        MUST(for_each_calendar_field(vm, date_time_format->date_time_format(), [&](auto& option, auto const& property, auto const&) -> ThrowCompletionOr<void> {
             using ValueType = typename RemoveReference<decltype(option)>::ValueType;
 
             if (!option.has_value())
