@@ -4280,7 +4280,7 @@ RefPtr<CSSStyleValue> Parser::parse_single_shadow_value(TokenStream<ComponentVal
 {
     auto transaction = tokens.begin_transaction();
 
-    Optional<Color> color;
+    RefPtr<CSSStyleValue> color;
     RefPtr<CSSStyleValue> offset_x;
     RefPtr<CSSStyleValue> offset_y;
     RefPtr<CSSStyleValue> blur_radius;
@@ -4296,10 +4296,10 @@ RefPtr<CSSStyleValue> Parser::parse_single_shadow_value(TokenStream<ComponentVal
     };
 
     while (tokens.has_next_token()) {
-        if (auto maybe_color = parse_color(tokens); maybe_color.has_value()) {
-            if (color.has_value())
+        if (auto maybe_color = parse_color_value(tokens); maybe_color) {
+            if (color)
                 return nullptr;
-            color = maybe_color.release_value();
+            color = maybe_color.release_nonnull();
             continue;
         }
 
@@ -4355,9 +4355,9 @@ RefPtr<CSSStyleValue> Parser::parse_single_shadow_value(TokenStream<ComponentVal
         return nullptr;
     }
 
-    // FIXME: If color is absent, default to `currentColor`
-    if (!color.has_value())
-        color = Color::NamedColor::Black;
+    // If color is absent, default to `currentColor`
+    if (!color)
+        color = CSSKeywordValue::create(Keyword::Currentcolor);
 
     // x/y offsets are required
     if (!offset_x || !offset_y)
@@ -4374,7 +4374,7 @@ RefPtr<CSSStyleValue> Parser::parse_single_shadow_value(TokenStream<ComponentVal
         placement = ShadowPlacement::Outer;
 
     transaction.commit();
-    return ShadowStyleValue::create(color.release_value(), offset_x.release_nonnull(), offset_y.release_nonnull(), blur_radius.release_nonnull(), spread_distance.release_nonnull(), placement.release_value());
+    return ShadowStyleValue::create(color.release_nonnull(), offset_x.release_nonnull(), offset_y.release_nonnull(), blur_radius.release_nonnull(), spread_distance.release_nonnull(), placement.release_value());
 }
 
 RefPtr<CSSStyleValue> Parser::parse_content_value(TokenStream<ComponentValue>& tokens)

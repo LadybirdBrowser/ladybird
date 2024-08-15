@@ -23,18 +23,18 @@ enum class ShadowPlacement {
 class ShadowStyleValue final : public StyleValueWithDefaultOperators<ShadowStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<ShadowStyleValue> create(
-        Color color,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> color,
         ValueComparingNonnullRefPtr<CSSStyleValue const> offset_x,
         ValueComparingNonnullRefPtr<CSSStyleValue const> offset_y,
         ValueComparingNonnullRefPtr<CSSStyleValue const> blur_radius,
         ValueComparingNonnullRefPtr<CSSStyleValue const> spread_distance,
         ShadowPlacement placement)
     {
-        return adopt_ref(*new (nothrow) ShadowStyleValue(color, move(offset_x), move(offset_y), move(blur_radius), move(spread_distance), placement));
+        return adopt_ref(*new (nothrow) ShadowStyleValue(move(color), move(offset_x), move(offset_y), move(blur_radius), move(spread_distance), placement));
     }
     virtual ~ShadowStyleValue() override = default;
 
-    Color color() const { return m_properties.color; }
+    ValueComparingNonnullRefPtr<CSSStyleValue const> const& color() const { return m_properties.color; }
     ValueComparingNonnullRefPtr<CSSStyleValue const> const& offset_x() const { return m_properties.offset_x; }
     ValueComparingNonnullRefPtr<CSSStyleValue const> const& offset_y() const { return m_properties.offset_y; }
     ValueComparingNonnullRefPtr<CSSStyleValue const> const& blur_radius() const { return m_properties.blur_radius; }
@@ -47,7 +47,7 @@ public:
 
 private:
     ShadowStyleValue(
-        Color color,
+        ValueComparingNonnullRefPtr<CSSStyleValue const> color,
         ValueComparingNonnullRefPtr<CSSStyleValue const> offset_x,
         ValueComparingNonnullRefPtr<CSSStyleValue const> offset_y,
         ValueComparingNonnullRefPtr<CSSStyleValue const> blur_radius,
@@ -55,7 +55,7 @@ private:
         ShadowPlacement placement)
         : StyleValueWithDefaultOperators(Type::Shadow)
         , m_properties {
-            .color = color,
+            .color = move(color),
             .offset_x = move(offset_x),
             .offset_y = move(offset_y),
             .blur_radius = move(blur_radius),
@@ -68,7 +68,7 @@ private:
     virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
 
     struct Properties {
-        Color color;
+        ValueComparingNonnullRefPtr<CSSStyleValue const> color;
         ValueComparingNonnullRefPtr<CSSStyleValue const> offset_x;
         ValueComparingNonnullRefPtr<CSSStyleValue const> offset_y;
         ValueComparingNonnullRefPtr<CSSStyleValue const> blur_radius;

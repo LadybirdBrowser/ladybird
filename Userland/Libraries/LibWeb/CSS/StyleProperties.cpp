@@ -895,7 +895,7 @@ Vector<ShadowData> StyleProperties::shadow(PropertyID property_id, Layout::Node 
         return {};
     };
 
-    auto make_shadow_data = [resolve_to_length](ShadowStyleValue const& value) -> Optional<ShadowData> {
+    auto make_shadow_data = [resolve_to_length, &layout_node](ShadowStyleValue const& value) -> Optional<ShadowData> {
         auto maybe_offset_x = resolve_to_length(value.offset_x());
         if (!maybe_offset_x.has_value())
             return {};
@@ -909,7 +909,7 @@ Vector<ShadowData> StyleProperties::shadow(PropertyID property_id, Layout::Node 
         if (!maybe_spread_distance.has_value())
             return {};
         return ShadowData {
-            value.color(),
+            value.color()->to_color(verify_cast<Layout::NodeWithStyle>(layout_node)),
             maybe_offset_x.release_value(),
             maybe_offset_y.release_value(),
             maybe_blur_radius.release_value(),
