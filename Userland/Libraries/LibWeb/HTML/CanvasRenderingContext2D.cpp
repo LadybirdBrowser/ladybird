@@ -89,7 +89,7 @@ Gfx::Path CanvasRenderingContext2D::rect_path(float x, float y, float width, flo
 
 void CanvasRenderingContext2D::fill_rect(float x, float y, float width, float height)
 {
-    return fill_internal(rect_path(x, y, width, height), Gfx::WindingRule::EvenOdd);
+    fill_internal(rect_path(x, y, width, height), Gfx::WindingRule::EvenOdd);
 }
 
 void CanvasRenderingContext2D::clear_rect(float x, float y, float width, float height)
@@ -312,7 +312,7 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
 
 void CanvasRenderingContext2D::fill(StringView fill_rule)
 {
-    return fill_internal(path(), parse_fill_rule(fill_rule));
+    fill_internal(path(), parse_fill_rule(fill_rule));
 }
 
 void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
