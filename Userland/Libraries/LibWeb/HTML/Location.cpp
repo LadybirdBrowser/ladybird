@@ -156,10 +156,37 @@ WebIDL::ExceptionOr<String> Location::protocol() const
     return TRY_OR_THROW_OOM(vm, String::formatted("{}:", url().scheme()));
 }
 
-WebIDL::ExceptionOr<void> Location::set_protocol(String const&)
+// https://html.spec.whatwg.org/multipage/history.html#dom-location-protocol
+WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
 {
-    auto& vm = this->vm();
-    return vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Location.protocol setter");
+    auto relevant_document = this->relevant_document();
+
+    // 1. If this's relevant Document is null, then return.
+    if (!relevant_document)
+        return {};
+
+    // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
+    if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+
+    // 3. Let copyURL be a copy of this's url.
+    auto copy_url = this->url();
+
+    // 4. Let possibleFailure be the result of basic URL parsing the given value, followed by ":", with copyURL as url and scheme start state as state override.
+    auto possible_failure = URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::SchemeStart);
+
+    // 5. If possibleFailure is failure, then throw a "SyntaxError" DOMException.
+    if (!possible_failure.is_valid())
+        return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Failed to set protocol. '{}' is an invalid protocol", value)));
+
+    // 6. if copyURL's scheme is not an HTTP(S) scheme, then terminate these steps.
+    if (!(copy_url.scheme() == "http"sv || copy_url.scheme() == "https"sv))
+        return {};
+
+    // 7. Location-object navigate this to copyURL.
+    TRY(navigate(copy_url));
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-host
