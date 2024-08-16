@@ -113,7 +113,12 @@ set(SOURCES
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
     CSS/StyleValues/CounterStyleValue.cpp
     CSS/StyleValues/CSSColorValue.cpp
+    CSS/StyleValues/CSSHSL.cpp
+    CSS/StyleValues/CSSHWB.cpp
     CSS/StyleValues/CSSKeywordValue.cpp
+    CSS/StyleValues/CSSOKLab.cpp
+    CSS/StyleValues/CSSOKLCH.cpp
+    CSS/StyleValues/CSSRGB.cpp
     CSS/StyleValues/DisplayStyleValue.cpp
     CSS/StyleValues/EasingStyleValue.cpp
     CSS/StyleValues/EdgeStyleValue.cpp

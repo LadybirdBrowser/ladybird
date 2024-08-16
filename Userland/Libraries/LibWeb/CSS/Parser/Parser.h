@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2024, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -194,12 +194,6 @@ private:
     Optional<TimeOrCalculated> parse_time(TokenStream<ComponentValue>&);
     Optional<TimePercentage> parse_time_percentage(TokenStream<ComponentValue>&);
 
-    Optional<Color> parse_rgb_color(Vector<ComponentValue> const&);
-    Optional<Color> parse_hsl_color(Vector<ComponentValue> const&);
-    Optional<Color> parse_hwb_color(Vector<ComponentValue> const&);
-    Optional<Color> parse_oklab_color(Vector<ComponentValue> const&);
-    Optional<Color> parse_oklch_color(Vector<ComponentValue> const&);
-    Optional<Color> parse_color(TokenStream<ComponentValue>&);
     Optional<LengthOrCalculated> parse_source_size_value(TokenStream<ComponentValue>&);
     Optional<Ratio> parse_ratio(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(TokenStream<ComponentValue>&);
@@ -239,6 +233,13 @@ private:
     OwnPtr<CalculationNode> parse_math_function(PropertyID, Function const&);
     OwnPtr<CalculationNode> parse_a_calc_function_node(Function const&);
     RefPtr<CSSStyleValue> parse_keyword_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_hue_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_solidus_and_alpha_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_rgb_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_hsl_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_hwb_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_oklab_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_oklch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_value(TokenStream<ComponentValue>&);
     enum class AllowReversed {

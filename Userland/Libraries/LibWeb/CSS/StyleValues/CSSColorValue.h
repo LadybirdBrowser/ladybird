@@ -15,26 +15,35 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csscolorvalue
-class CSSColorValue : public StyleValueWithDefaultOperators<CSSColorValue> {
+class CSSColorValue : public CSSStyleValue {
 public:
     static ValueComparingNonnullRefPtr<CSSColorValue> create_from_color(Color color);
     virtual ~CSSColorValue() override = default;
 
-    Color color() const { return m_color; }
-    virtual String to_string() const override;
     virtual bool has_color() const override { return true; }
-    virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override { return m_color; }
 
-    bool properties_equal(CSSColorValue const& other) const { return m_color == other.m_color; }
+    enum class ColorType {
+        RGB,
+        HSL,
+        HWB,
+        OKLab,
+        OKLCH,
+    };
+    ColorType color_type() const { return m_color_type; }
 
-private:
-    explicit CSSColorValue(Color color)
-        : StyleValueWithDefaultOperators(Type::Color)
-        , m_color(color)
+protected:
+    explicit CSSColorValue(ColorType color_type)
+        : CSSStyleValue(Type::Color)
+        , m_color_type(color_type)
     {
     }
 
-    Color m_color;
+    static Optional<float> resolve_hue(CSSStyleValue const&);
+    static Optional<float> resolve_with_reference_value(CSSStyleValue const&, float one_hundred_percent_value);
+    static Optional<float> resolve_alpha(CSSStyleValue const&);
+
+private:
+    ColorType m_color_type;
 };
 
 }

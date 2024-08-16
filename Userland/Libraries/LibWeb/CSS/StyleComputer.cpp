@@ -1431,8 +1431,12 @@ static NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& elemen
     switch (from.type()) {
     case CSSStyleValue::Type::Angle:
         return AngleStyleValue::create(Angle::make_degrees(interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta)));
-    case CSSStyleValue::Type::Color:
-        return CSSColorValue::create_from_color(interpolate_color(from.as_color().color(), to.as_color().color(), delta));
+    case CSSStyleValue::Type::Color: {
+        Optional<Layout::NodeWithStyle const&> layout_node;
+        if (auto node = element.layout_node())
+            layout_node = *node;
+        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node), to.to_color(layout_node), delta));
+    }
     case CSSStyleValue::Type::Integer:
         return IntegerStyleValue::create(interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta));
     case CSSStyleValue::Type::Length: {

@@ -76,7 +76,7 @@ void HTMLMetaElement::inserted()
         auto css_value = parse_css_value(context, value, CSS::PropertyID::Color);
         if (css_value.is_null() || !css_value->is_color())
             return;
-        auto color = css_value->as_color().color();
+        auto color = css_value->to_color({}); // TODO: Pass a layout node?
 
         // 4. If color is not failure, then return color.
         document().page().client().page_did_change_theme_color(color);
