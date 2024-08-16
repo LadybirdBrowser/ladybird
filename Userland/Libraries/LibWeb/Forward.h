@@ -360,6 +360,7 @@ class DocumentState;
 class DOMParser;
 class DOMStringList;
 class DOMStringMap;
+class DragDataStore;
 class DragEvent;
 class ElementInternals;
 struct EmbedderPolicy;
