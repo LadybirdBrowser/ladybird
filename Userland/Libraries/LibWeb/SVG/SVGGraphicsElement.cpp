@@ -160,6 +160,7 @@ void SVGGraphicsElement::apply_presentational_hints(CSS::StyleProperties& style)
         NamedPropertyID(CSS::PropertyID::MaskType),
         NamedPropertyID(CSS::PropertyID::ClipPath),
         NamedPropertyID(CSS::PropertyID::ClipRule),
+        NamedPropertyID(CSS::PropertyID::Display),
     };
 
     CSS::Parser::ParsingContext parsing_context { document(), CSS::Parser::ParsingContext::Mode::SVGPresentationAttribute };
