@@ -1654,6 +1654,7 @@ bool HTMLParser::is_special_tag(FlyString const& tag_name, Optional<FlyString> c
             MathML::TagNames::mi,
             MathML::TagNames::mo,
             MathML::TagNames::mn,
+            MathML::TagNames::ms,
             MathML::TagNames::mtext,
             MathML::TagNames::annotation_xml);
     }
