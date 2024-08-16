@@ -2310,32 +2310,42 @@ Vector<Gfx::UnicodeRange> Parser::parse_unicode_ranges(TokenStream<ComponentValu
 
 RefPtr<CSSStyleValue> Parser::parse_dimension_value(TokenStream<ComponentValue>& tokens)
 {
-    auto dimension = parse_dimension(tokens.peek_token());
-    if (!dimension.has_value())
-        return nullptr;
-    (void)tokens.next_token(); // dimension
+    if (auto dimension = parse_dimension(tokens.peek_token()); dimension.has_value()) {
+        (void)tokens.next_token(); // dimension
 
-    if (dimension->is_angle())
-        return AngleStyleValue::create(dimension->angle());
-    if (dimension->is_frequency())
-        return FrequencyStyleValue::create(dimension->frequency());
-    if (dimension->is_length())
-        return LengthStyleValue::create(dimension->length());
-    if (dimension->is_percentage())
-        return PercentageStyleValue::create(dimension->percentage());
-    if (dimension->is_resolution())
-        return ResolutionStyleValue::create(dimension->resolution());
-    if (dimension->is_time())
-        return TimeStyleValue::create(dimension->time());
-    VERIFY_NOT_REACHED();
+        if (dimension->is_angle())
+            return AngleStyleValue::create(dimension->angle());
+        if (dimension->is_frequency())
+            return FrequencyStyleValue::create(dimension->frequency());
+        if (dimension->is_length())
+            return LengthStyleValue::create(dimension->length());
+        if (dimension->is_percentage())
+            return PercentageStyleValue::create(dimension->percentage());
+        if (dimension->is_resolution())
+            return ResolutionStyleValue::create(dimension->resolution());
+        if (dimension->is_time())
+            return TimeStyleValue::create(dimension->time());
+        VERIFY_NOT_REACHED();
+    }
+
+    if (auto calc = parse_calculated_value(tokens.peek_token()); calc && calc->resolves_to_dimension()) {
+        (void)tokens.next_token(); // calc
+        return calc;
+    }
+
+    return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_integer_value(TokenStream<ComponentValue>& tokens)
 {
     auto peek_token = tokens.peek_token();
     if (peek_token.is(Token::Type::Number) && peek_token.token().number().is_integer()) {
-        (void)tokens.next_token();
+        (void)tokens.next_token(); // integer
         return IntegerStyleValue::create(peek_token.token().number().integer_value());
+    }
+    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_number()) {
+        (void)tokens.next_token(); // calc
+        return calc;
     }
 
     return nullptr;
@@ -2345,25 +2355,178 @@ RefPtr<CSSStyleValue> Parser::parse_number_value(TokenStream<ComponentValue>& to
 {
     auto peek_token = tokens.peek_token();
     if (peek_token.is(Token::Type::Number)) {
-        (void)tokens.next_token();
+        (void)tokens.next_token(); // number
         return NumberStyleValue::create(peek_token.token().number().value());
+    }
+    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_number()) {
+        (void)tokens.next_token(); // calc
+        return calc;
     }
 
     return nullptr;
 }
 
-RefPtr<CSSStyleValue> Parser::parse_number_or_percentage_value(TokenStream<ComponentValue>& tokens)
+RefPtr<CSSStyleValue> Parser::parse_number_percentage_value(TokenStream<ComponentValue>& tokens)
 {
     auto peek_token = tokens.peek_token();
     if (peek_token.is(Token::Type::Number)) {
-        (void)tokens.next_token();
+        (void)tokens.next_token(); // number
         return NumberStyleValue::create(peek_token.token().number().value());
     }
     if (peek_token.is(Token::Type::Percentage)) {
-        (void)tokens.next_token();
+        (void)tokens.next_token(); // percentage
         return PercentageStyleValue::create(Percentage(peek_token.token().percentage()));
     }
+    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_number_percentage()) {
+        (void)tokens.next_token(); // calc
+        return calc;
+    }
 
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_percentage_value(TokenStream<ComponentValue>& tokens)
+{
+    auto peek_token = tokens.peek_token();
+    if (peek_token.is(Token::Type::Percentage)) {
+        (void)tokens.next_token(); // percentage
+        return PercentageStyleValue::create(Percentage(peek_token.token().percentage()));
+    }
+    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_percentage()) {
+        (void)tokens.next_token(); // calc
+        return calc;
+    }
+
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_angle_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_angle()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_angle())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_angle_percentage_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_angle() || dimension_value->is_percentage()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_angle_percentage())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_flex_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_flex()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_flex())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_frequency_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_frequency()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_frequency())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_frequency_percentage_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_frequency() || dimension_value->is_percentage()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_frequency_percentage())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_length_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_length()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_length())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_length_percentage_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_length() || dimension_value->is_percentage()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_length_percentage())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_resolution_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_resolution()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_resolution())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_time_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_time()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_time())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_time_percentage_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    if (auto dimension_value = parse_dimension_value(tokens)) {
+        if (dimension_value->is_time() || dimension_value->is_percentage()
+            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_time_percentage())) {
+            transaction.commit();
+            return dimension_value;
+        }
+    }
     return nullptr;
 }
 
@@ -4782,7 +4945,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
     return FilterValueListStyleValue::create(move(filter_value_list));
 }
 
-RefPtr<CSSStyleValue> Parser::parse_flex_value(TokenStream<ComponentValue>& tokens)
+RefPtr<CSSStyleValue> Parser::parse_flex_shorthand_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
 
@@ -5964,7 +6127,7 @@ RefPtr<CSSStyleValue> Parser::parse_transform_value(TokenStream<ComponentValue>&
                 } else {
                     // FIXME: Remove this reconsume once all parsing functions are TokenStream-based.
                     argument_tokens.reconsume_current_input_token();
-                    auto number_or_percentage = parse_number_or_percentage_value(argument_tokens);
+                    auto number_or_percentage = parse_number_percentage_value(argument_tokens);
                     if (!number_or_percentage)
                         return nullptr;
                     values.append(number_or_percentage.release_nonnull());
@@ -7077,7 +7240,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         return ParseError::SyntaxError;
     case PropertyID::Flex:
     case PropertyID::WebkitFlex:
-        if (auto parsed_value = parse_flex_value(tokens); parsed_value && !tokens.has_next_token())
+        if (auto parsed_value = parse_flex_shorthand_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::FlexFlow:
