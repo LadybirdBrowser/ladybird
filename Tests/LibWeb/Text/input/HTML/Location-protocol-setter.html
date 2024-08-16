@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            window.location.protocol = "\xff";
+        } catch (e) {
+            println(`Setting location.protocol to an invalid value throws ${e.name}`);
+        }
+    });
+</script>
