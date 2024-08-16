@@ -142,22 +142,16 @@ public:
     template<typename T>
     ALWAYS_INLINE T to() const
     {
+        static_assert(IsOneOf<T, u128, u64, i64, f32, f64, Reference> || IsIntegral<T>, "Unsupported type for Value::to()");
+
         if constexpr (IsSame<T, u128>) {
             return m_value;
         }
-        if constexpr (IsSame<T, u32>) {
-            u32 low = m_value.low() & 0xFFFFFFFF;
-            return low;
+        if constexpr (IsOneOf<T, u64, i64>) {
+            return bit_cast<T>(m_value.low());
         }
-        if constexpr (IsSame<T, i32>) {
-            u32 low = m_value.low() & 0xFFFFFFFF;
-            return bit_cast<i32>(low);
-        }
-        if constexpr (IsSame<T, u64>) {
-            return bit_cast<u64>(m_value.low());
-        }
-        if constexpr (IsSame<T, i64>) {
-            return bit_cast<i64>(m_value.low());
+        if constexpr (IsIntegral<T> && sizeof(T) < 8) {
+            return bit_cast<T>(static_cast<MakeUnsigned<T>>(m_value.low() & NumericLimits<MakeUnsigned<T>>::max()));
         }
         if constexpr (IsSame<T, f32>) {
             u32 low = m_value.low() & 0xFFFFFFFF;
