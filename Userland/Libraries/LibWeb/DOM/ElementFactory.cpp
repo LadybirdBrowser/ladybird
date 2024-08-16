@@ -95,6 +95,7 @@
 #include <LibWeb/SVG/SVGLineElement.h>
 #include <LibWeb/SVG/SVGLinearGradientElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
+#include <LibWeb/SVG/SVGMetadataElement.h>
 #include <LibWeb/SVG/SVGPathElement.h>
 #include <LibWeb/SVG/SVGPolygonElement.h>
 #include <LibWeb/SVG/SVGPolylineElement.h>
@@ -453,6 +454,8 @@ static JS::GCPtr<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document&
         return realm.heap().allocate<SVG::SVGLinearGradientElement>(realm, document, move(qualified_name));
     if (local_name == SVG::TagNames::mask)
         return realm.heap().allocate<SVG::SVGMaskElement>(realm, document, move(qualified_name));
+    if (local_name == SVG::TagNames::metadata)
+        return realm.heap().allocate<SVG::SVGMetadataElement>(realm, document, move(qualified_name));
     if (local_name == SVG::TagNames::path)
         return realm.heap().allocate<SVG::SVGPathElement>(realm, document, move(qualified_name));
     if (local_name == SVG::TagNames::polygon)
