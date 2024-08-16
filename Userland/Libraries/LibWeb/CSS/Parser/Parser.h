@@ -238,10 +238,6 @@ private:
     // NOTE: Implemented in generated code. (GenerateCSSMathFunctions.cpp)
     OwnPtr<CalculationNode> parse_math_function(PropertyID, Function const&);
     OwnPtr<CalculationNode> parse_a_calc_function_node(Function const&);
-    RefPtr<CSSStyleValue> parse_dimension_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_integer_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_number_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_number_or_percentage_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_keyword_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_value(TokenStream<ComponentValue>&);
@@ -262,6 +258,22 @@ private:
     RefPtr<PositionStyleValue> parse_position_value(TokenStream<ComponentValue>&, PositionParsingMode = PositionParsingMode::Normal);
     RefPtr<CSSStyleValue> parse_filter_value_list_value(TokenStream<ComponentValue>&);
 
+    RefPtr<CSSStyleValue> parse_dimension_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_angle_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_angle_percentage_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_flex_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_frequency_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_frequency_percentage_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_integer_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_length_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_length_percentage_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_number_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_number_percentage_value(TokenStream<ComponentValue>& tokens);
+    RefPtr<CSSStyleValue> parse_percentage_value(TokenStream<ComponentValue>& tokens);
+    RefPtr<CSSStyleValue> parse_resolution_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_time_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_time_percentage_value(TokenStream<ComponentValue>&);
+
     template<typename ParseFunction>
     RefPtr<CSSStyleValue> parse_comma_separated_value_list(TokenStream<ComponentValue>&, ParseFunction);
     RefPtr<CSSStyleValue> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);
@@ -280,7 +292,7 @@ private:
     RefPtr<CSSStyleValue> parse_counter_reset_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_set_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_display_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_flex_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_flex_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_flex_flow_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_family_value(TokenStream<ComponentValue>&);

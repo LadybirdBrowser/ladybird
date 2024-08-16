@@ -117,6 +117,8 @@ public:
     Optional<double> resolve_number() const;
     Optional<i64> resolve_integer() const;
 
+    bool resolves_to_dimension() const { return m_resolved_type.matches_dimension(); }
+
     bool contains_percentage() const;
 
 private:
