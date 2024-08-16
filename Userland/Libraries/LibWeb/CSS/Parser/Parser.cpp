@@ -7389,17 +7389,17 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     bool property_accepts_numeric = property_accepting_integer.has_value() || property_accepting_number.has_value();
 
     if (peek_token.is(Token::Type::Number) && property_accepts_numeric) {
-        if (property_accepting_integer.has_value()) {
-            auto transaction = tokens.begin_transaction();
-            if (auto integer = parse_integer_value(tokens); integer && property_accepts_integer(*property_accepting_integer, integer->as_integer().integer())) {
-                transaction.commit();
+        if (peek_token.token().number().is_integer() && property_accepting_integer.has_value()) {
+            auto integer = IntegerStyleValue::create(peek_token.token().number().integer_value());
+            if (property_accepts_integer(*property_accepting_integer, integer->as_integer().integer())) {
+                (void)tokens.next_token(); // integer
                 return PropertyAndValue { *property_accepting_integer, integer };
             }
         }
         if (property_accepting_number.has_value()) {
-            auto transaction = tokens.begin_transaction();
-            if (auto number = parse_number_value(tokens); number && property_accepts_number(*property_accepting_number, number->as_number().number())) {
-                transaction.commit();
+            auto number = NumberStyleValue::create(peek_token.token().number().value());
+            if (property_accepts_number(*property_accepting_number, number->as_number().number())) {
+                (void)tokens.next_token(); // number
                 return PropertyAndValue { *property_accepting_number, number };
             }
         }
