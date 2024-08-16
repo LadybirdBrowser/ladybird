@@ -2766,4 +2766,11 @@ bool CalculatedStyleValue::contains_percentage() const
     return m_calculation->contains_percentage();
 }
 
+String CalculatedStyleValue::dump() const
+{
+    StringBuilder builder;
+    m_calculation->dump(builder, 0);
+    return builder.to_string_without_validation();
+}
+
 }

@@ -121,6 +121,8 @@ public:
 
     bool contains_percentage() const;
 
+    String dump() const;
+
 private:
     explicit CalculatedStyleValue(NonnullOwnPtr<CalculationNode> calculation, CSSNumericType resolved_type)
         : CSSStyleValue(Type::Calculated)
