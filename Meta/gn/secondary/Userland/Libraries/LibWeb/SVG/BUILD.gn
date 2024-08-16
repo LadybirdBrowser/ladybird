@@ -25,6 +25,7 @@ source_set("SVG") {
     "SVGLineElement.cpp",
     "SVGLinearGradientElement.cpp",
     "SVGMaskElement.cpp",
+    "SVGMetadataElement.cpp",
     "SVGPathElement.cpp",
     "SVGPolygonElement.cpp",
     "SVGPolylineElement.cpp",
