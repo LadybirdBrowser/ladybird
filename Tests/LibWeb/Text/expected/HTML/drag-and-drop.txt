@@ -5,6 +5,8 @@ dragover
     types: Files
 drop
     types: Files
+    files: 1
+        test1
 
 Drag enter and leave:
 dragenter
@@ -19,6 +21,8 @@ dragover
     types: Files
 drop
     types: Files
+    files: 1
+        test2
 
 Drag enter not accepted:
 dragenter
@@ -41,3 +45,5 @@ dragover
     types: Files
 drop
     types: Files
+    files: 1
+        test5
