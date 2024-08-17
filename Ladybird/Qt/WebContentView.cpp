@@ -130,6 +130,10 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
         finish_handling_key_event(event);
     };
 
+    on_finish_handling_drag_event = [this](auto const& event) {
+        finish_handling_drag_event(event);
+    };
+
     on_request_worker_agent = [&]() {
         RefPtr<Requests::RequestClient> request_server_client {};
         if (WebView::Application::web_content_options().use_lagom_networking == WebView::UseLagomNetworking::Yes)
@@ -142,47 +146,47 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
 WebContentView::~WebContentView() = default;
 
-static Web::UIEvents::MouseButton get_button_from_qt_event(QSinglePointEvent const& event)
+static Web::UIEvents::MouseButton get_button_from_qt_event(Qt::MouseButton button)
 {
-    if (event.button() == Qt::MouseButton::LeftButton)
+    if (button == Qt::MouseButton::LeftButton)
         return Web::UIEvents::MouseButton::Primary;
-    if (event.button() == Qt::MouseButton::RightButton)
+    if (button == Qt::MouseButton::RightButton)
         return Web::UIEvents::MouseButton::Secondary;
-    if (event.button() == Qt::MouseButton::MiddleButton)
+    if (button == Qt::MouseButton::MiddleButton)
         return Web::UIEvents::MouseButton::Middle;
-    if (event.button() == Qt::MouseButton::BackButton)
+    if (button == Qt::MouseButton::BackButton)
         return Web::UIEvents::MouseButton::Backward;
-    if (event.buttons() == Qt::MouseButton::ForwardButton)
+    if (button == Qt::MouseButton::ForwardButton)
         return Web::UIEvents::MouseButton::Forward;
     return Web::UIEvents::MouseButton::None;
 }
 
-static Web::UIEvents::MouseButton get_buttons_from_qt_event(QSinglePointEvent const& event)
+static Web::UIEvents::MouseButton get_buttons_from_qt_event(Qt::MouseButtons buttons)
 {
-    auto buttons = Web::UIEvents::MouseButton::None;
-    if (event.buttons().testFlag(Qt::MouseButton::LeftButton))
-        buttons |= Web::UIEvents::MouseButton::Primary;
-    if (event.buttons().testFlag(Qt::MouseButton::RightButton))
-        buttons |= Web::UIEvents::MouseButton::Secondary;
-    if (event.buttons().testFlag(Qt::MouseButton::MiddleButton))
-        buttons |= Web::UIEvents::MouseButton::Middle;
-    if (event.buttons().testFlag(Qt::MouseButton::BackButton))
-        buttons |= Web::UIEvents::MouseButton::Backward;
-    if (event.buttons().testFlag(Qt::MouseButton::ForwardButton))
-        buttons |= Web::UIEvents::MouseButton::Forward;
-    return buttons;
+    auto result = Web::UIEvents::MouseButton::None;
+    if (buttons.testFlag(Qt::MouseButton::LeftButton))
+        result |= Web::UIEvents::MouseButton::Primary;
+    if (buttons.testFlag(Qt::MouseButton::RightButton))
+        result |= Web::UIEvents::MouseButton::Secondary;
+    if (buttons.testFlag(Qt::MouseButton::MiddleButton))
+        result |= Web::UIEvents::MouseButton::Middle;
+    if (buttons.testFlag(Qt::MouseButton::BackButton))
+        result |= Web::UIEvents::MouseButton::Backward;
+    if (buttons.testFlag(Qt::MouseButton::ForwardButton))
+        result |= Web::UIEvents::MouseButton::Forward;
+    return result;
 }
 
-static Web::UIEvents::KeyModifier get_modifiers_from_qt_mouse_event(QSinglePointEvent const& event)
+static Web::UIEvents::KeyModifier get_modifiers_from_qt_mouse_event(Qt::KeyboardModifiers modifiers)
 {
-    auto modifiers = Web::UIEvents::KeyModifier::Mod_None;
-    if (event.modifiers().testFlag(Qt::AltModifier))
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Alt;
-    if (event.modifiers().testFlag(Qt::ControlModifier))
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Ctrl;
-    if (event.modifiers().testFlag(Qt::ShiftModifier))
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Shift;
-    return modifiers;
+    auto result = Web::UIEvents::KeyModifier::Mod_None;
+    if (modifiers.testFlag(Qt::AltModifier))
+        result |= Web::UIEvents::KeyModifier::Mod_Alt;
+    if (modifiers.testFlag(Qt::ControlModifier))
+        result |= Web::UIEvents::KeyModifier::Mod_Ctrl;
+    if (modifiers.testFlag(Qt::ShiftModifier))
+        result |= Web::UIEvents::KeyModifier::Mod_Shift;
+    return result;
 }
 
 static Web::UIEvents::KeyModifier get_modifiers_from_qt_keyboard_event(QKeyEvent const& event)
@@ -406,14 +410,31 @@ void WebContentView::mouseDoubleClickEvent(QMouseEvent* event)
 
 void WebContentView::dragEnterEvent(QDragEnterEvent* event)
 {
-    if (event->mimeData()->hasUrls())
-        event->acceptProposedAction();
+    if (!event->mimeData()->hasUrls())
+        return;
+
+    enqueue_native_event(Web::DragEvent::Type::DragStart, *event);
+    event->acceptProposedAction();
+}
+
+void WebContentView::dragMoveEvent(QDragMoveEvent* event)
+{
+    enqueue_native_event(Web::DragEvent::Type::DragMove, *event);
+    event->acceptProposedAction();
+}
+
+void WebContentView::dragLeaveEvent(QDragLeaveEvent*)
+{
+    // QDragLeaveEvent does not contain any mouse position or button information.
+    Web::DragEvent event {};
+    event.type = Web::DragEvent::Type::DragEnd;
+
+    enqueue_input_event(AK::move(event));
 }
 
 void WebContentView::dropEvent(QDropEvent* event)
 {
-    VERIFY(event->mimeData()->hasUrls());
-    emit urls_dropped(event->mimeData()->urls());
+    enqueue_native_event(Web::DragEvent::Type::Drop, *event);
     event->acceptProposedAction();
 }
 
@@ -740,9 +761,9 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
     Web::DevicePixelPoint position = { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
     auto screen_position = Gfx::IntPoint { event.globalPosition().x() * m_device_pixel_ratio, event.globalPosition().y() * m_device_pixel_ratio };
 
-    auto button = get_button_from_qt_event(event);
-    auto buttons = get_buttons_from_qt_event(event);
-    auto modifiers = get_modifiers_from_qt_mouse_event(event);
+    auto button = get_button_from_qt_event(event.button());
+    auto buttons = get_buttons_from_qt_event(event.buttons());
+    auto modifiers = get_modifiers_from_qt_mouse_event(event.modifiers());
 
     if (button == 0 && (type == Web::MouseEvent::Type::MouseDown || type == Web::MouseEvent::Type::MouseUp)) {
         // We could not convert Qt buttons to something that LibWeb can recognize - don't even bother propagating this
@@ -774,6 +795,56 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
     }
 
     enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, nullptr });
+}
+
+struct DragData : Web::ChromeInputData {
+    explicit DragData(QDropEvent const& event)
+        : urls(event.mimeData()->urls())
+    {
+    }
+
+    QList<QUrl> urls;
+};
+
+void WebContentView::enqueue_native_event(Web::DragEvent::Type type, QDropEvent const& event)
+{
+    Web::DevicePixelPoint position = { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
+
+    auto global_position = mapToGlobal(event.position());
+    auto screen_position = Gfx::IntPoint { global_position.x() * m_device_pixel_ratio, global_position.y() * m_device_pixel_ratio };
+
+    auto button = get_button_from_qt_event(Qt::LeftButton);
+    auto buttons = get_buttons_from_qt_event(event.buttons());
+    auto modifiers = get_modifiers_from_qt_mouse_event(event.modifiers());
+
+    Vector<Web::HTML::SelectedFile> files;
+    OwnPtr<DragData> chrome_data;
+
+    if (type == Web::DragEvent::Type::DragStart) {
+        VERIFY(event.mimeData()->hasUrls());
+
+        for (auto const& url : event.mimeData()->urls()) {
+            auto file_path = ak_byte_string_from_qstring(url.toLocalFile());
+
+            if (auto file = Web::HTML::SelectedFile::from_file_path(file_path); file.is_error())
+                warnln("Unable to open file {}: {}", file_path, file.error());
+            else
+                files.append(file.release_value());
+        }
+    } else if (type == Web::DragEvent::Type::Drop) {
+        chrome_data = make<DragData>(event);
+    }
+
+    enqueue_input_event(Web::DragEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, AK::move(files), AK::move(chrome_data) });
+}
+
+void WebContentView::finish_handling_drag_event(Web::DragEvent const& event)
+{
+    if (event.type != Web::DragEvent::Type::Drop)
+        return;
+
+    auto const& chrome_data = verify_cast<DragData>(*event.chrome_data);
+    emit urls_dropped(chrome_data.urls);
 }
 
 struct KeyData : Web::ChromeInputData {

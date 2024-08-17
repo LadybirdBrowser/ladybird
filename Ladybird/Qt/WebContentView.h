@@ -58,6 +58,8 @@ public:
     virtual void wheelEvent(QWheelEvent*) override;
     virtual void mouseDoubleClickEvent(QMouseEvent*) override;
     virtual void dragEnterEvent(QDragEnterEvent*) override;
+    virtual void dragMoveEvent(QDragMoveEvent*) override;
+    virtual void dragLeaveEvent(QDragLeaveEvent*) override;
     virtual void dropEvent(QDropEvent*) override;
     virtual void keyPressEvent(QKeyEvent* event) override;
     virtual void keyReleaseEvent(QKeyEvent* event) override;
@@ -101,8 +103,13 @@ private:
     void update_cursor(Gfx::StandardCursor cursor);
 
     void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
+
+    void enqueue_native_event(Web::DragEvent::Type, QDropEvent const& event);
+    void finish_handling_drag_event(Web::DragEvent const&);
+
     void enqueue_native_event(Web::KeyEvent::Type, QKeyEvent const& event);
     void finish_handling_key_event(Web::KeyEvent const&);
+
     void update_screen_rects();
 
     bool m_tooltip_override { false };
