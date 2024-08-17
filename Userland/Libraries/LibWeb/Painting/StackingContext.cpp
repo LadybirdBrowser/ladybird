@@ -412,10 +412,10 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     CSSPixelPoint enclosing_scroll_offset;
     if (is<PaintableBox>(paintable())) {
         auto const& paintable_box = static_cast<PaintableBox const&>(paintable());
-        enclosing_scroll_offset = paintable_box.enclosing_scroll_frame_offset();
+        enclosing_scroll_offset = paintable_box.cumulative_offset_of_enclosing_scroll_frame();
     } else if (is<InlinePaintable>(paintable())) {
         auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable());
-        enclosing_scroll_offset = inline_paintable.enclosing_scroll_frame_offset();
+        enclosing_scroll_offset = inline_paintable.cumulative_offset_of_enclosing_scroll_frame();
     }
 
     auto position_adjusted_by_scroll_offset = transformed_position;

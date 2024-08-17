@@ -806,7 +806,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
         return TraversalDecision::Continue;
 
     auto position_adjusted_by_scroll_offset = position;
-    position_adjusted_by_scroll_offset.translate_by(-enclosing_scroll_frame_offset());
+    position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
 
     if (!is_visible())
         return TraversalDecision::Continue;
@@ -858,7 +858,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
         return TraversalDecision::Continue;
 
     auto position_adjusted_by_scroll_offset = position;
-    position_adjusted_by_scroll_offset.translate_by(-enclosing_scroll_frame_offset());
+    position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
 
     if (!layout_box().children_are_inline() || m_fragments.is_empty()) {
         return PaintableBox::hit_test(position, type, callback);
