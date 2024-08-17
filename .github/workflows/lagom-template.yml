@@ -149,7 +149,8 @@ jobs:
       - name: Enable the AppKit chrome with Swift files
         if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
         working-directory: ${{ github.workspace }}
-        run: cmake -B Build -DENABLE_QT=OFF -DENABLE_SWIFT=ON
+        # FIXME: Don't force release build after https://github.com/LadybirdBrowser/ladybird/issues/1101 is fixed
+        run: cmake -B Build -DENABLE_QT=OFF -DENABLE_SWIFT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
       - name: Build the AppKit chrome with Swift files
         if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
