@@ -325,6 +325,7 @@ struct Header;
 namespace Web::FileAPI {
 class Blob;
 class File;
+class FileList;
 }
 
 namespace Web::Geometry {
