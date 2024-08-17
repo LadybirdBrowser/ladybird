@@ -21,11 +21,10 @@ String WorkerLocation::href() const
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-origin
-WebIDL::ExceptionOr<String> WorkerLocation::origin() const
+String WorkerLocation::origin() const
 {
-    auto& vm = realm().vm();
     // The origin getter steps are to return the serialization of this's WorkerGlobalScope object's url's origin.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_global_scope->url().serialize_origin()));
+    return m_global_scope->url().serialize_origin();
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-protocol

@@ -354,7 +354,7 @@ String URL::to_string() const
 
 // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
 // https://url.spec.whatwg.org/#concept-url-origin
-ByteString URL::serialize_origin() const
+String URL::serialize_origin() const
 {
     VERIFY(m_data->valid);
 
@@ -365,10 +365,10 @@ ByteString URL::serialize_origin() const
         URL url = m_data->paths[0];
         // 3. Return a new opaque origin, if url is failure, and url’s origin otherwise.
         if (!url.is_valid())
-            return "null";
+            return "null"_string;
         return url.serialize_origin();
     } else if (!m_data->scheme.is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) { // file: "Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin."
-        return "null";
+        return "null"_string;
     }
 
     StringBuilder builder;
@@ -377,7 +377,7 @@ ByteString URL::serialize_origin() const
     builder.append(serialized_host());
     if (m_data->port.has_value())
         builder.appendff(":{}", *m_data->port);
-    return builder.to_byte_string();
+    return builder.to_string_without_validation();
 }
 
 bool URL::equals(URL const& other, ExcludeFragment exclude_fragments) const

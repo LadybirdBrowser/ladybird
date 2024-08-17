@@ -50,7 +50,7 @@ String HTMLHyperlinkElementUtils::origin() const
         return String {};
 
     // 3. Return the serialization of this element's url's origin.
-    return MUST(String::from_byte_string(m_url->serialize_origin()));
+    return m_url->serialize_origin();
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-protocol

@@ -163,7 +163,7 @@ public:
     String to_string() const;
 
     // HTML origin
-    ByteString serialize_origin() const;
+    String serialize_origin() const;
 
     bool equals(URL const& other, ExcludeFragment = ExcludeFragment::No) const;
 
