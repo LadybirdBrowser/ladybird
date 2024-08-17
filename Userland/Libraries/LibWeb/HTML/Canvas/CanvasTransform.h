@@ -11,6 +11,7 @@
 #include <AK/Debug.h>
 #include <LibGfx/Painter.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
+#include <LibWeb/HTML/Canvas/CanvasPath.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 
 namespace Web::HTML {
@@ -21,6 +22,8 @@ class CanvasTransform {
 public:
     ~CanvasTransform() = default;
 
+    Gfx::Path& mutable_path() { return static_cast<IncludingClass&>(*this).path(); }
+
     void scale(float sx, float sy)
     {
         dbgln_if(CANVAS_RENDERING_CONTEXT_2D_DEBUG, "CanvasTransform::scale({}, {})", sx, sy);
@@ -28,6 +31,7 @@ public:
             return;
         my_drawing_state().transform.scale(sx, sy);
         flush_transform();
+        mutable_path().transform(Gfx::AffineTransform().scale(1.0 / sx, 1.0 / sy));
     }
 
     void translate(float tx, float ty)
@@ -37,6 +41,7 @@ public:
             return;
         my_drawing_state().transform.translate(tx, ty);
         flush_transform();
+        mutable_path().transform(Gfx::AffineTransform().translate(-tx, -ty));
     }
 
     void rotate(float radians)
@@ -46,6 +51,7 @@ public:
             return;
         my_drawing_state().transform.rotate_radians(radians);
         flush_transform();
+        mutable_path().transform(Gfx::AffineTransform().rotate_radians(-radians));
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-transform
@@ -59,7 +65,12 @@ public:
         //    a c e
         //    b d f
         //    0 0 1
-        my_drawing_state().transform.multiply({ static_cast<float>(a), static_cast<float>(b), static_cast<float>(c), static_cast<float>(d), static_cast<float>(e), static_cast<float>(f) });
+        auto transform = Gfx::AffineTransform(a, b, c, d, e, f);
+        my_drawing_state().transform.multiply(transform);
+
+        if (auto inverse = transform.inverse(); inverse.has_value()) {
+            mutable_path().transform(inverse.value());
+        }
         flush_transform();
     }
 
@@ -98,9 +109,14 @@ public:
         if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))
             return {};
 
+        auto original_transform = my_drawing_state().transform;
+
         // 3. Reset the current transformation matrix to matrix.
         auto transform = Gfx::AffineTransform { static_cast<float>(matrix->a()), static_cast<float>(matrix->b()), static_cast<float>(matrix->c()), static_cast<float>(matrix->d()), static_cast<float>(matrix->e()), static_cast<float>(matrix->f()) };
         my_drawing_state().transform = transform;
+
+        mutable_path().transform(original_transform);
+
         flush_transform();
         return {};
     }
