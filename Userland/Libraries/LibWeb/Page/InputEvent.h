@@ -82,7 +82,7 @@ struct DragEvent {
     OwnPtr<ChromeInputData> chrome_data;
 };
 
-using InputEvent = Variant<KeyEvent, MouseEvent>;
+using InputEvent = Variant<KeyEvent, MouseEvent, DragEvent>;
 
 }
 
@@ -99,5 +99,11 @@ ErrorOr<void> encode(Encoder&, Web::MouseEvent const&);
 
 template<>
 ErrorOr<Web::MouseEvent> decode(Decoder&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Web::DragEvent const&);
+
+template<>
+ErrorOr<Web::DragEvent> decode(Decoder&);
 
 }

@@ -207,6 +207,9 @@ void ConnectionFromClient::process_next_input_event()
                 return page->page().handle_doubleclick(event.position, event.screen_position, event.button, event.buttons, event.modifiers);
             }
             VERIFY_NOT_REACHED();
+        },
+        [&](Web::DragEvent& event) {
+            return page->page().handle_drag_and_drop_event(event.type, event.position, event.screen_position, event.button, event.buttons, event.modifiers, move(event.files));
         });
 
     // We have to notify the client about coalesced events, so we do that by saying none of them were handled by the web page->
@@ -255,6 +258,11 @@ void ConnectionFromClient::mouse_event(u64 page_id, Web::MouseEvent const& event
     }
 
     enqueue_input_event({ page_id, move(const_cast<Web::MouseEvent&>(event)), 0 });
+}
+
+void ConnectionFromClient::drag_event(u64 page_id, Web::DragEvent const& event)
+{
+    enqueue_input_event({ page_id, move(const_cast<Web::DragEvent&>(event)), 0 });
 }
 
 void ConnectionFromClient::enqueue_input_event(QueuedInputEvent event)
