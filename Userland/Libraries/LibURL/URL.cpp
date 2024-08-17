@@ -358,26 +358,44 @@ String URL::serialize_origin() const
 {
     VERIFY(m_data->valid);
 
+    // -> "blob"
     if (m_data->scheme == "blob"sv) {
-        // TODO: 1. If URL’s blob URL entry is non-null, then return URL’s blob URL entry’s environment’s origin.
-        // 2. Let url be the result of parsing URL’s path[0].
-        VERIFY(!m_data->paths.is_empty());
-        URL url = m_data->paths[0];
-        // 3. Return a new opaque origin, if url is failure, and url’s origin otherwise.
+        // FIXME: 1. If URL’s blob URL entry is non-null, then return URL’s blob URL entry’s environment’s origin.
+
+        // 2. Let pathURL be the result of parsing the result of URL path serializing url.
+        URL url = serialize_path();
+
+        // 3. If pathURL is failure, then return a new opaque origin.
         if (!url.is_valid())
             return "null"_string;
-        return url.serialize_origin();
-    } else if (!m_data->scheme.is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) { // file: "Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin."
+
+        // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
+        if (url.m_data->scheme.is_one_of("http"sv, "https"sv, "file"sv))
+            return url.serialize_origin();
+
+        // 5. Return a new opaque origin.
         return "null"_string;
     }
 
-    StringBuilder builder;
-    builder.append(m_data->scheme);
-    builder.append("://"sv);
-    builder.append(serialized_host());
-    if (m_data->port.has_value())
-        builder.appendff(":{}", *m_data->port);
-    return builder.to_string_without_validation();
+    // -> "ftp"
+    // -> "http"
+    // -> "https"
+    // -> "ws"
+    // -> "wss"
+    if (m_data->scheme.is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
+        StringBuilder builder;
+        builder.append(m_data->scheme);
+        builder.append("://"sv);
+        builder.append(serialized_host());
+        if (m_data->port.has_value())
+            builder.appendff(":{}", *m_data->port);
+        return builder.to_string_without_validation();
+    }
+
+    // -> "file" 'Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.'
+    //
+    // -> "Otherwise"
+    return "null"_string;
 }
 
 bool URL::equals(URL const& other, ExcludeFragment exclude_fragments) const
