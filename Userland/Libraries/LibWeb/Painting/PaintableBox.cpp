@@ -247,40 +247,51 @@ static constexpr CSSPixels scrollbar_thumb_thickness = 8;
 
 Optional<CSSPixelRect> PaintableBox::scroll_thumb_rect(ScrollDirection direction) const
 {
-    if (!is_scrollable(direction))
+    auto maybe_scrollbar_data = compute_scrollbar_data(direction);
+    if (!maybe_scrollbar_data.has_value())
         return {};
+
+    auto scroll_offset = direction == ScrollDirection::Horizontal ? -own_scroll_frame_offset().x() : -own_scroll_frame_offset().y();
+    auto thumb_offset = scroll_offset * maybe_scrollbar_data->scroll_length;
+
+    CSSPixelRect thumb_rect = maybe_scrollbar_data->thumb_rect;
+    if (direction == ScrollDirection::Horizontal) {
+        thumb_rect.translate_by(thumb_offset, 0);
+    } else {
+        thumb_rect.translate_by(0, thumb_offset);
+    }
+    return thumb_rect;
+}
+
+Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction) const
+{
+    if (!is_scrollable(direction)) {
+        return {};
+    }
+
+    if (!own_scroll_frame_id().has_value()) {
+        return {};
+    }
 
     auto padding_rect = absolute_padding_box_rect();
     auto scrollable_overflow_rect = this->scrollable_overflow_rect().value();
     auto scroll_overflow_size = direction == ScrollDirection::Horizontal ? scrollable_overflow_rect.width() : scrollable_overflow_rect.height();
     auto scrollport_size = direction == ScrollDirection::Horizontal ? padding_rect.width() : padding_rect.height();
-    auto scroll_offset = direction == ScrollDirection::Horizontal ? this->scroll_offset().x() : this->scroll_offset().y();
     if (scroll_overflow_size == 0)
         return {};
 
-    auto thumb_size = scrollport_size * (scrollport_size / scroll_overflow_size);
-    CSSPixels thumb_position = 0;
+    auto thumb_length = scrollport_size * (scrollport_size / scroll_overflow_size);
+    CSSPixelFraction scroll_size = 0;
     if (scroll_overflow_size > scrollport_size)
-        thumb_position = scroll_offset * (scrollport_size - thumb_size) / (scroll_overflow_size - scrollport_size);
-
-    CSSPixelRect thumb_rect;
-    if (direction == ScrollDirection::Horizontal) {
-        thumb_rect = {
-            padding_rect.left() + thumb_position,
-            padding_rect.bottom() - scrollbar_thumb_thickness,
-            thumb_size,
-            scrollbar_thumb_thickness
-        };
+        scroll_size = (scrollport_size - thumb_length) / (scroll_overflow_size - scrollport_size);
+    CSSPixelRect rect;
+    if (direction == ScrollDirection::Vertical) {
+        rect = { padding_rect.right() - scrollbar_thumb_thickness, padding_rect.top(), scrollbar_thumb_thickness, thumb_length };
     } else {
-        thumb_rect = {
-            padding_rect.right() - scrollbar_thumb_thickness,
-            padding_rect.top() + thumb_position,
-            scrollbar_thumb_thickness,
-            thumb_size
-        };
+        rect = { padding_rect.left() - scrollbar_thumb_thickness, padding_rect.bottom() - scrollbar_thumb_thickness, thumb_length, scrollbar_thumb_thickness };
     }
 
-    return thumb_rect;
+    return PaintableBox::ScrollbarData { rect, scroll_size };
 }
 
 void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
@@ -332,30 +343,11 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
 
     auto scrollbar_width = computed_values().scrollbar_width();
     if (phase == PaintPhase::Overlay && scrollbar_width != CSS::ScrollbarWidth::None) {
-        auto color = Color(Color::NamedColor::DarkGray).with_alpha(128);
-        auto border_color = Color(Color::NamedColor::LightGray).with_alpha(128);
-        auto borders_data = BordersDataDevicePixels {
-            .top = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
-            .right = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
-            .bottom = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
-            .left = BorderDataDevicePixels { border_color, CSS::LineStyle::Solid, 1 },
-        };
-        int thumb_corner_radius = static_cast<int>(context.rounded_device_pixels(scrollbar_thumb_thickness / 2));
-        CornerRadii corner_radii = {
-            .top_left = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
-            .top_right = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
-            .bottom_right = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
-            .bottom_left = Gfx::AntiAliasingPainter::CornerRadius { thumb_corner_radius, thumb_corner_radius },
-        };
-        if (auto thumb_rect = scroll_thumb_rect(ScrollDirection::Horizontal); thumb_rect.has_value()) {
-            auto thumb_device_rect = context.enclosing_device_rect(thumb_rect.value());
-            paint_all_borders(context.display_list_recorder(), thumb_device_rect, corner_radii, borders_data);
-            context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius);
+        if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
+            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(), scrollbar_data->scroll_length, true);
         }
-        if (auto thumb_rect = scroll_thumb_rect(ScrollDirection::Vertical); thumb_rect.has_value()) {
-            auto thumb_device_rect = context.enclosing_device_rect(thumb_rect.value());
-            paint_all_borders(context.display_list_recorder(), thumb_device_rect, corner_radii, borders_data);
-            context.display_list_recorder().fill_rect_with_rounded_corners(thumb_device_rect.to_type<int>(), color, thumb_corner_radius);
+        if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Horizontal); scrollbar_data.has_value()) {
+            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(), scrollbar_data->scroll_length, false);
         }
     }
 

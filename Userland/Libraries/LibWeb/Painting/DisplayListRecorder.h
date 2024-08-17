@@ -143,6 +143,8 @@ public:
 
     void draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a_p2, Color color, int amplitude, int thickness);
 
+    void paint_scrollbar(int scroll_frame_id, Gfx::IntRect, CSSPixelFraction scroll_size, bool vertical);
+
     DisplayListRecorder(DisplayList&);
     ~DisplayListRecorder();
 

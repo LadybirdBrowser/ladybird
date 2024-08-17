@@ -374,6 +374,18 @@ struct PaintNestedDisplayList {
     }
 };
 
+struct PaintScrollBar {
+    int scroll_frame_id;
+    Gfx::IntRect rect;
+    CSSPixelFraction scroll_size;
+    bool vertical;
+
+    void translate_by(Gfx::IntPoint const& offset)
+    {
+        rect.translate_by(offset);
+    }
+};
+
 using Command = Variant<
     DrawGlyphRun,
     FillRect,
@@ -404,6 +416,7 @@ using Command = Variant<
     DrawTriangleWave,
     AddRoundedRectClip,
     AddMask,
-    PaintNestedDisplayList>;
+    PaintNestedDisplayList,
+    PaintScrollBar>;
 
 }

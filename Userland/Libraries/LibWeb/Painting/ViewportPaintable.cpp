@@ -170,6 +170,7 @@ void ViewportPaintable::refresh_scroll_state()
                 break;
         }
         scroll_frame.cumulative_offset = -cumulative_offset;
+        scroll_frame.own_offset = -paintable_box.scroll_offset();
     }
 }
 

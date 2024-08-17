@@ -1304,6 +1304,27 @@ void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList con
     execute(*command.display_list);
 }
 
+void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
+{
+    auto rect = to_skia_rect(command.rect);
+    auto radius = rect.width() / 2;
+    auto rrect = SkRRect::MakeRectXY(rect, radius, radius);
+
+    auto& canvas = surface().canvas();
+
+    auto fill_color = Color(Color::NamedColor::DarkGray).with_alpha(128);
+    SkPaint fill_paint;
+    fill_paint.setColor(to_skia_color(fill_color));
+    canvas.drawRRect(rrect, fill_paint);
+
+    auto stroke_color = Color(Color::NamedColor::LightGray).with_alpha(128);
+    SkPaint stroke_paint;
+    stroke_paint.setStroke(true);
+    stroke_paint.setStrokeWidth(1);
+    stroke_paint.setColor(to_skia_color(stroke_color));
+    canvas.drawRRect(rrect, stroke_paint);
+}
+
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const
 {
     return surface().canvas().quickReject(to_skia_rect(rect));

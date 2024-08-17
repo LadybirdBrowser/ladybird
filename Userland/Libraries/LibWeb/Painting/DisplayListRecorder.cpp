@@ -408,4 +408,13 @@ void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a
         .thickness = thickness });
 }
 
+void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect rect, CSSPixelFraction scroll_size, bool vertical)
+{
+    append(PaintScrollBar {
+        .scroll_frame_id = scroll_frame_id,
+        .rect = rect,
+        .scroll_size = scroll_size,
+        .vertical = vertical });
+}
+
 }
