@@ -2131,7 +2131,7 @@ RefPtr<Painting::DisplayList> Navigable::record_display_list(PaintConfig config)
     Vector<Gfx::IntPoint> scroll_offsets_by_frame_id;
     scroll_offsets_by_frame_id.resize(viewport_paintable.scroll_state.size());
     for (auto [_, scrollable_frame] : viewport_paintable.scroll_state) {
-        auto scroll_offset = context.rounded_device_point(scrollable_frame->offset).to_type<int>();
+        auto scroll_offset = context.rounded_device_point(scrollable_frame->cumulative_offset).to_type<int>();
         scroll_offsets_by_frame_id[scrollable_frame->id] = scroll_offset;
     }
     display_list_recorder.display_list().apply_scroll_offsets(scroll_offsets_by_frame_id);

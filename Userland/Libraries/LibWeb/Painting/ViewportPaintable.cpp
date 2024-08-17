@@ -162,14 +162,14 @@ void ViewportPaintable::refresh_scroll_state()
     for (auto& it : scroll_state) {
         auto const& paintable_box = *it.key;
         auto& scroll_frame = *it.value;
-        CSSPixelPoint offset;
+        CSSPixelPoint cumulative_offset;
         for (auto const* block = &paintable_box.layout_box(); block; block = block->containing_block()) {
             auto const& block_paintable_box = *block->paintable_box();
-            offset.translate_by(block_paintable_box.scroll_offset());
+            cumulative_offset.translate_by(block_paintable_box.scroll_offset());
             if (block->is_fixed_position())
                 break;
         }
-        scroll_frame.offset = -offset;
+        scroll_frame.cumulative_offset = -cumulative_offset;
     }
 }
 
