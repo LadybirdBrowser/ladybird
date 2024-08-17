@@ -24,7 +24,7 @@ Here are some of the ways you can find an issue in Ladybird:
 
 * By checking the [issue tracker](https://github.com/LadybirdBrowser/ladybird/issues).
 * Manually, by using the browser as you normally would.
-* By finding failing WPT tests on [WPT.fyi](https://staging.wpt.fyi/results/?label=master&product=ladybird). Note that while fixes are welcome, you don't need to submit issue reports for individual tests.
+* By finding failing WPT tests on [WPT.fyi](https://wpt.fyi/results/?label=master&product=ladybird). Note that while fixes are welcome, you don't need to submit issue reports for individual tests.
 
 There currently isn't a list of beginner-friendly issues, nor a strict roadmap of ones to address first. It is ultimately up to you to choose a task that you feel comfortable working on.
 
