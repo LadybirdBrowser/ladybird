@@ -36,6 +36,9 @@ Optional<TableAddress> Store::allocate(TableType const& type)
 {
     TableAddress address { m_tables.size() };
     Vector<Reference> elements;
+    elements.ensure_capacity(type.limits().min());
+    for (size_t i = 0; i < type.limits().min(); i++)
+        elements.append(Wasm::Reference { Wasm::Reference::Null { type.element_type() } });
     elements.resize(type.limits().min());
     m_tables.empend(TableInstance { type, move(elements) });
     return address;

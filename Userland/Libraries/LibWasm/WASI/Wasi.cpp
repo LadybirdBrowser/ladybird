@@ -1040,7 +1040,7 @@ struct InvocationOf<impl> {
                     }
                 }
                 // Return value is errno, we have nothing to return.
-                return Wasm::Result { Vector<Value> { Value() } };
+                return Wasm::Result { Vector<Value> { Value(ValueType(ValueType::Kind::I32)) } };
             },
             FunctionType {
                 move(arguments_types),

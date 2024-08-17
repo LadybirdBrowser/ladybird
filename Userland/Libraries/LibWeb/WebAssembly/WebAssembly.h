@@ -42,15 +42,19 @@ public:
     void add_compiled_module(NonnullRefPtr<CompiledWebAssemblyModule> module) { m_compiled_modules.append(module); }
     void add_function_instance(Wasm::FunctionAddress address, JS::GCPtr<JS::NativeFunction> function) { m_function_instances.set(address, function); }
     void add_imported_object(JS::GCPtr<JS::Object> object) { m_imported_objects.set(object); }
+    void add_extern_value(Wasm::ExternAddress address, JS::Value value) { m_extern_values.set(address, value); }
 
     Optional<JS::GCPtr<JS::NativeFunction>> get_function_instance(Wasm::FunctionAddress address) { return m_function_instances.get(address); }
+    Optional<JS::Value> get_extern_value(Wasm::ExternAddress address) { return m_extern_values.get(address); }
 
     HashMap<Wasm::FunctionAddress, JS::GCPtr<JS::NativeFunction>> function_instances() const { return m_function_instances; }
+    HashMap<Wasm::ExternAddress, JS::Value> extern_values() const { return m_extern_values; }
     HashTable<JS::GCPtr<JS::Object>> imported_objects() const { return m_imported_objects; }
     Wasm::AbstractMachine& abstract_machine() { return m_abstract_machine; }
 
 private:
     HashMap<Wasm::FunctionAddress, JS::GCPtr<JS::NativeFunction>> m_function_instances;
+    HashMap<Wasm::ExternAddress, JS::Value> m_extern_values;
     Vector<NonnullRefPtr<CompiledWebAssemblyModule>> m_compiled_modules;
     HashTable<JS::GCPtr<JS::Object>> m_imported_objects;
     Wasm::AbstractMachine m_abstract_machine;

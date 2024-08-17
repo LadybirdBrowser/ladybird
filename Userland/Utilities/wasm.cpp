@@ -726,8 +726,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                         dbgln("[wasm runtime] Stub function {} was called with the following arguments: {}", name, argument_builder.to_byte_string());
                         Vector<Wasm::Value> result;
                         result.ensure_capacity(type.results().size());
-                        for (size_t i = 0; i < type.results().size(); ++i)
-                            result.append(Wasm::Value());
+                        for (auto expect_result : type.results())
+                            result.append(Wasm::Value(expect_result));
                         return Wasm::Result { move(result) };
                     },
                     type,
@@ -818,7 +818,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
             for (auto& param : instance->get<Wasm::WasmFunction>().type().parameters()) {
                 if (values_to_push.is_empty()) {
-                    values.append(Wasm::Value());
+                    values.append(Wasm::Value(param));
                 } else if (param == values_to_push.last().type) {
                     values.append(values_to_push.take_last().value);
                 } else {
