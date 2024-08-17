@@ -13,7 +13,6 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Page/EditEventHandler.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 
@@ -34,8 +33,6 @@ public:
     bool handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point);
 
     void set_mouse_event_tracking_paintable(Painting::Paintable*);
-
-    void set_edit_event_handler(NonnullOwnPtr<EditEventHandler> value) { m_edit_event_handler = move(value); }
 
     void handle_paste(String const& text);
 

@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Page/EditEventHandler.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
