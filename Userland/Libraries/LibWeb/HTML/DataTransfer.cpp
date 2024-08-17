@@ -7,6 +7,9 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/DataTransferPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/FileAPI/Blob.h>
+#include <LibWeb/FileAPI/File.h>
+#include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/HTML/DataTransfer.h>
 
 namespace Web::HTML {
@@ -82,6 +85,46 @@ ReadonlySpan<String> DataTransfer::types() const
 {
     // The types attribute must return this DataTransfer object's types array.
     return m_types;
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-files
+JS::NonnullGCPtr<FileAPI::FileList> DataTransfer::files() const
+{
+    auto& realm = this->realm();
+
+    // 1. Start with an empty list L.
+    auto files = FileAPI::FileList::create(realm);
+
+    // 2. If the DataTransfer object is no longer associated with a drag data store, the FileList is empty. Return
+    //    the empty list L.
+    if (!m_associated_drag_data_store.has_value())
+        return files;
+
+    // 3. If the drag data store's mode is the protected mode, return the empty list L.
+    if (m_associated_drag_data_store->mode() == DragDataStore::Mode::Protected)
+        return files;
+
+    // 4. For each item in the drag data store item list whose kind is File, add the item's data (the file, in
+    //    particular its name and contents, as well as its type) to the list L.
+    for (auto const& item : m_associated_drag_data_store->item_list()) {
+        if (item.kind != DragDataStoreItem::Kind::File)
+            continue;
+
+        auto blob = FileAPI::Blob::create(realm, item.data, item.type_string);
+
+        // FIXME: The FileAPI should use ByteString for file names.
+        auto file_name = MUST(String::from_byte_string(item.file_name));
+
+        // FIXME: Fill in other fields (e.g. last_modified).
+        FileAPI::FilePropertyBag options {};
+        options.type = item.type_string;
+
+        auto file = MUST(FileAPI::File::create(realm, { JS::make_handle(blob) }, file_name, move(options)));
+        files->add_file(file);
+    }
+
+    // 5. The files found by these steps are those in the list L.
+    return files;
 }
 
 void DataTransfer::associate_with_drag_data_store(DragDataStore& drag_data_store)

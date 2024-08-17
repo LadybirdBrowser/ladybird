@@ -8,6 +8,16 @@
         const printEvent = (name, e) => {
             println(name);
             println(`    types: ${e.dataTransfer.types}`);
+
+            const files = e.dataTransfer.files;
+
+            if (files.length !== 0) {
+                println(`    files: ${files.length}`);
+
+                for (const file of files) {
+                    println(`        ${file.name}`);
+                }
+            }
         };
 
         target.addEventListener("dragenter", e => {

@@ -51,6 +51,8 @@ public:
 
     ReadonlySpan<String> types() const;
 
+    JS::NonnullGCPtr<FileAPI::FileList> files() const;
+
     void associate_with_drag_data_store(DragDataStore& drag_data_store);
     void disassociate_with_drag_data_store();
 

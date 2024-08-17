@@ -1,3 +1,5 @@
+#import <FileAPI/FileList.idl>
+
 // https://html.spec.whatwg.org/multipage/dnd.html#datatransfer
 [Exposed=Window]
 interface DataTransfer {
@@ -15,5 +17,5 @@ interface DataTransfer {
     [FIXME] DOMString getData(DOMString format);
     [FIXME] undefined setData(DOMString format, DOMString data);
     [FIXME] undefined clearData(optional DOMString format);
-    [FIXME, SameObject] readonly attribute FileList files;
+    [SameObject] readonly attribute FileList files;
 };
