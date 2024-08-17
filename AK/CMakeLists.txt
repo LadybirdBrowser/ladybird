@@ -58,6 +58,7 @@ else()
 endif()
 
 find_package(simdutf REQUIRED)
+swizzle_target_properties_for_swift(simdutf::simdutf)
 target_link_libraries(AK PRIVATE simdutf::simdutf)
 
 if (ENABLE_SWIFT)
