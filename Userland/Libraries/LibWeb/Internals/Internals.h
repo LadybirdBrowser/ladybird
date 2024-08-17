@@ -36,6 +36,10 @@ public:
 
     JS::NonnullGCPtr<InternalAnimationTimeline> create_internal_animation_timeline();
 
+    void simulate_drag_start(double x, double y, String const& name, String const& contents);
+    void simulate_drag_move(double x, double y);
+    void simulate_drop(double x, double y);
+
 private:
     explicit Internals(JS::Realm&);
     virtual void initialize(JS::Realm&) override;

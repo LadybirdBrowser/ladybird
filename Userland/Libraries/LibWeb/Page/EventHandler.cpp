@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Page/DragAndDropEventHandler.h>
 #include <LibWeb/Page/EditEventHandler.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
@@ -141,6 +142,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::
 EventHandler::EventHandler(Badge<HTML::Navigable>, HTML::Navigable& navigable)
     : m_navigable(navigable)
     , m_edit_event_handler(make<EditEventHandler>())
+    , m_drag_and_drop_event_handler(make<DragAndDropEventHandler>())
 {
 }
 
@@ -162,6 +164,9 @@ Painting::PaintableBox const* EventHandler::paint_root() const
 
 bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int wheel_delta_x, int wheel_delta_y)
 {
+    if (should_ignore_device_input_event())
+        return false;
+
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
@@ -227,6 +232,9 @@ bool EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSSPixelPo
 
 bool EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
+    if (should_ignore_device_input_event())
+        return false;
+
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
@@ -353,6 +361,9 @@ after_node_use:
 
 bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
+    if (should_ignore_device_input_event())
+        return false;
+
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
@@ -460,6 +471,9 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
 
 bool EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 buttons, u32 modifiers)
 {
+    if (should_ignore_device_input_event())
+        return false;
+
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
@@ -595,6 +609,9 @@ bool EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSPixelPoi
 
 bool EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
+    if (should_ignore_device_input_event())
+        return false;
+
     if (!m_navigable->active_document())
         return false;
     if (!m_navigable->active_document()->is_fully_active())
@@ -692,6 +709,53 @@ bool EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CSSPixelP
     }
 
     return true;
+}
+
+bool EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPixelPoint viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, Vector<HTML::SelectedFile> files)
+{
+    if (!m_navigable->active_document())
+        return false;
+    if (!m_navigable->active_document()->is_fully_active())
+        return false;
+
+    auto& document = *m_navigable->active_document();
+    document.update_layout();
+
+    if (!paint_root())
+        return false;
+
+    JS::GCPtr<Painting::Paintable> paintable;
+    if (auto result = target_for_mouse_position(viewport_position); result.has_value())
+        paintable = result->paintable;
+    else
+        return false;
+
+    auto node = dom_node_for_event_dispatch(*paintable);
+    if (!node)
+        return false;
+
+    if (is<HTML::HTMLIFrameElement>(*node)) {
+        if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
+            return content_navigable->event_handler().handle_drag_and_drop_event(type, viewport_position.translated(compute_mouse_event_offset({}, paintable->layout_node())), screen_position, button, buttons, modifiers, move(files));
+        return false;
+    }
+
+    auto offset = compute_mouse_event_offset(viewport_position, paintable->layout_node());
+    auto client_offset = compute_mouse_event_client_offset(viewport_position);
+    auto page_offset = compute_mouse_event_page_offset(client_offset);
+
+    switch (type) {
+    case DragEvent::Type::DragStart:
+        return m_drag_and_drop_event_handler->handle_drag_start(document.realm(), screen_position, page_offset, client_offset, offset, button, buttons, modifiers, move(files));
+    case DragEvent::Type::DragMove:
+        return m_drag_and_drop_event_handler->handle_drag_move(document.realm(), document, *node, screen_position, page_offset, client_offset, offset, button, buttons, modifiers);
+    case DragEvent::Type::DragEnd:
+        return m_drag_and_drop_event_handler->handle_drag_leave(document.realm(), screen_position, page_offset, client_offset, offset, button, buttons, modifiers);
+    case DragEvent::Type::Drop:
+        return m_drag_and_drop_event_handler->handle_drop(document.realm(), screen_position, page_offset, client_offset, offset, button, buttons, modifiers);
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 bool EventHandler::focus_next_element()
@@ -1025,8 +1089,16 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
     return {};
 }
 
+bool EventHandler::should_ignore_device_input_event() const
+{
+    // From the moment that the user agent is to initiate the drag-and-drop operation, until the end of the drag-and-drop
+    // operation, device input events (e.g. mouse and keyboard events) must be suppressed.
+    return m_drag_and_drop_event_handler->has_ongoing_drag_and_drop_operation();
+}
+
 void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
+    m_drag_and_drop_event_handler->visit_edges(visitor);
     visitor.visit(m_mouse_event_tracking_paintable);
 }
 

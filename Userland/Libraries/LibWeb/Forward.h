@@ -11,6 +11,7 @@
 #include <LibJS/Forward.h>
 
 namespace Web {
+class DragAndDropEventHandler;
 class EditEventHandler;
 class EventHandler;
 class LoadRequest;

@@ -20,4 +20,8 @@ interface Internals {
     boolean dispatchUserActivatedEvent(EventTarget target, Event event);
 
     InternalAnimationTimeline createInternalAnimationTimeline();
+
+    undefined simulateDragStart(double x, double y, DOMString mimeType, DOMString contents);
+    undefined simulateDragMove(double x, double y);
+    undefined simulateDrop(double x, double y);
 };

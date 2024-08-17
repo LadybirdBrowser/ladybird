@@ -1,0 +1,26 @@
+   Simple drag and drop:
+dragenter
+dragover
+drop
+
+Drag enter and leave:
+dragenter
+dragover
+dragleave
+dragenter
+dragover
+drop
+
+Drag enter not accepted:
+dragenter
+
+Drag over not accepted:
+dragenter
+dragover
+dragover
+dragleave
+
+Drop not accepted:
+dragenter
+dragover
+drop

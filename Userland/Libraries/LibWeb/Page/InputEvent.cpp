@@ -20,6 +20,11 @@ MouseEvent MouseEvent::clone_without_chrome_data() const
     return { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, nullptr };
 }
 
+DragEvent DragEvent::clone_without_chrome_data() const
+{
+    return { type, position, screen_position, button, buttons, modifiers, {}, nullptr };
+}
+
 }
 
 template<>
