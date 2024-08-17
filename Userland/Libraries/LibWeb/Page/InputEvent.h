@@ -8,8 +8,10 @@
 
 #include <AK/OwnPtr.h>
 #include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -55,6 +57,27 @@ struct MouseEvent {
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
     int wheel_delta_x { 0 };
     int wheel_delta_y { 0 };
+
+    OwnPtr<ChromeInputData> chrome_data;
+};
+
+struct DragEvent {
+    enum class Type {
+        DragStart,
+        DragMove,
+        DragEnd,
+        Drop,
+    };
+
+    DragEvent clone_without_chrome_data() const;
+
+    Type type;
+    Web::DevicePixelPoint position;
+    Web::DevicePixelPoint screen_position;
+    UIEvents::MouseButton button { UIEvents::MouseButton::None };
+    UIEvents::MouseButton buttons { UIEvents::MouseButton::None };
+    UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
+    Vector<HTML::SelectedFile> files;
 
     OwnPtr<ChromeInputData> chrome_data;
 };
