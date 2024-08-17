@@ -66,13 +66,9 @@ void ViewportPaintable::paint_all_phases(PaintContext& context)
 
 void ViewportPaintable::assign_scroll_frames()
 {
-    auto viewport_scroll_frame = adopt_ref(*new ScrollFrame());
-    viewport_scroll_frame->id = 0;
-    scroll_state.set(this, move(viewport_scroll_frame));
-
-    int next_id = 1;
-    for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
-        if (paintable_box.has_scrollable_overflow()) {
+    int next_id = 0;
+    for_each_in_inclusive_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
+        if (paintable_box.has_scrollable_overflow() || is<ViewportPaintable>(paintable_box)) {
             auto scroll_frame = adopt_ref(*new ScrollFrame());
             scroll_frame->id = next_id++;
             paintable_box.set_own_scroll_frame(scroll_frame);
