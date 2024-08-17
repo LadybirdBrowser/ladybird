@@ -77,4 +77,57 @@ void DataTransfer::set_effect_allowed_internal(FlyString effect_allowed)
         m_effect_allowed = AK::move(effect_allowed);
 }
 
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-types
+ReadonlySpan<String> DataTransfer::types() const
+{
+    // The types attribute must return this DataTransfer object's types array.
+    return m_types;
+}
+
+void DataTransfer::associate_with_drag_data_store(DragDataStore& drag_data_store)
+{
+    m_associated_drag_data_store = drag_data_store;
+    update_data_transfer_types_list();
+}
+
+void DataTransfer::disassociate_with_drag_data_store()
+{
+    m_associated_drag_data_store.clear();
+    update_data_transfer_types_list();
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
+void DataTransfer::update_data_transfer_types_list()
+{
+    // 1. Let L be an empty sequence.
+    Vector<String> types;
+
+    // 2. If the DataTransfer object is still associated with a drag data store, then:
+    if (m_associated_drag_data_store.has_value()) {
+        bool contains_file = false;
+
+        // 1. For each item in the DataTransfer object's drag data store item list whose kind is text, add an entry to L
+        //    consisting of the item's type string.
+        for (auto const& item : m_associated_drag_data_store->item_list()) {
+            switch (item.kind) {
+            case DragDataStoreItem::Kind::Text:
+                types.append(item.type_string);
+                break;
+            case DragDataStoreItem::Kind::File:
+                contains_file = true;
+                break;
+            }
+        }
+
+        // 2. If there are any items in the DataTransfer object's drag data store item list whose kind is File, then add
+        //    an entry to L consisting of the string "Files". (This value can be distinguished from the other values
+        //    because it is not lowercase.)
+        if (contains_file)
+            types.append("Files"_string);
+    }
+
+    // 3. Set the DataTransfer object's types array to the result of creating a frozen array from L.
+    m_types = move(types);
+}
+
 }

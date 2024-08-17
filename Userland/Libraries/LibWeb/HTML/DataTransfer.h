@@ -49,19 +49,26 @@ public:
     void set_effect_allowed(FlyString);
     void set_effect_allowed_internal(FlyString);
 
-    void associate_with_drag_data_store(DragDataStore& drag_data_store) { m_associated_drag_data_store = drag_data_store; }
-    void disassociate_with_drag_data_store() { m_associated_drag_data_store.clear(); }
+    ReadonlySpan<String> types() const;
+
+    void associate_with_drag_data_store(DragDataStore& drag_data_store);
+    void disassociate_with_drag_data_store();
 
 private:
     DataTransfer(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
 
+    void update_data_transfer_types_list();
+
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-dropeffect
     FlyString m_drop_effect { DataTransferEffect::none };
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-effectallowed
     FlyString m_effect_allowed { DataTransferEffect::none };
+
+    // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
+    Vector<String> m_types;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface:drag-data-store-3
     Optional<DragDataStore&> m_associated_drag_data_store;

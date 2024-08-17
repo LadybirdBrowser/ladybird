@@ -5,23 +5,28 @@
         let target = document.getElementById("target");
         let acceptDragEvents = true;
 
+        const printEvent = (name, e) => {
+            println(name);
+            println(`    types: ${e.dataTransfer.types}`);
+        };
+
         target.addEventListener("dragenter", e => {
-            println("dragenter");
+            printEvent("dragenter", e);
             if (acceptDragEvents) {
                 e.preventDefault();
             }
         });
         target.addEventListener("dragover", e => {
-            println("dragover");
+            printEvent("dragover", e);
             if (acceptDragEvents) {
                 e.preventDefault();
             }
         });
-        target.addEventListener("dragleave", () => {
-            println("dragleave");
+        target.addEventListener("dragleave", e => {
+            printEvent("dragleave", e);
         });
         target.addEventListener("drop", e => {
-            println("drop");
+            printEvent("drop", e);
             if (acceptDragEvents) {
                 e.preventDefault();
             }

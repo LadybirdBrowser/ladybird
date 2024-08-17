@@ -1,26 +1,43 @@
    Simple drag and drop:
 dragenter
+    types: Files
 dragover
+    types: Files
 drop
+    types: Files
 
 Drag enter and leave:
 dragenter
+    types: Files
 dragover
+    types: Files
 dragleave
+    types: Files
 dragenter
+    types: Files
 dragover
+    types: Files
 drop
+    types: Files
 
 Drag enter not accepted:
 dragenter
+    types: Files
 
 Drag over not accepted:
 dragenter
+    types: Files
 dragover
+    types: Files
 dragover
+    types: Files
 dragleave
+    types: Files
 
 Drop not accepted:
 dragenter
+    types: Files
 dragover
+    types: Files
 drop
+    types: Files
