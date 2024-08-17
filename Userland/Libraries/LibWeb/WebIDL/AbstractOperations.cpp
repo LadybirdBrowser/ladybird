@@ -384,7 +384,7 @@ JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value value, EnforceRang
 
         // 3. If x < lowerBound or x > upperBound, then throw a TypeError.
         if (x < lower_bound || x > upper_bound)
-            return vm.throw_completion<JS::RangeError>(MUST(String::formatted("Number '{}' is outside of allowed range of {} to {}", x, lower_bound, upper_bound)));
+            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Number '{}' is outside of allowed range of {} to {}", x, lower_bound, upper_bound)));
 
         // 4. Return x.
         return x;
