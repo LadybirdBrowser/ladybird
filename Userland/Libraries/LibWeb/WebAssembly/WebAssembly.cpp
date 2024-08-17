@@ -46,6 +46,7 @@ void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
         auto& cache = maybe_cache.release_value();
         visitor.visit(cache.function_instances());
         visitor.visit(cache.imported_objects());
+        visitor.visit(cache.extern_values());
     }
 }
 
@@ -422,7 +423,7 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
     }
     case Wasm::ValueType::FunctionReference: {
         if (value.is_null())
-            return Wasm::Value();
+            return Wasm::Value(Wasm::ValueType { Wasm::ValueType::Kind::FunctionReference });
 
         if (value.is_function()) {
             auto& function = value.as_function();
@@ -435,8 +436,18 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
 
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Exported function");
     }
-    case Wasm::ValueType::ExternReference:
-        TODO();
+    case Wasm::ValueType::ExternReference: {
+        if (value.is_null())
+            return Wasm::Value(Wasm::ValueType { Wasm::ValueType::Kind::ExternReference });
+        auto& cache = get_cache(*vm.current_realm());
+        for (auto& entry : cache.extern_values()) {
+            if (entry.value == value)
+                return Wasm::Value { Wasm::Reference { Wasm::Reference::Extern { entry.key } } };
+        }
+        Wasm::ExternAddress extern_addr = cache.extern_values().size();
+        cache.add_extern_value(extern_addr, value);
+        return Wasm::Value { Wasm::Reference { Wasm::Reference::Extern { extern_addr } } };
+    }
     case Wasm::ValueType::V128:
         return vm.throw_completion<JS::TypeError>("Cannot convert a vector value to a javascript value"sv);
     }
@@ -444,6 +455,7 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
     VERIFY_NOT_REACHED();
 }
 
+// https://webassembly.github.io/spec/js-api/#tojsvalue
 JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
 {
     auto& realm = *vm.current_realm();
@@ -473,9 +485,17 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
             });
         return create_native_function(vm, address, name);
     }
+    case Wasm::ValueType::ExternReference: {
+        auto ref_ = wasm_value.to<Wasm::Reference>();
+        if (ref_.ref().has<Wasm::Reference::Null>())
+            return JS::js_null();
+        auto address = ref_.ref().get<Wasm::Reference::Extern>().address;
+        auto& cache = get_cache(realm);
+        auto value = cache.get_extern_value(address);
+        return value.release_value();
+    }
     case Wasm::ValueType::V128:
-    case Wasm::ValueType::ExternReference:
-        TODO();
+        VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
 }

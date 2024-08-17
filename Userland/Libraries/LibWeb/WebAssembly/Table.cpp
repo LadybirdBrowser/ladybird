@@ -31,8 +31,8 @@ static Wasm::ValueType table_kind_to_value_type(Bindings::TableKind kind)
 
 static JS::ThrowCompletionOr<Wasm::Value> value_to_reference(JS::VM& vm, JS::Value value, Wasm::ValueType const& reference_type)
 {
-    if (value.is_undefined())
-        return Wasm::Value();
+    if (value.is_undefined() && reference_type.kind() != Wasm::ValueType::Kind::ExternReference)
+        return Wasm::Value(reference_type);
     return Detail::to_webassembly_value(vm, value, reference_type);
 }
 
