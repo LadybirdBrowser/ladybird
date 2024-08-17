@@ -67,6 +67,7 @@ private:
     virtual void set_viewport_size(u64 page_id, Web::DevicePixelSize const) override;
     virtual void key_event(u64 page_id, Web::KeyEvent const&) override;
     virtual void mouse_event(u64 page_id, Web::MouseEvent const&) override;
+    virtual void drag_event(u64 page_id, Web::DragEvent const&) override;
     virtual void ready_to_paint(u64 page_id) override;
     virtual void debug_request(u64 page_id, ByteString const&, ByteString const&) override;
     virtual void get_source(u64 page_id) override;
