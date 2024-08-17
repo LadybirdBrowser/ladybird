@@ -93,6 +93,13 @@ void WebViewBridge::enqueue_input_event(Web::MouseEvent event)
     ViewImplementation::enqueue_input_event(move(event));
 }
 
+void WebViewBridge::enqueue_input_event(Web::DragEvent event)
+{
+    event.position = to_content_position(event.position.to_type<int>()).to_type<Web::DevicePixels>();
+    event.screen_position = to_content_position(event.screen_position.to_type<int>()).to_type<Web::DevicePixels>();
+    ViewImplementation::enqueue_input_event(move(event));
+}
+
 void WebViewBridge::enqueue_input_event(Web::KeyEvent event)
 {
     ViewImplementation::enqueue_input_event(move(event));
