@@ -48,7 +48,7 @@ struct HideCursor {
     }
 };
 
-@interface LadybirdWebView ()
+@interface LadybirdWebView () <NSDraggingDestination>
 {
     OwnPtr<Ladybird::WebViewBridge> m_web_view_bridge;
 
@@ -114,6 +114,8 @@ struct HideCursor {
                                                     owner:self
                                                  userInfo:nil];
         [self addTrackingArea:area];
+
+        [self registerForDraggedTypes:[NSArray arrayWithObjects:NSPasteboardTypeFileURL, nil]];
     }
 
     return self;
@@ -415,6 +417,25 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         self.event_being_redispatched = event;
         [NSApp sendEvent:event];
         self.event_being_redispatched = nil;
+    };
+
+    m_web_view_bridge->on_finish_handling_drag_event = [weak_self](auto const& event) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+
+        if (event.type != Web::DragEvent::Type::Drop) {
+            return;
+        }
+
+        if (auto urls = Ladybird::drag_event_url_list(event); !urls.is_empty()) {
+            [self.observer loadURL:urls[0]];
+
+            for (size_t i = 1; i < urls.size(); ++i) {
+                [self.observer onCreateNewTab:urls[i] activateTab:Web::HTML::ActivateTab::No];
+            }
+        }
     };
 
     m_web_view_bridge->on_cursor_change = [weak_self](auto cursor) {
@@ -1667,6 +1688,43 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
     auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyUp, event);
     m_web_view_bridge->enqueue_input_event(move(key_event));
+}
+
+#pragma mark - NSDraggingDestination
+
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)event
+{
+    auto drag_event = Ladybird::ns_event_to_drag_event(Web::DragEvent::Type::DragStart, event, self);
+    m_web_view_bridge->enqueue_input_event(move(drag_event));
+
+    return NSDragOperationCopy;
+}
+
+- (NSDragOperation)draggingUpdated:(id<NSDraggingInfo>)event
+{
+    auto drag_event = Ladybird::ns_event_to_drag_event(Web::DragEvent::Type::DragMove, event, self);
+    m_web_view_bridge->enqueue_input_event(move(drag_event));
+
+    return NSDragOperationCopy;
+}
+
+- (void)draggingExited:(id<NSDraggingInfo>)event
+{
+    auto drag_event = Ladybird::ns_event_to_drag_event(Web::DragEvent::Type::DragEnd, event, self);
+    m_web_view_bridge->enqueue_input_event(move(drag_event));
+}
+
+- (BOOL)performDragOperation:(id<NSDraggingInfo>)event
+{
+    auto drag_event = Ladybird::ns_event_to_drag_event(Web::DragEvent::Type::Drop, event, self);
+    m_web_view_bridge->enqueue_input_event(move(drag_event));
+
+    return YES;
+}
+
+- (BOOL)wantsPeriodicDraggingUpdates
+{
+    return NO;
 }
 
 @end

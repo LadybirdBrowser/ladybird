@@ -44,6 +44,7 @@ public:
     void set_preferred_motion(Web::CSS::PreferredMotion);
 
     void enqueue_input_event(Web::MouseEvent);
+    void enqueue_input_event(Web::DragEvent);
     void enqueue_input_event(Web::KeyEvent);
 
     struct Paintable {

@@ -1,11 +1,14 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/TypeCasts.h>
 #include <AK/Utf8View.h>
+#include <LibURL/URL.h>
+#include <LibWeb/HTML/SelectedFile.h>
+#include <LibWeb/UIEvents/KeyCode.h>
 
 #import <Carbon/Carbon.h>
 #import <UI/Event.h>
@@ -68,6 +71,66 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
     }
 
     return { type, device_position, device_screen_position, button, button, modifiers, wheel_delta_x, wheel_delta_y, nullptr };
+}
+
+struct DragData : public Web::ChromeInputData {
+    explicit DragData(Vector<URL::URL> urls)
+        : urls(move(urls))
+    {
+    }
+
+    Vector<URL::URL> urls;
+};
+
+Web::DragEvent ns_event_to_drag_event(Web::DragEvent::Type type, id<NSDraggingInfo> event, NSView* view)
+{
+    auto position = [view convertPoint:event.draggingLocation fromView:nil];
+    auto device_position = ns_point_to_gfx_point(position).to_type<Web::DevicePixels>();
+
+    auto screen_position = [NSEvent mouseLocation];
+    auto device_screen_position = ns_point_to_gfx_point(screen_position).to_type<Web::DevicePixels>();
+
+    auto button = Web::UIEvents::MouseButton::Primary;
+    auto modifiers = ns_modifiers_to_key_modifiers([NSEvent modifierFlags], button);
+
+    Vector<Web::HTML::SelectedFile> files;
+    OwnPtr<DragData> chrome_data;
+
+    auto for_each_file = [&](auto callback) {
+        NSArray* file_list = [[event draggingPasteboard] readObjectsForClasses:@[ [NSURL class] ]
+                                                                       options:nil];
+
+        for (NSURL* file in file_list) {
+            auto file_path = Ladybird::ns_string_to_byte_string([file path]);
+            callback(file_path);
+        }
+    };
+
+    if (type == Web::DragEvent::Type::DragStart) {
+        for_each_file([&](ByteString const& file_path) {
+            if (auto file = Web::HTML::SelectedFile::from_file_path(file_path); file.is_error())
+                warnln("Unable to open file {}: {}", file_path, file.error());
+            else
+                files.append(file.release_value());
+        });
+    } else if (type == Web::DragEvent::Type::Drop) {
+        Vector<URL::URL> urls;
+
+        for_each_file([&](ByteString const& file_path) {
+            if (auto url = URL::create_with_url_or_path(file_path); url.is_valid())
+                urls.append(move(url));
+        });
+
+        chrome_data = make<DragData>(move(urls));
+    }
+
+    return { type, device_position, device_screen_position, button, button, modifiers, move(files), move(chrome_data) };
+}
+
+Vector<URL::URL> drag_event_url_list(Web::DragEvent const& event)
+{
+    auto& chrome_data = verify_cast<DragData>(*event.chrome_data);
+    return move(chrome_data.urls);
 }
 
 NSEvent* create_context_menu_mouse_event(NSView* view, Gfx::IntPoint position)
