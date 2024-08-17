@@ -1,0 +1,8 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasshadowstyles
+interface mixin CanvasShadowStyles {
+    // shadows
+    [FIXME] attribute unrestricted double shadowOffsetX; // (default 0)
+    [FIXME] attribute unrestricted double shadowOffsetY; // (default 0)
+    [FIXME] attribute unrestricted double shadowBlur; // (default 0)
+    [FIXME] attribute DOMString shadowColor; // (default transparent black)
+};

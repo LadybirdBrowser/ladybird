@@ -1,0 +1,5 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasuserinterface
+interface mixin CanvasUserInterface {
+    [FIXME] undefined drawFocusIfNeeded(Element element);
+    [FIXME] undefined drawFocusIfNeeded(Path2D path, Element element);
+};

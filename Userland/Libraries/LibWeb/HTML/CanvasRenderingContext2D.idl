@@ -3,15 +3,27 @@
 #import <HTML/Canvas/CanvasDrawImage.idl>
 #import <HTML/Canvas/CanvasDrawPath.idl>
 #import <HTML/Canvas/CanvasFillStrokeStyles.idl>
+#import <HTML/Canvas/CanvasFilters.idl>
 #import <HTML/Canvas/CanvasImageData.idl>
 #import <HTML/Canvas/CanvasImageSmoothing.idl>
 #import <HTML/Canvas/CanvasPath.idl>
 #import <HTML/Canvas/CanvasPathDrawingStyles.idl>
 #import <HTML/Canvas/CanvasTextDrawingStyles.idl>
 #import <HTML/Canvas/CanvasRect.idl>
+#import <HTML/Canvas/CanvasShadowStyles.idl>
 #import <HTML/Canvas/CanvasState.idl>
 #import <HTML/Canvas/CanvasText.idl>
 #import <HTML/Canvas/CanvasTransform.idl>
+#import <HTML/Canvas/CanvasUserInterface.idl>
+
+enum PredefinedColorSpace { "srgb", "display-p3" };
+
+dictionary CanvasRenderingContext2DSettings {
+    boolean alpha = true;
+    boolean desynchronized = false;
+    PredefinedColorSpace colorSpace = "srgb";
+    boolean willReadFrequently = false;
+};
 
 enum ImageSmoothingQuality { "low", "medium", "high" };
 
@@ -23,6 +35,8 @@ enum CanvasTextBaseline { "top", "hanging", "middle", "alphabetic", "ideographic
 [Exposed=Window]
 interface CanvasRenderingContext2D {
     [ImplementedAs=canvas_for_binding] readonly attribute HTMLCanvasElement canvas;
+
+    [FIXME] CanvasRenderingContext2DSettings getContextAttributes();
 };
 
 CanvasRenderingContext2D includes CanvasState;
@@ -30,11 +44,11 @@ CanvasRenderingContext2D includes CanvasTransform;
 CanvasRenderingContext2D includes CanvasCompositing;
 CanvasRenderingContext2D includes CanvasImageSmoothing;
 CanvasRenderingContext2D includes CanvasFillStrokeStyles;
-// FIXME: CanvasRenderingContext2D includes CanvasShadowStyles;
-// FIXME: CanvasRenderingContext2D includes CanvasFilters;
+CanvasRenderingContext2D includes CanvasShadowStyles;
+CanvasRenderingContext2D includes CanvasFilters;
 CanvasRenderingContext2D includes CanvasRect;
 CanvasRenderingContext2D includes CanvasDrawPath;
-// FIXME: CanvasRenderingContext2D includes CanvasUserInterface;
+CanvasRenderingContext2D includes CanvasUserInterface;
 CanvasRenderingContext2D includes CanvasText;
 CanvasRenderingContext2D includes CanvasDrawImage;
 CanvasRenderingContext2D includes CanvasImageData;
