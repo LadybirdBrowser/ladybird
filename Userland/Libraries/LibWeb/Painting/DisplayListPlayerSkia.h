@@ -77,6 +77,7 @@ private:
     void draw_triangle_wave(DrawTriangleWave const&) override;
     void add_rounded_rect_clip(AddRoundedRectClip const&) override;
     void add_mask(AddMask const&) override;
+    void paint_scrollbar(PaintScrollBar const&) override;
     void paint_nested_display_list(PaintNestedDisplayList const&) override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;

@@ -221,10 +221,15 @@ protected:
     virtual CSSPixelRect compute_absolute_rect() const;
     virtual CSSPixelRect compute_absolute_paint_rect() const;
 
+    struct ScrollbarData {
+        CSSPixelRect thumb_rect;
+        CSSPixelFraction scroll_length;
+    };
     enum class ScrollDirection {
         Horizontal,
         Vertical,
     };
+    Optional<ScrollbarData> compute_scrollbar_data(ScrollDirection) const;
     [[nodiscard]] Optional<CSSPixelRect> scroll_thumb_rect(ScrollDirection) const;
     [[nodiscard]] bool is_scrollable(ScrollDirection) const;
 

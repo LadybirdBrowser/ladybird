@@ -13,6 +13,7 @@ namespace Web::Painting {
 struct ScrollFrame : public RefCounted<ScrollFrame> {
     i32 id { -1 };
     CSSPixelPoint cumulative_offset;
+    CSSPixelPoint own_offset;
 };
 
 }

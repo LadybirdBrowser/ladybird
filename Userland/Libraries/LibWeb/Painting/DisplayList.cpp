@@ -34,6 +34,19 @@ void DisplayListPlayer::execute(DisplayList& display_list)
     while (next_command_index < commands.size()) {
         auto scroll_frame_id = commands[next_command_index].scroll_frame_id;
         auto command = commands[next_command_index++].command;
+
+        if (command.has<PaintScrollBar>()) {
+            auto& paint_scroll_bar = command.get<PaintScrollBar>();
+            auto const& scroll_offset = scroll_state[paint_scroll_bar.scroll_frame_id]->own_offset;
+            if (paint_scroll_bar.vertical) {
+                auto offset = scroll_offset.y() * paint_scroll_bar.scroll_size;
+                paint_scroll_bar.rect.translate_by(0, -offset.to_int() * device_pixels_per_css_pixel);
+            } else {
+                auto offset = scroll_offset.x() * paint_scroll_bar.scroll_size;
+                paint_scroll_bar.rect.translate_by(-offset.to_int() * device_pixels_per_css_pixel, 0);
+            }
+        }
+
         if (scroll_frame_id.has_value()) {
             auto const& scroll_offset = scroll_state[scroll_frame_id.value()]->cumulative_offset.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
             command.visit(
@@ -84,6 +97,7 @@ void DisplayListPlayer::execute(DisplayList& display_list)
         else HANDLE_COMMAND(DrawTriangleWave, draw_triangle_wave)
         else HANDLE_COMMAND(AddRoundedRectClip, add_rounded_rect_clip)
         else HANDLE_COMMAND(AddMask, add_mask)
+        else HANDLE_COMMAND(PaintScrollBar, paint_scrollbar)
         else HANDLE_COMMAND(PaintNestedDisplayList, paint_nested_display_list)
         else VERIFY_NOT_REACHED();
         // clang-format on
