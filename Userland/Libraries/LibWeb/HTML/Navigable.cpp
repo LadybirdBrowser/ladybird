@@ -1032,7 +1032,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     Navigable::NavigationParamsVariant navigation_params,
     CSPNavigationType csp_navigation_type,
     bool allow_POST,
-    JS::SafeFunction<void()> completion_steps)
+    JS::GCPtr<JS::HeapFunction<void()>> completion_steps)
 {
     // FIXME: 1. Assert: this is running in parallel.
 
@@ -1086,14 +1086,15 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         return {};
 
     // 6. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), JS::create_heap_function(heap(), [this, entry, navigation_params = move(navigation_params), navigation_id, completion_steps = move(completion_steps)]() mutable {
+    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), JS::create_heap_function(heap(), [this, entry, navigation_params = move(navigation_params), navigation_id, completion_steps]() mutable {
         // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
         if (has_been_destroyed())
             return;
 
         // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and return.
         if (navigation_id.has_value() && (!ongoing_navigation().has<String>() || ongoing_navigation().get<String>() != *navigation_id)) {
-            completion_steps();
+            if (completion_steps)
+                completion_steps->function()();
             return;
         }
 
@@ -1109,7 +1110,8 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
             if (entry->document()) {
                 entry->document_state()->set_ever_populated(true);
             }
-            completion_steps();
+            if (completion_steps)
+                completion_steps->function()();
             return;
         }
 
@@ -1153,7 +1155,8 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         // FIXME: 9. Otherwise, if navigationParams's response's status is 204 or 205, then:
         else if (navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response->status() == 204 || navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response->status() == 205) {
             // 1. Run completionSteps.
-            completion_steps();
+            if (completion_steps)
+                completion_steps->function()();
 
             // 2. Return.
             return;
@@ -1168,7 +1171,8 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
             // 2. If document is null, then run completionSteps and return.
             if (!document) {
-                completion_steps();
+                if (completion_steps)
+                    completion_steps->function()();
                 return;
             }
 
@@ -1189,7 +1193,8 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         }
 
         // 14. Run completionSteps.
-        completion_steps();
+        if (completion_steps)
+            completion_steps->function()();
     }));
 
     return {};
@@ -1428,7 +1433,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         //     for historyEntry, given navigable, "navigate", sourceSnapshotParams,
         //     targetSnapshotParams, navigationId, navigationParams, cspNavigationType, with allowPOST
         //     set to true and completionSteps set to the following step:
-        populate_session_history_entry_document(history_entry, source_snapshot_params, target_snapshot_params, navigation_id, navigation_params, csp_navigation_type, true, [this, history_entry, history_handling, navigation_id] {
+        populate_session_history_entry_document(history_entry, source_snapshot_params, target_snapshot_params, navigation_id, navigation_params, csp_navigation_type, true, JS::create_heap_function(heap(), [this, history_entry, history_handling, navigation_id] {
             // 1.     Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, and historyEntry.
             traversable_navigable()->append_session_history_traversal_steps([this, history_entry, history_handling, navigation_id] {
                 if (this->has_been_destroyed()) {
@@ -1443,7 +1448,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
                 }
                 finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), history_entry);
             });
-        }).release_value_but_fixme_should_propagate_errors();
+        })).release_value_but_fixme_should_propagate_errors();
     });
 
     return {};
