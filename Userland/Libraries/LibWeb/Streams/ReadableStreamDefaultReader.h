@@ -37,15 +37,15 @@ class ReadLoopReadRequest final : public ReadRequest {
 
 public:
     // successSteps, which is an algorithm accepting a byte sequence
-    using SuccessSteps = JS::SafeFunction<void(ByteBuffer)>;
+    using SuccessSteps = JS::HeapFunction<void(ByteBuffer)>;
 
     // failureSteps, which is an algorithm accepting a JavaScript value
-    using FailureSteps = JS::SafeFunction<void(JS::Value error)>;
+    using FailureSteps = JS::HeapFunction<void(JS::Value error)>;
 
     // AD-HOC: callback triggered on every chunk received from the stream.
-    using ChunkSteps = JS::SafeFunction<void(ByteBuffer)>;
+    using ChunkSteps = JS::HeapFunction<void(ByteBuffer)>;
 
-    ReadLoopReadRequest(JS::VM& vm, JS::Realm& realm, ReadableStreamDefaultReader& reader, SuccessSteps success_steps, FailureSteps failure_steps, ChunkSteps chunk_steps = {});
+    ReadLoopReadRequest(JS::VM& vm, JS::Realm& realm, ReadableStreamDefaultReader& reader, JS::NonnullGCPtr<SuccessSteps> success_steps, JS::NonnullGCPtr<FailureSteps> failure_steps, JS::GCPtr<ChunkSteps> chunk_steps = {});
 
     virtual void on_chunk(JS::Value chunk) override;
 
@@ -60,9 +60,9 @@ private:
     JS::NonnullGCPtr<JS::Realm> m_realm;
     JS::NonnullGCPtr<ReadableStreamDefaultReader> m_reader;
     ByteBuffer m_bytes;
-    SuccessSteps m_success_steps;
-    FailureSteps m_failure_steps;
-    ChunkSteps m_chunk_steps;
+    JS::NonnullGCPtr<SuccessSteps> m_success_steps;
+    JS::NonnullGCPtr<FailureSteps> m_failure_steps;
+    JS::GCPtr<ChunkSteps> m_chunk_steps;
 };
 
 // https://streams.spec.whatwg.org/#readablestreamdefaultreader
@@ -80,8 +80,8 @@ public:
     JS::NonnullGCPtr<JS::Promise> read();
 
     void read_a_chunk(Fetch::Infrastructure::IncrementalReadLoopReadRequest& read_request);
-    void read_all_bytes(ReadLoopReadRequest::SuccessSteps, ReadLoopReadRequest::FailureSteps);
-    void read_all_chunks(ReadLoopReadRequest::ChunkSteps, ReadLoopReadRequest::SuccessSteps, ReadLoopReadRequest::FailureSteps);
+    void read_all_bytes(JS::NonnullGCPtr<ReadLoopReadRequest::SuccessSteps>, JS::NonnullGCPtr<ReadLoopReadRequest::FailureSteps>);
+    void read_all_chunks(JS::NonnullGCPtr<ReadLoopReadRequest::ChunkSteps>, JS::NonnullGCPtr<ReadLoopReadRequest::SuccessSteps>, JS::NonnullGCPtr<ReadLoopReadRequest::FailureSteps>);
     JS::NonnullGCPtr<WebIDL::Promise> read_all_bytes_deprecated();
 
     void release_lock();
