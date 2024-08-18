@@ -189,7 +189,7 @@ JS::GCPtr<FileAPI::FileList> HTMLInputElement::files()
         return nullptr;
 
     if (!m_selected_files)
-        m_selected_files = FileAPI::FileList::create(realm(), {});
+        m_selected_files = FileAPI::FileList::create(realm());
     return m_selected_files;
 }
 
@@ -461,8 +461,7 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files)
         return;
     }
 
-    Vector<JS::NonnullGCPtr<FileAPI::File>> files;
-    files.ensure_capacity(selected_files.size());
+    auto files = FileAPI::FileList::create(realm());
 
     for (auto& selected_file : selected_files) {
         auto contents = selected_file.take_contents();
@@ -478,14 +477,14 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files)
         options.type = mime_type.essence();
 
         auto file = MUST(FileAPI::File::create(realm(), { JS::make_handle(blob) }, file_name, move(options)));
-        files.unchecked_append(file);
+        files->add_file(file);
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#update-the-file-selection
     // 1. Queue an element task on the user interaction task source given element and the following steps:
-    queue_an_element_task(HTML::Task::Source::UserInteraction, [this, files = move(files)]() mutable {
+    queue_an_element_task(HTML::Task::Source::UserInteraction, [this, files]() mutable {
         // 1. Update element's selected files so that it represents the user's selection.
-        m_selected_files = FileAPI::FileList::create(realm(), move(files));
+        m_selected_files = files;
         update_file_input_shadow_tree();
 
         // 2. Fire an event named input at the input element, with the bubbles and composed attributes initialized to true.
@@ -1424,7 +1423,7 @@ void HTMLInputElement::reset_algorithm()
     m_checked = has_attribute(AttributeNames::checked);
 
     // empty the list of selected files,
-    m_selected_files = FileAPI::FileList::create(realm(), {});
+    m_selected_files = FileAPI::FileList::create(realm());
 
     // and then invoke the value sanitization algorithm, if the type attribute's current state defines one.
     m_value = value_sanitization_algorithm(m_value);
