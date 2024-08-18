@@ -61,11 +61,11 @@ void HTMLIFrameElement::inserted()
     // When an iframe element element is inserted into a document whose browsing context is non-null, the user agent must run these steps:
     if (in_a_document_tree() && document().browsing_context()) {
         // 1. Create a new child navigable for element.
-        MUST(create_new_child_navigable([this] {
+        MUST(create_new_child_navigable(JS::create_heap_function(realm().heap(), [this] {
             // 3. Process the iframe attributes for element, with initialInsertion set to true.
             process_the_iframe_attributes(true);
             set_content_navigable_initialized();
-        }));
+        })));
 
         // FIXME: 2. If element has a sandbox attribute, then parse the sandboxing directive given the attribute's value and element's iframe sandboxing flag set.
     }
