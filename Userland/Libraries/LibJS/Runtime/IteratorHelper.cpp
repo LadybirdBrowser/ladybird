@@ -13,16 +13,16 @@ namespace JS {
 
 JS_DEFINE_ALLOCATOR(IteratorHelper);
 
-ThrowCompletionOr<NonnullGCPtr<IteratorHelper>> IteratorHelper::create(Realm& realm, NonnullGCPtr<IteratorRecord> underlying_iterator, Closure closure, Optional<AbruptClosure> abrupt_closure)
+ThrowCompletionOr<NonnullGCPtr<IteratorHelper>> IteratorHelper::create(Realm& realm, NonnullGCPtr<IteratorRecord> underlying_iterator, NonnullGCPtr<Closure> closure, GCPtr<AbruptClosure> abrupt_closure)
 {
-    return realm.heap().allocate<IteratorHelper>(realm, realm, realm.intrinsics().iterator_helper_prototype(), move(underlying_iterator), move(closure), move(abrupt_closure));
+    return realm.heap().allocate<IteratorHelper>(realm, realm, realm.intrinsics().iterator_helper_prototype(), move(underlying_iterator), closure, abrupt_closure);
 }
 
-IteratorHelper::IteratorHelper(Realm& realm, Object& prototype, NonnullGCPtr<IteratorRecord> underlying_iterator, Closure closure, Optional<AbruptClosure> abrupt_closure)
+IteratorHelper::IteratorHelper(Realm& realm, Object& prototype, NonnullGCPtr<IteratorRecord> underlying_iterator, NonnullGCPtr<Closure> closure, GCPtr<AbruptClosure> abrupt_closure)
     : GeneratorObject(realm, prototype, realm.vm().running_execution_context().copy(), "Iterator Helper"sv)
     , m_underlying_iterator(move(underlying_iterator))
-    , m_closure(move(closure))
-    , m_abrupt_closure(move(abrupt_closure))
+    , m_closure(closure)
+    , m_abrupt_closure(abrupt_closure)
 {
 }
 
@@ -30,6 +30,8 @@ void IteratorHelper::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_underlying_iterator);
+    visitor.visit(m_closure);
+    visitor.visit(m_abrupt_closure);
 }
 
 Value IteratorHelper::result(Value value)
@@ -49,12 +51,12 @@ ThrowCompletionOr<Value> IteratorHelper::execute(VM& vm, JS::Completion const& c
     ScopeGuard guard { [&] { vm.pop_execution_context(); } };
 
     if (completion.is_abrupt()) {
-        if (m_abrupt_closure.has_value())
-            return (*m_abrupt_closure)(vm, *this, completion);
+        if (m_abrupt_closure)
+            return m_abrupt_closure->function()(vm, *this, completion);
         return close_result(vm, completion);
     }
 
-    auto result_value = m_closure(vm, *this);
+    auto result_value = m_closure->function()(vm, *this);
 
     if (result_value.is_throw_completion()) {
         set_generator_state(GeneratorState::Completed);
