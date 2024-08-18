@@ -455,6 +455,22 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
     VERIFY_NOT_REACHED();
 }
 
+Wasm::Value default_webassembly_value(JS::VM& vm, Wasm::ValueType type)
+{
+    switch (type.kind()) {
+    case Wasm::ValueType::I32:
+    case Wasm::ValueType::I64:
+    case Wasm::ValueType::F32:
+    case Wasm::ValueType::F64:
+    case Wasm::ValueType::V128:
+    case Wasm::ValueType::FunctionReference:
+        return Wasm::Value(type);
+    case Wasm::ValueType::ExternReference:
+        return MUST(to_webassembly_value(vm, JS::js_undefined(), type));
+    }
+    VERIFY_NOT_REACHED();
+}
+
 // https://webassembly.github.io/spec/js-api/#tojsvalue
 JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
 {
