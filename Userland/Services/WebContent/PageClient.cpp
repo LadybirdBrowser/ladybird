@@ -72,7 +72,7 @@ void PageClient::ready_to_paint()
     if (old_paint_state == PaintState::PaintWhenReady) {
         // NOTE: Repainting always has to be scheduled from HTML event loop processing steps
         //       to make sure style and layout are up-to-date.
-        page().top_level_traversable()->set_needs_display();
+        Web::HTML::main_thread_event_loop().schedule();
     }
 }
 
