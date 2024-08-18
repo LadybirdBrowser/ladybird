@@ -13,7 +13,10 @@ namespace Web::Layout {
 
 class LineBox {
 public:
-    LineBox() = default;
+    LineBox(CSS::Direction direction)
+        : m_direction(direction)
+    {
+    }
 
     CSSPixels width() const { return m_width; }
     CSSPixels height() const { return m_height; }
@@ -42,6 +45,7 @@ private:
     CSSPixels m_height { 0 };
     CSSPixels m_bottom { 0 };
     CSSPixels m_baseline { 0 };
+    CSS::Direction m_direction { CSS::Direction::Ltr };
 
     // The amount of available width that was originally available when creating this line box. Used for text justification.
     AvailableSize m_original_available_width { AvailableSize::make_indefinite() };

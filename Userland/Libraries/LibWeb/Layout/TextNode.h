@@ -33,21 +33,26 @@ public:
         size_t length { 0 };
         bool has_breaking_newline { false };
         bool is_all_whitespace { false };
+        Gfx::GlyphRun::TextType text_type;
     };
 
     class ChunkIterator {
     public:
         ChunkIterator(StringView text, bool wrap_lines, bool respect_linebreaks, Gfx::FontCascadeList const&);
         Optional<Chunk> next();
+        Optional<Chunk> peek(size_t);
 
     private:
-        Optional<Chunk> try_commit_chunk(Utf8View::Iterator const& start, Utf8View::Iterator const& end, bool has_breaking_newline, Gfx::Font const&) const;
+        Optional<Chunk> next_without_peek();
+        Optional<Chunk> try_commit_chunk(Utf8View::Iterator const& start, Utf8View::Iterator const& end, bool has_breaking_newline, Gfx::Font const&, Gfx::GlyphRun::TextType) const;
 
         bool const m_wrap_lines;
         bool const m_respect_linebreaks;
         Utf8View m_utf8_view;
         Utf8View::Iterator m_iterator;
         Gfx::FontCascadeList const& m_font_cascade_list;
+
+        Vector<Chunk> m_peek_queue;
     };
 
     void invalidate_text_for_rendering();

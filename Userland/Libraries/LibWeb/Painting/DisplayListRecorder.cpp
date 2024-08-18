@@ -233,7 +233,7 @@ void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, G
     if (rect.is_empty())
         return;
 
-    auto glyph_run = adopt_ref(*new Gfx::GlyphRun({}, font));
+    auto glyph_run = adopt_ref(*new Gfx::GlyphRun({}, font, Gfx::GlyphRun::TextType::Ltr));
     float glyph_run_width = 0;
     Gfx::for_each_glyph_position(
         { 0, 0 }, raw_text.code_points(), font, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {

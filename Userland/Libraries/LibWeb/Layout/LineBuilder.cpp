@@ -10,10 +10,11 @@
 
 namespace Web::Layout {
 
-LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_state, LayoutState::UsedValues& containing_block_used_values)
+LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_state, LayoutState::UsedValues& containing_block_used_values, CSS::Direction direction)
     : m_context(context)
     , m_layout_state(layout_state)
     , m_containing_block_used_values(containing_block_used_values)
+    , m_direction(direction)
 {
     m_text_indent = m_context.containing_block().computed_values().text_indent().to_px(m_context.containing_block(), m_containing_block_used_values.content_width());
     begin_new_line(false);
@@ -35,7 +36,7 @@ void LineBuilder::break_line(ForcedBreak forced_break, Optional<CSSPixels> next_
     size_t break_count = 0;
     bool floats_intrude_at_current_y = false;
     do {
-        m_containing_block_used_values.line_boxes.append(LineBox());
+        m_containing_block_used_values.line_boxes.append(LineBox(m_direction));
         begin_new_line(true, break_count == 0);
         break_count++;
         floats_intrude_at_current_y = m_context.any_floats_intrude_at_y(m_current_y);
@@ -80,7 +81,7 @@ LineBox& LineBuilder::ensure_last_line_box()
 {
     auto& line_boxes = m_containing_block_used_values.line_boxes;
     if (line_boxes.is_empty())
-        line_boxes.append(LineBox {});
+        line_boxes.append(LineBox(m_direction));
     return line_boxes.last();
 }
 
