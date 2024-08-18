@@ -165,6 +165,39 @@ CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
     return next_width;
 }
 
+Gfx::GlyphRun::TextType InlineLevelIterator::resolve_text_direction_from_context()
+{
+    VERIFY(m_text_node_context.has_value());
+
+    Optional<Gfx::GlyphRun::TextType> next_known_direction;
+    for (size_t i = 0;; ++i) {
+        auto peek = m_text_node_context->chunk_iterator.peek(i);
+        if (!peek.has_value())
+            break;
+        if (peek->text_type == Gfx::GlyphRun::TextType::Ltr || peek->text_type == Gfx::GlyphRun::TextType::Rtl) {
+            next_known_direction = peek->text_type;
+            break;
+        }
+    }
+
+    auto last_known_direction = m_text_node_context->last_known_direction;
+    if (last_known_direction.has_value() && next_known_direction.has_value() && *last_known_direction != *next_known_direction) {
+        switch (m_containing_block->computed_values().direction()) {
+        case CSS::Direction::Ltr:
+            return Gfx::GlyphRun::TextType::Ltr;
+        case CSS::Direction::Rtl:
+            return Gfx::GlyphRun::TextType::Rtl;
+        }
+    }
+
+    if (last_known_direction.has_value())
+        return *last_known_direction;
+    if (next_known_direction.has_value())
+        return *next_known_direction;
+
+    return Gfx::GlyphRun::TextType::ContextDependent;
+}
+
 Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead()
 {
     if (!m_current_node)
@@ -176,18 +209,29 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         if (!m_text_node_context.has_value())
             enter_text_node(text_node);
 
-        auto chunk_opt = m_text_node_context->next_chunk;
+        auto chunk_opt = m_text_node_context->chunk_iterator.next();
         if (!chunk_opt.has_value()) {
             m_text_node_context = {};
             skip_to_next();
             return next_without_lookahead();
         }
 
-        m_text_node_context->next_chunk = m_text_node_context->chunk_iterator.next();
-        if (!m_text_node_context->next_chunk.has_value())
+        if (!m_text_node_context->chunk_iterator.peek(0).has_value())
             m_text_node_context->is_last_chunk = true;
 
         auto& chunk = chunk_opt.value();
+        auto text_type = chunk.text_type;
+        if (text_type == Gfx::GlyphRun::TextType::Ltr || text_type == Gfx::GlyphRun::TextType::Rtl)
+            m_text_node_context->last_known_direction = text_type;
+
+        if (m_text_node_context->do_respect_linebreaks && chunk.has_breaking_newline) {
+            m_text_node_context->is_last_chunk = true;
+            if (chunk.is_all_whitespace)
+                text_type = Gfx::GlyphRun::TextType::EndPadding;
+        }
+
+        if (text_type == Gfx::GlyphRun::TextType::ContextDependent)
+            text_type = resolve_text_direction_from_context();
 
         if (m_text_node_context->do_respect_linebreaks && chunk.has_breaking_newline) {
             return Item {
@@ -211,7 +255,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         Item item {
             .type = Item::Type::Text,
             .node = &text_node,
-            .glyph_run = adopt_ref(*new Gfx::GlyphRun(move(glyph_run), chunk.font)),
+            .glyph_run = adopt_ref(*new Gfx::GlyphRun(move(glyph_run), chunk.font, text_type)),
             .offset_in_node = chunk.start,
             .length_in_node = chunk.length,
             .width = chunk_width,
@@ -322,7 +366,6 @@ void InlineLevelIterator::enter_text_node(Layout::TextNode const& text_node)
         .is_last_chunk = false,
         .chunk_iterator = TextNode::ChunkIterator { text_node.text_for_rendering(), do_wrap_lines, do_respect_linebreaks, text_node.computed_values().font_list() },
     };
-    m_text_node_context->next_chunk = m_text_node_context->chunk_iterator.next();
 }
 
 void InlineLevelIterator::add_extra_box_model_metrics_to_item(Item& item, bool add_leading_metrics, bool add_trailing_metrics)
