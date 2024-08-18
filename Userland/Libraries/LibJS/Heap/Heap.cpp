@@ -32,8 +32,9 @@ namespace JS {
 static __thread HashMap<FlatPtr*, size_t>* s_custom_ranges_for_conservative_scan = nullptr;
 static __thread HashMap<FlatPtr*, SourceLocation*>* s_safe_function_locations = nullptr;
 
-Heap::Heap(VM& vm)
+Heap::Heap(VM& vm, Function<void(HashMap<Cell*, JS::HeapRoot>&)> gather_roots)
     : HeapBase(vm)
+    , m_gather_roots(move(gather_roots))
 {
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
     m_size_based_cell_allocators.append(make<CellAllocator>(64));
@@ -266,7 +267,9 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 
 void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
 {
-    vm().gather_roots(roots);
+    if (m_gather_roots)
+        m_gather_roots(roots);
+
     gather_conservative_roots(roots);
 
     for (auto& handle : m_handles)

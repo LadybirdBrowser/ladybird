@@ -62,7 +62,9 @@ static constexpr auto make_single_ascii_character_strings(IndexSequence<code_poi
 static constexpr auto single_ascii_character_strings = make_single_ascii_character_strings(MakeIndexSequence<128>());
 
 VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
-    : m_heap(*this)
+    : m_heap(*this, [this](HashMap<Cell*, JS::HeapRoot>& roots) {
+        gather_roots(roots);
+    })
     , m_error_messages(move(error_messages))
     , m_custom_data(move(custom_data))
 {
