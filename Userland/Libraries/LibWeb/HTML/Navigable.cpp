@@ -1435,7 +1435,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         //     set to true and completionSteps set to the following step:
         populate_session_history_entry_document(history_entry, source_snapshot_params, target_snapshot_params, navigation_id, navigation_params, csp_navigation_type, true, JS::create_heap_function(heap(), [this, history_entry, history_handling, navigation_id] {
             // 1.     Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, and historyEntry.
-            traversable_navigable()->append_session_history_traversal_steps([this, history_entry, history_handling, navigation_id] {
+            traversable_navigable()->append_session_history_traversal_steps(JS::create_heap_function(heap(), [this, history_entry, history_handling, navigation_id] {
                 if (this->has_been_destroyed()) {
                     // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
                     set_delaying_load_events(false);
@@ -1447,7 +1447,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
                     return;
                 }
                 finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), history_entry);
-            });
+            }));
         })).release_value_but_fixme_should_propagate_errors();
     });
 
@@ -1529,14 +1529,14 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
     auto traversable = traversable_navigable();
 
     // 17. Append the following session history synchronous navigation steps involving navigable to traversable:
-    traversable->append_session_history_synchronous_navigation_steps(*this, [this, traversable, history_entry, entry_to_replace, navigation_id, history_handling] {
+    traversable->append_session_history_synchronous_navigation_steps(*this, JS::create_heap_function(heap(), [this, traversable, history_entry, entry_to_replace, navigation_id, history_handling] {
         // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, and entryToReplace.
         finalize_a_same_document_navigation(*traversable, *this, history_entry, entry_to_replace, history_handling);
 
         // FIXME: 2. Invoke WebDriver BiDi fragment navigated with navigable's active browsing context and a new WebDriver BiDi
         //            navigation status whose id is navigationId, url is url, and status is "complete".
         (void)navigation_id;
-    });
+    }));
 
     return {};
 }
@@ -1710,9 +1710,9 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_javascript_url(URL::URL const
     history_entry->set_document_state(document_state);
 
     // 13. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, and historyEntry.
-    traversable_navigable()->append_session_history_traversal_steps([this, history_entry, history_handling, navigation_id] {
+    traversable_navigable()->append_session_history_traversal_steps(JS::create_heap_function(heap(), [this, history_entry, history_handling, navigation_id] {
         finalize_a_cross_document_navigation(*this, history_handling, history_entry);
-    });
+    }));
 
     return {};
 }
@@ -1727,10 +1727,10 @@ void Navigable::reload()
     auto traversable = traversable_navigable();
 
     // 3. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps([traversable] {
+    traversable->append_session_history_traversal_steps(JS::create_heap_function(heap(), [traversable] {
         // 1. Apply the reload history step to traversable.
         traversable->apply_the_reload_history_step();
-    });
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-navigation-must-be-a-replace
@@ -1942,10 +1942,10 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     auto traversable = navigable->traversable_navigable();
 
     // 13. Append the following session history synchronous navigation steps involving navigable to traversable:
-    traversable->append_session_history_synchronous_navigation_steps(*navigable, [traversable, navigable, new_entry, entry_to_replace, history_handling] {
+    traversable->append_session_history_synchronous_navigation_steps(*navigable, JS::create_heap_function(document.realm().heap(), [traversable, navigable, new_entry, entry_to_replace, history_handling] {
         // 1. Finalize a same-document navigation given traversable, navigable, newEntry, and entryToReplace.
         finalize_a_same_document_navigation(*traversable, *navigable, new_entry, entry_to_replace, history_handling);
-    });
+    }));
 }
 
 void Navigable::scroll_offset_did_change()

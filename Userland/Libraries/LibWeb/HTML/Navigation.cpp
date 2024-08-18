@@ -665,7 +665,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
     auto source_snapshot_params = document.snapshot_source_snapshot_params();
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps([key, api_method_tracker, navigable, source_snapshot_params, traversable, this] {
+    traversable->append_session_history_traversal_steps(JS::create_heap_function(heap(), [key, api_method_tracker, navigable, source_snapshot_params, traversable, this] {
         // 1. Let navigableSHEs be the result of getting session history entries given navigable.
         auto navigable_shes = navigable->get_session_history_entries();
 
@@ -727,7 +727,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
                 reject_the_finished_promise(api_method_tracker, WebIDL::SecurityError::create(realm, "Navigation disallowed from this origin"_fly_string));
             }));
         }
-    });
+    }));
 
     // 13. Return a navigation API method tracker-derived result for apiMethodTracker.
     return navigation_api_method_tracker_derived_result(api_method_tracker);

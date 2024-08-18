@@ -23,7 +23,7 @@ struct SessionHistoryTraversalQueueEntry : public JS::Cell {
     JS_DECLARE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
 public:
-    static JS::NonnullGCPtr<SessionHistoryTraversalQueueEntry> create(JS::VM& vm, Function<void()> steps, JS::GCPtr<HTML::Navigable> target_navigable);
+    static JS::NonnullGCPtr<SessionHistoryTraversalQueueEntry> create(JS::VM& vm, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps, JS::GCPtr<HTML::Navigable> target_navigable);
 
     JS::GCPtr<HTML::Navigable> target_navigable() const { return m_target_navigable; }
     void execute_steps() const { m_steps->function()(); }
@@ -49,8 +49,8 @@ class SessionHistoryTraversalQueue : public JS::Cell {
 public:
     SessionHistoryTraversalQueue();
 
-    void append(Function<void()> steps);
-    void append_sync(Function<void()> steps, JS::GCPtr<Navigable> target_navigable);
+    void append(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps);
+    void append_sync(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps, JS::GCPtr<Navigable> target_navigable);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
     JS::GCPtr<SessionHistoryTraversalQueueEntry> first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<JS::NonnullGCPtr<Navigable>> const&);
