@@ -391,7 +391,7 @@ public:
     {
     }
 
-    void enqueue(JS::SafeFunction<void()> callback)
+    void enqueue(JS::Handle<JS::HeapFunction<void()>> callback)
     {
         // NOTE: We don't want to flush the queue on every image load, since that would be slow.
         //       However, we don't want to keep growing the batch forever either.
@@ -407,11 +407,11 @@ private:
     {
         auto queue = move(m_queue);
         for (auto& callback : queue)
-            callback();
+            callback->function()();
     }
 
     NonnullRefPtr<Core::Timer> m_timer;
-    Vector<JS::SafeFunction<void()>> m_queue;
+    Vector<JS::Handle<JS::HeapFunction<void()>>> m_queue;
 };
 
 static BatchingDispatcher& batching_dispatcher()
@@ -676,7 +676,7 @@ void HTMLImageElement::add_callbacks_to_image_request(JS::NonnullGCPtr<ImageRequ
 {
     image_request->add_callbacks(
         [this, image_request, maybe_omit_events, url_string, previous_url]() {
-            batching_dispatcher().enqueue([this, image_request, maybe_omit_events, url_string, previous_url] {
+            batching_dispatcher().enqueue(JS::create_heap_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, previous_url] {
                 VERIFY(image_request->shared_resource_request());
                 auto image_data = image_request->shared_resource_request()->image_data();
                 image_request->set_image_data(image_data);
@@ -715,7 +715,7 @@ void HTMLImageElement::add_callbacks_to_image_request(JS::NonnullGCPtr<ImageRequ
                 }
 
                 m_load_event_delayer.clear();
-            });
+            }));
         },
         [this, image_request, maybe_omit_events, url_string, previous_url]() {
             // The image data is not in a supported file format;
@@ -746,9 +746,9 @@ void HTMLImageElement::did_set_viewport_rect(CSSPixelRect const& viewport_rect)
     if (viewport_rect.size() == m_last_seen_viewport_size)
         return;
     m_last_seen_viewport_size = viewport_rect.size();
-    batching_dispatcher().enqueue([this] {
+    batching_dispatcher().enqueue(JS::create_heap_function(realm().heap(), [this] {
         react_to_changes_in_the_environment();
-    });
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#img-environment-changes
@@ -870,7 +870,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
         // Set the callbacks to handle steps 6 and 7 before starting the fetch request.
         image_request->add_callbacks(
-            [step_15, selected_source = selected_source.value(), image_request, key]() mutable {
+            [this, step_15, selected_source = selected_source.value(), image_request, key]() mutable {
                 // 6. If response's unsafe response is a network error
                 // NOTE: This is handled in the second callback below.
 
@@ -884,14 +884,14 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
                 // then let pending request be null and abort these steps.
 
-                batching_dispatcher().enqueue([step_15, selected_source = move(selected_source), image_request, key] {
+                batching_dispatcher().enqueue(JS::create_heap_function(realm().heap(), [step_15, selected_source = move(selected_source), image_request, key] {
                     // 7. Otherwise, response's unsafe response is image request's image data. It can be either CORS-same-origin
                     //    or CORS-cross-origin; this affects the image's interaction with other APIs (e.g., when used on a canvas).
                     VERIFY(image_request->shared_resource_request());
                     auto image_data = image_request->shared_resource_request()->image_data();
                     image_request->set_image_data(image_data);
                     step_15(selected_source, image_request, key, *image_data);
-                });
+                }));
             },
             [this]() {
                 // 6. If response's unsafe response is a network error
