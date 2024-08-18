@@ -59,7 +59,7 @@ JS::GCPtr<NavigableContainer> NavigableContainer::navigable_container_with_conte
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
-WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::SafeFunction<void()> afterSessionHistoryUpdate)
+WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::Handle<JS::HeapFunction<void()>> after_session_history_update)
 {
     // 1. Let parentNavigable be element's node navigable.
     auto parent_navigable = navigable();
@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::Saf
     auto traversable = parent_navigable->traversable_navigable();
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps([traversable, navigable, parent_navigable, history_entry, afterSessionHistoryUpdate = move(afterSessionHistoryUpdate)] {
+    traversable->append_session_history_traversal_steps([traversable, navigable, parent_navigable, history_entry, after_session_history_update = move(after_session_history_update)] {
         // 1. Let parentDocState be parentNavigable's active session history entry's document state.
         auto parent_doc_state = parent_navigable->active_session_history_entry()->document_state();
 
@@ -137,8 +137,8 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::Saf
         // 7. Update for navigable creation/destruction given traversable
         traversable->update_for_navigable_creation_or_destruction();
 
-        if (afterSessionHistoryUpdate) {
-            afterSessionHistoryUpdate();
+        if (after_session_history_update) {
+            after_session_history_update->function()();
         }
     });
 
