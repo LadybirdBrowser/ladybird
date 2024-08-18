@@ -22,8 +22,6 @@
 #include <LibJS/Heap/HeapRoot.h>
 #include <LibJS/Heap/Internals.h>
 #include <LibJS/Heap/MarkedVector.h>
-#include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/ExecutionContext.h>
 #include <LibJS/Runtime/WeakContainer.h>
 
 namespace JS {
@@ -80,9 +78,6 @@ public:
 
     void did_create_weak_container(Badge<WeakContainer>, WeakContainer&);
     void did_destroy_weak_container(Badge<WeakContainer>, WeakContainer&);
-
-    void did_create_execution_context(Badge<ExecutionContext>, ExecutionContext&);
-    void did_destroy_execution_context(Badge<ExecutionContext>, ExecutionContext&);
 
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);
 
