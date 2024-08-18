@@ -15,10 +15,12 @@
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/Result.h>
+#include <AK/SourceLocation.h>
 #include <AK/String.h>
 #include <AK/Types.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/GCPtr.h>
+#include <LibJS/Heap/Handle.h>
 #include <math.h>
 
 namespace JS {
@@ -725,6 +727,55 @@ private:
     JS::Value m_value;
 };
 
+}
+
+namespace JS {
+
+template<>
+class Handle<Value> {
+public:
+    Handle() = default;
+
+    static Handle create(Value value, SourceLocation location)
+    {
+        if (value.is_cell())
+            return Handle(value, &value.as_cell(), location);
+        return Handle(value);
+    }
+
+    auto cell() { return m_handle.cell(); }
+    auto cell() const { return m_handle.cell(); }
+    auto value() const { return *m_value; }
+    bool is_null() const { return m_handle.is_null() && !m_value.has_value(); }
+
+    bool operator==(Value const& value) const { return value == m_value; }
+    bool operator==(Handle<Value> const& other) const { return other.m_value == this->m_value; }
+
+private:
+    explicit Handle(Value value)
+        : m_value(value)
+    {
+    }
+
+    explicit Handle(Value value, Cell* cell, SourceLocation location)
+        : m_value(value)
+        , m_handle(Handle<Cell>::create(cell, location))
+    {
+    }
+
+    Optional<Value> m_value;
+    Handle<Cell> m_handle;
+};
+
+inline Handle<Value> make_handle(Value value, SourceLocation location = SourceLocation::current())
+{
+    return Handle<Value>::create(value, location);
+}
+
+}
+
+namespace AK {
+
 template<>
 struct Formatter<JS::Value> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, JS::Value value)
@@ -739,6 +790,11 @@ template<>
 struct Traits<JS::Value> : DefaultTraits<JS::Value> {
     static unsigned hash(JS::Value value) { return Traits<u64>::hash(value.encoded()); }
     static constexpr bool is_trivial() { return true; }
+};
+
+template<>
+struct Traits<JS::Handle<JS::Value>> : public DefaultTraits<JS::Handle<JS::Value>> {
+    static unsigned hash(JS::Handle<JS::Value> const& handle) { return Traits<JS::Value>::hash(handle.value()); }
 };
 
 }
