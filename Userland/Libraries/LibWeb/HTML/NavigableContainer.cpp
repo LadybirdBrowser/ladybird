@@ -59,7 +59,7 @@ JS::GCPtr<NavigableContainer> NavigableContainer::navigable_container_with_conte
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
-WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::Handle<JS::HeapFunction<void()>> after_session_history_update)
+WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::GCPtr<JS::HeapFunction<void()>> after_session_history_update)
 {
     // 1. Let parentNavigable be element's node navigable.
     auto parent_navigable = navigable();
@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::Han
     auto traversable = parent_navigable->traversable_navigable();
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps([traversable, navigable, parent_navigable, history_entry, after_session_history_update = move(after_session_history_update)] {
+    traversable->append_session_history_traversal_steps(JS::create_heap_function(heap(), [traversable, navigable, parent_navigable, history_entry, after_session_history_update] {
         // 1. Let parentDocState be parentNavigable's active session history entry's document state.
         auto parent_doc_state = parent_navigable->active_session_history_entry()->document_state();
 
@@ -140,7 +140,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::Han
         if (after_session_history_update) {
             after_session_history_update->function()();
         }
-    });
+    }));
 
     return {};
 }
@@ -294,10 +294,10 @@ void NavigableContainer::destroy_the_child_navigable()
         auto traversable = this->navigable()->traversable_navigable();
 
         // 9. Append the following session history traversal steps to traversable:
-        traversable->append_session_history_traversal_steps([traversable] {
+        traversable->append_session_history_traversal_steps(JS::create_heap_function(heap(), [traversable] {
             // 1. Update for navigable creation/destruction given traversable.
             traversable->update_for_navigable_creation_or_destruction();
-        });
+        }));
     }));
 }
 

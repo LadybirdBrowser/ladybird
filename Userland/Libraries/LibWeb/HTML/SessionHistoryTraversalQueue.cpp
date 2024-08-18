@@ -12,9 +12,9 @@ namespace Web::HTML {
 JS_DEFINE_ALLOCATOR(SessionHistoryTraversalQueue);
 JS_DEFINE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
-JS::NonnullGCPtr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, Function<void()> steps, JS::GCPtr<HTML::Navigable> target_navigable)
+JS::NonnullGCPtr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps, JS::GCPtr<HTML::Navigable> target_navigable)
 {
-    return vm.heap().allocate_without_realm<SessionHistoryTraversalQueueEntry>(JS::create_heap_function(vm.heap(), move(steps)), target_navigable);
+    return vm.heap().allocate_without_realm<SessionHistoryTraversalQueueEntry>(steps, target_navigable);
 }
 
 void SessionHistoryTraversalQueueEntry::visit_edges(JS::Cell::Visitor& visitor)
@@ -46,17 +46,17 @@ void SessionHistoryTraversalQueue::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_queue);
 }
 
-void SessionHistoryTraversalQueue::append(Function<void()> steps)
+void SessionHistoryTraversalQueue::append(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
 {
-    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), move(steps), nullptr));
+    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, nullptr));
     if (!m_timer->is_active()) {
         m_timer->start();
     }
 }
 
-void SessionHistoryTraversalQueue::append_sync(Function<void()> steps, JS::GCPtr<Navigable> target_navigable)
+void SessionHistoryTraversalQueue::append_sync(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps, JS::GCPtr<Navigable> target_navigable)
 {
-    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), move(steps), target_navigable));
+    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
     if (!m_timer->is_active()) {
         m_timer->start();
     }

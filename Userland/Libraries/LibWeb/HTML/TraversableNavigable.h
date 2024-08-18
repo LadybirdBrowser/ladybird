@@ -80,14 +80,14 @@ public:
     void close_top_level_traversable();
     void destroy_top_level_traversable();
 
-    void append_session_history_traversal_steps(ESCAPING Function<void()> steps)
+    void append_session_history_traversal_steps(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
     {
-        m_session_history_traversal_queue->append(move(steps));
+        m_session_history_traversal_queue->append(steps);
     }
 
-    void append_session_history_synchronous_navigation_steps(JS::NonnullGCPtr<Navigable> target_navigable, ESCAPING Function<void()> steps)
+    void append_session_history_synchronous_navigation_steps(JS::NonnullGCPtr<Navigable> target_navigable, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
     {
-        m_session_history_traversal_queue->append_sync(move(steps), target_navigable);
+        m_session_history_traversal_queue->append_sync(steps, target_navigable);
     }
 
     String window_handle() const { return m_window_handle; }

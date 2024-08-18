@@ -971,7 +971,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, Optional<DOM
     }
 
     // 4. Append the following session history traversal steps to traversable:
-    append_session_history_traversal_steps([this, delta, source_snapshot_params = move(source_snapshot_params), initiator_to_check, user_involvement] {
+    append_session_history_traversal_steps(JS::create_heap_function(heap(), [this, delta, source_snapshot_params = move(source_snapshot_params), initiator_to_check, user_involvement] {
         // 1. Let allSteps be the result of getting all used history steps for traversable.
         auto all_steps = get_all_used_history_steps();
 
@@ -989,7 +989,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, Optional<DOM
         // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
         //    initiatorToCheck, and userInvolvement.
         apply_the_traverse_history_step(all_steps[target_step_index], source_snapshot_params, initiator_to_check, user_involvement);
-    });
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
