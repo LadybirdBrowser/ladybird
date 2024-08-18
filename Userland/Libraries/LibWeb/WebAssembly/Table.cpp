@@ -38,6 +38,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Table>> Table::construct_impl(JS::Realm& re
         ? Detail::default_webassembly_value(vm, reference_type)
         : TRY(Detail::to_webassembly_value(vm, value, reference_type));
 
+    if (descriptor.maximum.has_value() && descriptor.maximum.value() < descriptor.initial)
+        return vm.throw_completion<JS::RangeError>("Maximum should not be less than initial in table type"sv);
+
     Wasm::Limits limits { descriptor.initial, move(descriptor.maximum) };
     Wasm::TableType table_type { reference_type, move(limits) };
 
