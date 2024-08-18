@@ -14,13 +14,12 @@
 #include <AK/StackInfo.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/ElapsedTimer.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Heap/CellAllocator.h>
 #include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Heap/HeapBlock.h>
-#include <LibJS/Runtime/Object.h>
-#include <LibJS/Runtime/WeakContainer.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibJS/Runtime/Value.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
