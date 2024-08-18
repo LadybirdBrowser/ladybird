@@ -213,10 +213,37 @@ static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute co
     if (!attr)
         return false;
 
-    auto const case_insensitive_match = (attribute.case_type == CSS::Selector::SimpleSelector::Attribute::CaseType::CaseInsensitiveMatch);
-    auto const case_sensitivity = case_insensitive_match
-        ? CaseSensitivity::CaseInsensitive
-        : CaseSensitivity::CaseSensitive;
+    auto case_sensitivity = [&](CSS::Selector::SimpleSelector::Attribute::CaseType case_type) {
+        switch (case_type) {
+        case CSS::Selector::SimpleSelector::Attribute::CaseType::CaseInsensitiveMatch:
+            return CaseSensitivity::CaseInsensitive;
+        case CSS::Selector::SimpleSelector::Attribute::CaseType::CaseSensitiveMatch:
+            return CaseSensitivity::CaseSensitive;
+        case CSS::Selector::SimpleSelector::Attribute::CaseType::DefaultMatch:
+            // See: https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
+            if (element.document().is_html_document()
+                && element.namespace_uri() == Namespace::HTML
+                && attribute_name.is_one_of(
+                    HTML::AttributeNames::accept, HTML::AttributeNames::accept_charset, HTML::AttributeNames::align,
+                    HTML::AttributeNames::alink, HTML::AttributeNames::axis, HTML::AttributeNames::bgcolor, HTML::AttributeNames::charset,
+                    HTML::AttributeNames::checked, HTML::AttributeNames::clear, HTML::AttributeNames::codetype, HTML::AttributeNames::color,
+                    HTML::AttributeNames::compact, HTML::AttributeNames::declare, HTML::AttributeNames::defer, HTML::AttributeNames::dir,
+                    HTML::AttributeNames::direction, HTML::AttributeNames::disabled, HTML::AttributeNames::enctype, HTML::AttributeNames::face,
+                    HTML::AttributeNames::frame, HTML::AttributeNames::hreflang, HTML::AttributeNames::http_equiv, HTML::AttributeNames::lang,
+                    HTML::AttributeNames::language, HTML::AttributeNames::link, HTML::AttributeNames::media, HTML::AttributeNames::method,
+                    HTML::AttributeNames::multiple, HTML::AttributeNames::nohref, HTML::AttributeNames::noresize, HTML::AttributeNames::noshade,
+                    HTML::AttributeNames::nowrap, HTML::AttributeNames::readonly, HTML::AttributeNames::rel, HTML::AttributeNames::rev,
+                    HTML::AttributeNames::rules, HTML::AttributeNames::scope, HTML::AttributeNames::scrolling, HTML::AttributeNames::selected,
+                    HTML::AttributeNames::shape, HTML::AttributeNames::target, HTML::AttributeNames::text, HTML::AttributeNames::type,
+                    HTML::AttributeNames::valign, HTML::AttributeNames::valuetype, HTML::AttributeNames::vlink)) {
+                return CaseSensitivity::CaseInsensitive;
+            }
+
+            return CaseSensitivity::CaseSensitive;
+        }
+        VERIFY_NOT_REACHED();
+    }(attribute.case_type);
+    auto case_insensitive_match = case_sensitivity == CaseSensitivity::CaseInsensitive;
 
     switch (attribute.match_type) {
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch:

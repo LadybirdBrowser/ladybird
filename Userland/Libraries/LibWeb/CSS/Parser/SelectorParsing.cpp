@@ -260,15 +260,8 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
         .type = Selector::SimpleSelector::Type::Attribute,
         .value = Selector::SimpleSelector::Attribute {
             .match_type = Selector::SimpleSelector::Attribute::MatchType::HasAttribute,
-            // FIXME: Case-sensitivity is defined by the document language.
-            // HTML is insensitive with attribute names, and our code generally assumes
-            // they are converted to lowercase, so we do that here too. If we want to be
-            // correct with XML later, we'll need to keep the original case and then do
-            // a case-insensitive compare later.
             .qualified_name = qualified_name,
-            .case_type = case_insensitive_html_attributes.contains_slow(qualified_name.name.lowercase_name)
-                ? Selector::SimpleSelector::Attribute::CaseType::CaseInsensitiveMatch
-                : Selector::SimpleSelector::Attribute::CaseType::DefaultMatch,
+            .case_type = Selector::SimpleSelector::Attribute::CaseType::DefaultMatch,
         }
     };
 

@@ -1,0 +1,4 @@
+The accept attribute is matched case insensitively in HTML documents true
+The accept attribute is matched case insensitively in XML documents false
+The accesskey attribute is matched case insensitively in HTML documents false
+The accesskey attribute is matched case insensitively in XML documents false
