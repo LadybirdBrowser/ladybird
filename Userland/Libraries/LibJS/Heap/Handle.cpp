@@ -6,7 +6,7 @@
 
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/Handle.h>
-#include <LibJS/Runtime/VM.h>
+#include <LibJS/Heap/Heap.h>
 
 namespace JS {
 
