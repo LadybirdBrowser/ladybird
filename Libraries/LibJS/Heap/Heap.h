@@ -11,6 +11,7 @@
 #include <AK/IntrusiveList.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/StackInfo.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
@@ -155,6 +156,7 @@ private:
     bool m_should_gc_when_deferral_ends { false };
 
     bool m_collecting_garbage { false };
+    StackInfo m_stack_info;
 };
 
 inline void Heap::did_create_handle(Badge<HandleImpl>, HandleImpl& impl)

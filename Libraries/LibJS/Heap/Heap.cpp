@@ -317,9 +317,8 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
         add_possible_value(possible_pointers, raw_jmp_buf[i], HeapRoot { .type = HeapRoot::Type::RegisterPointer }, min_block_address, max_block_address);
 
     auto stack_reference = bit_cast<FlatPtr>(&dummy);
-    auto& stack_info = m_vm.stack_info();
 
-    for (FlatPtr stack_address = stack_reference; stack_address < stack_info.top(); stack_address += sizeof(FlatPtr)) {
+    for (FlatPtr stack_address = stack_reference; stack_address < m_stack_info.top(); stack_address += sizeof(FlatPtr)) {
         auto data = *reinterpret_cast<FlatPtr*>(stack_address);
         add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer }, min_block_address, max_block_address);
         gather_asan_fake_stack_roots(possible_pointers, data, min_block_address, max_block_address);
