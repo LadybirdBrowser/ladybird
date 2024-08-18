@@ -29,19 +29,14 @@ static Wasm::ValueType table_kind_to_value_type(Bindings::TableKind kind)
     VERIFY_NOT_REACHED();
 }
 
-static JS::ThrowCompletionOr<Wasm::Value> value_to_reference(JS::VM& vm, JS::Value value, Wasm::ValueType const& reference_type)
-{
-    if (value.is_undefined() && reference_type.kind() != Wasm::ValueType::Kind::ExternReference)
-        return Wasm::Value(reference_type);
-    return Detail::to_webassembly_value(vm, value, reference_type);
-}
-
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Table>> Table::construct_impl(JS::Realm& realm, TableDescriptor& descriptor, JS::Value value)
 {
     auto& vm = realm.vm();
 
     auto reference_type = table_kind_to_value_type(descriptor.element);
-    auto reference_value = TRY(value_to_reference(vm, value, reference_type));
+    auto reference_value = vm.argument_count() == 1
+        ? Detail::default_webassembly_value(vm, reference_type)
+        : TRY(Detail::to_webassembly_value(vm, value, reference_type));
 
     Wasm::Limits limits { descriptor.initial, move(descriptor.maximum) };
     Wasm::TableType table_type { reference_type, move(limits) };
@@ -83,7 +78,9 @@ WebIDL::ExceptionOr<u32> Table::grow(u32 delta, JS::Value value)
 
     auto initial_size = table->elements().size();
 
-    auto reference_value = TRY(value_to_reference(vm, value, table->type().element_type()));
+    auto reference_value = vm.argument_count() == 1
+        ? Detail::default_webassembly_value(vm, table->type().element_type())
+        : TRY(Detail::to_webassembly_value(vm, value, table->type().element_type()));
     auto const& reference = reference_value.to<Wasm::Reference>();
 
     if (!table->grow(delta, reference))
@@ -124,7 +121,9 @@ WebIDL::ExceptionOr<void> Table::set(u32 index, JS::Value value)
     if (table->elements().size() <= index)
         return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
 
-    auto reference_value = TRY(value_to_reference(vm, value, table->type().element_type()));
+    auto reference_value = vm.argument_count() == 1
+        ? Detail::default_webassembly_value(vm, table->type().element_type())
+        : TRY(Detail::to_webassembly_value(vm, value, table->type().element_type()));
     auto const& reference = reference_value.to<Wasm::Reference>();
 
     table->elements()[index] = reference;
