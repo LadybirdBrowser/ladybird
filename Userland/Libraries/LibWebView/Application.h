@@ -7,18 +7,13 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/Swift.h>
 #include <LibCore/EventLoop.h>
 #include <LibMain/Main.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
-
-#ifdef __swift__
-#    include <swift/bridging>
-#else
-#    define SWIFT_IMMORTAL_REFERENCE
-#endif
 
 namespace WebView {
 

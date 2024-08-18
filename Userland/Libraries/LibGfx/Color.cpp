@@ -9,6 +9,7 @@
 #include <AK/ByteString.h>
 #include <AK/FloatingPointStringConversions.h>
 #include <AK/Optional.h>
+#include <AK/Swift.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/SystemTheme.h>
@@ -18,7 +19,6 @@
 
 #ifdef LIBGFX_USE_SWIFT
 #    include <LibGfx-Swift.h>
-#    include <swift/bridging>
 #endif
 
 namespace Gfx {
