@@ -32,6 +32,9 @@ void ReadLoopReadRequest::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_realm);
     visitor.visit(m_reader);
+    visitor.visit(m_success_steps);
+    visitor.visit(m_failure_steps);
+    visitor.visit(m_chunk_steps);
 }
 
 // https://streams.spec.whatwg.org/#default-reader-constructor
@@ -66,13 +69,13 @@ void ReadableStreamDefaultReader::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://streams.spec.whatwg.org/#read-loop
-ReadLoopReadRequest::ReadLoopReadRequest(JS::VM& vm, JS::Realm& realm, ReadableStreamDefaultReader& reader, SuccessSteps success_steps, FailureSteps failure_steps, ChunkSteps chunk_steps)
+ReadLoopReadRequest::ReadLoopReadRequest(JS::VM& vm, JS::Realm& realm, ReadableStreamDefaultReader& reader, JS::NonnullGCPtr<SuccessSteps> success_steps, JS::NonnullGCPtr<FailureSteps> failure_steps, JS::GCPtr<ChunkSteps> chunk_steps)
     : m_vm(vm)
     , m_realm(realm)
     , m_reader(reader)
-    , m_success_steps(move(success_steps))
-    , m_failure_steps(move(failure_steps))
-    , m_chunk_steps(move(chunk_steps))
+    , m_success_steps(success_steps)
+    , m_failure_steps(failure_steps)
+    , m_chunk_steps(chunk_steps)
 {
 }
 
@@ -81,7 +84,7 @@ void ReadLoopReadRequest::on_chunk(JS::Value chunk)
 {
     // 1. If chunk is not a Uint8Array object, call failureSteps with a TypeError and abort these steps.
     if (!chunk.is_object() || !is<JS::Uint8Array>(chunk.as_object())) {
-        m_failure_steps(JS::TypeError::create(m_realm, "Chunk data is not Uint8Array"sv));
+        m_failure_steps->function()(JS::TypeError::create(m_realm, "Chunk data is not Uint8Array"sv));
         return;
     }
 
@@ -93,7 +96,7 @@ void ReadLoopReadRequest::on_chunk(JS::Value chunk)
 
     if (m_chunk_steps) {
         // FIXME: Can we move the buffer out of the `chunk`? Unclear if that is safe.
-        m_chunk_steps(MUST(ByteBuffer::copy(buffer)));
+        m_chunk_steps->function()(MUST(ByteBuffer::copy(buffer)));
     }
 
     // FIXME: As the spec suggests, implement this non-recursively - instead of directly. It is not too big of a deal currently
@@ -108,14 +111,14 @@ void ReadLoopReadRequest::on_chunk(JS::Value chunk)
 void ReadLoopReadRequest::on_close()
 {
     // 1. Call successSteps with bytes.
-    m_success_steps(move(m_bytes));
+    m_success_steps->function()(move(m_bytes));
 }
 
 // error steps, given e
 void ReadLoopReadRequest::on_error(JS::Value error)
 {
     // 1. Call failureSteps with e.
-    m_failure_steps(error);
+    m_failure_steps->function()(error);
 }
 
 class DefaultReaderReadRequest final : public ReadRequest {
@@ -196,20 +199,20 @@ void ReadableStreamDefaultReader::read_a_chunk(Fetch::Infrastructure::Incrementa
 }
 
 // https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
-void ReadableStreamDefaultReader::read_all_bytes(ReadLoopReadRequest::SuccessSteps success_steps, ReadLoopReadRequest::FailureSteps failure_steps)
+void ReadableStreamDefaultReader::read_all_bytes(JS::NonnullGCPtr<ReadLoopReadRequest::SuccessSteps> success_steps, JS::NonnullGCPtr<ReadLoopReadRequest::FailureSteps> failure_steps)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. Let readRequest be a new read request with the following items:
     //    NOTE: items and steps in ReadLoopReadRequest.
-    auto read_request = heap().allocate_without_realm<ReadLoopReadRequest>(vm, realm, *this, move(success_steps), move(failure_steps));
+    auto read_request = heap().allocate_without_realm<ReadLoopReadRequest>(vm, realm, *this, success_steps, failure_steps);
 
     // 2. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
     readable_stream_default_reader_read(*this, read_request);
 }
 
-void ReadableStreamDefaultReader::read_all_chunks(ReadLoopReadRequest::ChunkSteps chunk_steps, ReadLoopReadRequest::SuccessSteps success_steps, ReadLoopReadRequest::FailureSteps failure_steps)
+void ReadableStreamDefaultReader::read_all_chunks(JS::NonnullGCPtr<ReadLoopReadRequest::ChunkSteps> chunk_steps, JS::NonnullGCPtr<ReadLoopReadRequest::SuccessSteps> success_steps, JS::NonnullGCPtr<ReadLoopReadRequest::FailureSteps> failure_steps)
 {
     // AD-HOC: Some spec steps direct us to "read all chunks" from a stream, but there isn't an AO defined to do that.
     //         We implement those steps by using the "read all bytes" definition, with a custom callback to receive
@@ -219,7 +222,7 @@ void ReadableStreamDefaultReader::read_all_chunks(ReadLoopReadRequest::ChunkStep
 
     // 1. Let readRequest be a new read request with the following items:
     //    NOTE: items and steps in ReadLoopReadRequest.
-    auto read_request = heap().allocate_without_realm<ReadLoopReadRequest>(vm, realm, *this, move(success_steps), move(failure_steps), move(chunk_steps));
+    auto read_request = heap().allocate_without_realm<ReadLoopReadRequest>(vm, realm, *this, success_steps, failure_steps, chunk_steps);
 
     // 2. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
     readable_stream_default_reader_read(*this, read_request);
@@ -234,16 +237,16 @@ JS::NonnullGCPtr<WebIDL::Promise> ReadableStreamDefaultReader::read_all_bytes_de
 
     auto promise = WebIDL::create_promise(realm);
 
-    auto success_steps = [promise, &realm](ByteBuffer bytes) {
+    auto success_steps = JS::create_heap_function(realm.heap(), [promise, &realm](ByteBuffer bytes) {
         auto buffer = JS::ArrayBuffer::create(realm, move(bytes));
         WebIDL::resolve_promise(realm, promise, buffer);
-    };
+    });
 
-    auto failure_steps = [promise, &realm](JS::Value error) {
+    auto failure_steps = JS::create_heap_function(realm.heap(), [promise, &realm](JS::Value error) {
         WebIDL::reject_promise(realm, promise, error);
-    };
+    });
 
-    read_all_bytes(move(success_steps), move(failure_steps));
+    read_all_bytes(success_steps, failure_steps);
 
     return promise;
 }
