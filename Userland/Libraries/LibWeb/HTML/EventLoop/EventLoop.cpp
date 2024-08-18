@@ -495,6 +495,8 @@ Vector<JS::Handle<DOM::Document>> EventLoop::documents_in_this_event_loop() cons
     Vector<JS::Handle<DOM::Document>> documents;
     for (auto& document : m_documents) {
         VERIFY(document);
+        if (document->is_decoded_svg())
+            continue;
         documents.append(JS::make_handle(*document));
     }
     return documents;
