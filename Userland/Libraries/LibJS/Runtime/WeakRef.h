@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include <LibJS/Heap/WeakContainer.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
-#include <LibJS/Runtime/WeakContainer.h>
 
 namespace JS {
 

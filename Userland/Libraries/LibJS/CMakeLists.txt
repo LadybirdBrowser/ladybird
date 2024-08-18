@@ -27,6 +27,7 @@ set(SOURCES
     Heap/Heap.cpp
     Heap/HeapBlock.cpp
     Heap/MarkedVector.cpp
+    Heap/WeakContainer.cpp
     Lexer.cpp
     MarkupGenerator.cpp
     Module.cpp
@@ -252,7 +253,6 @@ set(SOURCES
     Runtime/Utf16String.cpp
     Runtime/Value.cpp
     Runtime/VM.cpp
-    Runtime/WeakContainer.cpp
     Runtime/WeakMap.cpp
     Runtime/WeakMapConstructor.cpp
     Runtime/WeakMapPrototype.cpp
