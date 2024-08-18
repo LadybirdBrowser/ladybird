@@ -22,8 +22,9 @@ class FileList
     JS_DECLARE_ALLOCATOR(FileList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<FileList> create(JS::Realm&, Vector<JS::NonnullGCPtr<File>>&&);
     [[nodiscard]] static JS::NonnullGCPtr<FileList> create(JS::Realm&);
+
+    void add_file(JS::NonnullGCPtr<File> file) { m_files.append(file); }
 
     virtual ~FileList() override;
 
@@ -49,7 +50,6 @@ public:
     virtual WebIDL::ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory&) override;
 
 private:
-    FileList(JS::Realm&, Vector<JS::NonnullGCPtr<File>>&&);
     explicit FileList(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;

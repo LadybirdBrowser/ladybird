@@ -14,21 +14,9 @@ namespace Web::FileAPI {
 
 JS_DEFINE_ALLOCATOR(FileList);
 
-JS::NonnullGCPtr<FileList> FileList::create(JS::Realm& realm, Vector<JS::NonnullGCPtr<File>>&& files)
-{
-    return realm.heap().allocate<FileList>(realm, realm, move(files));
-}
-
 JS::NonnullGCPtr<FileList> FileList::create(JS::Realm& realm)
 {
     return realm.heap().allocate<FileList>(realm, realm);
-}
-
-FileList::FileList(JS::Realm& realm, Vector<JS::NonnullGCPtr<File>>&& files)
-    : Bindings::PlatformObject(realm)
-    , m_files(move(files))
-{
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
 }
 
 FileList::FileList(JS::Realm& realm)
