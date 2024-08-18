@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Heap/Heap.h>
-#include <LibJS/Runtime/WeakContainer.h>
+#include <LibJS/Heap/WeakContainer.h>
 
 namespace JS {
 
