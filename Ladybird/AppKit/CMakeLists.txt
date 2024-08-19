@@ -1,7 +1,6 @@
 add_library(ladybird_impl STATIC
     ${LADYBIRD_SOURCES}
     Application/Application.mm
-    Application/ApplicationBridge.cpp
     Application/ApplicationDelegate.mm
     Application/EventLoopImplementation.mm
     UI/Event.mm
