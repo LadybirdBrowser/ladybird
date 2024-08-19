@@ -101,5 +101,6 @@ endpoint WebContentClient
     inspector_did_replace_dom_node_attribute(u64 page_id, i32 node_id, size_t attribute_index, Vector<WebView::Attribute> replacement_attributes) =|
     inspector_did_request_dom_tree_context_menu(u64 page_id, i32 node_id, Gfx::IntPoint position, String type, Optional<String> tag, Optional<size_t> attribute_index) =|
     inspector_did_execute_console_script(u64 page_id, String script) =|
+    inspector_did_export_inspector_html(u64 page_id, String html) =|
 
 }

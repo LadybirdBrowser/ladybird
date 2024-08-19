@@ -11,6 +11,7 @@ set(16x16_ICONS
     audio-volume-high.png
     audio-volume-muted.png
     close-tab.png
+    download.png
     edit-copy.png
     filetype-css.png
     filetype-folder-open.png

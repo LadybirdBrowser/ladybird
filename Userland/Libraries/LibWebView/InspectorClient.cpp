@@ -7,13 +7,21 @@
 #include <AK/Base64.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <AK/LexicalPath.h>
 #include <AK/StringBuilder.h>
+#include <LibCore/Directory.h>
+#include <LibCore/File.h>
+#include <LibCore/Resource.h>
+#include <LibCore/StandardPaths.h>
 #include <LibJS/MarkupGenerator.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/InspectorClient.h>
 #include <LibWebView/SourceHighlighter.h>
 
 namespace WebView {
+
+static constexpr auto INSPECTOR_CSS = "resource://ladybird/inspector.css"sv;
+static constexpr auto INSPECTOR_JS = "resource://ladybird/inspector.js"sv;
 
 static ErrorOr<JsonValue> parse_json_tree(StringView json)
 {
@@ -177,6 +185,47 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         append_console_source(script);
 
         m_content_web_view.js_console_input(script.to_byte_string());
+    };
+
+    m_inspector_web_view.on_inspector_exported_inspector_html = [this](String const& html) {
+        auto inspector_path = LexicalPath::join(Core::StandardPaths::downloads_directory(), "inspector"sv);
+
+        if (auto result = Core::Directory::create(inspector_path, Core::Directory::CreateDirectories::Yes); result.is_error()) {
+            append_console_warning(MUST(String::formatted("Unable to create {}: {}", inspector_path, result.error())));
+            return;
+        }
+
+        auto export_file = [&](auto name, auto const& contents) {
+            auto path = inspector_path.append(name);
+
+            auto file = Core::File::open(path.string(), Core::File::OpenMode::Write);
+            if (file.is_error()) {
+                append_console_warning(MUST(String::formatted("Unable to open {}: {}", path, file.error())));
+                return false;
+            }
+
+            if (auto result = file.value()->write_until_depleted(contents); result.is_error()) {
+                append_console_warning(MUST(String::formatted("Unable to save {}: {}", path, result.error())));
+                return false;
+            }
+
+            return true;
+        };
+
+        auto inspector_css = MUST(Core::Resource::load_from_uri(INSPECTOR_CSS));
+        auto inspector_js = MUST(Core::Resource::load_from_uri(INSPECTOR_JS));
+
+        auto inspector_html = MUST(html.replace(INSPECTOR_CSS, "inspector.css"sv, ReplaceMode::All));
+        inspector_html = MUST(inspector_html.replace(INSPECTOR_JS, "inspector.js"sv, ReplaceMode::All));
+
+        if (!export_file("inspector.html"sv, inspector_html))
+            return;
+        if (!export_file("inspector.css"sv, inspector_css->data()))
+            return;
+        if (!export_file("inspector.js"sv, inspector_js->data()))
+            return;
+
+        append_console_message(MUST(String::formatted("Exported Inspector files to {}", inspector_path)));
     };
 
     load_inspector();
@@ -359,17 +408,21 @@ void InspectorClient::load_inspector()
 
     builder.append(HTML_HIGHLIGHTER_STYLE);
 
-    builder.append(R"~~~(
+    builder.appendff(R"~~~(
     </style>
-    <link href="resource://ladybird/inspector.css" rel="stylesheet" />
+    <link href="{}" rel="stylesheet" />
 </head>
 <body>
     <div class="split-view">
         <div id="inspector-top" class="split-view-container" style="height: 60%">
             <div class="tab-controls-container">
+                <div class="global-controls"></div>
                 <div class="tab-controls">
                     <button id="dom-tree-button" onclick="selectTopTab(this, 'dom-tree')">DOM Tree</button>
                     <button id="accessibility-tree-button" onclick="selectTopTab(this, 'accessibility-tree')">Accessibility Tree</button>
+                </div>
+                <div class="global-controls">
+                    <button id="export-inspector-button" title="Export the Inspector to an HTML file" onclick="inspector.exportInspector()"></button>
                 </div>
             </div>
             <div id="dom-tree" class="tab-content html"></div>
@@ -384,6 +437,7 @@ void InspectorClient::load_inspector()
         </div>
         <div id="inspector-bottom" class="split-view-container" style="height: calc(40% - 5px)">
             <div class="tab-controls-container">
+                <div class="global-controls"></div>
                 <div class="tab-controls">
                     <button id="console-button" onclick="selectBottomTab(this, 'console')">Console</button>
                     <button id="computed-style-button" onclick="selectBottomTab(this, 'computed-style')">Computed Style</button>
@@ -391,6 +445,7 @@ void InspectorClient::load_inspector()
                     <button id="custom-properties-button" onclick="selectBottomTab(this, 'custom-properties')">Custom Properties</button>
                     <button id="font-button" onclick="selectBottomTab(this, 'fonts')">Fonts</button>
                 </div>
+                <div class="global-controls"></div>
             </div>
             <div id="console" class="tab-content">
                 <div class="console">
@@ -402,7 +457,8 @@ void InspectorClient::load_inspector()
                     </div>
                 </div>
             </div>
-)~~~"sv);
+)~~~",
+        INSPECTOR_CSS);
 
     auto generate_property_table = [&](auto name) {
         builder.appendff(R"~~~(
@@ -435,14 +491,15 @@ void InspectorClient::load_inspector()
         </div>
 )~~~"sv);
 
-    builder.append(R"~~~(
+    builder.appendff(R"~~~(
         </div>
     </div>
 
-    <script type="text/javascript" src="resource://ladybird/inspector.js"></script>
+    <script type="text/javascript" src="{}"></script>
 </body>
 </html>
-)~~~"sv);
+)~~~",
+        INSPECTOR_JS);
 
     m_inspector_web_view.load_html(builder.string_view());
 }

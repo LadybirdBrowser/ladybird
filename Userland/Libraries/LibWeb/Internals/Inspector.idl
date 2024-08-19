@@ -14,4 +14,6 @@
 
     undefined executeConsoleScript(DOMString script);
 
+    undefined exportInspectorHTML(DOMString html);
+
 };
