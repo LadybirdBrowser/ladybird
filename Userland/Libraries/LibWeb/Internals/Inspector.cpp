@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -74,6 +74,11 @@ void Inspector::request_dom_tree_context_menu(i32 node_id, i32 client_x, i32 cli
 void Inspector::execute_console_script(String const& script)
 {
     global_object().browsing_context()->page().client().inspector_did_execute_console_script(script);
+}
+
+void Inspector::export_inspector_html(String const& html)
+{
+    global_object().browsing_context()->page().client().inspector_did_export_inspector_html(html);
 }
 
 }

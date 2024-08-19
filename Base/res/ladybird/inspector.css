@@ -92,7 +92,7 @@ body {
 
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
 
     z-index: 100;
 }
@@ -132,6 +132,30 @@ body {
 
 .tab-controls button + button {
     border-left: 1px solid var(--tab-button-border);
+}
+
+.global-controls {
+    margin: 0 8px 0 8px;
+}
+
+.global-controls button {
+    width: 24px;
+    height: 24px;
+
+    border: none;
+    outline: none;
+    cursor: pointer;
+}
+
+#export-inspector-button {
+    background-image: url("resource://icons/16x16/download.png");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: var(--tab-controls);
+}
+
+#export-inspector-button:hover {
+    background-color: var(--tab-button-background);
 }
 
 .tab-content {

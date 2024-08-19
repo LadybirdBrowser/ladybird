@@ -91,6 +91,11 @@ const scrollToElement = element => {
     window.scrollTo(0, position);
 };
 
+inspector.exportInspector = () => {
+    const html = document.documentElement.outerHTML;
+    inspector.exportInspectorHTML(html);
+};
+
 inspector.reset = () => {
     let domTree = document.getElementById("dom-tree");
     domTree.innerHTML = "";
