@@ -22,7 +22,7 @@ static DrawGlyphOrEmoji construct_glyph_or_emoji(size_t index, FloatPoint const&
     };
 }
 
-void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Function<void(DrawGlyphOrEmoji const&)> callback, IncludeLeftBearing include_left_bearing, Optional<float&> width)
+void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Function<void(DrawGlyphOrEmoji const&)> callback, Optional<float&> width)
 {
     hb_buffer_t* buffer = hb_buffer_create();
     ScopeGuard destroy_buffer = [&]() { hb_buffer_destroy(buffer); };
@@ -46,12 +46,6 @@ void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Fo
         auto position = point
             - FloatPoint { 0, font.pixel_metrics().ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
-        if (include_left_bearing == IncludeLeftBearing::Yes) {
-            VERIFY(is<Gfx::ScaledFont>(font));
-            auto bearing = static_cast<Gfx::ScaledFont const&>(font).glyph_metrics(glyph_info[i].codepoint).left_side_bearing;
-            position += FloatPoint { bearing, 0 };
-        }
-
         callback(construct_glyph_or_emoji(i, position, font, { glyph_info, glyph_count }, input_glyph_info.span()));
         point += FloatPoint { positions[i].x_advance, positions[i].y_advance } / text_shaping_resolution;
     }
