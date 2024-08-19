@@ -201,7 +201,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             { 0, 0 }, chunk.view, chunk.font, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
                 glyph_run.append(glyph_or_emoji);
             },
-            Gfx::IncludeLeftBearing::No, glyph_run_width);
+            glyph_run_width);
 
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run_width);
 

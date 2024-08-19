@@ -29,7 +29,6 @@ public:
     virtual Gfx::FontPixelMetrics pixel_metrics() const override;
     virtual u8 slope() const override { return m_typeface->slope(); }
     virtual u16 weight() const override { return m_typeface->weight(); }
-    virtual float glyph_left_bearing(u32 code_point) const override;
     virtual bool contains_glyph(u32 code_point) const override { return m_typeface->glyph_id_for_code_point(code_point) > 0; }
     virtual float glyph_width(u32 code_point) const override;
     virtual float glyph_or_emoji_width(Utf8CodePointIterator&) const override;

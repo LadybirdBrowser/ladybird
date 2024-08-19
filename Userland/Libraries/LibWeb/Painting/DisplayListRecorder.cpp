@@ -239,7 +239,7 @@ void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, G
         { 0, 0 }, raw_text.code_points(), font, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
             glyph_run->append(glyph_or_emoji);
         },
-        Gfx::IncludeLeftBearing::No, glyph_run_width);
+        glyph_run_width);
 
     float baseline_x = 0;
     if (alignment == Gfx::TextAlignment::CenterLeft) {

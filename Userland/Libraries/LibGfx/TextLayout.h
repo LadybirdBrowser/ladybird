@@ -20,16 +20,6 @@
 
 namespace Gfx {
 
-inline bool should_paint_as_space(u32 code_point)
-{
-    return is_ascii_space(code_point) || code_point == 0xa0;
-}
-
-enum class IncludeLeftBearing {
-    Yes,
-    No
-};
-
 struct DrawGlyph {
     FloatPoint position;
     u32 glyph_id;
@@ -72,6 +62,6 @@ private:
     NonnullRefPtr<Font> m_font;
 };
 
-void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Function<void(DrawGlyphOrEmoji const&)> callback, IncludeLeftBearing include_left_bearing = IncludeLeftBearing::No, Optional<float&> width = {});
+void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Function<void(DrawGlyphOrEmoji const&)> callback, Optional<float&> width = {});
 
 }

@@ -63,12 +63,6 @@ ALWAYS_INLINE float ScaledFont::unicode_view_width(T const& view) const
     return longest_width;
 }
 
-float ScaledFont::glyph_left_bearing(u32 code_point) const
-{
-    auto id = glyph_id_for_code_point(code_point);
-    return glyph_metrics(id).left_side_bearing;
-}
-
 float ScaledFont::glyph_width(u32 code_point) const
 {
     auto id = glyph_id_for_code_point(code_point);
