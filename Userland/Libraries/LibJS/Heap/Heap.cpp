@@ -18,8 +18,8 @@
 #include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Heap/HeapBlock.h>
+#include <LibJS/Heap/SafeFunction.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibJS/SafeFunction.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER

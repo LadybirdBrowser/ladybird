@@ -9,7 +9,6 @@
 #include <AK/DistinctNumeric.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/CellAllocator.h>
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {

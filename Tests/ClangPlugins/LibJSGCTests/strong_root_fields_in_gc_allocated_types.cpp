@@ -10,7 +10,7 @@
 
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/Handle.h>
-#include <LibJS/SafeFunction.h>
+#include <LibJS/Heap/SafeFunction.h>
 
 class CellClass : JS::Cell {
     JS_CELL(CellClass, JS::Cell);
