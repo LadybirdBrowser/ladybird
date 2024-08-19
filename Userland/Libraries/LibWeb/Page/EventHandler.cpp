@@ -430,7 +430,8 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
     if (button == UIEvents::MouseButton::Primary) {
         if (auto result = paint_root()->hit_test(position, Painting::HitTestType::TextCursor); result.has_value()) {
             auto paintable = result->paintable;
-            if (paintable->dom_node()) {
+            auto dom_node = paintable->dom_node();
+            if (dom_node) {
                 // See if we want to focus something.
                 bool did_focus_something = false;
                 for (auto candidate = node; candidate; candidate = candidate->parent_or_shadow_host()) {
@@ -450,15 +451,15 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
 
                 // If we didn't focus anything, place the document text cursor at the mouse position.
                 // FIXME: This is all rather strange. Find a better solution.
-                if (!did_focus_something || paintable->dom_node()->is_editable()) {
+                if (!did_focus_something || dom_node->is_editable()) {
                     auto& realm = document->realm();
-                    document->set_cursor_position(DOM::Position::create(realm, *paintable->dom_node(), result->index_in_node));
+                    document->set_cursor_position(DOM::Position::create(realm, *dom_node, result->index_in_node));
                     if (auto selection = document->get_selection()) {
                         auto anchor_node = selection->anchor_node();
                         if (anchor_node && modifiers & UIEvents::KeyModifier::Mod_Shift) {
-                            (void)selection->set_base_and_extent(*anchor_node, selection->anchor_offset(), *paintable->dom_node(), result->index_in_node);
+                            (void)selection->set_base_and_extent(*anchor_node, selection->anchor_offset(), *dom_node, result->index_in_node);
                         } else {
-                            (void)selection->set_base_and_extent(*paintable->dom_node(), result->index_in_node, *paintable->dom_node(), result->index_in_node);
+                            (void)selection->set_base_and_extent(*dom_node, result->index_in_node, *dom_node, result->index_in_node);
                         }
                     }
                     m_in_mouse_selection = true;
