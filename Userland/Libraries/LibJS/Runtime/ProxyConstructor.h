@@ -13,14 +13,14 @@ namespace JS {
 
 class ProxyConstructor final : public NativeFunction {
     JS_OBJECT(ProxyConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(ProxyConstructor);
+    GC_DECLARE_ALLOCATOR(ProxyConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~ProxyConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit ProxyConstructor(Realm&);

@@ -15,7 +15,7 @@ ThrowCompletionOr<Object*> promise_resolve(VM&, Object& constructor, Value);
 
 class Promise : public Object {
     JS_OBJECT(Promise, Object);
-    JS_DECLARE_ALLOCATOR(Promise);
+    GC_DECLARE_ALLOCATOR(Promise);
 
 public:
     enum class State {
@@ -28,7 +28,7 @@ public:
         Handle,
     };
 
-    static NonnullGCPtr<Promise> create(Realm&);
+    static GC::Ref<Promise> create(Realm&);
 
     virtual ~Promise() = default;
 
@@ -36,14 +36,14 @@ public:
     Value result() const { return m_result; }
 
     struct ResolvingFunctions {
-        NonnullGCPtr<FunctionObject> resolve;
-        NonnullGCPtr<FunctionObject> reject;
+        GC::Ref<FunctionObject> resolve;
+        GC::Ref<FunctionObject> reject;
     };
     ResolvingFunctions create_resolving_functions();
 
     void fulfill(Value value);
     void reject(Value reason);
-    Value perform_then(Value on_fulfilled, Value on_rejected, GCPtr<PromiseCapability> result_capability);
+    Value perform_then(Value on_fulfilled, Value on_rejected, GC::Ptr<PromiseCapability> result_capability);
 
     bool is_handled() const { return m_is_handled; }
     void set_is_handled() { m_is_handled = true; }
@@ -59,11 +59,11 @@ private:
     void trigger_reactions() const;
 
     // 27.2.6 Properties of Promise Instances, https://tc39.es/ecma262/#sec-properties-of-promise-instances
-    State m_state { State::Pending };                   // [[PromiseState]]
-    Value m_result;                                     // [[PromiseResult]]
-    Vector<GCPtr<PromiseReaction>> m_fulfill_reactions; // [[PromiseFulfillReactions]]
-    Vector<GCPtr<PromiseReaction>> m_reject_reactions;  // [[PromiseRejectReactions]]
-    bool m_is_handled { false };                        // [[PromiseIsHandled]]
+    State m_state { State::Pending };                     // [[PromiseState]]
+    Value m_result;                                       // [[PromiseResult]]
+    Vector<GC::Ptr<PromiseReaction>> m_fulfill_reactions; // [[PromiseFulfillReactions]]
+    Vector<GC::Ptr<PromiseReaction>> m_reject_reactions;  // [[PromiseRejectReactions]]
+    bool m_is_handled { false };                          // [[PromiseIsHandled]]
 };
 
 }

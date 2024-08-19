@@ -26,10 +26,10 @@ struct PeriodicWaveOptions : PeriodicWaveConstraints {
 // https://webaudio.github.io/web-audio-api/#PeriodicWave
 class PeriodicWave : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(PeriodicWave, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(PeriodicWave);
+    GC_DECLARE_ALLOCATOR(PeriodicWave);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<PeriodicWave>> construct_impl(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, PeriodicWaveOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, PeriodicWaveOptions const&);
 
     virtual ~PeriodicWave() override;
 

@@ -17,7 +17,7 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(ReadableStreamBYOBReader);
+GC_DEFINE_ALLOCATOR(ReadableStreamBYOBReader);
 
 ReadableStreamBYOBReader::ReadableStreamBYOBReader(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -32,7 +32,7 @@ void ReadableStreamBYOBReader::initialize(JS::Realm& realm)
 }
 
 // https://streams.spec.whatwg.org/#byob-reader-constructor
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStreamBYOBReader>> ReadableStreamBYOBReader::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<ReadableStream> stream)
+WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> ReadableStreamBYOBReader::construct_impl(JS::Realm& realm, GC::Ref<ReadableStream> stream)
 {
     auto reader = realm.heap().allocate<ReadableStreamBYOBReader>(realm, realm);
 
@@ -62,7 +62,7 @@ void ReadableStreamBYOBReader::visit_edges(Cell::Visitor& visitor)
 
 class BYOBReaderReadIntoRequest : public ReadIntoRequest {
     JS_CELL(BYOBReaderReadIntoRequest, ReadIntoRequest);
-    JS_DECLARE_ALLOCATOR(BYOBReaderReadIntoRequest);
+    GC_DECLARE_ALLOCATOR(BYOBReaderReadIntoRequest);
 
 public:
     BYOBReaderReadIntoRequest(JS::Realm& realm, WebIDL::Promise& promise)
@@ -100,14 +100,14 @@ private:
         visitor.visit(m_promise);
     }
 
-    JS::NonnullGCPtr<JS::Realm> m_realm;
-    JS::NonnullGCPtr<WebIDL::Promise> m_promise;
+    GC::Ref<JS::Realm> m_realm;
+    GC::Ref<WebIDL::Promise> m_promise;
 };
 
-JS_DEFINE_ALLOCATOR(BYOBReaderReadIntoRequest);
+GC_DEFINE_ALLOCATOR(BYOBReaderReadIntoRequest);
 
 // https://streams.spec.whatwg.org/#byob-reader-read
-JS::NonnullGCPtr<JS::Promise> ReadableStreamBYOBReader::read(JS::Handle<WebIDL::ArrayBufferView>& view, ReadableStreamBYOBReaderReadOptions options)
+GC::Ref<JS::Promise> ReadableStreamBYOBReader::read(GC::Handle<WebIDL::ArrayBufferView>& view, ReadableStreamBYOBReaderReadOptions options)
 {
     auto& realm = this->realm();
 
@@ -137,7 +137,7 @@ JS::NonnullGCPtr<JS::Promise> ReadableStreamBYOBReader::read(JS::Handle<WebIDL::
 
     // 5. If view has a [[TypedArrayName]] internal slot,
     if (view->is_typed_array_base()) {
-        auto const& typed_array = *view->bufferable_object().get<JS::NonnullGCPtr<JS::TypedArrayBase>>();
+        auto const& typed_array = *view->bufferable_object().get<GC::Ref<JS::TypedArrayBase>>();
 
         // 1. If options["min"] > view.[[ArrayLength]], return a promise rejected with a RangeError exception.
         if (options.min > typed_array.array_length().length()) {
@@ -177,6 +177,6 @@ JS::NonnullGCPtr<JS::Promise> ReadableStreamBYOBReader::read(JS::Handle<WebIDL::
     readable_stream_byob_reader_read(*this, *view, options.min, *read_into_request);
 
     // 11. Return promise.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise_capability->promise()) };
+    return GC::Ref { verify_cast<JS::Promise>(*promise_capability->promise()) };
 }
 }

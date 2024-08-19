@@ -14,14 +14,14 @@
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#generic-reader-closed
-JS::GCPtr<JS::Promise> ReadableStreamGenericReaderMixin::closed()
+GC::Ptr<JS::Promise> ReadableStreamGenericReaderMixin::closed()
 {
     // 1. Return this.[[closedPromise]].
-    return JS::GCPtr { verify_cast<JS::Promise>(*m_closed_promise->promise()) };
+    return GC::Ptr { verify_cast<JS::Promise>(*m_closed_promise->promise()) };
 }
 
 // https://streams.spec.whatwg.org/#generic-reader-cancel
-JS::NonnullGCPtr<JS::Promise> ReadableStreamGenericReaderMixin::cancel(JS::Value reason)
+GC::Ref<JS::Promise> ReadableStreamGenericReaderMixin::cancel(JS::Value reason)
 {
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
@@ -31,7 +31,7 @@ JS::NonnullGCPtr<JS::Promise> ReadableStreamGenericReaderMixin::cancel(JS::Value
 
     // 2. Return ! ReadableStreamReaderGenericCancel(this, reason).
     auto promise_capability = readable_stream_reader_generic_cancel(*this, reason);
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise_capability->promise().ptr()) };
+    return GC::Ref { verify_cast<JS::Promise>(*promise_capability->promise().ptr()) };
 }
 
 ReadableStreamGenericReaderMixin::ReadableStreamGenericReaderMixin(JS::Realm& realm)

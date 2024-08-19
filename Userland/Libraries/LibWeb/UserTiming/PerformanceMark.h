@@ -19,12 +19,12 @@ struct PerformanceMarkOptions {
 // https://w3c.github.io/user-timing/#dom-performancemark
 class PerformanceMark final : public PerformanceTimeline::PerformanceEntry {
     WEB_PLATFORM_OBJECT(PerformanceMark, PerformanceTimeline::PerformanceEntry);
-    JS_DECLARE_ALLOCATOR(PerformanceMark);
+    GC_DECLARE_ALLOCATOR(PerformanceMark);
 
 public:
     virtual ~PerformanceMark();
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<PerformanceMark>> construct_impl(JS::Realm&, String const& mark_name, PerformanceMarkOptions const& mark_options = {});
+    static WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> construct_impl(JS::Realm&, String const& mark_name, PerformanceMarkOptions const& mark_options = {});
 
     // NOTE: These three functions are answered by the registry for the given entry type.
     // https://w3c.github.io/timing-entrytypes-registry/#registry

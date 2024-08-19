@@ -15,7 +15,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(SegmenterConstructor);
+GC_DEFINE_ALLOCATOR(SegmenterConstructor);
 
 // 18.1 The Intl.Segmenter Constructor, https://tc39.es/ecma402/#sec-intl-segmenter-constructor
 SegmenterConstructor::SegmenterConstructor(Realm& realm)
@@ -45,7 +45,7 @@ ThrowCompletionOr<Value> SegmenterConstructor::call()
 }
 
 // 18.1.1 Intl.Segmenter ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.segmenter
-ThrowCompletionOr<NonnullGCPtr<Object>> SegmenterConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> SegmenterConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

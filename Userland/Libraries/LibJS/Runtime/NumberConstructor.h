@@ -12,14 +12,14 @@ namespace JS {
 
 class NumberConstructor final : public NativeFunction {
     JS_OBJECT(NumberConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(NumberConstructor);
+    GC_DECLARE_ALLOCATOR(NumberConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~NumberConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit NumberConstructor(Realm&);

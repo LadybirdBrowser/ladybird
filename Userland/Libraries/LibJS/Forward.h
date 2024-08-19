@@ -157,14 +157,12 @@ struct AsyncGeneratorRequest;
 class BigInt;
 class BoundFunction;
 class Cell;
-class CellAllocator;
 class ClassExpression;
 struct ClassFieldDefinition;
 class Completion;
 class Console;
 class CyclicModule;
 class DeclarativeEnvironment;
-class DeferGC;
 class ECMAScriptFunctionObject;
 class Environment;
 class Error;
@@ -180,9 +178,7 @@ struct FunctionParameter;
 class GlobalEnvironment;
 class GlobalObject;
 struct GraphLoadingState;
-class HandleImpl;
 class Heap;
-class HeapBlock;
 struct ImportEntry;
 class ImportStatement;
 class Identifier;
@@ -298,20 +294,8 @@ struct PartialDurationRecord;
 };
 
 template<typename T>
-class HeapFunction;
-
-template<typename T>
 requires(!IsLvalueReference<T>)
 class ThrowCompletionOr;
-
-template<class T>
-class Handle;
-
-template<class T, size_t inline_capacity = 0>
-class ConservativeVector;
-
-template<class T, size_t inline_capacity = 0>
-class MarkedVector;
 
 namespace Bytecode {
 class BasicBlock;

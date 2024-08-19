@@ -15,9 +15,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(AsyncFunctionDriverWrapper);
+GC_DEFINE_ALLOCATOR(AsyncFunctionDriverWrapper);
 
-NonnullGCPtr<Promise> AsyncFunctionDriverWrapper::create(Realm& realm, GeneratorObject* generator_object)
+GC::Ref<Promise> AsyncFunctionDriverWrapper::create(Realm& realm, GeneratorObject* generator_object)
 {
     auto top_level_promise = Promise::create(realm);
     // Note: This generates a handle to itself, which it clears upon completing its execution
@@ -30,7 +30,7 @@ NonnullGCPtr<Promise> AsyncFunctionDriverWrapper::create(Realm& realm, Generator
     return top_level_promise;
 }
 
-AsyncFunctionDriverWrapper::AsyncFunctionDriverWrapper(Realm& realm, NonnullGCPtr<GeneratorObject> generator_object, NonnullGCPtr<Promise> top_level_promise)
+AsyncFunctionDriverWrapper::AsyncFunctionDriverWrapper(Realm& realm, GC::Ref<GeneratorObject> generator_object, GC::Ref<Promise> top_level_promise)
     : Promise(realm.intrinsics().promise_prototype())
     , m_generator_object(generator_object)
     , m_top_level_promise(top_level_promise)

@@ -10,7 +10,7 @@
 
 namespace Web::NavigationTiming {
 
-JS_DEFINE_ALLOCATOR(PerformanceNavigation);
+GC_DEFINE_ALLOCATOR(PerformanceNavigation);
 
 PerformanceNavigation::PerformanceNavigation(JS::Realm& realm, u16 type, u16 redirect_count)
     : PlatformObject(realm)

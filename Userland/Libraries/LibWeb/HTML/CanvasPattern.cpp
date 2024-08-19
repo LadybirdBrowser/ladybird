@@ -13,7 +13,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(CanvasPattern);
+GC_DEFINE_ALLOCATOR(CanvasPattern);
 
 void CanvasPatternPaintStyle::paint(Gfx::IntRect physical_bounding_box, PaintFunction paint) const
 {
@@ -91,7 +91,7 @@ CanvasPattern::CanvasPattern(JS::Realm& realm, CanvasPatternPaintStyle& pattern)
 CanvasPattern::~CanvasPattern() = default;
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createpattern
-WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& realm, CanvasImageSource const& image, StringView repetition)
+WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& realm, CanvasImageSource const& image, StringView repetition)
 {
     auto parse_repetition = [&](auto repetition) -> Optional<CanvasPatternPaintStyle::Repetition> {
         if (repetition == "repeat"sv)
@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& r
 
     // 2. If usability is bad, then return null.
     if (usability == CanvasImageSourceUsability::Bad)
-        return JS::GCPtr<CanvasPattern> {};
+        return GC::Ptr<CanvasPattern> {};
 
     // 3. Assert: usability is good.
     VERIFY(usability == CanvasImageSourceUsability::Good);

@@ -27,13 +27,13 @@ class DOMPointReadOnly
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMPointReadOnly, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMPointReadOnly);
+    GC_DECLARE_ALLOCATOR(DOMPointReadOnly);
 
 public:
-    static JS::NonnullGCPtr<DOMPointReadOnly> construct_impl(JS::Realm&, double x = 0, double y = 0, double z = 0, double w = 1);
-    static JS::NonnullGCPtr<DOMPointReadOnly> create(JS::Realm&);
+    static GC::Ref<DOMPointReadOnly> construct_impl(JS::Realm&, double x = 0, double y = 0, double z = 0, double w = 1);
+    static GC::Ref<DOMPointReadOnly> create(JS::Realm&);
 
-    static JS::NonnullGCPtr<DOMPointReadOnly> from_point(JS::VM&, DOMPointInit const&);
+    static GC::Ref<DOMPointReadOnly> from_point(JS::VM&, DOMPointInit const&);
 
     virtual ~DOMPointReadOnly() override;
 
@@ -42,7 +42,7 @@ public:
     double z() const { return m_z; }
     double w() const { return m_w; }
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMPoint>> matrix_transform(DOMMatrixInit&) const;
+    WebIDL::ExceptionOr<GC::Ref<DOMPoint>> matrix_transform(DOMMatrixInit&) const;
 
     virtual StringView interface_name() const override { return "DOMPointReadOnly"sv; }
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::SerializationRecord&, bool for_storage, HTML::SerializationMemory&) override;

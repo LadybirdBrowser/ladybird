@@ -128,7 +128,7 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm
     auto to_json = value.as_object().get_without_side_effects(vm.names.toJSON);
     if (to_json.is_function()) {
         // Return success with the value returned by Function.[[Call]](toJSON) with value as the this value.
-        auto to_json_result = TRY_OR_JS_ERROR(to_json.as_function().internal_call(value, JS::MarkedVector<JS::Value> { vm.heap() }));
+        auto to_json_result = TRY_OR_JS_ERROR(to_json.as_function().internal_call(value, GC::MarkedVector<JS::Value> { vm.heap() }));
         if (!to_json_result.is_string())
             return ExecuteScriptResultType::JavaScriptError;
         return to_json_result.as_string().byte_string();
@@ -221,7 +221,7 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& re
 }
 
 // https://w3c.github.io/webdriver/#dfn-execute-a-function-body
-static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(Web::Page& page, ByteString const& body, JS::MarkedVector<JS::Value> parameters)
+static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(Web::Page& page, ByteString const& body, GC::MarkedVector<JS::Value> parameters)
 {
     // FIXME: If at any point during the algorithm a user prompt appears, immediately return Completion { [[Type]]: normal, [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
 
@@ -282,7 +282,7 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(Web::Page& page,
     return completion;
 }
 
-ExecuteScriptResultSerialized execute_script(Web::Page& page, ByteString const& body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout)
+ExecuteScriptResultSerialized execute_script(Web::Page& page, ByteString const& body, GC::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout)
 {
     // FIXME: Use timeout.
     (void)timeout;
@@ -323,7 +323,7 @@ ExecuteScriptResultSerialized execute_script(Web::Page& page, ByteString const& 
     return { result.type, json_value_or_error.release_value() };
 }
 
-ExecuteScriptResultSerialized execute_async_script(Web::Page& page, ByteString const& body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout)
+ExecuteScriptResultSerialized execute_async_script(Web::Page& page, ByteString const& body, GC::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout)
 {
     auto* document = page.top_level_browsing_context().active_document();
     auto* window = page.top_level_browsing_context().active_window();
@@ -340,7 +340,7 @@ ExecuteScriptResultSerialized execute_async_script(Web::Page& page, ByteString c
 
     // 4. Let promise be a new Promise.
     auto promise_capability = WebIDL::create_promise(realm);
-    JS::NonnullGCPtr promise { verify_cast<JS::Promise>(*promise_capability->promise()) };
+    GC::Ref promise { verify_cast<JS::Promise>(*promise_capability->promise()) };
 
     // FIXME: 5 Run the following substeps in parallel:
     [&] {

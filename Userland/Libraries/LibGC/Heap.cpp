@@ -14,28 +14,27 @@
 #include <AK/StackInfo.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/ElapsedTimer.h>
-#include <LibJS/Bytecode/Interpreter.h>
-#include <LibJS/Heap/CellAllocator.h>
-#include <LibJS/Heap/Handle.h>
-#include <LibJS/Heap/Heap.h>
-#include <LibJS/Heap/HeapBlock.h>
-#include <LibJS/Runtime/Object.h>
-#include <LibJS/Runtime/WeakContainer.h>
-#include <LibJS/SafeFunction.h>
+#include <LibGC/CellAllocator.h>
+#include <LibGC/Handle.h>
+#include <LibGC/Heap.h>
+#include <LibGC/HeapBlock.h>
+#include <LibGC/NanBoxedValue.h>
+#include <LibGC/SafeFunction.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
 #    include <sanitizer/asan_interface.h>
 #endif
 
-namespace JS {
+namespace GC {
 
 // NOTE: We keep a per-thread list of custom ranges. This hinges on the assumption that there is one JS VM per thread.
 static __thread HashMap<FlatPtr*, size_t>* s_custom_ranges_for_conservative_scan = nullptr;
 static __thread HashMap<FlatPtr*, SourceLocation*>* s_safe_function_locations = nullptr;
 
-Heap::Heap(VM& vm)
-    : HeapBase(vm)
+Heap::Heap(void* private_data, AK::Function<void(HashMap<Cell*, HeapRoot>&)> gather_roots)
+    : HeapBase(private_data)
+    , m_gather_roots(move(gather_roots))
 {
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
     m_size_based_cell_allocators.append(make<CellAllocator>(64));
@@ -49,8 +48,6 @@ Heap::Heap(VM& vm)
 
 Heap::~Heap()
 {
-    vm().string_cache().clear();
-    vm().byte_string_cache().clear();
     collect_garbage(CollectionType::CollectEverything);
 }
 
@@ -69,23 +66,23 @@ void Heap::will_allocate(size_t size)
 
 static void add_possible_value(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr data, HeapRoot origin, FlatPtr min_block_address, FlatPtr max_block_address)
 {
-    if constexpr (sizeof(FlatPtr*) == sizeof(Value)) {
-        // Because Value stores pointers in non-canonical form we have to check if the top bytes
+    if constexpr (sizeof(FlatPtr*) == sizeof(NanBoxedValue)) {
+        // Because NanBoxedValue stores pointers in non-canonical form we have to check if the top bytes
         // match any pointer-backed tag, in that case we have to extract the pointer to its
         // canonical form and add that as a possible pointer.
         FlatPtr possible_pointer;
         if ((data & SHIFTED_IS_CELL_PATTERN) == SHIFTED_IS_CELL_PATTERN)
-            possible_pointer = Value::extract_pointer_bits(data);
+            possible_pointer = NanBoxedValue::extract_pointer_bits(data);
         else
             possible_pointer = data;
         if (possible_pointer < min_block_address || possible_pointer > max_block_address)
             return;
         possible_pointers.set(possible_pointer, move(origin));
     } else {
-        static_assert((sizeof(Value) % sizeof(FlatPtr*)) == 0);
+        static_assert((sizeof(NanBoxedValue) % sizeof(FlatPtr*)) == 0);
         if (data < min_block_address || data > max_block_address)
             return;
-        // In the 32-bit case we will look at the top and bottom part of Value separately we just
+        // In the 32-bit case we will look at the top and bottom part of NanBoxedValue separately we just
         // add both the upper and lower bytes as possible pointers.
         possible_pointers.set(data, move(origin));
     }
@@ -228,7 +225,7 @@ private:
     };
 
     GraphNode* m_node_being_visited { nullptr };
-    Vector<NonnullGCPtr<Cell>> m_work_queue;
+    Vector<Ref<Cell>> m_work_queue;
     HashMap<FlatPtr, GraphNode> m_graph;
 
     Heap& m_heap;
@@ -270,7 +267,9 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 
 void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
 {
-    vm().gather_roots(roots);
+    if (m_gather_roots)
+        m_gather_roots(roots);
+
     gather_conservative_roots(roots);
 
     for (auto& handle : m_handles)
@@ -328,16 +327,15 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
         add_possible_value(possible_pointers, raw_jmp_buf[i], HeapRoot { .type = HeapRoot::Type::RegisterPointer }, min_block_address, max_block_address);
 
     auto stack_reference = bit_cast<FlatPtr>(&dummy);
-    auto& stack_info = m_vm.stack_info();
 
-    for (FlatPtr stack_address = stack_reference; stack_address < stack_info.top(); stack_address += sizeof(FlatPtr)) {
+    for (FlatPtr stack_address = stack_reference; stack_address < m_stack_info.top(); stack_address += sizeof(FlatPtr)) {
         auto data = *reinterpret_cast<FlatPtr*>(stack_address);
         add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer }, min_block_address, max_block_address);
         gather_asan_fake_stack_roots(possible_pointers, data, min_block_address, max_block_address);
     }
 
     // NOTE: If we have any custom ranges registered, scan those as well.
-    //       This is where JS::SafeFunction closures get marked.
+    //       This is where GC::SafeFunction closures get marked.
     if (s_custom_ranges_for_conservative_scan) {
         for (auto& custom_range : *s_custom_ranges_for_conservative_scan) {
             for (size_t i = 0; i < (custom_range.value / sizeof(FlatPtr)); ++i) {
@@ -422,7 +420,7 @@ public:
 
 private:
     Heap& m_heap;
-    Vector<NonnullGCPtr<Cell>> m_work_queue;
+    Vector<Ref<Cell>> m_work_queue;
     HashTable<HeapBlock*> m_all_live_heap_blocks;
     FlatPtr m_min_block_address;
     FlatPtr m_max_block_address;

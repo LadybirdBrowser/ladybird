@@ -12,7 +12,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGEllipseElement);
+GC_DEFINE_ALLOCATOR(SVGEllipseElement);
 
 SVGEllipseElement::SVGEllipseElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGeometryElement(document, qualified_name)
@@ -76,7 +76,7 @@ Gfx::Path SVGEllipseElement::get_path(CSSPixelSize)
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementCXAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGEllipseElement::cx() const
+GC::Ref<SVGAnimatedLength> SVGEllipseElement::cx() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -86,7 +86,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGEllipseElement::cx() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementCYAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGEllipseElement::cy() const
+GC::Ref<SVGAnimatedLength> SVGEllipseElement::cy() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -96,7 +96,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGEllipseElement::cy() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRXAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGEllipseElement::rx() const
+GC::Ref<SVGAnimatedLength> SVGEllipseElement::rx() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -106,7 +106,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGEllipseElement::rx() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRYAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGEllipseElement::ry() const
+GC::Ref<SVGAnimatedLength> SVGEllipseElement::ry() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.

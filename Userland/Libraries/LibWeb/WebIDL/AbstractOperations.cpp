@@ -129,7 +129,7 @@ inline JS::Completion clean_up_on_return(HTML::EnvironmentSettingsObject& stored
     return JS::Value { rejected_promise->promise() };
 }
 
-JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, JS::MarkedVector<JS::Value> args)
+JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, GC::MarkedVector<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;
@@ -206,7 +206,7 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
 }
 
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function
-JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, JS::MarkedVector<JS::Value> args)
+JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::MarkedVector<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;
@@ -263,7 +263,7 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
     return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
 }
 
-JS::Completion construct(WebIDL::CallbackType& callback, JS::MarkedVector<JS::Value> args)
+JS::Completion construct(WebIDL::CallbackType& callback, GC::MarkedVector<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;

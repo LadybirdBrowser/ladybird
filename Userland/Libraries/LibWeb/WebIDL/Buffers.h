@@ -8,36 +8,36 @@
 #pragma once
 
 #include <AK/Variant.h>
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/CellAllocator.h>
 
 namespace Web::WebIDL {
 
 using BufferableObject = Variant<
-    JS::NonnullGCPtr<JS::TypedArrayBase>,
-    JS::NonnullGCPtr<JS::DataView>,
-    JS::NonnullGCPtr<JS::ArrayBuffer>>;
+    GC::Ref<JS::TypedArrayBase>,
+    GC::Ref<JS::DataView>,
+    GC::Ref<JS::ArrayBuffer>>;
 
 class BufferableObjectBase : public JS::Cell {
     JS_CELL(BufferableObjectBase, JS::Cell);
-    JS_DECLARE_ALLOCATOR(BufferableObjectBase);
+    GC_DECLARE_ALLOCATOR(BufferableObjectBase);
 
 public:
     virtual ~BufferableObjectBase() override = default;
 
     u32 byte_length() const;
 
-    JS::NonnullGCPtr<JS::Object> raw_object();
-    JS::NonnullGCPtr<JS::Object const> raw_object() const { return const_cast<BufferableObjectBase&>(*this).raw_object(); }
+    GC::Ref<JS::Object> raw_object();
+    GC::Ref<JS::Object const> raw_object() const { return const_cast<BufferableObjectBase&>(*this).raw_object(); }
 
-    JS::GCPtr<JS::ArrayBuffer> viewed_array_buffer();
+    GC::Ptr<JS::ArrayBuffer> viewed_array_buffer();
 
     BufferableObject const& bufferable_object() const { return m_bufferable_object; }
     BufferableObject& bufferable_object() { return m_bufferable_object; }
 
 protected:
-    BufferableObjectBase(JS::NonnullGCPtr<JS::Object>);
+    BufferableObjectBase(GC::Ref<JS::Object>);
 
     virtual void visit_edges(Visitor&) override;
 
@@ -45,7 +45,7 @@ protected:
     bool is_typed_array_base() const;
     bool is_array_buffer() const;
 
-    static BufferableObject bufferable_object_from_raw_object(JS::NonnullGCPtr<JS::Object>);
+    static BufferableObject bufferable_object_from_raw_object(GC::Ref<JS::Object>);
 
     BufferableObject m_bufferable_object;
 };
@@ -58,7 +58,7 @@ protected:
 //          Float32Array or Float64Array or DataView) ArrayBufferView;
 class ArrayBufferView : public BufferableObjectBase {
     JS_CELL(ArrayBufferView, BufferableObjectBase);
-    JS_DECLARE_ALLOCATOR(ArrayBufferView);
+    GC_DECLARE_ALLOCATOR(ArrayBufferView);
 
 public:
     using BufferableObjectBase::BufferableObjectBase;
@@ -76,7 +76,7 @@ public:
 // typedef (ArrayBufferView or ArrayBuffer) BufferSource;
 class BufferSource : public BufferableObjectBase {
     JS_CELL(BufferSource, BufferableObjectBase);
-    JS_DECLARE_ALLOCATOR(BufferSource);
+    GC_DECLARE_ALLOCATOR(BufferSource);
 
 public:
     using BufferableObjectBase::BufferableObjectBase;

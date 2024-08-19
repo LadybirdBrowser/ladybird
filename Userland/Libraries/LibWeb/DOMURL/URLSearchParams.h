@@ -21,12 +21,12 @@ Vector<QueryParam> url_decode(StringView);
 
 class URLSearchParams : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(URLSearchParams, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(URLSearchParams);
+    GC_DECLARE_ALLOCATOR(URLSearchParams);
 
 public:
-    static JS::NonnullGCPtr<URLSearchParams> create(JS::Realm&, StringView);
-    static JS::NonnullGCPtr<URLSearchParams> create(JS::Realm&, Vector<QueryParam> list);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> construct_impl(JS::Realm&, Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init);
+    static GC::Ref<URLSearchParams> create(JS::Realm&, StringView);
+    static GC::Ref<URLSearchParams> create(JS::Realm&, Vector<QueryParam> list);
+    static WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> construct_impl(JS::Realm&, Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init);
 
     virtual ~URLSearchParams() override;
 
@@ -57,7 +57,7 @@ private:
     void update();
 
     Vector<QueryParam> m_list;
-    JS::GCPtr<DOMURL> m_url;
+    GC::Ptr<DOMURL> m_url;
 };
 
 }

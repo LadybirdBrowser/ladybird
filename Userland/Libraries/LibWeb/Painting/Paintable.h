@@ -23,7 +23,7 @@ enum class PaintPhase {
 };
 
 struct HitTestResult {
-    JS::Handle<Paintable> paintable;
+    GC::Handle<Paintable> paintable;
     int index_in_node { 0 };
 
     enum InternalPosition {
@@ -185,9 +185,9 @@ public:
     Layout::Node const& layout_node() const { return m_layout_node; }
     Layout::Node& layout_node() { return const_cast<Layout::Node&>(*m_layout_node); }
 
-    [[nodiscard]] JS::GCPtr<DOM::Node> dom_node();
-    [[nodiscard]] JS::GCPtr<DOM::Node const> dom_node() const;
-    void set_dom_node(JS::GCPtr<DOM::Node>);
+    [[nodiscard]] GC::Ptr<DOM::Node> dom_node();
+    [[nodiscard]] GC::Ptr<DOM::Node const> dom_node() const;
+    void set_dom_node(GC::Ptr<DOM::Node>);
 
     auto const& computed_values() const { return m_layout_node->computed_values(); }
 
@@ -196,7 +196,7 @@ public:
     [[nodiscard]] HTML::BrowsingContext const& browsing_context() const;
     [[nodiscard]] HTML::BrowsingContext& browsing_context();
 
-    JS::GCPtr<HTML::Navigable> navigable() const;
+    GC::Ptr<HTML::Navigable> navigable() const;
 
     virtual void set_needs_display() const;
 
@@ -247,10 +247,10 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    JS::GCPtr<DOM::Node> m_dom_node;
-    JS::NonnullGCPtr<Layout::Node const> m_layout_node;
-    JS::NonnullGCPtr<HTML::BrowsingContext> m_browsing_context;
-    Optional<JS::GCPtr<PaintableBox>> mutable m_containing_block;
+    GC::Ptr<DOM::Node> m_dom_node;
+    GC::Ref<Layout::Node const> m_layout_node;
+    GC::Ref<HTML::BrowsingContext> m_browsing_context;
+    Optional<GC::Ptr<PaintableBox>> mutable m_containing_block;
 
     OwnPtr<StackingContext> m_stacking_context;
 

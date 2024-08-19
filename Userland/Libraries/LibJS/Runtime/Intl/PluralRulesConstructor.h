@@ -12,14 +12,14 @@ namespace JS::Intl {
 
 class PluralRulesConstructor final : public NativeFunction {
     JS_OBJECT(PluralRulesConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(PluralRulesConstructor);
+    GC_DECLARE_ALLOCATOR(PluralRulesConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~PluralRulesConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit PluralRulesConstructor(Realm&);

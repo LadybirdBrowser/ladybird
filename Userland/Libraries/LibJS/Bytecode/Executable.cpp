@@ -8,11 +8,12 @@
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/RegexTable.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibJS/SourceCode.h>
 
 namespace JS::Bytecode {
 
-JS_DEFINE_ALLOCATOR(Executable);
+GC_DEFINE_ALLOCATOR(Executable);
 
 Executable::Executable(
     Vector<u8> bytecode,

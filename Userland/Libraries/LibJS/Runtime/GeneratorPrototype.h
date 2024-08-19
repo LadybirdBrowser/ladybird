@@ -14,7 +14,7 @@ namespace JS {
 // 27.5.1 Properties of the Generator Prototype Object, https://tc39.es/ecma262/#sec-properties-of-generator-prototype
 class GeneratorPrototype final : public PrototypeObject<GeneratorPrototype, GeneratorObject> {
     JS_PROTOTYPE_OBJECT(GeneratorPrototype, GeneratorObject, Generator);
-    JS_DECLARE_ALLOCATOR(GeneratorPrototype);
+    GC_DECLARE_ALLOCATOR(GeneratorPrototype);
 
 public:
     virtual void initialize(Realm&) override;

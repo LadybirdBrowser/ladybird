@@ -22,7 +22,7 @@ class HTMLTextAreaElement final
     , public FormAssociatedElement
     , public DOM::EditableTextNodeOwner {
     WEB_PLATFORM_OBJECT(HTMLTextAreaElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLTextAreaElement);
+    GC_DECLARE_ALLOCATOR(HTMLTextAreaElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLTextAreaElement)
 
 public:
@@ -116,11 +116,11 @@ private:
     void queue_firing_input_event();
 
     void update_placeholder_visibility();
-    JS::GCPtr<DOM::Element> m_placeholder_element;
-    JS::GCPtr<DOM::Text> m_placeholder_text_node;
+    GC::Ptr<DOM::Element> m_placeholder_element;
+    GC::Ptr<DOM::Text> m_placeholder_text_node;
 
-    JS::GCPtr<DOM::Element> m_inner_text_element;
-    JS::GCPtr<DOM::Text> m_text_node;
+    GC::Ptr<DOM::Element> m_inner_text_element;
+    GC::Ptr<DOM::Text> m_text_node;
 
     RefPtr<Core::Timer> m_input_event_timer;
 

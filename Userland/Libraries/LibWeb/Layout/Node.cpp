@@ -214,7 +214,7 @@ HTML::BrowsingContext& Node::browsing_context()
     return *m_browsing_context;
 }
 
-JS::GCPtr<HTML::Navigable> Node::navigable() const
+GC::Ptr<HTML::Navigable> Node::navigable() const
 {
     return document().navigable();
 }
@@ -958,7 +958,7 @@ bool Node::is_inline_table() const
     return display.is_inline_outside() && display.is_table_inside();
 }
 
-JS::NonnullGCPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
+GC::Ref<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 {
     auto wrapper = heap().allocate_without_realm<BlockContainer>(const_cast<DOM::Document&>(document()), nullptr, computed_values().clone_inherited_values());
     wrapper->mutable_computed_values().set_display(CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow));
@@ -995,12 +995,12 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }
 
-void Node::set_paintable(JS::GCPtr<Painting::Paintable> paintable)
+void Node::set_paintable(GC::Ptr<Painting::Paintable> paintable)
 {
     m_paintable = move(paintable);
 }
 
-JS::GCPtr<Painting::Paintable> Node::create_paintable() const
+GC::Ptr<Painting::Paintable> Node::create_paintable() const
 {
     return nullptr;
 }

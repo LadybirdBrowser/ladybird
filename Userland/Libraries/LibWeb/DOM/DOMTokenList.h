@@ -22,10 +22,10 @@ namespace Web::DOM {
 // https://dom.spec.whatwg.org/#domtokenlist
 class DOMTokenList final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DOMTokenList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMTokenList);
+    GC_DECLARE_ALLOCATOR(DOMTokenList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<DOMTokenList> create(Element& associated_element, FlyString associated_attribute);
+    [[nodiscard]] static GC::Ref<DOMTokenList> create(Element& associated_element, FlyString associated_attribute);
     ~DOMTokenList() = default;
 
     void associated_attribute_changed(StringView value);
@@ -56,7 +56,7 @@ private:
 
     String serialize_ordered_set() const;
 
-    JS::NonnullGCPtr<Element> m_associated_element;
+    GC::Ref<Element> m_associated_element;
     FlyString m_associated_attribute;
     Vector<String> m_token_set;
 };

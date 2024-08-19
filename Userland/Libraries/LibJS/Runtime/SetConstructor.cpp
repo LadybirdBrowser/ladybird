@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SetConstructor);
+GC_DEFINE_ALLOCATOR(SetConstructor);
 
 SetConstructor::SetConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Set.as_string(), realm.intrinsics().function_prototype())
@@ -43,7 +43,7 @@ ThrowCompletionOr<Value> SetConstructor::call()
 }
 
 // 24.2.1.1 Set ( [ iterable ] ), https://tc39.es/ecma262/#sec-set-iterable
-ThrowCompletionOr<NonnullGCPtr<Object>> SetConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> SetConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto iterable = vm.argument(0);

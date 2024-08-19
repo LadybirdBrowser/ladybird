@@ -17,11 +17,11 @@ struct HashChangeEventInit : public DOM::EventInit {
 
 class HashChangeEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(HashChangeEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(HashChangeEvent);
+    GC_DECLARE_ALLOCATOR(HashChangeEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<HashChangeEvent> create(JS::Realm&, FlyString const& event_name, HashChangeEventInit const&);
-    [[nodiscard]] static JS::NonnullGCPtr<HashChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, HashChangeEventInit const&);
+    [[nodiscard]] static GC::Ref<HashChangeEvent> create(JS::Realm&, FlyString const& event_name, HashChangeEventInit const&);
+    [[nodiscard]] static GC::Ref<HashChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, HashChangeEventInit const&);
 
     String old_url() const { return m_old_url; }
     String new_url() const { return m_new_url; }

@@ -11,7 +11,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLDataListElement);
+GC_DEFINE_ALLOCATOR(HTMLDataListElement);
 
 HTMLDataListElement::HTMLDataListElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -33,7 +33,7 @@ void HTMLDataListElement::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-datalist-options
-JS::NonnullGCPtr<DOM::HTMLCollection> HTMLDataListElement::options()
+GC::Ref<DOM::HTMLCollection> HTMLDataListElement::options()
 {
     // The options IDL attribute must return an HTMLCollection rooted at the datalist node, whose filter matches option elements.
     if (!m_options) {

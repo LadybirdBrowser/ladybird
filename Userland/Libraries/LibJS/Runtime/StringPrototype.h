@@ -25,7 +25,7 @@ ThrowCompletionOr<String> trim_string(VM&, Value string, TrimMode where);
 
 class StringPrototype final : public StringObject {
     JS_OBJECT(StringPrototype, StringObject);
-    JS_DECLARE_ALLOCATOR(StringPrototype);
+    GC_DECLARE_ALLOCATOR(StringPrototype);
 
 public:
     explicit StringPrototype(Realm&);

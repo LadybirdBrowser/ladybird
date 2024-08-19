@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ErrorPrototype);
+GC_DEFINE_ALLOCATOR(ErrorPrototype);
 
 ErrorPrototype::ErrorPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
@@ -125,7 +125,7 @@ JS_DEFINE_NATIVE_FUNCTION(ErrorPrototype::stack_setter)
 }
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType)               \
-    JS_DEFINE_ALLOCATOR(PrototypeName);                                                                \
+    GC_DEFINE_ALLOCATOR(PrototypeName);                                                                \
                                                                                                        \
     PrototypeName::PrototypeName(Realm& realm)                                                         \
         : PrototypeObject(realm.intrinsics().error_prototype())                                        \

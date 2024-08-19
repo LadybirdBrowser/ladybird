@@ -32,7 +32,7 @@ static CSS::StyleSheetList& relevant_style_sheet_list_for_node(DOM::Node& node)
 // The element is not on the stack of open elements of an HTML parser or XML parser, and it becomes connected or disconnected.
 //
 // https://html.spec.whatwg.org/multipage/semantics.html#update-a-style-block
-void StyleElementUtils::update_a_style_block(DOM::Element& style_element, JS::GCPtr<DOM::Node> old_parent_if_removed_from)
+void StyleElementUtils::update_a_style_block(DOM::Element& style_element, GC::Ptr<DOM::Node> old_parent_if_removed_from)
 {
     // OPTIMIZATION: Skip parsing CSS if we're in the middle of parsing a HTML fragment.
     //               The style block will be parsed upon insertion into a proper document.

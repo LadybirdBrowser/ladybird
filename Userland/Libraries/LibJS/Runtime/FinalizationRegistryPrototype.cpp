@@ -10,7 +10,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(FinalizationRegistryPrototype);
+GC_DEFINE_ALLOCATOR(FinalizationRegistryPrototype);
 
 FinalizationRegistryPrototype::FinalizationRegistryPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
@@ -47,7 +47,7 @@ JS_DEFINE_NATIVE_FUNCTION(FinalizationRegistryPrototype::cleanup_some)
     // IMPLEMENTATION DEFINED: The specification for this function hasn't been updated to accommodate for JobCallback records.
     //                         This just follows how the constructor immediately converts the callback to a JobCallback using HostMakeJobCallback.
     // 4. Perform ? CleanupFinalizationRegistry(finalizationRegistry, callback).
-    TRY(finalization_registry->cleanup(callback.is_undefined() ? GCPtr<JobCallback> {} : vm.host_make_job_callback(callback.as_function())));
+    TRY(finalization_registry->cleanup(callback.is_undefined() ? GC::Ptr<JobCallback> {} : vm.host_make_job_callback(callback.as_function())));
 
     // 5. Return undefined.
     return js_undefined();

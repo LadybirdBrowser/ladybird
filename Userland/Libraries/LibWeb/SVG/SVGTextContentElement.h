@@ -25,7 +25,7 @@ public:
 
     ByteString text_contents() const;
 
-    JS::NonnullGCPtr<Geometry::DOMPoint> get_start_position_of_char(WebIDL::UnsignedLong charnum);
+    GC::Ref<Geometry::DOMPoint> get_start_position_of_char(WebIDL::UnsignedLong charnum);
 
 protected:
     SVGTextContentElement(DOM::Document&, DOM::QualifiedName);

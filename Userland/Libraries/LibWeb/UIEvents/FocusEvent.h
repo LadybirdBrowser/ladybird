@@ -12,16 +12,16 @@
 namespace Web::UIEvents {
 
 struct FocusEventInit : public UIEventInit {
-    JS::GCPtr<DOM::EventTarget> related_target;
+    GC::Ptr<DOM::EventTarget> related_target;
 };
 
 class FocusEvent final : public UIEvent {
     WEB_PLATFORM_OBJECT(FocusEvent, UIEvent);
-    JS_DECLARE_ALLOCATOR(FocusEvent);
+    GC_DECLARE_ALLOCATOR(FocusEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<FocusEvent> create(JS::Realm&, FlyString const& event_name, FocusEventInit const& = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<FocusEvent>> construct_impl(JS::Realm&, FlyString const& event_name, FocusEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<FocusEvent> create(JS::Realm&, FlyString const& event_name, FocusEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<FocusEvent>> construct_impl(JS::Realm&, FlyString const& event_name, FocusEventInit const& event_init);
 
     virtual ~FocusEvent() override;
 

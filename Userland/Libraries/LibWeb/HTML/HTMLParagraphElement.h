@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class HTMLParagraphElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLParagraphElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLParagraphElement);
+    GC_DECLARE_ALLOCATOR(HTMLParagraphElement);
 
 public:
     virtual ~HTMLParagraphElement() override;

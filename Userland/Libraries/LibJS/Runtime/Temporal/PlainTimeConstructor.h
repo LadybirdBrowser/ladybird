@@ -12,14 +12,14 @@ namespace JS::Temporal {
 
 class PlainTimeConstructor final : public NativeFunction {
     JS_OBJECT(PlainTimeConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(PlainTimeConstructor);
+    GC_DECLARE_ALLOCATOR(PlainTimeConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~PlainTimeConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit PlainTimeConstructor(Realm&);

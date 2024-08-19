@@ -8,24 +8,23 @@
 #pragma once
 
 #include <AK/Types.h>
-#include <LibJS/Forward.h>
+#include <LibGC/Forward.h>
 
-namespace JS {
+namespace GC {
 
 class HeapBase {
     AK_MAKE_NONCOPYABLE(HeapBase);
     AK_MAKE_NONMOVABLE(HeapBase);
 
 public:
-    VM& vm() { return m_vm; }
-
+    void* private_data() { return m_private_data; } // FIXME: How to make not public?
 protected:
-    HeapBase(VM& vm)
-        : m_vm(vm)
+    HeapBase(void* private_data)
+        : m_private_data(private_data)
     {
     }
 
-    VM& m_vm;
+    void* m_private_data;
 };
 
 class HeapBlockBase {

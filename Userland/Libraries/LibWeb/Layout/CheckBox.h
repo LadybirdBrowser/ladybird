@@ -13,14 +13,14 @@ namespace Web::Layout {
 
 class CheckBox final : public FormAssociatedLabelableNode {
     JS_CELL(CheckBox, FormAssociatedLabelableNode);
-    JS_DECLARE_ALLOCATOR(CheckBox);
+    GC_DECLARE_ALLOCATOR(CheckBox);
 
 public:
     CheckBox(DOM::Document&, HTML::HTMLInputElement&, NonnullRefPtr<CSS::StyleProperties>);
     virtual ~CheckBox() override;
 
 private:
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };
 
 }

@@ -10,10 +10,10 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(SegmentIterator);
+GC_DEFINE_ALLOCATOR(SegmentIterator);
 
 // 18.6.1 CreateSegmentIterator ( segmenter, string ), https://tc39.es/ecma402/#sec-createsegmentsobject
-NonnullGCPtr<SegmentIterator> SegmentIterator::create(Realm& realm, Unicode::Segmenter const& segmenter, Utf16View const& string, Segments const& segments)
+GC::Ref<SegmentIterator> SegmentIterator::create(Realm& realm, Unicode::Segmenter const& segmenter, Utf16View const& string, Segments const& segments)
 {
     // 1. Let internalSlotsList be « [[IteratingSegmenter]], [[IteratedString]], [[IteratedStringNextSegmentCodeUnitIndex]] ».
     // 2. Let iterator be OrdinaryObjectCreate(%SegmentIteratorPrototype%, internalSlotsList).

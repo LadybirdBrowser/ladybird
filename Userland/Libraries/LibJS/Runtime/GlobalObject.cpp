@@ -12,7 +12,6 @@
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
-#include <LibJS/Heap/DeferGC.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/AggregateErrorConstructor.h>
 #include <LibJS/Runtime/ArrayBufferConstructor.h>
@@ -87,7 +86,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(GlobalObject);
+GC_DEFINE_ALLOCATOR(GlobalObject);
 
 GlobalObject::GlobalObject(Realm& realm)
     : Object(GlobalObjectTag::Tag, realm)

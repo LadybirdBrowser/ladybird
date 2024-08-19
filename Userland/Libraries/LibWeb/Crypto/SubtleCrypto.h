@@ -20,26 +20,26 @@ namespace Web::Crypto {
 
 class SubtleCrypto final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SubtleCrypto, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(SubtleCrypto);
+    GC_DECLARE_ALLOCATOR(SubtleCrypto);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<SubtleCrypto> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<SubtleCrypto> create(JS::Realm&);
 
     virtual ~SubtleCrypto() override;
 
-    JS::NonnullGCPtr<JS::Promise> encrypt(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter);
-    JS::NonnullGCPtr<JS::Promise> decrypt(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter);
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> sign(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter);
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> verify(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& signature, JS::Handle<WebIDL::BufferSource> const& data_parameter);
+    GC::Ref<JS::Promise> encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Handle<WebIDL::BufferSource> const& data_parameter);
+    GC::Ref<JS::Promise> decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Handle<WebIDL::BufferSource> const& data_parameter);
+    JS::ThrowCompletionOr<GC::Ref<JS::Promise>> sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Handle<WebIDL::BufferSource> const& data_parameter);
+    JS::ThrowCompletionOr<GC::Ref<JS::Promise>> verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Handle<WebIDL::BufferSource> const& signature, GC::Handle<WebIDL::BufferSource> const& data_parameter);
 
-    JS::NonnullGCPtr<JS::Promise> digest(AlgorithmIdentifier const& algorithm, JS::Handle<WebIDL::BufferSource> const& data);
+    GC::Ref<JS::Promise> digest(AlgorithmIdentifier const& algorithm, GC::Handle<WebIDL::BufferSource> const& data);
 
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> derive_bits(AlgorithmIdentifier algorithm, JS::NonnullGCPtr<CryptoKey> base_key, u32 length);
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> derive_key(AlgorithmIdentifier algorithm, JS::NonnullGCPtr<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    JS::ThrowCompletionOr<GC::Ref<JS::Promise>> generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    JS::ThrowCompletionOr<GC::Ref<JS::Promise>> derive_bits(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, u32 length);
+    JS::ThrowCompletionOr<GC::Ref<JS::Promise>> derive_key(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages);
 
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> import_key(Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> export_key(Bindings::KeyFormat format, JS::NonnullGCPtr<CryptoKey> key);
+    JS::ThrowCompletionOr<GC::Ref<JS::Promise>> import_key(Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    JS::ThrowCompletionOr<GC::Ref<JS::Promise>> export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key);
 
 private:
     explicit SubtleCrypto(JS::Realm&);

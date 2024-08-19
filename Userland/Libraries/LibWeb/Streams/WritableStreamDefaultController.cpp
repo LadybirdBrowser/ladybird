@@ -11,7 +11,7 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(WritableStreamDefaultController);
+GC_DEFINE_ALLOCATOR(WritableStreamDefaultController);
 
 void WritableStreamDefaultController::visit_edges(Visitor& visitor)
 {
@@ -41,7 +41,7 @@ void WritableStreamDefaultController::error(JS::Value error)
 }
 
 // https://streams.spec.whatwg.org/#ws-default-controller-private-abort
-JS::NonnullGCPtr<WebIDL::Promise> WritableStreamDefaultController::abort_steps(JS::Value reason)
+GC::Ref<WebIDL::Promise> WritableStreamDefaultController::abort_steps(JS::Value reason)
 {
     // 1. Let result be the result of performing this.[[abortAlgorithm]], passing reason.
     auto result = m_abort_algorithm->function()(reason);

@@ -10,7 +10,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ModuleNamespaceObject);
+GC_DEFINE_ALLOCATOR(ModuleNamespaceObject);
 
 ModuleNamespaceObject::ModuleNamespaceObject(Realm& realm, Module* module, Vector<DeprecatedFlyString> exports)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype(), MayInterfereWithIndexedPropertyAccess::Yes)
@@ -210,11 +210,11 @@ ThrowCompletionOr<bool> ModuleNamespaceObject::internal_delete(PropertyKey const
 }
 
 // 10.4.6.11 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-ownpropertykeys
-ThrowCompletionOr<MarkedVector<Value>> ModuleNamespaceObject::internal_own_property_keys() const
+ThrowCompletionOr<GC::MarkedVector<Value>> ModuleNamespaceObject::internal_own_property_keys() const
 {
     // 1. Let exports be O.[[Exports]].
     // NOTE: We only add the exports after we know the size of symbolKeys
-    MarkedVector<Value> exports { vm().heap() };
+    GC::MarkedVector<Value> exports { vm().heap() };
 
     // 2. Let symbolKeys be OrdinaryOwnPropertyKeys(O).
     auto symbol_keys = MUST(Object::internal_own_property_keys());

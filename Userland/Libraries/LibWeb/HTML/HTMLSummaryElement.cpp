@@ -10,7 +10,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLSummaryElement);
+GC_DEFINE_ALLOCATOR(HTMLSummaryElement);
 
 HTMLSummaryElement::HTMLSummaryElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))

@@ -10,7 +10,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(DOMEventListener);
+GC_DEFINE_ALLOCATOR(DOMEventListener);
 
 DOMEventListener::DOMEventListener() = default;
 DOMEventListener::~DOMEventListener() = default;

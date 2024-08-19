@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(AggregateErrorConstructor);
+GC_DEFINE_ALLOCATOR(AggregateErrorConstructor);
 
 AggregateErrorConstructor::AggregateErrorConstructor(Realm& realm)
     : NativeFunction(static_cast<Object&>(*realm.intrinsics().error_constructor()))
@@ -40,7 +40,7 @@ ThrowCompletionOr<Value> AggregateErrorConstructor::call()
 }
 
 // 20.5.7.1.1 AggregateError ( errors, message [ , options ] ), https://tc39.es/ecma262/#sec-aggregate-error
-ThrowCompletionOr<NonnullGCPtr<Object>> AggregateErrorConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> AggregateErrorConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();

@@ -16,10 +16,10 @@ namespace Web::CSS {
 
 class CSSStyleRule final : public CSSRule {
     WEB_PLATFORM_OBJECT(CSSStyleRule, CSSRule);
-    JS_DECLARE_ALLOCATOR(CSSStyleRule);
+    GC_DECLARE_ALLOCATOR(CSSStyleRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSStyleRule> create(JS::Realm&, Vector<NonnullRefPtr<Selector>>&&, PropertyOwningCSSStyleDeclaration&);
+    [[nodiscard]] static GC::Ref<CSSStyleRule> create(JS::Realm&, Vector<NonnullRefPtr<Selector>>&&, PropertyOwningCSSStyleDeclaration&);
 
     virtual ~CSSStyleRule() override = default;
 
@@ -41,7 +41,7 @@ private:
     virtual String serialized() const override;
 
     Vector<NonnullRefPtr<Selector>> m_selectors;
-    JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declaration;
+    GC::Ref<PropertyOwningCSSStyleDeclaration> m_declaration;
 };
 
 template<>

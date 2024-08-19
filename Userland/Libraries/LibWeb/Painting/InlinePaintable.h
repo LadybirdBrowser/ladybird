@@ -17,10 +17,10 @@ namespace Web::Painting {
 class InlinePaintable final : public Paintable
     , public ClippableAndScrollable {
     JS_CELL(InlinePaintable, Paintable);
-    JS_DECLARE_ALLOCATOR(InlinePaintable);
+    GC_DECLARE_ALLOCATOR(InlinePaintable);
 
 public:
-    static JS::NonnullGCPtr<InlinePaintable> create(Layout::InlineNode const&);
+    static GC::Ref<InlinePaintable> create(Layout::InlineNode const&);
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 

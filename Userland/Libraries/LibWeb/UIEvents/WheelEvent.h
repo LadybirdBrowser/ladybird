@@ -28,13 +28,13 @@ struct WheelEventInit : public MouseEventInit {
 
 class WheelEvent final : public MouseEvent {
     WEB_PLATFORM_OBJECT(WheelEvent, MouseEvent);
-    JS_DECLARE_ALLOCATOR(WheelEvent);
+    GC_DECLARE_ALLOCATOR(WheelEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<WheelEvent> create(JS::Realm&, FlyString const& event_name, WheelEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    [[nodiscard]] static JS::NonnullGCPtr<WheelEvent> construct_impl(JS::Realm&, FlyString const& event_name, WheelEventInit const& = {});
+    [[nodiscard]] static GC::Ref<WheelEvent> create(JS::Realm&, FlyString const& event_name, WheelEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    [[nodiscard]] static GC::Ref<WheelEvent> construct_impl(JS::Realm&, FlyString const& event_name, WheelEventInit const& = {});
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<WheelEvent>> create_from_platform_event(JS::Realm&, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers);
+    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Realm&, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers);
 
     virtual ~WheelEvent() override;
 

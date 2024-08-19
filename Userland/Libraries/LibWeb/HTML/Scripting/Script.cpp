@@ -9,7 +9,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Script);
+GC_DEFINE_ALLOCATOR(Script);
 
 Script::Script(URL::URL base_url, ByteString filename, EnvironmentSettingsObject& environment_settings_object)
     : m_base_url(move(base_url))

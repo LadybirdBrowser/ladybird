@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/MarkedVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/TextTrack.h>
 
@@ -14,14 +14,14 @@ namespace Web::HTML {
 
 class TextTrackList final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(TextTrackList, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(TextTrackList);
+    GC_DECLARE_ALLOCATOR(TextTrackList);
 
 public:
     virtual ~TextTrackList() override;
 
     size_t length() const;
 
-    JS::GCPtr<TextTrack> get_track_by_id(StringView id) const;
+    GC::Ptr<TextTrack> get_track_by_id(StringView id) const;
 
     void set_onchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onchange();
@@ -40,7 +40,7 @@ private:
 
     virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const& property_name) const override;
 
-    Vector<JS::NonnullGCPtr<TextTrack>> m_text_tracks;
+    Vector<GC::Ref<TextTrack>> m_text_tracks;
 };
 
 }

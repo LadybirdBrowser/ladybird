@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(SegmentsPrototype);
+GC_DEFINE_ALLOCATOR(SegmentsPrototype);
 
 // 18.5.2 The %SegmentsPrototype% Object, https://tc39.es/ecma402/#sec-%segmentsprototype%-object
 SegmentsPrototype::SegmentsPrototype(Realm& realm)

@@ -14,9 +14,9 @@
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibGC/ConservativeVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibJS/AST.h>
-#include <LibJS/Heap/ConservativeVector.h>
-#include <LibJS/Heap/MarkedVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
@@ -97,7 +97,7 @@ Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, Depre
     auto has_own_name = !name().is_empty();
 
     auto const used_name = has_own_name ? name() : given_name.view();
-    auto environment = NonnullGCPtr { *vm.running_execution_context().lexical_environment };
+    auto environment = GC::Ref { *vm.running_execution_context().lexical_environment };
     if (has_own_name) {
         VERIFY(environment);
         environment = new_declarative_environment(*environment);
@@ -227,7 +227,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
     auto& realm = *vm.current_realm();
 
     auto property_key_or_private_name = TRY(class_key_to_property_name(vm, *m_key, property_key));
-    Handle<ECMAScriptFunctionObject> initializer {};
+    GC::Handle<ECMAScriptFunctionObject> initializer {};
     if (m_initializer) {
         auto copy_initializer = m_initializer;
         auto name = property_key_or_private_name.visit(
@@ -310,7 +310,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
 
     vm.running_execution_context().lexical_environment = class_environment;
 
-    auto proto_parent = GCPtr { realm.intrinsics().object_prototype() };
+    auto proto_parent = GC::Ptr { realm.intrinsics().object_prototype() };
     auto constructor_parent = realm.intrinsics().function_prototype();
 
     if (!m_super_class.is_null()) {
@@ -366,10 +366,10 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
 
     prototype->define_direct_property(vm.names.constructor, class_constructor, Attribute::Writable | Attribute::Configurable);
 
-    using StaticElement = Variant<ClassFieldDefinition, Handle<ECMAScriptFunctionObject>>;
+    using StaticElement = Variant<ClassFieldDefinition, GC::Handle<ECMAScriptFunctionObject>>;
 
-    ConservativeVector<PrivateElement> static_private_methods(vm.heap());
-    ConservativeVector<PrivateElement> instance_private_methods(vm.heap());
+    GC::ConservativeVector<PrivateElement> static_private_methods(vm.heap());
+    GC::ConservativeVector<PrivateElement> instance_private_methods(vm.heap());
     Vector<ClassFieldDefinition> instance_fields;
     Vector<StaticElement> static_elements;
 
@@ -435,7 +435,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
             [&](ClassFieldDefinition& field) -> ThrowCompletionOr<void> {
                 return TRY(class_constructor->define_field(field));
             },
-            [&](Handle<ECMAScriptFunctionObject> static_block_function) -> ThrowCompletionOr<void> {
+            [&](GC::Handle<ECMAScriptFunctionObject> static_block_function) -> ThrowCompletionOr<void> {
                 VERIFY(!static_block_function.is_null());
                 // We discard any value returned here.
                 TRY(call(vm, *static_block_function.cell(), class_constructor));

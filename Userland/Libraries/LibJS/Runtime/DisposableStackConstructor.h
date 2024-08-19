@@ -12,14 +12,14 @@ namespace JS {
 
 class DisposableStackConstructor final : public NativeFunction {
     JS_OBJECT(DisposableStackConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(DisposableStackConstructor);
+    GC_DECLARE_ALLOCATOR(DisposableStackConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~DisposableStackConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject&) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject&) override;
 
 private:
     explicit DisposableStackConstructor(Realm&);

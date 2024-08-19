@@ -10,7 +10,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(DisposableStackConstructor);
+GC_DEFINE_ALLOCATOR(DisposableStackConstructor);
 
 DisposableStackConstructor::DisposableStackConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.DisposableStack.as_string(), realm.intrinsics().function_prototype())
@@ -38,7 +38,7 @@ ThrowCompletionOr<Value> DisposableStackConstructor::call()
 }
 
 // 11.3.1.1 DisposableStack ( ), https://tc39.es/proposal-explicit-resource-management/#sec-disposablestack
-ThrowCompletionOr<NonnullGCPtr<Object>> DisposableStackConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> DisposableStackConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

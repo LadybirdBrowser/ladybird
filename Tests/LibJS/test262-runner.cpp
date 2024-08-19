@@ -51,7 +51,7 @@ struct TestError {
     ByteString harness_file;
 };
 
-using ScriptOrModuleProgram = Variant<JS::NonnullGCPtr<JS::Script>, JS::NonnullGCPtr<JS::SourceTextModule>>;
+using ScriptOrModuleProgram = Variant<GC::Ref<JS::Script>, GC::Ref<JS::SourceTextModule>>;
 
 template<typename ScriptType>
 static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, StringView source, StringView filepath)
@@ -147,7 +147,7 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
     return cache->value.view();
 }
 
-static Result<JS::NonnullGCPtr<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
+static Result<GC::Ref<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
 {
     auto source_or_error = read_harness_file(harness_file);
     if (source_or_error.is_error())
@@ -161,7 +161,7 @@ static Result<JS::NonnullGCPtr<JS::Script>, TestError> parse_harness_files(JS::R
             harness_file
         };
     }
-    return program_or_error.release_value().get<JS::NonnullGCPtr<JS::Script>>();
+    return program_or_error.release_value().get<GC::Ref<JS::Script>>();
 }
 
 enum class StrictMode {
@@ -216,8 +216,8 @@ static Result<void, TestError> run_test(StringView source, StringView filepath, 
     auto vm = MUST(JS::VM::create());
     vm->set_dynamic_imports_allowed(true);
 
-    JS::GCPtr<JS::Realm> realm;
-    JS::GCPtr<JS::Test262::GlobalObject> global_object;
+    GC::Ptr<JS::Realm> realm;
+    GC::Ptr<JS::Test262::GlobalObject> global_object;
     auto root_execution_context = MUST(JS::Realm::initialize_host_defined_realm(
         *vm,
         [&](JS::Realm& realm_) -> JS::GlobalObject* {

@@ -12,7 +12,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(AsyncGeneratorPrototype);
+GC_DEFINE_ALLOCATOR(AsyncGeneratorPrototype);
 
 // 27.6.1 Properties of the AsyncGenerator Prototype Object, https://tc39.es/ecma262/#sec-properties-of-asyncgenerator-prototype
 AsyncGeneratorPrototype::AsyncGeneratorPrototype(Realm& realm)
@@ -34,7 +34,7 @@ void AsyncGeneratorPrototype::initialize(Realm& realm)
 }
 
 // 27.6.3.3 AsyncGeneratorValidate ( generator, generatorBrand ), https://tc39.es/ecma262/#sec-asyncgeneratorvalidate
-static ThrowCompletionOr<NonnullGCPtr<AsyncGenerator>> async_generator_validate(VM& vm, Value generator, Optional<String> generator_brand)
+static ThrowCompletionOr<GC::Ref<AsyncGenerator>> async_generator_validate(VM& vm, Value generator, Optional<String> generator_brand)
 {
     // 1. Perform ? RequireInternalSlot(generator, [[AsyncGeneratorContext]]).
     // 2. Perform ? RequireInternalSlot(generator, [[AsyncGeneratorState]]).

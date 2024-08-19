@@ -8,7 +8,6 @@
  */
 
 #include <LibJS/AST.h>
-#include <LibJS/Heap/DeferGC.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Environment.h>
@@ -65,10 +64,10 @@ HTML::Script* active_script()
     // 2. If record is null, return null.
     // 3. Return record.[[HostDefined]].
     return record.visit(
-        [](JS::NonnullGCPtr<JS::Script>& js_script) -> HTML::Script* {
+        [](GC::Ref<JS::Script>& js_script) -> HTML::Script* {
             return verify_cast<HTML::ClassicScript>(js_script->host_defined());
         },
-        [](JS::NonnullGCPtr<JS::Module>& js_module) -> HTML::Script* {
+        [](GC::Ref<JS::Module>& js_module) -> HTML::Script* {
             return verify_cast<HTML::ModuleScript>(js_module->host_defined());
         },
         [](Empty) -> HTML::Script* {
@@ -127,10 +126,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         //    The running script is the script in the [[HostDefined]] field in the ScriptOrModule component of the running JavaScript execution context.
         HTML::Script* script { nullptr };
         s_main_thread_vm->running_execution_context().script_or_module.visit(
-            [&script](JS::NonnullGCPtr<JS::Script>& js_script) {
+            [&script](GC::Ref<JS::Script>& js_script) {
                 script = verify_cast<HTML::ClassicScript>(js_script->host_defined());
             },
-            [&script](JS::NonnullGCPtr<JS::Module>& js_module) {
+            [&script](GC::Ref<JS::Module>& js_module) {
                 script = verify_cast<HTML::ModuleScript>(js_module->host_defined());
             },
             [](Empty) {
@@ -174,7 +173,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
             // 5. Queue a global task on the DOM manipulation task source given global to fire an event named rejectionhandled at global, using PromiseRejectionEvent,
             //    with the promise attribute initialized to promise, and the reason attribute initialized to the value of promise's [[PromiseResult]] internal slot.
-            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global, JS::create_heap_function(s_main_thread_vm->heap(), [&global, &promise] {
+            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global, GC::create_heap_function(s_main_thread_vm->heap(), [&global, &promise] {
                 // FIXME: This currently assumes that global is a WindowObject.
                 auto& window = verify_cast<HTML::Window>(global);
 
@@ -229,7 +228,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         auto& global = finalization_registry.realm().global_object();
 
         // 2. Queue a global task on the JavaScript engine task source given global to perform the following steps:
-        HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, JS::create_heap_function(s_main_thread_vm->heap(), [&finalization_registry] {
+        HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, GC::create_heap_function(s_main_thread_vm->heap(), [&finalization_registry] {
             // 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]]'s environment settings object.
             auto& entry = host_defined_environment_settings_object(*finalization_registry.cleanup_callback().callback().realm());
 
@@ -253,7 +252,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     };
 
     // 8.1.5.4.3 HostEnqueuePromiseJob(job, realm), https://html.spec.whatwg.org/multipage/webappapis.html#hostenqueuepromisejob
-    s_main_thread_vm->host_enqueue_promise_job = [](JS::NonnullGCPtr<JS::HeapFunction<JS::ThrowCompletionOr<JS::Value>()>> job, JS::Realm* realm) {
+    s_main_thread_vm->host_enqueue_promise_job = [](GC::Ref<GC::Function<JS::ThrowCompletionOr<JS::Value>()>> job, JS::Realm* realm) {
         // 1. If realm is not null, then let job settings be the settings object for realm. Otherwise, let job settings be null.
         HTML::EnvironmentSettingsObject* job_settings { nullptr };
         if (realm)
@@ -271,7 +270,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
         auto& heap = realm ? realm->heap() : s_main_thread_vm->heap();
         // NOTE: This keeps job_settings alive by keeping realm alive, which is holding onto job_settings.
-        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, JS::create_heap_function(heap, [job_settings, job = move(job), script_or_module = move(script_or_module)] {
+        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, GC::create_heap_function(heap, [job_settings, job = move(job), script_or_module = move(script_or_module)] {
             // The dummy execution context has to be kept up here to keep it alive for the duration of the function.
             OwnPtr<JS::ExecutionContext> dummy_execution_context;
 
@@ -324,7 +323,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     };
 
     // 8.1.5.4.4 HostMakeJobCallback(callable), https://html.spec.whatwg.org/multipage/webappapis.html#hostmakejobcallback
-    s_main_thread_vm->host_make_job_callback = [](JS::FunctionObject& callable) -> JS::NonnullGCPtr<JS::JobCallback> {
+    s_main_thread_vm->host_make_job_callback = [](JS::FunctionObject& callable) -> GC::Ref<JS::JobCallback> {
         // 1. Let incumbent settings be the incumbent settings object.
         auto& incumbent_settings = HTML::incumbent_settings_object();
 
@@ -341,10 +340,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             script_execution_context->function = nullptr;
             script_execution_context->realm = &script->settings_object().realm();
             if (is<HTML::ClassicScript>(script)) {
-                script_execution_context->script_or_module = JS::NonnullGCPtr<JS::Script>(*verify_cast<HTML::ClassicScript>(script)->script_record());
+                script_execution_context->script_or_module = GC::Ref<JS::Script>(*verify_cast<HTML::ClassicScript>(script)->script_record());
             } else if (is<HTML::ModuleScript>(script)) {
                 if (is<HTML::JavaScriptModuleScript>(script)) {
-                    script_execution_context->script_or_module = JS::NonnullGCPtr<JS::Module>(*verify_cast<HTML::JavaScriptModuleScript>(script)->record());
+                    script_execution_context->script_or_module = GC::Ref<JS::Module>(*verify_cast<HTML::JavaScriptModuleScript>(script)->record());
                 } else {
                     // NOTE: Handle CSS and JSON module scripts once we have those.
                     VERIFY_NOT_REACHED();
@@ -374,7 +373,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         auto url_string = module_script.base_url().serialize();
 
         // 4. Let steps be the following steps, given the argument specifier:
-        auto steps = [module_script = JS::NonnullGCPtr { module_script }](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        auto steps = [module_script = GC::Ref { module_script }](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             auto specifier = vm.argument(0);
 
             // 1. Set specifier to ? ToString(specifier).
@@ -410,7 +409,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     };
 
     // 8.1.6.5.3 HostLoadImportedModule(referrer, moduleRequest, loadState, payload), https://html.spec.whatwg.org/multipage/webappapis.html#hostloadimportedmodule
-    s_main_thread_vm->host_load_imported_module = [](JS::ImportedModuleReferrer referrer, JS::ModuleRequest const& module_request, JS::GCPtr<JS::GraphLoadingState::HostDefined> load_state, JS::ImportedModulePayload payload) -> void {
+    s_main_thread_vm->host_load_imported_module = [](JS::ImportedModuleReferrer referrer, JS::ModuleRequest const& module_request, GC::Ptr<JS::GraphLoadingState::HostDefined> load_state, JS::ImportedModulePayload payload) -> void {
         auto& vm = *s_main_thread_vm;
         auto& realm = *vm.current_realm();
 
@@ -429,9 +428,9 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         Fetch::Infrastructure::Request::ReferrerType fetch_referrer = Fetch::Infrastructure::Request::Referrer::Client;
 
         // 6. If referrer is a Script Record or a Module Record, then:
-        if (referrer.has<JS::NonnullGCPtr<JS::Script>>() || referrer.has<JS::NonnullGCPtr<JS::CyclicModule>>()) {
+        if (referrer.has<GC::Ref<JS::Script>>() || referrer.has<GC::Ref<JS::CyclicModule>>()) {
             // 1. Set referencingScript to referrer.[[HostDefined]].
-            referencing_script = verify_cast<HTML::Script>(referrer.has<JS::NonnullGCPtr<JS::Script>>() ? *referrer.get<JS::NonnullGCPtr<JS::Script>>()->host_defined() : *referrer.get<JS::NonnullGCPtr<JS::CyclicModule>>()->host_defined());
+            referencing_script = verify_cast<HTML::Script>(referrer.has<GC::Ref<JS::Script>>() ? *referrer.get<GC::Ref<JS::Script>>()->host_defined() : *referrer.get<GC::Ref<JS::CyclicModule>>()->host_defined());
 
             // 2. Set settingsObject to referencingScript's settings object.
             settings_object = referencing_script->settings_object();
@@ -469,7 +468,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         auto destination = Fetch::Infrastructure::Request::Destination::Script;
 
         // 12. Let fetchClient be settingsObject.
-        JS::NonnullGCPtr fetch_client { *settings_object };
+        GC::Ref fetch_client { *settings_object };
 
         // 13. If loadState is not undefined, then:
         HTML::PerformTheFetchHook perform_fetch;
@@ -486,16 +485,16 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             perform_fetch = fetch_context.perform_fetch;
         }
 
-        auto on_single_fetch_complete = HTML::create_on_fetch_script_complete(realm.heap(), [referrer, &realm, load_state, module_request, payload](JS::GCPtr<HTML::Script> const& module_script) -> void {
+        auto on_single_fetch_complete = HTML::create_on_fetch_script_complete(realm.heap(), [referrer, &realm, load_state, module_request, payload](GC::Ptr<HTML::Script> const& module_script) -> void {
             // onSingleFetchComplete given moduleScript is the following algorithm:
             // 1. Let completion be null.
             // NOTE: Our JS::Completion does not support non JS::Value types for its [[Value]], a such we
             //       use JS::ThrowCompletionOr here.
 
             auto& vm = realm.vm();
-            JS::GCPtr<JS::Module> module = nullptr;
+            GC::Ptr<JS::Module> module = nullptr;
 
-            auto completion = [&]() -> JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Module>> {
+            auto completion = [&]() -> JS::ThrowCompletionOr<GC::Ref<JS::Module>> {
                 // 2. If moduleScript is null, then set completion to Completion Record { [[Type]]: throw, [[Value]]: a new TypeError, [[Target]]: empty }.
                 if (!module_script) {
                     return JS::throw_completion(JS::TypeError::create(realm, ByteString::formatted("Loading imported module '{}' failed.", module_request.module_specifier)));
@@ -521,7 +520,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
                 // 4. Otherwise, set completion to Completion Record { [[Type]]: normal, [[Value]]: result's record, [[Target]]: empty }.
                 else {
                     module = static_cast<HTML::JavaScriptModuleScript&>(*module_script).record();
-                    return JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Module>>(*module);
+                    return JS::ThrowCompletionOr<GC::Ref<JS::Module>>(*module);
                 }
             }();
 
@@ -531,7 +530,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             auto module_execution_context = JS::ExecutionContext::create();
             module_execution_context->realm = realm;
             if (module)
-                module_execution_context->script_or_module = JS::NonnullGCPtr { *module };
+                module_execution_context->script_or_module = GC::Ref { *module };
             vm.push_execution_context(*module_execution_context);
 
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
@@ -570,12 +569,12 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
     // 3. Queue a microtask to notify mutation observers.
     // NOTE: This uses the implied document concept. In the case of mutation observers, it is always done in a node context, so document should be that node's document.
     // FIXME: Is it safe to pass custom_data through?
-    HTML::queue_a_microtask(&document, JS::create_heap_function(vm.heap(), [&custom_data, &heap = document.heap()]() {
+    HTML::queue_a_microtask(&document, GC::create_heap_function(vm.heap(), [&custom_data, &heap = document.heap()]() {
         // 1. Set the surrounding agent’s mutation observer microtask queued to false.
         custom_data.mutation_observer_microtask_queued = false;
 
         // 2. Let notifySet be a clone of the surrounding agent’s mutation observers.
-        JS::MarkedVector<DOM::MutationObserver*> notify_set(heap);
+        GC::MarkedVector<DOM::MutationObserver*> notify_set(heap);
         for (auto& observer : custom_data.mutation_observers)
             notify_set.append(observer);
 
@@ -648,13 +647,13 @@ NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, Fu
     return realm_execution_context;
 }
 
-void WebEngineCustomData::spin_event_loop_until(JS::SafeFunction<bool()> goal_condition)
+void WebEngineCustomData::spin_event_loop_until(GC::SafeFunction<bool()> goal_condition)
 {
     Platform::EventLoopPlugin::the().spin_until(move(goal_condition));
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#invoke-custom-element-reactions
-void invoke_custom_element_reactions(Vector<JS::Handle<DOM::Element>>& element_queue)
+void invoke_custom_element_reactions(Vector<GC::Handle<DOM::Element>>& element_queue)
 {
     // 1. While queue is not empty:
     while (!element_queue.is_empty()) {

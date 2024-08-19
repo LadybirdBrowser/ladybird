@@ -18,9 +18,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Navigator);
+GC_DEFINE_ALLOCATOR(Navigator);
 
-JS::NonnullGCPtr<Navigator> Navigator::create(JS::Realm& realm)
+GC::Ref<Navigator> Navigator::create(JS::Realm& realm)
 {
     return realm.heap().allocate<Navigator>(realm, realm);
 }
@@ -66,28 +66,28 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_user_activation);
 }
 
-JS::NonnullGCPtr<MimeTypeArray> Navigator::mime_types()
+GC::Ref<MimeTypeArray> Navigator::mime_types()
 {
     if (!m_mime_type_array)
         m_mime_type_array = heap().allocate<MimeTypeArray>(realm(), realm());
     return *m_mime_type_array;
 }
 
-JS::NonnullGCPtr<PluginArray> Navigator::plugins()
+GC::Ref<PluginArray> Navigator::plugins()
 {
     if (!m_plugin_array)
         m_plugin_array = heap().allocate<PluginArray>(realm(), realm());
     return *m_plugin_array;
 }
 
-JS::NonnullGCPtr<Clipboard::Clipboard> Navigator::clipboard()
+GC::Ref<Clipboard::Clipboard> Navigator::clipboard()
 {
     if (!m_clipboard)
         m_clipboard = heap().allocate<Clipboard::Clipboard>(realm(), realm());
     return *m_clipboard;
 }
 
-JS::NonnullGCPtr<UserActivation> Navigator::user_activation()
+GC::Ref<UserActivation> Navigator::user_activation()
 {
     if (!m_user_activation)
         m_user_activation = heap().allocate<UserActivation>(realm(), realm());

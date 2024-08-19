@@ -13,7 +13,7 @@ namespace JS::Temporal {
 
 class Now final : public Object {
     JS_OBJECT(Now, Object);
-    JS_DECLARE_ALLOCATOR(Now);
+    GC_DECLARE_ALLOCATOR(Now);
 
 public:
     virtual void initialize(Realm&) override;

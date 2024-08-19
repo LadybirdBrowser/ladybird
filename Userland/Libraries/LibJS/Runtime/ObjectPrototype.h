@@ -13,7 +13,7 @@ namespace JS {
 
 class ObjectPrototype final : public Object {
     JS_OBJECT(ObjectPrototype, Object);
-    JS_DECLARE_ALLOCATOR(ObjectPrototype);
+    GC_DECLARE_ALLOCATOR(ObjectPrototype);
 
 public:
     virtual void initialize(Realm&) override;

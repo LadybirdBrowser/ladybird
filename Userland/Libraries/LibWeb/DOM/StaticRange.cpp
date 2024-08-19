@@ -15,7 +15,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(StaticRange);
+GC_DEFINE_ALLOCATOR(StaticRange);
 
 StaticRange::StaticRange(Node& start_container, u32 start_offset, Node& end_container, u32 end_offset)
     : AbstractRange(start_container, start_offset, end_container, end_offset)
@@ -25,7 +25,7 @@ StaticRange::StaticRange(Node& start_container, u32 start_offset, Node& end_cont
 StaticRange::~StaticRange() = default;
 
 // https://dom.spec.whatwg.org/#dom-staticrange-staticrange
-WebIDL::ExceptionOr<JS::NonnullGCPtr<StaticRange>> StaticRange::construct_impl(JS::Realm& realm, StaticRangeInit& init)
+WebIDL::ExceptionOr<GC::Ref<StaticRange>> StaticRange::construct_impl(JS::Realm& realm, StaticRangeInit& init)
 {
     // 1. If init["startContainer"] or init["endContainer"] is a DocumentType or Attr node, then throw an "InvalidNodeTypeError" DOMException.
     if (is<DocumentType>(*init.start_container) || is<Attr>(*init.start_container))

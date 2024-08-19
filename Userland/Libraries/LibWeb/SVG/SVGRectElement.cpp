@@ -14,7 +14,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGRectElement);
+GC_DEFINE_ALLOCATOR(SVGRectElement);
 
 SVGRectElement::SVGRectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGeometryElement(document, qualified_name)
@@ -151,7 +151,7 @@ Gfx::FloatSize SVGRectElement::calculate_used_corner_radius_values() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementXAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::x() const
+GC::Ref<SVGAnimatedLength> SVGRectElement::x() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -161,7 +161,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::x() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementYAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::y() const
+GC::Ref<SVGAnimatedLength> SVGRectElement::y() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -171,7 +171,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::y() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementWidthAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::width() const
+GC::Ref<SVGAnimatedLength> SVGRectElement::width() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -181,7 +181,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::width() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementHeightAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::height() const
+GC::Ref<SVGAnimatedLength> SVGRectElement::height() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -191,7 +191,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::height() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementRXAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::rx() const
+GC::Ref<SVGAnimatedLength> SVGRectElement::rx() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -201,7 +201,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::rx() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementRYAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRectElement::ry() const
+GC::Ref<SVGAnimatedLength> SVGRectElement::ry() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.

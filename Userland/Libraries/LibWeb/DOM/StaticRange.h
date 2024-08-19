@@ -14,18 +14,18 @@ namespace Web::DOM {
 // NOTE: We must use GCP instead of NNGCP here, otherwise the generated code cannot default initialize this struct.
 //       They will never be null, as they are marked as required and non-null in the dictionary.
 struct StaticRangeInit {
-    JS::GCPtr<Node> start_container;
+    GC::Ptr<Node> start_container;
     u32 start_offset { 0 };
-    JS::GCPtr<Node> end_container;
+    GC::Ptr<Node> end_container;
     u32 end_offset { 0 };
 };
 
 class StaticRange final : public AbstractRange {
     WEB_PLATFORM_OBJECT(StaticRange, AbstractRange);
-    JS_DECLARE_ALLOCATOR(StaticRange);
+    GC_DECLARE_ALLOCATOR(StaticRange);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<StaticRange>> construct_impl(JS::Realm&, StaticRangeInit& init);
+    static WebIDL::ExceptionOr<GC::Ref<StaticRange>> construct_impl(JS::Realm&, StaticRangeInit& init);
 
     StaticRange(Node& start_container, u32 start_offset, Node& end_container, u32 end_offset);
     virtual ~StaticRange() override;

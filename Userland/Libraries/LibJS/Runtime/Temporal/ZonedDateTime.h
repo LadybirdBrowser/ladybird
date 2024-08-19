@@ -14,7 +14,7 @@ namespace JS::Temporal {
 
 class ZonedDateTime final : public Object {
     JS_OBJECT(ZonedDateTime, Object);
-    JS_DECLARE_ALLOCATOR(ZonedDateTime);
+    GC_DECLARE_ALLOCATOR(ZonedDateTime);
 
 public:
     virtual ~ZonedDateTime() override = default;
@@ -31,9 +31,9 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     // 6.4 Properties of Temporal.ZonedDateTime Instances, https://tc39.es/proposal-temporal/#sec-properties-of-temporal-zoneddatetime-instances
-    NonnullGCPtr<BigInt const> m_nanoseconds; // [[Nanoseconds]]
-    NonnullGCPtr<Object> m_time_zone;         // [[TimeZone]]
-    NonnullGCPtr<Object> m_calendar;          // [[Calendar]]
+    GC::Ref<BigInt const> m_nanoseconds; // [[Nanoseconds]]
+    GC::Ref<Object> m_time_zone;         // [[TimeZone]]
+    GC::Ref<Object> m_calendar;          // [[Calendar]]
 };
 
 struct NanosecondsToDaysResult {
@@ -60,7 +60,7 @@ ThrowCompletionOr<String> temporal_zoned_date_time_to_string(VM&, ZonedDateTime&
 ThrowCompletionOr<BigInt*> add_zoned_date_time(VM&, BigInt const& epoch_nanoseconds, Value time_zone, Object& calendar, double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds, Object* options = nullptr);
 ThrowCompletionOr<DurationRecord> difference_zoned_date_time(VM&, BigInt const& nanoseconds1, BigInt const& nanoseconds2, Object& time_zone, Object& calendar, StringView largest_unit, Object const& options);
 ThrowCompletionOr<NanosecondsToDaysResult> nanoseconds_to_days(VM&, Crypto::SignedBigInteger nanoseconds, Value relative_to);
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_zoned_date_time(VM&, DifferenceOperation, ZonedDateTime&, Value other, Value options);
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_zoned_date_time(VM&, DifferenceOperation, ZonedDateTime&, Value other, Value options);
 ThrowCompletionOr<ZonedDateTime*> add_duration_to_or_subtract_duration_from_zoned_date_time(VM&, ArithmeticOperation, ZonedDateTime&, Value temporal_duration_like, Value options_value);
 
 }

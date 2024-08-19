@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ArrayIteratorPrototype);
+GC_DEFINE_ALLOCATOR(ArrayIteratorPrototype);
 
 ArrayIteratorPrototype::ArrayIteratorPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().iterator_prototype())

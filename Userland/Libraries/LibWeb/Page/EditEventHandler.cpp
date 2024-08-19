@@ -17,7 +17,7 @@
 
 namespace Web {
 
-void EditEventHandler::handle_delete_character_after(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> cursor_position)
+void EditEventHandler::handle_delete_character_after(GC::Ref<DOM::Document> document, GC::Ref<DOM::Position> cursor_position)
 {
     auto& node = verify_cast<DOM::Text>(*cursor_position->node());
     auto& text = node.data();
@@ -37,7 +37,7 @@ void EditEventHandler::handle_delete_character_after(JS::NonnullGCPtr<DOM::Docum
 }
 
 // This method is quite convoluted but this is necessary to make editing feel intuitive.
-void EditEventHandler::handle_delete(JS::NonnullGCPtr<DOM::Document> document, DOM::Range& range)
+void EditEventHandler::handle_delete(GC::Ref<DOM::Document> document, DOM::Range& range)
 {
     auto* start = verify_cast<DOM::Text>(range.start_container());
     auto* end = verify_cast<DOM::Text>(range.end_container());
@@ -92,14 +92,14 @@ void EditEventHandler::handle_delete(JS::NonnullGCPtr<DOM::Document> document, D
     document->user_did_edit_document_text({});
 }
 
-void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> position, u32 code_point)
+void EditEventHandler::handle_insert(GC::Ref<DOM::Document> document, GC::Ref<DOM::Position> position, u32 code_point)
 {
     StringBuilder builder;
     builder.append_code_point(code_point);
     handle_insert(document, position, MUST(builder.to_string()));
 }
 
-void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> position, String data)
+void EditEventHandler::handle_insert(GC::Ref<DOM::Document> document, GC::Ref<DOM::Position> position, String data)
 {
     if (is<DOM::Text>(*position->node())) {
         auto& node = verify_cast<DOM::Text>(*position->node());

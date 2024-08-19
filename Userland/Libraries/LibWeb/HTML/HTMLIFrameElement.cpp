@@ -17,7 +17,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLIFrameElement);
+GC_DEFINE_ALLOCATOR(HTMLIFrameElement);
 
 HTMLIFrameElement::HTMLIFrameElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : NavigableContainer(document, move(qualified_name))
@@ -32,7 +32,7 @@ void HTMLIFrameElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLIFrameElement);
 }
 
-JS::GCPtr<Layout::Node> HTMLIFrameElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+GC::Ptr<Layout::Node> HTMLIFrameElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
 {
     return heap().allocate_without_realm<Layout::FrameBox>(document(), *this, move(style));
 }
@@ -61,7 +61,7 @@ void HTMLIFrameElement::inserted()
     // When an iframe element element is inserted into a document whose browsing context is non-null, the user agent must run these steps:
     if (in_a_document_tree() && document().browsing_context()) {
         // 1. Create a new child navigable for element.
-        MUST(create_new_child_navigable(JS::create_heap_function(realm().heap(), [this] {
+        MUST(create_new_child_navigable(GC::create_heap_function(realm().heap(), [this] {
             // 3. Process the iframe attributes for element, with initialInsertion set to true.
             process_the_iframe_attributes(true);
             set_content_navigable_initialized();

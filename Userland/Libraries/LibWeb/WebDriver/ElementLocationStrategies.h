@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebDriver/Error.h>
@@ -24,6 +24,6 @@ enum class LocationStrategy {
 };
 
 Optional<LocationStrategy> location_strategy_from_string(StringView type);
-ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> invoke_location_strategy(LocationStrategy type, DOM::ParentNode& start_node, StringView selector);
+ErrorOr<GC::Ref<DOM::NodeList>, Error> invoke_location_strategy(LocationStrategy type, DOM::ParentNode& start_node, StringView selector);
 
 }

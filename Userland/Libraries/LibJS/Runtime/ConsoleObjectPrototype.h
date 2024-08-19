@@ -12,7 +12,7 @@ namespace JS {
 
 class ConsoleObjectPrototype final : public Object {
     JS_OBJECT(ConsoleObjectPrototype, Object);
-    JS_DECLARE_ALLOCATOR(ConsoleObjectPrototype);
+    GC_DECLARE_ALLOCATOR(ConsoleObjectPrototype);
 
 public:
     virtual void initialize(JS::Realm&) override;

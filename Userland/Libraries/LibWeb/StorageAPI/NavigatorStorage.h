@@ -7,8 +7,8 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 
@@ -18,7 +18,7 @@ class NavigatorStorage {
 public:
     virtual ~NavigatorStorage() = default;
 
-    JS::NonnullGCPtr<StorageManager> storage();
+    GC::Ref<StorageManager> storage();
 
 protected:
     virtual Bindings::PlatformObject const& this_navigator_storage_object() const = 0;

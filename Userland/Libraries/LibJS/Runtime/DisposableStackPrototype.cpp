@@ -12,7 +12,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(DisposableStackPrototype);
+GC_DEFINE_ALLOCATOR(DisposableStackPrototype);
 
 DisposableStackPrototype::DisposableStackPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())

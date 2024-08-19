@@ -13,7 +13,7 @@ namespace JS {
 
 class ArrayBufferPrototype final : public PrototypeObject<ArrayBufferPrototype, ArrayBuffer> {
     JS_PROTOTYPE_OBJECT(ArrayBufferPrototype, ArrayBuffer, ArrayBuffer);
-    JS_DECLARE_ALLOCATOR(ArrayBufferPrototype);
+    GC_DECLARE_ALLOCATOR(ArrayBufferPrototype);
 
 public:
     virtual void initialize(Realm&) override;

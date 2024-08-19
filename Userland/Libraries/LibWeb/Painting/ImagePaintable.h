@@ -15,10 +15,10 @@ class ImagePaintable final
     : public PaintableBox
     , public DOM::Document::ViewportClient {
     JS_CELL(ImagePaintable, PaintableBox);
-    JS_DECLARE_ALLOCATOR(ImagePaintable);
+    GC_DECLARE_ALLOCATOR(ImagePaintable);
 
 public:
-    static JS::NonnullGCPtr<ImagePaintable> create(Layout::ImageBox const&);
+    static GC::Ref<ImagePaintable> create(Layout::ImageBox const&);
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 

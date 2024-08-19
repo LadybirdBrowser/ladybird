@@ -13,7 +13,7 @@ namespace Web::IndexedDB {
 
 class IDBRequest : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(IDBRequest, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(IDBRequest);
+    GC_DECLARE_ALLOCATOR(IDBRequest);
 
 public:
     virtual ~IDBRequest() override;

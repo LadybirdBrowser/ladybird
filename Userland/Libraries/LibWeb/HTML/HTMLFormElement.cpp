@@ -36,7 +36,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLFormElement);
+GC_DEFINE_ALLOCATOR(HTMLFormElement);
 
 HTMLFormElement::HTMLFormElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::implicitly_submit_form()
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-submit
-WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(JS::NonnullGCPtr<HTMLElement> submitter, SubmitFormOptions options)
+WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> submitter, SubmitFormOptions options)
 {
     auto& vm = this->vm();
     auto& realm = this->realm();
@@ -109,7 +109,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(JS::NonnullGCPtr<HTMLElem
         return {};
 
     // 3. Let form document be form's node document.
-    JS::NonnullGCPtr<DOM::Document> form_document = this->document();
+    GC::Ref<DOM::Document> form_document = this->document();
 
     // 4. If form document's active sandboxing flag set has its sandboxed forms browsing context flag set, then return.
     if (has_flag(form_document->active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedForms))
@@ -131,7 +131,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(JS::NonnullGCPtr<HTMLElem
         //           2. Return.
 
         // 4. Let submitterButton be null if submitter is form. Otherwise, let submitterButton be submitter.
-        JS::GCPtr<HTMLElement> submitter_button;
+        GC::Ptr<HTMLElement> submitter_button;
         if (submitter != this)
             submitter_button = submitter;
 
@@ -331,7 +331,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit()
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-requestsubmit
-WebIDL::ExceptionOr<void> HTMLFormElement::request_submit(JS::GCPtr<Element> submitter)
+WebIDL::ExceptionOr<void> HTMLFormElement::request_submit(GC::Ptr<Element> submitter)
 {
     // 1. If submitter is not null, then:
     if (submitter) {
@@ -384,7 +384,7 @@ void HTMLFormElement::remove_associated_element(Badge<FormAssociatedElement>, HT
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fs-action
-String HTMLFormElement::action_from_form_element(JS::NonnullGCPtr<HTMLElement> element) const
+String HTMLFormElement::action_from_form_element(GC::Ref<HTMLElement> element) const
 {
     // The action of an element is the value of the element's formaction attribute, if the element is a submit button
     // and has such an attribute, or the value of its form owner's action attribute, if it has one, or else the empty
@@ -415,7 +415,7 @@ static HTMLFormElement::MethodAttributeState method_attribute_to_method_state(St
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fs-method
-HTMLFormElement::MethodAttributeState HTMLFormElement::method_state_from_form_element(JS::NonnullGCPtr<HTMLElement const> element) const
+HTMLFormElement::MethodAttributeState HTMLFormElement::method_state_from_form_element(GC::Ref<HTMLElement const> element) const
 {
     // If the element is a submit button and has a formmethod attribute, then the element's method is that attribute's state;
     // otherwise, it is the form owner's method attribute's state.
@@ -450,7 +450,7 @@ static HTMLFormElement::EncodingTypeAttributeState encoding_type_attribute_to_en
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fs-enctype
-HTMLFormElement::EncodingTypeAttributeState HTMLFormElement::encoding_type_state_from_form_element(JS::NonnullGCPtr<HTMLElement> element) const
+HTMLFormElement::EncodingTypeAttributeState HTMLFormElement::encoding_type_state_from_form_element(GC::Ref<HTMLElement> element) const
 {
     // If the element is a submit button and has a formenctype attribute, then the element's enctype is that attribute's state;
     // otherwise, it is the form owner's enctype attribute's state.
@@ -516,7 +516,7 @@ static bool is_form_control(DOM::Element const& element, HTMLFormElement const& 
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-elements
-JS::NonnullGCPtr<DOM::HTMLFormControlsCollection> HTMLFormElement::elements() const
+GC::Ref<DOM::HTMLFormControlsCollection> HTMLFormElement::elements() const
 {
     if (!m_elements) {
         auto& root = verify_cast<ParentNode>(const_cast<HTMLFormElement*>(this)->root());
@@ -549,9 +549,9 @@ WebIDL::ExceptionOr<bool> HTMLFormElement::report_validity()
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#category-submit
-Vector<JS::NonnullGCPtr<DOM::Element>> HTMLFormElement::get_submittable_elements()
+Vector<GC::Ref<DOM::Element>> HTMLFormElement::get_submittable_elements()
 {
-    Vector<JS::NonnullGCPtr<DOM::Element>> submittable_elements;
+    Vector<GC::Ref<DOM::Element>> submittable_elements;
 
     root().for_each_in_subtree([&](auto& node) {
         if (auto* form_associated_element = dynamic_cast<FormAssociatedElement*>(&node)) {
@@ -583,7 +583,7 @@ StringView HTMLFormElement::method() const
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-rellist
-JS::NonnullGCPtr<DOM::DOMTokenList> HTMLFormElement::rel_list()
+GC::Ref<DOM::DOMTokenList> HTMLFormElement::rel_list()
 {
     // The relList IDL attribute must reflect the rel content attribute.
     if (!m_rel_list)
@@ -680,7 +680,7 @@ static ErrorOr<Vector<DOMURL::QueryParam>> convert_to_list_of_name_value_pairs(V
         // 2. If entry's value is a File object, then let value be entry's value's name. Otherwise, let value be entry's value.
         String value;
         entry.value.visit(
-            [&value](JS::Handle<FileAPI::File> const& file) {
+            [&value](GC::Handle<FileAPI::File> const& file) {
                 value = file->name();
             },
             [&value](String const& string) {
@@ -725,7 +725,7 @@ static ErrorOr<String> plain_text_encode(Vector<DOMURL::QueryParam> const& pairs
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-mutate-action
-ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, String encoding, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, String encoding, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Let pairs be the result of converting to a list of name-value pairs with entry list.
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
@@ -742,7 +742,7 @@ ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, Vector<
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-body
-ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, [[maybe_unused]] String encoding, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, [[maybe_unused]] String encoding, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Assert: method is POST.
 
@@ -801,7 +801,7 @@ ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, Vec
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-get-action
-void HTMLFormElement::get_action_url(URL::URL parsed_action, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+void HTMLFormElement::get_action_url(URL::URL parsed_action, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Plan to navigate to parsed action.
     // Spec Note: entry list is discarded.
@@ -809,7 +809,7 @@ void HTMLFormElement::get_action_url(URL::URL parsed_action, JS::NonnullGCPtr<Na
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-mailto-headers
-ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, [[maybe_unused]] String encoding, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, [[maybe_unused]] String encoding, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Let pairs be the result of converting to a list of name-value pairs with entry list.
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
@@ -828,7 +828,7 @@ ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, Vector<
     return {};
 }
 
-ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, [[maybe_unused]] String encoding, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, [[maybe_unused]] String encoding, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Let pairs be the result of converting to a list of name-value pairs with entry list.
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
@@ -881,7 +881,7 @@ ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, Vector<XHR::
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#plan-to-navigate
-void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, POSTResource> post_resource, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, POSTResource> post_resource, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Let referrerPolicy be the empty string.
     ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
@@ -900,7 +900,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, P
     }
 
     // 4. Queue an element task on the DOM manipulation task source given the form element and the following steps:
-    // NOTE: `this`, `actual_resource` and `target_navigable` are protected by JS::SafeFunction.
+    // NOTE: `this`, `actual_resource` and `target_navigable` are protected by GC::SafeFunction.
     queue_an_element_task(Task::Source::DOMManipulation, [this, url, post_resource, target_navigable, history_handling, referrer_policy, user_involvement]() {
         // 1. Set the form's planned navigation to null.
         m_planned_navigation = {};
@@ -941,7 +941,7 @@ Vector<FlyString> HTMLFormElement::supported_property_names() const
     //    where the source is either id, name, or past, and, if the source is past, an age.
     struct SourcedName {
         FlyString name;
-        JS::GCPtr<DOM::Element const> element;
+        GC::Ptr<DOM::Element const> element;
         enum class Source {
             Id,
             Name,

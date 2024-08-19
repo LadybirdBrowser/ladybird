@@ -56,7 +56,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_fo
     return promise;
 }
 
-JS_DEFINE_ALLOCATOR(FontFace);
+GC_DEFINE_ALLOCATOR(FontFace);
 
 template<CSS::PropertyID PropertyID>
 RefPtr<CSSStyleValue const> parse_property_string(JS::Realm& realm, StringView value)
@@ -66,7 +66,7 @@ RefPtr<CSSStyleValue const> parse_property_string(JS::Realm& realm, StringView v
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-face-constructor
-JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, FontFaceDescriptors const& descriptors)
+GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, FontFaceDescriptors const& descriptors)
 {
     auto& vm = realm.vm();
     auto base_url = HTML::relevant_settings_object(realm.global_object()).api_base_url();
@@ -94,7 +94,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
         if (sources.is_empty())
             WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "FontFace constructor: Invalid source string"_fly_string));
     } else {
-        auto buffer_source = source.get<JS::Handle<WebIDL::BufferSource>>();
+        auto buffer_source = source.get<GC::Handle<WebIDL::BufferSource>>();
         auto maybe_buffer = WebIDL::get_buffer_source_copy(buffer_source->raw_object());
         if (maybe_buffer.is_error()) {
             VERIFY(maybe_buffer.error().code() == ENOMEM);
@@ -119,7 +119,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
     if (font->m_binary_data.is_empty())
         return font;
 
-    HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(vm.heap(), [font] {
+    HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_heap_function(vm.heap(), [font] {
         // 1.  Set font face’s status attribute to "loading".
         font->m_status = Bindings::FontFaceLoadStatus::Loading;
 
@@ -129,8 +129,8 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
         //    When this is completed, successfully or not, queue a task to run the following steps synchronously:
         font->m_font_load_promise = load_vector_font(font->m_binary_data);
 
-        font->m_font_load_promise->when_resolved([font = JS::make_handle(font)](auto const& vector_font) -> ErrorOr<void> {
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(font->heap(), [font = JS::NonnullGCPtr(*font), vector_font] {
+        font->m_font_load_promise->when_resolved([font = GC::make_handle(font)](auto const& vector_font) -> ErrorOr<void> {
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_heap_function(font->heap(), [font = GC::Ref(*font), vector_font] {
                 HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*font), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 1. If the load was successful, font face now represents the parsed font;
                 //    fulfill font face’s [[FontStatusPromise]] with font face, and set its status attribute to "loaded".
@@ -146,8 +146,8 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
             }));
             return {};
         });
-        font->m_font_load_promise->when_rejected([font = JS::make_handle(font)](auto const& error) {
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(font->heap(), [font = JS::NonnullGCPtr(*font), error = Error::copy(error)] {
+        font->m_font_load_promise->when_rejected([font = GC::make_handle(font)](auto const& error) {
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_heap_function(font->heap(), [font = GC::Ref(*font), error = Error::copy(error)] {
                 HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*font), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 2. Otherwise, reject font face’s [[FontStatusPromise]] with a DOMException named "SyntaxError"
                 //    and set font face’s status attribute to "error".
@@ -164,7 +164,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
     return font;
 }
 
-FontFace::FontFace(JS::Realm& realm, JS::NonnullGCPtr<WebIDL::Promise> font_status_promise, Vector<ParsedFontFace::Source> urls, ByteBuffer data, String font_family, FontFaceDescriptors const& descriptors)
+FontFace::FontFace(JS::Realm& realm, GC::Ref<WebIDL::Promise> font_status_promise, Vector<ParsedFontFace::Source> urls, ByteBuffer data, String font_family, FontFaceDescriptors const& descriptors)
     : Bindings::PlatformObject(realm)
     , m_font_status_promise(font_status_promise)
     , m_urls(move(urls))
@@ -206,7 +206,7 @@ void FontFace::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_font_status_promise);
 }
 
-JS::NonnullGCPtr<JS::Promise> FontFace::loaded() const
+GC::Ref<JS::Promise> FontFace::loaded() const
 {
     return verify_cast<JS::Promise>(*m_font_status_promise->promise());
 }
@@ -320,7 +320,7 @@ WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const&)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-load
-JS::NonnullGCPtr<JS::Promise> FontFace::load()
+GC::Ref<JS::Promise> FontFace::load()
 {
     //  1. Let font face be the FontFace object on which this method was called.
     auto& font_face = *this;
@@ -349,13 +349,13 @@ void FontFace::load_font_source()
     //    and continue executing the rest of this algorithm asynchronously.
     m_status = Bindings::FontFaceLoadStatus::Loading;
 
-    Web::Platform::EventLoopPlugin::the().deferred_invoke([font = JS::make_handle(this)] {
+    Web::Platform::EventLoopPlugin::the().deferred_invoke([font = GC::make_handle(this)] {
         // 4. Using the value of font face’s [[Urls]] slot, attempt to load a font as defined in [CSS-FONTS-3],
         //     as if it was the value of a @font-face rule’s src descriptor.
 
         // 5. When the load operation completes, successfully or not, queue a task to run the following steps synchronously:
         auto on_error = [font] {
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(font->heap(), [font = JS::NonnullGCPtr(*font)] {
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_heap_function(font->heap(), [font = GC::Ref(*font)] {
                 HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*font), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
                 //     1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
@@ -369,7 +369,7 @@ void FontFace::load_font_source()
 
         auto on_load = [font](FontLoader const& loader) {
             // FIXME: We are assuming that the font loader will live as long as the document! This is an unsafe capture
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(font->heap(), [font = JS::NonnullGCPtr(*font), &loader] {
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_heap_function(font->heap(), [font = GC::Ref(*font), &loader] {
                 HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*font), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
                 // 2. Otherwise, font face now represents the loaded font; fulfill font face’s [[FontStatusPromise]] with font face

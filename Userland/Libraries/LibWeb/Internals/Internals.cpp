@@ -20,7 +20,7 @@
 
 namespace Web::Internals {
 
-JS_DEFINE_ALLOCATOR(Internals);
+GC_DEFINE_ALLOCATOR(Internals);
 
 Internals::Internals(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -111,7 +111,7 @@ WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTar
     return target.dispatch_event(event);
 }
 
-JS::NonnullGCPtr<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
+GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
 {
     auto& realm = this->realm();
     return realm.heap().allocate<InternalAnimationTimeline>(realm, realm);

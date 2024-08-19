@@ -8,9 +8,9 @@
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(CanvasPaintable);
+GC_DEFINE_ALLOCATOR(CanvasPaintable);
 
-JS::NonnullGCPtr<CanvasPaintable> CanvasPaintable::create(Layout::CanvasBox const& layout_box)
+GC::Ref<CanvasPaintable> CanvasPaintable::create(Layout::CanvasBox const& layout_box)
 {
     return layout_box.heap().allocate_without_realm<CanvasPaintable>(layout_box);
 }

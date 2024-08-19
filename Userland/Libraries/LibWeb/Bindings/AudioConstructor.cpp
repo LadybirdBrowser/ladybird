@@ -14,7 +14,7 @@
 
 namespace Web::Bindings {
 
-JS_DEFINE_ALLOCATOR(AudioConstructor);
+GC_DEFINE_ALLOCATOR(AudioConstructor);
 
 AudioConstructor::AudioConstructor(JS::Realm& realm)
     : NativeFunction(realm.intrinsics().function_prototype())
@@ -36,7 +36,7 @@ JS::ThrowCompletionOr<JS::Value> AudioConstructor::call()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-audio
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> AudioConstructor::construct(FunctionObject&)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionObject&)
 {
     auto& vm = this->vm();
 

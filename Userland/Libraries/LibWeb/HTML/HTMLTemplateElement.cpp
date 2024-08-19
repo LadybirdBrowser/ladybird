@@ -11,7 +11,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLTemplateElement);
+GC_DEFINE_ALLOCATOR(HTMLTemplateElement);
 
 HTMLTemplateElement::HTMLTemplateElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -63,7 +63,7 @@ WebIDL::ExceptionOr<void> HTMLTemplateElement::cloned(Node& copy, bool clone_chi
     return {};
 }
 
-void HTMLTemplateElement::set_template_contents(JS::NonnullGCPtr<DOM::DocumentFragment> contents)
+void HTMLTemplateElement::set_template_contents(GC::Ref<DOM::DocumentFragment> contents)
 {
     m_content = contents;
 }

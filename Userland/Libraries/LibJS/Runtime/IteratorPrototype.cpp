@@ -17,7 +17,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(IteratorPrototype);
+GC_DEFINE_ALLOCATOR(IteratorPrototype);
 
 // 27.1.2 The %IteratorPrototype% Object, https://tc39.es/ecma262/#sec-%iteratorprototype%-object
 IteratorPrototype::IteratorPrototype(Realm& realm)
@@ -98,7 +98,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
     auto iterated = TRY(get_iterator_direct(vm, object));
 
     // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the following steps when called:
-    auto closure = JS::create_heap_function(realm.heap(), [mapper = NonnullGCPtr { mapper.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_heap_function(realm.heap(), [mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         auto const& iterated = iterator.underlying_iterator();
 
         // a. Let counter be 0.
@@ -157,7 +157,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
     auto iterated = TRY(get_iterator_direct(vm, object));
 
     // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and predicate and performs the following steps when called:
-    auto closure = JS::create_heap_function(realm.heap(), [predicate = NonnullGCPtr { predicate.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_heap_function(realm.heap(), [predicate = GC::Ref { predicate.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         auto const& iterated = iterator.underlying_iterator();
 
         // a. Let counter be 0.
@@ -231,7 +231,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
     auto iterated = TRY(get_iterator_direct(vm, object));
 
     // 8. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs the following steps when called:
-    auto closure = JS::create_heap_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_heap_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         auto const& iterated = iterator.underlying_iterator();
 
         // a. Let remaining be integerLimit.
@@ -296,7 +296,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
     auto iterated = TRY(get_iterator_direct(vm, object));
 
     // 8. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs the following steps when called:
-    auto closure = JS::create_heap_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_heap_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         auto const& iterated = iterator.underlying_iterator();
 
         // a. Let remaining be integerLimit.
@@ -338,7 +338,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
 
 class FlatMapIterator : public Cell {
     JS_CELL(FlatMapIterator, Cell);
-    JS_DECLARE_ALLOCATOR(FlatMapIterator);
+    GC_DECLARE_ALLOCATOR(FlatMapIterator);
 
 public:
     ThrowCompletionOr<Value> next(VM& vm, IteratorRecord const& iterated, IteratorHelper& iterator, FunctionObject& mapper)
@@ -445,10 +445,10 @@ private:
         }
     }
 
-    GCPtr<IteratorRecord> m_inner_iterator;
+    GC::Ptr<IteratorRecord> m_inner_iterator;
 };
 
-JS_DEFINE_ALLOCATOR(FlatMapIterator);
+GC_DEFINE_ALLOCATOR(FlatMapIterator);
 
 // 3.1.3.6 Iterator.prototype.flatMap ( mapper ), https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.flatmap
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
@@ -471,12 +471,12 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
     auto flat_map_iterator = vm.heap().allocate<FlatMapIterator>(realm);
 
     // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the following steps when called:
-    auto closure = JS::create_heap_function(realm.heap(), [flat_map_iterator, mapper = NonnullGCPtr { mapper.as_function() }](VM& vm, IteratorHelper& iterator) mutable -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_heap_function(realm.heap(), [flat_map_iterator, mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) mutable -> ThrowCompletionOr<Value> {
         auto const& iterated = iterator.underlying_iterator();
         return flat_map_iterator->next(vm, iterated, iterator, *mapper);
     });
 
-    auto abrupt_closure = JS::create_heap_function(realm.heap(), [flat_map_iterator](VM& vm, IteratorHelper& iterator, Completion const& completion) -> ThrowCompletionOr<Value> {
+    auto abrupt_closure = GC::create_heap_function(realm.heap(), [flat_map_iterator](VM& vm, IteratorHelper& iterator, Completion const& completion) -> ThrowCompletionOr<Value> {
         return flat_map_iterator->on_abrupt_completion(vm, iterator, completion);
     });
 

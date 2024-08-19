@@ -8,7 +8,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(EnvironmentSettingsSnapshot);
+GC_DEFINE_ALLOCATOR(EnvironmentSettingsSnapshot);
 
 EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& serialized_settings)
     : EnvironmentSettingsObject(move(execution_context))

@@ -13,7 +13,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(ListFormat);
+GC_DEFINE_ALLOCATOR(ListFormat);
 
 // 13 ListFormat Objects, https://tc39.es/ecma402/#listformat-objects
 ListFormat::ListFormat(Object& prototype)
@@ -39,7 +39,7 @@ String format_list(ListFormat const& list_format, ReadonlySpan<String> list)
 }
 
 // 13.5.4 FormatListToParts ( listFormat, list ), https://tc39.es/ecma402/#sec-formatlisttoparts
-NonnullGCPtr<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, ReadonlySpan<String> list)
+GC::Ref<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, ReadonlySpan<String> list)
 {
     auto& realm = *vm.current_realm();
 

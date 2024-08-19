@@ -22,11 +22,11 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(VideoTrack);
+GC_DEFINE_ALLOCATOR(VideoTrack);
 
 static IDAllocator s_video_track_id_allocator;
 
-VideoTrack::VideoTrack(JS::Realm& realm, JS::NonnullGCPtr<HTMLMediaElement> media_element, NonnullOwnPtr<Media::PlaybackManager> playback_manager)
+VideoTrack::VideoTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element, NonnullOwnPtr<Media::PlaybackManager> playback_manager)
     : PlatformObject(realm)
     , m_media_element(media_element)
     , m_playback_manager(move(playback_manager))

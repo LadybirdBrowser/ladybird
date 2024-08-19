@@ -9,7 +9,7 @@
 
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
@@ -27,7 +27,7 @@ public:
 
     void present();
 
-    JS::NonnullGCPtr<HTML::HTMLCanvasElement> canvas_for_binding() const;
+    GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const;
 
     bool is_context_lost() const;
 
@@ -71,7 +71,7 @@ protected:
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<HTML::HTMLCanvasElement> m_canvas_element;
+    GC::Ref<HTML::HTMLCanvasElement> m_canvas_element;
 
     NonnullOwnPtr<OpenGLContext> m_context;
 

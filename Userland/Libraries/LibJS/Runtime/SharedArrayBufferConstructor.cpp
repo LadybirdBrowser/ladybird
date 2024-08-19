@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SharedArrayBufferConstructor);
+GC_DEFINE_ALLOCATOR(SharedArrayBufferConstructor);
 
 SharedArrayBufferConstructor::SharedArrayBufferConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.SharedArrayBuffer.as_string(), realm.intrinsics().function_prototype())
@@ -45,7 +45,7 @@ ThrowCompletionOr<Value> SharedArrayBufferConstructor::call()
 }
 
 // 25.2.3.1 SharedArrayBuffer ( length [ , options ] ), https://tc39.es/ecma262/#sec-sharedarraybuffer-length
-ThrowCompletionOr<NonnullGCPtr<Object>> SharedArrayBufferConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> SharedArrayBufferConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

@@ -13,10 +13,10 @@ namespace Web::Painting {
 
 class NestedBrowsingContextPaintable final : public PaintableBox {
     JS_CELL(NestedBrowsingContextPaintable, PaintableBox);
-    JS_DECLARE_ALLOCATOR(NestedBrowsingContextPaintable);
+    GC_DECLARE_ALLOCATOR(NestedBrowsingContextPaintable);
 
 public:
-    static JS::NonnullGCPtr<NestedBrowsingContextPaintable> create(Layout::FrameBox const&);
+    static GC::Ref<NestedBrowsingContextPaintable> create(Layout::FrameBox const&);
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 

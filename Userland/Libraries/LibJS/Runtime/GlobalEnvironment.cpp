@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(GlobalEnvironment);
+GC_DEFINE_ALLOCATOR(GlobalEnvironment);
 
 // 9.1.2.5 NewGlobalEnvironment ( G, thisValue ), https://tc39.es/ecma262/#sec-newglobalenvironment
 GlobalEnvironment::GlobalEnvironment(Object& global_object, Object& this_value)

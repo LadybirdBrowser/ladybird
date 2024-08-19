@@ -14,7 +14,7 @@ namespace JS {
 
 class WrapForValidIteratorPrototype final : public PrototypeObject<WrapForValidIteratorPrototype, Iterator> {
     JS_PROTOTYPE_OBJECT(WrapForValidIteratorPrototype, Iterator, Iterator);
-    JS_DECLARE_ALLOCATOR(WrapForValidIteratorPrototype);
+    GC_DECLARE_ALLOCATOR(WrapForValidIteratorPrototype);
 
 public:
     virtual void initialize(Realm&) override;

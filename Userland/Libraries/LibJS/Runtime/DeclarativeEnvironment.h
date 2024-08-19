@@ -17,7 +17,7 @@ namespace JS {
 
 class DeclarativeEnvironment : public Environment {
     JS_ENVIRONMENT(DeclarativeEnvironment, Environment);
-    JS_DECLARE_ALLOCATOR(DeclarativeEnvironment);
+    GC_DECLARE_ALLOCATOR(DeclarativeEnvironment);
 
     struct Binding {
         DeprecatedFlyString name;
@@ -73,7 +73,7 @@ private:
     ThrowCompletionOr<Value> get_binding_value_direct(VM&, Binding const&) const;
     ThrowCompletionOr<void> set_mutable_binding_direct(VM&, Binding&, Value, bool strict);
 
-    friend Completion dispose_resources(VM&, GCPtr<DeclarativeEnvironment>, Completion);
+    friend Completion dispose_resources(VM&, GC::Ptr<DeclarativeEnvironment>, Completion);
     Vector<DisposableResource> const& disposable_resource_stack() const { return m_disposable_resource_stack; }
 
 protected:

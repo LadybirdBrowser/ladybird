@@ -14,9 +14,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DedicatedWorkerGlobalScope);
+GC_DEFINE_ALLOCATOR(DedicatedWorkerGlobalScope);
 
-DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(JS::Realm& realm, JS::NonnullGCPtr<Web::Page> page)
+DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
     : WorkerGlobalScope(realm, page)
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .has_global_interface_extended_attribute = true };

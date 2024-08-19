@@ -13,7 +13,7 @@ namespace JS::Intl {
 
 class SegmentsPrototype final : public PrototypeObject<SegmentsPrototype, Segments> {
     JS_PROTOTYPE_OBJECT(SegmentsPrototype, Segments, Segments);
-    JS_DECLARE_ALLOCATOR(SegmentsPrototype);
+    GC_DECLARE_ALLOCATOR(SegmentsPrototype);
 
 public:
     virtual void initialize(Realm&) override;

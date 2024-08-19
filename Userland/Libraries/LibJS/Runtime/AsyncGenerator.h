@@ -17,7 +17,7 @@ namespace JS {
 // 27.6.2 Properties of AsyncGenerator Instances, https://tc39.es/ecma262/#sec-properties-of-asyncgenerator-intances
 class AsyncGenerator final : public Object {
     JS_OBJECT(AsyncGenerator, Object);
-    JS_DECLARE_ALLOCATOR(AsyncGenerator);
+    GC_DECLARE_ALLOCATOR(AsyncGenerator);
 
 public:
     enum class State {
@@ -28,11 +28,11 @@ public:
         Completed,
     };
 
-    static ThrowCompletionOr<NonnullGCPtr<AsyncGenerator>> create(Realm&, Value, ECMAScriptFunctionObject*, NonnullOwnPtr<ExecutionContext>);
+    static ThrowCompletionOr<GC::Ref<AsyncGenerator>> create(Realm&, Value, ECMAScriptFunctionObject*, NonnullOwnPtr<ExecutionContext>);
 
     virtual ~AsyncGenerator() override;
 
-    void async_generator_enqueue(Completion, NonnullGCPtr<PromiseCapability>);
+    void async_generator_enqueue(Completion, GC::Ref<PromiseCapability>);
     ThrowCompletionOr<void> resume(VM&, Completion completion);
     void await_return();
     void complete_step(Completion, bool done, Realm* realm = nullptr);
@@ -58,9 +58,9 @@ private:
     Vector<AsyncGeneratorRequest> m_async_generator_queue;     // [[AsyncGeneratorQueue]]
     Optional<String> m_generator_brand;                        // [[GeneratorBrand]]
 
-    GCPtr<ECMAScriptFunctionObject> m_generating_function;
+    GC::Ptr<ECMAScriptFunctionObject> m_generating_function;
     Value m_previous_value;
-    GCPtr<Promise> m_current_promise;
+    GC::Ptr<Promise> m_current_promise;
 };
 
 }

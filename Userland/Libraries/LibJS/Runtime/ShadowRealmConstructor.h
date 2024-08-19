@@ -12,14 +12,14 @@ namespace JS {
 
 class ShadowRealmConstructor final : public NativeFunction {
     JS_OBJECT(ShadowRealmConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(ShadowRealmConstructor);
+    GC_DECLARE_ALLOCATOR(ShadowRealmConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~ShadowRealmConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit ShadowRealmConstructor(Realm&);

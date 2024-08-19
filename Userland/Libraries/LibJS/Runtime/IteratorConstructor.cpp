@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(IteratorConstructor);
+GC_DEFINE_ALLOCATOR(IteratorConstructor);
 
 // 3.1.1.1 The Iterator Constructor, https://tc39.es/proposal-iterator-helpers/#sec-iterator-constructor
 IteratorConstructor::IteratorConstructor(Realm& realm)
@@ -47,7 +47,7 @@ ThrowCompletionOr<Value> IteratorConstructor::call()
 }
 
 // 3.1.1.1.1 Iterator ( ), https://tc39.es/proposal-iterator-helpers/#sec-iterator
-ThrowCompletionOr<NonnullGCPtr<Object>> IteratorConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> IteratorConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

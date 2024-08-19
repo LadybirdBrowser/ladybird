@@ -19,14 +19,7 @@ set(SOURCES
     Contrib/Test262/GlobalObject.cpp
     Contrib/Test262/IsHTMLDDA.cpp
     CyclicModule.cpp
-    Heap/BlockAllocator.cpp
     Heap/Cell.cpp
-    Heap/CellAllocator.cpp
-    Heap/ConservativeVector.cpp
-    Heap/Handle.cpp
-    Heap/Heap.cpp
-    Heap/HeapBlock.cpp
-    Heap/MarkedVector.cpp
     Lexer.cpp
     MarkupGenerator.cpp
     Module.cpp
@@ -252,7 +245,6 @@ set(SOURCES
     Runtime/Utf16String.cpp
     Runtime/Value.cpp
     Runtime/VM.cpp
-    Runtime/WeakContainer.cpp
     Runtime/WeakMap.cpp
     Runtime/WeakMapConstructor.cpp
     Runtime/WeakMapPrototype.cpp
@@ -276,7 +268,7 @@ serenity_lib(LibJS js)
 target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax)
 
 # Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.
-target_link_libraries(LibJS PUBLIC LibUnicode)
+target_link_libraries(LibJS PUBLIC LibUnicode LibGC)
 
 # TODO: This is probably also needed on RISC-V.
 if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "i.86.*")

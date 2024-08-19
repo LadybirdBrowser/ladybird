@@ -15,7 +15,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ReflectObject);
+GC_DEFINE_ALLOCATOR(ReflectObject);
 
 ReflectObject::ReflectObject(Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())

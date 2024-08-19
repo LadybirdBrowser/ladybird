@@ -39,7 +39,7 @@ bool BodyMixin::is_unusable() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-body
-JS::GCPtr<Streams::ReadableStream> BodyMixin::body() const
+GC::Ptr<Streams::ReadableStream> BodyMixin::body() const
 {
     // The body getter steps are to return null if this’s body is null; otherwise this’s body’s stream.
     auto const& body = body_impl();
@@ -55,7 +55,7 @@ bool BodyMixin::body_used() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-arraybuffer
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::array_buffer() const
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> BodyMixin::array_buffer() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -65,7 +65,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::array_buffer() con
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-blob
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::blob() const
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> BodyMixin::blob() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -75,7 +75,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::blob() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-bytes
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::bytes() const
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> BodyMixin::bytes() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::bytes() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-formdata
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::form_data() const
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> BodyMixin::form_data() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::form_data() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-json
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::json() const
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> BodyMixin::json() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -105,7 +105,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::json() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-text
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::text() const
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> BodyMixin::text() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -175,7 +175,7 @@ WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm& realm, ByteBuffer bytes, 
 }
 
 // https://fetch.spec.whatwg.org/#concept-body-consume-body
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> consume_body(JS::Realm& realm, BodyMixin const& object, PackageDataType type)
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> consume_body(JS::Realm& realm, BodyMixin const& object, PackageDataType type)
 {
     // 1. If object is unusable, then return a promise rejected with a TypeError.
     if (object.is_unusable()) {
@@ -187,8 +187,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> consume_body(JS::Realm& realm
     auto promise = WebIDL::create_promise(realm);
 
     // 3. Let errorSteps given error be to reject promise with error.
-    // NOTE: `promise` and `realm` is protected by JS::SafeFunction.
-    auto error_steps = JS::create_heap_function(realm.heap(), [promise, &realm](JS::Value error) {
+    // NOTE: `promise` and `realm` is protected by GC::SafeFunction.
+    auto error_steps = GC::create_heap_function(realm.heap(), [promise, &realm](JS::Value error) {
         // AD-HOC: An execution context is required for Promise's reject function.
         HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
         WebIDL::reject_promise(realm, promise, error);
@@ -196,9 +196,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> consume_body(JS::Realm& realm
 
     // 4. Let successSteps given a byte sequence data be to resolve promise with the result of running convertBytesToJSValue
     //    with data. If that threw an exception, then run errorSteps with that exception.
-    // NOTE: `promise`, `realm` and `object` is protected by JS::SafeFunction.
+    // NOTE: `promise`, `realm` and `object` is protected by GC::SafeFunction.
     // FIXME: Refactor this to the new version of the spec introduced with https://github.com/whatwg/fetch/commit/464326e8eb6a602122c030cd40042480a3c0e265
-    auto success_steps = JS::create_heap_function(realm.heap(), [promise, &realm, &object, type](ByteBuffer data) {
+    auto success_steps = GC::create_heap_function(realm.heap(), [promise, &realm, &object, type](ByteBuffer data) {
         auto& vm = realm.vm();
 
         // AD-HOC: An execution context is required for Promise's reject function and JSON.parse.
@@ -225,11 +225,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> consume_body(JS::Realm& realm
     }
     // 6. Otherwise, fully read object’s body given successSteps, errorSteps, and object’s relevant global object.
     else {
-        body->fully_read(realm, success_steps, error_steps, JS::NonnullGCPtr { HTML::relevant_global_object(object.as_platform_object()) });
+        body->fully_read(realm, success_steps, error_steps, GC::Ref { HTML::relevant_global_object(object.as_platform_object()) });
     }
 
     // 7. Return promise.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise().ptr()) };
+    return GC::Ref { verify_cast<JS::Promise>(*promise->promise().ptr()) };
 }
 
 }

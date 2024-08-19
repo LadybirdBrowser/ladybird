@@ -12,10 +12,10 @@ namespace Web::DOM {
 
 class XMLDocument final : public Document {
     WEB_PLATFORM_OBJECT(XMLDocument, Document);
-    JS_DECLARE_ALLOCATOR(XMLDocument);
+    GC_DECLARE_ALLOCATOR(XMLDocument);
 
 public:
-    static JS::NonnullGCPtr<XMLDocument> create(JS::Realm&, URL::URL const& url = "about:blank"sv);
+    static GC::Ref<XMLDocument> create(JS::Realm&, URL::URL const& url = "about:blank"sv);
     virtual ~XMLDocument() override = default;
 
 private:

@@ -9,9 +9,9 @@
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/WeakPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/EditEventHandler.h>
 #include <LibWeb/PixelUnits.h>
@@ -51,7 +51,7 @@ private:
     CSSPixelPoint compute_mouse_event_movement(CSSPixelPoint event_client_offset) const;
 
     struct Target {
-        JS::GCPtr<Painting::Paintable> paintable;
+        GC::Ptr<Painting::Paintable> paintable;
         Optional<int> index_in_node;
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
@@ -59,11 +59,11 @@ private:
     Painting::PaintableBox* paint_root();
     Painting::PaintableBox const* paint_root() const;
 
-    JS::NonnullGCPtr<HTML::Navigable> m_navigable;
+    GC::Ref<HTML::Navigable> m_navigable;
 
     bool m_in_mouse_selection { false };
 
-    JS::GCPtr<Painting::Paintable> m_mouse_event_tracking_paintable;
+    GC::Ptr<Painting::Paintable> m_mouse_event_tracking_paintable;
 
     NonnullOwnPtr<EditEventHandler> m_edit_event_handler;
 

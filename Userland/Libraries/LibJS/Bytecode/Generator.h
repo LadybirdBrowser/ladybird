@@ -38,8 +38,8 @@ public:
         Yes,
     };
 
-    static CodeGenerationErrorOr<NonnullGCPtr<Executable>> generate_from_ast_node(VM&, ASTNode const&, FunctionKind = FunctionKind::Normal);
-    static CodeGenerationErrorOr<NonnullGCPtr<Executable>> generate_from_function(VM&, ECMAScriptFunctionObject const& function);
+    static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_ast_node(VM&, ASTNode const&, FunctionKind = FunctionKind::Normal);
+    static CodeGenerationErrorOr<GC::Ref<Executable>> generate_from_function(VM&, ECMAScriptFunctionObject const& function);
 
     CodeGenerationErrorOr<void> emit_function_declaration_instantiation(ECMAScriptFunctionObject const& function);
 
@@ -343,7 +343,7 @@ public:
 private:
     VM& m_vm;
 
-    static CodeGenerationErrorOr<NonnullGCPtr<Executable>> compile(VM&, ASTNode const&, FunctionKind, GCPtr<ECMAScriptFunctionObject const>, MustPropagateCompletion, Vector<DeprecatedFlyString> local_variable_names);
+    static CodeGenerationErrorOr<GC::Ref<Executable>> compile(VM&, ASTNode const&, FunctionKind, GC::Ptr<ECMAScriptFunctionObject const>, MustPropagateCompletion, Vector<DeprecatedFlyString> local_variable_names);
 
     enum class JumpType {
         Continue,
@@ -352,7 +352,7 @@ private:
     void generate_scoped_jump(JumpType);
     void generate_labelled_jump(JumpType, DeprecatedFlyString const& label);
 
-    Generator(VM&, GCPtr<ECMAScriptFunctionObject const>, MustPropagateCompletion);
+    Generator(VM&, GC::Ptr<ECMAScriptFunctionObject const>, MustPropagateCompletion);
     ~Generator() = default;
 
     void grow(size_t);
@@ -373,7 +373,7 @@ private:
     NonnullOwnPtr<StringTable> m_string_table;
     NonnullOwnPtr<IdentifierTable> m_identifier_table;
     NonnullOwnPtr<RegexTable> m_regex_table;
-    MarkedVector<Value> m_constants;
+    GC::MarkedVector<Value> m_constants;
 
     mutable Optional<ScopedOperand> m_true_constant;
     mutable Optional<ScopedOperand> m_false_constant;
@@ -401,7 +401,7 @@ private:
     bool m_finished { false };
     bool m_must_propagate_completion { true };
 
-    GCPtr<ECMAScriptFunctionObject const> m_function;
+    GC::Ptr<ECMAScriptFunctionObject const> m_function;
 
     Optional<IdentifierTableIndex> m_length_identifier;
 };

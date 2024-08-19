@@ -10,7 +10,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SuppressedErrorPrototype);
+GC_DEFINE_ALLOCATOR(SuppressedErrorPrototype);
 
 SuppressedErrorPrototype::SuppressedErrorPrototype(Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().error_prototype())

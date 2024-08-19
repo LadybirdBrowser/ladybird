@@ -14,7 +14,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(PlainMonthDayPrototype);
+GC_DEFINE_ALLOCATOR(PlainMonthDayPrototype);
 
 // 10.3 Properties of the Temporal.PlainMonthDay Prototype Object, https://tc39.es/proposal-temporal/#sec-properties-of-the-temporal-plainmonthday-prototype-object
 PlainMonthDayPrototype::PlainMonthDayPrototype(Realm& realm)

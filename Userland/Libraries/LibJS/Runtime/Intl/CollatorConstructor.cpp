@@ -14,7 +14,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(CollatorConstructor);
+GC_DEFINE_ALLOCATOR(CollatorConstructor);
 
 // 10.1 The Intl.Collator Constructor, https://tc39.es/ecma402/#sec-the-intl-collator-constructor
 CollatorConstructor::CollatorConstructor(Realm& realm)
@@ -44,7 +44,7 @@ ThrowCompletionOr<Value> CollatorConstructor::call()
 }
 
 // 10.1.1 Intl.Collator ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.collator
-ThrowCompletionOr<NonnullGCPtr<Object>> CollatorConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

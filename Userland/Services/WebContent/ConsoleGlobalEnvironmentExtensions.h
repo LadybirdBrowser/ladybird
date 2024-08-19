@@ -15,7 +15,7 @@ namespace WebContent {
 
 class ConsoleGlobalEnvironmentExtensions final : public JS::Object {
     JS_OBJECT(ConsoleGlobalEnvironmentExtensions, JS::Object);
-    JS_DECLARE_ALLOCATOR(ConsoleGlobalEnvironmentExtensions);
+    GC_DECLARE_ALLOCATOR(ConsoleGlobalEnvironmentExtensions);
 
 public:
     ConsoleGlobalEnvironmentExtensions(JS::Realm&, Web::HTML::Window&);
@@ -36,7 +36,7 @@ private:
     // $$(selector, element), equivalent to `(element || document).querySelectorAll(selector)`
     JS_DECLARE_NATIVE_FUNCTION($$_function);
 
-    JS::NonnullGCPtr<Web::HTML::Window> m_window_object;
+    GC::Ref<Web::HTML::Window> m_window_object;
     JS::Value m_most_recent_result { JS::js_undefined() };
 };
 

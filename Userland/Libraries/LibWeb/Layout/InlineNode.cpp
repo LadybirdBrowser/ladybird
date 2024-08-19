@@ -14,7 +14,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(InlineNode);
+GC_DEFINE_ALLOCATOR(InlineNode);
 
 InlineNode::InlineNode(DOM::Document& document, DOM::Element* element, NonnullRefPtr<CSS::StyleProperties> style)
     : Layout::NodeWithStyleAndBoxModelMetrics(document, element, move(style))
@@ -23,7 +23,7 @@ InlineNode::InlineNode(DOM::Document& document, DOM::Element* element, NonnullRe
 
 InlineNode::~InlineNode() = default;
 
-JS::GCPtr<Painting::Paintable> InlineNode::create_paintable() const
+GC::Ptr<Painting::Paintable> InlineNode::create_paintable() const
 {
     return Painting::InlinePaintable::create(*this);
 }

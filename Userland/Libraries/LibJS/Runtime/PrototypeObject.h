@@ -29,7 +29,7 @@ class PrototypeObject : public Object {
 public:
     virtual ~PrototypeObject() override = default;
 
-    static ThrowCompletionOr<NonnullGCPtr<Object>> this_object(VM& vm)
+    static ThrowCompletionOr<GC::Ref<Object>> this_object(VM& vm)
     {
         auto this_value = vm.this_value();
         if (!this_value.is_object())
@@ -38,7 +38,7 @@ public:
     }
 
     // Use typed_this_object() when the spec coerces |this| value to an object.
-    static ThrowCompletionOr<NonnullGCPtr<ObjectType>> typed_this_object(VM& vm)
+    static ThrowCompletionOr<GC::Ref<ObjectType>> typed_this_object(VM& vm)
     {
         auto this_object = TRY(vm.this_value().to_object(vm));
         if (!is<ObjectType>(*this_object))
@@ -47,7 +47,7 @@ public:
     }
 
     // Use typed_this_value() when the spec does not coerce |this| value to an object.
-    static ThrowCompletionOr<NonnullGCPtr<ObjectType>> typed_this_value(VM& vm)
+    static ThrowCompletionOr<GC::Ref<ObjectType>> typed_this_value(VM& vm)
     {
         auto this_value = vm.this_value();
         if (!this_value.is_object() || !is<ObjectType>(this_value.as_object()))

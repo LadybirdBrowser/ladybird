@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/Selector.h>
@@ -54,8 +54,8 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<CSSRule> m_parent_rule;
-    JS::GCPtr<CSSStyleSheet> m_parent_style_sheet;
+    GC::Ptr<CSSRule> m_parent_rule;
+    GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
 };
 
 }

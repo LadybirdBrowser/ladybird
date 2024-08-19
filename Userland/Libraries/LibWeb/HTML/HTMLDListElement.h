@@ -12,7 +12,7 @@ namespace Web::HTML {
 
 class HTMLDListElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLDListElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLDListElement);
+    GC_DECLARE_ALLOCATOR(HTMLDListElement);
 
 public:
     virtual ~HTMLDListElement() override;

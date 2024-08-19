@@ -143,7 +143,7 @@ CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
     auto style_sheet = parse_a_stylesheet(m_token_stream, {});
 
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
-    JS::MarkedVector<CSSRule*> rules(m_context.realm().heap());
+    GC::MarkedVector<CSSRule*> rules(m_context.realm().heap());
     for (auto& raw_rule : style_sheet.rules) {
         auto rule = convert_to_rule(raw_rule);
         // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error. Discard that rule.
@@ -1240,7 +1240,7 @@ RefPtr<CSSStyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue
     return BasicShapeStyleValue::create(Polygon { FillRule::Nonzero, move(points) });
 }
 
-JS::GCPtr<CSSRule> Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
+GC::Ptr<CSSRule> Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
 {
     if (rule->is_at_rule()) {
         if (has_ignored_vendor_prefix(rule->at_rule_name()))
@@ -1307,7 +1307,7 @@ JS::GCPtr<CSSRule> Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
     return CSSStyleRule::create(m_context.realm(), move(selectors.value()), *declaration);
 }
 
-JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)
+GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)
 {
     // https://drafts.csswg.org/css-cascade-5/#at-import
     // @import [ <url> | <string> ]
@@ -1352,7 +1352,7 @@ JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)
     return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*m_context.document()));
 }
 
-JS::GCPtr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(Rule& rule)
+GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(Rule& rule)
 {
     // https://www.w3.org/TR/css-animations-1/#keyframes
 
@@ -1396,7 +1396,7 @@ JS::GCPtr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(Rule& rule)
 
     auto child_tokens = TokenStream { rule.block()->values() };
 
-    JS::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
+    GC::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
     while (child_tokens.has_next_token()) {
         child_tokens.skip_whitespace();
         // keyframe-selector = <keyframe-keyword> | <percentage>
@@ -1465,7 +1465,7 @@ JS::GCPtr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(Rule& rule)
     return CSSKeyframesRule::create(m_context.realm(), name, CSSRuleList::create(m_context.realm(), move(keyframes)));
 }
 
-JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(Rule& rule)
+GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(Rule& rule)
 {
     // https://drafts.csswg.org/css-namespaces/#syntax
     // @namespace <namespace-prefix>? [ <string> | <url> ] ;
@@ -1512,7 +1512,7 @@ JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(Rule& rule)
     return CSSNamespaceRule::create(m_context.realm(), prefix, namespace_uri);
 }
 
-JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(Rule& rule)
+GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(Rule& rule)
 {
     // https://drafts.csswg.org/css-conditional-3/#at-supports
     // @supports <supports-condition> {
@@ -1541,7 +1541,7 @@ JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(Rule& rule)
 
     auto child_tokens = TokenStream { rule.block()->values() };
     auto parser_rules = parse_a_list_of_rules(child_tokens);
-    JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+    GC::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
     for (auto& raw_rule : parser_rules) {
         if (auto child_rule = convert_to_rule(raw_rule))
             child_rules.append(child_rule);
@@ -5122,7 +5122,7 @@ RefPtr<CSSStyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue
     return StyleValueList::create(move(font_families), StyleValueList::Separator::Comma);
 }
 
-JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentValue>& tokens)
+GC::Ptr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentValue>& tokens)
 {
     auto declarations_and_at_rules = parse_a_list_of_declarations(tokens);
 

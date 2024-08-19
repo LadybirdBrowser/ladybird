@@ -17,10 +17,10 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(CloseWatcher);
+GC_DEFINE_ALLOCATOR(CloseWatcher);
 
 // https://html.spec.whatwg.org/multipage/interaction.html#establish-a-close-watcher
-JS::NonnullGCPtr<CloseWatcher> CloseWatcher::establish(HTML::Window& window)
+GC::Ref<CloseWatcher> CloseWatcher::establish(HTML::Window& window)
 {
     // 1. Assert: window's associated Document is fully active.
     VERIFY(window.associated_document().is_fully_active());
@@ -39,7 +39,7 @@ JS::NonnullGCPtr<CloseWatcher> CloseWatcher::establish(HTML::Window& window)
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-closewatcher
-WebIDL::ExceptionOr<JS::NonnullGCPtr<CloseWatcher>> CloseWatcher::construct_impl(JS::Realm& realm, CloseWatcherOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(JS::Realm& realm, CloseWatcherOptions const& options)
 {
     // 1. If this's relevant global object's associated Document is not fully active, then return an "InvalidStateError" DOMException.
     // FIXME: Not in spec explicitly, but this should account for detached iframes too. See /close-watcher/frame-removal.html WPT.

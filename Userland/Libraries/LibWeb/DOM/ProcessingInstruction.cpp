@@ -12,7 +12,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(ProcessingInstruction);
+GC_DEFINE_ALLOCATOR(ProcessingInstruction);
 
 ProcessingInstruction::ProcessingInstruction(Document& document, String const& data, String const& target)
     : CharacterData(document, NodeType::PROCESSING_INSTRUCTION_NODE, data)

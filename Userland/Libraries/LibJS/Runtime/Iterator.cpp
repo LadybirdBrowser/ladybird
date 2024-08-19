@@ -16,15 +16,15 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Iterator);
-JS_DEFINE_ALLOCATOR(IteratorRecord);
+GC_DEFINE_ALLOCATOR(Iterator);
+GC_DEFINE_ALLOCATOR(IteratorRecord);
 
-NonnullGCPtr<Iterator> Iterator::create(Realm& realm, Object& prototype, NonnullGCPtr<IteratorRecord> iterated)
+GC::Ref<Iterator> Iterator::create(Realm& realm, Object& prototype, GC::Ref<IteratorRecord> iterated)
 {
     return realm.heap().allocate<Iterator>(realm, prototype, move(iterated));
 }
 
-Iterator::Iterator(Object& prototype, NonnullGCPtr<IteratorRecord> iterated)
+Iterator::Iterator(Object& prototype, GC::Ref<IteratorRecord> iterated)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_iterated(move(iterated))
 {
@@ -36,7 +36,7 @@ Iterator::Iterator(Object& prototype)
 }
 
 // 7.4.2 GetIteratorFromMethod ( obj, method ), https://tc39.es/ecma262/#sec-getiteratorfrommethod
-ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_from_method(VM& vm, Value object, NonnullGCPtr<FunctionObject> method)
+ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_from_method(VM& vm, Value object, GC::Ref<FunctionObject> method)
 {
     // 1. Let iterator be ? Call(method, obj).
     auto iterator = TRY(call(vm, *method, object));
@@ -57,9 +57,9 @@ ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_from_method(VM& vm,
 }
 
 // 7.4.3 GetIterator ( obj, kind ), https://tc39.es/ecma262/#sec-getiterator
-ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator(VM& vm, Value object, IteratorHint kind)
+ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator(VM& vm, Value object, IteratorHint kind)
 {
-    JS::GCPtr<FunctionObject> method;
+    GC::Ptr<FunctionObject> method;
 
     // 1. If kind is async, then
     if (kind == IteratorHint::Async) {
@@ -97,7 +97,7 @@ ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator(VM& vm, Value objec
 }
 
 // 2.1.1 GetIteratorDirect ( obj ), https://tc39.es/proposal-iterator-helpers/#sec-getiteratorflattenable
-ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_direct(VM& vm, Object& object)
+ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_direct(VM& vm, Object& object)
 {
     // 1. Let nextMethod be ? Get(obj, "next").
     auto next_method = TRY(object.get(vm.names.next));
@@ -109,7 +109,7 @@ ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_direct(VM& vm, Obje
 }
 
 // 2.1.2 GetIteratorFlattenable ( obj, stringHandling ), https://tc39.es/proposal-iterator-helpers/#sec-getiteratorflattenable
-ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_flattenable(VM& vm, Value object, StringHandling string_handling)
+ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM& vm, Value object, StringHandling string_handling)
 {
     // 1. If obj is not an Object, then
     if (!object.is_object()) {
@@ -143,7 +143,7 @@ ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_flattenable(VM& vm,
 }
 
 // 7.4.4 IteratorNext ( iteratorRecord [ , value ] ), https://tc39.es/ecma262/#sec-iteratornext
-ThrowCompletionOr<NonnullGCPtr<Object>> iterator_next(VM& vm, IteratorRecord const& iterator_record, Optional<Value> value)
+ThrowCompletionOr<GC::Ref<Object>> iterator_next(VM& vm, IteratorRecord const& iterator_record, Optional<Value> value)
 {
     Value result;
 
@@ -179,7 +179,7 @@ ThrowCompletionOr<Value> iterator_value(VM& vm, Object& iterator_result)
 }
 
 // 7.4.7 IteratorStep ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstep
-ThrowCompletionOr<GCPtr<Object>> iterator_step(VM& vm, IteratorRecord const& iterator_record)
+ThrowCompletionOr<GC::Ptr<Object>> iterator_step(VM& vm, IteratorRecord const& iterator_record)
 {
     // 1. Let result be ? IteratorNext(iteratorRecord).
     auto result = TRY(iterator_next(vm, iterator_record));
@@ -314,7 +314,7 @@ Completion async_iterator_close(VM& vm, IteratorRecord const& iterator_record, C
 }
 
 // 7.4.12 CreateIterResultObject ( value, done ), https://tc39.es/ecma262/#sec-createiterresultobject
-NonnullGCPtr<Object> create_iterator_result_object(VM& vm, Value value, bool done)
+GC::Ref<Object> create_iterator_result_object(VM& vm, Value value, bool done)
 {
     auto& realm = *vm.current_realm();
 
@@ -332,10 +332,10 @@ NonnullGCPtr<Object> create_iterator_result_object(VM& vm, Value value, bool don
 }
 
 // 7.4.14 IteratorToList ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratortolist
-ThrowCompletionOr<MarkedVector<Value>> iterator_to_list(VM& vm, IteratorRecord& iterator_record)
+ThrowCompletionOr<GC::MarkedVector<Value>> iterator_to_list(VM& vm, IteratorRecord& iterator_record)
 {
     // 1. Let values be a new empty List.
-    MarkedVector<Value> values(vm.heap());
+    GC::MarkedVector<Value> values(vm.heap());
 
     // 2. Repeat,
     while (true) {

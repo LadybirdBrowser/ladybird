@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(RelativeTimeFormatPrototype);
+GC_DEFINE_ALLOCATOR(RelativeTimeFormatPrototype);
 
 // 17.3 Properties of the Intl.RelativeTimeFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-relativetimeformat-prototype-object
 RelativeTimeFormatPrototype::RelativeTimeFormatPrototype(Realm& realm)

@@ -18,7 +18,7 @@ struct SelectItemOption {
     String value {};
     bool selected { false };
     bool disabled { false };
-    JS::GCPtr<HTMLOptionElement> option_element {};
+    GC::Ptr<HTMLOptionElement> option_element {};
 };
 
 struct SelectItemOptionGroup {

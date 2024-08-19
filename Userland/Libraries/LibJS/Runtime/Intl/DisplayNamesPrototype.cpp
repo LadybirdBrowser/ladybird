@@ -13,7 +13,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(DisplayNamesPrototype);
+GC_DEFINE_ALLOCATOR(DisplayNamesPrototype);
 
 // 12.3 Properties of the Intl.DisplayNames Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-displaynames-prototype-object
 DisplayNamesPrototype::DisplayNamesPrototype(Realm& realm)

@@ -12,9 +12,9 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(LiveNodeList);
+GC_DEFINE_ALLOCATOR(LiveNodeList);
 
-JS::NonnullGCPtr<NodeList> LiveNodeList::create(JS::Realm& realm, Node const& root, Scope scope, Function<bool(Node const&)> filter)
+GC::Ref<NodeList> LiveNodeList::create(JS::Realm& realm, Node const& root, Scope scope, Function<bool(Node const&)> filter)
 {
     return realm.heap().allocate<LiveNodeList>(realm, realm, root, scope, move(filter));
 }
@@ -35,9 +35,9 @@ void LiveNodeList::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root);
 }
 
-JS::MarkedVector<Node*> LiveNodeList::collection() const
+GC::MarkedVector<Node*> LiveNodeList::collection() const
 {
-    JS::MarkedVector<Node*> nodes(heap());
+    GC::MarkedVector<Node*> nodes(heap());
     if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree([&](auto& node) {
             if (m_filter(node))

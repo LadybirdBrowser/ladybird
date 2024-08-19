@@ -12,9 +12,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSTransition);
+GC_DEFINE_ALLOCATOR(CSSTransition);
 
-JS::NonnullGCPtr<CSSTransition> CSSTransition::create(JS::Realm& realm, PropertyID property_id, size_t transition_generation)
+GC::Ref<CSSTransition> CSSTransition::create(JS::Realm& realm, PropertyID property_id, size_t transition_generation)
 {
     return realm.heap().allocate<CSSTransition>(realm, realm, property_id, transition_generation);
 }
@@ -24,9 +24,9 @@ Animations::AnimationClass CSSTransition::animation_class() const
     return Animations::AnimationClass::CSSTransition;
 }
 
-Optional<int> CSSTransition::class_specific_composite_order(JS::NonnullGCPtr<Animations::Animation> other_animation) const
+Optional<int> CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation> other_animation) const
 {
-    auto other = JS::NonnullGCPtr { verify_cast<CSSTransition>(*other_animation) };
+    auto other = GC::Ref { verify_cast<CSSTransition>(*other_animation) };
 
     // Within the set of CSS Transitions, two animations A and B are sorted in composite order (first to last) as
     // follows:

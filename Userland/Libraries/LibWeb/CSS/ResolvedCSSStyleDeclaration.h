@@ -13,10 +13,10 @@ namespace Web::CSS {
 
 class ResolvedCSSStyleDeclaration final : public CSSStyleDeclaration {
     WEB_PLATFORM_OBJECT(ResolvedCSSStyleDeclaration, CSSStyleDeclaration);
-    JS_DECLARE_ALLOCATOR(ResolvedCSSStyleDeclaration);
+    GC_DECLARE_ALLOCATOR(ResolvedCSSStyleDeclaration);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ResolvedCSSStyleDeclaration> create(DOM::Element&, Optional<Selector::PseudoElement::Type> = {});
+    [[nodiscard]] static GC::Ref<ResolvedCSSStyleDeclaration> create(DOM::Element&, Optional<Selector::PseudoElement::Type> = {});
 
     virtual ~ResolvedCSSStyleDeclaration() override = default;
 
@@ -39,7 +39,7 @@ private:
 
     RefPtr<CSSStyleValue const> style_value_for_property(Layout::NodeWithStyle const&, PropertyID) const;
 
-    JS::NonnullGCPtr<DOM::Element> m_element;
+    GC::Ref<DOM::Element> m_element;
     Optional<CSS::Selector::PseudoElement::Type> m_pseudo_element;
 };
 

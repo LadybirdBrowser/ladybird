@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Fetch/Headers.h>
 
@@ -14,14 +14,14 @@ namespace Web::Fetch {
 
 class HeadersIterator final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(HeadersIterator, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(HeadersIterator);
+    GC_DECLARE_ALLOCATOR(HeadersIterator);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<HeadersIterator> create(Headers const&, JS::Object::PropertyKind iteration_kind);
+    [[nodiscard]] static GC::Ref<HeadersIterator> create(Headers const&, JS::Object::PropertyKind iteration_kind);
 
     virtual ~HeadersIterator() override;
 
-    JS::NonnullGCPtr<JS::Object> next();
+    GC::Ref<JS::Object> next();
 
 private:
     virtual void initialize(JS::Realm&) override;
@@ -29,7 +29,7 @@ private:
 
     HeadersIterator(Headers const&, JS::Object::PropertyKind iteration_kind);
 
-    JS::NonnullGCPtr<Headers const> m_headers;
+    GC::Ref<Headers const> m_headers;
     JS::Object::PropertyKind m_iteration_kind;
     size_t m_index { 0 };
 };

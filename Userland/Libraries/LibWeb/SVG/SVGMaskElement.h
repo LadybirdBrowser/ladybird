@@ -16,7 +16,7 @@ class SVGMaskElement final : public SVGGraphicsElement
     , public SVGViewport {
 
     WEB_PLATFORM_OBJECT(SVGMaskElement, SVGGraphicsElement);
-    JS_DECLARE_ALLOCATOR(SVGMaskElement);
+    GC_DECLARE_ALLOCATOR(SVGMaskElement);
 
 public:
     virtual ~SVGMaskElement() override;
@@ -38,7 +38,7 @@ public:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
 
     CSSPixelRect resolve_masking_area(CSSPixelRect const& mask_target) const;
 

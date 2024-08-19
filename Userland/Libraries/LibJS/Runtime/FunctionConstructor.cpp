@@ -18,7 +18,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(FunctionConstructor);
+GC_DEFINE_ALLOCATOR(FunctionConstructor);
 
 FunctionConstructor::FunctionConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Function.as_string(), realm.intrinsics().function_prototype())
@@ -37,7 +37,7 @@ void FunctionConstructor::initialize(Realm& realm)
 }
 
 // 20.2.1.1.1 CreateDynamicFunction ( constructor, newTarget, kind, args ), https://tc39.es/ecma262/#sec-createdynamicfunction
-ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic_function(VM& vm, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, MarkedVector<Value> const& args)
+ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic_function(VM& vm, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, GC::MarkedVector<Value> const& args)
 {
     // 1. Let currentRealm be the current Realm Record.
     auto& current_realm = *vm.current_realm();
@@ -50,7 +50,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
         new_target = &constructor;
 
     StringView prefix;
-    NonnullGCPtr<Object> (Intrinsics::*fallback_prototype)() = nullptr;
+    GC::Ref<Object> (Intrinsics::*fallback_prototype)() = nullptr;
 
     switch (kind) {
     // 4. If kind is normal, then
@@ -261,7 +261,7 @@ ThrowCompletionOr<Value> FunctionConstructor::call()
 }
 
 // 20.2.1.1 Function ( p1, p2, … , pn, body ), https://tc39.es/ecma262/#sec-function-p1-p2-pn-body
-ThrowCompletionOr<NonnullGCPtr<Object>> FunctionConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> FunctionConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
@@ -269,7 +269,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> FunctionConstructor::construct(FunctionO
     auto* constructor = vm.active_function_object();
 
     // 2. Let args be the argumentsList that was passed to this function by [[Call]] or [[Construct]].
-    MarkedVector<Value> args(heap());
+    GC::MarkedVector<Value> args(heap());
     for (auto argument : vm.running_execution_context().arguments)
         args.append(argument);
 

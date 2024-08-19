@@ -9,7 +9,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(EventHandler);
+GC_DEFINE_ALLOCATOR(EventHandler);
 
 EventHandler::EventHandler(ByteString s)
     : value(move(s))
@@ -26,7 +26,7 @@ void EventHandler::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(listener);
 
-    if (auto* callback = value.get_pointer<JS::GCPtr<WebIDL::CallbackType>>())
+    if (auto* callback = value.get_pointer<GC::Ptr<WebIDL::CallbackType>>())
         visitor.visit(*callback);
 }
 

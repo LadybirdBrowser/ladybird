@@ -39,9 +39,9 @@ static bool record_inherits_from_cell(clang::CXXRecordDecl const& record)
     if (!record.isCompleteDefinition())
         return false;
 
-    bool inherits_from_cell = record.getQualifiedNameAsString() == "JS::Cell";
+    bool inherits_from_cell = record.getQualifiedNameAsString() == "GC::Cell";
     record.forallBases([&](clang::CXXRecordDecl const* base) -> bool {
-        if (base->getQualifiedNameAsString() == "JS::Cell") {
+        if (base->getQualifiedNameAsString() == "GC::Cell") {
             inherits_from_cell = true;
             return false;
         }
@@ -56,14 +56,14 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
 
     if (auto const* template_specialization = type->getAs<clang::TemplateSpecializationType>()) {
         auto specialization_name = template_specialization->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString();
-        // Do not unwrap GCPtr/NonnullGCPtr/MarkedVector
+        // Do not unwrap GC::Ptr/Ref/MarkedVector
         static std::unordered_set<std::string> gc_relevant_type_names {
-            "JS::GCPtr",
-            "JS::NonnullGCPtr",
-            "JS::RawGCPtr",
-            "JS::MarkedVector",
-            "JS::Handle",
-            "JS::SafeFunction",
+            "GC::Ptr",
+            "GC::Ref",
+            "GC::RawPtr",
+            "GC::MarkedVector",
+            "GC::Handle",
+            "GC::SafeFunction",
         };
 
         if (gc_relevant_type_names.contains(specialization_name)) {
@@ -85,8 +85,8 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
     return qualified_types;
 }
 enum class OuterType {
-    GCPtr,
-    RawGCPtr,
+    Ptr,
+    RawPtr,
     Handle,
     SafeFunction,
     Ptr,
@@ -110,13 +110,13 @@ static std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType con
         auto template_type_name = specialization->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString();
 
         OuterType outer_type;
-        if (template_type_name == "JS::GCPtr" || template_type_name == "JS::NonnullGCPtr") {
-            outer_type = OuterType::GCPtr;
-        } else if (template_type_name == "JS::RawGCPtr") {
-            outer_type = OuterType::RawGCPtr;
-        } else if (template_type_name == "JS::Handle") {
+        if (template_type_name == "GC::Ptr" || template_type_name == "GC::Ref") {
+            outer_type = OuterType::Ptr;
+        } else if (template_type_name == "GC::RawPtr") {
+            outer_type = OuterType::RawPtr;
+        } else if (template_type_name == "GC::Handle") {
             outer_type = OuterType::Handle;
-        } else if (template_type_name == "JS::SafeFunction") {
+        } else if (template_type_name == "GC::SafeFunction") {
             return QualTypeGCInfo { OuterType::SafeFunction, false };
         } else {
             return {};
@@ -176,7 +176,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     // Cell triggers a bunch of warnings for its empty visit_edges implementation, but
     // it doesn't have any members anyways so it's fine to just ignore.
     auto qualified_name = record->getQualifiedNameAsString();
-    if (qualified_name == "JS::Cell")
+    if (qualified_name == "GC::Cell")
         return true;
 
     auto& diag_engine = m_context.getDiagnostics();
@@ -195,29 +195,29 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
 
         if (outer_type == OuterType::Ptr || outer_type == OuterType::Ref) {
             if (base_type_inherits_from_cell) {
-                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 to JS::Cell type should be wrapped in %1");
+                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 to GC::Cell type should be wrapped in %1");
                 auto builder = diag_engine.Report(field->getLocation(), diag_id);
                 if (outer_type == OuterType::Ref) {
                     builder << "reference"
-                            << "JS::NonnullGCPtr";
+                            << "GC::Ref";
                 } else {
                     builder << "pointer"
-                            << "JS::GCPtr";
+                            << "GC::Ptr";
                 }
             }
-        } else if (outer_type == OuterType::GCPtr || outer_type == OuterType::RawGCPtr) {
+        } else if (outer_type == OuterType::Ptr || outer_type == OuterType::RawPtr) {
             if (!base_type_inherits_from_cell) {
-                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Specialization type must inherit from JS::Cell");
+                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Specialization type must inherit from GC::Cell");
                 diag_engine.Report(field->getLocation(), diag_id);
-            } else if (outer_type == OuterType::GCPtr) {
+            } else if (outer_type == OuterType::Ptr) {
                 fields_that_need_visiting.push_back(field);
             }
         } else if (outer_type == OuterType::Handle || outer_type == OuterType::SafeFunction) {
             if (record_is_cell && m_detect_invalid_function_members) {
                 // FIXME: Change this to an Error when all of the use cases get addressed and remove the plugin argument
-                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Warning, "Types inheriting from JS::Cell should not have %0 fields");
+                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Warning, "Types inheriting from GC::Cell should not have %0 fields");
                 auto builder = diag_engine.Report(field->getLocation(), diag_id);
-                builder << (outer_type == OuterType::Handle ? "JS::Handle" : "JS::SafeFunction");
+                builder << (outer_type == OuterType::Handle ? "GC::Handle" : "GC::SafeFunction");
             }
         }
     }
@@ -230,7 +230,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     clang::DeclarationName name = &m_context.Idents.get("visit_edges");
     auto const* visit_edges_method = record->lookup(name).find_first<clang::CXXMethodDecl>();
     if (!visit_edges_method && !fields_that_need_visiting.empty()) {
-        auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "JS::Cell-inheriting class %0 contains a GC-allocated member %1 but has no visit_edges method");
+        auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "GC::Cell-inheriting class %0 contains a GC-allocated member %1 but has no visit_edges method");
         auto builder = diag_engine.Report(record->getLocation(), diag_id);
         builder << record->getName()
                 << fields_that_need_visiting[0];
@@ -314,7 +314,7 @@ static std::optional<CellTypeWithOrigin> find_cell_type_with_origin(clang::CXXRe
         if (auto const* base_record = base.getType()->getAsCXXRecordDecl()) {
             auto base_name = base_record->getQualifiedNameAsString();
 
-            if (base_name == "JS::Cell")
+            if (base_name == "GC::Cell")
                 return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::JSCell };
 
             if (base_name == "JS::Object")

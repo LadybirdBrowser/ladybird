@@ -20,7 +20,7 @@ namespace JS::Intl {
 
 class DateTimeFormat final : public Object {
     JS_OBJECT(DateTimeFormat, Object);
-    JS_DECLARE_ALLOCATOR(DateTimeFormat);
+    GC_DECLARE_ALLOCATOR(DateTimeFormat);
 
     using Patterns = Unicode::CalendarPattern;
 
@@ -77,7 +77,7 @@ private:
     Optional<Unicode::DateTimeStyle> m_date_style; // [[DateStyle]]
     Optional<Unicode::DateTimeStyle> m_time_style; // [[TimeStyle]]
     Unicode::CalendarPattern m_date_time_format;   // [[DateTimeFormat]]
-    GCPtr<NativeFunction> m_bound_format;          // [[BoundFormat]]
+    GC::Ptr<NativeFunction> m_bound_format;        // [[BoundFormat]]
 
     // Non-standard. Stores the ICU date-time formatter for the Intl object's formatting options.
     OwnPtr<Unicode::DateTimeFormat> m_formatter;
@@ -86,10 +86,10 @@ private:
 ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> format_date_time_pattern(VM&, DateTimeFormat&, double time);
 ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_pattern(VM&, DateTimeFormat&, double time);
 ThrowCompletionOr<String> format_date_time(VM&, DateTimeFormat&, double time);
-ThrowCompletionOr<NonnullGCPtr<Array>> format_date_time_to_parts(VM&, DateTimeFormat&, double time);
+ThrowCompletionOr<GC::Ref<Array>> format_date_time_to_parts(VM&, DateTimeFormat&, double time);
 ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM&, DateTimeFormat&, double start, double end);
 ThrowCompletionOr<String> format_date_time_range(VM&, DateTimeFormat&, double start, double end);
-ThrowCompletionOr<NonnullGCPtr<Array>> format_date_time_range_to_parts(VM&, DateTimeFormat&, double start, double end);
+ThrowCompletionOr<GC::Ref<Array>> format_date_time_range_to_parts(VM&, DateTimeFormat&, double start, double end);
 
 template<typename Callback>
 ThrowCompletionOr<void> for_each_calendar_field(VM& vm, Unicode::CalendarPattern& pattern, Callback&& callback)

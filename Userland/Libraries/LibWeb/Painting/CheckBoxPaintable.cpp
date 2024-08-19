@@ -16,7 +16,7 @@
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(CheckBoxPaintable);
+GC_DEFINE_ALLOCATOR(CheckBoxPaintable);
 
 static Gfx::Path check_mark_path(Gfx::IntRect checkbox_rect)
 {
@@ -36,7 +36,7 @@ static Gfx::Path check_mark_path(Gfx::IntRect checkbox_rect)
     return path.copy_transformed(scale_checkmark_to_fit);
 }
 
-JS::NonnullGCPtr<CheckBoxPaintable>
+GC::Ref<CheckBoxPaintable>
 CheckBoxPaintable::create(Layout::CheckBox const& layout_box)
 {
     return layout_box.heap().allocate_without_realm<CheckBoxPaintable>(layout_box);

@@ -19,9 +19,9 @@
 
 namespace Web::WebAssembly {
 
-JS_DEFINE_ALLOCATOR(Instance);
+GC_DEFINE_ALLOCATOR(Instance);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Instance>> Instance::construct_impl(JS::Realm& realm, Module& module, Optional<JS::Handle<JS::Object>>& import_object)
+WebIDL::ExceptionOr<GC::Ref<Instance>> Instance::construct_impl(JS::Realm& realm, Module& module, Optional<GC::Handle<JS::Object>>& import_object)
 {
     // FIXME: Implement the importObject parameter.
     (void)import_object;
@@ -49,7 +49,7 @@ void Instance::initialize(JS::Realm& realm)
     for (auto& export_ : m_module_instance->exports()) {
         export_.value().visit(
             [&](Wasm::FunctionAddress const& address) {
-                Optional<JS::GCPtr<JS::FunctionObject>> object = m_function_instances.get(address);
+                Optional<GC::Ptr<JS::FunctionObject>> object = m_function_instances.get(address);
                 if (!object.has_value()) {
                     object = Detail::create_native_function(vm, address, export_.name(), this);
                     m_function_instances.set(address, *object);
@@ -58,7 +58,7 @@ void Instance::initialize(JS::Realm& realm)
                 m_exports->define_direct_property(export_.name(), *object, JS::default_attributes);
             },
             [&](Wasm::MemoryAddress const& address) {
-                Optional<JS::GCPtr<Memory>> object = m_memory_instances.get(address);
+                Optional<GC::Ptr<Memory>> object = m_memory_instances.get(address);
                 if (!object.has_value()) {
                     object = heap().allocate<Memory>(realm, realm, address);
                     m_memory_instances.set(address, *object);
@@ -67,7 +67,7 @@ void Instance::initialize(JS::Realm& realm)
                 m_exports->define_direct_property(export_.name(), *object, JS::default_attributes);
             },
             [&](Wasm::TableAddress const& address) {
-                Optional<JS::GCPtr<Table>> object = m_table_instances.get(address);
+                Optional<GC::Ptr<Table>> object = m_table_instances.get(address);
                 if (!object.has_value()) {
                     object = heap().allocate<Table>(realm, realm, address);
                     m_table_instances.set(address, *object);

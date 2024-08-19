@@ -10,11 +10,11 @@
 
 namespace Web::Fetch::Infrastructure {
 
-JS_DEFINE_ALLOCATOR(ConnectionTimingInfo);
+GC_DEFINE_ALLOCATOR(ConnectionTimingInfo);
 
 ConnectionTimingInfo::ConnectionTimingInfo() = default;
 
-JS::NonnullGCPtr<ConnectionTimingInfo> ConnectionTimingInfo::create(JS::VM& vm)
+GC::Ref<ConnectionTimingInfo> ConnectionTimingInfo::create(JS::VM& vm)
 {
     return vm.heap().allocate_without_realm<ConnectionTimingInfo>();
 }

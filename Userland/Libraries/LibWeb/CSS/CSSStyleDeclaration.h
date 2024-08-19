@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 class CSSStyleDeclaration : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(CSSStyleDeclaration, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(CSSStyleDeclaration);
+    GC_DECLARE_ALLOCATOR(CSSStyleDeclaration);
 
 public:
     virtual ~CSSStyleDeclaration() = default;
@@ -45,7 +45,7 @@ public:
     virtual JS::ThrowCompletionOr<JS::Value> internal_get(JS::PropertyKey const&, JS::Value receiver, JS::CacheablePropertyMetadata*, PropertyLookupPhase) const override;
     virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const&, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata*) override;
 
-    virtual JS::GCPtr<CSSRule> parent_rule() const;
+    virtual GC::Ptr<CSSRule> parent_rule() const;
 
 protected:
     explicit CSSStyleDeclaration(JS::Realm&);
@@ -53,12 +53,12 @@ protected:
 
 class PropertyOwningCSSStyleDeclaration : public CSSStyleDeclaration {
     WEB_PLATFORM_OBJECT(PropertyOwningCSSStyleDeclaration, CSSStyleDeclaration);
-    JS_DECLARE_ALLOCATOR(PropertyOwningCSSStyleDeclaration);
+    GC_DECLARE_ALLOCATOR(PropertyOwningCSSStyleDeclaration);
 
     friend class ElementInlineCSSStyleDeclaration;
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration>
+    [[nodiscard]] static GC::Ref<PropertyOwningCSSStyleDeclaration>
     create(JS::Realm&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
 
     virtual ~PropertyOwningCSSStyleDeclaration() override = default;
@@ -79,8 +79,8 @@ public:
     virtual String serialized() const final override;
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
-    virtual JS::GCPtr<CSSRule> parent_rule() const override;
-    void set_parent_rule(JS::NonnullGCPtr<CSSRule>);
+    virtual GC::Ptr<CSSRule> parent_rule() const override;
+    void set_parent_rule(GC::Ref<CSSRule>);
 
 protected:
     PropertyOwningCSSStyleDeclaration(JS::Realm&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty>);
@@ -95,17 +95,17 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<CSSRule> m_parent_rule;
+    GC::Ptr<CSSRule> m_parent_rule;
     Vector<StyleProperty> m_properties;
     HashMap<FlyString, StyleProperty> m_custom_properties;
 };
 
 class ElementInlineCSSStyleDeclaration final : public PropertyOwningCSSStyleDeclaration {
     WEB_PLATFORM_OBJECT(ElementInlineCSSStyleDeclaration, PropertyOwningCSSStyleDeclaration);
-    JS_DECLARE_ALLOCATOR(ElementInlineCSSStyleDeclaration);
+    GC_DECLARE_ALLOCATOR(ElementInlineCSSStyleDeclaration);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ElementInlineCSSStyleDeclaration> create(DOM::Element&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
+    [[nodiscard]] static GC::Ref<ElementInlineCSSStyleDeclaration> create(DOM::Element&, Vector<StyleProperty>, HashMap<FlyString, StyleProperty> custom_properties);
 
     virtual ~ElementInlineCSSStyleDeclaration() override = default;
 
@@ -123,7 +123,7 @@ private:
 
     virtual void update_style_attribute() override;
 
-    JS::GCPtr<DOM::Element> m_element;
+    GC::Ptr<DOM::Element> m_element;
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-updating-flag
     bool m_updating { false };

@@ -13,20 +13,20 @@ namespace Web::HTML {
 
 struct NavigationCurrentEntryChangeEventInit : public DOM::EventInit {
     Optional<Bindings::NavigationType> navigation_type = {};
-    JS::GCPtr<NavigationHistoryEntry> from;
+    GC::Ptr<NavigationHistoryEntry> from;
 };
 
 class NavigationCurrentEntryChangeEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(NavigationCurrentEntryChangeEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
+    GC_DECLARE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<NavigationCurrentEntryChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const&);
+    [[nodiscard]] static GC::Ref<NavigationCurrentEntryChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const&);
 
     virtual ~NavigationCurrentEntryChangeEvent() override;
 
     Optional<Bindings::NavigationType> const& navigation_type() const { return m_navigation_type; }
-    JS::NonnullGCPtr<NavigationHistoryEntry> from() const { return m_from; }
+    GC::Ref<NavigationHistoryEntry> from() const { return m_from; }
 
 private:
     NavigationCurrentEntryChangeEvent(JS::Realm&, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const& event_init);
@@ -35,7 +35,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     Optional<Bindings::NavigationType> m_navigation_type;
-    JS::NonnullGCPtr<NavigationHistoryEntry> m_from;
+    GC::Ref<NavigationHistoryEntry> m_from;
 };
 
 }

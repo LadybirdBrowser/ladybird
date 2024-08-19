@@ -12,10 +12,10 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/SourceLocation.h>
-#include <LibJS/Forward.h>
-#include <LibJS/Runtime/Value.h>
+#include <LibGC/Forward.h>
+#include <LibGC/Ptr.h>
 
-namespace JS {
+namespace GC {
 
 class HandleImpl : public RefCounted<HandleImpl> {
     AK_MAKE_NONCOPYABLE(HandleImpl);
@@ -34,7 +34,7 @@ private:
     friend class Handle;
 
     explicit HandleImpl(Cell*, SourceLocation location);
-    GCPtr<Cell> m_cell;
+    Ptr<Cell> m_cell;
     SourceLocation m_location;
 
     IntrusiveListNode<HandleImpl> m_list_node;
@@ -64,12 +64,12 @@ public:
     {
     }
 
-    Handle(GCPtr<T> cell, SourceLocation location = SourceLocation::current())
+    Handle(Ptr<T> cell, SourceLocation location = SourceLocation::current())
         : Handle(cell.ptr(), location)
     {
     }
 
-    Handle(NonnullGCPtr<T> cell, SourceLocation location = SourceLocation::current())
+    Handle(Ref<T> cell, SourceLocation location = SourceLocation::current())
         : Handle(*cell, location)
     {
     }
@@ -136,7 +136,7 @@ inline Handle<T> make_handle(T& cell, SourceLocation location = SourceLocation::
 }
 
 template<class T>
-inline Handle<T> make_handle(GCPtr<T> cell, SourceLocation location = SourceLocation::current())
+inline Handle<T> make_handle(Ptr<T> cell, SourceLocation location = SourceLocation::current())
 {
     if (!cell)
         return Handle<T> {};
@@ -144,50 +144,9 @@ inline Handle<T> make_handle(GCPtr<T> cell, SourceLocation location = SourceLoca
 }
 
 template<class T>
-inline Handle<T> make_handle(NonnullGCPtr<T> cell, SourceLocation location = SourceLocation::current())
+inline Handle<T> make_handle(Ref<T> cell, SourceLocation location = SourceLocation::current())
 {
     return Handle<T>::create(cell.ptr(), location);
-}
-
-template<>
-class Handle<Value> {
-public:
-    Handle() = default;
-
-    static Handle create(Value value, SourceLocation location)
-    {
-        if (value.is_cell())
-            return Handle(value, &value.as_cell(), location);
-        return Handle(value);
-    }
-
-    auto cell() { return m_handle.cell(); }
-    auto cell() const { return m_handle.cell(); }
-    auto value() const { return *m_value; }
-    bool is_null() const { return m_handle.is_null() && !m_value.has_value(); }
-
-    bool operator==(Value const& value) const { return value == m_value; }
-    bool operator==(Handle<Value> const& other) const { return other.m_value == this->m_value; }
-
-private:
-    explicit Handle(Value value)
-        : m_value(value)
-    {
-    }
-
-    explicit Handle(Value value, Cell* cell, SourceLocation location)
-        : m_value(value)
-        , m_handle(Handle<Cell>::create(cell, location))
-    {
-    }
-
-    Optional<Value> m_value;
-    Handle<Cell> m_handle;
-};
-
-inline Handle<Value> make_handle(Value value, SourceLocation location = SourceLocation::current())
-{
-    return Handle<Value>::create(value, location);
 }
 
 }
@@ -195,21 +154,16 @@ inline Handle<Value> make_handle(Value value, SourceLocation location = SourceLo
 namespace AK {
 
 template<typename T>
-struct Traits<JS::Handle<T>> : public DefaultTraits<JS::Handle<T>> {
-    static unsigned hash(JS::Handle<T> const& handle) { return Traits<T>::hash(handle); }
-};
-
-template<>
-struct Traits<JS::Handle<JS::Value>> : public DefaultTraits<JS::Handle<JS::Value>> {
-    static unsigned hash(JS::Handle<JS::Value> const& handle) { return Traits<JS::Value>::hash(handle.value()); }
+struct Traits<GC::Handle<T>> : public DefaultTraits<GC::Handle<T>> {
+    static unsigned hash(GC::Handle<T> const& handle) { return Traits<T>::hash(handle); }
 };
 
 namespace Detail {
 template<typename T>
-inline constexpr bool IsHashCompatible<JS::Handle<T>, T> = true;
+inline constexpr bool IsHashCompatible<GC::Handle<T>, T> = true;
 
 template<typename T>
-inline constexpr bool IsHashCompatible<T, JS::Handle<T>> = true;
+inline constexpr bool IsHashCompatible<T, GC::Handle<T>> = true;
 
 }
 }

@@ -14,9 +14,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(AsyncGenerator);
+GC_DEFINE_ALLOCATOR(AsyncGenerator);
 
-ThrowCompletionOr<NonnullGCPtr<AsyncGenerator>> AsyncGenerator::create(Realm& realm, Value initial_value, ECMAScriptFunctionObject* generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
+ThrowCompletionOr<GC::Ref<AsyncGenerator>> AsyncGenerator::create(Realm& realm, Value initial_value, ECMAScriptFunctionObject* generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
 {
     auto& vm = realm.vm();
     // This is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
@@ -51,7 +51,7 @@ void AsyncGenerator::visit_edges(Cell::Visitor& visitor)
 }
 
 // 27.6.3.4 AsyncGeneratorEnqueue ( generator, completion, promiseCapability ), https://tc39.es/ecma262/#sec-asyncgeneratorenqueue
-void AsyncGenerator::async_generator_enqueue(Completion completion, NonnullGCPtr<PromiseCapability> promise_capability)
+void AsyncGenerator::async_generator_enqueue(Completion completion, GC::Ref<PromiseCapability> promise_capability)
 {
     // 1. Let request be AsyncGeneratorRequest { [[Completion]]: completion, [[Capability]]: promiseCapability }.
     auto request = AsyncGeneratorRequest { .completion = move(completion), .capability = promise_capability };
@@ -458,7 +458,7 @@ void AsyncGenerator::complete_step(Completion completion, bool done, Realm* real
         // a. Assert: completion.[[Type]] is normal.
         VERIFY(completion.type() == Completion::Type::Normal);
 
-        GCPtr<Object> iterator_result;
+        GC::Ptr<Object> iterator_result;
 
         // b. If realm is present, then
         if (realm) {

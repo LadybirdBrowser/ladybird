@@ -14,7 +14,7 @@ namespace Web::Layout {
 
 class SVGTextBox final : public SVGGraphicsBox {
     JS_CELL(SVGTextBox, SVGGraphicsBox);
-    JS_DECLARE_ALLOCATOR(SVGTextBox);
+    GC_DECLARE_ALLOCATOR(SVGTextBox);
 
 public:
     SVGTextBox(DOM::Document&, SVG::SVGTextPositioningElement&, NonnullRefPtr<CSS::StyleProperties>);
@@ -23,7 +23,7 @@ public:
     SVG::SVGTextPositioningElement& dom_node() { return static_cast<SVG::SVGTextPositioningElement&>(SVGGraphicsBox::dom_node()); }
     SVG::SVGTextPositioningElement const& dom_node() const { return static_cast<SVG::SVGTextPositioningElement const&>(SVGGraphicsBox::dom_node()); }
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
     CSSPixelPoint viewbox_origin() const;

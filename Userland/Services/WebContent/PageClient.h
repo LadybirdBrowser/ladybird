@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <LibGC/Handle.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
@@ -20,10 +21,10 @@ namespace WebContent {
 
 class PageClient final : public Web::PageClient {
     JS_CELL(PageClient, Web::PageClient);
-    JS_DECLARE_ALLOCATOR(PageClient);
+    GC_DECLARE_ALLOCATOR(PageClient);
 
 public:
-    static JS::NonnullGCPtr<PageClient> create(JS::VM& vm, PageHost& page_host, u64 id);
+    static GC::Ref<PageClient> create(JS::VM& vm, PageHost& page_host, u64 id);
 
     virtual ~PageClient() override;
 
@@ -163,8 +164,8 @@ private:
     virtual void inspector_did_select_dom_node(i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
     virtual void inspector_did_set_dom_node_text(i32 node_id, String const& text) override;
     virtual void inspector_did_set_dom_node_tag(i32 node_id, String const& tag) override;
-    virtual void inspector_did_add_dom_node_attributes(i32 node_id, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> attributes) override;
-    virtual void inspector_did_replace_dom_node_attribute(i32 node_id, size_t attribute_index, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> replacement_attributes) override;
+    virtual void inspector_did_add_dom_node_attributes(i32 node_id, GC::Ref<Web::DOM::NamedNodeMap> attributes) override;
+    virtual void inspector_did_replace_dom_node_attribute(i32 node_id, size_t attribute_index, GC::Ref<Web::DOM::NamedNodeMap> replacement_attributes) override;
     virtual void inspector_did_request_dom_tree_context_menu(i32 node_id, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index) override;
     virtual void inspector_did_execute_console_script(String const& script) override;
 
@@ -173,7 +174,7 @@ private:
     ConnectionFromClient& client() const;
 
     PageHost& m_owner;
-    JS::NonnullGCPtr<Web::Page> m_page;
+    GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
     Web::DevicePixelRect m_screen_rect;
     Web::DevicePixelSize m_content_size;
@@ -205,7 +206,7 @@ private:
 
     WeakPtr<WebContentConsoleClient> m_top_level_document_console_client;
 
-    JS::Handle<JS::GlobalObject> m_console_global_object;
+    GC::Handle<JS::GlobalObject> m_console_global_object;
 };
 
 }

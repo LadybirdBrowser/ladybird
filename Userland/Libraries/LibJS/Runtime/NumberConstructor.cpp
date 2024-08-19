@@ -25,7 +25,7 @@ constexpr double const MIN_SAFE_INTEGER_VALUE { -(__builtin_exp2(53) - 1) };
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(NumberConstructor);
+GC_DEFINE_ALLOCATOR(NumberConstructor);
 
 NumberConstructor::NumberConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Number.as_string(), realm.intrinsics().function_prototype())
@@ -94,7 +94,7 @@ ThrowCompletionOr<Value> NumberConstructor::call()
 }
 
 // 21.1.1.1 Number ( value ), https://tc39.es/ecma262/#sec-number-constructor-number-value
-ThrowCompletionOr<NonnullGCPtr<Object>> NumberConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> NumberConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     // NOTE: get_value_from_constructor_argument performs steps 1 and 2 and returns n.

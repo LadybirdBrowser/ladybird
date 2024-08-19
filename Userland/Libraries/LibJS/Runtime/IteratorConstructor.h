@@ -13,13 +13,13 @@ namespace JS {
 
 class IteratorConstructor : public NativeFunction {
     JS_OBJECT(IteratorConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(IteratorConstructor);
+    GC_DECLARE_ALLOCATOR(IteratorConstructor);
 
 public:
     virtual void initialize(Realm&) override;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit IteratorConstructor(Realm&);

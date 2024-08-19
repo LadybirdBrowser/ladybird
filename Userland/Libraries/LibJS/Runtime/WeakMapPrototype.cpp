@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(WeakMapPrototype);
+GC_DEFINE_ALLOCATOR(WeakMapPrototype);
 
 WeakMapPrototype::WeakMapPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())

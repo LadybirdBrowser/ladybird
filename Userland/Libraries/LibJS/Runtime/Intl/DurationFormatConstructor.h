@@ -12,14 +12,14 @@ namespace JS::Intl {
 
 class DurationFormatConstructor final : public NativeFunction {
     JS_OBJECT(DurationFormatConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(DurationFormatConstructor);
+    GC_DECLARE_ALLOCATOR(DurationFormatConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~DurationFormatConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit DurationFormatConstructor(Realm&);

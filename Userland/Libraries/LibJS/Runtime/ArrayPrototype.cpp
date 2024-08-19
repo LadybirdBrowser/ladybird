@@ -27,9 +27,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ArrayPrototype);
+GC_DEFINE_ALLOCATOR(ArrayPrototype);
 
-static HashTable<NonnullGCPtr<Object>> s_array_join_seen_objects;
+static HashTable<GC::Ref<Object>> s_array_join_seen_objects;
 
 ArrayPrototype::ArrayPrototype(Realm& realm)
     : Array(realm.intrinsics().object_prototype())
@@ -1339,15 +1339,15 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::some)
     return Value(false);
 }
 
-ThrowCompletionOr<void> array_merge_sort(VM& vm, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, MarkedVector<Value>& arr_to_sort)
+ThrowCompletionOr<void> array_merge_sort(VM& vm, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::MarkedVector<Value>& arr_to_sort)
 {
     // FIXME: it would probably be better to switch to insertion sort for small arrays for
     // better performance
     if (arr_to_sort.size() <= 1)
         return {};
 
-    MarkedVector<Value> left(vm.heap());
-    MarkedVector<Value> right(vm.heap());
+    GC::MarkedVector<Value> left(vm.heap());
+    GC::MarkedVector<Value> right(vm.heap());
 
     left.ensure_capacity(arr_to_sort.size() / 2);
     right.ensure_capacity(arr_to_sort.size() / 2 + (arr_to_sort.size() & 1));

@@ -14,7 +14,7 @@ namespace JS {
 
 class ErrorPrototype final : public PrototypeObject<ErrorPrototype, Error> {
     JS_PROTOTYPE_OBJECT(ErrorPrototype, Error, Error);
-    JS_DECLARE_ALLOCATOR(ErrorPrototype);
+    GC_DECLARE_ALLOCATOR(ErrorPrototype);
 
 public:
     virtual void initialize(Realm&) override;
@@ -31,7 +31,7 @@ private:
 #define DECLARE_NATIVE_ERROR_PROTOTYPE(ClassName, snake_name, PrototypeName, ConstructorName) \
     class PrototypeName final : public PrototypeObject<PrototypeName, ClassName> {            \
         JS_PROTOTYPE_OBJECT(PrototypeName, ClassName, ClassName);                             \
-        JS_DECLARE_ALLOCATOR(PrototypeName);                                                  \
+        GC_DECLARE_ALLOCATOR(PrototypeName);                                                  \
                                                                                               \
     public:                                                                                   \
         virtual void initialize(Realm&) override;                                             \

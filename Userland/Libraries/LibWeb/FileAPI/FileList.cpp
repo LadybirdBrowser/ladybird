@@ -12,19 +12,19 @@
 
 namespace Web::FileAPI {
 
-JS_DEFINE_ALLOCATOR(FileList);
+GC_DEFINE_ALLOCATOR(FileList);
 
-JS::NonnullGCPtr<FileList> FileList::create(JS::Realm& realm, Vector<JS::NonnullGCPtr<File>>&& files)
+GC::Ref<FileList> FileList::create(JS::Realm& realm, Vector<GC::Ref<File>>&& files)
 {
     return realm.heap().allocate<FileList>(realm, realm, move(files));
 }
 
-JS::NonnullGCPtr<FileList> FileList::create(JS::Realm& realm)
+GC::Ref<FileList> FileList::create(JS::Realm& realm)
 {
     return realm.heap().allocate<FileList>(realm, realm);
 }
 
-FileList::FileList(JS::Realm& realm, Vector<JS::NonnullGCPtr<File>>&& files)
+FileList::FileList(JS::Realm& realm, Vector<GC::Ref<File>>&& files)
     : Bindings::PlatformObject(realm)
     , m_files(move(files))
 {

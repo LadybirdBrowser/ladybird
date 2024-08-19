@@ -11,7 +11,7 @@
 
 namespace Web::Bindings {
 
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> JsonWebKey::to_object(JS::Realm& realm)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> JsonWebKey::to_object(JS::Realm& realm)
 {
     auto& vm = realm.vm();
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());

@@ -26,7 +26,7 @@ Painting::PaintableWithLines const* BlockContainer::paintable_with_lines() const
     return static_cast<Painting::PaintableWithLines const*>(Box::paintable_box());
 }
 
-JS::GCPtr<Painting::Paintable> BlockContainer::create_paintable() const
+GC::Ptr<Painting::Paintable> BlockContainer::create_paintable() const
 {
     return Painting::PaintableWithLines::create(*this);
 }

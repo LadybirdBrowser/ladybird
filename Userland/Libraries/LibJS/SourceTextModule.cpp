@@ -18,7 +18,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SourceTextModule);
+GC_DEFINE_ALLOCATOR(SourceTextModule);
 
 // 16.2.2.2 Static Semantics: WithClauseToAttributes, https://tc39.es/proposal-import-attributes/#sec-with-clause-to-attributes
 static Vector<ImportAttribute> with_clause_to_assertions(Vector<ImportAttribute> const& source_attributes)
@@ -126,7 +126,7 @@ void SourceTextModule::visit_edges(Cell::Visitor& visitor)
 }
 
 // 16.2.1.6.1 ParseModule ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parsemodule
-Result<NonnullGCPtr<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(StringView source_text, Realm& realm, StringView filename, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(StringView source_text, Realm& realm, StringView filename, Script::HostDefined* host_defined)
 {
     // 1. Let body be ParseText(sourceText, Module).
     auto parser = Parser(Lexer(source_text, filename), Program::Type::Module);
@@ -421,7 +421,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
     m_execution_context->realm = &realm();
 
     // 12. Set the ScriptOrModule of moduleContext to module.
-    m_execution_context->script_or_module = NonnullGCPtr<Module>(*this);
+    m_execution_context->script_or_module = GC::Ref<Module>(*this);
 
     // 13. Set the VariableEnvironment of moduleContext to module.[[Environment]].
     m_execution_context->variable_environment = environment;
@@ -671,7 +671,7 @@ ThrowCompletionOr<ResolvedBinding> SourceTextModule::resolve_export(VM& vm, Depr
 }
 
 // 16.2.1.6.5 ExecuteModule ( [ capability ] ), https://tc39.es/ecma262/#sec-source-text-module-record-execute-module
-ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GCPtr<PromiseCapability> capability)
+ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<PromiseCapability> capability)
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] SourceTextModule::execute_module({}, PromiseCapability @ {})", filename(), capability.ptr());
 
@@ -687,7 +687,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GCPtr<PromiseCa
     module_context->realm = &realm();
 
     // 4. Set the ScriptOrModule of moduleContext to module.
-    module_context->script_or_module = NonnullGCPtr<Module>(*this);
+    module_context->script_or_module = GC::Ref<Module>(*this);
 
     // 5. Assert: module has been linked and declarations in its module environment have been instantiated.
     VERIFY(m_status != ModuleStatus::New);

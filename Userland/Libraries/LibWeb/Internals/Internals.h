@@ -14,7 +14,7 @@ namespace Web::Internals {
 
 class Internals final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Internals, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Internals);
+    GC_DECLARE_ALLOCATOR(Internals);
 
 public:
     virtual ~Internals() override;
@@ -34,7 +34,7 @@ public:
 
     WebIDL::ExceptionOr<bool> dispatch_user_activated_event(DOM::EventTarget&, DOM::Event& event);
 
-    JS::NonnullGCPtr<InternalAnimationTimeline> create_internal_animation_timeline();
+    GC::Ref<InternalAnimationTimeline> create_internal_animation_timeline();
 
 private:
     explicit Internals(JS::Realm&);

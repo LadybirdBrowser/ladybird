@@ -13,7 +13,7 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/workers.html#worker-locations
 class WorkerLocation : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(WorkerLocation, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(WorkerLocation);
+    GC_DECLARE_ALLOCATOR(WorkerLocation);
 
 public:
     virtual ~WorkerLocation() override;
@@ -34,7 +34,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<WorkerGlobalScope> m_global_scope;
+    GC::Ref<WorkerGlobalScope> m_global_scope;
 };
 
 }

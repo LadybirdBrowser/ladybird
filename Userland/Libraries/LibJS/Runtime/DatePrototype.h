@@ -13,7 +13,7 @@ namespace JS {
 
 class DatePrototype final : public PrototypeObject<DatePrototype, Date> {
     JS_PROTOTYPE_OBJECT(DatePrototype, Date, Date);
-    JS_DECLARE_ALLOCATOR(DatePrototype);
+    GC_DECLARE_ALLOCATOR(DatePrototype);
 
 public:
     virtual void initialize(Realm&) override;

@@ -22,7 +22,7 @@ public:
 
     Painting::PaintableWithLines const* paintable_with_lines() const;
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
     virtual bool is_block_container() const final { return true; }

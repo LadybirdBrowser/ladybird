@@ -11,7 +11,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGAnimatedRect);
+GC_DEFINE_ALLOCATOR(SVGAnimatedRect);
 
 SVGAnimatedRect::SVGAnimatedRect(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -35,14 +35,14 @@ void SVGAnimatedRect::visit_edges(Visitor& visitor)
     visitor.visit(m_anim_val);
 }
 
-JS::GCPtr<Geometry::DOMRect> SVGAnimatedRect::base_val() const
+GC::Ptr<Geometry::DOMRect> SVGAnimatedRect::base_val() const
 {
     if (m_nulled)
         return nullptr;
     return m_base_val;
 }
 
-JS::GCPtr<Geometry::DOMRect> SVGAnimatedRect::anim_val() const
+GC::Ptr<Geometry::DOMRect> SVGAnimatedRect::anim_val() const
 {
     if (m_nulled)
         return nullptr;

@@ -15,7 +15,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(DisplayNamesConstructor);
+GC_DEFINE_ALLOCATOR(DisplayNamesConstructor);
 
 // 12.1 The Intl.DisplayNames Constructor, https://tc39.es/ecma402/#sec-intl-displaynames-constructor
 DisplayNamesConstructor::DisplayNamesConstructor(Realm& realm)
@@ -46,7 +46,7 @@ ThrowCompletionOr<Value> DisplayNamesConstructor::call()
 }
 
 // 12.1.1 Intl.DisplayNames ( locales, options ), https://tc39.es/ecma402/#sec-Intl.DisplayNames
-ThrowCompletionOr<NonnullGCPtr<Object>> DisplayNamesConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> DisplayNamesConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

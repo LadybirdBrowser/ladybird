@@ -15,7 +15,7 @@ class SVGMaskable {
 public:
     virtual ~SVGMaskable() = default;
 
-    virtual JS::GCPtr<DOM::Node const> dom_node_of_svg() const = 0;
+    virtual GC::Ptr<DOM::Node const> dom_node_of_svg() const = 0;
 
     Optional<CSSPixelRect> get_masking_area_of_svg() const;
     Optional<Gfx::Bitmap::MaskKind> get_mask_type_of_svg() const;

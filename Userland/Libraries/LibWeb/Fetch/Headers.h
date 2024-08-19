@@ -10,8 +10,8 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -23,7 +23,7 @@ using HeadersInit = Variant<Vector<Vector<String>>, OrderedHashMap<String, Strin
 // https://fetch.spec.whatwg.org/#headers-class
 class Headers final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Headers, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Headers);
+    GC_DECLARE_ALLOCATOR(Headers);
 
 public:
     enum class Guard {
@@ -34,12 +34,12 @@ public:
         None,
     };
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Headers>> construct_impl(JS::Realm& realm, Optional<HeadersInit> const& init);
+    static WebIDL::ExceptionOr<GC::Ref<Headers>> construct_impl(JS::Realm& realm, Optional<HeadersInit> const& init);
 
     virtual ~Headers() override;
 
-    [[nodiscard]] JS::NonnullGCPtr<Infrastructure::HeaderList> header_list() const { return m_header_list; }
-    void set_header_list(JS::NonnullGCPtr<Infrastructure::HeaderList> header_list) { m_header_list = header_list; }
+    [[nodiscard]] GC::Ref<Infrastructure::HeaderList> header_list() const { return m_header_list; }
+    void set_header_list(GC::Ref<Infrastructure::HeaderList> header_list) { m_header_list = header_list; }
 
     [[nodiscard]] Guard guard() const { return m_guard; }
     void set_guard(Guard guard) { m_guard = guard; }
@@ -61,7 +61,7 @@ public:
 private:
     friend class HeadersIterator;
 
-    Headers(JS::Realm&, JS::NonnullGCPtr<Infrastructure::HeaderList>);
+    Headers(JS::Realm&, GC::Ref<Infrastructure::HeaderList>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -71,7 +71,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-headers-header-list
     // A Headers object has an associated header list (a header list), which is initially empty.
-    JS::NonnullGCPtr<Infrastructure::HeaderList> m_header_list;
+    GC::Ref<Infrastructure::HeaderList> m_header_list;
 
     // https://fetch.spec.whatwg.org/#concept-headers-guard
     // A Headers object also has an associated guard, which is a headers guard. A headers guard is "immutable", "request", "request-no-cors", "response" or "none".

@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class TimeRanges final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(TimeRanges, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(TimeRanges);
+    GC_DECLARE_ALLOCATOR(TimeRanges);
 
 public:
     size_t length() const;

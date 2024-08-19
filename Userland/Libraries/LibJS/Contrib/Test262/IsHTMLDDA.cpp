@@ -9,7 +9,7 @@
 
 namespace JS::Test262 {
 
-JS_DEFINE_ALLOCATOR(IsHTMLDDA);
+GC_DEFINE_ALLOCATOR(IsHTMLDDA);
 
 IsHTMLDDA::IsHTMLDDA(Realm& realm)
     // NativeFunction without prototype is currently not possible (only due to the lack of a ctor that supports it)

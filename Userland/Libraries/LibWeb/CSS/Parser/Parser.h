@@ -165,17 +165,17 @@ private:
 
     Optional<GeneralEnclosed> parse_general_enclosed(TokenStream<ComponentValue>&);
 
-    JS::GCPtr<CSSFontFaceRule> parse_font_face_rule(TokenStream<ComponentValue>&);
+    GC::Ptr<CSSFontFaceRule> parse_font_face_rule(TokenStream<ComponentValue>&);
 
     template<typename T>
     Vector<ParsedFontFace::Source> parse_font_face_src(TokenStream<T>&);
 
-    JS::GCPtr<CSSRule> convert_to_rule(NonnullRefPtr<Rule>);
-    JS::GCPtr<CSSMediaRule> convert_to_media_rule(Rule&);
-    JS::GCPtr<CSSKeyframesRule> convert_to_keyframes_rule(Rule&);
-    JS::GCPtr<CSSImportRule> convert_to_import_rule(Rule&);
-    JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(Rule&);
-    JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(Rule&);
+    GC::Ptr<CSSRule> convert_to_rule(NonnullRefPtr<Rule>);
+    GC::Ptr<CSSMediaRule> convert_to_media_rule(Rule&);
+    GC::Ptr<CSSKeyframesRule> convert_to_keyframes_rule(Rule&);
+    GC::Ptr<CSSImportRule> convert_to_import_rule(Rule&);
+    GC::Ptr<CSSNamespaceRule> convert_to_namespace_rule(Rule&);
+    GC::Ptr<CSSSupportsRule> convert_to_supports_rule(Rule&);
 
     PropertyOwningCSSStyleDeclaration* convert_to_style_declaration(Vector<DeclarationOrAtRule> const& declarations);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);

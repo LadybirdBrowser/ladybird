@@ -10,7 +10,7 @@
 
 namespace Web::DOM {
 
-JS::NonnullGCPtr<WebIDL::ObservableArray> create_adopted_style_sheets_list(Document& document)
+GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Document& document)
 {
     auto adopted_style_sheets = WebIDL::ObservableArray::create(document.realm());
     adopted_style_sheets->set_on_set_an_indexed_value_callback([&document](JS::Value& value) -> WebIDL::ExceptionOr<void> {

@@ -18,10 +18,10 @@ namespace Web::CSS {
 // https://www.w3.org/TR/cssom-1/#the-medialist-interface
 class MediaList final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(MediaList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(MediaList);
+    GC_DECLARE_ALLOCATOR(MediaList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<MediaList> create(JS::Realm&, Vector<NonnullRefPtr<MediaQuery>>&&);
+    [[nodiscard]] static GC::Ref<MediaList> create(JS::Realm&, Vector<NonnullRefPtr<MediaQuery>>&&);
     virtual ~MediaList() override = default;
 
     String media_text() const;

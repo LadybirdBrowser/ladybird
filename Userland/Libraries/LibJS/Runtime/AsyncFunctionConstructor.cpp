@@ -12,7 +12,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(AsyncFunctionConstructor);
+GC_DEFINE_ALLOCATOR(AsyncFunctionConstructor);
 
 AsyncFunctionConstructor::AsyncFunctionConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.AsyncFunction.as_string(), realm.intrinsics().function_constructor())
@@ -37,7 +37,7 @@ ThrowCompletionOr<Value> AsyncFunctionConstructor::call()
 }
 
 // 27.7.1.1 AsyncFunction ( p1, p2, … , pn, body ), https://tc39.es/ecma262/#sec-async-function-constructor-arguments
-ThrowCompletionOr<NonnullGCPtr<Object>> AsyncFunctionConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> AsyncFunctionConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
@@ -45,7 +45,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> AsyncFunctionConstructor::construct(Func
     auto* constructor = vm.active_function_object();
 
     // 2. Let args be the argumentsList that was passed to this function by [[Call]] or [[Construct]].
-    MarkedVector<Value> args(heap());
+    GC::MarkedVector<Value> args(heap());
     for (auto argument : vm.running_execution_context().arguments)
         args.append(argument);
 

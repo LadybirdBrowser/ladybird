@@ -16,10 +16,10 @@ class DocumentType final
     : public Node
     , public ChildNode<DocumentType> {
     WEB_PLATFORM_OBJECT(DocumentType, Node);
-    JS_DECLARE_ALLOCATOR(DocumentType);
+    GC_DECLARE_ALLOCATOR(DocumentType);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<DocumentType> create(Document&);
+    [[nodiscard]] static GC::Ref<DocumentType> create(Document&);
 
     virtual ~DocumentType() override = default;
 

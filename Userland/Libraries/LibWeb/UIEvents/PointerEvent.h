@@ -29,11 +29,11 @@ struct PointerEventInit : public MouseEventInit {
 // https://w3c.github.io/pointerevents/#pointerevent-interface
 class PointerEvent : public MouseEvent {
     WEB_PLATFORM_OBJECT(PointerEvent, MouseEvent);
-    JS_DECLARE_ALLOCATOR(PointerEvent);
+    GC_DECLARE_ALLOCATOR(PointerEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<PointerEvent> create(JS::Realm&, FlyString const& type, PointerEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<PointerEvent>> construct_impl(JS::Realm&, FlyString const& type, PointerEventInit const&);
+    [[nodiscard]] static GC::Ref<PointerEvent> create(JS::Realm&, FlyString const& type, PointerEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> construct_impl(JS::Realm&, FlyString const& type, PointerEventInit const&);
 
     virtual ~PointerEvent() override;
 

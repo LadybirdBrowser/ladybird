@@ -13,7 +13,7 @@ namespace Web::Internals {
 class InternalAnimationTimeline : public Web::Animations::AnimationTimeline {
 public:
     WEB_PLATFORM_OBJECT(InternalAnimationTimeline, Web::Animations::AnimationTimeline);
-    JS_DECLARE_ALLOCATOR(InternalAnimationTimeline);
+    GC_DECLARE_ALLOCATOR(InternalAnimationTimeline);
 
     virtual void set_current_time(Optional<double> current_time) override;
 

@@ -19,7 +19,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(PrimitiveString);
+GC_DEFINE_ALLOCATOR(PrimitiveString);
 
 PrimitiveString::PrimitiveString(PrimitiveString& lhs, PrimitiveString& rhs)
     : m_is_rope(true)
@@ -156,7 +156,7 @@ ThrowCompletionOr<Optional<Value>> PrimitiveString::get(VM& vm, PropertyKey cons
     return create(vm, Utf16String::create(str.substring_view(index.as_index(), 1)));
 }
 
-NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String string)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String string)
 {
     if (string.is_empty())
         return vm.empty_string();
@@ -170,7 +170,7 @@ NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String string
     return vm.heap().allocate_without_realm<PrimitiveString>(move(string));
 }
 
-NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, String string)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String string)
 {
     if (string.is_empty())
         return vm.empty_string();
@@ -190,17 +190,17 @@ NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, String string)
     return *new_string;
 }
 
-NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, FlyString const& string)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, FlyString const& string)
 {
     return create(vm, string.to_string());
 }
 
-NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, StringView string)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, StringView string)
 {
     return create(vm, String::from_utf8(string).release_value());
 }
 
-NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, ByteString string)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, ByteString string)
 {
     if (string.is_empty())
         return vm.empty_string();
@@ -221,12 +221,12 @@ NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, ByteString string)
     return *it->value;
 }
 
-NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, DeprecatedFlyString const& string)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, DeprecatedFlyString const& string)
 {
     return create(vm, ByteString { string });
 }
 
-NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, PrimitiveString& rhs)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, PrimitiveString& rhs)
 {
     // We're here to concatenate two strings into a new rope string.
     // However, if any of them are empty, no rope is required.

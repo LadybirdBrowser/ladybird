@@ -10,7 +10,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLLIElement);
+GC_DEFINE_ALLOCATOR(HTMLLIElement);
 
 HTMLLIElement::HTMLLIElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))

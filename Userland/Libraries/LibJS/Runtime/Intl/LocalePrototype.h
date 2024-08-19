@@ -13,7 +13,7 @@ namespace JS::Intl {
 
 class LocalePrototype final : public PrototypeObject<LocalePrototype, Locale> {
     JS_PROTOTYPE_OBJECT(LocalePrototype, Locale, Intl.Locale);
-    JS_DECLARE_ALLOCATOR(LocalePrototype);
+    GC_DECLARE_ALLOCATOR(LocalePrototype);
 
 public:
     virtual void initialize(Realm&) override;

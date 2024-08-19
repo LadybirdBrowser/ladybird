@@ -18,10 +18,10 @@ namespace Web::Crypto {
 // https://w3c.github.io/webcrypto/#key-algorithm-dictionary
 class KeyAlgorithm : public JS::Object {
     JS_OBJECT(KeyAlgorithm, JS::Object);
-    JS_DECLARE_ALLOCATOR(KeyAlgorithm);
+    GC_DECLARE_ALLOCATOR(KeyAlgorithm);
 
 public:
-    static JS::NonnullGCPtr<KeyAlgorithm> create(JS::Realm&);
+    static GC::Ref<KeyAlgorithm> create(JS::Realm&);
     virtual ~KeyAlgorithm() override = default;
 
     String const& name() const { return m_name; }
@@ -39,24 +39,24 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(name_getter);
 
     String m_name;
-    JS::NonnullGCPtr<JS::Realm> m_realm;
+    GC::Ref<JS::Realm> m_realm;
 };
 
 // https://w3c.github.io/webcrypto/#RsaKeyAlgorithm-dictionary
 class RsaKeyAlgorithm : public KeyAlgorithm {
     JS_OBJECT(RsaKeyAlgorithm, KeyAlgorithm);
-    JS_DECLARE_ALLOCATOR(RsaKeyAlgorithm);
+    GC_DECLARE_ALLOCATOR(RsaKeyAlgorithm);
 
 public:
-    static JS::NonnullGCPtr<RsaKeyAlgorithm> create(JS::Realm&);
+    static GC::Ref<RsaKeyAlgorithm> create(JS::Realm&);
 
     virtual ~RsaKeyAlgorithm() override = default;
 
     u32 modulus_length() const { return m_modulus_length; }
     void set_modulus_length(u32 modulus_length) { m_modulus_length = modulus_length; }
 
-    JS::NonnullGCPtr<JS::Uint8Array> public_exponent() const { return m_public_exponent; }
-    void set_public_exponent(JS::NonnullGCPtr<JS::Uint8Array> public_exponent) { m_public_exponent = public_exponent; }
+    GC::Ref<JS::Uint8Array> public_exponent() const { return m_public_exponent; }
+    void set_public_exponent(GC::Ref<JS::Uint8Array> public_exponent) { m_public_exponent = public_exponent; }
     WebIDL::ExceptionOr<void> set_public_exponent(::Crypto::UnsignedBigInteger);
 
 protected:
@@ -70,16 +70,16 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(public_exponent_getter);
 
     u32 m_modulus_length { 0 };
-    JS::NonnullGCPtr<JS::Uint8Array> m_public_exponent;
+    GC::Ref<JS::Uint8Array> m_public_exponent;
 };
 
 // https://w3c.github.io/webcrypto/#RsaHashedKeyAlgorithm-dictionary
 class RsaHashedKeyAlgorithm : public RsaKeyAlgorithm {
     JS_OBJECT(RsaHashedKeyAlgorithm, RsaKeyAlgorithm);
-    JS_DECLARE_ALLOCATOR(RsaHashedKeyAlgorithm);
+    GC_DECLARE_ALLOCATOR(RsaHashedKeyAlgorithm);
 
 public:
-    static JS::NonnullGCPtr<RsaHashedKeyAlgorithm> create(JS::Realm&);
+    static GC::Ref<RsaHashedKeyAlgorithm> create(JS::Realm&);
 
     virtual ~RsaHashedKeyAlgorithm() override = default;
 
@@ -100,10 +100,10 @@ private:
 // https://w3c.github.io/webcrypto/#EcKeyAlgorithm-dictionary
 class EcKeyAlgorithm : public KeyAlgorithm {
     JS_OBJECT(EcKeyAlgorithm, KeyAlgorithm);
-    JS_DECLARE_ALLOCATOR(EcKeyAlgorithm);
+    GC_DECLARE_ALLOCATOR(EcKeyAlgorithm);
 
 public:
-    static JS::NonnullGCPtr<EcKeyAlgorithm> create(JS::Realm&);
+    static GC::Ref<EcKeyAlgorithm> create(JS::Realm&);
 
     virtual ~EcKeyAlgorithm() override = default;
 

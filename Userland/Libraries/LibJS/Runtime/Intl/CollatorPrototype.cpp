@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(CollatorPrototype);
+GC_DEFINE_ALLOCATOR(CollatorPrototype);
 
 // 10.3 Properties of the Intl.Collator Prototype Object, https://tc39.es/ecma402/#sec-properties-of-the-intl-collator-prototype-object
 CollatorPrototype::CollatorPrototype(Realm& realm)

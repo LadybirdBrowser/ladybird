@@ -23,7 +23,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(Instant);
+GC_DEFINE_ALLOCATOR(Instant);
 
 // 8 Temporal.Instant Objects, https://tc39.es/proposal-temporal/#sec-temporal-instant-objects
 Instant::Instant(BigInt const& nanoseconds, Object& prototype)
@@ -300,7 +300,7 @@ ThrowCompletionOr<String> temporal_instant_to_string(VM& vm, Instant& instant, V
     }
     // 9. Else,
     else {
-        auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
+        auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
 
         // a. Let offsetNs be ? GetOffsetNanosecondsFor(timeZone, instant).
         auto offset_ns = TRY(get_offset_nanoseconds_for(vm, time_zone_record, instant));
@@ -314,7 +314,7 @@ ThrowCompletionOr<String> temporal_instant_to_string(VM& vm, Instant& instant, V
 }
 
 // 8.5.9 DifferenceTemporalInstant ( operation, instant, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalinstant
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_instant(VM& vm, DifferenceOperation operation, Instant const& instant, Value other_value, Value options)
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_instant(VM& vm, DifferenceOperation operation, Instant const& instant, Value other_value, Value options)
 {
     // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
     i8 sign = operation == DifferenceOperation::Since ? -1 : 1;

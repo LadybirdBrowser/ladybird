@@ -30,7 +30,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(DatePrototype);
+GC_DEFINE_ALLOCATOR(DatePrototype);
 
 DatePrototype::DatePrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())

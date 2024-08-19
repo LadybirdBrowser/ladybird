@@ -13,7 +13,7 @@ namespace JS::Intl {
 
 class DisplayNamesPrototype final : public PrototypeObject<DisplayNamesPrototype, DisplayNames> {
     JS_PROTOTYPE_OBJECT(DisplayNamesPrototype, DisplayNames, Intl.DisplayNames);
-    JS_DECLARE_ALLOCATOR(DisplayNamesPrototype);
+    GC_DECLARE_ALLOCATOR(DisplayNamesPrototype);
 
 public:
     virtual void initialize(Realm&) override;

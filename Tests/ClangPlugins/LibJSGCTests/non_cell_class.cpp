@@ -10,5 +10,5 @@
 #include <LibJS/Runtime/Object.h>
 
 class NonCell {
-    JS::GCPtr<JS::Object> m_object;
+    GC::Ptr<JS::Object> m_object;
 };

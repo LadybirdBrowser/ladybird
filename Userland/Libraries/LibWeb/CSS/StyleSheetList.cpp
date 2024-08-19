@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(StyleSheetList);
+GC_DEFINE_ALLOCATOR(StyleSheetList);
 
 // https://www.w3.org/TR/cssom/#remove-a-css-style-sheet
 void StyleSheetList::remove_a_css_style_sheet(CSS::CSSStyleSheet& sheet)
@@ -127,7 +127,7 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
     m_document->invalidate_style();
 }
 
-JS::NonnullGCPtr<StyleSheetList> StyleSheetList::create(DOM::Document& document)
+GC::Ref<StyleSheetList> StyleSheetList::create(DOM::Document& document)
 {
     auto& realm = document.realm();
     return realm.heap().allocate<StyleSheetList>(realm, document);

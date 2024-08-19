@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(AsyncFromSyncIteratorPrototype);
+GC_DEFINE_ALLOCATOR(AsyncFromSyncIteratorPrototype);
 
 AsyncFromSyncIteratorPrototype::AsyncFromSyncIteratorPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().async_iterator_prototype())
@@ -199,7 +199,7 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::throw_)
 }
 
 // 27.1.4.1 CreateAsyncFromSyncIterator ( syncIteratorRecord ), https://tc39.es/ecma262/#sec-createasyncfromsynciterator
-NonnullGCPtr<IteratorRecord> create_async_from_sync_iterator(VM& vm, NonnullGCPtr<IteratorRecord> sync_iterator_record)
+GC::Ref<IteratorRecord> create_async_from_sync_iterator(VM& vm, GC::Ref<IteratorRecord> sync_iterator_record)
 {
     auto& realm = *vm.current_realm();
 

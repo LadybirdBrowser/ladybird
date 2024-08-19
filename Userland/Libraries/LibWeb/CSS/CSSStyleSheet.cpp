@@ -18,15 +18,15 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSStyleSheet);
+GC_DEFINE_ALLOCATOR(CSSStyleSheet);
 
-JS::NonnullGCPtr<CSSStyleSheet> CSSStyleSheet::create(JS::Realm& realm, CSSRuleList& rules, MediaList& media, Optional<URL::URL> location)
+GC::Ref<CSSStyleSheet> CSSStyleSheet::create(JS::Realm& realm, CSSRuleList& rules, MediaList& media, Optional<URL::URL> location)
 {
     return realm.heap().allocate<CSSStyleSheet>(realm, realm, rules, media, move(location));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-cssstylesheet
-WebIDL::ExceptionOr<JS::NonnullGCPtr<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Realm& realm, Optional<CSSStyleSheetInit> const& options)
+WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Realm& realm, Optional<CSSStyleSheetInit> const& options)
 {
     // 1. Construct a new CSSStyleSheet object sheet.
     auto sheet = create(realm, CSSRuleList::create_empty(realm), CSS::MediaList::create(realm, {}), {});
@@ -79,7 +79,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CSSStyleSheet>> CSSStyleSheet::construct_im
         if (options->media.has<String>()) {
             sheet->set_media(options->media.get<String>());
         } else {
-            sheet->m_media = *options->media.get<JS::Handle<MediaList>>();
+            sheet->m_media = *options->media.get<GC::Handle<MediaList>>();
         }
     }
 
@@ -183,7 +183,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::delete_rule(unsigned index)
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-replace
-JS::NonnullGCPtr<JS::Promise> CSSStyleSheet::replace(String text)
+GC::Ref<JS::Promise> CSSStyleSheet::replace(String text)
 {
     // 1. Let promise be a promise
     auto promise = JS::Promise::create(realm());
@@ -210,7 +210,7 @@ JS::NonnullGCPtr<JS::Promise> CSSStyleSheet::replace(String text)
         auto& rules = parsed_stylesheet->rules();
 
         // 2. If rules contains one or more @import rules, remove those rules from rules.
-        JS::MarkedVector<JS::NonnullGCPtr<CSSRule>> rules_without_import(realm().heap());
+        GC::MarkedVector<GC::Ref<CSSRule>> rules_without_import(realm().heap());
         for (auto rule : rules) {
             if (rule->type() != CSSRule::Type::Import)
                 rules_without_import.append(rule);
@@ -244,7 +244,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
     auto& rules = parsed_stylesheet->rules();
 
     // 3. If rules contains one or more @import rules, remove those rules from rules.
-    JS::MarkedVector<JS::NonnullGCPtr<CSSRule>> rules_without_import(realm().heap());
+    GC::MarkedVector<GC::Ref<CSSRule>> rules_without_import(realm().heap());
     for (auto rule : rules) {
         if (rule->type() != CSSRule::Type::Import)
             rules_without_import.append(rule);
@@ -335,7 +335,7 @@ Optional<FlyString> CSSStyleSheet::default_namespace() const
 Optional<FlyString> CSSStyleSheet::namespace_uri(StringView namespace_prefix) const
 {
     return m_namespace_rules.get(namespace_prefix)
-        .map([](JS::GCPtr<CSSNamespaceRule> namespace_) {
+        .map([](GC::Ptr<CSSNamespaceRule> namespace_) {
             return namespace_->namespace_uri();
         });
 }
@@ -345,7 +345,7 @@ void CSSStyleSheet::recalculate_namespaces()
     m_default_namespace_rule = nullptr;
     m_namespace_rules.clear();
 
-    for (JS::NonnullGCPtr<CSSRule> rule : *m_rules) {
+    for (GC::Ref<CSSRule> rule : *m_rules) {
         // "Any @namespace rules must follow all @charset and @import rules and precede all other
         // non-ignored at-rules and style rules in a style sheet.
         // ...

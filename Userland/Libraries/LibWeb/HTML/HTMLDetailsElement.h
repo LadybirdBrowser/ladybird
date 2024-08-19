@@ -17,7 +17,7 @@ namespace Web::HTML {
 
 class HTMLDetailsElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLDetailsElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLDetailsElement);
+    GC_DECLARE_ALLOCATOR(HTMLDetailsElement);
 
 public:
     virtual ~HTMLDetailsElement() override;
@@ -45,8 +45,8 @@ private:
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#details-toggle-task-tracker
     Optional<ToggleTaskTracker> m_details_toggle_task_tracker;
 
-    JS::GCPtr<HTML::HTMLSlotElement> m_summary_slot;
-    JS::GCPtr<HTML::HTMLSlotElement> m_descendants_slot;
+    GC::Ptr<HTML::HTMLSlotElement> m_summary_slot;
+    GC::Ptr<HTML::HTMLSlotElement> m_descendants_slot;
 };
 
 }

@@ -12,14 +12,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(PopStateEvent);
+GC_DEFINE_ALLOCATOR(PopStateEvent);
 
-[[nodiscard]] JS::NonnullGCPtr<PopStateEvent> PopStateEvent::create(JS::Realm& realm, FlyString const& event_name, PopStateEventInit const& event_init)
+[[nodiscard]] GC::Ref<PopStateEvent> PopStateEvent::create(JS::Realm& realm, FlyString const& event_name, PopStateEventInit const& event_init)
 {
     return realm.heap().allocate<PopStateEvent>(realm, realm, event_name, event_init);
 }
 
-JS::NonnullGCPtr<PopStateEvent> PopStateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, PopStateEventInit const& event_init)
+GC::Ref<PopStateEvent> PopStateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, PopStateEventInit const& event_init)
 {
     return realm.heap().allocate<PopStateEvent>(realm, realm, event_name, event_init);
 }

@@ -9,7 +9,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGStyleElement);
+GC_DEFINE_ALLOCATOR(SVGStyleElement);
 
 SVGStyleElement::SVGStyleElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, move(qualified_name))

@@ -50,7 +50,7 @@ private:
 
     void ensure_subpath(float x, float y);
 
-    JS::NonnullGCPtr<Bindings::PlatformObject> m_self;
+    GC::Ref<Bindings::PlatformObject> m_self;
     Optional<CanvasState const&> m_canvas_state;
     Gfx::Path m_path;
 };

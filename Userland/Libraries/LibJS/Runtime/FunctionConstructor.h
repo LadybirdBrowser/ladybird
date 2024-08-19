@@ -13,16 +13,16 @@ namespace JS {
 
 class FunctionConstructor final : public NativeFunction {
     JS_OBJECT(FunctionConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(FunctionConstructor);
+    GC_DECLARE_ALLOCATOR(FunctionConstructor);
 
 public:
-    static ThrowCompletionOr<ECMAScriptFunctionObject*> create_dynamic_function(VM&, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, MarkedVector<Value> const& args);
+    static ThrowCompletionOr<ECMAScriptFunctionObject*> create_dynamic_function(VM&, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, GC::MarkedVector<Value> const& args);
 
     virtual void initialize(Realm&) override;
     virtual ~FunctionConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit FunctionConstructor(Realm&);

@@ -51,7 +51,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLInputElement);
+GC_DEFINE_ALLOCATOR(HTMLInputElement);
 
 HTMLInputElement::HTMLInputElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -84,7 +84,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
-JS::NonnullGCPtr<ValidityState const> HTMLInputElement::validity() const
+GC::Ref<ValidityState const> HTMLInputElement::validity() const
 {
     auto& vm = this->vm();
     auto& realm = this->realm();
@@ -94,7 +94,7 @@ JS::NonnullGCPtr<ValidityState const> HTMLInputElement::validity() const
     return vm.heap().allocate<ValidityState>(realm, realm);
 }
 
-JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
 {
     if (type_state() == TypeAttributeState::Hidden)
         return nullptr;
@@ -180,7 +180,7 @@ void HTMLInputElement::set_indeterminate(bool value)
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-files
-JS::GCPtr<FileAPI::FileList> HTMLInputElement::files()
+GC::Ptr<FileAPI::FileList> HTMLInputElement::files()
 {
     // On getting, if the IDL attribute applies, it must return a FileList object that represents the current selected files.
     //  The same object must be returned until the list of selected files changes.
@@ -194,7 +194,7 @@ JS::GCPtr<FileAPI::FileList> HTMLInputElement::files()
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-files
-void HTMLInputElement::set_files(JS::GCPtr<FileAPI::FileList> files)
+void HTMLInputElement::set_files(GC::Ptr<FileAPI::FileList> files)
 {
     // 1. If the IDL attribute does not apply or the given value is null, then return.
     if (m_type != TypeAttributeState::FileUpload || files == nullptr)
@@ -244,7 +244,7 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#update-the-file-selection
-void HTMLInputElement::update_the_file_selection(JS::NonnullGCPtr<FileAPI::FileList> files)
+void HTMLInputElement::update_the_file_selection(GC::Ref<FileAPI::FileList> files)
 {
     // 1. Queue an element task on the user interaction task source given element and the following steps:
     queue_an_element_task(Task::Source::UserInteraction, [this, files] {
@@ -364,7 +364,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
         change_event->set_bubbles(true);
         dispatch_event(*change_event);
     } else if (type_state() == TypeAttributeState::SubmitButton) {
-        JS::GCPtr<HTMLFormElement> form;
+        GC::Ptr<HTMLFormElement> form;
         // 1. If the element does not have a form owner, then return.
         if (!(form = this->form()))
             return {};
@@ -461,7 +461,7 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files)
         return;
     }
 
-    Vector<JS::NonnullGCPtr<FileAPI::File>> files;
+    Vector<GC::Ref<FileAPI::File>> files;
     files.ensure_capacity(selected_files.size());
 
     for (auto& selected_file : selected_files) {
@@ -477,7 +477,7 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files)
         FileAPI::FilePropertyBag options {};
         options.type = mime_type.essence();
 
-        auto file = MUST(FileAPI::File::create(realm(), { JS::make_handle(blob) }, file_name, move(options)));
+        auto file = MUST(FileAPI::File::create(realm(), { GC::make_handle(blob) }, file_name, move(options)));
         files.unchecked_append(file);
     }
 
@@ -1561,7 +1561,7 @@ void HTMLInputElement::legacy_cancelled_activation_behavior_was_not_called()
     m_legacy_pre_activation_behavior_checked_element_in_group = nullptr;
 }
 
-JS::GCPtr<DecodedImageData> HTMLInputElement::image_data() const
+GC::Ptr<DecodedImageData> HTMLInputElement::image_data() const
 {
     if (m_resource_request)
         return m_resource_request->image_data();
@@ -1694,7 +1694,7 @@ String HTMLInputElement::convert_number_to_string(double input) const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-date
-WebIDL::ExceptionOr<JS::GCPtr<JS::Date>> HTMLInputElement::convert_string_to_date(StringView input) const
+WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(StringView input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-string-date
     if (type_state() == TypeAttributeState::Date) {
@@ -1723,7 +1723,7 @@ WebIDL::ExceptionOr<JS::GCPtr<JS::Date>> HTMLInputElement::convert_string_to_dat
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-date-string
-String HTMLInputElement::covert_date_to_string(JS::NonnullGCPtr<JS::Date> input) const
+String HTMLInputElement::covert_date_to_string(GC::Ref<JS::Date> input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-date-string
     if (type_state() == TypeAttributeState::Date) {
@@ -1883,7 +1883,7 @@ JS::Object* HTMLInputElement::value_as_date() const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-valueasdate
-WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(Optional<JS::Handle<JS::Object>> const& value)
+WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(Optional<GC::Handle<JS::Object>> const& value)
 {
     // On setting, if the valueAsDate attribute does not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException;
     if (!value_as_date_applies())

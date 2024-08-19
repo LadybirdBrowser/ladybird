@@ -14,7 +14,7 @@ namespace Web::Layout {
 
 class SVGMaskBox : public SVGGraphicsBox {
     JS_CELL(SVGMaskBox, SVGGraphicsBox);
-    JS_DECLARE_ALLOCATOR(SVGMaskBox);
+    GC_DECLARE_ALLOCATOR(SVGMaskBox);
 
 public:
     SVGMaskBox(DOM::Document&, SVG::SVGMaskElement&, NonnullRefPtr<CSS::StyleProperties>);
@@ -25,7 +25,7 @@ public:
     SVG::SVGMaskElement& dom_node() { return verify_cast<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
     SVG::SVGMaskElement const& dom_node() const { return verify_cast<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };
 
 template<>

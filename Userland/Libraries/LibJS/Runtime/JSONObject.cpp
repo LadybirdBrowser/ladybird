@@ -27,7 +27,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(JSONObject);
+GC_DEFINE_ALLOCATOR(JSONObject);
 
 JSONObject::JSONObject(Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())

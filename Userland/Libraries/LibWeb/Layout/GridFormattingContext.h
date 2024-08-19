@@ -24,7 +24,7 @@ struct GridPosition {
 };
 
 struct GridItem {
-    JS::NonnullGCPtr<Box const> box;
+    GC::Ref<Box const> box;
 
     int row;
     size_t row_span;

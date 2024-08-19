@@ -18,17 +18,17 @@ namespace Web::DOM {
 
 class Position final : public JS::Cell {
     JS_CELL(Position, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Position);
+    GC_DECLARE_ALLOCATOR(Position);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Position> create(JS::Realm& realm, JS::NonnullGCPtr<Node> node, unsigned offset)
+    [[nodiscard]] static GC::Ref<Position> create(JS::Realm& realm, GC::Ref<Node> node, unsigned offset)
     {
         return realm.heap().allocate<Position>(realm, node, offset);
     }
 
-    JS::GCPtr<Node> node() { return m_node; }
-    JS::GCPtr<Node const> node() const { return m_node; }
-    void set_node(JS::NonnullGCPtr<Node> node) { m_node = node; }
+    GC::Ptr<Node> node() { return m_node; }
+    GC::Ptr<Node const> node() const { return m_node; }
+    void set_node(GC::Ref<Node> node) { m_node = node; }
 
     unsigned offset() const { return m_offset; }
     bool offset_is_at_end_of_node() const;
@@ -36,7 +36,7 @@ public:
     bool increment_offset();
     bool decrement_offset();
 
-    bool equals(JS::NonnullGCPtr<Position> other) const
+    bool equals(GC::Ref<Position> other) const
     {
         return m_node.ptr() == other->m_node.ptr() && m_offset == other->m_offset;
     }
@@ -44,11 +44,11 @@ public:
     ErrorOr<String> to_string() const;
 
 private:
-    Position(JS::GCPtr<Node>, unsigned offset);
+    Position(GC::Ptr<Node>, unsigned offset);
 
     virtual void visit_edges(Visitor&) override;
 
-    JS::GCPtr<Node> m_node;
+    GC::Ptr<Node> m_node;
     unsigned m_offset { 0 };
 };
 

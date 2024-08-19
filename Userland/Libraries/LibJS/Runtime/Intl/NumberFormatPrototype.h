@@ -13,7 +13,7 @@ namespace JS::Intl {
 
 class NumberFormatPrototype final : public PrototypeObject<NumberFormatPrototype, NumberFormat> {
     JS_PROTOTYPE_OBJECT(NumberFormatPrototype, NumberFormat, Intl.NumberFormat);
-    JS_DECLARE_ALLOCATOR(NumberFormatPrototype);
+    GC_DECLARE_ALLOCATOR(NumberFormatPrototype);
 
 public:
     virtual void initialize(Realm&) override;

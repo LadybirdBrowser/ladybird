@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/OwnPtr.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
@@ -16,10 +16,10 @@ namespace Web::WebGL {
 
 class WebGLRenderingContext final : public WebGLRenderingContextBase {
     WEB_PLATFORM_OBJECT(WebGLRenderingContext, WebGLRenderingContextBase);
-    JS_DECLARE_ALLOCATOR(WebGLRenderingContext);
+    GC_DECLARE_ALLOCATOR(WebGLRenderingContext);
 
 public:
-    static JS::ThrowCompletionOr<JS::GCPtr<WebGLRenderingContext>> create(JS::Realm&, HTML::HTMLCanvasElement& canvas_element, JS::Value options);
+    static JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> create(JS::Realm&, HTML::HTMLCanvasElement& canvas_element, JS::Value options);
 
     virtual ~WebGLRenderingContext() override;
 

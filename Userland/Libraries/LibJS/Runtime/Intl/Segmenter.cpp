@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(Segmenter);
+GC_DEFINE_ALLOCATOR(Segmenter);
 
 // 18 Segmenter Objects, https://tc39.es/ecma402/#segmenter-objects
 Segmenter::Segmenter(Object& prototype)
@@ -20,7 +20,7 @@ Segmenter::Segmenter(Object& prototype)
 }
 
 // 18.7.1 CreateSegmentDataObject ( segmenter, string, startIndex, endIndex ), https://tc39.es/ecma402/#sec-createsegmentdataobject
-ThrowCompletionOr<NonnullGCPtr<Object>> create_segment_data_object(VM& vm, Unicode::Segmenter const& segmenter, Utf16View const& string, size_t start_index, size_t end_index)
+ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM& vm, Unicode::Segmenter const& segmenter, Utf16View const& string, size_t start_index, size_t end_index)
 {
     auto& realm = *vm.current_realm();
 

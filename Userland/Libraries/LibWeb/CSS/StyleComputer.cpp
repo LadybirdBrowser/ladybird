@@ -216,40 +216,40 @@ struct StyleComputer::MatchingFontCandidate {
 
 static CSSStyleSheet& default_stylesheet(DOM::Document const& document)
 {
-    static JS::Handle<CSSStyleSheet> sheet;
+    static GC::Handle<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern StringView default_stylesheet_source;
-        sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), default_stylesheet_source));
+        sheet = GC::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), default_stylesheet_source));
     }
     return *sheet;
 }
 
 static CSSStyleSheet& quirks_mode_stylesheet(DOM::Document const& document)
 {
-    static JS::Handle<CSSStyleSheet> sheet;
+    static GC::Handle<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern StringView quirks_mode_stylesheet_source;
-        sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), quirks_mode_stylesheet_source));
+        sheet = GC::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), quirks_mode_stylesheet_source));
     }
     return *sheet;
 }
 
 static CSSStyleSheet& mathml_stylesheet(DOM::Document const& document)
 {
-    static JS::Handle<CSSStyleSheet> sheet;
+    static GC::Handle<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern StringView mathml_stylesheet_source;
-        sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), mathml_stylesheet_source));
+        sheet = GC::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), mathml_stylesheet_source));
     }
     return *sheet;
 }
 
 static CSSStyleSheet& svg_stylesheet(DOM::Document const& document)
 {
-    static JS::Handle<CSSStyleSheet> sheet;
+    static GC::Handle<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern StringView svg_stylesheet_source;
-        sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), svg_stylesheet_source));
+        sheet = GC::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), svg_stylesheet_source));
     }
     return *sheet;
 }
@@ -321,7 +321,7 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
 
-    JS::GCPtr<DOM::Element const> shadow_host;
+    GC::Ptr<DOM::Element const> shadow_host;
     if (element.is_shadow_host())
         shadow_host = element;
     else if (shadow_root)
@@ -1530,7 +1530,7 @@ static ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Eleme
     }
 }
 
-void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, JS::NonnullGCPtr<Animations::KeyframeEffect> effect, StyleProperties& style_properties, AnimationRefresh refresh) const
+void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, GC::Ref<Animations::KeyframeEffect> effect, StyleProperties& style_properties, AnimationRefresh refresh) const
 {
     auto animation = effect->associated_animation();
     if (!animation)
@@ -2589,7 +2589,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
 
     Vector<MatchingRule> matching_rules;
     size_t style_sheet_index = 0;
-    for_each_stylesheet(cascade_origin, [&](auto& sheet, JS::GCPtr<DOM::ShadowRoot> shadow_root) {
+    for_each_stylesheet(cascade_origin, [&](auto& sheet, GC::Ptr<DOM::ShadowRoot> shadow_root) {
         size_t rule_index = 0;
         sheet.for_each_effective_style_rule([&](auto const& rule) {
             size_t selector_index = 0;
@@ -2724,7 +2724,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
 void StyleComputer::build_rule_cache()
 {
     if (auto user_style_source = document().page().user_style(); user_style_source.has_value()) {
-        m_user_style_sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document()), user_style_source.value()));
+        m_user_style_sheet = GC::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document()), user_style_source.value()));
     }
 
     m_author_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::Author);

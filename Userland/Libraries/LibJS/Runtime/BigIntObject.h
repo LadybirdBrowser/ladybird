@@ -13,10 +13,10 @@ namespace JS {
 
 class BigIntObject final : public Object {
     JS_OBJECT(BigIntObject, Object);
-    JS_DECLARE_ALLOCATOR(BigIntObject);
+    GC_DECLARE_ALLOCATOR(BigIntObject);
 
 public:
-    static NonnullGCPtr<BigIntObject> create(Realm&, BigInt&);
+    static GC::Ref<BigIntObject> create(Realm&, BigInt&);
 
     virtual ~BigIntObject() override = default;
 
@@ -28,7 +28,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    NonnullGCPtr<BigInt> m_bigint;
+    GC::Ref<BigInt> m_bigint;
 };
 
 }

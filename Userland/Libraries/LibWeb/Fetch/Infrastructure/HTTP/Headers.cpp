@@ -25,7 +25,7 @@
 
 namespace Web::Fetch::Infrastructure {
 
-JS_DEFINE_ALLOCATOR(HeaderList);
+GC_DEFINE_ALLOCATOR(HeaderList);
 
 template<typename T>
 requires(IsSameIgnoringCV<T, u8>) struct CaseInsensitiveBytesTraits : public Traits<Span<T>> {
@@ -50,7 +50,7 @@ Header Header::from_string_pair(StringView name, StringView value)
     };
 }
 
-JS::NonnullGCPtr<HeaderList> HeaderList::create(JS::VM& vm)
+GC::Ref<HeaderList> HeaderList::create(JS::VM& vm)
 {
     return vm.heap().allocate_without_realm<HeaderList>();
 }

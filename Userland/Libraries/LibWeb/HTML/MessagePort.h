@@ -22,17 +22,17 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#structuredserializeoptions
 struct StructuredSerializeOptions {
-    Vector<JS::Handle<JS::Object>> transfer;
+    Vector<GC::Handle<JS::Object>> transfer;
 };
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports
 class MessagePort final : public DOM::EventTarget
     , public Bindings::Transferable {
     WEB_PLATFORM_OBJECT(MessagePort, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(MessagePort);
+    GC_DECLARE_ALLOCATOR(MessagePort);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<MessagePort> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<MessagePort> create(JS::Realm&);
 
     virtual ~MessagePort() override;
 
@@ -40,7 +40,7 @@ public:
     void entangle_with(MessagePort&);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<GC::Handle<JS::Object>> const& transfer);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
     WebIDL::ExceptionOr<void> post_message(JS::Value message, StructuredSerializeOptions const& options);
@@ -61,7 +61,7 @@ public:
     virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataHolder&) override;
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::MessagePort; }
 
-    void set_worker_event_target(JS::NonnullGCPtr<DOM::EventTarget>);
+    void set_worker_event_target(GC::Ref<DOM::EventTarget>);
 
 private:
     explicit MessagePort(JS::Realm&);
@@ -72,7 +72,7 @@ private:
     bool is_entangled() const { return static_cast<bool>(m_socket); }
     void disentangle();
 
-    WebIDL::ExceptionOr<void> message_port_post_message_steps(JS::GCPtr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
+    WebIDL::ExceptionOr<void> message_port_post_message_steps(GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
     void post_message_task_steps(SerializedTransferRecord&);
     void post_port_message(SerializedTransferRecord);
     ErrorOr<void> send_message_on_socket(SerializedTransferRecord const&);
@@ -85,7 +85,7 @@ private:
     ErrorOr<ParseDecision> parse_message();
 
     // The HTML spec implies(!) that this is MessagePort.[[RemotePort]]
-    JS::GCPtr<MessagePort> m_remote_port;
+    GC::Ptr<MessagePort> m_remote_port;
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#has-been-shipped
     bool m_has_been_shipped { false };
@@ -101,7 +101,7 @@ private:
     Queue<IPC::File> m_unprocessed_fds;
     Vector<u8> m_buffered_data;
 
-    JS::GCPtr<DOM::EventTarget> m_worker_event_target;
+    GC::Ptr<DOM::EventTarget> m_worker_event_target;
 };
 
 }

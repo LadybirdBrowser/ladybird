@@ -10,7 +10,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(IteratorHelperPrototype);
+GC_DEFINE_ALLOCATOR(IteratorHelperPrototype);
 
 IteratorHelperPrototype::IteratorHelperPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().iterator_prototype())

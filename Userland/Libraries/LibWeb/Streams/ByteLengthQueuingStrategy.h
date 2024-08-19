@@ -17,10 +17,10 @@ namespace Web::Streams {
 // https://streams.spec.whatwg.org/#bytelengthqueuingstrategy
 class ByteLengthQueuingStrategy final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ByteLengthQueuingStrategy, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ByteLengthQueuingStrategy);
+    GC_DECLARE_ALLOCATOR(ByteLengthQueuingStrategy);
 
 public:
-    static JS::NonnullGCPtr<ByteLengthQueuingStrategy> construct_impl(JS::Realm&, QueuingStrategyInit const&);
+    static GC::Ref<ByteLengthQueuingStrategy> construct_impl(JS::Realm&, QueuingStrategyInit const&);
 
     virtual ~ByteLengthQueuingStrategy() override;
 
@@ -32,7 +32,7 @@ public:
         return m_high_water_mark;
     }
 
-    JS::NonnullGCPtr<WebIDL::CallbackType> size();
+    GC::Ref<WebIDL::CallbackType> size();
 
 private:
     explicit ByteLengthQueuingStrategy(JS::Realm&, double high_water_mark);

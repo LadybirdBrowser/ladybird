@@ -23,7 +23,7 @@ class HTMLElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers {
     WEB_PLATFORM_OBJECT(HTMLElement, DOM::Element);
-    JS_DECLARE_ALLOCATOR(HTMLElement);
+    GC_DECLARE_ALLOCATOR(HTMLElement);
 
 public:
     virtual ~HTMLElement() override;
@@ -49,11 +49,11 @@ public:
     int offset_left() const;
     int offset_width() const;
     int offset_height() const;
-    JS::GCPtr<Element> offset_parent() const;
+    GC::Ptr<Element> offset_parent() const;
 
     bool cannot_navigate() const;
 
-    [[nodiscard]] JS::NonnullGCPtr<DOMStringMap> dataset();
+    [[nodiscard]] GC::Ref<DOMStringMap> dataset();
 
     void focus();
 
@@ -68,14 +68,14 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const { return false; }
 
-    JS::GCPtr<DOM::NodeList> labels();
+    GC::Ptr<DOM::NodeList> labels();
 
     virtual Optional<ARIA::Role> default_role() const override;
 
     String get_an_elements_target() const;
     TokenizedFeature::NoOpener get_an_elements_noopener(StringView target) const;
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<ElementInternals>> attach_internals();
+    WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals();
 
     WebIDL::ExceptionOr<void> set_popover(Optional<String> value);
     Optional<String> popover() const;
@@ -93,17 +93,17 @@ private:
     virtual bool is_html_element() const final { return true; }
 
     // ^HTML::GlobalEventHandlers
-    virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
+    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
     virtual void did_receive_focus() override;
 
     [[nodiscard]] String get_the_text_steps();
 
-    JS::GCPtr<DOMStringMap> m_dataset;
+    GC::Ptr<DOMStringMap> m_dataset;
 
-    JS::GCPtr<DOM::NodeList> m_labels;
+    GC::Ptr<DOM::NodeList> m_labels;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#attached-internals
-    JS::GCPtr<ElementInternals> m_attached_internals;
+    GC::Ptr<ElementInternals> m_attached_internals;
 
     enum class ContentEditableState {
         True,

@@ -27,7 +27,7 @@ namespace Web::Bindings {
 
 class Intrinsics final : public JS::Cell {
     JS_CELL(Intrinsics, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Intrinsics);
+    GC_DECLARE_ALLOCATOR(Intrinsics);
 
 public:
     Intrinsics(JS::Realm& realm)
@@ -76,10 +76,10 @@ private:
     template<typename PrototypeType>
     void create_web_prototype_and_constructor(JS::Realm& realm);
 
-    HashMap<FlyString, JS::NonnullGCPtr<JS::Object>> m_namespaces;
-    HashMap<FlyString, JS::NonnullGCPtr<JS::Object>> m_prototypes;
-    HashMap<FlyString, JS::GCPtr<JS::NativeFunction>> m_constructors;
-    JS::NonnullGCPtr<JS::Realm> m_realm;
+    HashMap<FlyString, GC::Ref<JS::Object>> m_namespaces;
+    HashMap<FlyString, GC::Ref<JS::Object>> m_prototypes;
+    HashMap<FlyString, GC::Ptr<JS::NativeFunction>> m_constructors;
+    GC::Ref<JS::Realm> m_realm;
 };
 
 [[nodiscard]] inline Intrinsics& host_defined_intrinsics(JS::Realm& realm)

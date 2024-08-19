@@ -12,14 +12,14 @@ namespace JS {
 
 class SuppressedErrorConstructor final : public NativeFunction {
     JS_OBJECT(SuppressedErrorConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(SuppressedErrorConstructor);
+    GC_DECLARE_ALLOCATOR(SuppressedErrorConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~SuppressedErrorConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit SuppressedErrorConstructor(Realm&);

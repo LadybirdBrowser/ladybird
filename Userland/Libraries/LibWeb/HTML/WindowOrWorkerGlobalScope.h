@@ -23,7 +23,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/#timerhandler
-using TimerHandler = Variant<JS::NonnullGCPtr<WebIDL::CallbackType>, String>;
+using TimerHandler = Variant<GC::Ref<WebIDL::CallbackType>, String>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope
 class WindowOrWorkerGlobalScopeMixin {
@@ -40,41 +40,41 @@ public:
     WebIDL::ExceptionOr<String> btoa(String const& data) const;
     WebIDL::ExceptionOr<String> atob(String const& data) const;
     void queue_microtask(WebIDL::CallbackType&);
-    JS::NonnullGCPtr<JS::Promise> create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options = {}) const;
-    JS::NonnullGCPtr<JS::Promise> create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options = {}) const;
+    GC::Ref<JS::Promise> create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options = {}) const;
+    GC::Ref<JS::Promise> create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options = {}) const;
     WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Value, StructuredSerializeOptions const&) const;
-    JS::NonnullGCPtr<JS::Promise> fetch(Fetch::RequestInfo const&, Fetch::RequestInit const&) const;
+    GC::Ref<JS::Promise> fetch(Fetch::RequestInfo const&, Fetch::RequestInit const&) const;
 
-    i32 set_timeout(TimerHandler, i32 timeout, JS::MarkedVector<JS::Value> arguments);
-    i32 set_interval(TimerHandler, i32 timeout, JS::MarkedVector<JS::Value> arguments);
+    i32 set_timeout(TimerHandler, i32 timeout, GC::MarkedVector<JS::Value> arguments);
+    i32 set_interval(TimerHandler, i32 timeout, GC::MarkedVector<JS::Value> arguments);
     void clear_timeout(i32);
     void clear_interval(i32);
     void clear_map_of_active_timers();
 
     PerformanceTimeline::PerformanceEntryTuple& relevant_performance_entry_tuple(FlyString const& entry_type);
-    void queue_performance_entry(JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry> new_entry);
+    void queue_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry);
     void clear_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type);
     void remove_entries_from_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type, String entry_name);
 
-    ErrorOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> filter_buffer_map_by_name_and_type(Optional<String> name, Optional<String> type) const;
+    ErrorOr<Vector<GC::Handle<PerformanceTimeline::PerformanceEntry>>> filter_buffer_map_by_name_and_type(Optional<String> name, Optional<String> type) const;
 
-    void register_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, JS::NonnullGCPtr<PerformanceTimeline::PerformanceObserver>);
-    void unregister_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, JS::NonnullGCPtr<PerformanceTimeline::PerformanceObserver>);
-    bool has_registered_performance_observer(JS::NonnullGCPtr<PerformanceTimeline::PerformanceObserver>);
+    void register_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, GC::Ref<PerformanceTimeline::PerformanceObserver>);
+    void unregister_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, GC::Ref<PerformanceTimeline::PerformanceObserver>);
+    bool has_registered_performance_observer(GC::Ref<PerformanceTimeline::PerformanceObserver>);
 
     void queue_the_performance_observer_task();
 
-    void register_event_source(Badge<EventSource>, JS::NonnullGCPtr<EventSource>);
-    void unregister_event_source(Badge<EventSource>, JS::NonnullGCPtr<EventSource>);
+    void register_event_source(Badge<EventSource>, GC::Ref<EventSource>);
+    void unregister_event_source(Badge<EventSource>, GC::Ref<EventSource>);
     void forcibly_close_all_event_sources();
 
     void run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step);
 
-    [[nodiscard]] JS::NonnullGCPtr<HighResolutionTime::Performance> performance();
+    [[nodiscard]] GC::Ref<HighResolutionTime::Performance> performance();
 
-    JS::NonnullGCPtr<JS::Object> supported_entry_types() const;
+    GC::Ref<JS::Object> supported_entry_types() const;
 
-    JS::NonnullGCPtr<IndexedDB::IDBFactory> indexed_db();
+    GC::Ref<IndexedDB::IDBFactory> indexed_db();
 
     void report_error(JS::Value e);
 
@@ -88,13 +88,13 @@ private:
         Yes,
         No,
     };
-    i32 run_timer_initialization_steps(TimerHandler handler, i32 timeout, JS::MarkedVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
+    i32 run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::MarkedVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
     void run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key = {});
 
-    JS::NonnullGCPtr<JS::Promise> create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const;
+    GC::Ref<JS::Promise> create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const;
 
     IDAllocator m_timer_id_allocator;
-    HashMap<int, JS::NonnullGCPtr<Timer>> m_timers;
+    HashMap<int, GC::Ref<Timer>> m_timers;
 
     // https://www.w3.org/TR/performance-timeline/#performance-timeline
     // Each global object has:
@@ -102,20 +102,20 @@ private:
     bool m_performance_observer_task_queued { false };
 
     // - a list of registered performance observer objects that is initially empty
-    OrderedHashTable<JS::NonnullGCPtr<PerformanceTimeline::PerformanceObserver>> m_registered_performance_observer_objects;
+    OrderedHashTable<GC::Ref<PerformanceTimeline::PerformanceObserver>> m_registered_performance_observer_objects;
 
     // https://www.w3.org/TR/performance-timeline/#dfn-performance-entry-buffer-map
     // a performance entry buffer map map, keyed on a DOMString, representing the entry type to which the buffer belongs. The map's value is the following tuple:
     // NOTE: See the PerformanceEntryTuple struct above for the map's value tuple.
     OrderedHashMap<FlyString, PerformanceTimeline::PerformanceEntryTuple> m_performance_entry_buffer_map;
 
-    HashTable<JS::NonnullGCPtr<EventSource>> m_registered_event_sources;
+    HashTable<GC::Ref<EventSource>> m_registered_event_sources;
 
-    JS::GCPtr<HighResolutionTime::Performance> m_performance;
+    GC::Ptr<HighResolutionTime::Performance> m_performance;
 
-    JS::GCPtr<IndexedDB::IDBFactory> m_indexed_db;
+    GC::Ptr<IndexedDB::IDBFactory> m_indexed_db;
 
-    mutable JS::GCPtr<JS::Object> m_supported_entry_types_array;
+    mutable GC::Ptr<JS::Object> m_supported_entry_types_array;
 
     bool m_error_reporting_mode { false };
 };

@@ -36,7 +36,7 @@ This is the most common and at the same time most broad error type in LibWeb. In
 variant of supported errors:
 
 -   `SimpleException`
--   `JS::NonnullGCPtr<DOMException>`
+-   `GC::Ref<DOMException>`
 -   `JS::Completion` (from `JS::ThrowCompletionOr<T>`, assumed to be of `Type::Throw`)
 
 Use this error type for anything that needs to interact with the JS bindings, which will generally
@@ -86,7 +86,7 @@ must have:
 
     ```cpp
     // https://fetch.spec.whatwg.org/#concept-fetch
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Infrastructure::FetchController>> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue)
+    WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue)
     {
         // ...
     }
@@ -99,7 +99,7 @@ must have:
     VERIFY(request.mode() == Infrastructure::Request::Mode::Navigate || !algorithms.process_early_hints_response().has_value());
 
     // 2. Let taskDestination be null.
-    JS::GCPtr<JS::Object> task_destination;
+    GC::Ptr<JS::Object> task_destination;
 
     // ...
     ```

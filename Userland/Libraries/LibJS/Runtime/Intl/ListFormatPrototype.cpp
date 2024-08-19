@@ -12,7 +12,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(ListFormatPrototype);
+GC_DEFINE_ALLOCATOR(ListFormatPrototype);
 
 // 13.3 Properties of the Intl.ListFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-listformat-prototype-object
 ListFormatPrototype::ListFormatPrototype(Realm& realm)

@@ -13,7 +13,6 @@
 #include <AK/SourceLocation.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>

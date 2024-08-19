@@ -9,9 +9,9 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
+#include <LibGC/Handle.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperties.h>
@@ -66,9 +66,9 @@ public:
 
     Painting::Paintable* paintable() { return m_paintable; }
     Painting::Paintable const* paintable() const { return m_paintable; }
-    void set_paintable(JS::GCPtr<Painting::Paintable>);
+    void set_paintable(GC::Ptr<Painting::Paintable>);
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const;
 
     DOM::Document& document();
     DOM::Document const& document() const;
@@ -76,7 +76,7 @@ public:
     HTML::BrowsingContext const& browsing_context() const;
     HTML::BrowsingContext& browsing_context();
 
-    JS::GCPtr<HTML::Navigable> navigable() const;
+    GC::Ptr<HTML::Navigable> navigable() const;
 
     Viewport const& root() const;
     Viewport& root();
@@ -182,12 +182,12 @@ protected:
 private:
     friend class NodeWithStyle;
 
-    JS::NonnullGCPtr<DOM::Node> m_dom_node;
-    JS::GCPtr<Painting::Paintable> m_paintable;
+    GC::Ref<DOM::Node> m_dom_node;
+    GC::Ptr<Painting::Paintable> m_paintable;
 
-    JS::NonnullGCPtr<HTML::BrowsingContext> m_browsing_context;
+    GC::Ref<HTML::BrowsingContext> m_browsing_context;
 
-    JS::GCPtr<DOM::Element> m_pseudo_element_generator;
+    GC::Ptr<DOM::Element> m_pseudo_element_generator;
 
     bool m_anonymous { false };
     bool m_has_style { false };
@@ -216,7 +216,7 @@ public:
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
     const CSS::AbstractImageStyleValue* list_style_image() const { return m_list_style_image; }
 
-    JS::NonnullGCPtr<NodeWithStyle> create_anonymous_wrapper() const;
+    GC::Ref<NodeWithStyle> create_anonymous_wrapper() const;
 
     void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues& wrapper_computed_values);
 

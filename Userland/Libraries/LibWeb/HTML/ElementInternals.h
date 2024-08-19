@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/WeakPtr.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 
@@ -16,12 +16,12 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/custom-elements.html#elementinternals
 class ElementInternals final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ElementInternals, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ElementInternals);
+    GC_DECLARE_ALLOCATOR(ElementInternals);
 
 public:
-    static JS::NonnullGCPtr<ElementInternals> create(JS::Realm&, HTMLElement& target_element);
+    static GC::Ref<ElementInternals> create(JS::Realm&, HTMLElement& target_element);
 
-    JS::GCPtr<DOM::ShadowRoot> shadow_root() const;
+    GC::Ptr<DOM::ShadowRoot> shadow_root() const;
 
 private:
     explicit ElementInternals(JS::Realm&, HTMLElement& target_element);
@@ -30,7 +30,7 @@ private:
     virtual void visit_edges(JS::Cell::Visitor& visitor) override;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#internals-target
-    JS::NonnullGCPtr<HTMLElement> m_target_element;
+    GC::Ref<HTMLElement> m_target_element;
 };
 
 }

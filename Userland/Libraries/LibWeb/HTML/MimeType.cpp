@@ -12,7 +12,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(MimeType);
+GC_DEFINE_ALLOCATOR(MimeType);
 
 MimeType::MimeType(JS::Realm& realm, String type)
     : Bindings::PlatformObject(realm)
@@ -52,7 +52,7 @@ String const& MimeType::suffixes() const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-mimetype-enabledplugin
-JS::NonnullGCPtr<Plugin> MimeType::enabled_plugin() const
+GC::Ref<Plugin> MimeType::enabled_plugin() const
 {
     // The MimeType interface's enabledPlugin getter steps are to return this's relevant global object's PDF viewer plugin objects[0] (i.e., the generic "PDF Viewer" one).
     auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));

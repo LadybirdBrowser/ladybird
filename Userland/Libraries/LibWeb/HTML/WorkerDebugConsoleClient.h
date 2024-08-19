@@ -16,7 +16,7 @@ namespace Web::HTML {
 
 class WorkerDebugConsoleClient final : public JS::ConsoleClient {
     JS_CELL(WorkerDebugConsoleClient, JS::ConsoleClient);
-    JS_DECLARE_ALLOCATOR(WorkerDebugConsoleClient);
+    GC_DECLARE_ALLOCATOR(WorkerDebugConsoleClient);
 
 public:
     virtual void clear() override;

@@ -13,7 +13,7 @@ namespace JS::Temporal {
 
 class DurationPrototype final : public PrototypeObject<DurationPrototype, Duration> {
     JS_PROTOTYPE_OBJECT(DurationPrototype, Duration, Temporal.Duration);
-    JS_DECLARE_ALLOCATOR(DurationPrototype);
+    GC_DECLARE_ALLOCATOR(DurationPrototype);
 
 public:
     virtual void initialize(Realm&) override;

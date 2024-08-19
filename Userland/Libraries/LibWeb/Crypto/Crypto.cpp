@@ -17,9 +17,9 @@
 
 namespace Web::Crypto {
 
-JS_DEFINE_ALLOCATOR(Crypto);
+GC_DEFINE_ALLOCATOR(Crypto);
 
-JS::NonnullGCPtr<Crypto> Crypto::create(JS::Realm& realm)
+GC::Ref<Crypto> Crypto::create(JS::Realm& realm)
 {
     return realm.heap().allocate<Crypto>(realm, realm);
 }
@@ -38,19 +38,19 @@ void Crypto::initialize(JS::Realm& realm)
     m_subtle = SubtleCrypto::create(realm);
 }
 
-JS::NonnullGCPtr<SubtleCrypto> Crypto::subtle() const
+GC::Ref<SubtleCrypto> Crypto::subtle() const
 {
     return *m_subtle;
 }
 
 // https://w3c.github.io/webcrypto/#dfn-Crypto-method-getRandomValues
-WebIDL::ExceptionOr<JS::Handle<WebIDL::ArrayBufferView>> Crypto::get_random_values(JS::Handle<WebIDL::ArrayBufferView> array) const
+WebIDL::ExceptionOr<GC::Handle<WebIDL::ArrayBufferView>> Crypto::get_random_values(GC::Handle<WebIDL::ArrayBufferView> array) const
 {
     // 1. If array is not an Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, BigInt64Array, or BigUint64Array, then throw a TypeMismatchError and terminate the algorithm.
     if (!array->is_typed_array_base())
         return WebIDL::TypeMismatchError::create(realm(), "array must be one of Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, BigInt64Array, or BigUint64Array"_fly_string);
 
-    auto const& typed_array = *array->bufferable_object().get<JS::NonnullGCPtr<JS::TypedArrayBase>>();
+    auto const& typed_array = *array->bufferable_object().get<GC::Ref<JS::TypedArrayBase>>();
     auto typed_array_record = JS::make_typed_array_with_buffer_witness_record(typed_array, JS::ArrayBuffer::Order::SeqCst);
 
     // IMPLEMENTATION DEFINED: If the viewed array buffer is out-of-bounds, throw a InvalidStateError and terminate the algorithm.

@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 class SVGLineElement final : public SVGGeometryElement {
     WEB_PLATFORM_OBJECT(SVGLineElement, SVGGeometryElement);
-    JS_DECLARE_ALLOCATOR(SVGLineElement);
+    GC_DECLARE_ALLOCATOR(SVGLineElement);
 
 public:
     virtual ~SVGLineElement() override = default;
@@ -22,10 +22,10 @@ public:
 
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
-    JS::NonnullGCPtr<SVGAnimatedLength> x1() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> y1() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> x2() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> y2() const;
+    GC::Ref<SVGAnimatedLength> x1() const;
+    GC::Ref<SVGAnimatedLength> y1() const;
+    GC::Ref<SVGAnimatedLength> x2() const;
+    GC::Ref<SVGAnimatedLength> y2() const;
 
 private:
     SVGLineElement(DOM::Document&, DOM::QualifiedName);

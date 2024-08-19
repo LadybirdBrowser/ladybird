@@ -12,12 +12,12 @@ namespace Web::HTML {
 
 class HTMLBRElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLBRElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLBRElement);
+    GC_DECLARE_ALLOCATOR(HTMLBRElement);
 
 public:
     virtual ~HTMLBRElement() override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
 
 private:
     virtual bool is_html_br_element() const override { return true; }

@@ -13,13 +13,13 @@ namespace Web::Geometry {
 // https://drafts.fxtf.org/geometry/#DOMRect
 class DOMRect final : public DOMRectReadOnly {
     WEB_PLATFORM_OBJECT(DOMRect, DOMRectReadOnly);
-    JS_DECLARE_ALLOCATOR(DOMRect);
+    GC_DECLARE_ALLOCATOR(DOMRect);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMRect>> construct_impl(JS::Realm&, double x = 0, double y = 0, double width = 0, double height = 0);
-    [[nodiscard]] static JS::NonnullGCPtr<DOMRect> create(JS::Realm&, Gfx::FloatRect const&);
-    [[nodiscard]] static JS::NonnullGCPtr<DOMRect> create(JS::Realm&);
-    [[nodiscard]] static JS::NonnullGCPtr<DOMRect> from_rect(JS::VM&, DOMRectInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMRect>> construct_impl(JS::Realm&, double x = 0, double y = 0, double width = 0, double height = 0);
+    [[nodiscard]] static GC::Ref<DOMRect> create(JS::Realm&, Gfx::FloatRect const&);
+    [[nodiscard]] static GC::Ref<DOMRect> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<DOMRect> from_rect(JS::VM&, DOMRectInit const&);
 
     virtual ~DOMRect() override;
 

@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 
-namespace JS {
+namespace GC {
 
 class DeferGC {
 public:

@@ -21,7 +21,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ObjectPrototype);
+GC_DEFINE_ALLOCATOR(ObjectPrototype);
 
 ObjectPrototype::ObjectPrototype(Realm& realm)
     : Object(Object::ConstructWithoutPrototypeTag::Tag, realm)
@@ -300,7 +300,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::lookup_getter)
     auto property = vm.argument(0);
 
     // 1. Let O be ? ToObject(this value).
-    auto object = GCPtr { TRY(vm.this_value().to_object(vm)) };
+    auto object = GC::Ptr { TRY(vm.this_value().to_object(vm)) };
 
     // 2. Let key be ? ToPropertyKey(P).
     auto key = TRY(property.to_property_key(vm));
@@ -334,7 +334,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::lookup_setter)
     auto property = vm.argument(0);
 
     // 1. Let O be ? ToObject(this value).
-    auto object = GCPtr { TRY(vm.this_value().to_object(vm)) };
+    auto object = GC::Ptr { TRY(vm.this_value().to_object(vm)) };
 
     // 2. Let key be ? ToPropertyKey(P).
     auto key = TRY(property.to_property_key(vm));

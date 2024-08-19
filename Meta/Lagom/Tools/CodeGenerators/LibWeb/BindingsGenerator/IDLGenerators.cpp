@@ -128,7 +128,7 @@ static StringView sequence_storage_type_to_cpp_storage_type_name(SequenceStorage
     case SequenceStorageType::Vector:
         return "Vector"sv;
     case SequenceStorageType::MarkedVector:
-        return "JS::MarkedVector"sv;
+        return "GC::MarkedVector"sv;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -162,13 +162,13 @@ static ByteString union_type_to_variant(UnionType const& union_type, Interface c
 CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 {
     if (is_platform_object(type) || type.name() == "WindowProxy"sv)
-        return { .name = ByteString::formatted("JS::Handle<{}>", type.name()), .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = ByteString::formatted("GC::Handle<{}>", type.name()), .sequence_storage_type = SequenceStorageType::MarkedVector };
 
     if (is_javascript_builtin(type))
-        return { .name = ByteString::formatted("JS::Handle<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = ByteString::formatted("GC::Handle<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::MarkedVector };
 
     if (interface.callback_functions.contains(type.name()))
-        return { .name = "JS::Handle<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Handle<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::MarkedVector };
 
     if (type.is_string())
         return { .name = "String", .sequence_storage_type = SequenceStorageType::Vector };
@@ -204,19 +204,19 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
         return { .name = "JS::Value", .sequence_storage_type = SequenceStorageType::MarkedVector };
 
     if (type.name() == "object")
-        return { .name = "JS::Handle<JS::Object>", .sequence_storage_type = SequenceStorageType::Vector };
+        return { .name = "GC::Handle<JS::Object>", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "BufferSource")
-        return { .name = "JS::Handle<WebIDL::BufferSource>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Handle<WebIDL::BufferSource>", .sequence_storage_type = SequenceStorageType::MarkedVector };
 
     if (type.name() == "ArrayBufferView")
-        return { .name = "JS::Handle<WebIDL::ArrayBufferView>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Handle<WebIDL::ArrayBufferView>", .sequence_storage_type = SequenceStorageType::MarkedVector };
 
     if (type.name() == "File")
-        return { .name = "JS::Handle<FileAPI::File>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Handle<FileAPI::File>", .sequence_storage_type = SequenceStorageType::MarkedVector };
 
     if (type.name() == "Function")
-        return { .name = "JS::NonnullGCPtr<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Ref<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::MarkedVector };
 
     if (type.name() == "sequence") {
         auto& parameterized_type = verify_cast<ParameterizedType>(type);
@@ -568,7 +568,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
             } else {
                 scoped_generator.append(R"~~~(
-    JS::GCPtr<@parameter.type.name@> @cpp_name@;
+    GC::Ptr<@parameter.type.name@> @cpp_name@;
     if (!@js_name@@js_suffix@.is_undefined()) {
         if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name@>(@js_name@@js_suffix@.as_object()))
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
@@ -580,13 +580,13 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         } else {
             if (explicit_null) {
                 scoped_generator.append(R"~~~(
-    Optional<JS::GCPtr<@parameter.type.name@>> @cpp_name@;
+    Optional<GC::Ptr<@parameter.type.name@>> @cpp_name@;
     if (maybe_@js_name@@js_suffix@.has_value()) {
         auto @js_name@@js_suffix@ = maybe_@js_name@@js_suffix@.release_value();
 )~~~");
             } else {
                 scoped_generator.append(R"~~~(
-    JS::GCPtr<@parameter.type.name@> @cpp_name@;
+    GC::Ptr<@parameter.type.name@> @cpp_name@;
 )~~~");
             }
 
@@ -668,42 +668,42 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         new_promise->fulfill(@js_name@@js_suffix@);
         @js_name@@js_suffix@ = new_promise;
     }
-    auto @cpp_name@ = JS::make_handle(&static_cast<JS::Promise&>(@js_name@@js_suffix@.as_object()));
+    auto @cpp_name@ = GC::make_handle(&static_cast<JS::Promise&>(@js_name@@js_suffix@.as_object()));
 )~~~");
     } else if (parameter.type->name() == "object") {
         if (parameter.type->is_nullable()) {
             scoped_generator.append(R"~~~(
-    Optional<JS::Handle<JS::Object>> @cpp_name@;
+    Optional<GC::Handle<JS::Object>> @cpp_name@;
     if (!@js_name@@js_suffix@.is_null() && !@js_name@@js_suffix@.is_undefined())
-        @cpp_name@ = JS::make_handle(TRY(@js_name@@js_suffix@.to_object(vm)));
+        @cpp_name@ = GC::make_handle(TRY(@js_name@@js_suffix@.to_object(vm)));
 )~~~");
         } else if (optional) {
             scoped_generator.append(R"~~~(
-    Optional<JS::Handle<JS::Object>> @cpp_name@;
+    Optional<GC::Handle<JS::Object>> @cpp_name@;
     if (!@js_name@@js_suffix@.is_undefined())
-        @cpp_name@ = JS::make_handle(TRY(@js_name@@js_suffix@.to_object(vm)));
+        @cpp_name@ = GC::make_handle(TRY(@js_name@@js_suffix@.to_object(vm)));
 )~~~");
         } else {
             scoped_generator.append(R"~~~(
-    auto @cpp_name@ = JS::make_handle(TRY(@js_name@@js_suffix@.to_object(vm)));
+    auto @cpp_name@ = GC::make_handle(TRY(@js_name@@js_suffix@.to_object(vm)));
 )~~~");
         }
     } else if (parameter.type->name().is_one_of("BufferSource", "Float32Array", "Float64Array", "Uint8Array", "Uint8ClampedArray")) {
         if (optional) {
             scoped_generator.append(R"~~~(
-    Optional<JS::Handle<WebIDL::BufferSource>> @cpp_name@;
+    Optional<GC::Handle<WebIDL::BufferSource>> @cpp_name@;
     if (!@js_name@@js_suffix@.is_undefined()) {
 )~~~");
         } else {
             scoped_generator.append(R"~~~(
-    JS::Handle<WebIDL::BufferSource> @cpp_name@;
+    GC::Handle<WebIDL::BufferSource> @cpp_name@;
 )~~~");
         }
         scoped_generator.append(R"~~~(
     if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::ArrayBuffer>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
 
-    @cpp_name@ = JS::make_handle(vm.heap().allocate<WebIDL::BufferSource>(realm, @js_name@@js_suffix@.as_object()));
+    @cpp_name@ = GC::make_handle(vm.heap().allocate<WebIDL::BufferSource>(realm, @js_name@@js_suffix@.as_object()));
 )~~~");
 
         if (optional) {
@@ -717,7 +717,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
 
-    auto @cpp_name@ = JS::make_handle(vm.heap().allocate<WebIDL::ArrayBufferView>(realm, @js_name@@js_suffix@.as_object()));
+    auto @cpp_name@ = GC::make_handle(vm.heap().allocate<WebIDL::ArrayBufferView>(realm, @js_name@@js_suffix@.as_object()));
 )~~~");
         if (optional) {
             scoped_generator.append(R"~~~(
@@ -727,7 +727,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "any") {
         if (variadic) {
             scoped_generator.append(R"~~~(
-    JS::MarkedVector<JS::Value> @cpp_name@ { vm.heap() };
+    GC::MarkedVector<JS::Value> @cpp_name@ { vm.heap() };
 
     if (vm.argument_count() > @js_suffix@) {
         @cpp_name@.ensure_capacity(vm.argument_count() - @js_suffix@);
@@ -1184,14 +1184,14 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
                 union_platform_object_type_generator.append(R"~~~(
                 if (is<@platform_object_type@>(@js_name@@js_suffix@_object))
-                    return JS::make_handle(static_cast<@platform_object_type@&>(@js_name@@js_suffix@_object));
+                    return GC::make_handle(static_cast<@platform_object_type@&>(@js_name@@js_suffix@_object));
 )~~~");
             }
 
             //    2. If types includes object, then return the IDL value that is a reference to the object V.
             if (includes_object) {
                 union_generator.append(R"~~~(
-                return JS::make_handle(@js_name@@js_suffix@_object);
+                return GC::make_handle(@js_name@@js_suffix@_object);
 )~~~");
             }
 
@@ -1211,7 +1211,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         if (includes_window_proxy) {
             union_generator.append(R"~~~(
             if (is<WindowProxy>(@js_name@@js_suffix@_object))
-                return JS::make_handle(static_cast<WindowProxy&>(@js_name@@js_suffix@_object));
+                return GC::make_handle(static_cast<WindowProxy&>(@js_name@@js_suffix@_object));
 )~~~");
         }
 
@@ -1220,8 +1220,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         if (any_of(types, [](auto const& type) { return type->name() == "BufferSource"; }) && !includes_object) {
             union_generator.append(R"~~~(
             if (is<JS::ArrayBuffer>(@js_name@@js_suffix@_object) || is<JS::DataView>(@js_name@@js_suffix@_object) || is<JS::TypedArrayBase>(@js_name@@js_suffix@_object)) {
-                JS::NonnullGCPtr<WebIDL::BufferSource> source_object = vm.heap().allocate<WebIDL::BufferSource>(realm, @js_name@@js_suffix@_object);
-                return JS::make_handle(source_object);
+                GC::Ref<WebIDL::BufferSource> source_object = vm.heap().allocate<WebIDL::BufferSource>(realm, @js_name@@js_suffix@_object);
+                return GC::make_handle(source_object);
             }
 )~~~");
         }
@@ -1232,7 +1232,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         if (any_of(types, [](auto const& type) { return type->name() == "ArrayBuffer"; }) || includes_object) {
             union_generator.append(R"~~~(
             if (is<JS::ArrayBuffer>(@js_name@@js_suffix@_object))
-                return JS::make_handle(@js_name@@js_suffix@_object);
+                return GC::make_handle(@js_name@@js_suffix@_object);
 )~~~");
         }
 
@@ -1242,7 +1242,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         if (any_of(types, [](auto const& type) { return type->name() == "DataView"; }) || includes_object) {
             union_generator.append(R"~~~(
             if (is<JS::DataView>(@js_name@@js_suffix@_object))
-                return JS::make_handle(@js_name@@js_suffix@_object);
+                return GC::make_handle(@js_name@@js_suffix@_object);
 )~~~");
         }
 
@@ -1256,7 +1256,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         if (has_typed_array_name || includes_object) {
             union_generator.append(R"~~~(
             if (is<JS::TypedArrayBase>(@js_name@@js_suffix@_object))
-                return JS::make_handle(@js_name@@js_suffix@_object);
+                return GC::make_handle(@js_name@@js_suffix@_object);
 )~~~");
         }
 
@@ -1578,7 +1578,7 @@ static void generate_arguments(SourceGenerator& generator, Vector<IDL::Parameter
         auto parameter_name = make_input_acceptable_cpp(parameter.name.to_snakecase());
 
         if (parameter.variadic) {
-            // JS::MarkedVector is non-copyable, and the implementations likely want ownership of the
+            // GC::MarkedVector is non-copyable, and the implementations likely want ownership of the
             // list, so we move() it into the parameter list.
             parameter_names.append(ByteString::formatted("move({})", parameter_name));
         } else {
@@ -1754,7 +1754,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
         }
 
-        // If the type is a platform object we currently return a Vector<JS::Handle<T>> from the
+        // If the type is a platform object we currently return a Vector<GC::Handle<T>> from the
         // C++ implementation, thus allowing us to unwrap the element (a handle) like below.
         // This might need to change if we switch to a MarkedVector.
         if (is_platform_object(sequence_generic_type.parameters().first())) {
@@ -2247,7 +2247,7 @@ static void generate_overload_arbiter(SourceGenerator& generator, auto const& ov
 
     if (is_constructor == IsConstructor::Yes) {
         function_generator.append(R"~~~(
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> @constructor_class@::construct(JS::FunctionObject& new_target)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct(JS::FunctionObject& new_target)
 {
     auto& vm = this->vm();
     WebIDL::log_trace(vm, "@constructor_class@::construct");
@@ -2508,7 +2508,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
         return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "Custom element has already been constructed"_fly_string));
 
     // 12. Perform ? element.[[SetPrototypeOf]](prototype).
-    auto actual_element = element.get<JS::Handle<DOM::Element>>();
+    auto actual_element = element.get<GC::Handle<DOM::Element>>();
     TRY(actual_element->internal_set_prototype_of(&prototype.as_object()));
 
     // 13. Replace the last entry in definition's construction stack with an already constructed marker.
@@ -2528,7 +2528,7 @@ static void generate_constructor(SourceGenerator& generator, IDL::Constructor co
     constructor_generator.set("overload_suffix", constructor.is_overloaded ? ByteString::number(constructor.overload_index) : ByteString::empty());
 
     constructor_generator.append(R"~~~(
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> @constructor_class@::construct@overload_suffix@([[maybe_unused]] FunctionObject& new_target)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct@overload_suffix@([[maybe_unused]] FunctionObject& new_target)
 {
     WebIDL::log_trace(vm(), "@constructor_class@::construct@overload_suffix@");
 )~~~");
@@ -2636,7 +2636,7 @@ static void generate_constructors(SourceGenerator& generator, IDL::Interface con
     if (interface.constructors.is_empty()) {
         // No constructor
         generator.append(R"~~~(
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> @constructor_class@::construct([[maybe_unused]] FunctionObject& new_target)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct([[maybe_unused]] FunctionObject& new_target)
 {
     WebIDL::log_trace(vm(), "@constructor_class@::construct");
 )~~~");
@@ -2962,7 +2962,7 @@ static void generate_named_properties_object_declarations(IDL::Interface const& 
     generator.append(R"~~~(
 class @named_properties_class@ : public JS::Object {
     JS_OBJECT(@named_properties_class@, JS::Object);
-    JS_DECLARE_ALLOCATOR(@named_properties_class@);
+    GC_DECLARE_ALLOCATOR(@named_properties_class@);
 public:
     explicit @named_properties_class@(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
@@ -2978,7 +2978,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    JS::NonnullGCPtr<JS::Realm> m_realm; // [[Realm]]
+    GC::Ref<JS::Realm> m_realm; // [[Realm]]
 };
 )~~~");
 }
@@ -2996,7 +2996,7 @@ static void generate_named_properties_object_definitions(IDL::Interface const& i
     generator.append(R"~~~(
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
-JS_DEFINE_ALLOCATOR(@named_properties_class@);
+GC_DEFINE_ALLOCATOR(@named_properties_class@);
 
 @named_properties_class@::@named_properties_class@(JS::Realm& realm)
   : JS::Object(realm, nullptr, MayInterfereWithIndexedPropertyAccess::Yes)
@@ -3814,7 +3814,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 {
     WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
     auto this_value = vm.this_value();
-    JS::GCPtr<Window> window;
+    GC::Ptr<Window> window;
     if (this_value.is_object()) {
         if (is<WindowProxy>(this_value.as_object())) {
             auto& window_proxy = static_cast<WindowProxy&>(this_value.as_object());
@@ -3980,7 +3980,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::get_size)
     WebIDL::log_trace(vm, "@class_name@::size");
     auto* impl = TRY(impl_from(vm));
 
-    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+    GC::Ref<JS::Set> set = impl->set_entries();
 
     return set->set_size();
 }
@@ -3992,7 +3992,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::entries)
     auto& realm = *vm.current_realm();
     auto* impl = TRY(impl_from(vm));
 
-    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+    GC::Ref<JS::Set> set = impl->set_entries();
 
     return TRY(throw_dom_exception_if_needed(vm, [&] { return JS::SetIterator::create(realm, *set, Object::PropertyKind::KeyAndValue); }));
 }
@@ -4004,7 +4004,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
     auto& realm = *vm.current_realm();
     auto* impl = TRY(impl_from(vm));
 
-    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+    GC::Ref<JS::Set> set = impl->set_entries();
 
     return TRY(throw_dom_exception_if_needed(vm, [&] { return JS::SetIterator::create(realm, *set, Object::PropertyKind::Value); }));
 }
@@ -4015,7 +4015,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::for_each)
     WebIDL::log_trace(vm, "@class_name@::for_each");
     auto* impl = TRY(impl_from(vm));
 
-    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+    GC::Ref<JS::Set> set = impl->set_entries();
 
     auto callback = vm.argument(0);
     if (!callback.is_function())
@@ -4035,7 +4035,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::has)
     WebIDL::log_trace(vm, "@class_name@::has");
     auto* impl = TRY(impl_from(vm));
 
-    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+    GC::Ref<JS::Set> set = impl->set_entries();
 
     auto value_arg = vm.argument(0);
     if (!value_arg.is_object() && !is<@value_type@>(value_arg.as_object())) {
@@ -4057,7 +4057,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::add)
     WebIDL::log_trace(vm, "@class_name@::add");
     auto* impl = TRY(impl_from(vm));
 
-    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+    GC::Ref<JS::Set> set = impl->set_entries();
 
     auto value_arg = vm.argument(0);
     if (!value_arg.is_object() && !is<@value_type@>(value_arg.as_object())) {
@@ -4081,7 +4081,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::delete_)
     WebIDL::log_trace(vm, "@class_name@::delete_");
     auto* impl = TRY(impl_from(vm));
 
-    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+    GC::Ref<JS::Set> set = impl->set_entries();
 
     auto value_arg = vm.argument(0);
     if (!value_arg.is_object() && !is<@value_type@>(value_arg.as_object())) {
@@ -4103,7 +4103,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
     WebIDL::log_trace(vm, "@class_name@::clear");
     auto* impl = TRY(impl_from(vm));
 
-    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+    GC::Ref<JS::Set> set = impl->set_entries();
 
     set->set_clear();
 
@@ -4129,7 +4129,7 @@ namespace Web::Bindings {
 
 class @namespace_class@ final : public JS::Object {
     JS_OBJECT(@namespace_class@, JS::Object);
-    JS_DECLARE_ALLOCATOR(@namespace_class@);
+    GC_DECLARE_ALLOCATOR(@namespace_class@);
 public:
     explicit @namespace_class@(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
@@ -4248,7 +4248,7 @@ void generate_namespace_implementation(IDL::Interface const& interface, StringBu
     generator.append(R"~~~(
 namespace Web::Bindings {
 
-JS_DEFINE_ALLOCATOR(@namespace_class@);
+GC_DEFINE_ALLOCATOR(@namespace_class@);
 
 @namespace_class@::@namespace_class@(JS::Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())
@@ -4336,14 +4336,14 @@ namespace Web::Bindings {
 
 class @constructor_class@ : public JS::NativeFunction {
     JS_OBJECT(@constructor_class@, JS::NativeFunction);
-    JS_DECLARE_ALLOCATOR(@constructor_class@);
+    GC_DECLARE_ALLOCATOR(@constructor_class@);
 public:
     explicit @constructor_class@(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
     virtual ~@constructor_class@() override;
 
     virtual JS::ThrowCompletionOr<JS::Value> call() override;
-    virtual JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> construct(JS::FunctionObject& new_target) override;
+    virtual JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(JS::FunctionObject& new_target) override;
 
 private:
     virtual bool has_constructor() const override { return true; }
@@ -4369,7 +4369,7 @@ private:
             for (auto i = 0u; i < overload_set.value.size(); ++i) {
                 constructor_generator.set("overload_suffix", ByteString::number(i));
                 constructor_generator.append(R"~~~(
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> construct@overload_suffix@(JS::FunctionObject& new_target);
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct@overload_suffix@(JS::FunctionObject& new_target);
 )~~~");
             }
         }
@@ -4452,7 +4452,7 @@ void generate_constructor_implementation(IDL::Interface const& interface, String
     generator.append(R"~~~(
 namespace Web::Bindings {
 
-JS_DEFINE_ALLOCATOR(@constructor_class@);
+GC_DEFINE_ALLOCATOR(@constructor_class@);
 
 @constructor_class@::@constructor_class@(JS::Realm& realm)
     : NativeFunction("@name@"sv, realm.intrinsics().function_prototype())
@@ -4590,7 +4590,7 @@ namespace Web::Bindings {
 
 class @prototype_class@ : public JS::Object {
     JS_OBJECT(@prototype_class@, JS::Object);
-    JS_DECLARE_ALLOCATOR(@prototype_class@);
+    GC_DECLARE_ALLOCATOR(@prototype_class@);
 public:
     explicit @prototype_class@(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
@@ -4704,7 +4704,7 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
     generator.append(R"~~~(
 namespace Web::Bindings {
 
-JS_DEFINE_ALLOCATOR(@prototype_class@);
+GC_DEFINE_ALLOCATOR(@prototype_class@);
 
 @prototype_class@::@prototype_class@([[maybe_unused]] JS::Realm& realm))~~~");
     if (interface.name == "DOMException") {
@@ -4778,7 +4778,7 @@ namespace Web::Bindings {
 
 class @prototype_class@ : public JS::Object {
     JS_OBJECT(@prototype_class@, JS::Object);
-    JS_DECLARE_ALLOCATOR(@prototype_class@);
+    GC_DECLARE_ALLOCATOR(@prototype_class@);
 public:
     explicit @prototype_class@(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
@@ -4825,7 +4825,7 @@ void generate_iterator_prototype_implementation(IDL::Interface const& interface,
     generator.append(R"~~~(
 namespace Web::Bindings {
 
-JS_DEFINE_ALLOCATOR(@prototype_class@);
+GC_DEFINE_ALLOCATOR(@prototype_class@);
 
 @prototype_class@::@prototype_class@(JS::Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().iterator_prototype())

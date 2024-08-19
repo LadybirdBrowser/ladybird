@@ -14,10 +14,10 @@ namespace JS {
 
 class Symbol final : public Cell {
     JS_CELL(Symbol, Cell);
-    JS_DECLARE_ALLOCATOR(Symbol);
+    GC_DECLARE_ALLOCATOR(Symbol);
 
 public:
-    [[nodiscard]] static NonnullGCPtr<Symbol> create(VM&, Optional<String> description, bool is_global);
+    [[nodiscard]] static GC::Ref<Symbol> create(VM&, Optional<String> description, bool is_global);
 
     virtual ~Symbol() = default;
 

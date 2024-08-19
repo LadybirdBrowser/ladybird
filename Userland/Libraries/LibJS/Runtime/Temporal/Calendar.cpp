@@ -28,7 +28,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(Calendar);
+GC_DEFINE_ALLOCATOR(Calendar);
 
 // 12 Temporal.Calendar Objects, https://tc39.es/proposal-temporal/#sec-temporal-calendar-objects
 Calendar::Calendar(String identifier, Object& prototype)
@@ -69,7 +69,7 @@ ReadonlySpan<StringView> available_calendars()
 }
 
 // 12.2.2 CreateCalendarMethodsRecord ( calendar, methods ), https://tc39.es/proposal-temporal/#sec-temporal-createcalendarmethodsrecord
-ThrowCompletionOr<CalendarMethods> create_calendar_methods_record(VM& vm, Variant<String, NonnullGCPtr<Object>> calendar, ReadonlySpan<CalendarMethod> methods)
+ThrowCompletionOr<CalendarMethods> create_calendar_methods_record(VM& vm, Variant<String, GC::Ref<Object>> calendar, ReadonlySpan<CalendarMethod> methods)
 {
     // 1. Let record be the Calendar Methods Record { [[Receiver]]: calendar, [[DateAdd]]: undefined, [[DateFromFields]]: undefined, [[DateUntil]]: undefined, [[Day]]: undefined, [[Fields]]: undefined, [[MergeFields]]: undefined, [[MonthDayFromFields]]: undefined, [[YearMonthFromFields]]: undefined }.
     CalendarMethods record {
@@ -94,17 +94,17 @@ ThrowCompletionOr<CalendarMethods> create_calendar_methods_record(VM& vm, Varian
     return record;
 }
 
-ThrowCompletionOr<Optional<CalendarMethods>> create_calendar_methods_record_from_relative_to(VM& vm, GCPtr<PlainDate> plain_relative_to, GCPtr<ZonedDateTime> zoned_relative_to, ReadonlySpan<CalendarMethod> methods)
+ThrowCompletionOr<Optional<CalendarMethods>> create_calendar_methods_record_from_relative_to(VM& vm, GC::Ptr<PlainDate> plain_relative_to, GC::Ptr<ZonedDateTime> zoned_relative_to, ReadonlySpan<CalendarMethod> methods)
 {
-    // FIXME: The casts to NonnullGCPtr<Object> should not be here, and can be fixed once PlainDate & ZonedDateTime have the updated type in the [[Calendar]] slot.
+    // FIXME: The casts to GC::Ref<Object> should not be here, and can be fixed once PlainDate & ZonedDateTime have the updated type in the [[Calendar]] slot.
 
     // 1. If zonedRelativeTo is not undefined, return ? CreateCalendarMethodsRecord(zonedRelativeTo.[[Calendar]], methods).
     if (zoned_relative_to)
-        return TRY(create_calendar_methods_record(vm, NonnullGCPtr<Object> { zoned_relative_to->calendar() }, methods));
+        return TRY(create_calendar_methods_record(vm, GC::Ref<Object> { zoned_relative_to->calendar() }, methods));
 
     // 2. If plainRelativeTo is not undefined, return ? CreateCalendarMethodsRecord(plainRelativeTo.[[Calendar]], methods).
     if (plain_relative_to)
-        return TRY(create_calendar_methods_record(vm, NonnullGCPtr<Object> { plain_relative_to->calendar() }, methods));
+        return TRY(create_calendar_methods_record(vm, GC::Ref<Object> { plain_relative_to->calendar() }, methods));
 
     // 3. Return undefined.
     return OptionalNone {};
@@ -172,7 +172,7 @@ ThrowCompletionOr<void> calendar_methods_record_lookup(VM& vm, CalendarMethods& 
             const auto& calendar_prototype = *realm.intrinsics().temporal_calendar_prototype();                         \
             calendar_record.snake_name = calendar_prototype.get_without_side_effects(vm.names.camelName).as_function(); \
         } else {                                                                                                        \
-            Value calendar { calendar_record.receiver.get<NonnullGCPtr<Object>>() };                                    \
+            Value calendar { calendar_record.receiver.get<GC::Ref<Object>>() };                                         \
             calendar_record.snake_name = TRY(calendar.get_method(vm, vm.names.camelName));                              \
             if (!calendar_record.snake_name)                                                                            \
                 return vm.throw_completion<TypeError>(ErrorType::IsUndefined, #camelName##sv);                          \
@@ -239,11 +239,11 @@ ThrowCompletionOr<Value> calendar_methods_record_call(VM& vm, CalendarMethods co
     // 2. Let receiver be calendarRec.[[Receiver]].
     // 3. If CalendarMethodsRecordIsBuiltin(calendarRec) is true, then
     //     a. Set receiver to ! CreateTemporalCalendar(calendarRec.[[Receiver]]).
-    GCPtr<Object> receiver;
+    GC::Ptr<Object> receiver;
     if (calendar_methods_record_is_builtin(calendar_record))
         receiver = MUST(create_temporal_calendar(vm, calendar_record.receiver.get<String>()));
     else
-        receiver = calendar_record.receiver.get<NonnullGCPtr<Object>>();
+        receiver = calendar_record.receiver.get<GC::Ref<Object>>();
 
     // 4. If methodName is DATE-ADD, then
     //     a. Return ? Call(calendarRec.[[DateAdd]], receiver, arguments).
@@ -392,7 +392,7 @@ ThrowCompletionOr<PlainDate*> calendar_date_add(VM& vm, Object& calendar, Value 
 }
 
 // 12.2.7 CalendarDateUntil ( calendar, one, two, options [ , dateUntil ] ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
-ThrowCompletionOr<NonnullGCPtr<Duration>> calendar_date_until(VM& vm, CalendarMethods const& calendar_record, Value one, Value two, Object const& options)
+ThrowCompletionOr<GC::Ref<Duration>> calendar_date_until(VM& vm, CalendarMethods const& calendar_record, Value one, Value two, Object const& options)
 {
     // 1. Let duration be ? CalendarMethodsRecordCall(calendarRec, DATE-UNTIL, « one, two, options »).
     auto duration = TRY(calendar_methods_record_call(vm, calendar_record, CalendarMethod::DateUntil, Vector<Value> { one, two, &options }));

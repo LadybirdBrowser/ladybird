@@ -12,23 +12,23 @@
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(GainNode);
+GC_DEFINE_ALLOCATOR(GainNode);
 
 GainNode::~GainNode() = default;
 
-JS::NonnullGCPtr<GainNode> GainNode::create(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, GainOptions const& options)
+GC::Ref<GainNode> GainNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GainOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-gainnode-gainnode
-JS::NonnullGCPtr<GainNode> GainNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, GainOptions const& options)
+GC::Ref<GainNode> GainNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GainOptions const& options)
 {
     // FIXME: Invoke "Initialize the AudioNode" steps.
     return realm.vm().heap().allocate<GainNode>(realm, realm, context, options);
 }
 
-GainNode::GainNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, GainOptions const& options)
+GainNode::GainNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GainOptions const& options)
     : AudioNode(realm, context)
     , m_gain(AudioParam::create(realm, options.gain, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
 {

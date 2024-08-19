@@ -8,6 +8,6 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Accessor);
+GC_DEFINE_ALLOCATOR(Accessor);
 
 }

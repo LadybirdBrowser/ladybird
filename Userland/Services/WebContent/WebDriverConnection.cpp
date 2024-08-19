@@ -85,7 +85,7 @@ static Gfx::IntRect compute_window_rect(Web::Page const& page)
 }
 
 // https://w3c.github.io/webdriver/#dfn-calculate-the-absolute-position
-static Gfx::IntPoint calculate_absolute_position_of_element(Web::Page const& page, JS::NonnullGCPtr<Web::Geometry::DOMRect> rect)
+static Gfx::IntPoint calculate_absolute_position_of_element(Web::Page const& page, GC::Ref<Web::Geometry::DOMRect> rect)
 {
     // 1. Let rect be the value returned by calling getBoundingClientRect().
 
@@ -2033,7 +2033,7 @@ ErrorOr<JsonArray, Web::WebDriver::Error> WebDriverConnection::find(StartNodeGet
     // 3. Let selector be equal to value.
     auto selector = value;
 
-    ErrorOr<JS::GCPtr<Web::DOM::NodeList>, Web::WebDriver::Error> maybe_elements { nullptr };
+    ErrorOr<GC::Ptr<Web::DOM::NodeList>, Web::WebDriver::Error> maybe_elements { nullptr };
 
     auto try_to_find_element = [&]() -> decltype(maybe_elements) {
         // 4. Let elements returned be the result of trying to call the relevant element location strategy with arguments start node, and selector.
@@ -2085,7 +2085,7 @@ ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverCo
     auto const& args = *TRY(get_property<JsonArray const*>(payload, "args"sv));
 
     // 5. Let arguments be the result of calling the JSON deserialize algorithm with arguments args.
-    auto arguments = JS::MarkedVector<JS::Value> { vm.heap() };
+    auto arguments = GC::MarkedVector<JS::Value> { vm.heap() };
 
     args.for_each([&](auto const& arg) {
         arguments.append(JS::JSONObject::parse_json_value(vm, arg));

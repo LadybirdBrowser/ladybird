@@ -163,7 +163,7 @@ void HTMLMediaElement::set_decoder_error(String error_message)
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-buffered
-JS::NonnullGCPtr<TimeRanges> HTMLMediaElement::buffered() const
+GC::Ref<TimeRanges> HTMLMediaElement::buffered() const
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -340,7 +340,7 @@ void HTMLMediaElement::set_duration(double duration)
         paintable->set_needs_display();
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLMediaElement::play()
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> HTMLMediaElement::play()
 {
     auto& realm = this->realm();
 
@@ -361,7 +361,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLMediaElement::play()
     TRY(play_element());
 
     // 5. Return promise.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-pause
@@ -466,7 +466,7 @@ double HTMLMediaElement::effective_media_volume() const
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
-JS::NonnullGCPtr<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language)
+GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language)
 {
     // 1. Create a new TextTrack object.
     auto text_track = TextTrack::create(this->realm());
@@ -491,7 +491,7 @@ JS::NonnullGCPtr<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrack
     //    text track's TextTrack object.
     queue_a_media_element_task([this, text_track] {
         TrackEventInit event_init {};
-        event_init.track = JS::make_handle(text_track);
+        event_init.track = GC::make_handle(text_track);
 
         auto event = TrackEvent::create(this->realm(), HTML::EventNames::addtrack, move(event_init));
         m_text_tracks->dispatch_event(event);
@@ -602,10 +602,10 @@ enum class SelectMode {
 
 class SourceElementSelector final : public JS::Cell {
     JS_CELL(SourceElementSelector, JS::Cell);
-    JS_DECLARE_ALLOCATOR(SourceElementSelector);
+    GC_DECLARE_ALLOCATOR(SourceElementSelector);
 
 public:
-    SourceElementSelector(JS::NonnullGCPtr<HTMLMediaElement> media_element, JS::NonnullGCPtr<HTMLSourceElement> candidate)
+    SourceElementSelector(GC::Ref<HTMLMediaElement> media_element, GC::Ref<HTMLSourceElement> candidate)
         : m_media_element(media_element)
         , m_candidate(candidate)
     {
@@ -690,10 +690,10 @@ private:
         return {};
     }
 
-    WebIDL::ExceptionOr<void> find_next_candidate(JS::NonnullGCPtr<DOM::Node> previous_candidate)
+    WebIDL::ExceptionOr<void> find_next_candidate(GC::Ref<DOM::Node> previous_candidate)
     {
         // 12. ⌛ Find next candidate: Let candidate be null.
-        JS::GCPtr<HTMLSourceElement> candidate;
+        GC::Ptr<HTMLSourceElement> candidate;
 
         // 13. ⌛ Search loop: If the node after pointer is the end of the list, then jump to the waiting step below.
         auto* next_sibling = previous_candidate->next_sibling();
@@ -721,7 +721,7 @@ private:
         return {};
     }
 
-    WebIDL::ExceptionOr<void> waiting(JS::NonnullGCPtr<DOM::Node> previous_candidate)
+    WebIDL::ExceptionOr<void> waiting(GC::Ref<DOM::Node> previous_candidate)
     {
         // 17. ⌛ Waiting: Set the element's networkState attribute to the NETWORK_NO_SOURCE value.
         m_media_element->m_network_state = HTMLMediaElement::NetworkState::NoSource;
@@ -743,7 +743,7 @@ private:
         return {};
     }
 
-    WebIDL::ExceptionOr<void> wait_for_next_candidate(JS::NonnullGCPtr<DOM::Node> previous_candidate)
+    WebIDL::ExceptionOr<void> wait_for_next_candidate(GC::Ref<DOM::Node> previous_candidate)
     {
         // NOTE: If there isn't another candidate to check, we implement the "waiting" step by returning until the media
         //       element's children have changed.
@@ -770,12 +770,12 @@ private:
         return {};
     }
 
-    JS::NonnullGCPtr<HTMLMediaElement> m_media_element;
-    JS::NonnullGCPtr<HTMLSourceElement> m_candidate;
-    JS::GCPtr<DOM::Node> m_previously_failed_candidate;
+    GC::Ref<HTMLMediaElement> m_media_element;
+    GC::Ref<HTMLSourceElement> m_candidate;
+    GC::Ptr<DOM::Node> m_previously_failed_candidate;
 };
 
-JS_DEFINE_ALLOCATOR(SourceElementSelector);
+GC_DEFINE_ALLOCATOR(SourceElementSelector);
 
 void HTMLMediaElement::children_changed()
 {
@@ -804,7 +804,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
     // FIXME: 5. ⌛ If the media element's blocked-on-parser flag is false, then populate the list of pending text tracks.
 
     Optional<SelectMode> mode;
-    JS::GCPtr<HTMLSourceElement> candidate;
+    GC::Ptr<HTMLSourceElement> candidate;
 
     // 6. FIXME: ⌛ If the media element has an assigned media provider object, then let mode be object.
 
@@ -1022,7 +1022,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
             // 2. Let updateMedia be to queue a media element task given the media element to run the first appropriate steps from the media data processing
             //    steps list below. (A new task is used for this so that the work described below occurs relative to the appropriate media element event task
             //    source rather than using the networking task source.)
-            auto update_media = JS::create_heap_function(heap(), [this, failure_callback = move(failure_callback)](ByteBuffer media_data) mutable {
+            auto update_media = GC::create_heap_function(heap(), [this, failure_callback = move(failure_callback)](ByteBuffer media_data) mutable {
                 // 6. Update the media data with the contents of response's unsafe response obtained in this fashion. response can be CORS-same-origin or
                 //    CORS-cross-origin; this affects whether subtitles referenced in the media data are exposed in the API and, for video elements, whether
                 //    a canvas gets tainted when the video is drawn on it.
@@ -1051,12 +1051,12 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
             // 5. Otherwise, incrementally read response's body given updateMedia, processEndOfMedia, an empty algorithm, and global.
 
             VERIFY(response->body());
-            auto empty_algorithm = JS::create_heap_function(heap(), [](JS::Value) {});
+            auto empty_algorithm = GC::create_heap_function(heap(), [](JS::Value) {});
 
             // FIXME: We are "fully" reading the response here, rather than "incrementally". Memory concerns aside, this should be okay for now as we are
             //        always setting byteRange to "entire resource". However, we should switch to incremental reads when that is implemented, and then
             //        implement the processEndOfMedia step.
-            response->body()->fully_read(realm, update_media, empty_algorithm, JS::NonnullGCPtr { global });
+            response->body()->fully_read(realm, update_media, empty_algorithm, GC::Ref { global });
         };
 
         m_fetch_controller = TRY(Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
@@ -1084,7 +1084,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#verify-a-media-response
-bool HTMLMediaElement::verify_response(JS::NonnullGCPtr<Fetch::Infrastructure::Response> response, ByteRange const& byte_range)
+bool HTMLMediaElement::verify_response(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range)
 {
     // 1. If response is a network error, then return false.
     if (response->is_network_error())
@@ -1122,8 +1122,8 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         return {};
     }
 
-    JS::GCPtr<AudioTrack> audio_track;
-    JS::GCPtr<VideoTrack> video_track;
+    GC::Ptr<AudioTrack> audio_track;
+    GC::Ptr<VideoTrack> video_track;
 
     // -> If the media resource is found to have an audio track
     if (!audio_loader.is_error()) {
@@ -1151,7 +1151,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
 
         // 7. Fire an event named addtrack at this AudioTrackList object, using TrackEvent, with the track attribute initialized to the new AudioTrack object.
         TrackEventInit event_init {};
-        event_init.track = JS::make_handle(audio_track);
+        event_init.track = GC::make_handle(audio_track);
 
         auto event = TrackEvent::create(realm, HTML::EventNames::addtrack, move(event_init));
         m_audio_tracks->dispatch_event(event);
@@ -1184,7 +1184,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
 
         // 7. Fire an event named addtrack at this VideoTrackList object, using TrackEvent, with the track attribute initialized to the new VideoTrack object.
         TrackEventInit event_init {};
-        event_init.track = JS::make_handle(video_track);
+        event_init.track = GC::make_handle(video_track);
 
         auto event = TrackEvent::create(realm, HTML::EventNames::addtrack, move(event_init));
         m_video_tracks->dispatch_event(event);
@@ -1275,7 +1275,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dedicated-media-source-failure-steps
-WebIDL::ExceptionOr<void> HTMLMediaElement::handle_media_source_failure(Span<JS::NonnullGCPtr<WebIDL::Promise>> promises, String error_message)
+WebIDL::ExceptionOr<void> HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -1874,12 +1874,12 @@ void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#take-pending-play-promises
-JS::MarkedVector<JS::NonnullGCPtr<WebIDL::Promise>> HTMLMediaElement::take_pending_play_promises()
+GC::MarkedVector<GC::Ref<WebIDL::Promise>> HTMLMediaElement::take_pending_play_promises()
 {
     // 1. Let promises be an empty list of promises.
     // 2. Copy the media element's list of pending play promises to promises.
     // 3. Clear the media element's list of pending play promises.
-    JS::MarkedVector<JS::NonnullGCPtr<WebIDL::Promise>> promises(heap());
+    GC::MarkedVector<GC::Ref<WebIDL::Promise>> promises(heap());
     promises.extend(move(m_pending_play_promises));
 
     // 4. Return promises.
@@ -1887,7 +1887,7 @@ JS::MarkedVector<JS::NonnullGCPtr<WebIDL::Promise>> HTMLMediaElement::take_pendi
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#resolve-pending-play-promises
-void HTMLMediaElement::resolve_pending_play_promises(ReadonlySpan<JS::NonnullGCPtr<WebIDL::Promise>> promises)
+void HTMLMediaElement::resolve_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises)
 {
     auto& realm = this->realm();
 
@@ -1901,7 +1901,7 @@ void HTMLMediaElement::resolve_pending_play_promises(ReadonlySpan<JS::NonnullGCP
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#reject-pending-play-promises
-void HTMLMediaElement::reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPtr<WebIDL::Promise>> promises, JS::NonnullGCPtr<WebIDL::DOMException> error)
+void HTMLMediaElement::reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises, GC::Ref<WebIDL::DOMException> error)
 {
     auto& realm = this->realm();
 

@@ -13,10 +13,10 @@
 
 namespace Web::Crypto {
 
-JS_DEFINE_ALLOCATOR(KeyAlgorithm);
-JS_DEFINE_ALLOCATOR(RsaKeyAlgorithm);
-JS_DEFINE_ALLOCATOR(RsaHashedKeyAlgorithm);
-JS_DEFINE_ALLOCATOR(EcKeyAlgorithm);
+GC_DEFINE_ALLOCATOR(KeyAlgorithm);
+GC_DEFINE_ALLOCATOR(RsaKeyAlgorithm);
+GC_DEFINE_ALLOCATOR(RsaHashedKeyAlgorithm);
+GC_DEFINE_ALLOCATOR(EcKeyAlgorithm);
 
 template<typename T>
 static JS::ThrowCompletionOr<T*> impl_from(JS::VM& vm, StringView Name)
@@ -33,7 +33,7 @@ static JS::ThrowCompletionOr<T*> impl_from(JS::VM& vm, StringView Name)
     return static_cast<T*>(this_object);
 }
 
-JS::NonnullGCPtr<KeyAlgorithm> KeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<KeyAlgorithm> KeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.heap().allocate<KeyAlgorithm>(realm, realm);
 }
@@ -63,7 +63,7 @@ void KeyAlgorithm::visit_edges(Visitor& visitor)
     visitor.visit(m_realm);
 }
 
-JS::NonnullGCPtr<RsaKeyAlgorithm> RsaKeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<RsaKeyAlgorithm> RsaKeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.heap().allocate<RsaKeyAlgorithm>(realm, realm);
 }
@@ -129,7 +129,7 @@ JS_DEFINE_NATIVE_FUNCTION(RsaKeyAlgorithm::public_exponent_getter)
     return impl->public_exponent();
 }
 
-JS::NonnullGCPtr<EcKeyAlgorithm> EcKeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<EcKeyAlgorithm> EcKeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.heap().allocate<EcKeyAlgorithm>(realm, realm);
 }
@@ -152,7 +152,7 @@ JS_DEFINE_NATIVE_FUNCTION(EcKeyAlgorithm::named_curve_getter)
     return JS::PrimitiveString::create(vm, impl->named_curve());
 }
 
-JS::NonnullGCPtr<RsaHashedKeyAlgorithm> RsaHashedKeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<RsaHashedKeyAlgorithm> RsaHashedKeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.heap().allocate<RsaHashedKeyAlgorithm>(realm, realm);
 }
@@ -178,7 +178,7 @@ JS_DEFINE_NATIVE_FUNCTION(RsaHashedKeyAlgorithm::hash_getter)
         [&](String const& hash_string) -> JS::Value {
             return JS::PrimitiveString::create(vm, hash_string);
         },
-        [&](JS::Handle<JS::Object> const& hash) -> JS::Value {
+        [&](GC::Handle<JS::Object> const& hash) -> JS::Value {
             return hash;
         });
 }

@@ -49,14 +49,14 @@ public:
     void set_last_paint_generation_id(u64 generation_id);
 
 private:
-    JS::NonnullGCPtr<Paintable> m_paintable;
+    GC::Ref<Paintable> m_paintable;
     StackingContext* const m_parent { nullptr };
     Vector<StackingContext*> m_children;
     size_t m_index_in_tree_order { 0 };
     Optional<u64> m_last_paint_generation_id;
 
-    Vector<JS::NonnullGCPtr<Paintable const>> m_positioned_descendants_with_stack_level_0_and_stacking_contexts;
-    Vector<JS::NonnullGCPtr<Paintable const>> m_non_positioned_floating_descendants;
+    Vector<GC::Ref<Paintable const>> m_positioned_descendants_with_stack_level_0_and_stacking_contexts;
+    Vector<GC::Ref<Paintable const>> m_non_positioned_floating_descendants;
 
     static void paint_child(PaintContext&, StackingContext const&);
     void paint_internal(PaintContext&) const;

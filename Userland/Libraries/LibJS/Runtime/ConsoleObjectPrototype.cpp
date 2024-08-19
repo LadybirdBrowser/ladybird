@@ -22,7 +22,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ConsoleObjectPrototype);
+GC_DEFINE_ALLOCATOR(ConsoleObjectPrototype);
 
 ConsoleObjectPrototype::ConsoleObjectPrototype(JS::Realm& realm)
     : Object(JS::Object::ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())

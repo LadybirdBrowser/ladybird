@@ -53,10 +53,10 @@ class CanvasRenderingContext2D
     , public CanvasTextDrawingStyles<CanvasRenderingContext2D> {
 
     WEB_PLATFORM_OBJECT(CanvasRenderingContext2D, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
+    GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CanvasRenderingContext2D> create(JS::Realm&, HTMLCanvasElement&);
+    [[nodiscard]] static GC::Ref<CanvasRenderingContext2D> create(JS::Realm&, HTMLCanvasElement&);
     virtual ~CanvasRenderingContext2D() override;
 
     virtual void fill_rect(float x, float y, float width, float height) override;
@@ -75,15 +75,15 @@ public:
     virtual void fill(StringView fill_rule) override;
     virtual void fill(Path2D& path, StringView fill_rule) override;
 
-    virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> create_image_data(int width, int height, Optional<ImageDataSettings> const& settings = {}) const override;
-    virtual WebIDL::ExceptionOr<JS::GCPtr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<ImageDataSettings> const& settings = {}) const override;
     virtual void put_image_data(ImageData const&, float x, float y) override;
 
     virtual void reset_to_default_state() override;
 
-    JS::NonnullGCPtr<HTMLCanvasElement> canvas_for_binding() const;
+    GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
 
-    virtual JS::NonnullGCPtr<TextMetrics> measure_text(StringView text) override;
+    virtual GC::Ref<TextMetrics> measure_text(StringView text) override;
 
     virtual void clip(StringView fill_rule) override;
     virtual void clip(Path2D& path, StringView fill_rule) override;
@@ -146,7 +146,7 @@ private:
     void fill_internal(Gfx::Path const&, Gfx::WindingRule);
     void clip_internal(Gfx::Path&, Gfx::WindingRule);
 
-    JS::NonnullGCPtr<HTMLCanvasElement> m_element;
+    GC::Ref<HTMLCanvasElement> m_element;
     OwnPtr<Gfx::Painter> m_painter;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean

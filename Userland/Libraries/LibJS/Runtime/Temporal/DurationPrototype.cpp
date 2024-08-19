@@ -14,7 +14,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(DurationPrototype);
+GC_DEFINE_ALLOCATOR(DurationPrototype);
 
 // 7.3 Properties of the Temporal.Duration Prototype Object, https://tc39.es/proposal-temporal/#sec-properties-of-the-temporal-duration-prototype-object
 DurationPrototype::DurationPrototype(Realm& realm)

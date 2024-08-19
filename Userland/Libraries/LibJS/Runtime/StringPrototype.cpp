@@ -34,7 +34,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(StringPrototype);
+GC_DEFINE_ALLOCATOR(StringPrototype);
 
 static ThrowCompletionOr<String> utf8_string_from(VM& vm)
 {
@@ -229,7 +229,7 @@ void StringPrototype::initialize(Realm& realm)
 }
 
 // thisStringValue ( value ), https://tc39.es/ecma262/#thisstringvalue
-static ThrowCompletionOr<NonnullGCPtr<PrimitiveString>> this_string_value(VM& vm, Value value)
+static ThrowCompletionOr<GC::Ref<PrimitiveString>> this_string_value(VM& vm, Value value)
 {
     // 1. If value is a String, return value.
     if (value.is_string())

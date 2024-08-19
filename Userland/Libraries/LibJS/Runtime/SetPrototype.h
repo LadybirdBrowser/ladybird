@@ -13,7 +13,7 @@ namespace JS {
 
 class SetPrototype final : public PrototypeObject<SetPrototype, Set> {
     JS_PROTOTYPE_OBJECT(SetPrototype, Set, Set);
-    JS_DECLARE_ALLOCATOR(SetPrototype);
+    GC_DECLARE_ALLOCATOR(SetPrototype);
 
 public:
     virtual void initialize(Realm&) override;

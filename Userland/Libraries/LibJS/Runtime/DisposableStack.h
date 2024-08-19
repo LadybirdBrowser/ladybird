@@ -13,7 +13,7 @@ namespace JS {
 
 class DisposableStack final : public Object {
     JS_OBJECT(DisposableStack, Object);
-    JS_DECLARE_ALLOCATOR(DisposableStack);
+    GC_DECLARE_ALLOCATOR(DisposableStack);
 
 public:
     virtual ~DisposableStack() override = default;

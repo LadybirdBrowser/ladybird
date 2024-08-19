@@ -17,7 +17,7 @@ NonnullRefPtr<Timer> Timer::create()
     return EventLoopPlugin::the().create_timer();
 }
 
-NonnullRefPtr<Timer> Timer::create_repeating(int interval_ms, JS::SafeFunction<void()>&& timeout_handler)
+NonnullRefPtr<Timer> Timer::create_repeating(int interval_ms, GC::SafeFunction<void()>&& timeout_handler)
 {
     auto timer = EventLoopPlugin::the().create_timer();
     timer->set_single_shot(false);
@@ -26,7 +26,7 @@ NonnullRefPtr<Timer> Timer::create_repeating(int interval_ms, JS::SafeFunction<v
     return timer;
 }
 
-NonnullRefPtr<Timer> Timer::create_single_shot(int interval_ms, JS::SafeFunction<void()>&& timeout_handler)
+NonnullRefPtr<Timer> Timer::create_single_shot(int interval_ms, GC::SafeFunction<void()>&& timeout_handler)
 {
     auto timer = EventLoopPlugin::the().create_timer();
     timer->set_single_shot(true);

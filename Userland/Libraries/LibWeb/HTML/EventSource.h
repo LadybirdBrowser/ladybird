@@ -10,8 +10,8 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Time.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -26,12 +26,12 @@ struct EventSourceInit {
 
 class EventSource : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(EventSource, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(EventSource);
+    GC_DECLARE_ALLOCATOR(EventSource);
 
 public:
     virtual ~EventSource() override;
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<EventSource>> construct_impl(JS::Realm&, StringView url, EventSourceInit event_source_init_dict = {});
+    static WebIDL::ExceptionOr<GC::Ref<EventSource>> construct_impl(JS::Realm&, StringView url, EventSourceInit event_source_init_dict = {});
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource-url
     String url() const { return MUST(String::from_byte_string(m_url.serialize())); }
@@ -79,7 +79,7 @@ private:
     URL::URL m_url;
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-event-stream-request
-    JS::GCPtr<Fetch::Infrastructure::Request> m_request;
+    GC::Ptr<Fetch::Infrastructure::Request> m_request;
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-event-stream-reconnection-time
     AK::Duration m_reconnection_time { AK::Duration::from_seconds(3) };
@@ -94,8 +94,8 @@ private:
 
     ReadyState m_ready_state { ReadyState::Connecting };
 
-    JS::GCPtr<Fetch::Infrastructure::FetchAlgorithms> m_fetch_algorithms;
-    JS::GCPtr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Ptr<Fetch::Infrastructure::FetchAlgorithms> m_fetch_algorithms;
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 };
 
 }

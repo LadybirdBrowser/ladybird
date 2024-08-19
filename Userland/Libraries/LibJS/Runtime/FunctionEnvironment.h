@@ -13,7 +13,7 @@ namespace JS {
 
 class FunctionEnvironment final : public DeclarativeEnvironment {
     JS_ENVIRONMENT(FunctionEnvironment, DeclarativeEnvironment);
-    JS_DECLARE_ALLOCATOR(FunctionEnvironment);
+    GC_DECLARE_ALLOCATOR(FunctionEnvironment);
 
 public:
     enum class ThisBindingStatus : u8 {
@@ -53,7 +53,7 @@ private:
 
     Value m_this_value;                                                           // [[ThisValue]]
     ThisBindingStatus m_this_binding_status { ThisBindingStatus::Uninitialized }; // [[ThisBindingStatus]]
-    GCPtr<ECMAScriptFunctionObject> m_function_object;                            // [[FunctionObject]]
+    GC::Ptr<ECMAScriptFunctionObject> m_function_object;                          // [[FunctionObject]]
     Value m_new_target { js_undefined() };                                        // [[NewTarget]]
 };
 

@@ -12,7 +12,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(WeakRefConstructor);
+GC_DEFINE_ALLOCATOR(WeakRefConstructor);
 
 WeakRefConstructor::WeakRefConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.WeakRef.as_string(), realm.intrinsics().function_prototype())
@@ -40,7 +40,7 @@ ThrowCompletionOr<Value> WeakRefConstructor::call()
 }
 
 // 26.1.1.1 WeakRef ( target ), https://tc39.es/ecma262/#sec-weak-ref-target
-ThrowCompletionOr<NonnullGCPtr<Object>> WeakRefConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> WeakRefConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto target = vm.argument(0);
