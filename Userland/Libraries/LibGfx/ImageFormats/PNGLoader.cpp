@@ -244,14 +244,15 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             u32 y = 0;
             u16 delay_num = 0;
             u16 delay_den = 0;
-            u8 dispose_op = 0;
-            u8 blend_op = 0;
+            u8 dispose_op = PNG_DISPOSE_OP_NONE;
+            u8 blend_op = PNG_BLEND_OP_SOURCE;
 
-            if (!png_get_valid(png_ptr, info_ptr, PNG_INFO_fcTL)) {
-                return Error::from_string_literal("Missing fcTL chunk in APNG frame");
+            if (png_get_valid(png_ptr, info_ptr, PNG_INFO_fcTL)) {
+                png_get_next_frame_fcTL(png_ptr, info_ptr, &width, &height, &x, &y, &delay_num, &delay_den, &dispose_op, &blend_op);
+            } else {
+                width = png_get_image_width(png_ptr, info_ptr);
+                height = png_get_image_height(png_ptr, info_ptr);
             }
-
-            png_get_next_frame_fcTL(png_ptr, info_ptr, &width, &height, &x, &y, &delay_num, &delay_den, &dispose_op, &blend_op);
 
             decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, IntSize { static_cast<int>(width), static_cast<int>(height) }));
 
