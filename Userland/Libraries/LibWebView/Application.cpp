@@ -46,6 +46,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     bool enable_http_cache = false;
     bool expose_internals_object = false;
     bool force_cpu_painting = false;
+    bool force_fontconfig = false;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("The Ladybird web browser :^)");
@@ -63,6 +64,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
+    args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
 
     create_platform_arguments(args_parser);
     args_parser.parse(arguments);
@@ -99,6 +101,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .enable_http_cache = enable_http_cache ? EnableHTTPCache::Yes : EnableHTTPCache::No,
         .expose_internals_object = expose_internals_object ? ExposeInternalsObject::Yes : ExposeInternalsObject::No,
         .force_cpu_painting = force_cpu_painting ? ForceCPUPainting::Yes : ForceCPUPainting::No,
+        .force_fontconfig = force_fontconfig ? ForceFontconfig::Yes : ForceFontconfig::No,
     };
 
     create_platform_options(m_chrome_options, m_web_content_options);

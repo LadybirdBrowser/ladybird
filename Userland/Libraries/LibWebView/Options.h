@@ -84,6 +84,11 @@ enum class ForceCPUPainting {
     Yes,
 };
 
+enum class ForceFontconfig {
+    No,
+    Yes,
+};
+
 struct WebContentOptions {
     String command_line;
     String executable_path;
@@ -95,6 +100,7 @@ struct WebContentOptions {
     EnableHTTPCache enable_http_cache { EnableHTTPCache::No };
     ExposeInternalsObject expose_internals_object { ExposeInternalsObject::No };
     ForceCPUPainting force_cpu_painting { ForceCPUPainting::No };
+    ForceFontconfig force_fontconfig { ForceFontconfig::No };
 };
 
 }

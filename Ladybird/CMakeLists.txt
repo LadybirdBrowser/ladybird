@@ -162,7 +162,7 @@ endif()
 if (BUILD_TESTING)
     add_test(
         NAME LibWeb
-        COMMAND $<TARGET_FILE:headless-browser> --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests
+        COMMAND $<TARGET_FILE:headless-browser> --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests --force-fontconfig
     )
     add_test(
         NAME WPT

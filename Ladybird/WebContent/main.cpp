@@ -15,6 +15,7 @@
 #include <LibCore/Process.h>
 #include <LibCore/Resource.h>
 #include <LibCore/SystemServerTakeover.h>
+#include <LibGfx/Font/FontDatabase.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibMain/Main.h>
@@ -105,6 +106,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool enable_idl_tracing = false;
     bool enable_http_cache = false;
     bool force_cpu_painting = false;
+    bool force_fontconfig = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(command_line, "Chrome process command line", "command-line", 0, "command_line");
@@ -122,11 +124,16 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
+    args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
 
     args_parser.parse(arguments);
 
     if (wait_for_debugger) {
         Core::Process::wait_for_debugger_and_break();
+    }
+
+    if (force_fontconfig) {
+        Gfx::FontDatabase::the().set_force_fontconfig(true);
     }
 
     // Layout test mode implies internals object is exposed and the Skia CPU backend is used

@@ -28,6 +28,9 @@ public:
 
     void load_all_fonts_from_uri(StringView);
 
+    void set_force_fontconfig(bool);
+    [[nodiscard]] bool should_force_fontconfig() const;
+
 private:
     FontDatabase();
     ~FontDatabase() = default;
