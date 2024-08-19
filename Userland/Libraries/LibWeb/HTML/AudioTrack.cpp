@@ -31,7 +31,7 @@ AudioTrack::AudioTrack(JS::Realm& realm, JS::NonnullGCPtr<HTMLMediaElement> medi
     , m_audio_plugin(Platform::AudioCodecPlugin::create(move(loader)).release_value_but_fixme_should_propagate_errors())
 {
     m_audio_plugin->on_playback_position_updated = [this](auto position) {
-        if (auto const* paintable = m_media_element->paintable())
+        if (auto* paintable = m_media_element->paintable())
             paintable->set_needs_display();
 
         auto playback_position = static_cast<double>(position.to_milliseconds()) / 1000.0;

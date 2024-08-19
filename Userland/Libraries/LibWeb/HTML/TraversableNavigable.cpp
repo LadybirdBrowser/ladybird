@@ -1189,12 +1189,16 @@ JS::GCPtr<DOM::Node> TraversableNavigable::currently_focused_area()
 
 void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::BackingStore& target, PaintOptions paint_options)
 {
-    HTML::Navigable::PaintConfig paint_config;
+    auto document = active_document();
+    if (!document)
+        return;
+
+    DOM::Document::PaintConfig paint_config;
     paint_config.paint_overlay = paint_options.paint_overlay == PaintOptions::PaintOverlay::Yes;
     paint_config.should_show_line_box_borders = paint_options.should_show_line_box_borders;
     paint_config.has_focus = paint_options.has_focus;
     paint_config.canvas_fill_rect = Gfx::IntRect { {}, content_rect.size() };
-    auto display_list = record_display_list(paint_config);
+    auto display_list = document->record_display_list(paint_config);
     if (!display_list) {
         return;
     }

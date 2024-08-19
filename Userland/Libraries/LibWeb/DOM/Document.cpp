@@ -1153,7 +1153,7 @@ void Document::update_layout()
     // Broadcast the current viewport rect to any new paintables, so they know whether they're visible or not.
     inform_all_viewport_clients_about_the_current_viewport_rect();
 
-    navigable->set_needs_display();
+    m_document->set_needs_display();
     set_needs_to_resolve_paint_only_properties();
 
     paintable()->assign_scroll_frames();
@@ -5365,6 +5365,78 @@ JS::GCPtr<HTML::Navigable> Document::cached_navigable()
 void Document::set_cached_navigable(JS::GCPtr<HTML::Navigable> navigable)
 {
     m_cached_navigable = navigable.ptr();
+}
+
+void Document::set_needs_display()
+{
+    set_needs_display(viewport_rect());
+}
+
+void Document::set_needs_display(CSSPixelRect const&)
+{
+    // FIXME: Ignore updates outside the visible viewport rect.
+    //        This requires accounting for fixed-position elements in the input rect, which we don't do yet.
+
+    m_needs_repaint = true;
+
+    auto navigable = this->navigable();
+    if (!navigable)
+        return;
+
+    if (navigable->is_traversable()) {
+        Web::HTML::main_thread_event_loop().schedule();
+        return;
+    }
+
+    if (navigable->container()) {
+        navigable->container()->document().set_needs_display();
+    }
+}
+
+RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
+{
+    auto display_list = Painting::DisplayList::create();
+    Painting::DisplayListRecorder display_list_recorder(display_list);
+
+    if (config.canvas_fill_rect.has_value()) {
+        display_list_recorder.fill_rect(config.canvas_fill_rect.value(), CSS::SystemColor::canvas());
+    }
+
+    auto viewport_rect = page().css_to_device_rect(this->viewport_rect());
+    Gfx::IntRect bitmap_rect { {}, viewport_rect.size().to_type<int>() };
+
+    display_list_recorder.fill_rect(bitmap_rect, background_color());
+    if (!paintable()) {
+        VERIFY_NOT_REACHED();
+    }
+
+    Web::PaintContext context(display_list_recorder, page().palette(), page().client().device_pixels_per_css_pixel());
+    context.set_device_viewport_rect(viewport_rect);
+    context.set_should_show_line_box_borders(config.should_show_line_box_borders);
+    context.set_should_paint_overlay(config.paint_overlay);
+    context.set_has_focus(config.has_focus);
+
+    update_paint_and_hit_testing_properties_if_needed();
+
+    auto& viewport_paintable = *paintable();
+
+    viewport_paintable.refresh_scroll_state();
+
+    viewport_paintable.paint_all_phases(context);
+
+    display_list->set_device_pixels_per_css_pixel(page().client().device_pixels_per_css_pixel());
+
+    Vector<RefPtr<Painting::ScrollFrame>> scroll_state;
+    scroll_state.resize(viewport_paintable.scroll_state.size());
+    for (auto& [_, scrollable_frame] : viewport_paintable.scroll_state) {
+        scroll_state[scrollable_frame->id] = scrollable_frame;
+    }
+
+    display_list->set_scroll_state(move(scroll_state));
+
+    m_needs_repaint = false;
+
+    return display_list;
 }
 
 }

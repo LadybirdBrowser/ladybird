@@ -48,7 +48,7 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
                 m_document->set_needs_to_resolve_paint_only_properties();
 
                 // FIXME: Do less than a full repaint if possible?
-                navigable->set_needs_display();
+                m_document->set_needs_display();
             }
 
             auto image_data = m_resource_request->image_data();

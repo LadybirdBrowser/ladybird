@@ -699,6 +699,18 @@ public:
     JS::GCPtr<HTML::Navigable> cached_navigable();
     void set_cached_navigable(JS::GCPtr<HTML::Navigable>);
 
+    [[nodiscard]] bool needs_repaint() const { return m_needs_repaint; }
+    void set_needs_display();
+    void set_needs_display(CSSPixelRect const&);
+
+    struct PaintConfig {
+        bool paint_overlay { false };
+        bool should_show_line_box_borders { false };
+        bool has_focus { false };
+        Optional<Gfx::IntRect> canvas_fill_rect {};
+    };
+    RefPtr<Painting::DisplayList> record_display_list(PaintConfig);
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -972,6 +984,8 @@ private:
 
     // NOTE: This is WeakPtr, not GCPtr, on purpose. We don't want the document to keep some old detached navigable alive.
     WeakPtr<HTML::Navigable> m_cached_navigable;
+
+    bool m_needs_repaint { false };
 };
 
 template<>
