@@ -150,7 +150,7 @@ Gfx::ImmutableBitmap const* ImageStyleValue::current_frame_bitmap(DevicePixelRec
     return bitmap(m_current_frame_index, dest_rect.size().to_type<int>());
 }
 
-JS::GCPtr<HTML::DecodedImageData> ImageStyleValue::image_data() const
+GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data() const
 {
     if (!m_resource_request)
         return nullptr;

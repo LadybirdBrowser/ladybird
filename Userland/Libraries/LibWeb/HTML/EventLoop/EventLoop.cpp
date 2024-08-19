@@ -22,7 +22,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(EventLoop);
+GC_DEFINE_ALLOCATOR(EventLoop);
 
 EventLoop::EventLoop(Type type)
     : m_type(type)
@@ -60,7 +60,7 @@ EventLoop& main_thread_event_loop()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop
-void EventLoop::spin_until(JS::SafeFunction<bool()> goal_condition)
+void EventLoop::spin_until(GC::SafeFunction<bool()> goal_condition)
 {
     // FIXME: The spec wants us to do the rest of the enclosing algorithm (i.e. the caller)
     //    in the context of the currently running task on entry. That's not possible with this implementation.
@@ -100,7 +100,7 @@ void EventLoop::spin_until(JS::SafeFunction<bool()> goal_condition)
     // NOTE: This is achieved by returning from the function.
 }
 
-void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, JS::SafeFunction<bool()> goal_condition)
+void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC::SafeFunction<bool()> goal_condition)
 {
     auto& vm = this->vm();
     vm.save_execution_context_stack();
@@ -147,7 +147,7 @@ void EventLoop::process()
     // An event loop must continually run through the following steps for as long as it exists:
 
     // 1. Let oldestTask be null.
-    JS::GCPtr<Task> oldest_task;
+    GC::Ptr<Task> oldest_task;
 
     // 2. Set taskStartTime to the unsafe shared current time.
     double task_start_time = HighResolutionTime::unsafe_shared_current_time();
@@ -193,7 +193,7 @@ void EventLoop::process()
     //               - Any Document B whose browsing context's container document is A must be listed after A in the list.
     //               - If there are two documents A and B whose browsing contexts are both child browsing contexts whose container documents are another Document C, then the order of A and B in the list must match the shadow-including tree order of their respective browsing context containers in C's node tree.
     // FIXME: NOTE: The sort order specified above is missing here!
-    Vector<JS::Handle<DOM::Document>> docs = documents_in_this_event_loop();
+    Vector<GC::Handle<DOM::Document>> docs = documents_in_this_event_loop();
 
     auto for_each_fully_active_document_in_docs = [&](auto&& callback) {
         for (auto& document : docs) {
@@ -384,7 +384,7 @@ void EventLoop::process()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-task
-TaskID queue_a_task(HTML::Task::Source source, JS::GCPtr<EventLoop> event_loop, JS::GCPtr<DOM::Document> document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC::Ptr<DOM::Document> document, GC::Ref<GC::Function<void()>> steps)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
     if (!event_loop)
@@ -409,7 +409,7 @@ TaskID queue_a_task(HTML::Task::Source source, JS::GCPtr<EventLoop> event_loop, 
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task
-TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, GC::Ref<GC::Function<void()>> steps)
 {
     // 1. Let event loop be global's relevant agent's event loop.
     auto& global_custom_data = verify_cast<Bindings::WebEngineCustomData>(*global_object.vm().custom_data());
@@ -427,7 +427,7 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, J
 }
 
 // https://html.spec.whatwg.org/#queue-a-microtask
-void queue_a_microtask(DOM::Document const* document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<void()>> steps)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
     auto& event_loop = HTML::main_thread_event_loop();
@@ -490,14 +490,14 @@ void EventLoop::perform_a_microtask_checkpoint()
     m_performing_a_microtask_checkpoint = false;
 }
 
-Vector<JS::Handle<DOM::Document>> EventLoop::documents_in_this_event_loop() const
+Vector<GC::Handle<DOM::Document>> EventLoop::documents_in_this_event_loop() const
 {
-    Vector<JS::Handle<DOM::Document>> documents;
+    Vector<GC::Handle<DOM::Document>> documents;
     for (auto& document : m_documents) {
         VERIFY(document);
         if (document->is_decoded_svg())
             continue;
-        documents.append(JS::make_handle(*document));
+        documents.append(GC::make_handle(*document));
     }
     return documents;
 }
@@ -540,12 +540,12 @@ void EventLoop::unregister_environment_settings_object(Badge<EnvironmentSettings
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#same-loop-windows
-Vector<JS::Handle<HTML::Window>> EventLoop::same_loop_windows() const
+Vector<GC::Handle<HTML::Window>> EventLoop::same_loop_windows() const
 {
-    Vector<JS::Handle<HTML::Window>> windows;
+    Vector<GC::Handle<HTML::Window>> windows;
     for (auto& document : documents_in_this_event_loop()) {
         if (document->is_fully_active())
-            windows.append(JS::make_handle(document->window()));
+            windows.append(GC::make_handle(document->window()));
     }
     return windows;
 }

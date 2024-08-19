@@ -14,14 +14,14 @@ namespace Web::DOM {
 
 class StyleElementUtils {
 public:
-    void update_a_style_block(DOM::Element& style_element, JS::GCPtr<DOM::Node> old_parent_if_removed_from = nullptr);
+    void update_a_style_block(DOM::Element& style_element, GC::Ptr<DOM::Node> old_parent_if_removed_from = nullptr);
 
     CSS::CSSStyleSheet* sheet() { return m_associated_css_style_sheet; }
     CSS::CSSStyleSheet const* sheet() const { return m_associated_css_style_sheet; }
 
 private:
     // https://www.w3.org/TR/cssom/#associated-css-style-sheet
-    JS::GCPtr<CSS::CSSStyleSheet> m_associated_css_style_sheet;
+    GC::Ptr<CSS::CSSStyleSheet> m_associated_css_style_sheet;
 };
 
 }

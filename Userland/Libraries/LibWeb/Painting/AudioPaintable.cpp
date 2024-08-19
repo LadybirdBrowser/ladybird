@@ -17,9 +17,9 @@
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(AudioPaintable);
+GC_DEFINE_ALLOCATOR(AudioPaintable);
 
-JS::NonnullGCPtr<AudioPaintable> AudioPaintable::create(Layout::AudioBox const& layout_box)
+GC::Ref<AudioPaintable> AudioPaintable::create(Layout::AudioBox const& layout_box)
 {
     return layout_box.heap().allocate_without_realm<AudioPaintable>(layout_box);
 }

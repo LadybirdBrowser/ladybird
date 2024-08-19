@@ -12,7 +12,7 @@ namespace JS {
 
 class AtomicsObject : public Object {
     JS_OBJECT(AtomicsObject, Object);
-    JS_DECLARE_ALLOCATOR(AtomicsObject);
+    GC_DECLARE_ALLOCATOR(AtomicsObject);
 
 public:
     virtual void initialize(Realm&) override;

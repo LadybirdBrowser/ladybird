@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::Streams {
@@ -15,7 +15,7 @@ namespace Web::Streams {
 // https://streams.spec.whatwg.org/#dictdef-queuingstrategy
 struct QueuingStrategy {
     Optional<double> high_water_mark;
-    JS::GCPtr<WebIDL::CallbackType> size;
+    GC::Ptr<WebIDL::CallbackType> size;
 };
 
 }

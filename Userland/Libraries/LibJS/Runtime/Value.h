@@ -18,9 +18,11 @@
 #include <AK/SourceLocation.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <LibGC/Handle.h>
+#include <LibGC/NanBoxedValue.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibJS/Heap/Cell.h>
 #include <math.h>
 
 namespace JS {
@@ -30,66 +32,29 @@ static constexpr double MAX_ARRAY_LIKE_INDEX = 9007199254740991.0;
 // Unique bit representation of negative zero (only sign bit set)
 static constexpr u64 NEGATIVE_ZERO_BITS = ((u64)1 << 63);
 
-static_assert(sizeof(double) == 8);
-static_assert(sizeof(void*) == sizeof(double) || sizeof(void*) == sizeof(u32));
-// To make our Value representation compact we can use the fact that IEEE
-// doubles have a lot (2^52 - 2) of NaN bit patterns. The canonical form being
-// just 0x7FF8000000000000 i.e. sign = 0 exponent is all ones and the top most
-// bit of the mantissa set.
-static constexpr u64 CANON_NAN_BITS = bit_cast<u64>(__builtin_nan(""));
-static_assert(CANON_NAN_BITS == 0x7FF8000000000000);
-// (Unfortunately all the other values are valid so we have to convert any
-// incoming NaNs to this pattern although in practice it seems only the negative
-// version of these CANON_NAN_BITS)
-// +/- Infinity are represented by a full exponent but without any bits of the
-// mantissa set.
-static constexpr u64 POSITIVE_INFINITY_BITS = bit_cast<u64>(__builtin_huge_val());
-static constexpr u64 NEGATIVE_INFINITY_BITS = bit_cast<u64>(-__builtin_huge_val());
-static_assert(POSITIVE_INFINITY_BITS == 0x7FF0000000000000);
-static_assert(NEGATIVE_INFINITY_BITS == 0xFFF0000000000000);
-// However as long as any bit is set in the mantissa with the exponent of all
-// ones this value is a NaN, and it even ignores the sign bit.
-// (NOTE: we have to use __builtin_isnan here since some isnan implementations are not constexpr)
-static_assert(__builtin_isnan(bit_cast<double>(0x7FF0000000000001)));
-static_assert(__builtin_isnan(bit_cast<double>(0xFFF0000000040000)));
-// This means we can use all of these NaNs to store all other options for Value.
-// To make sure all of these other representations we use 0x7FF8 as the base top
-// 2 bytes which ensures the value is always a NaN.
-static constexpr u64 BASE_TAG = 0x7FF8;
-// This leaves the sign bit and the three lower bits for tagging a value and then
-// 48 bits of potential payload.
-// First the pointer backed types (Object, String etc.), to signify this category
-// and make stack scanning easier we use the sign bit (top most bit) of 1 to
-// signify that it is a pointer backed type.
-static constexpr u64 IS_CELL_BIT = 0x8000 | BASE_TAG;
-// On all current 64-bit systems this code runs pointer actually only use the
-// lowest 6 bytes which fits neatly into our NaN payload with the top two bytes
-// left over for marking it as a NaN and tagging the type.
-// Note that we do need to take care when extracting the pointer value but this
-// is explained in the extract_pointer method.
+// NOTE: See background comments in NanBoxedValue for the representation.
 
 // This leaves us 3 bits to tag the type of pointer:
-static constexpr u64 OBJECT_TAG = 0b001 | IS_CELL_BIT;
-static constexpr u64 STRING_TAG = 0b010 | IS_CELL_BIT;
-static constexpr u64 SYMBOL_TAG = 0b011 | IS_CELL_BIT;
-static constexpr u64 ACCESSOR_TAG = 0b100 | IS_CELL_BIT;
-static constexpr u64 BIGINT_TAG = 0b101 | IS_CELL_BIT;
+static constexpr u64 OBJECT_TAG = 0b001 | GC::IS_CELL_BIT;
+static constexpr u64 STRING_TAG = 0b010 | GC::IS_CELL_BIT;
+static constexpr u64 SYMBOL_TAG = 0b011 | GC::IS_CELL_BIT;
+static constexpr u64 ACCESSOR_TAG = 0b100 | GC::IS_CELL_BIT;
+static constexpr u64 BIGINT_TAG = 0b101 | GC::IS_CELL_BIT;
 
 // We can then by extracting the top 13 bits quickly check if a Value is
 // pointer backed.
-static constexpr u64 IS_CELL_PATTERN = 0xFFF8ULL;
-static_assert((OBJECT_TAG & IS_CELL_PATTERN) == IS_CELL_PATTERN);
-static_assert((STRING_TAG & IS_CELL_PATTERN) == IS_CELL_PATTERN);
-static_assert((CANON_NAN_BITS & IS_CELL_PATTERN) != IS_CELL_PATTERN);
-static_assert((NEGATIVE_INFINITY_BITS & IS_CELL_PATTERN) != IS_CELL_PATTERN);
+static_assert((OBJECT_TAG & GC::IS_CELL_PATTERN) == GC::IS_CELL_PATTERN);
+static_assert((STRING_TAG & GC::IS_CELL_PATTERN) == GC::IS_CELL_PATTERN);
+static_assert((GC::CANON_NAN_BITS & GC::IS_CELL_PATTERN) != GC::IS_CELL_PATTERN);
+static_assert((GC::NEGATIVE_INFINITY_BITS & GC::IS_CELL_PATTERN) != GC::IS_CELL_PATTERN);
 
 // Then for the non pointer backed types we don't set the sign bit and use the
 // three lower bits for tagging as well.
-static constexpr u64 UNDEFINED_TAG = 0b110 | BASE_TAG;
-static constexpr u64 NULL_TAG = 0b111 | BASE_TAG;
-static constexpr u64 BOOLEAN_TAG = 0b001 | BASE_TAG;
-static constexpr u64 INT32_TAG = 0b010 | BASE_TAG;
-static constexpr u64 EMPTY_TAG = 0b011 | BASE_TAG;
+static constexpr u64 UNDEFINED_TAG = 0b110 | GC::BASE_TAG;
+static constexpr u64 NULL_TAG = 0b111 | GC::BASE_TAG;
+static constexpr u64 BOOLEAN_TAG = 0b001 | GC::BASE_TAG;
+static constexpr u64 INT32_TAG = 0b010 | GC::BASE_TAG;
+static constexpr u64 EMPTY_TAG = 0b011 | GC::BASE_TAG;
 // Notice how only undefined and null have the top bit set, this mean we can
 // quickly check for nullish values by checking if the top and bottom bits are set
 // but the middle one isn't.
@@ -104,11 +69,8 @@ static_assert((EMPTY_TAG & IS_NULLISH_EXTRACT_PATTERN) != IS_NULLISH_PATTERN);
 // values are not valid anywhere else we can use this "value" to our advantage
 // in Optional<Value> to represent the empty optional.
 
-static constexpr u64 TAG_EXTRACTION = 0xFFFF000000000000;
-static constexpr u64 TAG_SHIFT = 48;
-static constexpr u64 SHIFTED_BOOLEAN_TAG = BOOLEAN_TAG << TAG_SHIFT;
-static constexpr u64 SHIFTED_INT32_TAG = INT32_TAG << TAG_SHIFT;
-static constexpr u64 SHIFTED_IS_CELL_PATTERN = IS_CELL_PATTERN << TAG_SHIFT;
+static constexpr u64 SHIFTED_BOOLEAN_TAG = BOOLEAN_TAG << GC::TAG_SHIFT;
+static constexpr u64 SHIFTED_INT32_TAG = INT32_TAG << GC::TAG_SHIFT;
 
 // Summary:
 // To pack all the different value in to doubles we use the following schema:
@@ -125,7 +87,7 @@ static constexpr u64 SHIFTED_IS_CELL_PATTERN = IS_CELL_PATTERN << TAG_SHIFT;
 // options from 8 tags to 15 but since we currently only use 5 for both sign bits
 // this is not needed.
 
-class Value {
+class Value : public GC::NanBoxedValue {
 public:
     enum class PreferredType {
         Default,
@@ -146,7 +108,6 @@ public:
     bool is_accessor() const { return m_value.tag == ACCESSOR_TAG; }
     bool is_bigint() const { return m_value.tag == BIGINT_TAG; }
     bool is_nullish() const { return (m_value.tag & IS_NULLISH_EXTRACT_PATTERN) == IS_NULLISH_PATTERN; }
-    bool is_cell() const { return (m_value.tag & IS_CELL_PATTERN) == IS_CELL_PATTERN; }
     ThrowCompletionOr<bool> is_array(VM&) const;
     bool is_function() const;
     bool is_constructor() const;
@@ -154,23 +115,23 @@ public:
 
     bool is_nan() const
     {
-        return m_value.encoded == CANON_NAN_BITS;
+        return m_value.encoded == GC::CANON_NAN_BITS;
     }
 
     bool is_infinity() const
     {
-        static_assert(NEGATIVE_INFINITY_BITS == (0x1ULL << 63 | POSITIVE_INFINITY_BITS));
-        return (0x1ULL << 63 | m_value.encoded) == NEGATIVE_INFINITY_BITS;
+        static_assert(GC::NEGATIVE_INFINITY_BITS == (0x1ULL << 63 | GC::POSITIVE_INFINITY_BITS));
+        return (0x1ULL << 63 | m_value.encoded) == GC::NEGATIVE_INFINITY_BITS;
     }
 
     bool is_positive_infinity() const
     {
-        return m_value.encoded == POSITIVE_INFINITY_BITS;
+        return m_value.encoded == GC::POSITIVE_INFINITY_BITS;
     }
 
     bool is_negative_infinity() const
     {
-        return m_value.encoded == NEGATIVE_INFINITY_BITS;
+        return m_value.encoded == GC::NEGATIVE_INFINITY_BITS;
     }
 
     bool is_positive_zero() const
@@ -200,13 +161,13 @@ public:
     }
 
     Value()
-        : Value(EMPTY_TAG << TAG_SHIFT, (u64)0)
+        : Value(EMPTY_TAG << GC::TAG_SHIFT, (u64)0)
     {
     }
 
     template<typename T>
     requires(IsSameIgnoringCV<T, bool>) explicit Value(T value)
-        : Value(BOOLEAN_TAG << TAG_SHIFT, (u64)value)
+        : Value(BOOLEAN_TAG << GC::TAG_SHIFT, (u64)value)
     {
     }
 
@@ -218,7 +179,7 @@ public:
             m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         } else {
             if (isnan(value)) [[unlikely]]
-                m_value.encoded = CANON_NAN_BITS;
+                m_value.encoded = GC::CANON_NAN_BITS;
             else
                 m_value.as_double = value;
         }
@@ -255,44 +216,44 @@ public:
     }
 
     Value(Object const* object)
-        : Value(OBJECT_TAG << TAG_SHIFT, reinterpret_cast<void const*>(object))
+        : Value(OBJECT_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(object))
     {
     }
 
     Value(PrimitiveString const* string)
-        : Value(STRING_TAG << TAG_SHIFT, reinterpret_cast<void const*>(string))
+        : Value(STRING_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(string))
     {
     }
 
     Value(Symbol const* symbol)
-        : Value(SYMBOL_TAG << TAG_SHIFT, reinterpret_cast<void const*>(symbol))
+        : Value(SYMBOL_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(symbol))
     {
     }
 
     Value(Accessor const* accessor)
-        : Value(ACCESSOR_TAG << TAG_SHIFT, reinterpret_cast<void const*>(accessor))
+        : Value(ACCESSOR_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(accessor))
     {
     }
 
     Value(BigInt const* bigint)
-        : Value(BIGINT_TAG << TAG_SHIFT, reinterpret_cast<void const*>(bigint))
+        : Value(BIGINT_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(bigint))
     {
     }
 
     template<typename T>
-    Value(GCPtr<T> ptr)
+    Value(GC::Ptr<T> ptr)
         : Value(ptr.ptr())
     {
     }
 
     template<typename T>
-    Value(NonnullGCPtr<T> ptr)
+    Value(GC::Ref<T> ptr)
         : Value(ptr.ptr())
     {
     }
 
     template<typename T>
-    Value(Handle<T> const& ptr)
+    Value(GC::Handle<T> const& ptr)
         : Value(ptr.ptr())
     {
     }
@@ -347,18 +308,6 @@ public:
         return *extract_pointer<Symbol>();
     }
 
-    Cell& as_cell()
-    {
-        VERIFY(is_cell());
-        return *extract_pointer<Cell>();
-    }
-
-    Cell& as_cell() const
-    {
-        VERIFY(is_cell());
-        return *extract_pointer<Cell>();
-    }
-
     Accessor& as_accessor()
     {
         VERIFY(is_accessor());
@@ -377,6 +326,19 @@ public:
         return *extract_pointer<BigInt>();
     }
 
+    // FIXME: Should we be shadowing here?
+    Cell& as_cell()
+    {
+        VERIFY(is_cell());
+        return *extract_pointer<Cell>();
+    }
+
+    Cell& as_cell() const
+    {
+        VERIFY(is_cell());
+        return *extract_pointer<Cell>();
+    }
+
     Array& as_array();
     FunctionObject& as_function();
     FunctionObject const& as_function() const;
@@ -387,12 +349,12 @@ public:
     ThrowCompletionOr<ByteString> to_byte_string(VM&) const;
     ThrowCompletionOr<Utf16String> to_utf16_string(VM&) const;
     ThrowCompletionOr<String> to_well_formed_string(VM&) const;
-    ThrowCompletionOr<NonnullGCPtr<PrimitiveString>> to_primitive_string(VM&);
+    ThrowCompletionOr<GC::Ref<PrimitiveString>> to_primitive_string(VM&);
     ThrowCompletionOr<Value> to_primitive(VM&, PreferredType preferred_type = PreferredType::Default) const;
-    ThrowCompletionOr<NonnullGCPtr<Object>> to_object(VM&) const;
+    ThrowCompletionOr<GC::Ref<Object>> to_object(VM&) const;
     ThrowCompletionOr<Value> to_numeric(VM&) const;
     ThrowCompletionOr<Value> to_number(VM&) const;
-    ThrowCompletionOr<NonnullGCPtr<BigInt>> to_bigint(VM&) const;
+    ThrowCompletionOr<GC::Ref<BigInt>> to_bigint(VM&) const;
     ThrowCompletionOr<i64> to_bigint_int64(VM&) const;
     ThrowCompletionOr<u64> to_bigint_uint64(VM&) const;
     ThrowCompletionOr<double> to_double(VM&) const;
@@ -410,7 +372,7 @@ public:
     bool to_boolean() const;
 
     ThrowCompletionOr<Value> get(VM&, PropertyKey const&) const;
-    ThrowCompletionOr<GCPtr<FunctionObject>> get_method(VM&, PropertyKey const&) const;
+    ThrowCompletionOr<GC::Ptr<FunctionObject>> get_method(VM&, PropertyKey const&) const;
 
     [[nodiscard]] String to_string_without_side_effects() const;
 
@@ -421,37 +383,16 @@ public:
         return *this;
     }
 
-    [[nodiscard]] NonnullGCPtr<PrimitiveString> typeof_(VM&) const;
+    [[nodiscard]] GC::Ref<PrimitiveString> typeof_(VM&) const;
 
     bool operator==(Value const&) const;
 
     template<typename... Args>
     [[nodiscard]] ALWAYS_INLINE ThrowCompletionOr<Value> invoke(VM&, PropertyKey const& property_key, Args... args);
 
-    static constexpr FlatPtr extract_pointer_bits(u64 encoded)
-    {
-#ifdef AK_ARCH_32_BIT
-        // For 32-bit system the pointer fully fits so we can just return it directly.
-        static_assert(sizeof(void*) == sizeof(u32));
-        return static_cast<FlatPtr>(encoded & 0xffff'ffff);
-#elif ARCH(X86_64) || ARCH(RISCV64)
-        // For x86_64 and riscv64 the top 16 bits should be sign extending the "real" top bit (47th).
-        // So first shift the top 16 bits away then using the right shift it sign extends the top 16 bits.
-        return static_cast<FlatPtr>((static_cast<i64>(encoded << 16)) >> 16);
-#elif ARCH(AARCH64) || ARCH(PPC64) || ARCH(PPC64LE)
-        // For AArch64 the top 16 bits of the pointer should be zero.
-        // For PPC64: all 64 bits can be used for pointers, however on Linux only
-        //            the lower 43 bits are used for user-space addresses, so
-        //            masking off the top 16 bits should match the rest of LibJS.
-        return static_cast<FlatPtr>(encoded & 0xffff'ffff'ffffULL);
-#else
-#    error "Unknown architecture. Don't know whether pointers need to be sign-extended."
-#endif
-    }
-
     // A double is any Value which does not have the full exponent and top mantissa bit set or has
     // exactly only those bits set.
-    bool is_double() const { return (m_value.encoded & CANON_NAN_BITS) != CANON_NAN_BITS || (m_value.encoded == CANON_NAN_BITS); }
+    bool is_double() const { return (m_value.encoded & GC::CANON_NAN_BITS) != GC::CANON_NAN_BITS || (m_value.encoded == GC::CANON_NAN_BITS); }
     bool is_int32() const { return m_value.tag == INT32_TAG; }
 
     i32 as_i32() const
@@ -492,30 +433,14 @@ private:
             //       This means that all bits above the 47th should be the same as
             //       the 47th. When storing a pointer we thus drop the top 16 bits as
             //       we can recover it when extracting the pointer again.
-            //       See also: Value::extract_pointer.
+            //       See also: NanBoxedValue::extract_pointer.
             m_value.encoded = tag | (reinterpret_cast<u64>(ptr) & 0x0000ffffffffffffULL);
         }
     }
 
-    template<typename PointerType>
-    PointerType* extract_pointer() const
-    {
-        VERIFY(is_cell());
-        return reinterpret_cast<PointerType*>(extract_pointer_bits(m_value.encoded));
-    }
-
-    [[nodiscard]] ThrowCompletionOr<Value> invoke_internal(VM&, PropertyKey const&, Optional<MarkedVector<Value>> arguments);
+    [[nodiscard]] ThrowCompletionOr<Value> invoke_internal(VM&, PropertyKey const&, Optional<GC::MarkedVector<Value>> arguments);
 
     ThrowCompletionOr<i32> to_i32_slow_case(VM&) const;
-
-    union {
-        double as_double;
-        struct {
-            u64 payload : 48;
-            u64 tag : 16;
-        };
-        u64 encoded;
-    } m_value { .encoded = 0 };
 
     friend Value js_undefined();
     friend Value js_null();
@@ -529,12 +454,12 @@ private:
 
 inline Value js_undefined()
 {
-    return Value(UNDEFINED_TAG << TAG_SHIFT, (u64)0);
+    return Value(UNDEFINED_TAG << GC::TAG_SHIFT, (u64)0);
 }
 
 inline Value js_null()
 {
-    return Value(NULL_TAG << TAG_SHIFT, (u64)0);
+    return Value(NULL_TAG << GC::TAG_SHIFT, (u64)0);
 }
 
 inline Value js_nan()
@@ -730,14 +655,14 @@ private:
 
 }
 
-namespace JS {
+namespace GC {
 
 template<>
-class Handle<Value> {
+class Handle<JS::Value> {
 public:
     Handle() = default;
 
-    static Handle create(Value value, SourceLocation location)
+    static Handle create(JS::Value value, SourceLocation location)
     {
         if (value.is_cell())
             return Handle(value, &value.as_cell(), location);
@@ -749,28 +674,28 @@ public:
     auto value() const { return *m_value; }
     bool is_null() const { return m_handle.is_null() && !m_value.has_value(); }
 
-    bool operator==(Value const& value) const { return value == m_value; }
-    bool operator==(Handle<Value> const& other) const { return other.m_value == this->m_value; }
+    bool operator==(JS::Value const& value) const { return value == m_value; }
+    bool operator==(GC::Handle<JS::Value> const& other) const { return other.m_value == this->m_value; }
 
 private:
-    explicit Handle(Value value)
+    explicit Handle(JS::Value value)
         : m_value(value)
     {
     }
 
-    explicit Handle(Value value, Cell* cell, SourceLocation location)
+    explicit Handle(JS::Value value, Cell* cell, SourceLocation location)
         : m_value(value)
-        , m_handle(Handle<Cell>::create(cell, location))
+        , m_handle(GC::Handle<Cell>::create(cell, location))
     {
     }
 
-    Optional<Value> m_value;
+    Optional<JS::Value> m_value;
     Handle<Cell> m_handle;
 };
 
-inline Handle<Value> make_handle(Value value, SourceLocation location = SourceLocation::current())
+inline Handle<JS::Value> make_handle(JS::Value value, SourceLocation location = SourceLocation::current())
 {
-    return Handle<Value>::create(value, location);
+    return Handle<JS::Value>::create(value, location);
 }
 
 }
@@ -794,8 +719,8 @@ struct Traits<JS::Value> : DefaultTraits<JS::Value> {
 };
 
 template<>
-struct Traits<JS::Handle<JS::Value>> : public DefaultTraits<JS::Handle<JS::Value>> {
-    static unsigned hash(JS::Handle<JS::Value> const& handle) { return Traits<JS::Value>::hash(handle.value()); }
+struct Traits<GC::Handle<JS::Value>> : public DefaultTraits<GC::Handle<JS::Value>> {
+    static unsigned hash(GC::Handle<JS::Value> const& handle) { return Traits<JS::Value>::hash(handle.value()); }
 };
 
 }

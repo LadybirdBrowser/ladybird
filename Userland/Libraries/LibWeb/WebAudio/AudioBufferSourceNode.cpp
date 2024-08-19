@@ -13,9 +13,9 @@
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(AudioBufferSourceNode);
+GC_DEFINE_ALLOCATOR(AudioBufferSourceNode);
 
-AudioBufferSourceNode::AudioBufferSourceNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, AudioBufferSourceOptions const& options)
+AudioBufferSourceNode::AudioBufferSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AudioBufferSourceOptions const& options)
     : AudioScheduledSourceNode(realm, context)
     , m_buffer(options.buffer)
     , m_playback_rate(AudioParam::create(realm, options.playback_rate, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
@@ -29,26 +29,26 @@ AudioBufferSourceNode::AudioBufferSourceNode(JS::Realm& realm, JS::NonnullGCPtr<
 AudioBufferSourceNode::~AudioBufferSourceNode() = default;
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-buffer
-WebIDL::ExceptionOr<void> AudioBufferSourceNode::set_buffer(JS::GCPtr<AudioBuffer> buffer)
+WebIDL::ExceptionOr<void> AudioBufferSourceNode::set_buffer(GC::Ptr<AudioBuffer> buffer)
 {
     m_buffer = buffer;
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-buffer
-JS::GCPtr<AudioBuffer> AudioBufferSourceNode::buffer() const
+GC::Ptr<AudioBuffer> AudioBufferSourceNode::buffer() const
 {
     return m_buffer;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-playbackrate
-JS::NonnullGCPtr<AudioParam> AudioBufferSourceNode::playback_rate() const
+GC::Ref<AudioParam> AudioBufferSourceNode::playback_rate() const
 {
     return m_playback_rate;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-detune
-JS::NonnullGCPtr<AudioParam> AudioBufferSourceNode::detune() const
+GC::Ref<AudioParam> AudioBufferSourceNode::detune() const
 {
     return m_detune;
 }
@@ -102,13 +102,13 @@ WebIDL::ExceptionOr<void> AudioBufferSourceNode::start(Optional<double> when, Op
     return {};
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> AudioBufferSourceNode::create(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, AudioBufferSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> AudioBufferSourceNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AudioBufferSourceOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-audiobuffersourcenode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> AudioBufferSourceNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, AudioBufferSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> AudioBufferSourceNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AudioBufferSourceOptions const& options)
 {
     // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
     // MUST initialize the AudioNode this, with context and options as arguments.

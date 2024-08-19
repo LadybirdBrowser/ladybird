@@ -15,8 +15,8 @@ public:
     EventLoopPluginSerenity();
     virtual ~EventLoopPluginSerenity() override;
 
-    virtual void spin_until(JS::SafeFunction<bool()> goal_condition) override;
-    virtual void deferred_invoke(JS::SafeFunction<void()>) override;
+    virtual void spin_until(GC::SafeFunction<bool()> goal_condition) override;
+    virtual void deferred_invoke(GC::SafeFunction<void()>) override;
     virtual NonnullRefPtr<Timer> create_timer() override;
     virtual void quit() override;
 };

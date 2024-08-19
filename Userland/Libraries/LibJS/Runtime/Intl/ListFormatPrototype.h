@@ -13,7 +13,7 @@ namespace JS::Intl {
 
 class ListFormatPrototype final : public PrototypeObject<ListFormatPrototype, ListFormat> {
     JS_PROTOTYPE_OBJECT(ListFormatPrototype, ListFormat, Intl.ListFormat);
-    JS_DECLARE_ALLOCATOR(ListFormatPrototype);
+    GC_DECLARE_ALLOCATOR(ListFormatPrototype);
 
 public:
     virtual void initialize(Realm&) override;

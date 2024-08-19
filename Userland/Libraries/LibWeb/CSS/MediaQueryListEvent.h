@@ -18,10 +18,10 @@ struct MediaQueryListEventInit : public DOM::EventInit {
 
 class MediaQueryListEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(MediaQueryListEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(MediaQueryListEvent);
+    GC_DECLARE_ALLOCATOR(MediaQueryListEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<MediaQueryListEvent> construct_impl(JS::Realm&, FlyString const& event_name, MediaQueryListEventInit const& = {});
+    [[nodiscard]] static GC::Ref<MediaQueryListEvent> construct_impl(JS::Realm&, FlyString const& event_name, MediaQueryListEventInit const& = {});
 
     virtual ~MediaQueryListEvent() override;
 

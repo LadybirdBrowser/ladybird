@@ -8,10 +8,10 @@
 
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -56,8 +56,8 @@ public:
     RefPtr<CSSStyleValue const> maybe_null_property(CSS::PropertyID) const;
     void revert_property(CSS::PropertyID, StyleProperties const& style_for_revert);
 
-    JS::GCPtr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
-    void set_animation_name_source(JS::GCPtr<CSS::CSSStyleDeclaration const> declaration) { m_animation_name_source = declaration; }
+    GC::Ptr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
+    void set_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> declaration) { m_animation_name_source = declaration; }
 
     CSS::Size size_value(CSS::PropertyID) const;
     LengthPercentage length_percentage_or_fallback(CSS::PropertyID, LengthPercentage const& fallback) const;
@@ -184,7 +184,7 @@ private:
     friend class StyleComputer;
 
     // FIXME: This needs protection from GC!
-    JS::GCPtr<CSS::CSSStyleDeclaration const> m_animation_name_source;
+    GC::Ptr<CSS::CSSStyleDeclaration const> m_animation_name_source;
 
     Array<RefPtr<CSSStyleValue const>, number_of_properties> m_property_values;
     Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};

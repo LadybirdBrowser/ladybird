@@ -15,7 +15,7 @@ namespace JS::Test262 {
 
 class $262Object final : public Object {
     JS_OBJECT($262Object, Object);
-    JS_DECLARE_ALLOCATOR($262Object);
+    GC_DECLARE_ALLOCATOR($262Object);
 
 public:
     virtual void initialize(Realm&) override;
@@ -26,8 +26,8 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    GCPtr<AgentObject> m_agent;
-    GCPtr<IsHTMLDDA> m_is_htmldda;
+    GC::Ptr<AgentObject> m_agent;
+    GC::Ptr<IsHTMLDDA> m_is_htmldda;
 
     JS_DECLARE_NATIVE_FUNCTION(clear_kept_objects);
     JS_DECLARE_NATIVE_FUNCTION(create_realm);

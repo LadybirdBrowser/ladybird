@@ -11,7 +11,7 @@
 
 namespace Web::Animations {
 
-JS_DEFINE_ALLOCATOR(AnimationTimeline);
+GC_DEFINE_ALLOCATOR(AnimationTimeline);
 
 void AnimationTimeline::set_current_time(Optional<double> value)
 {
@@ -28,7 +28,7 @@ void AnimationTimeline::set_current_time(Optional<double> value)
         animation->notify_timeline_time_did_change();
 }
 
-void AnimationTimeline::set_associated_document(JS::GCPtr<DOM::Document> document)
+void AnimationTimeline::set_associated_document(GC::Ptr<DOM::Document> document)
 {
     if (document)
         document->associate_with_timeline(*this);

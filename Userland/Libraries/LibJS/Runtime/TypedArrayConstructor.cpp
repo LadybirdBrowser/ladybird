@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(TypedArrayConstructor);
+GC_DEFINE_ALLOCATOR(TypedArrayConstructor);
 
 TypedArrayConstructor::TypedArrayConstructor(DeprecatedFlyString const& name, Object& prototype)
     : NativeFunction(name, prototype)
@@ -47,7 +47,7 @@ ThrowCompletionOr<Value> TypedArrayConstructor::call()
 }
 
 // 23.2.1.1 %TypedArray% ( ), https://tc39.es/ecma262/#sec-%typedarray%
-ThrowCompletionOr<NonnullGCPtr<Object>> TypedArrayConstructor::construct(FunctionObject&)
+ThrowCompletionOr<GC::Ref<Object>> TypedArrayConstructor::construct(FunctionObject&)
 {
     // 1. Throw a TypeError exception.
     return vm().throw_completion<TypeError>(ErrorType::ClassIsAbstract, "TypedArray");
@@ -68,7 +68,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::from)
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor.to_string_without_side_effects());
 
     // 3. If mapfn is undefined, let mapping be false.
-    GCPtr<FunctionObject> map_fn;
+    GC::Ptr<FunctionObject> map_fn;
 
     // 4. Else,
     if (!map_fn_value.is_undefined()) {
@@ -92,7 +92,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::from)
         auto length = values.size();
 
         // c. Let targetObj be ? TypedArrayCreate(C, « 𝔽(len) »).
-        MarkedVector<Value> arguments(vm.heap());
+        GC::MarkedVector<Value> arguments(vm.heap());
         arguments.empend(length);
         auto* target_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
 
@@ -139,7 +139,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::from)
     auto length = TRY(length_of_array_like(vm, array_like));
 
     // 10. Let targetObj be ? TypedArrayCreate(C, « 𝔽(len) »).
-    MarkedVector<Value> arguments(vm.heap());
+    GC::MarkedVector<Value> arguments(vm.heap());
     arguments.empend(length);
     auto* target_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
 
@@ -188,7 +188,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::of)
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor.to_string_without_side_effects());
 
     // 4. Let newObj be ? TypedArrayCreate(C, « 𝔽(len) »).
-    MarkedVector<Value> arguments(vm.heap());
+    GC::MarkedVector<Value> arguments(vm.heap());
     arguments.append(Value(length));
     auto* new_object = TRY(typed_array_create(vm, constructor.as_function(), move(arguments)));
 

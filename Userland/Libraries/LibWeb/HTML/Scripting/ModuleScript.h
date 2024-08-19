@@ -24,12 +24,12 @@ protected:
 
 class JavaScriptModuleScript final : public ModuleScript {
     JS_CELL(JavaScriptModuleScript, ModuleScript);
-    JS_DECLARE_ALLOCATOR(JavaScriptModuleScript);
+    GC_DECLARE_ALLOCATOR(JavaScriptModuleScript);
 
 public:
     virtual ~JavaScriptModuleScript() override;
 
-    static WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> create(ByteString const& filename, StringView source, EnvironmentSettingsObject&, URL::URL base_url);
+    static WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> create(ByteString const& filename, StringView source, EnvironmentSettingsObject&, URL::URL base_url);
 
     enum class PreventErrorReporting {
         Yes,
@@ -47,7 +47,7 @@ protected:
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    JS::GCPtr<JS::SourceTextModule> m_record;
+    GC::Ptr<JS::SourceTextModule> m_record;
 
     size_t m_fetch_internal_request_count { 0 };
     size_t m_completed_fetch_internal_request_count { 0 };

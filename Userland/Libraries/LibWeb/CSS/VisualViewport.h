@@ -13,10 +13,10 @@ namespace Web::CSS {
 // https://drafts.csswg.org/cssom-view/#visualviewport
 class VisualViewport final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(VisualViewport, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(VisualViewport);
+    GC_DECLARE_ALLOCATOR(VisualViewport);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<VisualViewport> create(DOM::Document&);
+    [[nodiscard]] static GC::Ref<VisualViewport> create(DOM::Document&);
 
     virtual ~VisualViewport() override = default;
 
@@ -44,7 +44,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<DOM::Document> m_document;
+    GC::Ref<DOM::Document> m_document;
 };
 
 }

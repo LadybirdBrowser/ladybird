@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <LibJS/Heap/WeakContainer.h>
+#include <LibGC/WeakContainer.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
 
@@ -15,26 +15,26 @@ namespace JS {
 
 class WeakMap final
     : public Object
-    , public WeakContainer {
+    , public GC::WeakContainer {
     JS_OBJECT(WeakMap, Object);
-    JS_DECLARE_ALLOCATOR(WeakMap);
+    GC_DECLARE_ALLOCATOR(WeakMap);
 
 public:
-    static NonnullGCPtr<WeakMap> create(Realm&);
+    static GC::Ref<WeakMap> create(Realm&);
 
     virtual ~WeakMap() override = default;
 
-    HashMap<GCPtr<Cell>, Value> const& values() const { return m_values; }
-    HashMap<GCPtr<Cell>, Value>& values() { return m_values; }
+    HashMap<GC::Ptr<Cell>, Value> const& values() const { return m_values; }
+    HashMap<GC::Ptr<Cell>, Value>& values() { return m_values; }
 
-    virtual void remove_dead_cells(Badge<Heap>) override;
+    virtual void remove_dead_cells(Badge<GC::Heap>) override;
 
 private:
     explicit WeakMap(Object& prototype);
 
     void visit_edges(Visitor&) override;
 
-    HashMap<GCPtr<Cell>, Value> m_values; // This stores Cell pointers instead of Object pointers to aide with sweeping
+    HashMap<GC::Ptr<Cell>, Value> m_values; // This stores Cell pointers instead of Object pointers to aide with sweeping
 };
 
 }

@@ -4,22 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/Handle.h>
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Cell.h>
+#include <LibGC/Handle.h>
+#include <LibGC/Heap.h>
 
-namespace JS {
+namespace GC {
 
 HandleImpl::HandleImpl(Cell* cell, SourceLocation location)
     : m_cell(cell)
     , m_location(location)
 {
-    m_cell->heap().did_create_handle({}, *this);
+    HeapBlockBase::from_cell(m_cell)->heap().did_create_handle({}, *this);
 }
 
 HandleImpl::~HandleImpl()
 {
-    m_cell->heap().did_destroy_handle({}, *this);
+    HeapBlockBase::from_cell(m_cell)->heap().did_destroy_handle({}, *this);
 }
 
 }

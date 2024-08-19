@@ -22,7 +22,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(NumberPrototype);
+GC_DEFINE_ALLOCATOR(NumberPrototype);
 
 static constexpr AK::Array<u8, 37> max_precision_for_radix = {
     // clang-format off

@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(MapPrototype);
+GC_DEFINE_ALLOCATOR(MapPrototype);
 
 MapPrototype::MapPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())

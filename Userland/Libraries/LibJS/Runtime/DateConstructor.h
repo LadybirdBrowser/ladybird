@@ -12,14 +12,14 @@ namespace JS {
 
 class DateConstructor final : public NativeFunction {
     JS_OBJECT(DateConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(DateConstructor);
+    GC_DECLARE_ALLOCATOR(DateConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~DateConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit DateConstructor(Realm&);

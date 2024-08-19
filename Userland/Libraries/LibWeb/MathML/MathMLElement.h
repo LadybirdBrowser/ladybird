@@ -15,12 +15,12 @@ namespace Web::MathML {
 class MathMLElement : public DOM::Element
     , public HTML::GlobalEventHandlers {
     WEB_PLATFORM_OBJECT(MathMLElement, DOM::Element);
-    JS_DECLARE_ALLOCATOR(MathMLElement);
+    GC_DECLARE_ALLOCATOR(MathMLElement);
 
 public:
     virtual ~MathMLElement() override;
 
-    [[nodiscard]] JS::NonnullGCPtr<HTML::DOMStringMap> dataset();
+    [[nodiscard]] GC::Ref<HTML::DOMStringMap> dataset();
 
     virtual Optional<ARIA::Role> default_role() const override;
 
@@ -28,7 +28,7 @@ public:
     void blur();
 
 protected:
-    virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
+    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
 
 private:
     MathMLElement(DOM::Document&, DOM::QualifiedName);
@@ -37,7 +37,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    JS::GCPtr<HTML::DOMStringMap> m_dataset;
+    GC::Ptr<HTML::DOMStringMap> m_dataset;
 };
 
 }

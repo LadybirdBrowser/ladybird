@@ -12,10 +12,10 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <LibGC/MarkedVector.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/MarkedVector.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebDriver/ElementLocationStrategies.h>
 #include <LibWeb/WebDriver/Response.h>
@@ -113,12 +113,12 @@ private:
 
     struct ScriptArguments {
         ByteString script;
-        JS::MarkedVector<JS::Value> arguments;
+        GC::MarkedVector<JS::Value> arguments;
     };
     ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JsonValue const& payload);
     void delete_cookies(Optional<StringView> const& name = {});
 
-    JS::NonnullGCPtr<Web::PageClient> m_page_client;
+    GC::Ref<Web::PageClient> m_page_client;
 
     // https://w3c.github.io/webdriver/#dfn-page-load-strategy
     Web::WebDriver::PageLoadStrategy m_page_load_strategy { Web::WebDriver::PageLoadStrategy::Normal };

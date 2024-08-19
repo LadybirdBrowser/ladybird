@@ -14,14 +14,14 @@ namespace Web::HTML {
 
 class HTMLDataListElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLDataListElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLDataListElement);
+    GC_DECLARE_ALLOCATOR(HTMLDataListElement);
 
 public:
     virtual ~HTMLDataListElement() override;
 
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::listbox; }
 
-    JS::NonnullGCPtr<DOM::HTMLCollection> options();
+    GC::Ref<DOM::HTMLCollection> options();
 
 private:
     HTMLDataListElement(DOM::Document&, DOM::QualifiedName);
@@ -29,7 +29,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<DOM::HTMLCollection> m_options;
+    GC::Ptr<DOM::HTMLCollection> m_options;
 };
 
 }

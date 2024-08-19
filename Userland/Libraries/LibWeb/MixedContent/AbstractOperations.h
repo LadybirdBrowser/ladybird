@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Fetch/Infrastructure/RequestOrResponseBlocking.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 
@@ -19,10 +19,10 @@ enum class ProhibitsMixedSecurityContexts {
     DoesNotRestrictMixedSecurityContexts,
 };
 
-ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(JS::GCPtr<HTML::EnvironmentSettingsObject>);
+ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(GC::Ptr<HTML::EnvironmentSettingsObject>);
 
 Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request&);
 
-Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request&, JS::NonnullGCPtr<Fetch::Infrastructure::Response>&);
+Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request&, GC::Ref<Fetch::Infrastructure::Response>&);
 
 }

@@ -214,7 +214,7 @@ inline ByteBuffer load_entire_file(StringView path)
     return buffer_or_error.release_value();
 }
 
-inline AK::Result<JS::NonnullGCPtr<JS::Script>, ParserError> parse_script(StringView path, JS::Realm& realm)
+inline AK::Result<GC::Ref<JS::Script>, ParserError> parse_script(StringView path, JS::Realm& realm)
 {
     auto contents = load_entire_file(path);
     auto script_or_errors = JS::Script::parse(contents, realm, path);
@@ -227,7 +227,7 @@ inline AK::Result<JS::NonnullGCPtr<JS::Script>, ParserError> parse_script(String
     return script_or_errors.release_value();
 }
 
-inline AK::Result<JS::NonnullGCPtr<JS::SourceTextModule>, ParserError> parse_module(StringView path, JS::Realm& realm)
+inline AK::Result<GC::Ref<JS::SourceTextModule>, ParserError> parse_module(StringView path, JS::Realm& realm)
 {
     auto contents = load_entire_file(path);
     auto script_or_errors = JS::SourceTextModule::parse(contents, realm, path);
@@ -278,8 +278,8 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
 
     double start_time = get_time_in_ms();
 
-    JS::GCPtr<JS::Realm> realm;
-    JS::GCPtr<TestRunnerGlobalObject> global_object;
+    GC::Ptr<JS::Realm> realm;
+    GC::Ptr<TestRunnerGlobalObject> global_object;
     auto root_execution_context = MUST(JS::Realm::initialize_host_defined_realm(
         *g_vm,
         [&](JS::Realm& realm_) -> JS::GlobalObject* {

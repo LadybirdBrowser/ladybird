@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class HTMLMenuElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLMenuElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLMenuElement);
+    GC_DECLARE_ALLOCATOR(HTMLMenuElement);
 
 public:
     virtual ~HTMLMenuElement() override;

@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(BooleanPrototype);
+GC_DEFINE_ALLOCATOR(BooleanPrototype);
 
 BooleanPrototype::BooleanPrototype(Realm& realm)
     : BooleanObject(false, realm.intrinsics().object_prototype())

@@ -30,7 +30,7 @@ namespace Web::WebAssembly {
 
 namespace Detail {
 
-HashMap<JS::GCPtr<JS::Object>, WebAssemblyCache> s_caches;
+HashMap<GC::Ptr<JS::Object>, WebAssemblyCache> s_caches;
 
 WebAssemblyCache& get_cache(JS::Realm& realm)
 {
@@ -57,7 +57,7 @@ void finalize(JS::Object& object)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-validate
-bool validate(JS::VM& vm, JS::Handle<WebIDL::BufferSource>& bytes)
+bool validate(JS::VM& vm, GC::Handle<WebIDL::BufferSource>& bytes)
 {
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
     // Note: There's no need to copy the bytes here as the buffer data cannot change while we're compiling the module.
@@ -80,7 +80,7 @@ bool validate(JS::VM& vm, JS::Handle<WebIDL::BufferSource>& bytes)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-compile
-WebIDL::ExceptionOr<JS::Value> compile(JS::VM& vm, JS::Handle<WebIDL::BufferSource>& bytes)
+WebIDL::ExceptionOr<JS::Value> compile(JS::VM& vm, GC::Handle<WebIDL::BufferSource>& bytes)
 {
     auto& realm = *vm.current_realm();
 
@@ -99,7 +99,7 @@ WebIDL::ExceptionOr<JS::Value> compile(JS::VM& vm, JS::Handle<WebIDL::BufferSour
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate
-WebIDL::ExceptionOr<JS::Value> instantiate(JS::VM& vm, JS::Handle<WebIDL::BufferSource>& bytes, Optional<JS::Handle<JS::Object>>& import_object)
+WebIDL::ExceptionOr<JS::Value> instantiate(JS::VM& vm, GC::Handle<WebIDL::BufferSource>& bytes, Optional<GC::Handle<JS::Object>>& import_object)
 {
     // FIXME: Implement the importObject parameter.
     (void)import_object;
@@ -134,7 +134,7 @@ WebIDL::ExceptionOr<JS::Value> instantiate(JS::VM& vm, JS::Handle<WebIDL::Buffer
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate-moduleobject-importobject
-WebIDL::ExceptionOr<JS::Value> instantiate(JS::VM& vm, Module const& module_object, Optional<JS::Handle<JS::Object>>& import_object)
+WebIDL::ExceptionOr<JS::Value> instantiate(JS::VM& vm, Module const& module_object, Optional<GC::Handle<JS::Object>>& import_object)
 {
     // FIXME: Implement the importObject parameter.
     (void)import_object;
@@ -193,7 +193,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     //        just extract its address and resolve to that.
                     Wasm::HostFunction host_function {
                         [&](auto&, auto& arguments) -> Wasm::Result {
-                            JS::MarkedVector<JS::Value> argument_values { vm.heap() };
+                            GC::MarkedVector<JS::Value> argument_values { vm.heap() };
                             size_t index = 0;
                             for (auto& entry : arguments) {
                                 argument_values.append(to_js_value(vm, entry, type.parameters()[index]));

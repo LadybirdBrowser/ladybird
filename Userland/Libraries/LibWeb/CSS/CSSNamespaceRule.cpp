@@ -14,7 +14,7 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSNamespaceRule);
+GC_DEFINE_ALLOCATOR(CSSNamespaceRule);
 
 CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
     : CSSRule(realm)
@@ -23,7 +23,7 @@ CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<FlyString> prefix,
 {
 }
 
-JS::NonnullGCPtr<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
+GC::Ref<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
 {
     return realm.heap().allocate<CSSNamespaceRule>(realm, realm, move(prefix), move(namespace_uri));
 }

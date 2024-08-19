@@ -13,7 +13,7 @@ namespace Web::Bindings {
 
 class AudioConstructor final : public JS::NativeFunction {
     JS_OBJECT(AudioConstructor, JS::NativeFunction);
-    JS_DECLARE_ALLOCATOR(AudioConstructor);
+    GC_DECLARE_ALLOCATOR(AudioConstructor);
 
 public:
     explicit AudioConstructor(JS::Realm&);
@@ -21,7 +21,7 @@ public:
     virtual ~AudioConstructor() override = default;
 
     virtual JS::ThrowCompletionOr<JS::Value> call() override;
-    virtual JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> construct(JS::FunctionObject& new_target) override;
+    virtual JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(JS::FunctionObject& new_target) override;
 
 private:
     virtual bool has_constructor() const override { return true; }

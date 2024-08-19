@@ -12,7 +12,7 @@
 
 namespace Web::Bindings {
 
-JS_DEFINE_ALLOCATOR(Intrinsics);
+GC_DEFINE_ALLOCATOR(Intrinsics);
 
 void Intrinsics::visit_edges(JS::Cell::Visitor& visitor)
 {

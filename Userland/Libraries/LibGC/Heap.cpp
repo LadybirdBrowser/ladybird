@@ -14,26 +14,26 @@
 #include <AK/StackInfo.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/ElapsedTimer.h>
-#include <LibJS/Heap/CellAllocator.h>
-#include <LibJS/Heap/Handle.h>
-#include <LibJS/Heap/Heap.h>
-#include <LibJS/Heap/HeapBlock.h>
-#include <LibJS/Heap/SafeFunction.h>
-#include <LibJS/Runtime/Value.h>
+#include <LibGC/CellAllocator.h>
+#include <LibGC/Handle.h>
+#include <LibGC/Heap.h>
+#include <LibGC/HeapBlock.h>
+#include <LibGC/NanBoxedValue.h>
+#include <LibGC/SafeFunction.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
 #    include <sanitizer/asan_interface.h>
 #endif
 
-namespace JS {
+namespace GC {
 
 // NOTE: We keep a per-thread list of custom ranges. This hinges on the assumption that there is one JS VM per thread.
 static __thread HashMap<FlatPtr*, size_t>* s_custom_ranges_for_conservative_scan = nullptr;
 static __thread HashMap<FlatPtr*, SourceLocation*>* s_safe_function_locations = nullptr;
 
-Heap::Heap(VM& vm, Function<void(HashMap<Cell*, JS::HeapRoot>&)> gather_roots)
-    : HeapBase(vm)
+Heap::Heap(void* private_data, AK::Function<void(HashMap<Cell*, HeapRoot>&)> gather_roots)
+    : HeapBase(private_data)
     , m_gather_roots(move(gather_roots))
 {
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
@@ -66,23 +66,23 @@ void Heap::will_allocate(size_t size)
 
 static void add_possible_value(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr data, HeapRoot origin, FlatPtr min_block_address, FlatPtr max_block_address)
 {
-    if constexpr (sizeof(FlatPtr*) == sizeof(Value)) {
-        // Because Value stores pointers in non-canonical form we have to check if the top bytes
+    if constexpr (sizeof(FlatPtr*) == sizeof(NanBoxedValue)) {
+        // Because NanBoxedValue stores pointers in non-canonical form we have to check if the top bytes
         // match any pointer-backed tag, in that case we have to extract the pointer to its
         // canonical form and add that as a possible pointer.
         FlatPtr possible_pointer;
         if ((data & SHIFTED_IS_CELL_PATTERN) == SHIFTED_IS_CELL_PATTERN)
-            possible_pointer = Value::extract_pointer_bits(data);
+            possible_pointer = NanBoxedValue::extract_pointer_bits(data);
         else
             possible_pointer = data;
         if (possible_pointer < min_block_address || possible_pointer > max_block_address)
             return;
         possible_pointers.set(possible_pointer, move(origin));
     } else {
-        static_assert((sizeof(Value) % sizeof(FlatPtr*)) == 0);
+        static_assert((sizeof(NanBoxedValue) % sizeof(FlatPtr*)) == 0);
         if (data < min_block_address || data > max_block_address)
             return;
-        // In the 32-bit case we will look at the top and bottom part of Value separately we just
+        // In the 32-bit case we will look at the top and bottom part of NanBoxedValue separately we just
         // add both the upper and lower bytes as possible pointers.
         possible_pointers.set(data, move(origin));
     }
@@ -225,7 +225,7 @@ private:
     };
 
     GraphNode* m_node_being_visited { nullptr };
-    Vector<NonnullGCPtr<Cell>> m_work_queue;
+    Vector<Ref<Cell>> m_work_queue;
     HashMap<FlatPtr, GraphNode> m_graph;
 
     Heap& m_heap;
@@ -335,7 +335,7 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
     }
 
     // NOTE: If we have any custom ranges registered, scan those as well.
-    //       This is where JS::SafeFunction closures get marked.
+    //       This is where GC::SafeFunction closures get marked.
     if (s_custom_ranges_for_conservative_scan) {
         for (auto& custom_range : *s_custom_ranges_for_conservative_scan) {
             for (size_t i = 0; i < (custom_range.value / sizeof(FlatPtr)); ++i) {
@@ -420,7 +420,7 @@ public:
 
 private:
     Heap& m_heap;
-    Vector<NonnullGCPtr<Cell>> m_work_queue;
+    Vector<Ref<Cell>> m_work_queue;
     HashTable<HeapBlock*> m_all_live_heap_blocks;
     FlatPtr m_min_block_address;
     FlatPtr m_max_block_address;

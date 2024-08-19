@@ -208,7 +208,7 @@ void XMLDocumentBuilder::document_end()
         (void)m_document->scripts_to_execute_when_parsing_has_finished().take_first();
     }
     // Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, m_document, JS::create_heap_function(m_document->heap(), [document = m_document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, m_document, GC::create_heap_function(m_document->heap(), [document = m_document] {
         // Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
@@ -236,7 +236,7 @@ void XMLDocumentBuilder::document_end()
     });
 
     // Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, m_document, JS::create_heap_function(m_document->heap(), [document = m_document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, m_document, GC::create_heap_function(m_document->heap(), [document = m_document] {
         // Update the current document readiness to "complete".
         document->update_readiness(HTML::DocumentReadyState::Complete);
 
@@ -245,7 +245,7 @@ void XMLDocumentBuilder::document_end()
             return;
 
         // Let window be the Document's relevant global object.
-        JS::NonnullGCPtr<HTML::Window> window = verify_cast<HTML::Window>(relevant_global_object(*document));
+        GC::Ref<HTML::Window> window = verify_cast<HTML::Window>(relevant_global_object(*document));
 
         // Set the Document's load timing info's load event start time to the current high resolution time given window.
         document->load_timing_info().load_event_start_time = HighResolutionTime::current_high_resolution_time(window);

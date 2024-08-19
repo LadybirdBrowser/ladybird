@@ -8,7 +8,7 @@
 
 #include <AK/DeprecatedFlyString.h>
 #include <AK/FlyString.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Handle.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/StringOrSymbol.h>
 
@@ -85,7 +85,7 @@ public:
     {
     }
 
-    PropertyKey(NonnullGCPtr<Symbol> symbol)
+    PropertyKey(GC::Ref<Symbol> symbol)
         : m_type(Type::Symbol)
         , m_symbol(symbol)
     {
@@ -192,7 +192,7 @@ private:
     Type m_type { Type::Invalid };
     u32 m_number { 0 };
     DeprecatedFlyString m_string;
-    Handle<Symbol> m_symbol;
+    GC::Handle<Symbol> m_symbol;
 };
 
 }

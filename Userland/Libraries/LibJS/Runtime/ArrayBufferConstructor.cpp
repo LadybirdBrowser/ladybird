@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ArrayBufferConstructor);
+GC_DEFINE_ALLOCATOR(ArrayBufferConstructor);
 
 ArrayBufferConstructor::ArrayBufferConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.ArrayBuffer.as_string(), realm.intrinsics().function_prototype())
@@ -48,7 +48,7 @@ ThrowCompletionOr<Value> ArrayBufferConstructor::call()
 }
 
 // 25.1.4.1 ArrayBuffer ( length [ , options ] ), https://tc39.es/ecma262/#sec-arraybuffer-length
-ThrowCompletionOr<NonnullGCPtr<Object>> ArrayBufferConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ArrayBufferConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

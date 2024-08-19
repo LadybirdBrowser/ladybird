@@ -23,7 +23,7 @@ namespace Web::HTML {
 
 class HTMLMetaElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLMetaElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLMetaElement);
+    GC_DECLARE_ALLOCATOR(HTMLMetaElement);
 
 public:
     virtual ~HTMLMetaElement() override;

@@ -14,7 +14,7 @@ namespace JS {
 
 class StringIteratorPrototype final : public PrototypeObject<StringIteratorPrototype, StringIterator> {
     JS_PROTOTYPE_OBJECT(StringIteratorPrototype, StringIterator, StringIterator);
-    JS_DECLARE_ALLOCATOR(StringIteratorPrototype);
+    GC_DECLARE_ALLOCATOR(StringIteratorPrototype);
 
 public:
     virtual void initialize(Realm&) override;

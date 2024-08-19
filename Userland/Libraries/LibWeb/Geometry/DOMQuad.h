@@ -26,23 +26,23 @@ class DOMQuad
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMQuad, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMQuad);
+    GC_DECLARE_ALLOCATOR(DOMQuad);
 
 public:
-    static JS::NonnullGCPtr<DOMQuad> construct_impl(JS::Realm&, DOMPointInit const& p1, DOMPointInit const& p2, DOMPointInit const& p3, DOMPointInit const& p4);
-    static JS::NonnullGCPtr<DOMQuad> create(JS::Realm& realm);
+    static GC::Ref<DOMQuad> construct_impl(JS::Realm&, DOMPointInit const& p1, DOMPointInit const& p2, DOMPointInit const& p3, DOMPointInit const& p4);
+    static GC::Ref<DOMQuad> create(JS::Realm& realm);
 
     virtual ~DOMQuad() override;
 
-    static JS::NonnullGCPtr<DOMQuad> from_rect(JS::VM&, DOMRectInit const&);
-    static JS::NonnullGCPtr<DOMQuad> from_quad(JS::VM&, DOMQuadInit const&);
+    static GC::Ref<DOMQuad> from_rect(JS::VM&, DOMRectInit const&);
+    static GC::Ref<DOMQuad> from_quad(JS::VM&, DOMQuadInit const&);
 
-    JS::NonnullGCPtr<DOMPoint> p1() const { return m_p1; }
-    JS::NonnullGCPtr<DOMPoint> p2() const { return m_p2; }
-    JS::NonnullGCPtr<DOMPoint> p3() const { return m_p3; }
-    JS::NonnullGCPtr<DOMPoint> p4() const { return m_p4; }
+    GC::Ref<DOMPoint> p1() const { return m_p1; }
+    GC::Ref<DOMPoint> p2() const { return m_p2; }
+    GC::Ref<DOMPoint> p3() const { return m_p3; }
+    GC::Ref<DOMPoint> p4() const { return m_p4; }
 
-    JS::NonnullGCPtr<DOMRect> get_bounds() const;
+    GC::Ref<DOMRect> get_bounds() const;
 
     virtual StringView interface_name() const override { return "DOMQuad"sv; }
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::SerializationRecord&, bool for_storage, HTML::SerializationMemory&) override;
@@ -55,10 +55,10 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<DOMPoint> m_p1;
-    JS::NonnullGCPtr<DOMPoint> m_p2;
-    JS::NonnullGCPtr<DOMPoint> m_p3;
-    JS::NonnullGCPtr<DOMPoint> m_p4;
+    GC::Ref<DOMPoint> m_p1;
+    GC::Ref<DOMPoint> m_p2;
+    GC::Ref<DOMPoint> m_p3;
+    GC::Ref<DOMPoint> m_p4;
 };
 
 }

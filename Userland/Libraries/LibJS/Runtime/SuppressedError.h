@@ -12,10 +12,10 @@ namespace JS {
 
 class SuppressedError : public Error {
     JS_OBJECT(SuppressedError, Error);
-    JS_DECLARE_ALLOCATOR(SuppressedError);
+    GC_DECLARE_ALLOCATOR(SuppressedError);
 
 public:
-    static NonnullGCPtr<SuppressedError> create(Realm&);
+    static GC::Ref<SuppressedError> create(Realm&);
     virtual ~SuppressedError() override = default;
 
 private:

@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SetIteratorPrototype);
+GC_DEFINE_ALLOCATOR(SetIteratorPrototype);
 
 SetIteratorPrototype::SetIteratorPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().iterator_prototype())

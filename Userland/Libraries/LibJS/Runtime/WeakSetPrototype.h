@@ -13,7 +13,7 @@ namespace JS {
 
 class WeakSetPrototype final : public PrototypeObject<WeakSetPrototype, WeakSet> {
     JS_PROTOTYPE_OBJECT(WeakSetPrototype, WeakSet, WeakSet);
-    JS_DECLARE_ALLOCATOR(WeakSetPrototype);
+    GC_DECLARE_ALLOCATOR(WeakSetPrototype);
 
 public:
     virtual void initialize(Realm&) override;

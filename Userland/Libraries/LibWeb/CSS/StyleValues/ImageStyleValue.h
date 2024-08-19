@@ -9,8 +9,8 @@
 
 #pragma once
 
+#include <LibGC/Handle.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
@@ -52,12 +52,12 @@ public:
 
     Function<void()> on_animate;
 
-    JS::GCPtr<HTML::DecodedImageData> image_data() const;
+    GC::Ptr<HTML::DecodedImageData> image_data() const;
 
 private:
     ImageStyleValue(URL::URL const&);
 
-    JS::GCPtr<HTML::SharedResourceRequest> m_resource_request;
+    GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
 
     void animate();
     Gfx::ImmutableBitmap const* bitmap(size_t frame_index, Gfx::IntSize = {}) const;

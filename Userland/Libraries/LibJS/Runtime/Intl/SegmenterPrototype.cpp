@@ -11,7 +11,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(SegmenterPrototype);
+GC_DEFINE_ALLOCATOR(SegmenterPrototype);
 
 // 18.3 Properties of the Intl.Segmenter Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-segmenter-prototype-object
 SegmenterPrototype::SegmenterPrototype(Realm& realm)

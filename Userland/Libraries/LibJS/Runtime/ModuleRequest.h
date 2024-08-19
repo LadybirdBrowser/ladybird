@@ -14,8 +14,8 @@
 namespace JS {
 
 struct ModuleWithSpecifier {
-    ByteString specifier;        // [[Specifier]]
-    NonnullGCPtr<Module> module; // [[Module]]
+    ByteString specifier;   // [[Specifier]]
+    GC::Ref<Module> module; // [[Module]]
 };
 
 // https://tc39.es/proposal-import-attributes/#importattribute-record

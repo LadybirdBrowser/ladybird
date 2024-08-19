@@ -23,7 +23,7 @@ void SlottableMixin::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-slotable-assignedslot
-JS::GCPtr<HTML::HTMLSlotElement> SlottableMixin::assigned_slot()
+GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::assigned_slot()
 {
     auto* node = dynamic_cast<DOM::Node*>(this);
     VERIFY(node);
@@ -32,7 +32,7 @@ JS::GCPtr<HTML::HTMLSlotElement> SlottableMixin::assigned_slot()
     return find_a_slot(node->as_slottable(), OpenFlag::Set);
 }
 
-JS::GCPtr<HTML::HTMLSlotElement> assigned_slot_for_node(JS::NonnullGCPtr<Node> node)
+GC::Ptr<HTML::HTMLSlotElement> assigned_slot_for_node(GC::Ref<Node> node)
 {
     if (!node->is_slottable())
         return nullptr;
@@ -43,7 +43,7 @@ JS::GCPtr<HTML::HTMLSlotElement> assigned_slot_for_node(JS::NonnullGCPtr<Node> n
 }
 
 // https://dom.spec.whatwg.org/#slotable-assigned
-bool is_an_assigned_slottable(JS::NonnullGCPtr<Node> node)
+bool is_an_assigned_slottable(GC::Ref<Node> node)
 {
     if (!node->is_slottable())
         return false;
@@ -53,7 +53,7 @@ bool is_an_assigned_slottable(JS::NonnullGCPtr<Node> node)
 }
 
 // https://dom.spec.whatwg.org/#find-a-slot
-JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag open_flag)
+GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag open_flag)
 {
     // 1. If slottable’s parent is null, then return null.
     auto* parent = slottable.visit([](auto& node) { return node->parent_element(); });
@@ -74,7 +74,7 @@ JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFla
     // 5. If shadow’s slot assignment is "manual", then return the slot in shadow’s descendants whose manually assigned
     //    nodes contains slottable, if any; otherwise null.
     if (shadow->slot_assignment() == Bindings::SlotAssignmentMode::Manual) {
-        JS::GCPtr<HTML::HTMLSlotElement> slot;
+        GC::Ptr<HTML::HTMLSlotElement> slot;
 
         shadow->for_each_in_subtree_of_type<HTML::HTMLSlotElement>([&](auto& child) {
             if (!child.manually_assigned_nodes().contains_slow(slottable))
@@ -89,7 +89,7 @@ JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFla
 
     // 6. Return the first slot in tree order in shadow’s descendants whose name is slottable’s name, if any; otherwise null.
     auto const& slottable_name = slottable.visit([](auto const& node) { return node->slottable_name(); });
-    JS::GCPtr<HTML::HTMLSlotElement> slot;
+    GC::Ptr<HTML::HTMLSlotElement> slot;
 
     shadow->for_each_in_subtree_of_type<HTML::HTMLSlotElement>([&](auto& child) {
         if (child.slot_name() != slottable_name)
@@ -103,7 +103,7 @@ JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFla
 }
 
 // https://dom.spec.whatwg.org/#find-slotables
-Vector<Slottable> find_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement> slot)
+Vector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 {
     // 1. Let result be an empty list.
     Vector<Slottable> result;
@@ -154,7 +154,7 @@ Vector<Slottable> find_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement> slot)
 }
 
 // https://dom.spec.whatwg.org/#assign-slotables
-void assign_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement> slot)
+void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 {
     // 1. Let slottables be the result of finding slottables for slot.
     auto slottables = find_slottables(slot);
@@ -176,7 +176,7 @@ void assign_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement> slot)
 }
 
 // https://dom.spec.whatwg.org/#assign-slotables-for-a-tree
-void assign_slottables_for_a_tree(JS::NonnullGCPtr<Node> root)
+void assign_slottables_for_a_tree(GC::Ref<Node> root)
 {
     // AD-HOC: This method iterates over the root's entire subtree. That iteration does nothing if the root is not a
     //         shadow root (see `find_slottables`). This iteration can be very expensive as the HTML parser inserts
@@ -204,7 +204,7 @@ void assign_a_slot(Slottable const& slottable)
 }
 
 // https://dom.spec.whatwg.org/#signal-a-slot-change
-void signal_a_slot_change(JS::NonnullGCPtr<HTML::HTMLSlotElement> slottable)
+void signal_a_slot_change(GC::Ref<HTML::HTMLSlotElement> slottable)
 {
     // FIXME: 1. Append slot to slot’s relevant agent’s signal slots.
 

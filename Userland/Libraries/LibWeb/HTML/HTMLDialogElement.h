@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class HTMLDialogElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLDialogElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLDialogElement);
+    GC_DECLARE_ALLOCATOR(HTMLDialogElement);
 
 public:
     virtual ~HTMLDialogElement() override;
@@ -44,7 +44,7 @@ private:
 
     String m_return_value;
     bool m_is_modal { false };
-    JS::GCPtr<CloseWatcher> m_close_watcher;
+    GC::Ptr<CloseWatcher> m_close_watcher;
 };
 
 }

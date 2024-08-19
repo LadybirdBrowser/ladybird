@@ -12,14 +12,14 @@ namespace JS {
 
 class PromiseConstructor final : public NativeFunction {
     JS_OBJECT(PromiseConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(PromiseConstructor);
+    GC_DECLARE_ALLOCATOR(PromiseConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~PromiseConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit PromiseConstructor(Realm&);

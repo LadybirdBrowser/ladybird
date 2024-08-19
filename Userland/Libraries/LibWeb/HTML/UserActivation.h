@@ -12,10 +12,10 @@ namespace Web::HTML {
 
 class UserActivation final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(UserActivation, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(UserActivation);
+    GC_DECLARE_ALLOCATOR(UserActivation);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<UserActivation>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<UserActivation>> construct_impl(JS::Realm&);
     virtual ~UserActivation() override = default;
 
     bool has_been_active() const;

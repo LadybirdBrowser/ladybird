@@ -12,7 +12,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLDivElement);
+GC_DEFINE_ALLOCATOR(HTMLDivElement);
 
 HTMLDivElement::HTMLDivElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))

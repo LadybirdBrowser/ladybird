@@ -16,10 +16,10 @@ namespace Web::HTML {
 
 class History final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(History, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(History);
+    GC_DECLARE_ALLOCATOR(History);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<History> create(JS::Realm&, DOM::Document&);
+    [[nodiscard]] static GC::Ref<History> create(JS::Realm&, DOM::Document&);
 
     virtual ~History() override;
 
@@ -45,7 +45,7 @@ private:
 
     WebIDL::ExceptionOr<void> shared_history_push_replace_state(JS::Value data, Optional<String> const& url, HistoryHandlingBehavior);
 
-    JS::NonnullGCPtr<DOM::Document> m_associated_document;
+    GC::Ref<DOM::Document> m_associated_document;
     JS::Value m_state { JS::js_null() };
 };
 

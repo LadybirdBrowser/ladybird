@@ -13,7 +13,7 @@ namespace Web::IndexedDB {
 // https://w3c.github.io/IndexedDB/#idbfactory
 class IDBFactory : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(IDBFactory, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(IDBFactory);
+    GC_DECLARE_ALLOCATOR(IDBFactory);
 
 public:
     virtual ~IDBFactory() override;

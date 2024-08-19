@@ -10,7 +10,7 @@
 
 namespace Web::XHR {
 
-JS_DEFINE_ALLOCATOR(XMLHttpRequestUpload);
+GC_DEFINE_ALLOCATOR(XMLHttpRequestUpload);
 
 XMLHttpRequestUpload::XMLHttpRequestUpload(JS::Realm& realm)
     : XMLHttpRequestEventTarget(realm)

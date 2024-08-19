@@ -88,7 +88,7 @@ private:
     };
 
     struct FloatingBox {
-        JS::NonnullGCPtr<Box const> box;
+        GC::Ref<Box const> box;
 
         LayoutState::UsedValues& used_values;
 
@@ -170,7 +170,7 @@ private:
     FloatSideData m_left_floats;
     FloatSideData m_right_floats;
 
-    Vector<JS::NonnullGCPtr<Box const>> m_absolutely_positioned_boxes;
+    Vector<GC::Ref<Box const>> m_absolutely_positioned_boxes;
 
     bool m_was_notified_after_parent_dimensioned_my_root_box { false };
 };

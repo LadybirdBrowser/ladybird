@@ -14,12 +14,12 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/interaction.html#close-watcher-manager
 class CloseWatcherManager final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(CloseWatcherManager, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(CloseWatcherManager);
+    GC_DECLARE_ALLOCATOR(CloseWatcherManager);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CloseWatcherManager> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<CloseWatcherManager> create(JS::Realm&);
 
-    void add(JS::NonnullGCPtr<CloseWatcher>);
+    void add(GC::Ref<CloseWatcher>);
     void remove(CloseWatcher const&);
 
     bool process_close_watchers();
@@ -32,7 +32,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Vector<Vector<JS::NonnullGCPtr<CloseWatcher>>> m_groups;
+    Vector<Vector<GC::Ref<CloseWatcher>>> m_groups;
     uint32_t m_allowed_number_of_groups { 1 };
     bool m_next_user_interaction_allows_a_new_group { true };
 };

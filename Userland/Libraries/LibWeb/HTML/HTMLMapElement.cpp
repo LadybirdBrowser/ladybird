@@ -11,7 +11,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLMapElement);
+GC_DEFINE_ALLOCATOR(HTMLMapElement);
 
 HTMLMapElement::HTMLMapElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -33,7 +33,7 @@ void HTMLMapElement::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#dom-map-areas
-JS::NonnullGCPtr<DOM::HTMLCollection> HTMLMapElement::areas()
+GC::Ref<DOM::HTMLCollection> HTMLMapElement::areas()
 {
     // The areas attribute must return an HTMLCollection rooted at the map element, whose filter matches only area elements.
     if (!m_areas) {

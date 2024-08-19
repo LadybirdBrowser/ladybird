@@ -15,12 +15,12 @@ namespace Web::DOM {
 // https://dom.spec.whatwg.org/#attr
 class Attr final : public Node {
     WEB_PLATFORM_OBJECT(Attr, Node);
-    JS_DECLARE_ALLOCATOR(Attr);
+    GC_DECLARE_ALLOCATOR(Attr);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Attr> create(Document&, QualifiedName, String value = {}, Element* = nullptr);
-    [[nodiscard]] static JS::NonnullGCPtr<Attr> create(Document&, FlyString local_name, String value = {}, Element* = nullptr);
-    JS::NonnullGCPtr<Attr> clone(Document&);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, String value = {}, Element* = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, FlyString local_name, String value = {}, Element* = nullptr);
+    GC::Ref<Attr> clone(Document&);
 
     virtual ~Attr() override = default;
 
@@ -54,7 +54,7 @@ private:
     QualifiedName m_qualified_name;
     FlyString m_lowercase_name;
     String m_value;
-    JS::GCPtr<Element> m_owner_element;
+    GC::Ptr<Element> m_owner_element;
 };
 
 template<>

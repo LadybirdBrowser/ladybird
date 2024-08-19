@@ -23,9 +23,9 @@ void Intrinsics::create_web_prototype_and_constructor<FormDataIteratorPrototype>
 
 namespace Web::XHR {
 
-JS_DEFINE_ALLOCATOR(FormDataIterator);
+GC_DEFINE_ALLOCATOR(FormDataIterator);
 
-JS::NonnullGCPtr<FormDataIterator> FormDataIterator::create(FormData const& form_data, JS::Object::PropertyKind iterator_kind)
+GC::Ref<FormDataIterator> FormDataIterator::create(FormData const& form_data, JS::Object::PropertyKind iterator_kind)
 {
     return form_data.heap().allocate<FormDataIterator>(form_data.realm(), form_data, iterator_kind);
 }
@@ -63,7 +63,7 @@ JS::Object* FormDataIterator::next()
         return create_iterator_result_object(vm, JS::PrimitiveString::create(vm, entry.name), false);
 
     auto entry_value = entry.value.visit(
-        [&](JS::Handle<FileAPI::File> const& file) -> JS::Value {
+        [&](GC::Handle<FileAPI::File> const& file) -> JS::Value {
             return file.cell();
         },
         [&](String const& string) -> JS::Value {

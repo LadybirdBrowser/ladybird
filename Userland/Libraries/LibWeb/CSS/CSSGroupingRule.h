@@ -38,7 +38,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    JS::NonnullGCPtr<CSSRuleList> m_rules;
+    GC::Ref<CSSRuleList> m_rules;
 };
 
 }

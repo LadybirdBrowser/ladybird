@@ -22,7 +22,7 @@ class PaintableBox : public Paintable
     JS_CELL(PaintableBox, Paintable);
 
 public:
-    static JS::NonnullGCPtr<PaintableBox> create(Layout::Box const&);
+    static GC::Ref<PaintableBox> create(Layout::Box const&);
     virtual ~PaintableBox();
 
     virtual void before_paint(PaintContext&, PaintPhase) const override;
@@ -269,7 +269,7 @@ class PaintableWithLines : public PaintableBox {
     JS_CELL(PaintableWithLines, PaintableBox);
 
 public:
-    static JS::NonnullGCPtr<PaintableWithLines> create(Layout::BlockContainer const&);
+    static GC::Ref<PaintableWithLines> create(Layout::BlockContainer const&);
     virtual ~PaintableWithLines() override;
 
     Layout::BlockContainer const& layout_box() const;
@@ -302,7 +302,7 @@ public:
     {
         Base::visit_edges(visitor);
         for (auto& fragment : m_fragments)
-            visitor.visit(JS::NonnullGCPtr { fragment.layout_node() });
+            visitor.visit(GC::Ref { fragment.layout_node() });
     }
 
     virtual void resolve_paint_properties() override;

@@ -13,7 +13,7 @@ namespace JS {
 
 class DisposableStackPrototype final : public PrototypeObject<DisposableStackPrototype, DisposableStack> {
     JS_PROTOTYPE_OBJECT(DisposableStackPrototype, DisposableStack, DisposableStack);
-    JS_DECLARE_ALLOCATOR(DisposableStackPrototype);
+    GC_DECLARE_ALLOCATOR(DisposableStackPrototype);
 
 public:
     virtual void initialize(Realm&) override;

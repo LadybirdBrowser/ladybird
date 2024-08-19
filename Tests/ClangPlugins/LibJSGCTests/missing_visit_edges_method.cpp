@@ -12,5 +12,5 @@
 class TestClass : public JS::Object {
     JS_OBJECT(TestClass, JS::Object);
 
-    JS::GCPtr<JS::Object> m_cell;
+    GC::Ptr<JS::Object> m_cell;
 };

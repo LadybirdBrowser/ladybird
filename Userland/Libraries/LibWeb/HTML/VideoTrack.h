@@ -16,12 +16,12 @@ namespace Web::HTML {
 
 class VideoTrack final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(VideoTrack, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(VideoTrack);
+    GC_DECLARE_ALLOCATOR(VideoTrack);
 
 public:
     virtual ~VideoTrack() override;
 
-    void set_video_track_list(Badge<VideoTrackList>, JS::GCPtr<VideoTrackList> video_track_list) { m_video_track_list = video_track_list; }
+    void set_video_track_list(Badge<VideoTrackList>, GC::Ptr<VideoTrackList> video_track_list) { m_video_track_list = video_track_list; }
 
     void play_video(Badge<HTMLVideoElement>);
     void pause_video(Badge<HTMLVideoElement>);
@@ -43,7 +43,7 @@ public:
     void set_selected(bool selected);
 
 private:
-    VideoTrack(JS::Realm&, JS::NonnullGCPtr<HTMLMediaElement>, NonnullOwnPtr<Media::PlaybackManager>);
+    VideoTrack(JS::Realm&, GC::Ref<HTMLMediaElement>, NonnullOwnPtr<Media::PlaybackManager>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -63,8 +63,8 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-selected
     bool m_selected { false };
 
-    JS::NonnullGCPtr<HTMLMediaElement> m_media_element;
-    JS::GCPtr<VideoTrackList> m_video_track_list;
+    GC::Ref<HTMLMediaElement> m_media_element;
+    GC::Ptr<VideoTrackList> m_video_track_list;
 
     NonnullOwnPtr<Media::PlaybackManager> m_playback_manager;
 };

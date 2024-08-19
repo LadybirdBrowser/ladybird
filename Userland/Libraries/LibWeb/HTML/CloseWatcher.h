@@ -13,17 +13,17 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#closewatcheroptions
 struct CloseWatcherOptions {
-    JS::GCPtr<DOM::AbortSignal> signal;
+    GC::Ptr<DOM::AbortSignal> signal;
 };
 
 // https://html.spec.whatwg.org/multipage/interaction.html#the-closewatcher-interface
 class CloseWatcher final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(CloseWatcher, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(CloseWatcher);
+    GC_DECLARE_ALLOCATOR(CloseWatcher);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<CloseWatcher>> construct_impl(JS::Realm&, CloseWatcherOptions const& = {});
-    [[nodiscard]] static JS::NonnullGCPtr<CloseWatcher> establish(HTML::Window&);
+    static WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> construct_impl(JS::Realm&, CloseWatcherOptions const& = {});
+    [[nodiscard]] static GC::Ref<CloseWatcher> establish(HTML::Window&);
 
     bool request_close();
     void close();

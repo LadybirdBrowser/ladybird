@@ -7,15 +7,15 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibJS/Heap/SafeFunction.h>
+#include <LibGC/SafeFunction.h>
 
 namespace Web::Platform {
 
 class Timer : public RefCounted<Timer> {
 public:
     static NonnullRefPtr<Timer> create();
-    static NonnullRefPtr<Timer> create_repeating(int interval_ms, JS::SafeFunction<void()>&& timeout_handler);
-    static NonnullRefPtr<Timer> create_single_shot(int interval_ms, JS::SafeFunction<void()>&& timeout_handler);
+    static NonnullRefPtr<Timer> create_repeating(int interval_ms, GC::SafeFunction<void()>&& timeout_handler);
+    static NonnullRefPtr<Timer> create_single_shot(int interval_ms, GC::SafeFunction<void()>&& timeout_handler);
 
     virtual ~Timer();
 
@@ -34,7 +34,7 @@ public:
     virtual bool is_single_shot() const = 0;
     virtual void set_single_shot(bool) = 0;
 
-    JS::SafeFunction<void()> on_timeout;
+    GC::SafeFunction<void()> on_timeout;
 };
 
 }

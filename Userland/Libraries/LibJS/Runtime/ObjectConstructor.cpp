@@ -17,7 +17,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ObjectConstructor);
+GC_DEFINE_ALLOCATOR(ObjectConstructor);
 
 ObjectConstructor::ObjectConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Object.as_string(), realm.intrinsics().function_prototype())
@@ -67,7 +67,7 @@ ThrowCompletionOr<Value> ObjectConstructor::call()
 }
 
 // 20.1.1.1 Object ( [ value ] ), https://tc39.es/ecma262/#sec-object-value
-ThrowCompletionOr<NonnullGCPtr<Object>> ObjectConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ObjectConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
@@ -93,7 +93,7 @@ enum class GetOwnPropertyKeysType {
 };
 
 // 20.1.2.11.1 GetOwnPropertyKeys ( O, type ), https://tc39.es/ecma262/#sec-getownpropertykeys
-static ThrowCompletionOr<MarkedVector<Value>> get_own_property_keys(VM& vm, Value value, GetOwnPropertyKeysType type)
+static ThrowCompletionOr<GC::MarkedVector<Value>> get_own_property_keys(VM& vm, Value value, GetOwnPropertyKeysType type)
 {
     // 1. Let obj be ? ToObject(O).
     auto object = TRY(value.to_object(vm));
@@ -102,7 +102,7 @@ static ThrowCompletionOr<MarkedVector<Value>> get_own_property_keys(VM& vm, Valu
     auto keys = TRY(object->internal_own_property_keys());
 
     // 3. Let nameList be a new empty List.
-    auto name_list = MarkedVector<Value> { vm.heap() };
+    auto name_list = GC::MarkedVector<Value> { vm.heap() };
 
     // 4. For each element nextKey of keys, do
     for (auto& next_key : keys) {
@@ -382,7 +382,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectConstructor::group_by)
     auto callback_function = vm.argument(1);
 
     // 1. Let groups be ? GroupBy(items, callbackfn, property).
-    auto groups = TRY((JS::group_by<OrderedHashMap<PropertyKey, MarkedVector<Value>>, PropertyKey>(vm, items, callback_function)));
+    auto groups = TRY((JS::group_by<OrderedHashMap<PropertyKey, GC::MarkedVector<Value>>, PropertyKey>(vm, items, callback_function)));
 
     // 2. Let obj be OrdinaryObjectCreate(null).
     auto object = Object::create(realm, nullptr);

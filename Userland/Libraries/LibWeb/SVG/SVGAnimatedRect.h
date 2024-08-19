@@ -13,13 +13,13 @@ namespace Web::SVG {
 
 class SVGAnimatedRect final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SVGAnimatedRect, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(SVGAnimatedRect);
+    GC_DECLARE_ALLOCATOR(SVGAnimatedRect);
 
 public:
     virtual ~SVGAnimatedRect();
 
-    JS::GCPtr<Geometry::DOMRect> base_val() const;
-    JS::GCPtr<Geometry::DOMRect> anim_val() const;
+    GC::Ptr<Geometry::DOMRect> base_val() const;
+    GC::Ptr<Geometry::DOMRect> anim_val() const;
 
     void set_base_val(Gfx::DoubleRect const&);
     void set_anim_val(Gfx::DoubleRect const&);
@@ -32,8 +32,8 @@ private:
 
     explicit SVGAnimatedRect(JS::Realm&);
 
-    JS::GCPtr<Geometry::DOMRect> m_base_val;
-    JS::GCPtr<Geometry::DOMRect> m_anim_val;
+    GC::Ptr<Geometry::DOMRect> m_base_val;
+    GC::Ptr<Geometry::DOMRect> m_anim_val;
 
     bool m_nulled { true };
 };

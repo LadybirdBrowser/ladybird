@@ -23,7 +23,7 @@ struct SourceSnapshotParams {
     bool allows_downloading;
 
     // an environment settings object, only to be used as a request client
-    JS::GCPtr<EnvironmentSettingsObject> fetch_client;
+    GC::Ptr<EnvironmentSettingsObject> fetch_client;
 
     // a policy container
     PolicyContainer source_policy_container;

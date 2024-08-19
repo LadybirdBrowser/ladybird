@@ -14,17 +14,17 @@ namespace Web::CSS {
 
 class StyleSheetList final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(StyleSheetList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(StyleSheetList);
+    GC_DECLARE_ALLOCATOR(StyleSheetList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<StyleSheetList> create(DOM::Document&);
+    [[nodiscard]] static GC::Ref<StyleSheetList> create(DOM::Document&);
 
     void add_a_css_style_sheet(CSS::CSSStyleSheet&);
     void remove_a_css_style_sheet(CSS::CSSStyleSheet&);
     void create_a_css_style_sheet(String type, DOM::Element* owner_node, String media, String title, bool alternate, bool origin_clean, Optional<String> location, CSS::CSSStyleSheet* parent_style_sheet, CSS::CSSRule* owner_rule, CSS::CSSStyleSheet&);
 
-    Vector<JS::NonnullGCPtr<CSSStyleSheet>> const& sheets() const { return m_sheets; }
-    Vector<JS::NonnullGCPtr<CSSStyleSheet>>& sheets() { return m_sheets; }
+    Vector<GC::Ref<CSSStyleSheet>> const& sheets() const { return m_sheets; }
+    Vector<GC::Ref<CSSStyleSheet>>& sheets() { return m_sheets; }
 
     CSSStyleSheet* item(size_t index) const
     {
@@ -49,8 +49,8 @@ private:
     void add_sheet(CSSStyleSheet&);
     void remove_sheet(CSSStyleSheet&);
 
-    JS::NonnullGCPtr<DOM::Document> m_document;
-    Vector<JS::NonnullGCPtr<CSSStyleSheet>> m_sheets;
+    GC::Ref<DOM::Document> m_document;
+    Vector<GC::Ref<CSSStyleSheet>> m_sheets;
 
     // https://www.w3.org/TR/cssom/#preferred-css-style-sheet-set-name
     String m_preferred_css_style_sheet_set_name;

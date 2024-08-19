@@ -13,15 +13,15 @@ namespace Web::HTML {
 
 class HTMLTemplateElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLTemplateElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLTemplateElement);
+    GC_DECLARE_ALLOCATOR(HTMLTemplateElement);
 
 public:
     virtual ~HTMLTemplateElement() override;
 
-    JS::NonnullGCPtr<DOM::DocumentFragment> content() { return *m_content; }
-    JS::NonnullGCPtr<DOM::DocumentFragment> const content() const { return *m_content; }
+    GC::Ref<DOM::DocumentFragment> content() { return *m_content; }
+    GC::Ref<DOM::DocumentFragment> const content() const { return *m_content; }
 
-    void set_template_contents(JS::NonnullGCPtr<DOM::DocumentFragment>);
+    void set_template_contents(GC::Ref<DOM::DocumentFragment>);
 
     virtual void adopted_from(DOM::Document&) override;
     virtual WebIDL::ExceptionOr<void> cloned(Node& copy, bool clone_children) override;
@@ -34,7 +34,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<DOM::DocumentFragment> m_content;
+    GC::Ptr<DOM::DocumentFragment> m_content;
 };
 
 }

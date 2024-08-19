@@ -9,7 +9,7 @@
 
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Handle.h>
 #include <LibWeb/DOM/Slot.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -24,15 +24,15 @@ class HTMLSlotElement final
     : public HTMLElement
     , public DOM::Slot {
     WEB_PLATFORM_OBJECT(HTMLSlotElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLSlotElement);
+    GC_DECLARE_ALLOCATOR(HTMLSlotElement);
 
 public:
     virtual ~HTMLSlotElement() override;
 
-    Vector<JS::Handle<DOM::Node>> assigned_nodes(AssignedNodesOptions options = {}) const;
-    Vector<JS::Handle<DOM::Element>> assigned_elements(AssignedNodesOptions options = {}) const;
+    Vector<GC::Handle<DOM::Node>> assigned_nodes(AssignedNodesOptions options = {}) const;
+    Vector<GC::Handle<DOM::Element>> assigned_elements(AssignedNodesOptions options = {}) const;
 
-    using SlottableHandle = Variant<JS::Handle<DOM::Element>, JS::Handle<DOM::Text>>;
+    using SlottableHandle = Variant<GC::Handle<DOM::Element>, GC::Handle<DOM::Text>>;
     void assign(Vector<SlottableHandle> nodes);
 
     ReadonlySpan<DOM::Slottable> manually_assigned_nodes() const { return m_manually_assigned_nodes; }

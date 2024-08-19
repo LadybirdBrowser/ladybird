@@ -220,12 +220,12 @@ bool EnvironmentSettingsObject::remove_from_outstanding_rejected_promises_weak_s
     });
 }
 
-void EnvironmentSettingsObject::push_onto_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise> promise)
+void EnvironmentSettingsObject::push_onto_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise> promise)
 {
-    m_about_to_be_notified_rejected_promises_list.append(JS::make_handle(promise));
+    m_about_to_be_notified_rejected_promises_list.append(GC::make_handle(promise));
 }
 
-bool EnvironmentSettingsObject::remove_from_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise> promise)
+bool EnvironmentSettingsObject::remove_from_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise> promise)
 {
     return m_about_to_be_notified_rejected_promises_list.remove_first_matching([&](auto& promise_in_list) {
         return promise == promise_in_list;
@@ -250,7 +250,7 @@ void EnvironmentSettingsObject::notify_about_rejected_promises(Badge<EventLoop>)
     auto& global = verify_cast<DOM::EventTarget>(global_object());
 
     // 5. Queue a global task on the DOM manipulation task source given global to run the following substep:
-    queue_global_task(Task::Source::DOMManipulation, global, JS::create_heap_function(heap(), [this, &global, list = move(list)] {
+    queue_global_task(Task::Source::DOMManipulation, global, GC::create_heap_function(heap(), [this, &global, list = move(list)] {
         auto& realm = global.realm();
 
         // 1. For each promise p in list:
@@ -269,7 +269,7 @@ void EnvironmentSettingsObject::notify_about_rejected_promises(Badge<EventLoop>)
                     .composed = false,
                 },
                 // Sadly we can't use .promise and .reason here, as we can't use the designator on the initialization of DOM::EventInit above.
-                /* .promise = */ JS::make_handle(*promise),
+                /* .promise = */ GC::make_handle(*promise),
                 /* .reason = */ promise->result(),
             };
 
@@ -519,7 +519,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
     return object;
 }
 
-JS::NonnullGCPtr<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()
+GC::Ref<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()
 {
     if (!m_storage_manager)
         m_storage_manager = realm().heap().allocate<StorageAPI::StorageManager>(realm(), realm());

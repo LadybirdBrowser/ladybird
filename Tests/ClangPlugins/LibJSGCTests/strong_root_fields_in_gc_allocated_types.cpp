@@ -8,21 +8,21 @@
 // FIXME: Un-XFAIL this when re-enabling the plugin option in the Tests CMakeLists.txt
 // XFAIL: true
 
+#include <LibGC/Handle.h>
+#include <LibGC/SafeFunction.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/Handle.h>
-#include <LibJS/Heap/SafeFunction.h>
 
 class CellClass : JS::Cell {
     JS_CELL(CellClass, JS::Cell);
 
-    // expected-warning@+1 {{Types inheriting from JS::Cell should not have JS::SafeFunction fields}}
-    JS::SafeFunction<void()> m_func;
+    // expected-warning@+1 {{Types inheriting from JS::Cell should not have GC::SafeFunction fields}}
+    GC::SafeFunction<void()> m_func;
 
-    // expected-warning@+1 {{Types inheriting from JS::Cell should not have JS::Handle fields}}
-    JS::Handle<JS::Cell> m_handle;
+    // expected-warning@+1 {{Types inheriting from JS::Cell should not have GC::Handle fields}}
+    GC::Handle<GC::Cell> m_handle;
 };
 
 class NonCellClass {
-    JS::SafeFunction<void()> m_func;
-    JS::Handle<JS::Cell> m_handle;
+    GC::SafeFunction<void()> m_func;
+    GC::Handle<GC::Cell> m_handle;
 };

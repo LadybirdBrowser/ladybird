@@ -81,9 +81,9 @@ enum class CascadeOrigin : u8 {
 };
 
 struct MatchingRule {
-    JS::GCPtr<DOM::ShadowRoot const> shadow_root;
-    JS::GCPtr<CSSStyleRule const> rule;
-    JS::GCPtr<CSSStyleSheet const> sheet;
+    GC::Ptr<DOM::ShadowRoot const> shadow_root;
+    GC::Ptr<CSSStyleRule const> rule;
+    GC::Ptr<CSSStyleSheet const> sheet;
     size_t style_sheet_index { 0 };
     size_t rule_index { 0 };
     size_t selector_index { 0 };
@@ -151,7 +151,7 @@ public:
         No,
         Yes,
     };
-    void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, JS::NonnullGCPtr<Animations::KeyframeEffect> animation, StyleProperties& style_properties, AnimationRefresh = AnimationRefresh::No) const;
+    void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, GC::Ref<Animations::KeyframeEffect> animation, StyleProperties& style_properties, AnimationRefresh = AnimationRefresh::No) const;
 
 private:
     enum class ComputeStyleMode {
@@ -197,7 +197,7 @@ private:
     void build_rule_cache();
     void build_rule_cache_if_needed() const;
 
-    JS::NonnullGCPtr<DOM::Document> m_document;
+    GC::Ref<DOM::Document> m_document;
 
     struct RuleCache {
         HashMap<FlyString, Vector<MatchingRule>> rules_by_id;
@@ -218,7 +218,7 @@ private:
     OwnPtr<RuleCache> m_author_rule_cache;
     OwnPtr<RuleCache> m_user_rule_cache;
     OwnPtr<RuleCache> m_user_agent_rule_cache;
-    JS::Handle<CSSStyleSheet> m_user_style_sheet;
+    GC::Handle<CSSStyleSheet> m_user_style_sheet;
 
     using FontLoaderList = Vector<NonnullOwnPtr<FontLoader>>;
     HashMap<FontFaceKey, FontLoaderList> m_loaded_fonts;

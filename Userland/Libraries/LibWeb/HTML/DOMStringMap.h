@@ -15,10 +15,10 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/dom.html#domstringmap
 class DOMStringMap final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DOMStringMap, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMStringMap);
+    GC_DECLARE_ALLOCATOR(DOMStringMap);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<DOMStringMap> create(DOM::Element&);
+    [[nodiscard]] static GC::Ref<DOMStringMap> create(DOM::Element&);
 
     virtual ~DOMStringMap() override;
 
@@ -47,7 +47,7 @@ private:
     Vector<NameValuePair> get_name_value_pairs() const;
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-domstringmap-element
-    JS::NonnullGCPtr<DOM::Element> m_associated_element;
+    GC::Ref<DOM::Element> m_associated_element;
 };
 
 }

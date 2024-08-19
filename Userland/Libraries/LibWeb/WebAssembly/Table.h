@@ -8,8 +8,8 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -26,10 +26,10 @@ struct TableDescriptor {
 
 class Table : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Table, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Table);
+    GC_DECLARE_ALLOCATOR(Table);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Table>> construct_impl(JS::Realm&, TableDescriptor& descriptor, JS::Value value);
+    static WebIDL::ExceptionOr<GC::Ref<Table>> construct_impl(JS::Realm&, TableDescriptor& descriptor, JS::Value value);
 
     WebIDL::ExceptionOr<u32> grow(u32 delta, JS::Value value);
 

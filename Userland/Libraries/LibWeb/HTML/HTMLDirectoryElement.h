@@ -13,7 +13,7 @@ namespace Web::HTML {
 // NOTE: This element is marked as obsolete, but is still listed as required by the specification.
 class HTMLDirectoryElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLDirectoryElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLDirectoryElement);
+    GC_DECLARE_ALLOCATOR(HTMLDirectoryElement);
 
 public:
     virtual ~HTMLDirectoryElement() override;

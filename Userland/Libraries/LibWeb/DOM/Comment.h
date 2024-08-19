@@ -12,10 +12,10 @@ namespace Web::DOM {
 
 class Comment final : public CharacterData {
     WEB_PLATFORM_OBJECT(Comment, CharacterData);
-    JS_DECLARE_ALLOCATOR(Comment);
+    GC_DECLARE_ALLOCATOR(Comment);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Comment>> construct_impl(JS::Realm&, String const& data);
+    static WebIDL::ExceptionOr<GC::Ref<Comment>> construct_impl(JS::Realm&, String const& data);
     virtual ~Comment() override = default;
 
     virtual FlyString node_name() const override { return "#comment"_fly_string; }

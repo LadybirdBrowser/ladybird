@@ -23,7 +23,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(PlainDateTime);
+GC_DEFINE_ALLOCATOR(PlainDateTime);
 
 // 5 Temporal.PlainDateTime Objects, https://tc39.es/proposal-temporal/#sec-temporal-plaindatetime-objects
 PlainDateTime::PlainDateTime(i32 iso_year, u8 iso_month, u8 iso_day, u8 iso_hour, u8 iso_minute, u8 iso_second, u16 iso_millisecond, u16 iso_microsecond, u16 iso_nanosecond, Object& calendar, Object& prototype)
@@ -375,7 +375,7 @@ ThrowCompletionOr<DurationRecord> difference_iso_date_time(VM& vm, i32 year1, u8
 
     // 12. Let dateDifference be ? CalendarDateUntil(calendar, date1, date2, untilOptions).
     // FIXME: AD-HOC calendar records use as this AO is not up to date with latest spec
-    auto calendar_record = TRY(create_calendar_methods_record(vm, NonnullGCPtr<Object> { calendar }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
+    auto calendar_record = TRY(create_calendar_methods_record(vm, GC::Ref<Object> { calendar }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
     auto date_difference = TRY(calendar_date_until(vm, calendar_record, date1, date2, *until_options));
 
     // 13. Let balanceResult be ? BalanceDuration(dateDifference.[[Days]], timeDifference.[[Hours]], timeDifference.[[Minutes]], timeDifference.[[Seconds]], timeDifference.[[Milliseconds]], timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]], largestUnit).
@@ -386,7 +386,7 @@ ThrowCompletionOr<DurationRecord> difference_iso_date_time(VM& vm, i32 year1, u8
 }
 
 // 5.5.11 DifferenceTemporalPlainDateTime ( operation, dateTime, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_plain_date_time(VM& vm, DifferenceOperation operation, PlainDateTime& date_time, Value other_value, Value options_value)
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date_time(VM& vm, DifferenceOperation operation, PlainDateTime& date_time, Value other_value, Value options_value)
 {
     // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
     i8 sign = operation == DifferenceOperation::Since ? -1 : 1;
@@ -409,7 +409,7 @@ ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_plain_date_time(VM
 
     // 7. Let roundResult be (? RoundDuration(diff.[[Years]], diff.[[Months]], diff.[[Weeks]], diff.[[Days]], diff.[[Hours]], diff.[[Minutes]], diff.[[Seconds]], diff.[[Milliseconds]], diff.[[Microseconds]], diff.[[Nanoseconds]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]], relativeTo)).[[DurationRecord]].
     // FIXME: AD-HOC calendar records use as this AO is not up to date with latest spec
-    auto calendar_record = TRY(create_calendar_methods_record(vm, NonnullGCPtr<Object> { date_time.calendar() }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
+    auto calendar_record = TRY(create_calendar_methods_record(vm, GC::Ref<Object> { date_time.calendar() }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
     auto round_result = TRY(round_duration(vm, diff.years, diff.months, diff.weeks, diff.days, diff.hours, diff.minutes, diff.seconds, diff.milliseconds, diff.microseconds, diff.nanoseconds, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode, relative_to, calendar_record)).duration_record;
 
     // 8. Let result be ? BalanceDuration(roundResult.[[Days]], roundResult.[[Hours]], roundResult.[[Minutes]], roundResult.[[Seconds]], roundResult.[[Milliseconds]], roundResult.[[Microseconds]], roundResult.[[Nanoseconds]], settings.[[LargestUnit]]).

@@ -13,7 +13,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(Viewport);
+GC_DEFINE_ALLOCATOR(Viewport);
 
 Viewport::Viewport(DOM::Document& document, NonnullRefPtr<CSS::StyleProperties> style)
     : BlockContainer(document, &document, move(style))
@@ -22,7 +22,7 @@ Viewport::Viewport(DOM::Document& document, NonnullRefPtr<CSS::StyleProperties> 
 
 Viewport::~Viewport() = default;
 
-JS::GCPtr<Painting::Paintable> Viewport::create_paintable() const
+GC::Ptr<Painting::Paintable> Viewport::create_paintable() const
 {
     return Painting::ViewportPaintable::create(*this);
 }

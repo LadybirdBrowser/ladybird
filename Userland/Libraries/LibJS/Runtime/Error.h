@@ -29,12 +29,12 @@ enum CompactTraceback {
 
 class Error : public Object {
     JS_OBJECT(Error, Object);
-    JS_DECLARE_ALLOCATOR(Error);
+    GC_DECLARE_ALLOCATOR(Error);
 
 public:
-    static NonnullGCPtr<Error> create(Realm&);
-    static NonnullGCPtr<Error> create(Realm&, String message);
-    static NonnullGCPtr<Error> create(Realm&, StringView message);
+    static GC::Ref<Error> create(Realm&);
+    static GC::Ref<Error> create(Realm&, String message);
+    static GC::Ref<Error> create(Realm&, StringView message);
 
     virtual ~Error() override = default;
 
@@ -58,12 +58,12 @@ private:
 #define DECLARE_NATIVE_ERROR(ClassName, snake_name, PrototypeName, ConstructorName) \
     class ClassName final : public Error {                                          \
         JS_OBJECT(ClassName, Error);                                                \
-        JS_DECLARE_ALLOCATOR(ClassName);                                            \
+        GC_DECLARE_ALLOCATOR(ClassName);                                            \
                                                                                     \
     public:                                                                         \
-        static NonnullGCPtr<ClassName> create(Realm&);                              \
-        static NonnullGCPtr<ClassName> create(Realm&, String message);              \
-        static NonnullGCPtr<ClassName> create(Realm&, StringView message);          \
+        static GC::Ref<ClassName> create(Realm&);                                   \
+        static GC::Ref<ClassName> create(Realm&, String message);                   \
+        static GC::Ref<ClassName> create(Realm&, StringView message);               \
                                                                                     \
         explicit ClassName(Object& prototype);                                      \
         virtual ~ClassName() override = default;                                    \

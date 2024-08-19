@@ -11,7 +11,7 @@
 
 namespace Web::MathML {
 
-JS_DEFINE_ALLOCATOR(MathMLElement);
+GC_DEFINE_ALLOCATOR(MathMLElement);
 
 MathMLElement::~MathMLElement() = default;
 
@@ -26,7 +26,7 @@ void MathMLElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MathMLElement);
 }
 
-JS::NonnullGCPtr<HTML::DOMStringMap> MathMLElement::dataset()
+GC::Ref<HTML::DOMStringMap> MathMLElement::dataset()
 {
     if (!m_dataset)
         m_dataset = HTML::DOMStringMap::create(*this);

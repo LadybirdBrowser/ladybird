@@ -14,10 +14,10 @@ namespace Web::ResizeObserver {
 // https://drafts.csswg.org/resize-observer-1/#resizeobserversize
 class ResizeObserverSize : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ResizeObserverSize, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ResizeObserverSize);
+    GC_DECLARE_ALLOCATOR(ResizeObserverSize);
 
 public:
-    static JS::NonnullGCPtr<ResizeObserverSize> calculate_box_size(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
+    static GC::Ref<ResizeObserverSize> calculate_box_size(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
 
     double inline_size() const { return m_inline_size; }
     void set_inline_size(double inline_size) { m_inline_size = inline_size; }

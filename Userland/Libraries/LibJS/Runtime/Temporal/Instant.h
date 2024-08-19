@@ -18,7 +18,7 @@ namespace JS::Temporal {
 
 class Instant final : public Object {
     JS_OBJECT(Instant, Object);
-    JS_DECLARE_ALLOCATOR(Instant);
+    GC_DECLARE_ALLOCATOR(Instant);
 
 public:
     virtual ~Instant() override = default;
@@ -31,7 +31,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     // 8.4 Properties of Temporal.Instant Instances, https://tc39.es/proposal-temporal/#sec-properties-of-temporal-instant-instances
-    NonnullGCPtr<BigInt const> m_nanoseconds; // [[Nanoseconds]]
+    GC::Ref<BigInt const> m_nanoseconds; // [[Nanoseconds]]
 };
 
 // https://tc39.es/proposal-temporal/#eqn-nsMaxInstant
@@ -52,7 +52,7 @@ ThrowCompletionOr<BigInt*> add_instant(VM&, BigInt const& epoch_nanoseconds, dou
 TimeDurationRecord difference_instant(VM&, BigInt const& nanoseconds1, BigInt const& nanoseconds2, u64 rounding_increment, StringView smallest_unit, StringView largest_unit, StringView rounding_mode);
 BigInt* round_temporal_instant(VM&, BigInt const& nanoseconds, u64 increment, StringView unit, StringView rounding_mode);
 ThrowCompletionOr<String> temporal_instant_to_string(VM&, Instant&, Value time_zone, Variant<StringView, u8> const& precision);
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_instant(VM&, DifferenceOperation, Instant const&, Value other, Value options);
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_instant(VM&, DifferenceOperation, Instant const&, Value other, Value options);
 ThrowCompletionOr<Instant*> add_duration_to_or_subtract_duration_from_instant(VM&, ArithmeticOperation, Instant const&, Value temporal_duration_like);
 
 }

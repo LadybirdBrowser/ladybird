@@ -23,9 +23,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(NavigateEvent);
+GC_DEFINE_ALLOCATOR(NavigateEvent);
 
-JS::NonnullGCPtr<NavigateEvent> NavigateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, NavigateEventInit const& event_init)
+GC::Ref<NavigateEvent> NavigateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, NavigateEventInit const& event_init)
 {
     return realm.heap().allocate<NavigateEvent>(realm, realm, event_name, event_init);
 }
@@ -248,7 +248,7 @@ void NavigateEvent::potentially_reset_the_focus()
     auto& document = relevant_global_object.associated_document();
 
     // 8. FIXME: Let focusTarget be the autofocus delegate for document.
-    JS::GCPtr<DOM::Node> focus_target = nullptr;
+    GC::Ptr<DOM::Node> focus_target = nullptr;
 
     // 9. If focusTarget is null, then set focusTarget to document's body element.
     if (focus_target == nullptr)

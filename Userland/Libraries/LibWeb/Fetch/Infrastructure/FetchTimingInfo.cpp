@@ -10,11 +10,11 @@
 
 namespace Web::Fetch::Infrastructure {
 
-JS_DEFINE_ALLOCATOR(FetchTimingInfo);
+GC_DEFINE_ALLOCATOR(FetchTimingInfo);
 
 FetchTimingInfo::FetchTimingInfo() = default;
 
-JS::NonnullGCPtr<FetchTimingInfo> FetchTimingInfo::create(JS::VM& vm)
+GC::Ref<FetchTimingInfo> FetchTimingInfo::create(JS::VM& vm)
 {
     return vm.heap().allocate_without_realm<FetchTimingInfo>();
 }
@@ -26,7 +26,7 @@ void FetchTimingInfo::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://fetch.spec.whatwg.org/#create-an-opaque-timing-info
-JS::NonnullGCPtr<FetchTimingInfo> create_opaque_timing_info(JS::VM& vm, FetchTimingInfo const& timing_info)
+GC::Ref<FetchTimingInfo> create_opaque_timing_info(JS::VM& vm, FetchTimingInfo const& timing_info)
 {
     // To create an opaque timing info, given a fetch timing info timingInfo, return a new fetch timing info whose
     // start time and post-redirect start time are timingInfo’s start time.

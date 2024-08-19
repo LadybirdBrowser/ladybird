@@ -12,14 +12,14 @@ namespace Web::DOMParsing {
 
 class XMLSerializer final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(XMLSerializer, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(XMLSerializer);
+    GC_DECLARE_ALLOCATOR(XMLSerializer);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<XMLSerializer>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<XMLSerializer>> construct_impl(JS::Realm&);
 
     virtual ~XMLSerializer() override;
 
-    WebIDL::ExceptionOr<String> serialize_to_string(JS::NonnullGCPtr<DOM::Node const> root);
+    WebIDL::ExceptionOr<String> serialize_to_string(GC::Ref<DOM::Node const> root);
 
 private:
     explicit XMLSerializer(JS::Realm&);
@@ -32,5 +32,5 @@ enum class RequireWellFormed {
     Yes,
 };
 
-WebIDL::ExceptionOr<String> serialize_node_to_xml_string(JS::NonnullGCPtr<DOM::Node const> root, RequireWellFormed require_well_formed);
+WebIDL::ExceptionOr<String> serialize_node_to_xml_string(GC::Ref<DOM::Node const> root, RequireWellFormed require_well_formed);
 }

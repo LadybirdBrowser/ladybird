@@ -9,7 +9,7 @@
 
 namespace Web::UIEvents {
 
-JS_DEFINE_ALLOCATOR(PointerEvent);
+GC_DEFINE_ALLOCATOR(PointerEvent);
 
 PointerEvent::PointerEvent(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
     : MouseEvent(realm, type, event_init, page_x, page_y, offset_x, offset_y)
@@ -36,12 +36,12 @@ void PointerEvent::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PointerEvent);
 }
 
-JS::NonnullGCPtr<PointerEvent> PointerEvent::create(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
+GC::Ref<PointerEvent> PointerEvent::create(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
 {
     return realm.heap().allocate<PointerEvent>(realm, realm, type, event_init, page_x, page_y, offset_x, offset_y);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<PointerEvent>> PointerEvent::construct_impl(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::construct_impl(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init)
 {
     return create(realm, type, event_init);
 }

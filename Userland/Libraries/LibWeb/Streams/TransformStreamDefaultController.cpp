@@ -11,7 +11,7 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(TransformStreamDefaultController);
+GC_DEFINE_ALLOCATOR(TransformStreamDefaultController);
 
 TransformStreamDefaultController::TransformStreamDefaultController(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -39,10 +39,10 @@ void TransformStreamDefaultController::visit_edges(Cell::Visitor& visitor)
 // https://streams.spec.whatwg.org/#ts-default-controller-desired-size
 Optional<double> TransformStreamDefaultController::desired_size()
 {
-    VERIFY(stream()->readable()->controller().has_value() && stream()->readable()->controller()->has<JS::NonnullGCPtr<ReadableStreamDefaultController>>());
+    VERIFY(stream()->readable()->controller().has_value() && stream()->readable()->controller()->has<GC::Ref<ReadableStreamDefaultController>>());
 
     // 1. Let readableController be this.[[stream]].[[readable]].[[controller]].
-    auto readable_controller = stream()->readable()->controller()->get<JS::NonnullGCPtr<ReadableStreamDefaultController>>();
+    auto readable_controller = stream()->readable()->controller()->get<GC::Ref<ReadableStreamDefaultController>>();
 
     // 2. Return ! ReadableStreamDefaultControllerGetDesiredSize(readableController).
     return readable_stream_default_controller_get_desired_size(*readable_controller);

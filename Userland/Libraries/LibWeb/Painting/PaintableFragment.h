@@ -55,7 +55,7 @@ public:
     StringView string_view() const;
 
 private:
-    JS::NonnullGCPtr<Layout::Node const> m_layout_node;
+    GC::Ref<Layout::Node const> m_layout_node;
     CSSPixelPoint m_offset;
     CSSPixelSize m_size;
     CSSPixels m_baseline;

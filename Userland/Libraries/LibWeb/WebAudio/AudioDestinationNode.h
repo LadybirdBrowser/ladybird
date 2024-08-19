@@ -17,17 +17,17 @@ namespace Web::WebAudio {
 // https://webaudio.github.io/web-audio-api/#AudioDestinationNode
 class AudioDestinationNode : public AudioNode {
     WEB_PLATFORM_OBJECT(AudioDestinationNode, AudioNode);
-    JS_DECLARE_ALLOCATOR(AudioDestinationNode);
+    GC_DECLARE_ALLOCATOR(AudioDestinationNode);
 
 public:
     virtual ~AudioDestinationNode() override;
 
     WebIDL::UnsignedLong max_channel_count();
 
-    static JS::NonnullGCPtr<AudioDestinationNode> construct_impl(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>);
+    static GC::Ref<AudioDestinationNode> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>);
 
 protected:
-    AudioDestinationNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>);
+    AudioDestinationNode(JS::Realm&, GC::Ref<BaseAudioContext>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

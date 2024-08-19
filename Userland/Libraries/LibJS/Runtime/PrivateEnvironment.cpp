@@ -8,7 +8,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(PrivateEnvironment);
+GC_DEFINE_ALLOCATOR(PrivateEnvironment);
 
 PrivateEnvironment::PrivateEnvironment(PrivateEnvironment* parent)
     : m_outer_environment(parent)

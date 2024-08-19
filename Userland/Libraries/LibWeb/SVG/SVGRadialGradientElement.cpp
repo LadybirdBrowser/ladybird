@@ -12,7 +12,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGRadialGradientElement);
+GC_DEFINE_ALLOCATOR(SVGRadialGradientElement);
 
 SVGRadialGradientElement::SVGRadialGradientElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGradientElement(document, qualified_name)
@@ -215,37 +215,37 @@ Optional<Painting::PaintStyle> SVGRadialGradientElement::to_gfx_paint_style(SVGP
     return *m_paint_style;
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRadialGradientElement::cx() const
+GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::cx() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRadialGradientElement::cy() const
+GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::cy() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRadialGradientElement::fx() const
+GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::fx() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRadialGradientElement::fy() const
+GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::fy() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRadialGradientElement::fr() const
+GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::fr() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGRadialGradientElement::r() const
+GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::r() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));

@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(FinalizationRegistryConstructor);
+GC_DEFINE_ALLOCATOR(FinalizationRegistryConstructor);
 
 FinalizationRegistryConstructor::FinalizationRegistryConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.FinalizationRegistry.as_string(), realm.intrinsics().function_prototype())
@@ -41,7 +41,7 @@ ThrowCompletionOr<Value> FinalizationRegistryConstructor::call()
 }
 
 // 26.2.1.1 FinalizationRegistry ( cleanupCallback ), https://tc39.es/ecma262/#sec-finalization-registry-cleanup-callback
-ThrowCompletionOr<NonnullGCPtr<Object>> FinalizationRegistryConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> FinalizationRegistryConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

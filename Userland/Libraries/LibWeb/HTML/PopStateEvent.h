@@ -16,11 +16,11 @@ struct PopStateEventInit : public DOM::EventInit {
 
 class PopStateEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(PopStateEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(PopStateEvent);
+    GC_DECLARE_ALLOCATOR(PopStateEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<PopStateEvent> create(JS::Realm&, FlyString const& event_name, PopStateEventInit const&);
-    [[nodiscard]] static JS::NonnullGCPtr<PopStateEvent> construct_impl(JS::Realm&, FlyString const& event_name, PopStateEventInit const&);
+    [[nodiscard]] static GC::Ref<PopStateEvent> create(JS::Realm&, FlyString const& event_name, PopStateEventInit const&);
+    [[nodiscard]] static GC::Ref<PopStateEvent> construct_impl(JS::Realm&, FlyString const& event_name, PopStateEventInit const&);
 
     JS::Value const& state() const { return m_state; }
 

@@ -94,7 +94,7 @@ public:
 #undef __ENUMERATE
 
 protected:
-    virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const& event_name) = 0;
+    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const& event_name) = 0;
 };
 
 }

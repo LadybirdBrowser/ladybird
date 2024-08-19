@@ -42,7 +42,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLElement);
+GC_DEFINE_ALLOCATOR(HTMLElement);
 
 HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : Element(document, move(qualified_name))
@@ -65,7 +65,7 @@ void HTMLElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_attached_internals);
 }
 
-JS::NonnullGCPtr<DOMStringMap> HTMLElement::dataset()
+GC::Ref<DOMStringMap> HTMLElement::dataset()
 {
     if (!m_dataset)
         m_dataset = DOMStringMap::create(*this);
@@ -206,7 +206,7 @@ String HTMLElement::outer_text()
 }
 
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsetparent
-JS::GCPtr<DOM::Element> HTMLElement::offset_parent() const
+GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
 {
     const_cast<DOM::Document&>(document()).update_layout();
 
@@ -475,7 +475,7 @@ bool HTMLElement::fire_a_synthetic_pointer_event(FlyString const& type, DOM::Ele
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-lfe-labels-dev
-JS::GCPtr<DOM::NodeList> HTMLElement::labels()
+GC::Ptr<DOM::NodeList> HTMLElement::labels()
 {
     // Labelable elements and all input elements have a live NodeList object associated with them that represents the list of label elements, in tree order,
     // whose labeled control is the element in question. The labels IDL attribute of labelable elements that are not form-associated custom elements,
@@ -647,7 +647,7 @@ TokenizedFeature::NoOpener HTMLElement::get_an_elements_noopener(StringView targ
     return TokenizedFeature::NoOpener::No;
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ElementInternals>> HTMLElement::attach_internals()
+WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
 {
     // 1. If this's is value is not null, then throw a "NotSupportedError" DOMException.
     if (is_value().has_value())

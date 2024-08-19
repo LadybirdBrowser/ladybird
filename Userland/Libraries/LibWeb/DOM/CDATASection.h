@@ -13,7 +13,7 @@ namespace Web::DOM {
 
 class CDATASection final : public Text {
     WEB_PLATFORM_OBJECT(CDATASection, Text);
-    JS_DECLARE_ALLOCATOR(CDATASection);
+    GC_DECLARE_ALLOCATOR(CDATASection);
 
 public:
     virtual ~CDATASection() override;

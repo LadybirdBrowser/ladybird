@@ -11,10 +11,10 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(BoundFunction);
+GC_DEFINE_ALLOCATOR(BoundFunction);
 
 // 10.4.1.3 BoundFunctionCreate ( targetFunction, boundThis, boundArgs ), https://tc39.es/ecma262/#sec-boundfunctioncreate
-ThrowCompletionOr<NonnullGCPtr<BoundFunction>> BoundFunction::create(Realm& realm, FunctionObject& target_function, Value bound_this, Vector<Value> bound_arguments)
+ThrowCompletionOr<GC::Ref<BoundFunction>> BoundFunction::create(Realm& realm, FunctionObject& target_function, Value bound_this, Vector<Value> bound_arguments)
 {
     // 1. Let proto be ? targetFunction.[[GetPrototypeOf]]().
     auto* prototype = TRY(target_function.internal_get_prototype_of());
@@ -69,7 +69,7 @@ ThrowCompletionOr<Value> BoundFunction::internal_call([[maybe_unused]] Value thi
 }
 
 // 10.4.1.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-bound-function-exotic-objects-construct-argumentslist-newtarget
-ThrowCompletionOr<NonnullGCPtr<Object>> BoundFunction::internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> BoundFunction::internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
@@ -83,7 +83,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> BoundFunction::internal_construct(Readon
     auto& bound_args = m_bound_arguments;
 
     // 4. Let args be the list-concatenation of boundArgs and argumentsList.
-    auto args = MarkedVector<Value> { heap() };
+    auto args = GC::MarkedVector<Value> { heap() };
     args.extend(bound_args);
     args.append(arguments_list.data(), arguments_list.size());
 

@@ -20,10 +20,10 @@ public:
 
     Gfx::FloatPoint get_offset(CSSPixelSize const& viewport_size) const;
 
-    JS::NonnullGCPtr<SVGAnimatedLength> x() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> y() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> dx() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> dy() const;
+    GC::Ref<SVGAnimatedLength> x() const;
+    GC::Ref<SVGAnimatedLength> y() const;
+    GC::Ref<SVGAnimatedLength> dx() const;
+    GC::Ref<SVGAnimatedLength> dy() const;
 
 protected:
     SVGTextPositioningElement(DOM::Document&, DOM::QualifiedName);

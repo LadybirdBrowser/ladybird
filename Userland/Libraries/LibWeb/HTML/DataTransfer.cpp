@@ -11,9 +11,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DataTransfer);
+GC_DEFINE_ALLOCATOR(DataTransfer);
 
-JS::NonnullGCPtr<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
+GC::Ref<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
 {
     return realm.heap().allocate<DataTransfer>(realm, realm);
 }

@@ -16,7 +16,7 @@ class LineBoxFragment;
 
 class TextNode final : public Node {
     JS_CELL(TextNode, Node);
-    JS_DECLARE_ALLOCATOR(TextNode);
+    GC_DECLARE_ALLOCATOR(TextNode);
 
 public:
     TextNode(DOM::Document&, DOM::Text&);
@@ -53,7 +53,7 @@ public:
     void invalidate_text_for_rendering();
     void compute_text_for_rendering();
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
     virtual bool is_text_node() const final { return true; }

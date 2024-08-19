@@ -12,7 +12,7 @@ namespace Web::DOM {
 
 class ProcessingInstruction final : public CharacterData {
     WEB_PLATFORM_OBJECT(ProcessingInstruction, CharacterData);
-    JS_DECLARE_ALLOCATOR(ProcessingInstruction);
+    GC_DECLARE_ALLOCATOR(ProcessingInstruction);
 
 public:
     virtual ~ProcessingInstruction() override = default;

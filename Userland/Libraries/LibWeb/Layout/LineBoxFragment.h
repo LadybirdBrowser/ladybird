@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/TextLayout.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/PixelUnits.h>
@@ -62,7 +62,7 @@ public:
     RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
 
 private:
-    JS::NonnullGCPtr<Node const> m_layout_node;
+    GC::Ref<Node const> m_layout_node;
     int m_start { 0 };
     int m_length { 0 };
     CSSPixelPoint m_offset;

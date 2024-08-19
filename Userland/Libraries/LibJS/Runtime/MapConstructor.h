@@ -12,14 +12,14 @@ namespace JS {
 
 class MapConstructor final : public NativeFunction {
     JS_OBJECT(MapConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(MapConstructor);
+    GC_DECLARE_ALLOCATOR(MapConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~MapConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject&) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject&) override;
 
 private:
     explicit MapConstructor(Realm&);

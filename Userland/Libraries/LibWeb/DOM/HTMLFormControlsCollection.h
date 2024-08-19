@@ -13,14 +13,14 @@ namespace Web::DOM {
 
 class HTMLFormControlsCollection : public HTMLCollection {
     WEB_PLATFORM_OBJECT(HTMLFormControlsCollection, HTMLCollection);
-    JS_DECLARE_ALLOCATOR(HTMLFormControlsCollection);
+    GC_DECLARE_ALLOCATOR(HTMLFormControlsCollection);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<HTMLFormControlsCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter);
+    [[nodiscard]] static GC::Ref<HTMLFormControlsCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter);
 
     virtual ~HTMLFormControlsCollection() override;
 
-    Variant<Empty, Element*, JS::Handle<RadioNodeList>> named_item_or_radio_node_list(FlyString const& name) const;
+    Variant<Empty, Element*, GC::Handle<RadioNodeList>> named_item_or_radio_node_list(FlyString const& name) const;
 
 protected:
     virtual void initialize(JS::Realm&) override;

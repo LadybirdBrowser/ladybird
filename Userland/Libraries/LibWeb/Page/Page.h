@@ -14,6 +14,7 @@
 #include <AK/RefPtr.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <LibGC/Handle.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Point.h>
@@ -22,7 +23,6 @@
 #include <LibGfx/Size.h>
 #include <LibGfx/StandardCursor.h>
 #include <LibIPC/Forward.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
@@ -48,17 +48,17 @@ class PageClient;
 
 class Page final : public JS::Cell {
     JS_CELL(Page, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Page);
+    GC_DECLARE_ALLOCATOR(Page);
 
 public:
-    static JS::NonnullGCPtr<Page> create(JS::VM&, JS::NonnullGCPtr<PageClient>);
+    static GC::Ref<Page> create(JS::VM&, GC::Ref<PageClient>);
 
     ~Page();
 
     PageClient& client() { return m_client; }
     PageClient const& client() const { return m_client; }
 
-    void set_top_level_traversable(JS::NonnullGCPtr<HTML::TraversableNavigable>);
+    void set_top_level_traversable(GC::Ref<HTML::TraversableNavigable>);
 
     // FIXME: This is a hack.
     bool top_level_traversable_is_initialized() const;
@@ -66,7 +66,7 @@ public:
     HTML::BrowsingContext& top_level_browsing_context();
     HTML::BrowsingContext const& top_level_browsing_context() const;
 
-    JS::NonnullGCPtr<HTML::TraversableNavigable> top_level_traversable() const;
+    GC::Ref<HTML::TraversableNavigable> top_level_traversable() const;
 
     HTML::Navigable& focused_navigable();
     HTML::Navigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
@@ -205,25 +205,25 @@ public:
     Optional<FindInPageQuery> last_find_in_page_query() const { return m_last_find_in_page_query; }
 
 private:
-    explicit Page(JS::NonnullGCPtr<PageClient>);
+    explicit Page(GC::Ref<PageClient>);
     virtual void visit_edges(Visitor&) override;
 
-    JS::GCPtr<HTML::HTMLMediaElement> media_context_menu_element();
+    GC::Ptr<HTML::HTMLMediaElement> media_context_menu_element();
 
-    Vector<JS::Handle<DOM::Document>> documents_in_active_window() const;
+    Vector<GC::Handle<DOM::Document>> documents_in_active_window() const;
 
     enum class SearchDirection {
         Forward,
         Backward,
     };
     FindInPageResult perform_find_in_page_query(FindInPageQuery const&, Optional<SearchDirection> = {});
-    void update_find_in_page_selection(Vector<JS::Handle<DOM::Range>> matches);
+    void update_find_in_page_selection(Vector<GC::Handle<DOM::Range>> matches);
 
-    JS::NonnullGCPtr<PageClient> m_client;
+    GC::Ref<PageClient> m_client;
 
     WeakPtr<HTML::Navigable> m_focused_navigable;
 
-    JS::GCPtr<HTML::TraversableNavigable> m_top_level_traversable;
+    GC::Ptr<HTML::TraversableNavigable> m_top_level_traversable;
 
     // FIXME: Enable this by default once CORS preflight checks are supported.
     bool m_same_origin_policy_enabled { false };
@@ -340,7 +340,7 @@ public:
     virtual void page_did_update_cookie(Web::Cookie::Cookie) { }
     virtual void page_did_update_resource_count(i32) { }
     struct NewWebViewResult {
-        JS::GCPtr<Page> page;
+        GC::Ptr<Page> page;
         String window_handle;
     };
     virtual NewWebViewResult page_did_request_new_web_view(HTML::ActivateTab, HTML::WebViewHints, HTML::TokenizedFeature::NoOpener) { return {}; }
@@ -370,8 +370,8 @@ public:
     virtual void inspector_did_select_dom_node([[maybe_unused]] i32 node_id, [[maybe_unused]] Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element) { }
     virtual void inspector_did_set_dom_node_text([[maybe_unused]] i32 node_id, [[maybe_unused]] String const& text) { }
     virtual void inspector_did_set_dom_node_tag([[maybe_unused]] i32 node_id, [[maybe_unused]] String const& tag) { }
-    virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] i32 node_id, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> attributes) { }
-    virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] i32 node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> replacement_attributes) { }
+    virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] i32 node_id, [[maybe_unused]] GC::Ref<DOM::NamedNodeMap> attributes) { }
+    virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] i32 node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] GC::Ref<DOM::NamedNodeMap> replacement_attributes) { }
     virtual void inspector_did_request_dom_tree_context_menu([[maybe_unused]] i32 node_id, [[maybe_unused]] CSSPixelPoint position, [[maybe_unused]] String const& type, [[maybe_unused]] Optional<String> const& tag, [[maybe_unused]] Optional<size_t> const& attribute_index) { }
     virtual void inspector_did_execute_console_script([[maybe_unused]] String const& script) { }
 

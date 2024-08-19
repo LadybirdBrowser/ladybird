@@ -12,13 +12,13 @@ namespace Web::Layout {
 
 class InlineNode final : public NodeWithStyleAndBoxModelMetrics {
     JS_CELL(InlineNode, NodeWithStyleAndBoxModelMetrics);
-    JS_DECLARE_ALLOCATOR(InlineNode);
+    GC_DECLARE_ALLOCATOR(InlineNode);
 
 public:
     InlineNode(DOM::Document&, DOM::Element*, NonnullRefPtr<CSS::StyleProperties>);
     virtual ~InlineNode() override;
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };
 
 }

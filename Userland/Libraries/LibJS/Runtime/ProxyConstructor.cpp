@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ProxyConstructor);
+GC_DEFINE_ALLOCATOR(ProxyConstructor);
 
 // 10.5.14 ProxyCreate ( target, handler ), https://tc39.es/ecma262/#sec-proxycreate
 static ThrowCompletionOr<ProxyObject*> proxy_create(VM& vm, Value target, Value handler)
@@ -65,7 +65,7 @@ ThrowCompletionOr<Value> ProxyConstructor::call()
 }
 
 // 28.2.1.1 Proxy ( target, handler ), https://tc39.es/ecma262/#sec-proxy-target-handler
-ThrowCompletionOr<NonnullGCPtr<Object>> ProxyConstructor::construct(FunctionObject&)
+ThrowCompletionOr<GC::Ref<Object>> ProxyConstructor::construct(FunctionObject&)
 {
     auto& vm = this->vm();
     auto target = vm.argument(0);

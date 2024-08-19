@@ -18,10 +18,10 @@ namespace Web::DOM {
 // https://dom.spec.whatwg.org/#interface-namednodemap
 class NamedNodeMap : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(NamedNodeMap, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(NamedNodeMap);
+    GC_DECLARE_ALLOCATOR(NamedNodeMap);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<NamedNodeMap> create(Element&);
+    [[nodiscard]] static GC::Ref<NamedNodeMap> create(Element&);
     ~NamedNodeMap() = default;
 
     virtual Vector<FlyString> supported_property_names() const override;
@@ -35,15 +35,15 @@ public:
     Attr const* item(u32 index) const;
     Attr const* get_named_item(FlyString const& qualified_name) const;
     Attr const* get_named_item_ns(Optional<FlyString> const& namespace_, FlyString const& local_name) const;
-    WebIDL::ExceptionOr<JS::GCPtr<Attr>> set_named_item(Attr& attribute);
-    WebIDL::ExceptionOr<JS::GCPtr<Attr>> set_named_item_ns(Attr& attribute);
+    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_named_item(Attr& attribute);
+    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_named_item_ns(Attr& attribute);
     WebIDL::ExceptionOr<Attr const*> remove_named_item(FlyString const& qualified_name);
     WebIDL::ExceptionOr<Attr const*> remove_named_item_ns(Optional<FlyString> const& namespace_, FlyString const& local_name);
 
     // Methods defined by the spec for internal use:
     Attr* get_attribute(FlyString const& qualified_name, size_t* item_index = nullptr);
     Attr const* get_attribute(FlyString const& qualified_name, size_t* item_index = nullptr) const;
-    WebIDL::ExceptionOr<JS::GCPtr<Attr>> set_attribute(Attr& attribute);
+    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute(Attr& attribute);
     void replace_attribute(Attr& old_attribute, Attr& new_attribute, size_t old_attribute_index);
     void append_attribute(Attr& attribute);
 
@@ -55,7 +55,7 @@ public:
 
     Attr const* get_attribute_with_lowercase_qualified_name(FlyString const&) const;
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Attr>> remove_attribute_node(JS::NonnullGCPtr<Attr>);
+    WebIDL::ExceptionOr<GC::Ref<Attr>> remove_attribute_node(GC::Ref<Attr>);
 
 private:
     explicit NamedNodeMap(Element&);
@@ -68,8 +68,8 @@ private:
 
     void remove_attribute_at_index(size_t attribute_index);
 
-    JS::NonnullGCPtr<DOM::Element> m_element;
-    Vector<JS::NonnullGCPtr<Attr>> m_attributes;
+    GC::Ref<DOM::Element> m_element;
+    Vector<GC::Ref<Attr>> m_attributes;
 };
 
 }

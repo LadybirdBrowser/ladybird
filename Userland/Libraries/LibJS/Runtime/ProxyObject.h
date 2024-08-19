@@ -14,10 +14,10 @@ namespace JS {
 
 class ProxyObject final : public FunctionObject {
     JS_OBJECT(ProxyObject, FunctionObject);
-    JS_DECLARE_ALLOCATOR(ProxyObject);
+    GC_DECLARE_ALLOCATOR(ProxyObject);
 
 public:
-    static NonnullGCPtr<ProxyObject> create(Realm&, Object& target, Object& handler);
+    static GC::Ref<ProxyObject> create(Realm&, Object& target, Object& handler);
 
     virtual ~ProxyObject() override = default;
 
@@ -42,9 +42,9 @@ public:
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheablePropertyMetadata*, PropertyLookupPhase) const override;
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata*) override;
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
-    virtual ThrowCompletionOr<MarkedVector<Value>> internal_own_property_keys() const override;
+    virtual ThrowCompletionOr<GC::MarkedVector<Value>> internal_own_property_keys() const override;
     virtual ThrowCompletionOr<Value> internal_call(Value this_argument, ReadonlySpan<Value> arguments_list) override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target) override;
 
 private:
     ProxyObject(Object& target, Object& handler, Object& prototype);
@@ -54,8 +54,8 @@ private:
     virtual bool is_function() const override { return m_target->is_function(); }
     virtual bool is_proxy_object() const final { return true; }
 
-    NonnullGCPtr<Object> m_target;
-    NonnullGCPtr<Object> m_handler;
+    GC::Ref<Object> m_target;
+    GC::Ref<Object> m_handler;
     bool m_is_revoked { false };
 };
 

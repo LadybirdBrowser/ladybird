@@ -14,10 +14,10 @@
 namespace Web::Animations {
 
 // https://www.w3.org/TR/web-animations-1/#dom-animatable-animate
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Animation>> Animatable::animate(Optional<JS::Handle<JS::Object>> keyframes, Variant<Empty, double, KeyframeAnimationOptions> options)
+WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Handle<JS::Object>> keyframes, Variant<Empty, double, KeyframeAnimationOptions> options)
 {
     // 1. Let target be the object on which this method was called.
-    JS::NonnullGCPtr target { *static_cast<DOM::Element*>(this) };
+    GC::Ref target { *static_cast<DOM::Element*>(this) };
     auto& realm = target->realm();
 
     // 2. Construct a new KeyframeEffect object, effect, in the relevant Realm of target by using the same procedure as
@@ -32,7 +32,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Animation>> Animatable::animate(Optional<JS
     // 3. If options is a KeyframeAnimationOptions object, let timeline be the timeline member of options or, if
     //    timeline member of options is missing, be the default document timeline of the node document of the element
     //    on which this method was called.
-    Optional<JS::GCPtr<AnimationTimeline>> timeline;
+    Optional<GC::Ptr<AnimationTimeline>> timeline;
     if (options.has<KeyframeAnimationOptions>())
         timeline = options.get<KeyframeAnimationOptions>().timeline;
     if (!timeline.has_value())
@@ -55,7 +55,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Animation>> Animatable::animate(Optional<JS
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animatable-getanimations
-Vector<JS::NonnullGCPtr<Animation>> Animatable::get_animations(GetAnimationsOptions options)
+Vector<GC::Ref<Animation>> Animatable::get_animations(GetAnimationsOptions options)
 {
     // Returns the set of relevant animations for this object, or, if an options parameter is passed with subtree set to
     // true, returns the set of relevant animations for a subtree for this object.
@@ -63,7 +63,7 @@ Vector<JS::NonnullGCPtr<Animation>> Animatable::get_animations(GetAnimationsOpti
     // The returned list is sorted using the composite order described for the associated animations of effects in
     // §5.4.2 The effect stack.
     if (!m_is_sorted_by_composite_order) {
-        quick_sort(m_associated_animations, [](JS::NonnullGCPtr<Animation>& a, JS::NonnullGCPtr<Animation>& b) {
+        quick_sort(m_associated_animations, [](GC::Ref<Animation>& a, GC::Ref<Animation>& b) {
             auto& a_effect = verify_cast<KeyframeEffect>(*a->effect());
             auto& b_effect = verify_cast<KeyframeEffect>(*b->effect());
             return KeyframeEffect::composite_order(a_effect, b_effect) < 0;
@@ -71,14 +71,14 @@ Vector<JS::NonnullGCPtr<Animation>> Animatable::get_animations(GetAnimationsOpti
         m_is_sorted_by_composite_order = true;
     }
 
-    Vector<JS::NonnullGCPtr<Animation>> relevant_animations;
+    Vector<GC::Ref<Animation>> relevant_animations;
     for (auto const& animation : m_associated_animations) {
         if (animation->is_relevant())
             relevant_animations.append(*animation);
     }
 
     if (options.subtree) {
-        JS::NonnullGCPtr target { *static_cast<DOM::Element*>(this) };
+        GC::Ref target { *static_cast<DOM::Element*>(this) };
         target->for_each_child_of_type<DOM::Element>([&](auto& child) {
             relevant_animations.extend(child.get_animations(options));
             return IterationDecision::Continue;
@@ -88,13 +88,13 @@ Vector<JS::NonnullGCPtr<Animation>> Animatable::get_animations(GetAnimationsOpti
     return relevant_animations;
 }
 
-void Animatable::associate_with_animation(JS::NonnullGCPtr<Animation> animation)
+void Animatable::associate_with_animation(GC::Ref<Animation> animation)
 {
     m_associated_animations.append(animation);
     m_is_sorted_by_composite_order = false;
 }
 
-void Animatable::disassociate_with_animation(JS::NonnullGCPtr<Animation> animation)
+void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
 {
     m_associated_animations.remove_first_matching([&](auto element) { return animation == element; });
 }
@@ -108,14 +108,14 @@ void Animatable::visit_edges(JS::Cell::Visitor& visitor)
         visitor.visit(cached_animation_name);
 }
 
-JS::GCPtr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     if (pseudo_element.has_value())
         return m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1];
     return m_cached_animation_name_source[0];
 }
 
-void Animatable::set_cached_animation_name_source(JS::GCPtr<CSS::CSSStyleDeclaration const> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+void Animatable::set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
 {
     if (pseudo_element.has_value()) {
         m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1] = value;
@@ -124,14 +124,14 @@ void Animatable::set_cached_animation_name_source(JS::GCPtr<CSS::CSSStyleDeclara
     }
 }
 
-JS::GCPtr<Animations::Animation> Animatable::cached_animation_name_animation(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+GC::Ptr<Animations::Animation> Animatable::cached_animation_name_animation(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     if (pseudo_element.has_value())
         return m_cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1];
     return m_cached_animation_name_animation[0];
 }
 
-void Animatable::set_cached_animation_name_animation(JS::GCPtr<Animations::Animation> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+void Animatable::set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
 {
     if (pseudo_element.has_value()) {
         m_cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1] = value;

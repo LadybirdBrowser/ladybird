@@ -13,8 +13,8 @@
 
 namespace JS {
 
-ThrowCompletionOr<NonnullGCPtr<RegExpObject>> regexp_create(VM&, Value pattern, Value flags);
-ThrowCompletionOr<NonnullGCPtr<RegExpObject>> regexp_alloc(VM&, FunctionObject& new_target);
+ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_create(VM&, Value pattern, Value flags);
+ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_alloc(VM&, FunctionObject& new_target);
 
 Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string(StringView flags);
 struct ParseRegexPatternError {
@@ -25,7 +25,7 @@ ThrowCompletionOr<ByteString> parse_regex_pattern(VM& vm, StringView pattern, bo
 
 class RegExpObject : public Object {
     JS_OBJECT(RegExpObject, Object);
-    JS_DECLARE_ALLOCATOR(RegExpObject);
+    GC_DECLARE_ALLOCATOR(RegExpObject);
 
 public:
     // JS regexps are all 'global' by default as per our definition, but the "global" flag enables "stateful".
@@ -37,10 +37,10 @@ public:
         | regex::ECMAScriptFlags::BrowserExtended
     };
 
-    static NonnullGCPtr<RegExpObject> create(Realm&);
-    static NonnullGCPtr<RegExpObject> create(Realm&, Regex<ECMA262> regex, ByteString pattern, ByteString flags);
+    static GC::Ref<RegExpObject> create(Realm&);
+    static GC::Ref<RegExpObject> create(Realm&, Regex<ECMA262> regex, ByteString pattern, ByteString flags);
 
-    ThrowCompletionOr<NonnullGCPtr<RegExpObject>> regexp_initialize(VM&, Value pattern, Value flags);
+    ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_initialize(VM&, Value pattern, Value flags);
     ByteString escape_regexp_pattern() const;
 
     virtual void initialize(Realm&) override;
@@ -66,7 +66,7 @@ private:
     ByteString m_flags;
     bool m_legacy_features_enabled { false }; // [[LegacyFeaturesEnabled]]
     // Note: This is initialized in RegExpAlloc, but will be non-null afterwards
-    GCPtr<Realm> m_realm; // [[Realm]]
+    GC::Ptr<Realm> m_realm; // [[Realm]]
     Optional<Regex<ECMA262>> m_regex;
 };
 

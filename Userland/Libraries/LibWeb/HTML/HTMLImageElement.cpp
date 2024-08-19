@@ -36,7 +36,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLImageElement);
+GC_DEFINE_ALLOCATOR(HTMLImageElement);
 
 HTMLImageElement::HTMLImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -110,7 +110,7 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
     }
 }
 
-JS::GCPtr<Layout::Node> HTMLImageElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+GC::Ptr<Layout::Node> HTMLImageElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
 {
     return heap().allocate_without_realm<Layout::ImageBox>(document(), *this, move(style), *this);
 }
@@ -282,7 +282,7 @@ String HTMLImageElement::current_src() const
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() const
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> HTMLImageElement::decode() const
 {
     auto& realm = this->realm();
 
@@ -290,7 +290,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Queue a microtask to perform the following steps:
-    queue_a_microtask(&document(), JS::create_heap_function(realm.heap(), [this, promise, &realm]() mutable {
+    queue_a_microtask(&document(), GC::create_heap_function(realm.heap(), [this, promise, &realm]() mutable {
         auto reject_if_document_not_fully_active = [this, promise, &realm]() -> bool {
             if (this->document().is_fully_active())
                 return false;
@@ -360,7 +360,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
         });
     }));
 
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
 }
 
 Optional<ARIA::Role> HTMLImageElement::default_role() const
@@ -391,7 +391,7 @@ public:
     {
     }
 
-    void enqueue(JS::Handle<JS::HeapFunction<void()>> callback)
+    void enqueue(GC::Handle<GC::Function<void()>> callback)
     {
         // NOTE: We don't want to flush the queue on every image load, since that would be slow.
         //       However, we don't want to keep growing the batch forever either.
@@ -411,7 +411,7 @@ private:
     }
 
     NonnullRefPtr<Core::Timer> m_timer;
-    Vector<JS::Handle<JS::HeapFunction<void()>>> m_queue;
+    Vector<GC::Handle<GC::Function<void()>>> m_queue;
 };
 
 static BatchingDispatcher& batching_dispatcher()
@@ -517,7 +517,7 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
     }
 after_step_7:
     // 8. Queue a microtask to perform the rest of this algorithm, allowing the task that invoked this algorithm to continue.
-    queue_a_microtask(&document(), JS::create_heap_function(this->heap(), [this, restart_animations, maybe_omit_events, previous_url]() mutable {
+    queue_a_microtask(&document(), GC::create_heap_function(this->heap(), [this, restart_animations, maybe_omit_events, previous_url]() mutable {
         // FIXME: 9. If another instance of this algorithm for this img element was started after this instance
         //           (even if it aborted and is no longer running), then return.
 
@@ -672,11 +672,11 @@ after_step_7:
     return {};
 }
 
-void HTMLImageElement::add_callbacks_to_image_request(JS::NonnullGCPtr<ImageRequest> image_request, bool maybe_omit_events, URL::URL const& url_string, URL::URL const& previous_url)
+void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, URL::URL const& url_string, URL::URL const& previous_url)
 {
     image_request->add_callbacks(
         [this, image_request, maybe_omit_events, url_string, previous_url]() {
-            batching_dispatcher().enqueue(JS::create_heap_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, previous_url] {
+            batching_dispatcher().enqueue(GC::create_heap_function(realm().heap(), [this, image_request, maybe_omit_events, url_string, previous_url] {
                 VERIFY(image_request->shared_resource_request());
                 auto image_data = image_request->shared_resource_request()->image_data();
                 image_request->set_image_data(image_data);
@@ -746,7 +746,7 @@ void HTMLImageElement::did_set_viewport_rect(CSSPixelRect const& viewport_rect)
     if (viewport_rect.size() == m_last_seen_viewport_size)
         return;
     m_last_seen_viewport_size = viewport_rect.size();
-    batching_dispatcher().enqueue(JS::create_heap_function(realm().heap(), [this] {
+    batching_dispatcher().enqueue(GC::create_heap_function(realm().heap(), [this] {
         react_to_changes_in_the_environment();
     }));
 }
@@ -816,7 +816,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
     // FIXME: 13. End the synchronous section, continuing the remaining steps in parallel.
 
-    auto step_15 = [this](String const& selected_source, JS::NonnullGCPtr<ImageRequest> image_request, ListOfAvailableImages::Key const& key, JS::NonnullGCPtr<DecodedImageData> image_data) {
+    auto step_15 = [this](String const& selected_source, GC::Ref<ImageRequest> image_request, ListOfAvailableImages::Key const& key, GC::Ref<DecodedImageData> image_data) {
         // 15. Queue an element task on the DOM manipulation task source given the img element and the following steps:
         queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, selected_source, image_request, key, image_data] {
             // 1. FIXME: If the img element has experienced relevant mutations since this algorithm started, then let pending request be null and abort these steps.
@@ -884,7 +884,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
                 // then let pending request be null and abort these steps.
 
-                batching_dispatcher().enqueue(JS::create_heap_function(realm().heap(), [step_15, selected_source = move(selected_source), image_request, key] {
+                batching_dispatcher().enqueue(GC::create_heap_function(realm().heap(), [step_15, selected_source = move(selected_source), image_request, key] {
                     // 7. Otherwise, response's unsafe response is image request's image data. It can be either CORS-same-origin
                     //    or CORS-cross-origin; this affects the image's interaction with other APIs (e.g., when used on a canvas).
                     VERIFY(image_request->shared_resource_request());
@@ -977,7 +977,7 @@ static void update_the_source_set(DOM::Element& element)
         TODO();
 
     // 2. Let elements be « el ».
-    JS::MarkedVector<DOM::Element*> elements(element.heap());
+    GC::MarkedVector<DOM::Element*> elements(element.heap());
     elements.append(&element);
 
     // 3. If el is an img element whose parent node is a picture element,

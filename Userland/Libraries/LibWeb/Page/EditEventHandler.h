@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 
 namespace Web {
@@ -21,10 +21,10 @@ public:
 
     ~EditEventHandler() = default;
 
-    void handle_delete_character_after(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>);
-    void handle_delete(JS::NonnullGCPtr<DOM::Document>, DOM::Range&);
-    void handle_insert(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>, u32 code_point);
-    void handle_insert(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>, String);
+    void handle_delete_character_after(GC::Ref<DOM::Document>, GC::Ref<DOM::Position>);
+    void handle_delete(GC::Ref<DOM::Document>, DOM::Range&);
+    void handle_insert(GC::Ref<DOM::Document>, GC::Ref<DOM::Position>, u32 code_point);
+    void handle_insert(GC::Ref<DOM::Document>, GC::Ref<DOM::Position>, String);
 };
 
 }

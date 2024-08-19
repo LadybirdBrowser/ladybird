@@ -13,10 +13,10 @@ namespace Web::HTML {
 
 class DataTransfer : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DataTransfer, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DataTransfer);
+    GC_DECLARE_ALLOCATOR(DataTransfer);
 
 public:
-    static JS::NonnullGCPtr<DataTransfer> construct_impl(JS::Realm&);
+    static GC::Ref<DataTransfer> construct_impl(JS::Realm&);
     virtual ~DataTransfer() override;
 
 private:

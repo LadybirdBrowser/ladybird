@@ -13,7 +13,7 @@ namespace Web::Bindings {
 
 class OptionConstructor final : public JS::NativeFunction {
     JS_OBJECT(OptionConstructor, JS::NativeFunction);
-    JS_DECLARE_ALLOCATOR(OptionConstructor);
+    GC_DECLARE_ALLOCATOR(OptionConstructor);
 
 public:
     explicit OptionConstructor(JS::Realm&);
@@ -21,7 +21,7 @@ public:
     virtual ~OptionConstructor() override = default;
 
     virtual JS::ThrowCompletionOr<JS::Value> call() override;
-    virtual JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> construct(JS::FunctionObject& new_target) override;
+    virtual JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(JS::FunctionObject& new_target) override;
 
 private:
     virtual bool has_constructor() const override { return true; }

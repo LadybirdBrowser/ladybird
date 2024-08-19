@@ -15,7 +15,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Error);
+GC_DEFINE_ALLOCATOR(Error);
 
 SourceRange const& TracebackFrame::source_range() const
 {
@@ -32,12 +32,12 @@ SourceRange const& TracebackFrame::source_range() const
     return source_range_storage.get<SourceRange>();
 }
 
-NonnullGCPtr<Error> Error::create(Realm& realm)
+GC::Ref<Error> Error::create(Realm& realm)
 {
     return realm.heap().allocate<Error>(realm, realm.intrinsics().error_prototype());
 }
 
-NonnullGCPtr<Error> Error::create(Realm& realm, String message)
+GC::Ref<Error> Error::create(Realm& realm, String message)
 {
     auto& vm = realm.vm();
     auto error = Error::create(realm);
@@ -46,7 +46,7 @@ NonnullGCPtr<Error> Error::create(Realm& realm, String message)
     return error;
 }
 
-NonnullGCPtr<Error> Error::create(Realm& realm, StringView message)
+GC::Ref<Error> Error::create(Realm& realm, StringView message)
 {
     return create(realm, MUST(String::from_utf8(message)));
 }
@@ -158,13 +158,13 @@ String Error::stack_string(CompactTraceback compact) const
 }
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType)                   \
-    JS_DEFINE_ALLOCATOR(ClassName);                                                                        \
-    NonnullGCPtr<ClassName> ClassName::create(Realm& realm)                                                \
+    GC_DEFINE_ALLOCATOR(ClassName);                                                                        \
+    GC::Ref<ClassName> ClassName::create(Realm& realm)                                                     \
     {                                                                                                      \
         return realm.heap().allocate<ClassName>(realm, realm.intrinsics().snake_name##_prototype());       \
     }                                                                                                      \
                                                                                                            \
-    NonnullGCPtr<ClassName> ClassName::create(Realm& realm, String message)                                \
+    GC::Ref<ClassName> ClassName::create(Realm& realm, String message)                                     \
     {                                                                                                      \
         auto& vm = realm.vm();                                                                             \
         auto error = ClassName::create(realm);                                                             \
@@ -173,7 +173,7 @@ String Error::stack_string(CompactTraceback compact) const
         return error;                                                                                      \
     }                                                                                                      \
                                                                                                            \
-    NonnullGCPtr<ClassName> ClassName::create(Realm& realm, StringView message)                            \
+    GC::Ref<ClassName> ClassName::create(Realm& realm, StringView message)                                 \
     {                                                                                                      \
         return create(realm, MUST(String::from_utf8(message)));                                            \
     }                                                                                                      \

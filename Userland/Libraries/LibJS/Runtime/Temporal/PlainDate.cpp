@@ -23,7 +23,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(PlainDate);
+GC_DEFINE_ALLOCATOR(PlainDate);
 
 // 3 Temporal.PlainDate Objects, https://tc39.es/proposal-temporal/#sec-temporal-plaindate-objects
 PlainDate::PlainDate(i32 year, u8 month, u8 day, Object& calendar, Object& prototype)
@@ -382,7 +382,7 @@ bool is_valid_iso_date(i32 year, u8 month, u8 day)
 }
 
 // 3.5.6 DifferenceDate ( calendarRec, one, two, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencedate
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_date(VM& vm, CalendarMethods const& calendar_record, PlainDate const& one, PlainDate const& two, Object const& options)
+ThrowCompletionOr<GC::Ref<Duration>> difference_date(VM& vm, CalendarMethods const& calendar_record, PlainDate const& one, PlainDate const& two, Object const& options)
 {
     // FIXME: 1. Assert: one.[[Calendar]] and two.[[Calendar]] have been determined to be equivalent as with CalendarEquals.
     // FIXME: 2. Assert: options is an ordinary Object.
@@ -529,7 +529,7 @@ i8 compare_iso_date(i32 year1, u8 month1, u8 day1, i32 year2, u8 month2, u8 day2
 }
 
 // 3.5.11 DifferenceTemporalPlainDate ( operation, temporalDate, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindate
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_plain_date(VM& vm, DifferenceOperation operation, PlainDate& temporal_date, Value other_value, Value options)
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date(VM& vm, DifferenceOperation operation, PlainDate& temporal_date, Value other_value, Value options)
 {
     // 1. If operation is SINCE, let sign be -1. Otherwise, let sign be 1.
     i8 sign = operation == DifferenceOperation::Since ? -1 : 1;
@@ -555,7 +555,7 @@ ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_plain_date(VM& vm,
 
     // 7. Let calendarRec be ? CreateCalendarMethodsRecord(temporalDate.[[Calendar]], « DATE-ADD, DATE-UNTIL »).
     // FIXME: The type of calendar in PlainDate does not align with latest spec
-    auto calendar_record = TRY(create_calendar_methods_record(vm, NonnullGCPtr<Object> { temporal_date.calendar() }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
+    auto calendar_record = TRY(create_calendar_methods_record(vm, GC::Ref<Object> { temporal_date.calendar() }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
 
     // 8. Perform ! CreateDataPropertyOrThrow(resolvedOptions, "largestUnit", settings.[[LargestUnit]]).
     MUST(resolved_options->create_data_property_or_throw(vm.names.largestUnit, PrimitiveString::create(vm, settings.largest_unit)));

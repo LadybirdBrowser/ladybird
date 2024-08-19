@@ -14,7 +14,7 @@ namespace JS {
 
 class AsyncGeneratorPrototype final : public PrototypeObject<AsyncGeneratorPrototype, AsyncGenerator> {
     JS_PROTOTYPE_OBJECT(AsyncGeneratorPrototype, AsyncGenerator, AsyncGenerator)
-    JS_DECLARE_ALLOCATOR(AsyncGeneratorPrototype);
+    GC_DECLARE_ALLOCATOR(AsyncGeneratorPrototype);
 
 public:
     virtual void initialize(Realm&) override;

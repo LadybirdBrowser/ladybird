@@ -12,9 +12,9 @@
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(ViewportPaintable);
+GC_DEFINE_ALLOCATOR(ViewportPaintable);
 
-JS::NonnullGCPtr<ViewportPaintable> ViewportPaintable::create(Layout::Viewport const& layout_viewport)
+GC::Ref<ViewportPaintable> ViewportPaintable::create(Layout::Viewport const& layout_viewport)
 {
     return layout_viewport.heap().allocate_without_realm<ViewportPaintable>(layout_viewport);
 }
@@ -193,7 +193,7 @@ void ViewportPaintable::resolve_paint_only_properties()
     });
 }
 
-JS::GCPtr<Selection::Selection> ViewportPaintable::selection() const
+GC::Ptr<Selection::Selection> ViewportPaintable::selection() const
 {
     return const_cast<DOM::Document&>(document()).get_selection();
 }

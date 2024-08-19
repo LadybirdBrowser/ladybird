@@ -18,7 +18,7 @@ class Script
     : public JS::Cell
     , public JS::Script::HostDefined {
     JS_CELL(Script, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Script);
+    GC_DECLARE_ALLOCATOR(Script);
 
 public:
     virtual ~Script() override;
@@ -44,7 +44,7 @@ private:
 
     URL::URL m_base_url;
     ByteString m_filename;
-    JS::NonnullGCPtr<EnvironmentSettingsObject> m_settings_object;
+    GC::Ref<EnvironmentSettingsObject> m_settings_object;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-parse-error
     JS::Value m_parse_error;

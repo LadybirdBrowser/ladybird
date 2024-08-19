@@ -11,9 +11,9 @@
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(MarkerPaintable);
+GC_DEFINE_ALLOCATOR(MarkerPaintable);
 
-JS::NonnullGCPtr<MarkerPaintable> MarkerPaintable::create(Layout::ListItemMarkerBox const& layout_box)
+GC::Ref<MarkerPaintable> MarkerPaintable::create(Layout::ListItemMarkerBox const& layout_box)
 {
     return layout_box.heap().allocate_without_realm<MarkerPaintable>(layout_box);
 }

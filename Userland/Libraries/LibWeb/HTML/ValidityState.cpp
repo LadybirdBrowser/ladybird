@@ -10,7 +10,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ValidityState);
+GC_DEFINE_ALLOCATOR(ValidityState);
 
 ValidityState::ValidityState(JS::Realm& realm)
     : PlatformObject(realm)

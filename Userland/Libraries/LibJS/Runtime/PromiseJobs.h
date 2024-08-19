@@ -15,12 +15,12 @@
 namespace JS {
 
 struct PromiseJob {
-    NonnullGCPtr<HeapFunction<ThrowCompletionOr<Value>()>> job;
-    GCPtr<Realm> realm;
+    GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job;
+    GC::Ptr<Realm> realm;
 };
 
 // NOTE: These return a PromiseJob to prevent awkward casting at call sites.
 PromiseJob create_promise_reaction_job(VM&, PromiseReaction&, Value argument);
-PromiseJob create_promise_resolve_thenable_job(VM&, Promise&, Value thenable, JS::NonnullGCPtr<JobCallback> then);
+PromiseJob create_promise_resolve_thenable_job(VM&, Promise&, Value thenable, GC::Ref<JobCallback> then);
 
 }

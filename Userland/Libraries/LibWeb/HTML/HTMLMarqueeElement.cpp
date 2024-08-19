@@ -15,7 +15,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLMarqueeElement);
+GC_DEFINE_ALLOCATOR(HTMLMarqueeElement);
 
 HTMLMarqueeElement::HTMLMarqueeElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))

@@ -13,7 +13,7 @@ namespace Web::SVG {
 // https://www.w3.org/TR/SVG11/shapes.html#RectElement
 class SVGRectElement final : public SVGGeometryElement {
     WEB_PLATFORM_OBJECT(SVGRectElement, SVGGeometryElement);
-    JS_DECLARE_ALLOCATOR(SVGRectElement);
+    GC_DECLARE_ALLOCATOR(SVGRectElement);
 
 public:
     virtual ~SVGRectElement() override = default;
@@ -22,12 +22,12 @@ public:
 
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
-    JS::NonnullGCPtr<SVGAnimatedLength> x() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> y() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> width() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> height() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> rx() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> ry() const;
+    GC::Ref<SVGAnimatedLength> x() const;
+    GC::Ref<SVGAnimatedLength> y() const;
+    GC::Ref<SVGAnimatedLength> width() const;
+    GC::Ref<SVGAnimatedLength> height() const;
+    GC::Ref<SVGAnimatedLength> rx() const;
+    GC::Ref<SVGAnimatedLength> ry() const;
 
 private:
     SVGRectElement(DOM::Document&, DOM::QualifiedName);

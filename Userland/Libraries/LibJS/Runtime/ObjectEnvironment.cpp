@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ObjectEnvironment);
+GC_DEFINE_ALLOCATOR(ObjectEnvironment);
 
 ObjectEnvironment::ObjectEnvironment(Object& binding_object, IsWithEnvironment is_with_environment, Environment* outer_environment)
     : Environment(outer_environment)

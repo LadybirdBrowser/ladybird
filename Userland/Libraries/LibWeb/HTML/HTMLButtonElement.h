@@ -21,7 +21,7 @@ class HTMLButtonElement final
     : public HTMLElement
     , public FormAssociatedElement {
     WEB_PLATFORM_OBJECT(HTMLButtonElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLButtonElement);
+    GC_DECLARE_ALLOCATOR(HTMLButtonElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLButtonElement)
 
 public:

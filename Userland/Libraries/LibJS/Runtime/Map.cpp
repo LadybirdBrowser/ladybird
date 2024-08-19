@@ -8,9 +8,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Map);
+GC_DEFINE_ALLOCATOR(Map);
 
-NonnullGCPtr<Map> Map::create(Realm& realm)
+GC::Ref<Map> Map::create(Realm& realm)
 {
     return realm.heap().allocate<Map>(realm, realm.intrinsics().map_prototype());
 }

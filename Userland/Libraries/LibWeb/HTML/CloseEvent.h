@@ -20,11 +20,11 @@ struct CloseEventInit : public DOM::EventInit {
 
 class CloseEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(CloseEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(CloseEvent);
+    GC_DECLARE_ALLOCATOR(CloseEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CloseEvent> create(JS::Realm&, FlyString const& event_name, CloseEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<CloseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, CloseEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CloseEvent> create(JS::Realm&, FlyString const& event_name, CloseEventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<CloseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, CloseEventInit const& event_init);
 
     virtual ~CloseEvent() override;
 

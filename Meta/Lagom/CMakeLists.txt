@@ -386,6 +386,7 @@ set(lagom_standard_libraries
     Compress
     Crypto
     Diff
+    GC
     HTTP
     IPC
     JS

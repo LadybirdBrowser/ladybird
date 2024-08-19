@@ -20,7 +20,7 @@ namespace Web::Streams {
 // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller
 class ReadableStreamDefaultController : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ReadableStreamDefaultController, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ReadableStreamDefaultController);
+    GC_DECLARE_ALLOCATOR(ReadableStreamDefaultController);
 
 public:
     explicit ReadableStreamDefaultController(JS::Realm&);
@@ -32,8 +32,8 @@ public:
     WebIDL::ExceptionOr<void> enqueue(JS::Value chunk);
     void error(JS::Value error);
 
-    JS::GCPtr<CancelAlgorithm> cancel_algorithm() { return m_cancel_algorithm; }
-    void set_cancel_algorithm(JS::GCPtr<CancelAlgorithm> value) { m_cancel_algorithm = value; }
+    GC::Ptr<CancelAlgorithm> cancel_algorithm() { return m_cancel_algorithm; }
+    void set_cancel_algorithm(GC::Ptr<CancelAlgorithm> value) { m_cancel_algorithm = value; }
 
     bool close_requested() const { return m_close_requested; }
     void set_close_requested(bool value) { m_close_requested = value; }
@@ -41,8 +41,8 @@ public:
     bool pull_again() const { return m_pull_again; }
     void set_pull_again(bool value) { m_pull_again = value; }
 
-    JS::GCPtr<PullAlgorithm> pull_algorithm() { return m_pull_algorithm; }
-    void set_pull_algorithm(JS::GCPtr<PullAlgorithm> value) { m_pull_algorithm = value; }
+    GC::Ptr<PullAlgorithm> pull_algorithm() { return m_pull_algorithm; }
+    void set_pull_algorithm(GC::Ptr<PullAlgorithm> value) { m_pull_algorithm = value; }
 
     bool pulling() const { return m_pulling; }
     void set_pulling(bool value) { m_pulling = value; }
@@ -58,13 +58,13 @@ public:
     double strategy_hwm() const { return m_strategy_hwm; }
     void set_strategy_hwm(double value) { m_strategy_hwm = value; }
 
-    JS::GCPtr<SizeAlgorithm> strategy_size_algorithm() { return m_strategy_size_algorithm; }
-    void set_strategy_size_algorithm(JS::GCPtr<SizeAlgorithm> value) { m_strategy_size_algorithm = value; }
+    GC::Ptr<SizeAlgorithm> strategy_size_algorithm() { return m_strategy_size_algorithm; }
+    void set_strategy_size_algorithm(GC::Ptr<SizeAlgorithm> value) { m_strategy_size_algorithm = value; }
 
-    JS::GCPtr<ReadableStream> stream() { return m_stream; }
-    void set_stream(JS::GCPtr<ReadableStream> value) { m_stream = value; }
+    GC::Ptr<ReadableStream> stream() { return m_stream; }
+    void set_stream(GC::Ptr<ReadableStream> value) { m_stream = value; }
 
-    JS::NonnullGCPtr<WebIDL::Promise> cancel_steps(JS::Value reason);
+    GC::Ref<WebIDL::Promise> cancel_steps(JS::Value reason);
     void pull_steps(ReadRequest&);
     void release_steps();
 
@@ -75,7 +75,7 @@ private:
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-cancelalgorithm
     // A promise-returning algorithm, taking one argument (the cancel reason), which communicates a requested cancelation to the underlying source
-    JS::GCPtr<CancelAlgorithm> m_cancel_algorithm;
+    GC::Ptr<CancelAlgorithm> m_cancel_algorithm;
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-closerequested
     // A boolean flag indicating whether the stream has been closed by its underlying source, but still has chunks in its internal queue that have not yet been read
@@ -87,7 +87,7 @@ private:
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-pullalgorithm
     // A promise-returning algorithm that pulls data from the underlying source
-    JS::GCPtr<PullAlgorithm> m_pull_algorithm;
+    GC::Ptr<PullAlgorithm> m_pull_algorithm;
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-pulling
     // A boolean flag set to true while the underlying source's pull algorithm is executing and the returned promise has not yet fulfilled, used to prevent reentrant calls
@@ -111,11 +111,11 @@ private:
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-strategysizealgorithm
     // An algorithm to calculate the size of enqueued chunks, as part of the stream’s queuing strategy
-    JS::GCPtr<SizeAlgorithm> m_strategy_size_algorithm;
+    GC::Ptr<SizeAlgorithm> m_strategy_size_algorithm;
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-stream
     // The ReadableStream instance controlled
-    JS::GCPtr<ReadableStream> m_stream;
+    GC::Ptr<ReadableStream> m_stream;
 };
 
 }

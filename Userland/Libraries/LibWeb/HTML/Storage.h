@@ -15,10 +15,10 @@ namespace Web::HTML {
 
 class Storage : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Storage, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Storage);
+    GC_DECLARE_ALLOCATOR(Storage);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Storage> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Storage> create(JS::Realm&);
     ~Storage();
 
     size_t length() const;

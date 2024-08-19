@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SuppressedErrorConstructor);
+GC_DEFINE_ALLOCATOR(SuppressedErrorConstructor);
 
 SuppressedErrorConstructor::SuppressedErrorConstructor(Realm& realm)
     : NativeFunction(static_cast<Object&>(realm.intrinsics().error_constructor()))
@@ -40,7 +40,7 @@ ThrowCompletionOr<Value> SuppressedErrorConstructor::call()
 }
 
 // 10.1.4.1.1 SuppressedError ( error, suppressed, message [ , options ] ), https://tc39.es/proposal-explicit-resource-management/#sec-suppressederror
-ThrowCompletionOr<NonnullGCPtr<Object>> SuppressedErrorConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> SuppressedErrorConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto error = vm.argument(0);

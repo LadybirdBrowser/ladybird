@@ -13,7 +13,7 @@ namespace Web::Layout {
 
 class BreakNode final : public NodeWithStyleAndBoxModelMetrics {
     JS_CELL(BreakNode, NodeWithStyleAndBoxModelMetrics);
-    JS_DECLARE_ALLOCATOR(BreakNode);
+    GC_DECLARE_ALLOCATOR(BreakNode);
 
 public:
     BreakNode(DOM::Document&, HTML::HTMLBRElement&, NonnullRefPtr<CSS::StyleProperties>);

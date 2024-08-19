@@ -15,10 +15,10 @@ namespace Web::HTML {
 
 class HTMLCanvasElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLCanvasElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLCanvasElement);
+    GC_DECLARE_ALLOCATOR(HTMLCanvasElement);
 
 public:
-    using RenderingContext = Variant<JS::Handle<CanvasRenderingContext2D>, JS::Handle<WebGL::WebGLRenderingContext>, Empty>;
+    using RenderingContext = Variant<GC::Handle<CanvasRenderingContext2D>, GC::Handle<WebGL::WebGLRenderingContext>, Empty>;
 
     virtual ~HTMLCanvasElement() override;
 
@@ -35,7 +35,7 @@ public:
     WebIDL::ExceptionOr<void> set_height(unsigned);
 
     String to_data_url(StringView type, Optional<double> quality);
-    WebIDL::ExceptionOr<void> to_blob(JS::NonnullGCPtr<WebIDL::CallbackType> callback, StringView type, Optional<double> quality);
+    WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, Optional<double> quality);
 
     void present();
 
@@ -47,7 +47,7 @@ private:
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
 
     enum class HasOrCreatedContext {
         No,
@@ -60,7 +60,7 @@ private:
 
     RefPtr<Gfx::Bitmap> m_bitmap;
 
-    Variant<JS::NonnullGCPtr<HTML::CanvasRenderingContext2D>, JS::NonnullGCPtr<WebGL::WebGLRenderingContext>, Empty> m_context;
+    Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, Empty> m_context;
 };
 
 }

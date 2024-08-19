@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(ScreenOrientation);
+GC_DEFINE_ALLOCATOR(ScreenOrientation);
 
 ScreenOrientation::ScreenOrientation(JS::Realm& realm)
     : DOM::EventTarget(realm)
@@ -24,13 +24,13 @@ void ScreenOrientation::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ScreenOrientation);
 }
 
-JS::NonnullGCPtr<ScreenOrientation> ScreenOrientation::create(JS::Realm& realm)
+GC::Ref<ScreenOrientation> ScreenOrientation::create(JS::Realm& realm)
 {
     return realm.heap().allocate<ScreenOrientation>(realm, realm);
 }
 
 // https://w3c.github.io/screen-orientation/#lock-method
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> ScreenOrientation::lock(Bindings::OrientationLockType)
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> ScreenOrientation::lock(Bindings::OrientationLockType)
 {
     return WebIDL::NotSupportedError::create(realm(), "FIXME: ScreenOrientation::lock() is not implemented"_fly_string);
 }
@@ -56,13 +56,13 @@ WebIDL::UnsignedShort ScreenOrientation::angle() const
 }
 
 // https://w3c.github.io/screen-orientation/#onchange-event-handler-attribute
-void ScreenOrientation::set_onchange(JS::GCPtr<WebIDL::CallbackType> event_handler)
+void ScreenOrientation::set_onchange(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::change, event_handler);
 }
 
 // https://w3c.github.io/screen-orientation/#onchange-event-handler-attribute
-JS::GCPtr<WebIDL::CallbackType> ScreenOrientation::onchange()
+GC::Ptr<WebIDL::CallbackType> ScreenOrientation::onchange()
 {
     return event_handler_attribute(HTML::EventNames::change);
 }

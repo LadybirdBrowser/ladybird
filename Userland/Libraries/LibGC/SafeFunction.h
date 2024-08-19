@@ -11,7 +11,7 @@
 #include <AK/Function.h>
 #include <AK/SourceLocation.h>
 
-namespace JS {
+namespace GC {
 
 void register_safe_function_closure(void*, size_t, SourceLocation*);
 void unregister_safe_function_closure(void*, size_t, SourceLocation*);

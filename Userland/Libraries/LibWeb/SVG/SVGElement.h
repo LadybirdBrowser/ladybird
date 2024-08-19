@@ -26,13 +26,13 @@ public:
     virtual void inserted() override;
     virtual void removed_from(Node*) override;
 
-    [[nodiscard]] JS::NonnullGCPtr<HTML::DOMStringMap> dataset();
+    [[nodiscard]] GC::Ref<HTML::DOMStringMap> dataset();
 
     void focus();
     void blur();
 
-    JS::NonnullGCPtr<SVGAnimatedString> class_name();
-    JS::GCPtr<SVGSVGElement> owner_svg_element();
+    GC::Ref<SVGAnimatedString> class_name();
+    GC::Ptr<SVGSVGElement> owner_svg_element();
 
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
@@ -43,17 +43,17 @@ protected:
     void update_use_elements_that_reference_this();
     void remove_from_use_element_that_reference_this();
 
-    JS::GCPtr<HTML::DOMStringMap> m_dataset;
+    GC::Ptr<HTML::DOMStringMap> m_dataset;
 
-    JS::NonnullGCPtr<SVGAnimatedLength> svg_animated_length_for_property(CSS::PropertyID) const;
+    GC::Ref<SVGAnimatedLength> svg_animated_length_for_property(CSS::PropertyID) const;
 
 private:
     // ^HTML::GlobalEventHandlers
-    virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
+    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
 
     virtual bool is_svg_element() const final { return true; }
 
-    JS::GCPtr<SVGAnimatedString> m_class_name_animated_string;
+    GC::Ptr<SVGAnimatedString> m_class_name_animated_string;
 };
 
 }

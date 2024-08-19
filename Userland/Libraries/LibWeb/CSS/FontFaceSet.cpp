@@ -17,10 +17,10 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(FontFaceSet);
+GC_DEFINE_ALLOCATOR(FontFaceSet);
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-fontfaceset
-JS::NonnullGCPtr<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vector<JS::Handle<FontFace>> const& initial_faces)
+GC::Ref<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vector<GC::Handle<FontFace>> const& initial_faces)
 {
     auto ready_promise = WebIDL::create_promise(realm);
     auto set_entries = JS::Set::create(realm);
@@ -35,12 +35,12 @@ JS::NonnullGCPtr<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vect
     return realm.heap().allocate<FontFaceSet>(realm, realm, ready_promise, set_entries);
 }
 
-JS::NonnullGCPtr<FontFaceSet> FontFaceSet::create(JS::Realm& realm)
+GC::Ref<FontFaceSet> FontFaceSet::create(JS::Realm& realm)
 {
     return construct_impl(realm, {});
 }
 
-FontFaceSet::FontFaceSet(JS::Realm& realm, JS::NonnullGCPtr<WebIDL::Promise> ready_promise, JS::NonnullGCPtr<JS::Set> set_entries)
+FontFaceSet::FontFaceSet(JS::Realm& realm, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<JS::Set> set_entries)
     : DOM::EventTarget(realm)
     , m_set_entries(set_entries)
     , m_ready_promise(ready_promise)
@@ -64,7 +64,7 @@ void FontFaceSet::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-add
-JS::NonnullGCPtr<FontFaceSet> FontFaceSet::add(JS::Handle<FontFace> face)
+GC::Ref<FontFaceSet> FontFaceSet::add(GC::Handle<FontFace> face)
 {
     // FIXME: Do the actual spec steps
     m_set_entries->set_add(face);
@@ -72,7 +72,7 @@ JS::NonnullGCPtr<FontFaceSet> FontFaceSet::add(JS::Handle<FontFace> face)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-delete
-bool FontFaceSet::delete_(JS::Handle<FontFace> face)
+bool FontFaceSet::delete_(GC::Handle<FontFace> face)
 {
     // FIXME: Do the actual spec steps
     return m_set_entries->set_remove(face);
@@ -122,7 +122,7 @@ WebIDL::CallbackType* FontFaceSet::onloadingerror()
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-load
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> FontFaceSet::load(String const&, String const&)
+JS::ThrowCompletionOr<GC::Ref<JS::Promise>> FontFaceSet::load(String const&, String const&)
 {
     // FIXME: Do the steps
     auto promise = WebIDL::create_rejected_promise(realm(), WebIDL::NotSupportedError::create(realm(), "FontFaceSet::load is not yet implemented"_fly_string));
@@ -130,7 +130,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> FontFaceSet::load(String co
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-face-set-ready
-JS::NonnullGCPtr<JS::Promise> FontFaceSet::ready() const
+GC::Ref<JS::Promise> FontFaceSet::ready() const
 {
     return verify_cast<JS::Promise>(*m_ready_promise->promise());
 }

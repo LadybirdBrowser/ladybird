@@ -12,7 +12,7 @@ namespace Web::XHR {
 
 class XMLHttpRequestUpload : public XMLHttpRequestEventTarget {
     WEB_PLATFORM_OBJECT(XMLHttpRequestUpload, XMLHttpRequestEventTarget);
-    JS_DECLARE_ALLOCATOR(XMLHttpRequestUpload);
+    GC_DECLARE_ALLOCATOR(XMLHttpRequestUpload);
 
 public:
     virtual ~XMLHttpRequestUpload() override;

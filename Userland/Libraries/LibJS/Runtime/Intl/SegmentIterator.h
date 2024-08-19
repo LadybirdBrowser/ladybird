@@ -15,10 +15,10 @@ namespace JS::Intl {
 
 class SegmentIterator final : public Object {
     JS_OBJECT(SegmentIterator, Object);
-    JS_DECLARE_ALLOCATOR(SegmentIterator);
+    GC_DECLARE_ALLOCATOR(SegmentIterator);
 
 public:
-    static NonnullGCPtr<SegmentIterator> create(Realm&, Unicode::Segmenter const&, Utf16View const&, Segments const&);
+    static GC::Ref<SegmentIterator> create(Realm&, Unicode::Segmenter const&, Utf16View const&, Segments const&);
 
     virtual ~SegmentIterator() override = default;
 
@@ -36,7 +36,7 @@ private:
     NonnullOwnPtr<Unicode::Segmenter> m_iterating_segmenter; // [[IteratingSegmenter]]
     Utf16View m_iterated_string;                             // [[IteratedString]]
 
-    NonnullGCPtr<Segments const> m_segments;
+    GC::Ref<Segments const> m_segments;
 };
 
 }

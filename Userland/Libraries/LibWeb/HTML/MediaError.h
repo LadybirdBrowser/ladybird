@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 class MediaError final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(MediaError, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(MediaError);
+    GC_DECLARE_ALLOCATOR(MediaError);
 
 public:
     enum class Code : u16 {

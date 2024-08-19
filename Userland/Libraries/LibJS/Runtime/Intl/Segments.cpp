@@ -10,10 +10,10 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(Segments);
+GC_DEFINE_ALLOCATOR(Segments);
 
 // 18.5.1 CreateSegmentsObject ( segmenter, string ), https://tc39.es/ecma402/#sec-createsegmentsobject
-NonnullGCPtr<Segments> Segments::create(Realm& realm, Unicode::Segmenter const& segmenter, Utf16String string)
+GC::Ref<Segments> Segments::create(Realm& realm, Unicode::Segmenter const& segmenter, Utf16String string)
 {
     // 1. Let internalSlotsList be « [[SegmentsSegmenter]], [[SegmentsString]] ».
     // 2. Let segments be OrdinaryObjectCreate(%SegmentsPrototype%, internalSlotsList).

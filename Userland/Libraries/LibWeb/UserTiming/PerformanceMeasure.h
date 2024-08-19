@@ -21,12 +21,12 @@ struct PerformanceMeasureOptions {
 // https://w3c.github.io/user-timing/#dom-performancemeasure
 class PerformanceMeasure final : public PerformanceTimeline::PerformanceEntry {
     WEB_PLATFORM_OBJECT(PerformanceMeasure, PerformanceTimeline::PerformanceEntry);
-    JS_DECLARE_ALLOCATOR(PerformanceMeasure);
+    GC_DECLARE_ALLOCATOR(PerformanceMeasure);
 
 public:
     virtual ~PerformanceMeasure();
 
-    [[nodiscard]] static JS::NonnullGCPtr<PerformanceMeasure> create(JS::Realm&, String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
+    [[nodiscard]] static GC::Ref<PerformanceMeasure> create(JS::Realm&, String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
 
     // NOTE: These three functions are answered by the registry for the given entry type.
     // https://w3c.github.io/timing-entrytypes-registry/#registry

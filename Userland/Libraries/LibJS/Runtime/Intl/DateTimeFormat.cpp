@@ -12,7 +12,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(DateTimeFormat);
+GC_DEFINE_ALLOCATOR(DateTimeFormat);
 
 // 11 DateTimeFormat Objects, https://tc39.es/ecma402/#datetimeformat-objects
 DateTimeFormat::DateTimeFormat(Object& prototype)
@@ -71,7 +71,7 @@ ThrowCompletionOr<String> format_date_time(VM& vm, DateTimeFormat& date_time_for
 }
 
 // 11.5.8 FormatDateTimeToParts ( dateTimeFormat, x ), https://tc39.es/ecma402/#sec-formatdatetimetoparts
-ThrowCompletionOr<NonnullGCPtr<Array>> format_date_time_to_parts(VM& vm, DateTimeFormat& date_time_format, double time)
+ThrowCompletionOr<GC::Ref<Array>> format_date_time_to_parts(VM& vm, DateTimeFormat& date_time_format, double time)
 {
     auto& realm = *vm.current_realm();
 
@@ -157,7 +157,7 @@ ThrowCompletionOr<String> format_date_time_range(VM& vm, DateTimeFormat& date_ti
 }
 
 // 11.5.11 FormatDateTimeRangeToParts ( dateTimeFormat, x, y ), https://tc39.es/ecma402/#sec-formatdatetimerangetoparts
-ThrowCompletionOr<NonnullGCPtr<Array>> format_date_time_range_to_parts(VM& vm, DateTimeFormat& date_time_format, double start, double end)
+ThrowCompletionOr<GC::Ref<Array>> format_date_time_range_to_parts(VM& vm, DateTimeFormat& date_time_format, double start, double end)
 {
     auto& realm = *vm.current_realm();
 

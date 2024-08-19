@@ -15,14 +15,14 @@ namespace Web::SVG {
 
 class SVGStopElement final : public SVGElement {
     WEB_PLATFORM_OBJECT(SVGStopElement, SVGElement);
-    JS_DECLARE_ALLOCATOR(SVGStopElement);
+    GC_DECLARE_ALLOCATOR(SVGStopElement);
 
 public:
     virtual ~SVGStopElement() override = default;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
 
-    JS::NonnullGCPtr<SVGAnimatedNumber> offset() const;
+    GC::Ref<SVGAnimatedNumber> offset() const;
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 

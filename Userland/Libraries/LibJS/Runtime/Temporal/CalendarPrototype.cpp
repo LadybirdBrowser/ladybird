@@ -19,7 +19,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(CalendarPrototype);
+GC_DEFINE_ALLOCATOR(CalendarPrototype);
 
 [[nodiscard]] static i32 iso_year(Object& temporal_object);
 [[nodiscard]] static u8 iso_month(Object& temporal_object);
@@ -537,7 +537,7 @@ JS_DEFINE_NATIVE_FUNCTION(CalendarPrototype::fields)
     auto iterator_record = TRY(get_iterator(vm, fields, IteratorHint::Sync));
 
     // 5. Let fieldNames be a new empty List.
-    auto field_names = MarkedVector<Value> { vm.heap() };
+    auto field_names = GC::MarkedVector<Value> { vm.heap() };
 
     // 6. Let next be true.
     // 7. Repeat, while next is not false,

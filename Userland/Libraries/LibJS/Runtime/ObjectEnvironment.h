@@ -12,7 +12,7 @@ namespace JS {
 
 class ObjectEnvironment final : public Environment {
     JS_ENVIRONMENT(ObjectEnvironment, Environment);
-    JS_DECLARE_ALLOCATOR(ObjectEnvironment);
+    GC_DECLARE_ALLOCATOR(ObjectEnvironment);
 
 public:
     enum class IsWithEnvironment {
@@ -47,7 +47,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    NonnullGCPtr<Object> m_binding_object;
+    GC::Ref<Object> m_binding_object;
     bool m_with_environment { false };
 };
 

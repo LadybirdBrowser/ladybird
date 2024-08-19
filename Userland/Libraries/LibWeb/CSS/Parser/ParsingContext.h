@@ -39,8 +39,8 @@ public:
     JS::Realm& realm() const { return m_realm; }
 
 private:
-    JS::NonnullGCPtr<JS::Realm> m_realm;
-    JS::GCPtr<DOM::Document const> m_document;
+    GC::Ref<JS::Realm> m_realm;
+    GC::Ptr<DOM::Document const> m_document;
     PropertyID m_current_property_id { PropertyID::Invalid };
     URL::URL m_url;
     Mode m_mode { Mode::Normal };

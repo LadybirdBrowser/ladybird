@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/WeakContainer.h>
+#include <LibGC/WeakContainer.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
 
@@ -14,13 +14,13 @@ namespace JS {
 
 class WeakRef final
     : public Object
-    , public WeakContainer {
+    , public GC::WeakContainer {
     JS_OBJECT(WeakRef, Object);
-    JS_DECLARE_ALLOCATOR(WeakRef);
+    GC_DECLARE_ALLOCATOR(WeakRef);
 
 public:
-    static NonnullGCPtr<WeakRef> create(Realm&, Object&);
-    static NonnullGCPtr<WeakRef> create(Realm&, Symbol&);
+    static GC::Ref<WeakRef> create(Realm&, Object&);
+    static GC::Ref<WeakRef> create(Realm&, Symbol&);
 
     virtual ~WeakRef() override = default;
 
@@ -28,7 +28,7 @@ public:
 
     void update_execution_generation() { m_last_execution_generation = vm().execution_generation(); }
 
-    virtual void remove_dead_cells(Badge<Heap>) override;
+    virtual void remove_dead_cells(Badge<GC::Heap>) override;
 
 private:
     explicit WeakRef(Object&, Object& prototype);
@@ -36,7 +36,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    Variant<GCPtr<Object>, GCPtr<Symbol>, Empty> m_value;
+    Variant<GC::Ptr<Object>, GC::Ptr<Symbol>, Empty> m_value;
     u32 m_last_execution_generation { 0 };
 };
 

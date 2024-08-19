@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ModuleEnvironment);
+GC_DEFINE_ALLOCATOR(ModuleEnvironment);
 
 // 9.1.2.6 NewModuleEnvironment ( E ), https://tc39.es/ecma262/#sec-newmoduleenvironment
 ModuleEnvironment::ModuleEnvironment(Environment* outer_environment)

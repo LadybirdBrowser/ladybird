@@ -13,7 +13,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(PluginArray);
+GC_DEFINE_ALLOCATOR(PluginArray);
 
 PluginArray::PluginArray(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -68,7 +68,7 @@ size_t PluginArray::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-pluginarray-item
-JS::GCPtr<Plugin> PluginArray::item(u32 index) const
+GC::Ptr<Plugin> PluginArray::item(u32 index) const
 {
     // 1. Let plugins be this's relevant global object's PDF viewer plugin objects.
     auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
@@ -83,7 +83,7 @@ JS::GCPtr<Plugin> PluginArray::item(u32 index) const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-pluginarray-nameditem
-JS::GCPtr<Plugin> PluginArray::named_item(FlyString const& name) const
+GC::Ptr<Plugin> PluginArray::named_item(FlyString const& name) const
 {
     // 1. For each Plugin plugin of this's relevant global object's PDF viewer plugin objects: if plugin's name is name, then return plugin.
     auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));

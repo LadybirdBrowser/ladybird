@@ -11,9 +11,9 @@
 #include <AK/OwnPtr.h>
 #include <AK/StringView.h>
 #include <AK/Weakable.h>
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/CellAllocator.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -22,7 +22,7 @@ namespace JS {
 // 9.3 Realms, https://tc39.es/ecma262/#realm-record
 class Realm final : public Cell {
     JS_CELL(Realm, Cell);
-    JS_DECLARE_ALLOCATOR(Realm);
+    GC_DECLARE_ALLOCATOR(Realm);
 
 public:
     struct HostDefined {
@@ -31,7 +31,7 @@ public:
         virtual void visit_edges(Cell::Visitor&) { }
     };
 
-    static ThrowCompletionOr<NonnullGCPtr<Realm>> create(VM&);
+    static ThrowCompletionOr<GC::Ref<Realm>> create(VM&);
     static ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> initialize_host_defined_realm(VM&, Function<Object*(Realm&)> create_global_object, Function<Object*(Realm&)> create_global_this_value);
 
     void set_global_object(Object* global_object, Object* this_value);
@@ -50,12 +50,12 @@ public:
     HostDefined* host_defined() { return m_host_defined; }
     void set_host_defined(OwnPtr<HostDefined> host_defined) { m_host_defined = move(host_defined); }
 
-    void define_builtin(Bytecode::Builtin builtin, NonnullGCPtr<NativeFunction> value)
+    void define_builtin(Bytecode::Builtin builtin, GC::Ref<NativeFunction> value)
     {
         m_builtins[to_underlying(builtin)] = value;
     }
 
-    NonnullGCPtr<NativeFunction> get_builtin_value(Bytecode::Builtin builtin)
+    GC::Ref<NativeFunction> get_builtin_value(Bytecode::Builtin builtin)
     {
         return *m_builtins[to_underlying(builtin)];
     }
@@ -65,11 +65,11 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    GCPtr<Intrinsics> m_intrinsics;                // [[Intrinsics]]
-    GCPtr<Object> m_global_object;                 // [[GlobalObject]]
-    GCPtr<GlobalEnvironment> m_global_environment; // [[GlobalEnv]]
-    OwnPtr<HostDefined> m_host_defined;            // [[HostDefined]]
-    AK::Array<GCPtr<NativeFunction>, to_underlying(Bytecode::Builtin::__Count)> m_builtins;
+    GC::Ptr<Intrinsics> m_intrinsics;                // [[Intrinsics]]
+    GC::Ptr<Object> m_global_object;                 // [[GlobalObject]]
+    GC::Ptr<GlobalEnvironment> m_global_environment; // [[GlobalEnv]]
+    OwnPtr<HostDefined> m_host_defined;              // [[HostDefined]]
+    AK::Array<GC::Ptr<NativeFunction>, to_underlying(Bytecode::Builtin::__Count)> m_builtins;
 };
 
 }

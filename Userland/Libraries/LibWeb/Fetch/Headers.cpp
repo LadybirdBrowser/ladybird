@@ -12,10 +12,10 @@
 
 namespace Web::Fetch {
 
-JS_DEFINE_ALLOCATOR(Headers);
+GC_DEFINE_ALLOCATOR(Headers);
 
 // https://fetch.spec.whatwg.org/#dom-headers
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Headers>> Headers::construct_impl(JS::Realm& realm, Optional<HeadersInit> const& init)
+WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::construct_impl(JS::Realm& realm, Optional<HeadersInit> const& init)
 {
     auto& vm = realm.vm();
 
@@ -32,7 +32,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Headers>> Headers::construct_impl(JS::Realm
     return headers;
 }
 
-Headers::Headers(JS::Realm& realm, JS::NonnullGCPtr<Infrastructure::HeaderList> header_list)
+Headers::Headers(JS::Realm& realm, GC::Ref<Infrastructure::HeaderList> header_list)
     : PlatformObject(realm)
     , m_header_list(header_list)
 {

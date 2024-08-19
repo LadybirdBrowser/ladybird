@@ -30,7 +30,7 @@ public:
     void reset();
     bool is_context_lost();
 
-    using FillOrStrokeVariant = Variant<Gfx::Color, JS::Handle<CanvasGradient>, JS::Handle<CanvasPattern>>;
+    using FillOrStrokeVariant = Variant<Gfx::Color, GC::Handle<CanvasGradient>, GC::Handle<CanvasPattern>>;
 
     struct FillOrStrokeStyle {
         FillOrStrokeStyle(Gfx::Color color)
@@ -38,12 +38,12 @@ public:
         {
         }
 
-        FillOrStrokeStyle(JS::Handle<CanvasGradient> gradient)
+        FillOrStrokeStyle(GC::Handle<CanvasGradient> gradient)
             : m_fill_or_stroke_style(gradient)
         {
         }
 
-        FillOrStrokeStyle(JS::Handle<CanvasPattern> pattern)
+        FillOrStrokeStyle(GC::Handle<CanvasPattern> pattern)
             : m_fill_or_stroke_style(pattern)
         {
         }
@@ -53,7 +53,7 @@ public:
         Optional<Gfx::Color> as_color() const;
         Gfx::Color to_color_but_fixme_should_accept_any_paint_style() const;
 
-        using JsFillOrStrokeStyle = Variant<String, JS::Handle<CanvasGradient>, JS::Handle<CanvasPattern>>;
+        using JsFillOrStrokeStyle = Variant<String, GC::Handle<CanvasGradient>, GC::Handle<CanvasPattern>>;
 
         JsFillOrStrokeStyle to_js_fill_or_stroke_style() const
         {

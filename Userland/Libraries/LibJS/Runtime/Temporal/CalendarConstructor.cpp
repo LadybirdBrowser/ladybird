@@ -10,7 +10,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(CalendarConstructor);
+GC_DEFINE_ALLOCATOR(CalendarConstructor);
 
 // 12.2 The Temporal.Calendar Constructor, https://tc39.es/proposal-temporal/#sec-temporal-calendar-constructor
 CalendarConstructor::CalendarConstructor(Realm& realm)
@@ -44,7 +44,7 @@ ThrowCompletionOr<Value> CalendarConstructor::call()
 }
 
 // 12.2.1 Temporal.Calendar ( id ), https://tc39.es/proposal-temporal/#sec-temporal.calendar
-ThrowCompletionOr<NonnullGCPtr<Object>> CalendarConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> CalendarConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

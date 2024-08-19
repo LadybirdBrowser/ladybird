@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(BooleanConstructor);
+GC_DEFINE_ALLOCATOR(BooleanConstructor);
 
 BooleanConstructor::BooleanConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Boolean.as_string(), realm.intrinsics().function_prototype())
@@ -45,7 +45,7 @@ ThrowCompletionOr<Value> BooleanConstructor::call()
 }
 
 // 20.3.1.1 Boolean ( value ), https://tc39.es/ecma262/#sec-boolean-constructor-boolean-value
-ThrowCompletionOr<NonnullGCPtr<Object>> BooleanConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> BooleanConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto value = vm.argument(0);

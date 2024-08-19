@@ -10,7 +10,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(DisplayNames);
+GC_DEFINE_ALLOCATOR(DisplayNames);
 
 // 12 DisplayNames Objects, https://tc39.es/ecma402/#intl-displaynames-objects
 DisplayNames::DisplayNames(Object& prototype)

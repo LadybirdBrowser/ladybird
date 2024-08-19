@@ -20,5 +20,5 @@ class TestClass : public JS::Object {
         (void)m_object;
     }
 
-    JS::GCPtr<JS::Object> m_object;
+    GC::Ptr<JS::Object> m_object;
 };

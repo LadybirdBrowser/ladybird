@@ -17,7 +17,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLFieldSetElement);
+GC_DEFINE_ALLOCATOR(HTMLFieldSetElement);
 
 HTMLFieldSetElement::HTMLFieldSetElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -59,7 +59,7 @@ bool HTMLFieldSetElement::is_disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-fieldset-elements
-JS::GCPtr<DOM::HTMLCollection> const& HTMLFieldSetElement::elements()
+GC::Ptr<DOM::HTMLCollection> const& HTMLFieldSetElement::elements()
 {
     // The elements IDL attribute must return an HTMLCollection rooted at the fieldset element, whose filter matches listed elements.
     if (!m_elements) {

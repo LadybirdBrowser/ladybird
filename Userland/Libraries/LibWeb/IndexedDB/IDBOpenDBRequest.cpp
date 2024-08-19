@@ -12,7 +12,7 @@
 
 namespace Web::IndexedDB {
 
-JS_DEFINE_ALLOCATOR(IDBOpenDBRequest);
+GC_DEFINE_ALLOCATOR(IDBOpenDBRequest);
 
 IDBOpenDBRequest::~IDBOpenDBRequest() = default;
 

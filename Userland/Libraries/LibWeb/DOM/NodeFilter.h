@@ -13,10 +13,10 @@ namespace Web::DOM {
 
 class NodeFilter final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(NodeFilter, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(NodeFilter);
+    GC_DECLARE_ALLOCATOR(NodeFilter);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<NodeFilter> create(JS::Realm&, WebIDL::CallbackType&);
+    [[nodiscard]] static GC::Ref<NodeFilter> create(JS::Realm&, WebIDL::CallbackType&);
 
     virtual ~NodeFilter() = default;
 
@@ -47,7 +47,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<WebIDL::CallbackType> m_callback;
+    GC::Ref<WebIDL::CallbackType> m_callback;
 };
 
 AK_ENUM_BITWISE_OPERATORS(NodeFilter::WhatToShow);

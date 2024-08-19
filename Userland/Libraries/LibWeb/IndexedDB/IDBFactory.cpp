@@ -10,7 +10,7 @@
 
 namespace Web::IndexedDB {
 
-JS_DEFINE_ALLOCATOR(IDBFactory);
+GC_DEFINE_ALLOCATOR(IDBFactory);
 
 IDBFactory::IDBFactory(JS::Realm& realm)
     : Bindings::PlatformObject(realm)

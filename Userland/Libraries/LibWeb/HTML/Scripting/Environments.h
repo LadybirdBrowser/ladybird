@@ -37,7 +37,7 @@ public:
     Origin top_level_origin;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
-    JS::GCPtr<BrowsingContext> target_browsing_context;
+    GC::Ptr<BrowsingContext> target_browsing_context;
 
     // FIXME: An active service worker https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
 
@@ -68,7 +68,7 @@ public:
     ModuleMap& module_map();
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#responsible-document
-    virtual JS::GCPtr<DOM::Document> responsible_document() = 0;
+    virtual GC::Ptr<DOM::Document> responsible_document() = 0;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#api-url-character-encoding
     virtual String api_url_character_encoding() = 0;
@@ -92,7 +92,7 @@ public:
     EventLoop& responsible_event_loop();
 
     // https://fetch.spec.whatwg.org/#concept-fetch-group
-    Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
+    Vector<GC::Ref<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
 
     RunScriptDecision can_run_script();
     void prepare_to_run_script();
@@ -106,10 +106,10 @@ public:
     // Returns true if removed, false otherwise.
     bool remove_from_outstanding_rejected_promises_weak_set(JS::Promise*);
 
-    void push_onto_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise>);
+    void push_onto_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise>);
 
     // Returns true if removed, false otherwise.
-    bool remove_from_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise>);
+    bool remove_from_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise>);
 
     void notify_about_rejected_promises(Badge<EventLoop>);
 
@@ -122,7 +122,7 @@ public:
 
     SerializedEnvironmentSettingsObject serialize();
 
-    JS::NonnullGCPtr<StorageAPI::StorageManager> storage_manager();
+    GC::Ref<StorageAPI::StorageManager> storage_manager();
 
 protected:
     explicit EnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext>);
@@ -131,24 +131,24 @@ protected:
 
 private:
     NonnullOwnPtr<JS::ExecutionContext> m_realm_execution_context;
-    JS::GCPtr<ModuleMap> m_module_map;
+    GC::Ptr<ModuleMap> m_module_map;
 
-    JS::GCPtr<EventLoop> m_responsible_event_loop;
+    GC::Ptr<EventLoop> m_responsible_event_loop;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#outstanding-rejected-promises-weak-set
     // The outstanding rejected promises weak set must not create strong references to any of its members, and implementations are free to limit its size, e.g. by removing old entries from it when new ones are added.
-    Vector<JS::GCPtr<JS::Promise>> m_outstanding_rejected_promises_weak_set;
+    Vector<GC::Ptr<JS::Promise>> m_outstanding_rejected_promises_weak_set;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#about-to-be-notified-rejected-promises-list
-    Vector<JS::Handle<JS::Promise>> m_about_to_be_notified_rejected_promises_list;
+    Vector<GC::Handle<JS::Promise>> m_about_to_be_notified_rejected_promises_list;
 
     // https://fetch.spec.whatwg.org/#concept-fetch-record
     // A fetch group holds an ordered list of fetch records
-    Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>> m_fetch_group;
+    Vector<GC::Ref<Fetch::Infrastructure::FetchRecord>> m_fetch_group;
 
     // https://storage.spec.whatwg.org/#api
     // Each environment settings object has an associated StorageManager object.
-    JS::GCPtr<StorageAPI::StorageManager> m_storage_manager;
+    GC::Ptr<StorageAPI::StorageManager> m_storage_manager;
 };
 
 EnvironmentSettingsObject& incumbent_settings_object();

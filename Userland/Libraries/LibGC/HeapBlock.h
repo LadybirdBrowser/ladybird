@@ -10,15 +10,15 @@
 #include <AK/Platform.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-#include <LibJS/Forward.h>
-#include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/Internals.h>
+#include <LibGC/Cell.h>
+#include <LibGC/Forward.h>
+#include <LibGC/Internals.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
 #    include <sanitizer/asan_interface.h>
 #endif
 
-namespace JS {
+namespace GC {
 
 class HeapBlock : public HeapBlockBase {
     AK_MAKE_NONCOPYABLE(HeapBlock);
@@ -98,9 +98,9 @@ private:
     bool has_lazy_freelist() const { return m_next_lazy_freelist_index < cell_count(); }
 
     struct FreelistEntry final : public Cell {
-        JS_CELL(FreelistEntry, Cell);
+        GC_CELL(FreelistEntry, Cell);
 
-        RawGCPtr<FreelistEntry> next;
+        RawPtr<FreelistEntry> next;
     };
 
     Cell* cell(size_t index)
@@ -111,7 +111,7 @@ private:
     CellAllocator& m_cell_allocator;
     size_t m_cell_size { 0 };
     size_t m_next_lazy_freelist_index { 0 };
-    GCPtr<FreelistEntry> m_freelist;
+    Ptr<FreelistEntry> m_freelist;
     alignas(__BIGGEST_ALIGNMENT__) u8 m_storage[];
 
 public:

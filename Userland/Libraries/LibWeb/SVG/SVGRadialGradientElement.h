@@ -14,7 +14,7 @@ namespace Web::SVG {
 
 class SVGRadialGradientElement : public SVGGradientElement {
     WEB_PLATFORM_OBJECT(SVGRadialGradientElement, SVGGradientElement);
-    JS_DECLARE_ALLOCATOR(SVGRadialGradientElement);
+    GC_DECLARE_ALLOCATOR(SVGRadialGradientElement);
 
 public:
     virtual ~SVGRadialGradientElement() override = default;
@@ -23,12 +23,12 @@ public:
 
     virtual Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&) const override;
 
-    JS::NonnullGCPtr<SVGAnimatedLength> cx() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> cy() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> fx() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> fy() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> fr() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> r() const;
+    GC::Ref<SVGAnimatedLength> cx() const;
+    GC::Ref<SVGAnimatedLength> cy() const;
+    GC::Ref<SVGAnimatedLength> fx() const;
+    GC::Ref<SVGAnimatedLength> fy() const;
+    GC::Ref<SVGAnimatedLength> fr() const;
+    GC::Ref<SVGAnimatedLength> r() const;
 
 protected:
     SVGRadialGradientElement(DOM::Document&, DOM::QualifiedName);
@@ -36,7 +36,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
 private:
-    JS::GCPtr<SVGRadialGradientElement const> linked_radial_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const
+    GC::Ptr<SVGRadialGradientElement const> linked_radial_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const
     {
         if (auto gradient = linked_gradient(seen_gradients); gradient && is<SVGRadialGradientElement>(*gradient))
             return &verify_cast<SVGRadialGradientElement>(*gradient);

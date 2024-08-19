@@ -12,10 +12,10 @@ namespace Web::HTML {
 
 class BroadcastChannel final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(BroadcastChannel, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(BroadcastChannel);
+    GC_DECLARE_ALLOCATOR(BroadcastChannel);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<BroadcastChannel> construct_impl(JS::Realm&, FlyString const& name);
+    [[nodiscard]] static GC::Ref<BroadcastChannel> construct_impl(JS::Realm&, FlyString const& name);
 
     FlyString name();
 

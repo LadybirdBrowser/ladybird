@@ -16,10 +16,10 @@ class DocumentFragment
     : public ParentNode
     , public NonElementParentNode<DocumentFragment> {
     WEB_PLATFORM_OBJECT(DocumentFragment, ParentNode);
-    JS_DECLARE_ALLOCATOR(DocumentFragment);
+    GC_DECLARE_ALLOCATOR(DocumentFragment);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> construct_impl(JS::Realm& realm);
+    static WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> construct_impl(JS::Realm& realm);
 
     virtual ~DocumentFragment() override = default;
 
@@ -38,7 +38,7 @@ protected:
 
 private:
     // https://dom.spec.whatwg.org/#concept-documentfragment-host
-    JS::GCPtr<Element> m_host;
+    GC::Ptr<Element> m_host;
 };
 
 template<>

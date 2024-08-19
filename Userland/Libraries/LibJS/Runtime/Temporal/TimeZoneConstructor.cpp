@@ -11,7 +11,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(TimeZoneConstructor);
+GC_DEFINE_ALLOCATOR(TimeZoneConstructor);
 
 // 11.2 The Temporal.TimeZone Constructor, https://tc39.es/proposal-temporal/#sec-temporal-timezone-constructor
 TimeZoneConstructor::TimeZoneConstructor(Realm& realm)
@@ -45,7 +45,7 @@ ThrowCompletionOr<Value> TimeZoneConstructor::call()
 }
 
 // 11.2.1 Temporal.TimeZone ( identifier ), https://tc39.es/proposal-temporal/#sec-temporal.timezone
-ThrowCompletionOr<NonnullGCPtr<Object>> TimeZoneConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> TimeZoneConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

@@ -13,14 +13,14 @@ namespace JS {
 
 class RegExpConstructor final : public NativeFunction {
     JS_OBJECT(RegExpConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(RegExpConstructor);
+    GC_DECLARE_ALLOCATOR(RegExpConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~RegExpConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
     RegExpLegacyStaticProperties& legacy_static_properties() { return m_legacy_static_properties; }
 

@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Symbol);
+GC_DEFINE_ALLOCATOR(Symbol);
 
 Symbol::Symbol(Optional<String> description, bool is_global)
     : m_description(move(description))
@@ -19,7 +19,7 @@ Symbol::Symbol(Optional<String> description, bool is_global)
 {
 }
 
-NonnullGCPtr<Symbol> Symbol::create(VM& vm, Optional<String> description, bool is_global)
+GC::Ref<Symbol> Symbol::create(VM& vm, Optional<String> description, bool is_global)
 {
     return vm.heap().allocate_without_realm<Symbol>(move(description), is_global);
 }

@@ -14,7 +14,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(DurationConstructor);
+GC_DEFINE_ALLOCATOR(DurationConstructor);
 
 // 7.1 The Temporal.Duration Constructor, https://tc39.es/proposal-temporal/#sec-temporal-duration-constructor
 DurationConstructor::DurationConstructor(Realm& realm)
@@ -49,7 +49,7 @@ ThrowCompletionOr<Value> DurationConstructor::call()
 }
 
 // 7.1.1 Temporal.Duration ( [ years [ , months [ , weeks [ , days [ , hours [ , minutes [ , seconds [ , milliseconds [ , microseconds [ , nanoseconds ] ] ] ] ] ] ] ] ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.duration
-ThrowCompletionOr<NonnullGCPtr<Object>> DurationConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> DurationConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

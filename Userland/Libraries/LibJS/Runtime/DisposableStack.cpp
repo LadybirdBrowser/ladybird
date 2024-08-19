@@ -8,7 +8,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(DisposableStack);
+GC_DEFINE_ALLOCATOR(DisposableStack);
 
 DisposableStack::DisposableStack(Vector<DisposableResource> stack, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)

@@ -14,10 +14,10 @@ namespace Web::CSS {
 
 class CSSFontFaceRule final : public CSSRule {
     WEB_PLATFORM_OBJECT(CSSFontFaceRule, CSSRule);
-    JS_DECLARE_ALLOCATOR(CSSFontFaceRule);
+    GC_DECLARE_ALLOCATOR(CSSFontFaceRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSFontFaceRule> create(JS::Realm&, ParsedFontFace&&);
+    [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(JS::Realm&, ParsedFontFace&&);
 
     virtual ~CSSFontFaceRule() override = default;
 

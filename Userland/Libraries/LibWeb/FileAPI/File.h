@@ -16,12 +16,12 @@ struct FilePropertyBag : BlobPropertyBag {
 
 class File : public Blob {
     WEB_PLATFORM_OBJECT(File, Blob);
-    JS_DECLARE_ALLOCATOR(File);
+    GC_DECLARE_ALLOCATOR(File);
 
 public:
-    static JS::NonnullGCPtr<File> create(JS::Realm& realm);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<File>> create(JS::Realm&, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<File>> construct_impl(JS::Realm&, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options = {});
+    static GC::Ref<File> create(JS::Realm& realm);
+    static WebIDL::ExceptionOr<GC::Ref<File>> create(JS::Realm&, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<File>> construct_impl(JS::Realm&, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options = {});
 
     virtual ~File() override;
 

@@ -12,7 +12,7 @@ namespace Web::NavigationTiming {
 
 class PerformanceNavigation final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(PerformanceNavigation, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(PerformanceNavigation);
+    GC_DECLARE_ALLOCATOR(PerformanceNavigation);
 
 public:
     ~PerformanceNavigation();

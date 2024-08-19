@@ -16,9 +16,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSStyleDeclaration);
-JS_DEFINE_ALLOCATOR(PropertyOwningCSSStyleDeclaration);
-JS_DEFINE_ALLOCATOR(ElementInlineCSSStyleDeclaration);
+GC_DEFINE_ALLOCATOR(CSSStyleDeclaration);
+GC_DEFINE_ALLOCATOR(PropertyOwningCSSStyleDeclaration);
+GC_DEFINE_ALLOCATOR(ElementInlineCSSStyleDeclaration);
 
 CSSStyleDeclaration::CSSStyleDeclaration(JS::Realm& realm)
     : PlatformObject(realm)
@@ -31,12 +31,12 @@ void CSSStyleDeclaration::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleDeclaration);
 }
 
-JS::GCPtr<CSSRule> CSSStyleDeclaration::parent_rule() const
+GC::Ptr<CSSRule> CSSStyleDeclaration::parent_rule() const
 {
     return nullptr;
 }
 
-JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> PropertyOwningCSSStyleDeclaration::create(JS::Realm& realm, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
+GC::Ref<PropertyOwningCSSStyleDeclaration> PropertyOwningCSSStyleDeclaration::create(JS::Realm& realm, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
     return realm.heap().allocate<PropertyOwningCSSStyleDeclaration>(realm, realm, move(properties), move(custom_properties));
 }
@@ -65,7 +65,7 @@ String PropertyOwningCSSStyleDeclaration::item(size_t index) const
     return CSS::string_from_property_id(m_properties[index].property_id).to_string();
 }
 
-JS::NonnullGCPtr<ElementInlineCSSStyleDeclaration> ElementInlineCSSStyleDeclaration::create(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
+GC::Ref<ElementInlineCSSStyleDeclaration> ElementInlineCSSStyleDeclaration::create(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
     auto& realm = element.realm();
     return realm.heap().allocate<ElementInlineCSSStyleDeclaration>(realm, element, move(properties), move(custom_properties));
@@ -488,12 +488,12 @@ WebIDL::ExceptionOr<void> ElementInlineCSSStyleDeclaration::set_css_text(StringV
     return {};
 }
 
-JS::GCPtr<CSSRule> PropertyOwningCSSStyleDeclaration::parent_rule() const
+GC::Ptr<CSSRule> PropertyOwningCSSStyleDeclaration::parent_rule() const
 {
     return m_parent_rule;
 }
 
-void PropertyOwningCSSStyleDeclaration::set_parent_rule(JS::NonnullGCPtr<CSSRule> rule)
+void PropertyOwningCSSStyleDeclaration::set_parent_rule(GC::Ref<CSSRule> rule)
 {
     m_parent_rule = rule;
 }

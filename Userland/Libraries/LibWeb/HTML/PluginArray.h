@@ -13,15 +13,15 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/system-state.html#pluginarray
 class PluginArray : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(PluginArray, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(PluginArray);
+    GC_DECLARE_ALLOCATOR(PluginArray);
 
 public:
     virtual ~PluginArray() override;
 
     void refresh() const;
     size_t length() const;
-    JS::GCPtr<Plugin> item(u32 index) const;
-    JS::GCPtr<Plugin> named_item(FlyString const& name) const;
+    GC::Ptr<Plugin> item(u32 index) const;
+    GC::Ptr<Plugin> named_item(FlyString const& name) const;
 
 private:
     PluginArray(JS::Realm&);

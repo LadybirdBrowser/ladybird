@@ -24,7 +24,7 @@ public:
     ~TemporaryExecutionContext();
 
 private:
-    JS::NonnullGCPtr<EnvironmentSettingsObject> m_environment_settings;
+    GC::Ref<EnvironmentSettingsObject> m_environment_settings;
     CallbacksEnabled m_callbacks_enabled { CallbacksEnabled::No };
 };
 

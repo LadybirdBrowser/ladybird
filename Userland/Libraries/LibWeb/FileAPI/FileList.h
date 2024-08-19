@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -19,11 +19,11 @@ class FileList
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(FileList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(FileList);
+    GC_DECLARE_ALLOCATOR(FileList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<FileList> create(JS::Realm&, Vector<JS::NonnullGCPtr<File>>&&);
-    [[nodiscard]] static JS::NonnullGCPtr<FileList> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<FileList> create(JS::Realm&, Vector<GC::Ref<File>>&&);
+    [[nodiscard]] static GC::Ref<FileList> create(JS::Realm&);
 
     virtual ~FileList() override;
 
@@ -49,13 +49,13 @@ public:
     virtual WebIDL::ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory&) override;
 
 private:
-    FileList(JS::Realm&, Vector<JS::NonnullGCPtr<File>>&&);
+    FileList(JS::Realm&, Vector<GC::Ref<File>>&&);
     explicit FileList(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Vector<JS::NonnullGCPtr<File>> m_files;
+    Vector<GC::Ref<File>> m_files;
 };
 
 }

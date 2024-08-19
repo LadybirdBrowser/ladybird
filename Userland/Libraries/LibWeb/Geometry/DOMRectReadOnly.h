@@ -27,12 +27,12 @@ class DOMRectReadOnly
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMRectReadOnly, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMRectReadOnly);
+    GC_DECLARE_ALLOCATOR(DOMRectReadOnly);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMRectReadOnly>> construct_impl(JS::Realm&, double x = 0, double y = 0, double width = 0, double height = 0);
-    [[nodiscard]] static JS::NonnullGCPtr<DOMRectReadOnly> from_rect(JS::VM&, DOMRectInit const&);
-    static JS::NonnullGCPtr<DOMRectReadOnly> create(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMRectReadOnly>> construct_impl(JS::Realm&, double x = 0, double y = 0, double width = 0, double height = 0);
+    [[nodiscard]] static GC::Ref<DOMRectReadOnly> from_rect(JS::VM&, DOMRectInit const&);
+    static GC::Ref<DOMRectReadOnly> create(JS::Realm&);
 
     virtual ~DOMRectReadOnly() override;
 

@@ -15,7 +15,7 @@ namespace Web::HTML {
 
 class HTMLMeterElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLMeterElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLMeterElement);
+    GC_DECLARE_ALLOCATOR(HTMLMeterElement);
 
 public:
     virtual ~HTMLMeterElement() override;
@@ -53,7 +53,7 @@ private:
 
     void update_meter_value_element();
 
-    JS::GCPtr<DOM::Element> m_meter_value_element;
+    GC::Ptr<DOM::Element> m_meter_value_element;
 };
 
 }

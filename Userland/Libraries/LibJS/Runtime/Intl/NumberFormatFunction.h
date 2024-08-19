@@ -14,10 +14,10 @@ namespace JS::Intl {
 
 class NumberFormatFunction final : public NativeFunction {
     JS_OBJECT(NumberFormatFunction, NativeFunction);
-    JS_DECLARE_ALLOCATOR(NumberFormatFunction);
+    GC_DECLARE_ALLOCATOR(NumberFormatFunction);
 
 public:
-    static NonnullGCPtr<NumberFormatFunction> create(Realm&, NumberFormat&);
+    static GC::Ref<NumberFormatFunction> create(Realm&, NumberFormat&);
 
     virtual ~NumberFormatFunction() override = default;
     virtual void initialize(Realm&) override;
@@ -29,7 +29,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    NonnullGCPtr<NumberFormat> m_number_format; // [[NumberFormat]]
+    GC::Ref<NumberFormat> m_number_format; // [[NumberFormat]]
 };
 
 }

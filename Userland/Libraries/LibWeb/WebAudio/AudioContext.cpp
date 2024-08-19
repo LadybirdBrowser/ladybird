@@ -14,10 +14,10 @@
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(AudioContext);
+GC_DEFINE_ALLOCATOR(AudioContext);
 
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-audiocontext
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, AudioContextOptions const& context_options)
+WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, AudioContextOptions const& context_options)
 {
     return realm.heap().allocate<AudioContext>(realm, realm, context_options);
 }
@@ -104,7 +104,7 @@ AudioTimestamp AudioContext::get_output_timestamp()
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-resume
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> AudioContext::resume()
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -120,7 +120,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
     // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
     if (state() == Bindings::AudioContextState::Closed) {
         WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_fly_string));
-        return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+        return GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
     }
 
     // 4. Set [[suspended by user]] to true.
@@ -185,11 +185,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
     });
 
     // 8. Return promise.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-suspend
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::suspend()
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> AudioContext::suspend()
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -205,7 +205,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::suspend()
     // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
     if (state() == Bindings::AudioContextState::Closed) {
         WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_fly_string));
-        return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+        return GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
     }
 
     // 4. Append promise to [[pending promises]].
@@ -243,11 +243,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::suspend()
     });
 
     // 8. Return promise.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-close
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::close()
+WebIDL::ExceptionOr<GC::Ref<JS::Promise>> AudioContext::close()
 {
     auto& realm = this->realm();
 
@@ -262,7 +262,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::close()
     // 3. If the [[control thread state]] flag on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
     if (state() == Bindings::AudioContextState::Closed) {
         WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_fly_string));
-        return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+        return GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
     }
 
     // 4. Set the [[control thread state]] flag on the AudioContext to closed.
@@ -295,12 +295,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::close()
     });
 
     // 6. Return promise
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
 }
 
 void AudioContext::queue_a_media_element_task(Function<void()> steps)
 {
-    auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_settings_object().responsible_document(), JS::create_heap_function(heap(), move(steps)));
+    auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_settings_object().responsible_document(), GC::create_heap_function(heap(), move(steps)));
     HTML::main_thread_event_loop().task_queue().add(move(task));
 }
 

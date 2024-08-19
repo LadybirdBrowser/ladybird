@@ -12,7 +12,7 @@ namespace JS {
 
 class AsyncIteratorPrototype final : public Object {
     JS_OBJECT(AsyncIteratorPrototype, Object)
-    JS_DECLARE_ALLOCATOR(AsyncIteratorPrototype);
+    GC_DECLARE_ALLOCATOR(AsyncIteratorPrototype);
 
 public:
     virtual void initialize(Realm&) override;

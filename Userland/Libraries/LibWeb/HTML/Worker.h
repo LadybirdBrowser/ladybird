@@ -29,11 +29,11 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
 class Worker : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(Worker, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(Worker);
+    GC_DECLARE_ALLOCATOR(Worker);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> create(String const& script_url, WorkerOptions const& options, DOM::Document& document);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> construct_impl(JS::Realm& realm, String const& script_url, WorkerOptions const& options)
+    static WebIDL::ExceptionOr<GC::Ref<Worker>> create(String const& script_url, WorkerOptions const& options, DOM::Document& document);
+    static WebIDL::ExceptionOr<GC::Ref<Worker>> construct_impl(JS::Realm& realm, String const& script_url, WorkerOptions const& options)
     {
         auto& window = verify_cast<HTML::Window>(realm.global_object());
         return Worker::create(script_url, options, window.associated_document());
@@ -45,7 +45,7 @@ public:
 
     virtual ~Worker() = default;
 
-    JS::GCPtr<MessagePort> outside_message_port() { return m_outside_port; }
+    GC::Ptr<MessagePort> outside_message_port() { return m_outside_port; }
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \
@@ -64,12 +64,12 @@ private:
     String m_script_url;
     WorkerOptions m_options;
 
-    JS::GCPtr<DOM::Document> m_document;
-    JS::GCPtr<MessagePort> m_outside_port;
+    GC::Ptr<DOM::Document> m_document;
+    GC::Ptr<MessagePort> m_outside_port;
 
-    JS::GCPtr<WorkerAgent> m_agent;
+    GC::Ptr<WorkerAgent> m_agent;
 
-    void run_a_worker(URL::URL& url, EnvironmentSettingsObject& outside_settings, JS::GCPtr<MessagePort> outside_port, WorkerOptions const& options);
+    void run_a_worker(URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> outside_port, WorkerOptions const& options);
 };
 
 }

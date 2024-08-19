@@ -17,7 +17,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(TimeZonePrototype);
+GC_DEFINE_ALLOCATOR(TimeZonePrototype);
 
 // 11.4 Properties of the Temporal.TimeZone Prototype Object, https://tc39.es/proposal-temporal/#sec-properties-of-the-temporal-timezone-prototype-object
 TimeZonePrototype::TimeZonePrototype(Realm& realm)
@@ -158,7 +158,7 @@ JS_DEFINE_NATIVE_FUNCTION(TimeZonePrototype::get_possible_instants_for)
     }
 
     // 6. Let possibleInstants be a new empty List.
-    auto possible_instants = MarkedVector<Value> { vm.heap() };
+    auto possible_instants = GC::MarkedVector<Value> { vm.heap() };
 
     // 7. For each value epochNanoseconds in possibleEpochNanoseconds, do
     for (auto& epoch_nanoseconds : possible_epoch_nanoseconds) {

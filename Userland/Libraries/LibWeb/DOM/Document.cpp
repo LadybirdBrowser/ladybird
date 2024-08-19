@@ -132,10 +132,10 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(Document);
+GC_DEFINE_ALLOCATOR(Document);
 
 // https://html.spec.whatwg.org/multipage/origin.html#obtain-browsing-context-navigation
-static JS::NonnullGCPtr<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(
+static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(
     HTML::BrowsingContext& browsing_context,
     HTML::SandboxingFlagSet sandbox_flags,
     HTML::CrossOriginOpenerPolicy navigation_coop,
@@ -176,7 +176,7 @@ static JS::NonnullGCPtr<HTML::BrowsingContext> obtain_a_browsing_context_to_use_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#initialise-the-document-object
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(Type type, String content_type, HTML::NavigationParams const& navigation_params)
+WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type, String content_type, HTML::NavigationParams const& navigation_params)
 {
     // 1. Let browsingContext be navigationParams's navigable's active browsing context.
     auto browsing_context = navigation_params.navigable->active_browsing_context();
@@ -201,7 +201,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(
     }
 
     // 6. Let window be null.
-    JS::GCPtr<HTML::Window> window;
+    GC::Ptr<HTML::Window> window;
 
     // 7. If browsingContext's active document's is initial about:blank is true,
     //    and browsingContext's active document's origin is same origin-domain with navigationParams's origin,
@@ -345,17 +345,17 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(
     return document;
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<Document>> Document::construct_impl(JS::Realm& realm)
 {
     return Document::create(realm);
 }
 
-JS::NonnullGCPtr<Document> Document::create(JS::Realm& realm, URL::URL const& url)
+GC::Ref<Document> Document::create(JS::Realm& realm, URL::URL const& url)
 {
     return realm.heap().allocate<Document>(realm, realm, url);
 }
 
-JS::NonnullGCPtr<Document> Document::create_for_fragment_parsing(JS::Realm& realm)
+GC::Ref<Document> Document::create_for_fragment_parsing(JS::Realm& realm)
 {
     return realm.heap().allocate<Document>(realm, realm, "about:blank"sv, TemporaryDocumentForFragmentParsing::Yes);
 }
@@ -509,7 +509,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
-JS::GCPtr<Selection::Selection> Document::get_selection() const
+GC::Ptr<Selection::Selection> Document::get_selection() const
 {
     // The method must return the selection associated with this if this has an associated browsing context,
     // and it must return null otherwise.
@@ -656,7 +656,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-open-window
-WebIDL::ExceptionOr<JS::GCPtr<HTML::WindowProxy>> Document::open(StringView url, StringView name, StringView features)
+WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> Document::open(StringView url, StringView name, StringView features)
 {
     // 1. If this is not fully active, then throw an "InvalidAccessError" DOMException exception.
     if (!is_fully_active())
@@ -771,11 +771,11 @@ HTML::HTMLHeadElement* Document::head()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#the-title-element-2
-JS::GCPtr<HTML::HTMLTitleElement> Document::title_element()
+GC::Ptr<HTML::HTMLTitleElement> Document::title_element()
 {
     // The title element of a document is the first title element in the document (in tree order), if there is one, or
     // null otherwise.
-    JS::GCPtr<HTML::HTMLTitleElement> title_element = nullptr;
+    GC::Ptr<HTML::HTMLTitleElement> title_element = nullptr;
 
     for_each_in_subtree_of_type<HTML::HTMLTitleElement>([&](auto& title_element_in_tree) {
         title_element = title_element_in_tree;
@@ -873,7 +873,7 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
 
     // -> If the document element is an SVG svg element
     if (is<SVG::SVGElement>(document_element)) {
-        JS::GCPtr<Element> element;
+        GC::Ptr<Element> element;
 
         // 1. If there is an SVG title element that is a child of the document element, let element be the first such
         //    element.
@@ -903,7 +903,7 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
         if (title_element == nullptr && head_element == nullptr)
             return {};
 
-        JS::GCPtr<Element> element;
+        GC::Ptr<Element> element;
 
         // 2. If the title element is non-null, let element be the title element.
         if (title_element) {
@@ -976,7 +976,7 @@ Vector<CSS::BackgroundLayerData> const* Document::background_layers() const
 
 void Document::update_base_element(Badge<HTML::HTMLBaseElement>)
 {
-    JS::GCPtr<HTML::HTMLBaseElement const> base_element;
+    GC::Ptr<HTML::HTMLBaseElement const> base_element;
 
     for_each_in_subtree_of_type<HTML::HTMLBaseElement>([&base_element](HTML::HTMLBaseElement const& base_element_in_tree) {
         if (base_element_in_tree.has_attribute(HTML::AttributeNames::href)) {
@@ -990,7 +990,7 @@ void Document::update_base_element(Badge<HTML::HTMLBaseElement>)
     m_first_base_element_with_href_in_tree_order = base_element;
 }
 
-JS::GCPtr<HTML::HTMLBaseElement const> Document::first_base_element_with_href_in_tree_order() const
+GC::Ptr<HTML::HTMLBaseElement const> Document::first_base_element_with_href_in_tree_order() const
 {
     return m_first_base_element_with_href_in_tree_order;
 }
@@ -1364,7 +1364,7 @@ void Document::set_hovered_node(Node* node)
     if (m_hovered_node.ptr() == node)
         return;
 
-    JS::GCPtr<Node> old_hovered_node = move(m_hovered_node);
+    GC::Ptr<Node> old_hovered_node = move(m_hovered_node);
     m_hovered_node = node;
 
     auto* common_ancestor = find_common_ancestor(old_hovered_node, m_hovered_node);
@@ -1418,7 +1418,7 @@ void Document::set_hovered_node(Node* node)
     }
 }
 
-JS::NonnullGCPtr<NodeList> Document::get_elements_by_name(FlyString const& name)
+GC::Ref<NodeList> Document::get_elements_by_name(FlyString const& name)
 {
     return LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Descendants, [name](auto const& node) {
         if (!is<Element>(node))
@@ -1428,7 +1428,7 @@ JS::NonnullGCPtr<NodeList> Document::get_elements_by_name(FlyString const& name)
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-document-applets
-JS::NonnullGCPtr<HTMLCollection> Document::applets()
+GC::Ref<HTMLCollection> Document::applets()
 {
     if (!m_applets)
         m_applets = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](auto&) { return false; });
@@ -1436,7 +1436,7 @@ JS::NonnullGCPtr<HTMLCollection> Document::applets()
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-document-anchors
-JS::NonnullGCPtr<HTMLCollection> Document::anchors()
+GC::Ref<HTMLCollection> Document::anchors()
 {
     if (!m_anchors) {
         m_anchors = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
@@ -1447,7 +1447,7 @@ JS::NonnullGCPtr<HTMLCollection> Document::anchors()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-images
-JS::NonnullGCPtr<HTMLCollection> Document::images()
+GC::Ref<HTMLCollection> Document::images()
 {
     if (!m_images) {
         m_images = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
@@ -1458,7 +1458,7 @@ JS::NonnullGCPtr<HTMLCollection> Document::images()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-embeds
-JS::NonnullGCPtr<HTMLCollection> Document::embeds()
+GC::Ref<HTMLCollection> Document::embeds()
 {
     if (!m_embeds) {
         m_embeds = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
@@ -1469,13 +1469,13 @@ JS::NonnullGCPtr<HTMLCollection> Document::embeds()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-plugins
-JS::NonnullGCPtr<HTMLCollection> Document::plugins()
+GC::Ref<HTMLCollection> Document::plugins()
 {
     return embeds();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-links
-JS::NonnullGCPtr<HTMLCollection> Document::links()
+GC::Ref<HTMLCollection> Document::links()
 {
     if (!m_links) {
         m_links = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
@@ -1486,7 +1486,7 @@ JS::NonnullGCPtr<HTMLCollection> Document::links()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-forms
-JS::NonnullGCPtr<HTMLCollection> Document::forms()
+GC::Ref<HTMLCollection> Document::forms()
 {
     if (!m_forms) {
         m_forms = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
@@ -1497,7 +1497,7 @@ JS::NonnullGCPtr<HTMLCollection> Document::forms()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-scripts
-JS::NonnullGCPtr<HTMLCollection> Document::scripts()
+GC::Ref<HTMLCollection> Document::scripts()
 {
     if (!m_scripts) {
         m_scripts = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
@@ -1508,7 +1508,7 @@ JS::NonnullGCPtr<HTMLCollection> Document::scripts()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-all
-JS::NonnullGCPtr<HTML::HTMLAllCollection> Document::all()
+GC::Ref<HTML::HTMLAllCollection> Document::all()
 {
     if (!m_all) {
         // The all attribute must return an HTMLAllCollection rooted at the Document node, whose filter matches all elements.
@@ -1520,7 +1520,7 @@ JS::NonnullGCPtr<HTML::HTMLAllCollection> Document::all()
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-source
-JS::NonnullGCPtr<CSS::FontFaceSet> Document::fonts()
+GC::Ref<CSS::FontFaceSet> Document::fonts()
 {
     if (!m_fonts)
         m_fonts = CSS::FontFaceSet::create(realm());
@@ -1574,7 +1574,7 @@ HTML::EnvironmentSettingsObject& Document::relevant_settings_object() const
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> Document::create_element(String const& a_local_name, Variant<String, ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& a_local_name, Variant<String, ElementCreationOptions> const& options)
 {
     auto local_name = a_local_name.to_byte_string();
 
@@ -1607,7 +1607,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> Document::create_element(String c
 
 // https://dom.spec.whatwg.org/#dom-document-createelementns
 // https://dom.spec.whatwg.org/#internal-createelementns-steps
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> Document::create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, ElementCreationOptions> const& options)
 {
     // 1. Let namespace, prefix, and localName be the result of passing namespace and qualifiedName to validate and extract.
     auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name));
@@ -1626,18 +1626,18 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> Document::create_element_ns(Optio
     return TRY(DOM::create_element(*this, extracted_qualified_name.local_name(), extracted_qualified_name.namespace_(), extracted_qualified_name.prefix(), move(is_value), true));
 }
 
-JS::NonnullGCPtr<DocumentFragment> Document::create_document_fragment()
+GC::Ref<DocumentFragment> Document::create_document_fragment()
 {
     return heap().allocate<DocumentFragment>(realm(), *this);
 }
 
-JS::NonnullGCPtr<Text> Document::create_text_node(String const& data)
+GC::Ref<Text> Document::create_text_node(String const& data)
 {
     return heap().allocate<Text>(realm(), *this, data);
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createcdatasection
-WebIDL::ExceptionOr<JS::NonnullGCPtr<CDATASection>> Document::create_cdata_section(String const& data)
+WebIDL::ExceptionOr<GC::Ref<CDATASection>> Document::create_cdata_section(String const& data)
 {
     // 1. If this is an HTML document, then throw a "NotSupportedError" DOMException.
     if (is_html_document())
@@ -1651,13 +1651,13 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CDATASection>> Document::create_cdata_secti
     return heap().allocate<CDATASection>(realm(), *this, data);
 }
 
-JS::NonnullGCPtr<Comment> Document::create_comment(String const& data)
+GC::Ref<Comment> Document::create_comment(String const& data)
 {
     return heap().allocate<Comment>(realm(), *this, data);
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createprocessinginstruction
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ProcessingInstruction>> Document::create_processing_instruction(String const& target, String const& data)
+WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_instruction(String const& target, String const& data)
 {
     // FIXME: 1. If target does not match the Name production, then throw an "InvalidCharacterError" DOMException.
 
@@ -1667,19 +1667,19 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ProcessingInstruction>> Document::create_pr
     return heap().allocate<ProcessingInstruction>(realm(), *this, data, target);
 }
 
-JS::NonnullGCPtr<Range> Document::create_range()
+GC::Ref<Range> Document::create_range()
 {
     return Range::create(*this);
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createevent
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> Document::create_event(StringView interface)
+WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
 {
     auto& realm = this->realm();
 
     // NOTE: This is named event here, since we do step 5 and 6 as soon as possible for each case.
     // 1. Let constructor be null.
-    JS::GCPtr<Event> event;
+    GC::Ptr<Event> event;
 
     // 2. If interface is an ASCII case-insensitive match for any of the strings in the first column in the following table,
     //      then set constructor to the interface in the second column on the same row as the matching string:
@@ -1744,7 +1744,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> Document::create_event(StringView i
     event->set_initialized(false);
 
     // 10. Return event.
-    return JS::NonnullGCPtr(*event);
+    return GC::Ref(*event);
 }
 
 void Document::set_pending_parsing_blocking_script(HTML::HTMLScriptElement* script)
@@ -1752,7 +1752,7 @@ void Document::set_pending_parsing_blocking_script(HTML::HTMLScriptElement* scri
     m_pending_parsing_blocking_script = script;
 }
 
-JS::NonnullGCPtr<HTML::HTMLScriptElement> Document::take_pending_parsing_blocking_script(Badge<HTML::HTMLParser>)
+GC::Ref<HTML::HTMLScriptElement> Document::take_pending_parsing_blocking_script(Badge<HTML::HTMLParser>)
 {
     VERIFY(m_pending_parsing_blocking_script);
     auto script = m_pending_parsing_blocking_script;
@@ -1765,11 +1765,11 @@ void Document::add_script_to_execute_when_parsing_has_finished(Badge<HTML::HTMLS
     m_scripts_to_execute_when_parsing_has_finished.append(script);
 }
 
-Vector<JS::Handle<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_when_parsing_has_finished(Badge<HTML::HTMLParser>)
+Vector<GC::Handle<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_when_parsing_has_finished(Badge<HTML::HTMLParser>)
 {
-    Vector<JS::Handle<HTML::HTMLScriptElement>> handles;
+    Vector<GC::Handle<HTML::HTMLScriptElement>> handles;
     for (auto script : m_scripts_to_execute_when_parsing_has_finished)
-        handles.append(JS::make_handle(script));
+        handles.append(GC::make_handle(script));
     m_scripts_to_execute_when_parsing_has_finished.clear();
     return handles;
 }
@@ -1779,11 +1779,11 @@ void Document::add_script_to_execute_as_soon_as_possible(Badge<HTML::HTMLScriptE
     m_scripts_to_execute_as_soon_as_possible.append(script);
 }
 
-Vector<JS::Handle<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_as_soon_as_possible(Badge<HTML::HTMLParser>)
+Vector<GC::Handle<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_as_soon_as_possible(Badge<HTML::HTMLParser>)
 {
-    Vector<JS::Handle<HTML::HTMLScriptElement>> handles;
+    Vector<GC::Handle<HTML::HTMLScriptElement>> handles;
     for (auto script : m_scripts_to_execute_as_soon_as_possible)
-        handles.append(JS::make_handle(script));
+        handles.append(GC::make_handle(script));
     m_scripts_to_execute_as_soon_as_possible.clear();
     return handles;
 }
@@ -1793,17 +1793,17 @@ void Document::add_script_to_execute_in_order_as_soon_as_possible(Badge<HTML::HT
     m_scripts_to_execute_in_order_as_soon_as_possible.append(script);
 }
 
-Vector<JS::Handle<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_in_order_as_soon_as_possible(Badge<HTML::HTMLParser>)
+Vector<GC::Handle<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_in_order_as_soon_as_possible(Badge<HTML::HTMLParser>)
 {
-    Vector<JS::Handle<HTML::HTMLScriptElement>> handles;
+    Vector<GC::Handle<HTML::HTMLScriptElement>> handles;
     for (auto script : m_scripts_to_execute_in_order_as_soon_as_possible)
-        handles.append(JS::make_handle(script));
+        handles.append(GC::make_handle(script));
     m_scripts_to_execute_in_order_as_soon_as_possible.clear();
     return handles;
 }
 
 // https://dom.spec.whatwg.org/#dom-document-importnode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Document::import_node(JS::NonnullGCPtr<Node> node, bool deep)
+WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, bool deep)
 {
     // 1. If node is a document or shadow root, then throw a "NotSupportedError" DOMException.
     if (is<Document>(*node) || is<ShadowRoot>(*node))
@@ -1846,7 +1846,7 @@ void Document::adopt_node(Node& node)
             if (element.is_custom()) {
                 auto& vm = this->vm();
 
-                JS::MarkedVector<JS::Value> arguments { vm.heap() };
+                GC::MarkedVector<JS::Value> arguments { vm.heap() };
                 arguments.append(&old_document);
                 arguments.append(this);
 
@@ -1878,7 +1878,7 @@ void Document::adopt_node(Node& node)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-adoptnode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Document::adopt_node_binding(JS::NonnullGCPtr<Node> node)
+WebIDL::ExceptionOr<GC::Ref<Node>> Document::adopt_node_binding(GC::Ref<Node> node)
 {
     if (is<Document>(*node))
         return WebIDL::NotSupportedError::create(realm(), "Cannot adopt a document into a document"_fly_string);
@@ -2082,7 +2082,7 @@ Element* Document::find_a_potential_indicated_element(FlyString const& fragment)
 }
 
 // https://www.w3.org/TR/css-animations-2/#event-dispatch
-void Document::dispatch_events_for_animation_if_necessary(JS::NonnullGCPtr<Animations::Animation> animation)
+void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation> animation)
 {
     // Each time a new animation frame is established and the animation does not have a pending play task or pending
     // pause task, the events to dispatch are determined by comparing the animation’s phase before and after
@@ -2093,7 +2093,7 @@ void Document::dispatch_events_for_animation_if_necessary(JS::NonnullGCPtr<Anima
 
     auto& css_animation = verify_cast<CSS::CSSAnimation>(*animation);
 
-    JS::GCPtr<Element> target = effect->target();
+    GC::Ptr<Element> target = effect->target();
     if (!target)
         return;
 
@@ -2385,7 +2385,7 @@ void Document::completely_finish_loading()
     if (!navigable()->container())
         return;
 
-    auto container = JS::make_handle(navigable()->container());
+    auto container = GC::make_handle(navigable()->container());
 
     // 4. If container is an iframe element, then queue an element task on the DOM manipulation task source given container to run the iframe load event steps given container.
     if (container && is<HTML::HTMLIFrameElement>(*container)) {
@@ -2549,7 +2549,7 @@ bool Document::is_active() const
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-document-location
-JS::GCPtr<HTML::Location> Document::location()
+GC::Ptr<HTML::Location> Document::location()
 {
     // The Document object's location attribute's getter must return this Document object's relevant global object's Location object,
     // if this Document object is fully active, and null otherwise.
@@ -2645,7 +2645,7 @@ void Document::run_the_scroll_steps()
     m_pending_scroll_event_targets.clear();
 }
 
-void Document::add_media_query_list(JS::NonnullGCPtr<CSS::MediaQueryList> media_query_list)
+void Document::add_media_query_list(GC::Ref<CSS::MediaQueryList> media_query_list)
 {
     m_media_query_lists.append(*media_query_list);
 }
@@ -2668,7 +2668,7 @@ void Document::evaluate_media_queries_and_report_changes()
         //    and its matches attribute initialized to target’s matches state.
         if (media_query_list_ptr.is_null())
             continue;
-        JS::GCPtr<CSS::MediaQueryList> media_query_list = media_query_list_ptr.ptr();
+        GC::Ptr<CSS::MediaQueryList> media_query_list = media_query_list_ptr.ptr();
         bool did_match = media_query_list->matches();
         bool now_matches = media_query_list->evaluate();
 
@@ -2831,13 +2831,13 @@ WebIDL::ExceptionOr<Document::PrefixAndTagName> Document::validate_qualified_nam
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator
-JS::NonnullGCPtr<NodeIterator> Document::create_node_iterator(Node& root, unsigned what_to_show, JS::GCPtr<NodeFilter> filter)
+GC::Ref<NodeIterator> Document::create_node_iterator(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
     return NodeIterator::create(root, what_to_show, filter).release_value_but_fixme_should_propagate_errors();
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createtreewalker
-JS::NonnullGCPtr<TreeWalker> Document::create_tree_walker(Node& root, unsigned what_to_show, JS::GCPtr<NodeFilter> filter)
+GC::Ref<TreeWalker> Document::create_tree_walker(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
     return TreeWalker::create(root, what_to_show, filter);
 }
@@ -2955,7 +2955,7 @@ void Document::set_window(HTML::Window& window)
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#look-up-a-custom-element-definition
-JS::GCPtr<HTML::CustomElementDefinition> Document::lookup_custom_element_definition(Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is) const
+GC::Ptr<HTML::CustomElementDefinition> Document::lookup_custom_element_definition(Optional<FlyString> const& namespace_, FlyString const& local_name, Optional<String> const& is) const
 {
     // 1. If namespace is not the HTML namespace, return null.
     if (namespace_ != Namespace::HTML)
@@ -2996,14 +2996,14 @@ CSS::StyleSheetList const& Document::style_sheets() const
     return const_cast<Document*>(this)->style_sheets();
 }
 
-JS::NonnullGCPtr<HTML::History> Document::history()
+GC::Ref<HTML::History> Document::history()
 {
     if (!m_history)
         m_history = HTML::History::create(realm(), *this);
     return *m_history;
 }
 
-JS::NonnullGCPtr<HTML::History> Document::history() const
+GC::Ref<HTML::History> Document::history() const
 {
     return const_cast<Document*>(this)->history();
 }
@@ -3078,10 +3078,10 @@ HTML::SourceSnapshotParams Document::snapshot_source_snapshot_params() const
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#descendant-navigables
-Vector<JS::Handle<HTML::Navigable>> Document::descendant_navigables()
+Vector<GC::Handle<HTML::Navigable>> Document::descendant_navigables()
 {
     // 1. Let navigables be new list.
-    Vector<JS::Handle<HTML::Navigable>> navigables;
+    Vector<GC::Handle<HTML::Navigable>> navigables;
 
     // 2. Let navigableContainers be a list of all shadow-including descendants of document that are navigable containers, in shadow-including tree order.
     // 3. For each navigableContainer of navigableContainers:
@@ -3102,16 +3102,16 @@ Vector<JS::Handle<HTML::Navigable>> Document::descendant_navigables()
     return navigables;
 }
 
-Vector<JS::Handle<HTML::Navigable>> const Document::descendant_navigables() const
+Vector<GC::Handle<HTML::Navigable>> const Document::descendant_navigables() const
 {
     return const_cast<Document&>(*this).descendant_navigables();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#inclusive-descendant-navigables
-Vector<JS::Handle<HTML::Navigable>> Document::inclusive_descendant_navigables()
+Vector<GC::Handle<HTML::Navigable>> Document::inclusive_descendant_navigables()
 {
     // 1. Let navigables be « document's node navigable ».
-    Vector<JS::Handle<HTML::Navigable>> navigables;
+    Vector<GC::Handle<HTML::Navigable>> navigables;
     navigables.append(*navigable());
 
     // 2. Extend navigables with document's descendant navigables.
@@ -3122,7 +3122,7 @@ Vector<JS::Handle<HTML::Navigable>> Document::inclusive_descendant_navigables()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#ancestor-navigables
-Vector<JS::Handle<HTML::Navigable>> Document::ancestor_navigables()
+Vector<GC::Handle<HTML::Navigable>> Document::ancestor_navigables()
 {
     // NOTE: This isn't in the spec, but if we don't have a navigable, we can't have ancestors either.
     auto document_node_navigable = this->navigable();
@@ -3133,7 +3133,7 @@ Vector<JS::Handle<HTML::Navigable>> Document::ancestor_navigables()
     auto navigable = document_node_navigable->parent();
 
     // 2. Let ancestors be an empty list.
-    Vector<JS::Handle<HTML::Navigable>> ancestors;
+    Vector<GC::Handle<HTML::Navigable>> ancestors;
 
     // 3. While navigable is not null:
     while (navigable) {
@@ -3148,13 +3148,13 @@ Vector<JS::Handle<HTML::Navigable>> Document::ancestor_navigables()
     return ancestors;
 }
 
-Vector<JS::Handle<HTML::Navigable>> const Document::ancestor_navigables() const
+Vector<GC::Handle<HTML::Navigable>> const Document::ancestor_navigables() const
 {
     return const_cast<Document&>(*this).ancestor_navigables();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#inclusive-ancestor-navigables
-Vector<JS::Handle<HTML::Navigable>> Document::inclusive_ancestor_navigables()
+Vector<GC::Handle<HTML::Navigable>> Document::inclusive_ancestor_navigables()
 {
     // 1. Let navigables be document's ancestor navigables.
     auto navigables = ancestor_navigables();
@@ -3167,14 +3167,14 @@ Vector<JS::Handle<HTML::Navigable>> Document::inclusive_ancestor_navigables()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#document-tree-child-navigables
-Vector<JS::Handle<HTML::Navigable>> Document::document_tree_child_navigables()
+Vector<GC::Handle<HTML::Navigable>> Document::document_tree_child_navigables()
 {
     // 1. If document's node navigable is null, then return the empty list.
     if (!navigable())
         return {};
 
     // 2. Let navigables be new list.
-    Vector<JS::Handle<HTML::Navigable>> navigables;
+    Vector<GC::Handle<HTML::Navigable>> navigables;
 
     // 3. Let navigableContainers be a list of all descendants of document that are navigable containers, in tree order.
     // 4. For each navigableContainer of navigableContainers:
@@ -3263,7 +3263,7 @@ void Document::make_unsalvageable([[maybe_unused]] String reason)
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
-void Document::destroy_a_document_and_its_descendants(JS::GCPtr<JS::HeapFunction<void()>> after_all_destruction)
+void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void()>> after_all_destruction)
 {
     // 1. If document is not fully active, then:
     if (!is_fully_active()) {
@@ -3283,9 +3283,9 @@ void Document::destroy_a_document_and_its_descendants(JS::GCPtr<JS::HeapFunction
     // 4. For each childNavigable of childNavigable's, queue a global task on the navigation and traversal task source
     //    given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(), JS::create_heap_function(heap(), [&heap = heap(), &number_destroyed, child_navigable = child_navigable.ptr()] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(), GC::create_heap_function(heap(), [&heap = heap(), &number_destroyed, child_navigable = child_navigable.ptr()] {
             // 1. Let incrementDestroyed be an algorithm step which increments numberDestroyed.
-            auto increment_destroyed = JS::create_heap_function(heap, [&number_destroyed] { ++number_destroyed; });
+            auto increment_destroyed = GC::create_heap_function(heap, [&number_destroyed] { ++number_destroyed; });
 
             // 2. Destroy a document and its descendants given childNavigable's active document and incrementDestroyed.
             child_navigable->active_document()->destroy_a_document_and_its_descendants(move(increment_destroyed));
@@ -3298,7 +3298,7 @@ void Document::destroy_a_document_and_its_descendants(JS::GCPtr<JS::HeapFunction
     });
 
     // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to perform the following steps:
-    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), JS::create_heap_function(heap(), [after_all_destruction = move(after_all_destruction), this] {
+    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_heap_function(heap(), [after_all_destruction = move(after_all_destruction), this] {
         // 1. Destroy document.
         destroy();
 
@@ -3352,7 +3352,7 @@ void Document::abort_a_document_and_its_descendants()
 
     // 3. For each descendantNavigable of descendantNavigables, queue a global task on the navigation and traversal task source given descendantNavigable's active window to perform the following steps:
     for (auto& descendant_navigable : descendant_navigables) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *descendant_navigable->active_window(), JS::create_heap_function(heap(), [this, descendant_navigable = descendant_navigable.ptr()] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *descendant_navigable->active_window(), GC::create_heap_function(heap(), [this, descendant_navigable = descendant_navigable.ptr()] {
             // NOTE: This is not in the spec but we need to abort ongoing navigations in all descendant navigables.
             //       See https://github.com/whatwg/html/issues/9711
             descendant_navigable->set_ongoing_navigation({});
@@ -3371,7 +3371,7 @@ void Document::abort_a_document_and_its_descendants()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#active-parser
-JS::GCPtr<HTML::HTMLParser> Document::active_parser()
+GC::Ptr<HTML::HTMLParser> Document::active_parser()
 {
     if (!m_parser)
         return nullptr;
@@ -3388,7 +3388,7 @@ void Document::set_browsing_context(HTML::BrowsingContext* browsing_context)
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document
-void Document::unload(JS::GCPtr<Document>)
+void Document::unload(GC::Ptr<Document>)
 {
     auto& vm = this->vm();
 
@@ -3471,7 +3471,7 @@ void Document::unload(JS::GCPtr<Document>)
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-void Document::unload_a_document_and_its_descendants(JS::GCPtr<Document> new_document, JS::GCPtr<JS::HeapFunction<void()>> after_all_unloads)
+void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_document, GC::Ptr<GC::Function<void()>> after_all_unloads)
 {
     // Specification defines this algorithm in the following steps:
     // 1. Recursively unload (and destroy) documents in descendant navigables
@@ -3499,7 +3499,7 @@ void Document::unload_a_document_and_its_descendants(JS::GCPtr<Document> new_doc
 
     auto navigable = this->navigable();
 
-    Vector<JS::Handle<HTML::Navigable>> descendant_navigables;
+    Vector<GC::Handle<HTML::Navigable>> descendant_navigables;
     for (auto& other_navigable : HTML::all_navigables()) {
         if (navigable->is_ancestor_of(*other_navigable))
             descendant_navigables.append(other_navigable);
@@ -3507,13 +3507,13 @@ void Document::unload_a_document_and_its_descendants(JS::GCPtr<Document> new_doc
 
     auto unloaded_documents_count = descendant_navigables.size() + 1;
 
-    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*this), JS::create_heap_function(heap(), [&number_unloaded, this, new_document] {
+    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*this), GC::create_heap_function(heap(), [&number_unloaded, this, new_document] {
         unload(new_document);
         ++number_unloaded;
     }));
 
     for (auto& descendant_navigable : descendant_navigables) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *descendant_navigable->active_window(), JS::create_heap_function(heap(), [&number_unloaded, descendant_navigable = descendant_navigable.ptr()] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *descendant_navigable->active_window(), GC::create_heap_function(heap(), [&number_unloaded, descendant_navigable = descendant_navigable.ptr()] {
             descendant_navigable->active_document()->unload();
             ++number_unloaded;
         }));
@@ -3577,7 +3577,7 @@ void Document::decrement_throw_on_dynamic_markup_insertion_counter(Badge<HTML::H
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#appropriate-template-contents-owner-document
-JS::NonnullGCPtr<DOM::Document> Document::appropriate_template_contents_owner_document()
+GC::Ref<DOM::Document> Document::appropriate_template_contents_owner_document()
 {
     // 1. If doc is not a Document created by this algorithm, then:
     if (!created_for_appropriate_template_contents()) {
@@ -3621,7 +3621,7 @@ String Document::dump_accessibility_tree_as_json()
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createattribute
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Attr>> Document::create_attribute(String const& local_name)
+WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& local_name)
 {
     // 1. If localName does not match the Name production in XML, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_name(local_name))
@@ -3633,7 +3633,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Attr>> Document::create_attribute(String co
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createattributens
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Attr>> Document::create_attribute_ns(Optional<FlyString> const& namespace_, String const& qualified_name)
+WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute_ns(Optional<FlyString> const& namespace_, String const& qualified_name)
 {
     // 1. Let namespace, prefix, and localName be the result of passing namespace and qualifiedName to validate and extract.
     auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name));
@@ -3689,7 +3689,7 @@ CSSPixelRect Document::viewport_rect() const
     return CSSPixelRect {};
 }
 
-JS::NonnullGCPtr<CSS::VisualViewport> Document::visual_viewport()
+GC::Ref<CSS::VisualViewport> Document::visual_viewport()
 {
     if (!m_visual_viewport)
         m_visual_viewport = CSS::VisualViewport::create(*this);
@@ -3753,7 +3753,7 @@ void Document::queue_intersection_observer_task()
     m_intersection_observer_task_queued = true;
 
     // 3. Queue a task on the IntersectionObserver task source associated with the document's event loop to notify intersection observers.
-    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, *window, JS::create_heap_function(heap(), [this]() {
+    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, *window, GC::create_heap_function(heap(), [this]() {
         auto& realm = this->realm();
 
         // https://www.w3.org/TR/intersection-observer/#notify-intersection-observers
@@ -3761,10 +3761,10 @@ void Document::queue_intersection_observer_task()
         m_intersection_observer_task_queued = false;
 
         // 2. Let notify list be a list of all IntersectionObservers whose root is in the DOM tree of document.
-        Vector<JS::Handle<IntersectionObserver::IntersectionObserver>> notify_list;
+        Vector<GC::Handle<IntersectionObserver::IntersectionObserver>> notify_list;
         notify_list.try_ensure_capacity(m_intersection_observers.size()).release_value_but_fixme_should_propagate_errors();
         for (auto& observer : m_intersection_observers) {
-            notify_list.append(JS::make_handle(observer));
+            notify_list.append(GC::make_handle(observer));
         }
 
         // 3. For each IntersectionObserver object observer in notify list, run these steps:
@@ -3796,7 +3796,7 @@ void Document::queue_intersection_observer_task()
 }
 
 // https://www.w3.org/TR/intersection-observer/#queue-an-intersectionobserverentry
-void Document::queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver& observer, HighResolutionTime::DOMHighResTimeStamp time, JS::NonnullGCPtr<Geometry::DOMRectReadOnly> root_bounds, JS::NonnullGCPtr<Geometry::DOMRectReadOnly> bounding_client_rect, JS::NonnullGCPtr<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, JS::NonnullGCPtr<Element> target)
+void Document::queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver& observer, HighResolutionTime::DOMHighResTimeStamp time, GC::Ref<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<Element> target)
 {
     auto& realm = this->realm();
 
@@ -3811,7 +3811,7 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static JS::NonnullGCPtr<Geometry::DOMRectReadOnly> compute_intersection(JS::NonnullGCPtr<Element> target, IntersectionObserver::IntersectionObserver const& observer)
+static GC::Ref<Geometry::DOMRectReadOnly> compute_intersection(GC::Ref<Element> target, IntersectionObserver::IntersectionObserver const& observer)
 {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
     auto intersection_rect = target->get_bounding_client_rect();
@@ -3879,11 +3879,11 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             // 3. If the intersection root is an Element, and target is not a descendant of the intersection root in the containing block chain, skip to step 11.
             // FIXME: Actually use the containing block chain.
             auto intersection_root = observer->intersection_root();
-            auto intersection_root_document = intersection_root.visit([](auto& node) -> JS::NonnullGCPtr<Document> {
+            auto intersection_root_document = intersection_root.visit([](auto& node) -> GC::Ref<Document> {
                 return node->document();
             });
             if (!(observer->root().has<Empty>() && &target->document() == intersection_root_document.ptr())
-                || !(intersection_root.has<JS::Handle<DOM::Element>>() && !target->is_descendant_of(*intersection_root.get<JS::Handle<DOM::Element>>()))) {
+                || !(intersection_root.has<GC::Handle<DOM::Element>>() && !target->is_descendant_of(*intersection_root.get<GC::Handle<DOM::Element>>()))) {
                 // 4. Set targetRect to the DOMRectReadOnly obtained by getting the bounding box for target.
                 target_rect = target->get_bounding_client_rect();
 
@@ -3970,7 +3970,7 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
                 auto& entry = verify_cast<IntersectionObserver::IntersectionObserverEntry>(entries.get_without_side_effects(property_key).as_object());
 
                 // 1. Let resumptionSteps be null.
-                JS::GCPtr<JS::HeapFunction<void()>> resumption_steps;
+                GC::Ptr<GC::Function<void()>> resumption_steps;
 
                 // 2. If entry.isIntersecting is true, then set resumptionSteps to entry.target's lazy load resumption steps.
                 if (entry.is_intersecting()) {
@@ -4019,7 +4019,7 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#shared-declarative-refresh-steps
-void Document::shared_declarative_refresh_steps(StringView input, JS::GCPtr<HTML::HTMLMetaElement const> meta_element)
+void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::HTMLMetaElement const> meta_element)
 {
     // 1. If document's will declaratively refresh is true, then return.
     if (m_will_declaratively_refresh)
@@ -4186,7 +4186,7 @@ Painting::ViewportPaintable* Document::paintable()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-the-history-object-state
-void Document::restore_the_history_object_state(JS::NonnullGCPtr<HTML::SessionHistoryEntry> entry)
+void Document::restore_the_history_object_state(GC::Ref<HTML::SessionHistoryEntry> entry)
 {
     // 1. Let targetRealm be document's relevant realm.
     auto& target_realm = HTML::relevant_realm(*this);
@@ -4201,7 +4201,7 @@ void Document::restore_the_history_object_state(JS::NonnullGCPtr<HTML::SessionHi
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
-void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<JS::NonnullGCPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, Optional<JS::NonnullGCPtr<HTML::SessionHistoryEntry>> previous_entry_for_activation, bool update_navigation_api)
+void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<GC::Ref<HTML::SessionHistoryEntry>>> entries_for_navigation_api, Optional<GC::Ref<HTML::SessionHistoryEntry>> previous_entry_for_activation, bool update_navigation_api)
 {
     (void)previous_entry_for_activation;
 
@@ -4269,7 +4269,7 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
                 hashchange_event_init.old_url = MUST(String::from_byte_string(old_url.serialize()));
                 hashchange_event_init.new_url = MUST(String::from_byte_string(entry->url().serialize()));
                 auto hashchange_event = HTML::HashChangeEvent::create(realm(), "hashchange"_fly_string, hashchange_event_init);
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, JS::create_heap_function(heap(), [hashchange_event, &relevant_global_object]() {
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_heap_function(heap(), [hashchange_event, &relevant_global_object]() {
                     relevant_global_object.dispatch_event(hashchange_event);
                 }));
             }
@@ -4325,13 +4325,13 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
     }
 }
 
-HashMap<URL::URL, JS::GCPtr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()
+HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()
 {
     return m_shared_resource_requests;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-document-timeline
-JS::NonnullGCPtr<Animations::DocumentTimeline> Document::timeline()
+GC::Ref<Animations::DocumentTimeline> Document::timeline()
 {
     // The DocumentTimeline object representing the default document timeline. The default document timeline has an
     // origin time of zero.
@@ -4340,12 +4340,12 @@ JS::NonnullGCPtr<Animations::DocumentTimeline> Document::timeline()
     return *m_default_timeline;
 }
 
-void Document::associate_with_timeline(JS::NonnullGCPtr<Animations::AnimationTimeline> timeline)
+void Document::associate_with_timeline(GC::Ref<Animations::AnimationTimeline> timeline)
 {
     m_associated_animation_timelines.set(timeline);
 }
 
-void Document::disassociate_with_timeline(JS::NonnullGCPtr<Animations::AnimationTimeline> timeline)
+void Document::disassociate_with_timeline(GC::Ref<Animations::AnimationTimeline> timeline)
 {
     m_associated_animation_timelines.remove(timeline);
 }
@@ -4432,7 +4432,7 @@ void Document::remove_replaced_animations()
     //   animation effect associated with a replaceable animation with a higher composite order than animation that
     //   includes the same target property
 
-    Vector<JS::NonnullGCPtr<Animations::Animation>> replaceable_animations;
+    Vector<GC::Ref<Animations::Animation>> replaceable_animations;
     for (auto const& timeline : m_associated_animation_timelines) {
         for (auto const& animation : timeline->associated_animations()) {
             if (!animation->effect() || !animation->effect()->target() || &animation->effect()->target()->document() != this)
@@ -4452,7 +4452,7 @@ void Document::remove_replaced_animations()
         }
     }
 
-    quick_sort(replaceable_animations, [](JS::NonnullGCPtr<Animations::Animation>& a, JS::NonnullGCPtr<Animations::Animation>& b) {
+    quick_sort(replaceable_animations, [](GC::Ref<Animations::Animation>& a, GC::Ref<Animations::Animation>& b) {
         VERIFY(a->effect()->is_keyframe_effect());
         VERIFY(b->effect()->is_keyframe_effect());
         auto& a_effect = *static_cast<Animations::KeyframeEffect*>(a->effect().ptr());
@@ -4505,7 +4505,7 @@ void Document::remove_replaced_animations()
             //   Otherwise, queue a task to dispatch removeEvent at animation. The task source for this task is the DOM
             //   manipulation task source.
             else {
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm().global_object(), JS::create_heap_function(heap(), [animation, remove_event]() {
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm().global_object(), GC::create_heap_function(heap(), [animation, remove_event]() {
                     animation->dispatch_event(remove_event);
                 }));
             }
@@ -4538,9 +4538,9 @@ void Document::ensure_animation_timer()
     m_animation_driver_timer->start();
 }
 
-Vector<JS::NonnullGCPtr<Animations::Animation>> Document::get_animations()
+Vector<GC::Ref<Animations::Animation>> Document::get_animations()
 {
-    Vector<JS::NonnullGCPtr<Animations::Animation>> relevant_animations;
+    Vector<GC::Ref<Animations::Animation>> relevant_animations;
     for_each_child_of_type<Element>([&](auto& child) {
         relevant_animations.extend(child.get_animations({ .subtree = true }));
         return IterationDecision::Continue;
@@ -4560,7 +4560,7 @@ static bool is_potentially_named_element_by_id(DOM::Element const& element)
     return is<HTML::HTMLObjectElement>(element) || is<HTML::HTMLImageElement>(element);
 }
 
-static void insert_in_tree_order(Vector<JS::NonnullGCPtr<DOM::Element>>& elements, DOM::Element& element)
+static void insert_in_tree_order(Vector<GC::Ref<DOM::Element>>& elements, DOM::Element& element)
 {
     for (auto& el : elements) {
         if (el == &element)
@@ -4576,7 +4576,7 @@ static void insert_in_tree_order(Vector<JS::NonnullGCPtr<DOM::Element>>& element
         elements.append(element);
 }
 
-void Document::element_id_changed(Badge<DOM::Element>, JS::NonnullGCPtr<DOM::Element> element)
+void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
 {
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         form_associated_element->element_id_changed({});
@@ -4587,7 +4587,7 @@ void Document::element_id_changed(Badge<DOM::Element>, JS::NonnullGCPtr<DOM::Ele
         (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
 }
 
-void Document::element_with_id_was_added(Badge<DOM::Element>, JS::NonnullGCPtr<DOM::Element> element)
+void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
 {
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         form_associated_element->element_with_id_was_added_or_removed({});
@@ -4596,7 +4596,7 @@ void Document::element_with_id_was_added(Badge<DOM::Element>, JS::NonnullGCPtr<D
         insert_in_tree_order(m_potentially_named_elements, element);
 }
 
-void Document::element_with_id_was_removed(Badge<DOM::Element>, JS::NonnullGCPtr<DOM::Element> element)
+void Document::element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
 {
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         form_associated_element->element_with_id_was_added_or_removed({});
@@ -4605,7 +4605,7 @@ void Document::element_with_id_was_removed(Badge<DOM::Element>, JS::NonnullGCPtr
         (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
 }
 
-void Document::element_name_changed(Badge<DOM::Element>, JS::NonnullGCPtr<DOM::Element> element)
+void Document::element_name_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
 {
     if (element->name().has_value()) {
         insert_in_tree_order(m_potentially_named_elements, element);
@@ -4616,13 +4616,13 @@ void Document::element_name_changed(Badge<DOM::Element>, JS::NonnullGCPtr<DOM::E
     }
 }
 
-void Document::element_with_name_was_added(Badge<DOM::Element>, JS::NonnullGCPtr<DOM::Element> element)
+void Document::element_with_name_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
 {
     if (is_potentially_named_element(element))
         insert_in_tree_order(m_potentially_named_elements, element);
 }
 
-void Document::element_with_name_was_removed(Badge<DOM::Element>, JS::NonnullGCPtr<DOM::Element> element)
+void Document::element_with_name_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
 {
     if (is_potentially_named_element(element)) {
         if (is_potentially_named_element_by_id(element) && element->id().has_value())
@@ -4724,10 +4724,10 @@ Element const* Document::element_from_point(double x, double y)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-document-elementsfrompoint
-Vector<JS::NonnullGCPtr<Element>> Document::elements_from_point(double x, double y)
+Vector<GC::Ref<Element>> Document::elements_from_point(double x, double y)
 {
     // 1. Let sequence be a new empty sequence.
-    Vector<JS::NonnullGCPtr<Element>> sequence;
+    Vector<GC::Ref<Element>> sequence;
 
     // 2. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll bar (if any),
     //    or y is greater than the viewport height excluding the size of a rendered scroll bar (if any),
@@ -4763,7 +4763,7 @@ Vector<JS::NonnullGCPtr<Element>> Document::elements_from_point(double x, double
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-document-scrollingelement
-JS::GCPtr<Element const> Document::scrolling_element() const
+GC::Ptr<Element const> Document::scrolling_element() const
 {
     // 1. If the Document is in quirks mode, follow these substeps:
     if (in_quirks_mode()) {
@@ -4866,9 +4866,9 @@ static bool is_named_element_with_name(Element const& element, FlyString const& 
     return false;
 }
 
-static Vector<JS::NonnullGCPtr<DOM::Element>> named_elements_with_name(Document const& document, FlyString const& name)
+static Vector<GC::Ref<DOM::Element>> named_elements_with_name(Document const& document, FlyString const& name)
 {
-    Vector<JS::NonnullGCPtr<DOM::Element>> named_elements;
+    Vector<GC::Ref<DOM::Element>> named_elements;
 
     for (auto const& element : document.potentially_named_elements()) {
         if (is_named_element_with_name(element, name))
@@ -4995,7 +4995,7 @@ size_t Document::broadcast_active_resize_observations()
         }
 
         // 2. Let entries be an empty list of ResizeObserverEntryies.
-        Vector<JS::NonnullGCPtr<ResizeObserver::ResizeObserverEntry>> entries;
+        Vector<GC::Ref<ResizeObserver::ResizeObserverEntry>> entries;
 
         // 3. For each observation in [[activeTargets]] perform these steps:
         for (auto const& observation : observer->active_targets()) {
@@ -5069,7 +5069,7 @@ bool Document::has_skipped_resize_observations()
     return false;
 }
 
-JS::NonnullGCPtr<WebIDL::ObservableArray> Document::adopted_style_sheets() const
+GC::Ref<WebIDL::ObservableArray> Document::adopted_style_sheets() const
 {
     if (!m_adopted_style_sheets)
         m_adopted_style_sheets = create_adopted_style_sheets_list(const_cast<Document&>(*this));
@@ -5134,7 +5134,7 @@ bool Document::is_decoded_svg() const
 }
 
 // https://drafts.csswg.org/css-position-4/#add-an-element-to-the-top-layer
-void Document::add_an_element_to_the_top_layer(JS::NonnullGCPtr<Element> element)
+void Document::add_an_element_to_the_top_layer(GC::Ref<Element> element)
 {
     // 1. Let doc be el’s node document.
 
@@ -5157,7 +5157,7 @@ void Document::add_an_element_to_the_top_layer(JS::NonnullGCPtr<Element> element
 }
 
 // https://drafts.csswg.org/css-position-4/#request-an-element-to-be-removed-from-the-top-layer
-void Document::request_an_element_to_be_remove_from_the_top_layer(JS::NonnullGCPtr<Element> element)
+void Document::request_an_element_to_be_remove_from_the_top_layer(GC::Ref<Element> element)
 {
     // 1. Let doc be el’s node document.
 
@@ -5172,7 +5172,7 @@ void Document::request_an_element_to_be_remove_from_the_top_layer(JS::NonnullGCP
 }
 
 // https://drafts.csswg.org/css-position-4/#remove-an-element-from-the-top-layer-immediately
-void Document::remove_an_element_from_the_top_layer_immediately(JS::NonnullGCPtr<Element> element)
+void Document::remove_an_element_from_the_top_layer_immediately(GC::Ref<Element> element)
 {
     // 1. Let doc be el’s node document.
 
@@ -5205,7 +5205,7 @@ void Document::set_needs_to_refresh_scroll_state(bool b)
         paintable->set_needs_to_refresh_scroll_state(b);
 }
 
-Vector<JS::Handle<DOM::Range>> Document::find_matching_text(String const& query, CaseSensitivity case_sensitivity)
+Vector<GC::Handle<DOM::Range>> Document::find_matching_text(String const& query, CaseSensitivity case_sensitivity)
 {
     if (!layout_node())
         return {};
@@ -5217,7 +5217,7 @@ Vector<JS::Handle<DOM::Range>> Document::find_matching_text(String const& query,
     if (text_blocks.is_empty())
         return {};
 
-    Vector<JS::Handle<DOM::Range>> matches;
+    Vector<GC::Handle<DOM::Range>> matches;
     for (auto const& text_block : text_blocks) {
         size_t offset = 0;
         size_t i = 0;
@@ -5283,7 +5283,7 @@ void Document::parse_html_from_a_string(StringView html)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
-JS::NonnullGCPtr<Document> Document::parse_html_unsafe(JS::VM& vm, StringView html)
+GC::Ref<Document> Document::parse_html_unsafe(JS::VM& vm, StringView html)
 {
     auto& realm = *vm.current_realm();
     // FIXME: 1. Let compliantHTML to the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
@@ -5302,7 +5302,7 @@ JS::NonnullGCPtr<Document> Document::parse_html_unsafe(JS::VM& vm, StringView ht
     return document;
 }
 
-void Document::set_cursor_position(JS::NonnullGCPtr<DOM::Position> position)
+void Document::set_cursor_position(GC::Ref<DOM::Position> position)
 {
     if (m_cursor_position && m_cursor_position->equals(position))
         return;
@@ -5357,12 +5357,12 @@ void Document::reset_cursor_blink_cycle()
         m_cursor_position->node()->paintable()->set_needs_display();
 }
 
-JS::GCPtr<HTML::Navigable> Document::cached_navigable()
+GC::Ptr<HTML::Navigable> Document::cached_navigable()
 {
     return m_cached_navigable.ptr();
 }
 
-void Document::set_cached_navigable(JS::GCPtr<HTML::Navigable> navigable)
+void Document::set_cached_navigable(GC::Ptr<HTML::Navigable> navigable)
 {
     m_cached_navigable = navigable.ptr();
 }

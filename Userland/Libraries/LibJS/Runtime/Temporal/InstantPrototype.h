@@ -13,7 +13,7 @@ namespace JS::Temporal {
 
 class InstantPrototype final : public PrototypeObject<InstantPrototype, Instant> {
     JS_PROTOTYPE_OBJECT(InstantPrototype, Instant, Temporal.Instant);
-    JS_DECLARE_ALLOCATOR(InstantPrototype);
+    GC_DECLARE_ALLOCATOR(InstantPrototype);
 
 public:
     virtual void initialize(Realm&) override;

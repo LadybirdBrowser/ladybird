@@ -7,8 +7,8 @@
 #include <AK/Assertions.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Platform.h>
-#include <LibJS/Heap/Heap.h>
-#include <LibJS/Heap/HeapBlock.h>
+#include <LibGC/Heap.h>
+#include <LibGC/HeapBlock.h>
 #include <stdio.h>
 #include <sys/mman.h>
 
@@ -16,7 +16,7 @@
 #    include <sanitizer/asan_interface.h>
 #endif
 
-namespace JS {
+namespace GC {
 
 NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, [[maybe_unused]] char const* class_name)
 {

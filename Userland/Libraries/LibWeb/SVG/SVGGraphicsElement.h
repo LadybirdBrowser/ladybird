@@ -54,11 +54,11 @@ public:
     Optional<Painting::PaintStyle> fill_paint_style(SVGPaintContext const&) const;
     Optional<Painting::PaintStyle> stroke_paint_style(SVGPaintContext const&) const;
 
-    JS::GCPtr<SVG::SVGMaskElement const> mask() const;
-    JS::GCPtr<SVG::SVGClipPathElement const> clip_path() const;
+    GC::Ptr<SVG::SVGMaskElement const> mask() const;
+    GC::Ptr<SVG::SVGClipPathElement const> clip_path() const;
 
-    JS::NonnullGCPtr<Geometry::DOMRect> get_b_box(Optional<SVGBoundingBoxOptions>);
-    JS::NonnullGCPtr<SVGAnimatedTransformList> transform() const;
+    GC::Ref<Geometry::DOMRect> get_b_box(Optional<SVGBoundingBoxOptions>);
+    GC::Ref<SVGAnimatedTransformList> transform() const;
 
 protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
@@ -75,7 +75,7 @@ protected:
     Gfx::AffineTransform m_transform = {};
 
     template<typename T>
-    JS::GCPtr<T> try_resolve_url_to(URL::URL const& url) const
+    GC::Ptr<T> try_resolve_url_to(URL::URL const& url) const
     {
         if (!url.fragment().has_value())
             return {};

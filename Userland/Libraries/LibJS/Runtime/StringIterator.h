@@ -14,10 +14,10 @@ namespace JS {
 
 class StringIterator final : public Object {
     JS_OBJECT(StringIterator, Object);
-    JS_DECLARE_ALLOCATOR(StringIterator);
+    GC_DECLARE_ALLOCATOR(StringIterator);
 
 public:
-    static NonnullGCPtr<StringIterator> create(Realm&, String string);
+    static GC::Ref<StringIterator> create(Realm&, String string);
 
     virtual ~StringIterator() override = default;
 

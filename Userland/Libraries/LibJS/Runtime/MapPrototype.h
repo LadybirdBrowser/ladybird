@@ -13,7 +13,7 @@ namespace JS {
 
 class MapPrototype final : public PrototypeObject<MapPrototype, Map> {
     JS_PROTOTYPE_OBJECT(MapPrototype, Map, Map);
-    JS_DECLARE_ALLOCATOR(MapPrototype);
+    GC_DECLARE_ALLOCATOR(MapPrototype);
 
 public:
     virtual void initialize(Realm&) override;

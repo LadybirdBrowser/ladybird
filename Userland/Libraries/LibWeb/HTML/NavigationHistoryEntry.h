@@ -13,10 +13,10 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationhistoryentry
 class NavigationHistoryEntry : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(NavigationHistoryEntry, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(NavigationHistoryEntry);
+    GC_DECLARE_ALLOCATOR(NavigationHistoryEntry);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<NavigationHistoryEntry> create(JS::Realm&, JS::NonnullGCPtr<SessionHistoryEntry>);
+    [[nodiscard]] static GC::Ref<NavigationHistoryEntry> create(JS::Realm&, GC::Ref<SessionHistoryEntry>);
 
     WebIDL::ExceptionOr<Optional<String>> url() const;
     String key() const;
@@ -35,11 +35,11 @@ public:
     virtual ~NavigationHistoryEntry() override;
 
 private:
-    NavigationHistoryEntry(JS::Realm&, JS::NonnullGCPtr<SessionHistoryEntry>);
+    NavigationHistoryEntry(JS::Realm&, GC::Ref<SessionHistoryEntry>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<SessionHistoryEntry> m_session_history_entry;
+    GC::Ref<SessionHistoryEntry> m_session_history_entry;
 };
 }

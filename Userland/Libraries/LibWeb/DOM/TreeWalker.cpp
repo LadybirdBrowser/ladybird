@@ -14,7 +14,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(TreeWalker);
+GC_DEFINE_ALLOCATOR(TreeWalker);
 
 TreeWalker::TreeWalker(Node& root)
     : PlatformObject(root.realm())
@@ -40,7 +40,7 @@ void TreeWalker::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createtreewalker
-JS::NonnullGCPtr<TreeWalker> TreeWalker::create(Node& root, unsigned what_to_show, JS::GCPtr<NodeFilter> filter)
+GC::Ref<TreeWalker> TreeWalker::create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
     // 1. Let walker be a new TreeWalker object.
     // 2. Set walker’s root and walker’s current to root.
@@ -58,7 +58,7 @@ JS::NonnullGCPtr<TreeWalker> TreeWalker::create(Node& root, unsigned what_to_sho
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-currentnode
-JS::NonnullGCPtr<Node> TreeWalker::current_node() const
+GC::Ref<Node> TreeWalker::current_node() const
 {
     return *m_current;
 }
@@ -70,10 +70,10 @@ void TreeWalker::set_current_node(Node& node)
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-parentnode
-JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::parent_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::parent_node()
 {
     // 1. Let node be this’s current.
-    JS::GCPtr<Node> node = m_current;
+    GC::Ptr<Node> node = m_current;
 
     // 2. While node is non-null and is not this’s root:
     while (node && node != m_root) {
@@ -95,39 +95,39 @@ JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::parent_node()
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-firstchild
-JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::first_child()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::first_child()
 {
     return traverse_children(ChildTraversalType::First);
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-lastchild
-JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::last_child()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::last_child()
 {
     return traverse_children(ChildTraversalType::Last);
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-previoussibling
-JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::previous_sibling()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_sibling()
 {
     return traverse_siblings(SiblingTraversalType::Previous);
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-nextsibling
-JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::next_sibling()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_sibling()
 {
     return traverse_siblings(SiblingTraversalType::Next);
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-previousnode
-JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::previous_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_node()
 {
     // 1. Let node be this’s current.
-    JS::NonnullGCPtr<Node> node = m_current;
+    GC::Ref<Node> node = m_current;
 
     // 2. While node is not this’s root:
     while (node != m_root) {
         // 1. Let sibling be node’s previous sibling.
-        JS::GCPtr<Node> sibling = node->previous_sibling();
+        GC::Ptr<Node> sibling = node->previous_sibling();
 
         // 2. While sibling is non-null:
         while (sibling) {
@@ -174,10 +174,10 @@ JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::previous_node()
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-nextnode
-JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::next_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_node()
 {
     // 1. Let node be this’s current.
-    JS::NonnullGCPtr<Node> node = m_current;
+    GC::Ref<Node> node = m_current;
 
     // 2. Let result be FILTER_ACCEPT.
     auto result = NodeFilter::Result::FILTER_ACCEPT;
@@ -200,10 +200,10 @@ JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::next_node()
         }
 
         // 2. Let sibling be null.
-        JS::GCPtr<Node> sibling = nullptr;
+        GC::Ptr<Node> sibling = nullptr;
 
         // 3. Let temporary be node.
-        JS::GCPtr<Node> temporary = node;
+        GC::Ptr<Node> temporary = node;
 
         // 4. While temporary is non-null:
         while (temporary) {
@@ -280,10 +280,10 @@ JS::ThrowCompletionOr<NodeFilter::Result> TreeWalker::filter(Node& node)
 }
 
 // https://dom.spec.whatwg.org/#concept-traverse-children
-JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::traverse_children(ChildTraversalType type)
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_children(ChildTraversalType type)
 {
     // 1. Let node be walker’s current.
-    JS::GCPtr<Node> node = m_current;
+    GC::Ptr<Node> node = m_current;
 
     // 2. Set node to node’s first child if type is first, and node’s last child if type is last.
     node = type == ChildTraversalType::First ? node->first_child() : node->last_child();
@@ -302,7 +302,7 @@ JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::traverse_children(ChildTraver
         // 3. If result is FILTER_SKIP, then:
         if (result == NodeFilter::Result::FILTER_SKIP) {
             // 1. Let child be node’s first child if type is first, and node’s last child if type is last.
-            JS::GCPtr<Node> child = type == ChildTraversalType::First ? node->first_child() : node->last_child();
+            GC::Ptr<Node> child = type == ChildTraversalType::First ? node->first_child() : node->last_child();
 
             // 2. If child is non-null, then set node to child and continue.
             if (child) {
@@ -314,7 +314,7 @@ JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::traverse_children(ChildTraver
         // 4. While node is non-null:
         while (node) {
             // 1. Let sibling be node’s next sibling if type is first, and node’s previous sibling if type is last.
-            JS::GCPtr<Node> sibling = type == ChildTraversalType::First ? node->next_sibling() : node->previous_sibling();
+            GC::Ptr<Node> sibling = type == ChildTraversalType::First ? node->next_sibling() : node->previous_sibling();
 
             // 2. If sibling is non-null, then set node to sibling and break.
             if (sibling) {
@@ -323,7 +323,7 @@ JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::traverse_children(ChildTraver
             }
 
             // 3. Let parent be node’s parent.
-            JS::GCPtr<Node> parent = node->parent();
+            GC::Ptr<Node> parent = node->parent();
 
             // 4. If parent is null, walker’s root, or walker’s current, then return null.
             if (!parent || parent == m_root || parent == m_current)
@@ -339,10 +339,10 @@ JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::traverse_children(ChildTraver
 }
 
 // https://dom.spec.whatwg.org/#concept-traverse-siblings
-JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::traverse_siblings(SiblingTraversalType type)
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_siblings(SiblingTraversalType type)
 {
     // 1. Let node be walker’s current.
-    JS::GCPtr<Node> node = m_current;
+    GC::Ptr<Node> node = m_current;
 
     // 2. If node is root, then return null.
     if (node == m_root)
@@ -351,7 +351,7 @@ JS::ThrowCompletionOr<JS::GCPtr<Node>> TreeWalker::traverse_siblings(SiblingTrav
     // 3. While true:
     while (true) {
         // 1. Let sibling be node’s next sibling if type is next, and node’s previous sibling if type is previous.
-        JS::GCPtr<Node> sibling = type == SiblingTraversalType::Next ? node->next_sibling() : node->previous_sibling();
+        GC::Ptr<Node> sibling = type == SiblingTraversalType::Next ? node->next_sibling() : node->previous_sibling();
 
         // 2. While sibling is non-null:
         while (sibling) {

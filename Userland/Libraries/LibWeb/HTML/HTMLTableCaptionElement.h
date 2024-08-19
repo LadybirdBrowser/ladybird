@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class HTMLTableCaptionElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLTableCaptionElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLTableCaptionElement);
+    GC_DECLARE_ALLOCATOR(HTMLTableCaptionElement);
 
 public:
     virtual ~HTMLTableCaptionElement() override;

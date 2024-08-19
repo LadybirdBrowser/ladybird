@@ -13,16 +13,16 @@ namespace Web::HTML {
 
 class HTMLTableRowElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLTableRowElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLTableRowElement);
+    GC_DECLARE_ALLOCATOR(HTMLTableRowElement);
 
 public:
     virtual ~HTMLTableRowElement() override;
 
-    JS::NonnullGCPtr<DOM::HTMLCollection> cells() const;
+    GC::Ref<DOM::HTMLCollection> cells() const;
 
     int row_index() const;
     int section_row_index() const;
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLTableCellElement>> insert_cell(i32 index);
+    WebIDL::ExceptionOr<GC::Ref<HTMLTableCellElement>> insert_cell(i32 index);
     WebIDL::ExceptionOr<void> delete_cell(i32 index);
 
     // https://www.w3.org/TR/html-aria/#el-tr
@@ -37,7 +37,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
-    JS::GCPtr<DOM::HTMLCollection> mutable m_cells;
+    GC::Ptr<DOM::HTMLCollection> mutable m_cells;
 };
 
 }

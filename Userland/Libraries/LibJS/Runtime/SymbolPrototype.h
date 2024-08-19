@@ -12,7 +12,7 @@ namespace JS {
 
 class SymbolPrototype final : public Object {
     JS_OBJECT(SymbolPrototype, Object);
-    JS_DECLARE_ALLOCATOR(SymbolPrototype);
+    GC_DECLARE_ALLOCATOR(SymbolPrototype);
 
 public:
     virtual void initialize(Realm&) override;

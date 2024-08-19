@@ -30,7 +30,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(Intl);
+GC_DEFINE_ALLOCATOR(Intl);
 
 // 8 The Intl Object, https://tc39.es/ecma402/#intl-object
 Intl::Intl(Realm& realm)
@@ -73,7 +73,7 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::get_canonical_locales)
     // 1. Let ll be ? CanonicalizeLocaleList(locales).
     auto locale_list = TRY(canonicalize_locale_list(vm, locales));
 
-    MarkedVector<Value> marked_locale_list { vm.heap() };
+    GC::MarkedVector<Value> marked_locale_list { vm.heap() };
     marked_locale_list.ensure_capacity(locale_list.size());
 
     for (auto& locale : locale_list)

@@ -11,9 +11,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(AnimatedBitmapDecodedImageData);
+GC_DEFINE_ALLOCATOR(AnimatedBitmapDecodedImageData);
 
-ErrorOr<JS::NonnullGCPtr<AnimatedBitmapDecodedImageData>> AnimatedBitmapDecodedImageData::create(JS::Realm& realm, Vector<Frame>&& frames, size_t loop_count, bool animated)
+ErrorOr<GC::Ref<AnimatedBitmapDecodedImageData>> AnimatedBitmapDecodedImageData::create(JS::Realm& realm, Vector<Frame>&& frames, size_t loop_count, bool animated)
 {
     return realm.heap().allocate<AnimatedBitmapDecodedImageData>(realm, move(frames), loop_count, animated);
 }

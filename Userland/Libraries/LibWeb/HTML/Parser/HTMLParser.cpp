@@ -47,7 +47,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLParser);
+GC_DEFINE_ALLOCATOR(HTMLParser);
 
 static inline void log_parse_error(SourceLocation const& location = SourceLocation::current())
 {
@@ -229,7 +229,7 @@ void HTMLParser::run(const URL::URL& url, HTMLTokenizer::StopAtInsertionPoint st
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#the-end
-void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTMLParser> parser)
+void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser)
 {
     // Once the user agent stops parsing the document, the user agent must run the following steps:
 
@@ -294,7 +294,7 @@ void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTM
     }
 
     // 6. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, *document, JS::create_heap_function(document->heap(), [document = document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, *document, GC::create_heap_function(document->heap(), [document = document] {
         // 1. Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
@@ -322,7 +322,7 @@ void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTM
     });
 
     // 9. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, *document, JS::create_heap_function(document->heap(), [document = document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, *document, GC::create_heap_function(document->heap(), [document = document] {
         // 1. Update the current document readiness to "complete".
         document->update_readiness(HTML::DocumentReadyState::Complete);
 
@@ -615,7 +615,7 @@ DOM::Element& HTMLParser::node_before_current_node()
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#appropriate-place-for-inserting-a-node
-HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_inserting_node(JS::GCPtr<DOM::Element> override_target)
+HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_inserting_node(GC::Ptr<DOM::Element> override_target)
 {
     // 1. If there was an override target specified, then let target be the override target.
     auto& target = override_target ? *override_target.ptr() : current_node();
@@ -671,13 +671,13 @@ HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_ins
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token
-JS::NonnullGCPtr<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Optional<FlyString> const& namespace_, DOM::Node& intended_parent)
+GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Optional<FlyString> const& namespace_, DOM::Node& intended_parent)
 {
     // FIXME: 1. If the active speculative HTML parser is not null, then return the result of creating a speculative mock element given given namespace, the tag name of the given token, and the attributes of the given token.
     // FIXME: 2. Otherwise, optionally create a speculative mock element given given namespace, the tag name of the given token, and the attributes of the given token.
 
     // 3. Let document be intended parent's node document.
-    JS::NonnullGCPtr<DOM::Document> document = intended_parent.document();
+    GC::Ref<DOM::Document> document = intended_parent.document();
 
     // 4. Let local name be the tag name of the token.
     auto const& local_name = token.tag_name();
@@ -761,7 +761,7 @@ JS::NonnullGCPtr<DOM::Element> HTMLParser::create_element_for(HTMLToken const& t
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#insert-a-foreign-element
-JS::NonnullGCPtr<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken const& token, Optional<FlyString> const& namespace_, OnlyAddToElementStack only_add_to_element_stack)
+GC::Ref<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken const& token, Optional<FlyString> const& namespace_, OnlyAddToElementStack only_add_to_element_stack)
 {
     // 1. Let the adjusted insertion location be the appropriate place for inserting a node.
     auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
@@ -782,7 +782,7 @@ JS::NonnullGCPtr<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken cons
     return element;
 }
 
-JS::NonnullGCPtr<DOM::Element> HTMLParser::insert_html_element(HTMLToken const& token)
+GC::Ref<DOM::Element> HTMLParser::insert_html_element(HTMLToken const& token)
 {
     return insert_foreign_element(token, Namespace::HTML, OnlyAddToElementStack::No);
 }
@@ -1434,7 +1434,7 @@ HTMLParser::AdoptionAgencyAlgorithmOutcome HTMLParser::run_the_adoption_agency_a
 
         // 7. Let furthest block be the topmost node in the stack of open elements that is lower in the stack than formatting element,
         //    and is an element in the special category. There might not be one.
-        JS::GCPtr<DOM::Element> furthest_block = m_stack_of_open_elements.topmost_special_node_below(*formatting_element);
+        GC::Ptr<DOM::Element> furthest_block = m_stack_of_open_elements.topmost_special_node_below(*formatting_element);
 
         // 8. If there is no furthest block
         if (!furthest_block) {
@@ -1947,7 +1947,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // 2. Initialize node to be the current node (the bottommost node of the stack).
         // 3. Loop: If node is an li element, then run these substeps:
         for (ssize_t i = m_stack_of_open_elements.elements().size() - 1; i >= 0; --i) {
-            JS::GCPtr<DOM::Element> node = m_stack_of_open_elements.elements()[i].ptr();
+            GC::Ptr<DOM::Element> node = m_stack_of_open_elements.elements()[i].ptr();
             if (node->local_name() == HTML::TagNames::li) {
                 // 1. Generate implied end tags, except for li elements.
                 generate_implied_end_tags(HTML::TagNames::li);
@@ -1990,7 +1990,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // 4. If node is a dt element, then run these substeps:
         for (ssize_t i = m_stack_of_open_elements.elements().size() - 1; i >= 0; --i) {
             // 1. Generate implied end tags, except for dd elements.
-            JS::GCPtr<DOM::Element> node = m_stack_of_open_elements.elements()[i].ptr();
+            GC::Ptr<DOM::Element> node = m_stack_of_open_elements.elements()[i].ptr();
             if (node->local_name() == HTML::TagNames::dd) {
                 generate_implied_end_tags(HTML::TagNames::dd);
                 // 2. If the current node is not a dd element, then this is a parse error.
@@ -2644,7 +2644,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     if (token.is_end_tag()) {
     AnyOtherEndTag:
         // 1. Initialize node to be the current node (the bottommost node of the stack).
-        JS::GCPtr<DOM::Element> node;
+        GC::Ptr<DOM::Element> node;
 
         // 2. Loop: If node is an HTML element with the same tag name as the token, then:
         for (ssize_t i = m_stack_of_open_elements.elements().size() - 1; i >= 0; --i) {
@@ -2878,7 +2878,7 @@ void HTMLParser::handle_text(HTMLToken& token)
             perform_a_microtask_checkpoint();
 
         // Let script be the current node (which will be a script element).
-        JS::NonnullGCPtr<HTMLScriptElement> script = verify_cast<HTMLScriptElement>(current_node());
+        GC::Ref<HTMLScriptElement> script = verify_cast<HTMLScriptElement>(current_node());
 
         // Pop the current node off the stack of open elements.
         (void)m_stack_of_open_elements.pop();
@@ -4112,7 +4112,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
     // -> Any other end tag
     if (token.is_end_tag()) {
         // 1. Initialize node to be the current node (the bottommost node of the stack).
-        JS::GCPtr<DOM::Element> node = current_node();
+        GC::Ptr<DOM::Element> node = current_node();
 
         // 2. If node's tag name, converted to ASCII lowercase, is not the same as the tag name of the token, then this is a parse error.
         if (node->tag_name().equals_ignoring_ascii_case(token.tag_name()))
@@ -4156,7 +4156,7 @@ void HTMLParser::reset_the_insertion_mode_appropriately()
     for (ssize_t i = m_stack_of_open_elements.elements().size() - 1; i >= 0; --i) {
         bool last = i == 0;
         // NOTE: When parsing fragments, we substitute the context element for the root of the stack of open elements.
-        JS::GCPtr<DOM::Element> node;
+        GC::Ptr<DOM::Element> node;
         if (last && m_parsing_fragment) {
             node = m_context_element.ptr();
         } else {
@@ -4267,7 +4267,7 @@ DOM::Document& HTMLParser::document()
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-html-fragments
-Vector<JS::Handle<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& context_element, StringView markup, AllowDeclarativeShadowRoots allow_declarative_shadow_roots)
+Vector<GC::Handle<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& context_element, StringView markup, AllowDeclarativeShadowRoots allow_declarative_shadow_roots)
 {
     // 1. Create a new Document node, and mark it as being an HTML document.
     auto temp_document = DOM::Document::create_for_fragment_parsing(context_element.realm());
@@ -4355,21 +4355,21 @@ Vector<JS::Handle<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& cont
     parser->run(context_element.document().url());
 
     // 15. Return the child nodes of root, in tree order.
-    Vector<JS::Handle<DOM::Node>> children;
-    while (JS::GCPtr<DOM::Node> child = root->first_child()) {
+    Vector<GC::Handle<DOM::Node>> children;
+    while (GC::Ptr<DOM::Node> child = root->first_child()) {
         MUST(root->remove_child(*child));
         context_element.document().adopt_node(*child);
-        children.append(JS::make_handle(*child));
+        children.append(GC::make_handle(*child));
     }
     return children;
 }
 
-JS::NonnullGCPtr<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
+GC::Ref<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
 {
     return document.heap().allocate_without_realm<HTMLParser>(document);
 }
 
-JS::NonnullGCPtr<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input)
+GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input)
 {
     if (document.has_encoding())
         return document.heap().allocate_without_realm<HTMLParser>(document, input, document.encoding().value().to_byte_string());
@@ -4378,7 +4378,7 @@ JS::NonnullGCPtr<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Doc
     return document.heap().allocate_without_realm<HTMLParser>(document, input, encoding);
 }
 
-JS::NonnullGCPtr<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, StringView encoding)
+GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, StringView encoding)
 {
     return document.heap().allocate_without_realm<HTMLParser>(document, input, encoding);
 }
@@ -4414,7 +4414,7 @@ static String escape_string(StringView string, AttributeMode attribute_mode)
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#html-fragment-serialisation-algorithm
-String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableShadowRoots serializable_shadow_roots, Vector<JS::Handle<DOM::ShadowRoot>> const& shadow_roots, DOM::FragmentSerializationMode fragment_serialization_mode)
+String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableShadowRoots serializable_shadow_roots, Vector<GC::Handle<DOM::ShadowRoot>> const& shadow_roots, DOM::FragmentSerializationMode fragment_serialization_mode)
 {
     // NOTE: Steps in this function are jumbled a bit to accommodate the Element.outerHTML API.
     //       When called with FragmentSerializationMode::Outer, we will serialize the element itself,
@@ -4508,7 +4508,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
     // The algorithm takes as input a DOM Element, Document, or DocumentFragment referred to as the node.
     VERIFY(node.is_element() || node.is_document() || node.is_document_fragment());
-    JS::NonnullGCPtr<DOM::Node const> actual_node = node;
+    GC::Ref<DOM::Node const> actual_node = node;
 
     if (is<DOM::Element>(node)) {
         auto const& element = verify_cast<DOM::Element>(node);
@@ -4933,7 +4933,7 @@ void HTMLParser::abort()
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-element-at-the-adjusted-insertion-location
-void HTMLParser::insert_an_element_at_the_adjusted_insertion_location(JS::NonnullGCPtr<DOM::Element> element)
+void HTMLParser::insert_an_element_at_the_adjusted_insertion_location(GC::Ref<DOM::Element> element)
 {
     // 1. Let the adjusted insertion location be the appropriate place for inserting a node.
     auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();

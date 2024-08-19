@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -16,10 +16,10 @@ namespace Web::Fetch::Infrastructure {
 // https://fetch.spec.whatwg.org/#connection-timing-info
 class ConnectionTimingInfo : public JS::Cell {
     JS_CELL(ConnectionTimingInfo, JS::Cell);
-    JS_DECLARE_ALLOCATOR(ConnectionTimingInfo);
+    GC_DECLARE_ALLOCATOR(ConnectionTimingInfo);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ConnectionTimingInfo> create(JS::VM&);
+    [[nodiscard]] static GC::Ref<ConnectionTimingInfo> create(JS::VM&);
 
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp domain_lookup_start_time() const { return m_domain_lookup_start_time; }
     void set_domain_lookup_start_time(HighResolutionTime::DOMHighResTimeStamp domain_lookup_start_time) { m_domain_lookup_start_time = domain_lookup_start_time; }

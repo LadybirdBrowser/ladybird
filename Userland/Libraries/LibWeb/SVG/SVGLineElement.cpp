@@ -12,7 +12,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGLineElement);
+GC_DEFINE_ALLOCATOR(SVGLineElement);
 
 SVGLineElement::SVGLineElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGeometryElement(document, qualified_name)
@@ -61,7 +61,7 @@ Gfx::Path SVGLineElement::get_path(CSSPixelSize viewport_size)
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#LineElementX1Attribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGLineElement::x1() const
+GC::Ref<SVGAnimatedLength> SVGLineElement::x1() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -71,7 +71,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGLineElement::x1() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#LineElementY1Attribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGLineElement::y1() const
+GC::Ref<SVGAnimatedLength> SVGLineElement::y1() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -81,7 +81,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGLineElement::y1() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#LineElementX2Attribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGLineElement::x2() const
+GC::Ref<SVGAnimatedLength> SVGLineElement::x2() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -91,7 +91,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGLineElement::x2() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#LineElementY2Attribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGLineElement::y2() const
+GC::Ref<SVGAnimatedLength> SVGLineElement::y2() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.

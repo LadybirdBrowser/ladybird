@@ -19,9 +19,9 @@ enum class ReadableStreamType {
 };
 
 struct UnderlyingSource {
-    JS::Handle<WebIDL::CallbackType> start;
-    JS::Handle<WebIDL::CallbackType> pull;
-    JS::Handle<WebIDL::CallbackType> cancel;
+    GC::Handle<WebIDL::CallbackType> start;
+    GC::Handle<WebIDL::CallbackType> pull;
+    GC::Handle<WebIDL::CallbackType> cancel;
     Optional<ReadableStreamType> type;
     Optional<u64> auto_allocate_chunk_size;
 

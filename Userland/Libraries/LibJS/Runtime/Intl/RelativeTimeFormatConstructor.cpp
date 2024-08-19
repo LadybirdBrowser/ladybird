@@ -14,7 +14,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(RelativeTimeFormatConstructor);
+GC_DEFINE_ALLOCATOR(RelativeTimeFormatConstructor);
 
 // 17.1 The Intl.RelativeTimeFormat Constructor, https://tc39.es/ecma402/#sec-intl-relativetimeformat-constructor
 RelativeTimeFormatConstructor::RelativeTimeFormatConstructor(Realm& realm)
@@ -44,7 +44,7 @@ ThrowCompletionOr<Value> RelativeTimeFormatConstructor::call()
 }
 
 // 17.1.1 Intl.RelativeTimeFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat
-ThrowCompletionOr<NonnullGCPtr<Object>> RelativeTimeFormatConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

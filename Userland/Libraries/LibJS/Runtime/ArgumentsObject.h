@@ -14,7 +14,7 @@ namespace JS {
 
 class ArgumentsObject final : public Object {
     JS_OBJECT(ArgumentsObject, Object);
-    JS_DECLARE_ALLOCATOR(ArgumentsObject);
+    GC_DECLARE_ALLOCATOR(ArgumentsObject);
 
 public:
     virtual void initialize(Realm&) override;
@@ -36,8 +36,8 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    NonnullGCPtr<Environment> m_environment;
-    GCPtr<Object> m_parameter_map;
+    GC::Ref<Environment> m_environment;
+    GC::Ptr<Object> m_parameter_map;
 };
 
 }

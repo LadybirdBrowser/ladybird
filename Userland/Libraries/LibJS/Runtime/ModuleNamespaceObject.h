@@ -14,7 +14,7 @@ namespace JS {
 
 class ModuleNamespaceObject final : public Object {
     JS_OBJECT(ModuleNamespaceObject, Object);
-    JS_DECLARE_ALLOCATOR(ModuleNamespaceObject);
+    GC_DECLARE_ALLOCATOR(ModuleNamespaceObject);
 
 public:
     // 10.4.6 Module Namespace Exotic Objects, https://tc39.es/ecma262/#sec-module-namespace-exotic-objects
@@ -29,7 +29,7 @@ public:
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const override;
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata*) override;
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
-    virtual ThrowCompletionOr<MarkedVector<Value>> internal_own_property_keys() const override;
+    virtual ThrowCompletionOr<GC::MarkedVector<Value>> internal_own_property_keys() const override;
     virtual void initialize(Realm&) override;
 
 private:
@@ -37,7 +37,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    GCPtr<Module> m_module;                // [[Module]]
+    GC::Ptr<Module> m_module;              // [[Module]]
     Vector<DeprecatedFlyString> m_exports; // [[Exports]]
 };
 

@@ -19,7 +19,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLOptionElement);
+GC_DEFINE_ALLOCATOR(HTMLOptionElement);
 
 HTMLOptionElement::HTMLOptionElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -152,7 +152,7 @@ bool HTMLOptionElement::disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-form
-JS::GCPtr<HTMLFormElement> HTMLOptionElement::form() const
+GC::Ptr<HTMLFormElement> HTMLOptionElement::form() const
 {
     // The form IDL attribute's behavior depends on whether the option element is in a select element or not.
     // If the option has a select element as its parent, or has an optgroup element as its parent and that optgroup element has a select element as its parent,

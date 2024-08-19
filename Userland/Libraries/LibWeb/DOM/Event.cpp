@@ -16,14 +16,14 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(Event);
+GC_DEFINE_ALLOCATOR(Event);
 
-JS::NonnullGCPtr<Event> Event::create(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
+GC::Ref<Event> Event::create(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
 {
     return realm.heap().allocate<Event>(realm, realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> Event::construct_impl(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<Event>> Event::construct_impl(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }
@@ -71,7 +71,7 @@ void Event::visit_edges(Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#concept-event-path-append
-void Event::append_to_path(EventTarget& invocation_target, JS::GCPtr<EventTarget> shadow_adjusted_target, JS::GCPtr<EventTarget> related_target, TouchTargetList& touch_targets, bool slot_in_closed_tree)
+void Event::append_to_path(EventTarget& invocation_target, GC::Ptr<EventTarget> shadow_adjusted_target, GC::Ptr<EventTarget> related_target, TouchTargetList& touch_targets, bool slot_in_closed_tree)
 {
     // 1. Let invocationTargetInShadowTree be false.
     bool invocation_target_in_shadow_tree = false;
@@ -148,10 +148,10 @@ double Event::time_stamp() const
 }
 
 // https://dom.spec.whatwg.org/#dom-event-composedpath
-Vector<JS::Handle<EventTarget>> Event::composed_path() const
+Vector<GC::Handle<EventTarget>> Event::composed_path() const
 {
     // 1. Let composedPath be an empty list.
-    Vector<JS::Handle<EventTarget>> composed_path;
+    Vector<GC::Handle<EventTarget>> composed_path;
 
     // 2. Let path be this’s path. (NOTE: Not necessary)
 

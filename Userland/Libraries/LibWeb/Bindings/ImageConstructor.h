@@ -13,7 +13,7 @@ namespace Web::Bindings {
 
 class ImageConstructor final : public JS::NativeFunction {
     JS_OBJECT(ImageConstructor, JS::NativeFunction);
-    JS_DECLARE_ALLOCATOR(ImageConstructor);
+    GC_DECLARE_ALLOCATOR(ImageConstructor);
 
 public:
     explicit ImageConstructor(JS::Realm&);
@@ -21,7 +21,7 @@ public:
     virtual ~ImageConstructor() override = default;
 
     virtual JS::ThrowCompletionOr<JS::Value> call() override;
-    virtual JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> construct(JS::FunctionObject& new_target) override;
+    virtual JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(JS::FunctionObject& new_target) override;
 
 private:
     virtual bool has_constructor() const override { return true; }

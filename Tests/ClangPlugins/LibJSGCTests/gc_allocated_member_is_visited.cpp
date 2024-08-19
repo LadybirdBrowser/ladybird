@@ -18,5 +18,5 @@ class TestClass : public JS::Object {
         visitor.visit(m_object);
     }
 
-    JS::GCPtr<JS::Object> m_object;
+    GC::Ptr<JS::Object> m_object;
 };

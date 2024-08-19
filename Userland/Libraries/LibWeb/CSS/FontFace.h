@@ -29,12 +29,12 @@ struct FontFaceDescriptors {
 
 class FontFace final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(FontFace, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(FontFace);
+    GC_DECLARE_ALLOCATOR(FontFace);
 
 public:
-    using FontFaceSource = Variant<String, JS::Handle<WebIDL::BufferSource>>;
+    using FontFaceSource = Variant<String, GC::Handle<WebIDL::BufferSource>>;
 
-    [[nodiscard]] static JS::NonnullGCPtr<FontFace> construct_impl(JS::Realm&, String family, FontFaceSource source, FontFaceDescriptors const& descriptors);
+    [[nodiscard]] static GC::Ref<FontFace> construct_impl(JS::Realm&, String family, FontFaceSource source, FontFaceDescriptors const& descriptors);
     virtual ~FontFace() override;
 
     String family() const { return m_family; }
@@ -72,13 +72,13 @@ public:
 
     Bindings::FontFaceLoadStatus status() const { return m_status; }
 
-    JS::NonnullGCPtr<JS::Promise> load();
-    JS::NonnullGCPtr<JS::Promise> loaded() const;
+    GC::Ref<JS::Promise> load();
+    GC::Ref<JS::Promise> loaded() const;
 
     void load_font_source();
 
 private:
-    FontFace(JS::Realm&, JS::NonnullGCPtr<WebIDL::Promise> font_status_promise, Vector<ParsedFontFace::Source> urls, ByteBuffer data, String family, FontFaceDescriptors const& descriptors);
+    FontFace(JS::Realm&, GC::Ref<WebIDL::Promise> font_status_promise, Vector<ParsedFontFace::Source> urls, ByteBuffer data, String family, FontFaceDescriptors const& descriptors);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
@@ -100,9 +100,9 @@ private:
     // https://drafts.csswg.org/css-font-loading/#dom-fontface-status
     Bindings::FontFaceLoadStatus m_status { Bindings::FontFaceLoadStatus::Unloaded };
 
-    JS::NonnullGCPtr<WebIDL::Promise> m_font_status_promise; // [[FontStatusPromise]]
-    Vector<ParsedFontFace::Source> m_urls;                   // [[Urls]]
-    ByteBuffer m_binary_data;                                // [[Data]]
+    GC::Ref<WebIDL::Promise> m_font_status_promise; // [[FontStatusPromise]]
+    Vector<ParsedFontFace::Source> m_urls;          // [[Urls]]
+    ByteBuffer m_binary_data;                       // [[Data]]
 
     RefPtr<Gfx::Typeface> m_parsed_font;
     RefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> m_font_load_promise;

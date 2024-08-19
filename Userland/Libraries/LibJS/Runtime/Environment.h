@@ -70,7 +70,7 @@ private:
     bool m_permanently_screwed_by_eval { false };
     bool m_declarative { false };
 
-    GCPtr<Environment> m_outer_environment;
+    GC::Ptr<Environment> m_outer_environment;
 };
 
 }

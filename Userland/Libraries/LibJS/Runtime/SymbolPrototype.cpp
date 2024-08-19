@@ -18,7 +18,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SymbolPrototype);
+GC_DEFINE_ALLOCATOR(SymbolPrototype);
 
 SymbolPrototype::SymbolPrototype(Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())
@@ -40,7 +40,7 @@ void SymbolPrototype::initialize(Realm& realm)
 }
 
 // thisSymbolValue ( value ), https://tc39.es/ecma262/#thissymbolvalue
-static ThrowCompletionOr<NonnullGCPtr<Symbol>> this_symbol_value(VM& vm, Value value)
+static ThrowCompletionOr<GC::Ref<Symbol>> this_symbol_value(VM& vm, Value value)
 {
     // 1. If value is a Symbol, return value.
     if (value.is_symbol())

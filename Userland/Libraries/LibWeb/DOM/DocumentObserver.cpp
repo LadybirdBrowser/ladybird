@@ -10,7 +10,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(DocumentObserver);
+GC_DEFINE_ALLOCATOR(DocumentObserver);
 
 DocumentObserver::DocumentObserver(JS::Realm& realm, DOM::Document& document)
     : Bindings::PlatformObject(realm)
@@ -35,12 +35,12 @@ void DocumentObserver::finalize()
 
 void DocumentObserver::set_document_became_inactive(Function<void()> callback)
 {
-    m_document_became_inactive = JS::create_heap_function(vm().heap(), move(callback));
+    m_document_became_inactive = GC::create_heap_function(vm().heap(), move(callback));
 }
 
 void DocumentObserver::set_document_completely_loaded(Function<void()> callback)
 {
-    m_document_completely_loaded = JS::create_heap_function(vm().heap(), move(callback));
+    m_document_completely_loaded = GC::create_heap_function(vm().heap(), move(callback));
 }
 
 }

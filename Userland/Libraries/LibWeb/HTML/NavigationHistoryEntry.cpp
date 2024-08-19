@@ -16,14 +16,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(NavigationHistoryEntry);
+GC_DEFINE_ALLOCATOR(NavigationHistoryEntry);
 
-JS::NonnullGCPtr<NavigationHistoryEntry> NavigationHistoryEntry::create(JS::Realm& realm, JS::NonnullGCPtr<SessionHistoryEntry> she)
+GC::Ref<NavigationHistoryEntry> NavigationHistoryEntry::create(JS::Realm& realm, GC::Ref<SessionHistoryEntry> she)
 {
     return realm.heap().allocate<NavigationHistoryEntry>(realm, realm, she);
 }
 
-NavigationHistoryEntry::NavigationHistoryEntry(JS::Realm& realm, JS::NonnullGCPtr<SessionHistoryEntry> she)
+NavigationHistoryEntry::NavigationHistoryEntry(JS::Realm& realm, GC::Ref<SessionHistoryEntry> she)
     : DOM::EventTarget(realm)
     , m_session_history_entry(she)
 {

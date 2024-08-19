@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(FunctionEnvironment);
+GC_DEFINE_ALLOCATOR(FunctionEnvironment);
 
 FunctionEnvironment::FunctionEnvironment(Environment* parent_environment)
     : DeclarativeEnvironment(parent_environment)

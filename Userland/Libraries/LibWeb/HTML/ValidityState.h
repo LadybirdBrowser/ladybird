@@ -13,7 +13,7 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#validitystate
 class ValidityState final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ValidityState, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ValidityState);
+    GC_DECLARE_ALLOCATOR(ValidityState);
 
 public:
     virtual ~ValidityState() override = default;

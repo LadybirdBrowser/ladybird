@@ -24,7 +24,7 @@
 
 namespace WebContent {
 
-JS_DEFINE_ALLOCATOR(WebContentConsoleClient);
+GC_DEFINE_ALLOCATOR(WebContentConsoleClient);
 
 WebContentConsoleClient::WebContentConsoleClient(JS::Console& console, JS::Realm& realm, PageClient& client)
     : ConsoleClient(console)
@@ -51,7 +51,7 @@ void WebContentConsoleClient::handle_input(ByteString const& js_source)
     auto& settings = Web::HTML::relevant_settings_object(*m_console_global_environment_extensions);
     auto script = Web::HTML::ClassicScript::create("(console)", js_source, settings, settings.api_base_url());
 
-    JS::NonnullGCPtr<JS::Environment> with_scope = JS::new_object_environment(*m_console_global_environment_extensions, true, &settings.realm().global_environment());
+    GC::Ref<JS::Environment> with_scope = JS::new_object_environment(*m_console_global_environment_extensions, true, &settings.realm().global_environment());
 
     // FIXME: Add parse error printouts back once ClassicScript can report parse errors.
     auto result = script->run(Web::HTML::ClassicScript::RethrowErrors::No, with_scope);
@@ -168,7 +168,7 @@ JS::ThrowCompletionOr<JS::Value> WebContentConsoleClient::printer(JS::Console::L
         return JS::js_undefined();
     }
 
-    auto output = TRY(generically_format_values(arguments.get<JS::MarkedVector<JS::Value>>()));
+    auto output = TRY(generically_format_values(arguments.get<GC::MarkedVector<JS::Value>>()));
     m_console->output_debug_message(log_level, output);
 
     StringBuilder html;

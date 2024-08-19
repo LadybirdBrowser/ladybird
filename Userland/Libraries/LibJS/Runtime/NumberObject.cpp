@@ -9,9 +9,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(NumberObject);
+GC_DEFINE_ALLOCATOR(NumberObject);
 
-NonnullGCPtr<NumberObject> NumberObject::create(Realm& realm, double value)
+GC::Ref<NumberObject> NumberObject::create(Realm& realm, double value)
 {
     return realm.heap().allocate<NumberObject>(realm, value, realm.intrinsics().number_prototype());
 }

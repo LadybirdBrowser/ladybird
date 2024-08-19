@@ -614,7 +614,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     return {};
 }
 
-JS::GCPtr<CSSMediaRule> Parser::convert_to_media_rule(Rule& rule)
+GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(Rule& rule)
 {
     if (rule.prelude().is_empty()) {
         dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @media rule: Empty prelude.");
@@ -633,7 +633,7 @@ JS::GCPtr<CSSMediaRule> Parser::convert_to_media_rule(Rule& rule)
 
     auto child_tokens = TokenStream { rule.block()->values() };
     auto parser_rules = parse_a_list_of_rules(child_tokens);
-    JS::MarkedVector<CSSRule*> child_rules(m_context.realm().heap());
+    GC::MarkedVector<CSSRule*> child_rules(m_context.realm().heap());
     for (auto& raw_rule : parser_rules) {
         if (auto child_rule = convert_to_rule(raw_rule))
             child_rules.append(child_rule);

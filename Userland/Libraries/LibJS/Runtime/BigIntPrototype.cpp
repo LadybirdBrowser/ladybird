@@ -17,7 +17,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(BigIntPrototype);
+GC_DEFINE_ALLOCATOR(BigIntPrototype);
 
 BigIntPrototype::BigIntPrototype(Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())
@@ -38,7 +38,7 @@ void BigIntPrototype::initialize(Realm& realm)
 }
 
 // thisBigIntValue ( value ), https://tc39.es/ecma262/#thisbigintvalue
-static ThrowCompletionOr<NonnullGCPtr<BigInt>> this_bigint_value(VM& vm, Value value)
+static ThrowCompletionOr<GC::Ref<BigInt>> this_bigint_value(VM& vm, Value value)
 {
     // 1. If value is a BigInt, return value.
     if (value.is_bigint())

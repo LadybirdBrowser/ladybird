@@ -13,10 +13,10 @@ namespace Web::RequestIdleCallback {
 
 class IdleDeadline final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(IdleDeadline, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(IdleDeadline);
+    GC_DECLARE_ALLOCATOR(IdleDeadline);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<IdleDeadline> create(JS::Realm&, bool did_timeout = false);
+    [[nodiscard]] static GC::Ref<IdleDeadline> create(JS::Realm&, bool did_timeout = false);
     virtual ~IdleDeadline() override;
 
     double time_remaining() const;

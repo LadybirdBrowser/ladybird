@@ -11,7 +11,7 @@
 #include <AK/String.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -148,12 +148,12 @@ void WindowOrWorkerGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callb
     auto& vm = this_impl().vm();
     auto& realm = *vm.current_realm();
 
-    JS::GCPtr<DOM::Document> document;
+    GC::Ptr<DOM::Document> document;
     if (is<Window>(this_impl()))
         document = &static_cast<Window&>(this_impl()).associated_document();
 
     // The queueMicrotask(callback) method must queue a microtask to invoke callback, and if callback throws an exception, report the exception.
-    HTML::queue_a_microtask(document, JS::create_heap_function(realm.heap(), [&callback, &realm] {
+    HTML::queue_a_microtask(document, GC::create_heap_function(realm.heap(), [&callback, &realm] {
         auto result = WebIDL::invoke_callback(callback, {});
         if (result.is_error())
             HTML::report_exception(result, realm);
@@ -161,18 +161,18 @@ void WindowOrWorkerGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callb
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options) const
+GC::Ref<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options) const
 {
     return create_image_bitmap_impl(image, {}, {}, {}, {}, options);
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options) const
+GC::Ref<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options) const
 {
     return create_image_bitmap_impl(image, sx, sy, sw, sh, options);
 }
 
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
+GC::Ref<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
 {
     // 1. If either sw or sh is given and is 0, then return a promise rejected with a RangeError.
     if (sw == 0 || sh == 0) {
@@ -204,7 +204,7 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
 
     // 6. Switch on image:
     image.visit(
-        [&](JS::Handle<FileAPI::Blob>& blob) {
+        [&](GC::Handle<FileAPI::Blob>& blob) {
             // Run these step in parallel:
             Platform::EventLoopPlugin::the().deferred_invoke([=]() {
                 // 1. Let imageData be the result of reading image's data. If an error occurs during reading of the
@@ -216,7 +216,7 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
                 // 2. Apply the image sniffing rules to determine the file format of imageData, with MIME type of
                 // image (as given by image's type attribute) giving the official type.
 
-                auto on_failed_decode = [p = JS::Handle(*p)](Error&) {
+                auto on_failed_decode = [p = GC::Handle(*p)](Error&) {
                     // 3. If imageData is not in a supported image file format (e.g., it's not an image at all), or if
                     // imageData is corrupted in some fatal way such that the image dimensions cannot be obtained
                     // (e.g., a vector graphic with no natural size), then reject p with an "InvalidStateError" DOMException
@@ -224,7 +224,7 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
                     p->reject(WebIDL::InvalidStateError::create(relevant_realm(*p), "image does not contain a supported image format"_string));
                 };
 
-                auto on_successful_decode = [image_bitmap = JS::Handle(*image_bitmap), p = JS::Handle(*p)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+                auto on_successful_decode = [image_bitmap = GC::Handle(*image_bitmap), p = GC::Handle(*p)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
                     // 4. Set imageBitmap's bitmap data to imageData, cropped to the source rectangle with formatting.
                     // If this is an animated image, imageBitmap's bitmap data must only be taken from the default image
                     // of the animation (the one that the format defines is to be used when animation is not supported
@@ -267,20 +267,20 @@ WebIDL::ExceptionOr<JS::Value> WindowOrWorkerGlobalScopeMixin::structured_clone(
     return deserialized;
 }
 
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInfo const& input, Fetch::RequestInit const& init) const
+GC::Ref<JS::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInfo const& input, Fetch::RequestInit const& init) const
 {
     auto& vm = this_impl().vm();
     return Fetch::fetch(vm, input, init);
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-settimeout
-i32 WindowOrWorkerGlobalScopeMixin::set_timeout(TimerHandler handler, i32 timeout, JS::MarkedVector<JS::Value> arguments)
+i32 WindowOrWorkerGlobalScopeMixin::set_timeout(TimerHandler handler, i32 timeout, GC::MarkedVector<JS::Value> arguments)
 {
     return run_timer_initialization_steps(move(handler), timeout, move(arguments), Repeat::No);
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-setinterval
-i32 WindowOrWorkerGlobalScopeMixin::set_interval(TimerHandler handler, i32 timeout, JS::MarkedVector<JS::Value> arguments)
+i32 WindowOrWorkerGlobalScopeMixin::set_interval(TimerHandler handler, i32 timeout, GC::MarkedVector<JS::Value> arguments)
 {
     return run_timer_initialization_steps(move(handler), timeout, move(arguments), Repeat::Yes);
 }
@@ -310,7 +310,7 @@ void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-initialisation-steps
 // With no active script fix from https://github.com/whatwg/html/pull/9712
-i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler handler, i32 timeout, JS::MarkedVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id)
+i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::MarkedVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id)
 {
     // 1. Let thisArg be global if that is a WorkerGlobalScope object; otherwise let thisArg be the WindowProxy that corresponds to global.
 
@@ -334,14 +334,14 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     auto& vm = this_impl().vm();
 
     // 8. Let task be a task that runs the following substeps:
-    auto task = JS::create_heap_function(vm.heap(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script]() {
+    auto task = GC::create_heap_function(vm.heap(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script]() {
         // 1. If id does not exist in global's map of active timers, then abort these steps.
         if (!m_timers.contains(id))
             return;
 
         handler.visit(
             // 2. If handler is a Function, then invoke handler given arguments with the callback this value set to thisArg. If this throws an exception, catch it, and report the exception.
-            [&](JS::Handle<WebIDL::CallbackType> const& callback) {
+            [&](GC::Handle<WebIDL::CallbackType> const& callback) {
                 if (auto result = WebIDL::invoke_callback(*callback, &this_impl(), arguments); result.is_error())
                     report_exception(result, this_impl().realm());
             },
@@ -402,7 +402,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 
     // 11. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
     Function<void()> completion_step = [this, task = move(task)]() mutable {
-        queue_global_task(Task::Source::TimerTask, this_impl(), JS::create_heap_function(this_impl().heap(), [task] {
+        queue_global_task(Task::Source::TimerTask, this_impl(), GC::create_heap_function(this_impl().heap(), [task] {
             task->function()();
         }));
     };
@@ -427,10 +427,10 @@ PerformanceTimeline::PerformanceEntryTuple& WindowOrWorkerGlobalScopeMixin::rele
 }
 
 // https://www.w3.org/TR/performance-timeline/#dfn-queue-a-performanceentry
-void WindowOrWorkerGlobalScopeMixin::queue_performance_entry(JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry> new_entry)
+void WindowOrWorkerGlobalScopeMixin::queue_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry)
 {
     // 1. Let interested observers be an initially empty set of PerformanceObserver objects.
-    Vector<JS::Handle<PerformanceTimeline::PerformanceObserver>> interested_observers;
+    Vector<GC::Handle<PerformanceTimeline::PerformanceObserver>> interested_observers;
 
     // 2. Let entryType be newEntry’s entryType value.
     auto const& entry_type = new_entry->entry_type();
@@ -491,16 +491,16 @@ void WindowOrWorkerGlobalScopeMixin::clear_performance_entry_buffer(Badge<HighRe
 void WindowOrWorkerGlobalScopeMixin::remove_entries_from_performance_entry_buffer(Badge<HighResolutionTime::Performance>, FlyString const& entry_type, String entry_name)
 {
     auto& tuple = relevant_performance_entry_tuple(entry_type);
-    tuple.performance_entry_buffer.remove_all_matching([&entry_name](JS::Handle<PerformanceTimeline::PerformanceEntry> const& entry) {
+    tuple.performance_entry_buffer.remove_all_matching([&entry_name](GC::Handle<PerformanceTimeline::PerformanceEntry> const& entry) {
         return entry->name() == entry_name;
     });
 }
 
 // https://www.w3.org/TR/performance-timeline/#dfn-filter-buffer-map-by-name-and-type
-ErrorOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> WindowOrWorkerGlobalScopeMixin::filter_buffer_map_by_name_and_type(Optional<String> name, Optional<String> type) const
+ErrorOr<Vector<GC::Handle<PerformanceTimeline::PerformanceEntry>>> WindowOrWorkerGlobalScopeMixin::filter_buffer_map_by_name_and_type(Optional<String> name, Optional<String> type) const
 {
     // 1. Let result be an initially empty list.
-    Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>> result;
+    Vector<GC::Handle<PerformanceTimeline::PerformanceEntry>> result;
 
     // 2. Let map be the performance entry buffer map associated with the relevant global object of this.
     auto const& map = m_performance_entry_buffer_map;
@@ -544,17 +544,17 @@ ErrorOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> WindowOrWorke
     return result;
 }
 
-void WindowOrWorkerGlobalScopeMixin::register_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, JS::NonnullGCPtr<PerformanceTimeline::PerformanceObserver> observer)
+void WindowOrWorkerGlobalScopeMixin::register_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, GC::Ref<PerformanceTimeline::PerformanceObserver> observer)
 {
     m_registered_performance_observer_objects.set(observer, AK::HashSetExistingEntryBehavior::Keep);
 }
 
-void WindowOrWorkerGlobalScopeMixin::unregister_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, JS::NonnullGCPtr<PerformanceTimeline::PerformanceObserver> observer)
+void WindowOrWorkerGlobalScopeMixin::unregister_performance_observer(Badge<PerformanceTimeline::PerformanceObserver>, GC::Ref<PerformanceTimeline::PerformanceObserver> observer)
 {
     m_registered_performance_observer_objects.remove(observer);
 }
 
-bool WindowOrWorkerGlobalScopeMixin::has_registered_performance_observer(JS::NonnullGCPtr<PerformanceTimeline::PerformanceObserver> observer)
+bool WindowOrWorkerGlobalScopeMixin::has_registered_performance_observer(GC::Ref<PerformanceTimeline::PerformanceObserver> observer)
 {
     return m_registered_performance_observer_objects.contains(observer);
 }
@@ -571,7 +571,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
 
     // 3. Queue a task that consists of running the following substeps. The task source for the queued task is the performance
     //    timeline task source.
-    queue_global_task(Task::Source::PerformanceTimeline, this_impl(), JS::create_heap_function(this_impl().heap(), [this]() {
+    queue_global_task(Task::Source::PerformanceTimeline, this_impl(), GC::create_heap_function(this_impl().heap(), [this]() {
         auto& realm = this_impl().realm();
 
         // 1. Unset performance observer task queued flag of relevantGlobal.
@@ -592,7 +592,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
             if (entries.is_empty())
                 continue;
 
-            Vector<JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry>> entries_as_gc_ptrs;
+            Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> entries_as_gc_ptrs;
             for (auto& entry : entries)
                 entries_as_gc_ptrs.append(*entry);
 
@@ -651,12 +651,12 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
     }));
 }
 
-void WindowOrWorkerGlobalScopeMixin::register_event_source(Badge<EventSource>, JS::NonnullGCPtr<EventSource> event_source)
+void WindowOrWorkerGlobalScopeMixin::register_event_source(Badge<EventSource>, GC::Ref<EventSource> event_source)
 {
     m_registered_event_sources.set(event_source);
 }
 
-void WindowOrWorkerGlobalScopeMixin::unregister_event_source(Badge<EventSource>, JS::NonnullGCPtr<EventSource> event_source)
+void WindowOrWorkerGlobalScopeMixin::unregister_event_source(Badge<EventSource>, GC::Ref<EventSource> event_source)
 {
     m_registered_event_sources.remove(event_source);
 }
@@ -700,15 +700,15 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
 }
 
 // https://w3c.github.io/hr-time/#dom-windoworworkerglobalscope-performance
-JS::NonnullGCPtr<HighResolutionTime::Performance> WindowOrWorkerGlobalScopeMixin::performance()
+GC::Ref<HighResolutionTime::Performance> WindowOrWorkerGlobalScopeMixin::performance()
 {
     auto& realm = this_impl().realm();
     if (!m_performance)
         m_performance = this_impl().heap().allocate<HighResolutionTime::Performance>(realm, realm);
-    return JS::NonnullGCPtr { *m_performance };
+    return GC::Ref { *m_performance };
 }
 
-JS::NonnullGCPtr<IndexedDB::IDBFactory> WindowOrWorkerGlobalScopeMixin::indexed_db()
+GC::Ref<IndexedDB::IDBFactory> WindowOrWorkerGlobalScopeMixin::indexed_db()
 {
     auto& vm = this_impl().vm();
     auto& realm = this_impl().realm();
@@ -719,7 +719,7 @@ JS::NonnullGCPtr<IndexedDB::IDBFactory> WindowOrWorkerGlobalScopeMixin::indexed_
 }
 
 // https://w3c.github.io/performance-timeline/#dfn-frozen-array-of-supported-entry-types
-JS::NonnullGCPtr<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_types() const
+GC::Ref<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_types() const
 {
     // Each global object has an associated frozen array of supported entry types, which is initialized to the
     // FrozenArray created from the sequence of strings among the registry that are supported for the global
@@ -791,7 +791,7 @@ void WindowOrWorkerGlobalScopeMixin::report_error(JS::Value e)
     // 6. If script is a classic script and script's muted errors is true, then set message to "Script error.",
     //    urlString to the empty string, line and col to 0, and errorValue to null.
     script_or_module.visit(
-        [&](JS::NonnullGCPtr<JS::Script> const& js_script) {
+        [&](GC::Ref<JS::Script> const& js_script) {
             if (verify_cast<ClassicScript>(js_script->host_defined())->muted_errors() == ClassicScript::MutedErrors::Yes) {
                 message = "Script error."_string;
                 url_string = String {};
@@ -802,7 +802,7 @@ void WindowOrWorkerGlobalScopeMixin::report_error(JS::Value e)
                 url_string = script_or_module_filename(js_script);
             }
         },
-        [&](JS::NonnullGCPtr<JS::Module> const& js_module) {
+        [&](GC::Ref<JS::Module> const& js_module) {
             url_string = script_or_module_filename(js_module);
         },
         [](Empty) {});

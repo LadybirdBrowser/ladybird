@@ -12,7 +12,7 @@
 #include <AK/HashMap.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Proxy.h>
-#include <LibJS/Heap/SafeFunction.h>
+#include <LibGC/SafeFunction.h>
 #include <LibProtocol/Request.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Loader/Resource.h>
@@ -73,15 +73,15 @@ public:
 
     RefPtr<Resource> load_resource(Resource::Type, LoadRequest&);
 
-    using SuccessCallback = JS::SafeFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
-    using ErrorCallback = JS::SafeFunction<void(ByteString const&, Optional<u32> status_code, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
-    using TimeoutCallback = JS::SafeFunction<void()>;
+    using SuccessCallback = GC::SafeFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
+    using ErrorCallback = GC::SafeFunction<void(ByteString const&, Optional<u32> status_code, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
+    using TimeoutCallback = GC::SafeFunction<void()>;
 
     void load(LoadRequest&, SuccessCallback success_callback, ErrorCallback error_callback = nullptr, Optional<u32> timeout = {}, TimeoutCallback timeout_callback = nullptr);
 
-    using OnHeadersReceived = JS::SafeFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
-    using OnDataReceived = JS::SafeFunction<void(ReadonlyBytes data)>;
-    using OnComplete = JS::SafeFunction<void(bool success, Optional<StringView> error_message)>;
+    using OnHeadersReceived = GC::SafeFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
+    using OnDataReceived = GC::SafeFunction<void(ReadonlyBytes data)>;
+    using OnComplete = GC::SafeFunction<void(bool success, Optional<StringView> error_message)>;
 
     void load_unbuffered(LoadRequest&, OnHeadersReceived, OnDataReceived, OnComplete);
 
@@ -137,7 +137,7 @@ private:
     Vector<String> m_preferred_languages = { "en"_string };
     NavigatorCompatibilityMode m_navigator_compatibility_mode;
     bool m_enable_do_not_track { false };
-    Optional<JS::GCPtr<Page>> m_page {};
+    Optional<GC::Ptr<Page>> m_page {};
 };
 
 }

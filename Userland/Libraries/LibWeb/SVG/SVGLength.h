@@ -14,7 +14,7 @@ namespace Web::SVG {
 // https://www.w3.org/TR/SVG11/types.html#InterfaceSVGLength
 class SVGLength : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SVGLength, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(SVGLength);
+    GC_DECLARE_ALLOCATOR(SVGLength);
 
 public:
     // Same as SVGLength.idl
@@ -30,7 +30,7 @@ public:
     static constexpr unsigned short SVG_LENGTHTYPE_PT = 9;
     static constexpr unsigned short SVG_LENGTHTYPE_PC = 10;
 
-    [[nodiscard]] static JS::NonnullGCPtr<SVGLength> create(JS::Realm&, u8 unit_type, float value);
+    [[nodiscard]] static GC::Ref<SVGLength> create(JS::Realm&, u8 unit_type, float value);
     virtual ~SVGLength() override;
 
     u8 unit_type() const { return m_unit_type; }
@@ -38,7 +38,7 @@ public:
     float value() const { return m_value; }
     WebIDL::ExceptionOr<void> set_value(float value);
 
-    [[nodiscard]] static JS::NonnullGCPtr<SVGLength> from_length_percentage(JS::Realm&, CSS::LengthPercentage const&);
+    [[nodiscard]] static GC::Ref<SVGLength> from_length_percentage(JS::Realm&, CSS::LengthPercentage const&);
 
 private:
     SVGLength(JS::Realm&, u8 unit_type, float value);

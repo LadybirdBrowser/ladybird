@@ -23,7 +23,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(RegExpPrototype);
+GC_DEFINE_ALLOCATOR(RegExpPrototype);
 
 RegExpPrototype::RegExpPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
@@ -289,7 +289,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     //     a. Let groups be undefined.
     //     b. Let hasGroups be false.
     bool has_groups = result.n_named_capture_groups != 0;
-    auto groups_object = has_groups ? Object::create(realm, nullptr) : GCPtr<Object> {};
+    auto groups_object = has_groups ? Object::create(realm, nullptr) : GC::Ptr<Object> {};
 
     // 33. For each integer i such that i ≥ 1 and i ≤ n, in ascending order, do
     for (size_t i = 1; i <= result.n_capture_groups; ++i) {
@@ -669,7 +669,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
     }
 
     // 10. Let results be a new empty List.
-    MarkedVector<Object*> results(vm.heap());
+    GC::MarkedVector<Object*> results(vm.heap());
 
     // 11. Let done be false.
     // 12. Repeat, while done is false,
@@ -735,7 +735,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
         position = clamp(position, static_cast<double>(0), static_cast<double>(string.length_in_code_units()));
 
         // g. Let captures be a new empty List.
-        MarkedVector<Value> captures(vm.heap());
+        GC::MarkedVector<Value> captures(vm.heap());
 
         // h. Let n be 1.
         // i. Repeat, while n ≤ nCaptures,
@@ -764,7 +764,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
         // k. If functionalReplace is true, then
         if (replace_value.is_function()) {
             // i. Let replacerArgs be the list-concatenation of « matched », captures, and « 𝔽(position), S ».
-            MarkedVector<Value> replacer_args(vm.heap());
+            GC::MarkedVector<Value> replacer_args(vm.heap());
             replacer_args.append(PrimitiveString::create(vm, move(matched)));
             replacer_args.extend(move(captures));
             replacer_args.append(Value(position));

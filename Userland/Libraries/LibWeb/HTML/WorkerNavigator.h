@@ -22,10 +22,10 @@ class WorkerNavigator : public Bindings::PlatformObject
     , public NavigatorOnLineMixin
     , public StorageAPI::NavigatorStorage {
     WEB_PLATFORM_OBJECT(WorkerNavigator, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(WorkerNavigator);
+    GC_DECLARE_ALLOCATOR(WorkerNavigator);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<WorkerNavigator> create(WorkerGlobalScope&);
+    [[nodiscard]] static GC::Ref<WorkerNavigator> create(WorkerGlobalScope&);
 
     virtual ~WorkerNavigator() override;
 

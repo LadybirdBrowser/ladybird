@@ -17,7 +17,7 @@ size_t advance_string_index(Utf16View const& string, size_t index, bool unicode)
 
 class RegExpPrototype final : public PrototypeObject<RegExpPrototype, RegExpObject> {
     JS_PROTOTYPE_OBJECT(RegExpPrototype, RegExpObject, RegExp);
-    JS_DECLARE_ALLOCATOR(RegExpPrototype);
+    GC_DECLARE_ALLOCATOR(RegExpPrototype);
 
 public:
     virtual void initialize(Realm&) override;

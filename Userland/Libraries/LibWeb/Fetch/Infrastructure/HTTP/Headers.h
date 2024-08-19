@@ -13,8 +13,9 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
@@ -35,7 +36,7 @@ class HeaderList final
     : public JS::Cell
     , public Vector<Header> {
     JS_CELL(HeaderList, JS::Cell);
-    JS_DECLARE_ALLOCATOR(HeaderList);
+    GC_DECLARE_ALLOCATOR(HeaderList);
 
 public:
     using Vector::begin;
@@ -43,7 +44,7 @@ public:
     using Vector::end;
     using Vector::is_empty;
 
-    [[nodiscard]] static JS::NonnullGCPtr<HeaderList> create(JS::VM&);
+    [[nodiscard]] static GC::Ref<HeaderList> create(JS::VM&);
 
     [[nodiscard]] bool contains(ReadonlyBytes) const;
     [[nodiscard]] Optional<ByteBuffer> get(ReadonlyBytes) const;

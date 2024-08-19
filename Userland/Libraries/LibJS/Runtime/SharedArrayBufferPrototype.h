@@ -13,7 +13,7 @@ namespace JS {
 
 class SharedArrayBufferPrototype final : public PrototypeObject<SharedArrayBufferPrototype, ArrayBuffer> {
     JS_PROTOTYPE_OBJECT(SharedArrayBufferPrototype, ArrayBuffer, SharedArrayBuffer);
-    JS_DECLARE_ALLOCATOR(SharedArrayBufferPrototype);
+    GC_DECLARE_ALLOCATOR(SharedArrayBufferPrototype);
 
 public:
     virtual void initialize(Realm&) override;

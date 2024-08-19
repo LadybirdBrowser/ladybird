@@ -12,14 +12,14 @@ namespace JS {
 
 class SharedArrayBufferConstructor final : public NativeFunction {
     JS_OBJECT(SharedArrayBufferConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(SharedArrayBufferConstructor);
+    GC_DECLARE_ALLOCATOR(SharedArrayBufferConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~SharedArrayBufferConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit SharedArrayBufferConstructor(Realm&);

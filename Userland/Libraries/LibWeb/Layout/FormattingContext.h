@@ -136,7 +136,7 @@ protected:
         // Each block in the containing chain adds its own margin and we store the total here.
         CSSPixels left_total_containing_margin;
         CSSPixels right_total_containing_margin;
-        JS::GCPtr<Box const> matching_left_float_box;
+        GC::Ptr<Box const> matching_left_float_box;
     };
 
     struct ShrinkToFitResult {
@@ -172,7 +172,7 @@ protected:
     Type m_type {};
 
     FormattingContext* m_parent { nullptr };
-    JS::NonnullGCPtr<Box const> m_context_box;
+    GC::Ref<Box const> m_context_box;
 
     LayoutState& m_state;
 };

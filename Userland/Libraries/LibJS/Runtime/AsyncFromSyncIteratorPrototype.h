@@ -17,7 +17,7 @@ namespace JS {
 // 27.1.4.2 The %AsyncFromSyncIteratorPrototype% Object, https://tc39.es/ecma262/#sec-%asyncfromsynciteratorprototype%-object
 class AsyncFromSyncIteratorPrototype final : public PrototypeObject<AsyncFromSyncIteratorPrototype, AsyncFromSyncIterator> {
     JS_PROTOTYPE_OBJECT(AsyncFromSyncIteratorPrototype, AsyncFromSyncIterator, AsyncFromSyncIterator);
-    JS_DECLARE_ALLOCATOR(AsyncFromSyncIteratorPrototype);
+    GC_DECLARE_ALLOCATOR(AsyncFromSyncIteratorPrototype);
 
 public:
     virtual void initialize(Realm&) override;
@@ -31,6 +31,6 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(throw_);
 };
 
-NonnullGCPtr<IteratorRecord> create_async_from_sync_iterator(VM&, NonnullGCPtr<IteratorRecord> sync_iterator);
+GC::Ref<IteratorRecord> create_async_from_sync_iterator(VM&, GC::Ref<IteratorRecord> sync_iterator);
 
 }

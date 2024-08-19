@@ -15,10 +15,10 @@ namespace Web::WebAudio {
 // https://webaudio.github.io/web-audio-api/#AudioParam
 class AudioParam final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(AudioParam, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(AudioParam);
+    GC_DECLARE_ALLOCATOR(AudioParam);
 
 public:
-    static JS::NonnullGCPtr<AudioParam> create(JS::Realm&, float default_value, float min_value, float max_value, Bindings::AutomationRate);
+    static GC::Ref<AudioParam> create(JS::Realm&, float default_value, float min_value, float max_value, Bindings::AutomationRate);
 
     virtual ~AudioParam() override;
 
@@ -32,13 +32,13 @@ public:
     float min_value() const;
     float max_value() const;
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> set_value_at_time(float value, double start_time);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> linear_ramp_to_value_at_time(float value, double end_time);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> exponential_ramp_to_value_at_time(float value, double end_time);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> set_target_at_time(float target, double start_time, float time_constant);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> set_value_curve_at_time(Span<float> values, double start_time, double duration);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> cancel_scheduled_values(double cancel_time);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> cancel_and_hold_at_time(double cancel_time);
+    WebIDL::ExceptionOr<GC::Ref<AudioParam>> set_value_at_time(float value, double start_time);
+    WebIDL::ExceptionOr<GC::Ref<AudioParam>> linear_ramp_to_value_at_time(float value, double end_time);
+    WebIDL::ExceptionOr<GC::Ref<AudioParam>> exponential_ramp_to_value_at_time(float value, double end_time);
+    WebIDL::ExceptionOr<GC::Ref<AudioParam>> set_target_at_time(float target, double start_time, float time_constant);
+    WebIDL::ExceptionOr<GC::Ref<AudioParam>> set_value_curve_at_time(Span<float> values, double start_time, double duration);
+    WebIDL::ExceptionOr<GC::Ref<AudioParam>> cancel_scheduled_values(double cancel_time);
+    WebIDL::ExceptionOr<GC::Ref<AudioParam>> cancel_and_hold_at_time(double cancel_time);
 
 private:
     AudioParam(JS::Realm&, float default_value, float min_value, float max_value, Bindings::AutomationRate);

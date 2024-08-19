@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibGC/Function.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/HeapFunction.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 
@@ -15,13 +15,13 @@ namespace Web::DOM {
 
 class DocumentObserver final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DocumentObserver, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DocumentObserver);
+    GC_DECLARE_ALLOCATOR(DocumentObserver);
 
 public:
-    [[nodiscard]] JS::GCPtr<JS::HeapFunction<void()>> document_became_inactive() const { return m_document_became_inactive; }
+    [[nodiscard]] GC::Ptr<GC::Function<void()>> document_became_inactive() const { return m_document_became_inactive; }
     void set_document_became_inactive(Function<void()>);
 
-    [[nodiscard]] JS::GCPtr<JS::HeapFunction<void()>> document_completely_loaded() const { return m_document_completely_loaded; }
+    [[nodiscard]] GC::Ptr<GC::Function<void()>> document_completely_loaded() const { return m_document_completely_loaded; }
     void set_document_completely_loaded(Function<void()>);
 
 private:
@@ -30,9 +30,9 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
-    JS::NonnullGCPtr<DOM::Document> m_document;
-    JS::GCPtr<JS::HeapFunction<void()>> m_document_became_inactive;
-    JS::GCPtr<JS::HeapFunction<void()>> m_document_completely_loaded;
+    GC::Ref<DOM::Document> m_document;
+    GC::Ptr<GC::Function<void()>> m_document_became_inactive;
+    GC::Ptr<GC::Function<void()>> m_document_completely_loaded;
 };
 
 }

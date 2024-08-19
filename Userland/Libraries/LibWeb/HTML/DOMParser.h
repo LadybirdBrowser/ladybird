@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Forward.h>
@@ -17,14 +17,14 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#domparser
 class DOMParser final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DOMParser, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMParser);
+    GC_DECLARE_ALLOCATOR(DOMParser);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMParser>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMParser>> construct_impl(JS::Realm&);
 
     virtual ~DOMParser() override;
 
-    JS::NonnullGCPtr<DOM::Document> parse_from_string(StringView, Bindings::DOMParserSupportedType type);
+    GC::Ref<DOM::Document> parse_from_string(StringView, Bindings::DOMParserSupportedType type);
 
 private:
     explicit DOMParser(JS::Realm&);
