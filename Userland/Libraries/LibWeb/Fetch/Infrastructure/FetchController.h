@@ -12,8 +12,8 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Heap/HeapFunction.h>
+#include <LibJS/Heap/SafeFunction.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/Task.h>

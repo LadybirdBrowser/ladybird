@@ -12,7 +12,7 @@
 #include <AK/HashMap.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Proxy.h>
-#include <LibJS/SafeFunction.h>
+#include <LibJS/Heap/SafeFunction.h>
 #include <LibProtocol/Request.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Loader/Resource.h>
