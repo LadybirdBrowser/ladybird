@@ -2000,9 +2000,10 @@ void Navigable::set_viewport_size(CSSPixelSize size)
         document->invalidate_style();
         document->set_needs_layout();
     }
-    set_needs_display();
 
     if (auto document = active_document()) {
+        document->set_needs_display();
+
         document->inform_all_viewport_clients_about_the_current_viewport_rect();
 
         // Schedule the HTML event loop to ensure that a `resize` event gets fired.
@@ -2015,9 +2016,9 @@ void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
     if (m_viewport_scroll_offset != new_position) {
         m_viewport_scroll_offset = new_position;
         scroll_offset_did_change();
-        set_needs_display();
 
         if (auto document = active_document()) {
+            document->set_needs_display();
             document->set_needs_to_refresh_scroll_state(true);
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
         }
@@ -2029,24 +2030,9 @@ void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
 
 void Navigable::set_needs_display()
 {
-    set_needs_display(viewport_rect());
-}
-
-void Navigable::set_needs_display(CSSPixelRect const&)
-{
-    // FIXME: Ignore updates outside the visible viewport rect.
-    //        This requires accounting for fixed-position elements in the input rect, which we don't do yet.
-
-    m_needs_repaint = true;
-
-    if (is<TraversableNavigable>(*this)) {
-        // Schedule the main thread event loop, which will, in turn, schedule a repaint.
-        Web::HTML::main_thread_event_loop().schedule();
-        return;
+    if (auto document = active_document(); document) {
+        document->set_needs_display();
     }
-
-    if (container() && container()->paintable())
-        container()->paintable()->set_needs_display();
 }
 
 // https://html.spec.whatwg.org/#rendering-opportunity
@@ -2088,59 +2074,6 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
         // 4. Abort the ongoing navigation given navigation.
         navigation->abort_the_ongoing_navigation();
     }));
-}
-
-RefPtr<Painting::DisplayList> Navigable::record_display_list(PaintConfig config)
-{
-    auto document = active_document();
-    if (!document)
-        return {};
-
-    auto display_list = Painting::DisplayList::create();
-    Painting::DisplayListRecorder display_list_recorder(display_list);
-
-    if (config.canvas_fill_rect.has_value()) {
-        display_list_recorder.fill_rect(config.canvas_fill_rect.value(), CSS::SystemColor::canvas());
-    }
-
-    auto const& page = traversable_navigable()->page();
-    auto viewport_rect = page.css_to_device_rect(this->viewport_rect());
-    Gfx::IntRect bitmap_rect { {}, viewport_rect.size().to_type<int>() };
-
-    auto background_color = document->background_color();
-
-    display_list_recorder.fill_rect(bitmap_rect, background_color);
-    if (!document->paintable()) {
-        VERIFY_NOT_REACHED();
-    }
-
-    Web::PaintContext context(display_list_recorder, page.palette(), page.client().device_pixels_per_css_pixel());
-    context.set_device_viewport_rect(viewport_rect);
-    context.set_should_show_line_box_borders(config.should_show_line_box_borders);
-    context.set_should_paint_overlay(config.paint_overlay);
-    context.set_has_focus(config.has_focus);
-
-    document->update_paint_and_hit_testing_properties_if_needed();
-
-    auto& viewport_paintable = *document->paintable();
-
-    viewport_paintable.refresh_scroll_state();
-
-    viewport_paintable.paint_all_phases(context);
-
-    display_list->set_device_pixels_per_css_pixel(page.client().device_pixels_per_css_pixel());
-
-    Vector<RefPtr<Painting::ScrollFrame>> scroll_state;
-    scroll_state.resize(viewport_paintable.scroll_state.size());
-    for (auto& [_, scrollable_frame] : viewport_paintable.scroll_state) {
-        scroll_state[scrollable_frame->id] = scrollable_frame;
-    }
-
-    display_list->set_scroll_state(move(scroll_state));
-
-    m_needs_repaint = false;
-
-    return display_list;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#event-uni

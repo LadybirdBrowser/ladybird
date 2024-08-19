@@ -907,10 +907,9 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     return TraversalDecision::Continue;
 }
 
-void PaintableBox::set_needs_display() const
+void PaintableBox::set_needs_display()
 {
-    if (auto navigable = this->navigable())
-        navigable->set_needs_display(absolute_rect());
+    document().set_needs_display(absolute_rect());
 }
 
 Optional<CSSPixelRect> PaintableBox::get_masking_area() const

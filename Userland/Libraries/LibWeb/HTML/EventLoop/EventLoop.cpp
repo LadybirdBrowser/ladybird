@@ -209,7 +209,7 @@ void EventLoop::process()
     //         loop processing.
     for_each_fully_active_document_in_docs([&](DOM::Document& document) {
         auto navigable = document.navigable();
-        if (navigable && !navigable->has_a_rendering_opportunity() && navigable->needs_repaint())
+        if (navigable && !navigable->has_a_rendering_opportunity() && document.needs_repaint())
             schedule();
         if (navigable && navigable->has_a_rendering_opportunity())
             return;
@@ -328,7 +328,7 @@ void EventLoop::process()
     // 16. For each fully active Document in docs, update the rendering or user interface of that Document and its browsing context to reflect the current state.
     for_each_fully_active_document_in_docs([&](DOM::Document& document) {
         auto navigable = document.navigable();
-        if (navigable && navigable->needs_repaint()) {
+        if (navigable && document.needs_repaint()) {
             auto* browsing_context = document.browsing_context();
             auto& page = browsing_context->page();
             if (navigable->is_traversable()) {
@@ -341,7 +341,7 @@ void EventLoop::process()
     // FIXME: Not in the spec: If there is a screenshot request queued, process it now.
     //        This prevents tests deadlocking on screenshot requests on macOS.
     for (auto& document : docs) {
-        if (document->page().top_level_traversable()->needs_repaint())
+        if (document->needs_repaint())
             document->page().client().process_screenshot_requests();
     }
 

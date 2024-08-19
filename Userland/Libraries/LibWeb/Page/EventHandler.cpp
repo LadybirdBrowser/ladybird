@@ -582,7 +582,7 @@ bool EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSPixelPoi
                 if (should_set_cursor_position)
                     document.set_cursor_position(DOM::Position::create(realm, *hit->dom_node(), *start_index));
 
-                document.navigable()->set_needs_display();
+                document.set_needs_display();
             }
         }
     }

@@ -198,7 +198,7 @@ public:
 
     JS::GCPtr<HTML::Navigable> navigable() const;
 
-    virtual void set_needs_display() const;
+    virtual void set_needs_display();
 
     PaintableBox* containing_block() const
     {

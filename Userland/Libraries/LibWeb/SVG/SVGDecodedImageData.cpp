@@ -92,7 +92,7 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render(Gfx::IntSize size) const
     m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout();
 
-    auto display_list = m_document->navigable()->record_display_list({});
+    auto display_list = m_document->record_display_list({});
     if (!display_list)
         return {};
 

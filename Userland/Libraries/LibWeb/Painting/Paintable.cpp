@@ -127,25 +127,24 @@ void Paintable::invalidate_stacking_context()
     m_stacking_context = nullptr;
 }
 
-void Paintable::set_needs_display() const
+void Paintable::set_needs_display()
 {
     auto* containing_block = this->containing_block();
     if (!containing_block)
         return;
-    auto navigable = this->navigable();
-    if (!navigable)
-        return;
+
+    auto& document = const_cast<DOM::Document&>(this->document());
 
     if (is<Painting::InlinePaintable>(*this)) {
         auto const& fragments = static_cast<Painting::InlinePaintable const*>(this)->fragments();
         for (auto const& fragment : fragments)
-            navigable->set_needs_display(fragment.absolute_rect());
+            document.set_needs_display(fragment.absolute_rect());
     }
 
     if (!is<Painting::PaintableWithLines>(*containing_block))
         return;
     static_cast<Painting::PaintableWithLines const&>(*containing_block).for_each_fragment([&](auto& fragment) {
-        navigable->set_needs_display(fragment.absolute_rect());
+        document.set_needs_display(fragment.absolute_rect());
         return IterationDecision::Continue;
     });
 }
