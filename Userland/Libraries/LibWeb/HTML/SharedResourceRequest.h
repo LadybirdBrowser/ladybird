@@ -11,7 +11,6 @@
 #include <LibGfx/Size.h>
 #include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/HeapFunction.h>
-#include <LibJS/SafeFunction.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 

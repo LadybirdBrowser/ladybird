@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibJS/SafeFunction.h>
+#include <LibJS/Heap/SafeFunction.h>
 
 namespace Web::Platform {
 

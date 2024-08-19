@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <LibJS/SafeFunction.h>
+#include <LibJS/Heap/SafeFunction.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Platform {
