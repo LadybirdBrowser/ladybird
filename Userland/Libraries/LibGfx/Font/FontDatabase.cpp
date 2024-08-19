@@ -24,8 +24,19 @@ FontDatabase& FontDatabase::the()
 }
 
 struct FontDatabase::Private {
+    bool force_fontconfig { false };
     HashMap<FlyString, Vector<NonnullRefPtr<Typeface>>, AK::ASCIICaseInsensitiveFlyStringTraits> typeface_by_family;
 };
+
+void FontDatabase::set_force_fontconfig(bool force_fontconfig)
+{
+    m_private->force_fontconfig = force_fontconfig;
+}
+
+bool FontDatabase::should_force_fontconfig() const
+{
+    return m_private->force_fontconfig;
+}
 
 void FontDatabase::load_all_fonts_from_uri(StringView uri)
 {

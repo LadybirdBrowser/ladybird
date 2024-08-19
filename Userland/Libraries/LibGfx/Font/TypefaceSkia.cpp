@@ -6,16 +6,16 @@
 
 #define AK_DONT_REPLACE_STD
 
+#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/Typeface.h>
 
 #include <core/SkData.h>
 #include <core/SkFontMgr.h>
 #include <core/SkTypeface.h>
+#include <ports/SkFontMgr_fontconfig.h>
 
 #ifdef AK_OS_MACOS
 #    include <ports/SkFontMgr_mac_ct.h>
-#else
-#    include <ports/SkFontMgr_fontconfig.h>
 #endif
 
 namespace Gfx {
@@ -26,10 +26,11 @@ RefPtr<SkTypeface> const& Typeface::skia_typeface() const
 {
     if (!s_font_manager) {
 #ifdef AK_OS_MACOS
-        s_font_manager = SkFontMgr_New_CoreText(nullptr);
-#else
-        s_font_manager = SkFontMgr_New_FontConfig(nullptr);
+        if (!Gfx::FontDatabase::the().should_force_fontconfig())
+            s_font_manager = SkFontMgr_New_CoreText(nullptr);
 #endif
+        if (!s_font_manager)
+            s_font_manager = SkFontMgr_New_FontConfig(nullptr);
     }
 
     if (!m_skia_typeface) {

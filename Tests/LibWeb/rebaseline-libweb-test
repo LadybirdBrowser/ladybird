@@ -28,4 +28,4 @@ else
 fi
 
 mkdir -p $expected_dir
-$ladybird_headless_binary $mode_flag --layout-test-mode $LADYBIRD_SOURCE_DIR/Tests/LibWeb/$input_dir/$test_name.html > $LADYBIRD_SOURCE_DIR/Tests/LibWeb/$expected_dir/$test_name.txt
+$ladybird_headless_binary $mode_flag --force-fontconfig --layout-test-mode $input_dir/$test_name.html > $expected_dir/$test_name.txt

@@ -3,7 +3,7 @@
   "dependencies": [
     {
       "name": "fontconfig",
-      "platform": "linux | freebsd | openbsd"
+      "platform": "linux | freebsd | openbsd | osx"
     },
     "harfbuzz",
     "icu",
@@ -34,7 +34,8 @@
       "name": "skia",
       "platform": "osx",
       "features": [
-        "metal"
+        "metal",
+        "fontconfig"
       ]
     },
     {
