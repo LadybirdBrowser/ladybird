@@ -1,10 +1,3 @@
-body {
-    font-family: system-ui, sans-serif;
-    font-size: 10pt;
-
-    margin: 0;
-}
-
 @media (prefers-color-scheme: dark) {
     :root {
         --background: rgb(23, 23, 23);
@@ -48,6 +41,17 @@ body {
     }
 }
 
+html {
+    background-color: var(--background);
+}
+
+body {
+    font-family: system-ui, sans-serif;
+    font-size: 10pt;
+
+    margin: 0;
+}
+
 .split-view {
     width: 100vw;
     height: 100vh;
@@ -61,6 +65,8 @@ body {
 }
 
 .split-view-separator {
+    background-color: var(--separator);
+
     width: 100%;
     height: 5px;
 
@@ -73,7 +79,13 @@ body {
     z-index: 100;
 }
 
+.split-view-separator circle {
+    fill: var(--separator-accent);
+}
+
 .tab-controls-container {
+    background-color: var(--tab-controls);
+
     width: 100%;
 
     padding: 4px;
@@ -91,6 +103,9 @@ body {
 }
 
 .tab-controls button {
+    color: var(--text-color);
+    background-color: var(--tab-button-background);
+
     font-size: 12px;
     font-weight: 600;
 
@@ -110,6 +125,15 @@ body {
     border-radius: 0 0.5rem 0.5rem 0;
 }
 
+.tab-controls button.active {
+    background-color: var(--tab-button-active-background);
+    color: var(--tab-button-active-color);
+}
+
+.tab-controls button + button {
+    border-left: 1px solid var(--tab-button-border);
+}
+
 .tab-content {
     height: calc(100% - 40px);
 
@@ -119,36 +143,6 @@ body {
     padding: 8px 0px 0px 4px;
 
     overflow: auto scroll;
-}
-
-html {
-    background-color: var(--background);
-}
-
-.split-view-separator {
-    background-color: var(--separator);
-}
-
-.split-view-separator circle {
-    fill: var(--separator-accent);
-}
-
-.tab-controls-container {
-    background-color: var(--tab-controls);
-}
-
-.tab-controls button {
-    color: var(--text-color);
-    background-color: var(--tab-button-background);
-}
-
-.tab-controls button.active {
-    background-color: var(--tab-button-active-background);
-    color: var(--tab-button-active-color);
-}
-
-.tab-controls button + button {
-    border-left: 1px solid var(--tab-button-border);
 }
 
 details > :not(:first-child) {
@@ -192,6 +186,7 @@ details > :not(:first-child) {
 }
 
 .console-input {
+    background-color: var(--console-input-color);
     width: 100%;
     height: 24px;
     padding: 4px;
@@ -202,6 +197,10 @@ details > :not(:first-child) {
 
 .console-input input {
     width: calc(100% - 60px);
+}
+
+.console-input input:focus {
+    outline: 1px dashed var(--console-input-focus-color);
 }
 
 .console-prompt {
@@ -216,14 +215,6 @@ details > :not(:first-child) {
     color: var(--console-warning-color);
 }
 
-.console-input {
-    background-color: var(--console-input-color);
-}
-
-.console-input input:focus {
-    outline: 1px dashed var(--console-input-focus-color);
-}
-
 .property-table {
     width: 100%;
 
@@ -232,6 +223,7 @@ details > :not(:first-child) {
 }
 
 .property-table th {
+    background-color: var(--property-table-head);
     position: sticky;
     top: 0px;
 }
@@ -240,10 +232,6 @@ details > :not(:first-child) {
 .property-table td {
     padding: 4px;
     text-align: left;
-}
-
-.property-table th {
-    background-color: var(--property-table-head);
 }
 
 #fonts {
