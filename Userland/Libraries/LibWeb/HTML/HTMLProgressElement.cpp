@@ -64,7 +64,8 @@ double HTMLProgressElement::max() const
 {
     if (auto max_string = get_attribute(HTML::AttributeNames::max); max_string.has_value()) {
         if (auto max = parse_floating_point_number(*max_string); max.has_value())
-            return AK::max(*max, 0);
+            if (*max > 0)
+                return *max;
     }
     return 1;
 }
