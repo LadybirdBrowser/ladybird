@@ -20,7 +20,7 @@ struct Polygon {
         LengthPercentage y;
     };
 
-    Gfx::DeprecatedPath to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
     String to_string() const;
 
     bool operator==(Polygon const&) const = default;
@@ -46,7 +46,7 @@ public:
 
     bool properties_equal(BasicShapeStyleValue const& other) const { return m_basic_shape == other.m_basic_shape; }
 
-    Gfx::DeprecatedPath to_path(CSSPixelRect reference_box, Layout::Node const&) const;
+    Gfx::Path to_path(CSSPixelRect reference_box, Layout::Node const&) const;
 
 private:
     BasicShapeStyleValue(BasicShape basic_shape)

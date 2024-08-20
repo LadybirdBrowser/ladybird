@@ -925,30 +925,6 @@ Optional<CSSPixelRect> PaintableBox::get_masking_area() const
     return absolute_border_box_rect();
 }
 
-Optional<Gfx::Bitmap::MaskKind> PaintableBox::get_mask_type() const
-{
-    // Always an alpha mask as only basic shapes are supported right now.
-    return Gfx::Bitmap::MaskKind::Alpha;
-}
-
-RefPtr<Gfx::Bitmap> PaintableBox::calculate_mask(PaintContext& context, CSSPixelRect const& masking_area) const
-{
-    VERIFY(computed_values().clip_path()->is_basic_shape());
-    auto const& basic_shape = computed_values().clip_path()->basic_shape();
-    auto path = basic_shape.to_path(masking_area, layout_node());
-    auto device_pixel_scale = context.device_pixels_per_css_pixel();
-    path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(device_pixel_scale, device_pixel_scale));
-    auto mask_rect = context.enclosing_device_rect(masking_area);
-    auto maybe_bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, mask_rect.size().to_type<int>());
-    if (maybe_bitmap.is_error())
-        return {};
-    auto bitmap = maybe_bitmap.release_value();
-    Gfx::DeprecatedPainter painter(*bitmap);
-    Gfx::AntiAliasingPainter aa_painter(painter);
-    aa_painter.fill_path(path, Color::Black);
-    return bitmap;
-}
-
 void PaintableBox::resolve_paint_properties()
 {
     auto const& computed_values = this->computed_values();

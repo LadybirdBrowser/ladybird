@@ -123,6 +123,7 @@ public:
         Gfx::IntRect source_paintable_rect;
         StackingContextTransform transform;
         Optional<StackingContextMask> mask = {};
+        Optional<Gfx::Path> clip_path = {};
     };
     void push_stacking_context(PushStackingContextParams params);
     void pop_stacking_context();

@@ -315,6 +315,15 @@ void StackingContext::paint(PaintContext& context) const
         }
     }
 
+    auto const& computed_values = paintable().computed_values();
+    if (auto clip_path = computed_values.clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
+        auto const& masking_area = paintable_box().get_masking_area();
+        auto const& basic_shape = computed_values.clip_path()->basic_shape();
+        auto path = basic_shape.to_path(*masking_area, paintable().layout_node());
+        auto device_pixel_scale = context.device_pixels_per_css_pixel();
+        push_stacking_context_params.clip_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(device_pixel_scale, device_pixel_scale).set_translation(source_paintable_rect.location().to_type<float>()));
+    }
+
     auto has_css_transform = paintable().is_paintable_box() && paintable_box().has_css_transform();
     context.display_list_recorder().save();
     if (has_css_transform) {

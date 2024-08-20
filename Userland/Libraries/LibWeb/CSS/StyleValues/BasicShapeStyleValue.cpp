@@ -5,12 +5,13 @@
  */
 
 #include "BasicShapeStyleValue.h"
+#include <LibGfx/Path.h>
 
 namespace Web::CSS {
 
-Gfx::DeprecatedPath Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
+Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
-    Gfx::DeprecatedPath path;
+    Gfx::Path path;
     bool first = true;
     for (auto const& point : points) {
         Gfx::FloatPoint resolved_point {
@@ -44,7 +45,7 @@ String Polygon::to_string() const
 
 BasicShapeStyleValue::~BasicShapeStyleValue() = default;
 
-Gfx::DeprecatedPath BasicShapeStyleValue::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
+Gfx::Path BasicShapeStyleValue::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
     return m_basic_shape.visit([&](auto const& shape) {
         return shape.to_path(reference_box, node);

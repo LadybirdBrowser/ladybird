@@ -475,6 +475,10 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
         canvas.save();
     }
 
+    if (command.clip_path.has_value()) {
+        canvas.clipPath(to_skia_path(command.clip_path.value()), true);
+    }
+
     if (command.mask.has_value()) {
         auto alpha_mask = alpha_mask_from_bitmap(*command.mask.value().mask_bitmap, command.mask.value().mask_kind);
         SkMatrix mask_matrix;
