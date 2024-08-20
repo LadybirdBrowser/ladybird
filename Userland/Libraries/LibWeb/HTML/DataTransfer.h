@@ -50,7 +50,7 @@ public:
     void set_effect_allowed_internal(FlyString);
 
     ReadonlySpan<String> types() const;
-
+    String get_data(String const& format) const;
     JS::NonnullGCPtr<FileAPI::FileList> files() const;
 
     void associate_with_drag_data_store(DragDataStore& drag_data_store);
