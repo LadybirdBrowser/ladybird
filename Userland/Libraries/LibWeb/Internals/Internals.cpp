@@ -72,6 +72,14 @@ void Internals::send_text(HTML::HTMLElement& target, String const& text)
         page.handle_keydown(UIEvents::code_point_to_key_code(code_point), 0, code_point);
 }
 
+void Internals::send_key(HTML::HTMLElement& target, String const& key_name)
+{
+    auto key_code = UIEvents::key_code_from_string(key_name);
+    target.focus();
+
+    global_object().browsing_context()->page().handle_keydown(key_code, 0, 0);
+}
+
 void Internals::commit_text()
 {
     global_object().browsing_context()->page().handle_keydown(UIEvents::Key_Return, 0, 0);

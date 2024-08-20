@@ -25,6 +25,7 @@ public:
     JS::Object* hit_test(double x, double y);
 
     void send_text(HTML::HTMLElement&, String const&);
+    void send_key(HTML::HTMLElement&, String const&);
     void commit_text();
 
     void click(double x, double y);

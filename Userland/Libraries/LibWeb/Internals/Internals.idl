@@ -10,6 +10,7 @@ interface Internals {
     object hitTest(double x, double y);
 
     undefined sendText(HTMLElement target, DOMString text);
+    undefined sendKey(HTMLElement target, DOMString keyName);
     undefined commitText();
 
     undefined click(double x, double y);
