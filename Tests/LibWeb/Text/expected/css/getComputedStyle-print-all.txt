@@ -86,6 +86,7 @@ clip-rule: nonzero
 color: rgb(0, 0, 0)
 column-count: auto
 column-gap: auto
+column-width: auto
 content: normal
 content-visibility: visible
 counter-increment: none
@@ -123,7 +124,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2125px
+height: 2142px
 image-rendering: auto
 inline-size: auto
 inset-block-end: auto

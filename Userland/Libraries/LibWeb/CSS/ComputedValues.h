@@ -165,6 +165,7 @@ public:
     static CSS::GridAutoFlow grid_auto_flow() { return CSS::GridAutoFlow {}; }
     static ColumnCount column_count() { return ColumnCount::make_auto(); }
     static CSS::Size column_gap() { return CSS::Size::make_auto(); }
+    static CSS::Size column_width() { return CSS::Size::make_auto(); }
     static CSS::Size row_gap() { return CSS::Size::make_auto(); }
     static CSS::BorderCollapse border_collapse() { return CSS::BorderCollapse::Separate; }
     static Vector<Vector<String>> grid_template_areas() { return {}; }
@@ -418,6 +419,7 @@ public:
     CSS::GridTrackPlacement const& grid_row_start() const { return m_noninherited.grid_row_start; }
     CSS::ColumnCount column_count() const { return m_noninherited.column_count; }
     CSS::Size const& column_gap() const { return m_noninherited.column_gap; }
+    CSS::Size const& column_width() const { return m_noninherited.column_width; }
     CSS::Size const& row_gap() const { return m_noninherited.row_gap; }
     CSS::BorderCollapse border_collapse() const { return m_inherited.border_collapse; }
     Vector<Vector<String>> const& grid_template_areas() const { return m_noninherited.grid_template_areas; }
@@ -619,6 +621,7 @@ protected:
         CSS::GridTrackPlacement grid_row_start { InitialValues::grid_row_start() };
         CSS::ColumnCount column_count { InitialValues::column_count() };
         CSS::Size column_gap { InitialValues::column_gap() };
+        CSS::Size column_width { InitialValues::column_width() };
         CSS::Size row_gap { InitialValues::row_gap() };
         Vector<Vector<String>> grid_template_areas { InitialValues::grid_template_areas() };
         Gfx::Color stop_color { InitialValues::stop_color() };
@@ -750,6 +753,7 @@ public:
     void set_grid_row_start(CSS::GridTrackPlacement value) { m_noninherited.grid_row_start = value; }
     void set_column_count(CSS::ColumnCount value) { m_noninherited.column_count = value; }
     void set_column_gap(CSS::Size const& column_gap) { m_noninherited.column_gap = column_gap; }
+    void set_column_width(CSS::Size const& column_width) { m_noninherited.column_width = column_width; }
     void set_row_gap(CSS::Size const& row_gap) { m_noninherited.row_gap = row_gap; }
     void set_border_collapse(CSS::BorderCollapse const& border_collapse) { m_inherited.border_collapse = border_collapse; }
     void set_grid_template_areas(Vector<Vector<String>> const& grid_template_areas) { m_noninherited.grid_template_areas = grid_template_areas; }
