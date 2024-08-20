@@ -28,6 +28,33 @@
 
 namespace Gfx {
 
+static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
+{
+    switch (format) {
+    case Gfx::BitmapFormat::Invalid:
+        return kUnknown_SkColorType;
+    case Gfx::BitmapFormat::BGRA8888:
+    case Gfx::BitmapFormat::BGRx8888:
+        return kBGRA_8888_SkColorType;
+    case Gfx::BitmapFormat::RGBA8888:
+        return kRGBA_8888_SkColorType;
+    default:
+        return kUnknown_SkColorType;
+    }
+}
+
+static SkAlphaType to_skia_alpha_type(Gfx::AlphaType alpha_type)
+{
+    switch (alpha_type) {
+    case AlphaType::Premultiplied:
+        return kPremul_SkAlphaType;
+    case AlphaType::Unpremultiplied:
+        return kUnpremul_SkAlphaType;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 struct PainterSkia::Impl {
     NonnullRefPtr<Gfx::Bitmap> gfx_bitmap;
     OwnPtr<SkBitmap> sk_bitmap;
@@ -37,7 +64,7 @@ struct PainterSkia::Impl {
         : gfx_bitmap(move(target_bitmap))
     {
         sk_bitmap = make<SkBitmap>();
-        SkImageInfo info = SkImageInfo::Make(gfx_bitmap->width(), gfx_bitmap->height(), kBGRA_8888_SkColorType, kUnpremul_SkAlphaType);
+        SkImageInfo info = SkImageInfo::Make(gfx_bitmap->width(), gfx_bitmap->height(), to_skia_color_type(gfx_bitmap->format()), to_skia_alpha_type(gfx_bitmap->alpha_type()));
         sk_bitmap->installPixels(info, gfx_bitmap->scanline(0), gfx_bitmap->pitch());
 
         sk_canvas = make<SkCanvas>(*sk_bitmap);
@@ -109,25 +136,10 @@ static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
     }
 }
 
-static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
-{
-    switch (format) {
-    case Gfx::BitmapFormat::Invalid:
-        return kUnknown_SkColorType;
-    case Gfx::BitmapFormat::BGRA8888:
-    case Gfx::BitmapFormat::BGRx8888:
-        return kBGRA_8888_SkColorType;
-    case Gfx::BitmapFormat::RGBA8888:
-        return kRGBA_8888_SkColorType;
-    default:
-        return kUnknown_SkColorType;
-    }
-}
-
 void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::Bitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, float global_alpha)
 {
     SkBitmap sk_bitmap;
-    SkImageInfo info = SkImageInfo::Make(src_bitmap.width(), src_bitmap.height(), to_skia_color_type(src_bitmap.format()), kUnpremul_SkAlphaType);
+    SkImageInfo info = SkImageInfo::Make(src_bitmap.width(), src_bitmap.height(), to_skia_color_type(src_bitmap.format()), to_skia_alpha_type(src_bitmap.alpha_type()));
     sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(src_bitmap.scanline(0))), src_bitmap.pitch());
 
     SkPaint paint;
