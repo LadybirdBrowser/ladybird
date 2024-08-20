@@ -9,6 +9,7 @@
 
 #include <AK/EnumBits.h>
 #include <AK/Platform.h>
+#include <AK/StringView.h>
 #include <AK/Types.h>
 
 namespace Web::UIEvents {
@@ -158,6 +159,17 @@ enum KeyCode : u8 {
     = Key_LeftShift,
 };
 size_t const key_code_count = Key_Menu + 1;
+
+constexpr KeyCode key_code_from_string(StringView key_name)
+{
+#define __ENUMERATE_KEY_CODE(name, ui_name) \
+    if (key_name == ui_name##sv)            \
+        return KeyCode::Key_##name;
+    ENUMERATE_KEY_CODES
+#undef __ENUMERATE_KEY_CODE
+
+    VERIFY_NOT_REACHED();
+}
 
 enum KeyModifier {
     Mod_None = 0x00,
