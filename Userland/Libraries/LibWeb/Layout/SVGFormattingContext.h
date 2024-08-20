@@ -9,6 +9,7 @@
 #include <LibGfx/DeprecatedPath.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/FormattingContext.h>
+#include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/SVGTextBox.h>
 #include <LibWeb/Layout/SVGTextPathBox.h>
@@ -31,6 +32,7 @@ private:
     void layout_graphics_element(SVGGraphicsBox const&);
     void layout_path_like_element(SVGGraphicsBox const&);
     void layout_mask_or_clip(SVGBox const&);
+    void layout_image_element(SVGImageBox const& image_box);
 
     [[nodiscard]] Gfx::Path compute_path_for_text(SVGTextBox const&);
     [[nodiscard]] Gfx::Path compute_path_for_text_path(SVGTextPathBox const&);

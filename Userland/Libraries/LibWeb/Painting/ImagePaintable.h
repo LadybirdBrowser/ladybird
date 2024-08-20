@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Layout/ImageBox.h>
+#include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
@@ -18,7 +19,8 @@ class ImagePaintable final
     JS_DECLARE_ALLOCATOR(ImagePaintable);
 
 public:
-    static JS::NonnullGCPtr<ImagePaintable> create(Layout::ImageBox const&);
+    static JS::NonnullGCPtr<ImagePaintable> create(Layout::ImageBox const& layout_box);
+    static JS::NonnullGCPtr<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 
@@ -30,12 +32,14 @@ private:
     // ^Document::ViewportClient
     virtual void did_set_viewport_rect(CSSPixelRect const&) final;
 
-    ImagePaintable(Layout::ImageBox const&, String alt_text);
+    ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider, bool renders_as_alt_text, String alt_text, bool is_svg_image);
 
     bool m_renders_as_alt_text { false };
     String m_alt_text;
 
     Layout::ImageProvider const& m_image_provider;
+
+    bool m_is_svg_image { false };
 };
 
 }

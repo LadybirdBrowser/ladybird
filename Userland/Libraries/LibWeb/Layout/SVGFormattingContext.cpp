@@ -16,11 +16,13 @@
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGGeometryBox.h>
+#include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGGElement.h>
+#include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
@@ -405,6 +407,8 @@ void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphic
         // 5.2. Grouping: the ‘g’ element
         // The ‘g’ element is a container element for grouping together related graphics elements.
         layout_container_element(graphics_box);
+    } else if (is<SVGImageBox>(graphics_box)) {
+        layout_image_element(static_cast<SVGImageBox const&>(graphics_box));
     } else {
         // Assume this is a path-like element.
         layout_path_like_element(graphics_box);
@@ -415,6 +419,18 @@ void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphic
 
     if (auto* clip_box = graphics_box.first_child_of_type<SVGClipBox>())
         layout_mask_or_clip(*clip_box);
+}
+
+void SVGFormattingContext::layout_image_element(SVGImageBox const& image_box)
+{
+    auto& box_state = m_state.get_mutable(image_box);
+    auto bounding_box = image_box.dom_node().bounding_box();
+    box_state.set_content_x(bounding_box.x());
+    box_state.set_content_y(bounding_box.y());
+    box_state.set_content_width(bounding_box.width());
+    box_state.set_content_height(bounding_box.height());
+    box_state.set_has_definite_width(true);
+    box_state.set_has_definite_height(true);
 }
 
 void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
