@@ -4178,6 +4178,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     generator.append(R"~~~(
     // FIXME: This is a total hack until we can figure out the namespace for a given type somehow.
     using namespace Web::Animations;
+    using namespace Web::Clipboard;
     using namespace Web::Crypto;
     using namespace Web::CSS;
     using namespace Web::DOM;
