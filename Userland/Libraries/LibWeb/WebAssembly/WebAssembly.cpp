@@ -361,8 +361,7 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
     auto function = JS::NativeFunction::create(
         realm,
         name,
-        [address, type = type.release_value(), instance](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-            (void)instance;
+        [address, type = type.release_value()](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             auto& realm = *vm.current_realm();
             Vector<Wasm::Value> values;
             values.ensure_capacity(type.parameters().size());
@@ -390,6 +389,8 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
             /*    return to_js_value(vm, value);*/
             /*}));*/
         });
+
+    function->track_cell(*instance);
 
     cache.add_function_instance(address, function);
     return function;

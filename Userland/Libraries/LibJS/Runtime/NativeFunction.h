@@ -42,6 +42,8 @@ public:
     Optional<DeprecatedFlyString> const& initial_name() const { return m_initial_name; }
     void set_initial_name(Badge<FunctionObject>, DeprecatedFlyString initial_name) { m_initial_name = move(initial_name); }
 
+    void track_cell(Cell& cell) { m_owned_cells.set(&cell); }
+
 protected:
     NativeFunction(DeprecatedFlyString name, Object& prototype);
     NativeFunction(JS::GCPtr<JS::HeapFunction<ThrowCompletionOr<Value>(VM&)>>, Object* prototype, Realm& realm);
@@ -59,6 +61,7 @@ private:
     Optional<DeprecatedFlyString> m_initial_name; // [[InitialName]]
     JS::GCPtr<JS::HeapFunction<ThrowCompletionOr<Value>(VM&)>> m_native_function;
     GCPtr<Realm> m_realm;
+    HashTable<GCPtr<JS::Cell>> m_owned_cells;
 };
 
 template<>

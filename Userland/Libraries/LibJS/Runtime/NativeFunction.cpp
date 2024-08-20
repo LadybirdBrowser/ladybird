@@ -29,6 +29,8 @@ void NativeFunction::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_native_function);
     visitor.visit(m_realm);
     visitor.visit(m_name_string);
+    for (auto& cell : m_owned_cells)
+        visitor.visit(cell);
 }
 
 // 10.3.3 CreateBuiltinFunction ( behaviour, length, name, additionalInternalSlotsList [ , realm [ , prototype [ , prefix ] ] ] ), https://tc39.es/ecma262/#sec-createbuiltinfunction
