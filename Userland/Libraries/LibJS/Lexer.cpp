@@ -512,7 +512,7 @@ bool Lexer::is_line_comment_start(bool line_has_token_yet) const
         // other block comment(s); or in other words: the current line does not have a token or
         // ongoing line comment yet
         || (m_allow_html_comments && !line_has_token_yet && match('-', '-', '>'))
-        // https://tc39.es/proposal-hashbang/out.html#sec-updated-syntax
+        // https://tc39.es/ecma262/#sec-hashbang
         || (match('#', '!') && m_position == 1);
 }
 
