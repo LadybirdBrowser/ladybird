@@ -90,6 +90,12 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
             builder.appendff(" {}={}", name, value);
         });
         builder.append(">\n"sv);
+        auto& element = verify_cast<DOM::Element>(node);
+        if (element.use_pseudo_element().has_value()) {
+            for (int i = 0; i < indent; ++i)
+                builder.append("  "sv);
+            builder.appendff("  (pseudo-element: {})\n", CSS::Selector::PseudoElement::name(element.use_pseudo_element().value()));
+        }
     } else if (is<DOM::Text>(node)) {
         builder.appendff("\"{}\"\n", verify_cast<DOM::Text>(node).data());
     } else {
