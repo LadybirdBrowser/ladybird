@@ -12,6 +12,7 @@
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/HTML/DataTransfer.h>
+#include <LibWeb/HTML/DataTransferItemList.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::HTML {
@@ -42,6 +43,12 @@ void DataTransfer::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DataTransfer);
+}
+
+void DataTransfer::visit_edges(JS::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_items);
 }
 
 void DataTransfer::set_drop_effect(String const& drop_effect)
@@ -80,6 +87,15 @@ void DataTransfer::set_effect_allowed_internal(FlyString effect_allowed)
 
     if (effect_allowed.is_one_of(none, copy, copyLink, copyMove, link, linkMove, move, all, uninitialized))
         m_effect_allowed = AK::move(effect_allowed);
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-items
+JS::NonnullGCPtr<DataTransferItemList> DataTransfer::items()
+{
+    // The items attribute must return a DataTransferItemList object associated with the DataTransfer object.
+    if (!m_items)
+        m_items = DataTransferItemList::create(realm(), *this);
+    return *m_items;
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-types
