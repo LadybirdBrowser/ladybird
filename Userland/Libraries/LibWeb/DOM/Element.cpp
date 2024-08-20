@@ -555,10 +555,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
         set_computed_css_values(move(new_computed_css_values));
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
-    for (auto i = 0; i < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount); i++) {
+    auto recompute_pseudo_element_style = [&](CSS::Selector::PseudoElement::Type pseudo_element) {
         style_computer.push_ancestor(*this);
 
-        auto pseudo_element = static_cast<CSS::Selector::PseudoElement::Type>(i);
         auto pseudo_element_style = pseudo_element_computed_css_values(pseudo_element);
         auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed(*this, pseudo_element);
 
@@ -571,7 +570,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
 
         set_pseudo_element_computed_css_values(pseudo_element, move(new_pseudo_element_style));
         style_computer.pop_ancestor(*this);
-    }
+    };
+
+    recompute_pseudo_element_style(CSS::Selector::PseudoElement::Type::Before);
+    recompute_pseudo_element_style(CSS::Selector::PseudoElement::Type::After);
 
     if (invalidation.is_none())
         return invalidation;
