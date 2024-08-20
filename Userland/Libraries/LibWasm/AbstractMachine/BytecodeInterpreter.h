@@ -18,18 +18,18 @@ struct BytecodeInterpreter : public Interpreter {
     {
     }
 
-    virtual void interpret(Configuration&) override;
+    virtual void interpret(Configuration&) final;
 
     virtual ~BytecodeInterpreter() override = default;
-    virtual bool did_trap() const override { return !m_trap.has<Empty>(); }
-    virtual ByteString trap_reason() const override
+    virtual bool did_trap() const final { return !m_trap.has<Empty>(); }
+    virtual ByteString trap_reason() const final
     {
         return m_trap.visit(
             [](Empty) -> ByteString { VERIFY_NOT_REACHED(); },
             [](Trap const& trap) { return trap.reason; },
             [](JS::Completion const& completion) { return completion.value()->to_string_without_side_effects().to_byte_string(); });
     }
-    virtual void clear_trap() override { m_trap = Empty {}; }
+    virtual void clear_trap() final { m_trap = Empty {}; }
 
     struct CallFrameHandle {
         explicit CallFrameHandle(BytecodeInterpreter& interpreter, Configuration& configuration)
