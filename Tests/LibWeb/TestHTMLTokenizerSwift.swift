@@ -26,6 +26,8 @@ struct TestHTMLTokenizerSwift {
         default_token.type = .Character(codePoint: "a")
         precondition(default_token.isCharacter())
 
+        print("\(default_token)", to: &standardError)
+
         print("HTMLToken types pass", to: &standardError)
     }
 

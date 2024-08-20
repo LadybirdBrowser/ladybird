@@ -76,3 +76,45 @@ public class HTMLToken {
         self.type = type
     }
 }
+
+extension HTMLToken.Position: Equatable, CustomStringConvertible {
+    public var description: String {
+        return "\(self.line):\(self.column)"
+    }
+}
+
+extension HTMLToken.TokenType: CustomStringConvertible {
+    // FIXME: Print attributes for start/end tags
+    public var description: String {
+        switch self {
+        case .Invalid:
+            return "Invalid"
+        case .DOCTYPE(let name, let publicIdentifier, let systemIdentifier, let forceQuirksMode):
+            return "DOCTYPE(name: \(name ?? "nil"), publicIdentifier: \(publicIdentifier ?? "nil"), systemIdentifier: \(systemIdentifier ?? "nil"), forceQuirksMode: \(forceQuirksMode))"
+        case .StartTag(let tagName, let selfClosing, let selfClosingAcknowledged, let attributes):
+            return "StartTag(tagName: \(tagName), selfClosing: \(selfClosing), selfClosingAcknowledged: \(selfClosingAcknowledged), attributes: \(attributes))"
+        case .EndTag(let tagName, let selfClosing, let selfClosingAcknowledged, let attributes):
+            return "EndTag(tagName: \(tagName), selfClosing: \(selfClosing), selfClosingAcknowledged: \(selfClosingAcknowledged), attributes: \(attributes))"
+        case .Comment(let data):
+            return "Comment(data: \(data))"
+        case .Character(let codePoint):
+            return "Character(codePoint: \(codePoint))"
+        case .EndOfFile:
+            return "EndOfFile"
+        }
+    }
+}
+
+extension HTMLToken: CustomStringConvertible {
+    public var description: String {
+        if (self.startPosition == Position()) {
+            return "HTMLToken(type: \(self.type))"
+        }
+        else if (self.endPosition == Position()) {
+            return "HTMLToken(type: \(self.type))@\(self.startPosition)"
+        }
+        else {
+            return "HTMLToken(type: \(self.type))@\(self.startPosition)-\(self.endPosition)"
+        }
+    }
+}
