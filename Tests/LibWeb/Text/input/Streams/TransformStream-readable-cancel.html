@@ -1,0 +1,22 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const ts = new TransformStream();
+        ts.readable.cancel(new Error("error1"));
+        ts.writable.getWriter().closed.catch(e => {
+            println(`catch ${e}`);
+        });
+
+        const tsWithBackpressure = new TransformStream({}, undefined, { highWaterMark: 0 });
+        tsWithBackpressure.readable.cancel(new Error("error1"))
+        tsWithBackpressure.writable.getWriter().closed.catch(e => {
+            println(`catch ${e}`)
+        })
+
+        const tsWithoutBackpressure = new TransformStream({}, undefined, { highWaterMark: 1 });
+        tsWithoutBackpressure.readable.cancel(new Error("error1"))
+        tsWithoutBackpressure.writable.getWriter().closed.catch(e => {
+            println(`catch ${e}`)
+        })
+    });
+</script>
