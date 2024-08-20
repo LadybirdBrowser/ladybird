@@ -92,7 +92,7 @@ const scrollToElement = element => {
 };
 
 inspector.exportInspector = () => {
-    const html = document.documentElement.outerHTML;
+    const html = `<!DOCTYPE ${document.doctype.name}>\n${document.documentElement.outerHTML}`;
     inspector.exportInspectorHTML(html);
 };
 
