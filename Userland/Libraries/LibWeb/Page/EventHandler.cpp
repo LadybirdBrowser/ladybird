@@ -858,8 +858,18 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
         return focus_next_element();
     }
 
-    if (key == UIEvents::KeyCode::Key_Escape)
-        return document->window()->close_watcher_manager()->process_close_watchers();
+    // https://html.spec.whatwg.org/multipage/interaction.html#close-requests
+    if (key == UIEvents::KeyCode::Key_Escape) {
+        // 7. Let closedSomething be the result of processing close watchers on document's relevant global object.
+        auto closed_something = document->window()->close_watcher_manager()->process_close_watchers();
+
+        // 8. If closedSomething is true, then return.
+        if (closed_something)
+            return true;
+
+        // 9. Alternative processing: Otherwise, there was nothing watching for a close request. The user agent may
+        //    instead interpret this interaction as some other action, instead of interpreting it as a close request.
+    }
 
     auto& realm = document->realm();
 

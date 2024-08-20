@@ -1,0 +1,17 @@
+<input id="input" />
+<script src="../include.js"></script>
+<script>
+    const SPECIAL_KEYS = ["Escape"];
+
+    test(() => {
+        let input = document.getElementById("input");
+
+        input.addEventListener("keydown", e => {
+            println(`${e.key}`);
+        });
+
+        SPECIAL_KEYS.forEach(key => {
+            internals.sendKey(input, "Escape");
+        });
+    });
+</script>
