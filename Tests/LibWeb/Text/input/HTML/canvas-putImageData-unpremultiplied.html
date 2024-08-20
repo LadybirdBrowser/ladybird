@@ -1,0 +1,29 @@
+<script src="../include.js"></script>
+<body><canvas id=c width=1 height=2></div>
+<script>
+    test(() => {
+        // Test createImageData + putImageData
+        let ctx1 = c.getContext('2d');
+        let img1 = ctx1.createImageData(1, 1);
+        img1.data[0] = 50;
+        img1.data[1] = 100;
+        img1.data[2] = 200;
+        img1.data[3] = 0;
+        ctx1.putImageData(img1, 0, 0);
+        let buf1 = ctx1.getImageData(0, 0, 1, 1);
+        if (buf1.data[0] === 0 && buf1.data[1] === 0 && buf1.data[2] === 0 && buf1.data[3] === 0)
+            println("PASS");
+        else
+            println("FAIL");
+
+        // Test new ImageData + putImageData
+        let ctx2 = c.getContext('2d');
+        let img2 = new ImageData(new Uint8ClampedArray([50, 100, 200, 0]), 1, 1);
+        ctx2.putImageData(img2, 0, 0);
+        let buf2 = ctx2.getImageData(0, 0, 1, 1);
+        if (buf2.data[0] === 0 && buf2.data[1] === 0 && buf2.data[2] === 0 && buf2.data[3] === 0)
+            println("PASS");
+        else
+            println("FAIL");
+    });
+</script>
