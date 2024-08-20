@@ -27,11 +27,11 @@ void ArrayBufferPrototype::initialize(Realm& realm)
     Base::initialize(realm);
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_accessor(realm, vm.names.byteLength, byte_length_getter, {}, Attribute::Configurable);
+    define_native_accessor(realm, vm.names.detached, detached_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.maxByteLength, max_byte_length, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.resizable, resizable, {}, Attribute::Configurable);
     define_native_function(realm, vm.names.resize, resize, 1, attr);
     define_native_function(realm, vm.names.slice, slice, 2, attr);
-    define_native_accessor(realm, vm.names.detached, detached_getter, {}, Attribute::Configurable);
     define_native_function(realm, vm.names.transfer, transfer, 0, attr);
     define_native_function(realm, vm.names.transferToFixedLength, transfer_to_fixed_length, 0, attr);
 
@@ -57,7 +57,22 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::byte_length_getter)
     return Value(array_buffer_object->byte_length());
 }
 
-// 25.1.6.3 get ArrayBuffer.prototype.maxByteLength, https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.maxbytelength
+// 25.1.6.3 get ArrayBuffer.prototype.detached, https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.detached
+JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::detached_getter)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+    auto array_buffer_object = TRY(typed_this_value(vm));
+
+    // 3. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
+    if (array_buffer_object->is_shared_array_buffer())
+        return vm.throw_completion<TypeError>(ErrorType::SharedArrayBuffer);
+
+    // 4. Return IsDetachedBuffer(O).
+    return Value(array_buffer_object->is_detached());
+}
+
+// 25.1.6.4 get ArrayBuffer.prototype.maxByteLength, https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.maxbytelength
 JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::max_byte_length)
 {
     // 1. Let O be the this value.
@@ -89,7 +104,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::max_byte_length)
     return Value { length };
 }
 
-// 25.1.6.4 get ArrayBuffer.prototype.resizable, https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.resizable
+// 25.1.6.5 get ArrayBuffer.prototype.resizable, https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.resizable
 JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::resizable)
 {
     // 1. Let O be the this value.
@@ -104,7 +119,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::resizable)
     return Value { !array_buffer_object->is_fixed_length() };
 }
 
-// 25.1.6.5 ArrayBuffer.prototype.resize ( newLength ), https://tc39.es/ecma262/#sec-arraybuffer.prototype.resize
+// 25.1.6.6 ArrayBuffer.prototype.resize ( newLength ), https://tc39.es/ecma262/#sec-arraybuffer.prototype.resize
 JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::resize)
 {
     auto new_length = vm.argument(0);
@@ -161,7 +176,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::resize)
     return js_undefined();
 }
 
-// 25.1.6.6 ArrayBuffer.prototype.slice ( start, end ), https://tc39.es/ecma262/#sec-arraybuffer.prototype.slice
+// 25.1.6.7 ArrayBuffer.prototype.slice ( start, end ), https://tc39.es/ecma262/#sec-arraybuffer.prototype.slice
 JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::slice)
 {
     auto& realm = *vm.current_realm();
@@ -270,39 +285,24 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::slice)
     return new_array_buffer_object;
 }
 
-// 25.1.5.4 get ArrayBuffer.prototype.detached, https://tc39.es/proposal-arraybuffer-transfer/#sec-get-arraybuffer.prototype.detached
-JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::detached_getter)
-{
-    // 1. Let O be the this value.
-    // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
-    auto array_buffer_object = TRY(typed_this_value(vm));
-
-    // 3. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
-    if (array_buffer_object->is_shared_array_buffer())
-        return vm.throw_completion<TypeError>(ErrorType::SharedArrayBuffer);
-
-    // 4. Return IsDetachedBuffer(O).
-    return Value(array_buffer_object->is_detached());
-}
-
-// 25.1.5.5 ArrayBuffer.prototype.transfer ( [ newLength ] ), https://tc39.es/proposal-arraybuffer-transfer/#sec-arraybuffer.prototype.transfer
+// 25.1.6.8 ArrayBuffer.prototype.transfer ( [ newLength ] ), https://tc39.es/ecma262/#sec-arraybuffer.prototype.transfer
 JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::transfer)
 {
     // 1. Let O be the this value.
     auto array_buffer_object = TRY(typed_this_value(vm));
 
-    // 2. Return ? ArrayBufferCopyAndDetach(O, newLength, preserve-resizability).
+    // 2. Return ? ArrayBufferCopyAndDetach(O, newLength, PRESERVE-RESIZABILITY).
     auto new_length = vm.argument(0);
     return TRY(array_buffer_copy_and_detach(vm, array_buffer_object, new_length, PreserveResizability::PreserveResizability));
 }
 
-// 25.1.5.6 ArrayBuffer.prototype.transferToFixedLength ( [ newLength ] ), https://tc39.es/proposal-arraybuffer-transfer/#sec-arraybuffer.prototype.transfertofixedlength
+// 25.1.6.9 ArrayBuffer.prototype.transferToFixedLength ( [ newLength ] ), https://tc39.es/ecma262/#sec-arraybuffer.prototype.transfertofixedlength
 JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::transfer_to_fixed_length)
 {
     // 1. Let O be the this value.
     auto array_buffer_object = TRY(typed_this_value(vm));
 
-    // 2. Return ? ArrayBufferCopyAndDetach(O, newLength, fixed-length).
+    // 2. Return ? ArrayBufferCopyAndDetach(O, newLength, FIXED-LENGTH).
     auto new_length = vm.argument(0);
     return TRY(array_buffer_copy_and_detach(vm, array_buffer_object, new_length, PreserveResizability::FixedLength));
 }
