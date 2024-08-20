@@ -119,6 +119,7 @@ struct PushStackingContext {
     Gfx::IntPoint post_transform_translation;
     StackingContextTransform transform;
     Optional<StackingContextMask> mask = {};
+    Optional<Gfx::Path> clip_path = {};
 
     void translate_by(Gfx::IntPoint const& offset)
     {

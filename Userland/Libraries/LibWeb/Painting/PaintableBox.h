@@ -31,8 +31,8 @@ public:
     virtual void paint(PaintContext&, PaintPhase) const override;
 
     virtual Optional<CSSPixelRect> get_masking_area() const;
-    virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const;
-    virtual RefPtr<Gfx::Bitmap> calculate_mask(PaintContext&, CSSPixelRect const&) const;
+    virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const { return {}; }
+    virtual RefPtr<Gfx::Bitmap> calculate_mask(PaintContext&, CSSPixelRect const&) const { return {}; }
 
     Layout::Box& layout_box() { return static_cast<Layout::Box&>(Paintable::layout_node()); }
     Layout::Box const& layout_box() const { return static_cast<Layout::Box const&>(Paintable::layout_node()); }
