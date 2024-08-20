@@ -49,6 +49,8 @@ public:
     void set_effect_allowed(FlyString);
     void set_effect_allowed_internal(FlyString);
 
+    JS::NonnullGCPtr<DataTransferItemList> items();
+
     ReadonlySpan<String> types() const;
     String get_data(String const& format) const;
     JS::NonnullGCPtr<FileAPI::FileList> files() const;
@@ -60,6 +62,7 @@ private:
     DataTransfer(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(JS::Cell::Visitor&) override;
 
     void update_data_transfer_types_list();
 
@@ -68,6 +71,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-effectallowed
     FlyString m_effect_allowed { DataTransferEffect::none };
+
+    // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-items
+    JS::GCPtr<DataTransferItemList> m_items;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
     Vector<String> m_types;

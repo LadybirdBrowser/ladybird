@@ -17,12 +17,16 @@ class DataTransferItemList : public Bindings::PlatformObject {
     JS_DECLARE_ALLOCATOR(DataTransferItemList);
 
 public:
+    static JS::NonnullGCPtr<DataTransferItemList> create(JS::Realm&, JS::NonnullGCPtr<DataTransfer>);
     virtual ~DataTransferItemList() override;
 
 private:
-    DataTransferItemList(JS::Realm&);
+    DataTransferItemList(JS::Realm&, JS::NonnullGCPtr<DataTransfer>);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(JS::Cell::Visitor&) override;
+
+    JS::NonnullGCPtr<DataTransfer> m_data_transfer;
 };
 
 }
