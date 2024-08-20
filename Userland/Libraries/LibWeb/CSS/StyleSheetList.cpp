@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -107,9 +107,9 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
         return;
     }
 
-    m_document->style_computer().invalidate_rule_cache();
-    m_document->style_computer().load_fonts_from_sheet(sheet);
-    m_document->invalidate_style();
+    document().style_computer().invalidate_rule_cache();
+    document().style_computer().load_fonts_from_sheet(sheet);
+    document_or_shadow_root().invalidate_style();
 }
 
 void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
@@ -123,19 +123,19 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
         return;
     }
 
-    m_document->style_computer().invalidate_rule_cache();
-    m_document->invalidate_style();
+    m_document_or_shadow_root->document().style_computer().invalidate_rule_cache();
+    document_or_shadow_root().invalidate_style();
 }
 
-JS::NonnullGCPtr<StyleSheetList> StyleSheetList::create(DOM::Document& document)
+JS::NonnullGCPtr<StyleSheetList> StyleSheetList::create(JS::NonnullGCPtr<DOM::Node> document_or_shadow_root)
 {
-    auto& realm = document.realm();
-    return realm.heap().allocate<StyleSheetList>(realm, document);
+    auto& realm = document_or_shadow_root->realm();
+    return realm.heap().allocate<StyleSheetList>(realm, document_or_shadow_root);
 }
 
-StyleSheetList::StyleSheetList(DOM::Document& document)
-    : Bindings::PlatformObject(document.realm())
-    , m_document(document)
+StyleSheetList::StyleSheetList(JS::NonnullGCPtr<DOM::Node> document_or_shadow_root)
+    : Bindings::PlatformObject(document_or_shadow_root->realm())
+    , m_document_or_shadow_root(document_or_shadow_root)
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
 }
@@ -149,7 +149,7 @@ void StyleSheetList::initialize(JS::Realm& realm)
 void StyleSheetList::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_document);
+    visitor.visit(m_document_or_shadow_root);
     visitor.visit(m_sheets);
 }
 
@@ -159,6 +159,16 @@ Optional<JS::Value> StyleSheetList::item_value(size_t index) const
         return {};
 
     return m_sheets[index].ptr();
+}
+
+DOM::Document& StyleSheetList::document()
+{
+    return m_document_or_shadow_root->document();
+}
+
+DOM::Document const& StyleSheetList::document() const
+{
+    return m_document_or_shadow_root->document();
 }
 
 }

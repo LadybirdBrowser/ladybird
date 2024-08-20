@@ -122,7 +122,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(StringView html)
 CSS::StyleSheetList& ShadowRoot::style_sheets()
 {
     if (!m_style_sheets)
-        m_style_sheets = CSS::StyleSheetList::create(document());
+        m_style_sheets = CSS::StyleSheetList::create(*this);
     return *m_style_sheets;
 }
 
