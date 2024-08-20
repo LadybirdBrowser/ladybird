@@ -183,10 +183,14 @@ bool is_valid_time_string(StringView value)
         return false;
     if (parts[0].length() != 2)
         return false;
+    if (!(is_ascii_digit(parts[0][0]) && is_ascii_digit(parts[0][1])))
+        return false;
     auto hour = (parse_ascii_digit(parts[0][0]) * 10) + parse_ascii_digit(parts[0][1]);
     if (hour > 23)
         return false;
     if (parts[1].length() != 2)
+        return false;
+    if (!(is_ascii_digit(parts[1][0]) && is_ascii_digit(parts[1][1])))
         return false;
     auto minute = (parse_ascii_digit(parts[1][0]) * 10) + parse_ascii_digit(parts[1][1]);
     if (minute > 59)
@@ -195,6 +199,8 @@ bool is_valid_time_string(StringView value)
         return true;
 
     if (parts[2].length() < 2)
+        return false;
+    if (!(is_ascii_digit(parts[2][0]) && is_ascii_digit(parts[2][1])))
         return false;
     auto second = (parse_ascii_digit(parts[2][0]) * 10) + parse_ascii_digit(parts[2][1]);
     if (second > 59)
