@@ -310,10 +310,44 @@ WebIDL::ExceptionOr<String> Location::search() const
     return TRY_OR_THROW_OOM(vm, String::formatted("?{}", url.query()));
 }
 
-WebIDL::ExceptionOr<void> Location::set_search(String const&)
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-search
+WebIDL::ExceptionOr<void> Location::set_search(String const& value)
 {
-    auto& vm = this->vm();
-    return vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Location.search setter");
+    // The search setter steps are:
+    auto const relevant_document = this->relevant_document();
+
+    // 1. If this's relevant Document is null, then return.
+    if (!relevant_document)
+        return {};
+
+    // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
+    if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+
+    // 3. Let copyURL be a copy of this's url.
+    auto copy_url = this->url();
+
+    // 4. If the given value is the empty string, set copyURL's query to null.
+    if (value.is_empty()) {
+        copy_url.set_query({});
+    }
+    // 5. Otherwise, run these substeps:
+    else {
+        // 5.1. Let input be the given value with a single leading "?" removed, if any.
+        auto value_as_string_view = value.bytes_as_string_view();
+        auto input = value_as_string_view.substring_view(value_as_string_view.starts_with('?'));
+
+        // 5.2. Set copyURL's query to the empty string.
+        copy_url.set_query(String {});
+
+        // 5.3. Basic URL parse input, with null, the relevant Document's document's character encoding, copyURL as url, and query state as state override.
+        (void)URL::Parser::basic_parse(input, {}, &copy_url, URL::Parser::State::Query);
+    }
+
+    // 6. Location-object navigate this to copyURL.
+    TRY(navigate(copy_url));
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-hash
