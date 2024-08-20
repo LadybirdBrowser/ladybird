@@ -6,26 +6,27 @@ project:
 1. With [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) (assumes existing setup)
 2. With [coc.nvim](https://github.com/neoclide/coc.nvim) (from scratch, potentially out of date)
 
-For both setups, make sure you ran `./Meta/ladybird.sh run ladybird` at least 
+For both setups, make sure you ran `./Meta/ladybird.sh run ladybird` at least
 once.
 
 ## With nvim-lspconfig
 
-> Note: This guide assumes Lua is being used, but can easily be adapted to 
+> Note: This guide assumes Lua is being used, but can easily be adapted to
 > VimScript.
 
 If you have an [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig), setup
 already, registering clangd is similar to other LSPs:
+
 ```lua
 require('lspconfig').clangd.setup {
-  -- If you have an on_attach function, this is where you'd put it. If not, 
+  -- If you have an on_attach function, this is where you'd put it. If not,
   -- you can delete this line.
   -- on_attach = ...,
 
   -- This is where you'd put capabilities (i.e. if you're useing nvim-cmp)
   -- capabilities = ...,
 
-  -- If you have another clangd installation, put it here. Note that we use 
+  -- If you have another clangd installation, put it here. Note that we use
   -- clangd version 18 for the Ladybird project.
   -- cmd = { '/path/to/clangd' },
 }
@@ -80,7 +81,7 @@ This will install a separate version of clangd just for neovim.
 Use the following settings to ensure that coc-clangd works out of the box.
 
 > **Note**: You might want to adjust the `clangd.fallbackFlags` depending on your build
-system and customize the `inlayHints.sep` based on your preference.
+> system and customize the `inlayHints.sep` based on your preference.
 
 ```json
 {
@@ -96,22 +97,27 @@ To change the coc-settings.json go to the file `~/.config/nvim/coc-settings.json
 or type `:CocConfig` in the command line.
 
 > **Note**: In case you already had another c++ language server configured in the
-`coc-settings.json` you might want to nuke it first and
-work towards your desired config by adding the other parts back in to avoid
-conflicts.
+> `coc-settings.json` you might want to nuke it first and
+> work towards your desired config by adding the other parts back in to avoid
+> conflicts.
 
 > **Note**: If you have configured `clangd` as a languageServer in
-`coc-settings.json`, you should remove it to avoid running clangd twice!
+> `coc-settings.json`, you should remove it to avoid running clangd twice!
 
 > **Note**: `clangd.inlayHints.sep` breaks on `clangd 15.0.6`.
 
 ### Formatting
+
 For code formatting the formatter plugin can be used.
+
 ```vim
 Plug 'mhartington/formatter.nvim'
 ```
+
 #### Configuration
+
 To use the formatter plugin one needs to opt-in to specific formatters. An example lua configuration which uses clang-format for cpp files:
+
 ```lua
 require("formatter").setup{
     filetype = {

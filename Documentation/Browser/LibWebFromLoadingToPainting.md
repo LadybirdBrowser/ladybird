@@ -20,16 +20,16 @@ Due to the `document.write()` API, the parser also allows programmatic injection
 
 ### CSS parsing
 
-* CSS parser
-* Builds the CSSOM
-* Values with variables can't be resolved until cascade, kept as "unresolved" values
+-   CSS parser
+-   Builds the CSSOM
+-   Values with variables can't be resolved until cascade, kept as "unresolved" values
 
 ### JS parsing & execution
 
-* JS parser
-* Builds JavaScript AST
-* Interpreter runs AST
-* Garbage collector (basic stop-the-world mark&sweep)
+-   JS parser
+-   Builds JavaScript AST
+-   Interpreter runs AST
+-   Garbage collector (basic stop-the-world mark & sweep)
 
 ### Style computation
 
@@ -69,10 +69,10 @@ The main optimization is a cache in StyleComputer that divides style rules into 
 
 The C in CSS is for "cascading" and "the cascade" refers to the process where all the CSS declarations that should apply to a DOM element are evaluated in order. The order is determined by a number of factors, such as selector specificity, rule order within the style sheet. There's also per-property consideration of the `!important` annotation, which allows authors to override the normal cascade order.
 
-* To compute the "computed style" for an element...
-* Perform the CSS cascade to determine final property values
-* Interpolate variables
-* Absolutize, etc
+-   To compute the "computed style" for an element...
+-   Perform the CSS cascade to determine final property values
+-   Interpolate variables
+-   Absolutize, etc
 
 We separate CSS rules by their cascade origin. The two origins we're concerned with are "user-agent" and "author". If we supported custom user style sheets (we don't), they'd need a separate cascade origin as well.
 
@@ -95,9 +95,9 @@ There isn't a 1:1 mapping between DOM nodes and layout nodes. Elements with `dis
 
 A number of tree fix-ups are also performed:
 
-- To maintain the invariant that block containers only have all block-level children or all inline-level children, inline-level boxes with block-level siblings are wrapped in anonymous wrapper boxes.
-- If an individual table component box is found outside the context of a full table, a set of anonymous table boxes are generated to compensate and ensure that there's always a fully-formed table. (FIXME: This is currently buggy..)
-- For list item boxes (`display: list-item`), a box representing the marker is inserted if needed.
+-   To maintain the invariant that block containers only have all block-level children or all inline-level children, inline-level boxes with block-level siblings are wrapped in anonymous wrapper boxes.
+-   If an individual table component box is found outside the context of a full table, a set of anonymous table boxes are generated to compensate and ensure that there's always a fully-formed table. (FIXME: This is currently buggy..)
+-   For list item boxes (`display: list-item`), a box representing the marker is inserted if needed.
 
 ### Layout
 
@@ -105,10 +105,11 @@ Layout starts at the ICB (initial containing block), which is the layout node th
 CSS says that the ICB should be the size of the viewport, so the very first thing layout does is assign these dimensions.
 
 Layout works through a mechanism call formatting contexts. CSS defines a number of different formatting contexts:
-- Block Formatting Context (BFC)
-- Inline Formatting Context (IFC)
-- Table Formatting Context (TFC)
-- Flex Formatting Context (FFC)
+
+-   Block Formatting Context (BFC)
+-   Inline Formatting Context (IFC)
+-   Table Formatting Context (TFC)
+-   Flex Formatting Context (FFC)
 
 In LibWeb, to simplify the layout model, we also define our own SVGFormattingContext for embedded SVG content. This isn't part of the SVG specification, but simplifies the implementation.
 
@@ -128,9 +129,9 @@ The job of IFC is to generate line boxes. Line boxes are essentially a sequence 
 
 There are three main classes involved in inline-level layout:
 
-- InlineFormattingContext (IFC)
-- LineBuilder
-- InlineLevelIterator
+-   InlineFormattingContext (IFC)
+-   LineBuilder
+-   InlineLevelIterator
 
 IFC drives the high-level loop by creating a LineBuilder and an InlineLevelIterator. It then traverses the inline-level content within the IFC containing block, one item at a time, by calling InlineLevelIterator::next().
 
@@ -165,5 +166,5 @@ The stacking context tree is rooted at the ICB, and can have zero or more descen
 
 Painting follows the order specified in the CSS2 appendix E. The rules are quite involved, but two main things to know about:
 
-- Painting is driven through stacking contexts, which are painted back-to-front (stacking context tree order)
-- Painting is performed in *phases*. For each stacking context, we paint in order: backgrounds & borders, floats, backgrounds & borders for inline and replaced content, foreground (text), focus outlines and overlays.
+-   Painting is driven through stacking contexts, which are painted back-to-front (stacking context tree order)
+-   Painting is performed in *phases*. For each stacking context, we paint in order: backgrounds & borders, floats, backgrounds & borders for inline and replaced content, foreground (text), focus outlines and overlays.

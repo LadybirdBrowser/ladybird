@@ -19,7 +19,7 @@ sudo apt install autoconf autoconf-archive automake build-essential ccache cmake
 
 #### CMake 3.25 or newer:
 
-- Recommendation: Install `CMake 3.25` or newer from [Kitware's apt repository](https://apt.kitware.com/):
+-   Recommendation: Install `CMake 3.25` or newer from [Kitware's apt repository](https://apt.kitware.com/):
 
 > [!NOTE]
 > This repository is Ubuntu-only
@@ -39,7 +39,7 @@ sudo apt update -y && sudo apt install cmake -y
 
 #### C++23-capable compiler:
 
-- Recommendation: Install `clang-17` or newer from [LLVM's apt repository](https://apt.llvm.org/):
+-   Recommendation: Install `clang-17` or newer from [LLVM's apt repository](https://apt.llvm.org/):
 
 ```bash
 # Add LLVM GPG signing key
@@ -54,7 +54,7 @@ echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm
 sudo apt update -y && sudo apt install clang-18 clangd-18 clang-format-18 clang-tidy-18 lld-18 -y
 ```
 
-- Alternative: Install gcc-13 or newer from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
+-   Alternative: Install gcc-13 or newer from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
 
 ```bash
 sudo add-apt-repository ppa:ubuntu-toolchain-r/test
@@ -63,13 +63,13 @@ sudo apt update && sudo apt install g++-13 libstdc++-13-dev
 
 #### Audio support:
 
-- Recommendation: Install PulseAudio development package:
+-   Recommendation: Install PulseAudio development package:
 
 ```bash
 sudo apt install libpulse-dev
 ```
 
-- Alternative: Install Qt6's multimedia package:
+-   Alternative: Install Qt6's multimedia package:
 
 ```bash
 sudo apt install qt6-multimedia-dev
@@ -82,14 +82,17 @@ sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl f
 ```
 
 ### Fedora or derivatives:
+
 ```
 sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-devel liberation-sans-fonts libglvnd-devel nasm ninja-build qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
+
 ```
 sudo zypper install autoconf-archive automake ccache cmake curl ffmpeg-7-libavcodec-devel gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
+
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
 
 ### NixOS or with Nix:
@@ -97,7 +100,6 @@ The build process requires at least python3.7; openSUSE Leap only features Pytho
 > [!NOTE]
 > These steps are out of date, as vcpkg does not work with Nix.
 > Please refer to the nixpkgs package for the most up-to-date build instructions.
->
 
 ```console
 nix develop
@@ -107,6 +109,7 @@ nix develop --command bash
 ```
 
 On NixOS or with Nix using your host `nixpkgs` and the legacy `nix-shell` tool:
+
 ```console
 nix-shell Ladybird
 
@@ -124,20 +127,22 @@ brew install autoconf autoconf-archive automake ccache cmake ffmpeg nasm ninja p
 ```
 
 If you wish to use clang from homebrew instead:
+
 ```
 brew install llvm
 ```
 
 If you also plan to use the Qt chrome on macOS:
+
 ```
 brew install qt
 ```
 
 ### Windows:
 
-- Create a WSL2 environment using one of the Linux distros listed above. Ubuntu or Fedora is recommended.
+-   Create a WSL2 environment using one of the Linux distros listed above. Ubuntu or Fedora is recommended.
 
-- Install the required packages for the selected Linux distro in the WSL2 environment.
+-   Install the required packages for the selected Linux distro in the WSL2 environment.
 
 WSL1 is known to have issues. If you run into problems, please use WSL2.
 
@@ -154,6 +159,7 @@ pfexec pkg install clang-17 cmake libglvnd ninja qt6
 ```
 
 ### Haiku:
+
 ```
 pkgman install cmake cmd:python3 ninja openal_devel qt6_base_devel qt6_multimedia_devel qt6_tools_devel
 ```
@@ -161,7 +167,7 @@ pkgman install cmake cmd:python3 ninja openal_devel qt6_base_devel qt6_multimedi
 ### Android:
 
 On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](AndroidStudioConfiguration.md).
-Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``Ladybird/Android``
+Or, download a version of Gradle >= 8.0.0, and run the `gradlew` program in `Ladybird/Android`
 
 ## Build steps
 
@@ -175,11 +181,13 @@ The simplest way to build and run ladybird is via the ladybird.sh script:
 ```
 
 On macOS, to build using clang from homebrew:
+
 ```bash
 CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
 ```
 
 You may also choose to start it in `gdb` using:
+
 ```bash
 ./Meta/ladybird.sh gdb ladybird
 ```
@@ -196,9 +204,10 @@ Note that debug symbols are available in both Release and Debug builds.
 ### The chromes
 
 Ladybird will be built with one of the following browser chromes (graphical frontends), depending on the platform:
-* [AppKit](https://developer.apple.com/documentation/appkit?language=objc) - The native chrome on macOS.
-* [Qt](https://doc.qt.io/qt-6/) - The chrome used on all other platforms.
-* [Android UI](https://developer.android.com/develop/ui) - The native chrome on Android.
+
+-   [AppKit](https://developer.apple.com/documentation/appkit?language=objc) - The native chrome on macOS.
+-   [Qt](https://doc.qt.io/qt-6/) - The chrome used on all other platforms.
+-   [Android UI](https://developer.android.com/develop/ui) - The native chrome on Android.
 
 The Qt chrome is available on platforms where it is not the default as well (except on Android). To build the
 Qt chrome, install the Qt dependencies for your platform, and enable the Qt chrome via CMake:
@@ -218,7 +227,7 @@ The section lists out some particular error messages you may run into, and expla
 
 Solution to try: If you do in fact already have Ninja installed, then first try reinstalling Ninja.
 
-Details: If you see the message *“Unable to find a build program corresponding to "Ninja"”*, it’s likely not an indication that the build tooling can’t actually find Ninja, but instead an indication that the tooling found Ninja but it failed to run successfully.
+Details: If you see the message *“Unable to find a build program corresponding to "Ninja"”*, it’s likely not an indication that the build tooling can’t actually find Ninja, but instead an indication that the tooling found Ninja, but it failed to run successfully.
 
 So, when you do run into that error message, the way to start figuring out what’s actually wrong is to try invoking Ninja manually, like this:
 
@@ -243,7 +252,7 @@ The script Meta/ladybird.sh and the default preset in CMakePresets.json both def
 CMake build directory.
 
 The install rules in Ladybird/cmake/InstallRules.cmake define which binaries and libraries will be
-installed into the configured CMAKE_PREFIX_PATH or path passed to ``cmake --install``.
+installed into the configured CMAKE_PREFIX_PATH or path passed to `cmake --install`.
 
 Note that when using a custom build directory rather than Meta/ladybird.sh, the user may need to provide
 a suitable C++ compiler (g++ >= 13, clang >= 14, Apple Clang >= 14.3) via the CMAKE_CXX_COMPILER and
@@ -262,16 +271,19 @@ The Meta/ladybird.sh script will execute the `run-ladybird` and `debug-ladybird`
 If you don't want to use the ladybird.sh script to run the application, you can run the following commands:
 
 To automatically run in gdb:
+
 ```
 ninja -C Build/ladybird debug-ladybird
 ```
 
 To run without ninja rule on non-macOS systems:
+
 ```
 ./Build/ladybird/bin/Ladybird
 ```
 
 To run without ninja rule on macOS:
+
 ```
 open -W --stdout $(tty) --stderr $(tty) ./Build/ladybird/bin/Ladybird.app
 

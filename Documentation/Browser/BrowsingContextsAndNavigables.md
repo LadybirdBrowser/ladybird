@@ -6,9 +6,9 @@
 
 Before we can dive into how LibWeb and Ladybird implement the HTML web page navigation operations,
 we need to dive into some fundamental specification concepts. Starting with, how does code actually
-execute in a  (possibly virtual) machine? Next we'll look at what that means for the ECMAScript
+execute in a (possibly virtual) machine? Next we'll look at what that means for the ECMAScript
 Specification (JavaScript), and finally how the ECMAScript code execution model ties into the
-HTML specification to model how to display web content into a browser tab. 
+HTML specification to model how to display web content into a browser tab.
 
 ### Native Code Execution: A Primer
 
@@ -34,10 +34,10 @@ symbol table contained within the object file format. Normally local variable an
 names and locations are lost in the compile+link steps, but the compiler can be configured to
 emit extra debug information to allow debuggers to access and modify them at runtime. In order
 to support something like the dynamic imports of interpreted languages, the programmer has to
-call a platform-specific function to load the new module (e.g. ``dlopen`` or ``LoadLibrary``).
+call a platform-specific function to load the new module (e.g. `dlopen` or `LoadLibrary`).
 But after the module is opened, in order to actually refer to any exported symbols from that module the
 programmer has to retrieve the address of each symbol through another platform specific function
-(e.g. ``dlsym`` or ``GetProcAddress``), once per symbol.
+(e.g. `dlsym` or `GetProcAddress`), once per symbol.
 
 ### ECMAScript Execution Model: Realms and Agents
 
@@ -47,17 +47,17 @@ The ECMAScript specification has analogs for almost all of these concepts in the
 Working in the other direction from the native code explanation, ECMAScript describes the accessibility
 and scopes of functions, variables, and arguments in terms of [*Environment Records*](https://tc39.es/ecma262/#sec-environment-records).
 Note that these Environment Records are not actually visible to executing code, and are simply a mechanism
-used by the specification authors to model the language.  Every function and module has a type
+used by the specification authors to model the language. Every function and module has a type
 of Environment Record that contains the variables, functions, catch clause bindings, and other
 language constructs that affect which names are visible at any location in the code. These Environment Records
 are nested, in a tree-like structure that somewhat matches the Abstract Syntax Tree (AST).
 
 The root of the tree of Environment Records is the Global Environment Record, which corresponds to the
-Global Object and its properties. In JavaScript, there is always a ``this`` value representing the current
+Global Object and its properties. In JavaScript, there is always a `this` value representing the current
 object context. At global scope, the Global Object normally takes that responsibility. In a REPL, that might
 be some REPL specific global object that has global functions to call for doing things like loading
-from the filesystem, or even be as complex as Node or Bun. In a Browser context, the Global object is
-normally the Window, unless there's a Worker involved. For historical reasons the global ``this`` binding for
+from the file system, or even be as complex as Node or Bun. In a Browser context, the Global object is
+normally the Window, unless there's a Worker involved. For historical reasons the global `this` binding for
 Window contexts is actually a WindowProxy that wraps the Window. This concept is quite different from a native
 executable, where there's no actual object representing the global scope, simply symbols that the
 linker and loader make available to each module.
@@ -94,7 +94,7 @@ However, the HTML specification opts to remove the default execution context fro
 at creation, and instead manually pushes and pops execution contexts for script, module, and callback execution.
 The relationship between Realms and Agents is not 1-1, but N-1. In the ECMAScript specification, this manifests
 as a part of the [*Shadow Realm proposal*](https://tc39.es/proposal-shadowrealm/), while the Web platform
-requires multiple Realms per Agent to specify the historical behavior of ``<iframe>`` and related elements.
+requires multiple Realms per Agent to specify the historical behavior of `<iframe>` and related elements.
 
 An Agent holds a stack of Execution Contexts, with the topmost entry being the running execution context.
 Each Execution Context holds a Realm and a specific script's context, including the current function and
@@ -140,17 +140,15 @@ TODO: Finish this section
 
 ## HTML Navigation: Juggling Origins
 
-
-
 ### Global Scopes, Browsing Contexts, Browsing Context Groups, Navigables, and Traversable Navigables
 
 TODO:
 
-- Agents defined by the HTML Spec
-- Global Objects (Global Scopes) defined by the HTML Spec
-- Agents and Browsing Context Groups
-- Navigables and their relationship to Browsing Contexts
-- Walk through construction of a browser tab, its traversable navigable, and its navigation both same and
-  cross-origin
-- Walk through construction of a browser tab with a nested browsing context and what happens when the
-  nested context within its navigable container navigates on its own
+-   Agents defined by the HTML Spec
+-   Global Objects (Global Scopes) defined by the HTML Spec
+-   Agents and Browsing Context Groups
+-   Navigables and their relationship to Browsing Contexts
+-   Walk through construction of a browser tab, its traversable navigable, and its navigation both same and
+    cross-origin
+-   Walk through construction of a browser tab with a nested browsing context and what happens when the
+    nested context within its navigable container navigates on its own

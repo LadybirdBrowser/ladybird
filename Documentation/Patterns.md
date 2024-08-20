@@ -4,17 +4,17 @@
 
 Over time numerous reoccurring patterns have emerged from or were adopted by
 the Ladybird code base. This document aims to track and describe them, so they
-can be propagated further and the code base can be kept consistent. 
+can be propagated further and the code base can be kept consistent.
 
 ## `TRY(...)` Error Handling
 
 The `TRY(..)` macro is used for error propagation in the Ladybird code base.
-The goal being to reduce the amount of boiler plate error code required to
-properly handle and propagate errors throughout the code base. 
+The goal being to reduce the amount of boilerplate error code required to
+properly handle and propagate errors throughout the code base.
 
 Any code surrounded by `TRY(..)` will attempt to be executed, and any error
 will immediately be returned from the function. If no error occurs then the
-result of the contents of the TRY will be the result of the macro's execution. 
+result of the contents of the TRY will be the result of the macro's execution.
 
 ### Examples:
 
@@ -144,7 +144,7 @@ Instead, `serenity_main(..)` is defined like this:
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
-    return 0; 
+    return 0;
 }
 ```
 
@@ -171,7 +171,7 @@ It's a universal pattern to use `static_assert` to validate the size of a
 type matches the author's expectations. Unfortunately when these assertions
 fail they don't give you the values that actually caused the failure. This
 forces one to go investigate by printing out the size, or checking it in a
-debugger, etc. 
+debugger, etc.
 
 For this reason `AK::AssertSize` was added. It exploits the fact that the
 compiler will emit template argument values for compiler errors to provide
@@ -201,10 +201,11 @@ static_assert(AssertSize<Empty, 1>());
 ```
 
 This allows `AK::StringView` to be constructed from string literals with no runtime
-cost to find the string length, and the data the `AK::StringView` points to will 
+cost to find the string length, and the data the `AK::StringView` points to will
 reside in the data section of the binary.
 
 Example Usage:
+
 ```cpp
 #include <AK/String.h>
 #include <AK/StringView.h>
@@ -223,7 +224,7 @@ TEST_CASE(string_view_literal_operator)
 ## Source Location
 
 C++20 added std::source_location, which lets you capture the
-callers __FILE__ / __LINE__ / __FUNCTION__ etc as a default
+callers `__FILE__` / `__LINE__` / `__FUNCTION__` etc. as a default
 argument to functions.
 See: https://en.cppreference.com/w/cpp/utility/source_location
 
@@ -237,6 +238,7 @@ to any function, using `AK::SourceLocation::current()` to initialize the
 default argument.
 
 Example Usage:
+
 ```cpp
 #include <AK/SourceLocation.h>
 #include <AK/StringView.h>
@@ -253,7 +255,7 @@ int main(int, char**)
 ```
 
 If you only want to only capture `AK::SourceLocation` data with a certain debug macro enabled, avoid
-adding `#ifdef`'s to all functions which have the  `AK::SourceLocation` argument. Since SourceLocation
+adding `#ifdef`'s to all functions which have the `AK::SourceLocation` argument. Since SourceLocation
 is just a simple struct, you can just declare an empty class which can be optimized away by the
 compiler, and alias both to the same name.
 
@@ -281,9 +283,9 @@ private:
 
 There are four "contiguous list" / array-like types, including C-style arrays themselves. They share a lot of their API, but their use cases are all slightly different, mostly relating to how they allocate their data.
 
-Note that `Span<type>` differs from all of these types in that it provides a *view* on data owned by somebody else. The four types mentioned above all own their data, but they can provide `Span`'s which view all or part of their data. For APIs that aren't specific to the kind of list and don't need to handle resizing in any way, `Span` is a good choice.
+Note that `Span<type>` differs from all of these types in that it provides a _view_ on data owned by somebody else. The four types mentioned above all own their data, but they can provide `Span`'s which view all or part of their data. For APIs that aren't specific to the kind of list and don't need to handle resizing in any way, `Span` is a good choice.
 
-* C-style arrays are generally discouraged (and this also holds for pointer+size-style arrays when passing them around). They are only used for the implementation of other collections or in specific circumstances.
-* `Array` is a thin wrapper around C-style arrays similar to `std::array`, where the template arguments include the size of the array. It allocates its data inline, just as arrays do, and never does any dynamic allocations.
-* `Vector` is similar to `std::vector` and represents a dynamic resizable array. For most basic use cases of lists, this is the go-to collection. It has an optional inline capacity (the second template argument) which will allocate inline as the name suggests, but this is not always used. If the contents outgrow the inline capacity, Vector will automatically switch to the standard out-of-line storage. This is allocated on the heap, and the space is automatically resized and moved when more (or less) space is needed.
-* `FixedArray` is essentially a runtime-sized `Array`. It can't resize like `Vector`, but it's ideal for circumstances where the size is not known at compile time but doesn't need to change once the collection is initialized. `FixedArray` guarantees to not allocate or deallocate except for its constructor and destructor.
+-   C-style arrays are generally discouraged (and this also holds for pointer+size-style arrays when passing them around). They are only used for the implementation of other collections or in specific circumstances.
+-   `Array` is a thin wrapper around C-style arrays similar to `std::array`, where the template arguments include the size of the array. It allocates its data inline, just as arrays do, and never does any dynamic allocations.
+-   `Vector` is similar to `std::vector` and represents a dynamic resizable array. For most basic use cases of lists, this is the go-to collection. It has an optional inline capacity (the second template argument) which will allocate inline as the name suggests, but this is not always used. If the contents outgrow the inline capacity, Vector will automatically switch to the standard out-of-line storage. This is allocated on the heap, and the space is automatically resized and moved when more (or less) space is needed.
+-   `FixedArray` is essentially a runtime-sized `Array`. It can't resize like `Vector`, but it's ideal for circumstances where the size is not known at compile time but doesn't need to change once the collection is initialized. `FixedArray` guarantees to not allocate or deallocate except for its constructor and destructor.

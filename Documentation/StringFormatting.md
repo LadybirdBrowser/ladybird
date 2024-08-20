@@ -1,7 +1,6 @@
 # String Formatting
 
-Many places in Ladybird allow you to format strings, similar to `printf()`, for example `ByteString::formatted()`
-, `StringBuilder::appendff()`, or `dbgln()`. These are checked at compile time to ensure the format string matches the
+Many places in Ladybird allow you to format strings, similar to `printf()`, for example `ByteString::formatted()`, `StringBuilder::appendff()`, or `dbgln()`. These are checked at compile time to ensure the format string matches the
 number of parameters. The syntax is largely based on
 the [C++ `std::formatter` syntax](https://en.cppreference.com/w/cpp/utility/format/formatter#Standard_format_specification)
 but there are some differences.
@@ -37,13 +36,13 @@ ByteString::formatted("{0:.4}", "cool dude") == "cool";
 
 In order, the format can contain:
 
-- Fill character and alignment
-- Sign
-- `#` Hash
-- `0` Zero
-- Width
-- Precision
-- Type specifier
+-   Fill character and alignment
+-   Sign
+-   `#` Hash
+-   `0` Zero
+-   Width
+-   Precision
+-   Type specifier
 
 Each of these is optional. You can include any combination of them, but they must be in this order.
 
@@ -55,15 +54,15 @@ space. (` `)
 
 The alignment characters are:
 
-- `<`: Align left.
-- `>`: Align right.
-- `^`: Align centered.
+-   `<`: Align left.
+-   `>`: Align right.
+-   `^`: Align centered.
 
 ### Sign
 
-- `+`: Always display a sign before the number.
-- `-`: Display a sign for negative numbers only.
-- (space): Display a sign for negative numbers, and a leading space for other numbers.
+-   `+`: Always display a sign before the number.
+-   `-`: Display a sign for negative numbers only.
+-   (space): Display a sign for negative numbers, and a leading space for other numbers.
 
 ### Hash
 
@@ -71,9 +70,9 @@ The alignment characters are:
 
 For integer types, this adds the number-base prefix after the sign:
 
-- `0b` for binary.
-- `0` for octal.
-- `0x` for hexadecimal.
+-   `0b` for binary.
+-   `0` for octal.
+-   `0x` for hexadecimal.
 
 ### Zero
 
@@ -90,7 +89,7 @@ allows you to use an integer argument instead of a hard-coded number.
 ### Type specifiers
 
 | Type      | Effect                | Example output           |
-|-----------|-----------------------|--------------------------|
+|-----------| --------------------- | ------------------------ |
 | *nothing* | default format        | Anything! :^)            |
 | b         | binary                | `110`, `0b000110`        |
 | B         | binary uppercase      | `110`, `0B000110`        |

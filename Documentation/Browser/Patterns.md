@@ -14,7 +14,7 @@ If necessary, code can also be grouped into sub-subdirectories (for example `HTM
 
 Sometimes a spec document affects several areas of the web platform. An example of this is CSSOM,
 which of course contains features belonging in `LibWeb/CSS/` / `Web::CSS`, but at the same time
-implements additions to `Window` from the HTML spec. Use best judgement in those cases.
+implements additions to `Window` from the HTML spec. Use your best judgement in those cases.
 
 ## Error Handling
 
@@ -138,7 +138,7 @@ namespace, e.g. `Fetch::Request` vs `Fetch::Infrastructure::Request`.
 ### File placement
 
 The `.cpp`, `.h`, and `.idl` files for a given interface should all be in the same directory, unless
-the implementation is hand-written when it cannot be generated from IDL. In those cases, no IDL file
+the implementation is handwritten when it cannot be generated from IDL. In those cases, no IDL file
 is present and code should be placed in `Bindings/`.
 
 ## Testing

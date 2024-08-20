@@ -2,7 +2,7 @@
 
 To reproduce a CI failure, see the section on [Running with Sanitizers](#running-with-sanitizers).
 
-The simplest way to run tests locally is to use the `default` preset from ``CMakePresets.json``:
+The simplest way to run tests locally is to use the `default` preset from `CMakePresets.json`:
 
 ```sh
 cmake --preset default
@@ -70,10 +70,10 @@ CTEST_OUTPUT_ON_FAILURE=1 LADYBIRD_SOURCE_DIR=${PWD}/../.. ninja test
 
 # Running the Web Platform Tests
 
-The Web Platform Tests can be run with the `WPT.sh` script. This script can also be used to compare the results of two 
+The Web Platform Tests can be run with the `WPT.sh` script. This script can also be used to compare the results of two
 test runs.
 
-Enabling the Qt chrome is recommended when running the Web Platform Tests on MacOS. This can be done by running the 
+Enabling the Qt chrome is recommended when running the Web Platform Tests on macOS. This can be done by running the
 following command:
 
 ```sh
@@ -93,5 +93,5 @@ git checkout my-css-change
 # Pull the latest changes from the upstream WPT repository
 ./Meta/WPT.sh update
 # Run all of the Web Platform Tests, outputting the results to results.log
-./Meta/WPT.sh run --log results.log 
+./Meta/WPT.sh run --log results.log
 ```
