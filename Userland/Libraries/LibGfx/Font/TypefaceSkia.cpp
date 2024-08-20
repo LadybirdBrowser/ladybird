@@ -12,7 +12,11 @@
 #include <core/SkData.h>
 #include <core/SkFontMgr.h>
 #include <core/SkTypeface.h>
-#include <ports/SkFontMgr_fontconfig.h>
+#ifndef AK_OS_ANDROID
+#    include <ports/SkFontMgr_fontconfig.h>
+#else
+#    include <ports/SkFontMgr_android.h>
+#endif
 
 #ifdef AK_OS_MACOS
 #    include <ports/SkFontMgr_mac_ct.h>
@@ -29,8 +33,12 @@ RefPtr<SkTypeface> const& Typeface::skia_typeface() const
         if (!Gfx::FontDatabase::the().should_force_fontconfig())
             s_font_manager = SkFontMgr_New_CoreText(nullptr);
 #endif
+#ifndef AK_OS_ANDROID
         if (!s_font_manager)
             s_font_manager = SkFontMgr_New_FontConfig(nullptr);
+#else
+        s_font_manager = SkFontMgr_New_Android(nullptr);
+#endif
     }
 
     if (!m_skia_typeface) {
