@@ -46,12 +46,17 @@ runs:
         python3 -m pip install --upgrade pip
         pip3 install requests six
 
+    - name: 'Switch to latest Xcode beta'
+      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest
+
     - name: 'Install Dependencies'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       shell: bash
       run: |
         set -e
-        sudo xcode-select --switch /Applications/Xcode_16_beta_5.app
         brew update
         brew install autoconf autoconf-archive automake bash ccache coreutils ffmpeg llvm@18 nasm ninja qt unzip wabt pyyaml
 
