@@ -830,6 +830,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto column_count = computed_style.property(CSS::PropertyID::ColumnCount); column_count->is_integer())
         computed_values.set_column_count(CSS::ColumnCount::make_integer(column_count->as_integer().integer()));
 
+    computed_values.set_column_width(computed_style.size_value(CSS::PropertyID::ColumnWidth));
+
     computed_values.set_column_gap(computed_style.size_value(CSS::PropertyID::ColumnGap));
     computed_values.set_row_gap(computed_style.size_value(CSS::PropertyID::RowGap));
 
