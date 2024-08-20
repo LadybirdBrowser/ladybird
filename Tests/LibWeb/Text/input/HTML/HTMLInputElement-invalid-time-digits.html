@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const inputElement = document.createElement("input");
+        inputElement.type = "time";
+        inputElement.value = "invalid";
+        inputElement.value = "xx:34:56";
+        inputElement.value = "12:xx:56";
+        inputElement.value = "12:34:xx";
+        println("PASS (didn't crash)");
+    });
+</script>
