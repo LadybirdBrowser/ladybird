@@ -83,7 +83,7 @@ public:
 
     void detach_buffer() { m_data_block.byte_buffer = Empty {}; }
 
-    // 25.1.3.3 IsDetachedBuffer ( arrayBuffer ), https://tc39.es/ecma262/#sec-isdetachedbuffer
+    // 25.1.3.4 IsDetachedBuffer ( arrayBuffer ), https://tc39.es/ecma262/#sec-isdetachedbuffer
     bool is_detached() const
     {
         // 1. If arrayBuffer.[[ArrayBufferData]] is null, return true.
@@ -93,7 +93,7 @@ public:
         return false;
     }
 
-    // 25.1.3.8 IsFixedLengthArrayBuffer ( arrayBuffer ), https://tc39.es/ecma262/#sec-isfixedlengtharraybuffer
+    // 25.1.3.9 IsFixedLengthArrayBuffer ( arrayBuffer ), https://tc39.es/ecma262/#sec-isfixedlengtharraybuffer
     bool is_fixed_length() const
     {
         // 1. If arrayBuffer has an [[ArrayBufferMaxByteLength]] internal slot, return false.
@@ -148,10 +148,10 @@ private:
 ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size);
 void copy_data_block_bytes(ByteBuffer& to_block, u64 to_index, ByteBuffer const& from_block, u64 from_index, u64 count);
 ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM&, FunctionObject& constructor, size_t byte_length, Optional<size_t> const& max_byte_length = {});
+ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM&, ArrayBuffer& array_buffer, Value new_length, PreserveResizability preserve_resizability);
 ThrowCompletionOr<void> detach_array_buffer(VM&, ArrayBuffer& array_buffer, Optional<Value> key = {});
 ThrowCompletionOr<Optional<size_t>> get_array_buffer_max_byte_length_option(VM&, Value options);
 ThrowCompletionOr<ArrayBuffer*> clone_array_buffer(VM&, ArrayBuffer& source_buffer, size_t source_byte_offset, size_t source_length);
-ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM&, ArrayBuffer& array_buffer, Value new_length, PreserveResizability preserve_resizability);
 ThrowCompletionOr<NonnullGCPtr<ArrayBuffer>> allocate_shared_array_buffer(VM&, FunctionObject& constructor, size_t byte_length);
 
 // 25.1.3.2 ArrayBufferByteLength ( arrayBuffer, order ), https://tc39.es/ecma262/#sec-arraybufferbytelength
@@ -170,7 +170,7 @@ inline size_t array_buffer_byte_length(ArrayBuffer const& array_buffer, ArrayBuf
     return array_buffer.byte_length();
 }
 
-// 25.1.3.13 RawBytesToNumeric ( type, rawBytes, isLittleEndian ), https://tc39.es/ecma262/#sec-rawbytestonumeric
+// 25.1.3.14 RawBytesToNumeric ( type, rawBytes, isLittleEndian ), https://tc39.es/ecma262/#sec-rawbytestonumeric
 template<typename T>
 static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian)
 {
@@ -242,7 +242,7 @@ static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian
     }
 }
 
-// 25.1.3.15 GetValueFromBuffer ( arrayBuffer, byteIndex, type, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-getvaluefrombuffer
+// 25.1.3.16 GetValueFromBuffer ( arrayBuffer, byteIndex, type, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-getvaluefrombuffer
 template<typename T>
 Value ArrayBuffer::get_value(size_t byte_index, [[maybe_unused]] bool is_typed_array, Order, bool is_little_endian)
 {
@@ -288,7 +288,7 @@ Value ArrayBuffer::get_value(size_t byte_index, [[maybe_unused]] bool is_typed_a
     return raw_bytes_to_numeric<T>(vm, raw_value, is_little_endian);
 }
 
-// 25.1.3.16 NumericToRawBytes ( type, value, isLittleEndian ), https://tc39.es/ecma262/#sec-numerictorawbytes
+// 25.1.3.17 NumericToRawBytes ( type, value, isLittleEndian ), https://tc39.es/ecma262/#sec-numerictorawbytes
 template<typename T>
 static void numeric_to_raw_bytes(VM& vm, Value value, bool is_little_endian, Bytes raw_bytes)
 {
@@ -353,7 +353,7 @@ static void numeric_to_raw_bytes(VM& vm, Value value, bool is_little_endian, Byt
     }
 }
 
-// 25.1.3.17 SetValueInBuffer ( arrayBuffer, byteIndex, type, value, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-setvalueinbuffer
+// 25.1.3.18 SetValueInBuffer ( arrayBuffer, byteIndex, type, value, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-setvalueinbuffer
 template<typename T>
 void ArrayBuffer::set_value(size_t byte_index, Value value, [[maybe_unused]] bool is_typed_array, Order, bool is_little_endian)
 {
@@ -399,7 +399,7 @@ void ArrayBuffer::set_value(size_t byte_index, Value value, [[maybe_unused]] boo
     // 10. Return unused.
 }
 
-// 25.1.3.18 GetModifySetValueInBuffer ( arrayBuffer, byteIndex, type, value, op [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-getmodifysetvalueinbuffer
+// 25.1.3.19 GetModifySetValueInBuffer ( arrayBuffer, byteIndex, type, value, op [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-getmodifysetvalueinbuffer
 template<typename T>
 Value ArrayBuffer::get_modify_set_value(size_t byte_index, Value value, ReadWriteModifyFunction operation, bool is_little_endian)
 {

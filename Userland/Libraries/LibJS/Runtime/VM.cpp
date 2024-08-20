@@ -146,7 +146,7 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
         //       call HostEnsureCanAddPrivateElement when needed.
     };
 
-    // 25.1.3.7 HostResizeArrayBuffer ( buffer, newByteLength ), https://tc39.es/ecma262/#sec-hostresizearraybuffer
+    // 25.1.3.8 HostResizeArrayBuffer ( buffer, newByteLength ), https://tc39.es/ecma262/#sec-hostresizearraybuffer
     host_resize_array_buffer = [this](ArrayBuffer& buffer, size_t new_byte_length) -> ThrowCompletionOr<HandledByHost> {
         // The host-defined abstract operation HostResizeArrayBuffer takes arguments buffer (an ArrayBuffer) and
         // newByteLength (a non-negative integer) and returns either a normal completion containing either handled or

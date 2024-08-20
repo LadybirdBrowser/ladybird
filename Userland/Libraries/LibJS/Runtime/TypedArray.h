@@ -54,15 +54,15 @@ public:
     u32 element_size() const { return m_element_size; }
     virtual DeprecatedFlyString const& element_name() const = 0;
 
-    // 25.1.3.10 IsUnclampedIntegerElementType ( type ), https://tc39.es/ecma262/#sec-isunclampedintegerelementtype
+    // 25.1.3.11 IsUnclampedIntegerElementType ( type ), https://tc39.es/ecma262/#sec-isunclampedintegerelementtype
     virtual bool is_unclamped_integer_element_type() const = 0;
-    // 25.1.3.11 IsBigIntElementType ( type ), https://tc39.es/ecma262/#sec-isbigintelementtype
+    // 25.1.3.12 IsBigIntElementType ( type ), https://tc39.es/ecma262/#sec-isbigintelementtype
     virtual bool is_bigint_element_type() const = 0;
-    // 25.1.3.15 GetValueFromBuffer ( arrayBuffer, byteIndex, type, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-getvaluefrombuffer
+    // 25.1.3.16 GetValueFromBuffer ( arrayBuffer, byteIndex, type, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-getvaluefrombuffer
     virtual Value get_value_from_buffer(size_t byte_index, ArrayBuffer::Order, bool is_little_endian = true) const = 0;
-    // 25.1.3.17 SetValueInBuffer ( arrayBuffer, byteIndex, type, value, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-setvalueinbuffer
+    // 25.1.3.18 SetValueInBuffer ( arrayBuffer, byteIndex, type, value, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-setvalueinbuffer
     virtual void set_value_in_buffer(size_t byte_index, Value, ArrayBuffer::Order, bool is_little_endian = true) = 0;
-    // 25.1.3.18 GetModifySetValueInBuffer ( arrayBuffer, byteIndex, type, value, op ), https://tc39.es/ecma262/#sec-getmodifysetvalueinbuffer
+    // 25.1.3.19 GetModifySetValueInBuffer ( arrayBuffer, byteIndex, type, value, op ), https://tc39.es/ecma262/#sec-getmodifysetvalueinbuffer
     virtual Value get_modify_set_value_in_buffer(size_t byte_index, Value value, ReadWriteModifyFunction operation, bool is_little_endian = true) = 0;
 
 protected:
