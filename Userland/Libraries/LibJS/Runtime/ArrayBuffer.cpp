@@ -231,7 +231,7 @@ ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM& vm, ArrayBuffer
     copy_data_block_bytes(new_buffer->buffer(), 0, array_buffer.buffer(), 0, copy_length);
 
     // 15. Perform ! DetachArrayBuffer(arrayBuffer).
-    TRY(detach_array_buffer(vm, array_buffer));
+    MUST(detach_array_buffer(vm, array_buffer));
 
     // 16. Return newBuffer.
     return new_buffer;
