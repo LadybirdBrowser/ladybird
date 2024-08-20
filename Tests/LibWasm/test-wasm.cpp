@@ -325,6 +325,8 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
 
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
 {
+    vm.heap().set_should_collect_on_every_allocation(true);
+
     auto address = static_cast<unsigned long>(TRY(vm.argument(0).to_double(vm)));
     Wasm::FunctionAddress function_address { address };
     auto function_instance = WebAssemblyModule::machine().store().get(function_address);
