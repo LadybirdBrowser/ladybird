@@ -1523,6 +1523,8 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     auto* provider = CGDataProviderCreateWithData(nil, bitmap.scanline_u8(0), bitmap.size_in_bytes(), nil);
     auto image_rect = CGRectMake(rect.origin.x * device_pixel_ratio, rect.origin.y * device_pixel_ratio, bitmap_size.width(), bitmap_size.height());
 
+    static auto color_space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+
     // Ideally, this would be NSBitmapImageRep, but the equivalent factory initWithBitmapDataPlanes: does
     // not seem to actually respect endianness. We need NSBitmapFormatThirtyTwoBitLittleEndian, but the
     // resulting image is always big endian. CGImageCreate actually does respect the endianness.
@@ -1532,7 +1534,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         BITS_PER_COMPONENT,
         BITS_PER_PIXEL,
         bitmap.pitch(),
-        CGColorSpaceCreateDeviceRGB(),
+        color_space,
         kCGBitmapByteOrder32Little | kCGImageAlphaFirst,
         provider,
         nil,
