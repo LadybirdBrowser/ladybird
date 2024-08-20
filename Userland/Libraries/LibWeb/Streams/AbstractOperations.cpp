@@ -5168,7 +5168,7 @@ JS::NonnullGCPtr<WebIDL::Promise> transform_stream_default_source_cancel_algorit
     WebIDL::react_to_promise(
         *cancel_promise,
         // 1. If cancelPromise was fulfilled, then:
-        JS::create_heap_function(realm.heap(), [&realm, writable, controller, &stream](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        JS::create_heap_function(realm.heap(), [&realm, writable, controller, &stream, reason](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. If writable.[[state]] is "errored", reject controller.[[finishPromise]] with writable.[[storedError]].
             if (writable->state() == WritableStream::State::Errored) {
                 WebIDL::reject_promise(realm, *controller->finish_promise(), writable->stored_error());
