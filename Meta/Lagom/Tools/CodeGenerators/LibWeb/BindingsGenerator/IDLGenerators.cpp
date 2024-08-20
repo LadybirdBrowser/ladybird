@@ -4178,9 +4178,9 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     generator.append(R"~~~(
     // FIXME: This is a total hack until we can figure out the namespace for a given type somehow.
     using namespace Web::Animations;
+    using namespace Web::Crypto;
     using namespace Web::CSS;
     using namespace Web::DOM;
-    using namespace Web::Crypto;
     using namespace Web::DOMParsing;
     using namespace Web::DOMURL;
     using namespace Web::Encoding;
@@ -4192,21 +4192,21 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     using namespace Web::IndexedDB;
     using namespace Web::Internals;
     using namespace Web::IntersectionObserver;
+    using namespace Web::NavigationTiming;
+    using namespace Web::PerformanceTimeline;
     using namespace Web::RequestIdleCallback;
     using namespace Web::ResizeObserver;
     using namespace Web::Selection;
-    using namespace Web::NavigationTiming;
-    using namespace Web::PerformanceTimeline;
-    using namespace Web::UserTiming;
     using namespace Web::StorageAPI;
     using namespace Web::Streams;
     using namespace Web::SVG;
     using namespace Web::UIEvents;
-    using namespace Web::XHR;
+    using namespace Web::UserTiming;
     using namespace Web::WebAssembly;
     using namespace Web::WebAudio;
     using namespace Web::WebGL;
     using namespace Web::WebIDL;
+    using namespace Web::XHR;
 )~~~"sv);
 }
 
