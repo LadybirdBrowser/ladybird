@@ -24,6 +24,7 @@ set(SOURCES
     Bindings/OptionConstructor.cpp
     Bindings/PlatformObject.cpp
     Clipboard/Clipboard.cpp
+    Clipboard/ClipboardEvent.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp

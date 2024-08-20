@@ -51,6 +51,7 @@ CanvasPattern
 CanvasRenderingContext2D
 CharacterData
 Clipboard
+ClipboardEvent
 CloseEvent
 CloseWatcher
 Comment
