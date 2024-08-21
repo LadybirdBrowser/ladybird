@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <AK/Find.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/DataTransferPrototype.h>
@@ -12,6 +13,7 @@
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/HTML/DataTransfer.h>
+#include <LibWeb/HTML/DataTransferItem.h>
 #include <LibWeb/HTML/DataTransferItemList.h>
 #include <LibWeb/Infra/Strings.h>
 
@@ -51,6 +53,11 @@ DataTransfer::DataTransfer(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_d
     : PlatformObject(realm)
     , m_associated_drag_data_store(move(drag_data_store))
 {
+    for (auto const& [i, item] : enumerate(m_associated_drag_data_store->item_list())) {
+        auto data_transfer_item = DataTransferItem::create(realm, *this, i);
+        m_item_list.append(data_transfer_item);
+    }
+
     update_data_transfer_types_list();
 }
 
@@ -66,6 +73,7 @@ void DataTransfer::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_items);
+    visitor.visit(m_item_list);
 }
 
 void DataTransfer::set_drop_effect(String const& drop_effect)
