@@ -33,6 +33,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
+    virtual Optional<JS::Value> item_value(size_t index) const override;
+
     JS::NonnullGCPtr<DataTransfer> m_data_transfer;
 };
 

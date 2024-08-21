@@ -12,6 +12,10 @@
         println(`stringItem: ${stringItem}`);
         println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
 
+        if (dataTransferItemList[0] !== stringItem) {
+            println("FAILED");
+        }
+
         try {
             dataTransferItemList.add("well hello friends", "custom-type");
             println("FAILED");
@@ -24,5 +28,13 @@
         let fileItem = dataTransferItemList.add(file);
         println(`fileItem: ${fileItem}`);
         println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
+
+        if (dataTransferItemList[1] !== fileItem) {
+            println("FAILED");
+        }
+
+        if (dataTransferItemList[2] !== undefined) {
+            println("FAILED");
+        }
     });
 </script>
