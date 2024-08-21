@@ -1,0 +1,9 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x0 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 50x50 positioned flex-container(row) [FFC] children: not-inline
+      ImageBox <img> at (8,8) content-size 50x50 flex-item children: not-inline
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x0] overflow: [8,8 50x50]
+    PaintableBox (Box<BODY>) [8,8 50x50]
+      ImagePaintable (ImageBox<IMG>) [8,8 50x50]

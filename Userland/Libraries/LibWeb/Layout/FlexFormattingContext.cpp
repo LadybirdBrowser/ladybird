@@ -521,6 +521,21 @@ CSSPixels FlexFormattingContext::adjust_main_size_through_aspect_ratio_for_cross
     return main_size;
 }
 
+CSSPixels FlexFormattingContext::adjust_cross_size_through_aspect_ratio_for_main_size_min_max_constraints(Box const& box, CSSPixels cross_size, CSS::Size const& min_main_size, CSS::Size const& max_main_size) const
+{
+    if (!should_treat_main_max_size_as_none(box)) {
+        auto max_main_size_px = max_main_size.to_px(box, is_row_layout() ? m_flex_container_state.content_width() : m_flex_container_state.content_height());
+        cross_size = min(cross_size, calculate_cross_size_from_main_size_and_aspect_ratio(max_main_size_px, box.preferred_aspect_ratio().value()));
+    }
+
+    if (!min_main_size.is_auto()) {
+        auto min_main_size_px = min_main_size.to_px(box, is_row_layout() ? m_flex_container_state.content_width() : m_flex_container_state.content_height());
+        cross_size = max(cross_size, calculate_cross_size_from_main_size_and_aspect_ratio(min_main_size_px, box.preferred_aspect_ratio().value()));
+    }
+
+    return cross_size;
+}
+
 // https://www.w3.org/TR/css-flexbox-1/#algo-main-item
 void FlexFormattingContext::determine_flex_base_size_and_hypothetical_main_size(FlexItem& item)
 {
@@ -1860,6 +1875,9 @@ CSSPixels FlexFormattingContext::calculate_cross_min_content_contribution(FlexIt
         return !is_row_layout() ? get_pixel_width(item.box, computed_cross_size(item.box)) : get_pixel_height(item.box, computed_cross_size(item.box));
     }();
 
+    if (item.box->has_preferred_aspect_ratio())
+        size = adjust_cross_size_through_aspect_ratio_for_main_size_min_max_constraints(item.box, size, computed_main_min_size(item.box), computed_main_max_size(item.box));
+
     auto const& computed_min_size = this->computed_cross_min_size(item.box);
     auto const& computed_max_size = this->computed_cross_max_size(item.box);
 
@@ -1878,6 +1896,9 @@ CSSPixels FlexFormattingContext::calculate_cross_max_content_contribution(FlexIt
             return calculate_max_content_cross_size(item);
         return !is_row_layout() ? get_pixel_width(item.box, computed_cross_size(item.box)) : get_pixel_height(item.box, computed_cross_size(item.box));
     }();
+
+    if (item.box->has_preferred_aspect_ratio())
+        size = adjust_cross_size_through_aspect_ratio_for_main_size_min_max_constraints(item.box, size, computed_main_min_size(item.box), computed_main_max_size(item.box));
 
     auto const& computed_min_size = this->computed_cross_min_size(item.box);
     auto const& computed_max_size = this->computed_cross_max_size(item.box);
