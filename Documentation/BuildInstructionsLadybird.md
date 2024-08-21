@@ -16,6 +16,11 @@ CMake 3.25 or newer must be available in $PATH.
 ```bash
 sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libavcodec-dev libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
+### Archlinux:
+
+```bash
+sudo pacman -S autoconf autoconf-archive automake gcc make ccache cmake curl ttf-liberation git ffmpeg mesa nasm ninja pkgconf qt6-base qt6-tools qt6-wayland tar unzip zip
+```
 
 #### CMake 3.25 or newer:
 
