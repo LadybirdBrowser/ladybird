@@ -960,6 +960,14 @@
     ],
     "percentages-resolve-to": "length"
   },
+  "column-span": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "column-span"
+    ]
+  },
   "column-width": {
     "animation-type": "by-computed-value",
     "inherited": false,
