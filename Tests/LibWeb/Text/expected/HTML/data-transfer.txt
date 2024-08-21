@@ -1,2 +1,4 @@
 dropEffect: none
 effectAllowed: none
+stringItem: [object DataTransferItem], types=custom-type
+fileItem: [object DataTransferItem], types=custom-type,Files

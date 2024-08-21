@@ -1,3 +1,4 @@
+#import <FileAPI/File.idl>
 #import <HTML/DataTransferItem.idl>
 
 // https://html.spec.whatwg.org/multipage/dnd.html#datatransferitemlist
@@ -5,8 +6,8 @@
 interface DataTransferItemList {
     [FIXME] readonly attribute unsigned long length;
     [FIXME] getter DataTransferItem (unsigned long index);
-    [FIXME] DataTransferItem? add(DOMString data, DOMString type);
-    [FIXME] DataTransferItem? add(File data);
+    DataTransferItem? add(DOMString data, DOMString type);
+    DataTransferItem? add(File data);
     [FIXME] undefined remove(unsigned long index);
     [FIXME] undefined clear();
 };

@@ -56,7 +56,11 @@ public:
     String get_data(String const& format) const;
     JS::NonnullGCPtr<FileAPI::FileList> files() const;
 
+    Optional<DragDataStore::Mode> mode() const;
     void disassociate_with_drag_data_store();
+
+    JS::NonnullGCPtr<DataTransferItem> add_item(DragDataStoreItem item);
+    bool contains_item_with_type(DragDataStoreItem::Kind, String const& type) const;
 
 private:
     DataTransfer(JS::Realm&, NonnullRefPtr<DragDataStore>);
