@@ -51,7 +51,7 @@ bool DragAndDropEventHandler::handle_drag_start(
 
     // 2. Create a drag data store. All the DND events fired subsequently by the steps in this section must use this drag
     //    data store.
-    m_drag_data_store.emplace();
+    m_drag_data_store = HTML::DragDataStore::create();
 
     // 3. Establish which DOM node is the source node, as follows:
     //
@@ -185,7 +185,7 @@ bool DragAndDropEventHandler::handle_drag_move(
     unsigned buttons,
     unsigned modifiers)
 {
-    if (!m_drag_data_store.has_value())
+    if (!has_ongoing_drag_and_drop_operation())
         return false;
 
     auto fire_a_drag_and_drop_event = [&](JS::GCPtr<DOM::EventTarget> target, FlyString const& name, JS::GCPtr<DOM::EventTarget> related_target = nullptr) {
@@ -361,7 +361,7 @@ bool DragAndDropEventHandler::handle_drag_end(
     unsigned buttons,
     unsigned modifiers)
 {
-    if (!m_drag_data_store.has_value())
+    if (!has_ongoing_drag_and_drop_operation())
         return false;
 
     auto fire_a_drag_and_drop_event = [&](JS::GCPtr<DOM::EventTarget> target, FlyString const& name, JS::GCPtr<DOM::EventTarget> related_target = nullptr) {

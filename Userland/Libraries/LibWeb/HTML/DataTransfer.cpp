@@ -76,7 +76,7 @@ void DataTransfer::set_effect_allowed(FlyString effect_allowed)
     // On setting, if drag data store's mode is the read/write mode and the new value is one of "none", "copy", "copyLink",
     // "copyMove", "link", "linkMove", "move", "all", or "uninitialized", then the attribute's current value must be set
     // to the new value. Otherwise, it must be left unchanged.
-    if (m_associated_drag_data_store.has_value() && m_associated_drag_data_store->mode() == DragDataStore::Mode::ReadWrite)
+    if (m_associated_drag_data_store && m_associated_drag_data_store->mode() == DragDataStore::Mode::ReadWrite)
         set_effect_allowed_internal(move(effect_allowed));
 }
 
@@ -109,7 +109,7 @@ ReadonlySpan<String> DataTransfer::types() const
 String DataTransfer::get_data(String const& format_argument) const
 {
     // 1. If the DataTransfer object is no longer associated with a drag data store, then return the empty string.
-    if (!m_associated_drag_data_store.has_value())
+    if (!m_associated_drag_data_store)
         return {};
 
     // 2. If the drag data store's mode is the protected mode, then return the empty string.
@@ -165,7 +165,7 @@ JS::NonnullGCPtr<FileAPI::FileList> DataTransfer::files() const
 
     // 2. If the DataTransfer object is no longer associated with a drag data store, the FileList is empty. Return
     //    the empty list L.
-    if (!m_associated_drag_data_store.has_value())
+    if (!m_associated_drag_data_store)
         return files;
 
     // 3. If the drag data store's mode is the protected mode, return the empty list L.
@@ -195,9 +195,9 @@ JS::NonnullGCPtr<FileAPI::FileList> DataTransfer::files() const
     return files;
 }
 
-void DataTransfer::associate_with_drag_data_store(DragDataStore& drag_data_store)
+void DataTransfer::associate_with_drag_data_store(NonnullRefPtr<DragDataStore> drag_data_store)
 {
-    m_associated_drag_data_store = drag_data_store;
+    m_associated_drag_data_store = move(drag_data_store);
     update_data_transfer_types_list();
 }
 
@@ -214,7 +214,7 @@ void DataTransfer::update_data_transfer_types_list()
     Vector<String> types;
 
     // 2. If the DataTransfer object is still associated with a drag data store, then:
-    if (m_associated_drag_data_store.has_value()) {
+    if (m_associated_drag_data_store) {
         bool contains_file = false;
 
         // 1. For each item in the DataTransfer object's drag data store item list whose kind is text, add an entry to L

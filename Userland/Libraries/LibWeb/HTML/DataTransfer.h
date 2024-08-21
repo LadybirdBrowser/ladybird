@@ -55,7 +55,7 @@ public:
     String get_data(String const& format) const;
     JS::NonnullGCPtr<FileAPI::FileList> files() const;
 
-    void associate_with_drag_data_store(DragDataStore& drag_data_store);
+    void associate_with_drag_data_store(NonnullRefPtr<DragDataStore> drag_data_store);
     void disassociate_with_drag_data_store();
 
 private:
@@ -79,7 +79,7 @@ private:
     Vector<String> m_types;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface:drag-data-store-3
-    Optional<DragDataStore&> m_associated_drag_data_store;
+    RefPtr<DragDataStore> m_associated_drag_data_store;
 };
 
 }
