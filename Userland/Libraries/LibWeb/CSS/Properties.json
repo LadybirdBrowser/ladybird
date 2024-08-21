@@ -979,6 +979,14 @@
       "auto"
     ]
   },
+  "columns": {
+    "inherited": false,
+    "initial": "auto auto",
+    "longhands": [
+      "column-width",
+      "column-count"
+    ]
+  },
   "content": {
     "animation-type": "discrete",
     "inherited": false,

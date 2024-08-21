@@ -93,6 +93,19 @@ String ShorthandStyleValue::to_string() const
             bottom_right.vertical_radius().to_string(),
             bottom_left.vertical_radius().to_string()));
     }
+    case PropertyID::Columns: {
+        auto column_width = longhand(PropertyID::ColumnWidth)->to_string();
+        auto column_count = longhand(PropertyID::ColumnCount)->to_string();
+
+        if (column_width == column_count)
+            return column_width;
+        if (column_width.equals_ignoring_ascii_case("auto"sv))
+            return column_count;
+        if (column_count.equals_ignoring_ascii_case("auto"sv))
+            return column_width;
+
+        return MUST(String::formatted("{} {}", column_width, column_count));
+    }
     case PropertyID::Flex:
         return MUST(String::formatted("{} {} {}", longhand(PropertyID::FlexGrow)->to_string(), longhand(PropertyID::FlexShrink)->to_string(), longhand(PropertyID::FlexBasis)->to_string()));
     case PropertyID::FlexFlow:
