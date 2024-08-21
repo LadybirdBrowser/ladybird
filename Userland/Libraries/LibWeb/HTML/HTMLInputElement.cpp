@@ -1446,6 +1446,18 @@ void HTMLInputElement::form_associated_element_was_removed(DOM::Node*)
     set_shadow_root(nullptr);
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#the-input-element%3Aconcept-node-clone-ext
+WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool)
+{
+    // The cloning steps for input elements must propagate the value, dirty value flag, checkedness, and dirty checkedness flag from the node being cloned to the copy.
+    auto& input_clone = verify_cast<HTMLInputElement>(copy);
+    input_clone.m_value = m_value;
+    input_clone.m_dirty_value = m_dirty_value;
+    input_clone.m_checked = m_checked;
+    input_clone.m_dirty_checkedness = m_dirty_checkedness;
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#radio-button-group
 static bool is_in_same_radio_button_group(HTML::HTMLInputElement const& a, HTML::HTMLInputElement const& b)
 {

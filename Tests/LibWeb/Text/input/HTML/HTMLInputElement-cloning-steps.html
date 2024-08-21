@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<form>
+    <input id="checkedCheckbox" type="checkbox">
+    <input type="text" value="FAIL">
+</form>
+<script>
+    test(() => {
+        const form = document.forms[0];
+        const inputs = form.getElementsByTagName("input");
+        inputs[0].checked = true;
+        inputs[1].value = "PASS";
+
+        const clone = form.cloneNode(true);
+        document.body.appendChild(clone);
+
+        println(`Cloned checkbox checked: ${clone.querySelector("input[type=checkbox]").checked}`);
+        println(`Cloned text input value: ${clone.querySelector("input[type=text]").value}`);
+
+        form.remove();
+        clone.remove();
+    });
+</script>
