@@ -9,6 +9,8 @@
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/FlyString.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGfx/Bitmap.h>
@@ -33,7 +35,7 @@ struct DragDataStoreItem {
 };
 
 // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store
-class DragDataStore {
+class DragDataStore : public RefCounted<DragDataStore> {
 public:
     enum class Mode {
         ReadWrite,
@@ -41,7 +43,7 @@ public:
         Protected,
     };
 
-    DragDataStore();
+    static NonnullRefPtr<DragDataStore> create();
     ~DragDataStore();
 
     void add_item(DragDataStoreItem item) { m_item_list.append(move(item)); }
@@ -55,6 +57,8 @@ public:
     void set_allowed_effects_state(FlyString allowed_effects_state) { m_allowed_effects_state = move(allowed_effects_state); }
 
 private:
+    DragDataStore();
+
     // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-item-list
     Vector<DragDataStoreItem> m_item_list;
 

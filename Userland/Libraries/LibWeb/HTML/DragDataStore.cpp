@@ -9,6 +9,11 @@
 
 namespace Web::HTML {
 
+NonnullRefPtr<DragDataStore> DragDataStore::create()
+{
+    return adopt_ref(*new DragDataStore());
+}
+
 DragDataStore::DragDataStore()
     : m_allowed_effects_state(DataTransferEffect::uninitialized)
 {

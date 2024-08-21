@@ -18,7 +18,7 @@ class DragAndDropEventHandler {
 public:
     void visit_edges(JS::Cell::Visitor& visitor) const;
 
-    bool has_ongoing_drag_and_drop_operation() const { return m_drag_data_store.has_value(); }
+    bool has_ongoing_drag_and_drop_operation() const { return !m_drag_data_store.is_null(); }
 
     bool handle_drag_start(JS::Realm&, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
     bool handle_drag_move(JS::Realm&, JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Node>, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, unsigned button, unsigned buttons, unsigned modifiers);
@@ -49,7 +49,7 @@ private:
 
     void reset();
 
-    Optional<HTML::DragDataStore> m_drag_data_store;
+    RefPtr<HTML::DragDataStore> m_drag_data_store;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#source-node
     JS::GCPtr<DOM::EventTarget> m_source_node;
