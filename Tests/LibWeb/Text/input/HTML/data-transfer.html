@@ -4,5 +4,22 @@
         let dataTransfer = new DataTransfer();
         println(`dropEffect: ${dataTransfer.dropEffect}`);
         println(`effectAllowed: ${dataTransfer.effectAllowed}`);
+
+        let dataTransferItemList = dataTransfer.items;
+
+        let stringItem = dataTransferItemList.add("well hello friends", "custom-type");
+        println(`stringItem: ${stringItem}, types=${dataTransfer.types}`);
+
+        try {
+            dataTransferItemList.add("well hello friends", "custom-type");
+            println("FAILED");
+        } catch (e) {}
+
+        let file = new File(["well hello friends"], "file.txt", {
+            type: "text/plain",
+        });
+
+        let fileItem = dataTransferItemList.add(file);
+        println(`fileItem: ${fileItem}, types=${dataTransfer.types}`);
     });
 </script>

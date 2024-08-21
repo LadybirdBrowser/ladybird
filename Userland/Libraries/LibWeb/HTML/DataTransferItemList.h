@@ -8,6 +8,7 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -19,6 +20,9 @@ class DataTransferItemList : public Bindings::PlatformObject {
 public:
     static JS::NonnullGCPtr<DataTransferItemList> create(JS::Realm&, JS::NonnullGCPtr<DataTransfer>);
     virtual ~DataTransferItemList() override;
+
+    WebIDL::ExceptionOr<JS::GCPtr<DataTransferItem>> add(String const& data, String const& type);
+    JS::GCPtr<DataTransferItem> add(JS::NonnullGCPtr<FileAPI::File>);
 
 private:
     DataTransferItemList(JS::Realm&, JS::NonnullGCPtr<DataTransfer>);

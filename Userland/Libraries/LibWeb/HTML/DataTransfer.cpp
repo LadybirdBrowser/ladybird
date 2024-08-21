@@ -220,10 +220,44 @@ JS::NonnullGCPtr<FileAPI::FileList> DataTransfer::files() const
     return files;
 }
 
+Optional<DragDataStore::Mode> DataTransfer::mode() const
+{
+    if (m_associated_drag_data_store)
+        return m_associated_drag_data_store->mode();
+    return {};
+}
+
 void DataTransfer::disassociate_with_drag_data_store()
 {
     m_associated_drag_data_store.clear();
     update_data_transfer_types_list();
+}
+
+JS::NonnullGCPtr<DataTransferItem> DataTransfer::add_item(DragDataStoreItem item)
+{
+    auto& realm = this->realm();
+
+    VERIFY(m_associated_drag_data_store);
+    m_associated_drag_data_store->add_item(move(item));
+
+    auto data_transfer_item = DataTransferItem::create(realm, *this, m_associated_drag_data_store->size() - 1);
+    m_item_list.append(data_transfer_item);
+
+    update_data_transfer_types_list();
+
+    return data_transfer_item;
+}
+
+bool DataTransfer::contains_item_with_type(DragDataStoreItem::Kind kind, String const& type) const
+{
+    VERIFY(m_associated_drag_data_store);
+
+    for (auto const& item : m_associated_drag_data_store->item_list()) {
+        if (item.kind == kind && item.type_string.equals_ignoring_ascii_case(type))
+            return true;
+    }
+
+    return false;
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
@@ -259,5 +293,4 @@ void DataTransfer::update_data_transfer_types_list()
     // 3. Set the DataTransfer object's types array to the result of creating a frozen array from L.
     m_types = move(types);
 }
-
 }
