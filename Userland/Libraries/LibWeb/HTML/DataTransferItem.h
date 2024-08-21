@@ -22,11 +22,16 @@ public:
     static JS::NonnullGCPtr<DataTransferItem> create(JS::Realm&, JS::NonnullGCPtr<DataTransfer>, size_t item_index);
     virtual ~DataTransferItem() override;
 
+    String kind() const;
+    String type() const;
+
 private:
     DataTransferItem(JS::Realm&, JS::NonnullGCPtr<DataTransfer>, size_t item_index);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
+
+    Optional<DragDataStore::Mode> mode() const;
 
     JS::NonnullGCPtr<DataTransfer> m_data_transfer;
     Optional<size_t> m_item_index;

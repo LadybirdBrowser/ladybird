@@ -266,6 +266,14 @@ JS::NonnullGCPtr<DataTransferItem> DataTransfer::item(size_t index) const
     return m_item_list[index];
 }
 
+DragDataStoreItem const& DataTransfer::drag_data(size_t index) const
+{
+    VERIFY(m_associated_drag_data_store);
+    VERIFY(index < m_item_list.size());
+
+    return m_associated_drag_data_store->item_list()[index];
+}
+
 size_t DataTransfer::length() const
 {
     if (m_associated_drag_data_store)

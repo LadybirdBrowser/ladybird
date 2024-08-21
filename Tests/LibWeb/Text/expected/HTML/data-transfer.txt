@@ -1,7 +1,7 @@
 dropEffect: none
 effectAllowed: none
 length=0, types=
-stringItem: [object DataTransferItem]
+stringItem: kind=string, type=custom-type
 length=1, types=custom-type
-fileItem: [object DataTransferItem]
+fileItem: kind=file, type=text/plain
 length=2, types=custom-type,Files

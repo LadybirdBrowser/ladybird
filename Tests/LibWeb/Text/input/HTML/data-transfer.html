@@ -9,7 +9,7 @@
         println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
 
         let stringItem = dataTransferItemList.add("well hello friends", "custom-type");
-        println(`stringItem: ${stringItem}`);
+        println(`stringItem: kind=${stringItem.kind}, type=${stringItem.type}`);
         println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
 
         if (dataTransferItemList[0] !== stringItem) {
@@ -26,7 +26,7 @@
         });
 
         let fileItem = dataTransferItemList.add(file);
-        println(`fileItem: ${fileItem}`);
+        println(`fileItem: kind=${fileItem.kind}, type=${fileItem.type}`);
         println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
 
         if (dataTransferItemList[1] !== fileItem) {
