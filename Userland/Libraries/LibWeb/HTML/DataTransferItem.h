@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/HTML/DragDataStore.h>
 
 namespace Web::HTML {
 
@@ -17,12 +19,17 @@ class DataTransferItem : public Bindings::PlatformObject {
     JS_DECLARE_ALLOCATOR(DataTransferItem);
 
 public:
+    static JS::NonnullGCPtr<DataTransferItem> create(JS::Realm&, JS::NonnullGCPtr<DataTransfer>, size_t item_index);
     virtual ~DataTransferItem() override;
 
 private:
-    DataTransferItem(JS::Realm&);
+    DataTransferItem(JS::Realm&, JS::NonnullGCPtr<DataTransfer>, size_t item_index);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(JS::Cell::Visitor&) override;
+
+    JS::NonnullGCPtr<DataTransfer> m_data_transfer;
+    Optional<size_t> m_item_index;
 };
 
 }
