@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/ViewImplementation.h>
 #include <QAbstractScrollArea>
+#include <QMenu>
 #include <QTimer>
 #include <QUrl>
 
@@ -88,6 +89,9 @@ public:
 
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
+public slots:
+    void select_dropdown_action();
+
 signals:
     void urls_dropped(QList<QUrl> const&);
 
@@ -119,6 +123,8 @@ private:
     bool m_should_show_line_box_borders { false };
 
     Gfx::IntSize m_viewport_size;
+
+    QMenu* m_select_dropdown { nullptr };
 };
 
 }

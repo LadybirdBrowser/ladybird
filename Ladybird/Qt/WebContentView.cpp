@@ -142,9 +142,56 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
         auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), request_server_client));
         return worker_client->dup_socket();
     };
+
+    m_select_dropdown = new QMenu("Select Dropdown", this);
+    QObject::connect(m_select_dropdown, &QMenu::aboutToHide, this, [this]() {
+        if (!m_select_dropdown->activeAction())
+            select_dropdown_closed({});
+    });
+
+    on_request_select_dropdown = [this](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) {
+        m_select_dropdown->clear();
+        m_select_dropdown->setMinimumWidth(minimum_width / device_pixel_ratio());
+
+        auto add_menu_item = [this](Web::HTML::SelectItemOption const& item_option, bool in_option_group) {
+            QAction* action = new QAction(qstring_from_ak_string(in_option_group ? MUST(String::formatted("    {}", item_option.label)) : item_option.label), this);
+            action->setCheckable(true);
+            action->setChecked(item_option.selected);
+            action->setDisabled(item_option.disabled);
+            action->setData(QVariant(static_cast<uint>(item_option.id)));
+            QObject::connect(action, &QAction::triggered, this, &WebContentView::select_dropdown_action);
+            m_select_dropdown->addAction(action);
+        };
+
+        for (auto const& item : items) {
+            if (item.has<Web::HTML::SelectItemOptionGroup>()) {
+                auto const& item_option_group = item.get<Web::HTML::SelectItemOptionGroup>();
+                QAction* subtitle = new QAction(qstring_from_ak_string(item_option_group.label), this);
+                subtitle->setDisabled(true);
+                m_select_dropdown->addAction(subtitle);
+
+                for (auto const& item_option : item_option_group.items)
+                    add_menu_item(item_option, true);
+            }
+
+            if (item.has<Web::HTML::SelectItemOption>())
+                add_menu_item(item.get<Web::HTML::SelectItemOption>(), false);
+
+            if (item.has<Web::HTML::SelectItemSeparator>())
+                m_select_dropdown->addSeparator();
+        }
+
+        m_select_dropdown->exec(map_point_to_global_position(content_position));
+    };
 }
 
 WebContentView::~WebContentView() = default;
+
+void WebContentView::select_dropdown_action()
+{
+    QAction* action = qobject_cast<QAction*>(sender());
+    select_dropdown_closed(action->data().value<uint>());
+}
 
 static Web::UIEvents::MouseButton get_button_from_qt_mouse_button(Qt::MouseButton button)
 {

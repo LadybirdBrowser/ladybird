@@ -319,47 +319,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_find_in_page->update_result_label(current_match_index, total_match_count);
     };
 
-    m_select_dropdown = new QMenu("Select Dropdown", this);
-    QObject::connect(m_select_dropdown, &QMenu::aboutToHide, this, [this]() {
-        if (!m_select_dropdown->activeAction())
-            view().select_dropdown_closed({});
-    });
-
-    view().on_request_select_dropdown = [this](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) {
-        m_select_dropdown->clear();
-        m_select_dropdown->setMinimumWidth(minimum_width / view().device_pixel_ratio());
-
-        auto add_menu_item = [this](Web::HTML::SelectItemOption const& item_option, bool in_option_group) {
-            QAction* action = new QAction(qstring_from_ak_string(in_option_group ? MUST(String::formatted("    {}", item_option.label)) : item_option.label), this);
-            action->setCheckable(true);
-            action->setChecked(item_option.selected);
-            action->setDisabled(item_option.disabled);
-            action->setData(QVariant(static_cast<uint>(item_option.id)));
-            QObject::connect(action, &QAction::triggered, this, &Tab::select_dropdown_action);
-            m_select_dropdown->addAction(action);
-        };
-
-        for (auto const& item : items) {
-            if (item.has<Web::HTML::SelectItemOptionGroup>()) {
-                auto const& item_option_group = item.get<Web::HTML::SelectItemOptionGroup>();
-                QAction* subtitle = new QAction(qstring_from_ak_string(item_option_group.label), this);
-                subtitle->setDisabled(true);
-                m_select_dropdown->addAction(subtitle);
-
-                for (auto const& item_option : item_option_group.items)
-                    add_menu_item(item_option, true);
-            }
-
-            if (item.has<Web::HTML::SelectItemOption>())
-                add_menu_item(item.get<Web::HTML::SelectItemOption>(), false);
-
-            if (item.has<Web::HTML::SelectItemSeparator>())
-                m_select_dropdown->addSeparator();
-        }
-
-        m_select_dropdown->exec(view().map_point_to_global_position(content_position));
-    };
-
     QObject::connect(focus_location_editor_action, &QAction::triggered, this, &Tab::focus_location_editor);
 
     view().on_received_source = [this](auto const& url, auto const& source) {
@@ -794,12 +753,6 @@ Tab::~Tab()
     // Delete the InspectorWidget explicitly to ensure it is deleted before the WebContentView. Otherwise, Qt
     // can destroy these objects in any order, which may cause use-after-free in InspectorWidget's destructor.
     delete m_inspector_widget;
-}
-
-void Tab::select_dropdown_action()
-{
-    QAction* action = qobject_cast<QAction*>(sender());
-    view().select_dropdown_closed(action->data().value<uint>());
 }
 
 void Tab::update_reset_zoom_button()

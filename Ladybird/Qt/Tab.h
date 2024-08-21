@@ -84,7 +84,6 @@ public:
 public slots:
     void focus_location_editor();
     void location_edit_return_pressed();
-    void select_dropdown_action();
 
 signals:
     void title_changed(int id, QString const&);
