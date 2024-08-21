@@ -97,7 +97,7 @@ void CSSImportRule::resource_did_load()
         dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Resource did load, has encoded data. URL: {}", resource()->url());
     }
 
-    auto* sheet = parse_css_stylesheet(CSS::Parser::ParsingContext(*m_document, resource()->url()), resource()->encoded_data());
+    auto* sheet = parse_css_stylesheet(CSS::Parser::ParsingContext(*m_document, resource()->url()), resource()->encoded_data(), resource()->url());
     if (!sheet) {
         dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to parse stylesheet: {}", resource()->url());
         return;
