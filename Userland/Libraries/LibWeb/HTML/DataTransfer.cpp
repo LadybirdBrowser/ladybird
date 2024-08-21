@@ -27,14 +27,31 @@ ENUMERATE_DATA_TRANSFER_EFFECTS
 
 }
 
-JS::NonnullGCPtr<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
+JS::NonnullGCPtr<DataTransfer> DataTransfer::create(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
 {
-    return realm.heap().allocate<DataTransfer>(realm, realm);
+    return realm.heap().allocate<DataTransfer>(realm, realm, move(drag_data_store));
 }
 
-DataTransfer::DataTransfer(JS::Realm& realm)
-    : PlatformObject(realm)
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer
+JS::NonnullGCPtr<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
 {
+    // 1. Set the drag data store's item list to be an empty list.
+    auto drag_data_store = DragDataStore::create();
+
+    // 2. Set the drag data store's mode to read/write mode.
+    drag_data_store->set_mode(DragDataStore::Mode::ReadWrite);
+
+    // 3. Set the dropEffect and effectAllowed to "none".
+    // NOTE: This is done by the default-initializers.
+
+    return realm.heap().allocate<DataTransfer>(realm, realm, move(drag_data_store));
+}
+
+DataTransfer::DataTransfer(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
+    : PlatformObject(realm)
+    , m_associated_drag_data_store(move(drag_data_store))
+{
+    update_data_transfer_types_list();
 }
 
 DataTransfer::~DataTransfer() = default;
@@ -193,12 +210,6 @@ JS::NonnullGCPtr<FileAPI::FileList> DataTransfer::files() const
 
     // 5. The files found by these steps are those in the list L.
     return files;
-}
-
-void DataTransfer::associate_with_drag_data_store(NonnullRefPtr<DragDataStore> drag_data_store)
-{
-    m_associated_drag_data_store = move(drag_data_store);
-    update_data_transfer_types_list();
 }
 
 void DataTransfer::disassociate_with_drag_data_store()

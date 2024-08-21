@@ -1,0 +1,8 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let dataTransfer = new DataTransfer();
+        println(`dropEffect: ${dataTransfer.dropEffect}`);
+        println(`effectAllowed: ${dataTransfer.effectAllowed}`);
+    });
+</script>

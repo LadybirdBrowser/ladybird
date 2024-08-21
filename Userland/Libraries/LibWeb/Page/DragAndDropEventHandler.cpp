@@ -506,8 +506,7 @@ JS::NonnullGCPtr<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_
     }
 
     // 6. Let dataTransfer be a newly created DataTransfer object associated with the given drag data store.
-    auto data_transfer = HTML::DataTransfer::construct_impl(realm);
-    data_transfer->associate_with_drag_data_store(*m_drag_data_store);
+    auto data_transfer = HTML::DataTransfer::create(realm, *m_drag_data_store);
 
     // 7. Set the effectAllowed attribute to the drag data store's drag data store allowed effects state.
     data_transfer->set_effect_allowed_internal(m_drag_data_store->allowed_effects_state());
