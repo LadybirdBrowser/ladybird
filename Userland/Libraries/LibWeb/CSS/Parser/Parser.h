@@ -288,6 +288,7 @@ private:
     RefPtr<CSSStyleValue> parse_border_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_border_radius_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_border_radius_shorthand_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_columns_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_content_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_increment_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_reset_value(TokenStream<ComponentValue>&);

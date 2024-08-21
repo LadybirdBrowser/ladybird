@@ -4403,6 +4403,74 @@ RefPtr<CSSStyleValue> Parser::parse_border_radius_shorthand_value(TokenStream<Co
         { move(top_left_radius), move(top_right_radius), move(bottom_right_radius), move(bottom_left_radius) });
 }
 
+RefPtr<CSSStyleValue> Parser::parse_columns_value(TokenStream<ComponentValue>& tokens)
+{
+    if (tokens.remaining_token_count() > 2)
+        return nullptr;
+
+    RefPtr<CSSStyleValue> column_count;
+    RefPtr<CSSStyleValue> column_width;
+
+    Vector<PropertyID> remaining_longhands { PropertyID::ColumnCount, PropertyID::ColumnWidth };
+    int found_autos = 0;
+
+    auto transaction = tokens.begin_transaction();
+    while (tokens.has_next_token()) {
+        auto property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
+        if (!property_and_value.has_value())
+            return nullptr;
+        auto& value = property_and_value->style_value;
+
+        // since the values can be in either order, we want to skip over autos
+        if (value->has_auto()) {
+            found_autos++;
+            continue;
+        }
+
+        remove_property(remaining_longhands, property_and_value->property);
+
+        switch (property_and_value->property) {
+        case PropertyID::ColumnCount: {
+            VERIFY(!column_count);
+            column_count = value.release_nonnull();
+            continue;
+        }
+        case PropertyID::ColumnWidth: {
+            VERIFY(!column_width);
+            column_width = value.release_nonnull();
+            continue;
+        }
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+
+    if (found_autos > 2)
+        return nullptr;
+
+    if (found_autos == 2) {
+        column_count = CSSKeywordValue::create(Keyword::Auto);
+        column_width = CSSKeywordValue::create(Keyword::Auto);
+    }
+
+    if (found_autos == 1) {
+        if (!column_count)
+            column_count = CSSKeywordValue::create(Keyword::Auto);
+        if (!column_width)
+            column_width = CSSKeywordValue::create(Keyword::Auto);
+    }
+
+    if (!column_count)
+        column_count = property_initial_value(m_context.realm(), PropertyID::ColumnCount);
+    if (!column_width)
+        column_width = property_initial_value(m_context.realm(), PropertyID::ColumnWidth);
+
+    transaction.commit();
+    return ShorthandStyleValue::create(PropertyID::Columns,
+        { PropertyID::ColumnCount, PropertyID::ColumnWidth },
+        { column_count.release_nonnull(), column_width.release_nonnull() });
+}
+
 RefPtr<CSSStyleValue> Parser::parse_shadow_value(TokenStream<ComponentValue>& tokens, AllowInsetKeyword allow_inset_keyword)
 {
     // "none"
@@ -7191,6 +7259,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
     case PropertyID::BoxShadow:
     case PropertyID::WebkitBoxShadow:
         if (auto parsed_value = parse_shadow_value(tokens, AllowInsetKeyword::Yes); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::Columns:
+        if (auto parsed_value = parse_columns_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Content:
