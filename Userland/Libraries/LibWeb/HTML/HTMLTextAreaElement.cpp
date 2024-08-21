@@ -116,6 +116,17 @@ void HTMLTextAreaElement::reset_algorithm()
     }
 }
 
+// https://html.spec.whatwg.org/multipage/forms.html#the-textarea-element:concept-node-clone-ext
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool)
+{
+    // The cloning steps for textarea elements must propagate the raw value and dirty value flag from the node being cloned to the copy.
+    auto& textarea_copy = verify_cast<HTMLTextAreaElement>(copy);
+    textarea_copy.m_raw_value = m_raw_value;
+    textarea_copy.m_dirty_value = m_dirty_value;
+
+    return {};
+}
+
 void HTMLTextAreaElement::form_associated_element_was_inserted()
 {
     create_shadow_tree_if_needed();

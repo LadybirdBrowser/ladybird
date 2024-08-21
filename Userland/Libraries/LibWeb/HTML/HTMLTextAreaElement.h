@@ -63,6 +63,8 @@ public:
 
     virtual void reset_algorithm() override;
 
+    virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) override;
+
     virtual void form_associated_element_was_inserted() override;
     virtual void form_associated_element_was_removed(DOM::Node*) override;
     virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&) override;
