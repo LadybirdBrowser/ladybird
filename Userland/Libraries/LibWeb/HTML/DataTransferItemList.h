@@ -17,7 +17,6 @@ class DataTransferItemList : public Bindings::PlatformObject {
     JS_DECLARE_ALLOCATOR(DataTransferItemList);
 
 public:
-    static JS::NonnullGCPtr<DataTransferItemList> construct_impl(JS::Realm&);
     virtual ~DataTransferItemList() override;
 
 private:
