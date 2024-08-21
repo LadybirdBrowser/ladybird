@@ -491,7 +491,7 @@ static bool pre_interpret_hook(Wasm::Configuration& config, Wasm::InstructionPoi
     }
 }
 
-static Optional<Wasm::Module> parse(StringView filename)
+static RefPtr<Wasm::Module> parse(StringView filename)
 {
     auto result = Core::MappedFile::map(filename);
     if (result.is_error()) {
@@ -603,7 +603,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         attempt_instantiate = true;
 
     auto parse_result = parse(filename);
-    if (!parse_result.has_value())
+    if (parse_result.is_null())
         return 1;
 
     g_stdout = TRY(Core::File::standard_output());
@@ -611,7 +611,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     if (print && !attempt_instantiate) {
         Wasm::Printer printer(*g_stdout);
-        printer.print(parse_result.value());
+        printer.print(*parse_result);
     }
 
     if (attempt_instantiate) {
@@ -653,14 +653,14 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
         // First, resolve the linked modules
         Vector<NonnullOwnPtr<Wasm::ModuleInstance>> linked_instances;
-        Vector<Wasm::Module> linked_modules;
+        Vector<NonnullRefPtr<Wasm::Module>> linked_modules;
         for (auto& name : modules_to_link_in) {
             auto parse_result = parse(name);
-            if (!parse_result.has_value()) {
+            if (parse_result.is_null()) {
                 warnln("Failed to parse linked module '{}'", name);
                 return 1;
             }
-            linked_modules.append(parse_result.release_value());
+            linked_modules.append(parse_result.release_nonnull());
             Wasm::Linker linker { linked_modules.last() };
             for (auto& instance : linked_instances)
                 linker.link(*instance);
@@ -678,7 +678,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             linked_instances.append(instantiation_result.release_value());
         }
 
-        Wasm::Linker linker { parse_result.value() };
+        Wasm::Linker linker { *parse_result };
         for (auto& instance : linked_instances)
             linker.link(*instance);
 
@@ -704,7 +704,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             for (auto& entry : linker.unresolved_imports()) {
                 if (!entry.type.has<Wasm::TypeIndex>())
                     continue;
-                auto type = parse_result.value().type_section().types()[entry.type.get<Wasm::TypeIndex>().value()];
+                auto type = parse_result->type_section().types()[entry.type.get<Wasm::TypeIndex>().value()];
                 auto address = machine.store().allocate(Wasm::HostFunction(
                     [name = entry.name, type = type](auto&, auto& arguments) -> Wasm::Result {
                         StringBuilder argument_builder;
@@ -744,7 +744,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             print_link_error(link_result.error());
             return 1;
         }
-        auto result = machine.instantiate(parse_result.value(), link_result.release_value());
+        auto result = machine.instantiate(*parse_result, link_result.release_value());
         if (result.is_error()) {
             warnln("Module instantiation failed: {}", result.error().error);
             return 1;

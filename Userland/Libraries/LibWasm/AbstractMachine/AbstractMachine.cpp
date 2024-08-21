@@ -14,14 +14,14 @@
 
 namespace Wasm {
 
-Optional<FunctionAddress> Store::allocate(ModuleInstance& module, CodeSection::Code const& code, TypeIndex type_index)
+Optional<FunctionAddress> Store::allocate(ModuleInstance& instance, Module const& module, CodeSection::Code const& code, TypeIndex type_index)
 {
     FunctionAddress address { m_functions.size() };
-    if (type_index.value() > module.types().size())
+    if (type_index.value() > instance.types().size())
         return {};
 
-    auto& type = module.types()[type_index.value()];
-    m_functions.empend(WasmFunction { type, module, code });
+    auto& type = instance.types()[type_index.value()];
+    m_functions.empend(WasmFunction { type, instance, module, code });
     return address;
 }
 
@@ -82,6 +82,14 @@ FunctionInstance* Store::get(FunctionAddress address)
     if (m_functions.size() <= value)
         return nullptr;
     return &m_functions[value];
+}
+
+Module const* Store::get_module_for(Wasm::FunctionAddress address)
+{
+    auto* function = get(address);
+    if (!function || function->has<HostFunction>())
+        return nullptr;
+    return function->get<WasmFunction>().module_ref().ptr();
 }
 
 TableInstance* Store::get(TableAddress address)
@@ -223,7 +231,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     size_t i = 0;
     for (auto& code : module.code_section().functions()) {
         auto type_index = module.function_section().types()[i];
-        auto address = m_store.allocate(main_module_instance, code, type_index);
+        auto address = m_store.allocate(main_module_instance, module, code, type_index);
         VERIFY(address.has_value());
         auxiliary_instance.functions().append(*address);
         module_functions.append(*address);

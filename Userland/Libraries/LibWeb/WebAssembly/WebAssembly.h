@@ -29,12 +29,12 @@ WebIDL::ExceptionOr<JS::Value> instantiate(JS::VM&, Module const& module_object,
 
 namespace Detail {
 struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> {
-    explicit CompiledWebAssemblyModule(Wasm::Module&& module)
+    explicit CompiledWebAssemblyModule(NonnullRefPtr<Wasm::Module> module)
         : module(move(module))
     {
     }
 
-    Wasm::Module module;
+    NonnullRefPtr<Wasm::Module> module;
 };
 
 class WebAssemblyCache {

@@ -1248,7 +1248,7 @@ ParseResult<SectionId> SectionId::parse(Stream& stream)
     }
 }
 
-ParseResult<Module> Module::parse(Stream& stream)
+ParseResult<NonnullRefPtr<Module>> Module::parse(Stream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Module"sv);
     u8 buf[4];
@@ -1263,7 +1263,9 @@ ParseResult<Module> Module::parse(Stream& stream)
         return with_eof_check(stream, ParseError::InvalidModuleVersion);
 
     auto last_section_id = SectionId::SectionIdKind::Custom;
-    Module module;
+    auto module_ptr = make_ref_counted<Module>();
+    auto& module = *module_ptr;
+
     while (!stream.is_eof()) {
         auto section_id = TRY(SectionId::parse(stream));
         size_t section_size = TRY_READ(stream, LEB128<u32>, ParseError::ExpectedSize);
@@ -1324,7 +1326,7 @@ ParseResult<Module> Module::parse(Stream& stream)
             return ParseError::SectionSizeMismatch;
     }
 
-    return module;
+    return module_ptr;
 }
 
 ByteString parse_error_to_byte_string(ParseError error)
