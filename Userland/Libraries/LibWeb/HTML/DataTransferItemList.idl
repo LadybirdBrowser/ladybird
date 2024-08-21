@@ -4,7 +4,7 @@
 // https://html.spec.whatwg.org/multipage/dnd.html#datatransferitemlist
 [Exposed=Window]
 interface DataTransferItemList {
-    [FIXME] readonly attribute unsigned long length;
+    readonly attribute unsigned long length;
     [FIXME] getter DataTransferItem (unsigned long index);
     DataTransferItem? add(DOMString data, DOMString type);
     DataTransferItem? add(File data);

@@ -260,6 +260,13 @@ bool DataTransfer::contains_item_with_type(DragDataStoreItem::Kind kind, String 
     return false;
 }
 
+size_t DataTransfer::length() const
+{
+    if (m_associated_drag_data_store)
+        return m_associated_drag_data_store->size();
+    return 0;
+}
+
 // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
 void DataTransfer::update_data_transfer_types_list()
 {

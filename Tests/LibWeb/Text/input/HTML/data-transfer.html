@@ -6,9 +6,11 @@
         println(`effectAllowed: ${dataTransfer.effectAllowed}`);
 
         let dataTransferItemList = dataTransfer.items;
+        println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
 
         let stringItem = dataTransferItemList.add("well hello friends", "custom-type");
-        println(`stringItem: ${stringItem}, types=${dataTransfer.types}`);
+        println(`stringItem: ${stringItem}`);
+        println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
 
         try {
             dataTransferItemList.add("well hello friends", "custom-type");
@@ -20,6 +22,7 @@
         });
 
         let fileItem = dataTransferItemList.add(file);
-        println(`fileItem: ${fileItem}, types=${dataTransfer.types}`);
+        println(`fileItem: ${fileItem}`);
+        println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
     });
 </script>
