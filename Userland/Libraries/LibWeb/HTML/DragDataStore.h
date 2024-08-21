@@ -48,6 +48,7 @@ public:
 
     void add_item(DragDataStoreItem item) { m_item_list.append(move(item)); }
     ReadonlySpan<DragDataStoreItem> item_list() const { return m_item_list; }
+    size_t size() const { return m_item_list.size(); }
     bool has_text_item() const;
 
     Mode mode() const { return m_mode; }

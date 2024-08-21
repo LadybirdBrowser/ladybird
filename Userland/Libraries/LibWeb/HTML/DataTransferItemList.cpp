@@ -41,6 +41,14 @@ void DataTransferItemList::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_data_transfer);
 }
 
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-length
+WebIDL::UnsignedLong DataTransferItemList::length() const
+{
+    // The length attribute must return zero if the object is in the disabled mode; otherwise it must return the number
+    // of items in the drag data store item list.
+    return m_data_transfer->length();
+}
+
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-add
 WebIDL::ExceptionOr<JS::GCPtr<DataTransferItem>> DataTransferItemList::add(String const& data, String const& type)
 {

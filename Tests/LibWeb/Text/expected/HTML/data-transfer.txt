@@ -1,4 +1,7 @@
 dropEffect: none
 effectAllowed: none
-stringItem: [object DataTransferItem], types=custom-type
-fileItem: [object DataTransferItem], types=custom-type,Files
+length=0, types=
+stringItem: [object DataTransferItem]
+length=1, types=custom-type
+fileItem: [object DataTransferItem]
+length=2, types=custom-type,Files
