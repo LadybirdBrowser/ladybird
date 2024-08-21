@@ -13,11 +13,6 @@ namespace Web::HTML {
 
 JS_DEFINE_ALLOCATOR(DataTransferItem);
 
-JS::NonnullGCPtr<DataTransferItem> DataTransferItem::construct_impl(JS::Realm& realm)
-{
-    return realm.heap().allocate<DataTransferItem>(realm, realm);
-}
-
 DataTransferItem::DataTransferItem(JS::Realm& realm)
     : PlatformObject(realm)
 {
