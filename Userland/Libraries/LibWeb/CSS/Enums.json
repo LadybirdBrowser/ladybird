@@ -101,6 +101,10 @@
     "right",
     "both"
   ],
+  "column-span": [
+    "none",
+    "all"
+  ],
   "content-visibility": [
     "visible",
     "auto",

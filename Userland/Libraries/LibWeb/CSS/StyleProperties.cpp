@@ -692,6 +692,12 @@ Optional<CSS::Clear> StyleProperties::clear() const
     return keyword_to_clear(value->to_keyword());
 }
 
+Optional<CSS::ColumnSpan> StyleProperties::column_span() const
+{
+    auto value = property(CSS::PropertyID::ColumnSpan);
+    return keyword_to_column_span(value->to_keyword());
+}
+
 StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::Element& element, u32 initial_quote_nesting_level) const
 {
     auto value = property(CSS::PropertyID::Content);

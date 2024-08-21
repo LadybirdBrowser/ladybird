@@ -75,6 +75,7 @@ public:
     CSS::Display display() const;
     Optional<CSS::Float> float_() const;
     Optional<CSS::Clear> clear() const;
+    Optional<CSS::ColumnSpan> column_span() const;
     struct ContentDataAndQuoteNestingLevel {
         CSS::ContentData content_data;
         u32 final_quote_nesting_level { 0 };
