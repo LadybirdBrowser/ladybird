@@ -74,6 +74,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-items
     JS::GCPtr<DataTransferItemList> m_items;
+    Vector<JS::NonnullGCPtr<DataTransferItem>> m_item_list;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
     Vector<String> m_types;
