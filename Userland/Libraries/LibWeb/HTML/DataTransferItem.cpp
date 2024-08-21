@@ -40,4 +40,49 @@ void DataTransferItem::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_data_transfer);
 }
 
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-kind
+String DataTransferItem::kind() const
+{
+    // The kind attribute must return the empty string if the DataTransferItem object is in the disabled mode; otherwise
+    // it must return the string given in the cell from the second column of the following table from the row whose cell
+    // in the first column contains the drag data item kind of the item represented by the DataTransferItem object:
+    //
+    //     Kind | String
+    //     ---------------
+    //     Text | "string"
+    //     File | "file"
+    if (!mode().has_value())
+        return {};
+
+    auto const& item = m_data_transfer->drag_data(*m_item_index);
+
+    switch (item.kind) {
+    case DragDataStoreItem::Kind::Text:
+        return "string"_string;
+    case DragDataStoreItem::Kind::File:
+        return "file"_string;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-type
+String DataTransferItem::type() const
+{
+    // The type attribute must return the empty string if the DataTransferItem object is in the disabled mode; otherwise
+    // it must return the drag data item type string of the item represented by the DataTransferItem object.
+    if (!mode().has_value())
+        return {};
+
+    auto const& item = m_data_transfer->drag_data(*m_item_index);
+    return item.type_string;
+}
+
+Optional<DragDataStore::Mode> DataTransferItem::mode() const
+{
+    if (!m_item_index.has_value())
+        return {};
+    return m_data_transfer->mode();
+}
+
 }
