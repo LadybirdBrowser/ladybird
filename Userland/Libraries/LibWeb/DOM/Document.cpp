@@ -2706,7 +2706,7 @@ void Document::evaluate_media_rules()
         return;
 
     bool any_media_queries_changed_match_state = false;
-    for_each_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
+    for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
         if (style_sheet.evaluate_media_queries(*window))
             any_media_queries_changed_match_state = true;
     });
@@ -5108,7 +5108,7 @@ WebIDL::ExceptionOr<void> Document::set_adopted_style_sheets(JS::Value new_value
     return {};
 }
 
-void Document::for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
+void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
 {
     if (m_style_sheets) {
         for (auto& style_sheet : m_style_sheets->sheets()) {
