@@ -1,0 +1,2 @@
+dropEffect: none
+effectAllowed: none

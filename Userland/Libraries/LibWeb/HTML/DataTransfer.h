@@ -37,6 +37,7 @@ class DataTransfer : public Bindings::PlatformObject {
     JS_DECLARE_ALLOCATOR(DataTransfer);
 
 public:
+    static JS::NonnullGCPtr<DataTransfer> create(JS::Realm&, NonnullRefPtr<DragDataStore>);
     static JS::NonnullGCPtr<DataTransfer> construct_impl(JS::Realm&);
     virtual ~DataTransfer() override;
 
@@ -55,11 +56,10 @@ public:
     String get_data(String const& format) const;
     JS::NonnullGCPtr<FileAPI::FileList> files() const;
 
-    void associate_with_drag_data_store(NonnullRefPtr<DragDataStore> drag_data_store);
     void disassociate_with_drag_data_store();
 
 private:
-    DataTransfer(JS::Realm&);
+    DataTransfer(JS::Realm&, NonnullRefPtr<DragDataStore>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
