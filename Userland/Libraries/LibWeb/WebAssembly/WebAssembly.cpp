@@ -430,7 +430,7 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
             auto& cache = get_cache(*vm.current_realm());
             for (auto& entry : cache.function_instances()) {
                 if (entry.value == &function)
-                    return Wasm::Value { Wasm::Reference { Wasm::Reference::Func { entry.key } } };
+                    return Wasm::Value { Wasm::Reference { Wasm::Reference::Func { entry.key, cache.abstract_machine().store().get_module_for(entry.key) } } };
             }
         }
 

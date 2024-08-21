@@ -53,7 +53,7 @@ public:
     Wasm::Module& module() { return *m_module; }
     Wasm::ModuleInstance& module_instance() { return *m_module_instance; }
 
-    static JS::ThrowCompletionOr<WebAssemblyModule*> create(JS::Realm& realm, Wasm::Module module, HashMap<Wasm::Linker::Name, Wasm::ExternValue> const& imports)
+    static JS::ThrowCompletionOr<WebAssemblyModule*> create(JS::Realm& realm, NonnullRefPtr<Wasm::Module> module, HashMap<Wasm::Linker::Name, Wasm::ExternValue> const& imports)
     {
         auto& vm = realm.vm();
         auto instance = realm.heap().allocate<WebAssemblyModule>(realm, realm.intrinsics().object_prototype());
@@ -148,7 +148,7 @@ private:
 
     static HashMap<Wasm::Linker::Name, Wasm::ExternValue> s_spec_test_namespace;
     static Wasm::AbstractMachine m_machine;
-    Optional<Wasm::Module> m_module;
+    RefPtr<Wasm::Module> m_module;
     OwnPtr<Wasm::ModuleInstance> m_module_instance;
 };
 
@@ -379,13 +379,15 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             arguments.append(Wasm::Value(bits));
             break;
         }
-        case Wasm::ValueType::Kind::FunctionReference:
+        case Wasm::ValueType::Kind::FunctionReference: {
             if (argument.is_null()) {
                 arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::FunctionReference) } }));
                 break;
             }
-            arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Func { static_cast<u64>(double_value) } }));
+            Wasm::FunctionAddress addr = static_cast<u64>(double_value);
+            arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Func { addr, machine().store().get_module_for(addr) } }));
             break;
+        }
         case Wasm::ValueType::Kind::ExternReference:
             if (argument.is_null()) {
                 arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::ExternReference) } }));

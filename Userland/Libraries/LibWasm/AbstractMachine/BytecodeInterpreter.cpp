@@ -864,7 +864,7 @@ ALWAYS_INLINE void BytecodeInterpreter::interpret_instruction(Configuration& con
         auto index = instruction.arguments().get<FunctionIndex>().value();
         auto& functions = configuration.frame().module().functions();
         auto address = functions[index];
-        configuration.value_stack().append(Value(address.value()));
+        configuration.value_stack().append(Value(Reference { Reference::Func { address, configuration.store().get_module_for(address) } }));
         return;
     }
     case Instructions::ref_is_null.value(): {

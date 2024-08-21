@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/Variant.h>
+#include <AK/WeakPtr.h>
 #include <LibWasm/Constants.h>
 #include <LibWasm/Forward.h>
 #include <LibWasm/Opcode.h>
@@ -982,7 +983,8 @@ private:
     Optional<u32> m_count;
 };
 
-class Module {
+class Module : public RefCounted<Module>
+    , public Weakable<Module> {
 public:
     enum class ValidationStatus {
         Unchecked,
@@ -1027,7 +1029,7 @@ public:
     StringView validation_error() const { return *m_validation_error; }
     void set_validation_error(ByteString error) { m_validation_error = move(error); }
 
-    static ParseResult<Module> parse(Stream& stream);
+    static ParseResult<NonnullRefPtr<Module>> parse(Stream& stream);
 
 private:
     void set_validation_status(ValidationStatus status) { m_validation_status = status; }
