@@ -7,6 +7,9 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/String.h>
+#include <AK/StringView.h>
+#include <AK/Vector.h>
 
 namespace Web::HTML {
 
@@ -26,6 +29,12 @@ struct POSTResource {
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#post-resource-request-content-type
     // A request content-type, which is `application/x-www-form-urlencoded`, `multipart/form-data`, or `text/plain`.
     RequestContentType request_content_type {};
+
+    struct Directive {
+        StringView type;
+        String value;
+    };
+    Vector<Directive> request_content_type_directives {};
 };
 
 }

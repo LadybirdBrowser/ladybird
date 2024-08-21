@@ -702,7 +702,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     request->set_referrer(entry->document_state()->request_referrer());
 
     // 4. If documentResource is a POST resource, then:
-    if (document_resource.has<POSTResource>()) {
+    if (auto* post_resource = document_resource.get_pointer<POSTResource>()) {
         // 1. Set request's method to `POST`.
         request->set_method(TRY_OR_THROW_OOM(vm, ByteBuffer::copy("POST"sv.bytes())));
 
@@ -710,9 +710,8 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         request->set_body(document_resource.get<POSTResource>().request_body.value());
 
         // 3. Set `Content-Type` to documentResource's request content-type in request's header list.
-        auto request_content_type = document_resource.get<POSTResource>().request_content_type;
-        auto request_content_type_string = [request_content_type]() {
-            switch (request_content_type) {
+        auto request_content_type = [&]() {
+            switch (post_resource->request_content_type) {
             case POSTResource::RequestContentType::ApplicationXWWWFormUrlencoded:
                 return "application/x-www-form-urlencoded"sv;
             case POSTResource::RequestContentType::MultipartFormData:
@@ -723,7 +722,18 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
                 VERIFY_NOT_REACHED();
             }
         }();
-        auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, request_content_type_string);
+
+        StringBuilder request_content_type_buffer;
+        if (!post_resource->request_content_type_directives.is_empty()) {
+            request_content_type_buffer.append(request_content_type);
+
+            for (auto const& directive : post_resource->request_content_type_directives)
+                request_content_type_buffer.appendff("; {}={}", directive.type, directive.value);
+
+            request_content_type = request_content_type_buffer.string_view();
+        }
+
+        auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, request_content_type);
         request->header_list()->append(move(header));
     }
 
