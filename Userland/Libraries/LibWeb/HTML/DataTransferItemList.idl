@@ -5,7 +5,7 @@
 [Exposed=Window]
 interface DataTransferItemList {
     readonly attribute unsigned long length;
-    [FIXME] getter DataTransferItem (unsigned long index);
+    getter DataTransferItem (unsigned long index);
     DataTransferItem? add(DOMString data, DOMString type);
     DataTransferItem? add(File data);
     [FIXME] undefined remove(unsigned long index);

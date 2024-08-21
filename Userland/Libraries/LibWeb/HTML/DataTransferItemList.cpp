@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
+#include <LibWeb/HTML/DataTransferItem.h>
 #include <LibWeb/HTML/DataTransferItemList.h>
 #include <LibWeb/Infra/Strings.h>
 
@@ -25,6 +26,7 @@ DataTransferItemList::DataTransferItemList(JS::Realm& realm, JS::NonnullGCPtr<Da
     : PlatformObject(realm)
     , m_data_transfer(data_transfer)
 {
+    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
 }
 
 DataTransferItemList::~DataTransferItemList() = default;
@@ -106,6 +108,18 @@ JS::GCPtr<DataTransferItem> DataTransferItemList::add(JS::NonnullGCPtr<FileAPI::
     // 3. Determine the value of the indexed property corresponding to the newly added item, and return that value (a
     //    newly created DataTransferItem object).
     return item;
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-item
+Optional<JS::Value> DataTransferItemList::item_value(size_t index) const
+{
+    // To determine the value of an indexed property i of a DataTransferItemList object, the user agent must return a
+    // DataTransferItem object representing the ith item in the drag data store. The same object must be returned each
+    // time a particular item is obtained from this DataTransferItemList object. The DataTransferItem object must be
+    // associated with the same DataTransfer object as the DataTransferItemList object when it is first created.
+    if (index < m_data_transfer->length())
+        return m_data_transfer->item(index);
+    return {};
 }
 
 }

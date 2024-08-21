@@ -61,6 +61,7 @@ public:
 
     JS::NonnullGCPtr<DataTransferItem> add_item(DragDataStoreItem item);
     bool contains_item_with_type(DragDataStoreItem::Kind, String const& type) const;
+    JS::NonnullGCPtr<DataTransferItem> item(size_t index) const;
     size_t length() const;
 
 private:

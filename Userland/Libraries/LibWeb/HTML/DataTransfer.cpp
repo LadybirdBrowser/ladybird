@@ -260,6 +260,12 @@ bool DataTransfer::contains_item_with_type(DragDataStoreItem::Kind kind, String 
     return false;
 }
 
+JS::NonnullGCPtr<DataTransferItem> DataTransfer::item(size_t index) const
+{
+    VERIFY(index < m_item_list.size());
+    return m_item_list[index];
+}
+
 size_t DataTransfer::length() const
 {
     if (m_associated_drag_data_store)
