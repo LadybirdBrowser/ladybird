@@ -391,7 +391,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         //        type
         //            text/css
         //        location
-        //            The resulting URL string determined during the fetch and process the linked resource algorithm.
+        //            response's URL list[0]
         //        owner node
         //            element
         //        media
@@ -438,6 +438,10 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 m_loaded_style_sheet = parse_css_stylesheet(CSS::Parser::ParsingContext(document(), *response.url()), decoded_string);
 
                 if (m_loaded_style_sheet) {
+                    Optional<String> location;
+                    if (!response.url_list().is_empty())
+                        location = MUST(response.url_list().first().to_string());
+
                     document().style_sheets().create_a_css_style_sheet(
                         "text/css"_string,
                         this,
@@ -445,7 +449,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                         in_a_document_tree() ? attribute(HTML::AttributeNames::title).value_or({}) : String {},
                         m_relationship & Relationship::Alternate && !m_explicitly_enabled,
                         true,
-                        {},
+                        move(location),
                         nullptr,
                         nullptr,
                         *m_loaded_style_sheet);
