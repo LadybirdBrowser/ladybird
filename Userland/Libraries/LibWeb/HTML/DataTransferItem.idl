@@ -7,6 +7,6 @@ callback FunctionStringCallback = undefined (DOMString data);
 interface DataTransferItem {
     readonly attribute DOMString kind;
     readonly attribute DOMString type;
-    [FIXME] undefined getAsString(FunctionStringCallback? _callback);
+    undefined getAsString(FunctionStringCallback? _callback);
     File? getAsFile();
 };
