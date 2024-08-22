@@ -93,7 +93,7 @@ Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const
     if (ratio.is_degenerate())
         return {};
 
-    return CSSPixelFraction(CSSPixels(ratio.numerator()), CSSPixels(ratio.denominator()));
+    return CSSPixelFraction(ratio.numerator(), ratio.denominator());
 }
 
 }
