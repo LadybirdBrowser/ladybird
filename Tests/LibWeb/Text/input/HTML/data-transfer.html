@@ -29,6 +29,9 @@
         println(`fileItem: kind=${fileItem.kind}, type=${fileItem.type}`);
         println(`length=${dataTransferItemList.length}, types=${dataTransfer.types}`);
 
+        let fileItemAsFile = fileItem.getAsFile();
+        println(`fileItemAsFile: name=${fileItemAsFile.name}, type=${fileItemAsFile.type}`);
+
         if (dataTransferItemList[1] !== fileItem) {
             println("FAILED");
         }

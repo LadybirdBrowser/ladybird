@@ -7,6 +7,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/DataTransferItemPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
 
@@ -83,6 +84,34 @@ Optional<DragDataStore::Mode> DataTransferItem::mode() const
     if (!m_item_index.has_value())
         return {};
     return m_data_transfer->mode();
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasfile
+JS::GCPtr<FileAPI::File> DataTransferItem::get_as_file() const
+{
+    auto& realm = this->realm();
+
+    // 1. If the DataTransferItem object is not in the read/write mode or the read-only mode, then return null
+    if (mode() != DragDataStore::Mode::ReadWrite && mode() != DragDataStore::Mode::ReadOnly)
+        return nullptr;
+
+    auto const& item = m_data_transfer->drag_data(*m_item_index);
+
+    // 2. If the drag data item kind is not File, then return null.
+    if (item.kind != DragDataStoreItem::Kind::File)
+        return nullptr;
+
+    // 3. Return a new File object representing the actual data of the item represented by the DataTransferItem object.
+    auto blob = FileAPI::Blob::create(realm, item.data, item.type_string);
+
+    // FIXME: The FileAPI should use ByteString for file names.
+    auto file_name = MUST(String::from_byte_string(item.file_name));
+
+    // FIXME: Fill in other fields (e.g. last_modified).
+    FileAPI::FilePropertyBag options {};
+    options.type = item.type_string;
+
+    return MUST(FileAPI::File::create(realm, { JS::make_handle(blob) }, file_name, move(options)));
 }
 
 }
