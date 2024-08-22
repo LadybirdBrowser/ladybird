@@ -903,16 +903,16 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
         // An ECMAScript value V is converted to an IDL callback function type value by running the following algorithm:
         // 1. If the result of calling IsCallable(V) is false and the conversion to an IDL value is not being performed due to V being assigned to an attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull], then throw a TypeError.
-        if (!callback_function.is_legacy_treat_non_object_as_null) {
+        if (!parameter.type->is_nullable() && !callback_function.is_legacy_treat_non_object_as_null) {
             callback_function_generator.append(R"~~~(
     if (!@js_name@@js_suffix@.is_function())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, @js_name@@js_suffix@.to_string_without_side_effects());
 )~~~");
         }
         // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent settings object as the callback context.
-        if (callback_function.is_legacy_treat_non_object_as_null) {
+        if (parameter.type->is_nullable() || callback_function.is_legacy_treat_non_object_as_null) {
             callback_function_generator.append(R"~~~(
-    WebIDL::CallbackType* @cpp_name@ = nullptr;
+    JS::GCPtr<WebIDL::CallbackType> @cpp_name@;
     if (@js_name@@js_suffix@.is_object())
         @cpp_name@ = vm.heap().allocate_without_realm<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_settings_object(), @operation_returns_promise@);
 )~~~");
