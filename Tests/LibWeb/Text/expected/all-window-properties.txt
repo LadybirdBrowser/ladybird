@@ -317,6 +317,7 @@ SVGUseElement
 Screen
 ScreenOrientation
 Selection
+ServiceWorkerRegistration
 Set
 ShadowRealm
 ShadowRoot
