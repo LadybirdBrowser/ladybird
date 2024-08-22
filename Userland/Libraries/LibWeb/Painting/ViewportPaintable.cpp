@@ -224,18 +224,10 @@ void ViewportPaintable::recompute_selection_states()
 
         // 2. If it's a text node, mark it as StartAndEnd and return.
         if (is<DOM::Text>(*start_container)) {
-            if (auto* paintable = start_container->paintable()) {
+            if (auto* paintable = start_container->paintable())
                 paintable->set_selection_state(SelectionState::StartAndEnd);
-            }
             return;
         }
-    }
-
-    if (start_container == end_container && is<DOM::Text>(*start_container)) {
-        if (auto* paintable = start_container->paintable()) {
-            paintable->set_selection_state(SelectionState::StartAndEnd);
-        }
-        return;
     }
 
     // 4. Mark the selection start node as Start (if text) or Full (if anything else).
