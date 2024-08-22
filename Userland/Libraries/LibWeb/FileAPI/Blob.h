@@ -67,6 +67,8 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
 
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> slice_blob(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
+
     ByteBuffer m_byte_buffer {};
     String m_type {};
 
