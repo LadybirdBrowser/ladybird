@@ -9,7 +9,7 @@ interface Blob {
     readonly attribute DOMString type;
 
     // slice Blob into byte-ranged chunks
-    Blob slice(optional long long start, optional long long end, optional DOMString contentType);
+    Blob slice(optional [Clamp] long long start, optional [Clamp] long long end, optional DOMString contentType);
 
     // read from the Blob.
     [NewObject] ReadableStream stream();
