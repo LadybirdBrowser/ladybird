@@ -1,7 +1,7 @@
 import("//Meta/gn/build/compiled_action.gni")
 import("//Meta/gn/build/download_cache.gni")
 import("//Meta/gn/build/download_file.gni")
-import("//Meta/gn/build/embed_as_string_view.gni")
+import("//Meta/gn/build/embed_as_string.gni")
 
 declare_args() {
   # If true, Download public suffix list from GitHub.
@@ -106,7 +106,7 @@ compiled_action("UIProcessServerEndpoint") {
   ]
 }
 
-embed_as_string_view("generate_native_stylesheet_source") {
+embed_as_string("generate_native_stylesheet_source") {
   input = "Native.css"
   output = "$target_gen_dir/NativeStyleSheetSource.cpp"
   variable_name = "native_stylesheet_source"

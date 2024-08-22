@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 r"""
-    Embeds a file into a StringView, a la #embed from C++23
+    Embeds a file into a String, a la #embed from C++23
 """
 
 import argparse
@@ -21,15 +21,15 @@ def main():
     args = parser.parse_args()
 
     with open(args.output, 'w') as f:
-        f.write("#include <AK/StringView.h>\n")
+        f.write("#include <AK/String.h>\n")
         if args.namespace:
             f.write(f"namespace {args.namespace} {{\n")
-        f.write(f"extern StringView {args.variable_name};\n")
-        f.write(f"StringView {args.variable_name} = R\"~~~(")
+        f.write(f"extern String {args.variable_name};\n")
+        f.write(f"String {args.variable_name} = R\"~~~(")
         with open(args.input, 'r') as input:
             for line in input.readlines():
                 f.write(f"{line}")
-        f.write(")~~~\"sv;\n")
+        f.write(")~~~\"_string;\n")
         if args.namespace:
             f.write("}\n")
 

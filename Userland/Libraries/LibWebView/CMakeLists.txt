@@ -23,7 +23,7 @@ set(SOURCES
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
-embed_as_string_view(
+embed_as_string(
     "NativeStyleSheetSource.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Native.css"
     "NativeStyleSheetSource.cpp"

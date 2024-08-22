@@ -64,7 +64,7 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
     )
 
-    embed_as_string_view(
+    embed_as_string(
         "DefaultStyleSheetSource.cpp"
         "${LIBWEB_INPUT_FOLDER}/CSS/Default.css"
         "CSS/DefaultStyleSheetSource.cpp"
@@ -72,7 +72,7 @@ function (generate_css_implementation)
         NAMESPACE "Web::CSS"
     )
 
-    embed_as_string_view(
+    embed_as_string(
         "QuirksModeStyleSheetSource.cpp"
         "${LIBWEB_INPUT_FOLDER}/CSS/QuirksMode.css"
         "CSS/QuirksModeStyleSheetSource.cpp"
@@ -80,7 +80,7 @@ function (generate_css_implementation)
         NAMESPACE "Web::CSS"
     )
 
-    embed_as_string_view(
+    embed_as_string(
         "MathMLStyleSheetSource.cpp"
         "${LIBWEB_INPUT_FOLDER}/MathML/Default.css"
         "MathML/MathMLStyleSheetSource.cpp"
@@ -88,7 +88,7 @@ function (generate_css_implementation)
         NAMESPACE "Web::CSS"
     )
 
-    embed_as_string_view(
+    embed_as_string(
         "SVGStyleSheetSource.cpp"
         "${LIBWEB_INPUT_FOLDER}/SVG/Default.css"
         "SVG/SVGStyleSheetSource.cpp"
