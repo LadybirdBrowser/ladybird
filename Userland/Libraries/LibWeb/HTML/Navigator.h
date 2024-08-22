@@ -54,6 +54,8 @@ public:
 
     Optional<FlyString> do_not_track() const;
 
+    JS::NonnullGCPtr<ServiceWorkerContainer> service_worker();
+
     static WebIDL::Long max_touch_points();
 
     virtual ~Navigator() override;
@@ -77,6 +79,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-navigator-useractivation
     JS::GCPtr<UserActivation> m_user_activation;
+
+    // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
+    JS::GCPtr<ServiceWorkerContainer> m_service_worker_container;
 };
 
 }

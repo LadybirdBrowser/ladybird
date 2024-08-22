@@ -12,6 +12,7 @@
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/ServiceWorkerContainer.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
@@ -64,6 +65,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_plugin_array);
     visitor.visit(m_clipboard);
     visitor.visit(m_user_activation);
+    visitor.visit(m_service_worker_container);
 }
 
 JS::NonnullGCPtr<MimeTypeArray> Navigator::mime_types()
@@ -111,6 +113,13 @@ Optional<FlyString> Navigator::do_not_track() const
         return "1"_fly_string;
 
     return {};
+}
+
+JS::NonnullGCPtr<ServiceWorkerContainer> Navigator::service_worker()
+{
+    if (!m_service_worker_container)
+        m_service_worker_container = heap().allocate<ServiceWorkerContainer>(realm(), realm());
+    return *m_service_worker_container;
 }
 
 }
