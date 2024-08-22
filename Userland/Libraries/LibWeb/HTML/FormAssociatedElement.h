@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -49,6 +50,13 @@ private:                                                                        
         form_associated_element_attribute_changed(name, value);                                                                      \
     }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selection-direction
+enum class SelectionDirection {
+    Forward,
+    Backward,
+    None,
+};
+
 class FormAssociatedElement {
 public:
     HTMLFormElement* form() { return m_form; }
@@ -83,17 +91,36 @@ public:
 
     virtual String value() const { return String {}; }
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
+    String relevant_value() const;
+
     virtual HTMLElement& form_associated_element_to_html_element() = 0;
     HTMLElement const& form_associated_element_to_html_element() const { return const_cast<FormAssociatedElement&>(*this).form_associated_element_to_html_element(); }
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset-control
     virtual void reset_algorithm() {};
 
-    WebIDL::UnsignedLong selection_start() const;
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-select
+    WebIDL::ExceptionOr<void> select();
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
+    Optional<WebIDL::UnsignedLong> selection_start() const;
     WebIDL::ExceptionOr<void> set_selection_start(Optional<WebIDL::UnsignedLong> const&);
 
-    WebIDL::UnsignedLong selection_end() const;
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionend
+    Optional<WebIDL::UnsignedLong> selection_end() const;
     WebIDL::ExceptionOr<void> set_selection_end(Optional<WebIDL::UnsignedLong> const&);
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
+    Optional<String> selection_direction() const;
+    void set_selection_direction(Optional<String> direction);
+    SelectionDirection selection_direction_state() const { return m_selection_direction; }
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
+    void set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction = SelectionDirection::None);
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
+    WebIDL::ExceptionOr<void> set_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, Optional<String> direction);
 
 protected:
     FormAssociatedElement() = default;
@@ -107,13 +134,21 @@ protected:
     void form_node_was_removed();
     void form_node_attribute_changed(FlyString const&, Optional<String> const&);
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
+    void relevant_value_was_changed(JS::GCPtr<DOM::Text>);
+
 private:
+    void reset_form_owner();
+
     WeakPtr<HTMLFormElement> m_form;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };
 
-    void reset_form_owner();
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-selection
+    WebIDL::UnsignedLong m_selection_start { 0 };
+    WebIDL::UnsignedLong m_selection_end { 0 };
+    SelectionDirection m_selection_direction { SelectionDirection::None };
 };
 
 }

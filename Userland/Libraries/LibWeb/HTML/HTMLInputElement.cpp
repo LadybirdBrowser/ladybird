@@ -4,6 +4,7 @@
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -410,10 +411,14 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
 void HTMLInputElement::did_edit_text_node(Badge<DOM::Document>)
 {
     // An input element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the value.
+    auto old_value = move(m_value);
     m_value = value_sanitization_algorithm(m_text_node->data());
     m_dirty_value = true;
 
     m_has_uncommitted_changes = true;
+
+    if (m_value != old_value)
+        relevant_value_was_changed(m_text_node);
 
     update_placeholder_visibility();
 
@@ -550,6 +555,8 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(String const& value)
         //    and the element has a text entry cursor position, move the text entry cursor position to the end of the
         //    text control, unselecting any selected text and resetting the selection direction to "none".
         if (m_value != old_value) {
+            relevant_value_was_changed(m_text_node);
+
             if (m_text_node) {
                 m_text_node->set_data(m_value);
                 update_placeholder_visibility();
@@ -1183,11 +1190,15 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
 
     } else if (name == HTML::AttributeNames::value) {
         if (!m_dirty_value) {
+            auto old_value = move(m_value);
             if (!value.has_value()) {
                 m_value = String {};
             } else {
                 m_value = value_sanitization_algorithm(*value);
             }
+
+            if (m_value != old_value)
+                relevant_value_was_changed(m_text_node);
 
             update_shadow_tree();
         }
@@ -1417,6 +1428,7 @@ void HTMLInputElement::reset_algorithm()
     m_dirty_checkedness = false;
 
     // set the value of the element to the value of the value content attribute, if there is one, or the empty string otherwise,
+    auto old_value = move(m_value);
     m_value = get_attribute_value(AttributeNames::value);
 
     // set the checkedness of the element to true if the element has a checked content attribute and false if it does not,
@@ -1427,6 +1439,9 @@ void HTMLInputElement::reset_algorithm()
 
     // and then invoke the value sanitization algorithm, if the type attribute's current state defines one.
     m_value = value_sanitization_algorithm(m_value);
+
+    if (m_value != old_value)
+        relevant_value_was_changed(m_text_node);
 
     if (m_text_node) {
         m_text_node->set_data(m_value);
@@ -2069,66 +2084,6 @@ void HTMLInputElement::set_custom_validity(String const& error)
     return;
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-select
-WebIDL::ExceptionOr<void> HTMLInputElement::select()
-{
-    dbgln("(STUBBED) HTMLInputElement::select(). Called on: {}", debug_description());
-    return {};
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
-WebIDL::ExceptionOr<void> HTMLInputElement::set_selection_range(u32 start, u32 end, Optional<String> const& direction)
-{
-    dbgln("(STUBBED) HTMLInputElement::set_selection_range(start={}, end={}, direction='{}'). Called on: {}", start, end, direction, debug_description());
-    return {};
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionstart-2
-WebIDL::ExceptionOr<void> HTMLInputElement::set_selection_start_for_bindings(Optional<WebIDL::UnsignedLong> const& value)
-{
-    // 1. If this element is an input element, and selectionStart does not apply to this element, throw an
-    //    "InvalidStateError" DOMException.
-    if (!selection_or_range_applies())
-        return WebIDL::InvalidStateError::create(realm(), "setSelectionStart does not apply to this input type"_fly_string);
-
-    // NOTE: Steps continued below:
-    return set_selection_start(value);
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
-Optional<WebIDL::UnsignedLong> HTMLInputElement::selection_start_for_bindings() const
-{
-    // 1. If this element is an input element, and selectionStart does not apply to this element, return null.
-    if (!selection_or_range_applies())
-        return {};
-
-    // NOTE: Steps continued below:
-    return selection_start();
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionend-3
-WebIDL::ExceptionOr<void> HTMLInputElement::set_selection_end_for_bindings(Optional<WebIDL::UnsignedLong> const& value)
-{
-    // 1. If this element is an input element, and selectionEnd does not apply to this element, throw an
-    //    "InvalidStateError" DOMException.
-    if (!selection_or_range_applies())
-        return WebIDL::InvalidStateError::create(realm(), "setSelectionEnd does not apply to this input type"_fly_string);
-
-    // NOTE: Steps continued below:
-    return set_selection_end(value);
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionend
-Optional<WebIDL::UnsignedLong> HTMLInputElement::selection_end_for_bindings() const
-{
-    // 1. If this element is an input element, and selectionEnd does not apply to this element, return null.
-    if (!selection_or_range_applies())
-        return {};
-
-    // NOTE: Steps continued below:
-    return selection_end();
-}
-
 Optional<ARIA::Role> HTMLInputElement::default_role() const
 {
     // https://www.w3.org/TR/html-aria/#el-input-button
@@ -2254,6 +2209,24 @@ bool HTMLInputElement::has_input_activation_behavior() const
         return true;
     default:
         return false;
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#do-not-apply
+bool HTMLInputElement::select_applies() const
+{
+    switch (type_state()) {
+    case TypeAttributeState::Button:
+    case TypeAttributeState::Checkbox:
+    case TypeAttributeState::Hidden:
+    case TypeAttributeState::ImageButton:
+    case TypeAttributeState::RadioButton:
+    case TypeAttributeState::Range:
+    case TypeAttributeState::ResetButton:
+    case TypeAttributeState::SubmitButton:
+        return false;
+    default:
+        return true;
     }
 }
 

@@ -34,11 +34,11 @@ interface HTMLTextAreaElement : HTMLElement {
 
     readonly attribute NodeList labels;
 
-    [FIXME] undefined select();
-    attribute unsigned long selectionStart;
-    attribute unsigned long selectionEnd;
-    [FIXME] attribute DOMString selectionDirection;
+    undefined select();
+    [ImplementedAs=selection_start_binding] attribute unsigned long selectionStart;
+    [ImplementedAs=selection_end_binding] attribute unsigned long selectionEnd;
+    [ImplementedAs=selection_direction_binding] attribute DOMString selectionDirection;
     [FIXME] undefined setRangeText(DOMString replacement);
     [FIXME] undefined setRangeText(DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
-    [FIXME] undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
+    undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
 };
