@@ -481,6 +481,7 @@ class Plugin;
 class PluginArray;
 class PromiseRejectionEvent;
 class SelectedFile;
+class ServiceWorkerContainer;
 class ServiceWorkerRegistration;
 class SharedResourceRequest;
 class Storage;
