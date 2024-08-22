@@ -1,6 +1,6 @@
 <script src="../include.js"></script>
 <script>
-    test(() => {
+    test(async () => {
         let dataTransfer = new DataTransfer();
         println(`dropEffect: ${dataTransfer.dropEffect}`);
         println(`effectAllowed: ${dataTransfer.effectAllowed}`);
@@ -15,6 +15,14 @@
         if (dataTransferItemList[0] !== stringItem) {
             println("FAILED");
         }
+
+        let promise = new Promise((resolve, reject) => {
+            stringItem.getAsString(data => {
+                println(`stringItemAsString: data=${data}`);
+                resolve();
+            });
+        });
+        await promise;
 
         try {
             dataTransferItemList.add("well hello friends", "custom-type");

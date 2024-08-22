@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Heap/HeapFunction.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/DataTransferItemPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::HTML {
 
@@ -84,6 +87,37 @@ Optional<DragDataStore::Mode> DataTransferItem::mode() const
     if (!m_item_index.has_value())
         return {};
     return m_data_transfer->mode();
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasstring
+void DataTransferItem::get_as_string(JS::GCPtr<WebIDL::CallbackType> callback) const
+{
+    auto& realm = this->realm();
+    auto& vm = realm.vm();
+
+    // 1. If the callback is null, return.
+    if (!callback)
+        return;
+
+    // 2. If the DataTransferItem object is not in the read/write mode or the read-only mode, return. The callback is
+    //    never invoked.
+    if (mode() != DragDataStore::Mode::ReadWrite && mode() != DragDataStore::Mode::ReadOnly)
+        return;
+
+    auto const& item = m_data_transfer->drag_data(*m_item_index);
+
+    // 3. If the drag data item kind is not text, then return. The callback is never invoked.
+    if (item.kind != DragDataStoreItem::Kind::Text)
+        return;
+
+    // 4. Otherwise, queue a task to invoke callback, passing the actual data of the item represented by the
+    //    DataTransferItem object as the argument.
+    auto data = JS::PrimitiveString::create(vm, MUST(String::from_utf8({ item.data })));
+
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
+        JS::HeapFunction<void()>::create(realm.heap(), [callback, data]() {
+            (void)WebIDL::invoke_callback(*callback, {}, data);
+        }));
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasfile
