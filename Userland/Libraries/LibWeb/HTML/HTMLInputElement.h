@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2022, Adam Hodgen <ant1441@gmail.com>
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -137,9 +138,6 @@ public:
     WebIDL::ExceptionOr<bool> report_validity();
     void set_custom_validity(String const&);
 
-    WebIDL::ExceptionOr<void> select();
-    WebIDL::ExceptionOr<void> set_selection_range(u32 start, u32 end, Optional<String> const& direction = {});
-
     WebIDL::ExceptionOr<void> show_picker();
 
     // ^DOM::EditableTextNodeOwner
@@ -198,13 +196,8 @@ public:
     bool value_as_number_applies() const;
     bool step_applies() const;
     bool step_up_or_down_applies() const;
+    bool select_applies() const;
     bool selection_or_range_applies() const;
-
-    WebIDL::ExceptionOr<void> set_selection_start_for_bindings(Optional<WebIDL::UnsignedLong> const&);
-    Optional<WebIDL::UnsignedLong> selection_start_for_bindings() const;
-
-    WebIDL::ExceptionOr<void> set_selection_end_for_bindings(Optional<WebIDL::UnsignedLong> const&);
-    Optional<WebIDL::UnsignedLong> selection_end_for_bindings() const;
 
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);

@@ -2,6 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -80,6 +81,9 @@ public:
     String value() const override;
     void set_value(String const&);
 
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
+    String api_value() const;
+
     u32 text_length() const;
 
     bool check_validity();
@@ -98,6 +102,18 @@ public:
     unsigned rows() const;
     WebIDL::ExceptionOr<void> set_rows(unsigned);
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
+    WebIDL::UnsignedLong selection_start_binding() const;
+    WebIDL::ExceptionOr<void> set_selection_start_binding(WebIDL::UnsignedLong const&);
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionend
+    WebIDL::UnsignedLong selection_end_binding() const;
+    WebIDL::ExceptionOr<void> set_selection_end_binding(WebIDL::UnsignedLong const&);
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
+    String selection_direction_binding() const;
+    void set_selection_direction_binding(String direction);
+
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);
 
@@ -105,7 +121,6 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     void set_raw_value(String);
-    String api_value() const;
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
@@ -118,6 +133,7 @@ private:
     void queue_firing_input_event();
 
     void update_placeholder_visibility();
+
     JS::GCPtr<DOM::Element> m_placeholder_element;
     JS::GCPtr<DOM::Text> m_placeholder_text_node;
 

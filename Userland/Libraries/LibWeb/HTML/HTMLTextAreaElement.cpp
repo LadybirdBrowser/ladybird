@@ -2,6 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2024, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -186,8 +187,12 @@ void HTMLTextAreaElement::set_value(String const& value)
 
 void HTMLTextAreaElement::set_raw_value(String value)
 {
+    auto old_raw_value = move(m_raw_value);
     m_raw_value = move(value);
     m_api_value.clear();
+
+    if (m_raw_value != old_raw_value)
+        relevant_value_was_changed(m_text_node);
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
@@ -290,6 +295,36 @@ unsigned HTMLTextAreaElement::rows() const
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_rows(unsigned rows)
 {
     return set_attribute(HTML::AttributeNames::rows, MUST(String::number(rows)));
+}
+
+WebIDL::UnsignedLong HTMLTextAreaElement::selection_start_binding() const
+{
+    return selection_start().value();
+}
+
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_start_binding(WebIDL::UnsignedLong const& value)
+{
+    return set_selection_start(value);
+}
+
+WebIDL::UnsignedLong HTMLTextAreaElement::selection_end_binding() const
+{
+    return selection_end().value();
+}
+
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_end_binding(WebIDL::UnsignedLong const& value)
+{
+    return set_selection_end(value);
+}
+
+String HTMLTextAreaElement::selection_direction_binding() const
+{
+    return selection_direction().value();
+}
+
+void HTMLTextAreaElement::set_selection_direction_binding(String direction)
+{
+    set_selection_direction(direction);
 }
 
 void HTMLTextAreaElement::create_shadow_tree_if_needed()
