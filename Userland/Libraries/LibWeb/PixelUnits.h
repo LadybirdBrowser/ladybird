@@ -320,6 +320,20 @@ public:
         VERIFY(denominator != 0);
     }
 
+    template<FloatingPoint F>
+    constexpr CSSPixelFraction(F numerator, F denominator = 1)
+    {
+        if (CSSPixels::nearest_value_for(denominator) == 0) {
+            numerator = numerator / denominator;
+            denominator = 1;
+        }
+
+        m_numerator = CSSPixels(numerator);
+        m_denominator = CSSPixels(denominator);
+
+        VERIFY(denominator != 0);
+    }
+
     constexpr operator CSSPixels() const
     {
         i64 wide_value = m_numerator.raw_value();
