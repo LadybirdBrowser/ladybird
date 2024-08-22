@@ -6,6 +6,7 @@
 #import <HTML/NavigatorOnLine.idl>
 #import <HTML/NavigatorConcurrentHardware.idl>
 #import <HTML/PluginArray.idl>
+#import <HTML/ServiceWorkerContainer.idl>
 #import <HTML/UserActivation.idl>
 #import <StorageAPI/NavigatorStorage.idl>
 
@@ -25,6 +26,9 @@ interface Navigator {
 
     // https://www.w3.org/TR/tracking-dnt/#dom-navigator-donottrack
     readonly attribute DOMString? doNotTrack;
+
+    // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
+    [SecureContext, SameObject] readonly attribute ServiceWorkerContainer serviceWorker;
 };
 
 // NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation
