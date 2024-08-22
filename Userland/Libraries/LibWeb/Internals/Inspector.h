@@ -36,6 +36,8 @@ public:
 private:
     explicit Inspector(JS::Realm&);
 
+    PageClient& inspector_page_client() const;
+
     virtual void initialize(JS::Realm&) override;
 };
 
