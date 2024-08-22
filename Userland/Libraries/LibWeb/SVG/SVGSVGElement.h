@@ -77,8 +77,11 @@ public:
     {
         (void)suspend_handle_id;
     }
-    void unsuspend_redraw_all() const {};
-    void force_redraw() const {};
+    void unsuspend_redraw_all() const { }
+    void force_redraw() const { }
+
+    [[nodiscard]] RefPtr<CSS::CSSStyleValue> width_style_value_from_attribute() const;
+    [[nodiscard]] RefPtr<CSS::CSSStyleValue> height_style_value_from_attribute() const;
 
 private:
     SVGSVGElement(DOM::Document&, DOM::QualifiedName);
