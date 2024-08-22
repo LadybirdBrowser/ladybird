@@ -11,6 +11,6 @@
 
 namespace WebView {
 
-extern HashMap<StringView, StringView> const user_agents;
+extern OrderedHashMap<StringView, StringView> const user_agents;
 
 }
