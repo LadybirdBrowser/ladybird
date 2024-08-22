@@ -78,6 +78,9 @@ public:
 
     bool disallow_modification() const { return m_disallow_modification; }
 
+    void set_source_text(String);
+    Optional<String> source_text(Badge<DOM::Document>) const;
+
 private:
     CSSStyleSheet(JS::Realm&, CSSRuleList&, MediaList&, Optional<URL::URL> location);
 
@@ -88,6 +91,8 @@ private:
 
     void set_constructed(bool constructed) { m_constructed = constructed; }
     void set_disallow_modification(bool disallow_modification) { m_disallow_modification = disallow_modification; }
+
+    Optional<String> m_source_text;
 
     JS::GCPtr<CSSRuleList> m_rules;
     JS::GCPtr<CSSNamespaceRule> m_default_namespace_rule;
