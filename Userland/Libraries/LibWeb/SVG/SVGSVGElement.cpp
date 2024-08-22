@@ -47,6 +47,38 @@ JS::GCPtr<Layout::Node> SVGSVGElement::create_layout_node(NonnullRefPtr<CSS::Sty
     return heap().allocate_without_realm<Layout::SVGSVGBox>(document(), *this, move(style));
 }
 
+RefPtr<CSS::CSSStyleValue> SVGSVGElement::width_style_value_from_attribute() const
+{
+    auto parsing_context = CSS::Parser::ParsingContext { document(), CSS::Parser::ParsingContext::Mode::SVGPresentationAttribute };
+    auto width_attribute = attribute(SVG::AttributeNames::width);
+    if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or(String {}), CSS::PropertyID::Width)) {
+        return width_value.release_nonnull();
+    }
+    if (width_attribute == "") {
+        // If the `width` attribute is an empty string, it defaults to 100%.
+        // This matches WebKit and Blink, but not Firefox. The spec is unclear.
+        // FIXME: Figure out what to do here.
+        return CSS::PercentageStyleValue::create(CSS::Percentage { 100 });
+    }
+    return nullptr;
+}
+
+RefPtr<CSS::CSSStyleValue> SVGSVGElement::height_style_value_from_attribute() const
+{
+    auto parsing_context = CSS::Parser::ParsingContext { document(), CSS::Parser::ParsingContext::Mode::SVGPresentationAttribute };
+    auto height_attribute = attribute(SVG::AttributeNames::height);
+    if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or(String {}), CSS::PropertyID::Height)) {
+        return height_value.release_nonnull();
+    }
+    if (height_attribute == "") {
+        // If the `height` attribute is an empty string, it defaults to 100%.
+        // This matches WebKit and Blink, but not Firefox. The spec is unclear.
+        // FIXME: Figure out what to do here.
+        return CSS::PercentageStyleValue::create(CSS::Percentage { 100 });
+    }
+    return nullptr;
+}
+
 void SVGSVGElement::apply_presentational_hints(CSS::StyleProperties& style) const
 {
     Base::apply_presentational_hints(style);
@@ -62,26 +94,11 @@ void SVGSVGElement::apply_presentational_hints(CSS::StyleProperties& style) cons
         style.set_property(CSS::PropertyID::Y, y_value.release_nonnull());
     }
 
-    auto width_attribute = attribute(SVG::AttributeNames::width);
-    if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or(String {}), CSS::PropertyID::Width)) {
-        style.set_property(CSS::PropertyID::Width, width_value.release_nonnull());
-    } else if (width_attribute == "") {
-        // If the `width` attribute is an empty string, it defaults to 100%.
-        // This matches WebKit and Blink, but not Firefox. The spec is unclear.
-        // FIXME: Figure out what to do here.
-        style.set_property(CSS::PropertyID::Width, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
-    }
+    if (auto width = width_style_value_from_attribute())
+        style.set_property(CSS::PropertyID::Width, width.release_nonnull());
 
-    // Height defaults to 100%
-    auto height_attribute = attribute(SVG::AttributeNames::height);
-    if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or(String {}), CSS::PropertyID::Height)) {
-        style.set_property(CSS::PropertyID::Height, height_value.release_nonnull());
-    } else if (height_attribute == "") {
-        // If the `height` attribute is an empty string, it defaults to 100%.
-        // This matches WebKit and Blink, but not Firefox. The spec is unclear.
-        // FIXME: Figure out what to do here.
-        style.set_property(CSS::PropertyID::Height, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
-    }
+    if (auto height = height_style_value_from_attribute())
+        style.set_property(CSS::PropertyID::Height, height.release_nonnull());
 }
 
 void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
