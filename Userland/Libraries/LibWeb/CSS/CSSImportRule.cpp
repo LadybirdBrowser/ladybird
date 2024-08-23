@@ -104,6 +104,7 @@ void CSSImportRule::resource_did_load()
     }
 
     m_style_sheet = sheet;
+    m_style_sheet->set_owner_css_rule(this);
 
     m_document->style_computer().invalidate_rule_cache();
     m_document->style_computer().load_fonts_from_sheet(*m_style_sheet);
