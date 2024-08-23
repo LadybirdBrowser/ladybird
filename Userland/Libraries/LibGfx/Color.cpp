@@ -268,14 +268,9 @@ Optional<Color> Color::from_named_css_color_string(StringView string)
 }
 
 #if defined(LIBGFX_USE_SWIFT)
-static swift::String to_swift_string(StringView string)
-{
-    return swift::String(std::string(string.characters_without_null_termination(), string.length()));
-}
-
 static Optional<Color> hex_string_to_color(StringView string)
 {
-    auto color = SwiftLibGfx::parseHexString(to_swift_string(string));
+    auto color = SwiftLibGfx::parseHexString(string);
     if (color.getCount() == 0)
         return {};
     return color[0];
