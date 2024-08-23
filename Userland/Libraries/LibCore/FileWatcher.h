@@ -25,6 +25,7 @@ struct FileWatcherEvent {
         Deleted = 1 << 2,
         ChildCreated = 1 << 3,
         ChildDeleted = 1 << 4,
+        DoNotFollowLink = 1 << 5,
     };
     Type type { Type::Invalid };
     ByteString event_path;

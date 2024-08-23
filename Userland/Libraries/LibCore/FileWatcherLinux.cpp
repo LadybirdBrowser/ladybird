@@ -145,6 +145,8 @@ ErrorOr<bool> FileWatcherBase::add_watch(ByteString path, FileWatcherEvent::Type
         inotify_mask |= IN_MODIFY;
     if (has_flag(event_mask, FileWatcherEvent::Type::MetadataModified))
         inotify_mask |= IN_ATTRIB;
+    if (has_flag(event_mask, FileWatcherEvent::Type::DoNotFollowLink))
+        inotify_mask |= IN_DONT_FOLLOW;
 
     int watch_descriptor = ::inotify_add_watch(m_watcher_fd, path.characters(), inotify_mask);
     if (watch_descriptor < 0)

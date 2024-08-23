@@ -107,3 +107,54 @@ TEST_CASE(contents_changed)
 
     event_loop.exec();
 }
+
+TEST_CASE(symbolic_link)
+{
+    auto event_loop = Core::EventLoop();
+
+    auto temp_path = MUST(FileSystem::real_path("/tmp"sv));
+    auto test_file = LexicalPath::join(temp_path, "testfile"sv);
+    auto test_link1 = LexicalPath::join(temp_path, "testlink1"sv);
+    auto test_link2 = LexicalPath::join(temp_path, "testlink2"sv);
+
+    (void)MUST(Core::File::open(test_link1.string(), Core::File::OpenMode::ReadWrite));
+    (void)MUST(Core::File::open(test_link2.string(), Core::File::OpenMode::ReadWrite));
+    MUST(Core::System::symlink(test_link1.string(), test_file.string()));
+
+    auto file_watcher = MUST(Core::FileWatcher::create());
+    MUST(file_watcher->add_watch(test_file.string(), Core::FileWatcherEvent::Type::Deleted | Core::FileWatcherEvent::Type::DoNotFollowLink));
+
+    int event_count = 0;
+    file_watcher->on_change = [&](Core::FileWatcherEvent const& event) {
+        EXPECT_EQ(event.event_path, test_file.string());
+        EXPECT(has_flag(event.type, Core::FileWatcherEvent::Type::Deleted));
+
+        MUST(file_watcher->add_watch(test_file.string(), Core::FileWatcherEvent::Type::Deleted | Core::FileWatcherEvent::Type::DoNotFollowLink));
+
+        if (++event_count == 2) {
+            MUST(Core::System::unlink(test_file.string()));
+            MUST(Core::System::unlink(test_link1.string()));
+            MUST(Core::System::unlink(test_link2.string()));
+            event_loop.quit(0);
+        }
+    };
+
+    auto timer1 = Core::Timer::create_single_shot(500, [&] {
+        MUST(Core::System::unlink(test_file.string()));
+        MUST(Core::System::symlink(test_link1.string(), test_file.string()));
+    });
+    timer1->start();
+
+    auto timer2 = Core::Timer::create_single_shot(1000, [&] {
+        MUST(Core::System::unlink(test_file.string()));
+        MUST(Core::System::symlink(test_link2.string(), test_file.string()));
+    });
+    timer2->start();
+
+    auto catchall_timer = Core::Timer::create_single_shot(2000, [&] {
+        VERIFY_NOT_REACHED();
+    });
+    catchall_timer->start();
+
+    event_loop.exec();
+}
