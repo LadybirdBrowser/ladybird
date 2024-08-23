@@ -211,6 +211,7 @@ set(SOURCES
     Dump.cpp
     Encoding/TextDecoder.cpp
     Encoding/TextEncoder.cpp
+    EntriesAPI/FileSystemEntry.cpp
     Fetch/Body.cpp
     Fetch/BodyInit.cpp
     Fetch/Enums.cpp

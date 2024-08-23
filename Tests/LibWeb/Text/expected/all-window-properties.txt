@@ -97,6 +97,7 @@ EventTarget
 File
 FileList
 FileReader
+FileSystemEntry
 FinalizationRegistry
 Float32Array
 Float64Array
