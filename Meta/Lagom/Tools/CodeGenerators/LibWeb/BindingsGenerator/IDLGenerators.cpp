@@ -2504,9 +2504,9 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
     // 10. Let element be the last entry in definition's construction stack.
     auto& element = definition->construction_stack().last();
 
-    // 11. If element is an already constructed marker, then throw an "InvalidStateError" DOMException.
+    // 11. If element is an already constructed marker, then throw a TypeError.
     if (element.has<HTML::AlreadyConstructedCustomElementMarker>())
-        return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "Custom element has already been constructed"_fly_string));
+        return JS::throw_completion(JS::TypeError::create(realm, "Custom element has already been constructed"_fly_string));
 
     // 12. Perform ? element.[[SetPrototypeOf]](prototype).
     auto actual_element = element.get<JS::Handle<DOM::Element>>();
