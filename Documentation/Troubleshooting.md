@@ -32,7 +32,7 @@ CipherString = DEFAULT@SECLEVEL=1
 Options = UnsafeLegacyRenegotiation
 ```
 
-#### “Targets may link only to libraries. CMake is dropping the item” message (when building with the Qt chrome on macOS)
+### “Targets may link only to libraries. CMake is dropping the item” message (when building with the Qt chrome on macOS)
 
 When building with the Qt chrome on macOS, you may encounter the following message:
 
