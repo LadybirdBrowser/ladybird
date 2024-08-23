@@ -36,10 +36,12 @@ function(_swift_generate_cxx_header target header)
 
   if(APPLE)
     set(SDK_FLAGS "-sdk" "${CMAKE_OSX_SYSROOT}")
+    list(APPEND SDK_FLAGS "-target" "${CMAKE_Swift_COMPILER_TARGET}")
   elseif(WIN32)
     set(SDK_FLAGS "-sdk" "$ENV{SDKROOT}")
   elseif(DEFINED ${CMAKE_SYSROOT})
     set(SDK_FLAGS "-sdk" "${CMAKE_SYSROOT}")
+    list(APPEND SDK_FLAGS "-target" "${CMAKE_Swift_COMPILER_TARGET}")
   endif()
 
   cmake_path(APPEND CMAKE_CURRENT_BINARY_DIR include

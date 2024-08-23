@@ -68,4 +68,8 @@ if (ENABLE_SWIFT)
         "${CMAKE_CURRENT_BINARY_DIR}/Backtrace.h"
         "${CMAKE_CURRENT_BINARY_DIR}/Debug.h"
     )
+
+    target_compile_features(AK PUBLIC cxx_std_23)
+    set_target_properties(AK PROPERTIES Swift_MODULE_NAME SwiftAK)
+    target_sources(AK PRIVATE AK+Swift.swift)
 endif()
