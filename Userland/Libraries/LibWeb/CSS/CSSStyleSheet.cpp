@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -7,6 +8,7 @@
 
 #include <LibWeb/Bindings/CSSStyleSheetPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -101,10 +103,10 @@ CSSStyleSheet::CSSStyleSheet(JS::Realm& realm, CSSRuleList& rules, MediaList& me
     for (auto& rule : *m_rules)
         rule->set_parent_style_sheet(this);
 
-    recalculate_namespaces();
+    recalculate_rule_caches();
 
     m_rules->on_change = [this]() {
-        recalculate_namespaces();
+        recalculate_rule_caches();
     };
 }
 
@@ -123,6 +125,7 @@ void CSSStyleSheet::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_default_namespace_rule);
     visitor.visit(m_constructor_document);
     visitor.visit(m_namespace_rules);
+    visitor.visit(m_import_rules);
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-insertrule
@@ -340,34 +343,43 @@ Optional<FlyString> CSSStyleSheet::namespace_uri(StringView namespace_prefix) co
         });
 }
 
-void CSSStyleSheet::recalculate_namespaces()
+void CSSStyleSheet::recalculate_rule_caches()
 {
     m_default_namespace_rule = nullptr;
     m_namespace_rules.clear();
+    m_import_rules.clear();
 
-    for (JS::NonnullGCPtr<CSSRule> rule : *m_rules) {
+    for (auto const& rule : *m_rules) {
+        // "Any @import rules must precede all other valid at-rules and style rules in a style sheet
+        // (ignoring @charset and @layer statement rules) and must not have any other valid at-rules
+        // or style rules between it and previous @import rules, or else the @import rule is invalid."
+        // https://drafts.csswg.org/css-cascade-5/#at-import
+        //
         // "Any @namespace rules must follow all @charset and @import rules and precede all other
         // non-ignored at-rules and style rules in a style sheet.
         // ...
         // A syntactically invalid @namespace rule (whether malformed or misplaced) must be ignored."
         // https://drafts.csswg.org/css-namespaces/#syntax
         switch (rule->type()) {
-        case CSSRule::Type::Import:
-            continue;
-
-        case CSSRule::Type::Namespace:
+        case CSSRule::Type::Import: {
+            // @import rules must appear before @namespace rules, so skip this if we've seen @namespace.
+            if (!m_namespace_rules.is_empty())
+                continue;
+            m_import_rules.append(verify_cast<CSSImportRule>(*rule));
             break;
+        }
+        case CSSRule::Type::Namespace: {
+            auto& namespace_rule = verify_cast<CSSNamespaceRule>(*rule);
+            if (!namespace_rule.namespace_uri().is_empty() && namespace_rule.prefix().is_empty())
+                m_default_namespace_rule = namespace_rule;
 
+            m_namespace_rules.set(namespace_rule.prefix(), namespace_rule);
+            break;
+        }
         default:
             // Any other types mean that further @namespace rules are invalid, so we can stop here.
             return;
         }
-
-        auto& namespace_rule = verify_cast<CSSNamespaceRule>(*rule);
-        if (!namespace_rule.namespace_uri().is_empty() && namespace_rule.prefix().is_empty())
-            m_default_namespace_rule = namespace_rule;
-
-        m_namespace_rules.set(namespace_rule.prefix(), namespace_rule);
     }
 }
 
