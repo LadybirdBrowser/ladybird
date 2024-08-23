@@ -68,6 +68,8 @@ public:
 
     Optional<FlyString> namespace_uri(StringView namespace_prefix) const;
 
+    Vector<JS::NonnullGCPtr<CSSImportRule>> const& import_rules() const { return m_import_rules; }
+
     Optional<URL::URL> base_url() const { return m_base_url; }
     void set_base_url(Optional<URL::URL> base_url) { m_base_url = move(base_url); }
 
@@ -87,7 +89,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void recalculate_namespaces();
+    void recalculate_rule_caches();
 
     void set_constructed(bool constructed) { m_constructed = constructed; }
     void set_disallow_modification(bool disallow_modification) { m_disallow_modification = disallow_modification; }
@@ -97,6 +99,7 @@ private:
     JS::GCPtr<CSSRuleList> m_rules;
     JS::GCPtr<CSSNamespaceRule> m_default_namespace_rule;
     HashMap<FlyString, JS::GCPtr<CSSNamespaceRule>> m_namespace_rules;
+    Vector<JS::NonnullGCPtr<CSSImportRule>> m_import_rules;
 
     JS::GCPtr<StyleSheetList> m_style_sheet_list;
     JS::GCPtr<CSSRule> m_owner_css_rule;
