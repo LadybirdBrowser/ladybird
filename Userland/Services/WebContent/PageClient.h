@@ -9,6 +9,7 @@
 #pragma once
 
 #include <LibGfx/Rect.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/Page/Page.h>
@@ -82,6 +83,8 @@ public:
     void did_output_js_console_message(i32 message_index);
     void console_peer_did_misbehave(char const* reason);
     void did_get_js_console_messages(i32 start_index, Vector<ByteString> message_types, Vector<ByteString> messages);
+
+    Vector<Web::CSS::StyleSheetIdentifier> list_style_sheets() const;
 
     virtual double device_pixels_per_css_pixel() const override { return m_device_pixels_per_css_pixel; }
 
