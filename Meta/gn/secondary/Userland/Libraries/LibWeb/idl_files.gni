@@ -93,6 +93,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/DOMURL/DOMURL.idl",
   "//Userland/Libraries/LibWeb/Encoding/TextDecoder.idl",
   "//Userland/Libraries/LibWeb/Encoding/TextEncoder.idl",
+  "//Userland/Libraries/LibWeb/EntriesAPI/FileSystemEntry.idl",
   "//Userland/Libraries/LibWeb/Fetch/Request.idl",
   "//Userland/Libraries/LibWeb/Fetch/Response.idl",
   "//Userland/Libraries/LibWeb/FileAPI/Blob.idl",

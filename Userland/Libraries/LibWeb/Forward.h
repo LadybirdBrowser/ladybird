@@ -297,6 +297,10 @@ class TextEncoder;
 struct TextEncoderEncodeIntoResult;
 }
 
+namespace Web::EntriesAPI {
+class FileSystemEntry;
+}
+
 namespace Web::Fetch {
 class BodyMixin;
 class Headers;
