@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/InspectorPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -74,6 +75,18 @@ void Inspector::replace_dom_node_attribute(i32 node_id, WebIDL::UnsignedLongLong
 void Inspector::request_dom_tree_context_menu(i32 node_id, i32 client_x, i32 client_y, String const& type, Optional<String> const& tag, Optional<WebIDL::UnsignedLongLong> const& attribute_index)
 {
     inspector_page_client().inspector_did_request_dom_tree_context_menu(node_id, { client_x, client_y }, type, tag, attribute_index.map([](auto index) { return static_cast<size_t>(index); }));
+}
+
+void Inspector::request_style_sheet_source(String const& type_string, Optional<i32> const& dom_node_unique_id, Optional<String> const& url)
+{
+    auto type = CSS::style_sheet_identifier_type_from_string(type_string);
+    VERIFY(type.has_value());
+
+    inspector_page_client().inspector_did_request_style_sheet_source({
+        .type = type.value(),
+        .dom_element_unique_id = dom_node_unique_id,
+        .url = url,
+    });
 }
 
 void Inspector::execute_console_script(String const& script)

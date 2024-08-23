@@ -1,3 +1,7 @@
+:root {
+    --code-font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
 @media (prefers-color-scheme: dark) {
     :root {
         --background: rgb(23, 23, 23);
@@ -174,6 +178,17 @@ body {
     overflow: auto scroll;
 }
 
+.tab-header {
+    position: sticky;
+    top: 2px; /* FIXME: Remove this when https://github.com/LadybirdBrowser/ladybird/issues/1245 is resolved. */
+    left: 0;
+    right: 0;
+    background-color: var(--tab-controls);
+    border-top: 2px solid var(--background);
+    display: flex;
+    padding: 0.5em;
+}
+
 details > :not(:first-child) {
     display: list-item;
     list-style: none inside;
@@ -204,7 +219,7 @@ details > :not(:first-child) {
 }
 
 .console {
-    font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-family: var(--code-font-family);
     width: 100%;
     height: 100%;
 }
@@ -329,4 +344,15 @@ details > :not(:first-child) {
 .console-log-table td {
     padding: 4px;
     text-align: left;
+}
+
+#style-sheet-picker {
+    flex-grow: 1;
+}
+
+#style-sheet-source {
+    font-size: 10pt;
+    font-family: var(--code-font-family);
+    white-space: pre;
+    padding: 0.5em;
 }

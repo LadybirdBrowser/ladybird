@@ -29,6 +29,8 @@ public:
 
     void request_dom_tree_context_menu(i32 node_id, i32 client_x, i32 client_y, String const& type, Optional<String> const& tag, Optional<WebIDL::UnsignedLongLong> const& attribute_index);
 
+    void request_style_sheet_source(String const& type, Optional<i32> const& dom_node_unique_id, Optional<String> const& url);
+
     void execute_console_script(String const& script);
 
     void export_inspector_html(String const& html);

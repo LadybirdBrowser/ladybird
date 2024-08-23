@@ -305,6 +305,16 @@ void ViewImplementation::get_dom_node_html(i32 node_id)
     client().async_get_dom_node_html(page_id(), node_id);
 }
 
+void ViewImplementation::list_style_sheets()
+{
+    client().async_list_style_sheets(page_id());
+}
+
+void ViewImplementation::request_style_sheet_source(Web::CSS::StyleSheetIdentifier const& identifier)
+{
+    client().async_request_style_sheet_source(page_id(), identifier);
+}
+
 void ViewImplementation::debug_request(ByteString const& request, ByteString const& argument)
 {
     client().async_debug_request(page_id(), request, argument);

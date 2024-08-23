@@ -97,6 +97,9 @@ public:
     void remove_dom_node(i32 node_id);
     void get_dom_node_html(i32 node_id);
 
+    void list_style_sheets();
+    void request_style_sheet_source(Web::CSS::StyleSheetIdentifier const&);
+
     void debug_request(ByteString const& request, ByteString const& argument = {});
 
     void run_javascript(StringView);
@@ -182,6 +185,9 @@ public:
     Function<void(ByteString const&)> on_received_dom_tree;
     Function<void(Optional<DOMNodeProperties>)> on_received_dom_node_properties;
     Function<void(ByteString const&)> on_received_accessibility_tree;
+    Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
+    Function<void(Web::CSS::StyleSheetIdentifier const&)> on_inspector_requested_style_sheet_source;
+    Function<void(Web::CSS::StyleSheetIdentifier const&, String const&)> on_received_style_sheet_source;
     Function<void(i32 node_id)> on_received_hovered_node_id;
     Function<void(Optional<i32> const& node_id)> on_finshed_editing_dom_node;
     Function<void(String const&)> on_received_dom_node_html;

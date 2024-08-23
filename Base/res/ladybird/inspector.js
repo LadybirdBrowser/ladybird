@@ -199,6 +199,97 @@ inspector.addAttributeToDOMNodeID = nodeID => {
     pendingEditDOMNode = null;
 };
 
+inspector.setStyleSheets = styleSheets => {
+    const styleSheetPicker = document.getElementById("style-sheet-picker");
+    const styleSheetSource = document.getElementById("style-sheet-source");
+    styleSheetPicker.replaceChildren();
+    styleSheetSource.innerHTML = "";
+
+    function addOption(styleSheet, text) {
+        const option = document.createElement("option");
+        option.innerText = text;
+        if (styleSheet.type) {
+            option.dataset["type"] = styleSheet.type;
+        }
+        if (styleSheet.domNodeId) {
+            option.dataset["domNodeId"] = styleSheet.domNodeId;
+        }
+        if (styleSheet.url) {
+            option.dataset["url"] = styleSheet.url;
+        }
+        styleSheetPicker.add(option);
+    }
+
+    if (styleSheets.length > 0) {
+        let styleElementIndex = 1;
+        for (const styleSheet of styleSheets) {
+            switch (styleSheet.type) {
+                case "StyleElement":
+                    addOption(styleSheet, `Style element #${styleElementIndex++}`);
+                    break;
+                case "LinkElement":
+                    addOption(styleSheet, styleSheet.url);
+                    break;
+                case "ImportRule":
+                    addOption(styleSheet, styleSheet.url);
+                    break;
+                case "UserAgent":
+                    addOption(styleSheet, `User agent: ${styleSheet.url}`);
+                    break;
+                case "UserStyle":
+                    addOption(styleSheet, "User style");
+                    break;
+            }
+        }
+        styleSheetPicker.disabled = false;
+    } else {
+        addOption({}, "No style sheets found");
+        styleSheetPicker.disabled = true;
+    }
+
+    styleSheetPicker.selectedIndex = 0;
+
+    if (!styleSheetPicker.disabled) {
+        loadStyleSheet();
+    }
+};
+
+const loadStyleSheet = () => {
+    const styleSheetPicker = document.getElementById("style-sheet-picker");
+    const styleSheetSource = document.getElementById("style-sheet-source");
+    const selectedOption = styleSheetPicker.selectedOptions[0];
+
+    styleSheetSource.innerHTML = "Loading...";
+    inspector.requestStyleSheetSource(
+        selectedOption.dataset["type"],
+        selectedOption.dataset["domNodeId"],
+        selectedOption.dataset["url"]
+    );
+};
+
+inspector.setStyleSheetSource = (identifier, sourceBase64) => {
+    const styleSheetPicker = document.getElementById("style-sheet-picker");
+    const styleSheetSource = document.getElementById("style-sheet-source");
+    const selectedOption = styleSheetPicker.selectedOptions[0];
+
+    // Make sure this is the source for the currently-selected style sheet.
+    // NOTE: These are != not !== intentionally.
+    if (
+        identifier.type != selectedOption.dataset["type"] ||
+        identifier.domNodeId != selectedOption.dataset["domNodeId"] ||
+        identifier.url != selectedOption.dataset["url"]
+    ) {
+        console.log(
+            JSON.stringify(identifier),
+            "doesn't match",
+            JSON.stringify(selectedOption.dataset)
+        );
+        return;
+    }
+
+    styleSheetSource.innerHTML = decodeBase64(sourceBase64);
+};
+
 inspector.createPropertyTables = (computedStyle, resolvedStyle, customProperties) => {
     const createPropertyTable = (tableID, properties) => {
         let oldTable = document.getElementById(tableID);

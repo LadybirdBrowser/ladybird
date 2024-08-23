@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2023, Andreas Kling <kling@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
@@ -627,6 +627,28 @@ void ConnectionFromClient::get_hovered_node_id(u64 page_id)
     }
 
     async_did_get_hovered_node_id(page_id, node_id);
+}
+
+void ConnectionFromClient::list_style_sheets(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    async_inspector_did_list_style_sheets(page_id, page->list_style_sheets());
+}
+
+void ConnectionFromClient::request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (auto* document = page->page().top_level_browsing_context().active_document()) {
+        auto stylesheet = document->get_style_sheet_source(identifier);
+        if (stylesheet.has_value())
+            async_did_request_style_sheet_source(page_id, identifier, stylesheet.value());
+    }
 }
 
 void ConnectionFromClient::set_dom_node_text(u64 page_id, i32 node_id, String const& text)
