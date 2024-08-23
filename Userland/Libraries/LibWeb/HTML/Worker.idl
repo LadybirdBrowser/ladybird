@@ -3,7 +3,7 @@
 #import <HTML/MessagePort.idl>
 
 // https://html.spec.whatwg.org/#worker
-[Exposed=(Window)]
+[Exposed=(Window,DedicatedWorker,SharedWorker)]
 interface Worker : EventTarget {
     constructor(DOMString scriptURL, optional WorkerOptions options = {});
 
