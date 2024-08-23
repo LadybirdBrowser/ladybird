@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-import AK
+import SwiftAK
 import LibGfx
 
 // FIXME: Do this without extending String with an index operation that was explicitly deleted :^)
@@ -32,7 +32,11 @@ private func hexNibblesToUInt8(_ nib1: Character, _ nib2: Character) -> UInt8? {
 }
 
 // FIXME: Return Gfx.Color? When swift ABI bug is fixed
-public func parseHexString(_ string: Swift.String) -> [Gfx.Color] {
+public func parseHexString(_ rawString: AK.StringView) -> [Gfx.Color] {
+    guard let string = Swift.String(rawString) else {
+        return []
+    }
+
     assert(string.hasPrefix("#"))
 
     switch string.count {
