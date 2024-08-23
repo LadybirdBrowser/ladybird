@@ -164,11 +164,11 @@ ErrorOr<bool> FileWatcherBase::remove_watch(ByteString path)
         return false;
     }
 
-    if (::inotify_rm_watch(m_watcher_fd, it->value) < 0)
-        return Error::from_errno(errno);
-
     m_path_to_wd.remove(it);
     m_wd_to_path.remove(it->value);
+
+    if (::inotify_rm_watch(m_watcher_fd, it->value) < 0)
+        return Error::from_errno(errno);
 
     dbgln_if(FILE_WATCHER_DEBUG, "remove_watch: stopped watching path '{}' on InodeWatcher {}", path, m_watcher_fd);
     return true;
