@@ -711,6 +711,30 @@ Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request
     return IPC::File {};
 }
 
+void WebContentClient::inspector_did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> const& stylesheets)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_received_style_sheet_list)
+            view->on_received_style_sheet_list(stylesheets);
+    }
+}
+
+void WebContentClient::inspector_did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_inspector_requested_style_sheet_source)
+            view->on_inspector_requested_style_sheet_source(identifier);
+    }
+}
+
+void WebContentClient::did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier, String const& source)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_received_style_sheet_source)
+            view->on_received_style_sheet_source(identifier, source);
+    }
+}
+
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)
 {
     if (auto view = m_views.get(page_id); view.has_value())

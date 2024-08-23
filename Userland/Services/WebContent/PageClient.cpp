@@ -2,6 +2,7 @@
  * Copyright (c) 2020-2023, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, Andrew Kaster <akaster@serenityos.org>
+ * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -655,6 +656,11 @@ void PageClient::inspector_did_replace_dom_node_attribute(i32 node_id, size_t at
 void PageClient::inspector_did_request_dom_tree_context_menu(i32 node_id, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index)
 {
     client().async_inspector_did_request_dom_tree_context_menu(m_id, node_id, page().css_to_device_point(position).to_type<int>(), type, tag, attribute_index);
+}
+
+void PageClient::inspector_did_request_style_sheet_source(Web::CSS::StyleSheetIdentifier const& identifier)
+{
+    client().async_inspector_did_request_style_sheet_source(m_id, identifier);
 }
 
 void PageClient::inspector_did_execute_console_script(String const& script)

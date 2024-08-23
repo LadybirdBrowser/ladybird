@@ -5,6 +5,7 @@
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
@@ -53,6 +54,10 @@ endpoint WebContentClient
     did_get_hovered_node_id(u64 page_id, i32 node_id) =|
     did_finish_editing_dom_node(u64 page_id, Optional<i32> node_id) =|
     did_get_dom_node_html(u64 page_id, String html) =|
+
+    inspector_did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> style_sheets) =|
+    inspector_did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) =|
+    did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, String source) =|
 
     did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) =|
 

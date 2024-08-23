@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <AK/SourceLocation.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/SelectItem.h>
@@ -122,6 +123,9 @@ private:
     virtual void inspector_did_execute_console_script(u64 page_id, String const& script) override;
     virtual void inspector_did_export_inspector_html(u64 page_id, String const& html) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id) override;
+    virtual void inspector_did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> const& stylesheets) override;
+    virtual void inspector_did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier) override;
+    virtual void did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier, String const& source) override;
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 

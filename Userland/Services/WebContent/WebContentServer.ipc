@@ -5,6 +5,7 @@
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -45,6 +46,8 @@ endpoint WebContentServer
     get_hovered_node_id(u64 page_id) =|
     js_console_input(u64 page_id, ByteString js_source) =|
     js_console_request_messages(u64 page_id, i32 start_index) =|
+    list_style_sheets(u64 page_id) =|
+    request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) =|
 
     set_dom_node_text(u64 page_id, i32 node_id, String text) =|
     set_dom_node_tag(u64 page_id, i32 node_id, String name) =|

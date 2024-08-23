@@ -32,6 +32,14 @@ static ErrorOr<JsonValue> parse_json_tree(StringView json)
     return parsed_tree;
 }
 
+static String style_sheet_identifier_to_json(Web::CSS::StyleSheetIdentifier const& identifier)
+{
+    return MUST(String::formatted("{{ type: '{}', domNodeId: {}, url: '{}' }}"sv,
+        Web::CSS::style_sheet_identifier_type_to_string(identifier.type),
+        identifier.dom_element_unique_id.map([](auto& it) { return MUST(String::number(it)); }).value_or("undefined"_string),
+        identifier.url.value_or("undefined"_string)));
+}
+
 InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImplementation& inspector_web_view)
     : m_content_web_view(content_web_view)
     , m_inspector_web_view(inspector_web_view)
@@ -103,6 +111,26 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
 
     m_content_web_view.on_received_hovered_node_id = [this](auto node_id) {
         select_node(node_id);
+    };
+
+    m_content_web_view.on_received_style_sheet_list = [this](auto const& style_sheets) {
+        StringBuilder builder;
+        builder.append("inspector.setStyleSheets(["sv);
+        for (auto& style_sheet : style_sheets) {
+            builder.appendff("{}, "sv, style_sheet_identifier_to_json(style_sheet));
+        }
+        builder.append("]);"sv);
+
+        m_inspector_web_view.run_javascript(builder.string_view());
+    };
+
+    m_content_web_view.on_received_style_sheet_source = [this](Web::CSS::StyleSheetIdentifier const& identifier, String const& source) {
+        // TODO: Highlight it
+        auto escaped_source = escape_html_entities(source.bytes()).replace("\t"sv, "    "sv, ReplaceMode::All);
+        auto script = MUST(String::formatted("inspector.setStyleSheetSource({}, \"{}\");",
+            style_sheet_identifier_to_json(identifier),
+            MUST(encode_base64(escaped_source.bytes()))));
+        m_inspector_web_view.run_javascript(script);
     };
 
     m_content_web_view.on_finshed_editing_dom_node = [this](auto const& node_id) {
@@ -181,6 +209,10 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         m_content_web_view.replace_dom_node_attribute(node_id, attribute.name, replacement_attributes);
     };
 
+    m_inspector_web_view.on_inspector_requested_style_sheet_source = [this](auto const& identifier) {
+        m_content_web_view.request_style_sheet_source(identifier);
+    };
+
     m_inspector_web_view.on_inspector_executed_console_script = [this](auto const& script) {
         append_console_source(script);
 
@@ -241,6 +273,8 @@ InspectorClient::~InspectorClient()
     m_content_web_view.on_received_dom_node_properties = nullptr;
     m_content_web_view.on_received_dom_tree = nullptr;
     m_content_web_view.on_received_hovered_node_id = nullptr;
+    m_content_web_view.on_received_style_sheet_list = nullptr;
+    m_content_web_view.on_inspector_requested_style_sheet_source = nullptr;
 }
 
 void InspectorClient::inspect()
@@ -250,6 +284,7 @@ void InspectorClient::inspect()
 
     m_content_web_view.inspect_dom_tree();
     m_content_web_view.inspect_accessibility_tree();
+    m_content_web_view.list_style_sheets();
 }
 
 void InspectorClient::reset()
@@ -420,6 +455,7 @@ void InspectorClient::load_inspector()
                 <div class="tab-controls">
                     <button id="dom-tree-button" onclick="selectTopTab(this, 'dom-tree')">DOM Tree</button>
                     <button id="accessibility-tree-button" onclick="selectTopTab(this, 'accessibility-tree')">Accessibility Tree</button>
+                    <button id="style-sheets-button" onclick="selectTopTab(this, 'style-sheets')">Style Sheets</button>
                 </div>
                 <div class="global-controls">
                     <button id="export-inspector-button" title="Export the Inspector to an HTML file" onclick="inspector.exportInspector()"></button>
@@ -427,6 +463,14 @@ void InspectorClient::load_inspector()
             </div>
             <div id="dom-tree" class="tab-content html"></div>
             <div id="accessibility-tree" class="tab-content"></div>
+            <div id="style-sheets" class="tab-content" style="padding: 0">
+                <div class="tab-header">
+                    <select id="style-sheet-picker" disabled onchange="loadStyleSheet()">
+                        <option value="." selected>No style sheets found</option>
+                    </select>
+                </div>
+                <div id="style-sheet-source"></div>
+            </div>
         </div>
         <div id="inspector-separator" class="split-view-separator">
             <svg viewBox="0 0 16 5" xmlns="http://www.w3.org/2000/svg">
