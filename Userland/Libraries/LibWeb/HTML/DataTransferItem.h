@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/EntriesAPI/FileSystemEntry.h>
 #include <LibWeb/HTML/DragDataStore.h>
 
 namespace Web::HTML {
@@ -27,6 +28,8 @@ public:
 
     void get_as_string(JS::GCPtr<WebIDL::CallbackType>) const;
     JS::GCPtr<FileAPI::File> get_as_file() const;
+
+    JS::GCPtr<EntriesAPI::FileSystemEntry> webkit_get_as_entry() const;
 
 private:
     DataTransferItem(JS::Realm&, JS::NonnullGCPtr<DataTransfer>, size_t item_index);

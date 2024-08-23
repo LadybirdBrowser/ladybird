@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -146,6 +147,28 @@ JS::GCPtr<FileAPI::File> DataTransferItem::get_as_file() const
     options.type = item.type_string;
 
     return MUST(FileAPI::File::create(realm, { JS::make_handle(blob) }, file_name, move(options)));
+}
+
+// https://wicg.github.io/entries-api/#dom-datatransferitem-webkitgetasentry
+JS::GCPtr<EntriesAPI::FileSystemEntry> DataTransferItem::webkit_get_as_entry() const
+{
+    auto& realm = this->realm();
+
+    // 1. Let store be this's DataTransfer object’s drag data store.
+
+    // 2. If store’s drag data store mode is not read/write mode or read-only mode, return null and abort these steps
+    if (mode() != DragDataStore::Mode::ReadWrite && mode() != DragDataStore::Mode::ReadOnly)
+        return nullptr;
+
+    // 3. Let item be the item in store’s drag data store item list that this represents.
+    auto const& item = m_data_transfer->drag_data(*m_item_index);
+
+    // 4. If item’s kind is not File, then return null and abort these steps.
+    if (item.kind != DragDataStoreItem::Kind::File)
+        return nullptr;
+
+    // 5. Return a new FileSystemEntry object representing the entry.
+    return EntriesAPI::FileSystemEntry::create(realm, EntriesAPI::EntryType::File, item.file_name);
 }
 
 }
