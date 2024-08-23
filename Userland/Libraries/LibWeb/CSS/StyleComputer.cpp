@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -252,6 +252,24 @@ static CSSStyleSheet& svg_stylesheet(DOM::Document const& document)
         sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), svg_stylesheet_source));
     }
     return *sheet;
+}
+
+Optional<String> StyleComputer::user_agent_style_sheet_source(StringView name)
+{
+    extern String default_stylesheet_source;
+    extern String quirks_mode_stylesheet_source;
+    extern String mathml_stylesheet_source;
+    extern String svg_stylesheet_source;
+
+    if (name == "CSS/Default.css"sv)
+        return default_stylesheet_source;
+    if (name == "CSS/QuirksMode.css"sv)
+        return quirks_mode_stylesheet_source;
+    if (name == "MathML/Default.css"sv)
+        return mathml_stylesheet_source;
+    if (name == "SVG/Default.css"sv)
+        return svg_stylesheet_source;
+    return {};
 }
 
 template<typename Callback>

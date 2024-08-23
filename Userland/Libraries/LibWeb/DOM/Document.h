@@ -165,6 +165,8 @@ public:
 
     CSS::StyleSheetList* style_sheets_for_bindings() { return &style_sheets(); }
 
+    Optional<String> get_style_sheet_source(CSS::StyleSheetIdentifier const&) const;
+
     virtual FlyString node_name() const override { return "#document"_fly_string; }
 
     void set_hovered_node(Node*);

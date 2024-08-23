@@ -2,7 +2,7 @@
  * Copyright (c) 2018-2024, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021-2023, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -26,10 +26,12 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
+#include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
@@ -84,6 +86,7 @@
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
+#include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/HTMLTitleElement.h>
 #include <LibWeb/HTML/HashChangeEvent.h>
 #include <LibWeb/HTML/ListOfAvailableImages.h>
@@ -119,8 +122,8 @@
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGStyleElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
-#include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/FocusEvent.h>
@@ -5123,6 +5126,75 @@ void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&
                 callback(style_sheet);
         });
     }
+}
+
+static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(String const& url, CSS::CSSStyleSheet& style_sheet)
+{
+    if (style_sheet.location() == url)
+        return style_sheet;
+
+    for (auto& import_rule : style_sheet.import_rules()) {
+        if (import_rule->loaded_style_sheet()) {
+            if (auto match = find_style_sheet_with_url(url, *import_rule->loaded_style_sheet()); match.has_value())
+                return match;
+        }
+    }
+
+    return {};
+}
+
+Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier const& identifier) const
+{
+    switch (identifier.type) {
+    case CSS::StyleSheetIdentifier::Type::StyleElement:
+        if (identifier.dom_element_unique_id.has_value()) {
+            if (auto* node = Node::from_unique_id(*identifier.dom_element_unique_id)) {
+                if (node->is_html_style_element()) {
+                    if (auto* sheet = verify_cast<HTML::HTMLStyleElement>(*node).sheet())
+                        return sheet->source_text({});
+                }
+                if (node->is_svg_style_element()) {
+                    if (auto* sheet = verify_cast<SVG::SVGStyleElement>(*node).sheet())
+                        return sheet->source_text({});
+                }
+            }
+        }
+        return {};
+    case CSS::StyleSheetIdentifier::Type::LinkElement:
+    case CSS::StyleSheetIdentifier::Type::ImportRule: {
+        if (!identifier.url.has_value()) {
+            dbgln("Attempting to get link or imported style-sheet with no url; giving up");
+            return {};
+        }
+
+        if (m_style_sheets) {
+            for (auto& style_sheet : m_style_sheets->sheets()) {
+                if (auto match = find_style_sheet_with_url(identifier.url.value(), style_sheet); match.has_value())
+                    return match->source_text({});
+            }
+        }
+
+        if (m_adopted_style_sheets) {
+            Optional<String> result;
+            m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
+                if (result.has_value())
+                    return;
+
+                if (auto match = find_style_sheet_with_url(identifier.url.value(), style_sheet); match.has_value())
+                    result = match->source_text({});
+            });
+            return result;
+        }
+
+        return {};
+    }
+    case CSS::StyleSheetIdentifier::Type::UserAgent:
+        return CSS::StyleComputer::user_agent_style_sheet_source(identifier.url.value());
+    case CSS::StyleSheetIdentifier::Type::UserStyle:
+        return page().user_style();
+    }
+
+    return {};
 }
 
 void Document::register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& shadow_root)
