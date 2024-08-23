@@ -340,9 +340,8 @@ inline Gfx::ScalingMode to_gfx_scaling_mode(CSS::ImageRendering css_value, Gfx::
             return Gfx::ScalingMode::BoxSampling;
         return Gfx::ScalingMode::BilinearBlend;
     case CSS::ImageRendering::CrispEdges:
-        return Gfx::ScalingMode::NearestNeighbor;
     case CSS::ImageRendering::Pixelated:
-        return Gfx::ScalingMode::SmoothPixels;
+        return Gfx::ScalingMode::NearestNeighbor;
     }
     VERIFY_NOT_REACHED();
 }
