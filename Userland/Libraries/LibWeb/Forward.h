@@ -199,6 +199,7 @@ class StringStyleValue;
 class StyleComputer;
 class StyleProperties;
 class StyleSheet;
+struct StyleSheetIdentifier;
 class StyleSheetList;
 class StyleValueList;
 class Supports;

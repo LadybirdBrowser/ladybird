@@ -10,9 +10,12 @@
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
+#include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -737,6 +740,88 @@ void PageClient::console_peer_did_misbehave(char const* reason)
 void PageClient::did_get_js_console_messages(i32 start_index, Vector<ByteString> message_types, Vector<ByteString> messages)
 {
     client().async_did_get_js_console_messages(m_id, start_index, move(message_types), move(messages));
+}
+
+static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results, Web::CSS::CSSStyleSheet& sheet)
+{
+    Web::CSS::StyleSheetIdentifier identifier {};
+
+    bool valid = true;
+
+    if (sheet.owner_rule()) {
+        identifier.type = Web::CSS::StyleSheetIdentifier::Type::ImportRule;
+    } else if (auto* node = sheet.owner_node()) {
+        if (node->is_html_style_element() || node->is_svg_style_element()) {
+            identifier.type = Web::CSS::StyleSheetIdentifier::Type::StyleElement;
+        } else if (is<Web::HTML::HTMLLinkElement>(node)) {
+            identifier.type = Web::CSS::StyleSheetIdentifier::Type::LinkElement;
+        } else {
+            dbgln("Can't identify where style sheet came from; owner node is {}", node->debug_description());
+            identifier.type = Web::CSS::StyleSheetIdentifier::Type::StyleElement;
+        }
+        identifier.dom_element_unique_id = node->unique_id();
+    } else {
+        dbgln("Style sheet has no owner rule or owner node; skipping");
+        valid = false;
+    }
+
+    if (valid) {
+        if (auto location = sheet.location(); location.has_value())
+            identifier.url = location.release_value();
+
+        results.append(move(identifier));
+    }
+
+    for (auto& import_rule : sheet.import_rules()) {
+        if (import_rule->loaded_style_sheet()) {
+            gather_style_sheets(results, *import_rule->loaded_style_sheet());
+        } else {
+            // We can gather this anyway, and hope it loads later
+            results.append({ .type = Web::CSS::StyleSheetIdentifier::Type::ImportRule,
+                .url = MUST(import_rule->url().to_string()) });
+        }
+    }
+}
+
+Vector<Web::CSS::StyleSheetIdentifier> PageClient::list_style_sheets() const
+{
+    Vector<Web::CSS::StyleSheetIdentifier> results;
+
+    auto const* document = page().top_level_browsing_context().active_document();
+    if (document) {
+        for (auto& sheet : document->style_sheets().sheets()) {
+            gather_style_sheets(results, sheet);
+        }
+    }
+
+    // User style
+    if (page().user_style().has_value()) {
+        results.append({
+            .type = Web::CSS::StyleSheetIdentifier::Type::UserStyle,
+        });
+    }
+
+    // User-agent
+    results.append({
+        .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
+        .url = "CSS/Default.css"_string,
+    });
+    if (document && document->in_quirks_mode()) {
+        results.append({
+            .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
+            .url = "CSS/QuirksMode.css"_string,
+        });
+    }
+    results.append({
+        .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
+        .url = "MathML/Default.css"_string,
+    });
+    results.append({
+        .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
+        .url = "SVG/Default.css"_string,
+    });
+
+    return results;
 }
 
 Web::DisplayListPlayerType PageClient::display_list_player_type() const

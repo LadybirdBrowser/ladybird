@@ -53,7 +53,10 @@ private:
     virtual void resource_did_fail() override;
     virtual void resource_did_load() override;
 
-    // ^ HTMLElement
+    // ^DOM::Node
+    virtual bool is_html_link_element() const override { return true; }
+
+    // ^HTMLElement
     virtual void visit_edges(Cell::Visitor&) override;
 
     struct LinkProcessingOptions {

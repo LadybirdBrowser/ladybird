@@ -102,6 +102,7 @@ set(SOURCES
     CSS/StyleProperties.cpp
     CSS/StyleProperty.cpp
     CSS/StyleSheet.cpp
+    CSS/StyleSheetIdentifier.cpp
     CSS/StyleSheetList.cpp
     CSS/StyleValues/AngleStyleValue.cpp
     CSS/StyleValues/BackgroundRepeatStyleValue.cpp
