@@ -26,6 +26,7 @@ namespace Core {
 struct MonitoredPath {
     ByteString path;
     FileWatcherEvent::Type event_mask { FileWatcherEvent::Type::Invalid };
+    bool is_directory { false };
 };
 
 static void on_file_system_event(ConstFSEventStreamRef, void*, size_t, void*, FSEventStreamEventFlags const[], FSEventStreamEventId const[]);
@@ -34,6 +35,13 @@ static ErrorOr<ino_t> inode_id_from_path(StringView path)
 {
     auto stat = TRY(System::stat(path));
     return stat.st_ino;
+}
+
+static ErrorOr<bool> is_directory(StringView path)
+{
+    // We cannot use FileSystem::is_directory as LibFileSystem depends on LibCore.
+    auto stat = TRY(System::stat(path));
+    return S_ISDIR(stat.st_mode);
 }
 
 class FileWatcherMacOS final : public FileWatcher {
@@ -64,6 +72,10 @@ public:
 
     ErrorOr<bool> add_watch(ByteString path, FileWatcherEvent::Type event_mask)
     {
+        auto path_is_directory = TRY(is_directory(path));
+        if (!path_is_directory)
+            path = LexicalPath { move(path) }.parent().string();
+
         if (m_path_to_inode_id.contains(path)) {
             dbgln_if(FILE_WATCHER_DEBUG, "add_watch: path '{}' is already being watched", path);
             return false;
@@ -71,7 +83,7 @@ public:
 
         auto inode_id = TRY(inode_id_from_path(path));
         TRY(m_path_to_inode_id.try_set(path, inode_id));
-        TRY(m_inode_id_to_path.try_set(inode_id, { path, event_mask }));
+        TRY(m_inode_id_to_path.try_set(inode_id, { path, event_mask, path_is_directory }));
 
         TRY(refresh_monitored_paths());
 
@@ -81,6 +93,9 @@ public:
 
     ErrorOr<bool> remove_watch(ByteString path)
     {
+        if (!TRY(is_directory(path)))
+            path = LexicalPath { move(path) }.parent().string();
+
         auto it = m_path_to_inode_id.find(path);
         if (it == m_path_to_inode_id.end()) {
             dbgln_if(FILE_WATCHER_DEBUG, "remove_watch: path '{}' is not being watched", path);
@@ -109,7 +124,8 @@ public:
 
         return MonitoredPath {
             LexicalPath::join(it->value.path, lexical_path.basename()).string(),
-            it->value.event_mask
+            it->value.event_mask,
+            it->value.is_directory
         };
     }
 
@@ -225,10 +241,16 @@ void on_file_system_event(ConstFSEventStreamRef, void* user_data, size_t event_s
         event.event_path = move(monitored_path.path);
 
         auto flags = event_flags[i];
-        if ((flags & kFSEventStreamEventFlagItemCreated) != 0)
-            event.type |= FileWatcherEvent::Type::ChildCreated;
-        if ((flags & kFSEventStreamEventFlagItemRemoved) != 0)
-            event.type |= FileWatcherEvent::Type::ChildDeleted;
+        if ((flags & kFSEventStreamEventFlagItemCreated) != 0) {
+            if (monitored_path.is_directory)
+                event.type |= FileWatcherEvent::Type::ChildCreated;
+        }
+        if ((flags & kFSEventStreamEventFlagItemRemoved) != 0) {
+            if (monitored_path.is_directory)
+                event.type |= FileWatcherEvent::Type::ChildDeleted;
+            else
+                event.type |= FileWatcherEvent::Type::Deleted;
+        }
         if ((flags & kFSEventStreamEventFlagItemModified) != 0)
             event.type |= FileWatcherEvent::Type::ContentModified;
         if ((flags & kFSEventStreamEventFlagItemInodeMetaMod) != 0)

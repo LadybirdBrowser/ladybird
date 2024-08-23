@@ -4,9 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/LexicalPath.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibCore/FileWatcher.h>
+#include <LibCore/System.h>
 #include <LibCore/Timer.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -52,6 +56,48 @@ TEST_CASE(file_watcher_child_events)
         int rc = unlink("/tmp/testfile");
         EXPECT_NE(rc, -1);
     });
+    timer2->start();
+
+    auto catchall_timer = Core::Timer::create_single_shot(2000, [&] {
+        VERIFY_NOT_REACHED();
+    });
+    catchall_timer->start();
+
+    event_loop.exec();
+}
+
+TEST_CASE(contents_changed)
+{
+    auto event_loop = Core::EventLoop();
+
+    auto temp_path = MUST(FileSystem::real_path("/tmp"sv));
+    auto test_path = LexicalPath::join(temp_path, "testfile"sv);
+
+    auto write_file = [&](auto contents) {
+        auto file = MUST(Core::File::open(test_path.string(), Core::File::OpenMode::Write));
+        MUST(file->write_until_depleted(contents));
+    };
+
+    write_file("line1\n"sv);
+
+    auto file_watcher = MUST(Core::FileWatcher::create());
+    MUST(file_watcher->add_watch(test_path.string(), Core::FileWatcherEvent::Type::ContentModified));
+
+    int event_count = 0;
+    file_watcher->on_change = [&](Core::FileWatcherEvent const& event) {
+        EXPECT_EQ(event.event_path, test_path.string());
+        EXPECT(has_flag(event.type, Core::FileWatcherEvent::Type::ContentModified));
+
+        if (++event_count == 2) {
+            MUST(Core::System::unlink(test_path.string()));
+            event_loop.quit(0);
+        }
+    };
+
+    auto timer1 = Core::Timer::create_single_shot(500, [&] { write_file("line2\n"sv); });
+    timer1->start();
+
+    auto timer2 = Core::Timer::create_single_shot(1000, [&] { write_file("line3\n"sv); });
     timer2->start();
 
     auto catchall_timer = Core::Timer::create_single_shot(2000, [&] {
