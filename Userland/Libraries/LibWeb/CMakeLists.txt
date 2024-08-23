@@ -789,6 +789,8 @@ target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibI
 generate_js_bindings(LibWeb)
 
 if (ENABLE_SWIFT)
+    include(collections)
+
     set(generated_headers ${GENERATED_SOURCES})
     list(FILTER generated_headers INCLUDE REGEX "\\.h$")
     list(TRANSFORM generated_headers PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
@@ -800,9 +802,13 @@ if (ENABLE_SWIFT)
 
     target_sources(LibWeb PRIVATE
         HTML/Parser/HTMLToken.swift
+        HTML/Parser/HTMLTokenizer.swift
+        HTML/Parser/HTMLTokenizerHelpers.cpp
     )
     target_compile_definitions(LibWeb PRIVATE LIBWEB_USE_SWIFT)
     set_target_properties(LibWeb PROPERTIES Swift_MODULE_NAME "SwiftLibWeb")
+
+    target_link_libraries(LibWeb PRIVATE AK Collections)
 
     # FIXME: These should be pulled automatically from interface compile options for the target
     set(VFS_OVERLAY_OPTIONS
@@ -811,6 +817,8 @@ if (ENABLE_SWIFT)
         -Xcc -ivfsoverlay${Lagom_BINARY_DIR}/AK/vfs_overlay.yaml
     )
     get_target_property(LIBWEB_NATIVE_DIRS LibWeb INCLUDE_DIRECTORIES)
+    list(APPEND LIBWEB_NATIVE_DIRS ${CMAKE_Swift_MODULE_DIRECTORY})
+
     _swift_generate_cxx_header(LibWeb "LibWeb-Swift.h"
         SEARCH_PATHS ${LIBWEB_NATIVE_DIRS}
         COMPILE_OPTIONS ${VFS_OVERLAY_OPTIONS}
