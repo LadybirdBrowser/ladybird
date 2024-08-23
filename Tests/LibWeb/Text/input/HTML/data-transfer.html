@@ -40,6 +40,9 @@
         let fileItemAsFile = fileItem.getAsFile();
         println(`fileItemAsFile: name=${fileItemAsFile.name}, type=${fileItemAsFile.type}`);
 
+        let fileItemAsEntry = fileItem.webkitGetAsEntry();
+        println(`fileItemAsEntry: name=${fileItemAsEntry.name}, file=${fileItemAsEntry.isFile}, directory=${fileItemAsEntry.isDirectory}`);
+
         if (dataTransferItemList[1] !== fileItem) {
             println("FAILED");
         }

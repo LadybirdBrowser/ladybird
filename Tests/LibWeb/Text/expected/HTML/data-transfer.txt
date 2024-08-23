@@ -7,3 +7,4 @@ stringItemAsString: data=well hello friends
 fileItem: kind=file, type=text/plain
 length=2, types=custom-type,Files
 fileItemAsFile: name=file.txt, type=text/plain
+fileItemAsEntry: name=file.txt, file=true, directory=false
