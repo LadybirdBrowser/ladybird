@@ -9,7 +9,7 @@
 typedef (File or USVString) FormDataEntryValue;
 
 // https://xhr.spec.whatwg.org/#interface-formdata
-[Exposed=Window]
+[Exposed=(Window,Worker)]
 interface FormData {
     constructor(optional HTMLFormElement form);
 
