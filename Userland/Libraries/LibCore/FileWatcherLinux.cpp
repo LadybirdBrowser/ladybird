@@ -111,7 +111,6 @@ FileWatcher::FileWatcher(int watcher_fd, NonnullRefPtr<Notifier> notifier)
         auto maybe_event = get_event_from_fd(m_notifier->fd(), m_wd_to_path);
         if (maybe_event.has_value()) {
             auto event = maybe_event.value();
-            on_change(event);
 
             if (has_flag(event.type, FileWatcherEvent::Type::Deleted)) {
                 auto result = remove_watch(event.event_path);
@@ -119,6 +118,8 @@ FileWatcher::FileWatcher(int watcher_fd, NonnullRefPtr<Notifier> notifier)
                     dbgln_if(FILE_WATCHER_DEBUG, "on_ready_to_read: {}", result.error());
                 }
             }
+
+            on_change(event);
         }
     };
 }
