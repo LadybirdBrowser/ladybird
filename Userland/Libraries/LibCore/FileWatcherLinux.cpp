@@ -74,6 +74,8 @@ static Optional<FileWatcherEvent> get_event_from_fd(int fd, HashMap<unsigned, By
         result.type |= FileWatcherEvent::Type::ContentModified;
     if ((event->mask & IN_ATTRIB) != 0)
         result.type |= FileWatcherEvent::Type::MetadataModified;
+    if ((event->mask & IN_IGNORED) != 0)
+        return {};
 
     if (result.type == FileWatcherEvent::Type::Invalid) {
         warnln("Unknown event type {:x} returned by the watch_file descriptor for {}", event->mask, path);
