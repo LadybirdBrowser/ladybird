@@ -403,6 +403,7 @@ void WebContentView::mouseMoveEvent(QMouseEvent* event)
     }
 
     enqueue_native_event(Web::MouseEvent::Type::MouseMove, *event);
+    QWidget::mouseMoveEvent(event);
 }
 
 void WebContentView::mousePressEvent(QMouseEvent* event)

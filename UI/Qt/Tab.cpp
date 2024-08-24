@@ -61,10 +61,14 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar = new QToolBar(this);
     m_location_edit = new LocationEdit(this);
 
-    m_hover_label = new QLabel(this);
+    m_hover_label = new HyperlinkLabel(this);
     m_hover_label->hide();
     m_hover_label->setFrameShape(QFrame::Shape::Box);
     m_hover_label->setAutoFillBackground(true);
+
+    QObject::connect(m_hover_label, &HyperlinkLabel::mouse_entered, [this] {
+        update_hover_label();
+    });
 
     auto* focus_location_editor_action = new QAction("Edit Location", this);
     focus_location_editor_action->setShortcut(QKeySequence("Ctrl+L"));
@@ -852,12 +856,18 @@ void Tab::resizeEvent(QResizeEvent* event)
 
 void Tab::update_hover_label()
 {
+    m_hover_label->setText(QFontMetrics(m_hover_label->font()).elidedText(m_hover_label->text(), Qt::ElideRight, width() / 2 - 10));
     m_hover_label->resize(QFontMetrics(m_hover_label->font()).boundingRect(m_hover_label->text()).adjusted(-4, -2, 4, 2).size());
-    auto hover_label_height = height() - m_hover_label->height() - 8;
-    if (m_find_in_page->isVisible())
-        hover_label_height -= m_find_in_page->height() - 4;
 
-    m_hover_label->move(6, hover_label_height);
+    auto hover_label_height = height() - m_hover_label->height();
+    if (m_find_in_page->isVisible())
+        hover_label_height -= m_find_in_page->height();
+
+    if (m_hover_label->underMouse() && m_hover_label->x() == 0)
+        m_hover_label->move(width() / 2 + (width() / 2 - m_hover_label->width()), hover_label_height);
+    else
+        m_hover_label->move(0, hover_label_height);
+
     m_hover_label->raise();
 }
 
