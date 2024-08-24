@@ -23,7 +23,13 @@ struct TimeZoneOffset {
     InDST in_dst { InDST::No };
 };
 
-String current_time_zone();
+enum class UseTimeZoneCache {
+    No,
+    Yes,
+};
+
+String current_time_zone(UseTimeZoneCache = UseTimeZoneCache::Yes);
+void clear_system_time_zone_cache();
 Vector<String> const& available_time_zones();
 Vector<String> available_time_zones_in_region(StringView region);
 Optional<String> resolve_primary_time_zone(StringView time_zone);

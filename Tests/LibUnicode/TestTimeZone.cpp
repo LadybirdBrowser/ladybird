@@ -16,6 +16,7 @@ public:
         : m_time_zone(Core::Environment::get("TZ"sv))
     {
         MUST(Core::Environment::set("TZ"sv, time_zone, Core::Environment::Overwrite::Yes));
+        Unicode::clear_system_time_zone_cache();
     }
 
     ~TimeZoneGuard()
@@ -24,6 +25,7 @@ public:
             MUST(Core::Environment::set("TZ"sv, *m_time_zone, Core::Environment::Overwrite::Yes));
         else
             MUST(Core::Environment::unset("TZ"sv));
+        Unicode::clear_system_time_zone_cache();
     }
 
 private:
