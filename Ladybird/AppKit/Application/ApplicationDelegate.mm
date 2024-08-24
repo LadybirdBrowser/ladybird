@@ -167,14 +167,7 @@
 
 - (void)openAboutVersionPage:(id)sender
 {
-    auto* current_tab = [NSApp keyWindow];
-    if (![current_tab isKindOfClass:[Tab class]]) {
-        return;
-    }
-
-    [self createNewTab:URL::URL("about:version"sv)
-               fromTab:(Tab*)current_tab
-           activateTab:Web::HTML::ActivateTab::Yes];
+    [NSApp orderFrontStandardAboutPanel:nil];
 }
 
 - (nonnull TabController*)createNewTab:(Web::HTML::ActivateTab)activate_tab
