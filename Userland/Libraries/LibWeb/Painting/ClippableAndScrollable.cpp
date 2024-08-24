@@ -26,7 +26,7 @@ Optional<int> ClippableAndScrollable::scroll_frame_id() const
 CSSPixelPoint ClippableAndScrollable::cumulative_offset_of_enclosing_scroll_frame() const
 {
     if (m_enclosing_scroll_frame)
-        return m_enclosing_scroll_frame->cumulative_offset;
+        return m_enclosing_scroll_frame->cumulative_offset();
     return {};
 }
 

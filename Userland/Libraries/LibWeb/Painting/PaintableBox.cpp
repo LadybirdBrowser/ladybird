@@ -1100,4 +1100,15 @@ void PaintableWithLines::resolve_paint_properties()
     }
 }
 
+RefPtr<ScrollFrame const> PaintableBox::nearest_scroll_frame() const
+{
+    auto const* paintable = this->containing_block();
+    while (paintable) {
+        if (paintable->own_scroll_frame())
+            return paintable->own_scroll_frame();
+        paintable = paintable->containing_block();
+    }
+    return nullptr;
+}
+
 }

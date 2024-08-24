@@ -71,6 +71,7 @@ void ViewportPaintable::assign_scroll_frames()
         if (paintable_box.has_scrollable_overflow() || is<ViewportPaintable>(paintable_box)) {
             auto scroll_frame = adopt_ref(*new ScrollFrame());
             scroll_frame->id = next_id++;
+            scroll_frame->parent = paintable_box.nearest_scroll_frame();
             paintable_box.set_own_scroll_frame(scroll_frame);
             scroll_state.set(paintable_box, move(scroll_frame));
         }
@@ -82,13 +83,13 @@ void ViewportPaintable::assign_scroll_frames()
             return TraversalDecision::Continue;
         }
         for (auto block = paintable.containing_block(); block; block = block->containing_block()) {
-            if (auto scroll_frame = scroll_state.get(block); scroll_frame.has_value()) {
+            if (auto scroll_frame = block->own_scroll_frame(); scroll_frame) {
                 if (paintable.is_paintable_box()) {
                     auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
-                    const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(scroll_frame.value());
+                    const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(*scroll_frame);
                 } else if (paintable.is_inline_paintable()) {
                     auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable);
-                    const_cast<InlinePaintable&>(inline_paintable).set_enclosing_scroll_frame(scroll_frame.value());
+                    const_cast<InlinePaintable&>(inline_paintable).set_enclosing_scroll_frame(*scroll_frame);
                 }
                 return TraversalDecision::Continue;
             }
@@ -162,14 +163,6 @@ void ViewportPaintable::refresh_scroll_state()
     for (auto& it : scroll_state) {
         auto const& paintable_box = *it.key;
         auto& scroll_frame = *it.value;
-        CSSPixelPoint cumulative_offset;
-        for (auto const* block = &paintable_box.layout_box(); block; block = block->containing_block()) {
-            auto const& block_paintable_box = *block->paintable_box();
-            cumulative_offset.translate_by(block_paintable_box.scroll_offset());
-            if (block->is_fixed_position())
-                break;
-        }
-        scroll_frame.cumulative_offset = -cumulative_offset;
         scroll_frame.own_offset = -paintable_box.scroll_offset();
     }
 }
