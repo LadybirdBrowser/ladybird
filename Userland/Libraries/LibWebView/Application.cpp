@@ -6,6 +6,8 @@
 
 #include <AK/Debug.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/Environment.h>
+#include <LibCore/TimeZoneWatcher.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/URL.h>
@@ -19,6 +21,22 @@ Application::Application()
 {
     VERIFY(!s_the);
     s_the = this;
+
+    // No need to monitor the system time zone if the TZ environment variable is set, as it overrides system preferences.
+    if (!Core::Environment::has("TZ"sv)) {
+        if (auto time_zone_watcher = Core::TimeZoneWatcher::create(); time_zone_watcher.is_error()) {
+            warnln("Unable to monitor system time zone: {}", time_zone_watcher.error());
+        } else {
+            m_time_zone_watcher = time_zone_watcher.release_value();
+
+            m_time_zone_watcher->on_time_zone_changed = []() {
+                WebContentClient::for_each_client([&](WebView::WebContentClient& client) {
+                    client.async_system_time_zone_changed();
+                    return IterationDecision::Continue;
+                });
+            };
+        }
+    }
 
     m_process_manager.on_process_exited = [this](Process&& process) {
         process_did_exit(move(process));

@@ -16,6 +16,7 @@
 #include <LibGfx/SystemTheme.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/ConsoleObject.h>
+#include <LibUnicode/TimeZone.h>
 #include <LibWeb/ARIA/RoleType.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -1167,6 +1168,11 @@ void ConnectionFromClient::set_user_style(u64 page_id, String const& source)
 void ConnectionFromClient::enable_inspector_prototype(u64)
 {
     Web::HTML::Window::set_inspector_object_exposed(true);
+}
+
+void ConnectionFromClient::system_time_zone_changed()
+{
+    Unicode::clear_system_time_zone_cache();
 }
 
 }

@@ -9,6 +9,7 @@
 #include <AK/Badge.h>
 #include <AK/Swift.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Forward.h>
 #include <LibMain/Main.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Options.h>
@@ -68,6 +69,8 @@ private:
 
     ChromeOptions m_chrome_options;
     WebContentOptions m_web_content_options;
+
+    OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
     Core::EventLoop m_event_loop;
     ProcessManager m_process_manager;
