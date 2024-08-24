@@ -26,6 +26,7 @@ Paintable::Paintable(Layout::Node const& layout_node)
     }
 
     m_fixed_position = computed_values.position() == CSS::Positioning::Fixed;
+    m_sticky_position = computed_values.position() == CSS::Positioning::Sticky;
     m_absolutely_positioned = computed_values.position() == CSS::Positioning::Absolute;
     m_floating = layout_node.is_floating();
     m_inline = layout_node.is_inline();

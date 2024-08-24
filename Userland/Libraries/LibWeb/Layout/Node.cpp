@@ -262,6 +262,14 @@ bool Node::is_fixed_position() const
     return position == CSS::Positioning::Fixed;
 }
 
+bool Node::is_sticky_position() const
+{
+    if (!has_style())
+        return false;
+    auto position = computed_values().position();
+    return position == CSS::Positioning::Sticky;
+}
+
 NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::StyleProperties> computed_style)
     : Node(document, node)
     , m_computed_values(make<CSS::ComputedValues>())
