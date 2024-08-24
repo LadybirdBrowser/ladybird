@@ -605,6 +605,9 @@ void paint_text_decoration(PaintContext& context, TextPaintable const& paintable
 
 void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, PaintableFragment const& fragment, PaintPhase phase)
 {
+    if (!paintable.is_visible())
+        return;
+
     auto& painter = context.display_list_recorder();
 
     if (phase == PaintPhase::Foreground) {
