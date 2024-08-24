@@ -243,6 +243,11 @@ bool PaintableBox::is_scrollable(ScrollDirection direction) const
     return overflow == CSS::Overflow::Scroll;
 }
 
+bool PaintableBox::is_scrollable() const
+{
+    return is_scrollable(ScrollDirection::Horizontal) || is_scrollable(ScrollDirection::Vertical);
+}
+
 static constexpr CSSPixels scrollbar_thumb_thickness = 8;
 
 Optional<CSSPixelRect> PaintableBox::scroll_thumb_rect(ScrollDirection direction) const
@@ -1106,6 +1111,27 @@ RefPtr<ScrollFrame const> PaintableBox::nearest_scroll_frame() const
     while (paintable) {
         if (paintable->own_scroll_frame())
             return paintable->own_scroll_frame();
+        paintable = paintable->containing_block();
+    }
+    return nullptr;
+}
+
+CSSPixelRect PaintableBox::padding_box_rect_relative_to_nearest_scrollable_ancestor() const
+{
+    auto result = absolute_padding_box_rect();
+    auto const* nearest_scrollable_ancestor = this->nearest_scrollable_ancestor();
+    if (nearest_scrollable_ancestor) {
+        result.set_location(result.location() - nearest_scrollable_ancestor->absolute_rect().top_left());
+    }
+    return result;
+}
+
+PaintableBox const* PaintableBox::nearest_scrollable_ancestor() const
+{
+    auto const* paintable = this->containing_block();
+    while (paintable) {
+        if (paintable->is_scrollable())
+            return paintable;
         paintable = paintable->containing_block();
     }
     return nullptr;

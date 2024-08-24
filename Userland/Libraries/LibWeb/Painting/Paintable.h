@@ -54,6 +54,7 @@ public:
     [[nodiscard]] bool is_visible() const;
     [[nodiscard]] bool is_positioned() const { return m_positioned; }
     [[nodiscard]] bool is_fixed_position() const { return m_fixed_position; }
+    [[nodiscard]] bool is_sticky_position() const { return m_sticky_position; }
     [[nodiscard]] bool is_absolutely_positioned() const { return m_absolutely_positioned; }
     [[nodiscard]] bool is_floating() const { return m_floating; }
     [[nodiscard]] bool is_inline() const { return m_inline; }
@@ -258,6 +259,7 @@ private:
 
     bool m_positioned : 1 { false };
     bool m_fixed_position : 1 { false };
+    bool m_sticky_position : 1 { false };
     bool m_absolutely_positioned : 1 { false };
     bool m_floating : 1 { false };
     bool m_inline : 1 { false };

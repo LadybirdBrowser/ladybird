@@ -212,6 +212,20 @@ public:
 
     RefPtr<ScrollFrame const> nearest_scroll_frame() const;
 
+    CSSPixelRect padding_box_rect_relative_to_nearest_scrollable_ancestor() const;
+    PaintableBox const* nearest_scrollable_ancestor() const;
+
+    struct StickyInsets {
+        Optional<CSSPixels> top;
+        Optional<CSSPixels> right;
+        Optional<CSSPixels> bottom;
+        Optional<CSSPixels> left;
+    };
+    StickyInsets const& sticky_insets() const { return *m_sticky_insets; }
+    void set_sticky_insets(OwnPtr<StickyInsets> sticky_insets) { m_sticky_insets = move(sticky_insets); }
+
+    [[nodiscard]] bool is_scrollable() const;
+
 protected:
     explicit PaintableBox(Layout::Box const&);
 
@@ -270,6 +284,8 @@ private:
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
 
     ResolvedBackground m_resolved_background;
+
+    OwnPtr<StickyInsets> m_sticky_insets;
 };
 
 class PaintableWithLines : public PaintableBox {

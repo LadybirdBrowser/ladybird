@@ -376,6 +376,24 @@ void LayoutState::commit(Box& root)
         auto& paintable_box = const_cast<Painting::PaintableBox&>(*box.paintable_box());
         if (!paintable_box.scroll_offset().is_zero())
             paintable_box.set_scroll_offset(paintable_box.scroll_offset());
+
+        if (box.is_sticky_position()) {
+            auto sticky_insets = make<Painting::PaintableBox::StickyInsets>();
+            auto const& inset = box.computed_values().inset();
+            if (!inset.top().is_auto()) {
+                sticky_insets->top = inset.top().to_px(box, used_values.containing_block_used_values()->content_height());
+            }
+            if (!inset.right().is_auto()) {
+                sticky_insets->right = inset.right().to_px(box, used_values.containing_block_used_values()->content_width());
+            }
+            if (!inset.bottom().is_auto()) {
+                sticky_insets->bottom = inset.bottom().to_px(box, used_values.containing_block_used_values()->content_height());
+            }
+            if (!inset.left().is_auto()) {
+                sticky_insets->left = inset.left().to_px(box, used_values.containing_block_used_values()->content_width());
+            }
+            paintable_box.set_sticky_insets(move(sticky_insets));
+        }
     }
 }
 

@@ -5454,8 +5454,11 @@ RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
     display_list->set_device_pixels_per_css_pixel(page().client().device_pixels_per_css_pixel());
 
     Vector<RefPtr<Painting::ScrollFrame>> scroll_state;
-    scroll_state.resize(viewport_paintable.scroll_state.size());
+    scroll_state.resize(viewport_paintable.scroll_state.size() + viewport_paintable.sticky_state.size());
     for (auto& [_, scrollable_frame] : viewport_paintable.scroll_state) {
+        scroll_state[scrollable_frame->id] = scrollable_frame;
+    }
+    for (auto& [_, scrollable_frame] : viewport_paintable.sticky_state) {
         scroll_state[scrollable_frame->id] = scrollable_frame;
     }
 

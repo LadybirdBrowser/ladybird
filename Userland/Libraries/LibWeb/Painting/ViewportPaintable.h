@@ -22,6 +22,7 @@ public:
     void build_stacking_context_tree_if_needed();
 
     HashMap<JS::GCPtr<PaintableBox const>, RefPtr<ScrollFrame>> scroll_state;
+    HashMap<JS::GCPtr<PaintableBox const>, RefPtr<ScrollFrame>> sticky_state;
     void assign_scroll_frames();
     void refresh_scroll_state();
 
