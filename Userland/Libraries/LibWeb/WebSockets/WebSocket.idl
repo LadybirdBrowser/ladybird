@@ -24,7 +24,7 @@ interface WebSocket : EventTarget {
     attribute EventHandler onclose;
     readonly attribute DOMString extensions;
     readonly attribute DOMString protocol;
-    undefined close(optional unsigned short code, optional USVString reason);
+    undefined close(optional [Clamp] unsigned short code, optional USVString reason);
 
     // messaging
     attribute EventHandler onmessage;
