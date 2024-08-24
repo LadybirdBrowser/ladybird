@@ -24,6 +24,7 @@ target_compile_features(ladybird_impl PUBLIC cxx_std_23)
 
 if (ENABLE_SWIFT)
     target_sources(ladybird_impl PRIVATE
+        UI/Tab.swift
         UI/TaskManager.swift
         UI/TaskManagerController.swift
     )
@@ -36,6 +37,7 @@ if (ENABLE_SWIFT)
     )
 else()
     target_sources(ladybird_impl PRIVATE
+        UI/Tab.mm
         UI/TaskManager.mm
         UI/TaskManagerController.mm
     )
