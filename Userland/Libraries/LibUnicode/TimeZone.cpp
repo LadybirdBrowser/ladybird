@@ -15,8 +15,13 @@
 
 namespace Unicode {
 
-String current_time_zone()
+static Optional<String> cached_system_time_zone;
+
+String current_time_zone(UseTimeZoneCache)
 {
+    if (cached_system_time_zone.has_value())
+        return *cached_system_time_zone;
+
     UErrorCode status = U_ZERO_ERROR;
 
     auto time_zone = adopt_own_if_nonnull(icu::TimeZone::detectHostTimeZone());
@@ -32,7 +37,13 @@ String current_time_zone()
     if (icu_failure(status))
         return "UTC"_string;
 
-    return icu_string_to_string(time_zone_name);
+    cached_system_time_zone = icu_string_to_string(time_zone_name);
+    return *cached_system_time_zone;
+}
+
+void clear_system_time_zone_cache()
+{
+    cached_system_time_zone.clear();
 }
 
 // https://github.com/unicode-org/icu/blob/main/icu4c/source/tools/tzcode/icuzones

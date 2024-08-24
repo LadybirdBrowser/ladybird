@@ -10,6 +10,7 @@
 #include <LibCore/DateTime.h>
 #include <LibCore/Environment.h>
 #include <LibTest/TestCase.h>
+#include <LibUnicode/TimeZone.h>
 #include <time.h>
 
 class TimeZoneGuard {
@@ -29,12 +30,14 @@ public:
         else
             TRY_OR_FAIL(Core::Environment::unset("TZ"sv));
 
+        Unicode::clear_system_time_zone_cache();
         tzset();
     }
 
     void update(StringView time_zone)
     {
         TRY_OR_FAIL(Core::Environment::set("TZ"sv, time_zone, Core::Environment::Overwrite::Yes));
+        Unicode::clear_system_time_zone_cache();
         tzset();
     }
 
