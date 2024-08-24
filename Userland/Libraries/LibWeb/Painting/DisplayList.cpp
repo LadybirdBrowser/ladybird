@@ -48,7 +48,7 @@ void DisplayListPlayer::execute(DisplayList& display_list)
         }
 
         if (scroll_frame_id.has_value()) {
-            auto const& scroll_offset = scroll_state[scroll_frame_id.value()]->cumulative_offset.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
+            auto const& scroll_offset = scroll_state[scroll_frame_id.value()]->cumulative_offset().to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
             command.visit(
                 [&](auto& command) {
                     if constexpr (requires { command.translate_by(scroll_offset); }) {
