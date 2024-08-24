@@ -45,6 +45,7 @@ class TCPServer;
 class TCPSocket;
 class Timer;
 class TimerEvent;
+class TimeZoneWatcher;
 class UDPServer;
 class UDPSocket;
 
