@@ -1,0 +1,23 @@
+<style>
+#myShadowHost:hover {
+    background: green;
+}
+#myShadowHost {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+}
+</style>
+<body><div id="myShadowHost"><template shadowrootmode="open"><div>hover me</div></template></div></body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        if (window.internals && window.internals.movePointerTo)
+            internals.movePointerTo(50, 50);
+
+        let s = getComputedStyle(myShadowHost);
+        println("hovered bg: " + s.backgroundColor);
+
+        myShadowHost.remove();
+    });
+</script>
