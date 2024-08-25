@@ -65,7 +65,7 @@ git push --set-upstream myfork mybranch
 git push
 ```
 
-If your pull request is showing conflicts with the master branch, resolve them locally with:
+If you wish to sync your branch with master, or locally resolve merge conflicts, use:
 ```sh
 # On mybranch
 git fetch origin
