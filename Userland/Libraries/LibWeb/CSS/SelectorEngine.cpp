@@ -147,7 +147,7 @@ static inline bool matches_hover_pseudo_class(DOM::Element const& element)
         return false;
     if (&element == hovered_node)
         return true;
-    return element.is_ancestor_of(*hovered_node);
+    return element.is_shadow_including_ancestor_of(*hovered_node);
 }
 
 // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-checked
