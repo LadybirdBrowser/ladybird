@@ -42,6 +42,7 @@ Ladybird makes use of the included AK library instead of the C++ STL, and employ
 
 Developer documentation:
 
+* [Coding style](CodingStyle.md)
 * [Coding patterns](Patterns.md)
 * [Smart pointers](SmartPointers.md)
 * [String formatting](StringFormatting.md)
