@@ -19,7 +19,7 @@ interface ServiceWorkerContainer : EventTarget {
     // events
     [FIXME] attribute EventHandler oncontrollerchange;
     attribute EventHandler onmessage; // event.source of message events is ServiceWorker object
-    [FIXME] attribute EventHandler onmessageerror;
+    attribute EventHandler onmessageerror;
 };
 
 dictionary RegistrationOptions {

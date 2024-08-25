@@ -43,4 +43,16 @@ void ServiceWorkerContainer::set_onmessage(WebIDL::CallbackType* event_handler)
     set_event_handler_attribute(HTML::EventNames::message, event_handler);
 }
 
+// https://w3c.github.io/ServiceWorker/#dom-serviceworkercontainer-onmessageerror
+WebIDL::CallbackType* ServiceWorkerContainer::onmessageerror()
+{
+    return event_handler_attribute(HTML::EventNames::messageerror);
+}
+
+// https://w3c.github.io/ServiceWorker/#dom-serviceworkercontainer-onmessageerror
+void ServiceWorkerContainer::set_onmessageerror(WebIDL::CallbackType* event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::messageerror, event_handler);
+}
+
 }
