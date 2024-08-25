@@ -21,6 +21,8 @@ public:
 
     WebIDL::CallbackType* onmessage();
     void set_onmessage(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onmessageerror();
+    void set_onmessageerror(WebIDL::CallbackType*);
 
 private:
     explicit ServiceWorkerContainer(JS::Realm&);
