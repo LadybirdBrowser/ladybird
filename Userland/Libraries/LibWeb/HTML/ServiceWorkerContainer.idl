@@ -18,7 +18,7 @@ interface ServiceWorkerContainer : EventTarget {
 
     // events
     [FIXME] attribute EventHandler oncontrollerchange;
-    [FIXME] attribute EventHandler onmessage; // event.source of message events is ServiceWorker object
+    attribute EventHandler onmessage; // event.source of message events is ServiceWorker object
     [FIXME] attribute EventHandler onmessageerror;
 };
 

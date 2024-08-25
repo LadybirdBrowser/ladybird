@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Tim Ledbetter <tim.ledbetter@ladybird.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,9 +17,13 @@ class ServiceWorkerContainer : public DOM::EventTarget {
 
 public:
     [[nodiscard]] static JS::NonnullGCPtr<ServiceWorkerContainer> create(JS::Realm& realm);
-
-    explicit ServiceWorkerContainer(JS::Realm&);
     virtual ~ServiceWorkerContainer() override = default;
+
+    WebIDL::CallbackType* onmessage();
+    void set_onmessage(WebIDL::CallbackType*);
+
+private:
+    explicit ServiceWorkerContainer(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
 };
