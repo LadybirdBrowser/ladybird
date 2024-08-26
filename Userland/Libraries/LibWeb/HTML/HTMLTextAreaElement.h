@@ -114,6 +114,9 @@ public:
     String selection_direction_binding() const;
     void set_selection_direction_binding(String direction);
 
+protected:
+    void selection_was_changed() override;
+
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);
 

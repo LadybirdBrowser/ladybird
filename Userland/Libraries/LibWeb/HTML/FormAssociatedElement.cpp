@@ -411,14 +411,21 @@ void FormAssociatedElement::set_the_selection_range(Optional<WebIDL::UnsignedLon
     //    extent or direction), then queue an element task on the user interaction task source
     //    given the element to fire an event named select at the element, with the bubbles attribute
     //    initialized to true.
-    // AD-HOC: If there is no selection, we do not fire the event. This seems to correspond to how
-    //         other browsers behave.
-    if (was_modified && m_selection_start != m_selection_end) {
+    if (was_modified) {
         auto& html_element = form_associated_element_to_html_element();
-        html_element.queue_an_element_task(Task::Source::UserInteraction, [&html_element] {
-            auto select_event = DOM::Event::create(html_element.realm(), EventNames::select, { .bubbles = true });
-            static_cast<DOM::EventTarget*>(&html_element)->dispatch_event(select_event);
-        });
+
+        // AD-HOC: If there is no selection, we do not fire the event. This seems to correspond to how
+        //         other browsers behave.
+        if (m_selection_start != m_selection_end) {
+            html_element.queue_an_element_task(Task::Source::UserInteraction, [&html_element] {
+                auto select_event = DOM::Event::create(html_element.realm(), EventNames::select, { .bubbles = true });
+                static_cast<DOM::EventTarget*>(&html_element)->dispatch_event(select_event);
+            });
+        }
+
+        // AD-HOC: Notify the element that the selection was changed, so it can perform
+        //         element-specific updates.
+        selection_was_changed();
     }
 }
 
