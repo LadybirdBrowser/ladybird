@@ -2380,9 +2380,4 @@ HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode() co
     VERIFY_NOT_REACHED();
 }
 
-bool HTMLInputElement::is_child_node_selectable(DOM::Node const& node) const
-{
-    return !is_button() && (!m_placeholder_element || !m_placeholder_element->is_inclusive_ancestor_of(node));
-}
-
 }
