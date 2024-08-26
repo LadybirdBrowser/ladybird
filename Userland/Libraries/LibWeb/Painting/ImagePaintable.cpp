@@ -49,11 +49,6 @@ void ImagePaintable::finalize()
     document().unregister_viewport_client(*this);
 }
 
-Layout::ImageBox const& ImagePaintable::layout_box() const
-{
-    return static_cast<Layout::ImageBox const&>(layout_node());
-}
-
 void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
 {
     if (!is_visible())
