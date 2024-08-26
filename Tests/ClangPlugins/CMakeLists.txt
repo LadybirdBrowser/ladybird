@@ -4,7 +4,14 @@ include(AddLLVM)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 get_property(CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS GLOBAL PROPERTY CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS)
-list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS -std=c++23 -Wno-user-defined-literals -Wno-literal-range -Wno-unknown-warning-option)
+
+list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS
+    -std=c++23
+    -Wno-user-defined-literals
+    -Wno-literal-range
+    -Wno-unknown-warning-option
+    -Wno-unqualified-std-cast-call
+)
 
 # Ensure we always check for invalid function field types regardless of the value of ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS
 # FIXME: Enabling this with lit and llvm 18 seems to not work as expected
