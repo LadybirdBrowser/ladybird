@@ -17,7 +17,7 @@ namespace Unicode {
 
 static Optional<String> cached_system_time_zone;
 
-String current_time_zone(UseTimeZoneCache)
+String current_time_zone()
 {
     if (cached_system_time_zone.has_value())
         return *cached_system_time_zone;
