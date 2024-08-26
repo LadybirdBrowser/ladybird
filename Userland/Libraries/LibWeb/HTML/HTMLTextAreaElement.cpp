@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Selection/Selection.h>
 
 namespace Web::HTML {
 
@@ -450,6 +451,15 @@ void HTMLTextAreaElement::queue_firing_input_event()
         auto change_event = DOM::Event::create(realm(), HTML::EventNames::input, { .bubbles = true, .composed = true });
         dispatch_event(change_event);
     });
+}
+
+void HTMLTextAreaElement::selection_was_changed()
+{
+    auto selection = document().get_selection();
+    if (!selection || selection->range_count() == 0)
+        return;
+
+    MUST(selection->set_base_and_extent(*m_text_node, selection_start().value(), *m_text_node, selection_end().value()));
 }
 
 }

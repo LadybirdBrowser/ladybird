@@ -137,6 +137,8 @@ protected:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     void relevant_value_was_changed(JS::GCPtr<DOM::Text>);
 
+    virtual void selection_was_changed() { }
+
 private:
     void reset_form_owner();
 

@@ -199,6 +199,9 @@ public:
     bool select_applies() const;
     bool selection_or_range_applies() const;
 
+protected:
+    void selection_was_changed() override;
+
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
 

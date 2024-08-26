@@ -45,6 +45,7 @@
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -2351,6 +2352,15 @@ HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode() co
     }
 
     VERIFY_NOT_REACHED();
+}
+
+void HTMLInputElement::selection_was_changed()
+{
+    auto selection = document().get_selection();
+    if (!selection || selection->range_count() == 0)
+        return;
+
+    MUST(selection->set_base_and_extent(*m_text_node, selection_start().value(), *m_text_node, selection_end().value()));
 }
 
 }
