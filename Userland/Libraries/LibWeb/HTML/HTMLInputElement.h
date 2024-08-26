@@ -206,8 +206,6 @@ public:
     WebIDL::ExceptionOr<void> set_selection_end_for_bindings(Optional<WebIDL::UnsignedLong> const&);
     Optional<WebIDL::UnsignedLong> selection_end_for_bindings() const;
 
-    virtual bool is_child_node_selectable(DOM::Node const&) const override;
-
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
 

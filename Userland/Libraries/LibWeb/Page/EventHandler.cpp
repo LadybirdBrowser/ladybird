@@ -449,19 +449,9 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
                         HTML::run_unfocusing_steps(focused_element);
                 }
 
-                // Ask the next non-shadow parent element whether the node at the mouse position is selectable.
-                auto& root_node = dom_node->root();
-                DOM::Element* non_shadow_parent_element;
-                if (root_node.is_shadow_root())
-                    non_shadow_parent_element = root_node.parent_or_shadow_host_element();
-                else
-                    non_shadow_parent_element = dom_node->parent_element();
-                bool is_selectable = true;
-                if (non_shadow_parent_element && non_shadow_parent_element->is_html_element())
-                    is_selectable = static_cast<HTML::HTMLElement*>(non_shadow_parent_element)->is_child_node_selectable(*dom_node);
-
-                // If it is selectable, place the document text cursor at the mouse position.
-                if (is_selectable) {
+                // If we didn't focus anything, place the document text cursor at the mouse position.
+                // FIXME: This is all rather strange. Find a better solution.
+                if (!did_focus_something || dom_node->is_editable()) {
                     auto& realm = document->realm();
                     document->set_cursor_position(DOM::Position::create(realm, *dom_node, result->index_in_node));
                     if (auto selection = document->get_selection()) {
