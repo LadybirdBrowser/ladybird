@@ -1,0 +1,20 @@
+name: Validate code with clang plugins
+
+# FIXME: The plugins seem to make this build uncacheable by ccache. We should figure that out and enable this job on PRs.
+#        Perhaps with https://ccache.dev/manual/latest.html#config_compiler_check, which mentions plugins.
+on: [push]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-verify:
+    if: always() && github.repository == 'LadybirdBrowser/ladybird' && github.ref == 'refs/heads/master'
+
+    uses: ./.github/workflows/lagom-template.yml
+    with:
+      toolchain: 'Clang'
+      os_name: 'Linux'
+      os: 'ubuntu-22.04'
+      clang_plugins: true

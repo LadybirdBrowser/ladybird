@@ -16,6 +16,10 @@ on:
           required: false
           type: string
           default: 'NO_FUZZ'
+        clang_plugins:
+          required: false
+          type: boolean
+          default: false
 
 env:
   # runner.workspace = /home/runner/work/serenity
@@ -49,17 +53,6 @@ jobs:
 
       # === PREPARE FOR BUILDING ===
 
-      - name: Restore Caches
-        uses: ./.github/actions/cache-restore
-        id: 'cache-restore'
-        with:
-          os: ${{ inputs.os_name }}
-          arch: 'Lagom'
-          toolchain: ${{ inputs.toolchain }}
-          cache_key_extra: ${{ inputs.fuzzer }}
-          serenity_ccache_path: ${{ env.CCACHE_DIR }}
-          download_cache_path: ${{ github.workspace }}/Build/caches
-
       - name: Assign Build Parameters
         id: 'build-parameters'
         run: |
@@ -67,21 +60,37 @@ jobs:
             if ${{ inputs.toolchain == 'Clang' }} ; then
               echo "host_cc=clang-18" >> "$GITHUB_OUTPUT"
               echo "host_cxx=clang++-18" >> "$GITHUB_OUTPUT"
-              if ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }} ; then
-                echo "extra_cmake_options=-DENABLE_CLANG_PLUGINS=ON" >> "$GITHUB_OUTPUT"
-              else
-                echo "extra_cmake_options=" >> "$GITHUB_OUTPUT"
-              fi
             elif ${{ inputs.toolchain == 'GNU' }} ; then
               echo "host_cc=gcc-13" >> "$GITHUB_OUTPUT"
               echo "host_cxx=g++-13" >> "$GITHUB_OUTPUT"
-              echo "extra_cmake_options=" >> "$GITHUB_OUTPUT"
             fi
           elif ${{ inputs.os_name == 'macOS' }} ; then
             echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
             echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
-            echo "extra_cmake_options=" >> "$GITHUB_OUTPUT"
           fi
+
+          if ${{ inputs.clang_plugins }} ; then
+            echo "ccache_key=${{ inputs.fuzzer }}-CLANG_PLUGINS" >> "$GITHUB_OUTPUT"
+            echo "cmake_build_preset=CI" >> "$GITHUB_OUTPUT"
+            echo "cmake_test_preset=default" >> "$GITHUB_OUTPUT"
+            echo "cmake_options=-DENABLE_CLANG_PLUGINS=ON" >> "$GITHUB_OUTPUT"
+          else
+            echo "ccache_key=${{ inputs.fuzzer }}" >> "$GITHUB_OUTPUT"
+            echo "cmake_build_preset=Sanitizer_CI" >> "$GITHUB_OUTPUT"
+            echo "cmake_test_preset=Sanitizer" >> "$GITHUB_OUTPUT"
+            echo "cmake_options=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore Caches
+        uses: ./.github/actions/cache-restore
+        id: 'cache-restore'
+        with:
+          os: ${{ inputs.os_name }}
+          arch: 'Lagom'
+          toolchain: ${{ inputs.toolchain }}
+          cache_key_extra: ${{ steps.build-parameters.outputs.ccache_key }}
+          serenity_ccache_path: ${{ env.CCACHE_DIR }}
+          download_cache_path: ${{ github.workspace }}/Build/caches
 
       - name: Set dynamic environment variables
         id: 'set-env-vars'
@@ -99,10 +108,10 @@ jobs:
         if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --preset Sanitizer_CI -B Build \
+          cmake --preset ${{ steps.build-parameters.outputs.cmake_build_preset }} -B Build \
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
-            ${{ steps.build-parameters.outputs.extra_cmake_options }} \
+            ${{ steps.build-parameters.outputs.cmake_options }} \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
@@ -169,7 +178,7 @@ jobs:
       - name: Test
         if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
         working-directory: ${{ github.workspace }}
-        run: ctest --preset Sanitizer --output-on-failure --test-dir Build
+        run: ctest --preset ${{ steps.build-parameters.outputs.cmake_test_preset }} --output-on-failure --test-dir Build
         env:
           TESTS_ONLY: 1
 
