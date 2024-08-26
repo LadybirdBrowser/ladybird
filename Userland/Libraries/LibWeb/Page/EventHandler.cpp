@@ -10,12 +10,14 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/Focus.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
@@ -354,8 +356,10 @@ bool EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPixelPoint
     }
 
 after_node_use:
-    if (button == UIEvents::MouseButton::Primary)
+    if (button == UIEvents::MouseButton::Primary) {
         m_in_mouse_selection = false;
+        update_selection_range_for_input_or_textarea();
+    }
     return handled_event;
 }
 
@@ -433,25 +437,17 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
             auto dom_node = paintable->dom_node();
             if (dom_node) {
                 // See if we want to focus something.
-                bool did_focus_something = false;
+                JS::GCPtr<DOM::Node> focus_candidate;
                 for (auto candidate = node; candidate; candidate = candidate->parent_or_shadow_host()) {
                     if (candidate->is_focusable()) {
-                        // When a user activates a click focusable focusable area, the user agent must run the focusing steps on the focusable area with focus trigger set to "click".
-                        // Spec Note: Note that focusing is not an activation behavior, i.e. calling the click() method on an element or dispatching a synthetic click event on it won't cause the element to get focused.
-                        HTML::run_focusing_steps(candidate.ptr(), nullptr, "click"sv);
-                        did_focus_something = true;
+                        focus_candidate = candidate;
                         break;
                     }
                 }
 
-                if (!did_focus_something) {
-                    if (auto* focused_element = document->focused_element())
-                        HTML::run_unfocusing_steps(focused_element);
-                }
-
                 // If we didn't focus anything, place the document text cursor at the mouse position.
                 // FIXME: This is all rather strange. Find a better solution.
-                if (!did_focus_something || dom_node->is_editable()) {
+                if (!focus_candidate || dom_node->is_editable()) {
                     auto& realm = document->realm();
                     document->set_cursor_position(DOM::Position::create(realm, *dom_node, result->index_in_node));
                     if (auto selection = document->get_selection()) {
@@ -462,8 +458,16 @@ bool EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSPixelPoi
                             (void)selection->set_base_and_extent(*dom_node, result->index_in_node, *dom_node, result->index_in_node);
                         }
                     }
+                    update_selection_range_for_input_or_textarea();
                     m_in_mouse_selection = true;
                 }
+
+                // When a user activates a click focusable focusable area, the user agent must run the focusing steps on the focusable area with focus trigger set to "click".
+                // Spec Note: Note that focusing is not an activation behavior, i.e. calling the click() method on an element or dispatching a synthetic click event on it won't cause the element to get focused.
+                if (focus_candidate)
+                    HTML::run_focusing_steps(focus_candidate, nullptr, "click"sv);
+                else if (auto* focused_element = document->focused_element())
+                    HTML::run_unfocusing_steps(focused_element);
             }
         }
     }
@@ -706,6 +710,7 @@ bool EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CSSPixelP
             if (auto selection = node->document().get_selection()) {
                 (void)selection->set_base_and_extent(hit_dom_node, first_word_break_before, hit_dom_node, first_word_break_after);
             }
+            update_selection_range_for_input_or_textarea();
         }
     }
 
@@ -978,6 +983,8 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
         }
     }
 
+    update_selection_range_for_input_or_textarea();
+
     // FIXME: Implement scroll by line and by page instead of approximating the behavior of other browsers.
     auto arrow_key_scroll_distance = 100;
     auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
@@ -1111,6 +1118,55 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
     m_drag_and_drop_event_handler->visit_edges(visitor);
     visitor.visit(m_mouse_event_tracking_paintable);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:set-the-selection-range
+void EventHandler::update_selection_range_for_input_or_textarea()
+{
+    // Where possible, user interface features for changing the text selection in input and
+    // textarea elements must be implemented using the set the selection range algorithm so that,
+    // e.g., all the same events fire.
+
+    // NOTE: It seems like only new selections are registered with the respective elements. I.e.
+    //       existing selections in other elements are not cleared, so we only need to set the
+    //       selection range for the element with the current selection.
+
+    // Get the active selection
+    auto active_document = m_navigable->active_document();
+    if (!active_document)
+        return;
+    auto selection = active_document->get_selection();
+    if (!selection)
+        return;
+
+    // Do we have a range within the same node?
+    auto range = selection->range();
+    if (!range || range->start_container() != range->end_container())
+        return;
+
+    // We are only interested in text nodes with a shadow root
+    auto& node = *range->start_container();
+    if (!node.is_text())
+        return;
+    auto& root = node.root();
+    if (!root.is_shadow_root())
+        return;
+    auto& shadow_host = *root.parent_or_shadow_host();
+
+    // Invoke "set the selection range" on the form associated element
+    auto selection_start = range->start_offset();
+    auto selection_end = range->end_offset();
+    // FIXME: support selection directions other than ::Forward
+    auto direction = HTML::SelectionDirection::Forward;
+
+    Optional<HTML::FormAssociatedElement&> target {};
+    if (is<HTML::HTMLInputElement>(shadow_host))
+        target = static_cast<HTML::HTMLInputElement&>(shadow_host);
+    else if (is<HTML::HTMLTextAreaElement>(shadow_host))
+        target = static_cast<HTML::HTMLTextAreaElement&>(shadow_host);
+
+    if (target.has_value())
+        target.value().set_the_selection_range(selection_start, selection_end, direction);
 }
 
 }
