@@ -261,25 +261,32 @@ void LineBuilder::update_last_line()
         CSSPixels new_fragment_y = 0;
 
         auto y_value_for_alignment = [&](CSS::VerticalAlign vertical_align) {
-            CSSPixels effective_box_top = fragment.border_box_top();
+            CSSPixels effective_box_top_offset = fragment.border_box_top();
+            CSSPixels effective_box_bottom_offset = fragment.border_box_top();
             if (fragment.is_atomic_inline()) {
                 auto const& fragment_box_state = m_layout_state.get(static_cast<Box const&>(fragment.layout_node()));
-                effective_box_top = fragment_box_state.margin_box_top();
+                effective_box_top_offset = fragment_box_state.margin_box_top();
+                effective_box_bottom_offset = fragment_box_state.margin_box_bottom();
             }
 
             switch (vertical_align) {
             case CSS::VerticalAlign::Baseline:
-                return m_current_y + line_box_baseline - fragment.baseline() + effective_box_top;
+                return m_current_y + line_box_baseline - fragment.baseline() + effective_box_top_offset;
             case CSS::VerticalAlign::Top:
-                return m_current_y + effective_box_top;
-            case CSS::VerticalAlign::Middle:
+                return m_current_y + effective_box_top_offset;
+            case CSS::VerticalAlign::Middle: {
+                // Align the vertical midpoint of the box with the baseline of the parent box
+                // plus half the x-height of the parent.
+                auto const x_height = CSSPixels::nearest_value_for(m_context.containing_block().first_available_font().pixel_metrics().x_height);
+                return m_current_y + line_box_baseline + ((effective_box_top_offset - effective_box_bottom_offset - x_height - fragment.height()) / 2);
+            }
             case CSS::VerticalAlign::Bottom:
             case CSS::VerticalAlign::Sub:
             case CSS::VerticalAlign::Super:
             case CSS::VerticalAlign::TextBottom:
             case CSS::VerticalAlign::TextTop:
                 // FIXME: These are all 'baseline'
-                return m_current_y + line_box_baseline - fragment.baseline() + effective_box_top;
+                return m_current_y + line_box_baseline - fragment.baseline() + effective_box_top_offset;
             }
             VERIFY_NOT_REACHED();
         };
