@@ -22,8 +22,6 @@ public:
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 
-    Layout::ImageBox const& layout_box() const;
-
 private:
     // ^JS::Cell
     virtual void visit_edges(Visitor&) override;
