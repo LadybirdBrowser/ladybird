@@ -60,6 +60,7 @@ private:
     Painting::PaintableBox const* paint_root() const;
 
     bool should_ignore_device_input_event() const;
+    void update_selection_range_for_input_or_textarea();
 
     JS::NonnullGCPtr<HTML::Navigable> m_navigable;
 
