@@ -384,11 +384,16 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
             if (result.values().size() == 1)
                 return to_js_value(vm, result.values().first(), type.results().first());
 
-            VERIFY_NOT_REACHED();
-            // TODO
-            /*return JS::Value(JS::Array::create_from<Wasm::Value>(realm, result.values(), [&](Wasm::Value value) {*/
-            /*    return to_js_value(vm, value);*/
-            /*}));*/
+            // Put result values into a JS::Array in reverse order.
+            auto js_result_values = JS::MarkedVector<JS::Value> { realm.heap() };
+            js_result_values.ensure_capacity(result.values().size());
+
+            for (size_t i = result.values().size(); i > 0; i--) {
+                // Safety: ensure_capacity is called just before this.
+                js_result_values.unchecked_append(to_js_value(vm, result.values().at(i - 1), type.results().at(i - 1)));
+            }
+
+            return JS::Value(JS::Array::create_from(realm, js_result_values));
         });
 
     cache.add_function_instance(address, function);
