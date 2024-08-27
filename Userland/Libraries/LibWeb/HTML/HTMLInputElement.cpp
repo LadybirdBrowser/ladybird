@@ -1373,8 +1373,14 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
             return MUST(String::from_utf8(builder.string_view().trim(Infra::ASCII_WHITESPACE)));
         }
     } else if (type_state() == HTMLInputElement::TypeAttributeState::Number) {
-        // If the value of the element is not a valid floating-point number, then set it to the empty string instead.
+        // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number):value-sanitization-algorithm
+        // If the value of the element is not a valid floating-point number, then set it
+        // to the empty string instead.
+        if (!is_valid_floating_point_number(value))
+            return String {};
         auto maybe_value = parse_floating_point_number(value);
+        // AD-HOC: The spec doesn’t require these checks — but other engines do them, and
+        // there’s a WPT case which tests that the value is less than Number.MAX_VALUE.
         if (!maybe_value.has_value() || !isfinite(maybe_value.value()))
             return String {};
     } else if (type_state() == HTMLInputElement::TypeAttributeState::Date) {
@@ -1402,7 +1408,9 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
         // https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range):value-sanitization-algorithm
         // If the value of the element is not a valid floating-point number, then set it to the best representation, as a floating-point number, of the default value.
         auto maybe_value = parse_floating_point_number(value);
-        if (!maybe_value.has_value() || !isfinite(maybe_value.value())) {
+        if (!is_valid_floating_point_number(value) ||
+            // AD-HOC: The spec doesn’t require these checks — but other engines do them.
+            !maybe_value.has_value() || !isfinite(maybe_value.value())) {
             // The default value is the minimum plus half the difference between the minimum and the maximum, unless the maximum is less than the minimum, in which case the default value is the minimum.
             auto minimum = *min();
             auto maximum = *max();

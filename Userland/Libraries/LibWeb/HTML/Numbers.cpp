@@ -92,6 +92,39 @@ Optional<double> parse_floating_point_number(StringView string)
     return maybe_double.value();
 }
 
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number
+bool is_valid_floating_point_number(StringView string)
+{
+    GenericLexer lexer { string };
+    // 1. Optionally, a U+002D HYPHEN-MINUS character (-).
+    lexer.consume_specific('-');
+    // 2. One or both of the following, in the given order:
+    // 2.1. A series of one or more ASCII digits.
+    bool has_leading_digits = !lexer.consume_while(is_ascii_digit).is_empty();
+    // 2.2. Both of the following, in the given order:
+    // 2.2.1. A single U+002E FULL STOP character (.).
+    if (lexer.consume_specific('.')) {
+        // 2.2.2. A series of one or more ASCII digits.
+        if (lexer.consume_while(is_ascii_digit).is_empty())
+            return false;
+    } else if (!has_leading_digits) {
+        // Doesn’t begin with digits, doesn’t begin with a full stop followed by digits.
+        return false;
+    }
+    // 3. Optionally:
+    // 3.1. Either a U+0065 LATIN SMALL LETTER E character (e) or a U+0045 LATIN CAPITAL
+    //      LETTER E character (E).
+    if (lexer.consume_specific('e') || lexer.consume_specific('E')) {
+        // 3.2. Optionally, a U+002D HYPHEN-MINUS character (-) or U+002B PLUS SIGN
+        //      character (+).
+        lexer.consume_specific('-') || lexer.consume_specific('+');
+        // 3.3. A series of one or more ASCII digits.
+        if (lexer.consume_while(is_ascii_digit).is_empty())
+            return false;
+    }
+    return lexer.tell_remaining() == 0;
+}
+
 WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm& realm, WebIDL::Long value)
 {
     if (value < 0)
