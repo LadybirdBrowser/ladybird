@@ -103,4 +103,31 @@ TEST_CASE(parse_non_negative_integer)
 
     optional_value = Web::HTML::parse_non_negative_integer("-3"sv);
     EXPECT(!optional_value.has_value());
+
+    EXPECT(Web::HTML::is_valid_floating_point_number("11"sv));
+    EXPECT(Web::HTML::is_valid_floating_point_number("11.12"sv));
+    EXPECT(Web::HTML::is_valid_floating_point_number("-11111"sv));
+    EXPECT(Web::HTML::is_valid_floating_point_number("-11111.123"sv));
+    EXPECT(Web::HTML::is_valid_floating_point_number("1e2"sv));
+    EXPECT(Web::HTML::is_valid_floating_point_number("1E2"sv));
+    EXPECT(Web::HTML::is_valid_floating_point_number("1e+2"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("1d+2"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("foobar"sv));
+    EXPECT(Web::HTML::is_valid_floating_point_number(".1"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("1."sv));
+    EXPECT(Web::HTML::is_valid_floating_point_number("-0"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("Infinity"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("-Infinity"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("NaN"sv));
+    EXPECT(Web::HTML::is_valid_floating_point_number("9007199254740993"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("1e"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("+1"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("+"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("-"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("\t1"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("\n1"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("\f1"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("\r1"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number(" 1"sv));
+    EXPECT(!Web::HTML::is_valid_floating_point_number("1trailing junk"sv));
 }
