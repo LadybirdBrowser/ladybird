@@ -24,6 +24,7 @@ public:
 
     static ThrowCompletionOr<NonnullGCPtr<IteratorHelper>> create(Realm&, NonnullGCPtr<IteratorRecord>, NonnullGCPtr<Closure>, GCPtr<AbruptClosure> = {});
 
+    IteratorRecord& underlying_iterator() { return m_underlying_iterator; }
     IteratorRecord const& underlying_iterator() const { return m_underlying_iterator; }
 
     size_t counter() const { return m_counter; }
