@@ -5,8 +5,7 @@
  */
 
 import AK
-import LibWeb
-import SwiftLibWeb
+import Web
 import Foundation
 
 class StandardError: TextOutputStream {

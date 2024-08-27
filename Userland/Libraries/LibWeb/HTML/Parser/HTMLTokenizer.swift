@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+import AK
 import Collections
 import Foundation
-import LibWeb
-import SwiftAK
+@_exported import WebCxx
 
 extension Swift.String {
     public init?(decoding: AK.StringView, as: AK.StringView) {

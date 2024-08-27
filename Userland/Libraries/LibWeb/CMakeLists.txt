@@ -800,36 +800,11 @@ if (ENABLE_SWIFT)
 
     generate_clang_module_map(LibWeb GENERATED_FILES ${LIBWEB_ALL_GENERATED_HEADERS})
 
-    target_compile_features(LibWeb PUBLIC cxx_std_23)
-
     target_sources(LibWeb PRIVATE
         HTML/Parser/HTMLToken.swift
         HTML/Parser/HTMLTokenizer.swift
         HTML/Parser/HTMLTokenizerHelpers.cpp
     )
-    target_compile_definitions(LibWeb PRIVATE LIBWEB_USE_SWIFT)
-    set_target_properties(LibWeb PROPERTIES Swift_MODULE_NAME "SwiftLibWeb")
-
     target_link_libraries(LibWeb PRIVATE AK Collections)
-
-    # FIXME: These should be pulled automatically from interface compile options for the target
-    set(VFS_OVERLAY_OPTIONS
-        -Xcc -ivfsoverlay${CMAKE_CURRENT_BINARY_DIR}/vfs_overlay.yaml
-        -Xcc -ivfsoverlay${CMAKE_CURRENT_BINARY_DIR}/../LibGfx/vfs_overlay.yaml
-        -Xcc -ivfsoverlay${Lagom_BINARY_DIR}/AK/vfs_overlay.yaml
-    )
-    get_target_property(LIBWEB_NATIVE_DIRS LibWeb INCLUDE_DIRECTORIES)
-    list(APPEND LIBWEB_NATIVE_DIRS ${CMAKE_Swift_MODULE_DIRECTORY})
-
-    _swift_generate_cxx_header(LibWeb "LibWeb-Swift.h"
-        SEARCH_PATHS ${LIBWEB_NATIVE_DIRS}
-        COMPILE_OPTIONS ${VFS_OVERLAY_OPTIONS}
-    )
-
-    # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26175
-    if (APPLE)
-        add_custom_command(TARGET LibWeb POST_BUILD
-            COMMAND install_name_tool -id @rpath/liblagom-web.0.dylib "$<TARGET_FILE:LibWeb>"
-        )
-    endif()
+    add_swift_target_properties(LibWeb LAGOM_LIBRARIES AK LibGfx)
 endif()
