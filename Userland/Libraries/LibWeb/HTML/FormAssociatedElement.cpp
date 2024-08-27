@@ -541,7 +541,7 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
 
         // AD-HOC: Notify the element that the selection was changed, so it can perform
         //         element-specific updates.
-        selection_was_changed();
+        selection_was_changed(m_selection_start, m_selection_end);
     }
 }
 

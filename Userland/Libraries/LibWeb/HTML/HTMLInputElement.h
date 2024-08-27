@@ -206,7 +206,7 @@ public:
     bool selection_or_range_applies() const;
 
 protected:
-    void selection_was_changed() override;
+    void selection_was_changed(size_t selection_start, size_t selection_end) override;
 
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);

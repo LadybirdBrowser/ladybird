@@ -460,13 +460,15 @@ void HTMLTextAreaElement::queue_firing_input_event()
     });
 }
 
-void HTMLTextAreaElement::selection_was_changed()
+void HTMLTextAreaElement::selection_was_changed(size_t selection_start, size_t selection_end)
 {
+    document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, selection_end));
+
     auto selection = document().get_selection();
     if (!selection || selection->range_count() == 0)
         return;
 
-    MUST(selection->set_base_and_extent(*m_text_node, selection_start().value(), *m_text_node, selection_end().value()));
+    MUST(selection->set_base_and_extent(*m_text_node, selection_start, *m_text_node, selection_end));
 }
 
 }
