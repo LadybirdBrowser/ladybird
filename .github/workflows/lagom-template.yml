@@ -77,13 +77,9 @@ jobs:
 
           if ${{ inputs.clang_plugins }} ; then
             echo "ccache_key=${{ inputs.fuzzer }}-CLANG_PLUGINS" >> "$GITHUB_OUTPUT"
-            echo "cmake_build_preset=CI" >> "$GITHUB_OUTPUT"
-            echo "cmake_test_preset=default" >> "$GITHUB_OUTPUT"
             echo "cmake_options=-DENABLE_CLANG_PLUGINS=ON" >> "$GITHUB_OUTPUT"
           else
             echo "ccache_key=${{ inputs.fuzzer }}" >> "$GITHUB_OUTPUT"
-            echo "cmake_build_preset=Sanitizer_CI" >> "$GITHUB_OUTPUT"
-            echo "cmake_test_preset=Sanitizer" >> "$GITHUB_OUTPUT"
             echo "cmake_options=" >> "$GITHUB_OUTPUT"
           fi
 
@@ -114,7 +110,7 @@ jobs:
         if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --preset ${{ steps.build-parameters.outputs.cmake_build_preset }} -B Build \
+          cmake --preset Sanitizer_CI -B Build \
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
             ${{ steps.build-parameters.outputs.cmake_options }} \
@@ -184,7 +180,7 @@ jobs:
       - name: Test
         if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
         working-directory: ${{ github.workspace }}
-        run: ctest --preset ${{ steps.build-parameters.outputs.cmake_test_preset }} --output-on-failure --test-dir Build
+        run: ctest --preset Sanitizer --output-on-failure --test-dir Build
         env:
           TESTS_ONLY: 1
 
