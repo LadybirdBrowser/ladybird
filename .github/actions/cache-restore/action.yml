@@ -23,8 +23,8 @@ inputs:
     description: 'Increment this number if CI has trouble with ccache.'
     required: false
     default: '0'
-  serenity_ccache_path:
-    description: 'Path to the SerenityOS ccache directory'
+  ccache_path:
+    description: 'Path to the ccache directory'
     required: false
     default: ''
   download_cache_path:
@@ -33,9 +33,9 @@ inputs:
     default: 'caches'
 
 outputs:
-  serenity_ccache_primary_key:
-    description: 'Primary key for the Serenity ccache'
-    value: ${{ steps.serenity-ccache.outputs.cache-primary-key }}
+  ccache_primary_key:
+    description: 'Primary ccache key'
+    value: ${{ steps.ccache.outputs.cache-primary-key }}
 
 runs:
   using: "composite"
@@ -46,27 +46,27 @@ runs:
       run: |
         echo "timestamp=$(date -u "+%Y%m%d%H%M_%S")" >> "$GITHUB_OUTPUT"
 
-    - name: 'Serenity Compiler Cache'
+    - name: 'Compiler Cache'
       uses: actions/cache/restore@v4
-      id: 'serenity-ccache'
-      if: ${{ inputs.serenity_ccache_path != '' }}
+      id: 'ccache'
+      if: ${{ inputs.ccache_path != '' }}
       with:
-          path: ${{ inputs.serenity_ccache_path }}
+          path: ${{ inputs.ccache_path }}
           key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
           restore-keys: |
               "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
 
-    - name: 'Configure Serenity ccache'
-      if: ${{ inputs.serenity_ccache_path != '' }}
+    - name: 'Configure Compiler Cache'
+      if: ${{ inputs.ccache_path != '' }}
       shell: bash
       run: |
-          CCACHE_DIR=${{ inputs.serenity_ccache_path }} ccache -M 0
+          CCACHE_DIR=${{ inputs.ccache_path }} ccache -M 0
 
           # Reset all ccache modification dates to a known epoch. This provides a baseline that we can prune against.
-          find ${{ inputs.serenity_ccache_path }} | tac | xargs touch -a -m -d "2018-10-10T09:53:07Z"
+          find ${{ inputs.ccache_path }} | tac | xargs touch -a -m -d "2018-10-10T09:53:07Z"
 
-          CCACHE_DIR=${{ inputs.serenity_ccache_path }} ccache -s
-          CCACHE_DIR=${{ inputs.serenity_ccache_path }} ccache -z
+          CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
+          CCACHE_DIR=${{ inputs.ccache_path }} ccache -z
 
     - name: Export vcpkg GitHub Actions cache environment variables
       uses: actions/github-script@v7

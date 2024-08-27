@@ -7,12 +7,12 @@ inputs:
     description: 'Target Architecture to restore caches for'
     required: false
     default: 'x86_64'
-  serenity_ccache_path:
-    description: 'Path to the SerenityOS ccache directory'
+  ccache_path:
+    description: 'Path to the ccache directory'
     required: false
     default: ''
-  serenity_ccache_primary_key:
-    description: 'Primary key for the Serenity ccache'
+  ccache_primary_key:
+    description: 'Primary ccache key'
     required: false
     default: ''
 
@@ -21,22 +21,18 @@ runs:
   steps:
     - name: 'Prune obsolete ccache files'
       shell: bash
-      if: ${{ inputs.serenity_ccache_path != '' }}
+      if: ${{ inputs.ccache_path != '' }}
       run: |
-        CCACHE_DIR=${{ inputs.serenity_ccache_path }} ccache --evict-older-than=1d
+        CCACHE_DIR=${{ inputs.ccache_path }} ccache --evict-older-than=1d
 
-    - name: 'Serenity Compiler Cache'
+    - name: 'Compiler Cache'
       uses: actions/cache/save@v4
-      if: ${{ inputs.serenity_ccache_path != '' }}
+      if: ${{ inputs.ccache_path != '' }}
       with:
-        path: ${{ inputs.serenity_ccache_path }}
-        key: ${{ inputs.serenity_ccache_primary_key }}
+        path: ${{ inputs.ccache_path }}
+        key: ${{ inputs.ccache_primary_key }}
 
     - name: 'Cache Stats'
       shell: bash
       run: |
-        echo "Toolchain Compiler Cache"
-        CCACHE_DIR=${{ inputs.toolchain_ccache_path }} ccache -s
-
-        echo "Serenity Compiler Cache"
-        CCACHE_DIR=${{ inputs.serenity_ccache_path }} ccache -s
+        CCACHE_DIR=${{ inputs.ccache_path }} ccache -s
