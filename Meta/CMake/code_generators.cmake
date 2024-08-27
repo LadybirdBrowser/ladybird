@@ -29,14 +29,22 @@ function(generate_clang_module_map target_name)
         set(MODULE_MAP_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 
+    string(REPLACE "Lib" "" module_name ${target_name})
+    set(module_name "${module_name}Cxx")
+
     set(module_map_file "${CMAKE_CURRENT_BINARY_DIR}/module/module.modulemap")
-    set(vfs_overlay_file "${CMAKE_CURRENT_BINARY_DIR}/vfs_overlay.yaml")
+    set(vfs_overlay_file "${VFS_OVERLAY_DIRECTORY}/${target_name}_vfs_overlay.yaml")
 
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     # FIXME: Make this depend on the public headers of the target
     add_custom_command(
         OUTPUT "${module_map_file}"
-        COMMAND "${Python3_EXECUTABLE}" "${SerenityOS_SOURCE_DIR}/Meta/generate_clang_module_map.py" "${MODULE_MAP_DIRECTORY}" --module-map "${module_map_file}" --vfs-map ${vfs_overlay_file} ${MODULE_MAP_GENERATED_FILES}
+        COMMAND "${Python3_EXECUTABLE}" "${SerenityOS_SOURCE_DIR}/Meta/generate_clang_module_map.py"
+                "${MODULE_MAP_DIRECTORY}"
+                --module-name "${module_name}"
+                --module-map "${module_map_file}"
+                --vfs-map ${vfs_overlay_file}
+                ${MODULE_MAP_GENERATED_FILES}
         VERBATIM
         DEPENDS "${SerenityOS_SOURCE_DIR}/Meta/generate_clang_module_map.py"
     )

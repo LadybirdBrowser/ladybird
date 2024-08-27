@@ -27,6 +27,7 @@ def main():
                  formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('directory', help='source directory to generate module map for')
     parser.add_argument('generated_files', nargs='+', help='extra files to include in the module map')
+    parser.add_argument('-n', '--module-name', help='top-level module name')
     parser.add_argument('-m', '--module-map', required=True, help='output module map file')
     parser.add_argument('-v', '--vfs-map', required=True, help='output VFS map file')
     args = parser.parse_args()
@@ -36,9 +37,10 @@ def main():
         print(f"Error: {args.directory} is not a directory", file=sys.stderr)
         return 1
     pathlib.Path(args.module_map).parent.mkdir(parents=True, exist_ok=True)
+    pathlib.Path(args.vfs_map).parent.mkdir(parents=True, exist_ok=True)
 
     header_files = [f for f in root.rglob('**/*.h') if f.is_file()]
-    module_name = root.name
+    module_name = args.module_name if args.module_name else root.name
 
     module_map = f"module {module_name} {{\n"
     for header_file in header_files:

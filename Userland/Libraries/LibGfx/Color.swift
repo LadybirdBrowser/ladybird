@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-import SwiftAK
-import LibGfx
+import AK
+@_exported import GfxCxx
 
 // FIXME: Do this without extending String with an index operation that was explicitly deleted :^)
 extension Swift.String {

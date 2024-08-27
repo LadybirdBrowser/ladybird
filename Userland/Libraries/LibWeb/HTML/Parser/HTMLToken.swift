@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+@_exported import WebCxx
+
 public class HTMLToken {
     public struct Position {
         var line = UInt()
@@ -12,10 +14,10 @@ public class HTMLToken {
     }
 
     public struct Attribute {
-        var prefix: String?
-        var localName: String
-        var namespace_: String?
-        var value: String
+        var prefix: Swift.String?
+        var localName: Swift.String
+        var namespace_: Swift.String?
+        var value: Swift.String
         var nameStartPosition: Position
         var nameEndPosition: Position
         var valueStartPosition: Position
@@ -25,21 +27,21 @@ public class HTMLToken {
     public enum TokenType {
         case Invalid
         case DOCTYPE(
-            name: String?,
-            publicIdentifier: String?,
-            systemIdentifier: String?,
+            name: Swift.String?,
+            publicIdentifier: Swift.String?,
+            systemIdentifier: Swift.String?,
             forceQuirksMode: Bool)
         case StartTag(
-            tagName: String,
+            tagName: Swift.String,
             selfClosing: Bool,
             selfClosingAcknowledged: Bool,
             attributes: [Attribute])
         case EndTag(
-            tagName: String,
+            tagName: Swift.String,
             selfClosing: Bool,
             selfClosingAcknowledged: Bool,
             attributes: [Attribute])
-        case Comment(data: String)
+        case Comment(data: Swift.String)
         case Character(codePoint: Character)
         case EndOfFile
     }
@@ -78,14 +80,14 @@ public class HTMLToken {
 }
 
 extension HTMLToken.Position: Equatable, CustomStringConvertible {
-    public var description: String {
+    public var description: Swift.String {
         return "\(self.line):\(self.column)"
     }
 }
 
 extension HTMLToken.TokenType: CustomStringConvertible {
     // FIXME: Print attributes for start/end tags
-    public var description: String {
+    public var description: Swift.String {
         switch self {
         case .Invalid:
             return "Invalid"
@@ -106,7 +108,7 @@ extension HTMLToken.TokenType: CustomStringConvertible {
 }
 
 extension HTMLToken: CustomStringConvertible {
-    public var description: String {
+    public var description: Swift.String {
         if (self.startPosition == Position()) {
             return "HTMLToken(type: \(self.type))"
         }

@@ -5,7 +5,7 @@
  */
 
 import AK
-import LibWeb
+import Web
 import Foundation
 
 class StandardError: TextOutputStream {

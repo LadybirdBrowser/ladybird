@@ -62,14 +62,11 @@ swizzle_target_properties_for_swift(simdutf::simdutf)
 target_link_libraries(AK PRIVATE simdutf::simdutf)
 
 if (ENABLE_SWIFT)
-    generate_clang_module_map(
-       AK
+    generate_clang_module_map(AK
        GENERATED_FILES
         "${CMAKE_CURRENT_BINARY_DIR}/Backtrace.h"
         "${CMAKE_CURRENT_BINARY_DIR}/Debug.h"
     )
-
-    target_compile_features(AK PUBLIC cxx_std_23)
-    set_target_properties(AK PROPERTIES Swift_MODULE_NAME SwiftAK)
     target_sources(AK PRIVATE AK+Swift.swift)
+    add_swift_target_properties(AK)
 endif()

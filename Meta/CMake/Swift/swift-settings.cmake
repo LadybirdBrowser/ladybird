@@ -23,6 +23,8 @@ if (APPLE)
     set(CMAKE_Swift_COMPILER_TARGET "${CMAKE_SYSTEM_PROCESSOR}-apple-macosx${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
 
+set(VFS_OVERLAY_DIRECTORY "${CMAKE_BINARY_DIR}/vfs_overlays" CACHE PATH "Directory to put VFS overlays in")
+
 # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26195
 # For now, we'll just manually massage the flags.
 function(swizzle_target_properties_for_swift target_name)
@@ -34,4 +36,30 @@ function(swizzle_target_properties_for_swift target_name)
         list(APPEND munged_properties "${cxx_property}" "${swift_property}")
     endforeach()
     set_property(TARGET ${target_name} PROPERTY INTERFACE_COMPILE_OPTIONS ${munged_properties})
+endfunction()
+
+function(add_swift_target_properties target_name)
+    cmake_parse_arguments(PARSE_ARGV 1 SWIFT_TARGET "" "" "LAGOM_LIBRARIES")
+
+    target_compile_features(${target_name} PUBLIC cxx_std_${CMAKE_CXX_STANDARD})
+
+    string(REPLACE "Lib" "" module_name ${target_name})
+
+    string(TOUPPER ${target_name} TARGET_NAME_UPPER)
+    target_compile_definitions(${target_name} PRIVATE "${TARGET_NAME_UPPER}_USE_SWIFT")
+    set_target_properties(${target_name} PROPERTIES Swift_MODULE_NAME ${module_name})
+
+    # FIXME: These should be pulled automatically from interface compile options for the target
+    set(VFS_OVERLAY_OPTIONS "-Xcc" "-ivfsoverlay${VFS_OVERLAY_DIRECTORY}/${target_name}_vfs_overlay.yaml")
+    foreach(internal_library IN LISTS SWIFT_TARGET_LAGOM_LIBRARIES)
+        list(APPEND VFS_OVERLAY_OPTIONS "-Xcc" "-ivfsoverlay${VFS_OVERLAY_DIRECTORY}/${internal_library}_vfs_overlay.yaml")
+    endforeach()
+
+    get_target_property(_NATIVE_DIRS ${target_name} INCLUDE_DIRECTORIES)
+    list(APPEND _NATIVE_DIRS ${CMAKE_Swift_MODULE_DIRECTORY})
+
+    _swift_generate_cxx_header(${target_name} "${target_name}-Swift.h"
+        SEARCH_PATHS ${_NATIVE_DIRS}
+        COMPILE_OPTIONS ${VFS_OVERLAY_OPTIONS}
+    )
 endfunction()

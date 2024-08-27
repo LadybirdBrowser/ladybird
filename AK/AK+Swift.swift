@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-import AK
+@_exported import AKCxx
 import Foundation
 
 public extension Foundation.Data {
