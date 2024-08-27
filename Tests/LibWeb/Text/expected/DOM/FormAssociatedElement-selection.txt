@@ -8,7 +8,7 @@ text-input selectionStart: 0 selectionEnd: 18 selectionDirection: none
 text-input selectionStart: 2 selectionEnd: 4 selectionDirection: forward
 text-input selectionStart: 1 selectionEnd: 4 selectionDirection: forward
 text-input selectionStart: 1 selectionEnd: 5 selectionDirection: forward
-text-input selectionStart: 18 selectionEnd: 18 selectionDirection: forward
-text-input selectionStart: 18 selectionEnd: 18 selectionDirection: backward
+text-input selectionStart: 6 selectionEnd: 6 selectionDirection: forward
+text-input selectionStart: 6 selectionEnd: 6 selectionDirection: backward
 textarea selectionStart: 0 selectionEnd: 9 selectionDirection: none
-select event fired: 18 18
+select event fired: 9 9

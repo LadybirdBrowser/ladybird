@@ -110,8 +110,6 @@ protected:
     void form_node_was_removed();
     void form_node_attribute_changed(FlyString const&, Optional<String> const&);
 
-    virtual void selection_was_changed() { }
-
 private:
     void reset_form_owner();
 
@@ -158,6 +156,8 @@ public:
 protected:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     void relevant_value_was_changed(JS::GCPtr<DOM::Text>);
+
+    virtual void selection_was_changed([[maybe_unused]] size_t selection_start, [[maybe_unused]] size_t selection_end) { }
 
 private:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-selection

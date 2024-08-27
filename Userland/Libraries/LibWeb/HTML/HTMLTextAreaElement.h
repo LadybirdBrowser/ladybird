@@ -123,7 +123,7 @@ public:
     void set_dirty_value_flag(Badge<FormAssociatedElement>, bool flag) { m_dirty_value = flag; }
 
 protected:
-    void selection_was_changed() override;
+    void selection_was_changed(size_t selection_start, size_t selection_end) override;
 
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);
