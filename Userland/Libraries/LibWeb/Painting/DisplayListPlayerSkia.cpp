@@ -317,9 +317,9 @@ static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
 {
     switch (scaling_mode) {
     case Gfx::ScalingMode::NearestNeighbor:
+    case Gfx::ScalingMode::SmoothPixels:
         return SkSamplingOptions(SkFilterMode::kNearest);
     case Gfx::ScalingMode::BilinearBlend:
-    case Gfx::ScalingMode::SmoothPixels:
         return SkSamplingOptions(SkFilterMode::kLinear);
     case Gfx::ScalingMode::BoxSampling:
         return SkSamplingOptions(SkCubicResampler::Mitchell());
