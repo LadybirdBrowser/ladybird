@@ -15,17 +15,28 @@ jobs:
       matrix:
         os_name: ['Linux']
         os: [ubuntu-22.04]
-        fuzzer: ['NO_FUZZ', 'FUZZ']
-        toolchain: ['Clang']
+        fuzzer: ['NO_FUZZ']
+        toolchain: ['GNU']
+        clang_plugins: [false]
+
         include:
+          - os_name: 'Linux'
+            os: ubuntu-22.04
+            fuzzer: 'NO_FUZZ'
+            toolchain: 'Clang'
+            clang_plugins: true
+
           - os_name: 'macOS'
             os: macos-14
             fuzzer: 'NO_FUZZ'
             toolchain: 'Clang'
+            clang_plugins: false
+
           - os_name: 'Linux'
             os: ubuntu-22.04
-            fuzzer: 'NO_FUZZ'
-            toolchain: 'GNU'
+            fuzzer: 'FUZZ'
+            toolchain: 'Clang'
+            clang_plugins: false
 
     uses: ./.github/workflows/lagom-template.yml
     with:
@@ -33,3 +44,4 @@ jobs:
       os_name: ${{ matrix.os_name }}
       os: ${{ matrix.os }}
       fuzzer: ${{ matrix.fuzzer }}
+      clang_plugins: ${{ matrix.clang_plugins }}
