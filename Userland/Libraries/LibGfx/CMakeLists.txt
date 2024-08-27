@@ -73,8 +73,7 @@ set(SOURCES
 
 serenity_lib(LibGfx gfx)
 
-find_package(harfbuzz REQUIRED)
-target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL ${SKIA_LIBRARIES} harfbuzz)
+target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL)
 
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
 list(TRANSFORM generated_sources PREPEND "ImageFormats/")
@@ -110,9 +109,10 @@ find_package(PNG REQUIRED)
 find_package(LIBAVIF REQUIRED)
 find_package(WebP REQUIRED)
 pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)
+find_package(harfbuzz REQUIRED)
 
 target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PkgConfig::Jxl PNG::PNG avif WebP::webp WebP::webpdecoder
-            WebP::webpdemux WebP::libwebpmux)
+            WebP::webpdemux WebP::libwebpmux skia harfbuzz)
 
 if (ENABLE_SWIFT)
     generate_clang_module_map(LibGfx GENERATED_FILES ${generated_headers})

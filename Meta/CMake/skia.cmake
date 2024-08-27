@@ -1,6 +1,8 @@
+include_guard()
+
 find_package(unofficial-skia CONFIG)
 if(unofficial-skia_FOUND)
-    set(SKIA_LIBRARIES unofficial::skia::skia)
+    set(SKIA_TARGET unofficial::skia::skia)
 else()
     find_package(PkgConfig)
 
@@ -16,7 +18,8 @@ else()
       endif()
     endforeach()
 
-    pkg_check_modules(SKIA skia=${SKIA_REQUIRED_VERSION} REQUIRED)
-    include_directories(${SKIA_INCLUDE_DIRS})
-    link_directories(${SKIA_LIBRARY_DIRS})
+    pkg_check_modules(skia skia=${SKIA_REQUIRED_VERSION} REQUIRED IMPORTED_TARGET skia)
+    set(SKIA_TARGET PkgConfig::skia)
 endif()
+swizzle_target_properties_for_swift(${SKIA_TARGET})
+add_library(skia ALIAS ${SKIA_TARGET})
