@@ -16,8 +16,6 @@ endif()
 include(${CMAKE_CURRENT_LIST_DIR}/InitializeSwift.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/GenerateSwiftHeader.cmake)
 
-add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Xcc -std=c++23 -cxx-interoperability-mode=default>")
-
 # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26174
 if (APPLE)
     set(CMAKE_Swift_COMPILER_TARGET "${CMAKE_SYSTEM_PROCESSOR}-apple-macosx${CMAKE_OSX_DEPLOYMENT_TARGET}")
@@ -42,6 +40,7 @@ function(add_swift_target_properties target_name)
     cmake_parse_arguments(PARSE_ARGV 1 SWIFT_TARGET "" "" "LAGOM_LIBRARIES")
 
     target_compile_features(${target_name} PUBLIC cxx_std_${CMAKE_CXX_STANDARD})
+    target_compile_options(${target_name} PUBLIC "SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Xcc -std=c++23 -cxx-interoperability-mode=default>")
 
     string(REPLACE "Lib" "" module_name ${target_name})
 
