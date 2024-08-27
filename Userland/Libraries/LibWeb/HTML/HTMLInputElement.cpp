@@ -2366,11 +2366,8 @@ void HTMLInputElement::selection_was_changed(size_t selection_start, size_t sele
 {
     document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, selection_end));
 
-    auto selection = document().get_selection();
-    if (!selection || selection->range_count() == 0)
-        return;
-
-    MUST(selection->set_base_and_extent(*m_text_node, selection_start, *m_text_node, selection_end));
+    if (auto selection = document().get_selection())
+        MUST(selection->set_base_and_extent(*m_text_node, selection_start, *m_text_node, selection_end));
 }
 
 }
