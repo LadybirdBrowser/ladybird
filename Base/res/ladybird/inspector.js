@@ -126,7 +126,14 @@ inspector.loadDOMTree = tree => {
 
     for (let domNode of domNodes) {
         domNode.addEventListener("dblclick", event => {
-            editDOMNode(domNode);
+            const type = domNode.dataset.nodeType;
+            const text = event.target.innerText;
+
+            if (type === "attribute" && event.target.classList.contains("attribute-value")) {
+                text = text.substring(1, text.length - 1);
+            }
+
+            editDOMNode(domNode, text);
             event.preventDefault();
         });
     }
@@ -329,9 +336,6 @@ const createDOMEditor = (onHandleChange, onCancelChange) => {
 
     setTimeout(() => {
         input.focus();
-
-        // FIXME: Invoke `select` when it isn't just stubbed out.
-        // input.select();
     });
 
     return input;
@@ -344,7 +348,7 @@ const parseDOMAttributes = value => {
     return element.children[0].attributes;
 };
 
-const editDOMNode = domNode => {
+const editDOMNode = (domNode, textToSelect) => {
     if (selectedDOMNode === null) {
         return;
     }
@@ -381,6 +385,18 @@ const editDOMNode = domNode => {
     } else {
         editor.value = domNode.innerText;
     }
+
+    setTimeout(() => {
+        if (typeof textToSelect !== "undefined") {
+            const index = editor.value.indexOf(textToSelect);
+            if (index !== -1) {
+                editor.setSelectionRange(index, index + textToSelect.length);
+                return;
+            }
+        }
+
+        editor.select();
+    });
 
     domNode.parentNode.replaceChild(editor, domNode);
 };
