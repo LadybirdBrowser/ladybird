@@ -16,13 +16,17 @@ endforeach()
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 
 if (ENABLE_SWIFT)
-    add_executable(TestLibWebSwiftBindings TestLibWebSwiftBindings.swift)
-    target_link_libraries(TestLibWebSwiftBindings PRIVATE AK LibWeb)
-    target_compile_options(TestLibWebSwiftBindings PRIVATE -parse-as-library)
-    add_test(NAME TestLibWebSwiftBindings COMMAND TestLibWebSwiftBindings)
+    find_package(SwiftTesting REQUIRED)
 
-    add_executable(TestHTMLTokenizerSwift TestHTMLTokenizerSwift.swift)
-    target_link_libraries(TestHTMLTokenizerSwift PRIVATE AK LibWeb)
-    target_compile_options(TestHTMLTokenizerSwift PRIVATE -parse-as-library)
-    add_test(NAME TestHTMLTokenizerSwift COMMAND TestHTMLTokenizerSwift)
+    add_executable(TestLibWebSwift
+        TestLibWebSwiftBindings.swift
+        TestHTMLTokenizerSwift.swift
+    )
+
+    # FIXME: Swift doesn't seem to like object libraries for @main
+    target_sources(TestLibWebSwift PRIVATE ../Resources/SwiftTestMain.swift)
+
+    set_target_properties(TestLibWebSwift PROPERTIES SUFFIX .swift-testing)
+    target_link_libraries(TestLibWebSwift PRIVATE AK LibWeb SwiftTesting::SwiftTesting)
+    add_test(NAME TestLibWebSwift COMMAND TestLibWebSwift)
 endif()
