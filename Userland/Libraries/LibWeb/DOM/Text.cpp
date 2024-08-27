@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::split_text(size_t offset)
 
         // 4. For each live range whose start node is parent and start offset is equal to the index of node plus 1, increase its start offset by 1.
         for (auto& range : Range::live_ranges()) {
-            if (range->start_container() == this && range->start_offset() == index() + 1)
+            if (range->start_container() == parent.ptr() && range->start_offset() == index() + 1)
                 TRY(range->set_start(*range->start_container(), range->start_offset() + 1));
         }
 
