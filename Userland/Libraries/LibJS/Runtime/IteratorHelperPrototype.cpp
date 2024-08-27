@@ -47,7 +47,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorHelperPrototype::return_)
     auto iterator = TRY(typed_this_object(vm));
 
     // 3. Assert: O has a [[GeneratorState]] slot.
-    // 4. If O.[[GeneratorState]] is suspendedStart, then
+    // 4. If O.[[GeneratorState]] is suspended-start, then
     if (iterator->generator_state() == GeneratorObject::GeneratorState::SuspendedStart) {
         // a. Set O.[[GeneratorState]] to completed.
         iterator->set_generator_state(GeneratorObject::GeneratorState::Completed);
