@@ -6,54 +6,28 @@
 
 import AK
 import Web
-import Foundation
+import Testing
 
-class StandardError: TextOutputStream {
-    func write(_ string: Swift.String) {
-        try! FileHandle.standardError.write(contentsOf: Data(string.utf8))
-    }
-}
-
-@main
+@Suite
 struct TestHTMLTokenizerSwift {
 
-    static func testTokenTypes() {
-        var standardError = StandardError()
-        print("Testing HTMLToken types...", to: &standardError)
-
+    @Test func tokenTypes() {
         let default_token = HTMLToken()
         default_token.type = .Character(codePoint: "a")
-        precondition(default_token.isCharacter())
+        #expect(default_token.isCharacter())
 
-        print("\(default_token)", to: &standardError)
-
-        print("HTMLToken types pass", to: &standardError)
+        #expect("\(default_token)" == "HTMLToken(type: Character(codePoint: a))")
     }
 
-    static func testParserWhitespace() {
-        var standardError = StandardError()
-        print("Testing HTMLToken parser whitespace...", to: &standardError)
-
+    @Test func parserWhitespace() {
         for codePoint: Character in ["\t", "\n", "\r", "\u{000C}", " "] {
             let token = HTMLToken(type: .Character(codePoint: codePoint))
-            precondition(token.isParserWhitespace())
+            #expect(token.isParserWhitespace())
         }
 
         for codePoint: Character in ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"] {
             let token = HTMLToken(type: .Character(codePoint: codePoint))
-            precondition(!token.isParserWhitespace())
+            #expect(!token.isParserWhitespace())
         }
-
-        print("HTMLToken parser whitespace pass", to: &standardError)
-    }
-
-    static func main() {
-        var standardError = StandardError()
-        print("Starting test suite...", to: &standardError)
-
-        testTokenTypes()
-        testParserWhitespace()
-
-        print("All tests pass", to: &standardError)
     }
 }
