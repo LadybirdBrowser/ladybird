@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -685,30 +686,16 @@ bool EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CSSPixelP
             auto& hit_dom_node = const_cast<DOM::Text&>(verify_cast<DOM::Text>(*hit_paintable.dom_node()));
             auto const& text_for_rendering = hit_paintable.text_for_rendering();
 
-            int first_word_break_before = [&] {
-                // Start from one before the index position to prevent selecting only spaces between words, caused by the addition below.
-                // This also helps us dealing with cases where index is equal to the string length.
-                for (int i = result->index_in_node - 1; i >= 0; --i) {
-                    if (is_ascii_space(text_for_rendering.bytes_as_string_view()[i])) {
-                        // Don't include the space in the selection
-                        return i + 1;
-                    }
-                }
-                return 0;
-            }();
+            auto& segmenter = word_segmenter();
+            segmenter.set_segmented_text(text_for_rendering);
 
-            int first_word_break_after = [&] {
-                for (size_t i = result->index_in_node; i < text_for_rendering.bytes().size(); ++i) {
-                    if (is_ascii_space(text_for_rendering.bytes_as_string_view()[i]))
-                        return i;
-                }
-                return text_for_rendering.bytes().size();
-            }();
+            auto previous_boundary = segmenter.previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
+            auto next_boundary = segmenter.next_boundary(result->index_in_node).value_or(text_for_rendering.byte_count());
 
             auto& realm = node->document().realm();
-            document.set_cursor_position(DOM::Position::create(realm, hit_dom_node, first_word_break_after));
+            document.set_cursor_position(DOM::Position::create(realm, hit_dom_node, next_boundary));
             if (auto selection = node->document().get_selection()) {
-                (void)selection->set_base_and_extent(hit_dom_node, first_word_break_before, hit_dom_node, first_word_break_after);
+                (void)selection->set_base_and_extent(hit_dom_node, previous_boundary, hit_dom_node, next_boundary);
             }
             update_selection_range_for_input_or_textarea();
         }
@@ -1167,6 +1154,13 @@ void EventHandler::update_selection_range_for_input_or_textarea()
 
     if (target.has_value())
         target.value().set_the_selection_range(selection_start, selection_end, direction);
+}
+
+Unicode::Segmenter& EventHandler::word_segmenter()
+{
+    if (!m_word_segmenter)
+        m_word_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
+    return *m_word_segmenter;
 }
 
 }
