@@ -99,34 +99,31 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
 
     // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the following steps when called:
     auto closure = JS::create_heap_function(realm.heap(), [mapper = NonnullGCPtr { mapper.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
-        auto const& iterated = iterator.underlying_iterator();
+        auto& iterated = iterator.underlying_iterator();
 
         // a. Let counter be 0.
         // b. Repeat,
 
-        // i. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // i. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // ii. If next is false, return undefined.
-        if (!next)
+        // ii. If value is done, return undefined.
+        if (!value.has_value())
             return iterator.result(js_undefined());
 
-        // iii. Let value be ? IteratorValue(next).
-        auto value = TRY(iterator_value(vm, *next));
+        // iii. Let mapped be Completion(Call(mapper, undefined, « value, 𝔽(counter) »)).
+        auto mapped = call(vm, *mapper, js_undefined(), *value, Value { iterator.counter() });
 
-        // iv. Let mapped be Completion(Call(mapper, undefined, « value, 𝔽(counter) »)).
-        auto mapped = call(vm, *mapper, js_undefined(), value, Value { iterator.counter() });
-
-        // v. IfAbruptCloseIterator(mapped, iterated).
+        // iv. IfAbruptCloseIterator(mapped, iterated).
         if (mapped.is_error())
             return iterator.close_result(vm, mapped.release_error());
 
-        // viii. Set counter to counter + 1.
+        // vii. Set counter to counter + 1.
         // NOTE: We do this step early to ensure it occurs before returning.
         iterator.increment_counter();
 
-        // vi. Let completion be Completion(Yield(mapped)).
-        // vii. IfAbruptCloseIterator(completion, iterated).
+        // v. Let completion be Completion(Yield(mapped)).
+        // vi. IfAbruptCloseIterator(completion, iterated).
         return iterator.result(mapped.release_value());
     });
 
@@ -158,38 +155,35 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
 
     // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and predicate and performs the following steps when called:
     auto closure = JS::create_heap_function(realm.heap(), [predicate = NonnullGCPtr { predicate.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
-        auto const& iterated = iterator.underlying_iterator();
+        auto& iterated = iterator.underlying_iterator();
 
         // a. Let counter be 0.
 
         // b. Repeat,
         while (true) {
-            // i. Let next be ? IteratorStep(iterated).
-            auto next = TRY(iterator_step(vm, iterated));
+            // i. Let value be ? IteratorStepValue(iterated).
+            auto value = TRY(iterator_step_value(vm, iterated));
 
-            // ii. If next is false, return undefined.
-            if (!next)
+            // ii. If value is done, return undefined.
+            if (!value.has_value())
                 return iterator.result(js_undefined());
 
-            // iii. Let value be ? IteratorValue(next).
-            auto value = TRY(iterator_value(vm, *next));
+            // iii. Let selected be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
+            auto selected = call(vm, *predicate, js_undefined(), *value, Value { iterator.counter() });
 
-            // iv. Let selected be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
-            auto selected = call(vm, *predicate, js_undefined(), value, Value { iterator.counter() });
-
-            // v. IfAbruptCloseIterator(selected, iterated).
+            // iv. IfAbruptCloseIterator(selected, iterated).
             if (selected.is_error())
                 return iterator.close_result(vm, selected.release_error());
 
-            // vii. Set counter to counter + 1.
+            // vi. Set counter to counter + 1.
             // NOTE: We do this step early to ensure it occurs before returning.
             iterator.increment_counter();
 
-            // vi. If ToBoolean(selected) is true, then
+            // v. If ToBoolean(selected) is true, then
             if (selected.value().to_boolean()) {
                 // 1. Let completion be Completion(Yield(value)).
                 // 2. IfAbruptCloseIterator(completion, iterated).
-                return iterator.result(value);
+                return iterator.result(*value);
             }
         }
     });
@@ -232,7 +226,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
 
     // 8. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs the following steps when called:
     auto closure = JS::create_heap_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
-        auto const& iterated = iterator.underlying_iterator();
+        auto& iterated = iterator.underlying_iterator();
 
         // a. Let remaining be integerLimit.
         // b. Repeat,
@@ -247,16 +241,16 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
         //     1. Set remaining to remaining - 1.
         iterator.increment_counter();
 
-        // iii. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // iii. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // iv. If next is false, return undefined.
-        if (!next)
+        // iv. If value is done, return undefined.
+        if (!value.has_value())
             return iterator.result(js_undefined());
 
-        // v. Let completion be Completion(Yield(? IteratorValue(next))).
+        // v. Let completion be Completion(Yield(value)).
         // vi. IfAbruptCloseIterator(completion, iterated).
-        return iterator.result(TRY(iterator_value(vm, *next)));
+        return iterator.result(*value);
     });
 
     // 9. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
@@ -297,7 +291,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
 
     // 8. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs the following steps when called:
     auto closure = JS::create_heap_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
-        auto const& iterated = iterator.underlying_iterator();
+        auto& iterated = iterator.underlying_iterator();
 
         // a. Let remaining be integerLimit.
         // b. Repeat, while remaining > 0,
@@ -316,16 +310,16 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
 
         // c. Repeat,
 
-        // i. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // i. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // ii. If next is false, return undefined.
-        if (!next)
+        // ii. If value is done, return undefined.
+        if (!value.has_value())
             return iterator.result(js_undefined());
 
-        // iii. Let completion be Completion(Yield(? IteratorValue(next))).
+        // iii. Let completion be Completion(Yield(value)).
         // iv. IfAbruptCloseIterator(completion, iterated).
-        return iterator.result(TRY(iterator_value(vm, *next)));
+        return iterator.result(*value);
     });
 
     // 9. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
@@ -341,19 +335,19 @@ class FlatMapIterator : public Cell {
     JS_DECLARE_ALLOCATOR(FlatMapIterator);
 
 public:
-    ThrowCompletionOr<Value> next(VM& vm, IteratorRecord const& iterated, IteratorHelper& iterator, FunctionObject& mapper)
+    ThrowCompletionOr<Value> next(VM& vm, IteratorRecord& iterated, IteratorHelper& iterator, FunctionObject& mapper)
     {
         if (m_inner_iterator)
             return next_inner_iterator(vm, iterated, iterator, mapper);
         return next_outer_iterator(vm, iterated, iterator, mapper);
     }
 
-    // NOTE: This implements step 5.b.ix.4.d of Iterator.prototype.flatMap.
+    // NOTE: This implements step 5.b.vii.4.b of Iterator.prototype.flatMap.
     ThrowCompletionOr<Value> on_abrupt_completion(VM& vm, IteratorHelper& iterator, Completion const& completion)
     {
         VERIFY(m_inner_iterator);
 
-        // d. If completion is an abrupt completion, then
+        // b. If completion is an abrupt completion, then
 
         // i. Let backupCompletion be Completion(IteratorClose(innerIterator, completion)).
         auto backup_completion = iterator_close(vm, *m_inner_iterator, completion);
@@ -375,56 +369,53 @@ private:
         visitor.visit(m_inner_iterator);
     }
 
-    ThrowCompletionOr<Value> next_outer_iterator(VM& vm, IteratorRecord const& iterated, IteratorHelper& iterator, FunctionObject& mapper)
+    ThrowCompletionOr<Value> next_outer_iterator(VM& vm, IteratorRecord& iterated, IteratorHelper& iterator, FunctionObject& mapper)
     {
-        // i. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // i. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // ii. If next is false, return undefined.
-        if (!next)
+        // ii. If value is done, return undefined.
+        if (!value.has_value())
             return iterator.result(js_undefined());
 
-        // iii. Let value be ? IteratorValue(next).
-        auto value = TRY(iterator_value(vm, *next));
+        // iii. Let mapped be Completion(Call(mapper, undefined, « value, 𝔽(counter) »)).
+        auto mapped = call(vm, mapper, js_undefined(), *value, Value { iterator.counter() });
 
-        // iv. Let mapped be Completion(Call(mapper, undefined, « value, 𝔽(counter) »)).
-        auto mapped = call(vm, mapper, js_undefined(), value, Value { iterator.counter() });
-
-        // v. IfAbruptCloseIterator(mapped, iterated).
+        // iv. IfAbruptCloseIterator(mapped, iterated).
         if (mapped.is_error())
             return iterator.close_result(vm, mapped.release_error());
 
-        // vi. Let innerIterator be Completion(GetIteratorFlattenable(mapped, reject-strings)).
+        // v. Let innerIterator be Completion(GetIteratorFlattenable(mapped, reject-strings)).
         auto inner_iterator = get_iterator_flattenable(vm, mapped.release_value(), StringHandling::RejectStrings);
 
-        // vii. IfAbruptCloseIterator(innerIterator, iterated).
+        // vi. IfAbruptCloseIterator(innerIterator, iterated).
         if (inner_iterator.is_error())
             return iterator.close_result(vm, inner_iterator.release_error());
 
-        // viii. Let innerAlive be true.
+        // vii. Let innerAlive be true.
         m_inner_iterator = inner_iterator.release_value();
 
-        // x. Set counter to counter + 1.
+        // ix. Set counter to counter + 1.
         // NOTE: We do this step early to ensure it occurs before returning.
         iterator.increment_counter();
 
-        // ix. Repeat, while innerAlive is true,
+        // viii. Repeat, while innerAlive is true,
         return next_inner_iterator(vm, iterated, iterator, mapper);
     }
 
-    ThrowCompletionOr<Value> next_inner_iterator(VM& vm, IteratorRecord const& iterated, IteratorHelper& iterator, FunctionObject& mapper)
+    ThrowCompletionOr<Value> next_inner_iterator(VM& vm, IteratorRecord& iterated, IteratorHelper& iterator, FunctionObject& mapper)
     {
         VERIFY(m_inner_iterator);
 
-        // 1. Let innerNext be Completion(IteratorStep(innerIterator)).
-        auto inner_next = iterator_step(vm, *m_inner_iterator);
+        // 1. Let innerValue be Completion(IteratorStepValue(innerIterator)).
+        auto inner_value = iterator_step_value(vm, *m_inner_iterator);
 
-        // 2. IfAbruptCloseIterator(innerNext, iterated).
-        if (inner_next.is_error())
-            return iterator.close_result(vm, inner_next.release_error());
+        // 2. IfAbruptCloseIterator(innerValue, iterated).
+        if (inner_value.is_error())
+            return iterator.close_result(vm, inner_value.release_error());
 
-        // 3. If innerNext is false, then
-        if (!inner_next.value()) {
+        // 3. If innerValue is done, then
+        if (!inner_value.value().has_value()) {
             // a. Set innerAlive to false.
             m_inner_iterator = nullptr;
 
@@ -432,16 +423,9 @@ private:
         }
         // 4. Else,
         else {
-            // a. Let innerValue be Completion(IteratorValue(innerNext)).
-            auto inner_value = iterator_value(vm, *inner_next.release_value());
-
-            // b. IfAbruptCloseIterator(innerValue, iterated).
-            if (inner_value.is_error())
-                return iterator.close_result(vm, inner_value.release_error());
-
-            // c. Let completion be Completion(Yield(innerValue)).
-            // NOTE: Step d is implemented via on_abrupt_completion.
-            return inner_value.release_value();
+            // a. Let completion be Completion(Yield(innerValue)).
+            // NOTE: Step b is implemented via on_abrupt_completion.
+            return *inner_value.release_value();
         }
     }
 
@@ -472,7 +456,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
 
     // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the following steps when called:
     auto closure = JS::create_heap_function(realm.heap(), [flat_map_iterator, mapper = NonnullGCPtr { mapper.as_function() }](VM& vm, IteratorHelper& iterator) mutable -> ThrowCompletionOr<Value> {
-        auto const& iterated = iterator.underlying_iterator();
+        auto& iterated = iterator.underlying_iterator();
         return flat_map_iterator->next(vm, iterated, iterator, *mapper);
     });
 
@@ -509,18 +493,17 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::reduce)
 
     // 5. If initialValue is not present, then
     if (vm.argument_count() < 2) {
-        // a. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // a. Let accumulator be ? IteratorStepValue(iterated).
+        auto maybe_accumulator = TRY(iterator_step_value(vm, iterated));
 
-        // b. If next is false, throw a TypeError exception.
-        if (!next)
+        // b. If accumulator is done, throw a TypeError exception.
+        if (!maybe_accumulator.has_value())
             return vm.throw_completion<TypeError>(ErrorType::ReduceNoInitial);
-
-        // c. Let accumulator be ? IteratorValue(next).
-        accumulator = TRY(iterator_value(vm, *next));
 
         // d. Let counter be 1.
         counter = 1;
+
+        accumulator = maybe_accumulator.release_value();
     }
     // 6. Else,
     else {
@@ -533,27 +516,24 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::reduce)
 
     // 7. Repeat,
     while (true) {
-        // a. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // a. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If next is false, return accumulator.
-        if (!next)
+        // b. If value is done, return accumulator.
+        if (!value.has_value())
             return accumulator;
 
-        // c. Let value be ? IteratorValue(next).
-        auto value = TRY(iterator_value(vm, *next));
+        // c. Let result be Completion(Call(reducer, undefined, « accumulator, value, 𝔽(counter) »)).
+        auto result = call(vm, reducer.as_function(), js_undefined(), accumulator, *value, Value { counter });
 
-        // d. Let result be Completion(Call(reducer, undefined, « accumulator, value, 𝔽(counter) »)).
-        auto result = call(vm, reducer.as_function(), js_undefined(), accumulator, value, Value { counter });
-
-        // e. IfAbruptCloseIterator(result, iterated).
+        // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
             return *TRY(iterator_close(vm, iterated, result.release_error()));
 
-        // f. Set accumulator to result.[[Value]].
+        // e. Set accumulator to result.[[Value]].
         accumulator = result.release_value();
 
-        // g. Set counter to counter + 1.
+        // f. Set counter to counter + 1.
         ++counter;
     }
 }
@@ -575,18 +555,15 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::to_array)
 
     // 5. Repeat,
     while (true) {
-        // a. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // a. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If next is false, return CreateArrayFromList(items).
-        if (!next)
+        // b. If value is done, return CreateArrayFromList(items).
+        if (!value.has_value())
             return Array::create_from(realm, items);
 
-        // c. Let value be ? IteratorValue(next).
-        auto value = TRY(iterator_value(vm, *next));
-
-        // d. Append value to items.
-        TRY_OR_THROW_OOM(vm, items.try_append(value));
+        // c. Append value to items.
+        TRY_OR_THROW_OOM(vm, items.try_append(*value));
     }
 }
 
@@ -611,24 +588,21 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::for_each)
 
     // 6. Repeat,
     while (true) {
-        // a. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // a. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If next is false, return undefined.
-        if (!next)
+        // b. If value is done, return undefined.
+        if (!value.has_value())
             return js_undefined();
 
-        // c. Let value be ? IteratorValue(next).
-        auto value = TRY(iterator_value(vm, *next));
+        // c. Let result be Completion(Call(fn, undefined, « value, 𝔽(counter) »)).
+        auto result = call(vm, function.as_function(), js_undefined(), *value, Value { counter });
 
-        // d. Let result be Completion(Call(fn, undefined, « value, 𝔽(counter) »)).
-        auto result = call(vm, function.as_function(), js_undefined(), value, Value { counter });
-
-        // e. IfAbruptCloseIterator(result, iterated).
+        // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
             return *TRY(iterator_close(vm, iterated, result.release_error()));
 
-        // f. Set counter to counter + 1.
+        // e. Set counter to counter + 1.
         ++counter;
     }
 }
@@ -654,28 +628,25 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::some)
 
     // 6. Repeat,
     while (true) {
-        // a. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // a. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If next is false, return false.
-        if (!next)
+        // b. If value is done, return undefined.
+        if (!value.has_value())
             return Value { false };
 
-        // c. Let value be ? IteratorValue(next).
-        auto value = TRY(iterator_value(vm, *next));
+        // c. Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
+        auto result = call(vm, predicate.as_function(), js_undefined(), *value, Value { counter });
 
-        // d. Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
-        auto result = call(vm, predicate.as_function(), js_undefined(), value, Value { counter });
-
-        // e. IfAbruptCloseIterator(result, iterated).
+        // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
             return *TRY(iterator_close(vm, iterated, result.release_error()));
 
-        // f. If ToBoolean(result) is true, return ? IteratorClose(iterated, NormalCompletion(true)).
+        // e. If ToBoolean(result) is true, return ? IteratorClose(iterated, NormalCompletion(true)).
         if (result.value().to_boolean())
             return *TRY(iterator_close(vm, iterated, normal_completion(Value { true })));
 
-        // g. Set counter to counter + 1.
+        // f. Set counter to counter + 1.
         ++counter;
     }
 }
@@ -701,28 +672,25 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::every)
 
     // 6. Repeat,
     while (true) {
-        // a. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // a. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If next is false, return true.
-        if (!next)
+        // b. If value is done, return undefined.
+        if (!value.has_value())
             return Value { true };
 
-        // c. Let value be ? IteratorValue(next).
-        auto value = TRY(iterator_value(vm, *next));
+        // c. Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
+        auto result = call(vm, predicate.as_function(), js_undefined(), *value, Value { counter });
 
-        // d. Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
-        auto result = call(vm, predicate.as_function(), js_undefined(), value, Value { counter });
-
-        // e. IfAbruptCloseIterator(result, iterated).
+        // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
             return *TRY(iterator_close(vm, iterated, result.release_error()));
 
-        // f. If ToBoolean(result) is false, return ? IteratorClose(iterated, NormalCompletion(false)).
+        // e. If ToBoolean(result) is false, return ? IteratorClose(iterated, NormalCompletion(false)).
         if (!result.value().to_boolean())
             return *TRY(iterator_close(vm, iterated, normal_completion(Value { false })));
 
-        // g. Set counter to counter + 1.
+        // f. Set counter to counter + 1.
         ++counter;
     }
 }
@@ -748,28 +716,25 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::find)
 
     // 6. Repeat,
     while (true) {
-        // a. Let next be ? IteratorStep(iterated).
-        auto next = TRY(iterator_step(vm, iterated));
+        // a. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
 
-        // b. If next is false, return undefined.
-        if (!next)
+        // b. If value is done, return undefined.
+        if (!value.has_value())
             return js_undefined();
 
-        // c. Let value be ? IteratorValue(next).
-        auto value = TRY(iterator_value(vm, *next));
+        // c. Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
+        auto result = call(vm, predicate.as_function(), js_undefined(), *value, Value { counter });
 
-        // d. Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
-        auto result = call(vm, predicate.as_function(), js_undefined(), value, Value { counter });
-
-        // e. IfAbruptCloseIterator(result, iterated).
+        // d. IfAbruptCloseIterator(result, iterated).
         if (result.is_error())
             return *TRY(iterator_close(vm, iterated, result.release_error()));
 
-        // f. If ToBoolean(result) is true, return ? IteratorClose(iterated, NormalCompletion(value)).
+        // e. If ToBoolean(result) is true, return ? IteratorClose(iterated, NormalCompletion(value)).
         if (result.value().to_boolean())
             return *TRY(iterator_close(vm, iterated, normal_completion(value)));
 
-        // g. Set counter to counter + 1.
+        // f. Set counter to counter + 1.
         ++counter;
     }
 }
