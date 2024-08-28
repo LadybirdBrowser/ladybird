@@ -1,0 +1,14 @@
+<iframe id="ifr" srcdoc=""></iframe>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        ifr.contentDocument.body.innerHTML = "<a href='foo.html'>foo</a>";
+        let href = ifr.contentDocument.body.querySelector("a").href;
+        if (href.endsWith("foo.html")) {
+            println("PASS (Didn't crash)");
+        } else {
+            println("FAIL");
+        }
+        ifr.remove();
+    });
+</script>
