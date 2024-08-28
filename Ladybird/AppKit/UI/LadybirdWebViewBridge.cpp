@@ -11,6 +11,7 @@
 #include <LibIPC/File.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/UserAgent.h>
 #include <UI/LadybirdWebViewBridge.h>
 
 #import <UI/Palette.h>
@@ -175,6 +176,11 @@ void WebViewBridge::initialize_client(CreateNewClient)
 
     if (auto const& webdriver_content_ipc_path = WebView::Application::chrome_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value()) {
         client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
+    }
+
+    if (auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset; user_agent_preset.has_value()) {
+        auto user_agent = *WebView::user_agents.get(*user_agent_preset);
+        client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, user_agent);
     }
 }
 
