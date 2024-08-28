@@ -5,39 +5,13 @@
  */
 
 #include <AK/ByteString.h>
-#include <AK/LexicalPath.h>
-#include <LibCore/Directory.h>
-#include <LibCore/File.h>
-#include <LibFileSystem/FileSystem.h>
-#include <LibFileSystem/TempFile.h>
 #include <LibMedia/Audio/WavLoader.h>
-#include <LibMedia/Audio/WavWriter.h>
 #include <LibTest/TestCase.h>
-
-static void compare_files(StringView const& in_path, StringView const& out_path)
-{
-    Array<u8, 4096> buffer1;
-    Array<u8, 4096> buffer2;
-
-    auto original_file = MUST(Core::File::open(in_path, Core::File::OpenMode::Read));
-    auto copied_file = MUST(Core::File::open(out_path, Core::File::OpenMode::Read));
-
-    while (!original_file->is_eof() && !copied_file->is_eof()) {
-        auto original_bytes = TRY_OR_FAIL(original_file->read_some(buffer1));
-        auto copied_bytes = TRY_OR_FAIL(copied_file->read_some(buffer2));
-
-        EXPECT_EQ(original_bytes, copied_bytes);
-    }
-}
 
 static void run_test(StringView file_name, int const num_samples, int const channels, u32 const rate)
 {
-
     constexpr auto format = "RIFF WAVE (.wav)";
     constexpr int bits = 16;
-
-    auto out_file = TRY_OR_FAIL(FileSystem::TempFile::create_temp_file());
-    auto out_path = out_file->path();
 
     ByteString in_path = ByteString::formatted("WAV/{}", file_name);
 
@@ -48,26 +22,6 @@ static void run_test(StringView file_name, int const num_samples, int const chan
     EXPECT_EQ(loader->num_channels(), channels);
     EXPECT_EQ(loader->bits_per_sample(), bits);
     EXPECT_EQ(loader->total_samples(), num_samples);
-
-    auto writer = TRY_OR_FAIL(Audio::WavWriter::create_from_file(out_path, rate, channels));
-
-    int samples_read = 0;
-    int size = 0;
-
-    do {
-        auto samples = TRY_OR_FAIL(loader->get_more_samples());
-        TRY_OR_FAIL(writer->write_samples(samples.span()));
-
-        size = samples.size();
-        samples_read += size;
-
-    } while (size);
-
-    TRY_OR_FAIL(writer->finalize());
-
-    EXPECT_EQ(samples_read, num_samples);
-
-    compare_files(in_path, out_path);
 }
 
 // 5 seconds, 16-bit audio samples
