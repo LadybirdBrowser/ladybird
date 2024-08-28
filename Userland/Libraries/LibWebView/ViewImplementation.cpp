@@ -11,6 +11,7 @@
 #include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/ViewImplementation.h>
 
 #ifdef AK_OS_MACOS
@@ -510,8 +511,8 @@ static ErrorOr<LexicalPath> save_screenshot(Gfx::ShareableBitmap const& bitmap)
     if (!bitmap.is_valid())
         return Error::from_string_view("Failed to take a screenshot"sv);
 
-    LexicalPath path { Core::StandardPaths::downloads_directory() };
-    path = path.append(TRY(Core::DateTime::now().to_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv)));
+    auto file = Core::DateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
+    auto path = TRY(Application::the().path_for_downloaded_file(file));
 
     auto encoded = TRY(Gfx::PNGWriter::encode(*bitmap.bitmap()));
 

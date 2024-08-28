@@ -12,9 +12,9 @@
 #include <LibCore/Directory.h>
 #include <LibCore/File.h>
 #include <LibCore/Resource.h>
-#include <LibCore/StandardPaths.h>
 #include <LibJS/MarkupGenerator.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/InspectorClient.h>
 #include <LibWebView/SourceHighlighter.h>
 
@@ -220,9 +220,16 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
     };
 
     m_inspector_web_view.on_inspector_exported_inspector_html = [this](String const& html) {
-        auto inspector_path = LexicalPath::join(Core::StandardPaths::downloads_directory(), "inspector"sv);
+        auto maybe_inspector_path = Application::the().path_for_downloaded_file("inspector"sv);
 
-        if (auto result = Core::Directory::create(inspector_path, Core::Directory::CreateDirectories::Yes); result.is_error()) {
+        if (maybe_inspector_path.is_error()) {
+            append_console_warning(MUST(String::formatted("Unable to select a download location: {}", maybe_inspector_path.error())));
+            return;
+        }
+
+        auto inspector_path = maybe_inspector_path.release_value();
+
+        if (auto result = Core::Directory::create(inspector_path.string(), Core::Directory::CreateDirectories::Yes); result.is_error()) {
             append_console_warning(MUST(String::formatted("Unable to create {}: {}", inspector_path, result.error())));
             return;
         }
