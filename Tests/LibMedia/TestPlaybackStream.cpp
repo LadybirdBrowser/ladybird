@@ -7,13 +7,13 @@
 #include <AK/Math.h>
 #include <AK/MemoryStream.h>
 #include <AK/WeakPtr.h>
-#include <LibAudio/PlaybackStream.h>
 #include <LibCore/EventLoop.h>
+#include <LibMedia/Audio/PlaybackStream.h>
 #include <LibTest/TestSuite.h>
 #include <unistd.h>
 
 #if defined(HAVE_PULSEAUDIO)
-#    include <LibAudio/PulseAudioWrappers.h>
+#    include <LibMedia/Audio/PulseAudioWrappers.h>
 #endif
 
 // FIXME: CI doesn't run an AudioServer currently. Creating one in /etc/SystemServer.ini does not

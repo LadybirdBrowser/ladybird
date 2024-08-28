@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibAudio/PlaybackStream.h>
+#include <LibMedia/Audio/PlaybackStream.h>
 #include <LibWeb/Platform/AudioCodecPlugin.h>
 
 namespace Web::Platform {

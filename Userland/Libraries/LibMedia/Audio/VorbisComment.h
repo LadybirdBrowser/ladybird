@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include "LoaderError.h"
+#include "Metadata.h"
 #include <AK/ByteBuffer.h>
-#include <LibAudio/LoaderError.h>
-#include <LibAudio/Metadata.h>
 
 namespace Audio {
 

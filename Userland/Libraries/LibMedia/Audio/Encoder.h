@@ -6,10 +6,10 @@
 
 #pragma once
 
+#include "Forward.h"
+#include "Sample.h"
 #include <AK/Error.h>
 #include <AK/Span.h>
-#include <LibAudio/Forward.h>
-#include <LibAudio/Sample.h>
 
 namespace Audio {
 

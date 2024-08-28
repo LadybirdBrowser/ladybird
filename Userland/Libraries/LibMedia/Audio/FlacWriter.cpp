@@ -5,14 +5,14 @@
  */
 
 #include "FlacWriter.h"
+#include "Metadata.h"
+#include "VorbisComment.h"
 #include <AK/BitStream.h>
 #include <AK/DisjointChunks.h>
 #include <AK/Endian.h>
 #include <AK/IntegralMath.h>
 #include <AK/MemoryStream.h>
 #include <AK/Statistics.h>
-#include <LibAudio/Metadata.h>
-#include <LibAudio/VorbisComment.h>
 #include <LibCrypto/Checksum/ChecksummingStream.h>
 
 namespace Audio {

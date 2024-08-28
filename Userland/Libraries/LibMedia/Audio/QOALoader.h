@@ -6,13 +6,13 @@
 
 #pragma once
 
+#include "Loader.h"
+#include "QOATypes.h"
+#include "SampleFormats.h"
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Span.h>
 #include <AK/Types.h>
-#include <LibAudio/Loader.h>
-#include <LibAudio/QOATypes.h>
-#include <LibAudio/SampleFormats.h>
 
 namespace Audio {
 

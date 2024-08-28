@@ -5,9 +5,9 @@
  */
 
 #include <AK/IDAllocator.h>
-#include <LibAudio/Loader.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibMedia/Audio/Loader.h>
 #include <LibWeb/Bindings/AudioTrackPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>

@@ -1,5 +1,4 @@
 add_subdirectory(AK)
-add_subdirectory(LibAudio)
 add_subdirectory(LibCompress)
 add_subdirectory(LibCore)
 add_subdirectory(LibDiff)

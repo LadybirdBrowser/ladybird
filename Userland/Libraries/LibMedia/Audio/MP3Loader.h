@@ -7,10 +7,10 @@
 #pragma once
 
 #include "Loader.h"
+#include "MDCT.h"
 #include "MP3Types.h"
 #include <AK/BitStream.h>
 #include <AK/MemoryStream.h>
-#include <LibAudio/MDCT.h>
 
 namespace Audio {
 

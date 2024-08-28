@@ -8,7 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/Time.h>
-#include <LibAudio/Forward.h>
+#include <LibMedia/Audio/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::HTML {

@@ -5,10 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "WavLoader.h"
+#include "WavTypes.h"
+#include "WavWriter.h"
 #include <AK/Endian.h>
-#include <LibAudio/WavLoader.h>
-#include <LibAudio/WavTypes.h>
-#include <LibAudio/WavWriter.h>
 
 namespace Audio {
 

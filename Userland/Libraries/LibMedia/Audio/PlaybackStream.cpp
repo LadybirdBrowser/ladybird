@@ -10,11 +10,11 @@
 #include <LibCore/ThreadedPromise.h>
 
 #if defined(HAVE_PULSEAUDIO)
-#    include <LibAudio/PlaybackStreamPulseAudio.h>
+#    include "PlaybackStreamPulseAudio.h"
 #elif defined(AK_OS_MACOS)
-#    include <LibAudio/PlaybackStreamAudioUnit.h>
+#    include "PlaybackStreamAudioUnit.h"
 #elif defined(AK_OS_ANDROID)
-#    include <LibAudio/PlaybackStreamOboe.h>
+#    include "PlaybackStreamOboe.h"
 #endif
 
 namespace Audio {

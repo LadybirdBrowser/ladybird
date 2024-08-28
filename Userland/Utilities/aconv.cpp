@@ -6,14 +6,14 @@
 
 #include <AK/LexicalPath.h>
 #include <AK/Types.h>
-#include <LibAudio/Encoder.h>
-#include <LibAudio/FlacWriter.h>
-#include <LibAudio/Loader.h>
-#include <LibAudio/WavWriter.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibMain/Main.h>
+#include <LibMedia/Audio/Encoder.h>
+#include <LibMedia/Audio/FlacWriter.h>
+#include <LibMedia/Audio/Loader.h>
+#include <LibMedia/Audio/WavWriter.h>
 #include <stdio.h>
 
 static ErrorOr<StringView> guess_format_from_extension(StringView path)

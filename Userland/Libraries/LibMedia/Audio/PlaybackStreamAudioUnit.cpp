@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "PlaybackStreamAudioUnit.h"
 #include <AK/Atomic.h>
 #include <AK/SourceLocation.h>
-#include <LibAudio/PlaybackStreamAudioUnit.h>
 #include <LibCore/SharedCircularQueue.h>
 #include <LibCore/ThreadedPromise.h>
 

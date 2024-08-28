@@ -8,7 +8,7 @@ if(INCLUDE_FLAC_SPEC_TESTS)
     endif()
     set(FLAC_SPEC_TEST_GZ_URL https://github.com/ietf-wg-cellar/flac-test-files/archive/refs/heads/main.tar.gz)
 
-    set(FLAC_TEST_PATH ${CMAKE_BINARY_DIR}/Tests/LibAudio/FLAC CACHE PATH "Location of FLAC tests")
+    set(FLAC_TEST_PATH ${CMAKE_BINARY_DIR}/Tests/LibMedia/FLAC CACHE PATH "Location of FLAC tests")
     set(FLAC_SPEC_TEST_GZ_PATH ${FLAC_TEST_PATH}/flac-spec-testsuite.tar.gz)
     set(FLAC_SPEC_TEST_PATH ${FLAC_TEST_PATH}/SpecTests)
 

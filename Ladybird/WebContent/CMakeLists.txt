@@ -34,7 +34,7 @@ target_include_directories(webcontent PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE
 target_include_directories(webcontent PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Userland/>)
 target_include_directories(webcontent PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/..>)
 
-target_link_libraries(webcontent PUBLIC LibAudio LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient)
+target_link_libraries(webcontent PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient)
 
 if (HAVE_PULSEAUDIO)
     target_compile_definitions(webcontent PUBLIC HAVE_PULSEAUDIO=1)

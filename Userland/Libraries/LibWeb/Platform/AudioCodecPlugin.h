@@ -10,7 +10,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibAudio/Forward.h>
+#include <LibMedia/Audio/Forward.h>
 
 namespace Web::Platform {
 

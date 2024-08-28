@@ -6,12 +6,12 @@
 
 #include <AK/NumericLimits.h>
 #include <AK/Types.h>
-#include <LibAudio/Loader.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibMain/Main.h>
+#include <LibMedia/Audio/Loader.h>
 #include <stdio.h>
 
 // The Kernel has problems with large anonymous buffers, so let's limit sample reads ourselves.

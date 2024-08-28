@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "PlaybackStreamOboe.h"
 #include <AK/Atomic.h>
 #include <AK/SourceLocation.h>
-#include <LibAudio/PlaybackStreamOboe.h>
 #include <LibCore/SharedCircularQueue.h>
 #include <LibCore/ThreadedPromise.h>
 #include <memory>

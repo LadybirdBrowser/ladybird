@@ -384,7 +384,6 @@ if (current_os != "mac") {
   bundle_data("ladybird_bundle_libs") {
     public_deps = [
       "//AK",
-      "//Userland/Libraries/LibAudio",
       "//Userland/Libraries/LibCompress",
       "//Userland/Libraries/LibCore",
       "//Userland/Libraries/LibCrypto",
@@ -397,6 +396,7 @@ if (current_os != "mac") {
       "//Userland/Libraries/LibImageDecoderClient",
       "//Userland/Libraries/LibJS",
       "//Userland/Libraries/LibLine",
+      "//Userland/Libraries/LibMedia",
       "//Userland/Libraries/LibProtocol",
       "//Userland/Libraries/LibRIFF",
       "//Userland/Libraries/LibRegex",
@@ -414,7 +414,6 @@ if (current_os != "mac") {
     ]
     sources = [
       "$root_out_dir/lib/liblagom-ak.dylib",
-      "$root_out_dir/lib/liblagom-audio.dylib",
       "$root_out_dir/lib/liblagom-compress.dylib",
       "$root_out_dir/lib/liblagom-core-minimal.dylib",
       "$root_out_dir/lib/liblagom-core.dylib",
@@ -428,6 +427,7 @@ if (current_os != "mac") {
       "$root_out_dir/lib/liblagom-ipc.dylib",
       "$root_out_dir/lib/liblagom-js.dylib",
       "$root_out_dir/lib/liblagom-line.dylib",
+      "$root_out_dir/lib/liblagom-media.dylib",
       "$root_out_dir/lib/liblagom-protocol.dylib",
       "$root_out_dir/lib/liblagom-regex.dylib",
       "$root_out_dir/lib/liblagom-riff.dylib",

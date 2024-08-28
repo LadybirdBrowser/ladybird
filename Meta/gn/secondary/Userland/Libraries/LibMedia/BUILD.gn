@@ -1,0 +1,40 @@
+import("//Meta/gn/build/libs/pulse/enable.gni")
+
+shared_library("LibMedia") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [
+    "Audio/FlacLoader.cpp",
+    "Audio/GenericTypes.cpp",
+    "Audio/Loader.cpp",
+    "Audio/MP3Loader.cpp",
+    "Audio/Metadata.cpp",
+    "Audio/PlaybackStream.cpp",
+    "Audio/QOALoader.cpp",
+    "Audio/QOATypes.cpp",
+    "Audio/SampleFormats.cpp",
+    "Audio/UserSampleQueue.cpp",
+    "Audio/VorbisComment.cpp",
+    "Audio/WavLoader.cpp",
+    "Audio/WavWriter.cpp",
+  ]
+  if (enable_pulseaudio) {
+    sources += [
+      "Audio/PlaybackStreamPulseAudio.cpp",
+      "Audio/PulseAudioWrappers.cpp",
+    ]
+  }
+  if (current_os == "mac") {
+    sources += [ "Audio/PlaybackStreamAudioUnit.cpp" ]
+    frameworks = [ "AudioUnit.framework" ]
+  }
+  deps = [
+    "//AK",
+    "//Meta/gn/build/libs/pulse",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibCrypto",
+    "//Userland/Libraries/LibIPC",
+    "//Userland/Libraries/LibRIFF",
+    "//Userland/Libraries/LibThreading",
+  ]
+  output_name = "media"
+}

@@ -5,8 +5,8 @@
  */
 
 #include <AK/LexicalPath.h>
-#include <LibAudio/FlacLoader.h>
 #include <LibCore/Directory.h>
+#include <LibMedia/Audio/FlacLoader.h>
 #include <LibTest/TestCase.h>
 
 struct DiscoverFLACTestsHack {

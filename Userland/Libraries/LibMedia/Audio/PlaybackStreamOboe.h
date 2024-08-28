@@ -1,21 +1,18 @@
 /*
- * Copyright (c) 2023, Andrew Kaster <akaster@serenityos.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024, Olekoop <mlglol360xd@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include "PlaybackStream.h"
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibAudio/PlaybackStream.h>
 
 namespace Audio {
 
-class AudioState;
-
-class PlaybackStreamAudioUnit final : public PlaybackStream {
+class PlaybackStreamOboe final : public PlaybackStream {
 public:
     static ErrorOr<NonnullRefPtr<PlaybackStream>> create(OutputState initial_output_state, u32 sample_rate, u8 channels, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback);
 
@@ -30,10 +27,10 @@ public:
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override;
 
 private:
-    explicit PlaybackStreamAudioUnit(NonnullRefPtr<AudioState>);
-    ~PlaybackStreamAudioUnit();
-
-    NonnullRefPtr<AudioState> m_state;
+    class Storage;
+    explicit PlaybackStreamOboe(NonnullRefPtr<Storage>);
+    ~PlaybackStreamOboe();
+    RefPtr<Storage> m_storage;
 };
 
 }
