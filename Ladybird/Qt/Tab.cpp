@@ -481,6 +481,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
                 }
             })
             .when_rejected([this](auto const& error) {
+                if (error.is_errno() && error.code() == ECANCELED)
+                    return;
+
                 auto error_message = MUST(String::formatted("{}", error));
                 QMessageBox::warning(this, "Ladybird", qstring_from_ak_string(error_message));
             });
