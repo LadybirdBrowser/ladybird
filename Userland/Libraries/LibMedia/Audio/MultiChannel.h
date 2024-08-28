@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include "Sample.h"
 #include <AK/Concepts.h>
 #include <AK/FixedArray.h>
-#include <LibAudio/Sample.h>
 
 namespace Audio {
 

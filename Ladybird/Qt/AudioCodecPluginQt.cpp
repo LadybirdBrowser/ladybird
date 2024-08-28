@@ -6,7 +6,7 @@
 
 #include "AudioCodecPluginQt.h"
 #include "AudioThread.h"
-#include <LibAudio/Loader.h>
+#include <LibMedia/Audio/Loader.h>
 
 namespace Ladybird {
 

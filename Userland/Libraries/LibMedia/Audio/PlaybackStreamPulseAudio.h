@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <LibAudio/PlaybackStream.h>
-#include <LibAudio/PulseAudioWrappers.h>
+#include "PlaybackStream.h"
+#include "PulseAudioWrappers.h"
 
 namespace Audio {
 

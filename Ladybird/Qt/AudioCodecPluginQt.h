@@ -9,7 +9,7 @@
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibAudio/Forward.h>
+#include <LibMedia/Audio/Forward.h>
 #include <LibWeb/Platform/AudioCodecPlugin.h>
 #include <QObject>
 

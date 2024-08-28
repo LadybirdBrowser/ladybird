@@ -8,7 +8,6 @@
 #include <Ladybird/FontPlugin.h>
 #include <Ladybird/ImageCodecPlugin.h>
 #include <Ladybird/Utilities.h>
-#include <LibAudio/Loader.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
@@ -19,6 +18,7 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibMain/Main.h>
+#include <LibMedia/Audio/Loader.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/HTML/Window.h>

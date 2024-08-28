@@ -5,7 +5,7 @@
  */
 
 #include "AudioFuzzerCommon.h"
-#include <LibAudio/QOALoader.h>
+#include <LibMedia/Audio/QOALoader.h>
 
 extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
 {

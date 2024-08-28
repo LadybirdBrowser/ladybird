@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "FlacLoader.h"
+#include "Loader.h"
+#include "MP3Loader.h"
+#include "QOALoader.h"
+#include "WavLoader.h"
 #include <AK/TypedTransfer.h>
-#include <LibAudio/FlacLoader.h>
-#include <LibAudio/Loader.h>
-#include <LibAudio/MP3Loader.h>
-#include <LibAudio/QOALoader.h>
-#include <LibAudio/WavLoader.h>
 #include <LibCore/MappedFile.h>
 
 namespace Audio {

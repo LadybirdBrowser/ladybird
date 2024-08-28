@@ -6,6 +6,11 @@
 
 #pragma once
 
+#include "GenericTypes.h"
+#include "LoaderError.h"
+#include "Metadata.h"
+#include "Sample.h"
+#include "SampleFormats.h"
 #include <AK/Error.h>
 #include <AK/FixedArray.h>
 #include <AK/NonnullOwnPtr.h>
@@ -16,11 +21,6 @@
 #include <AK/Stream.h>
 #include <AK/StringView.h>
 #include <AK/Try.h>
-#include <LibAudio/GenericTypes.h>
-#include <LibAudio/LoaderError.h>
-#include <LibAudio/Metadata.h>
-#include <LibAudio/Sample.h>
-#include <LibAudio/SampleFormats.h>
 
 namespace Audio {
 

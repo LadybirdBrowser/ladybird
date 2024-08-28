@@ -6,10 +6,10 @@
 
 #include <AK/MemoryStream.h>
 #include <AK/WeakPtr.h>
-#include <LibAudio/Loader.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ThreadedPromise.h>
 #include <LibCore/Timer.h>
+#include <LibMedia/Audio/Loader.h>
 
 #include "AudioCodecPluginAgnostic.h"
 

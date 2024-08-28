@@ -10,7 +10,7 @@
 
 #include <AK/Concepts.h>
 #include <AK/MemoryStream.h>
-#include <LibAudio/Loader.h>
+#include <LibMedia/Audio/Loader.h>
 #include <stddef.h>
 #include <stdint.h>
 

@@ -4,10 +4,10 @@ shared_library("LibVideo") {
 
   deps = [
     "//AK",
-    "//Userland/Libraries/LibAudio",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibGfx",
     "//Userland/Libraries/LibIPC",
+    "//Userland/Libraries/LibMedia",
     "//Userland/Libraries/LibThreading",
   ]
   sources = [

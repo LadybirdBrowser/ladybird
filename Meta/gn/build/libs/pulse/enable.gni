@@ -1,4 +1,4 @@
 declare_args() {
-  # Select whether to build with PulseAudio support in LibAudio
+  # Select whether to build with PulseAudio support in LibMedia
   enable_pulseaudio = current_os == "linux"
 }

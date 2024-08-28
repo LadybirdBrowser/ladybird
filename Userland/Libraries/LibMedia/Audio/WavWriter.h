@@ -6,13 +6,13 @@
 
 #pragma once
 
+#include "Encoder.h"
+#include "Sample.h"
+#include "SampleFormats.h"
 #include <AK/ByteString.h>
 #include <AK/Noncopyable.h>
 #include <AK/RefPtr.h>
 #include <AK/StringView.h>
-#include <LibAudio/Encoder.h>
-#include <LibAudio/Sample.h>
-#include <LibAudio/SampleFormats.h>
 #include <LibCore/File.h>
 #include <LibCore/Forward.h>
 

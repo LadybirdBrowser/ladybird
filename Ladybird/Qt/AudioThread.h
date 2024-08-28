@@ -11,9 +11,9 @@
 #include <AK/MemoryStream.h>
 #include <AK/Optional.h>
 #include <AK/Types.h>
-#include <LibAudio/Loader.h>
-#include <LibAudio/Sample.h>
 #include <LibCore/SharedCircularQueue.h>
+#include <LibMedia/Audio/Loader.h>
+#include <LibMedia/Audio/Sample.h>
 #include <QAudioFormat>
 #include <QAudioSink>
 #include <QByteArray>

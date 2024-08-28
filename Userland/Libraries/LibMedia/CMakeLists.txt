@@ -1,4 +1,18 @@
 set(SOURCES
+    Audio/GenericTypes.cpp
+    Audio/SampleFormats.cpp
+    Audio/Loader.cpp
+    Audio/WavLoader.cpp
+    Audio/FlacLoader.cpp
+    Audio/FlacWriter.cpp
+    Audio/WavWriter.cpp
+    Audio/Metadata.cpp
+    Audio/MP3Loader.cpp
+    Audio/PlaybackStream.cpp
+    Audio/QOALoader.cpp
+    Audio/QOATypes.cpp
+    Audio/UserSampleQueue.cpp
+    Audio/VorbisComment.cpp
     Color/ColorConverter.cpp
     Color/ColorPrimaries.cpp
     Color/TransferCharacteristics.cpp
@@ -8,6 +22,13 @@ set(SOURCES
     VideoFrame.cpp
 )
 
+if (HAVE_PULSEAUDIO)
+    list(APPEND SOURCES
+        Audio/PlaybackStreamPulseAudio.cpp
+        Audio/PulseAudioWrappers.cpp
+    )
+endif()
+
 if (NOT ANDROID)
     list(APPEND SOURCES FFmpeg/FFmpegVideoDecoder.cpp)
 else()
@@ -15,11 +36,29 @@ else()
 endif()
 
 serenity_lib(LibMedia media)
-target_link_libraries(LibMedia PRIVATE LibCore LibIPC LibGfx LibThreading)
+target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibRIFF LibIPC LibGfx LibThreading LibUnicode)
 
 if (NOT ANDROID)
     # Third-party
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
     target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC)
+endif()
+
+if (HAVE_PULSEAUDIO)
+    target_link_libraries(LibMedia PRIVATE pulse)
+    target_compile_definitions(LibMedia PRIVATE HAVE_PULSEAUDIO=1)
+endif()
+
+if (APPLE AND NOT IOS)
+    target_sources(LibMedia PRIVATE Audio/PlaybackStreamAudioUnit.cpp)
+
+    find_library(AUDIO_UNIT AudioUnit REQUIRED)
+    target_link_libraries(LibMedia PRIVATE ${AUDIO_UNIT})
+endif()
+
+if (ANDROID)
+    target_sources(LibMedia PRIVATE Audio/PlaybackStreamOboe.cpp)
+    find_package(oboe REQUIRED CONFIG)
+    target_link_libraries(LibMedia PRIVATE log oboe::oboe)
 endif()

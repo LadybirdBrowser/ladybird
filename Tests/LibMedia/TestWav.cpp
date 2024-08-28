@@ -6,12 +6,12 @@
 
 #include <AK/ByteString.h>
 #include <AK/LexicalPath.h>
-#include <LibAudio/WavLoader.h>
-#include <LibAudio/WavWriter.h>
 #include <LibCore/Directory.h>
 #include <LibCore/File.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibFileSystem/TempFile.h>
+#include <LibMedia/Audio/WavLoader.h>
+#include <LibMedia/Audio/WavWriter.h>
 #include <LibTest/TestCase.h>
 
 static void compare_files(StringView const& in_path, StringView const& out_path)

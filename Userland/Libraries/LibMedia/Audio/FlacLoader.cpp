@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "FlacLoader.h"
+#include "FlacTypes.h"
+#include "GenericTypes.h"
+#include "LoaderError.h"
+#include "MultiChannel.h"
+#include "Resampler.h"
+#include "VorbisComment.h"
 #include <AK/ByteString.h>
 #include <AK/Debug.h>
 #include <AK/DeprecatedFlyString.h>
@@ -18,13 +25,6 @@
 #include <AK/Try.h>
 #include <AK/TypedTransfer.h>
 #include <AK/UFixedBigInt.h>
-#include <LibAudio/FlacLoader.h>
-#include <LibAudio/FlacTypes.h>
-#include <LibAudio/GenericTypes.h>
-#include <LibAudio/LoaderError.h>
-#include <LibAudio/MultiChannel.h>
-#include <LibAudio/Resampler.h>
-#include <LibAudio/VorbisComment.h>
 #include <LibCore/File.h>
 #include <LibCrypto/Checksum/ChecksumFunction.h>
 #include <LibCrypto/Checksum/ChecksummingStream.h>

@@ -6,13 +6,13 @@
 
 #pragma once
 
+#include "Forward.h"
+#include "PlaybackStream.h"
+#include "SampleFormats.h"
 #include <AK/AtomicRefCounted.h>
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
-#include <LibAudio/Forward.h>
-#include <LibAudio/PlaybackStream.h>
-#include <LibAudio/SampleFormats.h>
 #include <LibThreading/Thread.h>
 #include <pulse/pulseaudio.h>
 

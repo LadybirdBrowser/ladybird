@@ -7,13 +7,13 @@
 
 #pragma once
 
+#include "Loader.h"
 #include <AK/ByteString.h>
 #include <AK/FixedArray.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>
-#include <LibAudio/Loader.h>
 #include <LibRIFF/RIFF.h>
 
 namespace Audio {

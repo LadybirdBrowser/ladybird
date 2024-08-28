@@ -382,7 +382,6 @@ endif()
 # Lagom Libraries
 set(lagom_standard_libraries
     Archive
-    Audio
     Compress
     Crypto
     Diff
@@ -449,8 +448,8 @@ if (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
 endif()
 
 # Lagom Utilities
-lagom_utility(abench SOURCES ../../Userland/Utilities/abench.cpp LIBS LibMain LibFileSystem LibAudio)
-lagom_utility(aconv SOURCES ../../Userland/Utilities/aconv.cpp LIBS LibMain LibFileSystem LibAudio)
+lagom_utility(abench SOURCES ../../Userland/Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
+lagom_utility(aconv SOURCES ../../Userland/Utilities/aconv.cpp LIBS LibMain LibFileSystem LibMedia)
 
 if (ENABLE_GUI_TARGETS)
     lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
@@ -539,14 +538,6 @@ if (BUILD_TESTING)
     # LibTLS needs a special working directory to find cacert.pem
     lagom_test(../../Tests/LibTLS/TestTLSHandshake.cpp LibTLS LIBS LibTLS LibCrypto)
     lagom_test(../../Tests/LibTLS/TestTLSCertificateParser.cpp LibTLS LIBS LibTLS LibCrypto)
-
-    # The FLAC tests need a special working directory to find the test files
-    lagom_test(../../Tests/LibAudio/TestFLACSpec.cpp LIBS LibAudio WORKING_DIRECTORY "${FLAC_TEST_PATH}/..")
-
-    lagom_test(../../Tests/LibAudio/TestPlaybackStream.cpp LIBS LibAudio)
-    if (HAVE_PULSEAUDIO)
-        target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
-    endif()
 
     # LibCore
     lagom_test(../../Tests/LibCore/TestLibCoreArgsParser.cpp)

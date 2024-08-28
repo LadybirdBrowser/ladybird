@@ -23,4 +23,4 @@ set(GENERATED_SOURCES
 )
 
 serenity_bin(WebContent)
-target_link_libraries(WebContent PRIVATE LibCore LibFileSystem LibIPC LibGfx LibAudio LibImageDecoderClient LibJS LibWebView LibWeb LibUnicode LibMain LibURL)
+target_link_libraries(WebContent PRIVATE LibCore LibFileSystem LibIPC LibGfx LibImageDecoderClient LibJS LibWebView LibWeb LibUnicode LibMain LibMedia LibURL)

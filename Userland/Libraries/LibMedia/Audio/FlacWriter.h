@@ -6,17 +6,17 @@
 
 #pragma once
 
+#include "Encoder.h"
+#include "FlacTypes.h"
+#include "Forward.h"
+#include "GenericTypes.h"
+#include "Sample.h"
+#include "SampleFormats.h"
 #include <AK/MaybeOwned.h>
 #include <AK/Noncopyable.h>
 #include <AK/RefPtr.h>
 #include <AK/Stream.h>
 #include <AK/StringView.h>
-#include <LibAudio/Encoder.h>
-#include <LibAudio/FlacTypes.h>
-#include <LibAudio/Forward.h>
-#include <LibAudio/GenericTypes.h>
-#include <LibAudio/Sample.h>
-#include <LibAudio/SampleFormats.h>
 #include <LibCore/Forward.h>
 
 namespace Audio {

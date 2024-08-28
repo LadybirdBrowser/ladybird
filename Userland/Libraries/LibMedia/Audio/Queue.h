@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibAudio/Sample.h>
+#include "Sample.h"
 #include <LibCore/SharedCircularQueue.h>
 
 namespace Audio {

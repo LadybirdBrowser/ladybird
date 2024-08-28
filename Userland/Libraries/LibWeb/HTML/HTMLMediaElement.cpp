@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibAudio/Loader.h>
 #include <LibJS/Runtime/Promise.h>
+#include <LibMedia/Audio/Loader.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/Bindings/HTMLMediaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
