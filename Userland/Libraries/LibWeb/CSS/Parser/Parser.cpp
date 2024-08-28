@@ -6795,7 +6795,7 @@ RefPtr<CSSStyleValue> Parser::parse_grid_auto_track_sizes(TokenStream<ComponentV
     return GridTrackSizeListStyleValue::create(GridTrackSizeList(move(track_list)));
 }
 
-RefPtr<CSSStyleValue> Parser::parse_grid_track_placement(TokenStream<ComponentValue>& tokens)
+RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStream<ComponentValue>& tokens)
 {
     // FIXME: This shouldn't be needed. Right now, the below code returns a CSSStyleValue even if no tokens are consumed!
     if (!tokens.has_next_token())
@@ -6924,6 +6924,10 @@ RefPtr<CSSStyleValue> Parser::parse_grid_track_placement_shorthand_value(Propert
     auto parsed_start_value = parse_grid_track_placement(track_start_placement_token_stream);
     if (parsed_start_value && track_end_placement_tokens.is_empty()) {
         transaction.commit();
+        if (parsed_start_value->grid_track_placement().has_identifier()) {
+            auto custom_ident = parsed_start_value.release_nonnull();
+            return ShorthandStyleValue::create(property_id, { start_property, end_property }, { custom_ident, custom_ident });
+        }
         return ShorthandStyleValue::create(property_id,
             { start_property, end_property },
             { parsed_start_value.release_nonnull(), GridTrackPlacementStyleValue::create(GridTrackPlacement::make_auto()) });
