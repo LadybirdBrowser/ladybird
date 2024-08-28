@@ -4,8 +4,6 @@ set(SOURCES
     Audio/Loader.cpp
     Audio/WavLoader.cpp
     Audio/FlacLoader.cpp
-    Audio/FlacWriter.cpp
-    Audio/WavWriter.cpp
     Audio/Metadata.cpp
     Audio/MP3Loader.cpp
     Audio/PlaybackStream.cpp

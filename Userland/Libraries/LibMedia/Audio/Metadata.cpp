@@ -39,18 +39,6 @@ Optional<StringView> Person::name_for_role() const
     VERIFY_NOT_REACHED();
 }
 
-void Metadata::replace_encoder_with_serenity()
-{
-    auto version_or_error = Core::Version::read_long_version_string();
-    // Unset the encoder field in this case; we definitely want to replace the existing encoder field.
-    if (version_or_error.is_error())
-        encoder = {};
-    auto encoder_string = String::formatted("SerenityOS LibMedia {}", version_or_error.release_value());
-    if (encoder_string.is_error())
-        encoder = {};
-    encoder = encoder_string.release_value();
-}
-
 Optional<String> Metadata::first_artist() const
 {
     auto artist = people.find_if([](auto const& person) { return person.is_artist(); });

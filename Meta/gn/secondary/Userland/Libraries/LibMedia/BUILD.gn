@@ -15,7 +15,6 @@ shared_library("LibMedia") {
     "Audio/UserSampleQueue.cpp",
     "Audio/VorbisComment.cpp",
     "Audio/WavLoader.cpp",
-    "Audio/WavWriter.cpp",
   ]
   if (enable_pulseaudio) {
     sources += [

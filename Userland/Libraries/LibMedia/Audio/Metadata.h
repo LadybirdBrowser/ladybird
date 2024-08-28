@@ -42,7 +42,6 @@ struct Person {
 struct Metadata {
     using Year = unsigned;
 
-    void replace_encoder_with_serenity();
     ErrorOr<void> add_miscellaneous(String const& field, String value);
     ErrorOr<void> add_person(Person::Role role, String name);
     Optional<String> first_artist() const;

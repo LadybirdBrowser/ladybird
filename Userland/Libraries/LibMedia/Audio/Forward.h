@@ -10,7 +10,6 @@ namespace Audio {
 
 class ConnectionToServer;
 class Loader;
-class Encoder;
 struct Person;
 struct Metadata;
 class PlaybackStream;

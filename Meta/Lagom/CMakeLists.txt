@@ -449,7 +449,6 @@ endif()
 
 # Lagom Utilities
 lagom_utility(abench SOURCES ../../Userland/Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
-lagom_utility(aconv SOURCES ../../Userland/Utilities/aconv.cpp LIBS LibMain LibFileSystem LibMedia)
 
 if (ENABLE_GUI_TARGETS)
     lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
