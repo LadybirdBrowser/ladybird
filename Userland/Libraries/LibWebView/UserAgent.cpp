@@ -19,4 +19,14 @@ OrderedHashMap<StringView, StringView> const user_agents = {
     { "Safari iOS Mobile"sv, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"sv },
 };
 
+Optional<StringView> normalize_user_agent_name(StringView name)
+{
+    for (auto const& user_agent : user_agents) {
+        if (user_agent.key.equals_ignoring_ascii_case(name))
+            return user_agent.key;
+    }
+
+    return {};
+}
+
 }
