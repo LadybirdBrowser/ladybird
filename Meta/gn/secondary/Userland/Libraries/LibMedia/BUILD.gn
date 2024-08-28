@@ -12,7 +12,6 @@ shared_library("LibMedia") {
     "Audio/QOALoader.cpp",
     "Audio/QOATypes.cpp",
     "Audio/SampleFormats.cpp",
-    "Audio/UserSampleQueue.cpp",
     "Audio/VorbisComment.cpp",
     "Audio/WavLoader.cpp",
   ]
