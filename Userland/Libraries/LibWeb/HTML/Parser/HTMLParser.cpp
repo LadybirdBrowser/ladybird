@@ -4273,6 +4273,10 @@ Vector<JS::Handle<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& cont
     auto temp_document = DOM::Document::create_for_fragment_parsing(context_element.realm());
     temp_document->set_document_type(DOM::Document::Type::HTML);
 
+    // AD-HOC: We set the about base URL of the document to the same as the context element's document.
+    //         This is required for Document::parse_url() to work inside iframe srcdoc documents.
+    temp_document->set_about_base_url(context_element.document().about_base_url());
+
     // 2. If the node document of the context element is in quirks mode, then let the Document be in quirks mode.
     //    Otherwise, the node document of the context element is in limited-quirks mode, then let the Document be in limited-quirks mode.
     //    Otherwise, leave the Document in no-quirks mode.
