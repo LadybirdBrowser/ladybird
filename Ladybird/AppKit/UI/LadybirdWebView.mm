@@ -1201,6 +1201,9 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                            }];
         })
         .when_rejected([self](auto const& error) {
+            if (error.is_errno() && error.code() == ECANCELED)
+                return;
+
             auto error_message = MUST(String::formatted("{}", error));
 
             auto* dialog = [[NSAlert alloc] init];
