@@ -93,6 +93,7 @@ struct WebContentOptions {
     String command_line;
     String executable_path;
     Optional<ByteString> config_path {};
+    Optional<StringView> user_agent_preset {};
     IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
     UseLagomNetworking use_lagom_networking { UseLagomNetworking::Yes };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };

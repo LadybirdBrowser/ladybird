@@ -11,6 +11,7 @@
 #include <LibImageDecoderClient/Client.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/URL.h>
+#include <LibWebView/UserAgent.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -59,6 +60,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     Optional<StringView> debug_process;
     Optional<StringView> profile_process;
     Optional<StringView> webdriver_content_ipc_path;
+    Optional<StringView> user_agent_preset;
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
     bool enable_http_cache = false;
@@ -83,6 +85,16 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Name of the User-Agent preset to use in place of the default User-Agent",
+        .long_name = "user-agent-preset",
+        .value_name = "name",
+        .accept_value = [&](StringView value) {
+            user_agent_preset = normalize_user_agent_name(value);
+            return user_agent_preset.has_value();
+        },
+    });
 
     create_platform_arguments(args_parser);
     args_parser.parse(arguments);
@@ -114,6 +126,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     m_web_content_options = {
         .command_line = MUST(String::join(' ', arguments.strings)),
         .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
+        .user_agent_preset = move(user_agent_preset),
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
         .enable_idl_tracing = enable_idl_tracing ? EnableIDLTracing::Yes : EnableIDLTracing::No,
         .enable_http_cache = enable_http_cache ? EnableHTTPCache::Yes : EnableHTTPCache::No,
