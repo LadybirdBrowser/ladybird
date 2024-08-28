@@ -30,6 +30,7 @@ There are some optional features that can be enabled during compilation that are
 - `INCLUDE_FLAC_SPEC_TESTS`: downloads and includes the xiph.org FLAC test suite.
 - `SERENITY_CACHE_DIR`: sets the location of a shared cache of downloaded files. Should not need to be set manually unless managing a distribution package.
 - `ENABLE_NETWORK_DOWNLOADS`: allows downloading files from the internet during the build. Default on, turning off enables offline builds. For offline builds, the structure of the SERENITY_CACHE_DIR must be set up the way that the build expects.
+- `ENABLE_CLANG_PLUGINS`: enables clang plugins which analyze the code for programming mistakes.
 
 Many parts of the codebase have debug functionality, mostly consisting of additional messages printed to the debug console. This is done via the `<component_name>_DEBUG` macros, which can be enabled individually at build time. They are listed in [this file](../Meta/CMake/all_the_debug_macros.cmake).
 
@@ -80,3 +81,18 @@ etc), the path to the compilation database in that file may not be
 correct. The result is that clangd will have a difficult time
 understanding all your include directories. To resolve the problem, you
 can use the `Meta/configure-clangd.sh` script.
+
+## Clang Plugins
+
+Clang plugins are used to validate the code at compile time. Currently, they are used to detect JavaScript-related
+garbage collection faux pas, such as neglecting to visit a garbage-collected type.
+
+When clang plugins are enabled, it is recommended to have the following environment variable set for ccache:
+
+```bash
+export CCACHE_COMPILERCHECK="%compiler% -v"
+```
+
+By default, ccache will include the plugins themselves in file hashes. So if a plugin changes, the hash of every file
+will change, and you will be stuck with an uncached build. This setting will prevent ccache from using plugins in the
+file hashes.
