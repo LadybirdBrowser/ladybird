@@ -497,11 +497,15 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
         return action;
     };
 
-    set_user_agent_string(Web::default_user_agent);
+    auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset;
+    set_user_agent_string(user_agent_preset.has_value() ? *WebView::user_agents.get(*user_agent_preset) : Web::default_user_agent);
+
     auto* disable_spoofing = add_user_agent("Disabled"sv, Web::default_user_agent);
-    disable_spoofing->setChecked(true);
-    for (auto const& user_agent : WebView::user_agents)
-        add_user_agent(user_agent.key, user_agent.value.to_byte_string());
+    disable_spoofing->setChecked(!user_agent_preset.has_value());
+    for (auto const& user_agent : WebView::user_agents) {
+        auto* spoofed_user_agent = add_user_agent(user_agent.key, user_agent.value.to_byte_string());
+        spoofed_user_agent->setChecked(user_agent.key == user_agent_preset);
+    }
 
     auto* custom_user_agent_action = new QAction("Custom...", this);
     custom_user_agent_action->setCheckable(true);
