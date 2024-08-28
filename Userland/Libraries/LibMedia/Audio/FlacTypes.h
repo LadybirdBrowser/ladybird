@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include "Queue.h"
 #include "SampleFormats.h"
 #include <AK/ByteBuffer.h>
 #include <AK/Types.h>
 #include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <LibCrypto/Checksum/CRC16.h>
 #include <LibCrypto/Checksum/CRC8.h>
 

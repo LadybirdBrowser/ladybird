@@ -9,7 +9,6 @@ set(SOURCES
     Audio/PlaybackStream.cpp
     Audio/QOALoader.cpp
     Audio/QOATypes.cpp
-    Audio/UserSampleQueue.cpp
     Audio/VorbisComment.cpp
     Color/ColorConverter.cpp
     Color/ColorPrimaries.cpp
