@@ -129,6 +129,40 @@ To enable these hooks firstly follow the installation instructions available at 
    pre-commit install --hook-type commit-msg
    ```
 
+## Git Notes
+
+The GitHub project contains [git notes](https://git-scm.com/docs/git-notes) for each commit that includes e.g. a link to
+the pull request from which the commit originated and reviewer information. These are updated automatically, but require
+an additional step locally to be able to see the notes in `git log`:
+
+```bash
+git config --add remote.upstream.fetch '+refs/notes/*:refs/notes/*'
+```
+
+> [!NOTE]
+> The `upstream` remote in this command should be replaced with whatever you've named the LadybirdBrowser/ladybird.git
+> remote in your local clone. Use `git remote -v` to find that name.
+
+Now, any time you `git fetch`, the latest notes will be fetched as well. You will see information like the following when
+you run `git log`:
+
+```
+commit c1b0e180ba64d2ea7e815e2c2e93087ae9a26500
+Author: Timothy Flynn <trflynn89@pm.me>
+Date:   Mon Jul 29 10:18:25 2024 -0400
+
+    LibWebView: Insert line numbers before each line in about:srcdoc
+
+    The behavior chosen here (fixed-width counters, alignment, etc.) matches
+    Firefox.
+
+Notes:
+    Author: https://github.com/trflynn89
+    Commit: https://github.com/LadybirdBrowser/ladybird/commit/c1b0e180ba6
+    Pull-request: https://github.com/LadybirdBrowser/ladybird/pull/892
+    Reviewed-by: https://github.com/AtkinsSJ ✅
+```
+
 ## On abandoned pull requests
 
 Sometimes good PRs get abandoned by the author for one reason or another. If the PR is fundamentally good, but the author is not responding to requests, the PR may be manually integrated with minor changes to code and commit messages.
