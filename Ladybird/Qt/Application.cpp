@@ -12,6 +12,7 @@
 #include <Ladybird/Utilities.h>
 #include <LibCore/ArgsParser.h>
 #include <LibWebView/URL.h>
+#include <QFileDialog>
 #include <QFileOpenEvent>
 
 namespace Ladybird {
@@ -124,6 +125,15 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Web
     window->activateWindow();
     window->raise();
     return *window;
+}
+
+Optional<ByteString> Application::ask_user_for_download_folder() const
+{
+    auto path = QFileDialog::getExistingDirectory(nullptr, "Select download directory", QDir::homePath());
+    if (path.isNull())
+        return {};
+
+    return ak_byte_string_from_qstring(path);
 }
 
 }
