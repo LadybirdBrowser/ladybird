@@ -7,7 +7,9 @@
 #include <AK/Debug.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
+#include <LibCore/StandardPaths.h>
 #include <LibCore/TimeZoneWatcher.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/URL.h>
@@ -205,6 +207,24 @@ void Application::process_did_exit(Process&& process)
         dbgln("Invalid process type to be dying: Chrome");
         VERIFY_NOT_REACHED();
     }
+}
+
+ErrorOr<LexicalPath> Application::path_for_downloaded_file(StringView file) const
+{
+    auto downloads_directory = Core::StandardPaths::downloads_directory();
+
+    if (!FileSystem::is_directory(downloads_directory)) {
+        auto maybe_downloads_directory = ask_user_for_download_folder();
+        if (!maybe_downloads_directory.has_value())
+            return Error::from_errno(ECANCELED);
+
+        downloads_directory = maybe_downloads_directory.release_value();
+    }
+
+    if (!FileSystem::is_directory(downloads_directory))
+        return Error::from_errno(ENOENT);
+
+    return LexicalPath::join(downloads_directory, file);
 }
 
 }
