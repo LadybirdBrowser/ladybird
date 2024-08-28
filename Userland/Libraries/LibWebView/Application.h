@@ -7,6 +7,9 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/ByteString.h>
+#include <AK/LexicalPath.h>
+#include <AK/Optional.h>
 #include <AK/Swift.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
@@ -45,6 +48,8 @@ public:
     void update_process_statistics();
     String generate_process_statistics_html();
 
+    ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
+
 protected:
     template<DerivedFrom<Application> ApplicationType>
     static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url)
@@ -61,6 +66,8 @@ protected:
 
     virtual void create_platform_arguments(Core::ArgsParser&) { }
     virtual void create_platform_options(ChromeOptions&, WebContentOptions&) { }
+
+    virtual Optional<ByteString> ask_user_for_download_folder() const { return {}; }
 
 private:
     void initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url);
