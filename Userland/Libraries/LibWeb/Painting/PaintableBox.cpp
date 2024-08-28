@@ -279,8 +279,8 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
     auto scrollport_size = direction == ScrollDirection::Horizontal ? padding_rect.width() : padding_rect.height();
     if (scroll_overflow_size == 0)
         return {};
-
-    auto thumb_length = scrollport_size * (scrollport_size / scroll_overflow_size);
+    auto const min_thumb_length = 50;
+    auto thumb_length = max(scrollport_size * (scrollport_size / scroll_overflow_size), min_thumb_length);
     CSSPixelFraction scroll_size = 0;
     if (scroll_overflow_size > scrollport_size)
         scroll_size = (scrollport_size - thumb_length) / (scroll_overflow_size - scrollport_size);
