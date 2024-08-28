@@ -93,6 +93,10 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [self.toolbar setSizeMode:NSToolbarSizeModeRegular];
 
         m_settings = { .block_popups = WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::Yes ? NO : YES };
+
+        if (auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
+            m_settings.user_agent_name = *user_agent_preset;
+
         m_can_navigate_back = false;
         m_can_navigate_forward = false;
     }
