@@ -17,7 +17,7 @@ class SVGImageElement
     : public SVGGraphicsElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
     , public Layout::ImageProvider {
-    WEB_PLATFORM_OBJECT(SVGImageElement, SVGElement);
+    WEB_PLATFORM_OBJECT(SVGImageElement, SVGGraphicsElement);
 
 public:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
