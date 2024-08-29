@@ -22,3 +22,11 @@ extension Swift.String {
         self.init(data: data, encoding: .utf8)
     }
 }
+
+extension AK.StringView: ExpressibleByStringLiteral {
+    public typealias StringLiteralType = Swift.StaticString
+
+    public init(stringLiteral value: StringLiteralType) {
+        self.init(value.utf8Start, value.utf8CodeUnitCount)
+    }
+}
