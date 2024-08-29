@@ -1336,6 +1336,8 @@ void Document::set_inspected_node(Node* node, Optional<CSS::Selector::PseudoElem
 
     if (auto layout_node = inspected_layout_node(); layout_node && layout_node->paintable())
         layout_node->paintable()->set_needs_display();
+
+    invalidate_display_list();
 }
 
 Layout::Node* Document::inspected_layout_node()
