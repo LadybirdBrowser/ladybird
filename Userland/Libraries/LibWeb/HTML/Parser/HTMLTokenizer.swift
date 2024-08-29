@@ -13,7 +13,7 @@ extension Swift.String {
     public init?(decoding: AK.StringView, as: AK.StringView) {
         let maybe_decoded = Web.HTML.decode_to_utf8(decoding, `as`)
         if maybe_decoded.hasValue {
-            self.init(maybe_decoded.value!)
+            self.init(akString: maybe_decoded.value!)
         } else {
             return nil
         }
