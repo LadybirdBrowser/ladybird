@@ -98,20 +98,26 @@ void Internals::middle_click(double x, double y)
 void Internals::click(double x, double y, UIEvents::MouseButton button)
 {
     auto& page = global_object().browsing_context()->page();
-    page.handle_mousedown({ x, y }, { x, y }, button, 0, 0);
-    page.handle_mouseup({ x, y }, { x, y }, button, 0, 0);
+
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_mousedown(position, position, button, 0, 0);
+    page.handle_mouseup(position, position, button, 0, 0);
 }
 
 void Internals::move_pointer_to(double x, double y)
 {
     auto& page = global_object().browsing_context()->page();
-    page.handle_mousemove({ x, y }, { x, y }, 0, 0);
+
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_mousemove(position, position, 0, 0);
 }
 
 void Internals::wheel(double x, double y, double delta_x, double delta_y)
 {
     auto& page = global_object().browsing_context()->page();
-    page.handle_mousewheel({ x, y }, { x, y }, 0, 0, 0, delta_x, delta_y);
+
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y);
 }
 
 WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTarget& target, DOM::Event& event)
@@ -132,19 +138,25 @@ void Internals::simulate_drag_start(double x, double y, String const& name, Stri
     files.empend(name.to_byte_string(), MUST(ByteBuffer::copy(contents.bytes())));
 
     auto& page = global_object().browsing_context()->page();
-    page.handle_drag_and_drop_event(DragEvent::Type::DragStart, { x, y }, { x, y }, UIEvents::MouseButton::Primary, 0, 0, move(files));
+
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_drag_and_drop_event(DragEvent::Type::DragStart, position, position, UIEvents::MouseButton::Primary, 0, 0, move(files));
 }
 
 void Internals::simulate_drag_move(double x, double y)
 {
     auto& page = global_object().browsing_context()->page();
-    page.handle_drag_and_drop_event(DragEvent::Type::DragMove, { x, y }, { x, y }, UIEvents::MouseButton::Primary, 0, 0, {});
+
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_drag_and_drop_event(DragEvent::Type::DragMove, position, position, UIEvents::MouseButton::Primary, 0, 0, {});
 }
 
 void Internals::simulate_drop(double x, double y)
 {
     auto& page = global_object().browsing_context()->page();
-    page.handle_drag_and_drop_event(DragEvent::Type::Drop, { x, y }, { x, y }, UIEvents::MouseButton::Primary, 0, 0, {});
+
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_drag_and_drop_event(DragEvent::Type::Drop, position, position, UIEvents::MouseButton::Primary, 0, 0, {});
 }
 
 }
