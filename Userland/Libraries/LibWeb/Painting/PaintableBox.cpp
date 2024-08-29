@@ -389,6 +389,17 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         size_text_rect.set_top(size_text_rect.top());
         size_text_rect.set_width(CSSPixels::nearest_value_for(font.width(size_text)) + 4);
         size_text_rect.set_height(CSSPixels::nearest_value_for(font.pixel_size()) + 4);
+
+        auto viewport_rect = context.css_viewport_rect();
+        if (size_text_rect.x().to_int() < viewport_rect.x())
+            size_text_rect.set_x(viewport_rect.x());
+        if (size_text_rect.right().to_int() > viewport_rect.right())
+            size_text_rect.set_x(viewport_rect.width() - size_text_rect.width().to_int());
+        if (size_text_rect.y().to_int() < viewport_rect.y())
+            size_text_rect.set_y(viewport_rect.y());
+        if (size_text_rect.bottom().to_int() > viewport_rect.bottom())
+            size_text_rect.set_y(viewport_rect.height() - size_text_rect.height().to_int());
+
         auto size_text_device_rect = context.enclosing_device_rect(size_text_rect).to_type<int>();
         context.display_list_recorder().fill_rect(size_text_device_rect, context.palette().color(Gfx::ColorRole::Tooltip));
         context.display_list_recorder().draw_rect(size_text_device_rect, context.palette().threed_shadow1());
