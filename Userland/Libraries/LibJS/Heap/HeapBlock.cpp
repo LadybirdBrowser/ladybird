@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,6 +17,8 @@
 #endif
 
 namespace JS {
+
+size_t HeapBlockBase::block_size = PAGE_SIZE;
 
 NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, [[maybe_unused]] char const* class_name)
 {

@@ -22,9 +22,6 @@
 
 namespace JS {
 
-// NOTE: If this changes, we need to update the mmap() code to ensure correct alignment.
-static_assert(HeapBlock::block_size == 4096);
-
 BlockAllocator::~BlockAllocator()
 {
     for (auto* block : m_blocks) {
