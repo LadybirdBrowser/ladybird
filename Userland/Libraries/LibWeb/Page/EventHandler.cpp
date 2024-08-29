@@ -1138,7 +1138,9 @@ void EventHandler::update_selection_range_for_input_or_textarea()
     auto& root = node.root();
     if (!root.is_shadow_root())
         return;
-    auto& shadow_host = *root.parent_or_shadow_host();
+    auto* shadow_host = root.parent_or_shadow_host();
+    if (!shadow_host)
+        return;
 
     // Invoke "set the selection range" on the form associated element
     auto selection_start = range->start_offset();
@@ -1147,10 +1149,10 @@ void EventHandler::update_selection_range_for_input_or_textarea()
     auto direction = HTML::SelectionDirection::Forward;
 
     Optional<HTML::FormAssociatedTextControlElement&> target {};
-    if (is<HTML::HTMLInputElement>(shadow_host))
-        target = static_cast<HTML::HTMLInputElement&>(shadow_host);
-    else if (is<HTML::HTMLTextAreaElement>(shadow_host))
-        target = static_cast<HTML::HTMLTextAreaElement&>(shadow_host);
+    if (is<HTML::HTMLInputElement>(*shadow_host))
+        target = static_cast<HTML::HTMLInputElement&>(*shadow_host);
+    else if (is<HTML::HTMLTextAreaElement>(*shadow_host))
+        target = static_cast<HTML::HTMLTextAreaElement&>(*shadow_host);
 
     if (target.has_value())
         target.value().set_the_selection_range(selection_start, selection_end, direction);

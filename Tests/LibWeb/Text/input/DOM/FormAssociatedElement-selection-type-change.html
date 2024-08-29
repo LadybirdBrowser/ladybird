@@ -1,0 +1,17 @@
+<input type="text" id="input" value="12389" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let input = document.getElementById("input");
+
+        input.focus();
+        input.select();
+
+        input.type = "number";
+
+        const rect = input.getBoundingClientRect();
+        internals.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+
+        println("PASS (didn't crash)");
+    });
+</script>
