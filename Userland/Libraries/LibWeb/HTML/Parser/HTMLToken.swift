@@ -7,13 +7,13 @@
 @_exported import WebCxx
 
 public class HTMLToken {
-    public struct Position {
+    public struct Position: Equatable {
         var line = UInt()
         var column = UInt()
         var byteOffset = UInt()
     }
 
-    public struct Attribute {
+    public struct Attribute: Equatable {
         var prefix: Swift.String?
         var localName: Swift.String
         var namespace_: Swift.String?
@@ -24,7 +24,7 @@ public class HTMLToken {
         var valueEndPosition: Position
     }
 
-    public enum TokenType {
+    public enum TokenType: Equatable {
         case Invalid
         case DOCTYPE(
             name: Swift.String?,
@@ -79,7 +79,7 @@ public class HTMLToken {
     }
 }
 
-extension HTMLToken.Position: Equatable, CustomStringConvertible {
+extension HTMLToken.Position: CustomStringConvertible {
     public var description: Swift.String {
         return "\(self.line):\(self.column)"
     }
@@ -109,13 +109,11 @@ extension HTMLToken.TokenType: CustomStringConvertible {
 
 extension HTMLToken: CustomStringConvertible {
     public var description: Swift.String {
-        if (self.startPosition == Position()) {
+        if self.startPosition == Position() {
             return "HTMLToken(type: \(self.type))"
-        }
-        else if (self.endPosition == Position()) {
+        } else if self.endPosition == Position() {
             return "HTMLToken(type: \(self.type))@\(self.startPosition)"
-        }
-        else {
+        } else {
             return "HTMLToken(type: \(self.type))@\(self.startPosition)-\(self.endPosition)"
         }
     }
