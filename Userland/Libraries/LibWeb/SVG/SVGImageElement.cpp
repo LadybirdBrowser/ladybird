@@ -5,12 +5,14 @@
  */
 
 #include "SVGImageElement.h"
+#include <LibCore/Timer.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibWeb/Bindings/SVGImageElementPrototype.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Layout/SVGImageBox.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web::SVG {
@@ -18,6 +20,8 @@ namespace Web::SVG {
 SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
 {
+    m_animation_timer = Core::Timer::try_create().release_value_but_fixme_should_propagate_errors();
+    m_animation_timer->on_timeout = [this] { animate(); };
 }
 
 void SVGImageElement::initialize(JS::Realm& realm)
@@ -156,6 +160,12 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     m_resource_request->add_callbacks(
         [this] {
             m_load_event_delayer.clear();
+            auto image_data = m_resource_request->image_data();
+            if (image_data->is_animated() && image_data->frame_count() > 1) {
+                m_current_frame_index = 0;
+                m_animation_timer->set_interval(image_data->frame_duration(0));
+                m_animation_timer->start();
+            }
         },
         [this] {
             m_load_event_delayer.clear();
@@ -210,8 +220,33 @@ RefPtr<Gfx::ImmutableBitmap> SVGImageElement::current_image_bitmap(Gfx::IntSize 
     if (!m_resource_request)
         return {};
     if (auto data = m_resource_request->image_data())
-        return data->bitmap(0, size);
+        return data->bitmap(m_current_frame_index, size);
     return {};
+}
+
+void SVGImageElement::animate()
+{
+    auto image_data = m_resource_request->image_data();
+    if (!image_data) {
+        return;
+    }
+
+    m_current_frame_index = (m_current_frame_index + 1) % image_data->frame_count();
+    auto current_frame_duration = image_data->frame_duration(m_current_frame_index);
+
+    if (current_frame_duration != m_animation_timer->interval()) {
+        m_animation_timer->restart(current_frame_duration);
+    }
+
+    if (m_current_frame_index == image_data->frame_count() - 1) {
+        ++m_loops_completed;
+        if (m_loops_completed > 0 && m_loops_completed == image_data->loop_count()) {
+            m_animation_timer->stop();
+        }
+    }
+
+    if (paintable())
+        paintable()->set_needs_display();
 }
 
 }

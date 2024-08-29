@@ -49,11 +49,16 @@ protected:
 
 private:
     virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    void animate();
 
     JS::GCPtr<SVG::SVGAnimatedLength> m_x;
     JS::GCPtr<SVG::SVGAnimatedLength> m_y;
     JS::GCPtr<SVG::SVGAnimatedLength> m_width;
     JS::GCPtr<SVG::SVGAnimatedLength> m_height;
+
+    RefPtr<Core::Timer> m_animation_timer;
+    size_t m_current_frame_index { 0 };
+    size_t m_loops_completed { 0 };
 
     URL::URL m_href;
 
