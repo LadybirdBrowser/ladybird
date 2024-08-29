@@ -7,19 +7,18 @@
 @_exported import AKCxx
 import Foundation
 
-public extension Foundation.Data {
-    init(_ string: AK.StringView) {
-        let bytes = string.bytes()
-        self.init(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes.data()), count: bytes.size(), deallocator: .none)
-    }
-}
+extension Swift.String {
+    public init?(akString: AK.String) {
+        let bytes = akString.__bytes_as_string_viewUnsafe().bytes()
+        let data = Foundation.Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes.data()), count: bytes.size(), deallocator: .none)
 
-public extension Swift.String {
-    init?(_ string: AK.String) {
-        self.init(data: Foundation.Data(string.__bytes_as_string_viewUnsafe()), encoding: .utf8)
+        self.init(data: data, encoding: .utf8)
     }
 
-    init?(_ string: AK.StringView) {
-        self.init(data: Foundation.Data(string), encoding: .utf8)
+    public init?(akStringView: AK.StringView) {
+        let bytes = akStringView.bytes()
+        let data = Foundation.Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes.data()), count: bytes.size(), deallocator: .none)
+
+        self.init(data: data, encoding: .utf8)
     }
 }
