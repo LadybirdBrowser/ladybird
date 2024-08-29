@@ -5,8 +5,8 @@
  */
 
 import AK
-import Web
 import Testing
+import Web
 
 @Suite
 struct TestLibWebSwiftBindings {
@@ -17,7 +17,7 @@ struct TestLibWebSwiftBindings {
         #expect(Web.Bindings.NavigationType.Push.rawValue == 0)
 
         let end = Web.Bindings.idl_enum_to_string(Web.Bindings.ScrollLogicalPosition.End)
-        let end_view = end.__bytes_as_string_viewUnsafe().bytes();
+        let end_view = end.__bytes_as_string_viewUnsafe().bytes()
         let end_string = Swift.String(bytes: end_view, encoding: .utf8)!
 
         #expect(end_string == "end")
