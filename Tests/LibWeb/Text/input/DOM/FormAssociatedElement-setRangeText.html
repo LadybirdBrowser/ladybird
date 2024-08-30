@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<div id="container">
+    <textarea id="textarea"></textarea>
+    <input id="passwordInput" type="password" value="test">
+    <input id="searchInput" type=search value="test">
+    <input id="telInput" type="tel" value="test">
+    <input id="textInput" type="text" value="test">
+    <input id="urlInput" type="url" value="test">
+    <input id="invalidInput" type="checkbox" value="test">
+</div>
+<script src="../include.js"></script>
+<script>
+     test(() => {
+        const invalidInput = document.getElementById('invalidInput');
+        try {
+            invalidInput.setRangeText('foo');
+            println("FAIL");
+        } catch (e) {
+            println(`Calling setRangeText() on an element where setRangeText doesn't apply throws: ${e.name}`);
+        }
+
+        const validInputs = [
+            document.getElementById('textarea'),
+            document.getElementById('passwordInput'),
+            document.getElementById('searchInput'),
+            document.getElementById('telInput'),
+            document.getElementById('textInput'),
+            document.getElementById('urlInput')
+        ];
+
+        for (let input of validInputs) {
+            input.setRangeText("foo");
+            println(`setRangeText("foo") on: ${input.type} - Value: ${input.value}`);
+
+            input.value = "test";
+            input.setRangeText("foo", 1, 3);
+            println(`setRangeText("foo", 1, 3) on: ${input.id} - Value: ${input.value}`);
+        }
+
+        document.getElementById("container").remove();
+    });
+</script>

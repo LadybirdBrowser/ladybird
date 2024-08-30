@@ -16,6 +16,14 @@ enum EnctypeAttribute {
     "text/plain"
 };
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selectionmode
+enum SelectionMode {
+    "select",
+    "start",
+    "end",
+    "preserve"
+};
+
 // https://html.spec.whatwg.org/multipage/semantics.html#htmlformelement
 [Exposed=Window, LegacyOverrideBuiltIns, LegacyUnenumerableNamedProperties]
 interface HTMLFormElement : HTMLElement {

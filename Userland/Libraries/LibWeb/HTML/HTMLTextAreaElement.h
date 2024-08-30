@@ -86,6 +86,9 @@ public:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     virtual String relevant_value() override { return api_value(); }
+    virtual WebIDL::ExceptionOr<void> set_relevant_value(String const& value) override;
+
+    virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
 
     u32 text_length() const;
 
@@ -116,6 +119,8 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
     String selection_direction_binding() const;
     void set_selection_direction_binding(String direction);
+
+    void set_dirty_value_flag(Badge<FormAssociatedElement>, bool flag) { m_dirty_value = flag; }
 
 protected:
     void selection_was_changed() override;

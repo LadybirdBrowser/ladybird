@@ -9,6 +9,7 @@
 
 #include <AK/String.h>
 #include <AK/WeakPtr.h>
+#include <LibWeb/Bindings/HTMLFormElementPrototype.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -124,6 +125,9 @@ class FormAssociatedTextControlElement : public FormAssociatedElement {
 public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     virtual String relevant_value() = 0;
+    virtual WebIDL::ExceptionOr<void> set_relevant_value(String const&) = 0;
+
+    virtual void set_dirty_value_flag(bool flag) = 0;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-select
     WebIDL::ExceptionOr<void> select();
@@ -140,6 +144,10 @@ public:
     Optional<String> selection_direction() const;
     void set_selection_direction(Optional<String> direction);
     SelectionDirection selection_direction_state() const { return m_selection_direction; }
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
+    WebIDL::ExceptionOr<void> set_range_text(String const& replacement);
+    WebIDL::ExceptionOr<void> set_range_text(String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
     void set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction = SelectionDirection::None);
