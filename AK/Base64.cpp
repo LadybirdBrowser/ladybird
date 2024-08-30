@@ -33,21 +33,13 @@ static ErrorOr<ByteBuffer> decode_base64_impl(StringView input, simdutf::base64_
 static ErrorOr<String> encode_base64_impl(StringView input, simdutf::base64_options options)
 {
     Vector<u8> output;
+    TRY(output.try_resize(simdutf::base64_length_from_binary(input.length(), options)));
 
-    // simdutf does not append padding to base64url encodings. We use the default encoding option here to allocate room
-    // for the padding characters that we will later append ourselves if necessary.
-    TRY(output.try_resize(simdutf::base64_length_from_binary(input.length(), simdutf::base64_default)));
-
-    auto size_written = simdutf::binary_to_base64(
+    simdutf::binary_to_base64(
         input.characters_without_null_termination(),
         input.length(),
         reinterpret_cast<char*>(output.data()),
         options);
-
-    if (options == simdutf::base64_url) {
-        for (size_t i = size_written; i < output.size(); ++i)
-            output[i] = '=';
-    }
 
     return String::from_utf8_without_validation(output);
 }
@@ -69,7 +61,7 @@ ErrorOr<String> encode_base64(ReadonlyBytes input)
 
 ErrorOr<String> encode_base64url(ReadonlyBytes input)
 {
-    return encode_base64_impl(input, simdutf::base64_url);
+    return encode_base64_impl(input, simdutf::base64_url_with_padding);
 }
 
 }
