@@ -1012,33 +1012,50 @@ void GridFormattingContext::expand_flexible_tracks(GridDimension const dimension
     // FIXME: This should idealy take a Span, as that is more idomatic, but Span does not yet support holding references
     auto find_the_size_of_an_fr = [&](Vector<GridTrack&> const& tracks, CSSPixels space_to_fill) -> CSSPixelFraction {
         // https://www.w3.org/TR/css-grid-2/#algo-find-fr-size
-
-        // 1. Let leftover space be the space to fill minus the base sizes of the non-flexible grid tracks.
-        auto leftover_space = space_to_fill;
-        for (auto& track : tracks) {
-            if (!track.max_track_sizing_function.is_flexible_length()) {
-                leftover_space -= track.base_size;
+        auto treat_track_as_inflexiable = MUST(AK::Bitmap::create(tracks.size(), false));
+        do {
+            // 1. Let leftover space be the space to fill minus the base sizes of the non-flexible grid tracks.
+            auto leftover_space = space_to_fill;
+            for (auto track_index = 0u; track_index < tracks.size(); track_index++) {
+                if (treat_track_as_inflexiable.view().get(track_index) || !tracks[track_index].max_track_sizing_function.is_flexible_length()) {
+                    leftover_space -= tracks[track_index].base_size;
+                }
             }
-        }
 
-        // 2. Let flex factor sum be the sum of the flex factors of the flexible tracks.
-        //    If this value is less than 1, set it to 1 instead.
-        CSSPixels flex_factor_sum = 0;
-        for (auto& track : tracks) {
-            if (track.max_track_sizing_function.is_flexible_length())
-                flex_factor_sum += CSSPixels::nearest_value_for(track.max_track_sizing_function.flex_factor());
-        }
-        if (flex_factor_sum < 1)
-            flex_factor_sum = 1;
+            // 2. Let flex factor sum be the sum of the flex factors of the flexible tracks.
+            //    If this value is less than 1, set it to 1 instead.
+            CSSPixels flex_factor_sum = 0;
+            for (auto track_index = 0u; track_index < tracks.size(); track_index++) {
+                if (treat_track_as_inflexiable.view().get(track_index) || !tracks[track_index].max_track_sizing_function.is_flexible_length())
+                    continue;
+                flex_factor_sum += CSSPixels::nearest_value_for(tracks[track_index].max_track_sizing_function.flex_factor());
+            }
+            if (flex_factor_sum < 1)
+                flex_factor_sum = 1;
 
-        // 3. Let the hypothetical fr size be the leftover space divided by the flex factor sum.
-        auto hypothetical_fr_size = leftover_space / flex_factor_sum;
+            // 3. Let the hypothetical fr size be the leftover space divided by the flex factor sum.
+            auto hypothetical_fr_size = leftover_space / flex_factor_sum;
 
-        // FIXME: 4. If the product of the hypothetical fr size and a flexible track’s flex factor is less than the track’s
-        //    base size, restart this algorithm treating all such tracks as inflexible.
+            // 4. If the product of the hypothetical fr size and a flexible track’s flex factor is less than the track’s
+            //    base size, restart this algorithm treating all such tracks as inflexible.
+            bool need_to_restart = false;
+            for (auto track_index = 0u; track_index < tracks.size(); track_index++) {
+                if (treat_track_as_inflexiable.view().get(track_index) || !tracks[track_index].max_track_sizing_function.is_flexible_length())
+                    continue;
+                auto scaled_fraction = CSSPixels::nearest_value_for(tracks[track_index].max_track_sizing_function.flex_factor()) * hypothetical_fr_size;
+                if (scaled_fraction < tracks[track_index].base_size) {
+                    treat_track_as_inflexiable.set(track_index, true);
+                    need_to_restart = true;
+                }
+            }
+            if (need_to_restart)
+                continue;
 
-        // 5. Return the hypothetical fr size.
-        return hypothetical_fr_size;
+            // 5. Return the hypothetical fr size.
+            return hypothetical_fr_size;
+        } while (true);
+
+        VERIFY_NOT_REACHED();
     };
 
     // First, find the grid’s used flex fraction:
