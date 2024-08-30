@@ -154,8 +154,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 #if defined(AK_OS_MACOS)
     if (!mach_server_name.is_empty()) {
-        auto server_port = Core::Platform::register_with_mach_server(mach_server_name);
+        [[maybe_unused]] auto server_port = Core::Platform::register_with_mach_server(mach_server_name);
+
+        // FIXME: For some reason, our implementation of IOSurface does not work on Intel macOS. Remove this conditional
+        //        compilation when that is resolved.
+#    if ARCH(AARCH64)
         WebContent::BackingStoreManager::set_browser_mach_port(move(server_port));
+#    endif
     }
 #endif
 
