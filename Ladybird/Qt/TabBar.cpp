@@ -24,12 +24,16 @@ TabBar::TabBar(QWidget* parent)
 
 QSize TabBar::tabSizeHint(int index) const
 {
-    auto width = this->width() / count();
-    width = min(225, width);
-    width = max(128, width);
-
     auto hint = QTabBar::tabSizeHint(index);
-    hint.setWidth(width);
+
+    if (auto count = this->count(); count > 0) {
+        auto width = this->width() / count;
+        width = min(225, width);
+        width = max(128, width);
+
+        hint.setWidth(width);
+    }
+
     return hint;
 }
 
