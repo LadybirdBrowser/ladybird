@@ -205,6 +205,13 @@ String HTMLTextAreaElement::api_value() const
     return *m_api_value;
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_relevant_value(String const& value)
+{
+    set_value(value);
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-textlength
 u32 HTMLTextAreaElement::text_length() const
 {

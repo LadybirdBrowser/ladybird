@@ -79,6 +79,9 @@ public:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     virtual String relevant_value() override { return value(); }
+    WebIDL::ExceptionOr<void> set_relevant_value(String const& value) override { return set_value(value); }
+
+    virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
 
     void commit_pending_changes();
 
