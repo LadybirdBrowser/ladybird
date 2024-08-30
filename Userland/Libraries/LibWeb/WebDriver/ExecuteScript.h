@@ -32,7 +32,7 @@ struct ExecuteScriptResultSerialized {
     JsonValue value;
 };
 
-ExecuteScriptResultSerialized execute_script(Page& page, ByteString const& body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout);
-ExecuteScriptResultSerialized execute_async_script(Page& page, ByteString const& body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout);
+ExecuteScriptResultSerialized execute_script(Page& page, ByteString const& body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms);
+ExecuteScriptResultSerialized execute_async_script(Page& page, ByteString const& body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms);
 
 }
