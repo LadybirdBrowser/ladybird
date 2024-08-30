@@ -91,14 +91,39 @@ public:
 
     virtual String value() const { return String {}; }
 
-    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-    String relevant_value() const;
-
     virtual HTMLElement& form_associated_element_to_html_element() = 0;
     HTMLElement const& form_associated_element_to_html_element() const { return const_cast<FormAssociatedElement&>(*this).form_associated_element_to_html_element(); }
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset-control
     virtual void reset_algorithm() {};
+
+protected:
+    FormAssociatedElement() = default;
+    virtual ~FormAssociatedElement() = default;
+
+    virtual void form_associated_element_was_inserted() { }
+    virtual void form_associated_element_was_removed(DOM::Node*) { }
+    virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&) { }
+
+    void form_node_was_inserted();
+    void form_node_was_removed();
+    void form_node_attribute_changed(FlyString const&, Optional<String> const&);
+
+    virtual void selection_was_changed() { }
+
+private:
+    void reset_form_owner();
+
+    WeakPtr<HTMLFormElement> m_form;
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
+    bool m_parser_inserted { false };
+};
+
+class FormAssociatedTextControlElement : public FormAssociatedElement {
+public:
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
+    virtual String relevant_value() = 0;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-select
     WebIDL::ExceptionOr<void> select();
@@ -123,30 +148,10 @@ public:
     WebIDL::ExceptionOr<void> set_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, Optional<String> direction);
 
 protected:
-    FormAssociatedElement() = default;
-    virtual ~FormAssociatedElement() = default;
-
-    virtual void form_associated_element_was_inserted() { }
-    virtual void form_associated_element_was_removed(DOM::Node*) { }
-    virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&) { }
-
-    void form_node_was_inserted();
-    void form_node_was_removed();
-    void form_node_attribute_changed(FlyString const&, Optional<String> const&);
-
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     void relevant_value_was_changed(JS::GCPtr<DOM::Text>);
 
-    virtual void selection_was_changed() { }
-
 private:
-    void reset_form_owner();
-
-    WeakPtr<HTMLFormElement> m_form;
-
-    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
-    bool m_parser_inserted { false };
-
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-selection
     WebIDL::UnsignedLong m_selection_start { 0 };
     WebIDL::UnsignedLong m_selection_end { 0 };

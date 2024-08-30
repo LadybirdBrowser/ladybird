@@ -1159,7 +1159,7 @@ void EventHandler::update_selection_range_for_input_or_textarea()
     // FIXME: support selection directions other than ::Forward
     auto direction = HTML::SelectionDirection::Forward;
 
-    Optional<HTML::FormAssociatedElement&> target {};
+    Optional<HTML::FormAssociatedTextControlElement&> target {};
     if (is<HTML::HTMLInputElement>(shadow_host))
         target = static_cast<HTML::HTMLInputElement&>(shadow_host);
     else if (is<HTML::HTMLTextAreaElement>(shadow_host))
