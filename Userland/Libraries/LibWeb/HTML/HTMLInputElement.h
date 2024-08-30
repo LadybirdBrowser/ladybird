@@ -49,7 +49,7 @@ namespace Web::HTML {
 
 class HTMLInputElement final
     : public HTMLElement
-    , public FormAssociatedElement
+    , public FormAssociatedTextControlElement
     , public DOM::EditableTextNodeOwner
     , public Layout::ImageProvider {
     WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
@@ -76,6 +76,9 @@ public:
 
     virtual String value() const override;
     WebIDL::ExceptionOr<void> set_value(String const&);
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
+    virtual String relevant_value() override { return value(); }
 
     void commit_pending_changes();
 

@@ -166,18 +166,7 @@ void FormAssociatedElement::reset_form_owner()
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-String FormAssociatedElement::relevant_value() const
-{
-    auto const& html_element = form_associated_element_to_html_element();
-    if (is<HTMLInputElement>(html_element))
-        return static_cast<HTMLInputElement const&>(html_element).value();
-    if (is<HTMLTextAreaElement>(html_element))
-        return static_cast<HTMLTextAreaElement const&>(html_element).api_value();
-    VERIFY_NOT_REACHED();
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-void FormAssociatedElement::relevant_value_was_changed(JS::GCPtr<DOM::Text> text_node)
+void FormAssociatedTextControlElement::relevant_value_was_changed(JS::GCPtr<DOM::Text> text_node)
 {
     auto the_relevant_value = relevant_value();
     auto relevant_value_length = the_relevant_value.code_points().length();
@@ -214,7 +203,7 @@ void FormAssociatedElement::relevant_value_was_changed(JS::GCPtr<DOM::Text> text
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-select
-WebIDL::ExceptionOr<void> FormAssociatedElement::select()
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::select()
 {
     // 1. If this element is an input element, and either select() does not apply to this element
     //    or the corresponding control has no selectable text, return.
@@ -232,7 +221,7 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::select()
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
-Optional<WebIDL::UnsignedLong> FormAssociatedElement::selection_start() const
+Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_start() const
 {
     // 1. If this element is an input element, and selectionStart does not apply to this element, return null.
     auto const& html_element = form_associated_element_to_html_element();
@@ -255,7 +244,7 @@ Optional<WebIDL::UnsignedLong> FormAssociatedElement::selection_start() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionstart-2
-WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_start(Optional<WebIDL::UnsignedLong> const& value)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_start(Optional<WebIDL::UnsignedLong> const& value)
 {
     // 1. If this element is an input element, and selectionStart does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
@@ -280,7 +269,7 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_start(Optional<We
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionend
-Optional<WebIDL::UnsignedLong> FormAssociatedElement::selection_end() const
+Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_end() const
 {
     // 1. If this element is an input element, and selectionEnd does not apply to this element, return
     //    null.
@@ -304,7 +293,7 @@ Optional<WebIDL::UnsignedLong> FormAssociatedElement::selection_end() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionend-3
-WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_end(Optional<WebIDL::UnsignedLong> const& value)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_end(Optional<WebIDL::UnsignedLong> const& value)
 {
     // 1. If this element is an input element, and selectionEnd does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
@@ -322,7 +311,7 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_end(Optional<WebI
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selection-direction
-Optional<String> FormAssociatedElement::selection_direction() const
+Optional<String> FormAssociatedTextControlElement::selection_direction() const
 {
     // 1. If this element is an input element, and selectionDirection does not apply to this
     //    element, return null.
@@ -347,7 +336,7 @@ Optional<String> FormAssociatedElement::selection_direction() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#set-the-selection-direction
-void FormAssociatedElement::set_selection_direction(Optional<String> direction)
+void FormAssociatedTextControlElement::set_selection_direction(Optional<String> direction)
 {
     // To set the selection direction of an element to a given direction, update the element's
     // selection direction to the given direction, unless the direction is "none" and the
@@ -357,7 +346,7 @@ void FormAssociatedElement::set_selection_direction(Optional<String> direction)
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
-WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, Optional<String> direction)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, Optional<String> direction)
 {
     // 1. If this element is an input element, and setSelectionRange() does not apply to this
     //    element, throw an "InvalidStateError" DOMException.
@@ -371,7 +360,7 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_selection_range(Optional<We
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#set-the-selection-range
-void FormAssociatedElement::set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction)
+void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction)
 {
     // 1. If start is null, let start be zero.
     start = start.value_or(0);

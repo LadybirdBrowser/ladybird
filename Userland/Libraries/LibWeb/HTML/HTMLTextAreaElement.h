@@ -20,7 +20,7 @@ namespace Web::HTML {
 
 class HTMLTextAreaElement final
     : public HTMLElement
-    , public FormAssociatedElement
+    , public FormAssociatedTextControlElement
     , public DOM::EditableTextNodeOwner {
     WEB_PLATFORM_OBJECT(HTMLTextAreaElement, HTMLElement);
     JS_DECLARE_ALLOCATOR(HTMLTextAreaElement);
@@ -83,6 +83,9 @@ public:
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
     String api_value() const;
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
+    virtual String relevant_value() override { return api_value(); }
 
     u32 text_length() const;
 
