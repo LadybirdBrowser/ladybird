@@ -1463,18 +1463,21 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
     // 3. Handle any user prompts, and return its value if it is an error.
     TRY(handle_any_user_prompts());
 
-    // 4., 5.1-5.3.
-    auto result = Web::WebDriver::execute_script(m_page_client->page(), body, move(arguments), m_timeouts_configuration.script_timeout);
+    // 4. Let timeout be session's session timeouts' script timeout.
+    auto timeout_ms = m_timeouts_configuration.script_timeout;
+
+    // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
+    auto result = Web::WebDriver::execute_script(m_page_client->page(), body, move(arguments), timeout_ms);
     dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
 
     switch (result.type) {
-    // 6. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
+    // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
     case Web::WebDriver::ExecuteScriptResultType::Timeout:
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
-    // 7. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
+    // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
     case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
         return move(result.value);
-    // 8. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
+    // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
     case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
     case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
@@ -1497,18 +1500,21 @@ Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execu
     // 3. Handle any user prompts, and return its value if it is an error.
     TRY(handle_any_user_prompts());
 
-    // 4., 5.1-5.11.
-    auto result = Web::WebDriver::execute_async_script(m_page_client->page(), body, move(arguments), m_timeouts_configuration.script_timeout);
+    // 4. Let timeout be session's session timeouts' script timeout.
+    auto timeout_ms = m_timeouts_configuration.script_timeout;
+
+    // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
+    auto result = Web::WebDriver::execute_async_script(m_page_client->page(), body, move(arguments), timeout_ms);
     dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
 
     switch (result.type) {
-    // 6. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
+    // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
     case Web::WebDriver::ExecuteScriptResultType::Timeout:
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
-    // 7. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
+    // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
     case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
         return move(result.value);
-    // 8. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
+    // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
     case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
     case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
