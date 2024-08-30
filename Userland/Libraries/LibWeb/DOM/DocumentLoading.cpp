@@ -205,7 +205,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::Document>> load_text_document(H
     // To load a text document, given a navigation params navigationParams and a string type:
 
     // 1. Let document be the result of creating and initializing a Document object given "html", type, and navigationParams.
-    auto document = TRY(DOM::Document::create_and_initialize(DOM::Document::Type::XML, type.essence(), navigation_params));
+    auto document = TRY(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, type.essence(), navigation_params));
 
     // FIXME: 2. Set document's parser cannot change the mode flag to true.
 
@@ -269,7 +269,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::Document>> load_media_document(
     // To load a media document, given navigationParams and a string type:
 
     // 1. Let document be the result of creating and initializing a Document object given "html", type, and navigationParams.
-    auto document = TRY(DOM::Document::create_and_initialize(DOM::Document::Type::XML, type.essence(), navigation_params));
+    auto document = TRY(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, type.essence(), navigation_params));
 
     // 2. Set document's mode to "no-quirks".
     document->set_quirks_mode(DOM::QuirksMode::No);
