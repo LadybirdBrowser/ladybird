@@ -31,6 +31,7 @@ public:
 private:
     JS_DECLARE_NATIVE_FUNCTION(to_base64);
     JS_DECLARE_NATIVE_FUNCTION(to_hex);
+    JS_DECLARE_NATIVE_FUNCTION(set_from_base64);
 };
 
 enum class Alphabet {
@@ -52,6 +53,7 @@ struct DecodeResult {
 
 ThrowCompletionOr<NonnullGCPtr<TypedArrayBase>> validate_uint8_array(VM&);
 ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM&, TypedArrayBase const&);
+void set_uint8_array_bytes(TypedArrayBase&, ReadonlyBytes);
 DecodeResult from_base64(VM&, StringView string, Alphabet alphabet, LastChunkHandling last_chunk_handling, Optional<size_t> max_length = {});
 
 }

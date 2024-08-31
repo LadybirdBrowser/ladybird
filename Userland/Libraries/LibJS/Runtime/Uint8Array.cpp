@@ -29,6 +29,7 @@ void Uint8ArrayPrototypeHelpers::initialize(Realm& realm, Object& prototype)
     static constexpr u8 attr = Attribute::Writable | Attribute::Configurable;
     prototype.define_native_function(realm, vm.names.toBase64, to_base64, 0, attr);
     prototype.define_native_function(realm, vm.names.toHex, to_hex, 0, attr);
+    prototype.define_native_function(realm, vm.names.setFromBase64, set_from_base64, 1, attr);
 }
 
 static ThrowCompletionOr<Alphabet> parse_alphabet(VM& vm, Object& options)
@@ -193,6 +194,80 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
     return typed_array;
 }
 
+// 4 Uint8Array.prototype.setFromBase64 ( string [ , options ] ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.setfrombase64
+JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_base64)
+{
+    auto& realm = *vm.current_realm();
+
+    auto string_value = vm.argument(0);
+    auto options_value = vm.argument(1);
+
+    // 1. Let into be the this value.
+    // 2. Perform ? ValidateUint8Array(into).
+    auto into = TRY(validate_uint8_array(vm));
+
+    // 3. If string is not a String, throw a TypeError exception.
+    if (!string_value.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
+
+    // 4. Let opts be ? GetOptionsObject(options).
+    auto* options = TRY(Temporal::get_options_object(vm, options_value));
+
+    // 5. Let alphabet be ? Get(opts, "alphabet").
+    // 6. If alphabet is undefined, set alphabet to "base64".
+    // 7. If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
+    auto alphabet = TRY(parse_alphabet(vm, *options));
+
+    // 8. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
+    // 9. If lastChunkHandling is undefined, set lastChunkHandling to "loose".
+    // 10. If lastChunkHandling is not one of "loose", "strict", or "stop-before-partial", throw a TypeError exception.
+    auto last_chunk_handling = TRY(parse_last_chunk_handling(vm, *options));
+
+    // 11. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, seq-cst).
+    auto typed_array_record = make_typed_array_with_buffer_witness_record(into, ArrayBuffer::Order::SeqCst);
+
+    // 12. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
+    if (is_typed_array_out_of_bounds(typed_array_record))
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+
+    // 13. Let byteLength be TypedArrayLength(taRecord).
+    auto byte_length = typed_array_length(typed_array_record);
+
+    // 14. Let result be FromBase64(string, alphabet, lastChunkHandling, byteLength).
+    auto result = JS::from_base64(vm, string_value.as_string().utf8_string_view(), alphabet, last_chunk_handling, byte_length);
+
+    // 15. Let bytes be result.[[Bytes]].
+    auto bytes = move(result.bytes);
+
+    // 16. Let written be the length of bytes.
+    auto written = bytes.size();
+
+    // 17. NOTE: FromBase64 does not invoke any user code, so the ArrayBuffer backing into cannot have been detached or shrunk.
+    // 18. Assert: written ≤ byteLength.
+    VERIFY(written <= byte_length);
+
+    // 19. Perform SetUint8ArrayBytes(into, bytes).
+    set_uint8_array_bytes(into, bytes);
+
+    // 20. If result.[[Error]] is not none, then
+    if (result.error.has_value()) {
+        // a. Throw result.[[Error]].
+        return result.error.release_value();
+    }
+
+    // 21. Let resultObject be OrdinaryObjectCreate(%Object.prototype%).
+    auto result_object = Object::create(realm, realm.intrinsics().object_prototype());
+
+    // 22. Perform ! CreateDataPropertyOrThrow(resultObject, "read", 𝔽(result.[[Read]])).
+    MUST(result_object->create_data_property(vm.names.read, Value { result.read }));
+
+    // 23. Perform ! CreateDataPropertyOrThrow(resultObject, "written", 𝔽(written)).
+    MUST(result_object->create_data_property(vm.names.written, Value { written }));
+
+    // 24. Return resultObject.
+    return result_object;
+}
+
 // 7 ValidateUint8Array ( ta ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-validateuint8array
 ThrowCompletionOr<NonnullGCPtr<TypedArrayBase>> validate_uint8_array(VM& vm)
 {
@@ -249,6 +324,31 @@ ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM& vm, TypedArrayBase const
 
     // 9. Return bytes.
     return bytes;
+}
+
+// 9 SetUint8ArrayBytes ( into, bytes ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-writeuint8arraybytes
+void set_uint8_array_bytes(TypedArrayBase& into, ReadonlyBytes bytes)
+{
+    // 1. Let offset be into.[[ByteOffset]].
+    auto offset = into.byte_offset();
+
+    // 2. Let len be the length of bytes.
+    auto length = bytes.size();
+
+    // 3. Let index be 0.
+    // 4. Repeat, while index < len,
+    for (u32 index = 0; index < length; ++index) {
+        // a. Let byte be bytes[index].
+        auto byte = bytes[index];
+
+        // b. Let byteIndexInBuffer be index + offset.
+        auto byte_index_in_buffer = index + offset;
+
+        // c. Perform SetValueInBuffer(into.[[ViewedArrayBuffer]], byteIndexInBuffer, uint8, 𝔽(byte), true, unordered).
+        into.set_value_in_buffer(byte_index_in_buffer, Value { byte }, ArrayBuffer::Order::Unordered);
+
+        // d. Set index to index + 1.
+    }
 }
 
 // 10.1 SkipAsciiWhitespace ( string, index ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-skipasciiwhitespace

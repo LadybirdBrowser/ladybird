@@ -427,6 +427,7 @@ namespace JS {
     P(race)                                  \
     P(random)                                \
     P(raw)                                   \
+    P(read)                                  \
     P(reason)                                \
     P(reduce)                                \
     P(reduceRight)                           \
@@ -461,6 +462,7 @@ namespace JS {
     P(setDate)                               \
     P(setFloat32)                            \
     P(setFloat64)                            \
+    P(setFromBase64)                         \
     P(setFullYear)                           \
     P(setHours)                              \
     P(setInt8)                               \
@@ -604,6 +606,7 @@ namespace JS {
     P(withResolvers)                         \
     P(withTimeZone)                          \
     P(writable)                              \
+    P(written)                               \
     P(year)                                  \
     P(yearMonthFromFields)                   \
     P(yearOfWeek)                            \
