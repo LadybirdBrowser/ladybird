@@ -212,6 +212,7 @@ namespace JS {
     P(freeze)                                \
     P(from)                                  \
     P(fromAsync)                             \
+    P(fromBase64)                            \
     P(fromCharCode)                          \
     P(fromCodePoint)                         \
     P(fromEntries)                           \
@@ -338,6 +339,7 @@ namespace JS {
     P(language)                              \
     P(languageDisplay)                       \
     P(largestUnit)                           \
+    P(lastChunkHandling)                     \
     P(lastIndex)                             \
     P(lastIndexOf)                           \
     P(length)                                \
