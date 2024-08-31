@@ -1107,10 +1107,14 @@ void PaintableWithLines::resolve_paint_properties()
 
 RefPtr<ScrollFrame const> PaintableBox::nearest_scroll_frame() const
 {
+    if (is_fixed_position())
+        return nullptr;
     auto const* paintable = this->containing_block();
     while (paintable) {
         if (paintable->own_scroll_frame())
             return paintable->own_scroll_frame();
+        if (paintable->is_fixed_position())
+            return nullptr;
         paintable = paintable->containing_block();
     }
     return nullptr;
@@ -1132,6 +1136,8 @@ PaintableBox const* PaintableBox::nearest_scrollable_ancestor() const
     while (paintable) {
         if (paintable->is_scrollable())
             return paintable;
+        if (paintable->is_fixed_position())
+            return nullptr;
         paintable = paintable->containing_block();
     }
     return nullptr;
