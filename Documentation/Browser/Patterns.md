@@ -152,8 +152,16 @@ with `Meta/ladybird.sh test` or run just the LibWeb tests with `Meta/ladybird.sh
 way is to invoke the headless browser test runner directly. See the invocation in `Ladybird/CMakeLists.txt` for the
 expected command line arguments.
 
-The script `add_libweb_test.py` can be used to create a new test file. It will create a new test file with the correct
-boilerplate code for a Text test. Future versions of the script will support Layout and Ref tests.
+Running `Tests/LibWeb/add_libweb_test.py your-new-test-name` will create a new test HTML file in
+`Tests/LibWeb/Text/input/your-new-test-name.html` with the correct boilerplate code for a Text test — along with
+a corresponding expectations file in `Tests/LibWeb/Text/expected/your-new-test-name.txt`.
+
+After you update/replace the generated boilerplate in your `your-new-test-name.html` test file with your actual test,
+running `./Tests/LibWeb/rebaseline-libweb-test file:///opt/ladybird/Tests/LibWeb/Text/input/foobar.html` will
+regenerate the corresponding expectations file — to match the actual output from your updated test (where
+`/opt/ladybird` should be replaced with the absolute path your ladybird clone in your local environment).
+
+Future versions of the `add_libweb_test.py` script will support Layout and Ref tests.
 
 ### Text tests
 
