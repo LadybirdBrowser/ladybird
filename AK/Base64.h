@@ -13,6 +13,8 @@
 
 namespace AK {
 
+size_t size_required_to_decode_base64(StringView);
+
 ErrorOr<ByteBuffer> decode_base64(StringView);
 ErrorOr<ByteBuffer> decode_base64url(StringView);
 
