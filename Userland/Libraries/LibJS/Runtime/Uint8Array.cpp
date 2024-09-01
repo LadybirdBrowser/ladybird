@@ -6,6 +6,7 @@
 
 #include <AK/Base64.h>
 #include <AK/StringBuilder.h>
+#include <AK/StringUtils.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Uint8Array.h>
@@ -20,6 +21,7 @@ void Uint8ArrayConstructorHelpers::initialize(Realm& realm, Object& constructor)
 
     static constexpr u8 attr = Attribute::Writable | Attribute::Configurable;
     constructor.define_native_function(realm, vm.names.fromBase64, from_base64, 1, attr);
+    constructor.define_native_function(realm, vm.names.fromHex, from_hex, 1, attr);
 }
 
 void Uint8ArrayPrototypeHelpers::initialize(Realm& realm, Object& prototype)
@@ -266,6 +268,43 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_base64)
 
     // 24. Return resultObject.
     return result_object;
+}
+
+// 5 Uint8Array.fromHex ( string ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.fromhex
+JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_hex)
+{
+    auto& realm = *vm.current_realm();
+
+    auto string_value = vm.argument(0);
+
+    // 1. If string is not a String, throw a TypeError exception.
+    if (!string_value.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
+
+    // 2. Let result be FromHex(string).
+    auto result = JS::from_hex(vm, string_value.as_string().utf8_string_view());
+
+    // 3. If result.[[Error]] is not none, then
+    if (result.error.has_value()) {
+        // a. Throw result.[[Error]].
+        return result.error.release_value();
+    }
+
+    // 4. Let resultLength be the length of result.[[Bytes]].
+    auto result_length = result.bytes.size();
+
+    // 5. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%, "%Uint8Array.prototype%", resultLength).
+    auto typed_array = TRY(Uint8Array::create(realm, result_length));
+
+    // 6. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
+    //    index of result.[[Bytes]].
+    auto& array_buffer_data = typed_array->viewed_array_buffer()->buffer();
+
+    for (size_t index = 0; index < result_length; ++index)
+        array_buffer_data[index] = result.bytes[index];
+
+    // 7. Return ta.
+    return typed_array;
 }
 
 // 7 ValidateUint8Array ( ta ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-validateuint8array
@@ -682,6 +721,61 @@ DecodeResult from_base64(VM& vm, StringView string, Alphabet alphabet, LastChunk
             }
         }
     }
+}
+
+// 10.4 FromHex ( string [ , maxLength ] ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-fromhex
+DecodeResult from_hex(VM& vm, StringView string, Optional<size_t> max_length)
+{
+    // 1. If maxLength is not present, let maxLength be 2**53 - 1.
+    if (!max_length.has_value())
+        max_length = MAX_ARRAY_LIKE_INDEX;
+
+    // 2. Let length be the length of string.
+    auto length = string.length();
+
+    // 3. Let bytes be « ».
+    ByteBuffer bytes;
+
+    // 4. Let read be 0.
+    size_t read = 0;
+
+    // 5. If length modulo 2 is not 0, then
+    if (length % 2 != 0) {
+        // a. Let error be a new SyntaxError exception.
+        auto error = vm.throw_completion<SyntaxError>("Hex string must have an even length"sv);
+
+        // b. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
+        return { .read = read, .bytes = move(bytes), .error = move(error) };
+    }
+
+    // 6. Repeat, while read < length and the length of bytes < maxLength,
+    while (read < length && bytes.size() < *max_length) {
+        // a. Let hexits be the substring of string from read to read + 2.
+        auto hexits = string.substring_view(read, 2);
+
+        // d. Let byte be the integer value represented by hexits in base-16 notation, using the letters A-F and a-f
+        //    for digits with values 10 through 15.
+        // NOTE: We do this early so that we don't have to effectively parse hexits twice.
+        auto byte = AK::StringUtils::convert_to_uint_from_hex<u8>(hexits, AK::TrimWhitespace::No);
+
+        // b. If hexits contains any code units which are not in "0123456789abcdefABCDEF", then
+        if (!byte.has_value()) {
+            // i. Let error be a new SyntaxError exception.
+            auto error = vm.throw_completion<SyntaxError>("Hex string must only contain hex characters"sv);
+
+            // ii. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
+            return { .read = read, .bytes = move(bytes), .error = move(error) };
+        }
+
+        // c. Set read to read + 2.
+        read += 2;
+
+        // e. Append byte to bytes.
+        bytes.append(*byte);
+    }
+
+    // 7. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: none }.
+    return { .read = read, .bytes = move(bytes), .error = {} };
 }
 
 }

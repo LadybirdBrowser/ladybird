@@ -220,6 +220,7 @@ namespace JS {
     P(fromEpochMilliseconds)                 \
     P(fromEpochNanoseconds)                  \
     P(fromEpochSeconds)                      \
+    P(fromHex)                               \
     P(fround)                                \
     P(gc)                                    \
     P(get)                                   \
