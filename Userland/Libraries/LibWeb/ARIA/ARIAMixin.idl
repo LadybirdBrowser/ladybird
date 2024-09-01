@@ -36,6 +36,7 @@ interface mixin ARIAMixin {
 	attribute DOMString? ariaPosInSet;
 	attribute DOMString? ariaPressed;
 	attribute DOMString? ariaReadOnly;
+	attribute DOMString? ariaRelevant;
 
 	attribute DOMString? ariaRequired;
 	attribute DOMString? ariaRoleDescription;
