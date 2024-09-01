@@ -464,6 +464,7 @@ namespace JS {
     P(setFloat32)                            \
     P(setFloat64)                            \
     P(setFromBase64)                         \
+    P(setFromHex)                            \
     P(setFullYear)                           \
     P(setHours)                              \
     P(setInt8)                               \
