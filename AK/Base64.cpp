@@ -17,21 +17,40 @@ size_t size_required_to_decode_base64(StringView input)
     return simdutf::maximal_binary_length_from_base64(input.characters_without_null_termination(), input.length());
 }
 
+static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(StringView input, ByteBuffer& output, simdutf::base64_options options)
+{
+    size_t output_length = output.size();
+
+    auto result = simdutf::base64_to_binary_safe(
+        input.characters_without_null_termination(),
+        input.length(),
+        reinterpret_cast<char*>(output.data()),
+        output_length,
+        options);
+
+    if (result.error != simdutf::SUCCESS && result.error != simdutf::OUTPUT_BUFFER_TOO_SMALL) {
+        output.resize((result.count / 4) * 3);
+
+        return InvalidBase64 {
+            .error = Error::from_string_literal("Invalid base64-encoded data"),
+            .valid_input_bytes = result.count,
+        };
+    }
+
+    VERIFY(output_length <= output.size());
+    output.resize(output_length);
+
+    return result.error == simdutf::SUCCESS ? input.length() : result.count;
+}
+
 static ErrorOr<ByteBuffer> decode_base64_impl(StringView input, simdutf::base64_options options)
 {
     ByteBuffer output;
     TRY(output.try_resize(size_required_to_decode_base64(input)));
 
-    auto result = simdutf::base64_to_binary(
-        input.characters_without_null_termination(),
-        input.length(),
-        reinterpret_cast<char*>(output.data()),
-        options);
+    if (auto result = decode_base64_into_impl(input, output, options); result.is_error())
+        return result.release_error().error;
 
-    if (result.error != simdutf::SUCCESS)
-        return Error::from_string_literal("Invalid base64-encoded data");
-
-    output.resize(result.count);
     return output;
 }
 
@@ -57,6 +76,16 @@ ErrorOr<ByteBuffer> decode_base64(StringView input)
 ErrorOr<ByteBuffer> decode_base64url(StringView input)
 {
     return decode_base64_impl(input, simdutf::base64_url);
+}
+
+ErrorOr<size_t, InvalidBase64> decode_base64_into(StringView input, ByteBuffer& output)
+{
+    return decode_base64_into_impl(input, output, simdutf::base64_default);
+}
+
+ErrorOr<size_t, InvalidBase64> decode_base64url_into(StringView input, ByteBuffer& output)
+{
+    return decode_base64_into_impl(input, output, simdutf::base64_url);
 }
 
 ErrorOr<String> encode_base64(ReadonlyBytes input, OmitPadding omit_padding)

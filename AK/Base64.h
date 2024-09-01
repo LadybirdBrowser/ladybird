@@ -18,6 +18,16 @@ size_t size_required_to_decode_base64(StringView);
 ErrorOr<ByteBuffer> decode_base64(StringView);
 ErrorOr<ByteBuffer> decode_base64url(StringView);
 
+struct InvalidBase64 {
+    Error error;
+    size_t valid_input_bytes { 0 };
+};
+
+// On success, these return the number of input bytes that were decoded. This might be less than the
+// string length if the output buffer was not large enough.
+ErrorOr<size_t, InvalidBase64> decode_base64_into(StringView, ByteBuffer&);
+ErrorOr<size_t, InvalidBase64> decode_base64url_into(StringView, ByteBuffer&);
+
 enum class OmitPadding {
     No,
     Yes,
