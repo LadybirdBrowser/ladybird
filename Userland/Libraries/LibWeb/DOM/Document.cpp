@@ -1291,11 +1291,16 @@ void Document::update_animated_style_if_needed()
 
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
+    if (auto* paintable = this->paintable()) {
+        paintable->refresh_scroll_state();
+    }
+
     if (!m_needs_to_resolve_paint_only_properties)
         return;
     m_needs_to_resolve_paint_only_properties = false;
-    if (auto* paintable = this->paintable())
+    if (auto* paintable = this->paintable()) {
         paintable->resolve_paint_only_properties();
+    }
 }
 
 void Document::set_normal_link_color(Color color)
