@@ -12,10 +12,15 @@
 
 namespace AK {
 
+size_t size_required_to_decode_base64(StringView input)
+{
+    return simdutf::maximal_binary_length_from_base64(input.characters_without_null_termination(), input.length());
+}
+
 static ErrorOr<ByteBuffer> decode_base64_impl(StringView input, simdutf::base64_options options)
 {
     ByteBuffer output;
-    TRY(output.try_resize(simdutf::maximal_binary_length_from_base64(input.characters_without_null_termination(), input.length())));
+    TRY(output.try_resize(size_required_to_decode_base64(input)));
 
     auto result = simdutf::base64_to_binary(
         input.characters_without_null_termination(),
