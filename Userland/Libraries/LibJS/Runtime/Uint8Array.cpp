@@ -32,6 +32,7 @@ void Uint8ArrayPrototypeHelpers::initialize(Realm& realm, Object& prototype)
     prototype.define_native_function(realm, vm.names.toBase64, to_base64, 0, attr);
     prototype.define_native_function(realm, vm.names.toHex, to_hex, 0, attr);
     prototype.define_native_function(realm, vm.names.setFromBase64, set_from_base64, 1, attr);
+    prototype.define_native_function(realm, vm.names.setFromHex, set_from_hex, 1, attr);
 }
 
 static ThrowCompletionOr<Alphabet> parse_alphabet(VM& vm, Object& options)
@@ -305,6 +306,66 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_hex)
 
     // 7. Return ta.
     return typed_array;
+}
+
+// 6 Uint8Array.prototype.setFromHex ( string ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.setfromhex
+JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_hex)
+{
+    auto& realm = *vm.current_realm();
+
+    auto string_value = vm.argument(0);
+
+    // 1. Let into be the this value.
+    // 2. Perform ? ValidateUint8Array(into).
+    auto into = TRY(validate_uint8_array(vm));
+
+    // 3. If string is not a String, throw a TypeError exception.
+    if (!string_value.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
+
+    // 4. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, seq-cst).
+    auto typed_array_record = make_typed_array_with_buffer_witness_record(into, ArrayBuffer::Order::SeqCst);
+
+    // 5. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
+    if (is_typed_array_out_of_bounds(typed_array_record))
+        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
+
+    // 6. Let byteLength be TypedArrayLength(taRecord).
+    auto byte_length = typed_array_length(typed_array_record);
+
+    // 7. Let result be FromHex(string, byteLength).
+    auto result = JS::from_hex(vm, string_value.as_string().utf8_string_view(), byte_length);
+
+    // 8. Let bytes be result.[[Bytes]].
+    auto bytes = move(result.bytes);
+
+    // 9. Let written be the length of bytes.
+    auto written = bytes.size();
+
+    // 10. NOTE: FromHex does not invoke any user code, so the ArrayBuffer backing into cannot have been detached or shrunk.
+    // 11. Assert: written ≤ byteLength.
+    VERIFY(written <= byte_length);
+
+    // 12. Perform SetUint8ArrayBytes(into, bytes).
+    set_uint8_array_bytes(into, bytes);
+
+    // 13. If result.[[Error]] is not none, then
+    if (result.error.has_value()) {
+        // a. Throw result.[[Error]].
+        return result.error.release_value();
+    }
+
+    // 14. Let resultObject be OrdinaryObjectCreate(%Object.prototype%).
+    auto result_object = Object::create(realm, realm.intrinsics().object_prototype());
+
+    // 15. Perform ! CreateDataPropertyOrThrow(resultObject, "read", 𝔽(result.[[Read]])).
+    MUST(result_object->create_data_property(vm.names.read, Value { result.read }));
+
+    // 16. Perform ! CreateDataPropertyOrThrow(resultObject, "written", 𝔽(written)).
+    MUST(result_object->create_data_property(vm.names.written, Value { written }));
+
+    // 17. Return resultObject.
+    return result_object;
 }
 
 // 7 ValidateUint8Array ( ta ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-validateuint8array
