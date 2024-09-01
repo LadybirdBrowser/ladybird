@@ -1,5 +1,6 @@
 #import <DOM/EventTarget.idl>
 #import <DOM/EventHandler.idl>
+#import <HTML/AbstractWorker.idl>
 #import <HTML/MessagePort.idl>
 
 // https://html.spec.whatwg.org/#worker
@@ -21,3 +22,5 @@ dictionary WorkerOptions {
     USVString credentials = "same-origin";
     DOMString name = "";
 };
+
+Worker includes AbstractWorker;
