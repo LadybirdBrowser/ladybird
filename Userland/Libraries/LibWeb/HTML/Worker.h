@@ -10,6 +10,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/AbstractWorker.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -27,7 +28,9 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
-class Worker : public DOM::EventTarget {
+class Worker
+    : public DOM::EventTarget
+    , public HTML::AbstractWorker {
     WEB_PLATFORM_OBJECT(Worker, DOM::EventTarget);
     JS_DECLARE_ALLOCATOR(Worker);
 
@@ -56,6 +59,9 @@ public:
 
 protected:
     Worker(String const&, WorkerOptions const&, DOM::Document&);
+
+    // ^AbstractWorker
+    virtual DOM::EventTarget& this_event_target() override { return *this; }
 
 private:
     virtual void initialize(JS::Realm&) override;
