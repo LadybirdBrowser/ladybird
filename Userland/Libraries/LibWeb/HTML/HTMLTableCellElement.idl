@@ -1,5 +1,13 @@
 #import <HTML/HTMLElement.idl>
 
+// https://html.spec.whatwg.org/multipage/tables.html#attr-th-scope
+enum ScopeAttribute {
+    "row",
+    "col",
+    "rowgroup",
+    "colgroup"
+};
+
 // https://html.spec.whatwg.org/multipage/tables.html#htmltablecellelement
 [Exposed=Window]
 interface HTMLTableCellElement : HTMLElement {
@@ -11,7 +19,7 @@ interface HTMLTableCellElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString headers;
     readonly attribute long cellIndex;
 
-    [FIXME, CEReactions] attribute DOMString scope; // only conforming for th elements
+    [CEReactions, Enumerated=ScopeAttribute, Reflect] attribute DOMString scope; // only conforming for th elements
     [CEReactions, Reflect] attribute DOMString abbr;  // only conforming for th elements
 
     // Obsolete
