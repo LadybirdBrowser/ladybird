@@ -22,6 +22,7 @@ public:
 
 private:
     JS_DECLARE_NATIVE_FUNCTION(from_base64);
+    JS_DECLARE_NATIVE_FUNCTION(from_hex);
 };
 
 class Uint8ArrayPrototypeHelpers {
@@ -55,5 +56,6 @@ ThrowCompletionOr<NonnullGCPtr<TypedArrayBase>> validate_uint8_array(VM&);
 ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM&, TypedArrayBase const&);
 void set_uint8_array_bytes(TypedArrayBase&, ReadonlyBytes);
 DecodeResult from_base64(VM&, StringView string, Alphabet alphabet, LastChunkHandling last_chunk_handling, Optional<size_t> max_length = {});
+DecodeResult from_hex(VM&, StringView string, Optional<size_t> max_length = {});
 
 }
