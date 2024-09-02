@@ -31,6 +31,9 @@ input:not([type=submit], input[type=button], input[type=image], input[type=reset
     min-height: 16px;
     cursor: text;
     overflow: hidden;
+
+    background-color: Field;
+    color: FieldText;
 }
 
 textarea {
