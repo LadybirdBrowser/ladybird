@@ -212,7 +212,7 @@ public:
 
     RefPtr<ScrollFrame const> nearest_scroll_frame() const;
 
-    CSSPixelRect padding_box_rect_relative_to_nearest_scrollable_ancestor() const;
+    CSSPixelRect border_box_rect_relative_to_nearest_scrollable_ancestor() const;
     PaintableBox const* nearest_scrollable_ancestor() const;
 
     struct StickyInsets {
