@@ -37,6 +37,8 @@ CSSGroupingRule
 CSSImportRule
 CSSKeyframeRule
 CSSKeyframesRule
+CSSLayerBlockRule
+CSSLayerStatementRule
 CSSMediaRule
 CSSNamespaceRule
 CSSRule

@@ -1,0 +1,8 @@
+#import <CSS/CSSRule.idl>
+
+// https://drafts.csswg.org/css-cascade-5/#the-csslayerstatementrule-interface
+[Exposed=Window]
+interface CSSLayerStatementRule : CSSRule {
+    // FIXME: Should be a FrozenArray<CSSOMString>
+    readonly attribute sequence<CSSOMString> nameList;
+};
