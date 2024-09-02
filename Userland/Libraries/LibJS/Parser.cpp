@@ -4487,7 +4487,7 @@ Position Parser::position() const
 
 bool Parser::try_parse_arrow_function_expression_failed_at_position(Position const& position) const
 {
-    auto it = m_token_memoizations.find(position);
+    auto it = m_token_memoizations.find(position.offset);
     if (it == m_token_memoizations.end())
         return false;
 
@@ -4496,7 +4496,7 @@ bool Parser::try_parse_arrow_function_expression_failed_at_position(Position con
 
 void Parser::set_try_parse_arrow_function_expression_failed_at_position(Position const& position, bool failed)
 {
-    m_token_memoizations.set(position, { failed });
+    m_token_memoizations.set(position.offset, { failed });
 }
 
 void Parser::syntax_error(ByteString const& message, Optional<Position> position)
