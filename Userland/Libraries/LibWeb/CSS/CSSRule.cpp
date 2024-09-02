@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibWeb/Bindings/CSSRulePrototype.h>
+#include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 
@@ -45,6 +46,39 @@ void CSSRule::set_parent_rule(CSSRule* parent_rule)
 void CSSRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
 {
     m_parent_style_sheet = parent_style_sheet;
+}
+
+String CSSRule::parent_layer_internal_qualified_name() const
+{
+    // TODO: Cache this?
+    Vector<FlyString> layer_names;
+    for (auto* rule = parent_rule(); rule; rule = rule->parent_rule()) {
+        switch (rule->type()) {
+        case CSSRule::Type::Import:
+            // TODO: Handle `layer(foo)` in import rules once we implement that.
+            break;
+
+        case CSSRule::Type::LayerBlock: {
+            auto& layer_block = static_cast<CSSLayerBlockRule const&>(*rule);
+            layer_names.append(layer_block.internal_name());
+            break;
+        }
+
+            // Ignore everything else
+            // Note that LayerStatement cannot have child rules so we still ignore it here.
+        case CSSRule::Type::LayerStatement:
+        case CSSRule::Type::Style:
+        case CSSRule::Type::Media:
+        case CSSRule::Type::FontFace:
+        case CSSRule::Type::Keyframes:
+        case CSSRule::Type::Keyframe:
+        case CSSRule::Type::Namespace:
+        case CSSRule::Type::Supports:
+            break;
+        }
+    }
+
+    return MUST(String::join("."sv, layer_names.in_reverse()));
 }
 
 }

@@ -30,6 +30,8 @@ ErrorOr<void> dump_media_rule(StringBuilder&, CSS::CSSMediaRule const&, int inde
 ErrorOr<void> dump_style_rule(StringBuilder&, CSS::CSSStyleRule const&, int indent_levels = 0);
 ErrorOr<void> dump_supports_rule(StringBuilder&, CSS::CSSSupportsRule const&, int indent_levels = 0);
 ErrorOr<void> dump_namespace_rule(StringBuilder&, CSS::CSSNamespaceRule const&, int indent_levels = 0);
+void dump_layer_block_rule(StringBuilder&, CSS::CSSLayerBlockRule const&, int indent_levels = 0);
+void dump_layer_statement_rule(StringBuilder&, CSS::CSSLayerStatementRule const&, int indent_levels = 0);
 void dump_selector(StringBuilder&, CSS::Selector const&);
 void dump_selector(CSS::Selector const&);
 

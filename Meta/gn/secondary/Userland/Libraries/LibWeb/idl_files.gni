@@ -37,6 +37,8 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/CSS/CSSImportRule.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSKeyframeRule.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSKeyframesRule.idl",
+  "//Userland/Libraries/LibWeb/CSS/CSSLayerBlockRule.idl",
+  "//Userland/Libraries/LibWeb/CSS/CSSLayerStatementRule.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSMediaRule.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSNamespaceRule.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSRule.idl",

@@ -17,6 +17,8 @@ source_set("CSS") {
     "CSSImportRule.cpp",
     "CSSKeyframeRule.cpp",
     "CSSKeyframesRule.cpp",
+    "CSSLayerBlockRule.cpp",
+    "CSSLayerStatementRule.cpp",
     "CSSMediaRule.cpp",
     "CSSNamespaceRule.cpp",
     "CSSNumericType.cpp",

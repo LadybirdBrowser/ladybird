@@ -44,6 +44,8 @@ set(SOURCES
     CSS/CSSKeyframeRule.cpp
     CSS/CSSKeyframesRule.cpp
     CSS/CSSFontFaceRule.cpp
+    CSS/CSSLayerBlockRule.cpp
+    CSS/CSSLayerStatementRule.cpp
     CSS/CSSMediaRule.cpp
     CSS/CSSNumericType.cpp
     CSS/CSSNamespaceRule.cpp
