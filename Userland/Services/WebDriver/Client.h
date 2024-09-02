@@ -86,6 +86,7 @@ private:
     virtual Web::WebDriver::Response add_cookie(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response delete_cookie(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response delete_all_cookies(Web::WebDriver::Parameters parameters, JsonValue payload) override;
+    virtual Web::WebDriver::Response perform_actions(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response release_actions(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response dismiss_alert(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response accept_alert(Web::WebDriver::Parameters parameters, JsonValue payload) override;
