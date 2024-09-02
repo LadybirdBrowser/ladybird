@@ -764,8 +764,6 @@ CSSPixels FlexFormattingContext::content_based_minimum_size(FlexItem const& item
 // https://www.w3.org/TR/css-flexbox-1/#algo-line-break
 void FlexFormattingContext::collect_flex_items_into_flex_lines()
 {
-    // FIXME: Also support wrap-reverse
-
     // If the flex container is single-line, collect all the flex items into a single flex line.
     if (is_single_line()) {
         FlexLine line;
@@ -810,6 +808,9 @@ void FlexFormattingContext::collect_flex_items_into_flex_lines()
         line_main_size += main_gap();
     }
     m_flex_lines.append(move(line));
+
+    if (flex_container().computed_values().flex_wrap() == CSS::FlexWrap::WrapReverse)
+        m_flex_lines.reverse();
 }
 
 // https://drafts.csswg.org/css-flexbox-1/#resolve-flexible-lengths
@@ -1446,13 +1447,21 @@ void FlexFormattingContext::align_all_flex_items_along_the_cross_axis()
         for (auto& item : flex_line.items) {
             CSSPixels half_line_size = flex_line.cross_size / 2;
             switch (alignment_for_item(item.box)) {
+            case CSS::AlignItems::Normal:
+                // https://drafts.csswg.org/css-flexbox/#flex-wrap-property
+                // When flex-wrap is wrap-reverse, the cross-start and cross-end directions are swapped.
+                if (flex_container().computed_values().flex_wrap() == CSS::FlexWrap::WrapReverse) {
+                    item.cross_offset = half_line_size - item.cross_size.value() - item.margins.cross_after - item.borders.cross_after - item.padding.cross_after;
+                } else {
+                    item.cross_offset = -half_line_size + item.margins.cross_before + item.borders.cross_before + item.padding.cross_before;
+                }
+                break;
             case CSS::AlignItems::Baseline:
                 // FIXME: Implement this
                 //  Fallthrough
             case CSS::AlignItems::Start:
             case CSS::AlignItems::FlexStart:
             case CSS::AlignItems::Stretch:
-            case CSS::AlignItems::Normal:
                 item.cross_offset = -half_line_size + item.margins.cross_before + item.borders.cross_before + item.padding.cross_before;
                 break;
             case CSS::AlignItems::End:

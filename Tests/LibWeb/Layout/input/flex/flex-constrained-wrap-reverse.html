@@ -1,0 +1,47 @@
+<style>
+    .row, .column {
+        display: flex;
+        border: 1px solid salmon;
+        width: 250px;
+        height: 250px;
+        flex-wrap: wrap-reverse;
+    }
+
+    .column {
+        flex-direction: column;
+    }
+
+    .start {
+        align-items: start;
+    }
+
+    .box {
+        width: 100px;
+        height: 100px;
+        border: 1px solid black;
+    }
+</style>
+
+<div class="row">
+    <div class="box">1</div>
+    <div class="box">2</div>
+    <div class="box">3</div>
+</div>
+
+<div class="column">
+    <div class="box">1</div>
+    <div class="box">2</div>
+    <div class="box">3</div>
+</div>
+
+<div class="row start">
+    <div class="box">1</div>
+    <div class="box">2</div>
+    <div class="box">3</div>
+</div>
+
+<div class="column start">
+    <div class="box">1</div>
+    <div class="box">2</div>
+    <div class="box">3</div>
+</div>
