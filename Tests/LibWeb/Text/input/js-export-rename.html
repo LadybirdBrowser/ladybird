@@ -1,0 +1,13 @@
+<script src="include.js"></script>
+<script>
+    window.resultThingy = "FAIL";
+</script>
+<script type="module">
+    import { renamedValue } from "./js-export-rename-module.js";
+    window.resultThingy = "PASS: " + renamedValue;
+</script>
+<script>
+    test(() => {
+        println(resultThingy);
+    });
+</script>
