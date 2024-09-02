@@ -35,6 +35,7 @@
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/VisibilityState.h>
+#include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 
@@ -700,8 +701,8 @@ public:
     void set_cached_navigable(JS::GCPtr<HTML::Navigable>);
 
     [[nodiscard]] bool needs_repaint() const { return m_needs_repaint; }
-    void set_needs_display();
-    void set_needs_display(CSSPixelRect const&);
+    void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
+    void set_needs_display(CSSPixelRect const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
 
     struct PaintConfig {
         bool paint_overlay { false };

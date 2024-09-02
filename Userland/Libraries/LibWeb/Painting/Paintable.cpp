@@ -128,24 +128,27 @@ void Paintable::invalidate_stacking_context()
     m_stacking_context = nullptr;
 }
 
-void Paintable::set_needs_display()
+void Paintable::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
 {
+    auto& document = const_cast<DOM::Document&>(this->document());
+    if (should_invalidate_display_list == InvalidateDisplayList::Yes)
+        document.invalidate_display_list();
+
     auto* containing_block = this->containing_block();
     if (!containing_block)
         return;
 
-    auto& document = const_cast<DOM::Document&>(this->document());
-
     if (is<Painting::InlinePaintable>(*this)) {
         auto const& fragments = static_cast<Painting::InlinePaintable const*>(this)->fragments();
-        for (auto const& fragment : fragments)
-            document.set_needs_display(fragment.absolute_rect());
+        for (auto const& fragment : fragments) {
+            document.set_needs_display(fragment.absolute_rect(), InvalidateDisplayList::No);
+        }
     }
 
     if (!is<Painting::PaintableWithLines>(*containing_block))
         return;
     static_cast<Painting::PaintableWithLines const&>(*containing_block).for_each_fragment([&](auto& fragment) {
-        document.set_needs_display(fragment.absolute_rect());
+        document.set_needs_display(fragment.absolute_rect(), InvalidateDisplayList::No);
         return IterationDecision::Continue;
     });
 }

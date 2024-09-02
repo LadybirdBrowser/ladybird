@@ -14,6 +14,7 @@ namespace Web {
 class DragAndDropEventHandler;
 class EditEventHandler;
 class EventHandler;
+enum class InvalidateDisplayList;
 class LoadRequest;
 class Page;
 class PageClient;

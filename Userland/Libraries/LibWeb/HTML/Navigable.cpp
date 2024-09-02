@@ -2012,7 +2012,7 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     }
 
     if (auto document = active_document()) {
-        document->set_needs_display();
+        document->set_needs_display(InvalidateDisplayList::No);
 
         document->inform_all_viewport_clients_about_the_current_viewport_rect();
 
@@ -2028,7 +2028,7 @@ void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
         scroll_offset_did_change();
 
         if (auto document = active_document()) {
-            document->set_needs_display();
+            document->set_needs_display(InvalidateDisplayList::No);
             document->set_needs_to_refresh_scroll_state(true);
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
         }
@@ -2038,10 +2038,10 @@ void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
     HTML::main_thread_event_loop().schedule();
 }
 
-void Navigable::set_needs_display()
+void Navigable::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
 {
     if (auto document = active_document(); document) {
-        document->set_needs_display();
+        document->set_needs_display(should_invalidate_display_list);
     }
 }
 
