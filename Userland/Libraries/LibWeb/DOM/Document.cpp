@@ -384,7 +384,6 @@ Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFr
         if (!navigable || !navigable->is_focused())
             return;
 
-        node->document().invalidate_display_list();
         node->document().update_layout();
 
         if (node->paintable()) {
@@ -5383,17 +5382,21 @@ void Document::set_cached_navigable(JS::GCPtr<HTML::Navigable> navigable)
     m_cached_navigable = navigable.ptr();
 }
 
-void Document::set_needs_display()
+void Document::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
 {
-    set_needs_display(viewport_rect());
+    set_needs_display(viewport_rect(), should_invalidate_display_list);
 }
 
-void Document::set_needs_display(CSSPixelRect const&)
+void Document::set_needs_display(CSSPixelRect const&, InvalidateDisplayList should_invalidate_display_list)
 {
     // FIXME: Ignore updates outside the visible viewport rect.
     //        This requires accounting for fixed-position elements in the input rect, which we don't do yet.
 
     m_needs_repaint = true;
+
+    if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
+        invalidate_display_list();
+    }
 
     auto navigable = this->navigable();
     if (!navigable)
@@ -5404,8 +5407,8 @@ void Document::set_needs_display(CSSPixelRect const&)
         return;
     }
 
-    if (navigable->container()) {
-        navigable->container()->document().set_needs_display();
+    if (auto container = navigable->container()) {
+        container->document().set_needs_display(should_invalidate_display_list);
     }
 }
 
@@ -5417,8 +5420,8 @@ void Document::invalidate_display_list()
     if (!navigable)
         return;
 
-    if (navigable->container()) {
-        navigable->container()->document().invalidate_display_list();
+    if (auto container = navigable->container()) {
+        container->document().invalidate_display_list();
     }
 }
 

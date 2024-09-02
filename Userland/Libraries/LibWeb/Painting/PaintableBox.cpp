@@ -125,7 +125,7 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
     // 4. Append the element to doc’s pending scroll event targets.
     document.pending_scroll_event_targets().append(*layout_box().dom_node());
 
-    set_needs_display();
+    set_needs_display(InvalidateDisplayList::No);
 }
 
 void PaintableBox::scroll_by(int delta_x, int delta_y)
@@ -915,9 +915,9 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     return TraversalDecision::Continue;
 }
 
-void PaintableBox::set_needs_display()
+void PaintableBox::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
 {
-    document().set_needs_display(absolute_rect());
+    document().set_needs_display(absolute_rect(), should_invalidate_display_list);
 }
 
 Optional<CSSPixelRect> PaintableBox::get_masking_area() const

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LineBox.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -199,7 +200,7 @@ public:
 
     JS::GCPtr<HTML::Navigable> navigable() const;
 
-    virtual void set_needs_display();
+    virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
     PaintableBox* containing_block() const
     {

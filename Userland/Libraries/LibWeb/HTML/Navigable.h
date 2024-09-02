@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
+#include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/PixelUnits.h>
@@ -170,7 +171,7 @@ public:
     void set_viewport_size(CSSPixelSize);
     void perform_scroll_of_viewport(CSSPixelPoint position);
 
-    void set_needs_display();
+    void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
     void set_is_popup(TokenizedFeature::Popup is_popup) { m_is_popup = is_popup; }
 
