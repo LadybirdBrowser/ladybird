@@ -295,14 +295,8 @@ void FlexFormattingContext::generate_anonymous_flex_items()
         auto order_bucket = order_item_bucket.get(key);
         if (order_bucket.has_value()) {
             auto& items = order_bucket.value();
-            if (is_direction_reverse()) {
-                for (auto item : items.in_reverse()) {
-                    m_flex_items.append(move(item));
-                }
-            } else {
-                for (auto item : items) {
-                    m_flex_items.append(move(item));
-                }
+            for (auto item : items) {
+                m_flex_items.append(move(item));
             }
         }
     }
@@ -776,7 +770,11 @@ void FlexFormattingContext::collect_flex_items_into_flex_lines()
     if (is_single_line()) {
         FlexLine line;
         for (auto& item : m_flex_items) {
-            line.items.append(item);
+            if (is_direction_reverse()) {
+                line.items.prepend(item);
+            } else {
+                line.items.append(item);
+            }
         }
         m_flex_lines.append(move(line));
         return;
@@ -800,7 +798,13 @@ void FlexFormattingContext::collect_flex_items_into_flex_lines()
             line = {};
             line_main_size = 0;
         }
-        line.items.append(item);
+
+        if (is_direction_reverse()) {
+            line.items.prepend(item);
+        } else {
+            line.items.append(item);
+        }
+
         line_main_size += outer_hypothetical_main_size;
         // CSS-FLEXBOX-2: Account for gap between flex items.
         line_main_size += main_gap();
