@@ -181,13 +181,12 @@ class Token {
 public:
     Token() = default;
 
-    Token(TokenType type, StringView message, StringView trivia, StringView value, StringView filename, size_t line_number, size_t line_column, size_t offset)
+    Token(TokenType type, StringView message, StringView trivia, StringView value, size_t line_number, size_t line_column, size_t offset)
         : m_type(type)
         , m_message(message)
         , m_trivia(trivia)
         , m_original_value(value)
         , m_value(value)
-        , m_filename(filename)
         , m_line_number(line_number)
         , m_line_column(line_column)
         , m_offset(offset)
@@ -219,7 +218,6 @@ public:
             [](Empty) -> DeprecatedFlyString { VERIFY_NOT_REACHED(); });
     }
 
-    StringView filename() const { return m_filename; }
     size_t line_number() const { return m_line_number; }
     size_t line_column() const { return m_line_column; }
     size_t offset() const { return m_offset; }
@@ -250,7 +248,6 @@ private:
     StringView m_trivia;
     StringView m_original_value;
     Variant<Empty, StringView, DeprecatedFlyString> m_value {};
-    StringView m_filename;
     size_t m_line_number { 0 };
     size_t m_line_column { 0 };
     size_t m_offset { 0 };

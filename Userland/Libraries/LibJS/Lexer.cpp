@@ -224,7 +224,7 @@ static constexpr auto s_single_char_tokens = make_single_char_tokens_array();
 
 Lexer::Lexer(StringView source, StringView filename, size_t line_number, size_t line_column)
     : m_source(source)
-    , m_current_token(TokenType::Eof, {}, {}, {}, filename, 0, 0, 0)
+    , m_current_token(TokenType::Eof, {}, {}, {}, 0, 0, 0)
     , m_filename(String::from_utf8(filename).release_value_but_fixme_should_propagate_errors())
     , m_line_number(line_number)
     , m_line_column(line_column)
@@ -962,7 +962,6 @@ Token Lexer::next()
         m_current_token = Token(TokenType::Invalid, "Invalid unicode codepoint in source"_string,
             ""sv, // Since the invalid unicode can occur anywhere in the current token the trivia is not correct
             m_source.substring_view(value_start + 1, min(4u, m_source.length() - value_start - 2)),
-            m_filename,
             m_line_number,
             m_line_column - 1,
             value_start + 1);
@@ -975,7 +974,6 @@ Token Lexer::next()
             token_message,
             m_source.substring_view(trivia_start - 1, value_start - trivia_start),
             m_source.substring_view(value_start - 1, m_position - value_start),
-            m_filename,
             value_start_line_number,
             value_start_column_number,
             value_start - 1);
@@ -1019,7 +1017,6 @@ Token Lexer::force_slash_as_regex()
         String {},
         m_current_token.trivia(),
         m_source.substring_view(value_start - 1, m_position - value_start),
-        m_filename,
         m_current_token.line_number(),
         m_current_token.line_column(),
         value_start - 1);
