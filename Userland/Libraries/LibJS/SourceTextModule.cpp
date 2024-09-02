@@ -217,7 +217,7 @@ Result<NonnullGCPtr<SourceTextModule>, Vector<ParserError>> SourceTextModule::pa
                     else {
                         // a. NOTE: This is a re-export of a single name.
                         // b. Append the ExportEntry Record { [[ModuleRequest]]: ie.[[ModuleRequest]], [[ImportName]]: ie.[[ImportName]], [[LocalName]]: null, [[ExportName]]: ee.[[ExportName]] } to indirectExportEntries.
-                        indirect_export_entries.empend(ExportEntry::indirect_export_entry(import_entry.module_request(), import_entry.import_name, export_entry.export_name));
+                        indirect_export_entries.empend(ExportEntry::indirect_export_entry(import_entry.module_request(), export_entry.export_name, import_entry.import_name));
                     }
                 }
             }
