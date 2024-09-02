@@ -1145,4 +1145,30 @@ void HTMLImageElement::animate()
         paintable()->set_needs_display();
 }
 
+StringView HTMLImageElement::decoding() const
+{
+    switch (m_decoding_hint) {
+    case ImageDecodingHint::Sync:
+        return "sync"sv;
+    case ImageDecodingHint::Async:
+        return "async"sv;
+    case ImageDecodingHint::Auto:
+        return "auto"sv;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+void HTMLImageElement::set_decoding(String decoding)
+{
+    if (decoding == "sync"sv) {
+        dbgln("FIXME: HTMLImageElement.decoding = 'sync' is not implemented yet");
+        m_decoding_hint = ImageDecodingHint::Sync;
+    } else if (decoding == "async"sv) {
+        dbgln("FIXME: HTMLImageElement.decoding = 'async' is not implemented yet");
+        m_decoding_hint = ImageDecodingHint::Async;
+    } else
+        m_decoding_hint = ImageDecodingHint::Auto;
+}
+
 }

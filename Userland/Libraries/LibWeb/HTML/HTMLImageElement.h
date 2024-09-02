@@ -80,6 +80,10 @@ public:
     // https://html.spec.whatwg.org/multipage/images.html#select-an-image-source
     [[nodiscard]] Optional<ImageSourceAndPixelDensity> select_an_image_source();
 
+    StringView decoding() const;
+
+    void set_decoding(String);
+
     void set_source_set(SourceSet);
 
     ImageRequest& current_request() { return *m_current_request; }
@@ -147,6 +151,15 @@ private:
     SourceSet m_source_set;
 
     CSSPixelSize m_last_seen_viewport_size;
+
+    // https://html.spec.whatwg.org/multipage/images.html#image-decoding-hint
+    enum class ImageDecodingHint {
+        Auto,
+        Sync,
+        Async
+    };
+
+    ImageDecodingHint m_decoding_hint = ImageDecodingHint::Auto;
 };
 
 }
