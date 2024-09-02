@@ -93,6 +93,7 @@ private:
     virtual Messages::WebDriverClient::AddCookieResponse add_cookie(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::DeleteCookieResponse delete_cookie(String const& name) override;
     virtual Messages::WebDriverClient::DeleteAllCookiesResponse delete_all_cookies() override;
+    virtual Messages::WebDriverClient::PerformActionsResponse perform_actions() override;
     virtual Messages::WebDriverClient::ReleaseActionsResponse release_actions() override;
     virtual Messages::WebDriverClient::DismissAlertResponse dismiss_alert() override;
     virtual Messages::WebDriverClient::AcceptAlertResponse accept_alert() override;

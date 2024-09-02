@@ -2069,6 +2069,25 @@ Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_
     return JsonValue {};
 }
 
+// 15.7 Perform Actions, https://w3c.github.io/webdriver/#perform-actions
+Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_actions()
+{
+    // FIXME: 1. Let input state be the result of get the input state with session and session's current top-level browsing context.
+
+    // FIXME: 2.Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
+
+    // FIXME: 3.Let actions by tick be the result of trying to extract an action sequence with input state, parameters, and actions options.
+
+    // FIXME: 4. If session's current browsing context is no longer open, return error with error code no such window.
+
+    // FIXME: 5. Try to handle any user prompts with session.
+
+    // FIXME: 6. Dispatch actions with input state, actions by tick, current browsing context, and actions options. If this results in an error return that error.
+
+    // 7. Return success with data null.
+    return JsonValue {};
+}
+
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions
 Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_actions()
 {
