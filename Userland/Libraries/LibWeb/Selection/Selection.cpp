@@ -183,8 +183,8 @@ WebIDL::ExceptionOr<void> Selection::collapse(JS::GCPtr<DOM::Node> node, unsigne
         return WebIDL::IndexSizeError::create(realm(), "Selection.collapse() with offset longer than node's length"_fly_string);
     }
 
-    // 3. If node's root is not the document associated with this, abort these steps.
-    if (&node->root() != m_document.ptr())
+    // 3. If document associated with this is not a shadow-including inclusive ancestor of node, abort these steps.
+    if (!m_document->is_shadow_including_inclusive_ancestor_of(*node))
         return {};
 
     // 4. Otherwise, let newRange be a new range.

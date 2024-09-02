@@ -1,0 +1,35 @@
+<script src="include.js"></script>
+<button id="button1"></button>
+<div id="root"></div>
+<script>
+    function printSelectionNodes(selection) {
+        if (selection.anchorNode) {
+            println(`${selection.anchorNode.id}`);
+        } else {
+            println(`${selection.anchorNode}`);
+        }
+        if (selection.focusNode) {
+            println(`${selection.focusNode.id}`);
+        } else {
+            println(`${selection.focusNode}`);
+        }
+    }
+
+    test(() => {
+        printSelectionNodes(document.getSelection());
+
+        const button1 = document.querySelector("#button1");
+        document.getSelection().collapse(button1);
+
+        printSelectionNodes(document.getSelection());
+
+        const rootElement = document.getElementById("root");
+        const shadowRoot = rootElement.attachShadow({ mode: "open" });
+        const button2 = document.createElement("button");
+        button2.id = "button2";
+        shadowRoot.appendChild(button2);
+        document.getSelection().collapse(button2);
+
+        printSelectionNodes(document.getSelection());
+    });
+</script>
