@@ -64,7 +64,6 @@ private:
 
     JS::GCPtr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
-    JS::GCPtr<DOM::DocumentObserver> m_document_observer;
 };
 
 }

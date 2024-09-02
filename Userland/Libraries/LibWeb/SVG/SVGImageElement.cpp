@@ -28,12 +28,6 @@ void SVGImageElement::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGImageElement);
-
-    m_document_observer = realm.heap().allocate<DOM::DocumentObserver>(realm, realm, document());
-    m_document_observer->set_document_completely_loaded([this]() mutable {
-        // FIXME: This is a hack to make SVG images appear when the document has finished loading
-        document().invalidate_layout();
-    });
 }
 
 void SVGImageElement::visit_edges(Cell::Visitor& visitor)
@@ -45,7 +39,6 @@ void SVGImageElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_width);
     visitor.visit(m_height);
     visitor.visit(m_resource_request);
-    visitor.visit(m_document_observer);
 }
 
 void SVGImageElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
@@ -166,6 +159,8 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
                 m_animation_timer->set_interval(image_data->frame_duration(0));
                 m_animation_timer->start();
             }
+            set_needs_style_update(true);
+            document().set_needs_layout();
         },
         [this] {
             m_load_event_delayer.clear();
