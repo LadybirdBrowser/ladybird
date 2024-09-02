@@ -1120,9 +1120,9 @@ RefPtr<ScrollFrame const> PaintableBox::nearest_scroll_frame() const
     return nullptr;
 }
 
-CSSPixelRect PaintableBox::padding_box_rect_relative_to_nearest_scrollable_ancestor() const
+CSSPixelRect PaintableBox::border_box_rect_relative_to_nearest_scrollable_ancestor() const
 {
-    auto result = absolute_padding_box_rect();
+    auto result = absolute_border_box_rect();
     auto const* nearest_scrollable_ancestor = this->nearest_scrollable_ancestor();
     if (nearest_scrollable_ancestor) {
         result.set_location(result.location() - nearest_scrollable_ancestor->absolute_rect().top_left());
