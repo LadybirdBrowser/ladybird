@@ -334,19 +334,6 @@ private:
         ParserState(Lexer, Program::Type);
     };
 
-    class PositionKeyTraits {
-    public:
-        static int hash(Position const& position)
-        {
-            return int_hash(position.line) ^ int_hash(position.column);
-        }
-
-        static bool equals(Position const& a, Position const& b)
-        {
-            return a.column == b.column && a.line == b.line;
-        }
-    };
-
     [[nodiscard]] NonnullRefPtr<Identifier const> create_identifier_and_register_in_current_scope(SourceRange range, DeprecatedFlyString string, Optional<DeclarationKind> = {});
 
     NonnullRefPtr<SourceCode const> m_source_code;
@@ -354,7 +341,7 @@ private:
     ParserState m_state;
     DeprecatedFlyString m_filename;
     Vector<ParserState> m_saved_state;
-    HashMap<Position, TokenMemoization, PositionKeyTraits> m_token_memoizations;
+    HashMap<size_t, TokenMemoization> m_token_memoizations;
     Program::Type m_program_type;
 };
 }
