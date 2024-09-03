@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -47,14 +47,9 @@ WebIDL::ExceptionOr<void> CSSGroupingRule::delete_rule(u32 index)
     return m_rules->remove_a_css_rule(index);
 }
 
-void CSSGroupingRule::for_each_effective_style_rule(Function<void(CSSStyleRule const&)> const& callback) const
+void CSSGroupingRule::for_each_effective_rule(TraversalOrder order, Function<void(Web::CSS::CSSRule const&)> const& callback) const
 {
-    m_rules->for_each_effective_style_rule(callback);
-}
-
-void CSSGroupingRule::for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const
-{
-    m_rules->for_each_effective_keyframes_at_rule(callback);
+    m_rules->for_each_effective_rule(order, callback);
 }
 
 void CSSGroupingRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)

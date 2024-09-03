@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,8 +21,7 @@ public:
     virtual String condition_text() const = 0;
     virtual bool condition_matches() const = 0;
 
-    virtual void for_each_effective_style_rule(Function<void(CSSStyleRule const&)> const& callback) const override;
-    virtual void for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const override;
+    virtual void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const override;
 
 protected:
     CSSConditionRule(JS::Realm&, CSSRuleList&);

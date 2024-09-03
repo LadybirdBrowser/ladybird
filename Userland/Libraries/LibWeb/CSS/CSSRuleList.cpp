@@ -119,25 +119,24 @@ WebIDL::ExceptionOr<void> CSSRuleList::remove_a_css_rule(u32 index)
     return {};
 }
 
-void CSSRuleList::for_each_effective_style_rule(Function<void(CSSStyleRule const&)> const& callback) const
+void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(Web::CSS::CSSRule const&)> const& callback) const
 {
     for (auto const& rule : m_rules) {
+        if (order == TraversalOrder::Preorder)
+            callback(rule);
+
         switch (rule->type()) {
         case CSSRule::Type::Import: {
             auto const& import_rule = static_cast<CSSImportRule const&>(*rule);
             if (import_rule.loaded_style_sheet())
-                import_rule.loaded_style_sheet()->for_each_effective_style_rule(callback);
+                import_rule.loaded_style_sheet()->for_each_effective_rule(order, callback);
             break;
         }
 
         case CSSRule::Type::LayerBlock:
         case CSSRule::Type::Media:
         case CSSRule::Type::Supports:
-            static_cast<CSSGroupingRule const&>(*rule).for_each_effective_style_rule(callback);
-            break;
-
-        case CSSRule::Type::Style:
-            callback(static_cast<CSSStyleRule const&>(*rule));
+            static_cast<CSSGroupingRule const&>(*rule).for_each_effective_rule(order, callback);
             break;
 
         case CSSRule::Type::FontFace:
@@ -145,38 +144,12 @@ void CSSRuleList::for_each_effective_style_rule(Function<void(CSSStyleRule const
         case CSSRule::Type::Keyframes:
         case CSSRule::Type::LayerStatement:
         case CSSRule::Type::Namespace:
-            break;
-        }
-    }
-}
-
-void CSSRuleList::for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const
-{
-    for (auto const& rule : m_rules) {
-        switch (rule->type()) {
-        case CSSRule::Type::Import: {
-            auto const& import_rule = static_cast<CSSImportRule const&>(*rule);
-            if (import_rule.loaded_style_sheet())
-                import_rule.loaded_style_sheet()->for_each_effective_keyframes_at_rule(callback);
-            break;
-        }
-
-        case CSSRule::Type::LayerBlock:
-        case CSSRule::Type::Media:
-        case CSSRule::Type::Supports:
-            static_cast<CSSGroupingRule const&>(*rule).for_each_effective_keyframes_at_rule(callback);
-            break;
-        case CSSRule::Type::Keyframes:
-            callback(static_cast<CSSKeyframesRule const&>(*rule));
-            break;
-
-        case CSSRule::Type::FontFace:
-        case CSSRule::Type::Keyframe:
-        case CSSRule::Type::LayerStatement:
-        case CSSRule::Type::Namespace:
         case CSSRule::Type::Style:
             break;
         }
+
+        if (order == TraversalOrder::Postorder)
+            callback(rule);
     }
 }
 
