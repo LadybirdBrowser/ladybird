@@ -55,6 +55,7 @@ public:
     JS::NonnullGCPtr<JS::Promise> replace(String text);
     WebIDL::ExceptionOr<void> replace_sync(StringView text);
 
+    void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     void for_each_effective_style_rule(Function<void(CSSStyleRule const&)> const& callback) const;
     // Returns whether the match state of any media queries changed after evaluation.
     bool evaluate_media_queries(HTML::Window const&);
