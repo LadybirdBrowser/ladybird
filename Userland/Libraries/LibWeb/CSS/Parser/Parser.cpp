@@ -20,6 +20,8 @@
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframeRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
+#include <LibWeb/CSS/CSSLayerBlockRule.h>
+#include <LibWeb/CSS/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
@@ -1245,6 +1247,46 @@ RefPtr<CSSStyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue
     return BasicShapeStyleValue::create(Polygon { FillRule::Nonzero, move(points) });
 }
 
+Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
+{
+    // https://drafts.csswg.org/css-cascade-5/#typedef-layer-name
+    // <layer-name> = <ident> [ '.' <ident> ]*
+
+    // "The CSS-wide keywords are reserved for future use, and cause the rule to be invalid at parse time if used as an <ident> in the <layer-name>."
+    auto is_valid_layer_name_part = [](auto& token) {
+        return token.is(Token::Type::Ident) && !is_css_wide_keyword(token.token().ident());
+    };
+
+    auto transaction = tokens.begin_transaction();
+    tokens.skip_whitespace();
+    if (!tokens.has_next_token() && allow_blank_layer_name == AllowBlankLayerName::Yes) {
+        // No name present, just return a blank one
+        return FlyString();
+    }
+
+    auto& first_name_token = tokens.next_token();
+    if (!is_valid_layer_name_part(first_name_token))
+        return {};
+
+    StringBuilder builder;
+    builder.append(first_name_token.token().ident());
+
+    while (tokens.has_next_token()) {
+        // Repeatedly parse `'.' <ident>`
+        if (!tokens.peek_token().is_delim('.'))
+            break;
+        (void)tokens.next_token(); // '.'
+
+        auto& name_token = tokens.next_token();
+        if (!is_valid_layer_name_part(name_token))
+            return {};
+        builder.appendff(".{}", name_token.token().ident());
+    }
+
+    transaction.commit();
+    return builder.to_fly_string_without_validation();
+}
+
 JS::GCPtr<CSSRule> Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
 {
     if (rule->is_at_rule()) {
@@ -1264,6 +1306,9 @@ JS::GCPtr<CSSRule> Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
 
         if (rule->at_rule_name().equals_ignoring_ascii_case("keyframes"sv))
             return convert_to_keyframes_rule(rule);
+
+        if (rule->at_rule_name().equals_ignoring_ascii_case("layer"sv))
+            return convert_to_layer_rule(rule);
 
         if (rule->at_rule_name().equals_ignoring_ascii_case("media"sv))
             return convert_to_media_rule(rule);
@@ -1355,6 +1400,75 @@ JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)
     }
 
     return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*m_context.document()));
+}
+
+JS::GCPtr<CSSRule> Parser::convert_to_layer_rule(Rule& rule)
+{
+    // https://drafts.csswg.org/css-cascade-5/#at-layer
+    if (rule.block()) {
+        // CSSLayerBlockRule
+        // @layer <layer-name>? {
+        //   <rule-list>
+        // }
+
+        // First, the name
+        FlyString layer_name = {};
+        auto prelude_tokens = TokenStream { rule.prelude() };
+        if (auto maybe_name = parse_layer_name(prelude_tokens, AllowBlankLayerName::Yes); maybe_name.has_value()) {
+            layer_name = maybe_name.release_value();
+        } else {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer has invalid prelude, (not a valid layer name) prelude = {}; discarding.", rule.prelude());
+            return {};
+        }
+
+        prelude_tokens.skip_whitespace();
+        if (prelude_tokens.has_next_token()) {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer has invalid prelude, (tokens after layer name) prelude = {}; discarding.", rule.prelude());
+            return {};
+        }
+
+        // Then the rules
+        auto child_tokens = TokenStream { rule.block()->values() };
+        auto parser_rules = parse_a_list_of_rules(child_tokens);
+        JS::MarkedVector<CSSRule*> child_rules(m_context.realm().heap());
+        for (auto& raw_rule : parser_rules) {
+            if (auto child_rule = convert_to_rule(raw_rule))
+                child_rules.append(child_rule);
+        }
+        auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
+        return CSSLayerBlockRule::create(m_context.realm(), layer_name, rule_list);
+    }
+
+    // CSSLayerStatementRule
+    // @layer <layer-name>#;
+    auto tokens = TokenStream { rule.prelude() };
+    tokens.skip_whitespace();
+    Vector<FlyString> layer_names;
+    while (tokens.has_next_token()) {
+        // Comma
+        if (!layer_names.is_empty()) {
+            if (auto comma = tokens.next_token(); !comma.is(Token::Type::Comma)) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer missing separating comma, ({}) prelude = {}; discarding.", comma.to_debug_string(), rule.prelude());
+                return {};
+            }
+            tokens.skip_whitespace();
+        }
+
+        if (auto name = parse_layer_name(tokens, AllowBlankLayerName::No); name.has_value()) {
+            layer_names.append(name.release_value());
+        } else {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer contains invalid name, prelude = {}; discarding.", rule.prelude());
+            return {};
+        }
+        tokens.skip_whitespace();
+    }
+
+    if (layer_names.is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @layer statement has no layer names, prelude = {}; discarding.", rule.prelude());
+        return {};
+    }
+
+    return CSSLayerStatementRule::create(m_context.realm(), move(layer_names));
 }
 
 JS::GCPtr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(Rule& rule)

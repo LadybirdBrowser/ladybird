@@ -170,10 +170,17 @@ private:
     template<typename T>
     Vector<ParsedFontFace::Source> parse_font_face_src(TokenStream<T>&);
 
+    enum class AllowBlankLayerName {
+        No,
+        Yes,
+    };
+    Optional<FlyString> parse_layer_name(TokenStream<ComponentValue>&, AllowBlankLayerName);
+
     JS::GCPtr<CSSRule> convert_to_rule(NonnullRefPtr<Rule>);
-    JS::GCPtr<CSSMediaRule> convert_to_media_rule(Rule&);
     JS::GCPtr<CSSKeyframesRule> convert_to_keyframes_rule(Rule&);
     JS::GCPtr<CSSImportRule> convert_to_import_rule(Rule&);
+    JS::GCPtr<CSSRule> convert_to_layer_rule(Rule&);
+    JS::GCPtr<CSSMediaRule> convert_to_media_rule(Rule&);
     JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(Rule&);
     JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(Rule&);
 
