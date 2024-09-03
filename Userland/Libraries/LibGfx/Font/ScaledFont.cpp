@@ -58,19 +58,6 @@ float ScaledFont::glyph_or_emoji_width(Utf8CodePointIterator& it) const
     return glyph_or_emoji_width_impl(*this, it);
 }
 
-float ScaledFont::glyphs_horizontal_kerning(u32 left_code_point, u32 right_code_point) const
-{
-    if (left_code_point == 0 || right_code_point == 0)
-        return 0.f;
-
-    auto left_glyph_id = glyph_id_for_code_point(left_code_point);
-    auto right_glyph_id = glyph_id_for_code_point(right_code_point);
-    if (left_glyph_id == 0 || right_glyph_id == 0)
-        return 0.f;
-
-    return m_typeface->glyphs_horizontal_kerning(left_glyph_id, right_glyph_id, m_x_scale);
-}
-
 NonnullRefPtr<ScaledFont> ScaledFont::scaled_with_size(float point_size) const
 {
     if (point_size == m_point_height && point_size == m_point_width)

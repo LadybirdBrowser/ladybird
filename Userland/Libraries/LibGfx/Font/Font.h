@@ -78,7 +78,6 @@ public:
     virtual u32 glyph_id_for_code_point(u32 code_point) const = 0;
     virtual float glyph_width(u32 code_point) const = 0;
     virtual float glyph_or_emoji_width(Utf8CodePointIterator&) const = 0;
-    virtual float glyphs_horizontal_kerning(u32 left_code_point, u32 right_code_point) const = 0;
     virtual int x_height() const = 0;
     virtual float preferred_line_height() const = 0;
 
