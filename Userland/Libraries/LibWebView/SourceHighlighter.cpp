@@ -79,27 +79,36 @@ String highlight_source(URL::URL const& url, StringView source)
 
         auto segment = source.substring_view(previous_position, end_position - previous_position);
 
-        if (class_name.has_value())
-            builder.appendff("<span class=\"{}\">"sv, *class_name);
+        auto append_class_start = [&]() {
+            if (class_name.has_value())
+                builder.appendff("<span class=\"{}\">"sv, *class_name);
+        };
+        auto append_class_end = [&]() {
+            if (class_name.has_value())
+                builder.append("</span>"sv);
+        };
+
+        append_class_start();
 
         for (auto code_point : Utf8View { segment }) {
-            if (code_point == '&')
+            if (code_point == '&') {
                 builder.append("&amp;"sv);
-            else if (code_point == 0xA0)
+            } else if (code_point == 0xA0) {
                 builder.append("&nbsp;"sv);
-            else if (code_point == '<')
+            } else if (code_point == '<') {
                 builder.append("&lt;"sv);
-            else if (code_point == '>')
+            } else if (code_point == '>') {
                 builder.append("&gt;"sv);
-            else if (code_point == '\n')
+            } else if (code_point == '\n') {
+                append_class_end();
                 builder.append("</span>\n<span class=\"line\">"sv);
-            else
+                append_class_start();
+            } else {
                 builder.append_code_point(code_point);
+            }
         }
 
-        if (class_name.has_value())
-            builder.append("</span>"sv);
-
+        append_class_end();
         previous_position = end_position;
     };
 
