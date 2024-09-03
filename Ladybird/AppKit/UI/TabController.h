@@ -35,11 +35,14 @@ struct TabSettings {
 
 - (void)onTitleChange:(ByteString const&)title;
 
+- (void)onCreateNewTab;
+
 - (void)navigateBack:(id)sender;
 - (void)navigateForward:(id)sender;
 - (void)reload:(id)sender;
 - (void)clearHistory;
 
+- (void)setPopupBlocking:(BOOL)block_popups;
 - (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument;
 
 - (void)focusLocationToolbarItem;

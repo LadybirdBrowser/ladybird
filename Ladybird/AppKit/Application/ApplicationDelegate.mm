@@ -197,6 +197,7 @@
     }
 
     [self.managed_tabs addObject:controller];
+    [controller onCreateNewTab];
     return controller;
 }
 
