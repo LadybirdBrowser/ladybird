@@ -59,9 +59,6 @@ private:
 
     float m_pixel_size { 0.0f };
     int m_pixel_size_rounded_up { 0 };
-
-    template<typename T>
-    float unicode_view_width(T const& view) const;
 };
 
 }

@@ -54,4 +54,11 @@ void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Fo
         *width = point.x();
 }
 
+float measure_text_width(Utf8View const& string, Gfx::Font const& font)
+{
+    float width = 0;
+    for_each_glyph_position({}, string, font, [&](DrawGlyphOrEmoji const&) {}, width);
+    return width;
+}
+
 }
