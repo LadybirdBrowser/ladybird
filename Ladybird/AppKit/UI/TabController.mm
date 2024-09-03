@@ -139,6 +139,11 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     m_title = title;
 }
 
+- (void)onCreateNewTab
+{
+    [self setPopupBlocking:m_settings.block_popups];
+}
+
 - (void)zoomIn:(id)sender
 {
     [[[self tab] web_view] zoomIn];
@@ -348,7 +353,12 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)togglePopupBlocking:(id)sender
 {
     m_settings.block_popups = !m_settings.block_popups;
-    [self debugRequest:"block-pop-ups" argument:m_settings.block_popups ? "on" : "off"];
+    [self setPopupBlocking:m_settings.block_popups];
+}
+
+- (void)setPopupBlocking:(BOOL)block_popups
+{
+    [self debugRequest:"block-pop-ups" argument:block_popups ? "on" : "off"];
 }
 
 - (void)toggleSameOriginPolicy:(id)sender
