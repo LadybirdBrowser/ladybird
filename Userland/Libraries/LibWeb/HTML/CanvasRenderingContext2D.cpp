@@ -492,7 +492,6 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     // ...and with all other properties set to their initial values.
     // FIXME: Actually use a LineBox here instead of, you know, using the default font and measuring its size (which is not the spec at all).
     // FIXME: Once we have CanvasTextDrawingStyles, add the CSS attributes.
-    size_t width = font->width(text.view());
     size_t height = font->pixel_size();
 
     // 6. If maxWidth was provided and the hypothetical width of the inline box in the hypothetical line box is greater than maxWidth CSS pixels, then change font to have a more condensed font (if one is available or if a reasonably readable one can be synthesized by applying a horizontal scale factor to the font) or a smaller font, and return to the previous step.
@@ -511,26 +510,19 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     //   7.8. If textBaseline is ideographic: Let the anchor point's vertical position be the ideographic-under baseline of the first available font of the inline box.
     //   7.9. If textBaseline is bottom: Let the anchor point's vertical position be the bottom of the em box of the first available font of the inline box.
     // FIXME: Once we have CanvasTextDrawingStyles, handle the alignment and baseline.
-    [[maybe_unused]] Gfx::IntPoint anchor { 0, 0 };
+    Gfx::FloatPoint anchor { 0, 0 };
     auto physical_alignment = Gfx::TextAlignment::CenterLeft;
 
+    auto glyph_run = adopt_ref(*new Gfx::GlyphRun({}, *font, Gfx::GlyphRun::TextType::Ltr));
+    float glyph_run_width = 0;
+    Gfx::for_each_glyph_position(
+        anchor, replaced_text.code_points(), *font, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
+            glyph_run->append(glyph_or_emoji);
+        },
+        glyph_run_width);
+
     // 8. Let result be an array constructed by iterating over each glyph in the inline box from left to right (if any), adding to the array, for each glyph, the shape of the glyph as it is in the inline box, positioned on a coordinate space using CSS pixels with its origin is at the anchor point.
-    PreparedText prepared_text { {}, physical_alignment, { 0, 0, static_cast<int>(width), static_cast<int>(height) } };
-    prepared_text.glyphs.ensure_capacity(replaced_text.bytes_as_string_view().length());
-
-    auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
-
-    size_t previous_boundary = 0;
-    segmenter->for_each_boundary(replaced_text, [&](auto boundary) {
-        if (boundary == 0)
-            return IterationDecision::Continue;
-
-        auto glyph = MUST(replaced_text.substring_from_byte_offset(previous_boundary, boundary - previous_boundary));
-        prepared_text.glyphs.append({ move(glyph), { static_cast<int>(boundary), 0 } });
-
-        previous_boundary = boundary;
-        return IterationDecision::Continue;
-    });
+    PreparedText prepared_text { glyph_run, physical_alignment, { 0, 0, static_cast<int>(glyph_run_width), static_cast<int>(height) } };
 
     // 9. Return result, physical alignment, and the inline box.
     return prepared_text;

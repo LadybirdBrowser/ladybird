@@ -109,13 +109,8 @@ private:
     virtual Gfx::Painter* painter_for_canvas_state() override { return painter(); }
     virtual Gfx::Path& path_for_canvas_state() override { return path(); }
 
-    struct PreparedTextGlyph {
-        String glyph;
-        Gfx::IntPoint position;
-    };
-
     struct PreparedText {
-        Vector<PreparedTextGlyph> glyphs;
+        RefPtr<Gfx::GlyphRun> glyph_run;
         Gfx::TextAlignment physical_alignment;
         Gfx::IntRect bounding_box;
     };
