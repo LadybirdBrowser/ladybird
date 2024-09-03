@@ -1914,7 +1914,7 @@ void HTMLMediaElement::reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPt
         WebIDL::reject_promise(realm, promise, error);
 }
 
-WebIDL::ExceptionOr<void> HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode key)
+WebIDL::ExceptionOr<bool> HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode key)
 {
     switch (key) {
     case UIEvents::KeyCode::Key_Space:
@@ -1961,10 +1961,10 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::handle_keydown(Badge<Web::EventHandl
         break;
 
     default:
-        break;
+        return false;
     }
 
-    return {};
+    return true;
 }
 
 void HTMLMediaElement::set_layout_display_time(Badge<Painting::MediaPaintable>, Optional<double> display_time)
