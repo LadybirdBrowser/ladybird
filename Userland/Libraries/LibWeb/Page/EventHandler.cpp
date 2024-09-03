@@ -890,7 +890,8 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
 
     if (auto* element = m_navigable->active_document()->focused_element(); is<HTML::HTMLMediaElement>(element)) {
         auto& media_element = static_cast<HTML::HTMLMediaElement&>(*element);
-        media_element.handle_keydown({}, key).release_value_but_fixme_should_propagate_errors();
+        if (media_element.handle_keydown({}, key).release_value_but_fixme_should_propagate_errors())
+            return true;
     }
 
     bool continue_ = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point);
