@@ -411,9 +411,15 @@ Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_z
     return offset.release_value();
 }
 
+static Optional<String> cached_system_time_zone_identifier;
+
 // 21.4.1.24 SystemTimeZoneIdentifier ( ), https://tc39.es/ecma262/#sec-systemtimezoneidentifier
 String system_time_zone_identifier()
 {
+    // OPTIMIZATION: We cache the system time zone to avoid the expensive lookups below.
+    if (cached_system_time_zone_identifier.has_value())
+        return *cached_system_time_zone_identifier;
+
     // 1. If the implementation only supports the UTC time zone, return "UTC".
 
     // 2. Let systemTimeZoneString be the String representing the host environment's current time zone, either a primary
@@ -429,7 +435,13 @@ String system_time_zone_identifier()
     }
 
     // 3. Return systemTimeZoneString.
-    return system_time_zone_string;
+    cached_system_time_zone_identifier = move(system_time_zone_string);
+    return *cached_system_time_zone_identifier;
+}
+
+void clear_system_time_zone_cache()
+{
+    cached_system_time_zone_identifier.clear();
 }
 
 // 21.4.1.25 LocalTime ( t ), https://tc39.es/ecma262/#sec-localtime
