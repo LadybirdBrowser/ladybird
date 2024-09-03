@@ -382,6 +382,22 @@ static i64 clip_bigint_to_sane_time(Crypto::SignedBigInteger const& value)
     return value.to_base_deprecated(10).to_number<i64>().value();
 }
 
+static i64 clip_double_to_sane_time(double value)
+{
+    static constexpr auto min_double = static_cast<double>(NumericLimits<i64>::min());
+    static constexpr auto max_double = static_cast<double>(NumericLimits<i64>::max());
+
+    // The provided epoch millseconds value is potentially out of range for AK::Duration and subsequently
+    // get_time_zone_offset(). We can safely assume that the TZDB has no useful information that far
+    // into the past and future anyway, so clamp it to the i64 range.
+    if (value < min_double)
+        return NumericLimits<i64>::min();
+    if (value > max_double)
+        return NumericLimits<i64>::max();
+
+    return static_cast<i64>(value);
+}
+
 // 21.4.1.20 GetNamedTimeZoneEpochNanoseconds ( timeZoneIdentifier, year, month, day, hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/ecma262/#sec-getnamedtimezoneepochnanoseconds
 Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringView time_zone_identifier, i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second, u16 millisecond, u16 microsecond, u16 nanosecond)
 {
@@ -404,6 +420,19 @@ Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_z
     // seconds first gives us a greater range. The TZDB doesn't have sub-second offsets.
     auto seconds = epoch_nanoseconds.divided_by(s_one_billion_bigint).quotient;
     auto time = UnixDateTime::from_seconds_since_epoch(clip_bigint_to_sane_time(seconds));
+
+    auto offset = Unicode::time_zone_offset(time_zone_identifier, time);
+    VERIFY(offset.has_value());
+
+    return offset.release_value();
+}
+
+// 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds
+// OPTIMIZATION: This overload is provided to allow callers to avoid BigInt construction if they do not need infinitely precise nanosecond resolution.
+Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(StringView time_zone_identifier, double epoch_milliseconds)
+{
+    auto seconds = epoch_milliseconds / 1000.0;
+    auto time = UnixDateTime::from_seconds_since_epoch(clip_double_to_sane_time(seconds));
 
     auto offset = Unicode::time_zone_offset(time_zone_identifier, time);
     VERIFY(offset.has_value());
@@ -460,8 +489,7 @@ double local_time(double time)
     // 3. Else,
     else {
         // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(t) × 10^6)).
-        auto time_bigint = Crypto::SignedBigInteger { time }.multiplied_by(s_one_million_bigint);
-        auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, time_bigint);
+        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier, time);
         offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
     }
 
