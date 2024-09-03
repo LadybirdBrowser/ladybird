@@ -20,7 +20,6 @@ class ScaledFont final : public Gfx::Font {
 public:
     ScaledFont(NonnullRefPtr<Typeface>, float point_width, float point_height, unsigned dpi_x = DEFAULT_DPI, unsigned dpi_y = DEFAULT_DPI);
     ScaledFontMetrics metrics() const { return m_typeface->metrics(m_x_scale, m_y_scale); }
-    ScaledGlyphMetrics glyph_metrics(u32 glyph_id) const { return m_typeface->glyph_metrics(glyph_id, m_x_scale, m_y_scale, m_point_width, m_point_height); }
 
     // ^Gfx::Font
     virtual float point_size() const override;
