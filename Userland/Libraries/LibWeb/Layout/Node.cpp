@@ -975,6 +975,12 @@ JS::NonnullGCPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 {
     auto wrapper = heap().allocate_without_realm<BlockContainer>(const_cast<DOM::Document&>(document()), nullptr, computed_values().clone_inherited_values());
     wrapper->mutable_computed_values().set_display(CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow));
+
+    // NOTE: These properties are not inherited, but we still have to propagate them to anonymous wrappers.
+    wrapper->mutable_computed_values().set_text_decoration_line(computed_values().text_decoration_line());
+    wrapper->mutable_computed_values().set_text_decoration_thickness(computed_values().text_decoration_thickness());
+    wrapper->mutable_computed_values().set_text_decoration_color(computed_values().text_decoration_color());
+    wrapper->mutable_computed_values().set_text_decoration_style(computed_values().text_decoration_style());
     return *wrapper;
 }
 
