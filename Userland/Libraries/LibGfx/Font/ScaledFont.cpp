@@ -40,8 +40,8 @@ float ScaledFont::width(Utf8View const& view) const { return measure_text_width(
 
 float ScaledFont::glyph_width(u32 code_point) const
 {
-    auto id = glyph_id_for_code_point(code_point);
-    return m_typeface->glyph_advance(id, m_x_scale, m_y_scale, m_point_width, m_point_height);
+    auto string = String::from_code_point(code_point);
+    return measure_text_width(Utf8View(string), *this);
 }
 
 template<typename CodePointIterator>
