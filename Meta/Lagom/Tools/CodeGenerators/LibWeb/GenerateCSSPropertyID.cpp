@@ -136,46 +136,61 @@ enum class PropertyID {
     All,
 )~~~");
 
-    Vector<ByteString> shorthand_property_ids;
-    Vector<ByteString> longhand_property_ids;
+    Vector<ByteString> inherited_shorthand_property_ids;
+    Vector<ByteString> inherited_longhand_property_ids;
+    Vector<ByteString> noninherited_shorthand_property_ids;
+    Vector<ByteString> noninherited_longhand_property_ids;
 
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
-        if (value.as_object().has("longhands"sv))
-            shorthand_property_ids.append(name);
-        else
-            longhand_property_ids.append(name);
+        bool inherited = value.as_object().get_bool("inherited"sv).value_or(false);
+        if (value.as_object().has("longhands"sv)) {
+            if (inherited)
+                inherited_shorthand_property_ids.append(name);
+            else
+                noninherited_shorthand_property_ids.append(name);
+        } else {
+            if (inherited)
+                inherited_longhand_property_ids.append(name);
+            else
+                noninherited_longhand_property_ids.append(name);
+        }
     });
 
-    auto first_property_id = shorthand_property_ids.first();
-    auto last_property_id = longhand_property_ids.last();
+    // Section order:
+    // 1. inherited shorthand properties
+    // 2. noninherited shorthand properties
+    // 3. inherited longhand properties
+    // 4. noninherited longhand properties
 
-    for (auto& name : shorthand_property_ids) {
-        auto member_generator = generator.fork();
-        member_generator.set("name:titlecase", title_casify(name));
+    auto first_property_id = inherited_shorthand_property_ids.first();
+    auto last_property_id = noninherited_longhand_property_ids.last();
 
-        member_generator.append(R"~~~(
-    @name:titlecase@,
+    auto emit_properties = [&](auto& property_ids) {
+        for (auto& name : property_ids) {
+            auto member_generator = generator.fork();
+            member_generator.set("name:titlecase", title_casify(name));
+            member_generator.append(R"~~~(
+        @name:titlecase@,
 )~~~");
-    }
+        }
+    };
 
-    for (auto& name : longhand_property_ids) {
-        auto member_generator = generator.fork();
-        member_generator.set("name:titlecase", title_casify(name));
-
-        member_generator.append(R"~~~(
-    @name:titlecase@,
-)~~~");
-    }
+    emit_properties(inherited_shorthand_property_ids);
+    emit_properties(noninherited_shorthand_property_ids);
+    emit_properties(inherited_longhand_property_ids);
+    emit_properties(noninherited_longhand_property_ids);
 
     generator.set("first_property_id", title_casify(first_property_id));
     generator.set("last_property_id", title_casify(last_property_id));
 
-    generator.set("first_shorthand_property_id", title_casify(shorthand_property_ids.first()));
-    generator.set("last_shorthand_property_id", title_casify(shorthand_property_ids.last()));
+    generator.set("first_longhand_property_id", title_casify(inherited_longhand_property_ids.first()));
+    generator.set("last_longhand_property_id", title_casify(noninherited_longhand_property_ids.last()));
 
-    generator.set("first_longhand_property_id", title_casify(longhand_property_ids.first()));
-    generator.set("last_longhand_property_id", title_casify(longhand_property_ids.last()));
+    generator.set("first_inherited_shorthand_property_id", title_casify(inherited_shorthand_property_ids.first()));
+    generator.set("last_inherited_shorthand_property_id", title_casify(inherited_shorthand_property_ids.last()));
+    generator.set("first_inherited_longhand_property_id", title_casify(inherited_longhand_property_ids.first()));
+    generator.set("last_inherited_longhand_property_id", title_casify(inherited_longhand_property_ids.last()));
 
     generator.append(R"~~~(
 };
@@ -247,8 +262,10 @@ bool property_affects_stacking_context(PropertyID);
 
 constexpr PropertyID first_property_id = PropertyID::@first_property_id@;
 constexpr PropertyID last_property_id = PropertyID::@last_property_id@;
-constexpr PropertyID first_shorthand_property_id = PropertyID::@first_shorthand_property_id@;
-constexpr PropertyID last_shorthand_property_id = PropertyID::@last_shorthand_property_id@;
+constexpr PropertyID first_inherited_shorthand_property_id = PropertyID::@first_inherited_shorthand_property_id@;
+constexpr PropertyID last_inherited_shorthand_property_id = PropertyID::@last_inherited_shorthand_property_id@;
+constexpr PropertyID first_inherited_longhand_property_id = PropertyID::@first_inherited_longhand_property_id@;
+constexpr PropertyID last_inherited_longhand_property_id = PropertyID::@last_inherited_longhand_property_id@;
 constexpr PropertyID first_longhand_property_id = PropertyID::@first_longhand_property_id@;
 constexpr PropertyID last_longhand_property_id = PropertyID::@last_longhand_property_id@;
 
@@ -543,33 +560,11 @@ bool is_animatable_property(PropertyID property_id)
 
 bool is_inherited_property(PropertyID property_id)
 {
-    switch (property_id) {
-)~~~");
-
-    properties.for_each_member([&](auto& name, auto& value) {
-        VERIFY(value.is_object());
-
-        bool inherited = false;
-        if (value.as_object().has("inherited"sv)) {
-            auto inherited_value = value.as_object().get_bool("inherited"sv);
-            VERIFY(inherited_value.has_value());
-            inherited = inherited_value.value();
-        }
-
-        if (inherited) {
-            auto member_generator = generator.fork();
-            member_generator.set("name:titlecase", title_casify(name));
-            member_generator.append(R"~~~(
-    case PropertyID::@name:titlecase@:
+    if (property_id >= first_inherited_shorthand_property_id && property_id <= last_inherited_longhand_property_id)
         return true;
-)~~~");
-        }
-    });
-
-    generator.append(R"~~~(
-    default:
-        return false;
-    }
+    if (property_id >= first_inherited_longhand_property_id && property_id <= last_inherited_longhand_property_id)
+        return true;
+    return false;
 }
 
 bool property_affects_layout(PropertyID property_id)

@@ -1,3 +1,46 @@
+-webkit-text-fill-color: rgb(0, 0, 0)
+accent-color: auto
+border-collapse: separate
+border-spacing: 0px
+caption-side: top
+clip-rule: nonzero
+color: rgb(0, 0, 0)
+cursor: auto
+direction: ltr
+fill: rgb(0, 0, 0)
+fill-opacity: 1
+fill-rule: nonzero
+font-family: serif
+font-size: 16px
+font-stretch: normal
+font-style: normal
+font-variant: normal
+font-weight: 400
+image-rendering: auto
+letter-spacing: normal
+line-height: normal
+list-style-image: none
+list-style-position: outside
+list-style-type: disc
+math-depth: 0
+math-shift: normal
+math-style: normal
+pointer-events: auto
+quotes: auto
+stroke: none
+stroke-opacity: 1
+stroke-width: 1px
+text-align: start
+text-anchor: start
+text-decoration-line: none
+text-indent: 0px
+text-justify: auto
+text-shadow: none
+text-transform: none
+visibility: visible
+white-space: normal
+word-spacing: normal
+word-wrap: normal
 -webkit-align-content: normal
 -webkit-align-items: normal
 -webkit-align-self: auto
@@ -26,14 +69,12 @@
 -webkit-justify-content: normal
 -webkit-mask: none
 -webkit-order: 0
--webkit-text-fill-color: rgb(0, 0, 0)
 -webkit-transform: none
 -webkit-transform-origin: 50% 50%
 -webkit-transition-delay: 0s
 -webkit-transition-duration: 0s
 -webkit-transition-property: all
 -webkit-transition-timing-function: ease
-accent-color: auto
 align-content: normal
 align-items: normal
 align-self: auto
@@ -62,14 +103,12 @@ border-bottom-left-radius: 0px
 border-bottom-right-radius: 0px
 border-bottom-style: none
 border-bottom-width: medium
-border-collapse: separate
 border-left-color: rgb(0, 0, 0)
 border-left-style: none
 border-left-width: medium
 border-right-color: rgb(0, 0, 0)
 border-right-style: none
 border-right-width: medium
-border-spacing: 0px
 border-top-color: rgb(0, 0, 0)
 border-top-left-radius: 0px
 border-top-right-radius: 0px
@@ -78,12 +117,9 @@ border-top-width: medium
 bottom: auto
 box-shadow: none
 box-sizing: content-box
-caption-side: top
 clear: none
 clip: auto
 clip-path: none
-clip-rule: nonzero
-color: rgb(0, 0, 0)
 column-count: auto
 column-gap: auto
 column-span: none
@@ -93,26 +129,15 @@ content-visibility: visible
 counter-increment: none
 counter-reset: none
 counter-set: none
-cursor: auto
 cx: 0px
 cy: 0px
-direction: ltr
 display: block
-fill: rgb(0, 0, 0)
-fill-opacity: 1
-fill-rule: nonzero
 flex-basis: auto
 flex-direction: row
 flex-grow: 0
 flex-shrink: 1
 flex-wrap: nowrap
 float: none
-font-family: serif
-font-size: 16px
-font-stretch: normal
-font-style: normal
-font-variant: normal
-font-weight: 400
 grid-auto-columns: auto
 grid-auto-flow: row
 grid-auto-rows: auto
@@ -125,8 +150,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2159px
-image-rendering: auto
+height: 2584px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto
@@ -136,11 +160,6 @@ justify-content: normal
 justify-items: legacy
 justify-self: auto
 left: auto
-letter-spacing: normal
-line-height: normal
-list-style-image: none
-list-style-position: outside
-list-style-type: disc
 margin-block-end: 8px
 margin-block-start: 8px
 margin-bottom: 8px
@@ -151,9 +170,6 @@ margin-right: 8px
 margin-top: 8px
 mask: none
 mask-type: luminance
-math-depth: 0
-math-shift: normal
-math-style: normal
 max-height: none
 max-inline-size: none
 max-width: none
@@ -178,9 +194,7 @@ padding-inline-start: 0px
 padding-left: 0px
 padding-right: 0px
 padding-top: 0px
-pointer-events: auto
 position: static
-quotes: auto
 r: 0px
 right: auto
 row-gap: auto
@@ -190,21 +204,11 @@ scrollbar-gutter: auto
 scrollbar-width: auto
 stop-color: rgb(0, 0, 0)
 stop-opacity: 1
-stroke: none
-stroke-opacity: 1
-stroke-width: 1px
 table-layout: auto
-text-align: start
-text-anchor: start
 text-decoration-color: rgb(0, 0, 0)
-text-decoration-line: none
 text-decoration-style: solid
 text-decoration-thickness: auto
-text-indent: 0px
-text-justify: auto
 text-overflow: clip
-text-shadow: none
-text-transform: none
 top: auto
 transform: none
 transform-box: view-box
@@ -215,11 +219,7 @@ transition-property: all
 transition-timing-function: ease
 user-select: auto
 vertical-align: baseline
-visibility: visible
-white-space: normal
 width: 784px
-word-spacing: normal
-word-wrap: normal
 x: 0px
 y: 0px
 z-index: auto
