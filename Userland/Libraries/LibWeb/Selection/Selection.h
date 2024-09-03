@@ -33,6 +33,7 @@ public:
     bool is_collapsed() const;
     unsigned range_count() const;
     String type() const;
+    String direction() const;
     WebIDL::ExceptionOr<JS::GCPtr<DOM::Range>> get_range_at(unsigned index);
     void add_range(JS::NonnullGCPtr<DOM::Range>);
     WebIDL::ExceptionOr<void> remove_range(JS::NonnullGCPtr<DOM::Range>);

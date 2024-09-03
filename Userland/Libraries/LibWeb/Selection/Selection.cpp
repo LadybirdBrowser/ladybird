@@ -116,6 +116,22 @@ String Selection::type() const
     return "Range"_string;
 }
 
+// https://w3c.github.io/selection-api/#dom-selection-direction
+String Selection::direction() const
+{
+    // The attribute must return "none" if this is empty or this selection is directionless.
+    if (is_empty() || m_direction == Direction::Directionless)
+        return "none"_string;
+
+    // "forward" if this selection's direction is forwards and "backward" if this selection's direction is backwards.
+    if (m_direction == Direction::Forwards)
+        return "forwards"_string;
+    if (m_direction == Direction::Backwards)
+        return "backward"_string;
+
+    VERIFY_NOT_REACHED();
+}
+
 // https://w3c.github.io/selection-api/#dom-selection-getrangeat
 WebIDL::ExceptionOr<JS::GCPtr<DOM::Range>> Selection::get_range_at(unsigned index)
 {
