@@ -56,7 +56,6 @@ public:
 
     virtual Gfx::ScaledFontMetrics metrics(float x_scale, float y_scale) const override;
     virtual Gfx::ScaledGlyphMetrics glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const override;
-    virtual float glyph_advance(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const override;
     virtual u32 glyph_count() const override;
     virtual u16 units_per_em() const override;
     virtual u32 glyph_id_for_code_point(u32 code_point) const override;
