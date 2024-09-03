@@ -1123,8 +1123,7 @@ ByteString time_zone_string(double time)
     // 3. Else,
     else {
         // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(tv) × 10^6)).
-        auto time_bigint = Crypto::SignedBigInteger { time }.multiplied_by(Crypto::UnsignedBigInteger { 1'000'000 });
-        auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, time_bigint);
+        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier, time);
 
         offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
         in_dst = offset.in_dst;
