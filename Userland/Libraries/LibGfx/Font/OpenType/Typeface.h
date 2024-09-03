@@ -57,7 +57,6 @@ public:
     virtual Gfx::ScaledFontMetrics metrics(float x_scale, float y_scale) const override;
     virtual Gfx::ScaledGlyphMetrics glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const override;
     virtual float glyph_advance(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const override;
-    virtual float glyphs_horizontal_kerning(u32 left_glyph_id, u32 right_glyph_id, float x_scale) const override;
     virtual u32 glyph_count() const override;
     virtual u16 units_per_em() const override;
     virtual u32 glyph_id_for_code_point(u32 code_point) const override;
@@ -146,8 +145,6 @@ private:
     OwnPtr<GlyphPage> mutable m_glyph_page_zero;
 
     HashMap<size_t, NonnullOwnPtr<GlyphPage>> mutable m_glyph_pages;
-
-    HashMap<u32, i16> mutable m_kerning_cache;
 
     Optional<String> mutable m_family;
     Optional<u16> mutable m_width;
