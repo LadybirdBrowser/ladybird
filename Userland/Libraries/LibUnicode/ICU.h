@@ -24,6 +24,7 @@ U_NAMESPACE_BEGIN
 class DateTimePatternGenerator;
 class LocaleDisplayNames;
 class NumberingSystem;
+class TimeZone;
 class TimeZoneNames;
 U_NAMESPACE_END
 
@@ -61,6 +62,18 @@ private:
     OwnPtr<icu::DateTimePatternGenerator> m_date_time_pattern_generator;
     OwnPtr<icu::TimeZoneNames> m_time_zone_names;
     Optional<DigitalFormat> m_digital_format;
+};
+
+class TimeZoneData {
+public:
+    static Optional<TimeZoneData&> for_time_zone(StringView time_zone);
+
+    ALWAYS_INLINE icu::TimeZone& time_zone() { return *m_time_zone; }
+
+private:
+    explicit TimeZoneData(NonnullOwnPtr<icu::TimeZone>);
+
+    NonnullOwnPtr<icu::TimeZone> m_time_zone;
 };
 
 constexpr bool icu_success(UErrorCode code)

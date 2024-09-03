@@ -17,6 +17,7 @@
 namespace Unicode {
 
 static HashMap<String, OwnPtr<LocaleData>> s_locale_cache;
+static HashMap<String, OwnPtr<TimeZoneData>> s_time_zone_cache;
 
 Optional<LocaleData&> LocaleData::for_locale(StringView locale)
 {
@@ -111,6 +112,30 @@ icu::TimeZoneNames& LocaleData::time_zone_names()
     }
 
     return *m_time_zone_names;
+}
+
+Optional<TimeZoneData&> TimeZoneData::for_time_zone(StringView time_zone)
+{
+    auto time_zone_data = s_time_zone_cache.get(time_zone);
+
+    if (!time_zone_data.has_value()) {
+        time_zone_data = s_time_zone_cache.ensure(MUST(String::from_utf8(time_zone)), [&]() -> OwnPtr<TimeZoneData> {
+            auto icu_time_zone = adopt_own_if_nonnull(icu::TimeZone::createTimeZone(icu_string(time_zone)));
+            if (!icu_time_zone || *icu_time_zone == icu::TimeZone::getUnknown())
+                return nullptr;
+
+            return adopt_own(*new TimeZoneData { icu_time_zone.release_nonnull() });
+        });
+    }
+
+    if (time_zone_data.value())
+        return *time_zone_data.value();
+    return {};
+}
+
+TimeZoneData::TimeZoneData(NonnullOwnPtr<icu::TimeZone> time_zone)
+    : m_time_zone(move(time_zone))
+{
 }
 
 Vector<icu::UnicodeString> icu_string_list(ReadonlySpan<String> strings)
