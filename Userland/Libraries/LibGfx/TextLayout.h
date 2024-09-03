@@ -74,5 +74,6 @@ private:
 };
 
 void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Function<void(DrawGlyphOrEmoji const&)> callback, Optional<float&> width = {});
+float measure_text_width(Utf8View const& string, Gfx::Font const& font);
 
 }

@@ -7,6 +7,7 @@
 #include <AK/Utf8View.h>
 #include <LibGfx/Font/Emoji.h>
 #include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/TextLayout.h>
 
 namespace Gfx {
 
@@ -34,34 +35,8 @@ ScaledFont::ScaledFont(NonnullRefPtr<Typeface> typeface, float point_width, floa
     };
 }
 
-float ScaledFont::width(StringView view) const { return unicode_view_width(Utf8View(view)); }
-float ScaledFont::width(Utf8View const& view) const { return unicode_view_width(view); }
-
-template<typename T>
-ALWAYS_INLINE float ScaledFont::unicode_view_width(T const& view) const
-{
-    if (view.is_empty())
-        return 0;
-    float width = 0;
-    float longest_width = 0;
-    u32 last_code_point = 0;
-
-    for (auto it = view.begin(); it != view.end(); last_code_point = *it, ++it) {
-        auto code_point = *it;
-
-        if (code_point == '\n' || code_point == '\r') {
-            longest_width = max(width, longest_width);
-            width = 0;
-            continue;
-        }
-
-        auto kerning = glyphs_horizontal_kerning(last_code_point, code_point);
-        width += kerning + glyph_or_emoji_width(it);
-    }
-
-    longest_width = max(width, longest_width);
-    return longest_width;
-}
+float ScaledFont::width(StringView view) const { return measure_text_width(Utf8View(view), *this); }
+float ScaledFont::width(Utf8View const& view) const { return measure_text_width(view, *this); }
 
 float ScaledFont::glyph_width(u32 code_point) const
 {
