@@ -8,6 +8,7 @@
 #include <AK/Enumerate.h>
 #include <LibCore/Environment.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTest/JavaScriptTestRunner.h>
 #include <LibUnicode/TimeZone.h>
@@ -109,6 +110,7 @@ TESTJS_GLOBAL_FUNCTION(set_time_zone, setTimeZone)
             return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
     }
 
+    JS::clear_system_time_zone_cache();
     Unicode::clear_system_time_zone_cache();
     tzset();
 

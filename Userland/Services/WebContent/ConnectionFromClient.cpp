@@ -16,6 +16,7 @@
 #include <LibGfx/SystemTheme.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/ConsoleObject.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/ARIA/RoleType.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -1194,6 +1195,7 @@ void ConnectionFromClient::enable_inspector_prototype(u64)
 
 void ConnectionFromClient::system_time_zone_changed()
 {
+    JS::clear_system_time_zone_cache();
     Unicode::clear_system_time_zone_cache();
 }
 
