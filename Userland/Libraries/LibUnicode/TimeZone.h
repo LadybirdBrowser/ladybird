@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#pragma once
+
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
-
-#pragma once
 
 namespace Unicode {
 

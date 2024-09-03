@@ -131,14 +131,14 @@ Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime tim
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto icu_time_zone = adopt_own_if_nonnull(icu::TimeZone::createTimeZone(icu_string(time_zone)));
-    if (!icu_time_zone || *icu_time_zone == icu::TimeZone::getUnknown())
+    auto time_zone_data = TimeZoneData::for_time_zone(time_zone);
+    if (!time_zone_data.has_value())
         return {};
 
     i32 raw_offset = 0;
     i32 dst_offset = 0;
 
-    icu_time_zone->getOffset(static_cast<UDate>(time.milliseconds_since_epoch()), 0, raw_offset, dst_offset, status);
+    time_zone_data->time_zone().getOffset(static_cast<UDate>(time.milliseconds_since_epoch()), 0, raw_offset, dst_offset, status);
     if (icu_failure(status))
         return {};
 

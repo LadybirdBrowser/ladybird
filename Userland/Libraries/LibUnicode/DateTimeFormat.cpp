@@ -622,9 +622,9 @@ static void apply_time_zone_to_formatter(icu::SimpleDateFormat& formatter, icu::
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto* time_zone = icu::TimeZone::createTimeZone(icu_string(time_zone_identifier));
+    auto time_zone_data = TimeZoneData::for_time_zone(time_zone_identifier);
 
-    auto* calendar = icu::Calendar::createInstance(time_zone, locale, status);
+    auto* calendar = icu::Calendar::createInstance(time_zone_data->time_zone(), locale, status);
     VERIFY(icu_success(status));
 
     if (calendar->getDynamicClassID() == icu::GregorianCalendar::getStaticClassID()) {
