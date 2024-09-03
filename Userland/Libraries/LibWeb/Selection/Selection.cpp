@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -378,6 +379,56 @@ WebIDL::ExceptionOr<void> Selection::select_all_children(JS::NonnullGCPtr<DOM::N
     m_direction = Direction::Forwards;
 
     return {};
+}
+
+// https://w3c.github.io/selection-api/#dom-selection-modify
+void Selection::modify(Optional<String> alter, Optional<String> direction, Optional<String> granularity)
+{
+    // 1. If alter is not ASCII case-insensitive match with "extend" or "move", abort these steps.
+    if (!alter.has_value() || (!alter->equals_ignoring_ascii_case("extend"sv) && !alter->equals_ignoring_ascii_case("move"sv)))
+        return;
+
+    // 2. If direction is not ASCII case-insensitive match with "forward", "backward", "left", or "right", abort these steps.
+    if (!direction.has_value() || (!direction->equals_ignoring_ascii_case("forward"sv) && !direction->equals_ignoring_ascii_case("backward"sv)
+        && !direction->equals_ignoring_ascii_case("left"sv) && !direction->equals_ignoring_ascii_case("right"sv)))
+        return;
+
+    // 3. If granularity is not ASCII case-insensitive match with "character", "word", "sentence", "line", "paragraph", "lineboundary", "sentenceboundary", "paragraphboundary", "documentboundary", abort these steps.
+    if (!granularity.has_value() || (!granularity->equals_ignoring_ascii_case("character"sv) && !granularity->equals_ignoring_ascii_case("word"sv)
+        && !granularity->equals_ignoring_ascii_case("sentence"sv) && !granularity->equals_ignoring_ascii_case("line"sv)
+        && !granularity->equals_ignoring_ascii_case("paragraph"sv) && !granularity->equals_ignoring_ascii_case("lineboundary"sv)
+        && !granularity->equals_ignoring_ascii_case("sentenceboundary"sv) && !granularity->equals_ignoring_ascii_case("paragraphboundary"sv)
+        && !granularity->equals_ignoring_ascii_case("documentboundary"sv)))
+        return;
+
+    // 4. If this selection is empty, abort these steps.
+    if (is_empty())
+        return;
+
+    // 5. Let effectiveDirection be backwards.
+    auto effective_direction = Direction::Backwards;
+
+    // 6. If direction is ASCII case-insensitive match with "forward", set effectiveDirection to forwards.
+    if (direction->equals_ignoring_ascii_case("forward"sv))
+        effective_direction = Direction::Forwards;
+
+    // 7. If direction is ASCII case-insensitive match with "right" and inline base direction of this selection's focus is ltr, set effectiveDirection to forwards.
+    // FIXME: This assumes ltr
+    if (direction->equals_ignoring_ascii_case("right"sv) && true)
+        effective_direction = Direction::Forwards;
+
+    // 8. If direction is ASCII case-insensitive match with "left" and inline base direction of this selection's focus is rtl, set effectiveDirection to forwards.
+    // FIXME: This assumes ltr
+    if (direction->equals_ignoring_ascii_case("left"sv) && false)
+        effective_direction = Direction::Forwards;
+
+    // 9. Set this selection's direction to effectiveDirection.
+    m_direction = effective_direction;
+
+    // FIXME: 10. If alter is ASCII case-insensitive match with "extend", set this selection's focus to the location as if the user had requested to extend selection by granularity.
+    // FIXME: 11. Otherwise, set this selection's focus and anchor to the location as if the user had requested to move selection by granularity.
+
+    dbgln("FIXME: Extend / move selection in Selection::modify");
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-deletefromdocument
