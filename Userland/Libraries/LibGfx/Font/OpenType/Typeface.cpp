@@ -357,18 +357,6 @@ Gfx::ScaledFontMetrics Typeface::metrics([[maybe_unused]] float x_scale, float y
     };
 }
 
-float Typeface::glyph_advance(u32 glyph_id, float x_scale, float, float, float) const
-{
-    if (!m_hmtx.has_value())
-        return 0;
-
-    if (glyph_id >= glyph_count())
-        glyph_id = 0;
-
-    auto horizontal_metrics = m_hmtx->get_glyph_horizontal_metrics(glyph_id);
-    return static_cast<float>(horizontal_metrics.advance_width) * x_scale;
-}
-
 Gfx::ScaledGlyphMetrics Typeface::glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float, float) const
 {
     if (!m_loca.has_value() || !m_glyf.has_value() || !m_hmtx.has_value()) {
