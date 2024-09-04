@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/AtomicOwnPtr.h>
 #include <AK/Debug.h>
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
@@ -134,7 +135,7 @@ struct Connection {
     using SocketType = Socket;
     using StorageType = SocketStorageType;
 
-    OwnPtr<Core::BufferedSocket<SocketStorageType>> socket;
+    AtomicOwnPtr<Core::BufferedSocket<SocketStorageType>> socket;
     Threading::RWLockProtected<QueueType> request_queue;
     NonnullRefPtr<Core::Timer> removal_timer;
     Atomic<bool> is_being_started { false };
