@@ -1,0 +1,29 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x66 [BFC] children: not-inline
+    Box <body> at (8,8) content-size 784x50 flex-container(column) [FFC] children: not-inline
+      Box <div.content> at (8,8) content-size 784x51 flex-item [GFC] children: not-inline
+        BlockContainer <(anonymous)> at (8,8) content-size 784x51 [BFC] children: inline
+          frag 0 from TextNode start: 1, length: 87, rect: [8,8 705.625x17] baseline: 13.296875
+              "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam dignissim elit eget arcu"
+          frag 1 from TextNode start: 89, length: 92, rect: [8,25 758x17] baseline: 13.296875
+              "accumsan imperdiet vulputate a justo. Phasellus tincidunt sem non tellus tristique hendrerit"
+          frag 2 from TextNode start: 182, length: 82, rect: [8,42 683.125x17] baseline: 13.296875
+              "quis eu eros. Morbi dolor erat, posuere ut feugiat rhoncus, vestibulum vel tortor."
+          TextNode <#text>
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+      BlockContainer <div.footer> at (8,59) content-size 784x17 flex-item [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 27, rect: [8,59 232.140625x17] baseline: 13.296875
+            "Lorem ipsum dolor sit amet."
+        TextNode <#text>
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x66] overflow: [0,0 800x76]
+    PaintableBox (Box<BODY>) [8,8 784x50] overflow: [8,8 784x68]
+      PaintableBox (Box<DIV>.content) [8,8 784x51]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 784x51]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<DIV>.footer) [8,59 784x17]
+        TextPaintable (TextNode<#text>)
