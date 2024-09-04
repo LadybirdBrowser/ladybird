@@ -592,6 +592,10 @@ namespace Web::MathML {
 class MathMLElement;
 }
 
+namespace Web::MediaCapabilitiesAPI {
+class MediaCapabilities;
+}
+
 namespace Web::MimeSniff {
 class MimeType;
 }

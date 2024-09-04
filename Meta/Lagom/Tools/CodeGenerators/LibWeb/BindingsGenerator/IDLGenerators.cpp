@@ -4197,6 +4197,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     using namespace Web::IndexedDB;
     using namespace Web::Internals;
     using namespace Web::IntersectionObserver;
+    using namespace Web::MediaCapabilitiesAPI;
     using namespace Web::NavigationTiming;
     using namespace Web::PerformanceTimeline;
     using namespace Web::RequestIdleCallback;
