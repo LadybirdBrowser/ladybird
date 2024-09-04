@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -66,6 +67,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_clipboard);
     visitor.visit(m_user_activation);
     visitor.visit(m_service_worker_container);
+    visitor.visit(m_media_capabilities);
 }
 
 JS::NonnullGCPtr<MimeTypeArray> Navigator::mime_types()
@@ -120,6 +122,13 @@ JS::NonnullGCPtr<ServiceWorkerContainer> Navigator::service_worker()
     if (!m_service_worker_container)
         m_service_worker_container = heap().allocate<ServiceWorkerContainer>(realm(), realm());
     return *m_service_worker_container;
+}
+
+JS::NonnullGCPtr<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
+{
+    if (!m_media_capabilities)
+        m_media_capabilities = heap().allocate<MediaCapabilitiesAPI::MediaCapabilities>(realm(), realm());
+    return *m_media_capabilities;
 }
 
 }
