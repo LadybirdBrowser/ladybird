@@ -567,7 +567,6 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
                 MUST(font_json_object.add("name"sv, font->family()));
                 MUST(font_json_object.add("size"sv, font->point_size()));
                 MUST(font_json_object.add("weight"sv, font->weight()));
-                MUST(font_json_object.add("variant"sv, font->variant()));
                 MUST(font_json_object.finish());
             });
             MUST(serializer.finish());

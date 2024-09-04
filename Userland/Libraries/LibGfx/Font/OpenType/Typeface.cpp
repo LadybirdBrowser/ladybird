@@ -403,17 +403,6 @@ String Typeface::family() const
     return *m_family;
 }
 
-String Typeface::variant() const
-{
-    if (!m_name.has_value())
-        return {};
-
-    auto string = m_name->typographic_subfamily_name();
-    if (!string.is_empty())
-        return string;
-    return m_name->subfamily_name();
-}
-
 u16 Typeface::weight() const
 {
     if (!m_weight.has_value()) {

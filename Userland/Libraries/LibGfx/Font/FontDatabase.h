@@ -22,7 +22,6 @@ public:
     static FontDatabase& the();
 
     RefPtr<Gfx::Font> get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope);
-    RefPtr<Gfx::Font> get(FlyString const& family, FlyString const& variant, float point_size);
 
     void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
 
