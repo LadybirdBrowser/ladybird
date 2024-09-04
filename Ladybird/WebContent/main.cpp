@@ -136,6 +136,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         Gfx::FontDatabase::the().set_force_fontconfig(true);
     }
 
+    Gfx::FontDatabase::the().load_all_fonts_from_uri("resource://fonts"sv);
+
     // Layout test mode implies internals object is exposed and the Skia CPU backend is used
     if (is_layout_test_mode) {
         expose_internals_object = true;
