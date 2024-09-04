@@ -2,11 +2,15 @@
 #import <HTML/NavigatorLanguage.idl>
 #import <HTML/NavigatorOnLine.idl>
 #import <HTML/NavigatorConcurrentHardware.idl>
+#import <MediaCapabilitiesAPI/MediaCapabilities.idl>
 #import <StorageAPI/NavigatorStorage.idl>
 
 // https://html.spec.whatwg.org/multipage/workers.html#workernavigator
 [Exposed=Worker]
-interface WorkerNavigator {};
+interface WorkerNavigator {
+    // https://w3c.github.io/media-capabilities/#dom-workernavigator-mediacapabilities
+    [SameObject] readonly attribute MediaCapabilities mediaCapabilities;
+};
 
 WorkerNavigator includes NavigatorID;
 WorkerNavigator includes NavigatorLanguage;
