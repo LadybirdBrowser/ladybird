@@ -43,6 +43,7 @@ struct TabSettings {
 - (void)clearHistory;
 
 - (void)setPopupBlocking:(BOOL)block_popups;
+- (void)setScripting:(BOOL)enabled;
 - (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument;
 
 - (void)focusLocationToolbarItem;
