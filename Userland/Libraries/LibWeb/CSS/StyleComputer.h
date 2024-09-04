@@ -133,7 +133,7 @@ public:
     NonnullRefPtr<StyleProperties> compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
     RefPtr<StyleProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
-    Vector<MatchingRule> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>) const;
+    Vector<MatchingRule> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>, FlyString const& qualified_layer_name = {}) const;
 
     void invalidate_rule_cache();
 
@@ -188,10 +188,18 @@ private:
 
     [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(StyleProperties const&) const;
 
+    Vector<FlyString> m_qualified_layer_names_in_order;
+    void build_qualified_layer_names_cache();
+
+    struct LayerMatchingRules {
+        FlyString qualified_layer_name;
+        Vector<MatchingRule> rules;
+    };
+
     struct MatchingRuleSet {
         Vector<MatchingRule> user_agent_rules;
         Vector<MatchingRule> user_rules;
-        Vector<MatchingRule> author_rules;
+        Vector<LayerMatchingRules> author_rules;
     };
 
     void cascade_declarations(StyleProperties&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, Vector<MatchingRule> const&, CascadeOrigin, Important) const;
