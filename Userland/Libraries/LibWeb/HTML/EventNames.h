@@ -34,6 +34,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(close)                    \
     __ENUMERATE_HTML_EVENT(complete)                 \
     __ENUMERATE_HTML_EVENT(connect)                  \
+    __ENUMERATE_HTML_EVENT(controllerchange)         \
     __ENUMERATE_HTML_EVENT(contextmenu)              \
     __ENUMERATE_HTML_EVENT(copy)                     \
     __ENUMERATE_HTML_EVENT(cuechange)                \
