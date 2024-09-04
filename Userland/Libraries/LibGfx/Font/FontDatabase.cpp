@@ -78,7 +78,6 @@ void FontDatabase::load_all_fonts_from_uri(StringView uri)
 FontDatabase::FontDatabase()
     : m_private(make<Private>())
 {
-    load_all_fonts_from_uri("resource://fonts"sv);
 }
 
 RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope)
