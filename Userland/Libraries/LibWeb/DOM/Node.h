@@ -52,6 +52,39 @@ enum class FragmentSerializationMode {
     Outer,
 };
 
+#define ENUMERATE_STYLE_INVALIDATION_REASONS(X)     \
+    X(AdoptedStyleSheetsList)                       \
+    X(AnimationEffectSetAssociatedAnimation)        \
+    X(CSSFontLoaded)                                \
+    X(CSSImportRule)                                \
+    X(DidLoseFocus)                                 \
+    X(DidReceiveFocus)                              \
+    X(EditingInsertion)                             \
+    X(ElementAttributeChange)                       \
+    X(ElementSetShadowRoot)                         \
+    X(HTMLInputElementSetChecked)                   \
+    X(HTMLObjectElementUpdateLayoutAndChildObjects) \
+    X(HTMLSelectElementSetIsOpen)                   \
+    X(Hover)                                        \
+    X(MediaQueryChangedMatchState)                  \
+    X(NavigableSetViewportSize)                     \
+    X(NodeInsertBefore)                             \
+    X(NodeRemove)                                   \
+    X(NodeSetTextContent)                           \
+    X(Other)                                        \
+    X(SetSelectorText)                              \
+    X(SettingsChange)                               \
+    X(StyleSheetDeleteRule)                         \
+    X(StyleSheetInsertRule)                         \
+    X(StyleSheetListAddSheet)                       \
+    X(StyleSheetListRemoveSheet)
+
+enum class StyleInvalidationReason {
+#define __ENUMERATE_STYLE_INVALIDATION_REASON(reason) reason,
+    ENUMERATE_STYLE_INVALIDATION_REASONS(__ENUMERATE_STYLE_INVALIDATION_REASON)
+#undef __ENUMERATE_STYLE_INVALIDATION_REASON
+};
+
 class Node : public EventTarget {
     WEB_PLATFORM_OBJECT(Node, EventTarget);
 
@@ -227,7 +260,7 @@ public:
     bool child_needs_style_update() const { return m_child_needs_style_update; }
     void set_child_needs_style_update(bool b) { m_child_needs_style_update = b; }
 
-    void invalidate_style();
+    void invalidate_style(StyleInvalidationReason);
 
     void set_document(Badge<Document>, Document&);
 

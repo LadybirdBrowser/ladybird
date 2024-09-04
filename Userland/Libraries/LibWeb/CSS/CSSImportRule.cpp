@@ -108,7 +108,7 @@ void CSSImportRule::resource_did_load()
 
     m_document->style_computer().invalidate_rule_cache();
     m_document->style_computer().load_fonts_from_sheet(*m_style_sheet);
-    m_document->invalidate_style();
+    m_document->invalidate_style(DOM::StyleInvalidationReason::CSSImportRule);
 }
 
 }

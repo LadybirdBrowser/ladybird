@@ -2870,7 +2870,7 @@ void StyleComputer::invalidate_rule_cache()
 
 void StyleComputer::did_load_font(FlyString const&)
 {
-    document().invalidate_style();
+    document().invalidate_style(DOM::StyleInvalidationReason::CSSFontLoaded);
 }
 
 Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_face, Function<void(FontLoader const&)> on_load, Function<void()> on_fail)

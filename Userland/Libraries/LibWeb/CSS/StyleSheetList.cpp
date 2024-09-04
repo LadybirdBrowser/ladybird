@@ -109,7 +109,7 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
 
     document().style_computer().invalidate_rule_cache();
     document().style_computer().load_fonts_from_sheet(sheet);
-    document_or_shadow_root().invalidate_style();
+    document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetListAddSheet);
 }
 
 void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
@@ -124,7 +124,7 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
     }
 
     m_document_or_shadow_root->document().style_computer().invalidate_rule_cache();
-    document_or_shadow_root().invalidate_style();
+    document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetListRemoveSheet);
 }
 
 JS::NonnullGCPtr<StyleSheetList> StyleSheetList::create(JS::NonnullGCPtr<DOM::Node> document_or_shadow_root)

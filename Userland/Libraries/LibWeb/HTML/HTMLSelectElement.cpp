@@ -323,7 +323,7 @@ void HTMLSelectElement::set_is_open(bool open)
         return;
 
     m_is_open = open;
-    invalidate_style();
+    invalidate_style(DOM::StyleInvalidationReason::HTMLSelectElementSetIsOpen);
 }
 
 bool HTMLSelectElement::has_activation_behavior() const
