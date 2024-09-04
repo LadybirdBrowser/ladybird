@@ -2248,12 +2248,22 @@ CSSPixels GridFormattingContext::calculate_limited_min_content_contribution(Grid
     if (min_content_contribution < minimum_contribution)
         return minimum_contribution;
 
+    auto should_treat_max_size_as_none = [&]() {
+        switch (dimension) {
+        case GridDimension::Row:
+            return should_treat_max_height_as_none(grid_container(), m_available_space->height);
+        case GridDimension::Column:
+            return should_treat_max_width_as_none(grid_container(), m_available_space->width);
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }();
+
     // FIXME: limit by max track sizing function instead of grid container maximum size
-    auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
-    if (!should_treat_max_width_as_none(grid_container(), available_size)) {
-        auto max_width = calculate_grid_container_maximum_size(dimension);
-        if (min_content_contribution > max_width)
-            return max_width;
+    if (!should_treat_max_size_as_none) {
+        auto max_size = calculate_grid_container_maximum_size(dimension);
+        if (min_content_contribution > max_size)
+            return max_size;
     }
 
     return min_content_contribution;
