@@ -29,6 +29,8 @@
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSLayerBlockRule.h>
+#include <LibWeb/CSS/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
@@ -98,6 +100,7 @@ StyleComputer::StyleComputer(DOM::Document& document)
     , m_default_font_metrics(16, Platform::FontPlugin::the().default_font().pixel_metrics())
     , m_root_element_font_metrics(m_default_font_metrics)
 {
+    m_qualified_layer_names_in_order.append({});
 }
 
 StyleComputer::~StyleComputer() = default;
@@ -322,6 +325,13 @@ StyleComputer::RuleCache const& StyleComputer::rule_cache_for_cascade_origin(Cas
     return true;
 }
 
+[[nodiscard]] static bool filter_layer(FlyString const& qualified_layer_name, MatchingRule const& rule)
+{
+    if (rule.rule && rule.rule->qualified_layer_name() != qualified_layer_name)
+        return false;
+    return true;
+}
+
 bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const
 {
     for (u32 hash : selector.ancestor_hashes()) {
@@ -333,7 +343,7 @@ bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector)
     return false;
 }
 
-Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, FlyString const& qualified_layer_name) const
 {
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
@@ -351,12 +361,12 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
         rules_to_run.grow_capacity(rules_to_run.size() + rules.size());
         if (pseudo_element.has_value()) {
             for (auto const& rule : rules) {
-                if (rule.contains_pseudo_element && filter_namespace_rule(element, rule))
+                if (rule.contains_pseudo_element && filter_namespace_rule(element, rule) && filter_layer(qualified_layer_name, rule))
                     rules_to_run.unchecked_append(rule);
             }
         } else {
             for (auto const& rule : rules) {
-                if (!rule.contains_pseudo_element && filter_namespace_rule(element, rule))
+                if (!rule.contains_pseudo_element && filter_namespace_rule(element, rule) && filter_layer(qualified_layer_name, rule))
                     rules_to_run.unchecked_append(rule);
             }
         }
@@ -1737,6 +1747,7 @@ static void apply_dimension_attribute(StyleProperties& style, DOM::Element const
 }
 
 // https://www.w3.org/TR/css-cascade/#cascading
+// https://drafts.csswg.org/css-cascade-5/#layering
 void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
 {
     // First, we collect all the CSS rules whose selectors match `element`:
@@ -1745,8 +1756,16 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     sort_matching_rules(matching_rule_set.user_agent_rules);
     matching_rule_set.user_rules = collect_matching_rules(element, CascadeOrigin::User, pseudo_element);
     sort_matching_rules(matching_rule_set.user_rules);
-    matching_rule_set.author_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element);
-    sort_matching_rules(matching_rule_set.author_rules);
+    // @layer-ed author rules
+    for (auto const& layer_name : m_qualified_layer_names_in_order) {
+        auto layer_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, layer_name);
+        sort_matching_rules(layer_rules);
+        matching_rule_set.author_rules.append({ layer_name, layer_rules });
+    }
+    // Un-@layer-ed author rules
+    auto unlayered_author_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element);
+    sort_matching_rules(unlayered_author_rules);
+    matching_rule_set.author_rules.append({ {}, unlayered_author_rules });
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         VERIFY(pseudo_element.has_value());
@@ -1758,7 +1777,10 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     }
 
     // Then we resolve all the CSS custom properties ("variables") for this element:
-    cascade_custom_properties(element, pseudo_element, matching_rule_set.author_rules);
+    // FIXME: Also resolve !important custom properties, in a second cascade.
+    for (auto& layer : matching_rule_set.author_rules) {
+        cascade_custom_properties(element, pseudo_element, layer.rules);
+    }
 
     // Then we apply the declarations from the matched rules in cascade order:
 
@@ -1789,8 +1811,10 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
         }
     }
 
-    // Normal author declarations
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.author_rules, CascadeOrigin::Author, Important::No);
+    // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
+    for (auto const& layer : matching_rule_set.author_rules) {
+        cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No);
+    }
 
     // Animation declarations [css-animations-2]
     auto animation_name = [&]() -> Optional<String> {
@@ -1854,8 +1878,10 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
         }
     }
 
-    // Important author declarations
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.author_rules, CascadeOrigin::Author, Important::Yes);
+    // Important author declarations, with un-@layer-ed rules first, followed by each @layer in reverse order.
+    for (auto const& layer : matching_rule_set.author_rules.in_reverse()) {
+        cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes);
+    }
 
     // Important user declarations
     cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes);
@@ -2742,11 +2768,81 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
     return rule_cache;
 }
 
+struct LayerNode {
+    OrderedHashMap<FlyString, LayerNode> children {};
+};
+
+static void flatten_layer_names_tree(Vector<FlyString>& layer_names, StringView const& parent_qualified_name, FlyString const& name, LayerNode const& node)
+{
+    FlyString qualified_name = parent_qualified_name.is_empty() ? name : MUST(String::formatted("{}.{}", parent_qualified_name, name));
+
+    for (auto const& item : node.children)
+        flatten_layer_names_tree(layer_names, qualified_name, item.key, item.value);
+
+    layer_names.append(qualified_name);
+}
+
+void StyleComputer::build_qualified_layer_names_cache()
+{
+    LayerNode root;
+
+    auto insert_layer_name = [&](FlyString const& internal_qualified_name) {
+        auto* node = &root;
+        internal_qualified_name.bytes_as_string_view()
+            .for_each_split_view('.', SplitBehavior::Nothing, [&](StringView part) {
+                auto local_name = MUST(FlyString::from_utf8(part));
+                node = &node->children.ensure(local_name);
+            });
+    };
+
+    // Walk all style sheets, identifying when we first see a @layer name, and add its qualified name to the list.
+    // TODO: Separate the light and shadow-dom layers.
+    for_each_stylesheet(CascadeOrigin::Author, [&](auto& sheet, JS::GCPtr<DOM::ShadowRoot>) {
+        // NOTE: Postorder so that a @layer block is iterated after its children,
+        // because we want those children to occur before it in the list.
+        sheet.for_each_effective_rule(TraversalOrder::Postorder, [&](auto& rule) {
+            switch (rule.type()) {
+            case CSSRule::Type::Import:
+                // TODO: Handle `layer(foo)` in import rules once we implement that.
+                break;
+            case CSSRule::Type::LayerBlock: {
+                auto& layer_block = static_cast<CSSLayerBlockRule const&>(rule);
+                insert_layer_name(layer_block.internal_qualified_name({}));
+                break;
+            }
+            case CSSRule::Type::LayerStatement: {
+                auto& layer_statement = static_cast<CSSLayerStatementRule const&>(rule);
+                auto qualified_names = layer_statement.internal_qualified_name_list({});
+                for (auto& name : qualified_names)
+                    insert_layer_name(name);
+                break;
+            }
+
+                // Ignore everything else
+            case CSSRule::Type::Style:
+            case CSSRule::Type::Media:
+            case CSSRule::Type::FontFace:
+            case CSSRule::Type::Keyframes:
+            case CSSRule::Type::Keyframe:
+            case CSSRule::Type::Namespace:
+            case CSSRule::Type::Supports:
+                break;
+            }
+        });
+    });
+
+    // Now, produce a flat list of qualified names to use later
+    m_qualified_layer_names_in_order.clear();
+    flatten_layer_names_tree(m_qualified_layer_names_in_order, ""sv, {}, root);
+}
+
 void StyleComputer::build_rule_cache()
 {
     if (auto user_style_source = document().page().user_style(); user_style_source.has_value()) {
         m_user_style_sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document()), user_style_source.value()));
     }
+
+    build_qualified_layer_names_cache();
 
     m_author_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::Author);
     m_user_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::User);

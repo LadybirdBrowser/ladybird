@@ -33,6 +33,8 @@ public:
 
     CSSStyleDeclaration* style();
 
+    FlyString qualified_layer_name() const;
+
 private:
     CSSStyleRule(JS::Realm&, Vector<NonnullRefPtr<Selector>>&&, PropertyOwningCSSStyleDeclaration&);
 
