@@ -1385,9 +1385,9 @@ void Document::set_hovered_node(Node* node)
 
     auto* common_ancestor = find_common_ancestor(old_hovered_node, m_hovered_node);
     if (common_ancestor)
-        common_ancestor->invalidate_style();
+        common_ancestor->invalidate_style(StyleInvalidationReason::Hover);
     else
-        invalidate_style();
+        invalidate_style(StyleInvalidationReason::Hover);
 
     // https://w3c.github.io/uievents/#mouseout
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
@@ -2716,7 +2716,7 @@ void Document::evaluate_media_rules()
 
     if (any_media_queries_changed_match_state) {
         style_computer().invalidate_rule_cache();
-        invalidate_style();
+        invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
         invalidate_layout();
     }
 }

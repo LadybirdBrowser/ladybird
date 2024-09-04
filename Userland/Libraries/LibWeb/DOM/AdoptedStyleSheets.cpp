@@ -32,12 +32,12 @@ JS::NonnullGCPtr<WebIDL::ObservableArray> create_adopted_style_sheets_list(Docum
 
         document.style_computer().load_fonts_from_sheet(style_sheet);
         document.style_computer().invalidate_rule_cache();
-        document.invalidate_style();
+        document.invalidate_style(DOM::StyleInvalidationReason::AdoptedStyleSheetsList);
         return {};
     });
     adopted_style_sheets->set_on_delete_an_indexed_value_callback([&document]() -> WebIDL::ExceptionOr<void> {
         document.style_computer().invalidate_rule_cache();
-        document.invalidate_style();
+        document.invalidate_style(DOM::StyleInvalidationReason::AdoptedStyleSheetsList);
         return {};
     });
 

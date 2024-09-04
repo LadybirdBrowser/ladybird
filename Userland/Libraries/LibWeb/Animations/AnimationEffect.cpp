@@ -206,7 +206,7 @@ void AnimationEffect::set_associated_animation(JS::GCPtr<Animation> value)
 {
     m_associated_animation = value;
     if (auto* target = this->target())
-        target->invalidate_style();
+        target->invalidate_style(DOM::StyleInvalidationReason::AnimationEffectSetAssociatedAnimation);
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-direction

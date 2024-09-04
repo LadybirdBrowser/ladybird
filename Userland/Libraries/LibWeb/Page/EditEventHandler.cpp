@@ -116,7 +116,7 @@ void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, J
         } else {
             node.set_data(MUST(builder.to_string()));
         }
-        node.invalidate_style();
+        node.invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
     } else {
         auto& node = *position->node();
         auto& realm = node.realm();

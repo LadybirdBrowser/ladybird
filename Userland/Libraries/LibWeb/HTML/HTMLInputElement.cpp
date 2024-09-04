@@ -156,7 +156,7 @@ void HTMLInputElement::set_checked(bool checked, ChangeSource change_source)
     // so we need to invalidate the style of all siblings.
     if (parent()) {
         parent()->for_each_child([&](auto& child) {
-            child.invalidate_style();
+            child.invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetChecked);
             return IterationDecision::Continue;
         });
     }
@@ -1142,10 +1142,10 @@ void HTMLInputElement::did_receive_focus()
 {
     if (!m_text_node)
         return;
-    m_text_node->invalidate_style();
+    m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
     if (m_placeholder_text_node)
-        m_placeholder_text_node->invalidate_style();
+        m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
     document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
@@ -1153,10 +1153,10 @@ void HTMLInputElement::did_receive_focus()
 void HTMLInputElement::did_lose_focus()
 {
     if (m_text_node)
-        m_text_node->invalidate_style();
+        m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
 
     if (m_placeholder_text_node)
-        m_placeholder_text_node->invalidate_style();
+        m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
 
     commit_pending_changes();
 }

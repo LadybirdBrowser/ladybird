@@ -72,10 +72,10 @@ void HTMLTextAreaElement::did_receive_focus()
 {
     if (!m_text_node)
         return;
-    m_text_node->invalidate_style();
+    m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
     if (m_placeholder_text_node)
-        m_placeholder_text_node->invalidate_style();
+        m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
     document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
@@ -83,10 +83,10 @@ void HTMLTextAreaElement::did_receive_focus()
 void HTMLTextAreaElement::did_lose_focus()
 {
     if (m_text_node)
-        m_text_node->invalidate_style();
+        m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
 
     if (m_placeholder_text_node)
-        m_placeholder_text_node->invalidate_style();
+        m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
 
     // The change event fires when the value is committed, if that makes sense for the control,
     // or else when the control loses focus

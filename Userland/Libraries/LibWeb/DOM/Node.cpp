@@ -207,7 +207,7 @@ void Node::set_text_content(Optional<String> const& maybe_content)
     // Otherwise, do nothing.
 
     if (is_connected()) {
-        document().invalidate_style();
+        document().invalidate_style(StyleInvalidationReason::NodeSetTextContent);
         document().invalidate_layout();
     }
 
@@ -375,8 +375,24 @@ JS::GCPtr<HTML::Navigable> Node::navigable() const
     return navigable;
 }
 
-void Node::invalidate_style()
+[[maybe_unused]] static StringView to_string(StyleInvalidationReason reason)
 {
+#define __ENUMERATE_STYLE_INVALIDATION_REASON(reason) \
+    case StyleInvalidationReason::reason:             \
+        return #reason##sv;
+    switch (reason) {
+        ENUMERATE_STYLE_INVALIDATION_REASONS(__ENUMERATE_STYLE_INVALIDATION_REASON)
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+void Node::invalidate_style(StyleInvalidationReason reason)
+{
+    if (!needs_style_update() && !document().needs_full_style_update()) {
+        dbgln_if(STYLE_INVALIDATION_DEBUG, "Invalidate style ({}): {}", to_string(reason), debug_description());
+    }
+
     if (is_document()) {
         auto& document = static_cast<DOM::Document&>(*this);
         document.set_needs_full_style_update(true);
@@ -598,7 +614,7 @@ void Node::insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, boo
         // 6. Run assign slottables for a tree with node’s root.
         assign_slottables_for_a_tree(node_to_insert->root());
 
-        node_to_insert->invalidate_style();
+        node_to_insert->invalidate_style(StyleInvalidationReason::NodeInsertBefore);
 
         // 7. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
         node_to_insert->for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
@@ -639,7 +655,7 @@ void Node::insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, boo
 
     if (is_connected()) {
         // FIXME: This will need to become smarter when we implement the :has() selector.
-        invalidate_style();
+        invalidate_style(StyleInvalidationReason::NodeInsertBefore);
         document().invalidate_layout();
     }
 
@@ -838,7 +854,7 @@ void Node::remove(bool suppress_observers)
     if (was_connected) {
         // Since the tree structure has changed, we need to invalidate both style and layout.
         // In the future, we should find a way to only invalidate the parts that actually need it.
-        document().invalidate_style();
+        document().invalidate_style(StyleInvalidationReason::NodeRemove);
         document().invalidate_layout();
     }
 

@@ -362,7 +362,7 @@ void HTMLObjectElement::update_layout_and_child_objects(Representation represent
     }
 
     m_representation = representation;
-    invalidate_style();
+    invalidate_style(DOM::StyleInvalidationReason::HTMLObjectElementUpdateLayoutAndChildObjects);
     document().invalidate_layout();
 }
 

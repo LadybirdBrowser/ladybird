@@ -230,6 +230,10 @@
 #    cmakedefine01 SYNTAX_HIGHLIGHTING_DEBUG
 #endif
 
+#ifndef STYLE_INVALIDATION_DEBUG
+#    cmakedefine01 STYLE_INVALIDATION_DEBUG
+#endif
+
 #ifndef TEXTEDITOR_DEBUG
 #    cmakedefine01 TEXTEDITOR_DEBUG
 #endif
