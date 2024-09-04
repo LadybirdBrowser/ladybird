@@ -10,6 +10,9 @@
 interface WorkerNavigator {
     // https://w3c.github.io/media-capabilities/#dom-workernavigator-mediacapabilities
     [SameObject] readonly attribute MediaCapabilities mediaCapabilities;
+
+    // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
+    [SecureContext, SameObject] readonly attribute ServiceWorkerContainer serviceWorker;
 };
 
 WorkerNavigator includes NavigatorID;
