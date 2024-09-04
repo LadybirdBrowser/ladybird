@@ -19,7 +19,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
-#include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>
@@ -172,7 +171,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
     }
     if (mime_type.has_value()) {
         if (mime_type->essence() == "font/ttf"sv || mime_type->essence() == "application/x-font-ttf"sv) {
-            if (auto result = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+            if (auto result = Gfx::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
                 return result;
             }
         }
@@ -188,7 +187,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
         }
     }
 
-    auto ttf = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
+    auto ttf = Gfx::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!ttf.is_error())
         return ttf.release_value();
     return Error::from_string_literal("Automatic format detection failed");

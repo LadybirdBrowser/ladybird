@@ -36,7 +36,6 @@ set(FUZZER_TARGETS
     Tar
     TextDecoder
     TIFFLoader
-    TTF
     TinyVGLoader
     URL
     WasmParser

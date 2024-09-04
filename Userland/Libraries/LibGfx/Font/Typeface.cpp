@@ -4,15 +4,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define AK_DONT_REPLACE_STD
-
 #include <core/SkTypeface.h>
 #include <harfbuzz/hb.h>
 
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
+#include <LibGfx/Font/TypefaceSkia.h>
 
 namespace Gfx {
+
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, int ttc_index)
+{
+    auto font_data = Gfx::FontData::create_from_resource(resource);
+    return try_load_from_font_data(move(font_data), ttc_index);
+}
+
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_font_data(NonnullOwnPtr<Gfx::FontData> font_data, int ttc_index)
+{
+    auto typeface = TRY(try_load_from_externally_owned_memory(font_data->bytes(), ttc_index));
+    typeface->m_font_data = move(font_data);
+    return typeface;
+}
+
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_externally_owned_memory(ReadonlyBytes bytes, int ttc_index)
+{
+    return TypefaceSkia::load_from_buffer(bytes, ttc_index);
+}
 
 Typeface::Typeface() = default;
 

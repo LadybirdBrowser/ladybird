@@ -15,11 +15,6 @@ set(SOURCES
     Font/Font.cpp
     Font/FontData.cpp
     Font/FontDatabase.cpp
-    Font/OpenType/Cmap.cpp
-    Font/OpenType/Glyf.cpp
-    Font/OpenType/Hinting/Opcodes.cpp
-    Font/OpenType/Tables.cpp
-    Font/OpenType/Typeface.cpp
     Font/ScaledFont.cpp
     Font/ScaledFontSkia.cpp
     Font/Typeface.cpp
