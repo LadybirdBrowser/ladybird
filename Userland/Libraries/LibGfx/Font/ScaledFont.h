@@ -38,7 +38,6 @@ public:
     virtual float width(StringView) const override;
     virtual float width(Utf8View const&) const override;
     virtual String family() const override { return m_typeface->family(); }
-    virtual String variant() const override { return m_typeface->variant(); }
 
     virtual NonnullRefPtr<ScaledFont> scaled_with_size(float point_size) const;
     virtual NonnullRefPtr<Font> with_size(float point_size) const override;

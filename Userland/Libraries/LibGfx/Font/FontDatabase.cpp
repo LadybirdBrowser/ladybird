@@ -93,18 +93,6 @@ RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, u
     return nullptr;
 }
 
-RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, FlyString const& variant, float point_size)
-{
-    auto it = m_private->typeface_by_family.find(family);
-    if (it == m_private->typeface_by_family.end())
-        return nullptr;
-    for (auto const& typeface : it->value) {
-        if (typeface->variant() == variant)
-            return typeface->scaled_font(point_size);
-    }
-    return nullptr;
-}
-
 void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)> callback)
 {
     auto it = m_private->typeface_by_family.find(family_name);
