@@ -890,7 +890,7 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
 
     if (auto* element = m_navigable->active_document()->focused_element(); is<HTML::HTMLMediaElement>(element)) {
         auto& media_element = static_cast<HTML::HTMLMediaElement&>(*element);
-        if (media_element.handle_keydown({}, key).release_value_but_fixme_should_propagate_errors())
+        if (media_element.handle_keydown({}, key, modifiers).release_value_but_fixme_should_propagate_errors())
             return true;
     }
 

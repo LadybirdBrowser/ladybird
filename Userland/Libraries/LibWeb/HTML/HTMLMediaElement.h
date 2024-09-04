@@ -109,7 +109,7 @@ public:
 
     JS::NonnullGCPtr<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
 
-    WebIDL::ExceptionOr<bool> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode);
+    WebIDL::ExceptionOr<bool> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode, u32 modifiers);
 
     enum class MouseTrackingComponent {
         Timeline,

@@ -1914,8 +1914,11 @@ void HTMLMediaElement::reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPt
         WebIDL::reject_promise(realm, promise, error);
 }
 
-WebIDL::ExceptionOr<bool> HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode key)
+WebIDL::ExceptionOr<bool> HTMLMediaElement::handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode key, u32 modifiers)
 {
+    if (modifiers != UIEvents::KeyModifier::Mod_None)
+        return false;
+
     switch (key) {
     case UIEvents::KeyCode::Key_Space:
         TRY(toggle_playback());
