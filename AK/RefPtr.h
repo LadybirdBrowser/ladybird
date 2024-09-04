@@ -111,6 +111,11 @@ public:
     template<typename U>
     RefPtr& operator=(OwnPtr<U> const&) = delete;
 
+    template<typename U>
+    RefPtr(AtomicOwnPtr<U> const&) = delete;
+    template<typename U>
+    RefPtr& operator=(AtomicOwnPtr<U> const&) = delete;
+
     void swap(RefPtr& other)
     {
         AK::swap(m_ptr, other.m_ptr);

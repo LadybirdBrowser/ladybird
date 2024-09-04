@@ -106,6 +106,11 @@ public:
     NonnullRefPtr& operator=(OwnPtr<U> const&) = delete;
 
     template<typename U>
+    NonnullRefPtr(AtomicOwnPtr<U> const&) = delete;
+    template<typename U>
+    NonnullRefPtr& operator=(AtomicOwnPtr<U> const&) = delete;
+
+    template<typename U>
     NonnullRefPtr(RefPtr<U> const&) = delete;
     template<typename U>
     NonnullRefPtr& operator=(RefPtr<U> const&) = delete;

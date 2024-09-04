@@ -77,6 +77,9 @@ using Bytes = Span<u8>;
 template<typename T, AK::MemoryOrder DefaultMemoryOrder>
 class Atomic;
 
+template<typename T, typename TDeleter = DefaultDelete<T>>
+class AtomicOwnPtr;
+
 template<typename T, typename TSizeCalculationPolicy = DefaultSizeCalculationPolicy>
 class SinglyLinkedList;
 
