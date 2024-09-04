@@ -1,0 +1,6 @@
+// https://w3c.github.io/media-capabilities/#mediacapabilities
+[Exposed=(Window, Worker)]
+interface MediaCapabilities {
+    [FIXME, NewObject] Promise<MediaCapabilitiesDecodingInfo> decodingInfo(MediaDecodingConfiguration configuration);
+    [FIXME, NewObject] Promise<MediaCapabilitiesEncodingInfo> encodingInfo(MediaEncodingConfiguration configuration);
+};

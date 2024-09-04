@@ -548,6 +548,7 @@ set(SOURCES
     Loader/ResourceLoader.cpp
     MathML/MathMLElement.cpp
     MathML/TagNames.cpp
+    MediaCapabilitiesAPI/MediaCapabilities.cpp
     MimeSniff/MimeType.cpp
     MimeSniff/Resource.cpp
     MixedContent/AbstractOperations.cpp
