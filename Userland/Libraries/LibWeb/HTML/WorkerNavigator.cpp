@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -30,6 +31,19 @@ void WorkerNavigator::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WorkerNavigator);
+}
+
+void WorkerNavigator::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_media_capabilities);
+}
+
+JS::NonnullGCPtr<MediaCapabilitiesAPI::MediaCapabilities> WorkerNavigator::media_capabilities()
+{
+    if (!m_media_capabilities)
+        m_media_capabilities = heap().allocate<MediaCapabilitiesAPI::MediaCapabilities>(realm(), realm());
+    return *m_media_capabilities;
 }
 
 }
