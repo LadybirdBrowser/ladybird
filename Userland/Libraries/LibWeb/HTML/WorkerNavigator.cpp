@@ -37,6 +37,7 @@ void WorkerNavigator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_media_capabilities);
+    visitor.visit(m_service_worker_container);
 }
 
 JS::NonnullGCPtr<MediaCapabilitiesAPI::MediaCapabilities> WorkerNavigator::media_capabilities()
@@ -44,6 +45,13 @@ JS::NonnullGCPtr<MediaCapabilitiesAPI::MediaCapabilities> WorkerNavigator::media
     if (!m_media_capabilities)
         m_media_capabilities = heap().allocate<MediaCapabilitiesAPI::MediaCapabilities>(realm(), realm());
     return *m_media_capabilities;
+}
+
+JS::NonnullGCPtr<ServiceWorkerContainer> WorkerNavigator::service_worker()
+{
+    if (!m_service_worker_container)
+        m_service_worker_container = heap().allocate<ServiceWorkerContainer>(realm(), realm());
+    return *m_service_worker_container;
 }
 
 }
