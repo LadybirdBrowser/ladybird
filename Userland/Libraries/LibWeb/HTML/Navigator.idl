@@ -8,6 +8,7 @@
 #import <HTML/PluginArray.idl>
 #import <HTML/ServiceWorkerContainer.idl>
 #import <HTML/UserActivation.idl>
+#import <MediaCapabilitiesAPI/MediaCapabilities.idl>
 #import <StorageAPI/NavigatorStorage.idl>
 
 // https://html.spec.whatwg.org/multipage/system-state.html#navigator
@@ -29,6 +30,9 @@ interface Navigator {
 
     // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
     [SecureContext, SameObject] readonly attribute ServiceWorkerContainer serviceWorker;
+
+    // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
+    [SameObject] readonly attribute MediaCapabilities mediaCapabilities;
 };
 
 // NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation
