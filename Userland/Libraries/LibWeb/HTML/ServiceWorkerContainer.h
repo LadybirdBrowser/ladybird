@@ -9,6 +9,11 @@
 
 #include <LibWeb/DOM/EventTarget.h>
 
+#define ENUMERATE_SERVICE_WORKER_CONTAINER_EVENT_HANDLERS(E)  \
+    E(oncontrollerchange, HTML::EventNames::controllerchange) \
+    E(onmessage, HTML::EventNames::message)                   \
+    E(onmessageerror, HTML::EventNames::messageerror)
+
 namespace Web::HTML {
 
 class ServiceWorkerContainer : public DOM::EventTarget {
@@ -19,10 +24,12 @@ public:
     [[nodiscard]] static JS::NonnullGCPtr<ServiceWorkerContainer> create(JS::Realm& realm);
     virtual ~ServiceWorkerContainer() override = default;
 
-    WebIDL::CallbackType* onmessage();
-    void set_onmessage(WebIDL::CallbackType*);
-    WebIDL::CallbackType* onmessageerror();
-    void set_onmessageerror(WebIDL::CallbackType*);
+#undef __ENUMERATE
+#define __ENUMERATE(attribute_name, event_name)       \
+    void set_##attribute_name(WebIDL::CallbackType*); \
+    WebIDL::CallbackType* attribute_name();
+    ENUMERATE_SERVICE_WORKER_CONTAINER_EVENT_HANDLERS(__ENUMERATE)
+#undef __ENUMERATE
 
 private:
     explicit ServiceWorkerContainer(JS::Realm&);

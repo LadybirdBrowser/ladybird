@@ -31,28 +31,17 @@ JS::NonnullGCPtr<ServiceWorkerContainer> ServiceWorkerContainer::create(JS::Real
     return realm.heap().allocate<ServiceWorkerContainer>(realm, realm);
 }
 
-// https://w3c.github.io/ServiceWorker/#dom-serviceworkercontainer-onmessage
-WebIDL::CallbackType* ServiceWorkerContainer::onmessage()
-{
-    return event_handler_attribute(HTML::EventNames::message);
-}
-
-// https://w3c.github.io/ServiceWorker/#dom-serviceworkercontainer-onmessage
-void ServiceWorkerContainer::set_onmessage(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::message, event_handler);
-}
-
-// https://w3c.github.io/ServiceWorker/#dom-serviceworkercontainer-onmessageerror
-WebIDL::CallbackType* ServiceWorkerContainer::onmessageerror()
-{
-    return event_handler_attribute(HTML::EventNames::messageerror);
-}
-
-// https://w3c.github.io/ServiceWorker/#dom-serviceworkercontainer-onmessageerror
-void ServiceWorkerContainer::set_onmessageerror(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::messageerror, event_handler);
-}
+#undef __ENUMERATE
+#define __ENUMERATE(attribute_name, event_name)                                    \
+    void ServiceWorkerContainer::set_##attribute_name(WebIDL::CallbackType* value) \
+    {                                                                              \
+        set_event_handler_attribute(event_name, move(value));                      \
+    }                                                                              \
+    WebIDL::CallbackType* ServiceWorkerContainer::attribute_name()                 \
+    {                                                                              \
+        return event_handler_attribute(event_name);                                \
+    }
+ENUMERATE_SERVICE_WORKER_CONTAINER_EVENT_HANDLERS(__ENUMERATE)
+#undef __ENUMERATE
 
 }
