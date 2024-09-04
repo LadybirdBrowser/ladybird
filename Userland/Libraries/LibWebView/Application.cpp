@@ -60,6 +60,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     bool new_window = false;
     bool force_new_process = false;
     bool allow_popups = false;
+    bool disable_scripting = false;
     bool disable_sql_database = false;
     Optional<StringView> debug_process;
     Optional<StringView> profile_process;
@@ -79,6 +80,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_option(new_window, "Force opening in a new window", "new-window", 'n');
     args_parser.add_option(force_new_process, "Force creation of new browser/chrome process", "force-new-process");
     args_parser.add_option(allow_popups, "Disable popup blocking by default", "allow-popups");
+    args_parser.add_option(disable_scripting, "Disable scripting by default", "disable-scripting");
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
@@ -119,6 +121,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .new_window = new_window ? NewWindow::Yes : NewWindow::No,
         .force_new_process = force_new_process ? ForceNewProcess::Yes : ForceNewProcess::No,
         .allow_popups = allow_popups ? AllowPopups::Yes : AllowPopups::No,
+        .disable_scripting = disable_scripting ? DisableScripting::Yes : DisableScripting::No,
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,
         .debug_helper_process = move(debug_process_type),
         .profile_helper_process = move(profile_process_type),

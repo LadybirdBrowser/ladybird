@@ -92,7 +92,10 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [self.toolbar setAllowsUserCustomization:NO];
         [self.toolbar setSizeMode:NSToolbarSizeModeRegular];
 
-        m_settings = { .block_popups = WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::Yes ? NO : YES };
+        m_settings = {
+            .block_popups = WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::Yes ? NO : YES,
+            .scripting_enabled = WebView::Application::chrome_options().disable_scripting == WebView::DisableScripting::Yes ? NO : YES,
+        };
 
         if (auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
             m_settings.user_agent_name = *user_agent_preset;
@@ -142,6 +145,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)onCreateNewTab
 {
     [self setPopupBlocking:m_settings.block_popups];
+    [self setScripting:m_settings.scripting_enabled];
 }
 
 - (void)zoomIn:(id)sender
@@ -347,7 +351,12 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)toggleScripting:(id)sender
 {
     m_settings.scripting_enabled = !m_settings.scripting_enabled;
-    [self debugRequest:"scripting" argument:m_settings.scripting_enabled ? "on" : "off"];
+    [self setScripting:m_settings.scripting_enabled];
+}
+
+- (void)setScripting:(BOOL)enabled
+{
+    [self debugRequest:"scripting" argument:enabled ? "on" : "off"];
 }
 
 - (void)togglePopupBlocking:(id)sender

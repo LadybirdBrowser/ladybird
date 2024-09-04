@@ -30,6 +30,11 @@ enum class AllowPopups {
     Yes,
 };
 
+enum class DisableScripting {
+    No,
+    Yes,
+};
+
 enum class DisableSQLDatabase {
     No,
     Yes,
@@ -43,6 +48,7 @@ struct ChromeOptions {
     NewWindow new_window { NewWindow::No };
     ForceNewProcess force_new_process { ForceNewProcess::No };
     AllowPopups allow_popups { AllowPopups::No };
+    DisableScripting disable_scripting { DisableScripting::No };
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
     Optional<ProcessType> debug_helper_process {};
     Optional<ProcessType> profile_helper_process {};

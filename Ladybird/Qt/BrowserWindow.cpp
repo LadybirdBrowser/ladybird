@@ -551,7 +551,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_enable_scripting_action = new QAction("Enable Scripting", this);
     m_enable_scripting_action->setCheckable(true);
-    m_enable_scripting_action->setChecked(true);
+    m_enable_scripting_action->setChecked(WebView::Application::chrome_options().disable_scripting == WebView::DisableScripting::No);
     debug_menu->addAction(m_enable_scripting_action);
     QObject::connect(m_enable_scripting_action, &QAction::triggered, this, [this] {
         bool state = m_enable_scripting_action->isChecked();
