@@ -71,6 +71,8 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -164,33 +166,31 @@ void FontLoader::start_loading_next_url()
 ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
-    auto const& mime_type = resource()->mime_type();
-    if (mime_type == "font/ttf"sv || mime_type == "application/x-font-ttf"sv) {
-        if (auto result = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
-            return result;
-        }
+    auto mime_type = MUST(MimeSniff::MimeType::parse(resource()->mime_type()));
+    if (!mime_type.has_value() || !mime_type->is_font()) {
+        mime_type = MUST(MimeSniff::Resource::sniff(resource()->encoded_data(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Font }));
     }
-    if (mime_type == "font/woff"sv || mime_type == "application/font-woff"sv) {
-        if (auto result = WOFF::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
-            return result;
+    if (mime_type.has_value()) {
+        if (mime_type->essence() == "font/ttf"sv || mime_type->essence() == "application/x-font-ttf"sv) {
+            if (auto result = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+                return result;
+            }
         }
-    }
-    if (mime_type == "font/woff2"sv || mime_type == "application/font-woff2"sv) {
-        if (auto result = WOFF2::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
-            return result;
+        if (mime_type->essence() == "font/woff"sv || mime_type->essence() == "application/font-woff"sv) {
+            if (auto result = WOFF::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+                return result;
+            }
+        }
+        if (mime_type->essence() == "font/woff2"sv || mime_type->essence() == "application/font-woff2"sv) {
+            if (auto result = WOFF2::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
+                return result;
+            }
         }
     }
 
-    // We don't have the luxury of knowing the MIME type, so we have to try all formats.
     auto ttf = OpenType::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
     if (!ttf.is_error())
         return ttf.release_value();
-    auto woff = WOFF::try_load_from_externally_owned_memory(resource()->encoded_data());
-    if (!woff.is_error())
-        return woff.release_value();
-    auto woff2 = WOFF2::try_load_from_externally_owned_memory(resource()->encoded_data());
-    if (!woff2.is_error())
-        return woff2.release_value();
     return Error::from_string_literal("Automatic format detection failed");
 }
 
