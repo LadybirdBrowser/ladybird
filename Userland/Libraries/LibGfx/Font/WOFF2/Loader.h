@@ -9,10 +9,10 @@
 
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
-#include <LibGfx/Font/OpenType/Typeface.h>
+#include <LibGfx/Font/Typeface.h>
 
 namespace WOFF2 {
 
-ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes);
+ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes);
 
 }

@@ -19,7 +19,7 @@ namespace Gfx {
 class ScaledFont final : public Gfx::Font {
 public:
     ScaledFont(NonnullRefPtr<Typeface>, float point_width, float point_height, unsigned dpi_x = DEFAULT_DPI, unsigned dpi_y = DEFAULT_DPI);
-    ScaledFontMetrics metrics() const { return m_typeface->metrics(m_x_scale, m_y_scale); }
+    ScaledFontMetrics metrics() const;
 
     // ^Gfx::Font
     virtual float point_size() const override;

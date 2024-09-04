@@ -36,18 +36,13 @@ struct ScaledFontMetrics {
     }
 };
 
-struct ScaledGlyphMetrics {
-    float ascender;
-    float descender;
-    float advance_width;
-    float left_side_bearing;
-};
-
 class Typeface : public RefCounted<Typeface> {
 public:
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, int ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_font_data(NonnullOwnPtr<Gfx::FontData>, int ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, int ttc_index = 0);
+
     virtual ~Typeface();
-    virtual ScaledFontMetrics metrics(float x_scale, float y_scale) const = 0;
-    virtual ScaledGlyphMetrics glyph_metrics(u32 glyph_id, float x_scale, float y_scale, float point_width, float point_height) const = 0;
 
     virtual u32 glyph_count() const = 0;
     virtual u16 units_per_em() const = 0;
@@ -59,7 +54,6 @@ public:
 
     [[nodiscard]] NonnullRefPtr<ScaledFont> scaled_font(float point_size) const;
 
-    RefPtr<SkTypeface> const& skia_typeface() const;
     hb_face_t* harfbuzz_typeface() const;
 
 protected:
@@ -69,8 +63,9 @@ protected:
     virtual unsigned ttc_index() const = 0;
 
 private:
+    OwnPtr<Gfx::FontData> m_font_data;
+
     mutable HashMap<float, NonnullRefPtr<ScaledFont>> m_scaled_fonts;
-    mutable RefPtr<SkTypeface> m_skia_typeface;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
     mutable hb_face_t* m_harfbuzz_face { nullptr };
 };

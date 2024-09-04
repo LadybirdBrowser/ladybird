@@ -9,8 +9,8 @@
 #include <AK/IntegralMath.h>
 #include <LibCompress/Zlib.h>
 #include <LibCore/Resource.h>
-#include <LibGfx/Font/OpenType/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>
+#include <LibGfx/FourCC.h>
 
 namespace WOFF {
 
@@ -35,7 +35,7 @@ static_assert(AssertSize<Header, 44>());
 
 // https://www.w3.org/TR/WOFF/#TableDirectory
 struct [[gnu::packed]] TableDirectoryEntry {
-    OpenType::Tag tag;            // 4-byte sfnt table identifier.
+    Gfx::FourCC tag;              // 4-byte sfnt table identifier.
     BigEndian<u32> offset;        // Offset to the data, from beginning of WOFF file.
     BigEndian<u32> comp_length;   // Length of the compressed data, excluding padding.
     BigEndian<u32> orig_length;   // Length of the uncompressed table, excluding padding.
@@ -68,12 +68,41 @@ static u16 pow_2_less_than_or_equal(u16 x)
     return 1 << (sizeof(u16) * 8 - count_leading_zeroes_safe<u16>(x - 1));
 }
 
-ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_resource(Core::Resource const& resource, unsigned index)
+ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_resource(Core::Resource const& resource, unsigned index)
 {
     return try_load_from_externally_owned_memory(resource.data(), index);
 }
 
-ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes buffer, unsigned int index)
+using Uint8 = u8;
+using Uint16 = BigEndian<u16>;
+using Int16 = BigEndian<i16>;
+using Uint32 = BigEndian<u32>;
+using Int32 = BigEndian<i32>;
+
+// https://learn.microsoft.com/en-us/typography/opentype/spec/otff#table-directory
+// Table Directory (known as the Offset Table in ISO-IEC 14496-22:2019)
+struct [[gnu::packed]] TableDirectory {
+    Uint32 sfnt_version;
+    Uint16 num_tables;     // Number of tables.
+    Uint16 search_range;   // (Maximum power of 2 <= numTables) x 16.
+    Uint16 entry_selector; // Log2(maximum power of 2 <= numTables).
+    Uint16 range_shift;    // NumTables x 16 - searchRange.
+};
+static_assert(AssertSize<TableDirectory, 12>());
+
+using Offset16 = BigEndian<u16>;
+using Offset32 = BigEndian<u32>;
+
+// https://learn.microsoft.com/en-us/typography/opentype/spec/otff#table-directory
+struct [[gnu::packed]] TableRecord {
+    Gfx::FourCC table_tag; // Table identifier.
+    Uint32 checksum;       // CheckSum for this table.
+    Offset32 offset;       // Offset from beginning of TrueType font file.
+    Uint32 length;         // Length of this table.
+};
+static_assert(AssertSize<TableRecord, 16>());
+
+ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes buffer, unsigned int index)
 {
     FixedMemoryStream stream(buffer);
     auto header = TRY(stream.read_value<Header>());
@@ -89,7 +118,7 @@ ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_externally_owned_memory
     // (The value 0x74727565 'true' has been used for some TrueType-flavored fonts on Mac OS, for example.)
     // Whether client software will actually support other types of sfnt font data is outside the scope of the WOFF specification, which simply describes how the sfnt is repackaged for Web use.
 
-    auto expected_total_sfnt_size = sizeof(OpenType::TableDirectory) + header.num_tables * 16;
+    auto expected_total_sfnt_size = sizeof(TableDirectory) + header.num_tables * 16;
     if (header.length > buffer.size())
         return Error::from_string_literal("Invalid WOFF length");
     if (header.num_tables == 0 || header.num_tables > NumericLimits<u16>::max() / 16)
@@ -109,7 +138,7 @@ ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_externally_owned_memory
     auto font_buffer = TRY(ByteBuffer::create_zeroed(header.total_sfnt_size));
 
     u16 search_range = pow_2_less_than_or_equal(header.num_tables);
-    OpenType::TableDirectory table_directory {
+    TableDirectory table_directory {
         .sfnt_version = header.flavor,
         .num_tables = header.num_tables,
         .search_range = search_range * 16,
@@ -118,7 +147,7 @@ ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_externally_owned_memory
     };
     font_buffer.overwrite(0, &table_directory, sizeof(table_directory));
 
-    size_t font_buffer_offset = sizeof(OpenType::TableDirectory) + header.num_tables * sizeof(OpenType::TableRecord);
+    size_t font_buffer_offset = sizeof(TableDirectory) + header.num_tables * sizeof(TableRecord);
     for (size_t i = 0; i < header.num_tables; ++i) {
         auto entry = TRY(stream.read_value<TableDirectoryEntry>());
 
@@ -142,8 +171,8 @@ ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_externally_owned_memory
             font_buffer.overwrite(font_buffer_offset, buffer.data() + entry.offset, entry.orig_length);
         }
 
-        size_t table_directory_offset = sizeof(OpenType::TableDirectory) + i * sizeof(OpenType::TableRecord);
-        OpenType::TableRecord table_record {
+        size_t table_directory_offset = sizeof(TableDirectory) + i * sizeof(TableRecord);
+        TableRecord table_record {
             .table_tag = entry.tag,
             .checksum = entry.orig_checksum,
             .offset = font_buffer_offset,
@@ -158,7 +187,7 @@ ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_externally_owned_memory
         return Error::from_string_literal("Invalid WOFF total sfnt size");
 
     auto font_data = Gfx::FontData::create_from_byte_buffer(move(font_buffer));
-    return TRY(OpenType::Typeface::try_load_from_font_data(move(font_data), { .index = index }));
+    return TRY(Gfx::Typeface::try_load_from_font_data(move(font_data), index));
 }
 
 }

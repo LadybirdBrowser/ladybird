@@ -4,10 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/TypeCasts.h>
 #include <AK/Utf8View.h>
 #include <LibGfx/Font/Emoji.h>
 #include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/TextLayout.h>
+
+#include <core/SkFont.h>
+#include <core/SkFontMetrics.h>
+#include <core/SkFontTypes.h>
 
 namespace Gfx {
 
@@ -16,23 +22,41 @@ ScaledFont::ScaledFont(NonnullRefPtr<Typeface> typeface, float point_width, floa
     , m_point_width(point_width)
     , m_point_height(point_height)
 {
-    float units_per_em = m_typeface->units_per_em();
+    float const units_per_em = m_typeface->units_per_em();
     m_x_scale = (point_width * dpi_x) / (POINTS_PER_INCH * units_per_em);
     m_y_scale = (point_height * dpi_y) / (POINTS_PER_INCH * units_per_em);
-
-    auto metrics = m_typeface->metrics(m_x_scale, m_y_scale);
 
     m_pixel_size = m_point_height * (DEFAULT_DPI / POINTS_PER_INCH);
     m_pixel_size_rounded_up = static_cast<int>(ceilf(m_pixel_size));
 
-    m_pixel_metrics = Gfx::FontPixelMetrics {
-        .size = (float)pixel_size(),
-        .x_height = metrics.x_height,
-        .advance_of_ascii_zero = (float)glyph_width('0'),
-        .ascent = metrics.ascender,
-        .descent = metrics.descender,
-        .line_gap = metrics.line_gap,
-    };
+    auto const* sk_typeface = verify_cast<TypefaceSkia>(*m_typeface).sk_typeface();
+    SkFont const font { sk_ref_sp(sk_typeface), m_pixel_size };
+
+    SkFontMetrics skMetrics;
+    font.getMetrics(&skMetrics);
+
+    FontPixelMetrics metrics;
+    metrics.size = font.getSize();
+    metrics.x_height = skMetrics.fXHeight;
+    metrics.advance_of_ascii_zero = font.measureText("0", 1, SkTextEncoding::kUTF8);
+    metrics.ascent = -skMetrics.fAscent;
+    metrics.descent = skMetrics.fDescent;
+    metrics.line_gap = skMetrics.fLeading;
+
+    m_pixel_metrics = metrics;
+}
+
+ScaledFontMetrics ScaledFont::metrics() const
+{
+    SkFontMetrics sk_metrics;
+    skia_font(1).getMetrics(&sk_metrics);
+
+    ScaledFontMetrics metrics;
+    metrics.ascender = -sk_metrics.fAscent;
+    metrics.descender = sk_metrics.fDescent;
+    metrics.line_gap = sk_metrics.fLeading;
+    metrics.x_height = sk_metrics.fXHeight;
+    return metrics;
 }
 
 float ScaledFont::width(StringView view) const { return measure_text_width(Utf8View(view), *this); }

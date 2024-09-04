@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Font/OpenType/Typeface.h>
+#include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
 #include <woff2/decode.h>
 
@@ -53,7 +53,7 @@ private:
     ByteBuffer& m_buffer;
 };
 
-ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes)
+ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes)
 {
     auto ttf_buffer = TRY(ByteBuffer::create_uninitialized(0));
     auto output = WOFF2ByteBufferOut { ttf_buffer };
@@ -63,7 +63,7 @@ ErrorOr<NonnullRefPtr<OpenType::Typeface>> try_load_from_externally_owned_memory
     }
 
     auto font_data = Gfx::FontData::create_from_byte_buffer(move(ttf_buffer));
-    auto input_font = TRY(OpenType::Typeface::try_load_from_font_data(move(font_data)));
+    auto input_font = TRY(Gfx::Typeface::try_load_from_font_data(move(font_data)));
     return input_font;
 }
 

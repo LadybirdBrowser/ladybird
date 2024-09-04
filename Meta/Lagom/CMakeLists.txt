@@ -523,7 +523,6 @@ if (BUILD_TESTING)
         list(APPEND TEST_DIRECTORIES
             LibGfx
             LibMedia
-            LibTTF
             LibWeb
             LibWebView
         )
