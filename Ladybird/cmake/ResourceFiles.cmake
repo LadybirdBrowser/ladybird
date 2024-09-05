@@ -1,6 +1,3 @@
-file(STRINGS "${LADYBIRD_SOURCE_DIR}/Meta/emoji-file-list.txt" EMOJI)
-list(TRANSFORM EMOJI PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/emoji/")
-
 set(FONTS
     SerenitySans-Regular.ttf
 )
@@ -130,10 +127,6 @@ endfunction()
 
 function(copy_resources_to_build base_directory bundle_target)
     add_custom_target("${bundle_target}_build_resource_files")
-
-    copy_resource_set(emoji RESOURCES ${EMOJI}
-        DESTINATION ${base_directory} TARGET ${bundle_target}
-    )
 
     copy_resource_set(fonts RESOURCES ${FONTS}
         DESTINATION ${base_directory} TARGET ${bundle_target}
