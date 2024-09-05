@@ -52,7 +52,6 @@
 #include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
-#include <LibWebView/Database.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -74,10 +73,7 @@ public:
         auto image_decoder_paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
         image_decoder_client = TRY(launch_image_decoder_process(image_decoder_paths));
 
-        auto database = TRY(WebView::Database::create());
-        auto cookie_jar = TRY(WebView::CookieJar::create(*database));
-
-        auto view = TRY(adopt_nonnull_own_or_enomem(new (nothrow) HeadlessWebContentView(move(database), move(cookie_jar), image_decoder_client, request_client)));
+        auto view = TRY(adopt_nonnull_own_or_enomem(new (nothrow) HeadlessWebContentView(image_decoder_client, request_client)));
 
         auto request_server_socket = TRY(connect_new_request_server_client(*request_client));
         auto image_decoder_socket = TRY(connect_new_image_decoder_client(*image_decoder_client));
@@ -145,18 +141,16 @@ public:
     }
 
 private:
-    HeadlessWebContentView(NonnullRefPtr<WebView::Database> database, NonnullOwnPtr<WebView::CookieJar> cookie_jar, RefPtr<ImageDecoderClient::Client> image_decoder_client, RefPtr<Requests::RequestClient> request_client)
-        : m_database(move(database))
-        , m_cookie_jar(move(cookie_jar))
-        , m_request_client(move(request_client))
+    HeadlessWebContentView(RefPtr<ImageDecoderClient::Client> image_decoder_client, RefPtr<Requests::RequestClient> request_client)
+        : m_request_client(move(request_client))
         , m_image_decoder_client(move(image_decoder_client))
     {
-        on_get_cookie = [this](auto const& url, auto source) {
-            return m_cookie_jar->get_cookie(url, source);
+        on_get_cookie = [](auto const& url, auto source) {
+            return WebView::Application::cookie_jar().get_cookie(url, source);
         };
 
-        on_set_cookie = [this](auto const& url, auto const& cookie, auto source) {
-            m_cookie_jar->set_cookie(url, cookie, source);
+        on_set_cookie = [](auto const& url, auto const& cookie, auto source) {
+            WebView::Application::cookie_jar().set_cookie(url, cookie, source);
         };
 
         on_request_worker_agent = [this]() {
@@ -172,12 +166,9 @@ private:
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override { return content_position; }
 
-private:
     Gfx::IntSize m_viewport_size;
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap>>> m_pending_screenshot;
 
-    NonnullRefPtr<WebView::Database> m_database;
-    NonnullOwnPtr<WebView::CookieJar> m_cookie_jar;
     RefPtr<Requests::RequestClient> m_request_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
 };

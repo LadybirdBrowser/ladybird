@@ -10,6 +10,8 @@
 #include <LibGfx/ShareableBitmap.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebView/Application.h>
+#include <LibWebView/CookieJar.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/URL.h>
@@ -973,28 +975,23 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     };
 
     m_web_view_bridge->on_get_all_cookies = [](auto const& url) {
-        auto* delegate = (ApplicationDelegate*)[NSApp delegate];
-        return [delegate cookieJar].get_all_cookies(url);
+        return WebView::Application::cookie_jar().get_all_cookies(url);
     };
 
     m_web_view_bridge->on_get_named_cookie = [](auto const& url, auto const& name) {
-        auto* delegate = (ApplicationDelegate*)[NSApp delegate];
-        return [delegate cookieJar].get_named_cookie(url, name);
+        return WebView::Application::cookie_jar().get_named_cookie(url, name);
     };
 
     m_web_view_bridge->on_get_cookie = [](auto const& url, auto source) {
-        auto* delegate = (ApplicationDelegate*)[NSApp delegate];
-        return [delegate cookieJar].get_cookie(url, source);
+        return WebView::Application::cookie_jar().get_cookie(url, source);
     };
 
     m_web_view_bridge->on_set_cookie = [](auto const& url, auto const& cookie, auto source) {
-        auto* delegate = (ApplicationDelegate*)[NSApp delegate];
-        [delegate cookieJar].set_cookie(url, cookie, source);
+        WebView::Application::cookie_jar().set_cookie(url, cookie, source);
     };
 
     m_web_view_bridge->on_update_cookie = [](auto const& cookie) {
-        auto* delegate = (ApplicationDelegate*)[NSApp delegate];
-        [delegate cookieJar].update_cookie(cookie);
+        WebView::Application::cookie_jar().update_cookie(cookie);
     };
 
     m_web_view_bridge->on_restore_window = [weak_self]() {

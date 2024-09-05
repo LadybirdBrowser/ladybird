@@ -19,8 +19,6 @@
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/ChromeProcess.h>
-#include <LibWebView/CookieJar.h>
-#include <LibWebView/Database.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/URL.h>
 
@@ -115,12 +113,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     copy_default_config_files(Ladybird::Settings::the()->directory());
 
-    RefPtr<WebView::Database> database;
-    if (app->chrome_options().disable_sql_database == WebView::DisableSQLDatabase::No)
-        database = TRY(WebView::Database::create());
-
-    auto cookie_jar = database ? TRY(WebView::CookieJar::create(*database)) : WebView::CookieJar::create();
-
     // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
     if (app->web_content_options().use_lagom_networking == WebView::UseLagomNetworking::Yes) {
         auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
@@ -131,10 +123,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     TRY(app->initialize_image_decoder());
 
     chrome_process.on_new_window = [&](auto const& urls) {
-        app->new_window(urls, *cookie_jar);
+        app->new_window(urls);
     };
 
-    auto& window = app->new_window(app->chrome_options().urls, *cookie_jar);
+    auto& window = app->new_window(app->chrome_options().urls);
     window.setWindowTitle("Ladybird");
 
     if (Ladybird::Settings::the()->is_maximized()) {

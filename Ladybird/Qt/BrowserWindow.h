@@ -35,7 +35,7 @@ public:
         Yes,
     };
 
-    BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::CookieJar&, IsPopupWindow is_popup_window = IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
     WebContentView& view() const { return m_current_tab->view(); }
 
@@ -213,8 +213,6 @@ private:
     ByteString m_navigator_compatibility_mode {};
 
     SettingsDialog* m_settings_dialog { nullptr };
-
-    WebView::CookieJar& m_cookie_jar;
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 };
