@@ -124,6 +124,9 @@ public:
 
     JS::NonnullGCPtr<StorageAPI::StorageManager> storage_manager();
 
+    [[nodiscard]] bool discarded() const { return m_discarded; }
+    void set_discarded(bool b) { m_discarded = b; }
+
 protected:
     explicit EnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext>);
 
@@ -149,6 +152,10 @@ private:
     // https://storage.spec.whatwg.org/#api
     // Each environment settings object has an associated StorageManager object.
     JS::GCPtr<StorageAPI::StorageManager> m_storage_manager;
+
+    // https://w3c.github.io/ServiceWorker/#service-worker-client-discarded-flag
+    // A service worker client has an associated discarded flag. It is initially unset.
+    bool m_discarded { false };
 };
 
 EnvironmentSettingsObject& incumbent_settings_object();
