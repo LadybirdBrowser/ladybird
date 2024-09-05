@@ -72,10 +72,9 @@ public:
     }
 };
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::CookieJar& cookie_jar, IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
     : m_tabs_container(new TabWidget(this))
     , m_new_tab_button_toolbar(new QToolBar("New Tab", m_tabs_container))
-    , m_cookie_jar(cookie_jar)
     , m_is_popup_window(is_popup_window)
 {
     setWindowIcon(app_icon());
@@ -421,8 +420,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
     auto* dump_cookies_action = new QAction("Dump C&ookies", this);
     dump_cookies_action->setIcon(load_icon_from_uri("resource://icons/browser/cookie.png"sv));
     debug_menu->addAction(dump_cookies_action);
-    QObject::connect(dump_cookies_action, &QAction::triggered, this, [this] {
-        m_cookie_jar.dump_cookies();
+    QObject::connect(dump_cookies_action, &QAction::triggered, this, [] {
+        WebView::Application::cookie_jar().dump_cookies();
     });
 
     auto* dump_local_storage_action = new QAction("Dump Loc&al Storage", this);
@@ -605,8 +604,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, WebView::Cook
         tab.set_url_is_hidden(true);
         tab.focus_location_editor();
     });
-    QObject::connect(m_new_window_action, &QAction::triggered, this, [this] {
-        (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, m_cookie_jar);
+    QObject::connect(m_new_window_action, &QAction::triggered, this, [] {
+        (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window({});
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
     QObject::connect(settings_action, &QAction::triggered, this, [this] {
@@ -778,7 +777,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
         if (hints.popup) {
-            auto& window = static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, m_cookie_jar, IsPopupWindow::Yes, tab, AK::move(page_index));
+            auto& window = static_cast<Ladybird::Application*>(QApplication::instance())->new_window({}, IsPopupWindow::Yes, tab, AK::move(page_index));
             window.set_window_rect(hints.screen_x, hints.screen_y, hints.width, hints.height);
             return window.current_tab()->view().handle();
         }
@@ -807,24 +806,24 @@ void BrowserWindow::initialize_tab(Tab* tab)
         (void)modifiers;
     };
 
-    tab->view().on_get_all_cookies = [this](auto const& url) {
-        return m_cookie_jar.get_all_cookies(url);
+    tab->view().on_get_all_cookies = [](auto const& url) {
+        return WebView::Application::cookie_jar().get_all_cookies(url);
     };
 
-    tab->view().on_get_named_cookie = [this](auto const& url, auto const& name) {
-        return m_cookie_jar.get_named_cookie(url, name);
+    tab->view().on_get_named_cookie = [](auto const& url, auto const& name) {
+        return WebView::Application::cookie_jar().get_named_cookie(url, name);
     };
 
-    tab->view().on_get_cookie = [this](auto& url, auto source) {
-        return m_cookie_jar.get_cookie(url, source);
+    tab->view().on_get_cookie = [](auto& url, auto source) {
+        return WebView::Application::cookie_jar().get_cookie(url, source);
     };
 
-    tab->view().on_set_cookie = [this](auto& url, auto& cookie, auto source) {
-        m_cookie_jar.set_cookie(url, cookie, source);
+    tab->view().on_set_cookie = [](auto& url, auto& cookie, auto source) {
+        WebView::Application::cookie_jar().set_cookie(url, cookie, source);
     };
 
-    tab->view().on_update_cookie = [this](auto const& cookie) {
-        m_cookie_jar.update_cookie(cookie);
+    tab->view().on_update_cookie = [](auto const& cookie) {
+        WebView::Application::cookie_jar().update_cookie(cookie);
     };
 
     m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());

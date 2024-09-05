@@ -12,6 +12,8 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CookieJar.h>
+#include <LibWebView/Database.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/WebContentClient.h>
@@ -138,6 +140,13 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     };
 
     create_platform_options(m_chrome_options, m_web_content_options);
+
+    if (m_chrome_options.disable_sql_database == DisableSQLDatabase::No) {
+        m_database = Database::create().release_value_but_fixme_should_propagate_errors();
+        m_cookie_jar = CookieJar::create(*m_database).release_value_but_fixme_should_propagate_errors();
+    } else {
+        m_cookie_jar = CookieJar::create();
+    }
 }
 
 int Application::execute()

@@ -5,6 +5,7 @@
  */
 
 #include <LibWebView/Application.h>
+#include <LibWebView/CookieJar.h>
 #include <LibWebView/SearchEngine.h>
 
 #import <Application/ApplicationDelegate.h>
@@ -30,9 +31,6 @@
 
 @interface ApplicationDelegate () <TaskManagerDelegate>
 {
-    // This will always be populated, but we cannot have a non-default constructible instance variable.
-    OwnPtr<WebView::CookieJar> m_cookie_jar;
-
     Web::CSS::PreferredColorScheme m_preferred_color_scheme;
     Web::CSS::PreferredContrast m_preferred_contrast;
     Web::CSS::PreferredMotion m_preferred_motion;
@@ -61,7 +59,7 @@
 
 @implementation ApplicationDelegate
 
-- (instancetype)initWithCookieJar:(NonnullOwnPtr<WebView::CookieJar>)cookie_jar
+- (instancetype)init
 {
     if (self = [super init]) {
         [NSApp setMainMenu:[[NSMenu alloc] init]];
@@ -78,8 +76,6 @@
         [[NSApp mainMenu] addItem:[self createHelpMenu]];
 
         self.managed_tabs = [[NSMutableArray alloc] init];
-
-        m_cookie_jar = move(cookie_jar);
 
         m_preferred_color_scheme = Web::CSS::PreferredColorScheme::Auto;
         m_preferred_contrast = Web::CSS::PreferredContrast::Auto;
@@ -136,11 +132,6 @@
             [self.task_manager_controller.window close];
         }
     }
-}
-
-- (WebView::CookieJar&)cookieJar
-{
-    return *m_cookie_jar;
 }
 
 - (Web::CSS::PreferredColorScheme)preferredColorScheme
@@ -333,7 +324,7 @@
 
 - (void)dumpCookies:(id)sender
 {
-    m_cookie_jar->dump_cookies();
+    WebView::Application::cookie_jar().dump_cookies();
 }
 
 - (NSMenuItem*)createApplicationMenu

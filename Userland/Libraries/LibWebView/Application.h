@@ -34,6 +34,8 @@ public:
     static ChromeOptions const& chrome_options() { return the().m_chrome_options; }
     static WebContentOptions const& web_content_options() { return the().m_web_content_options; }
 
+    static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
+
     Core::EventLoop& event_loop() { return m_event_loop; }
 
     void add_child_process(Process&&);
@@ -76,6 +78,9 @@ private:
 
     ChromeOptions m_chrome_options;
     WebContentOptions m_web_content_options;
+
+    RefPtr<Database> m_database;
+    OwnPtr<CookieJar> m_cookie_jar;
 
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
