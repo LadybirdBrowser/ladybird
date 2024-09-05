@@ -26,12 +26,15 @@ else()
     add_library(requestserver STATIC ${REQUESTSERVER_SOURCES})
 endif()
 
+find_package(PkgConfig)
+find_package(CURL REQUIRED)
+
 add_executable(RequestServer main.cpp)
 target_link_libraries(RequestServer PRIVATE requestserver)
 
 target_include_directories(requestserver PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
 target_include_directories(requestserver PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
-target_link_libraries(requestserver PUBLIC LibCore LibMain LibCrypto LibFileSystem LibHTTP LibIPC LibMain LibTLS LibWebView LibWebSocket LibURL LibThreading)
+target_link_libraries(requestserver PUBLIC LibCore LibMain LibCrypto LibFileSystem LibHTTP LibIPC LibMain LibTLS LibWebView LibWebSocket LibURL LibThreading CURL::libcurl)
 if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
     # Solaris has socket and networking related functions in two extra libraries
     target_link_libraries(requestserver PUBLIC nsl socket)
