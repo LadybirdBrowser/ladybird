@@ -17,13 +17,22 @@ JS_DEFINE_ALLOCATOR(ServiceWorkerContainer);
 
 ServiceWorkerContainer::ServiceWorkerContainer(JS::Realm& realm)
     : DOM::EventTarget(realm)
+    , m_service_worker_client(relevant_settings_object(*this))
 {
 }
+
+ServiceWorkerContainer::~ServiceWorkerContainer() = default;
 
 void ServiceWorkerContainer::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ServiceWorkerContainer);
+}
+
+void ServiceWorkerContainer::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_service_worker_client);
 }
 
 JS::NonnullGCPtr<ServiceWorkerContainer> ServiceWorkerContainer::create(JS::Realm& realm)
