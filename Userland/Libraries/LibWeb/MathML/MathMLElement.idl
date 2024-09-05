@@ -1,3 +1,4 @@
+#import <CSS/ElementCSSInlineStyle.idl>
 #import <DOM/Element.idl>
 #import <DOM/EventHandler.idl>
 #import <HTML/HTMLElement.idl>
@@ -7,3 +8,6 @@
 interface MathMLElement : Element { };
 MathMLElement includes GlobalEventHandlers;
 MathMLElement includes HTMLOrSVGElement; // FIXME: We technically use HTMLOrForeignElement which is a rename of HTMLOrSVGElement, when that change is upstreamed we should update here
+
+// https://drafts.csswg.org/cssom/#dom-elementcssinlinestyle-style
+MathMLElement includes ElementCSSInlineStyle;
