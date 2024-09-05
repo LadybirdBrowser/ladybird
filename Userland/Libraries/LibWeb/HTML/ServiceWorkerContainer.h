@@ -22,7 +22,7 @@ class ServiceWorkerContainer : public DOM::EventTarget {
 
 public:
     [[nodiscard]] static JS::NonnullGCPtr<ServiceWorkerContainer> create(JS::Realm& realm);
-    virtual ~ServiceWorkerContainer() override = default;
+    virtual ~ServiceWorkerContainer() override;
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \
@@ -35,6 +35,9 @@ private:
     explicit ServiceWorkerContainer(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    JS::NonnullGCPtr<EnvironmentSettingsObject> m_service_worker_client;
 };
 
 }
