@@ -128,8 +128,8 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     document().set_needs_layout();
 
-    if (m_segmenter)
-        m_segmenter->set_segmented_text(m_data);
+    if (m_grapheme_segmenter)
+        m_grapheme_segmenter->set_segmented_text(m_data);
 
     return {};
 }
@@ -155,14 +155,14 @@ WebIDL::ExceptionOr<void> CharacterData::delete_data(size_t offset, size_t count
     return replace_data(offset, count, String {});
 }
 
-Unicode::Segmenter& CharacterData::segmenter()
+Unicode::Segmenter& CharacterData::grapheme_segmenter()
 {
-    if (!m_segmenter) {
-        m_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
-        m_segmenter->set_segmented_text(m_data);
+    if (!m_grapheme_segmenter) {
+        m_grapheme_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
+        m_grapheme_segmenter->set_segmented_text(m_data);
     }
 
-    return *m_segmenter;
+    return *m_grapheme_segmenter;
 }
 
 }
