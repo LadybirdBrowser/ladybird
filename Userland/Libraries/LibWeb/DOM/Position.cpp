@@ -41,7 +41,7 @@ bool Position::increment_offset()
 
     auto& node = verify_cast<DOM::Text>(*m_node);
 
-    if (auto offset = node.segmenter().next_boundary(m_offset); offset.has_value()) {
+    if (auto offset = node.grapheme_segmenter().next_boundary(m_offset); offset.has_value()) {
         m_offset = *offset;
         return true;
     }
@@ -57,7 +57,7 @@ bool Position::decrement_offset()
 
     auto& node = verify_cast<DOM::Text>(*m_node);
 
-    if (auto offset = node.segmenter().previous_boundary(m_offset); offset.has_value()) {
+    if (auto offset = node.grapheme_segmenter().previous_boundary(m_offset); offset.has_value()) {
         m_offset = *offset;
         return true;
     }

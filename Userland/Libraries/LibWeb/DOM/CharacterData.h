@@ -40,7 +40,7 @@ public:
     WebIDL::ExceptionOr<void> delete_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units);
     WebIDL::ExceptionOr<void> replace_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units, String const&);
 
-    Unicode::Segmenter& segmenter();
+    Unicode::Segmenter& grapheme_segmenter();
 
 protected:
     CharacterData(Document&, NodeType, String const&);
@@ -50,7 +50,7 @@ protected:
 private:
     String m_data;
 
-    OwnPtr<Unicode::Segmenter> m_segmenter;
+    OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
 };
 
 }
