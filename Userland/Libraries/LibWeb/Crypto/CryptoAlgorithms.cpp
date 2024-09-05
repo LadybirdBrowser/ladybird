@@ -1045,7 +1045,7 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
     // NOTE: Spec jumps to 6 here for some reason
     // 6. If performing the key generation operation results in an error, then throw an OperationError.
     auto maybe_private_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_view("noop error"sv); },
+        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_literal("noop error"); },
         [](auto instance) { return instance.generate_private_key(); });
 
     if (maybe_private_key_data.is_error())
@@ -1054,7 +1054,7 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
     auto private_key_data = maybe_private_key_data.release_value();
 
     auto maybe_public_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_view("noop error"sv); },
+        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_literal("noop error"); },
         [&](auto instance) { return instance.generate_public_key(private_key_data); });
 
     if (maybe_public_key_data.is_error())
@@ -1233,7 +1233,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, JS::
         auto encoded_signature = encoder.finish();
 
         auto maybe_result = curve.visit(
-            [](Empty const&) -> ErrorOr<bool> { return Error::from_string_view("Failed to create valid crypto instance"sv); },
+            [](Empty const&) -> ErrorOr<bool> { return Error::from_string_literal("Failed to create valid crypto instance"); },
             [&](auto instance) { return instance.verify(M, Q, encoded_signature); });
 
         if (maybe_result.is_error()) {
@@ -1411,7 +1411,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> PBKDF2::derive_bits(Algor
     // the contents of the salt attribute of normalizedAlgorithm as the salt, S,
     // the value of the iterations attribute of normalizedAlgorithm as the iteration count, c,
     // and length divided by 8 as the intended key length, dkLen.
-    ErrorOr<ByteBuffer> result = Error::from_string_view("noop error"sv);
+    ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
 
     auto password = key->handle().visit(
         [](ByteBuffer data) -> ByteBuffer {

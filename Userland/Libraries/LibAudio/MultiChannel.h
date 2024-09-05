@@ -26,7 +26,7 @@ template<ArrayLike<i64> ChannelType, ArrayLike<ChannelType> InputType>
 ErrorOr<FixedArray<Sample>> downmix_surround_to_stereo(InputType const& input, float sample_scale_factor)
 {
     if (input.size() == 0)
-        return Error::from_string_view("Cannot resample from 0 channels"sv);
+        return Error::from_string_literal("Cannot resample from 0 channels");
 
     auto channel_count = input.size();
     auto sample_count = input[0].size();
@@ -94,7 +94,7 @@ ErrorOr<FixedArray<Sample>> downmix_surround_to_stereo(InputType const& input, f
         }
         break;
     default:
-        return Error::from_string_view("Invalid number of channels greater than 8"sv);
+        return Error::from_string_literal("Invalid number of channels greater than 8");
     }
 
     return output;

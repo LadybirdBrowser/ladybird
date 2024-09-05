@@ -27,7 +27,7 @@ public:
 
         // 1. If dkLen > (2^32 - 1) * hLen, output "derived key too long" and stop.
         if (key_length_bytes > (AK::pow(2.0, 32.0) - 1) * h_len)
-            return Error::from_string_view("derived key too long"sv);
+            return Error::from_string_literal("derived key too long");
 
         // 2 . Let l be the number of hLen-octet blocks in the derived key rounding up,
         //     and let r be the number of octets in the last block

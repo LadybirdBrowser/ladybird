@@ -77,10 +77,10 @@ public:
     ErrorOr<void> rewrite_tag(Kind kind)
     {
         if (m_stack.is_empty())
-            return Error::from_string_view("Nothing on stack to rewrite"sv);
+            return Error::from_string_literal("Nothing on stack to rewrite");
 
         if (eof())
-            return Error::from_string_view("Stream is empty"sv);
+            return Error::from_string_literal("Stream is empty");
 
         if (m_current_tag.has_value()) {
             m_current_tag->kind = kind;

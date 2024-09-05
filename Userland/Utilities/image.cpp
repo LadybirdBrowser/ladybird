@@ -46,7 +46,7 @@ static ErrorOr<LoadedImage> load_image(RefPtr<Gfx::ImageDecoder> const& decoder,
 static ErrorOr<void> invert_cmyk(LoadedImage& image)
 {
     if (!image.bitmap.has<RefPtr<Gfx::CMYKBitmap>>())
-        return Error::from_string_view("Can't --invert-cmyk with RGB bitmaps"sv);
+        return Error::from_string_literal("Can't --invert-cmyk with RGB bitmaps");
     auto& frame = image.bitmap.get<RefPtr<Gfx::CMYKBitmap>>();
 
     for (auto& pixel : *frame) {
@@ -61,7 +61,7 @@ static ErrorOr<void> invert_cmyk(LoadedImage& image)
 static ErrorOr<void> crop_image(LoadedImage& image, Gfx::IntRect const& rect)
 {
     if (!image.bitmap.has<RefPtr<Gfx::Bitmap>>())
-        return Error::from_string_view("Can't --crop CMYK bitmaps yet"sv);
+        return Error::from_string_literal("Can't --crop CMYK bitmaps yet");
     auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
     frame = TRY(frame->cropped(rect));
     return {};
@@ -70,17 +70,17 @@ static ErrorOr<void> crop_image(LoadedImage& image, Gfx::IntRect const& rect)
 static ErrorOr<void> move_alpha_to_rgb(LoadedImage& image)
 {
     if (!image.bitmap.has<RefPtr<Gfx::Bitmap>>())
-        return Error::from_string_view("Can't --move-alpha-to-rgb with CMYK bitmaps"sv);
+        return Error::from_string_literal("Can't --move-alpha-to-rgb with CMYK bitmaps");
     auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
 
     switch (frame->format()) {
     case Gfx::BitmapFormat::Invalid:
-        return Error::from_string_view("Can't --move-alpha-to-rgb with invalid bitmaps"sv);
+        return Error::from_string_literal("Can't --move-alpha-to-rgb with invalid bitmaps");
     case Gfx::BitmapFormat::RGBA8888:
         // No image decoder currently produces bitmaps with this format.
         // If that ever changes, preferrably fix the image decoder to use BGRA8888 instead :)
         // If there's a good reason for not doing that, implement support for this, I suppose.
-        return Error::from_string_view("--move-alpha-to-rgb not implemented for RGBA8888"sv);
+        return Error::from_string_literal("--move-alpha-to-rgb not implemented for RGBA8888");
     case Gfx::BitmapFormat::BGRA8888:
     case Gfx::BitmapFormat::BGRx8888:
         // FIXME: If BitmapFormat::Gray8 existed (and image encoders made use of it to write grayscale images), we could use it here.
@@ -95,17 +95,17 @@ static ErrorOr<void> move_alpha_to_rgb(LoadedImage& image)
 static ErrorOr<void> strip_alpha(LoadedImage& image)
 {
     if (!image.bitmap.has<RefPtr<Gfx::Bitmap>>())
-        return Error::from_string_view("Can't --strip-alpha with CMYK bitmaps"sv);
+        return Error::from_string_literal("Can't --strip-alpha with CMYK bitmaps");
     auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
 
     switch (frame->format()) {
     case Gfx::BitmapFormat::Invalid:
-        return Error::from_string_view("Can't --strip-alpha with invalid bitmaps"sv);
+        return Error::from_string_literal("Can't --strip-alpha with invalid bitmaps");
     case Gfx::BitmapFormat::RGBA8888:
         // No image decoder currently produces bitmaps with this format.
         // If that ever changes, preferrably fix the image decoder to use BGRA8888 instead :)
         // If there's a good reason for not doing that, implement support for this, I suppose.
-        return Error::from_string_view("--strip-alpha not implemented for RGBA8888"sv);
+        return Error::from_string_literal("--strip-alpha not implemented for RGBA8888");
     case Gfx::BitmapFormat::BGRA8888:
     case Gfx::BitmapFormat::BGRx8888:
         frame->strip_alpha_channel();
@@ -116,7 +116,7 @@ static ErrorOr<void> strip_alpha(LoadedImage& image)
 static ErrorOr<OwnPtr<Core::MappedFile>> convert_image_profile(LoadedImage& image, StringView convert_color_profile_path, OwnPtr<Core::MappedFile> maybe_source_icc_file)
 {
     if (!image.icc_data.has_value())
-        return Error::from_string_view("No source color space embedded in image. Pass one with --assign-color-profile."sv);
+        return Error::from_string_literal("No source color space embedded in image. Pass one with --assign-color-profile.");
 
     auto source_icc_file = move(maybe_source_icc_file);
     auto source_icc_data = image.icc_data.value();
@@ -127,11 +127,11 @@ static ErrorOr<OwnPtr<Core::MappedFile>> convert_image_profile(LoadedImage& imag
     auto destination_profile = TRY(Gfx::ICC::Profile::try_load_from_externally_owned_memory(icc_file->bytes()));
 
     if (destination_profile->data_color_space() != Gfx::ICC::ColorSpace::RGB)
-        return Error::from_string_view("Can only convert to RGB at the moment, but destination color space is not RGB"sv);
+        return Error::from_string_literal("Can only convert to RGB at the moment, but destination color space is not RGB");
 
     if (image.bitmap.has<RefPtr<Gfx::CMYKBitmap>>()) {
         if (source_profile->data_color_space() != Gfx::ICC::ColorSpace::CMYK)
-            return Error::from_string_view("Source image data is CMYK but source color space is not CMYK"sv);
+            return Error::from_string_literal("Source image data is CMYK but source color space is not CMYK");
 
         auto& cmyk_frame = image.bitmap.get<RefPtr<Gfx::CMYKBitmap>>();
         auto rgb_frame = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, cmyk_frame->size()));
@@ -180,7 +180,7 @@ static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, u8 jpeg
     } else if (out_path.ends_with(".png"sv, CaseSensitivity::CaseInsensitive)) {
         bytes = TRY(Gfx::PNGWriter::encode(*frame, { .icc_data = image.icc_data }));
     } else {
-        return Error::from_string_view("can only write .bmp, .gif, .jpg, .png, and .webp"sv);
+        return Error::from_string_literal("can only write .bmp, .gif, .jpg, .png, and .webp");
     }
     TRY(TRY(stream())->write_until_depleted(bytes));
 
@@ -211,7 +211,7 @@ static ErrorOr<Vector<T>> parse_comma_separated_numbers(StringView rect_string)
     for (size_t i = 0; i < parts.size(); ++i) {
         auto part = parts[i].to_number<T>();
         if (!part.has_value())
-            return Error::from_string_view("comma-separated parts must be numbers"sv);
+            return Error::from_string_literal("comma-separated parts must be numbers");
         TRY(part_numbers.try_append(part.value()));
     }
     return part_numbers;
@@ -221,7 +221,7 @@ static ErrorOr<Gfx::IntRect> parse_rect_string(StringView rect_string)
 {
     auto numbers = TRY(parse_comma_separated_numbers<i32>(rect_string));
     if (numbers.size() != 4)
-        return Error::from_string_view("rect must have 4 comma-separated parts"sv);
+        return Error::from_string_literal("rect must have 4 comma-separated parts");
     return Gfx::IntRect { numbers[0], numbers[1], numbers[2], numbers[3] };
 }
 
@@ -238,7 +238,7 @@ static ErrorOr<unsigned> parse_webp_allowed_transforms_string(StringView string)
         else if (part == "color-indexing" || part == "ci")
             allowed_transforms |= 1 << Gfx::COLOR_INDEXING_TRANSFORM;
         else
-            return Error::from_string_view("unknown WebP transform; valid values: predictor, p, color, c, subtract-green, sg, color-indexing, ci"sv);
+            return Error::from_string_literal("unknown WebP transform; valid values: predictor, p, color, c, subtract-green, sg, color-indexing, ci");
     }
     return allowed_transforms;
 }
@@ -265,7 +265,7 @@ static ErrorOr<Options> parse_options(Main::Arguments arguments)
     args_parser.parse(arguments);
 
     if (options.out_path.is_empty() ^ options.no_output)
-        return Error::from_string_view("exactly one of -o or --no-output is required"sv);
+        return Error::from_string_literal("exactly one of -o or --no-output is required");
 
     if (!crop_rect_string.is_empty())
         options.crop_rect = TRY(parse_rect_string(crop_rect_string));
@@ -282,7 +282,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto file = TRY(Core::MappedFile::map(options.in_path));
     auto decoder = TRY(Gfx::ImageDecoder::try_create_for_raw_bytes(file->bytes()));
     if (!decoder)
-        return Error::from_string_view("Could not find decoder for input file"sv);
+        return Error::from_string_literal("Could not find decoder for input file");
 
     LoadedImage image = TRY(load_image(*decoder, options.frame_index));
 

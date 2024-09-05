@@ -1825,16 +1825,16 @@ ErrorOr<ByteString> current_executable_path()
     for (int32 cookie { 0 }; get_next_image_info(B_CURRENT_TEAM, &cookie, &info) == B_OK && info.type != B_APP_IMAGE;)
         ;
     if (info.type != B_APP_IMAGE)
-        return Error::from_string_view("current_executable_path() failed"sv);
+        return Error::from_string_literal("current_executable_path() failed");
     if (sizeof(info.name) > sizeof(path))
         return Error::from_errno(ENAMETOOLONG);
     strlcpy(path, info.name, sizeof(path) - 1);
 #elif defined(AK_OS_EMSCRIPTEN)
-    return Error::from_string_view("current_executable_path() unknown on this platform"sv);
+    return Error::from_string_literal("current_executable_path() unknown on this platform");
 #else
 #    warning "Not sure how to get current_executable_path on this platform!"
     // GetModuleFileName on Windows, unsure about OpenBSD.
-    return Error::from_string_view("current_executable_path unknown"sv);
+    return Error::from_string_literal("current_executable_path unknown");
 #endif
     path[sizeof(path) - 1] = '\0';
     return ByteString { path, strlen(path) };

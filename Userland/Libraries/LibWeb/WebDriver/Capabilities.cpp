@@ -308,26 +308,26 @@ static JsonValue match_capabilities(JsonObject const& capabilities)
         if (name == "browserName"sv) {
             // If value is not a string equal to the "browserName" entry in matched capabilities, return success with data null.
             if (value.as_string() != matched_capabilities.get_byte_string(name).value())
-                return AK::Error::from_string_view("browserName"sv);
+                return AK::Error::from_string_literal("browserName");
         }
         // -> "browserVersion"
         else if (name == "browserVersion"sv) {
             // Compare value to the "browserVersion" entry in matched capabilities using an implementation-defined comparison algorithm. The comparison is to accept a value that places constraints on the version using the "<", "<=", ">", and ">=" operators.
             // If the two values do not match, return success with data null.
             if (!matches_browser_version(value.as_string(), matched_capabilities.get_byte_string(name).value()))
-                return AK::Error::from_string_view("browserVersion"sv);
+                return AK::Error::from_string_literal("browserVersion");
         }
         // -> "platformName"
         else if (name == "platformName"sv) {
             // If value is not a string equal to the "platformName" entry in matched capabilities, return success with data null.
             if (!matches_platform_name(value.as_string(), matched_capabilities.get_byte_string(name).value()))
-                return AK::Error::from_string_view("platformName"sv);
+                return AK::Error::from_string_literal("platformName");
         }
         // -> "acceptInsecureCerts"
         else if (name == "acceptInsecureCerts"sv) {
             // If value is true and the endpoint node does not support insecure TLS certificates, return success with data null.
             if (value.as_bool())
-                return AK::Error::from_string_view("acceptInsecureCerts"sv);
+                return AK::Error::from_string_literal("acceptInsecureCerts");
         }
         // -> "proxy"
         else if (name == "proxy"sv) {
@@ -342,11 +342,11 @@ static JsonValue match_capabilities(JsonObject const& capabilities)
             if (name == "webSocketUrl"sv) {
                 // 1. If value is false, return success with data null.
                 if (!value.as_bool())
-                    return AK::Error::from_string_view("webSocketUrl"sv);
+                    return AK::Error::from_string_literal("webSocketUrl");
 
                 // 2. Return success with data value.
                 // FIXME: Remove this when we support BIDI communication.
-                return AK::Error::from_string_view("webSocketUrl"sv);
+                return AK::Error::from_string_literal("webSocketUrl");
             }
         }
 

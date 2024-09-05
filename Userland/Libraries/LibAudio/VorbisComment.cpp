@@ -33,7 +33,7 @@ static ErrorOr<void> read_vorbis_field(Metadata& metadata_to_write_into, String 
     auto field_name_and_contents = TRY(unparsed_user_comment.split_limit('=', 2));
 
     if (field_name_and_contents.size() != 2)
-        return Error::from_string_view("User comment does not contain '='"sv);
+        return Error::from_string_literal("User comment does not contain '='");
     auto contents = field_name_and_contents.take_last();
     auto field_name = TRY(field_name_and_contents.take_first().to_uppercase());
 

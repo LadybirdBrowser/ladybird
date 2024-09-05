@@ -40,7 +40,7 @@ FlacWriter::~FlacWriter()
 ErrorOr<void> FlacWriter::finalize()
 {
     if (m_state == WriteState::FullyFinalized)
-        return Error::from_string_view("File is already finalized"sv);
+        return Error::from_string_literal("File is already finalized");
 
     if (m_state == WriteState::HeaderUnwritten)
         TRY(finalize_header_format());
@@ -74,7 +74,7 @@ ErrorOr<void> FlacWriter::finalize()
 ErrorOr<void> FlacWriter::finalize_header_format()
 {
     if (m_state != WriteState::HeaderUnwritten)
-        return Error::from_string_view("Header format is already finalized"sv);
+        return Error::from_string_literal("Header format is already finalized");
     TRY(write_header());
     m_state = WriteState::FormatFinalized;
     return {};
@@ -83,9 +83,9 @@ ErrorOr<void> FlacWriter::finalize_header_format()
 ErrorOr<void> FlacWriter::set_num_channels(u8 num_channels)
 {
     if (m_state != WriteState::HeaderUnwritten)
-        return Error::from_string_view("Header format is already finalized"sv);
+        return Error::from_string_literal("Header format is already finalized");
     if (num_channels > 8)
-        return Error::from_string_view("FLAC doesn't support more than 8 channels"sv);
+        return Error::from_string_literal("FLAC doesn't support more than 8 channels");
 
     m_num_channels = num_channels;
     return {};
@@ -94,7 +94,7 @@ ErrorOr<void> FlacWriter::set_num_channels(u8 num_channels)
 ErrorOr<void> FlacWriter::set_sample_rate(u32 sample_rate)
 {
     if (m_state != WriteState::HeaderUnwritten)
-        return Error::from_string_view("Header format is already finalized"sv);
+        return Error::from_string_literal("Header format is already finalized");
 
     m_sample_rate = sample_rate;
     return {};
@@ -103,9 +103,9 @@ ErrorOr<void> FlacWriter::set_sample_rate(u32 sample_rate)
 ErrorOr<void> FlacWriter::set_bits_per_sample(u16 bits_per_sample)
 {
     if (m_state != WriteState::HeaderUnwritten)
-        return Error::from_string_view("Header format is already finalized"sv);
+        return Error::from_string_literal("Header format is already finalized");
     if (bits_per_sample < 8 || bits_per_sample > 32)
-        return Error::from_string_view("FLAC only supports bits per sample between 8 and 32"sv);
+        return Error::from_string_literal("FLAC only supports bits per sample between 8 and 32");
 
     m_bits_per_sample = bits_per_sample;
     return {};
@@ -246,7 +246,7 @@ ErrorOr<void> FlacWriter::write_header()
 ErrorOr<void> FlacWriter::add_metadata_block(FlacRawMetadataBlock block, Optional<size_t> insertion_index)
 {
     if (m_state != WriteState::HeaderUnwritten)
-        return Error::from_string_view("Metadata blocks can only be added before the header is finalized"sv);
+        return Error::from_string_literal("Metadata blocks can only be added before the header is finalized");
 
     if (insertion_index.has_value())
         TRY(m_cached_metadata_blocks.try_insert(insertion_index.value(), move(block)));
@@ -260,11 +260,11 @@ ErrorOr<void> FlacWriter::write_metadata_block(FlacRawMetadataBlock& block)
 {
     if (m_state == WriteState::FormatFinalized) {
         if (!m_last_padding.has_value())
-            return Error::from_string_view("No (more) padding available to write block into"sv);
+            return Error::from_string_literal("No (more) padding available to write block into");
 
         auto const last_padding = m_last_padding.release_value();
         if (block.length > last_padding.size)
-            return Error::from_string_view("Late metadata block doesn't fit in available padding"sv);
+            return Error::from_string_literal("Late metadata block doesn't fit in available padding");
 
         auto const current_position = TRY(m_stream->tell());
         ScopeGuard guard = [&] { (void)m_stream->seek(current_position, SeekMode::SetPosition); };
@@ -294,7 +294,7 @@ ErrorOr<void> FlacWriter::write_metadata_block(FlacRawMetadataBlock& block)
             };
             TRY(m_stream->write_value(new_padding_block));
         } else if (new_size != 0) {
-            return Error::from_string_view("Remaining padding is not divisible by 4, there will be some stray zero bytes!"sv);
+            return Error::from_string_literal("Remaining padding is not divisible by 4, there will be some stray zero bytes!");
         }
 
         return {};
@@ -482,7 +482,7 @@ ErrorOr<void> FlacFrameHeader::write_to_stream(Stream& stream) const
 ErrorOr<void> FlacWriter::write_samples(ReadonlySpan<Sample> samples)
 {
     if (m_state == WriteState::FullyFinalized)
-        return Error::from_string_view("File is already finalized"sv);
+        return Error::from_string_literal("File is already finalized");
 
     auto remaining_samples = samples;
     while (remaining_samples.size() > 0) {

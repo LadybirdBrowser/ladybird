@@ -26,7 +26,7 @@ public:
         // 1. If length > 2^32(hLen), output "mask too long" and stop.
         if constexpr (sizeof(size_t) > 32) {
             if (length > (h_len << 32))
-                return Error::from_string_view("mask too long"sv);
+                return Error::from_string_literal("mask too long");
         }
 
         // 2. Let T be the empty octet string.

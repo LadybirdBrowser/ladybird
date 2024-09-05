@@ -509,7 +509,7 @@ void ViewImplementation::handle_web_content_process_crash()
 static ErrorOr<LexicalPath> save_screenshot(Gfx::ShareableBitmap const& bitmap)
 {
     if (!bitmap.is_valid())
-        return Error::from_string_view("Failed to take a screenshot"sv);
+        return Error::from_string_literal("Failed to take a screenshot");
 
     auto file = Core::DateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
     auto path = TRY(Application::the().path_for_downloaded_file(file));

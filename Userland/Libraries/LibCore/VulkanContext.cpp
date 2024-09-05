@@ -29,7 +29,7 @@ static ErrorOr<VkInstance> create_instance(uint32_t api_version)
     auto result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS) {
         dbgln("vkCreateInstance returned {}", to_underlying(result));
-        return Error::from_string_view("Application instance creation failed"sv);
+        return Error::from_string_literal("Application instance creation failed");
     }
 
     return instance;
@@ -41,7 +41,7 @@ static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
     vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
 
     if (device_count == 0)
-        return Error::from_string_view("Can't find any physical devices available"sv);
+        return Error::from_string_literal("Can't find any physical devices available");
 
     Vector<VkPhysicalDevice> devices;
     devices.resize(device_count);
@@ -100,7 +100,7 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device)
     create_device_info.pEnabledFeatures = &deviceFeatures;
 
     if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
-        return Error::from_string_view("Logical device creation failed"sv);
+        return Error::from_string_literal("Logical device creation failed");
     }
 
     return device;

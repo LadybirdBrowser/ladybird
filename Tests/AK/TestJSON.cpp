@@ -334,7 +334,7 @@ TEST_CASE(fallible_json_object_for_each)
     }));
 
     auto result1 = object.try_for_each_member([](auto const&, auto const&) -> ErrorOr<void> {
-        return Error::from_string_view("nanananana"sv);
+        return Error::from_string_literal("nanananana");
     });
     EXPECT(result1.is_error());
     EXPECT_EQ(result1.error().string_literal(), "nanananana"sv);
@@ -374,7 +374,7 @@ TEST_CASE(fallible_json_array_for_each)
     }));
 
     auto result1 = array.try_for_each([](auto const&) -> ErrorOr<void> {
-        return Error::from_string_view("nanananana"sv);
+        return Error::from_string_literal("nanananana");
     });
     EXPECT(result1.is_error());
     EXPECT_EQ(result1.error().string_literal(), "nanananana"sv);

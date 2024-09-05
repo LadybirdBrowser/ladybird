@@ -299,7 +299,7 @@ ErrorOr<bool> Process::is_being_debugged()
 #    endif
 #endif
     // FIXME: Implement this for more platforms.
-    return Error::from_string_view("Platform does not support checking for debugger"sv);
+    return Error::from_string_literal("Platform does not support checking for debugger");
 }
 
 // Forces the process to sleep until a debugger is attached, then breaks.

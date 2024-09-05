@@ -59,7 +59,7 @@ ErrorOr<NonnullRefPtr<Resource>> ResourceImplementation::load_from_uri(StringVie
     }
 
     dbgln("ResourceImplementation: Unknown scheme for {}", uri);
-    return Error::from_string_view("Invalid scheme"sv);
+    return Error::from_string_literal("Invalid scheme");
 }
 
 Vector<String> ResourceImplementation::child_names(Resource const& resource)
