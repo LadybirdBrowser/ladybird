@@ -32,23 +32,6 @@ public:
     void did_progress_request(Badge<Request>, Request&);
     void did_request_certificates(Badge<Request>, Request&);
 
-    struct StartRequest {
-        i32 request_id;
-        ByteString method;
-        URL::URL url;
-        HTTP::HeaderMap request_headers;
-        ByteBuffer request_body;
-        Core::ProxyData proxy_data;
-    };
-
-    struct EnsureConnection {
-        URL::URL url;
-        CacheLevel cache_level;
-    };
-
-    using Work = Variant<StartRequest, EnsureConnection, Empty>;
-    void worker_do_work(Work);
-
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>);
 
@@ -68,12 +51,23 @@ private:
 
     virtual void dump_connection_info() override;
 
-    Threading::MutexProtected<HashMap<i32, OwnPtr<Request>>> m_requests;
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 
-    void enqueue(Work);
+    struct ActiveRequest;
+    friend struct ActiveRequest;
 
-    Threading::Mutex m_ipc_mutex;
+    static int on_socket_callback(void*, int sockfd, int what, void* user_data, void*);
+    static int on_timeout_callback(void*, long timeout_ms, void* user_data);
+    static size_t on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data);
+    static size_t on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data);
+
+    HashMap<i32, NonnullOwnPtr<ActiveRequest>> m_active_requests;
+
+    void check_active_requests();
+    void* m_curl_multi { nullptr };
+    RefPtr<Core::Timer> m_timer;
+    HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
+    HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
 };
 
 }

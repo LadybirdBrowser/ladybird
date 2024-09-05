@@ -24,6 +24,10 @@
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
 #endif
 
+namespace RequestServer {
+extern ByteString g_default_certificate_path;
+}
+
 static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
 {
     auto cert_path = ByteString::formatted("{}/ladybird/cacert.pem", serenity_resource_root);
@@ -54,6 +58,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     // Ensure the certificates are read out here.
     if (certificates.is_empty())
         certificates.append(TRY(find_certificates(serenity_resource_root)));
+    else
+        RequestServer::g_default_certificate_path = certificates.first();
+
     DefaultRootCACertificates::set_default_certificate_paths(certificates.span());
     [[maybe_unused]] auto& certs = DefaultRootCACertificates::the();
 
