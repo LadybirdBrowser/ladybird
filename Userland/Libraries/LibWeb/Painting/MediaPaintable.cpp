@@ -275,12 +275,15 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousedown(Badge<E
     auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_box().dom_node());
     auto const& cached_layout_boxes = media_element.cached_layout_boxes({});
 
-    if (cached_layout_boxes.timeline_rect.has_value() && cached_layout_boxes.timeline_rect->contains(position)) {
+    auto position_adjusted_by_scroll_offset = position;
+    position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
+
+    if (cached_layout_boxes.timeline_rect.has_value() && cached_layout_boxes.timeline_rect->contains(position_adjusted_by_scroll_offset)) {
         media_element.set_layout_mouse_tracking_component({}, HTML::HTMLMediaElement::MouseTrackingComponent::Timeline);
-        set_current_time(media_element, *cached_layout_boxes.timeline_rect, position, Temporary::Yes);
-    } else if (cached_layout_boxes.volume_rect.has_value() && cached_layout_boxes.volume_rect->contains(position)) {
+        set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::Yes);
+    } else if (cached_layout_boxes.volume_rect.has_value() && cached_layout_boxes.volume_rect->contains(position_adjusted_by_scroll_offset)) {
         media_element.set_layout_mouse_tracking_component({}, HTML::HTMLMediaElement::MouseTrackingComponent::Volume);
-        set_volume(media_element, *cached_layout_boxes.volume_scrub_rect, position);
+        set_volume(media_element, *cached_layout_boxes.volume_scrub_rect, position_adjusted_by_scroll_offset);
     }
 
     if (media_element.layout_mouse_tracking_component({}).has_value())
@@ -294,10 +297,13 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
     auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_box().dom_node());
     auto const& cached_layout_boxes = media_element.cached_layout_boxes({});
 
+    auto position_adjusted_by_scroll_offset = position;
+    position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
+
     if (auto const& mouse_tracking_component = media_element.layout_mouse_tracking_component({}); mouse_tracking_component.has_value()) {
         switch (*mouse_tracking_component) {
         case HTML::HTMLMediaElement::MouseTrackingComponent::Timeline:
-            set_current_time(media_element, *cached_layout_boxes.timeline_rect, position, Temporary::No);
+            set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::No);
             media_element.set_layout_display_time({}, {});
             break;
 
@@ -315,18 +321,18 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
     if (button != UIEvents::MouseButton::Primary)
         return DispatchEventOfSameName::Yes;
 
-    if (cached_layout_boxes.control_box_rect.has_value() && cached_layout_boxes.control_box_rect->contains(position)) {
-        if (cached_layout_boxes.playback_button_rect.has_value() && cached_layout_boxes.playback_button_rect->contains(position)) {
+    if (cached_layout_boxes.control_box_rect.has_value() && cached_layout_boxes.control_box_rect->contains(position_adjusted_by_scroll_offset)) {
+        if (cached_layout_boxes.playback_button_rect.has_value() && cached_layout_boxes.playback_button_rect->contains(position_adjusted_by_scroll_offset)) {
             media_element.toggle_playback().release_value_but_fixme_should_propagate_errors();
             return DispatchEventOfSameName::Yes;
         }
 
-        if (cached_layout_boxes.speaker_button_rect.has_value() && cached_layout_boxes.speaker_button_rect->contains(position)) {
+        if (cached_layout_boxes.speaker_button_rect.has_value() && cached_layout_boxes.speaker_button_rect->contains(position_adjusted_by_scroll_offset)) {
             media_element.set_muted(!media_element.muted());
             return DispatchEventOfSameName::Yes;
         }
 
-        if (cached_layout_boxes.timeline_rect.has_value() && cached_layout_boxes.timeline_rect->contains(position))
+        if (cached_layout_boxes.timeline_rect.has_value() && cached_layout_boxes.timeline_rect->contains(position_adjusted_by_scroll_offset))
             return DispatchEventOfSameName::No;
     }
 
@@ -339,27 +345,31 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<E
     auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_box().dom_node());
     auto const& cached_layout_boxes = media_element.cached_layout_boxes({});
 
+    auto position_adjusted_by_scroll_offset = position;
+    auto scroll_offset = cumulative_offset_of_enclosing_scroll_frame();
+    position_adjusted_by_scroll_offset.translate_by(-scroll_offset);
+
     if (auto const& mouse_tracking_component = media_element.layout_mouse_tracking_component({}); mouse_tracking_component.has_value()) {
         switch (*mouse_tracking_component) {
         case HTML::HTMLMediaElement::MouseTrackingComponent::Timeline:
             if (cached_layout_boxes.timeline_rect.has_value())
-                set_current_time(media_element, *cached_layout_boxes.timeline_rect, position, Temporary::Yes);
+                set_current_time(media_element, *cached_layout_boxes.timeline_rect, position_adjusted_by_scroll_offset, Temporary::Yes);
             break;
 
         case HTML::HTMLMediaElement::MouseTrackingComponent::Volume:
             if (cached_layout_boxes.volume_rect.has_value()) {
-                set_volume(media_element, *cached_layout_boxes.volume_scrub_rect, position);
+                set_volume(media_element, *cached_layout_boxes.volume_scrub_rect, position_adjusted_by_scroll_offset);
 
                 auto volume = static_cast<u8>(media_element.volume() * 100.0);
-                browsing_context().page().client().page_did_request_tooltip_override({ position.x(), cached_layout_boxes.volume_scrub_rect->y() }, ByteString::formatted("{}%", volume));
+                browsing_context().page().client().page_did_request_tooltip_override({ position_adjusted_by_scroll_offset.x(), cached_layout_boxes.volume_scrub_rect->y() + scroll_offset.y() }, ByteString::formatted("{}%", volume));
             }
 
             break;
         }
     }
 
-    if (absolute_rect().contains(position)) {
-        media_element.set_layout_mouse_position({}, position);
+    if (absolute_rect().contains(position_adjusted_by_scroll_offset)) {
+        media_element.set_layout_mouse_position({}, position_adjusted_by_scroll_offset);
         return DispatchEventOfSameName::Yes;
     }
 
