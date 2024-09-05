@@ -61,6 +61,17 @@ Gfx::Font& FontPlugin::default_fixed_width_font()
     return *m_default_fixed_width_font;
 }
 
+RefPtr<Gfx::Font> FontPlugin::default_emoji_font(float point_size)
+{
+#ifdef AK_OS_MACOS
+    auto default_emoji_font_name = "Apple Color Emoji"_fly_string;
+#else
+    auto default_emoji_font_name = "Noto Color Emoji"_fly_string;
+#endif
+
+    return Gfx::FontDatabase::the().get(default_emoji_font_name, point_size, 400, Gfx::FontWidth::Normal, 0);
+}
+
 #ifdef USE_FONTCONFIG
 static Optional<String> query_fontconfig_for_generic_family(Web::Platform::GenericFont generic_font)
 {
