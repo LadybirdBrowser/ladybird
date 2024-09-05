@@ -931,9 +931,15 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
 
         if (key == UIEvents::KeyCode::Key_Left || key == UIEvents::KeyCode::Key_Right) {
             auto increment_or_decrement_cursor = [&]() {
+                if ((modifiers & UIEvents::Mod_PlatformWordJump) == 0) {
+                    if (key == UIEvents::KeyCode::Key_Left)
+                        return document->decrement_cursor_position_offset();
+                    return document->increment_cursor_position_offset();
+                }
+
                 if (key == UIEvents::KeyCode::Key_Left)
-                    return document->decrement_cursor_position_offset();
-                return document->increment_cursor_position_offset();
+                    return document->decrement_cursor_position_to_previous_word();
+                return document->increment_cursor_position_to_next_word();
             };
 
             if ((modifiers & UIEvents::Mod_Shift) == 0) {
