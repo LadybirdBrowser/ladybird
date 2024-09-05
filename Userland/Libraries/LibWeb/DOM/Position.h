@@ -36,6 +36,9 @@ public:
     bool increment_offset();
     bool decrement_offset();
 
+    bool increment_offset_to_next_word();
+    bool decrement_offset_to_previous_word();
+
     bool equals(JS::NonnullGCPtr<Position> other) const
     {
         return m_node.ptr() == other->m_node.ptr() && m_offset == other->m_offset;

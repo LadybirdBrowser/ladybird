@@ -5423,6 +5423,24 @@ bool Document::decrement_cursor_position_offset()
     return true;
 }
 
+bool Document::increment_cursor_position_to_next_word()
+{
+    if (!m_cursor_position->increment_offset_to_next_word())
+        return false;
+
+    reset_cursor_blink_cycle();
+    return true;
+}
+
+bool Document::decrement_cursor_position_to_previous_word()
+{
+    if (!m_cursor_position->decrement_offset_to_previous_word())
+        return false;
+
+    reset_cursor_blink_cycle();
+    return true;
+}
+
 void Document::user_did_edit_document_text(Badge<EditEventHandler>)
 {
     reset_cursor_blink_cycle();

@@ -130,6 +130,8 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     if (m_grapheme_segmenter)
         m_grapheme_segmenter->set_segmented_text(m_data);
+    if (m_word_segmenter)
+        m_word_segmenter->set_segmented_text(m_data);
 
     return {};
 }
@@ -163,6 +165,16 @@ Unicode::Segmenter& CharacterData::grapheme_segmenter()
     }
 
     return *m_grapheme_segmenter;
+}
+
+Unicode::Segmenter& CharacterData::word_segmenter()
+{
+    if (!m_word_segmenter) {
+        m_word_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
+        m_word_segmenter->set_segmented_text(m_data);
+    }
+
+    return *m_word_segmenter;
 }
 
 }
