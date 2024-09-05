@@ -693,6 +693,8 @@ public:
     void set_cursor_position(JS::NonnullGCPtr<DOM::Position>);
     bool increment_cursor_position_offset();
     bool decrement_cursor_position_offset();
+    bool increment_cursor_position_to_next_word();
+    bool decrement_cursor_position_to_previous_word();
 
     bool cursor_blink_state() const { return m_cursor_blink_state; }
 
