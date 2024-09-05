@@ -33,11 +33,6 @@ FontPlugin::FontPlugin(bool is_layout_test_mode)
     for (auto const& path : Core::StandardPaths::font_directories().release_value_but_fixme_should_propagate_errors())
         Gfx::FontDatabase::the().load_all_fonts_from_uri(MUST(String::formatted("file://{}", path)));
 
-    auto emoji_path = MUST(Core::Resource::load_from_uri("resource://emoji"sv));
-    VERIFY(emoji_path->is_directory());
-
-    Gfx::Emoji::set_emoji_lookup_path(emoji_path->filesystem_path());
-
     update_generic_fonts();
 
     auto default_font_name = generic_font_name(Web::Platform::GenericFont::UiSansSerif);
