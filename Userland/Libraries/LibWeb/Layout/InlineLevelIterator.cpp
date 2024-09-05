@@ -239,11 +239,11 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             };
         }
 
-        Vector<Gfx::DrawGlyphOrEmoji> glyph_run;
+        Vector<Gfx::DrawGlyph> glyph_run;
         float glyph_run_width = 0;
         Gfx::for_each_glyph_position(
-            { 0, 0 }, chunk.view, chunk.font, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
-                glyph_run.append(glyph_or_emoji);
+            { 0, 0 }, chunk.view, chunk.font, [&](Gfx::DrawGlyph const& glyph) {
+                glyph_run.append(glyph);
             },
             glyph_run_width);
 

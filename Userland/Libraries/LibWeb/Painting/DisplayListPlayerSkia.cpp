@@ -344,18 +344,13 @@ void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
     Vector<SkPoint> positions;
     positions.ensure_capacity(glyph_count);
     auto font_ascent = gfx_font.pixel_metrics().ascent;
-    for (auto const& glyph_or_emoji : command.glyph_run->glyphs()) {
-        auto transformed_glyph = glyph_or_emoji;
-        transformed_glyph.visit([&](auto& glyph) {
-            glyph.position.set_y(glyph.position.y() + font_ascent);
-            glyph.position = glyph.position.scaled(command.scale);
-        });
-        if (transformed_glyph.has<Gfx::DrawGlyph>()) {
-            auto& glyph = transformed_glyph.get<Gfx::DrawGlyph>();
-            auto const& point = glyph.position;
-            glyphs.append(glyph.glyph_id);
-            positions.append(to_skia_point(point));
-        }
+    for (auto const& glyph : command.glyph_run->glyphs()) {
+        auto transformed_glyph = glyph;
+        transformed_glyph.position.set_y(glyph.position.y() + font_ascent);
+        transformed_glyph.position = transformed_glyph.position.scaled(command.scale);
+        auto const& point = transformed_glyph.position;
+        glyphs.append(transformed_glyph.glyph_id);
+        positions.append(to_skia_point(point));
     }
 
     SkPaint paint;
