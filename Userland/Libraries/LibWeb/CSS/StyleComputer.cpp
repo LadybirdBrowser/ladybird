@@ -2326,7 +2326,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     }
 
     auto found_font = StyleProperties::font_fallback(monospace, bold);
-    font_list->add(found_font->with_size(font_size_in_pt));
+    font_list->set_last_resort_font(found_font->with_size(font_size_in_pt));
 
     return font_list;
 }

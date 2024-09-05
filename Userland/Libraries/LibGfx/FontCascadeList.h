@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2023-2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -19,7 +19,7 @@ public:
     }
 
     size_t size() const { return m_fonts.size(); }
-    bool is_empty() const { return m_fonts.is_empty(); }
+    bool is_empty() const { return m_fonts.is_empty() && !m_last_resort_font; }
     Font const& first() const { return *m_fonts.first().font; }
 
     template<typename Callback>
@@ -43,7 +43,10 @@ public:
         Optional<Vector<UnicodeRange>> unicode_ranges;
     };
 
+    void set_last_resort_font(NonnullRefPtr<Font> font) { m_last_resort_font = move(font); }
+
 private:
+    RefPtr<Font const> m_last_resort_font;
     Vector<Entry> m_fonts;
 };
 

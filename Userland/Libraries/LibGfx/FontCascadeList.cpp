@@ -28,16 +28,16 @@ void FontCascadeList::extend(FontCascadeList const& other)
 Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point) const
 {
     for (auto const& entry : m_fonts) {
-        if (!entry.unicode_ranges.has_value())
+        if (entry.unicode_ranges.has_value()) {
+            for (auto const& range : *entry.unicode_ranges) {
+                if (range.contains(code_point) && entry.font->contains_glyph(code_point))
+                    return entry.font;
+            }
+        } else if (entry.font->contains_glyph(code_point)) {
             return entry.font;
-        if (!entry.font->contains_glyph(code_point))
-            continue;
-        for (auto const& range : *entry.unicode_ranges) {
-            if (range.contains(code_point))
-                return entry.font;
         }
     }
-    VERIFY_NOT_REACHED();
+    return *m_last_resort_font;
 }
 
 bool FontCascadeList::equals(FontCascadeList const& other) const
