@@ -356,20 +356,11 @@ void InlineFormattingContext::generate_line_boxes(LayoutMode layout_mode)
                     size_t last_glyph_index = 0;
                     auto last_glyph_position = Gfx::FloatPoint();
 
-                    for (auto const& glyph_or_emoji : glyphs) {
-                        auto this_position = Gfx::FloatPoint();
-                        glyph_or_emoji.visit(
-                            [&](Gfx::DrawGlyph glyph) {
-                                this_position = glyph.position;
-                            },
-                            [&](Gfx::DrawEmoji emoji) {
-                                this_position = emoji.position;
-                            });
-                        if (this_position.x() > max_text_width)
+                    for (auto const& glyph : glyphs) {
+                        if (glyph.position.x() > max_text_width)
                             break;
-
                         last_glyph_index++;
-                        last_glyph_position = this_position;
+                        last_glyph_position = glyph.position;
                     }
 
                     if (last_glyph_index > 1) {

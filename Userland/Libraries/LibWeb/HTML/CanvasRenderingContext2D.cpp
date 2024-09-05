@@ -516,8 +516,8 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     auto glyph_run = adopt_ref(*new Gfx::GlyphRun({}, *font, Gfx::GlyphRun::TextType::Ltr));
     float glyph_run_width = 0;
     Gfx::for_each_glyph_position(
-        anchor, replaced_text.code_points(), *font, [&](Gfx::DrawGlyphOrEmoji const& glyph_or_emoji) {
-            glyph_run->append(glyph_or_emoji);
+        anchor, replaced_text.code_points(), *font, [&](Gfx::DrawGlyph const& glyph) {
+            glyph_run->append(glyph);
         },
         glyph_run_width);
 

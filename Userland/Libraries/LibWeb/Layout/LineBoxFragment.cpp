@@ -103,19 +103,17 @@ void LineBoxFragment::append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const& glyph_ru
     switch (run_direction) {
     case CSS::Direction::Ltr:
         for (auto& glyph : glyph_run->glyphs()) {
-            glyph.visit([&](auto& glyph) { glyph.position.translate_by(width().to_float(), 0); });
+            glyph.position.translate_by(width().to_float(), 0);
             m_glyph_run->append(glyph);
         }
         break;
     case CSS::Direction::Rtl:
         for (auto& glyph : m_glyph_run->glyphs()) {
-            glyph.visit([&](auto& glyph) {
-                if (glyph.position.x() >= m_insert_position)
-                    glyph.position.translate_by(run_width.to_float(), 0);
-            });
+            if (glyph.position.x() >= m_insert_position)
+                glyph.position.translate_by(run_width.to_float(), 0);
         }
         for (auto& glyph : glyph_run->glyphs()) {
-            glyph.visit([&](auto& glyph) { glyph.position.translate_by(m_insert_position, 0); });
+            glyph.position.translate_by(m_insert_position, 0);
             m_glyph_run->append(glyph);
         }
         break;
@@ -137,20 +135,18 @@ void LineBoxFragment::append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const& glyph_ru
     switch (run_direction) {
     case CSS::Direction::Ltr:
         for (auto& glyph : m_glyph_run->glyphs()) {
-            glyph.visit([&](auto& glyph) {
-                if (glyph.position.x() >= m_insert_position)
-                    glyph.position.translate_by(run_width.to_float(), 0);
-            });
+            if (glyph.position.x() >= m_insert_position)
+                glyph.position.translate_by(run_width.to_float(), 0);
         }
         for (auto& glyph : glyph_run->glyphs()) {
-            glyph.visit([&](auto& glyph) { glyph.position.translate_by(m_insert_position, 0); });
+            glyph.position.translate_by(m_insert_position, 0);
             m_glyph_run->append(glyph);
         }
         break;
     case CSS::Direction::Rtl:
         if (glyph_run->text_type() != Gfx::GlyphRun::TextType::EndPadding) {
             for (auto& glyph : m_glyph_run->glyphs()) {
-                glyph.visit([&](auto& glyph) { glyph.position.translate_by(run_width.to_float(), 0); });
+                glyph.position.translate_by(run_width.to_float(), 0);
             }
         }
         for (auto& glyph : glyph_run->glyphs()) {

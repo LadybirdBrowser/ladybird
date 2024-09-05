@@ -14,15 +14,7 @@
 
 namespace Gfx {
 
-static DrawGlyphOrEmoji construct_glyph_or_emoji(size_t index, FloatPoint const& position, Gfx::Font const&, Span<hb_glyph_info_t const> glyph_info, Span<hb_glyph_info_t const>)
-{
-    return DrawGlyph {
-        .position = position,
-        .glyph_id = glyph_info[index].codepoint,
-    };
-}
-
-void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Function<void(DrawGlyphOrEmoji const&)> callback, Optional<float&> width)
+void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Function<void(DrawGlyph const&)> callback, Optional<float&> width)
 {
     hb_buffer_t* buffer = hb_buffer_create();
     ScopeGuard destroy_buffer = [&]() { hb_buffer_destroy(buffer); };
@@ -46,7 +38,10 @@ void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Fo
         auto position = point
             - FloatPoint { 0, font.pixel_metrics().ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
-        callback(construct_glyph_or_emoji(i, position, font, { glyph_info, glyph_count }, input_glyph_info.span()));
+        callback(DrawGlyph {
+            .position = position,
+            .glyph_id = glyph_info[i].codepoint,
+        });
         point += FloatPoint { positions[i].x_advance, positions[i].y_advance } / text_shaping_resolution;
     }
 
@@ -57,7 +52,7 @@ void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Fo
 float measure_text_width(Utf8View const& string, Gfx::Font const& font)
 {
     float width = 0;
-    for_each_glyph_position({}, string, font, [&](DrawGlyphOrEmoji const&) {}, width);
+    for_each_glyph_position({}, string, font, [&](DrawGlyph const&) {}, width);
     return width;
 }
 
