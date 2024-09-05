@@ -3406,8 +3406,6 @@ void Document::set_browsing_context(HTML::BrowsingContext* browsing_context)
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document
 void Document::unload(JS::GCPtr<Document>)
 {
-    auto& vm = this->vm();
-
     // FIXME: 1. Assert: this is running as part of a task queued on oldDocument's event loop.
 
     // FIXME: 2. Let unloadTimingInfo be a new document unload timing info.
@@ -3421,7 +3419,7 @@ void Document::unload(JS::GCPtr<Document>)
     auto intend_to_store_in_bfcache = false;
 
     // 6. Let eventLoop be oldDocument's relevant agent's event loop.
-    auto& event_loop = *verify_cast<Bindings::WebEngineCustomData>(*vm.custom_data()).event_loop;
+    auto& event_loop = *verify_cast<Bindings::WebEngineCustomData>(*HTML::relevant_agent(*this).custom_data()).event_loop;
 
     // 7. Increase eventLoop's termination nesting level by 1.
     event_loop.increment_termination_nesting_level();
@@ -3455,7 +3453,7 @@ void Document::unload(JS::GCPtr<Document>)
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
         //        We should reorganize this so that the flag appears explicitly here instead.
         auto event = DOM::Event::create(realm(), HTML::EventNames::unload);
-        global_object().dispatch_event(event);
+        verify_cast<HTML::Window>(relevant_global_object(*this)).dispatch_event(event);
     }
 
     // FIXME: 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high resolution time given newDocument's relevant global object, coarsened

@@ -36,9 +36,19 @@ void Internals::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Internals);
 }
 
+HTML::Window& Internals::internals_window() const
+{
+    return verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+}
+
+Page& Internals::internals_page() const
+{
+    return internals_window().page();
+}
+
 void Internals::signal_text_test_is_done()
 {
-    global_object().browsing_context()->page().client().page_did_finish_text_test();
+    internals_page().client().page_did_finish_text_test();
 }
 
 void Internals::gc()
@@ -48,12 +58,12 @@ void Internals::gc()
 
 JS::Object* Internals::hit_test(double x, double y)
 {
-    auto* active_document = global_object().browsing_context()->top_level_browsing_context()->active_document();
+    auto& active_document = internals_window().associated_document();
     // NOTE: Force a layout update just before hit testing. This is because the current layout tree, which is required
     //       for stacking context traversal, might not exist if this call occurs between the tear_down_layout_tree()
     //       and update_layout() calls
-    active_document->update_layout();
-    auto result = active_document->paintable_box()->hit_test({ x, y }, Painting::HitTestType::Exact);
+    active_document.update_layout();
+    auto result = active_document.paintable_box()->hit_test({ x, y }, Painting::HitTestType::Exact);
     if (result.has_value()) {
         auto hit_tеsting_result = JS::Object::create(realm(), nullptr);
         hit_tеsting_result->define_direct_property("node", result->dom_node(), JS::default_attributes);
@@ -65,7 +75,7 @@ JS::Object* Internals::hit_test(double x, double y)
 
 void Internals::send_text(HTML::HTMLElement& target, String const& text)
 {
-    auto& page = global_object().browsing_context()->page();
+    auto& page = internals_page();
     target.focus();
 
     for (auto code_point : text.code_points())
@@ -77,12 +87,12 @@ void Internals::send_key(HTML::HTMLElement& target, String const& key_name)
     auto key_code = UIEvents::key_code_from_string(key_name);
     target.focus();
 
-    global_object().browsing_context()->page().handle_keydown(key_code, 0, 0);
+    internals_page().handle_keydown(key_code, 0, 0);
 }
 
 void Internals::commit_text()
 {
-    global_object().browsing_context()->page().handle_keydown(UIEvents::Key_Return, 0, 0);
+    internals_page().handle_keydown(UIEvents::Key_Return, 0, 0);
 }
 
 void Internals::click(double x, double y)
@@ -97,7 +107,7 @@ void Internals::middle_click(double x, double y)
 
 void Internals::click(double x, double y, UIEvents::MouseButton button)
 {
-    auto& page = global_object().browsing_context()->page();
+    auto& page = internals_page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousedown(position, position, button, 0, 0);
@@ -106,7 +116,7 @@ void Internals::click(double x, double y, UIEvents::MouseButton button)
 
 void Internals::move_pointer_to(double x, double y)
 {
-    auto& page = global_object().browsing_context()->page();
+    auto& page = internals_page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousemove(position, position, 0, 0);
@@ -114,7 +124,7 @@ void Internals::move_pointer_to(double x, double y)
 
 void Internals::wheel(double x, double y, double delta_x, double delta_y)
 {
-    auto& page = global_object().browsing_context()->page();
+    auto& page = internals_page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y);
@@ -137,7 +147,7 @@ void Internals::simulate_drag_start(double x, double y, String const& name, Stri
     Vector<HTML::SelectedFile> files;
     files.empend(name.to_byte_string(), MUST(ByteBuffer::copy(contents.bytes())));
 
-    auto& page = global_object().browsing_context()->page();
+    auto& page = internals_page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_drag_and_drop_event(DragEvent::Type::DragStart, position, position, UIEvents::MouseButton::Primary, 0, 0, move(files));
@@ -145,7 +155,7 @@ void Internals::simulate_drag_start(double x, double y, String const& name, Stri
 
 void Internals::simulate_drag_move(double x, double y)
 {
-    auto& page = global_object().browsing_context()->page();
+    auto& page = internals_page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_drag_and_drop_event(DragEvent::Type::DragMove, position, position, UIEvents::MouseButton::Primary, 0, 0, {});
@@ -153,7 +163,7 @@ void Internals::simulate_drag_move(double x, double y)
 
 void Internals::simulate_drop(double x, double y)
 {
-    auto& page = global_object().browsing_context()->page();
+    auto& page = internals_page();
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_drag_and_drop_event(DragEvent::Type::Drop, position, position, UIEvents::MouseButton::Primary, 0, 0, {});

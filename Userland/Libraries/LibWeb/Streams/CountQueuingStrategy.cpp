@@ -34,7 +34,7 @@ CountQueuingStrategy::~CountQueuingStrategy() = default;
 JS::NonnullGCPtr<WebIDL::CallbackType> CountQueuingStrategy::size()
 {
     // 1. Return this's relevant global object's count queuing strategy size function.
-    return global_object().count_queuing_strategy_size_function();
+    return verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).count_queuing_strategy_size_function();
 }
 
 void CountQueuingStrategy::initialize(JS::Realm& realm)

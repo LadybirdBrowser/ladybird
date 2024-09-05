@@ -46,6 +46,9 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     void click(double x, double y, UIEvents::MouseButton);
+
+    HTML::Window& internals_window() const;
+    Page& internals_page() const;
 };
 
 }

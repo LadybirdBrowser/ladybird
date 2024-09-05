@@ -5,13 +5,11 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/InspectorPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/Inspector.h>
 #include <LibWeb/Page/Page.h>
@@ -35,7 +33,7 @@ void Inspector::initialize(JS::Realm& realm)
 
 PageClient& Inspector::inspector_page_client() const
 {
-    return global_object().browsing_context()->page().client();
+    return verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).page().client();
 }
 
 void Inspector::inspector_loaded()
@@ -45,8 +43,7 @@ void Inspector::inspector_loaded()
 
 void Inspector::inspect_dom_node(i32 node_id, Optional<i32> const& pseudo_element)
 {
-    auto& page = global_object().browsing_context()->page();
-    page.client().inspector_did_select_dom_node(node_id, pseudo_element.map([](auto value) {
+    inspector_page_client().inspector_did_select_dom_node(node_id, pseudo_element.map([](auto value) {
         VERIFY(value < to_underlying(Web::CSS::Selector::PseudoElement::Type::KnownPseudoElementCount));
         return static_cast<Web::CSS::Selector::PseudoElement::Type>(value);
     }));

@@ -175,7 +175,7 @@ Variant<JS::Handle<DOM::Element>, JS::Handle<DOM::Document>> IntersectionObserve
     }
 
     // otherwise, it is the top-level browsing context’s document node, referred to as the implicit root.
-    return JS::make_handle(global_object().page().top_level_browsing_context().active_document());
+    return JS::make_handle(verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).page().top_level_browsing_context().active_document());
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle
