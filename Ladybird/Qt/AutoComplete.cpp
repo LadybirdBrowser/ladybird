@@ -41,18 +41,18 @@ AutoComplete::AutoComplete(QWidget* parent)
 ErrorOr<Vector<String>> AutoComplete::parse_google_autocomplete(Vector<JsonValue> const& json)
 {
     if (json.size() != 5)
-        return Error::from_string_view("Invalid JSON, expected 5 elements in array"sv);
+        return Error::from_string_literal("Invalid JSON, expected 5 elements in array");
 
     if (!json[0].is_string())
-        return Error::from_string_view("Invalid JSON, expected first element to be a string"sv);
+        return Error::from_string_literal("Invalid JSON, expected first element to be a string");
     auto query = TRY(String::from_byte_string(json[0].as_string()));
 
     if (!json[1].is_array())
-        return Error::from_string_view("Invalid JSON, expected second element to be an array"sv);
+        return Error::from_string_literal("Invalid JSON, expected second element to be an array");
     auto suggestions_array = json[1].as_array().values();
 
     if (query != m_query)
-        return Error::from_string_view("Invalid JSON, query does not match"sv);
+        return Error::from_string_literal("Invalid JSON, query does not match");
 
     Vector<String> results;
     results.ensure_capacity(suggestions_array.size());
@@ -86,13 +86,13 @@ ErrorOr<Vector<String>> AutoComplete::parse_yahoo_autocomplete(JsonObject const&
     auto suggestions_object = json.get("r"sv)->as_array().values();
 
     if (query != m_query)
-        return Error::from_string_view("Invalid JSON, query does not match"sv);
+        return Error::from_string_literal("Invalid JSON, query does not match");
 
     Vector<String> results;
     results.ensure_capacity(suggestions_object.size());
     for (auto& suggestion_object : suggestions_object) {
         if (!suggestion_object.is_object())
-            return Error::from_string_view("Invalid JSON, expected value to be an object"sv);
+            return Error::from_string_literal("Invalid JSON, expected value to be an object");
         auto suggestion = suggestion_object.as_object();
 
         if (!suggestion.get("k"sv).has_value() || !suggestion.get("k"sv)->is_string())
@@ -121,7 +121,7 @@ ErrorOr<void> AutoComplete::got_network_response(QNetworkReply* reply)
     } else if (engine_name == "Yahoo")
         results = TRY(parse_yahoo_autocomplete(json.as_object()));
     else {
-        return Error::from_string_view("Invalid engine name"sv);
+        return Error::from_string_literal("Invalid engine name");
     }
 
     constexpr size_t MAX_AUTOCOMPLETE_RESULTS = 6;

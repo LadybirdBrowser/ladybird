@@ -82,7 +82,7 @@ static ErrorOr<SupportedGroup> oid_to_curve(Vector<int> curve)
     else if (curve == curve_prime256)
         return SupportedGroup::SECP256R1;
 
-    return Error::from_string_view("Unknown curve oid"sv);
+    return Error::from_string_literal("Unknown curve oid");
 }
 
 static ErrorOr<Crypto::UnsignedBigInteger> parse_certificate_version(Crypto::ASN1::Decoder& decoder, Vector<StringView> current_scope)

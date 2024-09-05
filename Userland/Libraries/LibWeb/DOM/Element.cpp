@@ -1914,7 +1914,7 @@ ErrorOr<void> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOpt
     // 6. If the element does not have any associated box, or is not available to user-agent features, then return.
     document().update_layout();
     if (!layout_node())
-        return Error::from_string_view("Element has no associated box"sv);
+        return Error::from_string_literal("Element has no associated box");
 
     // 7. Scroll the element into view with behavior, block, and inline.
     TRY(scroll_an_element_into_view(*this, behavior, block, inline_));

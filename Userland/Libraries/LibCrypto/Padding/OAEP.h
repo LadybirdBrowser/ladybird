@@ -30,7 +30,7 @@ public:
         auto h_len = HashFunction::digest_size();
         auto max_message_size = length - (2 * h_len) - 1;
         if (message.size() > max_message_size)
-            return Error::from_string_view("message too long"sv);
+            return Error::from_string_literal("message too long");
 
         // 3. Generate an octet string PS consisting of emLen-||M||-2hLen-1 zero octets. The length of PS may be 0.
         auto padding_size = length - message.size() - (2 * h_len) - 1;

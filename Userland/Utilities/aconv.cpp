@@ -19,12 +19,12 @@
 static ErrorOr<StringView> guess_format_from_extension(StringView path)
 {
     if (path == "-"sv)
-        return Error::from_string_view("Cannot guess format for standard stream, please specify format manually"sv);
+        return Error::from_string_literal("Cannot guess format for standard stream, please specify format manually");
 
     LexicalPath lexical_path { path };
     auto extension = lexical_path.extension();
     if (extension.is_empty())
-        return Error::from_string_view("Cannot guess format for file without file extension"sv);
+        return Error::from_string_literal("Cannot guess format for file without file extension");
 
     // Note: Do not return the `extension` StringView in any case, since that will possibly lead to UAF.
     if (extension == "wav"sv || extension == "wave"sv)
@@ -36,7 +36,7 @@ static ErrorOr<StringView> guess_format_from_extension(StringView path)
     if (extension == "qoa"sv)
         return "qoa"sv;
 
-    return Error::from_string_view("Cannot guess format for the given file extension"sv);
+    return Error::from_string_literal("Cannot guess format for the given file extension");
 }
 
 static ErrorOr<Audio::PcmSampleFormat> parse_sample_format(StringView textual_format)
@@ -53,7 +53,7 @@ static ErrorOr<Audio::PcmSampleFormat> parse_sample_format(StringView textual_fo
         return Audio::PcmSampleFormat::Float32;
     if (textual_format == "f64le"sv)
         return Audio::PcmSampleFormat::Float64;
-    return Error::from_string_view("Unknown sample format"sv);
+    return Error::from_string_literal("Unknown sample format");
 }
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
@@ -76,10 +76,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.parse(arguments);
 
     if (input.is_empty())
-        return Error::from_string_view("Input file is required, use '-' to read from standard input"sv);
+        return Error::from_string_literal("Input file is required, use '-' to read from standard input");
 
     if (output_format.is_empty() && output == "-"sv)
-        return Error::from_string_view("Output format must be specified manually when writing to standard output"sv);
+        return Error::from_string_literal("Output format must be specified manually when writing to standard output");
 
     if (input != "-"sv)
         TRY(Core::System::unveil(TRY(FileSystem::absolute_path(input)), "r"sv));

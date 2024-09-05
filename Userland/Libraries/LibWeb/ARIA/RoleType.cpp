@@ -142,7 +142,7 @@ ErrorOr<void> RoleType::serialize_as_json(JsonObjectSerializer<StringBuilder>& o
 ErrorOr<NonnullOwnPtr<RoleType>> RoleType::build_role_object(Role role, bool focusable, AriaData const& data)
 {
     if (is_abstract_role(role))
-        return Error::from_string_view("Cannot construct a role object for an abstract role."sv);
+        return Error::from_string_literal("Cannot construct a role object for an abstract role.");
 
     switch (role) {
     case Role::alert:

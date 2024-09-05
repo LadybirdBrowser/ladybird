@@ -25,7 +25,7 @@ static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
 {
     auto cert_path = ByteString::formatted("{}/res/ladybird/cacert.pem", serenity_resource_root);
     if (!FileSystem::exists(cert_path))
-        return Error::from_string_view("Don't know how to load certs!"sv);
+        return Error::from_string_literal("Don't know how to load certs!");
     return cert_path;
 }
 
