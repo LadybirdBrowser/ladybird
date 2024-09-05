@@ -113,6 +113,16 @@ bool code_point_has_control_general_category(u32 code_point)
     return code_point_has_general_category(code_point, U_CONTROL_CHAR);
 }
 
+bool code_point_has_punctuation_general_category(u32 code_point)
+{
+    return code_point_has_general_category(code_point, GENERAL_CATEGORY_PUNCTUATION);
+}
+
+bool code_point_has_separator_general_category(u32 code_point)
+{
+    return code_point_has_general_category(code_point, GENERAL_CATEGORY_SEPARATOR);
+}
+
 bool code_point_has_space_separator_general_category(u32 code_point)
 {
     return code_point_has_general_category(code_point, U_SPACE_SEPARATOR);
