@@ -929,6 +929,19 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
             return true;
         }
 
+#if defined(AK_OS_MACOS)
+        if ((modifiers & UIEvents::Mod_Super) != 0) {
+            if (key == UIEvents::KeyCode::Key_Left) {
+                key = UIEvents::KeyCode::Key_Home;
+                modifiers &= ~UIEvents::Mod_Super;
+            }
+            if (key == UIEvents::KeyCode::Key_Right) {
+                key = UIEvents::KeyCode::Key_End;
+                modifiers &= ~UIEvents::Mod_Super;
+            }
+        }
+#endif
+
         if (key == UIEvents::KeyCode::Key_Left || key == UIEvents::KeyCode::Key_Right) {
             auto increment_or_decrement_cursor = [&]() {
                 if ((modifiers & UIEvents::Mod_PlatformWordJump) == 0) {
