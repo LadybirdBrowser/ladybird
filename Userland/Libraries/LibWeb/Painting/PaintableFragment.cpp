@@ -36,24 +36,22 @@ int PaintableFragment::text_index_at(CSSPixels x) const
 {
     if (!is<TextPaintable>(paintable()))
         return 0;
-    auto& layout_text = verify_cast<Layout::TextNode>(layout_node());
-    auto& font = layout_text.first_available_font();
-    Utf8View view(string_view());
 
     CSSPixels relative_x = x - absolute_rect().x();
-
     if (relative_x < 0)
         return 0;
 
-    CSSPixels width_so_far = 0;
-    for (auto it = view.begin(); it != view.end(); ++it) {
-        auto previous_it = it;
-        CSSPixels glyph_width = CSSPixels::nearest_value_for(font.glyph_or_emoji_width(it));
-
-        if ((width_so_far + glyph_width) > relative_x)
-            return m_start + view.byte_offset_of(previous_it);
-
-        width_so_far += glyph_width;
+    auto const& glyphs = m_glyph_run->glyphs();
+    for (size_t i = 0; i < glyphs.size(); ++i) {
+        auto glyph_position = CSSPixels::nearest_value_for(glyphs[i].position.x());
+        if (i + 1 < glyphs.size()) {
+            auto next_glyph_position = CSSPixels::nearest_value_for(glyphs[i + 1].position.x());
+            if (relative_x >= glyph_position && relative_x < next_glyph_position)
+                return m_start + i;
+        } else {
+            if (relative_x >= glyph_position)
+                return m_start + i;
+        }
     }
 
     return m_start + m_length;
