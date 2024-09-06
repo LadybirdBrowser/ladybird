@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "../LibUnicode/GeneratorUtil.h"
 #include <AK/SourceGenerator.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
@@ -13,6 +12,15 @@
 
 ErrorOr<void> generate_header_file(Core::InputBufferedFile&, Core::File&);
 ErrorOr<void> generate_implementation_file(Core::InputBufferedFile&, Core::File&);
+
+static ErrorOr<NonnullOwnPtr<Core::InputBufferedFile>> open_file(StringView path, Core::File::OpenMode mode)
+{
+    if (path.is_empty())
+        return Error::from_string_literal("Provided path is empty, please provide all command line options");
+
+    auto file = TRY(Core::File::open(path, mode));
+    return Core::InputBufferedFile::create(move(file));
+}
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
