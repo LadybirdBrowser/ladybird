@@ -304,9 +304,8 @@ static void serialize_ipv6_address(IPv6Address const& address, StringBuilder& ou
         if (ignore0 && address[piece_index] == 0)
             continue;
 
-        // 2. Otherwise, if ignore0 is true, set ignore0 to false.
-        if (ignore0)
-            ignore0 = false;
+        // 2. Set ignore0 to false.
+        ignore0 = false;
 
         // 3. If compress is pieceIndex, then:
         if (compress == piece_index) {
