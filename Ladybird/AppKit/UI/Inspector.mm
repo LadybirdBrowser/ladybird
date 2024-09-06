@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Cookie/Cookie.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/InspectorClient.h>
 #include <LibWebView/ViewImplementation.h>
@@ -24,6 +25,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 825;
 static constexpr NSInteger CONTEXT_MENU_EDIT_NODE_TAG = 1;
 static constexpr NSInteger CONTEXT_MENU_REMOVE_ATTRIBUTE_TAG = 2;
 static constexpr NSInteger CONTEXT_MENU_COPY_ATTRIBUTE_VALUE_TAG = 3;
+static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
 
 @interface Inspector ()
 {
@@ -35,6 +37,7 @@ static constexpr NSInteger CONTEXT_MENU_COPY_ATTRIBUTE_VALUE_TAG = 3;
 @property (nonatomic, strong) NSMenu* dom_node_text_context_menu;
 @property (nonatomic, strong) NSMenu* dom_node_tag_context_menu;
 @property (nonatomic, strong) NSMenu* dom_node_attribute_context_menu;
+@property (nonatomic, strong) NSMenu* cookie_context_menu;
 
 @end
 
@@ -44,6 +47,7 @@ static constexpr NSInteger CONTEXT_MENU_COPY_ATTRIBUTE_VALUE_TAG = 3;
 @synthesize dom_node_text_context_menu = _dom_node_text_context_menu;
 @synthesize dom_node_tag_context_menu = _dom_node_tag_context_menu;
 @synthesize dom_node_attribute_context_menu = _dom_node_attribute_context_menu;
+@synthesize cookie_context_menu = _cookie_context_menu;
 
 - (instancetype)init:(Tab*)tab
 {
@@ -118,6 +122,21 @@ static constexpr NSInteger CONTEXT_MENU_COPY_ATTRIBUTE_VALUE_TAG = 3;
 
             auto* event = Ladybird::create_context_menu_mouse_event(strong_self.web_view, position);
             [NSMenu popUpContextMenu:strong_self.dom_node_attribute_context_menu withEvent:event forView:strong_self.web_view];
+        };
+
+        m_inspector_client->on_requested_cookie_context_menu = [weak_self](auto position, auto const& cookie) {
+            Inspector* strong_self = weak_self;
+            if (strong_self == nil) {
+                return;
+            }
+
+            auto delete_cookie_text = MUST(String::formatted("Delete \"{}\"", cookie.name));
+
+            auto* delete_cookie_item = [strong_self.cookie_context_menu itemWithTag:CONTEXT_MENU_DELETE_COOKIE_TAG];
+            [delete_cookie_item setTitle:Ladybird::string_to_ns_string(delete_cookie_text)];
+
+            auto* event = Ladybird::create_context_menu_mouse_event(strong_self.web_view, position);
+            [NSMenu popUpContextMenu:strong_self.cookie_context_menu withEvent:event forView:strong_self.web_view];
         };
 
         auto* scroll_view = [[NSScrollView alloc] init];
@@ -209,6 +228,16 @@ static constexpr NSInteger CONTEXT_MENU_COPY_ATTRIBUTE_VALUE_TAG = 3;
 - (void)copyDOMAttributeValue:(id)sender
 {
     m_inspector_client->context_menu_copy_dom_node_attribute_value();
+}
+
+- (void)deleteCookie:(id)sender
+{
+    m_inspector_client->context_menu_delete_cookie();
+}
+
+- (void)deleteAllCookies:(id)sender
+{
+    m_inspector_client->context_menu_delete_all_cookies();
 }
 
 #pragma mark - Properties
@@ -337,6 +366,25 @@ static constexpr NSInteger CONTEXT_MENU_COPY_ATTRIBUTE_VALUE_TAG = 3;
     }
 
     return _dom_node_attribute_context_menu;
+}
+
+- (NSMenu*)cookie_context_menu
+{
+    if (!_cookie_context_menu) {
+        _cookie_context_menu = [[NSMenu alloc] initWithTitle:@"Cookie Context Menu"];
+
+        auto* delete_cookie_item = [[NSMenuItem alloc] initWithTitle:@"Delete cookie"
+                                                              action:@selector(deleteCookie:)
+                                                       keyEquivalent:@""];
+        [delete_cookie_item setTag:CONTEXT_MENU_DELETE_COOKIE_TAG];
+        [_cookie_context_menu addItem:delete_cookie_item];
+
+        [_cookie_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Delete all cookies"
+                                                                 action:@selector(deleteAllCookies:)
+                                                          keyEquivalent:@""]];
+    }
+
+    return _cookie_context_menu;
 }
 
 @end
