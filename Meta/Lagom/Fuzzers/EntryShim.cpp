@@ -36,13 +36,15 @@ int fuzz_from_file(char const* filename)
 
     if (fd < 0) {
         perror("EntryShim: Failed to open the input file");
-        return 1;
+        free(file_buffer);
+	return 1;
     }
 
     ssize_t bytes_read = read(fd, file_buffer, file_size);
     if (bytes_read < 0) {
         fprintf(stderr, "EntryShim: Failed to read the input file\n");
-        return 1;
+        free(file_buffer);
+	return 1;
     }
 
     LLVMFuzzerTestOneInput(file_buffer, bytes_read);
@@ -57,16 +59,20 @@ int fuzz_from_stdin()
     size_t file_size = 0;
 
     while (true) {
-        file_buffer = (uint8_t*)realloc(file_buffer, file_size + chunk_size);
+        uint8_t* temp_file_buffer = (uint8_t*)realloc(file_buffer, file_size + chunk_size);
 
-        if (!file_buffer) {
+        if (!temp_file_buffer) {
             fprintf(stderr, "EntryShim: Failed to reallocate buffer to a size of %lu bytes\n", file_size + chunk_size);
+            free(file_buffer);
             return 1;
         }
+
+	file_buffer = temp_file_buffer;
 
         ssize_t bytes_read = read(STDIN_FILENO, file_buffer + file_size, chunk_size);
 
         if (bytes_read < 0) {
+            free(file_buffer);
             perror("EntryShim: Failed to read from stdin");
             return 1;
         }
