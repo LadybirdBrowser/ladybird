@@ -658,6 +658,11 @@ void PageClient::inspector_did_request_dom_tree_context_menu(i32 node_id, Web::C
     client().async_inspector_did_request_dom_tree_context_menu(m_id, node_id, page().css_to_device_point(position).to_type<int>(), type, tag, attribute_index);
 }
 
+void PageClient::inspector_did_request_cookie_context_menu(size_t cookie_index, Web::CSSPixelPoint position)
+{
+    client().async_inspector_did_request_cookie_context_menu(m_id, cookie_index, page().css_to_device_point(position).to_type<int>());
+}
+
 void PageClient::inspector_did_request_style_sheet_source(Web::CSS::StyleSheetIdentifier const& identifier)
 {
     client().async_inspector_did_request_style_sheet_source(m_id, identifier);

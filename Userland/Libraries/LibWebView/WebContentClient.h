@@ -120,6 +120,7 @@ private:
     virtual void inspector_did_add_dom_node_attributes(u64 page_id, i32 node_id, Vector<Attribute> const& attributes) override;
     virtual void inspector_did_replace_dom_node_attribute(u64 page_id, i32 node_id, size_t attribute_index, Vector<Attribute> const& replacement_attributes) override;
     virtual void inspector_did_request_dom_tree_context_menu(u64 page_id, i32 node_id, Gfx::IntPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index) override;
+    virtual void inspector_did_request_cookie_context_menu(u64 page_id, size_t cookie_index, Gfx::IntPoint position) override;
     virtual void inspector_did_execute_console_script(u64 page_id, String const& script) override;
     virtual void inspector_did_export_inspector_html(u64 page_id, String const& html) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id) override;
