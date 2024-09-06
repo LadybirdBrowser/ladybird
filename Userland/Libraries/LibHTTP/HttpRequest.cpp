@@ -76,7 +76,7 @@ ErrorOr<ByteBuffer> HttpRequest::to_raw_request() const
         }
         // Finish headers.
         TRY(builder.try_append("\r\n"sv));
-        TRY(builder.try_append((char const*)m_body.data(), m_body.size()));
+        TRY(builder.try_append(reinterpret_cast<char const*>(m_body.data()), m_body.size()));
     } else {
         // Finish headers.
         TRY(builder.try_append("\r\n"sv));

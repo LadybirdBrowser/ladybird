@@ -590,7 +590,7 @@ void Job::finish_up()
         auto flattened_buffer = maybe_flattened_buffer.release_value();
 
         u8* flat_ptr = flattened_buffer.data();
-        for (auto& received_buffer : m_received_buffers) {
+        for (const auto& received_buffer : m_received_buffers) {
             memcpy(flat_ptr, received_buffer->pending_flush.data(), received_buffer->pending_flush.size());
             flat_ptr += received_buffer->pending_flush.size();
         }
