@@ -204,48 +204,6 @@ ConnectionFromClient::~ConnectionFromClient()
 {
 }
 
-class Job : public RefCounted<Job>
-    , public Weakable<Job> {
-public:
-    static NonnullRefPtr<Job> ensure(URL::URL const& url)
-    {
-        RefPtr<Job> job;
-        if (auto it = s_jobs.find(url); it != s_jobs.end())
-            job = it->value.strong_ref();
-        if (job == nullptr) {
-            job = adopt_ref(*new Job(url));
-            s_jobs.set(url, job);
-        }
-        return *job;
-    }
-
-    void start(Core::Socket& socket)
-    {
-        auto is_connected = socket.is_open();
-        VERIFY(is_connected);
-        ConnectionCache::request_did_finish(m_url, &socket);
-    }
-
-    void fail(Core::NetworkJob::Error error)
-    {
-        dbgln("Pre-connect to {} failed: {}", m_url, Core::to_string(error));
-    }
-
-    void will_be_destroyed() const
-    {
-        s_jobs.remove(m_url);
-    }
-
-private:
-    explicit Job(URL::URL url)
-        : m_url(move(url))
-    {
-    }
-
-    URL::URL m_url;
-    inline static HashMap<URL::URL, WeakPtr<Job>> s_jobs {};
-};
-
 void ConnectionFromClient::die()
 {
     auto client_id = this->client_id();
@@ -502,11 +460,6 @@ Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::w
         success = true;
     }
     return success;
-}
-
-void ConnectionFromClient::dump_connection_info()
-{
-    ConnectionCache::dump_jobs();
 }
 
 }

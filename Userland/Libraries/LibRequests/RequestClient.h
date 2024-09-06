@@ -36,8 +36,6 @@ public:
     bool stop_request(Badge<Request>, Request&);
     bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
 
-    void dump_connection_info();
-
 private:
     virtual void die() override;
 

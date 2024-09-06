@@ -137,11 +137,6 @@ static ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_new_image_decod
     return worker_client->dup_socket();
 }
 
-- (void)dumpConnectionInfo:(id)sender
-{
-    m_request_server_client->dump_connection_info();
-}
-
 #pragma mark - NSApplication
 
 - (void)terminate:(id)sender
