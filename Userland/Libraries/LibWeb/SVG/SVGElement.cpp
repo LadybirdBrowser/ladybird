@@ -132,7 +132,7 @@ JS::GCPtr<SVGSVGElement> SVGElement::owner_svg_element()
     // The ownerSVGElement IDL attribute represents the nearest ancestor ‘svg’ element.
     // On getting ownerSVGElement, the nearest ancestor ‘svg’ element is returned;
     // if the current element is the outermost svg element, then null is returned.
-    return first_ancestor_of_type<SVGSVGElement>();
+    return shadow_including_first_ancestor_of_type<SVGSVGElement>();
 }
 
 JS::NonnullGCPtr<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::PropertyID property) const
