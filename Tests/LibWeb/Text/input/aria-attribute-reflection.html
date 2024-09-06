@@ -7,14 +7,14 @@
     }
     function assert_false(expression) {
       if (expression) {
-          println("    FAIL: Expected false but got true.");
+          println("    ❌ FAIL: Expected false but got true.");
       }
     }
     function assert_equals(a, b) {
       if (a == b) {
-          println(`    PASS: ${a} is equal to ${b} as expected.`);
+          println(`    ✅ PASS: ${a} is equal to ${b} as expected.`);
       } else {
-          println(`    FAIL: ${a} is not equal to ${b}.`);
+          println(`    ❌ FAIL: ${a} is not equal to ${b}.`);
       }
     }
     function testNullable(element, jsAttr, contentAttr) {
