@@ -11,7 +11,6 @@ set(SOURCES
     DeprecatedPath.cpp
     EdgeFlagPathRasterizer.cpp
     FontCascadeList.cpp
-    Font/Emoji.cpp
     Font/Font.cpp
     Font/FontData.cpp
     Font/FontDatabase.cpp
