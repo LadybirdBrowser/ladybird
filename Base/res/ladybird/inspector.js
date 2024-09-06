@@ -235,6 +235,11 @@ inspector.setCookies = cookies => {
             addColumn(row, new Date(cookie.creationTime).toLocaleString());
             addColumn(row, new Date(cookie.lastAccessTime).toLocaleString());
             addColumn(row, new Date(cookie.expiryTime).toLocaleString());
+
+            row.addEventListener("contextmenu", event => {
+                inspector.requestCookieContextMenu(cookie.index, event.clientX, event.clientY);
+                event.preventDefault();
+            });
         });
 
     oldTable.parentNode.replaceChild(newTable, oldTable);

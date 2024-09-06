@@ -77,6 +77,11 @@ void Inspector::request_dom_tree_context_menu(i32 node_id, i32 client_x, i32 cli
     inspector_page_client().inspector_did_request_dom_tree_context_menu(node_id, { client_x, client_y }, type, tag, attribute_index.map([](auto index) { return static_cast<size_t>(index); }));
 }
 
+void Inspector::request_cookie_context_menu(WebIDL::UnsignedLongLong cookie_index, i32 client_x, i32 client_y)
+{
+    inspector_page_client().inspector_did_request_cookie_context_menu(cookie_index, { client_x, client_y });
+}
+
 void Inspector::request_style_sheet_source(String const& type_string, Optional<i32> const& dom_node_unique_id, Optional<String> const& url)
 {
     auto type = CSS::style_sheet_identifier_type_from_string(type_string);

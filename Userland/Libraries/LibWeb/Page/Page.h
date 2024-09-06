@@ -377,6 +377,7 @@ public:
     virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] i32 node_id, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> attributes) { }
     virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] i32 node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> replacement_attributes) { }
     virtual void inspector_did_request_dom_tree_context_menu([[maybe_unused]] i32 node_id, [[maybe_unused]] CSSPixelPoint position, [[maybe_unused]] String const& type, [[maybe_unused]] Optional<String> const& tag, [[maybe_unused]] Optional<size_t> const& attribute_index) { }
+    virtual void inspector_did_request_cookie_context_menu([[maybe_unused]] size_t cookie_index, [[maybe_unused]] CSSPixelPoint position) { }
     virtual void inspector_did_request_style_sheet_source([[maybe_unused]] CSS::StyleSheetIdentifier const& identifier) { }
     virtual void inspector_did_execute_console_script([[maybe_unused]] String const& script) { }
     virtual void inspector_did_export_inspector_html([[maybe_unused]] String const& html) { }

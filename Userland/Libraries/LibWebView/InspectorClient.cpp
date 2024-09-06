@@ -213,6 +213,16 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         m_content_web_view.replace_dom_node_attribute(node_id, attribute.name, replacement_attributes);
     };
 
+    m_inspector_web_view.on_inspector_requested_cookie_context_menu = [this](auto cookie_index, auto position) {
+        if (cookie_index >= m_cookies.size())
+            return;
+
+        m_cookie_context_menu_index = cookie_index;
+
+        if (on_requested_cookie_context_menu)
+            on_requested_cookie_context_menu(position, m_cookies[cookie_index]);
+    };
+
     m_inspector_web_view.on_inspector_requested_style_sheet_source = [this](auto const& identifier) {
         m_content_web_view.request_style_sheet_source(identifier);
     };
@@ -466,6 +476,33 @@ void InspectorClient::context_menu_copy_dom_node_attribute_value()
         m_content_web_view.on_insert_clipboard_entry(m_context_menu_data->attribute->value, "unspecified"_string, "text/plain"_string);
 
     m_context_menu_data.clear();
+}
+
+void InspectorClient::context_menu_delete_cookie()
+{
+    VERIFY(m_cookie_context_menu_index.has_value());
+    VERIFY(*m_cookie_context_menu_index < m_cookies.size());
+
+    auto& cookie = m_cookies[*m_cookie_context_menu_index];
+    cookie.expiry_time = UnixDateTime::earliest();
+
+    Application::cookie_jar().update_cookie(move(cookie));
+    load_cookies();
+
+    m_cookie_context_menu_index.clear();
+}
+
+void InspectorClient::context_menu_delete_all_cookies()
+{
+    for (auto& cookie : m_cookies) {
+        cookie.expiry_time = UnixDateTime::earliest();
+
+        Application::cookie_jar().update_cookie(move(cookie));
+    }
+
+    load_cookies();
+
+    m_cookie_context_menu_index.clear();
 }
 
 void InspectorClient::load_inspector()

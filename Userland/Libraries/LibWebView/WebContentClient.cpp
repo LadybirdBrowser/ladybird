@@ -685,6 +685,14 @@ void WebContentClient::inspector_did_request_dom_tree_context_menu(u64 page_id, 
     }
 }
 
+void WebContentClient::inspector_did_request_cookie_context_menu(u64 page_id, size_t cookie_index, Gfx::IntPoint position)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_inspector_requested_cookie_context_menu)
+            view->on_inspector_requested_cookie_context_menu(cookie_index, view->to_widget_position(position));
+    }
+}
+
 void WebContentClient::inspector_did_execute_console_script(u64 page_id, String const& script)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

@@ -12,6 +12,8 @@
 
     undefined requestDOMTreeContextMenu(long nodeID, long clientX, long clientY, DOMString type, DOMString? tag, unsigned long long? attributeIndex);
 
+    undefined requestCookieContextMenu(unsigned long long cookieIndex, long clientX, long clientY);
+
     undefined requestStyleSheetSource(DOMString type, long? domNodeID, DOMString? url);
 
     undefined executeConsoleScript(DOMString script);

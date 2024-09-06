@@ -223,6 +223,7 @@ public:
     Function<void(i32, Vector<Attribute> const&)> on_inspector_added_dom_node_attributes;
     Function<void(i32, size_t, Vector<Attribute> const&)> on_inspector_replaced_dom_node_attribute;
     Function<void(i32, Gfx::IntPoint, String const&, Optional<String> const&, Optional<size_t> const&)> on_inspector_requested_dom_tree_context_menu;
+    Function<void(size_t, Gfx::IntPoint)> on_inspector_requested_cookie_context_menu;
     Function<void(String const&)> on_inspector_executed_console_script;
     Function<void(String const&)> on_inspector_exported_inspector_html;
     Function<IPC::File()> on_request_worker_agent;
