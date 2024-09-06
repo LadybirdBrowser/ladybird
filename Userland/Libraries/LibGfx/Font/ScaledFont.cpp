@@ -68,20 +68,6 @@ float ScaledFont::glyph_width(u32 code_point) const
     return measure_text_width(Utf8View(string), *this);
 }
 
-template<typename CodePointIterator>
-static float glyph_or_emoji_width_impl(ScaledFont const& font, CodePointIterator& it)
-{
-    if (auto const* emoji = Emoji::emoji_for_code_point_iterator(it))
-        return font.pixel_size() * emoji->width() / emoji->height();
-
-    return font.glyph_width(*it);
-}
-
-float ScaledFont::glyph_or_emoji_width(Utf8CodePointIterator& it) const
-{
-    return glyph_or_emoji_width_impl(*this, it);
-}
-
 NonnullRefPtr<ScaledFont> ScaledFont::scaled_with_size(float point_size) const
 {
     if (point_size == m_point_height && point_size == m_point_width)
