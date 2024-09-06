@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -12,6 +12,9 @@
 #include <LibCore/EventReceiver.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
+#include <LibThreading/ConditionVariable.h>
+#include <LibThreading/MutexProtected.h>
+#include <LibThreading/Thread.h>
 
 namespace IPC {
 
@@ -57,6 +60,16 @@ protected:
     ByteBuffer m_unprocessed_bytes;
 
     u32 m_local_endpoint_magic { 0 };
+
+    struct SendQueue : public AtomicRefCounted<SendQueue> {
+        AK::SinglyLinkedList<MessageBuffer> messages;
+        Threading::Mutex mutex;
+        Threading::ConditionVariable condition { mutex };
+        bool running { true };
+    };
+
+    RefPtr<Threading::Thread> m_send_thread;
+    RefPtr<SendQueue> m_send_queue;
 };
 
 template<typename LocalEndpoint, typename PeerEndpoint>
