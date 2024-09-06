@@ -103,6 +103,9 @@ inspector.reset = () => {
     let accessibilityTree = document.getElementById("accessibility-tree");
     accessibilityTree.innerHTML = "";
 
+    let cookieTable = document.getElementById("cookie-table");
+    cookieTable.innerHTML = "";
+
     let styleSheetPicker = document.getElementById("style-sheet-picker");
     styleSheetPicker.replaceChildren();
 
@@ -206,6 +209,35 @@ inspector.addAttributeToDOMNodeID = nodeID => {
     addAttributeToDOMNode(pendingEditDOMNode);
 
     pendingEditDOMNode = null;
+};
+
+inspector.setCookies = cookies => {
+    let oldTable = document.getElementById("cookie-table");
+
+    let newTable = document.createElement("tbody");
+    newTable.setAttribute("id", oldTable.id);
+
+    const addColumn = (row, value) => {
+        let column = row.insertCell();
+        column.innerText = value;
+        column.title = value;
+    };
+
+    cookies
+        .sort((lhs, rhs) => lhs.name.localeCompare(rhs.name))
+        .forEach(cookie => {
+            let row = newTable.insertRow();
+
+            addColumn(row, cookie.name);
+            addColumn(row, cookie.value);
+            addColumn(row, cookie.domain);
+            addColumn(row, cookie.path);
+            addColumn(row, new Date(cookie.creationTime).toLocaleString());
+            addColumn(row, new Date(cookie.lastAccessTime).toLocaleString());
+            addColumn(row, new Date(cookie.expiryTime).toLocaleString());
+        });
+
+    oldTable.parentNode.replaceChild(newTable, oldTable);
 };
 
 inspector.setStyleSheets = styleSheets => {
