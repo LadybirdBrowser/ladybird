@@ -16,6 +16,7 @@
                 <div class="tab-controls">
                     <button id="dom-tree-button" onclick="selectTopTab(this, 'dom-tree')">DOM Tree</button>
                     <button id="accessibility-tree-button" onclick="selectTopTab(this, 'accessibility-tree')">Accessibility Tree</button>
+                    <button id="storage-button" onclick="selectTopTab(this, 'storage')">Storage</button>
                     <button id="style-sheets-button" onclick="selectTopTab(this, 'style-sheets')">Style Sheets</button>
                 </div>
 
@@ -26,6 +27,32 @@
 
             <div id="dom-tree" class="tab-content html"></div>
             <div id="accessibility-tree" class="tab-content"></div>
+
+            <div id="storage" class="tab-content" style="padding: 0">
+                <div class="tab-header">
+                    <select id="storage-picker">
+                        <option value="cookies" selected>Cookies</option>
+                    </select>
+                </div>
+
+                <div id="cookie-storage">
+                    <table class="property-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 10%">Name</th>
+                                <th style="width: 15%">Value</th>
+                                <th style="width: 10%">Domain</th>
+                                <th style="width: 5%">Path</th>
+                                <th style="width: 20%">Created</th>
+                                <th style="width: 20%">Last Accessed</th>
+                                <th style="width: 20%">Expires</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cookie-table">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <div id="style-sheets" class="tab-content" style="padding: 0">
                 <div class="tab-header">

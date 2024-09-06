@@ -51,6 +51,8 @@ private:
     String generate_accessibility_tree(JsonObject const&);
     void select_node(i32 node_id);
 
+    void load_cookies();
+
     void request_console_messages();
     void handle_console_message(i32 message_index);
     void handle_console_messages(i32 start_index, ReadonlySpan<ByteString> message_types, ReadonlySpan<ByteString> messages);
@@ -81,6 +83,8 @@ private:
     Optional<ContextMenuData> m_context_menu_data;
 
     HashMap<int, Vector<Attribute>> m_dom_node_attributes;
+
+    Vector<Web::Cookie::Cookie> m_cookies;
 
     i32 m_highest_notified_message_index { -1 };
     i32 m_highest_received_message_index { -1 };

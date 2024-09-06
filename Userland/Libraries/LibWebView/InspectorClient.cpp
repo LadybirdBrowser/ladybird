@@ -5,6 +5,7 @@
  */
 
 #include <AK/Base64.h>
+#include <AK/Enumerate.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
@@ -16,6 +17,7 @@
 #include <LibJS/MarkupGenerator.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CookieJar.h>
 #include <LibWebView/InspectorClient.h>
 #include <LibWebView/SourceHighlighter.h>
 
@@ -294,6 +296,7 @@ void InspectorClient::inspect()
     m_content_web_view.inspect_dom_tree();
     m_content_web_view.inspect_accessibility_tree();
     m_content_web_view.list_style_sheets();
+    load_cookies();
 }
 
 void InspectorClient::reset()
@@ -340,6 +343,34 @@ void InspectorClient::select_node(i32 node_id)
 
     auto script = MUST(String::formatted("inspector.inspectDOMNodeID({});", node_id));
     m_inspector_web_view.run_javascript(script);
+}
+
+void InspectorClient::load_cookies()
+{
+    m_cookies = Application::cookie_jar().get_all_cookies(m_content_web_view.url());
+    JsonArray json_cookies;
+
+    for (auto const& [index, cookie] : enumerate(m_cookies)) {
+        JsonObject json_cookie;
+
+        json_cookie.set("index"sv, JsonValue { index });
+        json_cookie.set("name"sv, JsonValue { cookie.name });
+        json_cookie.set("value"sv, JsonValue { cookie.value });
+        json_cookie.set("domain"sv, JsonValue { cookie.domain });
+        json_cookie.set("path"sv, JsonValue { cookie.path });
+        json_cookie.set("creationTime"sv, JsonValue { cookie.creation_time.milliseconds_since_epoch() });
+        json_cookie.set("lastAccessTime"sv, JsonValue { cookie.last_access_time.milliseconds_since_epoch() });
+        json_cookie.set("expiryTime"sv, JsonValue { cookie.expiry_time.milliseconds_since_epoch() });
+
+        MUST(json_cookies.append(move(json_cookie)));
+    }
+
+    StringBuilder builder;
+    builder.append("inspector.setCookies("sv);
+    json_cookies.serialize(builder);
+    builder.append(");"sv);
+
+    m_inspector_web_view.run_javascript(builder.string_view());
 }
 
 void InspectorClient::context_menu_edit_dom_node()
