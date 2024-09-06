@@ -47,6 +47,7 @@ private:
     QMenu* m_dom_node_text_context_menu { nullptr };
     QMenu* m_dom_node_tag_context_menu { nullptr };
     QMenu* m_dom_node_attribute_context_menu { nullptr };
+    QMenu* m_cookie_context_menu { nullptr };
 
     QAction* m_edit_node_action { nullptr };
     QAction* m_copy_node_action { nullptr };
@@ -58,6 +59,8 @@ private:
     QAction* m_add_attribute_action { nullptr };
     QAction* m_remove_attribute_action { nullptr };
     QAction* m_copy_attribute_value_action { nullptr };
+    QAction* m_delete_cookie_action { nullptr };
+    QAction* m_delete_all_cookies_action { nullptr };
 };
 
 }
