@@ -68,11 +68,11 @@ CookieJar::CookieJar(Optional<PersistedStorage> persisted_storage)
     m_persisted_storage->synchronization_timer = Core::Timer::create_repeating(
         static_cast<int>(DATABASE_SYNCHRONIZATION_TIMER.to_milliseconds()),
         [this]() {
-            auto now = m_transient_storage.purge_expired_cookies();
-            m_persisted_storage->database.execute_statement(m_persisted_storage->statements.expire_cookie, {}, now);
-
             for (auto const& it : m_transient_storage.take_dirty_cookies())
                 m_persisted_storage->insert_cookie(it.value);
+
+            auto now = m_transient_storage.purge_expired_cookies();
+            m_persisted_storage->database.execute_statement(m_persisted_storage->statements.expire_cookie, {}, now);
         });
     m_persisted_storage->synchronization_timer->start();
 }
@@ -471,8 +471,6 @@ UnixDateTime CookieJar::TransientStorage::purge_expired_cookies()
     auto is_expired = [&](auto const&, auto const& cookie) { return cookie.expiry_time < now; };
 
     m_cookies.remove_all_matching(is_expired);
-    m_dirty_cookies.remove_all_matching(is_expired);
-
     return now;
 }
 
