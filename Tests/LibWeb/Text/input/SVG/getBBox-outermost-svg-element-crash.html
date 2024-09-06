@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg></svg>
+<script>
+    test(() => {
+        const svgElement = document.querySelector("svg");
+        const boundingBox = svgElement.getBBox();
+        println(`Bounding box of empty SVG element - x: ${boundingBox.x}, y: ${boundingBox.y}, width: ${boundingBox.width}, height: ${boundingBox.height}`);
+        svgElement.remove();
+    });
+</script>
