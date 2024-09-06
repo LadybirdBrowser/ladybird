@@ -6,6 +6,7 @@
 
 #include "InspectorWidget.h"
 #include <Ladybird/Qt/StringUtils.h>
+#include <LibWeb/Cookie/Cookie.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/InspectorClient.h>
 #include <QAction>
@@ -59,6 +60,12 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     m_copy_attribute_value_action = new QAction("Copy attribute &value", this);
     connect(m_copy_attribute_value_action, &QAction::triggered, [this]() { m_inspector_client->context_menu_copy_dom_node_attribute_value(); });
 
+    m_delete_cookie_action = new QAction("&Delete cookie", this);
+    connect(m_delete_cookie_action, &QAction::triggered, [this]() { m_inspector_client->context_menu_delete_cookie(); });
+
+    m_delete_all_cookies_action = new QAction("Delete &all cookies", this);
+    connect(m_delete_all_cookies_action, &QAction::triggered, [this]() { m_inspector_client->context_menu_delete_all_cookies(); });
+
     m_dom_node_text_context_menu = new QMenu("DOM text context menu", this);
     m_dom_node_text_context_menu->addAction(m_edit_node_action);
     m_dom_node_text_context_menu->addAction(m_copy_node_action);
@@ -93,6 +100,10 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     m_dom_node_attribute_context_menu->addAction(m_copy_node_action);
     m_dom_node_attribute_context_menu->addAction(m_screenshot_node_action);
 
+    m_cookie_context_menu = new QMenu("Cookie context menu", this);
+    m_cookie_context_menu->addAction(m_delete_cookie_action);
+    m_cookie_context_menu->addAction(m_delete_all_cookies_action);
+
     m_inspector_client->on_requested_dom_node_text_context_menu = [this](auto position) {
         m_edit_node_action->setText("&Edit text");
         m_copy_node_action->setText("&Copy text");
@@ -118,6 +129,11 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
             attribute.value.bytes_as_string_view().length() > MAX_ATTRIBUTE_VALUE_LENGTH ? "..."sv : ""sv))));
 
         m_dom_node_attribute_context_menu->exec(m_inspector_view->map_point_to_global_position(position));
+    };
+
+    m_inspector_client->on_requested_cookie_context_menu = [this](auto position, auto const& cookie) {
+        m_delete_cookie_action->setText(qstring_from_ak_string(MUST(String::formatted("&Delete \"{}\"", cookie.name))));
+        m_cookie_context_menu->exec(m_inspector_view->map_point_to_global_position(position));
     };
 
     setLayout(new QVBoxLayout);
