@@ -8,7 +8,6 @@
 #include "TextLayout.h"
 #include <AK/TypeCasts.h>
 #include <LibGfx/Font/ScaledFont.h>
-#include <LibUnicode/Emoji.h>
 #include <harfbuzz/hb.h>
 
 namespace Gfx {

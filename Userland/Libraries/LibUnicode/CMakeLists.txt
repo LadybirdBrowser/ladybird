@@ -5,7 +5,6 @@ set(SOURCES
     DateTimeFormat.cpp
     DisplayNames.cpp
     DurationFormat.cpp
-    Emoji.cpp
     ICU.cpp
     IDNA.cpp
     ListFormat.cpp
