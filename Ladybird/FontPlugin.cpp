@@ -10,7 +10,6 @@
 #include <AK/String.h>
 #include <LibCore/Resource.h>
 #include <LibCore/StandardPaths.h>
-#include <LibGfx/Font/Emoji.h>
 #include <LibGfx/Font/FontDatabase.h>
 
 #ifdef USE_FONTCONFIG

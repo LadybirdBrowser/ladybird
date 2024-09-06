@@ -6,7 +6,6 @@
  */
 
 #include "TextLayout.h"
-#include "Font/Emoji.h"
 #include <AK/TypeCasts.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibUnicode/Emoji.h>

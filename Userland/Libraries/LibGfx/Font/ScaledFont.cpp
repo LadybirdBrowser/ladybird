@@ -6,7 +6,6 @@
 
 #include <AK/TypeCasts.h>
 #include <AK/Utf8View.h>
-#include <LibGfx/Font/Emoji.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/TextLayout.h>
