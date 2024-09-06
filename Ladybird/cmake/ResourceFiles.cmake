@@ -63,6 +63,7 @@ list(TRANSFORM BROWSER_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/brow
 set(WEB_RESOURCES
     about.html
     inspector.css
+    inspector.html
     inspector.js
     newtab.html
 )

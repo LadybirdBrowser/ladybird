@@ -8,6 +8,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
+#include <AK/SourceGenerator.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/Directory.h>
 #include <LibCore/File.h>
@@ -20,6 +21,7 @@
 
 namespace WebView {
 
+static constexpr auto INSPECTOR_HTML = "resource://ladybird/inspector.html"sv;
 static constexpr auto INSPECTOR_CSS = "resource://ladybird/inspector.css"sv;
 static constexpr auto INSPECTOR_JS = "resource://ladybird/inspector.js"sv;
 
@@ -437,82 +439,10 @@ void InspectorClient::context_menu_copy_dom_node_attribute_value()
 
 void InspectorClient::load_inspector()
 {
-    StringBuilder builder;
-
-    builder.append(R"~~~(
-<!DOCTYPE html>
-<html>
-<head>
-    <meta name="color-scheme" content="dark light">
-    <title>Inspector</title>
-    <style type="text/css">
-)~~~"sv);
-
-    builder.append(HTML_HIGHLIGHTER_STYLE);
-
-    builder.appendff(R"~~~(
-    </style>
-    <link href="{}" rel="stylesheet" />
-</head>
-<body>
-    <div class="split-view">
-        <div id="inspector-top" class="split-view-container" style="height: 60%">
-            <div class="tab-controls-container">
-                <div class="global-controls"></div>
-                <div class="tab-controls">
-                    <button id="dom-tree-button" onclick="selectTopTab(this, 'dom-tree')">DOM Tree</button>
-                    <button id="accessibility-tree-button" onclick="selectTopTab(this, 'accessibility-tree')">Accessibility Tree</button>
-                    <button id="style-sheets-button" onclick="selectTopTab(this, 'style-sheets')">Style Sheets</button>
-                </div>
-                <div class="global-controls">
-                    <button id="export-inspector-button" title="Export the Inspector to an HTML file" onclick="inspector.exportInspector()"></button>
-                </div>
-            </div>
-            <div id="dom-tree" class="tab-content html"></div>
-            <div id="accessibility-tree" class="tab-content"></div>
-            <div id="style-sheets" class="tab-content" style="padding: 0">
-                <div class="tab-header">
-                    <select id="style-sheet-picker" disabled onchange="loadStyleSheet()">
-                        <option value="." selected>No style sheets found</option>
-                    </select>
-                </div>
-                <div id="style-sheet-source"></div>
-            </div>
-        </div>
-        <div id="inspector-separator" class="split-view-separator">
-            <svg viewBox="0 0 16 5" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="2" cy="2.5" r="2" />
-                <circle cx="8" cy="2.5" r="2" />
-                <circle cx="14" cy="2.5" r="2" />
-            </svg>
-        </div>
-        <div id="inspector-bottom" class="split-view-container" style="height: calc(40% - 5px)">
-            <div class="tab-controls-container">
-                <div class="global-controls"></div>
-                <div class="tab-controls">
-                    <button id="console-button" onclick="selectBottomTab(this, 'console')">Console</button>
-                    <button id="computed-style-button" onclick="selectBottomTab(this, 'computed-style')">Computed Style</button>
-                    <button id="resolved-style-button" onclick="selectBottomTab(this, 'resolved-style')">Resolved Style</button>
-                    <button id="custom-properties-button" onclick="selectBottomTab(this, 'custom-properties')">Custom Properties</button>
-                    <button id="font-button" onclick="selectBottomTab(this, 'fonts')">Fonts</button>
-                </div>
-                <div class="global-controls"></div>
-            </div>
-            <div id="console" class="tab-content">
-                <div class="console">
-                    <div id="console-output" class="console-output"></div>
-                    <div class="console-input">
-                        <label for="console-input" class="console-prompt">&gt;&gt;</label>
-                        <input id="console-input" type="text" placeholder="Enter statement to execute">
-                        <button id="console-clear" title="Clear the console output" onclick="inspector.clearConsoleOutput()">X</button>
-                    </div>
-                </div>
-            </div>
-)~~~",
-        INSPECTOR_CSS);
+    auto inspector_html = MUST(Core::Resource::load_from_uri(INSPECTOR_HTML));
 
     auto generate_property_table = [&](auto name) {
-        builder.appendff(R"~~~(
+        return MUST(String::formatted(R"~~~(
             <div id="{0}" class="tab-content">
                 <table class="property-table">
                     <thead>
@@ -526,33 +456,21 @@ void InspectorClient::load_inspector()
                 </table>
             </div>
 )~~~",
-            name);
+            name));
     };
 
-    generate_property_table("computed-style"sv);
-    generate_property_table("resolved-style"sv);
-    generate_property_table("custom-properties"sv);
+    StringBuilder builder;
 
-    builder.append(R"~~~(
-        <div id="fonts" class="tab-content">
-            <div id="fonts-list">
-            </div>
-            <div id="fonts-details">
-            </div>
-        </div>
-)~~~"sv);
+    SourceGenerator generator { builder };
+    generator.set("INSPECTOR_CSS"sv, INSPECTOR_CSS);
+    generator.set("INSPECTOR_JS"sv, INSPECTOR_JS);
+    generator.set("INSPECTOR_STYLE"sv, HTML_HIGHLIGHTER_STYLE);
+    generator.set("COMPUTED_STYLE"sv, generate_property_table("computed-style"sv));
+    generator.set("RESOVLED_STYLE"sv, generate_property_table("resolved-style"sv));
+    generator.set("CUSTOM_PROPERTIES"sv, generate_property_table("custom-properties"sv));
+    generator.append(inspector_html->data());
 
-    builder.appendff(R"~~~(
-        </div>
-    </div>
-
-    <script type="text/javascript" src="{}"></script>
-</body>
-</html>
-)~~~",
-        INSPECTOR_JS);
-
-    m_inspector_web_view.load_html(builder.string_view());
+    m_inspector_web_view.load_html(generator.as_string_view());
 }
 
 template<typename Generator>
