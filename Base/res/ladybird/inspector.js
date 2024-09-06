@@ -103,6 +103,15 @@ inspector.reset = () => {
     let accessibilityTree = document.getElementById("accessibility-tree");
     accessibilityTree.innerHTML = "";
 
+    let styleSheetPicker = document.getElementById("style-sheet-picker");
+    styleSheetPicker.replaceChildren();
+
+    let styleSheetSource = document.getElementById("style-sheet-source");
+    styleSheetSource.innerHTML = "";
+
+    let fontsList = document.getElementById("fonts-list");
+    fontsList.innerHTML = "";
+
     selectedDOMNode = null;
     pendingEditDOMNode = null;
 
