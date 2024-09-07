@@ -42,10 +42,9 @@ String CSSLayerStatementRule::serialized() const
 
 Vector<FlyString> CSSLayerStatementRule::internal_qualified_name_list(Badge<StyleComputer>) const
 {
-    // TODO: Cache these?
     Vector<FlyString> qualified_layer_names;
 
-    auto qualified_parent_layer_name = parent_layer_internal_qualified_name();
+    auto const& qualified_parent_layer_name = parent_layer_internal_qualified_name();
     if (qualified_parent_layer_name.is_empty())
         return m_name_list;
 
