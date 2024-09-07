@@ -9,16 +9,18 @@ html {
 }
 
 input, textarea {
+    background-color: -libweb-palette-base;
     border-color: -libweb-palette-threed-shadow1;
+    color: -libweb-palette-base-text;
 }
 
-button, input[type=submit], input[type=button], input[type=reset] {
+button, input[type=submit], input[type=button], input[type=reset], select {
     background-color: -libweb-palette-button;
     border-color: -libweb-palette-threed-shadow1;
     color: -libweb-palette-button-text;
 }
 
-button:hover, input[type=submit]:hover, input[type=button]:hover, input[type=reset]:hover {
+button:hover, input[type=submit]:hover, input[type=button]:hover, input[type=reset]:hover, select:hover {
     background-color: -libweb-palette-hover-highlight;
 }
 
