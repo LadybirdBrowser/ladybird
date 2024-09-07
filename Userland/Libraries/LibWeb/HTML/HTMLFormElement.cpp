@@ -604,12 +604,12 @@ String HTMLFormElement::action() const
     // The action IDL attribute must reflect the content attribute of the same name, except that on getting, when the
     // content attribute is missing or its value is the empty string, the element's node document's URL must be returned
     // instead.
-    if (auto maybe_action = attribute(AttributeNames::action);
-        maybe_action.has_value() && !maybe_action.value().is_empty()) {
-        return maybe_action.value();
+    auto form_action_attribute = attribute(AttributeNames::action);
+    if (!form_action_attribute.has_value() || form_action_attribute.value().is_empty()) {
+        return document().url_string();
     }
 
-    return MUST(document().url().to_string());
+    return MUST(document().base_url().complete_url(form_action_attribute.value()).to_string());
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-action
