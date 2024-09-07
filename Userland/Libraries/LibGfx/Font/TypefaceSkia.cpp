@@ -11,8 +11,8 @@
 
 #include <core/SkData.h>
 #include <core/SkFontMgr.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkTypeface.h>
+#include <core/SkRefCnt.h>
+#include <core/SkTypeface.h>
 #ifndef AK_OS_ANDROID
 #    include <ports/SkFontMgr_fontconfig.h>
 #else
