@@ -1254,12 +1254,12 @@ double Element::scroll_top() const
     if (document.document_element() == this && document.in_quirks_mode())
         return 0.0;
 
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout();
-
     // 6. If the element is the root element return the value of scrollY on window.
     if (document.document_element() == this)
         return window->scroll_y();
+
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    const_cast<Document&>(document).update_layout();
 
     // 7. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, return the value of scrollY on window.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable())
@@ -1294,12 +1294,12 @@ double Element::scroll_left() const
     if (document.document_element() == this && document.in_quirks_mode())
         return 0.0;
 
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout();
-
     // 6. If the element is the root element return the value of scrollX on window.
     if (document.document_element() == this)
         return window->scroll_x();
+
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    const_cast<Document&>(document).update_layout();
 
     // 7. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, return the value of scrollX on window.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable())
@@ -1340,14 +1340,14 @@ void Element::set_scroll_left(double x)
     if (document.document_element() == this && document.in_quirks_mode())
         return;
 
-    // NOTE: Ensure that layout is up-to-date before looking at metrics or scrolling the page.
-    const_cast<Document&>(document).update_layout();
-
     // 8. If the element is the root element invoke scroll() on window with x as first argument and scrollY on window as second argument, and terminate these steps.
     if (document.document_element() == this) {
         window->scroll(x, window->scroll_y());
         return;
     }
+
+    // NOTE: Ensure that layout is up-to-date before looking at metrics or scrolling the page.
+    const_cast<Document&>(document).update_layout();
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, invoke scroll() on window with x as first argument and scrollY on window as second argument, and terminate these steps.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable()) {
@@ -1396,14 +1396,14 @@ void Element::set_scroll_top(double y)
     if (document.document_element() == this && document.in_quirks_mode())
         return;
 
-    // NOTE: Ensure that layout is up-to-date before looking at metrics or scrolling the page.
-    const_cast<Document&>(document).update_layout();
-
     // 8. If the element is the root element invoke scroll() on window with scrollX on window as first argument and y as second argument, and terminate these steps.
     if (document.document_element() == this) {
         window->scroll(window->scroll_x(), y);
         return;
     }
+
+    // NOTE: Ensure that layout is up-to-date before looking at metrics or scrolling the page.
+    const_cast<Document&>(document).update_layout();
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, invoke scroll() on window with scrollX as first argument and y as second argument, and terminate these steps.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable()) {
@@ -1437,9 +1437,6 @@ int Element::scroll_width() const
     if (!document.is_active())
         return 0;
 
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout();
-
     // 3. Let viewport width be the width of the viewport excluding the width of the scroll bar, if any,
     //    or zero if there is no viewport.
     auto viewport_width = document.viewport_rect().width().to_int();
@@ -1449,6 +1446,9 @@ int Element::scroll_width() const
     //    return max(viewport scrolling area width, viewport width).
     if (document.document_element() == this && !document.in_quirks_mode())
         return max(viewport_scroll_width, viewport_width);
+
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    const_cast<Document&>(document).update_layout();
 
     // 5. If the element is the body element, document is in quirks mode and the element is not potentially scrollable,
     //    return max(viewport scrolling area width, viewport width).
@@ -1473,9 +1473,6 @@ int Element::scroll_height() const
     if (!document.is_active())
         return 0;
 
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout();
-
     // 3. Let viewport height be the height of the viewport excluding the height of the scroll bar, if any,
     //    or zero if there is no viewport.
     auto viewport_height = document.viewport_rect().height().to_int();
@@ -1485,6 +1482,9 @@ int Element::scroll_height() const
     //    return max(viewport scrolling area height, viewport height).
     if (document.document_element() == this && !document.in_quirks_mode())
         return max(viewport_scroll_height, viewport_height);
+
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    const_cast<Document&>(document).update_layout();
 
     // 5. If the element is the body element, document is in quirks mode and the element is not potentially scrollable,
     //    return max(viewport scrolling area height, viewport height).
