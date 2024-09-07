@@ -430,23 +430,36 @@ void DisplayListPlayerSkia::restore(Restore const&)
     canvas.restore();
 }
 
-static SkBitmap alpha_mask_from_bitmap(Gfx::Bitmap const& bitmap, Gfx::Bitmap::MaskKind kind)
+template<Gfx::Bitmap::MaskKind mask_kind, Gfx::StorageFormat storage_format>
+[[maybe_unused]] static SkBitmap alpha_mask_from_bitmap_impl(Gfx::Bitmap const& bitmap)
 {
     SkBitmap alpha_mask;
     alpha_mask.allocPixels(SkImageInfo::MakeA8(bitmap.width(), bitmap.height()));
-    for (int y = 0; y < bitmap.height(); y++) {
-        for (int x = 0; x < bitmap.width(); x++) {
-            if (kind == Gfx::Bitmap::MaskKind::Luminance) {
-                auto color = bitmap.get_pixel(x, y);
-                *alpha_mask.getAddr8(x, y) = color.alpha() * color.luminosity() / 255;
-            } else {
-                VERIFY(kind == Gfx::Bitmap::MaskKind::Alpha);
-                auto color = bitmap.get_pixel(x, y);
-                *alpha_mask.getAddr8(x, y) = color.alpha();
+    int width = bitmap.width();
+    int height = bitmap.height();
+    for (int y = 0; y < height; y++) {
+        auto* dst = alpha_mask.getAddr8(0, y);
+        for (int x = 0; x < width; x++, ++dst) {
+            auto color = bitmap.unchecked_get_pixel<storage_format>(x, y);
+            if constexpr (mask_kind == Gfx::Bitmap::MaskKind::Luminance) {
+                *dst = color.alpha() * color.luminosity() / 255;
+            } else if constexpr (mask_kind == Gfx::Bitmap::MaskKind::Alpha) {
+                *dst = color.alpha();
             }
         }
     }
     return alpha_mask;
+}
+
+[[maybe_unused]] static SkBitmap alpha_mask_from_bitmap(Gfx::Bitmap const& bitmap, Gfx::Bitmap::MaskKind kind)
+{
+    if (bitmap.format() == Gfx::BitmapFormat::BGRA8888) {
+        if (kind == Gfx::Bitmap::MaskKind::Luminance)
+            return alpha_mask_from_bitmap_impl<Gfx::Bitmap::MaskKind::Luminance, Gfx::StorageFormat::BGRA8888>(bitmap);
+        VERIFY(kind == Gfx::Bitmap::MaskKind::Alpha);
+        return alpha_mask_from_bitmap_impl<Gfx::Bitmap::MaskKind::Alpha, Gfx::StorageFormat::BGRA8888>(bitmap);
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& command)
