@@ -98,6 +98,9 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset-control
     virtual void reset_algorithm() {};
 
+    String form_action() const;
+    WebIDL::ExceptionOr<void> set_form_action(String const&);
+
 protected:
     FormAssociatedElement() = default;
     virtual ~FormAssociatedElement() = default;

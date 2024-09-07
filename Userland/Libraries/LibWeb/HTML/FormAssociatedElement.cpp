@@ -166,6 +166,27 @@ void FormAssociatedElement::reset_form_owner()
     }
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-formaction
+String FormAssociatedElement::form_action() const
+{
+    // The formAction IDL attribute must reflect the formaction content attribute, except that on getting, when the content attribute is missing or its value is the empty string,
+    // the element's node document's URL must be returned instead.
+    auto& html_element = form_associated_element_to_html_element();
+    auto form_action_attribute = html_element.attribute(HTML::AttributeNames::formaction);
+    if (!form_action_attribute.has_value() || form_action_attribute.value().is_empty()) {
+        return html_element.document().url_string();
+    }
+
+    auto document_base_url = html_element.document().base_url();
+    return MUST(document_base_url.complete_url(form_action_attribute.value()).to_string());
+}
+
+WebIDL::ExceptionOr<void> FormAssociatedElement::set_form_action(String const& value)
+{
+    auto& html_element = form_associated_element_to_html_element();
+    return html_element.set_attribute(HTML::AttributeNames::formaction, value);
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
 void FormAssociatedTextControlElement::relevant_value_was_changed(JS::GCPtr<DOM::Text> text_node)
 {

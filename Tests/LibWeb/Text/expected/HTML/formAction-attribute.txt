@@ -1,0 +1,3 @@
+button.formAction initial value: http://www.example.com/
+Final segment of button.formAction after setting to the empty string: formAction-attribute.html
+Final segment of button.formAction after setting to "../test.html": test.html
