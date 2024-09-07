@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <button formaction="http://www.example.com/"></button>
+<input formaction="http://www.example.com/">
 <script>
     test(() => {
         const elementNames = [
             "button",
+            "input",
         ];
         for (const elementName of elementNames) {
             const element = document.querySelector(elementName);
