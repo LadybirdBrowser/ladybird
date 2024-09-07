@@ -165,9 +165,9 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
     auto& cache = get_cache(*vm.current_realm());
     if (!import_argument.is_undefined()) {
         auto import_object = TRY(import_argument.to_object(vm));
-        dbgln("Trying to resolve stuff because import object was specified");
+        dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve stuff because import object was specified");
         for (Wasm::Linker::Name const& import_name : linker.unresolved_imports()) {
-            dbgln("Trying to resolve {}::{}", import_name.module, import_name.name);
+            dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import_name.module, import_name.name);
             auto value_or_error = import_object->get(import_name.module);
             if (value_or_error.is_error())
                 break;
@@ -182,7 +182,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
             auto import_ = import_or_error.release_value();
             TRY(import_name.type.visit(
                 [&](Wasm::TypeIndex index) -> JS::ThrowCompletionOr<void> {
-                    dbgln("Trying to resolve a function {}::{}, type index {}", import_name.module, import_name.name, index.value());
+                    dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve a function {}::{}, type index {}", import_name.module, import_name.name, index.value());
                     auto& type = module.type_section().types()[index.value()];
                     // FIXME: IsCallable()
                     if (!import_.is_function())
@@ -229,7 +229,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                         ByteString::formatted("func{}", resolved_imports.size()),
                     };
                     auto address = cache.abstract_machine().store().allocate(move(host_function));
-                    dbgln("Resolved to {}", address->value());
+                    dbgln_if(LIBWEB_WASM_DEBUG, "Resolved to {}", address->value());
                     // FIXME: LinkError instead.
                     VERIFY(address.has_value());
 
