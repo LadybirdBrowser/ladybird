@@ -71,8 +71,7 @@ String CSSLayerBlockRule::serialized() const
 
 FlyString CSSLayerBlockRule::internal_qualified_name(Badge<StyleComputer>) const
 {
-    // TODO: Cache this?
-    auto parent_name = parent_layer_internal_qualified_name();
+    auto const& parent_name = parent_layer_internal_qualified_name();
     if (parent_name.is_empty())
         return m_name_internal;
     return MUST(String::formatted("{}.{}", parent_name, m_name_internal));

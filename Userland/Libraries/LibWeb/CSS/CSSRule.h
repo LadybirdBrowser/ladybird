@@ -58,10 +58,12 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    String parent_layer_internal_qualified_name() const;
+    FlyString const& parent_layer_internal_qualified_name() const;
 
     JS::GCPtr<CSSRule> m_parent_rule;
     JS::GCPtr<CSSStyleSheet> m_parent_style_sheet;
+
+    mutable Optional<FlyString> m_cached_layer_name;
 };
 
 }
