@@ -77,7 +77,8 @@ void HTMLTextAreaElement::did_receive_focus()
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
-    document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
+    if (auto cursor = document().cursor_position(); !cursor || m_text_node != cursor->node())
+        document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
 
 void HTMLTextAreaElement::did_lose_focus()
