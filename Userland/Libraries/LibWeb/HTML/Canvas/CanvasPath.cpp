@@ -107,12 +107,18 @@ WebIDL::ExceptionOr<void> CanvasPath::ellipse(float x, float y, float radius_x, 
     if (radius_y < 0)
         return WebIDL::IndexSizeError::create(m_self->realm(), MUST(String::formatted("The minor-axis radius provided ({}) is negative.", radius_y)));
 
+    // "If counterclockwise is false and endAngle − startAngle is greater than or equal to 2π,
+    // or, if counterclockwise is true and startAngle − endAngle is greater than or equal to 2π,
+    // then the arc is the whole circumference of this ellipse"
+    // Also draw the full ellipse if making a non-zero whole number of turns.
     if (constexpr float tau = M_PI * 2; (!counter_clockwise && (end_angle - start_angle) >= tau)
-        || (counter_clockwise && (start_angle - end_angle) >= tau)) {
+        || (counter_clockwise && (start_angle - end_angle) >= tau)
+        || (start_angle != end_angle && fmodf(start_angle - end_angle, tau) == 0)) {
         start_angle = 0;
         // FIXME: elliptical_arc_to() incorrectly handles the case where the start/end points are very close.
         // So we slightly fudge the numbers here to correct for that.
         end_angle = tau * 0.9999f;
+        counter_clockwise = false;
     } else {
         start_angle = fmodf(start_angle, tau);
         end_angle = fmodf(end_angle, tau);
@@ -154,7 +160,13 @@ WebIDL::ExceptionOr<void> CanvasPath::ellipse(float x, float y, float radius_x, 
     auto start_point = resolve_point_with_angle(start_angle);
     auto end_point = resolve_point_with_angle(end_angle);
 
-    auto delta_theta = end_angle - start_angle;
+    float delta_theta;
+    if (counter_clockwise) {
+        delta_theta = start_angle - end_angle;
+    } else {
+        delta_theta = end_angle - start_angle;
+    }
+
     if (delta_theta < 0)
         delta_theta += AK::Pi<float> * 2;
 
