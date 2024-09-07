@@ -24,6 +24,7 @@
         --console-table-row-hover: rgb(80, 79, 79);
         --console-table-border: gray;
         --property-table-head: rgb(57, 57, 57);
+        --property-table-row: rgb(45, 45, 45);
     }
 }
 
@@ -48,6 +49,7 @@
         --console-table-row-hover: rgb(199, 198, 198);
         --console-table-border: gray;
         --property-table-head: rgb(229, 229, 229);
+        --property-table-row: rgb(240, 240, 240);
     }
 }
 
@@ -279,6 +281,10 @@ details > :not(:first-child) {
 
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.property-table tr:nth-child(even) {
+    background-color: var(--property-table-row);
 }
 
 #fonts {
