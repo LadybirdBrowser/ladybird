@@ -344,6 +344,20 @@ Web::WebDriver::Response Client::new_window(Web::WebDriver::Parameters parameter
     return session->web_content_connection().new_window(payload);
 }
 
+// 11.6 Switch To Frame, https://w3c.github.io/webdriver/#dfn-switch-to-frame
+// POST /session/{session id}/frame
+Web::WebDriver::Response Client::switch_to_frame(Web::WebDriver::Parameters parameters, JsonValue payload)
+{
+    // FIXME
+}
+
+// 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
+// POST /session/{session id}/frame/parent
+Web::WebDriver::Response Client::switch_to_parent_frame(Web::WebDriver::Parameters parameters, JsonValue payload)
+{
+    // FIXME
+}
+
 // 11.8.1 Get Window Rect, https://w3c.github.io/webdriver/#dfn-get-window-rect
 // GET /session/{session id}/window/rect
 Web::WebDriver::Response Client::get_window_rect(Web::WebDriver::Parameters parameters, JsonValue)
@@ -567,6 +581,20 @@ Web::WebDriver::Response Client::element_click(Web::WebDriver::Parameters parame
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/click");
     auto session = TRY(find_session_with_id(parameters[0]));
     return session->web_content_connection().element_click(move(parameters[1]));
+}
+
+// 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
+// POST /session/{session id}/element/{element id}/clear
+Web::WebDriver::Response Client::element_clear(Web::WebDriver::Parameters parameters, JsonValue)
+{
+    // FIXME
+}
+
+// 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
+// POST /session/{session id}/element/{element id}/value
+Web::WebDriver::Response Client::element_send_keys(Web::WebDriver::Parameters parameters, JsonValue)
+{
+    // FIXME
 }
 
 // 13.1 Get Page Source, https://w3c.github.io/webdriver/#dfn-get-page-source

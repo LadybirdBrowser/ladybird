@@ -53,6 +53,8 @@ private:
     virtual Web::WebDriver::Response switch_to_window(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response get_window_handles(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response new_window(Web::WebDriver::Parameters parameters, JsonValue payload) override;
+    virtual Web::WebDriver::Response switch_to_frame(Web::WebDriver::Parameters parameters, JsonValue payload) override;
+    virtual Web::WebDriver::Response switch_to_parent_frame(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response get_window_rect(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response set_window_rect(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response maximize_window(Web::WebDriver::Parameters parameters, JsonValue payload) override;
@@ -78,6 +80,8 @@ private:
     virtual Web::WebDriver::Response get_computed_role(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response get_computed_label(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response element_click(Web::WebDriver::Parameters parameters, JsonValue payload) override;
+    virtual Web::WebDriver::Response element_clear(Web::WebDriver::Parameters parameters, JsonValue payload) override;
+    virtual Web::WebDriver::Response element_send_keys(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response get_source(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response execute_script(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response execute_async_script(Web::WebDriver::Parameters parameters, JsonValue payload) override;

@@ -595,6 +595,87 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     return result;
 }
 
+// 11.6 Switch To Frame, https://w3c.github.io/webdriver/#dfn-switch-to-frame
+Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_frame()
+{
+    dbgln("FIXME: WebDriverConnection::switch_to_frame()");
+    // FIXME: 1. Let id be the result of getting the property "id" from parameters.
+
+    // FIXME: 2. If id is not null, a Number object, or an Object that represents a web element, return error with error code invalid argument.
+
+    // FIXME: 3. Run the substeps of the first matching condition:
+
+    // -> id is null
+
+    {
+        // FIXME: 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
+
+        // FIXME: 2. Try to handle any user prompts with session.
+
+        // FIXME: 3. Set the current browsing context with session and session's current top-level browsing context.
+    }
+
+    // -> id is a Number object
+
+    {
+        // FIXME: 1. If id is less than 0 or greater than 216 – 1, return error with error code invalid argument.
+
+        // FIXME: 2. If session's current browsing context is no longer open, return error with error code no such window.
+
+        // FIXME: 3. Try to handle any user prompts with session.
+
+        // FIXME: 4. Let window be the associated window of session's current browsing context's active document.
+
+        // FIXME: 5. If id is not a supported property index of window, return error with error code no such frame.
+
+        // FIXME: 6. Let child window be the WindowProxy object obtained by calling window.[[GetOwnProperty]] (id).
+
+        // FIXME: 7. Set the current browsing context with session and child window's browsing context.
+    }
+
+    // -> id represents a web element
+
+    {
+        // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
+
+        // FIXME: 2. Try to handle any user prompts with session.
+
+        // FIXME: 3. Let element be the result of trying to get a known element with session and id.
+
+        // FIXME: 4. If element is not a frame or iframe element, return error with error code no such frame.
+
+        // FIXME: 5. Set the current browsing context with session and element's content navigable's active browsing context.
+    }
+
+    // FIXME: 4. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
+
+    // FIXME: 5. Return success with data null
+}
+
+// 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
+Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::switch_to_parent_frame()
+{
+    dbgln("FIXME: WebDriverConnection::switch_to_parent_frame()");
+
+    // FIXME: 1. If session's current browsing context is already the top-level browsing context:
+
+    {
+        // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
+
+        // FIXME: 2. Return success with data null.
+    }
+
+    // FIXME: 2. If session's current parent browsing context is no longer open, return error with error code no such window.
+
+    // FIXME: 3. Try to handle any user prompts with session.
+
+    // FIXME: 4. If session's current parent browsing context is not null, set the current browsing context with session and current parent browsing context.
+
+    // FIXME: 5. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
+
+    // FIXME: 6. Return success with data null.
+}
+
 // 11.8.1 Get Window Rect, https://w3c.github.io/webdriver/#dfn-get-window-rect
 Messages::WebDriverClient::GetWindowRectResponse WebDriverConnection::get_window_rect()
 {
@@ -1425,6 +1506,309 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
     // FIXME: 13. Return success with data null.
 
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Click not implemented"sv);
+}
+
+// 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
+Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const& element_id)
+{
+    dbgln("FIXME: WebDriverConnection::element_clear()");
+    // To clear a content editable element
+
+    // FIXME: 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
+
+    // FIXME: 2. Run the focusing steps for element.
+
+    // FIXME: 3. Set element's innerHTML IDL attribute to an empty string.
+
+    // FIXME: 4. Run the unfocusing steps for the element.
+
+    // To clear a resettable element:
+
+    // FIXME: 1. Let empty be the result of the first matching condition:
+
+    {
+        // -> element is an input element whose type attribute is in the File Upload state
+        // True if the list of selected files has a length of 0, and false otherwise.
+        // -> otherwise
+        // True if its value IDL attribute is an empty string, and false otherwise.
+    }
+
+    // FIXME: 2. If element is a candidate for constraint validation it satisfies its constraints, and empty is true, abort these substeps.
+
+    // FIXME: 3. Invoke the focusing steps for element.
+
+    // FIXME: 4. Invoke the clear algorithm for element.
+
+    // FIXME: 5. Invoke the unfocusing steps for the element.
+
+    // The remote end steps, given session, URL variables and parameters are:
+
+    // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
+
+    // FIXME: 2. Try to handle any user prompts with session.
+
+    // FIXME: 3. Let element be the result of trying to get a known element with session and element id.
+
+    // FIXME: 4. If element is not editable, return an error with error code invalid element state.
+
+    // FIXME: 5. Scroll into view the element.
+
+    // FIXME: 6. Let timeout be session's session timeouts' implicit wait timeout.
+
+    // FIXME: 7. Let timer be a new timer.
+
+    // FIXME: 8. If timeout is not null:
+
+    {
+        // FIXME: 1. Start the timer with timer and timeout.
+    }
+
+    // FIXME: 9. Wait for element to become interactable, or timer's timeout fired flag to be set, whichever occurs first.
+
+    // FIXME: 10. If element is not interactable, return error with error code element not interactable.
+
+    // FIXME: 11. Run the substeps of the first matching statement:
+
+    {
+        // -> element is a mutable form control element
+
+        // Invoke the steps to clear a resettable element.
+
+        // -> element is a mutable element
+
+        // Invoke the steps to clear a content editable element.
+
+        // -> otherwise
+
+        // Return error with error code invalid element state.
+    }
+
+    // FIXME: 12. Return success with data null.
+}
+
+// 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
+Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_send_keys(String const& element_id)
+{
+    dbgln("FIXME: WebDriverConnection::element_send_keys()");
+    // To clear the modifier key state given input state, input id, source, undo actions, and browsing context:
+
+    // FIXME: 1. If source is not a key input source return error with error code invalid argument.
+
+    // FIXME: 2. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
+
+    // FIXME: 3. For each entry key in the lexically sorted keys of undo actions:
+
+    {
+        // FIXME: 1. Let action be the value of undo actions equal to the key entry key.
+
+        // FIXME: 2. If action is not an action object with type "key" and subtype "keyUp", return error with error code invalid argument.
+
+        // FIXME: 3. Let actions be the list «action»
+
+        // FIXME: 4. Dispatch a list of actions with input state, actions, browsing context, and actions options.
+    }
+
+    // To dispatch the events for a typeable string given input state, input id, source, text, and browsing context:
+
+    // FIXME: 1. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
+
+    // FIXME: 2. For each char of text:
+
+    {
+        // FIXME: 1. Let global key state be the result of get the global key state with input state.
+
+        // FIXME: 2. Let actions be the list «action».
+
+        // FIXME: 3. Dispatch a list of actions with input state, actions, and browsing context.
+    }
+
+    // FIXME: 3. If char is not a shifted character and the shifted state of source is true:
+
+    {
+        // FIXME: 1. Let action be an action object constructed with input id, "key", and "keyUp", and set its value property to U+E008 ("left shift").
+
+        // FIXME: 2. Let tick actions be the list «action».
+
+        // FIXME: 3. Dispatch a list of actions with input state, actions, browsing context, and actions options.
+    }
+
+    // FIXME: 4. Let keydown action be an action object constructed with arguments input id, "key", and "keyDown".
+
+    // FIXME: 5. Set the value property of keydown action to char.
+
+    // FIXME: 6. Let keyup action be a copy of keydown action with the subtype property changed to "keyUp".
+
+    // FIXME: 7. Let actions be the list «keydown action, keyup action».
+
+    // FIXME: 8. Dispatch a list of actions with input state, actions, browsing context, and actions options.
+
+    // To dispatch actions for a string given input state, input id, source, text, browsing context, and actions options:
+
+    // FIXME: 1. Let clusters be an array created by breaking text into extended grapheme clusters.
+
+    // FIXME: 2. Let undo actions be an empty map.
+
+    // FIXME: 3. Let current typeable text be an empty list.
+
+    // FIXME: 4. For each cluster corresponding to an indexed property in clusters run the substeps of the first matching statement:
+
+    {
+        // -> cluster is the null key
+
+        {
+            // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context. Empty current typeable text.
+
+            // FIXME: 2. Try to clear the modifier key state with input state, input id, source, undo actions and browsing context.
+
+            // FIXME: 3. Clear undo actions.
+        }
+
+        // -> cluster is a modifier key
+
+        {
+            // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context.
+
+            // FIXME: 2. Emptycurrent typeable text.
+
+            // FIXME: 3. Let keydown action be an action object constructed with arguments input id, "key", and "keyDown".
+
+            // FIXME: 4. Set the value property of keydown action to cluster.
+
+            // FIXME: 5. Let actions be the list «keydown action»
+
+            // FIXME: 6. Dispatch a list of actions with input state, actions, browsing context, and actions options.
+
+            // FIXME: 7. Add an entry to undo actions with key cluster and value being a copy of keydown action with the subtype property modified to "keyUp".
+        }
+
+        // -> cluster is typeable
+
+        {
+            // Append cluster to current typeable text.
+        }
+
+        // -> otherwise
+
+        {
+            // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context.
+
+            // FIXME: 2. Empty current typeable text.
+
+            // FIXME: 3. Dispatch a composition event with arguments "compositionstart", undefined, and browsing context.
+
+            // FIXME: 4. Dispatch a composition event with arguments "compositionupdate", cluster, and browsing context.
+
+            // FIXME: 5. Dispatch a composition event with arguments "compositionend", cluster, and browsing context.
+        }
+    }
+
+    // FIXME: 5. Dispatch the events for a typeable string with input state, input id and source, current typeable text, and browsing context.
+
+    // FIXME: 6. Try to clear the modifier key state with input state, input id, source, undo actions, and browsing context.
+
+    // The remote end steps, given session, URL variables and parameters are:
+
+    // FIXME: 1. Let text be the result of getting a property named "text" from parameters.
+
+    // FIXME: 2. If text is not a String, return an error with error code invalid argument.
+
+    // FIXME: 3. If session's current browsing context is no longer open, return error with error code no such window.
+
+    // FIXME: 4. Try to handle any user prompts with session.
+
+    // FIXME: 5. Let element be the result of trying to get a known element with session and URL variables[element id].
+
+    // FIXME: 6. Let file be true if element is input element in the file upload state, or false otherwise.
+
+    // FIXME: 7. If file is false or the session's strict file interactability, is true run the following substeps:
+
+    {
+        // FIXME: 1. Scroll into view the element.
+
+        // FIXME: 2. Let timeout be session's session timeouts' implicit wait timeout.
+
+        // FIXME: 3. Let timer be a new timer.
+
+        // FIXME: 4. If timeout is not null:
+
+        {
+            // FIXME: 1. Start the timer with timer and timeout.
+        }
+
+        // FIXME: 5. Wait for element to become keyboard-interactable, or timer's timeout fired flag to be set, whichever occurs first.
+
+        // FIXME: 6. If element is not keyboard-interactable, return error with error code element not interactable.
+
+        // FIXME: 7. If element is not the active element run the focusing steps for the element.
+    }
+
+    // FIXME: 8. Run the substeps of the first matching condition:
+
+    // -> file is true
+
+    {
+        // FIXME: 1. Let files be the result of splitting text on the newline (\n) character.
+
+        // FIXME: 2. If files is of 0 length, return an error with error code invalid argument.
+
+        // FIXME: 3. Let multiple equal the result of calling hasAttribute() with "multiple" on element.
+
+        // FIXME: 4. if multiple is false and the length of files is not equal to 1, return an error with error code invalid argument.
+
+        // FIXME: 5. Verify that each file given by the user exists. If any do not, return error with error code invalid argument.
+
+        // FIXME: 6. Complete implementation specific steps equivalent to setting the selected files on the input element. If multiple is true files are be appended to element's selected files.
+
+        // FIXME: 7. Fire these events in order on element:
+
+        // FIXME: 1. input
+
+        // FIXME: 2. change
+
+        // FIXME: 8. Return success with data null.
+    }
+
+    // -> element is a non-typeable form control
+
+    {
+        // FIXME: 1. If element does not have an own property named value return an error with error code element not interactable
+
+        // FIXME: 2. If element is not mutable return an error with error code element not interactable.
+
+        // FIXME: 3. Set a property value to text on element.
+
+        // FIXME: 4. If element is suffering from bad input return an error with error code invalid argument.
+
+        // FIXME: 5. Return success with data null.
+    }
+
+    // -> elementis content editable
+
+    {
+        // If element does not currently have focus, set the text insertion caret after any child content.
+    }
+
+    // -> otherwise
+
+    {
+        // FIXME: 1. If element does not currently have focus, let current text length be the length of element's API value.
+
+        // FIXME: 2. Set the text insertion caret using set selection range using current text length for both the start and end parameters.
+    }
+
+    // FIXME: 9. Let input state be the result of get the input state with session and session's current top-level browsing context.
+
+    // FIXME: 10. Let input id be a the result of generating a UUID.
+
+    // FIXME: 11. Let source be the result of create an input source with input state, and "key".
+
+    // FIXME: 12. Add an input source with input state, input id and source.
+
+    // FIXME: 13. Dispatch actions for a string with arguments input state, input id, and source, text, and session's current browsing context.
+
+    // FIXME: 14. Remove an input source with input state and input id.
+
+    // FIXME: 15. Return success with data null.
 }
 
 // 13.1 Get Page Source, https://w3c.github.io/webdriver/#dfn-get-page-source

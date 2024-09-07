@@ -58,6 +58,8 @@ public:
     virtual Response maximize_window(Parameters parameters, JsonValue payload) = 0;
     virtual Response minimize_window(Parameters parameters, JsonValue payload) = 0;
     virtual Response fullscreen_window(Parameters parameters, JsonValue payload) = 0;
+    virtual Response switch_to_frame(Parameters parameters, JsonValue payload) = 0;
+    virtual Response switch_to_parent_frame(Parameters parameters, JsonValue payload) = 0;
 
     // Extension: https://html.spec.whatwg.org/multipage/interaction.html#user-activation-user-agent-automation
     virtual Response consume_user_activation(Parameters parameters, JsonValue payload) = 0;
@@ -82,6 +84,8 @@ public:
     virtual Response get_computed_role(Parameters parameters, JsonValue payload) = 0;
     virtual Response get_computed_label(Parameters parameters, JsonValue payload) = 0;
     virtual Response element_click(Parameters parameters, JsonValue payload) = 0;
+    virtual Response element_clear(Parameters parameters, JsonValue payload) = 0;
+    virtual Response element_send_keys(Parameters parameters, JsonValue payload) = 0;
 
     // 13. Document, https://w3c.github.io/webdriver/#document
     virtual Response get_source(Parameters parameters, JsonValue payload) = 0;
