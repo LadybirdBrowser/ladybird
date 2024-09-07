@@ -16,7 +16,15 @@ input_dir=$(dirname $t)
 expected_dir=$(echo $input_dir | sed s/input/expected/)
 test_name=$(basename $t .html)
 
-cd $LADYBIRD_SOURCE_DIR/Build/ladybird
+if [[ "$BUILD_PRESET" == "Sanitizer" ]]; then
+    build_dir=$LADYBIRD_SOURCE_DIR/Build/ladybird-sanitizers
+elif [[ "$BUILD_PRESET" == "Debug" ]]; then
+    build_dir=$LADYBIRD_SOURCE_DIR/Build/ladybird-debug
+else
+    build_dir=$LADYBIRD_SOURCE_DIR/Build/ladybird
+fi
+
+cd "$build_dir" || echo "Couldn’t cd to build directory" >&2 && exit 1
 
 if [[ -f ./bin/headless-browser ]]; then
     ladybird_headless_binary=./bin/headless-browser
