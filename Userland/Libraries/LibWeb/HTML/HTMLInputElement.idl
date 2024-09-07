@@ -17,7 +17,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;
     attribute FileList? files;
-    [FIXME, CEReactions] attribute USVString formAction;
+    [CEReactions] attribute USVString formAction;
     [FIXME, CEReactions] attribute DOMString formEnctype;
     [FIXME, CEReactions] attribute DOMString formMethod;
     [CEReactions, Reflect=formnovalidate] attribute boolean formNoValidate;
