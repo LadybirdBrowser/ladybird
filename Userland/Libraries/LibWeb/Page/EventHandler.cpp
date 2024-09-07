@@ -908,10 +908,10 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
     if (!continue_)
         return false;
 
-    if (document->cursor_position() && document->cursor_position()->node()->is_editable()) {
+    if (document->cursor_position()) {
         auto& node = *document->cursor_position()->node();
 
-        if (key == UIEvents::KeyCode::Key_Backspace) {
+        if (key == UIEvents::KeyCode::Key_Backspace && node.is_editable()) {
             if (!document->decrement_cursor_position_offset()) {
                 // FIXME: Move to the previous node and delete the last character there.
                 return true;
@@ -920,7 +920,8 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
             m_edit_event_handler->handle_delete_character_after(document, *document->cursor_position());
             return true;
         }
-        if (key == UIEvents::KeyCode::Key_Delete) {
+
+        if (key == UIEvents::KeyCode::Key_Delete && node.is_editable()) {
             if (document->cursor_position()->offset_is_at_end_of_node()) {
                 // FIXME: Move to the next node and delete the first character there.
                 return true;
@@ -955,16 +956,7 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
                 return document->increment_cursor_position_to_next_word();
             };
 
-            if ((modifiers & UIEvents::Mod_Shift) == 0) {
-                if (selection && range) {
-                    auto cursor_edge = key == UIEvents::KeyCode::Key_Left ? range->start_offset() : range->end_offset();
-
-                    document->set_cursor_position(DOM::Position::create(document->realm(), node, cursor_edge));
-                    selection->remove_all_ranges();
-                } else {
-                    increment_or_decrement_cursor();
-                }
-            } else {
+            if ((modifiers & UIEvents::Mod_Shift) != 0) {
                 auto previous_position = document->cursor_position()->offset();
                 auto should_udpdate_selection = increment_or_decrement_cursor();
 
@@ -974,6 +966,15 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
 
                     (void)selection->set_base_and_extent(node, selection_start, node, selection_end);
                 }
+            } else if (node.is_editable()) {
+                if (selection && range) {
+                    auto cursor_edge = key == UIEvents::KeyCode::Key_Left ? range->start_offset() : range->end_offset();
+
+                    document->set_cursor_position(DOM::Position::create(document->realm(), node, cursor_edge));
+                    selection->remove_all_ranges();
+                } else {
+                    increment_or_decrement_cursor();
+                }
             }
 
             return true;
@@ -982,10 +983,7 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
         if (key == UIEvents::KeyCode::Key_Home || key == UIEvents::KeyCode::Key_End) {
             auto cursor_edge = key == UIEvents::KeyCode::Key_Home ? 0uz : node.length();
 
-            if ((modifiers & UIEvents::Mod_Shift) == 0) {
-                if (selection && range)
-                    selection->remove_all_ranges();
-            } else {
+            if ((modifiers & UIEvents::Mod_Shift) != 0) {
                 auto previous_position = document->cursor_position()->offset();
                 auto should_udpdate_selection = previous_position != cursor_edge;
 
@@ -993,13 +991,16 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
                     auto selection_start = range ? selection->anchor_offset() : previous_position;
                     (void)selection->set_base_and_extent(node, selection_start, node, cursor_edge);
                 }
+            } else if (node.is_editable()) {
+                if (selection && range)
+                    selection->remove_all_ranges();
             }
 
             document->set_cursor_position(DOM::Position::create(realm, node, cursor_edge));
             return true;
         }
 
-        if (key == UIEvents::KeyCode::Key_Return) {
+        if (key == UIEvents::KeyCode::Key_Return && node.is_editable()) {
             HTML::HTMLInputElement* input_element = nullptr;
             if (auto node = document->cursor_position()->node()) {
                 if (node->is_text()) {
@@ -1022,7 +1023,7 @@ bool EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code
         }
 
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
-        if (!should_ignore_keydown_event(code_point, modifiers)) {
+        if (!should_ignore_keydown_event(code_point, modifiers) && node.is_editable()) {
             m_edit_event_handler->handle_insert(document, JS::NonnullGCPtr { *document->cursor_position() }, code_point);
             document->increment_cursor_position_offset();
             return true;
