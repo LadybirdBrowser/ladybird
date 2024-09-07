@@ -1,0 +1,23 @@
+<style>
+:root { --top: 1px; }
+@layer foo { :root { --left: 2px; } }
+@layer bar { :root { --bottom: 3px; } }
+@layer baz { :root { --right: 4px; } }
+#testDiv {
+    padding-top: var(--top, 0);
+    padding-left: var(--left, 0);
+    padding-bottom: var(--bottom, 0);
+    padding-right: var(--right, 0);
+}
+</style><div id="testDiv"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const s = getComputedStyle(testDiv);
+        println(s.paddingTop);
+        println(s.paddingLeft);
+        println(s.paddingBottom);
+        println(s.paddingRight);
+        testDiv.remove();
+    });
+</script>
