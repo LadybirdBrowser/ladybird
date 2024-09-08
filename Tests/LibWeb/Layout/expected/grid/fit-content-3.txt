@@ -1,0 +1,31 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x120 [BFC] children: not-inline
+    BlockContainer <body> at (8,10) content-size 784x104 children: not-inline
+      BlockContainer <div.container> at (8,10) content-size 200x104 children: inline
+        frag 0 from Box start: 0, length: 0, rect: [8,10 104x104] baseline: 104
+        TextNode <#text>
+        Box <div.grid> at (8,10) content-size 104x104 [GFC] children: not-inline
+          BlockContainer <(anonymous)> at (8,10) content-size 0x0 [BFC] children: inline
+            TextNode <#text>
+          BlockContainer <div.item> at (8,10) content-size 78x104 [BFC] children: not-inline
+            BlockContainer <(anonymous)> at (9,11) content-size 50x50 floating [BFC] children: inline
+              TextNode <#text>
+            BlockContainer <(anonymous)> at (9,63) content-size 50x50 floating [BFC] children: inline
+              TextNode <#text>
+          BlockContainer <(anonymous)> at (8,10) content-size 0x0 [BFC] children: inline
+            TextNode <#text>
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,114) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x120]
+    PaintableWithLines (BlockContainer<BODY>) [8,10 784x104]
+      PaintableWithLines (BlockContainer<DIV>.container) [8,10 200x104]
+        PaintableBox (Box<DIV>.grid) [8,10 104x104]
+          PaintableWithLines (BlockContainer(anonymous)) [8,10 0x0]
+          PaintableWithLines (BlockContainer<DIV>.item) [8,10 78x104]
+            PaintableWithLines (BlockContainer(anonymous)) [8,10 52x52]
+            PaintableWithLines (BlockContainer(anonymous)) [8,62 52x52]
+          PaintableWithLines (BlockContainer(anonymous)) [8,10 0x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,114 784x0]
