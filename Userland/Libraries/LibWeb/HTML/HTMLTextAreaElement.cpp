@@ -463,6 +463,9 @@ void HTMLTextAreaElement::queue_firing_input_event()
 
 void HTMLTextAreaElement::selection_was_changed(size_t selection_start, size_t selection_end)
 {
+    if (!m_text_node)
+        return;
+
     document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, selection_end));
 
     if (auto selection = document().get_selection())
