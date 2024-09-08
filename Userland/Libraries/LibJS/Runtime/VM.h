@@ -274,6 +274,7 @@ public:
     Function<ThrowCompletionOr<void>(Realm&)> host_ensure_can_compile_strings;
     Function<ThrowCompletionOr<void>(Object&)> host_ensure_can_add_private_element;
     Function<ThrowCompletionOr<HandledByHost>(ArrayBuffer&, size_t)> host_resize_array_buffer;
+    Function<void(StringView)> host_unrecognized_date_string;
 
     Vector<StackTraceElement> stack_trace() const;
 
