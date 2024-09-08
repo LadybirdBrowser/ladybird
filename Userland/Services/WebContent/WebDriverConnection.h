@@ -23,6 +23,7 @@
 #include <WebContent/Forward.h>
 #include <WebContent/WebDriverClientEndpoint.h>
 #include <WebContent/WebDriverServerEndpoint.h>
+#include <WebDriver/InputState.h>
 
 namespace WebContent {
 
@@ -115,6 +116,8 @@ private:
     using StartNodeGetter = Function<ErrorOr<Web::DOM::ParentNode*, Web::WebDriver::Error>()>;
     ErrorOr<JsonArray, Web::WebDriver::Error> find(StartNodeGetter&& start_node_getter, Web::WebDriver::LocationStrategy using_, StringView value);
 
+    Web::WebDriver::InputState const& get_the_input_state(Web::HTML::BrowsingContext const& context) const;
+
     struct ScriptArguments {
         ByteString script;
         JS::MarkedVector<JS::Value> arguments;
@@ -135,6 +138,12 @@ private:
 
     // https://w3c.github.io/webdriver/#dfn-session-script-timeout
     Web::WebDriver::TimeoutsConfiguration m_timeouts_configuration;
+
+    // https://w3c.github.io/webdriver/#input-state
+    // FIXME: Might end up replacing this with a browsing
+    // context input map as per
+    // https://w3c.github.io/webdriver/#dfn-browsing-context-input-state-map
+    Web::WebDriver::InputState m_input_state;
 };
 
 }

@@ -44,6 +44,7 @@
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWeb/WebDriver/Screenshot.h>
 #include <WebContent/WebDriverConnection.h>
+#include <WebDriver/InputState.h>
 
 namespace WebContent {
 
@@ -2069,6 +2070,21 @@ Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_
     return JsonValue {};
 }
 
+// FIXME: Arguments/return types
+// To get the input state given session and browsing context:
+Web::WebDriver::InputState const& WebDriverConnection::get_the_input_state(Web::HTML::BrowsingContext const& /*context*/) const
+{
+    dbgln_if(WEBDRIVER_DEBUG, "FIXME: Implement get_the_input_state");
+    // FIXME: 1. Assert: browsing context is a top-level browsing context.
+
+    // FIXME: 2. Let input state map be session's browsing context input state map.
+
+    // FIXME: 3. If input state map does not contain browsing context, set input state map[browsing context] to create an input state.
+
+    // FIXME: 4. Return input state map[browsing context].
+    return m_input_state;
+}
+
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions
 Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_actions()
 {
@@ -2076,6 +2092,8 @@ Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_a
     TRY(ensure_open_top_level_browsing_context());
 
     // FIXME: 2. Let input state be the result of get the input state with current session and current top-level browsing context.
+    auto const& input_state = get_the_input_state(m_page_client->page().top_level_browsing_context());
+    (void)input_state; // to silence compiler
 
     // FIXME: 3. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
 

@@ -2,6 +2,7 @@ set(SOURCES
     Client.cpp
     Session.cpp
     WebContentConnection.cpp
+    InputSource.cpp
     main.cpp
 )
 
