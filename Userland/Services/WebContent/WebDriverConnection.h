@@ -56,6 +56,8 @@ private:
     virtual Messages::WebDriverClient::CloseWindowResponse close_window() override;
     virtual Messages::WebDriverClient::SwitchToWindowResponse switch_to_window() override;
     virtual Messages::WebDriverClient::NewWindowResponse new_window(JsonValue const& payload) override;
+    virtual Messages::WebDriverClient::SwitchToFrameResponse switch_to_frame(JsonValue const& payload) override;
+    virtual Messages::WebDriverClient::SwitchToParentFrameResponse switch_to_parent_frame(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::GetWindowRectResponse get_window_rect() override;
     virtual Messages::WebDriverClient::SetWindowRectResponse set_window_rect(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::MaximizeWindowResponse maximize_window() override;
@@ -81,6 +83,8 @@ private:
     virtual Messages::WebDriverClient::GetComputedRoleResponse get_computed_role(String const& element_id) override;
     virtual Messages::WebDriverClient::GetComputedLabelResponse get_computed_label(String const& element_id) override;
     virtual Messages::WebDriverClient::ElementClickResponse element_click(String const& element_id) override;
+    virtual Messages::WebDriverClient::ElementClearResponse element_clear(String const& element_id) override;
+    virtual Messages::WebDriverClient::ElementSendKeysResponse element_send_keys(String const& element_id) override;
     virtual Messages::WebDriverClient::GetSourceResponse get_source() override;
     virtual Messages::WebDriverClient::ExecuteScriptResponse execute_script(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::ExecuteAsyncScriptResponse execute_async_script(JsonValue const& payload) override;
