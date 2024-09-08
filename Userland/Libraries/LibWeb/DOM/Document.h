@@ -577,6 +577,8 @@ public:
 
     void set_salvageable(bool value) { m_salvageable = value; }
 
+    void make_unsalvageable(String reason);
+
     HTML::ListOfAvailableImages& list_of_available_images();
     HTML::ListOfAvailableImages const& list_of_available_images() const;
 
@@ -748,8 +750,6 @@ private:
     void dispatch_events_for_animation_if_necessary(JS::NonnullGCPtr<Animations::Animation>);
 
     void reset_cursor_blink_cycle();
-
-    void make_unsalvageable(String reason);
 
     JS::NonnullGCPtr<Page> m_page;
     OwnPtr<CSS::StyleComputer> m_style_computer;
