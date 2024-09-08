@@ -982,6 +982,8 @@ static bool is_simple_parameter_list(Vector<FunctionParameter> const& parameters
 
 RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(bool expect_parens, bool is_async)
 {
+    TemporaryChange in_formal_parameter_context_rollback(m_state.in_formal_parameter_context, false);
+
     if (is_async)
         VERIFY(match(TokenType::Async));
 
@@ -2888,6 +2890,7 @@ NonnullRefPtr<FunctionNodeType> Parser::parse_function_node(u16 parse_options, O
     TemporaryChange continue_context_rollback(m_state.in_continue_context, false);
     TemporaryChange class_field_initializer_rollback(m_state.in_class_field_initializer, false);
     TemporaryChange might_need_arguments_object_rollback(m_state.function_might_need_arguments_object, false);
+    TemporaryChange in_formal_parameter_context_rollback(m_state.in_formal_parameter_context, false);
 
     constexpr auto is_function_expression = IsSame<FunctionNodeType, FunctionExpression>;
     FunctionKind function_kind;
