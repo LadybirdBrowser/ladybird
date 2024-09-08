@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    .container {
+        width: 200px;
+        margin-top: 10px;
+    }
+    .grid {
+        display: inline-grid;
+        background: blue;
+    }
+    .item {
+        background: orange;
+    }
+    .item::before,
+    .item::after {
+        content: "";
+        float: left;
+        width: 50px;
+        height: 50px;
+        border: 1px solid red;
+    }
+</style>
+<div class="container">
+    <div class="grid" style="grid-template-columns: fit-content(75%)">
+        <div class="item"></div>
+    </div>
+</div>

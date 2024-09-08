@@ -867,10 +867,14 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
         });
         for (auto& track : spanned_tracks) {
             if (track.max_track_sizing_function.is_fit_content()) {
-                track.growth_limit = css_clamp(
-                    track.planned_increase,
-                    track.base_size,
-                    track.max_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero()));
+                track.growth_limit.value() += track.planned_increase;
+                if (track.growth_limit.value() < track.base_size)
+                    track.growth_limit = track.base_size;
+                if (available_size.is_definite()) {
+                    auto fit_content_limit = track.max_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero());
+                    if (track.growth_limit.value() > fit_content_limit)
+                        track.growth_limit = fit_content_limit;
+                }
             } else if (!track.growth_limit.has_value()) {
                 // If the affected size is an infinite growth limit, set it to the track’s base size plus the planned increase.
                 track.growth_limit = track.base_size + track.planned_increase;
