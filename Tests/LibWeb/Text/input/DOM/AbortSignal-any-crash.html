@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const abortController = new AbortController();
+        const signal = AbortSignal.any([abortController.signal]);
+        abortController.signal.addEventListener("abort", () => { AbortSignal.any([signal]) });
+        abortController.abort();
+        println("PASS (didn't crash)");
+    });
+</script>
