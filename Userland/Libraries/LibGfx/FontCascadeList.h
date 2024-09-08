@@ -20,7 +20,7 @@ public:
 
     size_t size() const { return m_fonts.size(); }
     bool is_empty() const { return m_fonts.is_empty() && !m_last_resort_font; }
-    Font const& first() const { return *m_fonts.first().font; }
+    Font const& first() const { return !m_fonts.is_empty() ? *m_fonts.first().font : *m_last_resort_font; }
 
     template<typename Callback>
     void for_each_font_entry(Callback callback) const
