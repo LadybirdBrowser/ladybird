@@ -596,9 +596,10 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
 }
 
 // 11.6 Switch To Frame, https://w3c.github.io/webdriver/#dfn-switch-to-frame
-Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_frame()
+Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_frame(JsonValue const&)
 {
     dbgln("FIXME: WebDriverConnection::switch_to_frame()");
+
     // FIXME: 1. Let id be the result of getting the property "id" from parameters.
 
     // FIXME: 2. If id is not null, a Number object, or an Object that represents a web element, return error with error code invalid argument.
@@ -650,10 +651,12 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
     // FIXME: 4. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
 
     // FIXME: 5. Return success with data null
+
+    return JsonValue {};
 }
 
 // 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
-Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::switch_to_parent_frame()
+Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::switch_to_parent_frame(JsonValue const&)
 {
     dbgln("FIXME: WebDriverConnection::switch_to_parent_frame()");
 
@@ -674,6 +677,8 @@ Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::swit
     // FIXME: 5. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
 
     // FIXME: 6. Return success with data null.
+
+    return JsonValue {};
 }
 
 // 11.8.1 Get Window Rect, https://w3c.github.io/webdriver/#dfn-get-window-rect
@@ -1509,10 +1514,9 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
 }
 
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
-Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const& element_id)
+Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const&)
 {
     dbgln("FIXME: WebDriverConnection::element_clear()");
-    // To clear a content editable element
 
     // FIXME: 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
 
@@ -1584,13 +1588,14 @@ Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_cle
     }
 
     // FIXME: 12. Return success with data null.
+
+    return JsonValue {};
 }
 
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
-Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_send_keys(String const& element_id)
+Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_send_keys(String const&)
 {
     dbgln("FIXME: WebDriverConnection::element_send_keys()");
-    // To clear the modifier key state given input state, input id, source, undo actions, and browsing context:
 
     // FIXME: 1. If source is not a key input source return error with error code invalid argument.
 
@@ -1809,6 +1814,8 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
     // FIXME: 14. Remove an input source with input state and input id.
 
     // FIXME: 15. Return success with data null.
+
+    return JsonValue {};
 }
 
 // 13.1 Get Page Source, https://w3c.github.io/webdriver/#dfn-get-page-source
