@@ -164,6 +164,10 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
 
         return HandledByHost::Handled;
     };
+
+    // AD-HOC: Inform the host that we received a date string we were unable to parse.
+    host_unrecognized_date_string = [](StringView) {
+    };
 }
 
 VM::~VM() = default;

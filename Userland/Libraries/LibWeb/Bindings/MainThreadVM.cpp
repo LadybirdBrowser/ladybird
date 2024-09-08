@@ -545,6 +545,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         HTML::fetch_single_imported_module_script(realm, url.release_value(), *fetch_client, destination, fetch_options, *settings_object, fetch_referrer, module_request, perform_fetch, on_single_fetch_complete);
     };
 
+    s_main_thread_vm->host_unrecognized_date_string = [](StringView date) {
+        dbgln("Unable to parse date string: \"{}\"", date);
+    };
+
     return {};
 }
 

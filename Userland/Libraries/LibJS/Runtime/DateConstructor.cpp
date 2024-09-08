@@ -150,7 +150,7 @@ static double parse_simplified_iso8601(ByteString const& iso_8601)
     return time_clip(time_ms);
 }
 
-static double parse_date_string(ByteString const& date_string)
+static double parse_date_string(VM& vm, ByteString const& date_string)
 {
     auto value = parse_simplified_iso8601(date_string);
     if (isfinite(value))
@@ -188,6 +188,7 @@ static double parse_date_string(ByteString const& date_string)
             return 1000.0 * maybe_datetime->timestamp();
     }
 
+    vm.host_unrecognized_date_string(date_string);
     return NAN;
 }
 
@@ -257,7 +258,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> DateConstructor::construct(FunctionObjec
             if (primitive.is_string()) {
                 // 1. Assert: The next step never returns an abrupt completion because Type(v) is String.
                 // 2. Let tv be the result of parsing v as a date, in exactly the same manner as for the parse method (21.4.3.2).
-                time_value = parse_date_string(primitive.as_string().byte_string());
+                time_value = parse_date_string(vm, primitive.as_string().byte_string());
             }
             // iii. Else,
             else {
@@ -334,7 +335,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateConstructor::parse)
 
     auto date_string = TRY(vm.argument(0).to_byte_string(vm));
 
-    return Value(parse_date_string(date_string));
+    return Value(parse_date_string(vm, date_string));
 }
 
 // 21.4.3.4 Date.UTC ( year [ , month [ , date [ , hours [ , minutes [ , seconds [ , ms ] ] ] ] ] ] ), https://tc39.es/ecma262/#sec-date.utc
