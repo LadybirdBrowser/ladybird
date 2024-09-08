@@ -667,8 +667,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         // Otherwise, the y at which we calculate the intrusion by floats might be incorrect.
         ensure_sizes_correct_for_left_offset_calculation(li_box);
 
-        auto list_item_state = m_state.get(li_box);
-        auto marker_state = m_state.get(*li_box.marker());
+        auto const& list_item_state = m_state.get(li_box);
+        auto const& marker_state = m_state.get(*li_box.marker());
 
         auto offset_y = max(CSSPixels(0), (li_box.marker()->computed_values().line_height() - marker_state.content_height()) / 2);
         auto space_used_before_children_formatted = intrusion_by_floats_into_box(list_item_state, offset_y);
