@@ -121,6 +121,20 @@ test("yy{/,-}mm{/,-}dd hh:mm extension", () => {
     expectStringToGiveDate("2014-11-14 13:05", 2014, 11, 14, 13, 5);
 });
 
+test("Month dd, yy extension", () => {
+    function expectStringToGiveDate(input, fullYear, month, dayInMonth) {
+        const date = new Date(Date.parse(input));
+        expect(date.getFullYear()).toBe(fullYear);
+        expect(date.getMonth() + 1).toBe(month);
+        expect(date.getDate()).toBe(dayInMonth);
+    }
+
+    expectStringToGiveDate("May 15, 2023", 2023, 5, 15);
+    expectStringToGiveDate("May 22, 2023", 2023, 5, 22);
+    expectStringToGiveDate("May 30, 2023", 2023, 5, 30);
+    expectStringToGiveDate("June 5, 2023", 2023, 6, 5);
+});
+
 test("Month dd, yy hh:mm:ss extension", () => {
     function expectStringToGiveDate(input, fullYear, month, dayInMonth, hours, minutes, seconds) {
         // Since the timezone is not specified we just say it has to equal the date parts.

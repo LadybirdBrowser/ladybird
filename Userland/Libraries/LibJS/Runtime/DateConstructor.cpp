@@ -168,6 +168,7 @@ static double parse_date_string(ByteString const& date_string)
         "%m/%e/%Y%t%R%t%z"sv,                  // "12/05/2022 10:00 -0800"
         "%Y/%m/%e%t%R"sv,                      // "2014/11/14 13:05"
         "%Y-%m-%e%t%R"sv,                      // "2014-11-14 13:05"
+        "%B%t%e,%t%Y"sv,                       // "June 5, 2023"
         "%B%t%e,%t%Y%t%T"sv,                   // "June 5, 2023 17:00:00"
         "%b%t%d%t%Y%t%Z"sv,                    // "Jan 01 1970 GMT"
         "%a%t%b%t%e%t%T%t%Y%t%z"sv,            // "Wed Apr 17 23:08:53 2019 +0000"
