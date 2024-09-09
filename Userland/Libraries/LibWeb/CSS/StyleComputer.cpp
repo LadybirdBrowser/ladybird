@@ -2646,7 +2646,12 @@ void StyleComputer::build_rule_cache_if_needed() const
     const_cast<StyleComputer&>(*this).build_rule_cache();
 }
 
-static Optional<FlyString> is_roundabout_selector_bucketable_as_class(CSS::Selector::SimpleSelector const& simple_selector)
+struct SimplifiedSelectorForBucketing {
+    CSS::Selector::SimpleSelector::Type type;
+    FlyString name;
+};
+
+static Optional<SimplifiedSelectorForBucketing> is_roundabout_selector_bucketable_as_something_simpler(CSS::Selector::SimpleSelector const& simple_selector)
 {
     if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoClass)
         return {};
@@ -2665,10 +2670,16 @@ static Optional<FlyString> is_roundabout_selector_bucketable_as_class(CSS::Selec
         return {};
 
     auto const& inner_simple_selector = compound_selector.simple_selectors.first();
-    if (inner_simple_selector.type != CSS::Selector::SimpleSelector::Type::Class)
-        return {};
+    if (inner_simple_selector.type == CSS::Selector::SimpleSelector::Type::Class
+        || inner_simple_selector.type == CSS::Selector::SimpleSelector::Type::Id) {
+        return SimplifiedSelectorForBucketing { inner_simple_selector.type, inner_simple_selector.name() };
+    }
 
-    return inner_simple_selector.name();
+    if (inner_simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
+        return SimplifiedSelectorForBucketing { inner_simple_selector.type, inner_simple_selector.qualified_name().name.lowercase_name };
+    }
+
+    return {};
 }
 
 NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin)
@@ -2723,31 +2734,52 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
                 //       in the common case of div.foo or div#foo selectors.
                 bool added_to_bucket = false;
+
+                auto add_to_id_bucket = [&](FlyString const& name) {
+                    rule_cache->rules_by_id.ensure(name).append(move(matching_rule));
+                    ++num_id_rules;
+                    added_to_bucket = true;
+                };
+
+                auto add_to_class_bucket = [&](FlyString const& name) {
+                    rule_cache->rules_by_class.ensure(name).append(move(matching_rule));
+                    ++num_class_rules;
+                    added_to_bucket = true;
+                };
+
+                auto add_to_tag_name_bucket = [&](FlyString const& name) {
+                    rule_cache->rules_by_tag_name.ensure(name).append(move(matching_rule));
+                    ++num_tag_name_rules;
+                    added_to_bucket = true;
+                };
+
                 for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors.in_reverse()) {
                     if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Id) {
-                        rule_cache->rules_by_id.ensure(simple_selector.name()).append(move(matching_rule));
-                        ++num_id_rules;
-                        added_to_bucket = true;
+                        add_to_id_bucket(simple_selector.name());
                         break;
                     }
                     if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Class) {
-                        rule_cache->rules_by_class.ensure(simple_selector.name()).append(move(matching_rule));
-                        ++num_class_rules;
-                        added_to_bucket = true;
-                        break;
-                    }
-                    // NOTE: Selectors like `:is/where(.foo)` and `:is/where(.foo .bar)` are bucketed as class selectors for `foo` and `bar` respectively.
-                    if (auto class_ = is_roundabout_selector_bucketable_as_class(simple_selector); class_.has_value()) {
-                        rule_cache->rules_by_class.ensure(class_.value()).append(move(matching_rule));
-                        ++num_class_rules;
-                        added_to_bucket = true;
+                        add_to_class_bucket(simple_selector.name());
                         break;
                     }
                     if (simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
-                        rule_cache->rules_by_tag_name.ensure(simple_selector.qualified_name().name.lowercase_name).append(move(matching_rule));
-                        ++num_tag_name_rules;
-                        added_to_bucket = true;
+                        add_to_tag_name_bucket(simple_selector.qualified_name().name.lowercase_name);
                         break;
+                    }
+                    // NOTE: Selectors like `:is/where(.foo)` and `:is/where(.foo .bar)` are bucketed as class selectors for `foo` and `bar` respectively.
+                    if (auto simplified = is_roundabout_selector_bucketable_as_something_simpler(simple_selector); simplified.has_value()) {
+                        if (simplified->type == CSS::Selector::SimpleSelector::Type::TagName) {
+                            add_to_tag_name_bucket(simplified->name);
+                            break;
+                        }
+                        if (simplified->type == CSS::Selector::SimpleSelector::Type::Class) {
+                            add_to_class_bucket(simplified->name);
+                            break;
+                        }
+                        if (simplified->type == CSS::Selector::SimpleSelector::Type::Id) {
+                            add_to_id_bucket(simplified->name);
+                            break;
+                        }
                     }
                 }
                 if (!added_to_bucket) {
