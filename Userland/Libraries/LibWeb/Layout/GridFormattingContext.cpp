@@ -1426,6 +1426,10 @@ CSS::JustifyItems GridFormattingContext::justification_for_item(Box const& box) 
         return CSS::JustifyItems::Safe;
     case CSS::JustifySelf::Unsafe:
         return CSS::JustifyItems::Unsafe;
+    case CSS::JustifySelf::Left:
+        return CSS::JustifyItems::Left;
+    case CSS::JustifySelf::Right:
+        return CSS::JustifyItems::Right;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -1516,11 +1520,13 @@ void GridFormattingContext::resolve_grid_item_widths()
                 break;
             case CSS::JustifyItems::Start:
             case CSS::JustifyItems::FlexStart:
+            case CSS::JustifyItems::Left:
                 result.margin_right += free_space_left_for_alignment;
                 result.width = a_width;
                 break;
             case CSS::JustifyItems::End:
             case CSS::JustifyItems::FlexEnd:
+            case CSS::JustifyItems::Right:
                 result.margin_left += free_space_left_for_alignment;
                 result.width = a_width;
                 break;
@@ -1744,7 +1750,7 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         auto free_space = grid_container_width - sum_base_size_of_columns;
         x_start = free_space / 2;
         x_end = free_space / 2;
-    } else if (justify_content == CSS::JustifyContent::End) {
+    } else if (justify_content == CSS::JustifyContent::End || justify_content == CSS::JustifyContent::Right) {
         auto free_space = grid_container_width - sum_base_size_of_columns;
         x_start = free_space;
         x_end = free_space;
@@ -1938,10 +1944,12 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box,
             break;
         case CSS::JustifyItems::Start:
         case CSS::JustifyItems::FlexStart:
+        case CSS::JustifyItems::Left:
             box_state.inset_right = width_left_for_alignment;
             break;
         case CSS::JustifyItems::End:
         case CSS::JustifyItems::FlexEnd:
+        case CSS::JustifyItems::Right:
             box_state.inset_left = width_left_for_alignment;
             break;
         default:
