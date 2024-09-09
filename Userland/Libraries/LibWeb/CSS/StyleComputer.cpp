@@ -2627,6 +2627,31 @@ void StyleComputer::build_rule_cache_if_needed() const
     const_cast<StyleComputer&>(*this).build_rule_cache();
 }
 
+static Optional<FlyString> is_roundabout_selector_bucketable_as_class(CSS::Selector::SimpleSelector const& simple_selector)
+{
+    if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoClass)
+        return {};
+
+    if (simple_selector.pseudo_class().type != CSS::PseudoClass::Is
+        && simple_selector.pseudo_class().type != CSS::PseudoClass::Where)
+        return {};
+
+    if (simple_selector.pseudo_class().argument_selector_list.size() != 1)
+        return {};
+
+    auto const& argument_selector = *simple_selector.pseudo_class().argument_selector_list.first();
+
+    auto const& compound_selector = argument_selector.compound_selectors().last();
+    if (compound_selector.simple_selectors.size() != 1)
+        return {};
+
+    auto const& inner_simple_selector = compound_selector.simple_selectors.first();
+    if (inner_simple_selector.type != CSS::Selector::SimpleSelector::Type::Class)
+        return {};
+
+    return inner_simple_selector.name();
+}
+
 NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin)
 {
     auto rule_cache = make<RuleCache>();
@@ -2685,6 +2710,13 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                     }
                     if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Class) {
                         rule_cache->rules_by_class.ensure(simple_selector.name()).append(move(matching_rule));
+                        ++num_class_rules;
+                        added_to_bucket = true;
+                        break;
+                    }
+                    // NOTE: Selectors like `:is/where(.foo)` and `:is/where(.foo .bar)` are bucketed as class selectors for `foo` and `bar` respectively.
+                    if (auto class_ = is_roundabout_selector_bucketable_as_class(simple_selector); class_.has_value()) {
+                        rule_cache->rules_by_class.ensure(class_.value()).append(move(matching_rule));
                         ++num_class_rules;
                         added_to_bucket = true;
                         break;
