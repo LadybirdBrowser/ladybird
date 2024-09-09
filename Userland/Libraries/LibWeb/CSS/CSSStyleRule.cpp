@@ -46,11 +46,6 @@ CSSStyleDeclaration* CSSStyleRule::style()
     return m_declaration;
 }
 
-FlyString CSSStyleRule::qualified_layer_name() const
-{
-    return parent_layer_internal_qualified_name();
-}
-
 // https://www.w3.org/TR/cssom/#serialize-a-css-rule
 String CSSStyleRule::serialized() const
 {

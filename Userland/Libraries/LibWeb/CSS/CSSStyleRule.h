@@ -33,7 +33,7 @@ public:
 
     CSSStyleDeclaration* style();
 
-    FlyString qualified_layer_name() const;
+    [[nodiscard]] FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
 private:
     CSSStyleRule(JS::Realm&, Vector<NonnullRefPtr<Selector>>&&, PropertyOwningCSSStyleDeclaration&);
