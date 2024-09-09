@@ -99,6 +99,7 @@ set(SOURCES
     CSS/SelectorEngine.cpp
     CSS/Serialize.cpp
     CSS/Size.cpp
+    CSS/Sizing.cpp
     CSS/StyleComputer.cpp
     CSS/StyleInvalidation.cpp
     CSS/StyleProperties.cpp
