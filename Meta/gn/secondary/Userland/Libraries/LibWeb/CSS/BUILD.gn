@@ -60,6 +60,7 @@ source_set("CSS") {
     "SelectorEngine.cpp",
     "Serialize.cpp",
     "Size.cpp",
+    "Sizing.cpp",
     "StyleComputer.cpp",
     "StyleInvalidation.cpp",
     "StyleProperties.cpp",
