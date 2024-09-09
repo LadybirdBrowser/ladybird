@@ -1262,6 +1262,7 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
         if (auto_margins == 0 && number_of_items > 0) {
             switch (flex_container().computed_values().justify_content()) {
             case CSS::JustifyContent::Start:
+            case CSS::JustifyContent::Left:
                 initial_offset = 0;
                 break;
             case CSS::JustifyContent::Stretch:
@@ -1275,6 +1276,13 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
                 break;
             case CSS::JustifyContent::End:
                 initial_offset = inner_main_size(m_flex_container_state);
+                break;
+            case CSS::JustifyContent::Right:
+                if (is_row_layout()) {
+                    initial_offset = inner_main_size(m_flex_container_state);
+                } else {
+                    initial_offset = 0;
+                }
                 break;
             case CSS::JustifyContent::FlexEnd:
                 if (is_direction_reverse()) {
@@ -1330,6 +1338,10 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
 
         if (auto_margins == 0) {
             switch (flex_container().computed_values().justify_content()) {
+            case CSS::JustifyContent::Start:
+            case CSS::JustifyContent::Left:
+                flex_region_render_cursor = FlexRegionRenderCursor::Left;
+                break;
             case CSS::JustifyContent::Normal:
             case CSS::JustifyContent::FlexStart:
             case CSS::JustifyContent::Center:
@@ -1343,6 +1355,13 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
                 break;
             case CSS::JustifyContent::End:
                 flex_region_render_cursor = FlexRegionRenderCursor::Right;
+                break;
+            case CSS::JustifyContent::Right:
+                if (is_row_layout()) {
+                    flex_region_render_cursor = FlexRegionRenderCursor::Right;
+                } else {
+                    flex_region_render_cursor = FlexRegionRenderCursor::Left;
+                }
                 break;
             case CSS::JustifyContent::FlexEnd:
                 if (!is_direction_reverse()) {
@@ -2172,6 +2191,7 @@ CSSPixelPoint FlexFormattingContext::calculate_static_position(Box const& box) c
     CSSPixels main_offset = 0;
     switch (flex_container().computed_values().justify_content()) {
     case CSS::JustifyContent::Start:
+    case CSS::JustifyContent::Left:
         pack_from_end = false;
         break;
     case CSS::JustifyContent::Stretch:
@@ -2182,6 +2202,9 @@ CSSPixelPoint FlexFormattingContext::calculate_static_position(Box const& box) c
         break;
     case CSS::JustifyContent::End:
         pack_from_end = true;
+        break;
+    case CSS::JustifyContent::Right:
+        pack_from_end = is_row_layout();
         break;
     case CSS::JustifyContent::FlexEnd:
         pack_from_end = !is_direction_reverse();
