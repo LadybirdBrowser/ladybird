@@ -190,9 +190,6 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
         }
     }
 
-    auto ttf = Gfx::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data());
-    if (!ttf.is_error())
-        return ttf.release_value();
     return Error::from_string_literal("Automatic format detection failed");
 }
 
