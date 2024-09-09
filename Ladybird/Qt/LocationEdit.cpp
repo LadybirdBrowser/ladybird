@@ -73,8 +73,11 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
         if (text().isEmpty())
             setText(qstring_from_ak_string(m_url.serialize()));
     }
-    setCursorPosition(0);
-    highlight_location();
+
+    if (event->reason() != Qt::PopupFocusReason) {
+        setCursorPosition(0);
+        highlight_location();
+    }
 }
 
 void LocationEdit::update_placeholder()
