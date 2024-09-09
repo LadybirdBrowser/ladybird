@@ -1,54 +1,54 @@
-// https://www.w3.org/TR/wai-aria-1.2/#ARIAMixin
+// https://w3c.github.io/aria/#ARIAMixin
 interface mixin ARIAMixin {
-	attribute DOMString? role;
+	[CEReactions] attribute DOMString? role;
 
-	attribute DOMString? ariaAtomic;
-	attribute DOMString? ariaAutoComplete;
-	attribute DOMString? ariaBusy;
-	attribute DOMString? ariaChecked;
-	attribute DOMString? ariaColCount;
-	attribute DOMString? ariaColIndex;
+	[CEReactions] attribute DOMString? ariaAtomic;
+	[CEReactions] attribute DOMString? ariaAutoComplete;
+	[CEReactions] attribute DOMString? ariaBusy;
+	[CEReactions] attribute DOMString? ariaChecked;
+	[CEReactions] attribute DOMString? ariaColCount;
+	[CEReactions] attribute DOMString? ariaColIndex;
 
-	attribute DOMString? ariaColSpan;
+	[CEReactions] attribute DOMString? ariaColSpan;
 
-	attribute DOMString? ariaCurrent;
+	[CEReactions] attribute DOMString? ariaCurrent;
 
 
 
-	attribute DOMString? ariaDisabled;
+	[CEReactions] attribute DOMString? ariaDisabled;
 
-	attribute DOMString? ariaExpanded;
+	[CEReactions] attribute DOMString? ariaExpanded;
 
-	attribute DOMString? ariaHasPopup;
-	attribute DOMString? ariaHidden;
-	attribute DOMString? ariaInvalid;
-	attribute DOMString? ariaKeyShortcuts;
-	attribute DOMString? ariaLabel;
+	[CEReactions] attribute DOMString? ariaHasPopup;
+	[CEReactions] attribute DOMString? ariaHidden;
+	[CEReactions] attribute DOMString? ariaInvalid;
+	[CEReactions] attribute DOMString? ariaKeyShortcuts;
+	[CEReactions] attribute DOMString? ariaLabel;
 
-	attribute DOMString? ariaLevel;
-	attribute DOMString? ariaLive;
-	attribute DOMString? ariaModal;
-	attribute DOMString? ariaMultiLine;
-	attribute DOMString? ariaMultiSelectable;
-	attribute DOMString? ariaOrientation;
+	[CEReactions] attribute DOMString? ariaLevel;
+	[CEReactions] attribute DOMString? ariaLive;
+	[CEReactions] attribute DOMString? ariaModal;
+	[CEReactions] attribute DOMString? ariaMultiLine;
+	[CEReactions] attribute DOMString? ariaMultiSelectable;
+	[CEReactions] attribute DOMString? ariaOrientation;
 
-	attribute DOMString? ariaPlaceholder;
-	attribute DOMString? ariaPosInSet;
-	attribute DOMString? ariaPressed;
-	attribute DOMString? ariaReadOnly;
-	attribute DOMString? ariaRelevant;
+	[CEReactions] attribute DOMString? ariaPlaceholder;
+	[CEReactions] attribute DOMString? ariaPosInSet;
+	[CEReactions] attribute DOMString? ariaPressed;
+	[CEReactions] attribute DOMString? ariaReadOnly;
+	[CEReactions] attribute DOMString? ariaRelevant;
 
-	attribute DOMString? ariaRequired;
-	attribute DOMString? ariaRoleDescription;
-	attribute DOMString? ariaRowCount;
-	attribute DOMString? ariaRowIndex;
+	[CEReactions] attribute DOMString? ariaRequired;
+	[CEReactions] attribute DOMString? ariaRoleDescription;
+	[CEReactions] attribute DOMString? ariaRowCount;
+	[CEReactions] attribute DOMString? ariaRowIndex;
 
-	attribute DOMString? ariaRowSpan;
-	attribute DOMString? ariaSelected;
-	attribute DOMString? ariaSetSize;
-	attribute DOMString? ariaSort;
-	attribute DOMString? ariaValueMax;
-	attribute DOMString? ariaValueMin;
-	attribute DOMString? ariaValueNow;
-	attribute DOMString? ariaValueText;
+	[CEReactions] attribute DOMString? ariaRowSpan;
+	[CEReactions] attribute DOMString? ariaSelected;
+	[CEReactions] attribute DOMString? ariaSetSize;
+	[CEReactions] attribute DOMString? ariaSort;
+	[CEReactions] attribute DOMString? ariaValueMax;
+	[CEReactions] attribute DOMString? ariaValueMin;
+	[CEReactions] attribute DOMString? ariaValueNow;
+	[CEReactions] attribute DOMString? ariaValueText;
 };
