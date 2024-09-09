@@ -2699,9 +2699,10 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                     selector.specificity(),
                     cascade_origin,
                     false,
-                    false,
                     SelectorEngine::can_use_fast_matches(selector),
                 };
+
+                bool contains_root_pseudo_class = false;
 
                 for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
                     if (!matching_rule.contains_pseudo_element) {
@@ -2710,10 +2711,10 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                             ++num_pseudo_element_rules;
                         }
                     }
-                    if (!matching_rule.contains_root_pseudo_class) {
+                    if (!contains_root_pseudo_class) {
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
                             && simple_selector.pseudo_class().type == CSS::PseudoClass::Root) {
-                            matching_rule.contains_root_pseudo_class = true;
+                            contains_root_pseudo_class = true;
                             ++num_root_rules;
                         }
                     }
@@ -2752,7 +2753,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 if (!added_to_bucket) {
                     if (matching_rule.contains_pseudo_element) {
                         rule_cache->pseudo_element_rules.append(move(matching_rule));
-                    } else if (matching_rule.contains_root_pseudo_class) {
+                    } else if (contains_root_pseudo_class) {
                         rule_cache->root_rules.append(move(matching_rule));
                     } else {
                         for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
