@@ -93,6 +93,7 @@ struct MatchingRule {
     bool contains_pseudo_element { false };
     bool contains_root_pseudo_class { false };
     bool can_use_fast_matches { false };
+    bool skip { false };
 };
 
 struct FontFaceKey {

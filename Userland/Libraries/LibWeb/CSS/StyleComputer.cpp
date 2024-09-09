@@ -395,9 +395,9 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
 
     add_rules_to_run(rule_cache.other_rules);
 
-    Vector<MatchingRule> matching_rules;
-    matching_rules.ensure_capacity(rules_to_run.size());
-    for (auto const& rule_to_run : rules_to_run) {
+    size_t maximum_match_count = 0;
+
+    for (auto& rule_to_run : rules_to_run) {
         // FIXME: This needs to be revised when adding support for the ::shadow selector, as it needs to cross shadow boundaries.
         auto rule_root = rule_to_run.shadow_root;
         auto from_user_agent_or_user_stylesheet = rule_to_run.cascade_origin == CascadeOrigin::UserAgent || rule_to_run.cascade_origin == CascadeOrigin::User;
@@ -412,20 +412,39 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
             || (element.is_shadow_host() && rule_root == element.shadow_root())
             || from_user_agent_or_user_stylesheet;
 
-        if (!rule_is_relevant_for_current_scope)
+        if (!rule_is_relevant_for_current_scope) {
+            rule_to_run.skip = true;
+            continue;
+        }
+
+        auto const& selector = rule_to_run.rule->selectors()[rule_to_run.selector_index];
+        if (should_reject_with_ancestor_filter(*selector)) {
+            rule_to_run.skip = true;
+            continue;
+        }
+
+        ++maximum_match_count;
+    }
+
+    if (maximum_match_count == 0)
+        return {};
+
+    Vector<MatchingRule> matching_rules;
+    matching_rules.ensure_capacity(maximum_match_count);
+
+    for (auto const& rule_to_run : rules_to_run) {
+        if (rule_to_run.skip)
             continue;
 
         // NOTE: When matching an element against a rule from outside the shadow root's style scope,
         //       we have to pass in null for the shadow host, otherwise combinator traversal will
         //       be confined to the element itself (since it refuses to cross the shadow boundary).
+        auto rule_root = rule_to_run.shadow_root;
         auto shadow_host_to_use = shadow_host;
         if (element.is_shadow_host() && rule_root != element.shadow_root())
             shadow_host_to_use = nullptr;
 
         auto const& selector = rule_to_run.rule->selectors()[rule_to_run.selector_index];
-
-        if (should_reject_with_ancestor_filter(*selector))
-            continue;
 
         if (rule_to_run.can_use_fast_matches) {
             if (!SelectorEngine::fast_matches(selector, *rule_to_run.sheet, element, shadow_host_to_use))
