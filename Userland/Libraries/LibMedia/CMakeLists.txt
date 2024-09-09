@@ -1,3 +1,5 @@
+include(ffmpeg)
+
 set(SOURCES
     Audio/GenericTypes.cpp
     Audio/SampleFormats.cpp
@@ -26,7 +28,7 @@ if (HAVE_PULSEAUDIO)
     )
 endif()
 
-if (NOT ANDROID)
+if (HAS_FFMPEG)
     list(APPEND SOURCES FFmpeg/FFmpegVideoDecoder.cpp)
 else()
     list(APPEND SOURCES FFmpeg/FFmpegVideoDecoderStub.cpp)
@@ -35,11 +37,8 @@ endif()
 serenity_lib(LibMedia media)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibRIFF LibIPC LibGfx LibThreading LibUnicode)
 
-if (NOT ANDROID)
-    # Third-party
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
-    target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC)
+if (HAS_FFMPEG)
+    target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT)
 endif()
 
 if (HAVE_PULSEAUDIO)
