@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/BorderPainting.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
@@ -227,6 +228,12 @@ public:
 
     [[nodiscard]] bool is_scrollable() const;
 
+    void set_used_values_for_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue> style_value) { m_used_values_for_grid_template_columns = move(style_value); }
+    RefPtr<CSS::GridTrackSizeListStyleValue> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
+
+    void set_used_values_for_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue> style_value) { m_used_values_for_grid_template_rows = move(style_value); }
+    RefPtr<CSS::GridTrackSizeListStyleValue> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
+
 protected:
     explicit PaintableBox(Layout::Box const&);
 
@@ -287,6 +294,9 @@ private:
     ResolvedBackground m_resolved_background;
 
     OwnPtr<StickyInsets> m_sticky_insets;
+
+    RefPtr<CSS::GridTrackSizeListStyleValue> m_used_values_for_grid_template_columns;
+    RefPtr<CSS::GridTrackSizeListStyleValue> m_used_values_for_grid_template_rows;
 };
 
 class PaintableWithLines : public PaintableBox {
