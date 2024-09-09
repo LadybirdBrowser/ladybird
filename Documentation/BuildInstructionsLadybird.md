@@ -14,7 +14,7 @@ CMake 3.25 or newer must be available in $PATH.
 ### Debian/Ubuntu:
 
 ```bash
-sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libavcodec-dev libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
+sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libavcodec-dev libavformat-dev libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
 #### CMake 3.25 or newer:
@@ -83,12 +83,12 @@ sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl f
 
 ### Fedora or derivatives:
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-devel liberation-sans-fonts libglvnd-devel nasm ninja-build qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-devel libavformat-free-devel liberation-sans-fonts libglvnd-devel nasm ninja-build qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl ffmpeg-7-libavcodec-devel gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake ccache cmake curl ffmpeg-7-libavcodec-devel ffmpeg-7-libavformat-devel gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
 
