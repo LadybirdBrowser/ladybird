@@ -2700,8 +2700,10 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                     }
                 }
 
+                // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
+                //       in the common case of div.foo or div#foo selectors.
                 bool added_to_bucket = false;
-                for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
+                for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors.in_reverse()) {
                     if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Id) {
                         rule_cache->rules_by_id.ensure(simple_selector.name()).append(move(matching_rule));
                         ++num_id_rules;
