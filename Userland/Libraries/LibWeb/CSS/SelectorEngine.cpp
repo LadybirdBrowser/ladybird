@@ -140,7 +140,7 @@ static inline bool matches_link_pseudo_class(DOM::Element const& element)
     return element.has_attribute(HTML::AttributeNames::href);
 }
 
-static inline bool matches_hover_pseudo_class(DOM::Element const& element)
+bool matches_hover_pseudo_class(DOM::Element const& element)
 {
     auto* hovered_node = element.document().hovered_node();
     if (!hovered_node)

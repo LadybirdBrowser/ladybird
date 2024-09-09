@@ -356,16 +356,22 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
 
     auto const& rule_cache = rule_cache_for_cascade_origin(cascade_origin);
 
+    bool is_hovered = SelectorEngine::matches_hover_pseudo_class(element);
+
     Vector<MatchingRule, 512> rules_to_run;
     auto add_rules_to_run = [&](Vector<MatchingRule> const& rules) {
         rules_to_run.grow_capacity(rules_to_run.size() + rules.size());
         if (pseudo_element.has_value()) {
             for (auto const& rule : rules) {
+                if (rule.must_be_hovered && !is_hovered)
+                    continue;
                 if (rule.contains_pseudo_element && filter_namespace_rule(element, rule) && filter_layer(qualified_layer_name, rule))
                     rules_to_run.unchecked_append(rule);
             }
         } else {
             for (auto const& rule : rules) {
+                if (rule.must_be_hovered && !is_hovered)
+                    continue;
                 if (!rule.contains_pseudo_element && filter_namespace_rule(element, rule) && filter_layer(qualified_layer_name, rule))
                     rules_to_run.unchecked_append(rule);
             }
@@ -2692,6 +2698,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
     size_t num_pseudo_element_rules = 0;
     size_t num_root_rules = 0;
     size_t num_attribute_rules = 0;
+    size_t num_hover_rules = 0;
 
     Vector<MatchingRule> matching_rules;
     size_t style_sheet_index = 0;
@@ -2711,6 +2718,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                     cascade_origin,
                     false,
                     SelectorEngine::can_use_fast_matches(selector),
+                    false,
                 };
 
                 bool contains_root_pseudo_class = false;
@@ -2727,6 +2735,27 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                             && simple_selector.pseudo_class().type == CSS::PseudoClass::Root) {
                             contains_root_pseudo_class = true;
                             ++num_root_rules;
+                        }
+                    }
+
+                    if (!matching_rule.must_be_hovered) {
+                        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass && simple_selector.pseudo_class().type == CSS::PseudoClass::Hover) {
+                            matching_rule.must_be_hovered = true;
+                            ++num_hover_rules;
+                        }
+                        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
+                            && (simple_selector.pseudo_class().type == CSS::PseudoClass::Is
+                                || simple_selector.pseudo_class().type == CSS::PseudoClass::Where)) {
+                            auto const& argument_selectors = simple_selector.pseudo_class().argument_selector_list;
+
+                            if (argument_selectors.size() == 1) {
+                                auto const& simple_argument_selector = argument_selectors.first()->compound_selectors().last().simple_selectors.last();
+                                if (simple_argument_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
+                                    && simple_argument_selector.pseudo_class().type == CSS::PseudoClass::Hover) {
+                                    matching_rule.must_be_hovered = true;
+                                    ++num_hover_rules;
+                                }
+                            }
                         }
                     }
                 }
