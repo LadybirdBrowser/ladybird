@@ -278,6 +278,11 @@ void LayoutState::commit(Box& root)
                 auto& svg_geometry_paintable = static_cast<Painting::SVGPathPaintable&>(paintable_box);
                 svg_geometry_paintable.set_computed_path(move(*used_values.computed_svg_path()));
             }
+
+            if (node.display().is_grid_inside()) {
+                paintable_box.set_used_values_for_grid_template_columns(used_values.grid_template_columns());
+                paintable_box.set_used_values_for_grid_template_rows(used_values.grid_template_rows());
+            }
         }
     }
 

@@ -1873,6 +1873,23 @@ void GridFormattingContext::run(Box const&, LayoutMode, AvailableSpace const& av
         if (auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, available_space_for_children))
             independent_formatting_context->parent_context_did_dimension_child_root_box();
     }
+
+    Vector<Variant<CSS::ExplicitGridTrack, CSS::GridLineNames>> grid_track_columns;
+    grid_track_columns.ensure_capacity(m_grid_columns.size());
+    for (auto const& column : m_grid_columns) {
+        grid_track_columns.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthPercentage(CSS::Length::make_px(column.base_size)) } });
+    }
+
+    Vector<Variant<CSS::ExplicitGridTrack, CSS::GridLineNames>> grid_track_rows;
+    grid_track_rows.ensure_capacity(m_grid_rows.size());
+    for (auto const& row : m_grid_rows) {
+        grid_track_rows.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthPercentage(CSS::Length::make_px(row.base_size)) } });
+    }
+
+    // getComputedStyle() needs to return the resolved values of grid-template-columns and grid-template-rows
+    // so they need to be saved in the state, and then assigned to paintables in LayoutState::commit()
+    m_state.get_mutable(grid_container()).set_grid_template_columns(CSS::GridTrackSizeListStyleValue::create(move(grid_track_columns)));
+    m_state.get_mutable(grid_container()).set_grid_template_rows(CSS::GridTrackSizeListStyleValue::create(move(grid_track_rows)));
 }
 
 void GridFormattingContext::layout_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
