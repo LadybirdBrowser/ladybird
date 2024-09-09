@@ -10,12 +10,25 @@
         height: 50px;
         background-color: lightblue;
     }
+
+    .not-a-grid {
+        grid-template-columns: auto auto;
+    }
 </style>
-<div class="grid-container" style="grid-template-columns: auto auto"><div class="grid-item"></div><div class="grid-item"></div><div class="grid-item"></div><div class="grid-item"></div></div>
+<div class="grid-container" style="grid-template-columns: auto auto">
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+</div>
+<div class="not-a-grid"></div>
 <script>
     test(() => {
         const grid = document.querySelector(".grid-container");
         println(getComputedStyle(grid).gridTemplateColumns);
         println(getComputedStyle(grid).gridTemplateRows);
+
+        const not_a_grid = document.querySelector(".not-a-grid");
+        println(getComputedStyle(not_a_grid).gridTemplateColumns);
     });
 </script>

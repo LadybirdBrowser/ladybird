@@ -250,16 +250,6 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         return style_value_for_shadow(layout_node.computed_values().box_shadow());
     case PropertyID::Color:
         return CSSColorValue::create_from_color(layout_node.computed_values().color());
-    // For grid-template-columns and grid-template-rows the resolved value is the used value.
-    // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
-    case PropertyID::GridTemplateColumns: {
-        auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.paintable());
-        return paintable_box.used_values_for_grid_template_columns();
-    }
-    case PropertyID::GridTemplateRows: {
-        auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.paintable());
-        return paintable_box.used_values_for_grid_template_rows();
-    }
     case PropertyID::OutlineColor:
         return CSSColorValue::create_from_color(layout_node.computed_values().outline_color());
     case PropertyID::TextDecorationColor:
@@ -530,6 +520,20 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         dbgln_if(LIBWEB_CSS_DEBUG, "Computed style for custom properties was requested (?)");
         return nullptr;
     default:
+        // For grid-template-columns and grid-template-rows the resolved value is the used value.
+        // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
+        if (property_id == PropertyID::GridTemplateColumns) {
+            auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.paintable());
+            if (auto used_values_for_grid_template_columns = paintable_box.used_values_for_grid_template_columns()) {
+                return used_values_for_grid_template_columns;
+            }
+        } else if (property_id == PropertyID::GridTemplateRows) {
+            auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.paintable());
+            if (auto used_values_for_grid_template_rows = paintable_box.used_values_for_grid_template_rows()) {
+                return used_values_for_grid_template_rows;
+            }
+        }
+
         if (!property_is_shorthand(property_id))
             return get_computed_value(property_id);
 
