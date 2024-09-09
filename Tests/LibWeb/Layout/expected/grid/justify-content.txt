@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x101 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x85 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x135 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x119 children: not-inline
       Box <div.container> at (8,8) content-size 784x17 [GFC] children: not-inline
         BlockContainer <div> at (8,8) content-size 392x17 [BFC] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [8,8 67.96875x17] baseline: 13.296875
@@ -54,10 +54,34 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           frag 0 from TextNode start: 0, length: 9, rect: [724.03125,76 67.96875x17] baseline: 13.296875
               "wikipedia"
           TextNode <#text>
+      BlockContainer <(anonymous)> at (8,93) content-size 784x0 children: inline
+        TextNode <#text>
+      Box <div.container> at (8,93) content-size 784x17 [GFC] children: not-inline
+        BlockContainer <div> at (8,93) content-size 67.96875x17 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [8,93 67.96875x17] baseline: 13.296875
+              "wikipedia"
+          TextNode <#text>
+        BlockContainer <div> at (75.96875,93) content-size 67.96875x17 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [75.96875,93 67.96875x17] baseline: 13.296875
+              "wikipedia"
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,110) content-size 784x0 children: inline
+        TextNode <#text>
+      Box <div.container> at (8,110) content-size 784x17 [GFC] children: not-inline
+        BlockContainer <div> at (656.0625,110) content-size 67.96875x17 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [656.0625,110 67.96875x17] baseline: 13.296875
+              "wikipedia"
+          TextNode <#text>
+        BlockContainer <div> at (724.03125,110) content-size 67.96875x17 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [724.03125,110 67.96875x17] baseline: 13.296875
+              "wikipedia"
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,127) content-size 784x0 children: inline
+        TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x101]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x85]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x135]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x119]
       PaintableBox (Box<DIV>.container) [8,8 784x17]
         PaintableWithLines (BlockContainer<DIV>) [8,8 392x17]
           TextPaintable (TextNode<#text>)
@@ -87,3 +111,16 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>) [724.03125,76 67.96875x17]
           TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,93 784x0]
+      PaintableBox (Box<DIV>.container) [8,93 784x17]
+        PaintableWithLines (BlockContainer<DIV>) [8,93 67.96875x17]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [75.96875,93 67.96875x17]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,110 784x0]
+      PaintableBox (Box<DIV>.container) [8,110 784x17]
+        PaintableWithLines (BlockContainer<DIV>) [656.0625,110 67.96875x17]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [724.03125,110 67.96875x17]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,127 784x0]
