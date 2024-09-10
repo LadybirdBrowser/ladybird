@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#import <UI/Inspector.h>
 #import <UI/InspectorController.h>
+#import <UI/InspectorWindow.h>
 #import <UI/LadybirdWebView.h>
 #import <UI/Tab.h>
 
@@ -16,15 +16,18 @@
 @interface InspectorController () <NSWindowDelegate>
 
 @property (nonatomic, strong) Tab* tab;
+@property (nonatomic, strong) Inspector* inspector;
 
 @end
 
 @implementation InspectorController
 
 - (instancetype)init:(Tab*)tab
+           inspector:(Inspector*)inspector
 {
     if (self = [super init]) {
         self.tab = tab;
+        self.inspector = inspector;
     }
 
     return self;
@@ -32,16 +35,16 @@
 
 #pragma mark - Private methods
 
-- (Inspector*)inspector
+- (InspectorWindow*)inspectorWindow
 {
-    return (Inspector*)[self window];
+    return (InspectorWindow*)[self window];
 }
 
 #pragma mark - NSWindowController
 
 - (IBAction)showWindow:(id)sender
 {
-    self.window = [[Inspector alloc] init:self.tab];
+    self.window = [[InspectorWindow alloc] init:self.tab inspector:self.inspector];
     [self.window setDelegate:self];
     [self.window makeKeyAndOrderFront:sender];
 }
@@ -56,13 +59,13 @@
 - (void)windowDidResize:(NSNotification*)notification
 {
     if (![[self window] inLiveResize]) {
-        [[[self inspector] web_view] handleResize];
+        [[[self tab] web_view] handleResize];
     }
 }
 
 - (void)windowDidChangeBackingProperties:(NSNotification*)notification
 {
-    [[[self inspector] web_view] handleDevicePixelRatioChange];
+    [[[self tab] web_view] handleDevicePixelRatioChange];
 }
 
 @end

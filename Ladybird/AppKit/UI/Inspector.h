@@ -11,7 +11,7 @@
 @class LadybirdWebView;
 @class Tab;
 
-@interface Inspector : NSWindow
+@interface Inspector : NSScrollView
 
 - (instancetype)init:(Tab*)tab;
 

@@ -16,6 +16,7 @@
 #import <Application/ApplicationDelegate.h>
 #import <UI/Inspector.h>
 #import <UI/InspectorController.h>
+#import <UI/InspectorWindow.h>
 #import <UI/LadybirdWebView.h>
 #import <UI/SearchPanel.h>
 #import <UI/Tab.h>
@@ -37,6 +38,10 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 @property (nonatomic, strong) SearchPanel* search_panel;
 
 @property (nonatomic, strong) InspectorController* inspector_controller;
+
+@property (nonatomic, strong) Inspector* inspector;
+
+@property (nonatomic, strong) NSSplitView* split_view;
 
 @end
 
@@ -119,13 +124,21 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
         [stack_view setOrientation:NSUserInterfaceLayoutOrientationVertical];
         [stack_view setSpacing:0];
 
+        NSSplitView* split_view = [[NSSplitView alloc] initWithFrame:window_rect];
+        [split_view setVertical:YES];
+        [split_view setDividerStyle:NSSplitViewDividerStyleThick];
+
+        self.split_view = split_view;
+
         [[NSNotificationCenter defaultCenter]
             addObserver:self
                selector:@selector(onContentScroll:)
                    name:NSViewBoundsDidChangeNotification
                  object:[scroll_view contentView]];
 
-        [self setContentView:stack_view];
+        [split_view addSubview:stack_view];
+
+        [self setContentView:split_view];
 
         [[self.search_panel leadingAnchor] constraintEqualToAnchor:[self.contentView leadingAnchor]].active = YES;
     }
@@ -169,7 +182,11 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
         return;
     }
 
-    self.inspector_controller = [[InspectorController alloc] init:self];
+    if (self.inspector == nil) {
+        self.inspector = [[Inspector alloc] init:self];
+    }
+
+    self.inspector_controller = [[InspectorController alloc] init:self inspector:self.inspector];
     [self.inspector_controller showWindow:nil];
 }
 
@@ -182,8 +199,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 {
     [self openInspector:sender];
 
-    auto* inspector = (Inspector*)[self.inspector_controller window];
-    [inspector selectHoveredElement];
+    [self.inspector selectHoveredElement];
 }
 
 #pragma mark - Private methods
@@ -343,16 +359,14 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     [[self tabController] onLoadStart:url isRedirect:is_redirect];
 
     if (self.inspector_controller != nil) {
-        auto* inspector = (Inspector*)[self.inspector_controller window];
-        [inspector reset];
+        [self.inspector reset];
     }
 }
 
 - (void)onLoadFinish:(URL::URL const&)url
 {
     if (self.inspector_controller != nil) {
-        auto* inspector = (Inspector*)[self.inspector_controller window];
-        [inspector inspect];
+        [self.inspector inspect];
     }
 }
 
