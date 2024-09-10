@@ -96,4 +96,3 @@ function(_setup_swift_paths)
 endfunction()
 
 _setup_swift_paths()
-

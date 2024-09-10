@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 
-RE_RELEVANT_FILE_EXTENSION = re.compile('\\.(cpp|h|gml|html|js|css|sh|py|json|txt)$')
+RE_RELEVANT_FILE_EXTENSION = re.compile('\\.(cpp|h|mm|swift|gml|html|js|css|sh|py|json|txt|cmake|gn|gni)$')
 
 
 def should_check_file(filename):
