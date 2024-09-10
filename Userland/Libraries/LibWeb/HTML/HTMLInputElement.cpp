@@ -562,7 +562,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(String const& value)
                 m_text_node->set_data(m_value);
                 update_placeholder_visibility();
 
-                document().set_cursor_position(DOM::Position::create(realm, *m_text_node, m_text_node->data().bytes().size()));
+                set_the_selection_range(m_text_node->length(), m_text_node->length());
             }
 
             update_shadow_tree();
@@ -2429,7 +2429,7 @@ HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode() co
 
 void HTMLInputElement::selection_was_changed(size_t selection_start, size_t selection_end)
 {
-    if (!m_text_node)
+    if (!m_text_node || !document().cursor_position() || document().cursor_position()->node() != m_text_node)
         return;
 
     document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, selection_end));

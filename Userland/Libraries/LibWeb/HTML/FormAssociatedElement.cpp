@@ -508,7 +508,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#set-the-selection-range
-void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction)
+void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction, SelectionSource source)
 {
     // 1. If start is null, let start be zero.
     start = start.value_or(0);
@@ -551,9 +551,9 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     if (was_modified) {
         auto& html_element = form_associated_element_to_html_element();
 
-        // AD-HOC: If there is no selection, we do not fire the event. This seems to correspond to how
-        //         other browsers behave.
-        if (m_selection_start != m_selection_end) {
+        // AD-HOC: We don't fire the event if the user moves the cursor without selecting any text.
+        //         This is not in the spec but matches how other browsers behave.
+        if (source == SelectionSource::DOM || m_selection_start != m_selection_end) {
             html_element.queue_an_element_task(Task::Source::UserInteraction, [&html_element] {
                 auto select_event = DOM::Event::create(html_element.realm(), EventNames::select, { .bubbles = true });
                 static_cast<DOM::EventTarget*>(&html_element)->dispatch_event(select_event);
