@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/CopyOnWrite.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
@@ -72,34 +73,6 @@ enum class SpaceAsPlus {
 };
 String percent_encode(StringView input, PercentEncodeSet set = PercentEncodeSet::Userinfo, SpaceAsPlus = SpaceAsPlus::No);
 ByteString percent_decode(StringView input);
-
-template<typename T>
-class CopyOnWrite {
-public:
-    CopyOnWrite()
-        : m_value(adopt_ref(*new T))
-    {
-    }
-    T& mutable_value()
-    {
-        if (m_value->ref_count() > 1)
-            m_value = m_value->clone();
-        return *m_value;
-    }
-    T const& value() const { return *m_value; }
-
-    operator T const&() const { return value(); }
-    operator T&() { return mutable_value(); }
-
-    T const* operator->() const { return &value(); }
-    T* operator->() { return &mutable_value(); }
-
-    T const* ptr() const { return m_value.ptr(); }
-    T* ptr() { return m_value.ptr(); }
-
-private:
-    NonnullRefPtr<T> m_value;
-};
 
 // https://url.spec.whatwg.org/#url-representation
 // A URL is a struct that represents a universal identifier. To disambiguate from a valid URL string it can also be referred to as a URL record.
@@ -233,7 +206,7 @@ private:
         // A URL also has an associated blob URL entry that is either null or a blob URL entry. It is initially null.
         Optional<BlobURLEntry> blob_url_entry;
     };
-    CopyOnWrite<Data> m_data;
+    AK::CopyOnWrite<Data> m_data;
 };
 
 URL create_with_url_or_path(ByteString const&);
