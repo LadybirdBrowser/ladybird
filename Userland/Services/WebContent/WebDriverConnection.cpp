@@ -41,6 +41,7 @@
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWeb/WebDriver/Screenshot.h>
 #include <WebContent/WebDriverConnection.h>
@@ -1514,17 +1515,31 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
 }
 
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
-Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const&)
+Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const& element_id)
 {
     dbgln("FIXME: WebDriverConnection::element_clear()");
 
-    // FIXME: 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
+    Web::DOM::Element* element = TRY(get_known_connected_element(element_id));
+    (void)element; // FIXME
 
-    // FIXME: 2. Run the focusing steps for element.
+    // To clear an editable element
+    auto clear_content_editable_element = [&](Web::DOM::Element* element) -> Web::WebIDL::ExceptionOr<JsonValue> {
+        // 1. FIXME: If element's innerHTML IDL attribute is an empty string do nothing and return.
+        if (TRY(element->inner_html()).is_empty()) {
+            return JsonValue {};
+        }
 
-    // FIXME: 3. Set element's innerHTML IDL attribute to an empty string.
+        // 2. FIXME: Run the focusing steps for element.
+        Web::HTML::run_focusing_steps(element);
 
-    // FIXME: 4. Run the unfocusing steps for the element.
+        // 3. FIXME: Set element's innerHTML IDL attribute to an empty string.
+        auto result = element->set_inner_html(""sv);
+
+        // FIXME: 4. Run the unfocusing steps for the element.
+
+        return JsonValue {};
+    };
+    (void)clear_content_editable_element; // FIXME
 
     // To clear a resettable element:
 
