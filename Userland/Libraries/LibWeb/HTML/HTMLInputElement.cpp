@@ -923,8 +923,8 @@ void HTMLInputElement::create_color_input_shadow_tree()
 
     m_color_well_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     MUST(m_color_well_element->set_attribute(HTML::AttributeNames::style, R"~~~(
-        width: 24px;
-        height: 24px;
+        width: 32px;
+        height: 16px;
         border: 1px solid ButtonBorder;
         box-sizing: border-box;
 )~~~"_string));
