@@ -1,0 +1,4 @@
+Radio button 1 initial checkedness: true
+Radio button 2 initial checkedness: false
+Radio button 1 checkedness: false
+Radio button 2 checkedness: true

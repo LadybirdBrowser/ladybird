@@ -1546,8 +1546,9 @@ static bool is_in_same_radio_button_group(HTML::HTMLInputElement const& a, HTML:
     // other input elements b that fulfill all of the following conditions:
     return (
         // - Both a and b are in the same tree.
+        &a.root() == &b.root()
         // - The input element b's type attribute is in the Radio Button state.
-        a.type_state() == b.type_state()
+        && a.type_state() == b.type_state()
         && b.type_state() == HTMLInputElement::TypeAttributeState::RadioButton
         // - Either a and b have the same form owner, or they both have no form owner.
         && a.form() == b.form()
@@ -1570,7 +1571,7 @@ void HTMLInputElement::set_checked_within_group()
     if (!name().has_value() || name()->is_empty())
         return;
 
-    document().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
+    root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
         if (element.checked() && &element != this && is_in_same_radio_button_group(*this, element))
             element.set_checked(false, ChangeSource::User);
         return TraversalDecision::Continue;
@@ -1597,7 +1598,7 @@ void HTMLInputElement::legacy_pre_activation_behavior()
     // has its checkedness set to true, if any, and then set this element's
     // checkedness to true.
     if (type_state() == TypeAttributeState::RadioButton) {
-        document().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
+        root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
             if (element.checked() && is_in_same_radio_button_group(*this, element)) {
                 m_legacy_pre_activation_behavior_checked_element_in_group = &element;
                 return TraversalDecision::Break;
