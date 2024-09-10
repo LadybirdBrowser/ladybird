@@ -386,7 +386,7 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
     if (auto it = rule_cache.rules_by_tag_name.find(element.local_name()); it != rule_cache.rules_by_tag_name.end())
         add_rules_to_run(it->value);
     if (pseudo_element.has_value())
-        add_rules_to_run(rule_cache.pseudo_element_rules);
+        add_rules_to_run(rule_cache.rules_by_pseudo_element[to_underlying(pseudo_element.value())]);
     if (element.is_document_element())
         add_rules_to_run(rule_cache.root_rules);
 
@@ -2745,11 +2745,13 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 };
 
                 bool contains_root_pseudo_class = false;
+                Optional<CSS::Selector::PseudoElement::Type> pseudo_element;
 
                 for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
                     if (!matching_rule.contains_pseudo_element) {
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
                             matching_rule.contains_pseudo_element = true;
+                            pseudo_element = simple_selector.pseudo_element().type();
                             ++num_pseudo_element_rules;
                         }
                     }
@@ -2836,7 +2838,11 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 }
                 if (!added_to_bucket) {
                     if (matching_rule.contains_pseudo_element) {
-                        rule_cache->pseudo_element_rules.append(move(matching_rule));
+                        if (to_underlying(pseudo_element.value()) < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)) {
+                            rule_cache->rules_by_pseudo_element[to_underlying(pseudo_element.value())].append(move(matching_rule));
+                        } else {
+                            // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
+                        }
                     } else if (contains_root_pseudo_class) {
                         rule_cache->root_rules.append(move(matching_rule));
                     } else {
