@@ -2615,8 +2615,34 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
     bool did_match_any_pseudo_element_rules = false;
     compute_cascaded_values(style, element, pseudo_element, did_match_any_pseudo_element_rules, mode);
 
-    if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded && !did_match_any_pseudo_element_rules)
-        return nullptr;
+    if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
+        // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
+
+        // Bail if no pseudo-element rules matched.
+        if (!did_match_any_pseudo_element_rules)
+            return nullptr;
+
+        // Bail if no pseudo-element would be generated due to...
+        // - content: none
+        // - content: normal (for ::before and ::after)
+        bool content_is_normal = false;
+        if (auto content_value = style->maybe_null_property(CSS::PropertyID::Content)) {
+            if (content_value->is_keyword()) {
+                auto content = content_value->as_keyword().keyword();
+                if (content == CSS::Keyword::None)
+                    return nullptr;
+                content_is_normal = content == CSS::Keyword::Normal;
+            } else {
+                content_is_normal = false;
+            }
+        } else {
+            // NOTE: `normal` is the initial value, so the absence of a value is treated as `normal`.
+            content_is_normal = true;
+        }
+        if (content_is_normal && first_is_one_of(*pseudo_element, CSS::Selector::PseudoElement::Type::Before, CSS::Selector::PseudoElement::Type::After)) {
+            return nullptr;
+        }
+    }
 
     // 2. Compute the math-depth property, since that might affect the font-size
     compute_math_depth(style, &element, pseudo_element);
