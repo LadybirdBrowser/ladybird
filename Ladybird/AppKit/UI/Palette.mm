@@ -12,6 +12,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import <UI/Palette.h>
+#import <Utilities/Conversions.h>
 
 namespace Ladybird {
 
@@ -37,8 +38,9 @@ Core::AnonymousBuffer create_system_palette()
 
     auto palette_impl = Gfx::PaletteImpl::create_with_anonymous_buffer(theme);
     auto palette = Gfx::Palette(move(palette_impl));
-
     palette.set_flag(Gfx::FlagRole::IsDark, is_dark);
+    palette.set_color(Gfx::ColorRole::Accent, ns_color_to_gfx_color([NSColor controlAccentColor]));
+    // FIXME: There are more system colors we currently don't use (https://developer.apple.com/documentation/appkit/nscolor/3000782-controlaccentcolor?language=objc)
 
     return theme;
 }
