@@ -160,7 +160,7 @@ struct ReplacedFormattingContext : public FormattingContext {
     }
     virtual CSSPixels automatic_content_width() const override { return 0; }
     virtual CSSPixels automatic_content_height() const override { return 0; }
-    virtual void run(Box const&, LayoutMode, AvailableSpace const&) override { }
+    virtual void run(LayoutMode, AvailableSpace const&) override { }
 };
 
 // FIXME: This is a hack. Get rid of it.
@@ -171,7 +171,7 @@ struct DummyFormattingContext : public FormattingContext {
     }
     virtual CSSPixels automatic_content_width() const override { return 0; }
     virtual CSSPixels automatic_content_height() const override { return 0; }
-    virtual void run(Box const&, LayoutMode, AvailableSpace const&) override { }
+    virtual void run(LayoutMode, AvailableSpace const&) override { }
 };
 
 OwnPtr<FormattingContext> FormattingContext::create_independent_formatting_context_if_needed(LayoutState& state, Box const& child_box)
@@ -225,9 +225,9 @@ OwnPtr<FormattingContext> FormattingContext::layout_inside(Box const& child_box,
 
     auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, child_box);
     if (independent_formatting_context)
-        independent_formatting_context->run(child_box, layout_mode, available_space);
+        independent_formatting_context->run(layout_mode, available_space);
     else
-        run(child_box, layout_mode, available_space);
+        run(layout_mode, available_space);
 
     return independent_formatting_context;
 }
@@ -424,7 +424,7 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
     table_box_state.border_right = table_box_computed_values.border_right().width;
 
     auto context = make<TableFormattingContext>(throwaway_state, *table_box, this);
-    context->run_until_width_calculation(*table_box, m_state.get(*table_box).available_inner_space_or_constraints_from(available_space));
+    context->run_until_width_calculation(m_state.get(*table_box).available_inner_space_or_constraints_from(available_space));
 
     auto table_used_width = throwaway_state.get(*table_box).border_box_width();
     return available_space.width.is_definite() ? min(table_used_width, available_width) : table_used_width;
@@ -458,7 +458,7 @@ CSSPixels FormattingContext::compute_table_box_height_inside_table_wrapper(Box c
     LayoutState throwaway_state(&m_state);
     auto context = create_independent_formatting_context_if_needed(throwaway_state, box);
     VERIFY(context);
-    context->run(box, LayoutMode::IntrinsicSizing, m_state.get(box).available_inner_space_or_constraints_from(available_space));
+    context->run(LayoutMode::IntrinsicSizing, m_state.get(box).available_inner_space_or_constraints_from(available_space));
 
     Optional<Box const&> table_box;
     box.for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
@@ -1460,7 +1460,7 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
 
     auto available_width = AvailableSize::make_min_content();
     auto available_height = AvailableSize::make_indefinite();
-    context->run(box, LayoutMode::IntrinsicSizing, AvailableSpace(available_width, available_height));
+    context->run(LayoutMode::IntrinsicSizing, AvailableSpace(available_width, available_height));
 
     cache.min_content_width = context->automatic_content_width();
 
@@ -1498,7 +1498,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box)
 
     auto available_width = AvailableSize::make_max_content();
     auto available_height = AvailableSize::make_indefinite();
-    context->run(box, LayoutMode::IntrinsicSizing, AvailableSpace(available_width, available_height));
+    context->run(LayoutMode::IntrinsicSizing, AvailableSpace(available_width, available_height));
 
     cache.max_content_width = context->automatic_content_width();
 
@@ -1542,7 +1542,7 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
         context = make<BlockFormattingContext>(throwaway_state, verify_cast<BlockContainer>(box), nullptr);
     }
 
-    context->run(box, LayoutMode::IntrinsicSizing, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_min_content()));
+    context->run(LayoutMode::IntrinsicSizing, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_min_content()));
 
     auto min_content_height = context->automatic_content_height();
     if (min_content_height.might_be_saturated()) {
@@ -1586,7 +1586,7 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
         context = make<BlockFormattingContext>(throwaway_state, verify_cast<BlockContainer>(box), nullptr);
     }
 
-    context->run(box, LayoutMode::IntrinsicSizing, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_max_content()));
+    context->run(LayoutMode::IntrinsicSizing, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_max_content()));
 
     auto max_content_height = context->automatic_content_height();
 

@@ -77,7 +77,7 @@ CSSPixels InlineFormattingContext::automatic_content_height() const
     return m_automatic_content_height;
 }
 
-void InlineFormattingContext::run(Box const&, LayoutMode layout_mode, AvailableSpace const& available_space)
+void InlineFormattingContext::run(LayoutMode layout_mode, AvailableSpace const& available_space)
 {
     VERIFY(containing_block().children_are_inline());
     m_available_space = available_space;

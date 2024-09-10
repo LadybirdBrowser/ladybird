@@ -47,10 +47,8 @@ CSSPixels FlexFormattingContext::automatic_content_height() const
     return m_flex_container_state.content_height();
 }
 
-void FlexFormattingContext::run(Box const& run_box, LayoutMode, AvailableSpace const& available_space)
+void FlexFormattingContext::run(LayoutMode, AvailableSpace const& available_space)
 {
-    VERIFY(&run_box == &flex_container());
-
     // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
     // 1. Generate anonymous flex items
@@ -1135,7 +1133,7 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     auto available_width = is_row_layout() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
     auto available_height = is_row_layout() ? AvailableSize::make_indefinite() : AvailableSize::make_definite(item.main_size.value());
 
-    independent_formatting_context->run(item.box, LayoutMode::Normal, AvailableSpace(available_width, available_height));
+    independent_formatting_context->run(LayoutMode::Normal, AvailableSpace(available_width, available_height));
 
     auto automatic_cross_size = is_row_layout() ? independent_formatting_context->automatic_content_height()
                                                 : independent_formatting_context->automatic_content_width();

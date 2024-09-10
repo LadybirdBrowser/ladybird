@@ -23,9 +23,9 @@ public:
     explicit TableFormattingContext(LayoutState&, Box const&, FormattingContext* parent);
     ~TableFormattingContext();
 
-    void run_until_width_calculation(Box const&, AvailableSpace const& available_space);
+    void run_until_width_calculation(AvailableSpace const& available_space);
 
-    virtual void run(Box const&, LayoutMode, AvailableSpace const&) override;
+    virtual void run(LayoutMode, AvailableSpace const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 

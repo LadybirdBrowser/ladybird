@@ -21,7 +21,7 @@ public:
     explicit SVGFormattingContext(LayoutState&, Box const&, FormattingContext* parent, Gfx::AffineTransform parent_viewbox_transform = {});
     ~SVGFormattingContext();
 
-    virtual void run(Box const&, LayoutMode, AvailableSpace const&) override;
+    virtual void run(LayoutMode, AvailableSpace const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 

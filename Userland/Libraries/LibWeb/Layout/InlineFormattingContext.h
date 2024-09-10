@@ -23,7 +23,7 @@ public:
 
     BlockContainer const& containing_block() const { return static_cast<BlockContainer const&>(context_box()); }
 
-    virtual void run(Box const&, LayoutMode, AvailableSpace const&) override;
+    virtual void run(LayoutMode, AvailableSpace const&) override;
     virtual CSSPixels automatic_content_height() const override;
     virtual CSSPixels automatic_content_width() const override;
 
