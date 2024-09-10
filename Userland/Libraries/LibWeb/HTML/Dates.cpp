@@ -40,7 +40,7 @@ bool is_valid_week_string(StringView value)
     // 2. A U+002D HYPHEN-MINUS character (-)
     // 3. A U+0057 LATIN CAPITAL LETTER W character (W)
     // 4. Two ASCII digits, representing the week week, in the range 1 ≤ week ≤ maxweek, where maxweek is the week number of the last day of week-year year
-    auto parts = value.split_view('-');
+    auto parts = value.split_view('-', SplitBehavior::KeepEmpty);
     if (parts.size() != 2)
         return false;
     if (parts[0].length() < 4)
@@ -77,7 +77,7 @@ bool is_valid_month_string(StringView value)
     // 2. A U+002D HYPHEN-MINUS character (-)
     // 3. Two ASCII digits, representing the month month, in the range 1 ≤ month ≤ 12
 
-    auto parts = value.split_view('-');
+    auto parts = value.split_view('-', SplitBehavior::KeepEmpty);
     if (parts.size() != 2)
         return false;
 
@@ -107,7 +107,7 @@ bool is_valid_date_string(StringView value)
     // 1. A valid month string, representing year and month
     // 2. A U+002D HYPHEN-MINUS character (-)
     // 3. Two ASCII digits, representing day, in the range 1 ≤ day ≤ maxday where maxday is the number of days in the month month and year year
-    auto parts = value.split_view('-');
+    auto parts = value.split_view('-', SplitBehavior::KeepEmpty);
     if (parts.size() != 3)
         return false;
 
@@ -132,7 +132,7 @@ bool is_valid_date_string(StringView value)
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Date>> parse_date_string(JS::Realm& realm, StringView value)
 {
     // FIXME: Implement spec compliant date string parsing
-    auto parts = value.split_view('-');
+    auto parts = value.split_view('-', SplitBehavior::KeepEmpty);
     if (parts.size() >= 3) {
         if (auto year = parts.at(0).to_number<u32>(); year.has_value()) {
             if (auto month = parts.at(1).to_number<u32>(); month.has_value()) {
@@ -147,10 +147,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Date>> parse_date_string(JS::Realm& rea
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-local-date-and-time-string
 bool is_valid_local_date_and_time_string(StringView value)
 {
-    auto parts_split_by_T = value.split_view('T');
+    auto parts_split_by_T = value.split_view('T', SplitBehavior::KeepEmpty);
     if (parts_split_by_T.size() == 2)
         return is_valid_date_string(parts_split_by_T[0]) && is_valid_time_string(parts_split_by_T[1]);
-    auto parts_split_by_space = value.split_view(' ');
+    auto parts_split_by_space = value.split_view(' ', SplitBehavior::KeepEmpty);
     if (parts_split_by_space.size() == 2)
         return is_valid_date_string(parts_split_by_space[0]) && is_valid_time_string(parts_split_by_space[1]);
 
@@ -183,7 +183,7 @@ bool is_valid_time_string(StringView value)
     // 3. If second is not an integer, or optionally if second is an integer:
     // 1. A U+002E FULL STOP character (.)
     // 2. One, two, or three ASCII digits, representing the fractional part of second
-    auto parts = value.split_view(':');
+    auto parts = value.split_view(':', SplitBehavior::KeepEmpty);
     if (parts.size() != 2 && parts.size() != 3)
         return false;
     if (parts[0].length() != 2)
@@ -212,7 +212,7 @@ bool is_valid_time_string(StringView value)
         return false;
     if (parts[2].length() == 2)
         return true;
-    auto second_parts = parts[2].split_view('.');
+    auto second_parts = parts[2].split_view('.', SplitBehavior::KeepEmpty);
     if (second_parts.size() != 2)
         return false;
     if (second_parts[1].length() < 1 || second_parts[1].length() > 3)
@@ -228,7 +228,7 @@ bool is_valid_time_string(StringView value)
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Date>> parse_time_string(JS::Realm& realm, StringView value)
 {
     // FIXME: Implement spec compliant time string parsing
-    auto parts = value.split_view(':');
+    auto parts = value.split_view(':', SplitBehavior::KeepEmpty);
     if (parts.size() >= 2) {
         if (auto hours = parts.at(0).to_number<u32>(); hours.has_value()) {
             if (auto minutes = parts.at(1).to_number<u32>(); minutes.has_value()) {
