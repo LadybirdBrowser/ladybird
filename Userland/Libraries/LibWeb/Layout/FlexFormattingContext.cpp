@@ -28,8 +28,8 @@ CSSPixels FlexFormattingContext::get_pixel_height(Box const& box, CSS::Size cons
     return calculate_inner_height(box, containing_block_height_as_available_size(box), size);
 }
 
-FlexFormattingContext::FlexFormattingContext(LayoutState& state, Box const& flex_container, FormattingContext* parent)
-    : FormattingContext(Type::Flex, state, flex_container, parent)
+FlexFormattingContext::FlexFormattingContext(LayoutState& state, LayoutMode layout_mode, Box const& flex_container, FormattingContext* parent)
+    : FormattingContext(Type::Flex, layout_mode, state, flex_container, parent)
     , m_flex_container_state(m_state.get_mutable(flex_container))
     , m_flex_direction(flex_container.computed_values().flex_direction())
 {
@@ -47,7 +47,7 @@ CSSPixels FlexFormattingContext::automatic_content_height() const
     return m_flex_container_state.content_height();
 }
 
-void FlexFormattingContext::run(LayoutMode, AvailableSpace const& available_space)
+void FlexFormattingContext::run(AvailableSpace const& available_space)
 {
     // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
@@ -1126,14 +1126,14 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     }
 
     // Item has definite main size, layout with that as the used main size.
-    auto independent_formatting_context = create_independent_formatting_context_if_needed(throwaway_state, item.box);
+    auto independent_formatting_context = create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::Normal, item.box);
     // NOTE: Flex items should always create an independent formatting context!
     VERIFY(independent_formatting_context);
 
     auto available_width = is_row_layout() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
     auto available_height = is_row_layout() ? AvailableSize::make_indefinite() : AvailableSize::make_definite(item.main_size.value());
 
-    independent_formatting_context->run(LayoutMode::Normal, AvailableSpace(available_width, available_height));
+    independent_formatting_context->run(AvailableSpace(available_width, available_height));
 
     auto automatic_cross_size = is_row_layout() ? independent_formatting_context->automatic_content_height()
                                                 : independent_formatting_context->automatic_content_width();

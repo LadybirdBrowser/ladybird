@@ -18,8 +18,9 @@
 
 namespace Web::Layout {
 
-FormattingContext::FormattingContext(Type type, LayoutState& state, Box const& context_box, FormattingContext* parent)
+FormattingContext::FormattingContext(Type type, LayoutMode layout_mode, LayoutState& state, Box const& context_box, FormattingContext* parent)
     : m_type(type)
+    , m_layout_mode(layout_mode)
     , m_parent(parent)
     , m_context_box(context_box)
     , m_state(state)
@@ -154,27 +155,27 @@ Optional<FormattingContext::Type> FormattingContext::formatting_context_type_cre
 
 // FIXME: This is a hack. Get rid of it.
 struct ReplacedFormattingContext : public FormattingContext {
-    ReplacedFormattingContext(LayoutState& state, Box const& box)
-        : FormattingContext(Type::Block, state, box)
+    ReplacedFormattingContext(LayoutState& state, LayoutMode layout_mode, Box const& box)
+        : FormattingContext(Type::Block, layout_mode, state, box)
     {
     }
     virtual CSSPixels automatic_content_width() const override { return 0; }
     virtual CSSPixels automatic_content_height() const override { return 0; }
-    virtual void run(LayoutMode, AvailableSpace const&) override { }
+    virtual void run(AvailableSpace const&) override { }
 };
 
 // FIXME: This is a hack. Get rid of it.
 struct DummyFormattingContext : public FormattingContext {
-    DummyFormattingContext(LayoutState& state, Box const& box)
-        : FormattingContext(Type::Block, state, box)
+    DummyFormattingContext(LayoutState& state, LayoutMode layout_mode, Box const& box)
+        : FormattingContext(Type::Block, layout_mode, state, box)
     {
     }
     virtual CSSPixels automatic_content_width() const override { return 0; }
     virtual CSSPixels automatic_content_height() const override { return 0; }
-    virtual void run(LayoutMode, AvailableSpace const&) override { }
+    virtual void run(AvailableSpace const&) override { }
 };
 
-OwnPtr<FormattingContext> FormattingContext::create_independent_formatting_context_if_needed(LayoutState& state, Box const& child_box)
+OwnPtr<FormattingContext> FormattingContext::create_independent_formatting_context_if_needed(LayoutState& state, LayoutMode layout_mode, Box const& child_box)
 {
     auto type = formatting_context_type_created_by_box(child_box);
     if (!type.has_value())
@@ -182,19 +183,19 @@ OwnPtr<FormattingContext> FormattingContext::create_independent_formatting_conte
 
     switch (type.value()) {
     case Type::Block:
-        return make<BlockFormattingContext>(state, verify_cast<BlockContainer>(child_box), this);
+        return make<BlockFormattingContext>(state, layout_mode, verify_cast<BlockContainer>(child_box), this);
     case Type::SVG:
-        return make<SVGFormattingContext>(state, child_box, this);
+        return make<SVGFormattingContext>(state, layout_mode, child_box, this);
     case Type::Flex:
-        return make<FlexFormattingContext>(state, child_box, this);
+        return make<FlexFormattingContext>(state, layout_mode, child_box, this);
     case Type::Grid:
-        return make<GridFormattingContext>(state, child_box, this);
+        return make<GridFormattingContext>(state, layout_mode, child_box, this);
     case Type::Table:
-        return make<TableFormattingContext>(state, child_box, this);
+        return make<TableFormattingContext>(state, layout_mode, child_box, this);
     case Type::InternalReplaced:
-        return make<ReplacedFormattingContext>(state, child_box);
+        return make<ReplacedFormattingContext>(state, layout_mode, child_box);
     case Type::InternalDummy:
-        return make<DummyFormattingContext>(state, child_box);
+        return make<DummyFormattingContext>(state, layout_mode, child_box);
     case Type::Inline:
         // IFC should always be created by a parent BFC directly.
         VERIFY_NOT_REACHED();
@@ -223,11 +224,11 @@ OwnPtr<FormattingContext> FormattingContext::layout_inside(Box const& child_box,
     if (!child_box.can_have_children())
         return {};
 
-    auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, child_box);
+    auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, layout_mode, child_box);
     if (independent_formatting_context)
-        independent_formatting_context->run(layout_mode, available_space);
+        independent_formatting_context->run(available_space);
     else
-        run(layout_mode, available_space);
+        run(available_space);
 
     return independent_formatting_context;
 }
@@ -423,7 +424,7 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
     table_box_state.border_left = table_box_computed_values.border_left().width;
     table_box_state.border_right = table_box_computed_values.border_right().width;
 
-    auto context = make<TableFormattingContext>(throwaway_state, *table_box, this);
+    auto context = make<TableFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, *table_box, this);
     context->run_until_width_calculation(m_state.get(*table_box).available_inner_space_or_constraints_from(available_space));
 
     auto table_used_width = throwaway_state.get(*table_box).border_box_width();
@@ -456,9 +457,9 @@ CSSPixels FormattingContext::compute_table_box_height_inside_table_wrapper(Box c
     auto available_height = height_of_containing_block - margin_top.to_px(box) - margin_bottom.to_px(box);
 
     LayoutState throwaway_state(&m_state);
-    auto context = create_independent_formatting_context_if_needed(throwaway_state, box);
+    auto context = create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     VERIFY(context);
-    context->run(LayoutMode::IntrinsicSizing, m_state.get(box).available_inner_space_or_constraints_from(available_space));
+    context->run(m_state.get(box).available_inner_space_or_constraints_from(available_space));
 
     Optional<Box const&> table_box;
     box.for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
@@ -1453,14 +1454,14 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
     box_state.set_indefinite_content_width();
     box_state.set_indefinite_content_height();
 
-    auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, box);
+    auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
-        context = make<BlockFormattingContext>(throwaway_state, verify_cast<BlockContainer>(box), nullptr);
+        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, verify_cast<BlockContainer>(box), nullptr);
     }
 
     auto available_width = AvailableSize::make_min_content();
     auto available_height = AvailableSize::make_indefinite();
-    context->run(LayoutMode::IntrinsicSizing, AvailableSpace(available_width, available_height));
+    context->run(AvailableSpace(available_width, available_height));
 
     cache.min_content_width = context->automatic_content_width();
 
@@ -1491,14 +1492,14 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box)
     box_state.set_indefinite_content_width();
     box_state.set_indefinite_content_height();
 
-    auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, box);
+    auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
-        context = make<BlockFormattingContext>(throwaway_state, verify_cast<BlockContainer>(box), nullptr);
+        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, verify_cast<BlockContainer>(box), nullptr);
     }
 
     auto available_width = AvailableSize::make_max_content();
     auto available_height = AvailableSize::make_indefinite();
-    context->run(LayoutMode::IntrinsicSizing, AvailableSpace(available_width, available_height));
+    context->run(AvailableSpace(available_width, available_height));
 
     cache.max_content_width = context->automatic_content_width();
 
@@ -1537,12 +1538,12 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
     box_state.set_indefinite_content_height();
     box_state.set_content_width(width);
 
-    auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, box);
+    auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
-        context = make<BlockFormattingContext>(throwaway_state, verify_cast<BlockContainer>(box), nullptr);
+        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, verify_cast<BlockContainer>(box), nullptr);
     }
 
-    context->run(LayoutMode::IntrinsicSizing, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_min_content()));
+    context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_min_content()));
 
     auto min_content_height = context->automatic_content_height();
     if (min_content_height.might_be_saturated()) {
@@ -1581,12 +1582,12 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
     box_state.set_indefinite_content_height();
     box_state.set_content_width(width);
 
-    auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, box);
+    auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
-        context = make<BlockFormattingContext>(throwaway_state, verify_cast<BlockContainer>(box), nullptr);
+        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, verify_cast<BlockContainer>(box), nullptr);
     }
 
-    context->run(LayoutMode::IntrinsicSizing, AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_max_content()));
+    context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_max_content()));
 
     auto max_content_height = context->automatic_content_height();
 

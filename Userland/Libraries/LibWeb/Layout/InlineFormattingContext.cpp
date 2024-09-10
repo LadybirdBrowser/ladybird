@@ -20,10 +20,11 @@ namespace Web::Layout {
 
 InlineFormattingContext::InlineFormattingContext(
     LayoutState& state,
+    LayoutMode layout_mode,
     BlockContainer const& containing_block,
     LayoutState::UsedValues& containing_block_used_values,
     BlockFormattingContext& parent)
-    : FormattingContext(Type::Inline, state, containing_block, &parent)
+    : FormattingContext(Type::Inline, layout_mode, state, containing_block, &parent)
     , m_containing_block_used_values(containing_block_used_values)
 {
 }
@@ -77,11 +78,11 @@ CSSPixels InlineFormattingContext::automatic_content_height() const
     return m_automatic_content_height;
 }
 
-void InlineFormattingContext::run(LayoutMode layout_mode, AvailableSpace const& available_space)
+void InlineFormattingContext::run(AvailableSpace const& available_space)
 {
     VERIFY(containing_block().children_are_inline());
     m_available_space = available_space;
-    generate_line_boxes(layout_mode);
+    generate_line_boxes();
 
     CSSPixels content_height = 0;
 
@@ -244,14 +245,14 @@ void InlineFormattingContext::apply_justification_to_fragments(CSS::TextJustify 
     }
 }
 
-void InlineFormattingContext::generate_line_boxes(LayoutMode layout_mode)
+void InlineFormattingContext::generate_line_boxes()
 {
     auto& line_boxes = m_containing_block_used_values.line_boxes;
     line_boxes.clear_with_capacity();
 
     auto direction = m_context_box->computed_values().direction();
 
-    InlineLevelIterator iterator(*this, m_state, containing_block(), m_containing_block_used_values, layout_mode);
+    InlineLevelIterator iterator(*this, m_state, containing_block(), m_containing_block_used_values, m_layout_mode);
     LineBuilder line_builder(*this, m_state, m_containing_block_used_values, direction);
 
     // NOTE: When we ignore collapsible whitespace chunks at the start of a line,
@@ -313,7 +314,7 @@ void InlineFormattingContext::generate_line_boxes(LayoutMode layout_mode)
                 auto introduce_clearance = parent().clear_floating_boxes(*item.node, *this);
                 if (introduce_clearance == BlockFormattingContext::DidIntroduceClearance::Yes)
                     parent().reset_margin_state();
-                parent().layout_floating_box(static_cast<Layout::Box const&>(*item.node), containing_block(), layout_mode, *m_available_space, 0, &line_builder);
+                parent().layout_floating_box(static_cast<Layout::Box const&>(*item.node), containing_block(), *m_available_space, 0, &line_builder);
             }
             break;
 
