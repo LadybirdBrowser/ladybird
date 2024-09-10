@@ -3,5 +3,5 @@
 // https://drafts.csswg.org/css-transitions-2/#the-CSSTransition-interface
 [Exposed=Window]
 interface CSSTransition : Animation {
-  readonly attribute CSSOMString transitionProperty;
+    readonly attribute CSSOMString transitionProperty;
 };

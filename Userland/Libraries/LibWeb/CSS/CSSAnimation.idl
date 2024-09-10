@@ -3,5 +3,5 @@
 // https://www.w3.org/TR/css-animations-2/#cssanimation
 [Exposed=Window]
 interface CSSAnimation : Animation {
-  readonly attribute CSSOMString animationName;
+    readonly attribute CSSOMString animationName;
 };

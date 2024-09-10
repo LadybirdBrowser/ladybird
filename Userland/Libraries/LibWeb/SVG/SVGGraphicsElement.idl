@@ -2,18 +2,18 @@
 #import <Geometry/DOMRectReadOnly.idl>
 
 dictionary SVGBoundingBoxOptions {
-  boolean fill = true;
-  boolean stroke = false;
-  boolean markers = false;
-  boolean clipped = false;
+    boolean fill = true;
+    boolean stroke = false;
+    boolean markers = false;
+    boolean clipped = false;
 };
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGGraphicsElement
 [Exposed=Window]
 interface SVGGraphicsElement : SVGElement {
-  [SameObject] readonly attribute SVGAnimatedTransformList transform;
+    [SameObject] readonly attribute SVGAnimatedTransformList transform;
 
-  DOMRect getBBox(optional SVGBoundingBoxOptions options = {});
-  [FIXME] DOMMatrix? getCTM();
-  [FIXME] DOMMatrix? getScreenCTM();
+    DOMRect getBBox(optional SVGBoundingBoxOptions options = {});
+    [FIXME] DOMMatrix? getCTM();
+    [FIXME] DOMMatrix? getScreenCTM();
 };

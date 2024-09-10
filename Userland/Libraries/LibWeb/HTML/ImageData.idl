@@ -3,7 +3,7 @@
 enum PredefinedColorSpace { "srgb", "display-p3" };
 
 dictionary ImageDataSettings {
-  PredefinedColorSpace colorSpace;
+    PredefinedColorSpace colorSpace;
 };
 
 [Exposed=(Window,Worker), Serializable]

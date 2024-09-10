@@ -1,8 +1,7 @@
 #import <DOM/Element.idl>
 #import <DOM/HTMLCollection.idl>
 
-[Exposed=Window,
- LegacyUnenumerableNamedProperties]
+[Exposed=Window, LegacyUnenumerableNamedProperties]
 interface HTMLAllCollection {
     readonly attribute unsigned long length;
     getter Element (unsigned long index);
