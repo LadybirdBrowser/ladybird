@@ -181,6 +181,9 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
 
 void FlexFormattingContext::parent_context_did_dimension_child_root_box()
 {
+    if (m_layout_mode != LayoutMode::Normal)
+        return;
+
     flex_container().for_each_child_of_type<Box>([&](Layout::Box& box) {
         if (box.is_absolutely_positioned()) {
             auto& cb_state = m_state.get(*box.containing_block());

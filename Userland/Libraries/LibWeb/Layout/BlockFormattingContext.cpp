@@ -108,12 +108,14 @@ void BlockFormattingContext::parent_context_did_dimension_child_root_box()
         box_state.set_content_x(float_containing_block_width - floating_box->offset_from_edge);
     }
 
-    // We can also layout absolutely positioned boxes within this BFC.
-    for (auto& box : m_absolutely_positioned_boxes) {
-        auto& cb_state = m_state.get(*box->containing_block());
-        auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
-        auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
-        layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
+    if (m_layout_mode == LayoutMode::Normal) {
+        // We can also layout absolutely positioned boxes within this BFC.
+        for (auto& box : m_absolutely_positioned_boxes) {
+            auto& cb_state = m_state.get(*box->containing_block());
+            auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
+            auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
+            layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
+        }
     }
 }
 
