@@ -2005,6 +2005,9 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box,
 
 void GridFormattingContext::parent_context_did_dimension_child_root_box()
 {
+    if (m_layout_mode != LayoutMode::Normal)
+        return;
+
     grid_container().for_each_child_of_type<Box>([&](Layout::Box& box) {
         if (box.is_absolutely_positioned()) {
             auto& cb_state = m_state.get(*box.containing_block());
