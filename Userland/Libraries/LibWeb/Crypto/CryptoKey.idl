@@ -5,8 +5,8 @@ enum KeyUsage { "encrypt", "decrypt", "sign", "verify", "deriveKey", "deriveBits
 // https://w3c.github.io/webcrypto/#cryptokey-interface
 [SecureContext,Exposed=(Window,Worker),Serializable]
 interface CryptoKey {
-  readonly attribute KeyType type;
-  readonly attribute boolean extractable;
-  readonly attribute object algorithm;
-  readonly attribute object usages;
+    readonly attribute KeyType type;
+    readonly attribute boolean extractable;
+    readonly attribute object algorithm;
+    readonly attribute object usages;
 };

@@ -4,16 +4,16 @@
 // https://html.spec.whatwg.org/multipage/interaction.html#closewatcher
 [Exposed=Window]
 interface CloseWatcher : EventTarget {
-  constructor(optional CloseWatcherOptions options = {});
+    constructor(optional CloseWatcherOptions options = {});
 
-  undefined requestClose();
-  undefined close();
-  undefined destroy();
+    undefined requestClose();
+    undefined close();
+    undefined destroy();
 
-  attribute EventHandler oncancel;
-  attribute EventHandler onclose;
+    attribute EventHandler oncancel;
+    attribute EventHandler onclose;
 };
 
 dictionary CloseWatcherOptions {
-  AbortSignal signal;
+    AbortSignal signal;
 };

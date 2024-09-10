@@ -5,8 +5,8 @@
 #import <Streams/WritableStream.idl>
 
 dictionary ReadableWritablePair {
-  required ReadableStream readable;
-  required WritableStream writable;
+    required ReadableStream readable;
+    required WritableStream writable;
 };
 
 dictionary StreamPipeOptions {
