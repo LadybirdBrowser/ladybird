@@ -11,4 +11,3 @@ if(patch_not_yet_applied)
     COMMAND ${GIT_EXECUTABLE} apply  ${CMAKE_ARGV3} COMMAND_ERROR_IS_FATAL LAST
   )
 endif()
-
