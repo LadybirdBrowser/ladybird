@@ -66,7 +66,7 @@ static bool margins_collapse_through(Box const& box, LayoutState& state)
     return state.get(box).border_box_height() == 0;
 }
 
-void BlockFormattingContext::run(Box const&, LayoutMode layout_mode, AvailableSpace const& available_space)
+void BlockFormattingContext::run(LayoutMode layout_mode, AvailableSpace const& available_space)
 {
     if (is<Viewport>(root())) {
         layout_viewport(layout_mode, available_space);
@@ -474,7 +474,6 @@ void BlockFormattingContext::layout_inline_children(BlockContainer const& block_
 
     InlineFormattingContext context(m_state, block_container, block_container_state, *this);
     context.run(
-        block_container,
         layout_mode,
         available_space);
 
@@ -678,7 +677,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     if (independent_formatting_context) {
         // This box establishes a new formatting context. Pass control to it.
-        independent_formatting_context->run(box, layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
+        independent_formatting_context->run(layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
     } else {
         // This box participates in the current block container's flow.
         if (box.children_are_inline()) {
@@ -921,7 +920,7 @@ void BlockFormattingContext::layout_viewport(LayoutMode layout_mode, AvailableSp
         auto content_height = m_state.get(*svg_root.containing_block()).content_height();
         m_state.get_mutable(svg_root).set_content_height(content_height);
         auto svg_formatting_context = create_independent_formatting_context_if_needed(m_state, svg_root);
-        svg_formatting_context->run(svg_root, layout_mode, available_space);
+        svg_formatting_context->run(layout_mode, available_space);
     } else {
         if (root().children_are_inline())
             layout_inline_children(root(), layout_mode, available_space);

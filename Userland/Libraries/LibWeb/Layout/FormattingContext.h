@@ -36,7 +36,7 @@ public:
         InternalDummy,    // Internal hack formatting context for unimplemented things. FIXME: Get rid of this.
     };
 
-    virtual void run(Box const&, LayoutMode, AvailableSpace const&) = 0;
+    virtual void run(LayoutMode, AvailableSpace const&) = 0;
 
     // This function returns the automatic content height of the context's root box.
     virtual CSSPixels automatic_content_width() const = 0;

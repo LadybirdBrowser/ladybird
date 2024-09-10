@@ -1771,7 +1771,7 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
     return { x_start, y_start, x_end - x_start, y_end - y_start };
 }
 
-void GridFormattingContext::run(Box const&, LayoutMode, AvailableSpace const& available_space)
+void GridFormattingContext::run(LayoutMode, AvailableSpace const& available_space)
 {
     m_available_space = available_space;
 

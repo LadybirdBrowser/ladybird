@@ -41,7 +41,7 @@ CSSPixels TableFormattingContext::run_caption_layout(LayoutMode layout_mode, CSS
         // The caption boxes are principal block-level boxes that retain their own content, padding, margin, and border areas,
         // and are rendered as normal block boxes inside the table wrapper box, as described in https://www.w3.org/TR/CSS22/tables.html#model
         auto caption_context = make<BlockFormattingContext>(m_state, *verify_cast<BlockContainer>(child), this);
-        caption_context->run(table_box(), layout_mode, *m_available_space);
+        caption_context->run(layout_mode, *m_available_space);
         VERIFY(child->is_box());
         auto const& child_box = static_cast<Box const&>(*child);
         // FIXME: Since caption only has inline children, BlockFormattingContext doesn't resolve the vertical metrics.
@@ -1581,12 +1581,12 @@ void TableFormattingContext::finish_grid_initialization(TableGrid const& table_g
     }
 }
 
-void TableFormattingContext::run_until_width_calculation(Box const& box, AvailableSpace const& available_space)
+void TableFormattingContext::run_until_width_calculation(AvailableSpace const& available_space)
 {
     m_available_space = available_space;
 
     // Determine the number of rows/columns the table requires.
-    finish_grid_initialization(TableGrid::calculate_row_column_grid(box, m_cells, m_rows));
+    finish_grid_initialization(TableGrid::calculate_row_column_grid(context_box(), m_cells, m_rows));
 
     border_conflict_resolution();
 
@@ -1607,13 +1607,13 @@ void TableFormattingContext::run_until_width_calculation(Box const& box, Availab
     compute_table_width();
 }
 
-void TableFormattingContext::run(Box const& box, LayoutMode layout_mode, AvailableSpace const& available_space)
+void TableFormattingContext::run(LayoutMode layout_mode, AvailableSpace const& available_space)
 {
     m_available_space = available_space;
 
     auto total_captions_height = run_caption_layout(layout_mode, CSS::CaptionSide::Top);
 
-    run_until_width_calculation(box, available_space);
+    run_until_width_calculation(available_space);
 
     if (available_space.width.is_intrinsic_sizing_constraint() && !available_space.height.is_intrinsic_sizing_constraint()) {
         return;

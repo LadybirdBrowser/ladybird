@@ -18,7 +18,7 @@ public:
 
     virtual bool inhibits_floating() const override { return true; }
 
-    virtual void run(Box const&, LayoutMode, AvailableSpace const&) override;
+    virtual void run(LayoutMode, AvailableSpace const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 
