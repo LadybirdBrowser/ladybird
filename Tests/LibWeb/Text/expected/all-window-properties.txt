@@ -321,6 +321,7 @@ SVGUseElement
 Screen
 ScreenOrientation
 Selection
+ServiceWorker
 ServiceWorkerContainer
 ServiceWorkerRegistration
 Set
