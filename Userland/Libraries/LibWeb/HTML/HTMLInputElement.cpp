@@ -1361,6 +1361,7 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
             }
             return MUST(String::from_utf8(builder.string_view().trim(Infra::ASCII_WHITESPACE)));
         }
+        return MUST(value.trim(Infra::ASCII_WHITESPACE));
     } else if (type_state() == HTMLInputElement::TypeAttributeState::Email) {
         // https://html.spec.whatwg.org/multipage/input.html#email-state-(type=email):value-sanitization-algorithm
         // FIXME: handle the `multiple` attribute
@@ -1373,6 +1374,7 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
             }
             return MUST(String::from_utf8(builder.string_view().trim(Infra::ASCII_WHITESPACE)));
         }
+        return MUST(value.trim(Infra::ASCII_WHITESPACE));
     } else if (type_state() == HTMLInputElement::TypeAttributeState::Number) {
         // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number):value-sanitization-algorithm
         // If the value of the element is not a valid floating-point number, then set it
