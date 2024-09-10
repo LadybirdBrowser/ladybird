@@ -101,12 +101,12 @@ private:
 
 class GridFormattingContext final : public FormattingContext {
 public:
-    explicit GridFormattingContext(LayoutState&, Box const& grid_container, FormattingContext* parent);
+    explicit GridFormattingContext(LayoutState&, LayoutMode, Box const& grid_container, FormattingContext* parent);
     ~GridFormattingContext();
 
     virtual bool inhibits_floating() const override { return true; }
 
-    virtual void run(LayoutMode, AvailableSpace const& available_space) override;
+    virtual void run(AvailableSpace const& available_space) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 

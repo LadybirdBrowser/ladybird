@@ -23,8 +23,8 @@
 
 namespace Web::Layout {
 
-BlockFormattingContext::BlockFormattingContext(LayoutState& state, BlockContainer const& root, FormattingContext* parent)
-    : FormattingContext(Type::Block, state, root, parent)
+BlockFormattingContext::BlockFormattingContext(LayoutState& state, LayoutMode layout_mode, BlockContainer const& root, FormattingContext* parent)
+    : FormattingContext(Type::Block, layout_mode, state, root, parent)
 {
 }
 
@@ -66,17 +66,17 @@ static bool margins_collapse_through(Box const& box, LayoutState& state)
     return state.get(box).border_box_height() == 0;
 }
 
-void BlockFormattingContext::run(LayoutMode layout_mode, AvailableSpace const& available_space)
+void BlockFormattingContext::run(AvailableSpace const& available_space)
 {
     if (is<Viewport>(root())) {
-        layout_viewport(layout_mode, available_space);
+        layout_viewport(available_space);
         return;
     }
 
     if (root().children_are_inline())
-        layout_inline_children(root(), layout_mode, available_space);
+        layout_inline_children(root(), available_space);
     else
-        layout_block_level_children(root(), layout_mode, available_space);
+        layout_block_level_children(root(), available_space);
 
     // Assign collapsed margin left after children layout of formatting context to the last child box
     if (m_margin_state.current_collapsed_margin() != 0) {
@@ -130,7 +130,7 @@ bool BlockFormattingContext::box_should_avoid_floats_because_it_establishes_fc(B
     return false;
 }
 
-void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const& available_space, LayoutMode)
+void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const& available_space)
 {
     if (box.is_absolutely_positioned()) {
         compute_width_for_absolutely_positioned_element(box, available_space);
@@ -466,16 +466,14 @@ void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const
     box_used_values.set_content_height(height);
 }
 
-void BlockFormattingContext::layout_inline_children(BlockContainer const& block_container, LayoutMode layout_mode, AvailableSpace const& available_space)
+void BlockFormattingContext::layout_inline_children(BlockContainer const& block_container, AvailableSpace const& available_space)
 {
     VERIFY(block_container.children_are_inline());
 
     auto& block_container_state = m_state.get_mutable(block_container);
 
-    InlineFormattingContext context(m_state, block_container, block_container_state, *this);
-    context.run(
-        layout_mode,
-        available_space);
+    InlineFormattingContext context(m_state, m_layout_mode, block_container, block_container_state, *this);
+    context.run(available_space);
 
     if (!block_container_state.has_definite_width()) {
         // NOTE: min-width or max-width for boxes with inline children can only be applied after inside layout
@@ -579,7 +577,7 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
     return 0;
 }
 
-void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContainer const& block_container, LayoutMode layout_mode, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const& available_space)
+void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContainer const& block_container, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const& available_space)
 {
     auto& box_state = m_state.get_mutable(box);
 
@@ -598,7 +596,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     if (box.is_floating()) {
         auto const y = m_y_offset_of_current_block_container.value();
         auto margin_top = !m_margin_state.has_block_container_waiting_for_final_y_position() ? m_margin_state.current_collapsed_margin() : 0;
-        layout_floating_box(box, block_container, layout_mode, available_space, margin_top + y);
+        layout_floating_box(box, block_container, available_space, margin_top + y);
         bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.offset.y() + box_state.content_height() + box_state.margin_box_bottom());
         return;
     }
@@ -620,7 +618,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         compute_height(box, available_space);
     }
 
-    auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, box);
+    auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, box);
 
     // NOTE: It is possible to encounter SVGMaskBox nodes while doing layout of formatting context established by <foreignObject> with a mask.
     //       We should skip and let SVGFormattingContext take care of them.
@@ -647,7 +645,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     place_block_level_element_in_normal_flow_vertically(box, y + margin_top);
 
-    compute_width(box, available_space, layout_mode);
+    compute_width(box, available_space);
 
     place_block_level_element_in_normal_flow_horizontally(box, available_space);
 
@@ -677,11 +675,11 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     if (independent_formatting_context) {
         // This box establishes a new formatting context. Pass control to it.
-        independent_formatting_context->run(layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
+        independent_formatting_context->run(box_state.available_inner_space_or_constraints_from(available_space));
     } else {
         // This box participates in the current block container's flow.
         if (box.children_are_inline()) {
-            layout_inline_children(verify_cast<BlockContainer>(box), layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
+            layout_inline_children(verify_cast<BlockContainer>(box), box_state.available_inner_space_or_constraints_from(available_space));
         } else {
             if (box_state.border_top > 0 || box_state.padding_top > 0) {
                 // margin-top of block container can't collapse with it's children if it has non zero border or padding
@@ -695,7 +693,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                 });
             }
 
-            layout_block_level_children(verify_cast<BlockContainer>(box), layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
+            layout_block_level_children(verify_cast<BlockContainer>(box), box_state.available_inner_space_or_constraints_from(available_space));
         }
     }
 
@@ -729,7 +727,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         independent_formatting_context->parent_context_did_dimension_child_root_box();
 }
 
-void BlockFormattingContext::layout_block_level_children(BlockContainer const& block_container, LayoutMode layout_mode, AvailableSpace const& available_space)
+void BlockFormattingContext::layout_block_level_children(BlockContainer const& block_container, AvailableSpace const& available_space)
 {
     VERIFY(!block_container.children_are_inline());
 
@@ -737,13 +735,13 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
 
     TemporaryChange<Optional<CSSPixels>> change { m_y_offset_of_current_block_container, CSSPixels(0) };
     block_container.for_each_child_of_type<Box>([&](Box& box) {
-        layout_block_level_box(box, block_container, layout_mode, bottom_of_lowest_margin_box, available_space);
+        layout_block_level_box(box, block_container, bottom_of_lowest_margin_box, available_space);
         return IterationDecision::Continue;
     });
 
     m_margin_state.block_container_y_position_update_callback = {};
 
-    if (layout_mode == LayoutMode::IntrinsicSizing) {
+    if (m_layout_mode == LayoutMode::IntrinsicSizing) {
         auto& block_container_state = m_state.get_mutable(block_container);
         if (!block_container_state.has_definite_width()) {
             auto width = greatest_child_width(block_container);
@@ -910,7 +908,7 @@ void BlockFormattingContext::place_block_level_element_in_normal_flow_horizontal
     box_state.set_content_offset({ x, box_state.offset.y() });
 }
 
-void BlockFormattingContext::layout_viewport(LayoutMode layout_mode, AvailableSpace const& available_space)
+void BlockFormattingContext::layout_viewport(AvailableSpace const& available_space)
 {
     // NOTE: If we are laying out a standalone SVG document, we give it some special treatment:
     //       The root <svg> container gets the same size as the viewport,
@@ -919,17 +917,17 @@ void BlockFormattingContext::layout_viewport(LayoutMode layout_mode, AvailableSp
         auto const& svg_root = verify_cast<SVGSVGBox>(*root().first_child());
         auto content_height = m_state.get(*svg_root.containing_block()).content_height();
         m_state.get_mutable(svg_root).set_content_height(content_height);
-        auto svg_formatting_context = create_independent_formatting_context_if_needed(m_state, svg_root);
-        svg_formatting_context->run(layout_mode, available_space);
+        auto svg_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, svg_root);
+        svg_formatting_context->run(available_space);
     } else {
         if (root().children_are_inline())
-            layout_inline_children(root(), layout_mode, available_space);
+            layout_inline_children(root(), available_space);
         else
-            layout_block_level_children(root(), layout_mode, available_space);
+            layout_block_level_children(root(), available_space);
     }
 }
 
-void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer const&, LayoutMode layout_mode, AvailableSpace const& available_space, CSSPixels y, LineBuilder* line_builder)
+void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer const&, AvailableSpace const& available_space, CSSPixels y, LineBuilder* line_builder)
 {
     VERIFY(box.is_floating());
 
@@ -938,13 +936,13 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
 
     resolve_vertical_box_model_metrics(box);
 
-    compute_width(box, available_space, layout_mode);
+    compute_width(box, available_space);
 
     // NOTE: Flex containers with `auto` height are treated as `max-content`, so we can compute their height early.
     if (box.is_replaced_box() || box.display().is_flex_inside())
         compute_height(box, available_space);
 
-    auto independent_formatting_context = layout_inside(box, layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
+    auto independent_formatting_context = layout_inside(box, m_layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
     compute_height(box, available_space);
 
     // First we place the box normally (to get the right y coordinate.)

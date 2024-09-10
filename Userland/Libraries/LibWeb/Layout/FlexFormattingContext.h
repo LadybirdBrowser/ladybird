@@ -13,12 +13,12 @@ namespace Web::Layout {
 
 class FlexFormattingContext final : public FormattingContext {
 public:
-    FlexFormattingContext(LayoutState&, Box const& flex_container, FormattingContext* parent);
+    FlexFormattingContext(LayoutState&, LayoutMode, Box const& flex_container, FormattingContext* parent);
     ~FlexFormattingContext();
 
     virtual bool inhibits_floating() const override { return true; }
 
-    virtual void run(LayoutMode, AvailableSpace const&) override;
+    virtual void run(AvailableSpace const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 

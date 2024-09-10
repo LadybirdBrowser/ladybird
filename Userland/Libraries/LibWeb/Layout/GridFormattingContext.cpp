@@ -65,8 +65,8 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_gap(CS
     };
 }
 
-GridFormattingContext::GridFormattingContext(LayoutState& state, Box const& grid_container, FormattingContext* parent)
-    : FormattingContext(Type::Grid, state, grid_container, parent)
+GridFormattingContext::GridFormattingContext(LayoutState& state, LayoutMode layout_mode, Box const& grid_container, FormattingContext* parent)
+    : FormattingContext(Type::Grid, layout_mode, state, grid_container, parent)
 {
 }
 
@@ -1771,7 +1771,7 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
     return { x_start, y_start, x_end - x_start, y_end - y_start };
 }
 
-void GridFormattingContext::run(LayoutMode, AvailableSpace const& available_space)
+void GridFormattingContext::run(AvailableSpace const& available_space)
 {
     m_available_space = available_space;
 

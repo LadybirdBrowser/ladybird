@@ -19,10 +19,10 @@ class LineBuilder;
 // https://www.w3.org/TR/css-display/#block-formatting-context
 class BlockFormattingContext : public FormattingContext {
 public:
-    explicit BlockFormattingContext(LayoutState&, BlockContainer const&, FormattingContext* parent);
+    explicit BlockFormattingContext(LayoutState&, LayoutMode layout_mode, BlockContainer const&, FormattingContext* parent);
     ~BlockFormattingContext();
 
-    virtual void run(LayoutMode, AvailableSpace const&) override;
+    virtual void run(AvailableSpace const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
 
@@ -30,7 +30,7 @@ public:
     auto const& right_side_floats() const { return m_right_floats; }
 
     bool box_should_avoid_floats_because_it_establishes_fc(Box const&);
-    void compute_width(Box const&, AvailableSpace const&, LayoutMode = LayoutMode::Normal);
+    void compute_width(Box const&, AvailableSpace const&);
 
     // https://www.w3.org/TR/css-display/#block-formatting-context-root
     BlockContainer const& root() const { return static_cast<BlockContainer const&>(context_box()); }
@@ -47,9 +47,9 @@ public:
 
     virtual CSSPixels greatest_child_width(Box const&) const override;
 
-    void layout_floating_box(Box const& child, BlockContainer const& containing_block, LayoutMode, AvailableSpace const&, CSSPixels y, LineBuilder* = nullptr);
+    void layout_floating_box(Box const& child, BlockContainer const& containing_block, AvailableSpace const&, CSSPixels y, LineBuilder* = nullptr);
 
-    void layout_block_level_box(Box const&, BlockContainer const&, LayoutMode, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const&);
+    void layout_block_level_box(Box const&, BlockContainer const&, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const&);
 
     void resolve_vertical_box_model_metrics(Box const&);
 
@@ -69,10 +69,10 @@ private:
 
     void compute_width_for_block_level_replaced_element_in_normal_flow(Box const&, AvailableSpace const&);
 
-    void layout_viewport(LayoutMode, AvailableSpace const&);
+    void layout_viewport(AvailableSpace const&);
 
-    void layout_block_level_children(BlockContainer const&, LayoutMode, AvailableSpace const&);
-    void layout_inline_children(BlockContainer const&, LayoutMode, AvailableSpace const&);
+    void layout_block_level_children(BlockContainer const&, AvailableSpace const&);
+    void layout_inline_children(BlockContainer const&, AvailableSpace const&);
 
     void place_block_level_element_in_normal_flow_horizontally(Box const& child_box, AvailableSpace const&);
     void place_block_level_element_in_normal_flow_vertically(Box const&, CSSPixels y);
