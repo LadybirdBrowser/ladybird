@@ -205,11 +205,15 @@ public:
     bool select_applies() const;
     bool selection_or_range_applies() const;
 
+    static bool selection_or_range_applies_for_type_state(TypeAttributeState);
+
 protected:
     void selection_was_changed(size_t selection_start, size_t selection_end) override;
 
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
+
+    void type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state);
 
     // ^DOM::Node
     virtual bool is_html_input_element() const final { return true; }
@@ -280,6 +284,7 @@ private:
         DefaultOn,
         Filename,
     };
+    static ValueAttributeMode value_attribute_mode_for_type_state(TypeAttributeState);
     ValueAttributeMode value_attribute_mode() const;
 
     void update_placeholder_visibility();

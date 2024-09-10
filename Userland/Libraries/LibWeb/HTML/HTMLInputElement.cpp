@@ -1177,10 +1177,8 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
                 set_checked(true, ChangeSource::Programmatic);
         }
     } else if (name == HTML::AttributeNames::type) {
-        m_type = parse_type_attribute(value.value_or(String {}));
-
-        set_shadow_root(nullptr);
-        create_shadow_tree_if_needed();
+        auto new_type_attribute_state = parse_type_attribute(value.value_or(String {}));
+        type_attribute_changed(m_type, new_type_attribute_state);
 
         // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):the-input-element-4
         // the input element's type attribute is changed back to the Image Button state, and the src attribute is present,
@@ -1220,6 +1218,59 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
         handle_maxlength_attribute();
     } else if (name == HTML::AttributeNames::multiple) {
         update_shadow_tree();
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#input-type-change
+void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state)
+{
+    auto new_value_attribute_mode = value_attribute_mode_for_type_state(new_state);
+    auto old_value_attribute_mode = value_attribute_mode_for_type_state(old_state);
+
+    // 1. If the previous state of the element's type attribute put the value IDL attribute in the value mode, and the element's
+    //    value is not the empty string, and the new state of the element's type attribute puts the value IDL attribute in either
+    //    the default mode or the default/on mode, then set the element's value content attribute to the element's value.
+    if (old_value_attribute_mode == ValueAttributeMode::Value && !m_value.is_empty() && (first_is_one_of(new_value_attribute_mode, ValueAttributeMode::Default, ValueAttributeMode::DefaultOn))) {
+        MUST(set_attribute(HTML::AttributeNames::value, m_value));
+    }
+
+    // 2. Otherwise, if the previous state of the element's type attribute put the value IDL attribute in any mode other
+    //    than the value mode, and the new state of the element's type attribute puts the value IDL attribute in the value mode,
+    //    then set the value of the element to the value of the value content attribute, if there is one, or the empty string
+    //    otherwise, and then set the control's dirty value flag to false.
+    else if (old_value_attribute_mode != ValueAttributeMode::Value && new_value_attribute_mode == ValueAttributeMode::Value) {
+        m_value = attribute(HTML::AttributeNames::value).value_or({});
+        m_dirty_value = false;
+    }
+
+    // 3. Otherwise, if the previous state of the element's type attribute put the value IDL attribute in any mode other
+    //    than the filename mode, and the new state of the element's type attribute puts the value IDL attribute in the filename mode,
+    //    then set the value of the element to the empty string.
+    else if (old_value_attribute_mode != ValueAttributeMode::Filename && new_value_attribute_mode == ValueAttributeMode::Filename) {
+        m_value = String {};
+    }
+
+    // 4. Update the element's rendering and behavior to the new state's.
+    m_type = new_state;
+    set_shadow_root(nullptr);
+    create_shadow_tree_if_needed();
+
+    // FIXME: 5. Signal a type change for the element. (The Radio Button state uses this, in particular.)
+
+    // 6. Invoke the value sanitization algorithm, if one is defined for the type attribute's new state.
+    m_value = value_sanitization_algorithm(m_value);
+
+    // 7. Let previouslySelectable be true if setRangeText() previously applied to the element, and false otherwise.
+    auto previously_selectable = selection_or_range_applies_for_type_state(old_state);
+
+    // 8. Let nowSelectable be true if setRangeText() now applies to the element, and false otherwise.
+    auto now_selectable = selection_or_range_applies_for_type_state(new_state);
+
+    // 9. If previouslySelectable is false and nowSelectable is true, set the element's text entry cursor position to the
+    //    beginning of the text control, and set its selection direction to "none".
+    if (!previously_selectable && now_selectable) {
+        document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
+        set_selection_direction(OptionalNone {});
     }
 }
 
@@ -2245,7 +2296,12 @@ bool HTMLInputElement::select_applies() const
 // https://html.spec.whatwg.org/multipage/input.html#do-not-apply
 bool HTMLInputElement::selection_or_range_applies() const
 {
-    switch (type_state()) {
+    return selection_or_range_applies_for_type_state(type_state());
+}
+
+bool HTMLInputElement::selection_or_range_applies_for_type_state(TypeAttributeState type_state)
+{
+    switch (type_state) {
     case TypeAttributeState::Text:
     case TypeAttributeState::Search:
     case TypeAttributeState::Telephone:
@@ -2328,9 +2384,9 @@ bool HTMLInputElement::step_up_or_down_applies() const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element:dom-input-value-2
-HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode() const
+HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode_for_type_state(TypeAttributeState type_state)
 {
-    switch (type_state()) {
+    switch (type_state) {
     case TypeAttributeState::Text:
     case TypeAttributeState::Search:
     case TypeAttributeState::Telephone:
@@ -2363,6 +2419,11 @@ HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode() co
     }
 
     VERIFY_NOT_REACHED();
+}
+
+HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode() const
+{
+    return value_attribute_mode_for_type_state(type_state());
 }
 
 void HTMLInputElement::selection_was_changed(size_t selection_start, size_t selection_end)
