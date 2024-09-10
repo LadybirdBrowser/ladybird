@@ -2643,7 +2643,7 @@ Optional<Element::Directionality> Element::auto_directionality() const
                     VERIFY(child->is_element());
 
                     // 2. Set childDirection to the auto directionality of child.
-                    child_direction = static_cast<HTML::HTMLElement const&>(*this).auto_directionality();
+                    child_direction = static_cast<HTML::HTMLElement const&>(*child).auto_directionality();
                 }
 
                 // 4. If childDirection is not null, then return childDirection.
