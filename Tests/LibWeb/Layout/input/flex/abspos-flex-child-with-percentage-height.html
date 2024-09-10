@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+#containing-block {
+  width: 200px;
+  background: red;
+  position: absolute;
+}
+
+#inner-flex {
+  display: flex;
+  justify-content: center;
+}
+
+span {
+  display: block;
+  width: 50px;
+}
+</style>
+<div id="containing-block">
+  <div id="inner-flex">
+    <div style="position: absolute; height: 50%; background: green;">
+      <span></span>
+    </div>
+  </div>
+  <div style="background-color: blueviolet; width: 300px; height: 300px"></div>
+</div>

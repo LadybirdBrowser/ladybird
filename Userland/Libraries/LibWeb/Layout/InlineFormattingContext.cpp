@@ -305,8 +305,11 @@ void InlineFormattingContext::generate_line_boxes()
             break;
         }
         case InlineLevelIterator::Item::Type::AbsolutelyPositionedElement:
-            if (is<Box>(*item.node))
-                parent().add_absolutely_positioned_box(static_cast<Layout::Box const&>(*item.node));
+            if (is<Box>(*item.node)) {
+                auto const& box = static_cast<Layout::Box const&>(*item.node);
+                auto& box_state = m_state.get_mutable(box);
+                box_state.set_static_position_rect(calculate_static_position_rect(box));
+            }
             break;
 
         case InlineLevelIterator::Item::Type::FloatingElement:

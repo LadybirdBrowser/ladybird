@@ -186,13 +186,18 @@ void FlexFormattingContext::parent_context_did_dimension_child_root_box()
 
     flex_container().for_each_child_of_type<Box>([&](Layout::Box& box) {
         if (box.is_absolutely_positioned()) {
-            auto& cb_state = m_state.get(*box.containing_block());
-            auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
-            auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
-            layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
+            m_state.get_mutable(box).set_static_position_rect(calculate_static_position_rect(box));
         }
         return IterationDecision::Continue;
     });
+
+    for (auto& child : flex_container().contained_abspos_children()) {
+        auto& box = verify_cast<Box>(*child);
+        auto& cb_state = m_state.get(*box.containing_block());
+        auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
+        auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
+        layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
+    }
 }
 
 // https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
@@ -2129,35 +2134,12 @@ void FlexFormattingContext::handle_align_content_stretch()
 }
 
 // https://drafts.csswg.org/css-flexbox-1/#abspos-items
-CSSPixelPoint FlexFormattingContext::calculate_static_position(Box const& box) const
+StaticPositionRect FlexFormattingContext::calculate_static_position_rect(Box const& box) const
 {
     // The cross-axis edges of the static-position rectangle of an absolutely-positioned child
     // of a flex container are the content edges of the flex container.
-    CSSPixels cross_offset = 0;
-    CSSPixels half_line_size = inner_cross_size(m_flex_container_state) / 2;
 
-    auto cross_to_px = [&](CSS::LengthPercentage const& length_percentage) -> CSSPixels {
-        return length_percentage.to_px(box, m_flex_container_state.content_width());
-    };
-
-    auto main_to_px = [&](CSS::LengthPercentage const& length_percentage) -> CSSPixels {
-        return length_percentage.to_px(box, m_flex_container_state.content_width());
-    };
-
-    auto const& box_state = m_state.get(box);
-    CSSPixels cross_margin_before = is_row_layout() ? cross_to_px(box.computed_values().margin().top()) : cross_to_px(box.computed_values().margin().left());
-    CSSPixels cross_margin_after = is_row_layout() ? cross_to_px(box.computed_values().margin().bottom()) : cross_to_px(box.computed_values().margin().right());
-    CSSPixels cross_border_before = is_row_layout() ? box.computed_values().border_top().width : box.computed_values().border_left().width;
-    CSSPixels cross_border_after = is_row_layout() ? box.computed_values().border_bottom().width : box.computed_values().border_right().width;
-    CSSPixels cross_padding_before = is_row_layout() ? cross_to_px(box.computed_values().padding().top()) : cross_to_px(box.computed_values().padding().left());
-    CSSPixels cross_padding_after = is_row_layout() ? cross_to_px(box.computed_values().padding().bottom()) : cross_to_px(box.computed_values().padding().right());
-    CSSPixels main_margin_before = is_row_layout() ? main_to_px(box.computed_values().margin().left()) : main_to_px(box.computed_values().margin().top());
-    CSSPixels main_margin_after = is_row_layout() ? main_to_px(box.computed_values().margin().right()) : main_to_px(box.computed_values().margin().bottom());
-    CSSPixels main_border_before = is_row_layout() ? box.computed_values().border_left().width : box.computed_values().border_top().width;
-    CSSPixels main_border_after = is_row_layout() ? box.computed_values().border_right().width : box.computed_values().border_bottom().width;
-    CSSPixels main_padding_before = is_row_layout() ? main_to_px(box.computed_values().padding().left()) : main_to_px(box.computed_values().padding().top());
-    CSSPixels main_padding_after = is_row_layout() ? main_to_px(box.computed_values().padding().right()) : main_to_px(box.computed_values().padding().bottom());
-
+    StaticPositionRect::Alignment cross_axis_alignment = StaticPositionRect::Alignment::Start;
     switch (alignment_for_item(box)) {
     case CSS::AlignItems::Baseline:
         // FIXME: Implement this
@@ -2167,67 +2149,64 @@ CSSPixelPoint FlexFormattingContext::calculate_static_position(Box const& box) c
     case CSS::AlignItems::SelfStart:
     case CSS::AlignItems::Stretch:
     case CSS::AlignItems::Normal:
-        cross_offset = -half_line_size;
+        cross_axis_alignment = StaticPositionRect::Alignment::Start;
         break;
     case CSS::AlignItems::End:
     case CSS::AlignItems::SelfEnd:
     case CSS::AlignItems::FlexEnd:
-        cross_offset = half_line_size - inner_cross_size(box_state) - (cross_margin_before + cross_margin_after) - (cross_border_before + cross_border_after) - (cross_padding_before + cross_padding_after);
+        cross_axis_alignment = StaticPositionRect::Alignment::End;
         break;
     case CSS::AlignItems::Center:
-        cross_offset = -((inner_cross_size(box_state) + cross_margin_after + cross_margin_before + cross_border_before + cross_border_after + cross_padding_before + cross_padding_after) / 2);
+        cross_axis_alignment = StaticPositionRect::Alignment::Center;
         break;
     default:
         break;
     }
-
-    cross_offset += inner_cross_size(m_flex_container_state) / 2;
 
     // The main-axis edges of the static-position rectangle are where the margin edges of the child
     // would be positioned if it were the sole flex item in the flex container,
     // assuming both the child and the flex container were fixed-size boxes of their used size.
     // (For this purpose, auto margins are treated as zero.
 
-    bool pack_from_end = true;
-    CSSPixels main_offset = 0;
+    StaticPositionRect::Alignment main_axis_alignment = StaticPositionRect::Alignment::Start;
     switch (flex_container().computed_values().justify_content()) {
     case CSS::JustifyContent::Start:
     case CSS::JustifyContent::Left:
-        pack_from_end = false;
+        main_axis_alignment = StaticPositionRect::Alignment::Start;
         break;
     case CSS::JustifyContent::Stretch:
     case CSS::JustifyContent::Normal:
     case CSS::JustifyContent::FlexStart:
     case CSS::JustifyContent::SpaceBetween:
-        pack_from_end = is_direction_reverse();
+        main_axis_alignment = is_direction_reverse() ? StaticPositionRect::Alignment::End : StaticPositionRect::Alignment::Start;
         break;
     case CSS::JustifyContent::End:
-        pack_from_end = true;
+        main_axis_alignment = StaticPositionRect::Alignment::End;
         break;
     case CSS::JustifyContent::Right:
-        pack_from_end = is_row_layout();
+        main_axis_alignment = StaticPositionRect::Alignment::End;
         break;
     case CSS::JustifyContent::FlexEnd:
-        pack_from_end = !is_direction_reverse();
+        main_axis_alignment = !is_direction_reverse() ? StaticPositionRect::Alignment::End : StaticPositionRect::Alignment::Start;
         break;
     case CSS::JustifyContent::Center:
     case CSS::JustifyContent::SpaceAround:
     case CSS::JustifyContent::SpaceEvenly:
-        pack_from_end = false;
-        main_offset = (inner_main_size(m_flex_container_state) - inner_main_size(box_state) - main_margin_before - main_margin_after - main_border_before - main_border_after - main_padding_before - main_padding_after) / 2;
+        main_axis_alignment = StaticPositionRect::Alignment::Center;
         break;
     }
 
-    if (pack_from_end)
-        main_offset += inner_main_size(m_flex_container_state) - inner_main_size(box_state) - main_margin_before - main_margin_after - main_border_before - main_border_after - main_padding_before - main_padding_after;
-
-    auto static_position_offset = is_row_layout() ? CSSPixelPoint { main_offset, cross_offset } : CSSPixelPoint { cross_offset, main_offset };
-
     auto absolute_position_of_flex_container = absolute_content_rect(flex_container()).location();
     auto absolute_position_of_abspos_containing_block = absolute_content_rect(*box.containing_block()).location();
-    auto diff = absolute_position_of_flex_container - absolute_position_of_abspos_containing_block;
 
-    return static_position_offset + diff;
+    auto flex_container_width = is_row_layout() ? inner_main_size(m_flex_container_state) : inner_cross_size(m_flex_container_state);
+    auto flex_container_height = is_row_layout() ? inner_cross_size(m_flex_container_state) : inner_main_size(m_flex_container_state);
+
+    StaticPositionRect static_position_rect;
+    static_position_rect.rect = { absolute_position_of_flex_container - absolute_position_of_abspos_containing_block, { flex_container_width, flex_container_height } };
+    static_position_rect.horizontal_alignment = is_row_layout() ? main_axis_alignment : cross_axis_alignment;
+    static_position_rect.vertical_alignment = is_row_layout() ? cross_axis_alignment : main_axis_alignment;
+    return static_position_rect;
 }
 
 double FlexFormattingContext::FlexLine::sum_of_flex_factor_of_unfrozen_items() const

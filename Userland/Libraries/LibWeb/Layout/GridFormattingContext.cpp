@@ -2010,13 +2010,18 @@ void GridFormattingContext::parent_context_did_dimension_child_root_box()
 
     grid_container().for_each_child_of_type<Box>([&](Layout::Box& box) {
         if (box.is_absolutely_positioned()) {
-            auto& cb_state = m_state.get(*box.containing_block());
-            auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
-            auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
-            layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
+            m_state.get_mutable(box).set_static_position_rect(calculate_static_position_rect(box));
         }
         return IterationDecision::Continue;
     });
+
+    for (auto& child : grid_container().contained_abspos_children()) {
+        auto& box = verify_cast<Box>(*child);
+        auto& cb_state = m_state.get(*box.containing_block());
+        auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
+        auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
+        layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
+    }
 }
 
 void GridFormattingContext::determine_intrinsic_size_of_grid_container(AvailableSpace const& available_space)
