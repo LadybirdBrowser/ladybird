@@ -33,7 +33,7 @@ date did not throw: NaN
 month did not throw: NaN
 week did not throw: NaN
 time did not throw: NaN
-datetime-local threw exception: InvalidStateError: valueAsNumber: Invalid input type used
+datetime-local did not throw: NaN
 number did not throw: 100
 range did not throw: 100
 color threw exception: InvalidStateError: valueAsNumber: Invalid input type used

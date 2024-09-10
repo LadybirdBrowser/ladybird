@@ -1291,7 +1291,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
 HTMLInputElement::TypeAttributeState HTMLInputElement::parse_type_attribute(StringView type)
 {
 #define __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(keyword, state) \
-    if (type.equals_ignoring_ascii_case(#keyword##sv))        \
+    if (type.equals_ignoring_ascii_case(keyword##sv))         \
         return HTMLInputElement::TypeAttributeState::state;
     ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTES
 #undef __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE
@@ -1308,7 +1308,7 @@ StringView HTMLInputElement::type() const
     switch (m_type) {
 #define __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(keyword, state) \
     case TypeAttributeState::state:                           \
-        return #keyword##sv;
+        return keyword##sv;
         ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTES
 #undef __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE
     }
