@@ -39,6 +39,8 @@ private:
     ReadonlyBytes m_buffer;
     unsigned m_ttc_index { 0 };
 
+    mutable Optional<String> m_family;
+
     // This cache stores information per code point.
     // It's segmented into pages with data about 256 code points each.
     struct GlyphPage {
