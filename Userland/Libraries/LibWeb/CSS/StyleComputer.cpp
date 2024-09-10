@@ -887,7 +887,7 @@ void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, CS
 {
     for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
         if (shorthand_value.is_revert()) {
-            auto const& property_in_previous_cascade_origin = style_for_revert.m_property_values[to_underlying(shorthand_id)];
+            auto const& property_in_previous_cascade_origin = style_for_revert.m_data->m_property_values[to_underlying(shorthand_id)];
             if (property_in_previous_cascade_origin) {
                 style.set_property(shorthand_id, *property_in_previous_cascade_origin, StyleProperties::Inherited::No, important);
                 if (shorthand_id == CSS::PropertyID::AnimationName)
@@ -1826,7 +1826,7 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
             // FIXME: This is not very efficient, we should only resolve the custom properties that are actually used.
             for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
                 auto property_id = (CSS::PropertyID)i;
-                auto& property = style.m_property_values[i];
+                auto& property = style.m_data->m_property_values[i];
                 if (property && property->is_unresolved())
                     property = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property_id, property->as_unresolved());
             }
@@ -1939,7 +1939,7 @@ void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM
 {
     // FIXME: If we don't know the correct initial value for a property, we fall back to `initial`.
 
-    auto& value_slot = style.m_property_values[to_underlying(property_id)];
+    auto& value_slot = style.m_data->m_property_values[to_underlying(property_id)];
     if (!value_slot) {
         if (is_inherited_property(property_id)) {
             style.set_property(
@@ -2410,7 +2410,7 @@ void StyleComputer::absolutize_values(StyleProperties& style) const
     //       We have to resolve them right away, so that the *computed* line-height is ready for inheritance.
     //       We can't simply absolutize *all* percentage values against the font size,
     //       because most percentages are relative to containing block metrics.
-    auto& line_height_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::LineHeight)];
+    auto& line_height_value_slot = style.m_data->m_property_values[to_underlying(CSS::PropertyID::LineHeight)];
     if (line_height_value_slot && line_height_value_slot->is_percentage()) {
         line_height_value_slot = LengthStyleValue::create(
             Length::make_px(CSSPixels::nearest_value_for(font_size * static_cast<double>(line_height_value_slot->as_percentage().percentage().as_fraction()))));
@@ -2423,8 +2423,8 @@ void StyleComputer::absolutize_values(StyleProperties& style) const
     if (line_height_value_slot && line_height_value_slot->is_length())
         line_height_value_slot = LengthStyleValue::create(Length::make_px(line_height));
 
-    for (size_t i = 0; i < style.m_property_values.size(); ++i) {
-        auto& value_slot = style.m_property_values[i];
+    for (size_t i = 0; i < style.m_data->m_property_values.size(); ++i) {
+        auto& value_slot = style.m_data->m_property_values[i];
         if (!value_slot)
             continue;
         value_slot = value_slot->absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics);
