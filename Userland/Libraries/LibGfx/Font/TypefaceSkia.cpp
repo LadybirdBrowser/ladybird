@@ -82,7 +82,36 @@ u16 TypefaceSkia::units_per_em() const
 
 u32 TypefaceSkia::glyph_id_for_code_point(u32 code_point) const
 {
-    return impl().skia_typeface->unicharToGlyph(code_point);
+    return glyph_page(code_point / GlyphPage::glyphs_per_page).glyph_ids[code_point % GlyphPage::glyphs_per_page];
+}
+
+TypefaceSkia::GlyphPage const& TypefaceSkia::glyph_page(size_t page_index) const
+{
+    if (page_index == 0) {
+        if (!m_glyph_page_zero) {
+            m_glyph_page_zero = make<GlyphPage>();
+            populate_glyph_page(*m_glyph_page_zero, 0);
+        }
+        return *m_glyph_page_zero;
+    }
+    if (auto it = m_glyph_pages.find(page_index); it != m_glyph_pages.end()) {
+        return *it->value;
+    }
+
+    auto glyph_page = make<GlyphPage>();
+    populate_glyph_page(*glyph_page, page_index);
+    auto const* glyph_page_ptr = glyph_page.ptr();
+    m_glyph_pages.set(page_index, move(glyph_page));
+    return *glyph_page_ptr;
+}
+
+void TypefaceSkia::populate_glyph_page(GlyphPage& glyph_page, size_t page_index) const
+{
+    u32 first_code_point = page_index * GlyphPage::glyphs_per_page;
+    for (size_t i = 0; i < GlyphPage::glyphs_per_page; ++i) {
+        u32 code_point = first_code_point + i;
+        glyph_page.glyph_ids[i] = impl().skia_typeface->unicharToGlyph(code_point);
+    }
 }
 
 String TypefaceSkia::family() const

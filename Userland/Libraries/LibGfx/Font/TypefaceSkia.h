@@ -38,6 +38,21 @@ private:
 
     ReadonlyBytes m_buffer;
     unsigned m_ttc_index { 0 };
+
+    // This cache stores information per code point.
+    // It's segmented into pages with data about 256 code points each.
+    struct GlyphPage {
+        static constexpr size_t glyphs_per_page = 256;
+        u16 glyph_ids[glyphs_per_page];
+    };
+
+    // Fast cache for GlyphPage #0 (code points 0-255) to avoid hash lookups for all of ASCII and Latin-1.
+    OwnPtr<GlyphPage> mutable m_glyph_page_zero;
+
+    HashMap<size_t, NonnullOwnPtr<GlyphPage>> mutable m_glyph_pages;
+
+    [[nodiscard]] GlyphPage const& glyph_page(size_t page_index) const;
+    void populate_glyph_page(GlyphPage&, size_t page_index) const;
 };
 
 }
