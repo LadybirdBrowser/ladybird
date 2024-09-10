@@ -24,28 +24,28 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-type
 #define ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTES                                  \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(hidden, Hidden)                     \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(text, Text)                         \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(search, Search)                     \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(tel, Telephone)                     \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(url, URL)                           \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(email, Email)                       \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(password, Password)                 \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(date, Date)                         \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(month, Month)                       \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(week, Week)                         \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(time, Time)                         \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("hidden", Hidden)                   \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("text", Text)                       \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("search", Search)                   \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("tel", Telephone)                   \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("url", URL)                         \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("email", Email)                     \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("password", Password)               \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("date", Date)                       \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("month", Month)                     \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("week", Week)                       \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("time", Time)                       \
     __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("datetime-local", LocalDateAndTime) \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(number, Number)                     \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(range, Range)                       \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(color, Color)                       \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(checkbox, Checkbox)                 \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(radio, RadioButton)                 \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(file, FileUpload)                   \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(submit, SubmitButton)               \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(image, ImageButton)                 \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(reset, ResetButton)                 \
-    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(button, Button)
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("number", Number)                   \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("range", Range)                     \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("color", Color)                     \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("checkbox", Checkbox)               \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("radio", RadioButton)               \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("file", FileUpload)                 \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("submit", SubmitButton)             \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("image", ImageButton)               \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("reset", ResetButton)               \
+    __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE("button", Button)
 
 class HTMLInputElement final
     : public HTMLElement
