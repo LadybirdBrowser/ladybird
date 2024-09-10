@@ -54,6 +54,11 @@ public:
 
     bool is_user_scrollable() const;
 
+    void add_contained_abspos_child(JS::NonnullGCPtr<Node> child) { m_contained_abspos_children.append(child); }
+    Vector<JS::NonnullGCPtr<Node>> const& contained_abspos_children() const { return m_contained_abspos_children; }
+
+    virtual void visit_edges(Cell::Visitor&) override;
+
 protected:
     Box(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::StyleProperties>);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
@@ -64,6 +69,8 @@ private:
     Optional<CSSPixels> m_natural_width;
     Optional<CSSPixels> m_natural_height;
     Optional<CSSPixelFraction> m_natural_aspect_ratio;
+
+    Vector<JS::NonnullGCPtr<Node>> m_contained_abspos_children;
 };
 
 template<>

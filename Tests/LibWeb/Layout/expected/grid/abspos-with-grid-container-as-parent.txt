@@ -1,0 +1,59 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x0 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 400x275 positioned [BFC] children: not-inline
+      BlockContainer <div#fill> at (8,8) content-size 100x100 children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,8 36.84375x17] baseline: 13.296875
+            "hello"
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,108) content-size 400x0 children: inline
+        TextNode <#text>
+      BlockContainer <div#grid> at (8,108) content-size 400x75 [BFC] children: inline
+        TextNode <#text>
+        BlockContainer <div#grid-item-abspos> at (8,8) content-size 60.890625x25 positioned [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 8, rect: [8,8 60.890625x17] baseline: 13.296875
+              "top left"
+          TextNode <#text>
+        TextNode <#text>
+        BlockContainer <div#grid-item-abspos> at (336.25,8) content-size 71.75x25 positioned [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [336.25,8 71.75x17] baseline: 13.296875
+              "top right"
+          TextNode <#text>
+        TextNode <#text>
+        BlockContainer <div#grid-item-abspos> at (8,258) content-size 90.359375x25 positioned [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 11, rect: [8,258 90.359375x17] baseline: 13.296875
+              "bottom left"
+          TextNode <#text>
+        TextNode <#text>
+        BlockContainer <div#grid-item-abspos> at (306.78125,258) content-size 101.21875x25 positioned [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 12, rect: [306.78125,258 101.21875x17] baseline: 13.296875
+              "bottom right"
+          TextNode <#text>
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,183) content-size 400x0 children: inline
+        TextNode <#text>
+      BlockContainer <div#fill> at (8,183) content-size 100x100 children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,183 36.84375x17] baseline: 13.296875
+            "hello"
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,283) content-size 400x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x0] overflow: [8,8 400x275]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 400x275]
+      PaintableWithLines (BlockContainer<DIV>#fill) [8,8 100x100]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,108 400x0]
+      PaintableWithLines (BlockContainer<DIV>#grid) [8,108 400x75]
+        PaintableWithLines (BlockContainer<DIV>#grid-item-abspos) [8,8 60.890625x25]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>#grid-item-abspos) [336.25,8 71.75x25]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>#grid-item-abspos) [8,258 90.359375x25]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>#grid-item-abspos) [306.78125,258 101.21875x25]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,183 400x0]
+      PaintableWithLines (BlockContainer<DIV>#fill) [8,183 100x100]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,283 400x0]

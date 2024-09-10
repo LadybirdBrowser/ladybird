@@ -24,7 +24,7 @@ public:
 
     Box const& flex_container() const { return context_box(); }
 
-    virtual CSSPixelPoint calculate_static_position(Box const&) const override;
+    virtual StaticPositionRect calculate_static_position_rect(Box const&) const override;
 
 private:
     [[nodiscard]] bool should_treat_main_size_as_auto(Box const&) const;

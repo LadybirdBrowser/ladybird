@@ -39,8 +39,6 @@ public:
 
     void compute_height(Box const&, AvailableSpace const&);
 
-    void add_absolutely_positioned_box(Box const& box) { m_absolutely_positioned_boxes.append(box); }
-
     SpaceUsedAndContainingMarginForFloats space_used_and_containing_margin_for_floats(CSSPixels y) const;
     [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_box(Box const&, CSSPixels y_in_box) const;
     [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_box(LayoutState::UsedValues const&, CSSPixels y_in_box) const;
@@ -169,8 +167,6 @@ private:
 
     FloatSideData m_left_floats;
     FloatSideData m_right_floats;
-
-    Vector<JS::NonnullGCPtr<Box const>> m_absolutely_positioned_boxes;
 
     bool m_was_notified_after_parent_dimensioned_my_root_box { false };
 };

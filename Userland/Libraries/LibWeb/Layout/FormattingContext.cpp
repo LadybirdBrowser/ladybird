@@ -716,7 +716,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
             width = CSS::Length::make_px(content_width);
             m_state.get_mutable(box).set_content_width(content_width);
 
-            auto static_position = calculate_static_position(box);
+            auto static_position = m_state.get(box).static_position();
 
             left = static_position.x();
             right = solve_for_right();
@@ -774,7 +774,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
         //    Then solve for 'left' (if 'direction is 'rtl') or 'right' (if 'direction' is 'ltr').
         else if (computed_left.is_auto() && computed_right.is_auto() && !width.is_auto()) {
             // FIXME: Check direction
-            auto static_position = calculate_static_position(box);
+            auto static_position = m_state.get(box).static_position();
             left = static_position.x();
             right = solve_for_right();
         }
@@ -863,7 +863,7 @@ void FormattingContext::compute_width_for_absolutely_positioned_replaced_element
     auto margin_left = computed_values.margin().left();
     auto right = computed_values.inset().right();
     auto margin_right = computed_values.margin().right();
-    auto static_position = calculate_static_position(box);
+    auto static_position = m_state.get(box).static_position();
 
     auto to_px = [&](const CSS::LengthPercentage& l) {
         return l.to_px(box, width_of_containing_block);
@@ -1034,7 +1034,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
             auto constrained_height = apply_min_max_height_constraints(height);
             m_state.get_mutable(box).set_content_height(constrained_height.to_px(box));
 
-            auto static_position = calculate_static_position(box);
+            auto static_position = m_state.get(box).static_position();
             top = CSS::Length::make_px(static_position.y());
 
             solve_for_bottom();
@@ -1089,7 +1089,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
             // 2. If top and bottom are auto and height is not auto,
             else if (top.is_auto() && bottom.is_auto() && !height.is_auto()) {
                 // then set top to the static position,
-                top = CSS::Length::make_px(calculate_static_position(box).y());
+                top = CSS::Length::make_px(m_state.get(box).static_position().y());
 
                 // then solve for bottom.
                 solve_for_bottom();
@@ -1176,7 +1176,7 @@ CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coo
 }
 
 // https://www.w3.org/TR/css-position-3/#staticpos-rect
-CSSPixelPoint FormattingContext::calculate_static_position(Box const& box) const
+StaticPositionRect FormattingContext::calculate_static_position_rect(Box const& box) const
 {
     // NOTE: This is very ad-hoc.
     // The purpose of this function is to calculate the approximate position that `box`
@@ -1216,7 +1216,9 @@ CSSPixelPoint FormattingContext::calculate_static_position(Box const& box) const
         y = box_state.vertical_offset_of_parent_block_container;
     }
     auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
-    return offset_to_static_parent.location().translated(x, y);
+    StaticPositionRect static_position_rect;
+    static_position_rect.rect = { offset_to_static_parent.location().translated(x, y), { 0, 0 } };
+    return static_position_rect;
 }
 
 void FormattingContext::layout_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
@@ -1259,7 +1261,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
 
     CSSPixelPoint used_offset;
 
-    auto static_position = calculate_static_position(box);
+    auto static_position = m_state.get(box).static_position();
 
     if (box.computed_values().inset().top().is_auto() && box.computed_values().inset().bottom().is_auto()) {
         used_offset.set_y(static_position.y());
@@ -1300,7 +1302,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_replaced_elemen
     auto margin_top = computed_values.margin().top();
     auto bottom = computed_values.inset().bottom();
     auto margin_bottom = computed_values.margin().bottom();
-    auto static_position = calculate_static_position(box);
+    auto static_position = m_state.get(box).static_position();
 
     auto to_px = [&](const CSS::LengthPercentage& l) {
         return l.to_px(box, height_of_containing_block);

@@ -207,8 +207,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <(anonymous)> at (10,1808) content-size 780x0 children: inline
         TextNode <#text>
       Box <div.column.outer.right> at (11,1809) content-size 300x60 flex-container(column) [FFC] children: not-inline
-        BlockContainer <div> at (12,1810) content-size 150x50 positioned [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [12,1810 37.109375x17] baseline: 13.296875
+        BlockContainer <div> at (12,1818) content-size 150x50 positioned [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [12,1818 37.109375x17] baseline: 13.296875
               "right"
           TextNode <#text>
       BlockContainer <(anonymous)> at (10,1870) content-size 780x0 children: inline
@@ -277,8 +277,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <(anonymous)> at (10,2428) content-size 780x0 children: inline
         TextNode <#text>
       Box <div.column.reverse.outer.right> at (11,2429) content-size 300x60 flex-container(column-reverse) [FFC] children: not-inline
-        BlockContainer <div> at (12,2430) content-size 150x50 positioned [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [12,2430 37.109375x17] baseline: 13.296875
+        BlockContainer <div> at (12,2438) content-size 150x50 positioned [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [12,2438 37.109375x17] baseline: 13.296875
               "right"
           TextNode <#text>
       BlockContainer <(anonymous)> at (10,2490) content-size 780x0 children: inline
@@ -405,7 +405,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x2500]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,1808 780x0]
       PaintableBox (Box<DIV>.column.outer.right) [10,1808 302x62]
-        PaintableWithLines (BlockContainer<DIV>) [11,1809 152x52]
+        PaintableWithLines (BlockContainer<DIV>) [11,1817 152x52]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,1870 780x0]
       PaintableBox (Box<DIV>.column.reverse.outer.start) [10,1870 302x62]
@@ -445,6 +445,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x2500]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,2428 780x0]
       PaintableBox (Box<DIV>.column.reverse.outer.right) [10,2428 302x62]
-        PaintableWithLines (BlockContainer<DIV>) [11,2429 152x52]
+        PaintableWithLines (BlockContainer<DIV>) [11,2437 152x52]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,2490 780x0]

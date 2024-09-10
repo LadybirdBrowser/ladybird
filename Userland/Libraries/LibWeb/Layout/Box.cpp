@@ -28,7 +28,13 @@ Box::~Box()
 {
 }
 
-// https://www.w3.org/TR/css-overflow-3/#overflow-control
+void Box::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_contained_abspos_children);
+}
+
+// https://www.w37.org/TR/css-overflow-3/#overflow-control
 static bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)
 {
     switch (overflow) {

@@ -25,6 +25,35 @@ enum class SizeConstraint {
 class AvailableSize;
 class AvailableSpace;
 
+// https://www.w3.org/TR/css-position-3/#static-position-rectangle
+struct StaticPositionRect {
+    enum class Alignment {
+        Start,
+        Center,
+        End,
+    };
+
+    CSSPixelRect rect;
+    Alignment horizontal_alignment { Alignment::Start };
+    Alignment vertical_alignment { Alignment::Start };
+
+    CSSPixelPoint aligned_position_for_box_with_size(CSSPixelSize const& size) const
+    {
+        CSSPixelPoint position = rect.location();
+        if (horizontal_alignment == Alignment::Center)
+            position.set_x(position.x() + (rect.width() - size.width()) / 2);
+        else if (horizontal_alignment == Alignment::End)
+            position.set_x(position.x() + rect.width() - size.width());
+
+        if (vertical_alignment == Alignment::Center)
+            position.set_y(position.y() + (rect.height() - size.height()) / 2);
+        else if (vertical_alignment == Alignment::End)
+            position.set_y(position.y() + rect.height() - size.height());
+
+        return position;
+    }
+};
+
 struct LayoutState {
     LayoutState()
         : m_root(*this)
@@ -145,6 +174,15 @@ struct LayoutState {
         void set_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue> used_values_for_grid_template_rows) { m_grid_template_rows = move(used_values_for_grid_template_rows); }
         auto const& grid_template_rows() const { return m_grid_template_rows; }
 
+        void set_static_position_rect(StaticPositionRect const& static_position_rect) { m_static_position_rect = static_position_rect; }
+        CSSPixelPoint static_position() const
+        {
+            CSSPixelSize size;
+            size.set_width(content_width() + padding_left + padding_right + border_left + border_right + margin_left + margin_right);
+            size.set_height(content_height() + padding_top + padding_bottom + border_top + border_bottom + margin_top + margin_bottom);
+            return m_static_position_rect->aligned_position_for_box_with_size(size);
+        }
+
     private:
         AvailableSize available_width_inside() const;
         AvailableSize available_height_inside() const;
@@ -175,6 +213,8 @@ struct LayoutState {
 
         RefPtr<CSS::GridTrackSizeListStyleValue> m_grid_template_columns;
         RefPtr<CSS::GridTrackSizeListStyleValue> m_grid_template_rows;
+
+        Optional<StaticPositionRect> m_static_position_rect;
     };
 
     // Commits the used values produced by layout and builds a paintable tree.

@@ -1131,6 +1131,26 @@ void Document::update_layout()
         }
     }
 
+    // Assign each box that establishes a formatting context a list of absolutely positioned children it should take care of during layout
+    m_layout_root->for_each_in_inclusive_subtree([&](auto& child) {
+        if (!child.is_absolutely_positioned())
+            return TraversalDecision::Continue;
+        if (auto* containing_block = child.containing_block()) {
+            auto* closest_box_that_establishes_formatting_context = containing_block;
+            while (closest_box_that_establishes_formatting_context) {
+                if (closest_box_that_establishes_formatting_context == m_layout_root)
+                    break;
+                if (Layout::FormattingContext::formatting_context_type_created_by_box(*closest_box_that_establishes_formatting_context).has_value()) {
+                    break;
+                }
+                closest_box_that_establishes_formatting_context = closest_box_that_establishes_formatting_context->containing_block();
+            }
+            VERIFY(closest_box_that_establishes_formatting_context);
+            closest_box_that_establishes_formatting_context->add_contained_abspos_child(child);
+        }
+        return TraversalDecision::Continue;
+    });
+
     Layout::LayoutState layout_state;
 
     {
