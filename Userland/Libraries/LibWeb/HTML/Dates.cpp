@@ -160,8 +160,13 @@ bool is_valid_local_date_and_time_string(StringView value)
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-normalised-local-date-and-time-string
 String normalize_local_date_and_time_string(String const& value)
 {
-    VERIFY(value.count(" "sv) == 1);
-    return MUST(value.replace(" "sv, "T"sv, ReplaceMode::FirstOnly));
+    if (auto spaces = value.count(" "sv); spaces > 0) {
+        VERIFY(spaces == 1);
+        return MUST(value.replace(" "sv, "T"sv, ReplaceMode::FirstOnly));
+    }
+
+    VERIFY(value.count("T"sv) == 1);
+    return value;
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-time-string
