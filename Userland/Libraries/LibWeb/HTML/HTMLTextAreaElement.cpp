@@ -164,8 +164,6 @@ String HTMLTextAreaElement::value() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-value
 void HTMLTextAreaElement::set_value(String const& value)
 {
-    auto& realm = this->realm();
-
     // 1. Let oldAPIValue be this element's API value.
     auto old_api_value = api_value();
 
@@ -182,7 +180,7 @@ void HTMLTextAreaElement::set_value(String const& value)
             m_text_node->set_data(m_raw_value);
             update_placeholder_visibility();
 
-            document().set_cursor_position(DOM::Position::create(realm, *m_text_node, m_text_node->data().bytes().size()));
+            set_the_selection_range(m_text_node->length(), m_text_node->length());
         }
     }
 }
@@ -463,7 +461,7 @@ void HTMLTextAreaElement::queue_firing_input_event()
 
 void HTMLTextAreaElement::selection_was_changed(size_t selection_start, size_t selection_end)
 {
-    if (!m_text_node)
+    if (!m_text_node || !document().cursor_position() || document().cursor_position()->node() != m_text_node)
         return;
 
     document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, selection_end));

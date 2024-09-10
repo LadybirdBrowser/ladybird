@@ -1215,7 +1215,7 @@ void EventHandler::update_selection_range_for_input_or_textarea()
         target = static_cast<HTML::HTMLTextAreaElement&>(*shadow_host);
 
     if (target.has_value())
-        target.value().set_the_selection_range(selection_start, selection_end, direction);
+        target.value().set_the_selection_range(selection_start, selection_end, direction, HTML::SelectionSource::UI);
 }
 
 Unicode::Segmenter& EventHandler::word_segmenter()

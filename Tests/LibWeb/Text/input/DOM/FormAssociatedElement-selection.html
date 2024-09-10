@@ -4,7 +4,7 @@
 text</textarea>
 <script src="../include.js"></script>
 <script>
-    test(() => {
+    asyncTest(async done => {
         let textInput = document.getElementById('text-input');
         let dateInput = document.getElementById('date-input');
         let textarea = document.getElementById('textarea');
@@ -26,21 +26,46 @@ text</textarea>
             println(`date input setting selectionStart error: ${e}`);
         }
 
-        textInput.addEventListener('select', e => println(`select event fired: ${e.target.selectionStart} ${e.target.selectionEnd}`))
+
+        textInput.addEventListener('select', e => println(`select event fired: ${e.target.selectionStart} ${e.target.selectionEnd}`));
+        const waitForSelect = (element) => {
+            return new Promise(resolve => {
+                const handler = () => {
+                    element.removeEventListener('select', handler);
+                    resolve();
+                };
+                element.addEventListener('select', handler);
+            });
+        };
+
         textInput.select();
-        dumpSelection(textInput);
-        textInput.setSelectionRange(2, 4, 'forward');
-        dumpSelection(textInput);
-        textInput.selectionStart = 1;
-        dumpSelection(textInput);
-        textInput.selectionEnd = 5;
-        dumpSelection(textInput);
-        textInput.selectionStart = 6;
-        dumpSelection(textInput);
-        textInput.selectionDirection = 'backward';
+        await waitForSelect(textInput);
         dumpSelection(textInput);
 
+        textInput.setSelectionRange(2, 4, 'forward');
+        await waitForSelect(textInput);
+        dumpSelection(textInput);
+
+        textInput.selectionStart = 1;
+        await waitForSelect(textInput);
+        dumpSelection(textInput);
+
+        textInput.selectionEnd = 5;
+        await waitForSelect(textInput);
+        dumpSelection(textInput);
+
+        textInput.selectionStart = 6;
+        await waitForSelect(textInput);
+        dumpSelection(textInput);
+
+        textInput.selectionDirection = 'backward';
+        await waitForSelect(textInput);
+        dumpSelection(textInput);
+
+        textarea.addEventListener('select', e => {
+            dumpSelection(textarea);
+            done();
+        });
         textarea.select();
-        dumpSelection(textarea);
     });
 </script>
