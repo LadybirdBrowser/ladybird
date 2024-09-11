@@ -4,7 +4,6 @@ repos:
       - id: meta-lint-ci
         name: Running Meta/lint-ci.sh to ensure changes will pass linting on CI
         entry: bash Meta/lint-ci.sh
-        args: [ --no-ports ]
         stages: [ commit ]
         language: system
 
