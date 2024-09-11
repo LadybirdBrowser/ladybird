@@ -204,12 +204,9 @@ Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) con
             return Bindings::CanPlayTypeResult::Probably;
         if (mime_type->subtype() == "flac"sv)
             return Bindings::CanPlayTypeResult::Probably;
-        // We don't currently support `ogg`. We'll also have to check parameters, e.g. from Bandcamp:
-        // audio/ogg; codecs="vorbis"
-        // audio/ogg; codecs="opus"
+        // "Maybe" because we support Ogg Vorbis, but "ogg" can contain other codecs
         if (mime_type->subtype() == "ogg"sv)
-            return Bindings::CanPlayTypeResult::Empty;
-        // Quite OK Audio
+            return Bindings::CanPlayTypeResult::Maybe;
         if (mime_type->subtype() == "qoa"sv)
             return Bindings::CanPlayTypeResult::Probably;
         return Bindings::CanPlayTypeResult::Maybe;

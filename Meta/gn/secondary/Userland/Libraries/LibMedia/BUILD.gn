@@ -8,6 +8,7 @@ shared_library("LibMedia") {
     "Audio/Loader.cpp",
     "Audio/MP3Loader.cpp",
     "Audio/Metadata.cpp",
+    "Audio/OggLoader.cpp",
     "Audio/PlaybackStream.cpp",
     "Audio/QOALoader.cpp",
     "Audio/QOATypes.cpp",
