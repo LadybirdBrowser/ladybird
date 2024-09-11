@@ -7929,9 +7929,14 @@ private:
 };
 
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute
-LengthOrCalculated Parser::Parser::parse_as_sizes_attribute([[maybe_unused]] DOM::Element const& element, HTML::HTMLImageElement const* img)
+LengthOrCalculated Parser::Parser::parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img)
 {
     // When asked to parse a sizes attribute from an element element, with an img element or null img:
+
+    // AD-HOC: If element has no sizes attribute, this algorithm always logs a parse error and then returns 100vw.
+    //         The attribute is optional, so avoid spamming the debug log with false positives by just returning early.
+    if (!element.has_attribute(HTML::AttributeNames::sizes))
+        return Length(100, Length::Type::Vw);
 
     // 1. Let unparsed sizes list be the result of parsing a comma-separated list of component values
     //    from the value of element's sizes attribute (or the empty string, if the attribute is absent).
