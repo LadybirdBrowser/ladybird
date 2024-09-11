@@ -460,7 +460,7 @@ namespace Instructions {
     ENUMERATE_SINGLE_BYTE_WASM_OPCODES(M) \
     ENUMERATE_MULTI_BYTE_WASM_OPCODES(M)
 
-#define M(name, value) static constexpr OpCode name = value;
+#define M(name, value) inline constexpr OpCode name = value;
 ENUMERATE_WASM_OPCODES(M)
 #undef M
 

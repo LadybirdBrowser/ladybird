@@ -15,9 +15,9 @@
 namespace Audio::QOA {
 
 // 'qoaf'
-static constexpr u32 const magic = 0x716f6166;
+inline constexpr u32 const magic = 0x716f6166;
 
-static constexpr size_t const header_size = sizeof(u64);
+inline constexpr size_t const header_size = sizeof(u64);
 
 struct FrameHeader {
     u8 num_channels;
@@ -29,12 +29,12 @@ struct FrameHeader {
     static ErrorOr<FrameHeader> read_from_stream(Stream& stream);
 };
 
-static constexpr size_t const frame_header_size = sizeof(u64);
+inline constexpr size_t const frame_header_size = sizeof(u64);
 
 // Least mean squares (LMS) predictor FIR filter size.
-static constexpr size_t const lms_history = 4;
+inline constexpr size_t const lms_history = 4;
 
-static constexpr size_t const lms_state_size = 2 * lms_history * sizeof(u16);
+inline constexpr size_t const lms_state_size = 2 * lms_history * sizeof(u16);
 
 // Only used for internal purposes; intermediate LMS states can be beyond 16 bits.
 struct LMSState {
@@ -57,13 +57,13 @@ struct UnpackedSlice {
 };
 
 // Samples within a 64-bit slice.
-static constexpr size_t const slice_samples = 20;
-static constexpr size_t const max_slices_per_frame = 256;
-static constexpr size_t const max_frame_samples = slice_samples * max_slices_per_frame;
+inline constexpr size_t const slice_samples = 20;
+inline constexpr size_t const max_slices_per_frame = 256;
+inline constexpr size_t const max_frame_samples = slice_samples * max_slices_per_frame;
 
 // Defined as clamping limits by the spec.
-static constexpr i32 const sample_minimum = -32768;
-static constexpr i32 const sample_maximum = 32767;
+inline constexpr i32 const sample_minimum = -32768;
+inline constexpr i32 const sample_maximum = 32767;
 
 // Quantization and scale factor tables computed from formulas given in qoa.h
 
@@ -78,11 +78,11 @@ constexpr Array<int, 17> generate_scale_factor_table()
 
 // FIXME: Get rid of the literal table once Clang understands our constexpr pow() and round() implementations.
 #if defined(AK_COMPILER_CLANG)
-static constexpr Array<int, 17> scale_factor_table = {
+inline constexpr Array<int, 17> scale_factor_table = {
     1, 7, 21, 45, 84, 138, 211, 304, 421, 562, 731, 928, 1157, 1419, 1715, 2048
 };
 #else
-static constexpr Array<int, 17> scale_factor_table = generate_scale_factor_table();
+inline constexpr Array<int, 17> scale_factor_table = generate_scale_factor_table();
 #endif
 
 constexpr Array<int, 17> generate_reciprocal_table()
@@ -107,10 +107,10 @@ constexpr Array<Array<int, 8>, 16> generate_dequantization_table()
 }
 
 #if defined(AK_COMPILER_CLANG)
-static constexpr Array<int, 17> reciprocal_table = {
+inline constexpr Array<int, 17> reciprocal_table = {
     65536, 9363, 3121, 1457, 781, 475, 311, 216, 156, 117, 90, 71, 57, 47, 39, 32
 };
-static constexpr Array<Array<int, 8>, 16> dequantization_table = {
+inline constexpr Array<Array<int, 8>, 16> dequantization_table = {
     Array<int, 8> { 1, -1, 3, -3, 5, -5, 7, -7 },
     { 5, -5, 18, -18, 32, -32, 49, -49 },
     { 16, -16, 53, -53, 95, -95, 147, -147 },
@@ -129,11 +129,11 @@ static constexpr Array<Array<int, 8>, 16> dequantization_table = {
     { 1536, -1536, 5120, -5120, 9216, -9216, 14336, -14336 },
 };
 #else
-static constexpr Array<int, 17> reciprocal_table = generate_reciprocal_table();
-static constexpr Array<Array<int, 8>, 16> dequantization_table = generate_dequantization_table();
+inline constexpr Array<int, 17> reciprocal_table = generate_reciprocal_table();
+inline constexpr Array<Array<int, 8>, 16> dequantization_table = generate_dequantization_table();
 #endif
 
-static constexpr Array<int, 17> quantization_table = {
+inline constexpr Array<int, 17> quantization_table = {
     7, 7, 7, 5, 5, 3, 3, 1, // -8 ..-1
     0,                      //  0
     0, 2, 2, 4, 4, 6, 6, 6  //  1 .. 8
