@@ -56,6 +56,8 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    virtual DOM::Node const& slottable_as_node() const override final { return *this; }
+
     JS::GCPtr<Element> m_owner;
 
     bool m_always_editable { false };

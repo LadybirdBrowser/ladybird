@@ -429,7 +429,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         push_parent(verify_cast<NodeWithStyle>(*layout_node));
 
         for (auto const& slottable : slottables)
-            slottable.visit([&](auto& node) { create_layout_tree(node, context); });
+            create_layout_tree(const_cast<DOM::Node&>(slottable.slottable_as_node()), context);
 
         pop_parent();
     }

@@ -430,6 +430,8 @@ protected:
     CustomElementState custom_element_state() const { return m_custom_element_state; }
 
 private:
+    virtual DOM::Node const& slottable_as_node() const override final { return *this; }
+
     void make_html_uppercased_qualified_name();
 
     void invalidate_style_after_attribute_change(FlyString const& attribute_name);

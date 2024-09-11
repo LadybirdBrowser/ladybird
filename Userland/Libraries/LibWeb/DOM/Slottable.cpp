@@ -37,9 +37,7 @@ JS::GCPtr<HTML::HTMLSlotElement> assigned_slot_for_node(JS::NonnullGCPtr<Node> n
     if (!node->is_slottable())
         return nullptr;
 
-    return node->as_slottable().visit([](auto const& slottable) {
-        return slottable->assigned_slot_internal();
-    });
+    return node->as_slottable().assigned_slot_internal();
 }
 
 // https://dom.spec.whatwg.org/#slotable-assigned
@@ -53,10 +51,10 @@ bool is_an_assigned_slottable(JS::NonnullGCPtr<Node> node)
 }
 
 // https://dom.spec.whatwg.org/#find-a-slot
-JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag open_flag)
+JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(SlottableMixin const& slottable, OpenFlag open_flag)
 {
     // 1. If slottable’s parent is null, then return null.
-    auto* parent = slottable.visit([](auto& node) { return node->parent_element(); });
+    auto* parent = slottable.slottable_as_node().parent_element();
     if (!parent)
         return nullptr;
 
@@ -77,10 +75,10 @@ JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFla
         JS::GCPtr<HTML::HTMLSlotElement> slot;
 
         shadow->for_each_in_subtree_of_type<HTML::HTMLSlotElement>([&](auto& child) {
-            if (!child.manually_assigned_nodes().contains_slow(slottable))
+            if (!child.manually_assigned_nodes().contains(slottable))
                 return TraversalDecision::Continue;
 
-            slot = child;
+            slot = const_cast<HTML::HTMLSlotElement&>(child);
             return TraversalDecision::Break;
         });
 
@@ -88,14 +86,14 @@ JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFla
     }
 
     // 6. Return the first slot in tree order in shadow’s descendants whose name is slottable’s name, if any; otherwise null.
-    auto const& slottable_name = slottable.visit([](auto const& node) { return node->slottable_name(); });
+    auto const& slottable_name = slottable.slottable_name();
     JS::GCPtr<HTML::HTMLSlotElement> slot;
 
     shadow->for_each_in_subtree_of_type<HTML::HTMLSlotElement>([&](auto& child) {
         if (child.slot_name() != slottable_name)
             return TraversalDecision::Continue;
 
-        slot = child;
+        slot = const_cast<HTML::HTMLSlotElement&>(child);
         return TraversalDecision::Break;
     });
 
@@ -103,10 +101,10 @@ JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFla
 }
 
 // https://dom.spec.whatwg.org/#find-slotables
-Vector<Slottable> find_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement> slot)
+static Vector<SlottableMixin const&> find_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement> slot)
 {
     // 1. Let result be an empty list.
-    Vector<Slottable> result;
+    Vector<SlottableMixin const&> result;
 
     // 2. Let root be slot’s root.
     auto& root = slot->root();
@@ -124,9 +122,8 @@ Vector<Slottable> find_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement> slot)
         // 1. Let result be « ».
         // 2. For each slottable slottable of slot’s manually assigned nodes, if slottable’s parent is host, append slottable to result.
         for (auto const& slottable : slot->manually_assigned_nodes()) {
-            auto const* parent = slottable.visit([](auto const& node) { return node->parent(); });
-
-            if (parent == host)
+            auto const& node = slottable.slottable_as_node();
+            if (node.parent() == host)
                 result.append(slottable);
         }
     }
@@ -136,7 +133,7 @@ Vector<Slottable> find_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement> slot)
             if (!node.is_slottable())
                 return IterationDecision::Continue;
 
-            auto slottable = node.as_slottable();
+            auto& slottable = node.as_slottable();
 
             // 1. Let foundSlot be the result of finding a slot given slottable.
             auto found_slot = find_a_slot(slottable);
@@ -165,9 +162,7 @@ void assign_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement> slot)
 
     // 4. For each slottable in slottables, set slottable’s assigned slot to slot.
     for (auto& slottable : slottables) {
-        slottable.visit([&](auto& node) {
-            node->set_assigned_slot(slot);
-        });
+        const_cast<SlottableMixin&>(slottable).set_assigned_slot(slot);
     }
 
     // 3. Set slot’s assigned nodes to slottables.
@@ -193,7 +188,7 @@ void assign_slottables_for_a_tree(JS::NonnullGCPtr<Node> root)
 }
 
 // https://dom.spec.whatwg.org/#assign-a-slot
-void assign_a_slot(Slottable const& slottable)
+void assign_a_slot(SlottableMixin const& slottable)
 {
     // 1. Let slot be the result of finding a slot with slottable.
     auto slot = find_a_slot(slottable);

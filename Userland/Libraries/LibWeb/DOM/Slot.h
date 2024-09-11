@@ -19,8 +19,8 @@ public:
     String const& slot_name() const { return m_name; } // Not called `name` to distinguish from `Element::name`.
     void set_slot_name(String name) { m_name = move(name); }
 
-    ReadonlySpan<DOM::Slottable> assigned_nodes_internal() const { return m_assigned_nodes; }
-    void set_assigned_nodes(Vector<DOM::Slottable> assigned_nodes) { m_assigned_nodes = move(assigned_nodes); }
+    auto const& assigned_nodes_internal() const { return m_assigned_nodes; }
+    void set_assigned_nodes(Vector<SlottableMixin const&> assigned_nodes) { m_assigned_nodes = move(assigned_nodes); }
 
 protected:
     void visit_edges(JS::Cell::Visitor&);
@@ -30,7 +30,7 @@ private:
     String m_name;
 
     // https://dom.spec.whatwg.org/#slot-assigned-nodes
-    Vector<Slottable> m_assigned_nodes;
+    Vector<SlottableMixin const&> m_assigned_nodes;
 };
 
 }

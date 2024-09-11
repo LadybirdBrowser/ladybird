@@ -32,9 +32,8 @@ void HTMLSlotElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     Slot::visit_edges(visitor);
-
-    for (auto const& node : m_manually_assigned_nodes)
-        node.visit([&](auto const& slottable) { visitor.visit(slottable); });
+    for (auto& slottable : m_manually_assigned_nodes)
+        visitor.visit(&slottable.slottable_as_node());
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignednodes
@@ -46,9 +45,7 @@ Vector<JS::Handle<DOM::Node>> HTMLSlotElement::assigned_nodes(AssignedNodesOptio
         assigned_nodes.ensure_capacity(assigned_nodes_internal().size());
 
         for (auto const& node : assigned_nodes_internal()) {
-            node.visit([&](auto const& node) {
-                assigned_nodes.unchecked_append(*node);
-            });
+            assigned_nodes.unchecked_append(const_cast<DOM::Node&>(node.slottable_as_node()));
         }
 
         return assigned_nodes;
@@ -66,8 +63,8 @@ Vector<JS::Handle<DOM::Element>> HTMLSlotElement::assigned_elements(AssignedNode
         Vector<JS::Handle<DOM::Element>> assigned_nodes;
 
         for (auto const& node : assigned_nodes_internal()) {
-            if (auto const* element = node.get_pointer<JS::NonnullGCPtr<DOM::Element>>())
-                assigned_nodes.append(*element);
+            if (node.slottable_as_node().is_element())
+                assigned_nodes.append(static_cast<DOM::Element&>(const_cast<DOM::Node&>(node.slottable_as_node())));
         }
 
         return assigned_nodes;
@@ -82,35 +79,32 @@ void HTMLSlotElement::assign(Vector<SlottableHandle> nodes)
 {
     // 1. For each node of this's manually assigned nodes, set node's manual slot assignment to null.
     for (auto& node : m_manually_assigned_nodes) {
-        node.visit([&](auto& node) {
-            node->set_manual_slot_assignment(nullptr);
-        });
+        node.set_manual_slot_assignment(nullptr);
     }
 
     // 2. Let nodesSet be a new ordered set.
-    Vector<DOM::Slottable> nodes_set;
+    DOM::SlottableMixin::List nodes_set;
 
     // 3. For each node of nodes:
     for (auto& node_handle : nodes) {
         auto& node = node_handle.visit([](auto& node) -> DOM::SlottableMixin& { return *node; });
-        auto slottable = node_handle.visit([](auto& node) { return node->as_slottable(); });
 
         // 1. If node's manual slot assignment refers to a slot, then remove node from that slot's manually assigned nodes.
         if (node.manual_slot_assignment() != nullptr) {
-            m_manually_assigned_nodes.remove_all_matching([&](auto const& manually_assigned_node) {
-                return slottable == manually_assigned_node;
-            });
+            m_manually_assigned_nodes.remove(node);
         }
 
         // 2. Set node's manual slot assignment to this.
         node.set_manual_slot_assignment(this);
 
         // 3. Append node to nodesSet.
-        nodes_set.append(slottable);
+        nodes_set.append(node);
     }
 
     // 4. Set this's manually assigned nodes to nodesSet.
-    m_manually_assigned_nodes = move(nodes_set);
+    m_manually_assigned_nodes.clear();
+    while (!nodes_set.is_empty())
+        m_manually_assigned_nodes.append(*nodes_set.take_first());
 
     // 5. Run assign slottables for a tree for this's root.
     assign_slottables_for_a_tree(root());

@@ -1165,13 +1165,12 @@ Element* Node::parent_or_shadow_host_element()
     return nullptr;
 }
 
-Slottable Node::as_slottable()
+SlottableMixin const& Node::as_slottable() const
 {
     VERIFY(is_slottable());
-
     if (is_element())
-        return JS::NonnullGCPtr { static_cast<Element&>(*this) };
-    return JS::NonnullGCPtr { static_cast<Text&>(*this) };
+        return static_cast<Element const&>(*this);
+    return static_cast<Text const&>(*this);
 }
 
 JS::NonnullGCPtr<NodeList> Node::child_nodes()

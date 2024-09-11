@@ -14,13 +14,12 @@
 
 namespace Web::DOM {
 
-// https://dom.spec.whatwg.org/#concept-slotable
-using Slottable = Variant<JS::NonnullGCPtr<Element>, JS::NonnullGCPtr<Text>>;
-
 // https://dom.spec.whatwg.org/#mixin-slotable
 class SlottableMixin {
 public:
     virtual ~SlottableMixin();
+
+    virtual DOM::Node const& slottable_as_node() const = 0;
 
     String const& slottable_name() const { return m_name; } // Not called `name` to distinguish from `Element::name`.
     void set_slottable_name(String name) { m_name = move(name); }
@@ -45,6 +44,11 @@ private:
 
     // https://dom.spec.whatwg.org/#slottable-manual-slot-assignment
     JS::GCPtr<HTML::HTMLSlotElement> m_manual_slot_assignment;
+
+    IntrusiveListNode<SlottableMixin> m_list_node;
+
+public:
+    using List = IntrusiveList<&SlottableMixin::m_list_node>;
 };
 
 enum class OpenFlag {
@@ -55,11 +59,10 @@ enum class OpenFlag {
 JS::GCPtr<HTML::HTMLSlotElement> assigned_slot_for_node(JS::NonnullGCPtr<Node>);
 bool is_an_assigned_slottable(JS::NonnullGCPtr<Node>);
 
-JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(Slottable const&, OpenFlag = OpenFlag::Unset);
-Vector<Slottable> find_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement>);
+JS::GCPtr<HTML::HTMLSlotElement> find_a_slot(SlottableMixin const&, OpenFlag = OpenFlag::Unset);
 void assign_slottables(JS::NonnullGCPtr<HTML::HTMLSlotElement>);
 void assign_slottables_for_a_tree(JS::NonnullGCPtr<Node>);
-void assign_a_slot(Slottable const&);
+void assign_a_slot(SlottableMixin const&);
 void signal_a_slot_change(JS::NonnullGCPtr<HTML::HTMLSlotElement>);
 
 }

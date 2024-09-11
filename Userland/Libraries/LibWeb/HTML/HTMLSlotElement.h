@@ -35,7 +35,7 @@ public:
     using SlottableHandle = Variant<JS::Handle<DOM::Element>, JS::Handle<DOM::Text>>;
     void assign(Vector<SlottableHandle> nodes);
 
-    ReadonlySpan<DOM::Slottable> manually_assigned_nodes() const { return m_manually_assigned_nodes; }
+    auto const& manually_assigned_nodes() const { return m_manually_assigned_nodes; }
 
 private:
     HTMLSlotElement(DOM::Document&, DOM::QualifiedName);
@@ -48,7 +48,7 @@ private:
     virtual void attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#manually-assigned-nodes
-    Vector<DOM::Slottable> m_manually_assigned_nodes;
+    SlottableMixin::List m_manually_assigned_nodes;
 };
 
 }

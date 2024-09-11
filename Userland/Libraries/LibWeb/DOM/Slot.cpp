@@ -15,7 +15,7 @@ Slot::~Slot() = default;
 void Slot::visit_edges(JS::Cell::Visitor& visitor)
 {
     for (auto const& node : m_assigned_nodes)
-        node.visit([&](auto const& slottable) { visitor.visit(slottable); });
+        visitor.visit(&node.slottable_as_node());
 }
 
 }

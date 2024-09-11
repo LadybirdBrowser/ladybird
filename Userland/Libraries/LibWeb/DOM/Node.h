@@ -322,7 +322,7 @@ public:
     template<typename Callback>
     TraversalDecision for_each_shadow_including_descendant(Callback);
 
-    Slottable as_slottable();
+    [[nodiscard]] SlottableMixin const& as_slottable() const;
 
     Node* parent() { return m_parent.ptr(); }
     Node const* parent() const { return m_parent.ptr(); }
