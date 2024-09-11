@@ -339,15 +339,17 @@ descriptor_parser:
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parse-a-sizes-attribute
-CSS::LengthOrCalculated parse_a_sizes_attribute(DOM::Document const& document, StringView sizes)
+CSS::LengthOrCalculated parse_a_sizes_attribute(DOM::Element const& element, StringView sizes, HTML::HTMLImageElement const* img)
 {
-    auto css_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext { document }, sizes);
-    return css_parser.parse_as_sizes_attribute();
+    auto css_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext { element.document() }, sizes);
+    return css_parser.parse_as_sizes_attribute(element, img);
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#create-a-source-set
-SourceSet SourceSet::create(DOM::Element const& element, String default_source, String srcset, String sizes)
+SourceSet SourceSet::create(DOM::Element const& element, String const& default_source, String const& srcset, String const& sizes, HTML::HTMLImageElement const* img)
 {
+    // When asked to create a source set given a string default source, a string srcset, a string sizes, and an element or null img:
+
     // 1. Let source set be an empty source set.
     SourceSet source_set;
 
@@ -355,8 +357,8 @@ SourceSet SourceSet::create(DOM::Element const& element, String default_source, 
     if (!srcset.is_empty())
         source_set = parse_a_srcset_attribute(srcset);
 
-    // 3. Let source size be the result of parsing sizes.
-    source_set.m_source_size = parse_a_sizes_attribute(element.document(), sizes);
+    // 3. Let source size be the result of parsing sizes with img.
+    source_set.m_source_size = parse_a_sizes_attribute(element, sizes, img);
 
     // 4. If default source is not the empty string and source set does not contain an image source
     //    with a pixel density descriptor value of 1, and no image source with a width descriptor,
