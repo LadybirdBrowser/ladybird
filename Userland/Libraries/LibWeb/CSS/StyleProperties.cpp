@@ -121,13 +121,6 @@ NonnullRefPtr<CSSStyleValue const> StyleProperties::property(CSS::PropertyID pro
     return *m_data->m_property_values[to_underlying(property_id)];
 }
 
-RefPtr<CSSStyleValue const> StyleProperties::maybe_null_property(CSS::PropertyID property_id) const
-{
-    if (auto animated_value = m_data->m_animated_property_values.get(property_id).value_or(nullptr))
-        return *animated_value;
-    return m_data->m_property_values[to_underlying(property_id)];
-}
-
 CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
 {
     auto value = property(id);

@@ -584,7 +584,7 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
         }
         return StyleProperty {
             .property_id = property_id,
-            .value = value.release_nonnull(),
+            .value = *value,
         };
     }
 

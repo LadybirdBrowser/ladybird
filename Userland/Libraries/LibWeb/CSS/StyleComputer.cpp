@@ -1848,8 +1848,8 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
 
     // Animation declarations [css-animations-2]
     auto animation_name = [&]() -> Optional<String> {
-        auto animation_name = style.maybe_null_property(PropertyID::AnimationName);
-        if (animation_name.is_null())
+        auto* animation_name = style.maybe_null_property(PropertyID::AnimationName);
+        if (!animation_name)
             return OptionalNone {};
         if (animation_name->is_string())
             return animation_name->as_string().string_value().to_string();

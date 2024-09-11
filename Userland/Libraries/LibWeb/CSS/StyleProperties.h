@@ -75,7 +75,14 @@ public:
     void set_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     void set_animated_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value);
     NonnullRefPtr<CSSStyleValue const> property(CSS::PropertyID) const;
-    RefPtr<CSSStyleValue const> maybe_null_property(CSS::PropertyID) const;
+
+    [[nodiscard]] CSSStyleValue const* maybe_null_property(CSS::PropertyID property_id) const
+    {
+        if (auto animated_value = m_data->m_animated_property_values.get(property_id).value_or(nullptr))
+            return animated_value;
+        return m_data->m_property_values[to_underlying(property_id)];
+    }
+
     void revert_property(CSS::PropertyID, StyleProperties const& style_for_revert);
 
     JS::GCPtr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_data->m_animation_name_source; }
