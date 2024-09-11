@@ -326,10 +326,11 @@ public:
 
     // https://www.w3.org/TR/css-values-4/#common-keywords
     // https://drafts.csswg.org/css-cascade-4/#valdef-all-revert
-    bool is_css_wide_keyword() const { return is_inherit() || is_initial() || is_revert() || is_unset(); }
+    bool is_css_wide_keyword() const { return is_inherit() || is_initial() || is_revert() || is_unset() || is_revert_layer(); }
     bool is_inherit() const { return to_keyword() == Keyword::Inherit; }
     bool is_initial() const { return to_keyword() == Keyword::Initial; }
     bool is_revert() const { return to_keyword() == Keyword::Revert; }
+    bool is_revert_layer() const { return to_keyword() == Keyword::RevertLayer; }
     bool is_unset() const { return to_keyword() == Keyword::Unset; }
 
     bool has_auto() const;

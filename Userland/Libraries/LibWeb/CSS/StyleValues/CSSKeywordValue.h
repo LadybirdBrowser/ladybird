@@ -33,6 +33,10 @@ public:
             static ValueComparingNonnullRefPtr<CSSKeywordValue> const revert_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Revert));
             return revert_instance;
         }
+        case Keyword::RevertLayer: {
+            static ValueComparingNonnullRefPtr<CSSKeywordValue> const revert_layer_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::RevertLayer));
+            return revert_layer_instance;
+        }
         case Keyword::Unset: {
             static ValueComparingNonnullRefPtr<CSSKeywordValue> const unset_instance = adopt_ref(*new (nothrow) CSSKeywordValue(Keyword::Unset));
             return unset_instance;
