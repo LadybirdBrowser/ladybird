@@ -94,6 +94,9 @@ public:
     // https://html.spec.whatwg.org/multipage/images.html#upgrade-the-pending-request-to-the-current-request
     void upgrade_pending_request_to_current_request();
 
+    // https://html.spec.whatwg.org/multipage/embedded-content.html#allows-auto-sizes
+    bool allows_auto_sizes() const;
+
     // ^Layout::ImageProvider
     virtual bool is_image_available() const override;
     virtual Optional<CSSPixels> intrinsic_width() const override;

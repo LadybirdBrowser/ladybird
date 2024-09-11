@@ -1171,4 +1171,17 @@ void HTMLImageElement::set_decoding(String decoding)
         m_decoding_hint = ImageDecodingHint::Auto;
 }
 
+bool HTMLImageElement::allows_auto_sizes() const
+{
+    // An img element allows auto-sizes if:
+    // - its loading attribute is in the Lazy state, and
+    // - its sizes attribute's value is "auto" (ASCII case-insensitive), or starts with "auto," (ASCII case-insensitive).
+    if (lazy_loading_attribute() != LazyLoading::Lazy)
+        return false;
+    auto sizes = attribute(HTML::AttributeNames::sizes);
+    return sizes.has_value()
+        && (sizes->equals_ignoring_ascii_case("auto"sv)
+            || sizes->starts_with_bytes("auto,"sv, AK::CaseSensitivity::CaseInsensitive));
+}
+
 }
