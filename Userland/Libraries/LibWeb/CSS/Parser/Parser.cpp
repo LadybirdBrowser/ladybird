@@ -39,6 +39,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/Rule.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -86,6 +87,7 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
 
@@ -7930,29 +7932,43 @@ private:
 };
 
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute
-LengthOrCalculated Parser::Parser::parse_as_sizes_attribute()
+LengthOrCalculated Parser::Parser::parse_as_sizes_attribute([[maybe_unused]] DOM::Element const& element, HTML::HTMLImageElement const* img)
 {
+    // When asked to parse a sizes attribute from an element element, with an img element or null img:
+
     // 1. Let unparsed sizes list be the result of parsing a comma-separated list of component values
     //    from the value of element's sizes attribute (or the empty string, if the attribute is absent).
+    // NOTE: The sizes attribute has already been tokenized into m_token_stream by this point.
     auto unparsed_sizes_list = parse_a_comma_separated_list_of_component_values(m_token_stream);
 
     // 2. Let size be null.
     Optional<LengthOrCalculated> size;
 
+    auto size_is_auto = [&size]() {
+        return !size->is_calculated() && size->value().is_auto();
+    };
+
+    auto remove_all_consecutive_whitespace_tokens_from_the_end_of = [](auto& tokens) {
+        while (!tokens.is_empty() && tokens.last().is_token() && tokens.last().token().is(Token::Type::Whitespace))
+            tokens.take_last();
+    };
+
     // 3. For each unparsed size in unparsed sizes list:
-    for (auto& unparsed_size : unparsed_sizes_list) {
+    for (auto i = 0u; i < unparsed_sizes_list.size(); i++) {
+        auto& unparsed_size = unparsed_sizes_list[i];
+
         // 1. Remove all consecutive <whitespace-token>s from the end of unparsed size.
         //    If unparsed size is now empty, that is a parse error; continue.
-        while (!unparsed_size.is_empty() && unparsed_size.last().is_token() && unparsed_size.last().token().is(Token::Type::Whitespace))
-            unparsed_size.take_last();
+        remove_all_consecutive_whitespace_tokens_from_the_end_of(unparsed_size);
         if (unparsed_size.is_empty()) {
             log_parse_error();
+            dbgln_if(CSS_PARSER_DEBUG, "-> Failed in step 3.1; all whitespace");
             continue;
         }
 
         // 2. If the last component value in unparsed size is a valid non-negative <source-size-value>,
-        //    let size be its value and remove the component value from unparsed size.
-        //    FIXME: Any CSS function other than the math functions is invalid.
+        //    then set size to its value and remove the component value from unparsed size.
+        //    Any CSS function other than the math functions is invalid.
         //    Otherwise, there is a parse error; continue.
         auto last_value_stream = TokenStream<ComponentValue>::of_single_token(unparsed_size.last());
         if (auto source_size_value = parse_source_size_value(last_value_stream); source_size_value.has_value()) {
@@ -7960,33 +7976,55 @@ LengthOrCalculated Parser::Parser::parse_as_sizes_attribute()
             unparsed_size.take_last();
         } else {
             log_parse_error();
+            dbgln_if(CSS_PARSER_DEBUG, "-> Failed in step 3.2; couldn't parse {} as a <source-size-value>", unparsed_size.last().to_debug_string());
             continue;
         }
 
-        // 3. Remove all consecutive <whitespace-token>s from the end of unparsed size.
-        while (!unparsed_size.is_empty() && unparsed_size.last().is_token() && unparsed_size.last().token().is(Token::Type::Whitespace))
-            unparsed_size.take_last();
+        // 3. If size is auto, and img is not null, and img is being rendered, and img allows auto-sizes,
+        //    then set size to the concrete object size width of img, in CSS pixels.
+        // FIXME: "img is being rendered" - we just see if it has a bitmap for now
+        if (size_is_auto() && img && img->immutable_bitmap() && img->allows_auto_sizes()) {
+            // FIXME: The spec doesn't seem to tell us how to determine the concrete size of an <img>, so use the default sizing algorithm.
+            //        Should this use some of the methods from FormattingContext?
+            auto concrete_size = run_default_sizing_algorithm(
+                img->width(), img->height(),
+                img->natural_width(), img->natural_height(), img->intrinsic_aspect_ratio(),
+                // NOTE: https://html.spec.whatwg.org/multipage/rendering.html#img-contain-size
+                CSSPixelSize { 300, 150 });
+            size = Length::make_px(concrete_size.width());
+        }
 
-        // If unparsed size is now empty, then return size.
-        if (unparsed_size.is_empty())
-            return size.value();
+        // 4. Remove all consecutive <whitespace-token>s from the end of unparsed size.
+        //    If unparsed size is now empty:
+        remove_all_consecutive_whitespace_tokens_from_the_end_of(unparsed_size);
+        if (unparsed_size.is_empty()) {
+            // 1. If this was not the last item in unparsed sizes list, that is a parse error.
+            if (i != unparsed_sizes_list.size() - 1) {
+                log_parse_error();
+                dbgln_if(CSS_PARSER_DEBUG, "-> Failed in step 3.4.1; is unparsed size #{}, count {}", i, unparsed_sizes_list.size());
+            }
 
-        // FIXME: If this was not the keyword auto and it was not the last item in unparsed sizes list, that is a parse error.
+            // 2. If size is not auto, then return size. Otherwise, continue.
+            if (!size_is_auto())
+                return size.release_value();
+            continue;
+        }
 
-        // 4. Parse the remaining component values in unparsed size as a <media-condition>.
+        // 5. Parse the remaining component values in unparsed size as a <media-condition>.
         //    If it does not parse correctly, or it does parse correctly but the <media-condition> evaluates to false, continue.
         TokenStream<ComponentValue> token_stream { unparsed_size };
         auto media_condition = parse_media_condition(token_stream, MediaCondition::AllowOr::Yes);
-        auto context_window = m_context.window();
-        if (context_window && media_condition && media_condition->evaluate(*context_window) == MatchResult::True) {
-            return size.value();
+        auto const* context_window = m_context.window();
+        if (!media_condition || (context_window && media_condition->evaluate(*context_window) == MatchResult::False)) {
+            continue;
         }
 
-        // 5. If size is not auto, then return size.
-        if (size.value().is_calculated() || !size.value().value().is_auto())
+        // 5. If size is not auto, then return size. Otherwise, continue.
+        if (!size_is_auto())
             return size.value();
     }
 
+    // 4. Return 100vw.
     return Length(100, Length::Type::Vw);
 }
 

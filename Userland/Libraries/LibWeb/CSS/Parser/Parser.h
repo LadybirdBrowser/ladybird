@@ -75,7 +75,7 @@ public:
 
     static NonnullRefPtr<CSSStyleValue> resolve_unresolved_style_value(ParsingContext const&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, PropertyID, UnresolvedStyleValue const&);
 
-    [[nodiscard]] LengthOrCalculated parse_as_sizes_attribute();
+    [[nodiscard]] LengthOrCalculated parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
 private:
     Parser(ParsingContext const&, Vector<Token>);
