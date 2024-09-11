@@ -29,7 +29,10 @@ if (HAVE_PULSEAUDIO)
 endif()
 
 if (HAS_FFMPEG)
-    list(APPEND SOURCES FFmpeg/FFmpegVideoDecoder.cpp)
+    list(APPEND SOURCES
+        Audio/OggLoader.cpp
+        FFmpeg/FFmpegVideoDecoder.cpp
+    )
 else()
     list(APPEND SOURCES FFmpeg/FFmpegVideoDecoderStub.cpp)
 endif()

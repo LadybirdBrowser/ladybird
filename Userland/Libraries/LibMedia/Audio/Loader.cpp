@@ -1,12 +1,14 @@
 /*
  * Copyright (c) 2018-2023, the SerenityOS developers.
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "FlacLoader.h"
 #include "Loader.h"
+#include "FlacLoader.h"
 #include "MP3Loader.h"
+#include "OggLoader.h"
 #include "QOALoader.h"
 #include "WavLoader.h"
 #include <AK/TypedTransfer.h>
@@ -29,17 +31,14 @@ struct LoaderPluginInitializer {
     ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> (*create)(NonnullOwnPtr<SeekableStream>);
 };
 
-#define ENUMERATE_LOADER_PLUGINS    \
-    __ENUMERATE_LOADER_PLUGIN(Wav)  \
-    __ENUMERATE_LOADER_PLUGIN(Flac) \
-    __ENUMERATE_LOADER_PLUGIN(QOA)  \
-    __ENUMERATE_LOADER_PLUGIN(MP3)
-
 static constexpr LoaderPluginInitializer s_initializers[] = {
-#define __ENUMERATE_LOADER_PLUGIN(Type) \
-    { Type##LoaderPlugin::sniff, Type##LoaderPlugin::create },
-    ENUMERATE_LOADER_PLUGINS
-#undef __ENUMERATE_LOADER_PLUGIN
+    { FlacLoaderPlugin::sniff, FlacLoaderPlugin::create },
+    { QOALoaderPlugin::sniff, QOALoaderPlugin::create },
+#ifdef USE_FFMPEG
+    { OggLoaderPlugin::sniff, OggLoaderPlugin::create },
+#endif
+    { WavLoaderPlugin::sniff, WavLoaderPlugin::create },
+    { MP3LoaderPlugin::sniff, MP3LoaderPlugin::create },
 };
 
 ErrorOr<NonnullRefPtr<Loader>, LoaderError> Loader::create(StringView path)
