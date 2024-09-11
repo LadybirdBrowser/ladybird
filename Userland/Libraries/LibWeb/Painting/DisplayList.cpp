@@ -37,7 +37,7 @@ void DisplayListPlayer::execute(DisplayList& display_list)
 
         if (command.has<PaintScrollBar>()) {
             auto& paint_scroll_bar = command.get<PaintScrollBar>();
-            auto const& scroll_offset = scroll_state[paint_scroll_bar.scroll_frame_id]->own_offset;
+            auto const& scroll_offset = scroll_state[paint_scroll_bar.scroll_frame_id]->own_offset();
             if (paint_scroll_bar.vertical) {
                 auto offset = scroll_offset.y() * paint_scroll_bar.scroll_size;
                 paint_scroll_bar.rect.translate_by(0, -offset.to_int() * device_pixels_per_css_pixel);

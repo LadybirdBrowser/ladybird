@@ -70,25 +70,26 @@ void ViewportPaintable::assign_scroll_frames()
     for_each_in_inclusive_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
         RefPtr<ScrollFrame> sticky_scroll_frame;
         if (paintable_box.is_sticky_position()) {
-            sticky_scroll_frame = adopt_ref(*new ScrollFrame());
-            sticky_scroll_frame->id = next_id++;
             auto const* nearest_scrollable_ancestor = paintable_box.nearest_scrollable_ancestor();
+            RefPtr<ScrollFrame const> parent_scroll_frame;
             if (nearest_scrollable_ancestor) {
-                sticky_scroll_frame->parent = nearest_scrollable_ancestor->nearest_scroll_frame();
+                parent_scroll_frame = nearest_scrollable_ancestor->nearest_scroll_frame();
             }
+            sticky_scroll_frame = adopt_ref(*new ScrollFrame(next_id++, parent_scroll_frame));
+
             const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(sticky_scroll_frame);
             const_cast<PaintableBox&>(paintable_box).set_own_scroll_frame(sticky_scroll_frame);
             sticky_state.set(paintable_box, sticky_scroll_frame);
         }
 
         if (paintable_box.has_scrollable_overflow() || is<ViewportPaintable>(paintable_box)) {
-            auto scroll_frame = adopt_ref(*new ScrollFrame());
-            scroll_frame->id = next_id++;
+            RefPtr<ScrollFrame const> parent_scroll_frame;
             if (sticky_scroll_frame) {
-                scroll_frame->parent = sticky_scroll_frame;
+                parent_scroll_frame = sticky_scroll_frame;
             } else {
-                scroll_frame->parent = paintable_box.nearest_scroll_frame();
+                parent_scroll_frame = paintable_box.nearest_scroll_frame();
             }
+            auto scroll_frame = adopt_ref(*new ScrollFrame(next_id++, parent_scroll_frame));
             paintable_box.set_own_scroll_frame(scroll_frame);
             scroll_state.set(paintable_box, move(scroll_frame));
         }
@@ -252,13 +253,13 @@ void ViewportPaintable::refresh_scroll_state()
             }
         }
 
-        scroll_frame.own_offset = sticky_offset;
+        scroll_frame.set_own_offset(sticky_offset);
     }
 
     for (auto& it : scroll_state) {
         auto const& paintable_box = *it.key;
         auto& scroll_frame = *it.value;
-        scroll_frame.own_offset = -paintable_box.scroll_offset();
+        scroll_frame.set_own_offset(-paintable_box.scroll_offset());
     }
 }
 
