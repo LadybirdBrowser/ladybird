@@ -28,7 +28,7 @@ public:
     [[nodiscard]] CSSPixelPoint own_scroll_frame_offset() const
     {
         if (m_own_scroll_frame)
-            return m_own_scroll_frame->own_offset;
+            return m_own_scroll_frame->own_offset();
         return {};
     }
     void set_own_scroll_frame(RefPtr<ScrollFrame> scroll_frame) { m_own_scroll_frame = scroll_frame; }

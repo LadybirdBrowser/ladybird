@@ -10,17 +10,30 @@
 
 namespace Web::Painting {
 
-struct ScrollFrame : public RefCounted<ScrollFrame> {
-    i32 id { -1 };
-    CSSPixelPoint own_offset;
-    RefPtr<ScrollFrame const> parent;
+class ScrollFrame : public RefCounted<ScrollFrame> {
+public:
+    ScrollFrame(i32 id, RefPtr<ScrollFrame const> parent)
+        : m_id(id)
+        , m_parent(move(parent))
+    {
+    }
+
+    i32 id() const { return m_id; }
 
     CSSPixelPoint cumulative_offset() const
     {
-        if (parent)
-            return parent->cumulative_offset() + own_offset;
-        return own_offset;
+        if (m_parent)
+            return m_parent->cumulative_offset() + m_own_offset;
+        return m_own_offset;
     }
+
+    CSSPixelPoint own_offset() const { return m_own_offset; }
+    void set_own_offset(CSSPixelPoint offset) { m_own_offset = offset; }
+
+private:
+    i32 m_id { -1 };
+    RefPtr<ScrollFrame const> m_parent;
+    CSSPixelPoint m_own_offset;
 };
 
 }

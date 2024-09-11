@@ -5570,10 +5570,10 @@ RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
     Vector<RefPtr<Painting::ScrollFrame>> scroll_state;
     scroll_state.resize(viewport_paintable.scroll_state.size() + viewport_paintable.sticky_state.size());
     for (auto& [_, scrollable_frame] : viewport_paintable.scroll_state) {
-        scroll_state[scrollable_frame->id] = scrollable_frame;
+        scroll_state[scrollable_frame->id()] = scrollable_frame;
     }
     for (auto& [_, scrollable_frame] : viewport_paintable.sticky_state) {
-        scroll_state[scrollable_frame->id] = scrollable_frame;
+        scroll_state[scrollable_frame->id()] = scrollable_frame;
     }
 
     display_list->set_scroll_state(move(scroll_state));
