@@ -886,7 +886,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
 void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, CSS::PropertyID property_id, CSSStyleValue const& value, CSS::CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, Important important)
 {
     for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
-        if (shorthand_value.is_revert()) {
+        if (shorthand_value.is_revert() || shorthand_value.is_revert_layer()) {
             auto const& property_in_previous_cascade_origin = style_for_revert.m_data->m_property_values[to_underlying(shorthand_id)];
             if (property_in_previous_cascade_origin) {
                 style.set_property(shorthand_id, *property_in_previous_cascade_origin, StyleProperties::Inherited::No, important);
@@ -906,7 +906,7 @@ void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Sele
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = (CSS::PropertyID)i;
 
-        if (value.is_revert()) {
+        if (value.is_revert() || value.is_revert_layer()) {
             style.revert_property(property_id, style_for_revert);
             continue;
         }
@@ -997,8 +997,12 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selec
     custom_properties.ensure_capacity(custom_properties.size() + needed_capacity);
 
     for (auto const& matching_rule : matching_rules) {
-        for (auto const& it : matching_rule.rule->declaration().custom_properties())
+        for (auto const& it : matching_rule.rule->declaration().custom_properties()) {
+            auto style_value = it.value.value;
+            if (style_value->is_revert_layer())
+                continue;
             custom_properties.set(it.key, it.value);
+        }
     }
 
     if (!pseudo_element.has_value()) {

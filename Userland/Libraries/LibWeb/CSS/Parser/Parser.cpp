@@ -1755,7 +1755,10 @@ RefPtr<CSSStyleValue> Parser::parse_builtin_value(TokenStream<ComponentValue>& t
             transaction.commit();
             return CSSKeywordValue::create(Keyword::Revert);
         }
-        // FIXME: Implement `revert-layer` from CSS-CASCADE-5.
+        if (ident.equals_ignoring_ascii_case("revert-layer"sv)) {
+            transaction.commit();
+            return CSSKeywordValue::create(Keyword::RevertLayer);
+        }
     }
 
     return nullptr;

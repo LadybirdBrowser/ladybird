@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<target class="first"></target>
+<target class="second"></target>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // In all test cases, the rule specified as "color: green" should win.
+        var testCases = [
+            {
+                title: 'revert to base',
+                style: `
+                    @layer base, special;
+                    @layer special { target { color: revert-layer; } target.second { color: green; } }
+                    @layer base { target { color: green; } target.second { color: red; } }
+                `,
+            },
+            {
+                title: 'double revert',
+                style: `
+                    @layer layer1, layer2, layer3;
+                    @layer layer3 { target { color: revert-layer; } target.second { color: revert-layer; } }
+                    @layer layer2 { target { color: revert-layer; } target.second { color: green; } }
+                    @layer layer1 { target { color: green; } target.second { color: revert-layer; } }
+                `,
+            },
+        ];
+
+        for (let testCase of testCases) {
+            const styleElement = document.createElement('style');
+            styleElement.textContent = testCase['style'];
+            document.head.append(styleElement);
+
+            var targets = document.querySelectorAll('target');
+            for (let target of targets) {
+                let actual = window.getComputedStyle(target).color;
+                if (actual === 'rgb(0, 128, 0)') {
+                    println(`PASS: ${testCase['title']} (${target.classList[0]} target)`);
+                } else {
+                    println(`FAIL: ${testCase['title']} (${target.classList[0]} target) - Expected 'rgb(0, 128, 0)', got '${actual}'`);
+                }
+            }
+
+            styleElement.remove();
+        }
+
+    });
+</script>
