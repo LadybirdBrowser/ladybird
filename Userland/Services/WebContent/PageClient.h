@@ -173,6 +173,7 @@ private:
     virtual void inspector_did_request_style_sheet_source(Web::CSS::StyleSheetIdentifier const& stylesheet_source) override;
     virtual void inspector_did_execute_console_script(String const& script) override;
     virtual void inspector_did_export_inspector_html(String const& script) override;
+    virtual void inspector_did_close() override;
 
     Web::Layout::Viewport* layout_root();
     void setup_palette();

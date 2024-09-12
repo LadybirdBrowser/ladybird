@@ -606,6 +606,9 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Inspector"
                                                 action:@selector(openInspector:)
                                          keyEquivalent:@"I"]];
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Inspector Pane"
+                                                action:@selector(openInspectorPane:)
+                                         keyEquivalent:@""]];
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Task Manager"
                                                 action:@selector(openTaskManager:)
                                          keyEquivalent:@"M"]];

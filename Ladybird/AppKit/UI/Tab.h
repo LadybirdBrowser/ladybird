@@ -10,6 +10,8 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class Inspector;
+
 @class LadybirdWebView;
 
 @interface Tab : NSWindow
@@ -24,5 +26,7 @@
 - (void)onInspectorClosed;
 
 @property (nonatomic, strong) LadybirdWebView* web_view;
+
+@property (nonatomic, strong) Inspector* inspector;
 
 @end

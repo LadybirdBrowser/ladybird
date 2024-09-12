@@ -16,18 +16,15 @@
 @interface InspectorController () <NSWindowDelegate>
 
 @property (nonatomic, strong) Tab* tab;
-@property (nonatomic, strong) Inspector* inspector;
 
 @end
 
 @implementation InspectorController
 
 - (instancetype)init:(Tab*)tab
-           inspector:(Inspector*)inspector
 {
     if (self = [super init]) {
         self.tab = tab;
-        self.inspector = inspector;
     }
 
     return self;
@@ -44,9 +41,21 @@
 
 - (IBAction)showWindow:(id)sender
 {
-    self.window = [[InspectorWindow alloc] init:self.tab inspector:self.inspector];
+    self.window = [[InspectorWindow alloc] init:self.tab];
     [self.window setDelegate:self];
     [self.window makeKeyAndOrderFront:sender];
+}
+
+- (void)close
+{
+    // Temporarily remove the window delegate to prevent `windowWillClose`
+    // from being called. This avoids deallocating the inspector when
+    // we just want to move it to the main window and close the
+    // inspector's window
+    auto delegate = self.window.delegate;
+    [self.window setDelegate:nil];
+    [self.window close];
+    [self.window setDelegate:delegate];
 }
 
 #pragma mark - NSWindowDelegate

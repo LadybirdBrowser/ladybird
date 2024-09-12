@@ -19,7 +19,7 @@ namespace WebView {
 
 class InspectorClient {
 public:
-    InspectorClient(ViewImplementation& content_web_view, ViewImplementation& inspector_web_view);
+    InspectorClient(ViewImplementation& content_web_view, ViewImplementation& inspector_web_view, bool is_windowed);
     ~InspectorClient();
 
     void inspect();
@@ -41,11 +41,13 @@ public:
     void context_menu_copy_dom_node_attribute_value();
     void context_menu_delete_cookie();
     void context_menu_delete_all_cookies();
+    void set_is_windowed(bool is_windowed);
 
     Function<void(Gfx::IntPoint)> on_requested_dom_node_text_context_menu;
     Function<void(Gfx::IntPoint, String const&)> on_requested_dom_node_tag_context_menu;
     Function<void(Gfx::IntPoint, String const&, Attribute const&)> on_requested_dom_node_attribute_context_menu;
     Function<void(Gfx::IntPoint, Web::Cookie::Cookie const&)> on_requested_cookie_context_menu;
+    Function<void()> on_requested_close;
 
 private:
     void load_inspector();
@@ -93,6 +95,8 @@ private:
     i32 m_highest_notified_message_index { -1 };
     i32 m_highest_received_message_index { -1 };
     bool m_waiting_for_messages { false };
+
+    bool m_is_windowed { false };
 };
 
 }

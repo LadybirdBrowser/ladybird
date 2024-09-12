@@ -147,6 +147,9 @@ body {
 }
 
 .global-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin: 0 8px 0 8px;
 }
 
@@ -167,6 +170,17 @@ body {
 }
 
 #export-inspector-button:hover {
+    background-color: var(--tab-button-background);
+}
+
+#close-inspector-button {
+    background-image: url("resource://icons/16x16/close-tab.png");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: var(--tab-controls);
+}
+
+#close-inspector-button:hover {
     background-color: var(--tab-button-background);
 }
 

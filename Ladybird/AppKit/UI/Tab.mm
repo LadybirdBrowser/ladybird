@@ -14,7 +14,6 @@
 #include <LibWebView/ViewImplementation.h>
 
 #import <Application/ApplicationDelegate.h>
-#import <UI/Inspector.h>
 #import <UI/InspectorController.h>
 #import <UI/InspectorWindow.h>
 #import <UI/LadybirdWebView.h>
@@ -38,8 +37,6 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 @property (nonatomic, strong) SearchPanel* search_panel;
 
 @property (nonatomic, strong) InspectorController* inspector_controller;
-
-@property (nonatomic, strong) Inspector* inspector;
 
 @property (nonatomic, strong) NSSplitView* split_view;
 
@@ -182,17 +179,50 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
         return;
     }
 
-    if (self.inspector == nil) {
-        self.inspector = [[Inspector alloc] init:self];
+    if (self.inspector == nil)
+        self.inspector = [[Inspector alloc] init:self isWindowed:true];
+    else
+        [self.inspector setIsWindowed:true];
+
+    self.inspector_controller = [[InspectorController alloc] init:self];
+    [self.inspector_controller showWindow:nil];
+
+    [self.split_view layoutSubtreeIfNeeded];
+    [self.web_view handleResize];
+}
+
+- (void)openInspectorPane:(id)sender
+{
+    if (self.inspector_controller != nil) {
+        [self.inspector_controller close];
+        self.inspector_controller = nil;
     }
 
-    self.inspector_controller = [[InspectorController alloc] init:self inspector:self.inspector];
-    [self.inspector_controller showWindow:nil];
+    if (self.inspector == nil)
+        self.inspector = [[Inspector alloc] init:self isWindowed:false];
+    else
+        [self.inspector setIsWindowed:false];
+
+    [self.split_view addSubview:self.inspector];
+    [self.split_view layoutSubtreeIfNeeded];
+
+    CGFloat web_view_width = 0.66 * self.frame.size.width;
+    [self.split_view setPosition:web_view_width ofDividerAtIndex:0];
+
+    [[self.inspector web_view] handleResize];
+    [self.web_view handleResize];
 }
 
 - (void)onInspectorClosed
 {
+    self.inspector = nil;
     self.inspector_controller = nil;
+
+    auto& web_view = [[self web_view] view];
+    web_view.clear_inspected_dom_node();
+
+    [self.split_view layoutSubtreeIfNeeded];
+    [self.web_view handleResize];
 }
 
 - (void)inspectElement:(id)sender
@@ -358,14 +388,14 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
     [[self tabController] onLoadStart:url isRedirect:is_redirect];
 
-    if (self.inspector_controller != nil) {
+    if (self.inspector != nil) {
         [self.inspector reset];
     }
 }
 
 - (void)onLoadFinish:(URL::URL const&)url
 {
-    if (self.inspector_controller != nil) {
+    if (self.inspector != nil) {
         [self.inspector inspect];
     }
 }

@@ -226,6 +226,7 @@ public:
     Function<void(String const&)> on_inspector_executed_console_script;
     Function<void(String const&)> on_inspector_exported_inspector_html;
     Function<IPC::File()> on_request_worker_agent;
+    Function<void()> on_inspector_closed;
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;

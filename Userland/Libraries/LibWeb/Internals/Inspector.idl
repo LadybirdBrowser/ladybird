@@ -20,4 +20,5 @@
 
     undefined exportInspectorHTML(DOMString html);
 
+    undefined closeInspector();
 };

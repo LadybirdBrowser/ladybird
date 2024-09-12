@@ -47,6 +47,7 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
 @synthesize cookie_context_menu = _cookie_context_menu;
 
 - (instancetype)init:(Tab*)tab
+          isWindowed:(BOOL)is_windowed
 {
     self = [super init];
 
@@ -56,7 +57,13 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
         self.web_view = [[LadybirdWebView alloc] init:nil];
         [self.web_view setPostsBoundsChangedNotifications:YES];
 
-        m_inspector_client = make<WebView::InspectorClient>([[tab web_view] view], [[self web_view] view]);
+        [self setHasVerticalScroller:YES];
+        [self setHasHorizontalScroller:YES];
+        [self setLineScroll:24];
+        [self setContentView:self.web_view];
+        [self setDocumentView:[[NSView alloc] init]];
+
+        m_inspector_client = make<WebView::InspectorClient>([[tab web_view] view], [[self web_view] view], is_windowed);
         __weak Inspector* weak_self = self;
 
         m_inspector_client->on_requested_dom_node_text_context_menu = [weak_self](auto position) {
@@ -125,6 +132,15 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
             auto* event = Ladybird::create_context_menu_mouse_event(strong_self.web_view, position);
             [NSMenu popUpContextMenu:strong_self.cookie_context_menu withEvent:event forView:strong_self.web_view];
         };
+
+        m_inspector_client->on_requested_close = [weak_self]() {
+            Inspector* strong_self = weak_self;
+            if (strong_self == nil) {
+                return;
+            }
+
+            [strong_self removeFromSuperview];
+        };
     }
 
     return self;
@@ -145,6 +161,11 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
 - (void)selectHoveredElement
 {
     m_inspector_client->select_hovered_node();
+}
+
+- (void)setIsWindowed:(BOOL)is_visible
+{
+    m_inspector_client->set_is_windowed(is_visible);
 }
 
 #pragma mark - Private methods
@@ -354,6 +375,16 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
     }
 
     return _cookie_context_menu;
+}
+
+#pragma mark - NSView
+
+- (void)viewWillMoveToWindow:(NSWindow*)newWindow
+{
+    // newWindow being nil indicates the inspector view has been removed from its parent
+    if (newWindow == nil) {
+        [self.tab onInspectorClosed];
+    }
 }
 
 @end

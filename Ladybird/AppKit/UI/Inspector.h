@@ -13,13 +13,17 @@
 
 @interface Inspector : NSScrollView
 
-- (instancetype)init:(Tab*)tab;
+- (instancetype)init:(Tab*)tab
+          isWindowed:(BOOL)is_windowed;
 
 - (void)inspect;
 - (void)reset;
 
 - (void)selectHoveredElement;
 
+- (void)setIsWindowed:(BOOL)is_windowed;
+
+@property (nonatomic, strong) NSScrollView* inspector_scroll_view;
 @property (nonatomic, strong) LadybirdWebView* web_view;
 
 @end

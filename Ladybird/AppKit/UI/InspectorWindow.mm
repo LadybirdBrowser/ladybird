@@ -32,7 +32,6 @@ static constexpr CGFloat const WINDOW_HEIGHT = 825;
 @synthesize tab = _tab;
 
 - (instancetype)init:(Tab*)tab
-           inspector:(Inspector*)inspector
 {
     auto tab_rect = [tab frame];
     auto position_x = tab_rect.origin.x + (tab_rect.size.width - WINDOW_WIDTH) / 2;
@@ -49,15 +48,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 825;
     if (self) {
         self.tab = tab;
 
-        auto* scroll_view = [[NSScrollView alloc] init];
-        [scroll_view setHasVerticalScroller:YES];
-        [scroll_view setHasHorizontalScroller:YES];
-        [scroll_view setLineScroll:24];
-
-        [scroll_view setContentView:inspector.web_view];
-        [scroll_view setDocumentView:[[NSView alloc] init]];
-
-        [self setContentView:scroll_view];
+        [self setContentView:tab.inspector];
         [self setTitle:@"Inspector"];
         [self setIsVisible:YES];
     }

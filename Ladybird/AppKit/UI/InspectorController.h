@@ -13,7 +13,6 @@
 
 @interface InspectorController : NSWindowController
 
-- (instancetype)init:(Tab*)tab
-           inspector:(Inspector*)inspector;
+- (instancetype)init:(Tab*)tab;
 
 @end
