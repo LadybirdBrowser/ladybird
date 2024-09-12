@@ -57,11 +57,13 @@ ClipboardEvent
 CloseEvent
 CloseWatcher
 Comment
+CompressionStream
 CountQueuingStrategy
 Crypto
 CryptoKey
 CustomElementRegistry
 CustomEvent
+DecompressionStream
 DOMException
 DOMImplementation
 DOMMatrix

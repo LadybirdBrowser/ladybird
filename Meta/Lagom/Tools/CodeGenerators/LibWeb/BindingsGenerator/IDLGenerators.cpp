@@ -45,8 +45,10 @@ static bool is_platform_object(Type const& type)
         "CanvasPattern"sv,
         "CanvasRenderingContext2D"sv,
         "CloseWatcher"sv,
+        "CompressionStream"sv,
         "CryptoKey"sv,
         "DataTransfer"sv,
+        "DecompressionStream"sv,
         "Document"sv,
         "DocumentType"sv,
         "DOMRectReadOnly"sv,
@@ -4182,6 +4184,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     // FIXME: This is a total hack until we can figure out the namespace for a given type somehow.
     using namespace Web::Animations;
     using namespace Web::Clipboard;
+    using namespace Web::Compression;
     using namespace Web::Crypto;
     using namespace Web::CSS;
     using namespace Web::DOM;

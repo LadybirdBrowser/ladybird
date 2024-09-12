@@ -80,6 +80,11 @@ namespace Web::Clipboard {
 class Clipboard;
 }
 
+namespace Web::Compression {
+class CompressionStream;
+class DecompressionStream;
+}
+
 namespace Web::Cookie {
 struct Cookie;
 struct ParsedCookie;

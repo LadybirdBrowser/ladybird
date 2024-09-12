@@ -1,0 +1,34 @@
+<script>
+async function concatUint8Arrays(uint8arrays) {
+  const blob = new Blob(uint8arrays);
+  const buffer = await blob.arrayBuffer();
+  return new Uint8Array(buffer);
+}
+async function compress(str, format) {
+    const stream = new Blob([str]).stream(); 
+    const compressedStream = stream.pipeThrough(
+      new CompressionStream(format),
+    );
+    const decompressedSteam = compressedStream.pipeThrough(
+      new DecompressionStream(format),
+    );
+    const chunks = [];
+    let reader = decompressedSteam.getReader();
+    let data = await reader.read(1024);
+    return data.value
+}
+
+async function main() {
+  for (const format of ['gzip', 'deflate-raw', 'deflate']) {
+  const result = await compress("Hello, world!", format);
+  const decoder = new TextDecoder();
+  if (decoder.decode(result) != "Hello, world!") {
+    console.log("Failed to compress/decompress with", format);
+  } else {
+    console.log("Success with", format);
+  }
+}
+}
+main().then(() => {}).catch(console.error);
+
+</script>
