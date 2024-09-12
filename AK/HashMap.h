@@ -9,6 +9,7 @@
 
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
+#include <AK/QuickSort.h>
 #include <AK/Vector.h>
 #include <initializer_list>
 
@@ -319,9 +320,25 @@ private:
     HashTableType m_table;
 };
 
+template<typename K, typename V>
+static OrderedHashMap<K, V> sort_hashmap(HashMap<K, V> map)
+{
+    auto keys = map.keys();
+    quick_sort(keys);
+
+    OrderedHashMap<K, V> sorted;
+    for (auto& key : keys) {
+        auto value = *map.get(key);
+        sorted.set(key, value);
+    }
+
+    return sorted;
+}
+
 }
 
 #if USING_AK_GLOBALLY
 using AK::HashMap;
 using AK::OrderedHashMap;
+using AK::sort_hashmap;
 #endif
