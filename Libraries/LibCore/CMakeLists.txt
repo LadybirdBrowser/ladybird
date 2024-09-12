@@ -71,18 +71,21 @@ endif()
 if (LINUX AND NOT EMSCRIPTEN)
     list(APPEND SOURCES
         FileWatcherLinux.cpp
+        GamepadLinux.cpp
         Platform/ProcessStatisticsLinux.cpp
         TimeZoneWatcherLinux.cpp
     )
 elseif (APPLE AND NOT IOS)
     list(APPEND SOURCES
         FileWatcherMacOS.mm
+        GamepadUnimplemented.cpp
         Platform/ProcessStatisticsMach.cpp
         TimeZoneWatcherMacOS.mm
     )
 else()
     list(APPEND SOURCES
         FileWatcherUnimplemented.cpp
+        GamepadUnimplemented.cpp
         Platform/ProcessStatisticsUnimplemented.cpp
         TimeZoneWatcherUnimplemented.cpp
     )
