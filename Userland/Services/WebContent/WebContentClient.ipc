@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/WebViewHints.h>
+#include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ProcessHandle.h>
@@ -81,7 +82,7 @@ endpoint WebContentClient
     did_request_color_picker(u64 page_id, Color current_color) =|
     did_request_file_picker(u64 page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) =|
     did_request_select_dropdown(u64 page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
-    did_finish_handling_input_event(u64 page_id, bool event_was_accepted) =|
+    did_finish_handling_input_event(u64 page_id, Web::EventResult event_result) =|
     did_change_theme_color(u64 page_id, Gfx::Color color) =|
     did_insert_clipboard_entry(u64 page_id, String data, String presentation_style, String mime_type) =|
     did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) =|

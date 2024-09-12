@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/FileRequest.h>
+#include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWebView/Forward.h>
@@ -150,7 +151,7 @@ private:
 
     virtual void system_time_zone_changed() override;
 
-    void report_finished_handling_input_event(u64 page_id, bool event_was_handled);
+    void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled);
 
     NonnullOwnPtr<PageHost> m_page_host;
 
