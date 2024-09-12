@@ -63,7 +63,6 @@ Crypto
 CryptoKey
 CustomElementRegistry
 CustomEvent
-DecompressionStream
 DOMException
 DOMImplementation
 DOMMatrix
@@ -83,6 +82,7 @@ DataTransferItem
 DataTransferItemList
 DataView
 Date
+DecompressionStream
 DisposableStack
 Document
 DocumentFragment

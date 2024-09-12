@@ -54,6 +54,8 @@ public:
     virtual bool is_open() const override;
     virtual void close() override;
 
+    static ErrorOr<ByteBuffer> decompress_all(ReadonlyBytes);
+
 private:
     ZlibDecompressor(ZlibHeader, NonnullOwnPtr<Stream>);
 
@@ -72,7 +74,6 @@ public:
     virtual bool is_open() const override;
     virtual void close() override;
     ErrorOr<void> finish();
-
     static ErrorOr<ByteBuffer> compress_all(ReadonlyBytes bytes, ZlibCompressionLevel = ZlibCompressionLevel::Default);
 
 private:

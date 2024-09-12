@@ -171,4 +171,20 @@ ErrorOr<ByteBuffer> ZlibCompressor::compress_all(ReadonlyBytes bytes, ZlibCompre
     return buffer;
 }
 
+ErrorOr<ByteBuffer> ZlibDecompressor::decompress_all(ReadonlyBytes bytes)
+{
+    // Even though the content encoding is "deflate", it's actually deflate with the zlib wrapper.
+    // https://tools.ietf.org/html/rfc7230#section-4.2.2
+    auto memory_stream = TRY(try_make<FixedMemoryStream>(bytes));
+    auto zlib_decompressor = ZlibDecompressor::create(move(memory_stream));
+    if (zlib_decompressor.is_error()) {
+        // From the RFC:
+        // "Note: Some non-conformant implementations send the "deflate"
+        //        compressed data without the zlib wrapper."
+        return DeflateDecompressor::decompress_all(bytes);
+    } else {
+        return zlib_decompressor.value()->read_until_eof();
+    }
+}
+
 }

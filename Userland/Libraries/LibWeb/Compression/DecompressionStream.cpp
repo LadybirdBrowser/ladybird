@@ -26,7 +26,28 @@ JS_DEFINE_ALLOCATOR(DecompressionStream);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<DecompressionStream>> DecompressionStream::construct_impl(JS::Realm& realm, Bindings::CompressionFormat format)
 {
-    return realm.heap().allocate<DecompressionStream>(realm, realm, format);
+    auto stream = realm.heap().allocate<DecompressionStream>(realm, realm, format);
+
+    auto& vm = realm.vm();
+    auto* env = vm.variable_environment();
+    if (env) {
+        // FIXME: Make this private to the web execution context
+        auto& global_object = realm.global_object();
+        auto constructor_value_or_error = global_object.get("DecompressionStream_constructor");
+        auto constructor_value = TRY(constructor_value_or_error);
+        if (constructor_value.is_empty() || constructor_value.is_undefined()) {
+            return WebIDL::SimpleException {
+                WebIDL::SimpleExceptionType::TypeError,
+                "DecompressionStream constructor not found"sv
+            };
+        }
+
+        auto& func = static_cast<JS::ECMAScriptFunctionObject&>(constructor_value.as_function());
+        JS::MarkedVector<JS::Value> arguments_list { vm.heap() };
+        arguments_list.append(JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(format)));
+        TRY(func.internal_call(stream->m_this_value, move(arguments_list)));
+    }
+    return stream;
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Uint8Array>> DecompressionStream::decompress(JS::VM& vm, Bindings::CompressionFormat format, JS::Handle<WebIDL::BufferSource> buffer_source)
@@ -65,7 +86,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Uint8Array>> DecompressionStream::decom
 static JS::GCPtr<JS::Script> import_js_script(JS::Realm& realm)
 {
     auto& vm = realm.vm();
-    auto file = MUST(Core::File::open("Userland/Libraries/LibWeb/Compression/DecompressionStream.js"sv, Core::File::OpenMode::Read));
+    auto file = MUST(Core::File::open("/Users/johandahlin/dev/ladybird/Userland/Libraries/LibWeb/Compression/DecompressionStream.js"sv, Core::File::OpenMode::Read));
     auto file_contents = MUST(file->read_until_eof());
     auto source = StringView { file_contents };
 
@@ -80,16 +101,6 @@ DecompressionStream::DecompressionStream(JS::Realm& realm, Bindings::Compression
     , m_js_script(import_js_script(realm))
     , m_this_value(JS::Object::create(realm, realm.intrinsics().object_prototype()))
 {
-    auto& vm = realm.vm();
-    auto* env = vm.variable_environment();
-    if (env) {
-        // FIXME: Make this private to the web execution context
-        auto constructor_value = MUST(env->get_binding_value(vm, "DecompressionStream_constructor", true));
-        auto& func = static_cast<JS::ECMAScriptFunctionObject&>(constructor_value.as_function());
-        JS::MarkedVector<JS::Value> arguments_list { vm.heap() };
-        arguments_list.append(JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(format)));
-        MUST(func.internal_call(m_this_value, move(arguments_list)));
-    }
 }
 
 DecompressionStream::~DecompressionStream() = default;
