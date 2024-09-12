@@ -1,0 +1,20 @@
+#import <Gamepad/GamepadButton.idl>
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
+
+// https://w3c.github.io/gamepad/#gamepadmappingtype-enum
+enum GamepadMappingType { "", "standard", "xr-standard" };
+
+// https://w3c.github.io/gamepad/#gamepad-interface
+[Exposed=Window]
+interface Gamepad {
+    readonly attribute DOMString id;
+    readonly attribute long index;
+    readonly attribute boolean connected;
+    readonly attribute DOMHighResTimeStamp timestamp;
+    readonly attribute GamepadMappingType mapping;
+    // FIXME: This is actually a FrozenArray<double>
+    readonly attribute sequence<double> axes;
+    // FIXME: This is actually a FrozenArray<GamepadButton>
+    readonly attribute sequence<GamepadButton> buttons;
+    [FIXME, SameObject] readonly attribute GamepadHapticActuator vibrationActuator;
+};

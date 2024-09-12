@@ -364,6 +364,7 @@ class FileList;
 }
 
 namespace Web::Gamepad {
+class Gamepad;
 class GamepadButton;
 }
 
