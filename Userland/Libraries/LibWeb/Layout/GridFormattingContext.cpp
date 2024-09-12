@@ -1491,7 +1491,7 @@ void GridFormattingContext::resolve_grid_item_widths()
             .width = box_state.content_width()
         };
 
-        auto try_compute_width = [&](CSSPixels a_width) -> ItemAlignment {
+        auto try_compute_width = [&](CSSPixels a_width, CSS::Size const& computed_width) -> ItemAlignment {
             ItemAlignment result = initial;
             result.width = a_width;
 
@@ -1504,7 +1504,7 @@ void GridFormattingContext::resolve_grid_item_widths()
                 result.margin_left = free_space_left_for_margins;
             } else if (computed_values.margin().right().is_auto()) {
                 result.margin_right = free_space_left_for_margins;
-            } else if (computed_values.width().is_auto()) {
+            } else if (computed_width.is_auto()) {
                 result.width += free_space_left_for_margins;
             }
 
@@ -1540,17 +1540,17 @@ void GridFormattingContext::resolve_grid_item_widths()
         ItemAlignment used_alignment;
         AvailableSpace available_space { AvailableSize::make_definite(containing_block_width), AvailableSize::make_indefinite() };
         if (computed_width.is_auto()) {
-            used_alignment = try_compute_width(calculate_fit_content_width(item.box, available_space));
+            used_alignment = try_compute_width(calculate_fit_content_width(item.box, available_space), computed_width);
         } else if (computed_width.is_fit_content()) {
-            used_alignment = try_compute_width(calculate_fit_content_width(item.box, available_space));
+            used_alignment = try_compute_width(calculate_fit_content_width(item.box, available_space), computed_width);
         } else {
             auto width_px = calculate_inner_width(item.box, available_space.width, computed_width);
-            used_alignment = try_compute_width(width_px);
+            used_alignment = try_compute_width(width_px, computed_width);
         }
 
         if (!should_treat_max_width_as_none(item.box, m_available_space->width)) {
             auto max_width_px = calculate_inner_width(item.box, available_space.width, computed_values.max_width());
-            auto max_width_alignment = try_compute_width(max_width_px);
+            auto max_width_alignment = try_compute_width(max_width_px, computed_values.max_width());
             if (used_alignment.width > max_width_alignment.width) {
                 used_alignment = max_width_alignment;
             }
@@ -1558,7 +1558,7 @@ void GridFormattingContext::resolve_grid_item_widths()
 
         if (!computed_values.min_width().is_auto()) {
             auto min_width_px = calculate_inner_width(item.box, available_space.width, computed_values.min_width());
-            auto min_width_alignment = try_compute_width(min_width_px);
+            auto min_width_alignment = try_compute_width(min_width_px, computed_values.min_width());
             if (used_alignment.width < min_width_alignment.width) {
                 used_alignment = min_width_alignment;
             }
