@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/SelectItem.h>
+#include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/WebContentClient.h>
@@ -61,7 +62,7 @@ public:
     float device_pixel_ratio() const { return m_device_pixel_ratio; }
 
     void enqueue_input_event(Web::InputEvent);
-    void did_finish_handling_input_event(Badge<WebContentClient>, bool event_was_accepted);
+    void did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result);
 
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);

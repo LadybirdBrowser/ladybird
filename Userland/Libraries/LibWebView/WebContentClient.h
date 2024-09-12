@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/WebViewHints.h>
+#include <LibWeb/Page/EventResult.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
 
@@ -105,7 +106,7 @@ private:
     virtual void did_request_color_picker(u64 page_id, Color const& current_color) override;
     virtual void did_request_file_picker(u64 page_id, Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
     virtual void did_request_select_dropdown(u64 page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> const& items) override;
-    virtual void did_finish_handling_input_event(u64 page_id, bool event_was_accepted) override;
+    virtual void did_finish_handling_input_event(u64 page_id, Web::EventResult event_result) override;
     virtual void did_finish_text_test(u64 page_id) override;
     virtual void did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> const& total_match_count) override;
     virtual void did_change_theme_color(u64 page_id, Gfx::Color color) override;

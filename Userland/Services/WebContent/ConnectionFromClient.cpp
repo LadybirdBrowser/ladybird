@@ -185,7 +185,7 @@ void ConnectionFromClient::process_next_input_event()
     if (!page.has_value())
         return;
 
-    auto handled = event.event.visit(
+    auto result = event.event.visit(
         [&](Web::KeyEvent const& event) {
             switch (event.type) {
             case Web::KeyEvent::Type::KeyDown:
@@ -214,10 +214,10 @@ void ConnectionFromClient::process_next_input_event()
             return page->page().handle_drag_and_drop_event(event.type, event.position, event.screen_position, event.button, event.buttons, event.modifiers, move(event.files));
         });
 
-    // We have to notify the client about coalesced events, so we do that by saying none of them were handled by the web page->
+    // We have to notify the client about coalesced events, so we do that by saying none of them were handled by the web page.
     for (size_t i = 0; i < event.coalesced_event_count; ++i)
-        report_finished_handling_input_event(event.page_id, false);
-    report_finished_handling_input_event(event.page_id, handled);
+        report_finished_handling_input_event(event.page_id, Web::EventResult::Dropped);
+    report_finished_handling_input_event(event.page_id, result);
 
     if (!m_input_event_queue.is_empty())
         m_input_event_queue_timer->start();
@@ -273,9 +273,9 @@ void ConnectionFromClient::enqueue_input_event(QueuedInputEvent event)
     m_input_event_queue_timer->start();
 }
 
-void ConnectionFromClient::report_finished_handling_input_event(u64 page_id, bool event_was_handled)
+void ConnectionFromClient::report_finished_handling_input_event(u64 page_id, Web::EventResult event_result)
 {
-    async_did_finish_handling_input_event(page_id, event_was_handled);
+    async_did_finish_handling_input_event(page_id, event_result);
 }
 
 void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request, ByteString const& argument)

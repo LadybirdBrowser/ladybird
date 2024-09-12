@@ -589,10 +589,10 @@ void WebContentClient::did_request_select_dropdown(u64 page_id, Gfx::IntPoint co
     }
 }
 
-void WebContentClient::did_finish_handling_input_event(u64 page_id, bool event_was_accepted)
+void WebContentClient::did_finish_handling_input_event(u64 page_id, Web::EventResult event_result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_finish_handling_input_event({}, event_was_accepted);
+        view->did_finish_handling_input_event({}, event_result);
 }
 
 void WebContentClient::did_change_theme_color(u64 page_id, Gfx::Color color)

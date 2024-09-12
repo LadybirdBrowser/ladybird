@@ -186,42 +186,42 @@ DevicePixelRect Page::rounded_device_rect(CSSPixelRect rect) const
     };
 }
 
-bool Page::handle_mouseup(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
+EventResult Page::handle_mouseup(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
 {
     return top_level_traversable()->event_handler().handle_mouseup(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers);
 }
 
-bool Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
+EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
 {
     return top_level_traversable()->event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers);
 }
 
-bool Page::handle_mousemove(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers)
+EventResult Page::handle_mousemove(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers)
 {
     return top_level_traversable()->event_handler().handle_mousemove(device_to_css_point(position), device_to_css_point(screen_position), buttons, modifiers);
 }
 
-bool Page::handle_mousewheel(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, DevicePixels wheel_delta_x, DevicePixels wheel_delta_y)
+EventResult Page::handle_mousewheel(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, DevicePixels wheel_delta_x, DevicePixels wheel_delta_y)
 {
     return top_level_traversable()->event_handler().handle_mousewheel(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, wheel_delta_x.value(), wheel_delta_y.value());
 }
 
-bool Page::handle_doubleclick(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
+EventResult Page::handle_doubleclick(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
 {
     return top_level_traversable()->event_handler().handle_doubleclick(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers);
 }
 
-bool Page::handle_drag_and_drop_event(DragEvent::Type type, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files)
+EventResult Page::handle_drag_and_drop_event(DragEvent::Type type, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files)
 {
     return top_level_traversable()->event_handler().handle_drag_and_drop_event(type, device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, move(files));
 }
 
-bool Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
+EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
 {
     return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point);
 }
 
-bool Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
+EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
 {
     return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point);
 }
