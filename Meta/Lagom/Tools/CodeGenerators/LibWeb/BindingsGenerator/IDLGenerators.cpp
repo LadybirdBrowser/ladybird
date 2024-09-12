@@ -58,6 +58,7 @@ static bool is_platform_object(Type const& type)
         "FileList"sv,
         "FontFace"sv,
         "FormData"sv,
+        "GamepadButton"sv,
         "HTMLCollection"sv,
         "ImageBitmap"sv,
         "ImageData"sv,
@@ -4266,6 +4267,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     using namespace Web::EventTiming;
     using namespace Web::Fetch;
     using namespace Web::FileAPI;
+    using namespace Web::Gamepad;
     using namespace Web::Geometry;
     using namespace Web::HighResolutionTime;
     using namespace Web::HTML;

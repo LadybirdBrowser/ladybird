@@ -363,6 +363,10 @@ class File;
 class FileList;
 }
 
+namespace Web::Gamepad {
+class GamepadButton;
+}
+
 namespace Web::Geometry {
 class DOMMatrix;
 class DOMMatrixReadOnly;
