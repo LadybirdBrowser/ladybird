@@ -1,0 +1,7 @@
+#import <Gamepad/Gamepad.idl>
+
+// https://w3c.github.io/gamepad/#extensions-to-the-navigator-interface
+// FIXME: This is a partial interface not an interface mixin
+interface mixin NavigatorGamepad {
+    sequence<Gamepad?> getGamepads();
+};
