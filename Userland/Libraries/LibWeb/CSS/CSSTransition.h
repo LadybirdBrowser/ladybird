@@ -22,9 +22,6 @@ public:
 
     StringView transition_property() const { return string_from_property_id(m_transition_property); }
 
-    JS::GCPtr<DOM::Element> owning_element() const override { return m_owning_element; }
-    void set_owning_element(JS::GCPtr<DOM::Element> value) { m_owning_element = value; }
-
     JS::GCPtr<CSS::CSSStyleDeclaration const> cached_declaration() const { return m_cached_declaration; }
     void set_cached_declaration(JS::GCPtr<CSS::CSSStyleDeclaration const> declaration) { m_cached_declaration = declaration; }
 
@@ -43,9 +40,6 @@ private:
 
     // https://drafts.csswg.org/css-transitions-2/#transition-generation
     size_t m_transition_generation;
-
-    // https://drafts.csswg.org/css-transitions-2/#owning-element
-    JS::GCPtr<DOM::Element> m_owning_element;
 
     JS::GCPtr<CSS::CSSStyleDeclaration const> m_cached_declaration;
 };

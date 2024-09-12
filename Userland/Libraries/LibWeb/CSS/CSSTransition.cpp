@@ -32,13 +32,13 @@ Optional<int> CSSTransition::class_specific_composite_order(JS::NonnullGCPtr<Ani
     // follows:
 
     // 1. If neither A nor B has an owning element, sort based on their relative position in the global animation list.
-    if (!m_owning_element && !other->m_owning_element)
+    if (!owning_element() && !other->owning_element())
         return global_animation_list_order() - other->global_animation_list_order();
 
     // 2. Otherwise, if only one of A or B has an owning element, let the animation with an owning element sort first.
-    if (m_owning_element && !other->m_owning_element)
+    if (owning_element() && !other->owning_element())
         return -1;
-    if (!m_owning_element && other->m_owning_element)
+    if (!owning_element() && other->owning_element())
         return 1;
 
     // 3. Otherwise, if the owning element of A and B differs, sort A and B by tree order of their corresponding owning
@@ -50,7 +50,7 @@ Optional<int> CSSTransition::class_specific_composite_order(JS::NonnullGCPtr<Ani
     //      codepoints that make up each selector
     //    - ::after
     //    - element children
-    if (m_owning_element.ptr() != other->m_owning_element.ptr()) {
+    if (owning_element().ptr() != other->owning_element().ptr()) {
         // FIXME: Actually sort by tree order
         return {};
     }
@@ -88,7 +88,6 @@ void CSSTransition::initialize(JS::Realm& realm)
 void CSSTransition::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_owning_element);
     visitor.visit(m_cached_declaration);
 }
 
