@@ -1897,7 +1897,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
     m_state.get_mutable(grid_container()).set_grid_template_rows(CSS::GridTrackSizeListStyleValue::create(move(grid_track_rows)));
 }
 
-void GridFormattingContext::layout_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
+void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
 {
     auto& containing_block_state = m_state.get_mutable(*box.containing_block());
     auto& box_state = m_state.get_mutable(box);
@@ -1912,6 +1912,8 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box,
     auto column_span = column_placement_position.span;
 
     GridItem item { box, row_start, row_span, column_start, column_span };
+
+    auto available_space = get_available_space_for_item(item);
 
     // The border computed values are not changed by the compute_height & width calculations below.
     // The spec only adjusts and computes sizes, insets and margins.
@@ -2015,12 +2017,9 @@ void GridFormattingContext::parent_context_did_dimension_child_root_box()
         return IterationDecision::Continue;
     });
 
-    for (auto& child : grid_container().contained_abspos_children()) {
-        auto& box = verify_cast<Box>(*child);
-        auto& cb_state = m_state.get(*box.containing_block());
-        auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
-        auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
-        layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
+    for (auto const& child : grid_container().contained_abspos_children()) {
+        auto const& box = verify_cast<Box>(*child);
+        layout_absolutely_positioned_element(box);
     }
 }
 
