@@ -296,6 +296,15 @@ public:
         return list;
     }
 
+    [[nodiscard]] Vector<V> values() const
+    {
+        Vector<V> list;
+        list.ensure_capacity(size());
+        for (auto const& [_, value] : *this)
+            list.unchecked_append(value);
+        return list;
+    }
+
     [[nodiscard]] u32 hash() const
     {
         u32 hash = 0;
