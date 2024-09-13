@@ -31,6 +31,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebDriver/Contexts.h>
+#include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
 
 namespace Web::WebDriver {
@@ -109,7 +110,25 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm
         return ExecuteScriptResultType::JavaScriptError;
 
     // FIXME: -> a collection
-    // FIXME: -> instance of element
+
+    // -> instance of element
+    if (value.is_object() && is<DOM::Element>(value.as_object())) {
+        auto const& element = static_cast<DOM::Element const&>(value.as_object());
+
+        // If the element is stale, return error with error code stale element reference.
+        if (is_element_stale(element)) {
+            return ExecuteScriptResultType::StaleElement;
+        }
+        // Otherwise:
+        else {
+            // 1. Let reference be the web element reference object for session and value.
+            auto reference = web_element_reference_object(element);
+
+            // 2. Return success with data reference.
+            return reference;
+        }
+    }
+
     // FIXME: -> instance of shadow root
 
     // -> a WindowProxy object
