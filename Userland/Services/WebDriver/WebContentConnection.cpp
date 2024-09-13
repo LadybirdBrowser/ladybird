@@ -20,4 +20,10 @@ void WebContentConnection::die()
         on_close();
 }
 
+void WebContentConnection::script_executed(Web::WebDriver::Response const& response)
+{
+    if (on_script_executed)
+        on_script_executed(response);
+}
+
 }

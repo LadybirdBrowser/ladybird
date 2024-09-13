@@ -1845,8 +1845,11 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
 // 13.2.1 Execute Script, https://w3c.github.io/webdriver/#dfn-execute-script
 Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_script(JsonValue const& payload)
 {
+    auto* window = m_page_client->page().top_level_browsing_context().active_window();
+    auto& vm = window->vm();
+
     // 1. Let body and arguments be the result of trying to extract the script arguments from a request with argument parameters.
-    auto const& [body, arguments] = TRY(extract_the_script_arguments_from_a_request(payload));
+    auto [body, arguments] = TRY(extract_the_script_arguments_from_a_request(vm, payload));
 
     // 2. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_open_top_level_browsing_context());
@@ -1858,32 +1861,43 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
     auto timeout_ms = m_timeouts_configuration.script_timeout;
 
     // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-    auto result = Web::WebDriver::execute_script(m_page_client->page(), body, move(arguments), timeout_ms);
-    dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
+    Web::WebDriver::execute_script(m_page_client->page(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
+        dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
+        Web::WebDriver::Response response;
 
-    switch (result.type) {
-    // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
-    case Web::WebDriver::ExecuteScriptResultType::Timeout:
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
-    // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
-    case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
-        return move(result.value);
-    // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
-    case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
-    case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
-    case Web::WebDriver::ExecuteScriptResultType::BrowsingContextDiscarded:
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
-    }
+        switch (result.type) {
+        // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
+        case Web::WebDriver::ExecuteScriptResultType::Timeout:
+            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
+            break;
+        // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
+        case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
+            response = move(result.value);
+            break;
+        // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
+        case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
+        case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
+            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
+            break;
+        case Web::WebDriver::ExecuteScriptResultType::BrowsingContextDiscarded:
+            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
+            break;
+        }
 
-    VERIFY_NOT_REACHED();
+        async_script_executed(move(response));
+    }));
+
+    return JsonValue {};
 }
 
 // 13.2.2 Execute Async Script, https://w3c.github.io/webdriver/#dfn-execute-async-script
 Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execute_async_script(JsonValue const& payload)
 {
+    auto* window = m_page_client->page().top_level_browsing_context().active_window();
+    auto& vm = window->vm();
+
     // 1. Let body and arguments by the result of trying to extract the script arguments from a request with argument parameters.
-    auto const& [body, arguments] = TRY(extract_the_script_arguments_from_a_request(payload));
+    auto [body, arguments] = TRY(extract_the_script_arguments_from_a_request(vm, payload));
 
     // 2. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_open_top_level_browsing_context());
@@ -1895,25 +1909,33 @@ Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execu
     auto timeout_ms = m_timeouts_configuration.script_timeout;
 
     // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-    auto result = Web::WebDriver::execute_async_script(m_page_client->page(), body, move(arguments), timeout_ms);
-    dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
+    Web::WebDriver::execute_async_script(m_page_client->page(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
+        dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
+        Web::WebDriver::Response response;
 
-    switch (result.type) {
-    // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
-    case Web::WebDriver::ExecuteScriptResultType::Timeout:
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
-    // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
-    case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
-        return move(result.value);
-    // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
-    case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
-    case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
-    case Web::WebDriver::ExecuteScriptResultType::BrowsingContextDiscarded:
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
-    }
+        switch (result.type) {
+        // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
+        case Web::WebDriver::ExecuteScriptResultType::Timeout:
+            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
+            break;
+        // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
+        case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
+            response = move(result.value);
+            break;
+        // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
+        case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
+        case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
+            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
+            break;
+        case Web::WebDriver::ExecuteScriptResultType::BrowsingContextDiscarded:
+            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
+            break;
+        }
 
-    VERIFY_NOT_REACHED();
+        async_script_executed(move(response));
+    }));
+
+    return JsonValue {};
 }
 
 // 14.1 Get All Cookies, https://w3c.github.io/webdriver/#dfn-get-all-cookies
@@ -2487,11 +2509,8 @@ ErrorOr<JsonArray, Web::WebDriver::Error> WebDriverConnection::find(StartNodeGet
 }
 
 // https://w3c.github.io/webdriver/#dfn-extract-the-script-arguments-from-a-request
-ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverConnection::extract_the_script_arguments_from_a_request(JsonValue const& payload)
+ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverConnection::extract_the_script_arguments_from_a_request(JS::VM& vm, JsonValue const& payload)
 {
-    auto* window = m_page_client->page().top_level_browsing_context().active_window();
-    auto& vm = window->vm();
-
     // 1. Let script be the result of getting a property named script from the parameters.
     // 2. If script is not a String, return error with error code invalid argument.
     auto script = TRY(get_property(payload, "script"sv));

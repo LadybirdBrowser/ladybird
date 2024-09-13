@@ -9,6 +9,7 @@
 #include <AK/Forward.h>
 #include <AK/JsonValue.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Heap/HeapFunction.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Forward.h>
 
@@ -32,7 +33,9 @@ struct ExecuteScriptResultSerialized {
     JsonValue value;
 };
 
-ExecuteScriptResultSerialized execute_script(Page& page, ByteString const& body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms);
-ExecuteScriptResultSerialized execute_async_script(Page& page, ByteString const& body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms);
+using OnScriptComplete = JS::HeapFunction<void(ExecuteScriptResultSerialized)>;
+
+void execute_script(Page& page, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
+void execute_async_script(Page& page, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
 
 }

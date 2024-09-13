@@ -12,6 +12,7 @@
 #include "Client.h"
 #include <AK/JsonObject.h>
 #include <AK/ScopeGuard.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
@@ -166,6 +167,31 @@ Web::WebDriver::Response Session::get_window_handles() const
 
     // 3. Return success with data handles.
     return JsonValue { move(handles) };
+}
+
+Web::WebDriver::Response Session::execute_script(JsonValue payload, ScriptMode mode) const
+{
+    ScopeGuard guard { [&]() { web_content_connection().on_script_executed = nullptr; } };
+
+    Optional<Web::WebDriver::Response> response;
+    web_content_connection().on_script_executed = [&](auto result) {
+        response = move(result);
+    };
+
+    switch (mode) {
+    case ScriptMode::Sync:
+        TRY(web_content_connection().execute_script(move(payload)));
+        break;
+    case ScriptMode::Async:
+        TRY(web_content_connection().execute_async_script(move(payload)));
+        break;
+    }
+
+    Core::EventLoop::current().spin_until([&]() {
+        return response.has_value();
+    });
+
+    return response.release_value();
 }
 
 }

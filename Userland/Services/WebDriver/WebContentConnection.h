@@ -21,8 +21,12 @@ public:
     WebContentConnection(NonnullOwnPtr<Core::LocalSocket> socket);
 
     Function<void()> on_close;
+    Function<void(Web::WebDriver::Response)> on_script_executed;
 
+private:
     virtual void die() override;
+
+    virtual void script_executed(Web::WebDriver::Response const&) override;
 };
 
 }
