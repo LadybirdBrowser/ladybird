@@ -1607,6 +1607,35 @@ void TableFormattingContext::run_until_width_calculation(AvailableSpace const& a
     compute_table_width();
 }
 
+void TableFormattingContext::parent_context_did_dimension_child_root_box()
+{
+    if (m_layout_mode != LayoutMode::Normal)
+        return;
+
+    context_box().for_each_in_subtree_of_type<Box const>([&](Layout::Box const& box) {
+        if (box.is_absolutely_positioned()) {
+            // FIXME: calculate_static_position_rect() is not aware of how to correctly calculate static position for
+            //        a box nested inside a table, but we need to set some value, so layout_absolutely_positioned_element()
+            //        won't crash trying to access it.
+            m_state.get_mutable(box).set_static_position_rect(calculate_static_position_rect(box));
+        }
+
+        if (formatting_context_type_created_by_box(box).has_value()) {
+            return TraversalDecision::SkipChildrenAndContinue;
+        }
+
+        return TraversalDecision::Continue;
+    });
+
+    for (auto& child : context_box().contained_abspos_children()) {
+        auto& box = verify_cast<Box>(*child);
+        auto& cb_state = m_state.get(*box.containing_block());
+        auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
+        auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
+        layout_absolutely_positioned_element(box, AvailableSpace(available_width, available_height));
+    }
+}
+
 void TableFormattingContext::run(AvailableSpace const& available_space)
 {
     m_available_space = available_space;

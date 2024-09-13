@@ -152,7 +152,6 @@ Optional<FormattingContext::Type> FormattingContext::formatting_context_type_cre
         // FIXME: We need this for <math> elements
         return Type::InternalDummy;
     }
-
     return {};
 }
 
