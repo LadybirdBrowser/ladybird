@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -102,9 +102,13 @@ private:
     virtual Messages::WebDriverClient::TakeScreenshotResponse take_screenshot() override;
     virtual Messages::WebDriverClient::TakeElementScreenshotResponse take_element_screenshot(String const& element_id) override;
     virtual Messages::WebDriverClient::PrintPageResponse print_page() override;
-
     virtual Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse ensure_top_level_browsing_context_is_open() override;
-    ErrorOr<void, Web::WebDriver::Error> ensure_open_top_level_browsing_context();
+
+    Web::HTML::BrowsingContext& current_browsing_context() { return *m_current_browsing_context; }
+    JS::GCPtr<Web::HTML::BrowsingContext> current_top_level_browsing_context();
+
+    ErrorOr<void, Web::WebDriver::Error> ensure_current_browsing_context_is_open();
+    ErrorOr<void, Web::WebDriver::Error> ensure_current_top_level_browsing_context_is_open();
 
     ErrorOr<void, Web::WebDriver::Error> handle_any_user_prompts();
     void restore_the_window();
@@ -112,6 +116,9 @@ private:
     Gfx::IntRect iconify_the_window();
 
     ErrorOr<void, Web::WebDriver::Error> wait_for_navigation_to_complete();
+
+    Gfx::IntPoint calculate_absolute_position_of_element(JS::NonnullGCPtr<Web::Geometry::DOMRect> rect);
+    Gfx::IntRect calculate_absolute_rect_of_element(Web::DOM::Element const& element);
 
     using StartNodeGetter = Function<ErrorOr<Web::DOM::ParentNode*, Web::WebDriver::Error>()>;
     ErrorOr<JsonArray, Web::WebDriver::Error> find(StartNodeGetter&& start_node_getter, Web::WebDriver::LocationStrategy using_, StringView value);
@@ -122,8 +129,6 @@ private:
     };
     static ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
     void delete_cookies(Optional<StringView> const& name = {});
-
-    JS::NonnullGCPtr<Web::PageClient> m_page_client;
 
     // https://w3c.github.io/webdriver/#dfn-page-load-strategy
     Web::WebDriver::PageLoadStrategy m_page_load_strategy { Web::WebDriver::PageLoadStrategy::Normal };
@@ -136,6 +141,9 @@ private:
 
     // https://w3c.github.io/webdriver/#dfn-session-script-timeout
     Web::WebDriver::TimeoutsConfiguration m_timeouts_configuration;
+
+    // https://w3c.github.io/webdriver/#dfn-current-browsing-context
+    JS::Handle<Web::HTML::BrowsingContext> m_current_browsing_context;
 };
 
 }
