@@ -855,7 +855,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         }
 
         // 7. Wait until either response is non-null, or navigable's ongoing navigation changes to no longer equal navigationId.
-        Platform::EventLoopPlugin::the().spin_until([&]() {
+        HTML::main_thread_event_loop().spin_until([&]() {
             if (response_holder->response() != nullptr)
                 return true;
 
