@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -59,6 +60,13 @@ ErrorOr<Web::DOM::Element*, Web::WebDriver::Error> get_known_connected_element(S
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find element with ID: {}", element_id));
 
     return static_cast<Web::DOM::Element*>(node);
+}
+
+// https://w3c.github.io/webdriver/#dfn-is-stale
+bool is_element_stale(Web::DOM::Node const& element)
+{
+    // An element is stale if its node document is not the active document or if it is not connected.
+    return !element.document().is_active() || !element.is_connected();
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-shadow-root-reference

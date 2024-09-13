@@ -21,6 +21,7 @@ enum class ExecuteScriptResultType {
     Timeout,
     JavaScriptError,
     BrowsingContextDiscarded,
+    StaleElement,
 };
 
 struct ExecuteScriptResult {
