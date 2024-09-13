@@ -38,7 +38,7 @@ Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_s
     auto value = get_attribute_value(HTML::AttributeNames::http_equiv);
 
 #define __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(keyword, state) \
-    if (value.equals_ignoring_ascii_case(#keyword##sv))            \
+    if (value.equals_ignoring_ascii_case(keyword##sv))             \
         return HTMLMetaElement::HttpEquivAttributeState::state;
     ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTES
 #undef __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE

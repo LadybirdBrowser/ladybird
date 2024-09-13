@@ -16,7 +16,7 @@ namespace Web::HTML {
     __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("content-language", ContentLanguage) \
     __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("content-type", EncodingDeclaration) \
     __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("default-style", DefaultStyle)       \
-    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(refresh, Refresh)                    \
+    __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("refresh", Refresh)                  \
     __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("set-cookie", SetCookie)             \
     __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("x-ua-compatible", XUACompatible)    \
     __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE("content-security-policy", ContentSecurityPolicy)
