@@ -1670,64 +1670,57 @@ CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, Avai
 
 CSSPixels FormattingContext::containing_block_width_for(NodeWithStyleAndBoxModelMetrics const& node) const
 {
-    auto const& containing_block_state = m_state.get(*node.containing_block());
-    auto const& node_state = m_state.get(node);
-
-    switch (node_state.width_constraint) {
+    auto const& used_values = m_state.get(node);
+    switch (used_values.width_constraint) {
     case SizeConstraint::MinContent:
         return 0;
     case SizeConstraint::MaxContent:
         return CSSPixels::max();
     case SizeConstraint::None:
-        return containing_block_state.content_width();
+        return used_values.containing_block_used_values()->content_width();
     }
     VERIFY_NOT_REACHED();
 }
 
 CSSPixels FormattingContext::containing_block_height_for(NodeWithStyleAndBoxModelMetrics const& node) const
 {
-    auto const& containing_block_state = m_state.get(*node.containing_block());
-    auto const& node_state = m_state.get(node);
+    auto const& used_values = m_state.get(node);
 
-    switch (node_state.height_constraint) {
+    switch (used_values.height_constraint) {
     case SizeConstraint::MinContent:
         return 0;
     case SizeConstraint::MaxContent:
         return CSSPixels::max();
     case SizeConstraint::None:
-        return containing_block_state.content_height();
+        return used_values.containing_block_used_values()->content_height();
     }
     VERIFY_NOT_REACHED();
 }
 
 AvailableSize FormattingContext::containing_block_width_as_available_size(NodeWithStyleAndBoxModelMetrics const& node) const
 {
-    auto const& containing_block_state = m_state.get(*node.containing_block());
-    auto const& node_state = m_state.get(node);
-
-    switch (node_state.width_constraint) {
+    auto const& used_values = m_state.get(node);
+    switch (used_values.width_constraint) {
     case SizeConstraint::MinContent:
         return AvailableSize::make_min_content();
     case SizeConstraint::MaxContent:
         return AvailableSize::make_max_content();
     case SizeConstraint::None:
-        return AvailableSize::make_definite(containing_block_state.content_width());
+        return AvailableSize::make_definite(used_values.containing_block_used_values()->content_width());
     }
     VERIFY_NOT_REACHED();
 }
 
 AvailableSize FormattingContext::containing_block_height_as_available_size(NodeWithStyleAndBoxModelMetrics const& node) const
 {
-    auto const& containing_block_state = m_state.get(*node.containing_block());
-    auto const& node_state = m_state.get(node);
-
-    switch (node_state.height_constraint) {
+    auto const& used_values = m_state.get(node);
+    switch (used_values.height_constraint) {
     case SizeConstraint::MinContent:
         return AvailableSize::make_min_content();
     case SizeConstraint::MaxContent:
         return AvailableSize::make_max_content();
     case SizeConstraint::None:
-        return AvailableSize::make_definite(containing_block_state.content_height());
+        return AvailableSize::make_definite(used_values.containing_block_used_values()->content_height());
     }
     VERIFY_NOT_REACHED();
 }
