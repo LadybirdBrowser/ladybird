@@ -456,7 +456,7 @@ void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const
         auto margins = box_state.margin_top + box_state.margin_bottom;
 
         // 2. Let size be the size of the initial containing block in the block flow direction minus margins.
-        auto size = m_state.get(*box.containing_block()).content_height() - margins;
+        auto size = box_state.containing_block_used_values()->content_height() - margins;
 
         // 3. Return the bigger value of size and the normal border box size the element would have
         //    according to the CSS specification.
