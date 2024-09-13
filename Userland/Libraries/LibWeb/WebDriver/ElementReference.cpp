@@ -45,6 +45,20 @@ JsonObject web_element_reference_object(Web::DOM::Node const& element)
     return object;
 }
 
+// https://w3c.github.io/webdriver/#dfn-represents-a-web-element
+bool represents_a_web_element(JsonValue const& value)
+{
+    // An ECMAScript Object represents a web element if it has a web element identifier own property.
+    if (!value.is_object())
+        return false;
+
+    auto const& object = value.as_object();
+    if (!object.has_string("name"sv) || !object.has_string("value"sv))
+        return false;
+
+    return object.get_byte_string("name"sv) == web_element_identifier;
+}
+
 // https://w3c.github.io/webdriver/#dfn-get-a-known-connected-element
 ErrorOr<Web::DOM::Element*, Web::WebDriver::Error> get_known_connected_element(StringView element_id)
 {

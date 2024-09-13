@@ -31,6 +31,8 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLDataListElement.h>
+#include <LibWeb/HTML/HTMLFrameElement.h>
+#include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
@@ -497,62 +499,73 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
 }
 
 // 11.6 Switch To Frame, https://w3c.github.io/webdriver/#dfn-switch-to-frame
-Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_frame(JsonValue const&)
+Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_frame(JsonValue const& payload)
 {
-    dbgln("FIXME: WebDriverConnection::switch_to_frame()");
+    // 1. Let id be the result of getting the property "id" from parameters.
+    if (!payload.is_object() || !payload.as_object().has("id"sv))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have property `id`"sv);
 
-    // FIXME: 1. Let id be the result of getting the property "id" from parameters.
+    auto id = payload.as_object().get("id"sv).release_value();
 
-    // FIXME: 2. If id is not null, a Number object, or an Object that represents a web element, return error with error code invalid argument.
+    // 2. If id is not null, a Number object, or an Object that represents a web element, return error with error code invalid argument.
+    if (!id.is_null() && !id.is_number() && !Web::WebDriver::represents_a_web_element(id))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload property `id` is not null, a number, or a web element"sv);
 
-    // FIXME: 3. Run the substeps of the first matching condition:
+    // 3. Run the substeps of the first matching condition:
 
     // -> id is null
-
-    {
+    if (id.is_null()) {
         // FIXME: 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-
         // FIXME: 2. Try to handle any user prompts with session.
-
         // FIXME: 3. Set the current browsing context with session and session's current top-level browsing context.
+        dbgln("FIXME: WebDriverConnection::switch_to_frame(id=null)");
     }
 
     // -> id is a Number object
-
-    {
+    else if (id.is_number()) {
         // FIXME: 1. If id is less than 0 or greater than 216 – 1, return error with error code invalid argument.
-
         // FIXME: 2. If session's current browsing context is no longer open, return error with error code no such window.
-
         // FIXME: 3. Try to handle any user prompts with session.
-
         // FIXME: 4. Let window be the associated window of session's current browsing context's active document.
-
         // FIXME: 5. If id is not a supported property index of window, return error with error code no such frame.
-
         // FIXME: 6. Let child window be the WindowProxy object obtained by calling window.[[GetOwnProperty]] (id).
-
         // FIXME: 7. Set the current browsing context with session and child window's browsing context.
+        dbgln("FIXME: WebDriverConnection::switch_to_frame(id={})", id);
     }
 
     // -> id represents a web element
+    else if (id.is_object()) {
+        auto element_id = id.as_object().get_byte_string("value"sv).release_value();
 
-    {
-        // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
+        // 1. If session's current browsing context is no longer open, return error with error code no such window.
+        TRY(ensure_current_browsing_context_is_open());
 
-        // FIXME: 2. Try to handle any user prompts with session.
+        // 2. Try to handle any user prompts with session.
+        TRY(handle_any_user_prompts());
 
-        // FIXME: 3. Let element be the result of trying to get a known element with session and id.
+        // 3. Let element be the result of trying to get a known element with session and id.
+        auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
-        // FIXME: 4. If element is not a frame or iframe element, return error with error code no such frame.
+        // 4. If element is not a frame or iframe element, return error with error code no such frame.
+        bool is_frame = is<Web::HTML::HTMLFrameElement>(element);
+        bool is_iframe = is<Web::HTML::HTMLIFrameElement>(element);
 
-        // FIXME: 5. Set the current browsing context with session and element's content navigable's active browsing context.
+        if (!is_frame && !is_iframe)
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, "element is not a frame"sv);
+
+        // 5. Set the current browsing context with session and element's content navigable's active browsing context.
+        if (is_frame) {
+            // FIXME: Should HTMLFrameElement also be a NavigableContainer?
+            m_current_browsing_context = *element->navigable()->active_browsing_context();
+        } else {
+            auto& navigable_container = static_cast<Web::HTML::NavigableContainer&>(*element);
+            m_current_browsing_context = navigable_container.content_navigable()->active_browsing_context();
+        }
     }
 
     // FIXME: 4. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
 
-    // FIXME: 5. Return success with data null
-
+    // 5. Return success with data null
     return JsonValue {};
 }
 
