@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/JsonValue.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
@@ -52,6 +53,12 @@ public:
     Web::WebDriver::Response close_window();
     Web::WebDriver::Response switch_to_window(StringView);
     Web::WebDriver::Response get_window_handles() const;
+
+    enum class ScriptMode {
+        Sync,
+        Async,
+    };
+    Web::WebDriver::Response execute_script(JsonValue, ScriptMode) const;
 
 private:
     using ServerPromise = Core::Promise<ErrorOr<void>>;

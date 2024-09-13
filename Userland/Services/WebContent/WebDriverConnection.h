@@ -120,7 +120,7 @@ private:
         ByteString script;
         JS::MarkedVector<JS::Value> arguments;
     };
-    ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JsonValue const& payload);
+    static ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
     void delete_cookies(Optional<StringView> const& name = {});
 
     JS::NonnullGCPtr<Web::PageClient> m_page_client;
