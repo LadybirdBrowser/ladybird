@@ -729,6 +729,7 @@ set(SOURCES
     WebDriver/Client.cpp
     WebDriver/Contexts.cpp
     WebDriver/ElementLocationStrategies.cpp
+    WebDriver/ElementReference.cpp
     WebDriver/Error.cpp
     WebDriver/ExecuteScript.cpp
     WebDriver/Response.cpp
