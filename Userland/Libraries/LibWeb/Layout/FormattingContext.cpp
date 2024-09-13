@@ -142,14 +142,17 @@ Optional<FormattingContext::Type> FormattingContext::formatting_context_type_cre
     if (box.children_are_inline())
         return {};
 
+    if (display.is_table_column() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row() || display.is_table_column_group())
+        return {};
+
     // The box is a block container that doesn't create its own BFC.
     // It will be formatted by the containing BFC.
     if (!display.is_flow_inside()) {
         // HACK: Instead of crashing, create a dummy formatting context that does nothing.
-        // FIXME: Remove this once it's no longer needed. It currently swallows problem with standalone
-        //        table-related boxes that don't get fixed up by CSS anonymous table box generation.
+        // FIXME: We need this for <math> elements
         return Type::InternalDummy;
     }
+
     return {};
 }
 
