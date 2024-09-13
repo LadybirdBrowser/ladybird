@@ -37,6 +37,8 @@ public:
 
     static bool border_is_less_specific(const CSS::BorderData& a, const CSS::BorderData& b);
 
+    virtual void parent_context_did_dimension_child_root_box() override;
+
 private:
     CSSPixels run_caption_layout(CSS::CaptionSide);
     CSSPixels compute_capmin();
