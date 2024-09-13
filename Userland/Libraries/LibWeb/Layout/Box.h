@@ -55,6 +55,7 @@ public:
     bool is_user_scrollable() const;
 
     void add_contained_abspos_child(JS::NonnullGCPtr<Node> child) { m_contained_abspos_children.append(child); }
+    void clear_contained_abspos_children() { m_contained_abspos_children.clear(); }
     Vector<JS::NonnullGCPtr<Node>> const& contained_abspos_children() const { return m_contained_abspos_children; }
 
     virtual void visit_edges(Cell::Visitor&) override;
