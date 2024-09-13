@@ -54,6 +54,8 @@ print_help() {
           Run all of the Web Platform Tests.
       $NAME run --log expectations.log css dom
           Run the Web Platform Tests in the 'css' and 'dom' directories and save the output to expectations.log.
+      $NAME run --log-wptreport expectations.json --log-wptscreenshot expectations.db css dom
+          Run the Web Platform Tests in the 'css' and 'dom' directories; save the output in wptreport format to expectations.json and save screenshots to expectations.db.
       $NAME compare expectations.log
           Run all of the Web Platform Tests comparing the results to the expectations in before.log.
       $NAME compare --log results.log expectations.log css/CSS2
@@ -75,13 +77,22 @@ if [ "$CMD" = "--help" ] || [ "$CMD" = "help" ]; then
 fi
 
 ARG=$1
-if [ "$ARG" = "--log" ]; then
+while [[ "$ARG" =~ ^--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?$ ]]; do
+    case "$ARG" in
+        --log)
+            LOG_TYPE="--log-raw"
+            ;;
+        *)
+            LOG_TYPE="$ARG"
+            ;;
+    esac
     shift
     LOG_NAME="$(pwd -P)/$1"
     [ -n "$LOG_NAME" ] || usage;
+    WPT_ARGS+=( "${LOG_TYPE}=${LOG_NAME}" )
     shift
-    WPT_ARGS+=( "--log-raw=${LOG_NAME}" )
-fi
+    ARG=$1
+done
 TEST_LIST=( "$@" )
 
 exit_if_running_as_root "Do not run WPT.sh as root"
