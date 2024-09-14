@@ -1836,7 +1836,7 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
     auto timeout_ms = m_timeouts_configuration.script_timeout;
 
     // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-    Web::WebDriver::execute_script(current_browsing_context().page(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
+    Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
         dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
         Web::WebDriver::Response response;
 
@@ -1884,7 +1884,7 @@ Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execu
     auto timeout_ms = m_timeouts_configuration.script_timeout;
 
     // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-    Web::WebDriver::execute_async_script(current_browsing_context().page(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
+    Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
         dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
         Web::WebDriver::Response response;
 
