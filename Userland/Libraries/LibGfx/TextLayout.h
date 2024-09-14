@@ -40,10 +40,11 @@ public:
         Rtl,
     };
 
-    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font> font, TextType text_type)
+    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font> font, TextType text_type, float width)
         : m_glyphs(move(glyphs))
         , m_font(move(font))
         , m_text_type(text_type)
+        , m_width(width)
     {
     }
 
@@ -52,6 +53,7 @@ public:
     [[nodiscard]] Vector<DrawGlyph> const& glyphs() const { return m_glyphs; }
     [[nodiscard]] Vector<DrawGlyph>& glyphs() { return m_glyphs; }
     [[nodiscard]] bool is_empty() const { return m_glyphs.is_empty(); }
+    [[nodiscard]] float width() const { return m_width; }
 
     void append(DrawGlyph glyph) { m_glyphs.append(glyph); }
 
@@ -59,9 +61,10 @@ private:
     Vector<DrawGlyph> m_glyphs;
     NonnullRefPtr<Font> m_font;
     TextType m_text_type;
+    float m_width { 0 };
 };
 
-void for_each_glyph_position(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, Function<void(DrawGlyph const&)> callback, Optional<float&> width = {});
+RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, GlyphRun::TextType);
 float measure_text_width(Utf8View const& string, Gfx::Font const& font);
 
 }
