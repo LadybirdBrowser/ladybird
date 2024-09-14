@@ -523,8 +523,27 @@ Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window
 }
 
 // 11.3 Switch to Window, https://w3c.github.io/webdriver/#dfn-switch-to-window
-Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to_window()
+Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to_window(String const& handle)
 {
+    // 4. If handle is equal to the associated window handle for some top-level browsing context in the
+    //    current session, let context be the that browsing context, and set the current top-level
+    //    browsing context with context.
+    //    Otherwise, return error with error code no such window.
+    bool found_matching_context = false;
+
+    current_top_level_browsing_context()->for_each_in_inclusive_subtree([&](Web::HTML::BrowsingContext& context) {
+        if (handle != context.top_level_traversable()->window_handle())
+            return Web::TraversalDecision::Continue;
+
+        m_current_browsing_context = context;
+        found_matching_context = true;
+
+        return Web::TraversalDecision::Break;
+    });
+
+    if (!found_matching_context)
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found");
+
     // 5. Update any implementation-specific state that would result from the user selecting the current
     //    browsing context for interaction, without altering OS-level focus.
     current_browsing_context().page().client().page_did_request_activate_tab();
