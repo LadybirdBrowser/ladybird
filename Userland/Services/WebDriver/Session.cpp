@@ -148,7 +148,7 @@ Web::WebDriver::Response Session::switch_to_window(StringView handle)
 
     // 5. Update any implementation-specific state that would result from the user selecting the current
     //    browsing context for interaction, without altering OS-level focus.
-    TRY(web_content_connection().switch_to_window());
+    TRY(web_content_connection().switch_to_window(m_current_window_handle));
 
     // 6. Return success with data null.
     return JsonValue {};
