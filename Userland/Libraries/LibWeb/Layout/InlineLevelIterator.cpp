@@ -239,15 +239,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             };
         }
 
-        Vector<Gfx::DrawGlyph> glyph_run;
-        float glyph_run_width = 0;
-        Gfx::for_each_glyph_position(
-            { 0, 0 }, chunk.view, chunk.font, [&](Gfx::DrawGlyph const& glyph) {
-                glyph_run.append(glyph);
-            },
-            glyph_run_width);
-
-        CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run_width);
+        auto glyph_run = Gfx::shape_text({ 0, 0 }, chunk.view, chunk.font, text_type);
+        CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width());
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
         bool is_generated_empty_string = text_node.is_generated() && chunk.length == 0;
@@ -255,7 +248,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         Item item {
             .type = Item::Type::Text,
             .node = &text_node,
-            .glyph_run = adopt_ref(*new Gfx::GlyphRun(move(glyph_run), chunk.font, text_type)),
+            .glyph_run = move(glyph_run),
             .offset_in_node = chunk.start,
             .length_in_node = chunk.length,
             .width = chunk_width,

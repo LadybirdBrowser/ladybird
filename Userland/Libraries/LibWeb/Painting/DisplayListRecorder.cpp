@@ -233,21 +233,14 @@ void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, G
     if (rect.is_empty())
         return;
 
-    auto glyph_run = adopt_ref(*new Gfx::GlyphRun({}, font, Gfx::GlyphRun::TextType::Ltr));
-    float glyph_run_width = 0;
-    Gfx::for_each_glyph_position(
-        { 0, 0 }, raw_text.code_points(), font, [&](Gfx::DrawGlyph const& glyph) {
-            glyph_run->append(glyph);
-        },
-        glyph_run_width);
-
+    auto glyph_run = Gfx::shape_text({}, raw_text.code_points(), font, Gfx::GlyphRun::TextType::Ltr);
     float baseline_x = 0;
     if (alignment == Gfx::TextAlignment::CenterLeft) {
         baseline_x = rect.x();
     } else if (alignment == Gfx::TextAlignment::Center) {
-        baseline_x = static_cast<float>(rect.x()) + (static_cast<float>(rect.width()) - glyph_run_width) / 2.0f;
+        baseline_x = static_cast<float>(rect.x()) + (static_cast<float>(rect.width()) - glyph_run->width()) / 2.0f;
     } else if (alignment == Gfx::TextAlignment::CenterRight) {
-        baseline_x = static_cast<float>(rect.right()) - glyph_run_width;
+        baseline_x = static_cast<float>(rect.right()) - glyph_run->width();
     } else {
         // Unimplemented alignment.
         TODO();
