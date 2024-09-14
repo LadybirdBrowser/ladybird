@@ -16,6 +16,8 @@ test("basic functionality", () => {
 
     const originalTimeZone = setTimeZone("UTC");
 
+    expect(Date.parse("1980-5-30")).toBe(328492800000);
+
     setTimeZone("America/Chicago");
     expect(Date.parse("Jan 01 1970 GMT")).toBe(0);
     expect(Date.parse("Wed Apr 17 23:08:53 2019 +0000")).toBe(1555542533000);
@@ -42,7 +44,6 @@ test("basic functionality", () => {
     expect(Date.parse("1980-05-00T")).toBe(NaN);
     expect(Date.parse("1980-05-00T15:15:")).toBe(NaN);
     expect(Date.parse("1980-05-00T15:15:15.")).toBe(NaN);
-    expect(Date.parse("1980-5-30")).toBe(NaN);
     expect(Date.parse("1980-05-30T13")).toBe(NaN);
     expect(Date.parse("1980-05-30T13:4")).toBe(NaN);
     expect(Date.parse("1980-05-30T13:40+")).toBe(NaN);
