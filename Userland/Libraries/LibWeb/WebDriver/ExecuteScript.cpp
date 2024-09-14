@@ -222,13 +222,12 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& re
 }
 
 // https://w3c.github.io/webdriver/#dfn-execute-a-function-body
-static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(Web::Page& page, ByteString const& body, JS::MarkedVector<JS::Value> parameters)
+static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingContext const& browsing_context, ByteString const& body, JS::MarkedVector<JS::Value> parameters)
 {
     // FIXME: If at any point during the algorithm a user prompt appears, immediately return Completion { [[Type]]: normal, [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
 
     // 1. Let window be the associated window of the current browsing context’s active document.
-    // FIXME: This will need adjusting when WebDriver supports frames.
-    auto window = page.top_level_browsing_context().active_document()->window();
+    auto window = browsing_context.active_document()->window();
 
     // 2. Let environment settings be the environment settings object for window.
     auto& environment_settings = Web::HTML::relevant_settings_object(*window);
@@ -339,12 +338,11 @@ private:
 
 JS_DEFINE_ALLOCATOR(HeapTimer);
 
-void execute_script(Web::Page& page, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete)
+void execute_script(HTML::BrowsingContext const& browsing_context, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete)
 {
-    auto* document = page.top_level_browsing_context().active_document();
-    auto* window = page.top_level_browsing_context().active_window();
-    auto& realm = window->realm();
-    auto& vm = window->vm();
+    auto const* document = browsing_context.active_document();
+    auto& realm = document->realm();
+    auto& vm = document->vm();
 
     // 5. Let timer be a new timer.
     auto timer = vm.heap().allocate<HeapTimer>(realm);
@@ -363,11 +361,11 @@ void execute_script(Web::Page& page, ByteString body, JS::MarkedVector<JS::Value
     JS::NonnullGCPtr promise { verify_cast<JS::Promise>(*promise_capability->promise()) };
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke([&realm, &page, promise_capability, document, promise, body = move(body), arguments = move(arguments)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke([&realm, &browsing_context, promise_capability, document, promise, body = move(body), arguments = move(arguments)]() mutable {
         HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object() };
 
         // 1. Let scriptPromise be the result of promise-calling execute a function body, with arguments body and arguments.
-        auto script_result = execute_a_function_body(page, body, move(arguments));
+        auto script_result = execute_a_function_body(browsing_context, body, move(arguments));
 
         // 2. Upon fulfillment of scriptPromise with value v, resolve promise with value v.
         if (script_result.has_value()) {
@@ -414,12 +412,11 @@ void execute_script(Web::Page& page, ByteString body, JS::MarkedVector<JS::Value
     WebIDL::react_to_promise(promise_capability, reaction_steps, reaction_steps);
 }
 
-void execute_async_script(Web::Page& page, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete)
+void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete)
 {
-    auto* document = page.top_level_browsing_context().active_document();
-    auto* window = page.top_level_browsing_context().active_window();
-    auto& realm = window->realm();
-    auto& vm = window->vm();
+    auto const* document = browsing_context.active_document();
+    auto& realm = document->realm();
+    auto& vm = document->vm();
 
     // 5. Let timer be a new timer.
     auto timer = vm.heap().allocate<HeapTimer>(realm);
@@ -438,7 +435,7 @@ void execute_async_script(Web::Page& page, ByteString body, JS::MarkedVector<JS:
     JS::NonnullGCPtr promise { verify_cast<JS::Promise>(*promise_capability->promise()) };
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke([&vm, &realm, &page, timer, document, promise_capability, promise, body = move(body), arguments = move(arguments)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke([&vm, &realm, &browsing_context, timer, document, promise_capability, promise, body = move(body), arguments = move(arguments)]() mutable {
         HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object() };
 
         // 1. Let resolvingFunctions be CreateResolvingFunctions(promise).
@@ -449,7 +446,7 @@ void execute_async_script(Web::Page& page, ByteString body, JS::MarkedVector<JS:
 
         // 3. Let result be the result of calling execute a function body, with arguments body and arguments.
         // FIXME: 'result' -> 'scriptResult' (spec issue)
-        auto script_result = execute_a_function_body(page, body, move(arguments));
+        auto script_result = execute_a_function_body(browsing_context, body, move(arguments));
 
         // 4. If scriptResult.[[Type]] is not normal, then reject promise with value scriptResult.[[Value]], and abort these steps.
         // NOTE: Prior revisions of this specification did not recognize the return value of the provided script.
