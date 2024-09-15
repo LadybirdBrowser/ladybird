@@ -135,11 +135,6 @@ bool BlockFormattingContext::box_should_avoid_floats_because_it_establishes_fc(B
 
 void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const& available_space)
 {
-    if (box.is_absolutely_positioned()) {
-        compute_width_for_absolutely_positioned_element(box, available_space);
-        return;
-    }
-
     auto remaining_available_space = available_space;
     if (available_space.width.is_definite() && box_should_avoid_floats_because_it_establishes_fc(box)) {
         // NOTE: Although CSS 2.2 specification says that only block formatting contexts should avoid floats,
