@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Window.h>
@@ -134,6 +135,19 @@ WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTar
 {
     event.set_is_trusted(true);
     return target.dispatch_event(event);
+}
+
+void Internals::spoof_current_url(String const& url_string)
+{
+    auto url = DOMURL::parse(url_string);
+
+    VERIFY(url.is_valid());
+
+    auto origin = DOMURL::url_origin(url);
+
+    auto& window = internals_window();
+    window.associated_document().set_url(url);
+    window.associated_document().set_origin(origin);
 }
 
 JS::NonnullGCPtr<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
