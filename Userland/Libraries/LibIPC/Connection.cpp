@@ -19,6 +19,10 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Core::LocalS
     , m_socket(move(socket))
     , m_local_endpoint_magic(local_endpoint_magic)
 {
+    socklen_t socket_buffer_size = 128 * KiB;
+    (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_SNDBUF, &socket_buffer_size, sizeof(socket_buffer_size));
+    (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_RCVBUF, &socket_buffer_size, sizeof(socket_buffer_size));
+
     m_responsiveness_timer = Core::Timer::create_single_shot(3000, [this] { may_have_become_unresponsive(); });
     m_socket->on_ready_to_read = [this] {
         NonnullRefPtr protect = *this;
