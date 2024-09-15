@@ -1912,8 +1912,10 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     auto column_span = column_placement_position.span;
 
     GridItem item { box, row_start, row_span, column_start, column_span };
-
-    auto available_space = get_available_space_for_item(item);
+    auto grid_area_rect = get_grid_area_rect(item);
+    auto available_width = AvailableSize::make_definite(grid_area_rect.width());
+    auto available_height = AvailableSize::make_definite(grid_area_rect.height());
+    AvailableSpace available_space { available_width, available_height };
 
     // The border computed values are not changed by the compute_height & width calculations below.
     // The spec only adjusts and computes sizes, insets and margins.
@@ -1993,9 +1995,8 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     // The offset properties (top/right/bottom/left) then indicate offsets inwards from the corresponding
     // edges of this containing block, as normal.
     CSSPixelPoint used_offset;
-    auto grid_area_offset = get_grid_area_rect(item);
-    used_offset.set_x(grid_area_offset.x() + box_state.inset_left + box_state.margin_box_left());
-    used_offset.set_y(grid_area_offset.y() + box_state.inset_top + box_state.margin_box_top());
+    used_offset.set_x(grid_area_rect.x() + box_state.inset_left + box_state.margin_box_left());
+    used_offset.set_y(grid_area_rect.y() + box_state.inset_top + box_state.margin_box_top());
 
     // NOTE: Absolutely positioned boxes are relative to the *padding edge* of the containing block.
     used_offset.translate_by(-containing_block_state.padding_left, -containing_block_state.padding_top);
