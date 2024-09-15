@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+
+        spoofCurrentURL("https://example.com/service-worker-register.html");
+
+        let swPromise = navigator.serviceWorker.register("service-worker.js");
+
+        swPromise
+            .then(registration => {
+                println(`ServiceWorker registration successful with scope: ${registration.scope}`);
+                done();
+            })
+            .catch(err => {
+                println(`ServiceWorker registration failed: ${err}`);
+                done();
+            });
+    });
+</script>
