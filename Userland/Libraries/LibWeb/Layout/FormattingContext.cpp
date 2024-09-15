@@ -1639,19 +1639,10 @@ CSSPixels FormattingContext::calculate_inner_width(Layout::Box const& box, Avail
     return width.resolved(box, width_of_containing_block).to_px(box);
 }
 
-CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, AvailableSize const&, CSS::Size const& height) const
+CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, AvailableSize const& available_height, CSS::Size const& height) const
 {
     VERIFY(!height.is_auto());
-
-    auto const* containing_block = box.non_anonymous_containing_block();
-    auto const& containing_block_state = m_state.get(*containing_block);
-    auto height_of_containing_block = containing_block_state.content_height();
-    if (box.computed_values().position() == CSS::Positioning::Absolute) {
-        // https://www.w3.org/TR/css-position-3/#def-cb
-        // If the box has position: absolute, then the containing block is formed by the padding edge of the ancestor
-        height_of_containing_block += containing_block_state.padding_top + containing_block_state.padding_bottom;
-    }
-
+    auto height_of_containing_block = available_height.to_px_or_zero();
     auto& computed_values = box.computed_values();
     if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox) {
         auto width_of_containing_block = containing_block_width_for(box);
