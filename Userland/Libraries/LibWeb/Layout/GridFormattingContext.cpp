@@ -1936,8 +1936,7 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     compute_height_for_absolutely_positioned_element(box, available_space, BeforeOrAfterInsideLayout::After);
 
     if (computed_values.inset().left().is_auto() && computed_values.inset().right().is_auto()) {
-        auto containing_block_width = containing_block_state.content_width();
-        auto width_left_for_alignment = containing_block_width - box_state.margin_box_width();
+        auto width_left_for_alignment = grid_area_rect.width() - box_state.margin_box_width();
         switch (justification_for_item(box)) {
         case CSS::JustifyItems::Normal:
         case CSS::JustifyItems::Stretch:
@@ -1962,8 +1961,7 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     }
 
     if (computed_values.inset().top().is_auto() && computed_values.inset().bottom().is_auto()) {
-        auto containing_block_height = containing_block_state.content_height();
-        auto height_left_for_alignment = containing_block_height - box_state.margin_box_height();
+        auto height_left_for_alignment = grid_area_rect.height() - box_state.margin_box_height();
         switch (alignment_for_item(box)) {
         case CSS::AlignItems::Baseline:
             // FIXME: Not implemented
