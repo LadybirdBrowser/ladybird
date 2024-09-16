@@ -87,6 +87,15 @@ static Gfx::IntRect compute_window_rect(Web::Page const& page)
     };
 }
 
+// https://w3c.github.io/webdriver/#dfn-no-longer-open
+static ErrorOr<void, Web::WebDriver::Error> ensure_browsing_context_is_open(JS::GCPtr<Web::HTML::BrowsingContext> browsing_context)
+{
+    // A browsing context is said to be no longer open if its navigable has been destroyed.
+    if (!browsing_context || browsing_context->has_navigable_been_destroyed())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
+    return {};
+}
+
 // https://w3c.github.io/webdriver/#dfn-scrolls-into-view
 static ErrorOr<void> scroll_element_into_view(Web::DOM::Element& element)
 {
@@ -572,26 +581,31 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 // 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
 Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::switch_to_parent_frame(JsonValue const&)
 {
-    dbgln("FIXME: WebDriverConnection::switch_to_parent_frame()");
+    // 1. If session's current browsing context is already the top-level browsing context:
+    if (&current_browsing_context() == current_top_level_browsing_context()) {
+        // 1. If session's current browsing context is no longer open, return error with error code no such window.
+        TRY(ensure_current_browsing_context_is_open());
 
-    // FIXME: 1. If session's current browsing context is already the top-level browsing context:
-
-    {
-        // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
-
-        // FIXME: 2. Return success with data null.
+        // 2. Return success with data null.
+        return JsonValue {};
     }
 
-    // FIXME: 2. If session's current parent browsing context is no longer open, return error with error code no such window.
+    auto parent_browsing_context = current_parent_browsing_context();
 
-    // FIXME: 3. Try to handle any user prompts with session.
+    // 2. If session's current parent browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_browsing_context_is_open(parent_browsing_context));
 
-    // FIXME: 4. If session's current parent browsing context is not null, set the current browsing context with session and current parent browsing context.
+    // 3. Try to handle any user prompts with session.
+    TRY(handle_any_user_prompts());
+
+    // 4. If session's current parent browsing context is not null, set the current browsing context with session and
+    //    current parent browsing context.
+    if (parent_browsing_context)
+        m_current_browsing_context = *parent_browsing_context;
 
     // FIXME: 5. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
 
-    // FIXME: 6. Return success with data null.
-
+    // 6. Return success with data null.
     return JsonValue {};
 }
 
@@ -2215,19 +2229,20 @@ Messages::WebDriverClient::PrintPageResponse WebDriverConnection::print_page()
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Print not implemented"sv);
 }
 
-// https://w3c.github.io/webdriver/#dfn-no-longer-open
-static ErrorOr<void, Web::WebDriver::Error> ensure_browsing_context_is_open(JS::GCPtr<Web::HTML::BrowsingContext> browsing_context)
-{
-    // A browsing context is said to be no longer open if its navigable has been destroyed.
-    if (!browsing_context || browsing_context->has_navigable_been_destroyed())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
-    return {};
-}
-
 Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse WebDriverConnection::ensure_top_level_browsing_context_is_open()
 {
     TRY(ensure_current_top_level_browsing_context_is_open());
     return JsonValue {};
+}
+
+// https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
+JS::GCPtr<Web::HTML::BrowsingContext> WebDriverConnection::current_parent_browsing_context()
+{
+    auto current_navigable = current_browsing_context().active_document()->navigable();
+    if (!current_navigable || !current_navigable->parent())
+        return {};
+
+    return current_navigable->parent()->active_browsing_context();
 }
 
 // https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context

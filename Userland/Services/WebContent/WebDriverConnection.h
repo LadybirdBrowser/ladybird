@@ -105,6 +105,7 @@ private:
     virtual Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse ensure_top_level_browsing_context_is_open() override;
 
     Web::HTML::BrowsingContext& current_browsing_context() { return *m_current_browsing_context; }
+    JS::GCPtr<Web::HTML::BrowsingContext> current_parent_browsing_context();
     JS::GCPtr<Web::HTML::BrowsingContext> current_top_level_browsing_context();
 
     ErrorOr<void, Web::WebDriver::Error> ensure_current_browsing_context_is_open();
