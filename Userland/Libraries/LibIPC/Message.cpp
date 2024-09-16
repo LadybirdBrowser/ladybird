@@ -6,6 +6,7 @@
 
 #include <AK/Checked.h>
 #include <LibCore/Socket.h>
+#include <LibCore/System.h>
 #include <LibIPC/Message.h>
 #include <sched.h>
 
@@ -58,7 +59,6 @@ ErrorOr<void> MessageBuffer::transfer_message(Core::LocalSocket& socket)
     }
 
     ReadonlyBytes bytes_to_write { m_data.span() };
-    size_t writes_done = 0;
 
     while (!bytes_to_write.is_empty()) {
         ErrorOr<ssize_t> maybe_nwritten = 0;
@@ -69,22 +69,27 @@ ErrorOr<void> MessageBuffer::transfer_message(Core::LocalSocket& socket)
         } else {
             maybe_nwritten = socket.write_some(bytes_to_write);
         }
-        ++writes_done;
 
         if (maybe_nwritten.is_error()) {
-            if (auto error = maybe_nwritten.release_error(); error.is_errno()) {
-                // FIXME: This is a hacky way to at least not crash on large messages
-                // The limit of 100 writes is arbitrary, and there to prevent indefinite spinning on the EventLoop
-                if (error.code() == EAGAIN && writes_done < 100) {
-                    sched_yield();
+            if (auto error = maybe_nwritten.release_error(); error.is_errno() && (error.code() == EAGAIN || error.code() == EWOULDBLOCK)) {
+                Vector<struct pollfd, 1> pollfds;
+                if (pollfds.is_empty())
+                    pollfds.append({ .fd = socket.fd().value(), .events = POLLOUT, .revents = 0 });
+
+                ErrorOr<int> result { 0 };
+                do {
+                    constexpr u32 POLL_TIMEOUT_MS = 100;
+                    result = Core::System::poll(pollfds, POLL_TIMEOUT_MS);
+                } while (result.is_error() && result.error().code() == EINTR);
+
+                if (!result.is_error() && result.value() != 0)
                     continue;
-                }
 
                 switch (error.code()) {
                 case EPIPE:
                     return Error::from_string_literal("IPC::transfer_message: Disconnected from peer");
                 case EAGAIN:
-                    return Error::from_string_literal("IPC::transfer_message: Peer buffer overflowed");
+                    return Error::from_string_literal("IPC::transfer_message: Timed out waiting for socket to become writable");
                 default:
                     return Error::from_syscall("IPC::transfer_message write"sv, -error.code());
                 }
@@ -94,10 +99,6 @@ ErrorOr<void> MessageBuffer::transfer_message(Core::LocalSocket& socket)
         }
 
         bytes_to_write = bytes_to_write.slice(maybe_nwritten.value());
-    }
-
-    if (writes_done > 1) {
-        dbgln("LibIPC::transfer_message FIXME Warning, needed {} writes needed to send message of size {}B, this is pretty bad, as it spins on the EventLoop", writes_done, m_data.size());
     }
 
     return {};
