@@ -46,6 +46,7 @@ public:
     RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
 
     CSSPixelRect selection_rect(Gfx::Font const&) const;
+    CSSPixelRect range_rect(Gfx::Font const&, DOM::Range const&) const;
 
     CSSPixels width() const { return m_size.width(); }
     CSSPixels height() const { return m_size.height(); }

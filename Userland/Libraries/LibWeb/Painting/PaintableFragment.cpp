@@ -56,21 +56,13 @@ int PaintableFragment::text_index_at(CSSPixels x) const
 
     return m_start + m_length;
 }
-
-CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
+CSSPixelRect PaintableFragment::range_rect(Gfx::Font const& font, DOM::Range const& range) const
 {
     if (paintable().selection_state() == Paintable::SelectionState::None)
         return {};
 
     if (paintable().selection_state() == Paintable::SelectionState::Full)
         return absolute_rect();
-
-    auto selection = paintable().document().get_selection();
-    if (!selection)
-        return {};
-    auto range = selection->range();
-    if (!range)
-        return {};
 
     // FIXME: m_start and m_length should be unsigned and then we won't need these casts.
     auto const start_index = static_cast<unsigned>(m_start);
@@ -80,16 +72,16 @@ CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
 
     if (paintable().selection_state() == Paintable::SelectionState::StartAndEnd) {
         // we are in the start/end node (both the same)
-        if (start_index > range->end_offset())
+        if (start_index > range.end_offset())
             return {};
-        if (end_index < range->start_offset())
-            return {};
-
-        if (range->start_offset() == range->end_offset())
+        if (end_index < range.start_offset())
             return {};
 
-        auto selection_start_in_this_fragment = max(0, range->start_offset() - m_start);
-        auto selection_end_in_this_fragment = min(m_length, range->end_offset() - m_start);
+        if (range.start_offset() == range.end_offset())
+            return {};
+
+        auto selection_start_in_this_fragment = max(0, range.start_offset() - m_start);
+        auto selection_end_in_this_fragment = min(m_length, range.end_offset() - m_start);
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
@@ -101,10 +93,10 @@ CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
     }
     if (paintable().selection_state() == Paintable::SelectionState::Start) {
         // we are in the start node
-        if (end_index < range->start_offset())
+        if (end_index < range.start_offset())
             return {};
 
-        auto selection_start_in_this_fragment = max(0, range->start_offset() - m_start);
+        auto selection_start_in_this_fragment = max(0, range.start_offset() - m_start);
         auto selection_end_in_this_fragment = m_length;
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
@@ -117,11 +109,11 @@ CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
     }
     if (paintable().selection_state() == Paintable::SelectionState::End) {
         // we are in the end node
-        if (start_index > range->end_offset())
+        if (start_index > range.end_offset())
             return {};
 
         auto selection_start_in_this_fragment = 0;
-        auto selection_end_in_this_fragment = min(range->end_offset() - m_start, m_length);
+        auto selection_end_in_this_fragment = min(range.end_offset() - m_start, m_length);
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
@@ -132,6 +124,21 @@ CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
         return rect;
     }
     return {};
+}
+
+CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
+{
+    if (!paintable().is_selected())
+        return {};
+
+    auto selection = paintable().document().get_selection();
+    if (!selection)
+        return {};
+    auto range = selection->range();
+    if (!range)
+        return {};
+
+    return range_rect(font, *range);
 }
 
 StringView PaintableFragment::string_view() const

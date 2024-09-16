@@ -284,11 +284,11 @@ JS::GCPtr<Selection::Selection> ViewportPaintable::selection() const
     return const_cast<DOM::Document&>(document()).get_selection();
 }
 
-void ViewportPaintable::recompute_selection_states()
+void ViewportPaintable::update_selection()
 {
-    // 1. Start by resetting the selection state of all layout nodes to None.
+    // 1. Start by setting all layout nodes to unselected.
     for_each_in_inclusive_subtree([&](auto& layout_node) {
-        layout_node.set_selection_state(SelectionState::None);
+        layout_node.set_selected(false);
         return TraversalDecision::Continue;
     });
 
@@ -303,10 +303,28 @@ void ViewportPaintable::recompute_selection_states()
     auto* start_container = range->start_container();
     auto* end_container = range->end_container();
 
-    // 3. If the selection starts and ends in the same node:
+    // 3. Mark the nodes included in range selected.
+    for (auto* node = start_container; node && node != end_container->next_in_pre_order(); node = node->next_in_pre_order()) {
+        if (auto* paintable = node->paintable())
+            paintable->set_selected(true);
+    }
+}
+
+void ViewportPaintable::recompute_selection_states(DOM::Range& range)
+{
+    // 1. Start by resetting the selection state of all layout nodes to None.
+    for_each_in_inclusive_subtree([&](auto& layout_node) {
+        layout_node.set_selection_state(SelectionState::None);
+        return TraversalDecision::Continue;
+    });
+
+    auto* start_container = range.start_container();
+    auto* end_container = range.end_container();
+
+    // 2. If the selection starts and ends in the same node:
     if (start_container == end_container) {
         // 1. If the selection starts and ends at the same offset, return.
-        if (range->start_offset() == range->end_offset()) {
+        if (range.start_offset() == range.end_offset()) {
             // NOTE: A zero-length selection should not be visible.
             return;
         }
@@ -319,7 +337,7 @@ void ViewportPaintable::recompute_selection_states()
         }
     }
 
-    // 4. Mark the selection start node as Start (if text) or Full (if anything else).
+    // 3. Mark the selection start node as Start (if text) or Full (if anything else).
     if (auto* paintable = start_container->paintable()) {
         if (is<DOM::Text>(*start_container))
             paintable->set_selection_state(SelectionState::Start);
@@ -327,7 +345,7 @@ void ViewportPaintable::recompute_selection_states()
             paintable->set_selection_state(SelectionState::Full);
     }
 
-    // 5. Mark the selection end node as End (if text) or Full (if anything else).
+    // 4. Mark the selection end node as End (if text) or Full (if anything else).
     if (auto* paintable = end_container->paintable()) {
         if (is<DOM::Text>(*end_container))
             paintable->set_selection_state(SelectionState::End);
@@ -335,7 +353,7 @@ void ViewportPaintable::recompute_selection_states()
             paintable->set_selection_state(SelectionState::Full);
     }
 
-    // 6. Mark the nodes between start node and end node (in tree order) as Full.
+    // 5. Mark the nodes between start node and end node (in tree order) as Full.
     for (auto* node = start_container->next_in_pre_order(); node && node != end_container; node = node->next_in_pre_order()) {
         if (auto* paintable = node->paintable())
             paintable->set_selection_state(SelectionState::Full);

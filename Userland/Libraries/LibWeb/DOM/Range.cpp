@@ -24,7 +24,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::DOM {
@@ -97,7 +97,8 @@ void Range::set_associated_selection(Badge<Selection::Selection>, JS::GCPtr<Sele
 void Range::update_associated_selection()
 {
     if (auto* viewport = m_start_container->document().paintable()) {
-        viewport->recompute_selection_states();
+        viewport->recompute_selection_states(*this);
+        viewport->update_selection();
         viewport->set_needs_display();
     }
 
@@ -1165,17 +1166,103 @@ WebIDL::ExceptionOr<void> Range::delete_contents()
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
-JS::NonnullGCPtr<Geometry::DOMRectList> Range::get_client_rects() const
+// https://drafts.csswg.org/cssom-view/#extensions-to-the-range-interface
+JS::NonnullGCPtr<Geometry::DOMRectList> Range::get_client_rects()
 {
-    dbgln("(STUBBED) Range::get_client_rects()");
-    return Geometry::DOMRectList::create(realm(), {});
+    // 1. return an empty DOMRectList object if the range is not in the document
+    if (!start_container()->document().navigable())
+        return Geometry::DOMRectList::create(realm(), {});
+
+    start_container()->document().update_layout();
+    update_associated_selection();
+    Vector<JS::Handle<Geometry::DOMRect>> rects;
+    // FIXME: take Range collapsed into consideration
+    // 2. Iterate the node included in Range
+    auto start_node = start_container();
+    auto end_node = end_container();
+    if (!is<DOM::Text>(start_node)) {
+        start_node = start_node->child_at_index(m_start_offset);
+    }
+    if (!is<DOM::Text>(end_node)) {
+        // end offset shouldn't be 0
+        if (m_end_offset == 0)
+            return Geometry::DOMRectList::create(realm(), {});
+        end_node = end_node->child_at_index(m_end_offset - 1);
+    }
+    for (Node const* node = start_node; node && node != end_node->next_in_pre_order(); node = node->next_in_pre_order()) {
+        auto node_type = static_cast<NodeType>(node->node_type());
+        if (node_type == NodeType::ELEMENT_NODE) {
+            // 1. For each element selected by the range, whose parent is not selected by the range, include the border
+            // areas returned by invoking getClientRects() on the element.
+            if (contains_node(*node) && !contains_node(*node->parent())) {
+                auto const& element = static_cast<DOM::Element const&>(*node);
+                JS::NonnullGCPtr<Geometry::DOMRectList> const element_rects = element.get_client_rects();
+                for (u32 i = 0; i < element_rects->length(); i++) {
+                    auto rect = element_rects->item(i);
+                    rects.append(Geometry::DOMRect::create(realm(),
+                        Gfx::FloatRect(rect->x(), rect->y(), rect->width(), rect->height())));
+                }
+            }
+        } else if (node_type == NodeType::TEXT_NODE) {
+            // 2. For each Text node selected or partially selected by the range (including when the boundary-points
+            // are identical), include scaled DOMRect object (for the part that is selected, not the whole line box).
+            auto const& text = static_cast<DOM::Text const&>(*node);
+            auto const* paintable = text.paintable();
+            if (paintable) {
+                auto const* containing_block = paintable->containing_block();
+                if (is<Painting::PaintableWithLines>(*containing_block)) {
+                    auto const& paintable_lines = static_cast<Painting::PaintableWithLines const&>(*containing_block);
+                    auto fragments = paintable_lines.fragments();
+                    auto const& font = paintable->layout_node().first_available_font();
+                    for (auto frag = fragments.begin(); frag != fragments.end(); frag++) {
+                        auto rect = frag->range_rect(font, *this);
+                        if (rect.is_empty())
+                            continue;
+                        rects.append(Geometry::DOMRect::create(realm(),
+                            Gfx::FloatRect(rect)));
+                    }
+                } else {
+                    dbgln("FIXME: Failed to get client rects for node {}", node->debug_description());
+                }
+            }
+        }
+    }
+    return Geometry::DOMRectList::create(realm(), move(rects));
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-range-getboundingclientrect
-JS::NonnullGCPtr<Geometry::DOMRect> Range::get_bounding_client_rect() const
+JS::NonnullGCPtr<Geometry::DOMRect> Range::get_bounding_client_rect()
 {
-    dbgln("(STUBBED) Range::get_bounding_client_rect()");
-    return Geometry::DOMRect::construct_impl(realm(), 0, 0, 0, 0).release_value_but_fixme_should_propagate_errors();
+    // 1. Let list be the result of invoking getClientRects() on element.
+    auto list = get_client_rects();
+
+    // 2. If the list is empty return a DOMRect object whose x, y, width and height members are zero.
+    if (list->length() == 0)
+        return Geometry::DOMRect::construct_impl(realm(), 0, 0, 0, 0).release_value_but_fixme_should_propagate_errors();
+
+    // 3. If all rectangles in list have zero width or height, return the first rectangle in list.
+    auto all_rectangle_has_zero_width_or_height = true;
+    for (auto i = 0u; i < list->length(); ++i) {
+        auto const& rect = list->item(i);
+        if (rect->width() != 0 && rect->height() != 0) {
+            all_rectangle_has_zero_width_or_height = false;
+            break;
+        }
+    }
+    if (all_rectangle_has_zero_width_or_height)
+        return JS::NonnullGCPtr { *const_cast<Geometry::DOMRect*>(list->item(0)) };
+
+    // 4. Otherwise, return a DOMRect object describing the smallest rectangle that includes all of the rectangles in
+    //    list of which the height or width is not zero.
+    auto const* first_rect = list->item(0);
+    auto bounding_rect = Gfx::Rect { first_rect->x(), first_rect->y(), first_rect->width(), first_rect->height() };
+    for (auto i = 1u; i < list->length(); ++i) {
+        auto const& rect = list->item(i);
+        if (rect->width() == 0 || rect->height() == 0)
+            continue;
+        bounding_rect = bounding_rect.united({ rect->x(), rect->y(), rect->width(), rect->height() });
+    }
+    return Geometry::DOMRect::create(realm(), bounding_rect.to_type<float>());
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
