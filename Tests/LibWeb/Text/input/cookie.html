@@ -31,6 +31,47 @@
         deleteCookie("cookie3");
     };
 
+    const namelessCookieTest = () => {
+        document.cookie = "=value";
+        printCookies("Nameless cookie");
+
+        deleteCookie("");
+    };
+
+    const valuelessCookieTest = () => {
+        document.cookie = "cookie=";
+        printCookies("Valueless cookie");
+
+        deleteCookie("cookie");
+    };
+
+    const namelessAndValuelessCookieTest = () => {
+        document.cookie = "=";
+        printCookies("Nameless and valueless cookie");
+    };
+
+    const invalidControlCharacterTest = () => {
+        document.cookie = "cookie=ab\ncd";
+        printCookies("Invalid control character");
+    };
+
+    const nonASCIIDomainTest = () => {
+        document.cookie = "cookie=value; domain=🤓";
+        printCookies("Non-ASCII domain");
+    };
+
+    const secureCookiePrefixTest = () => {
+        document.cookie = "__Secure-cookie=value";
+        printCookies("Secure cookie prefix");
+    };
+
+    const hostCookiePrefixTest = () => {
+        document.cookie = "__Host-cookie1=value";
+        document.cookie = "__Host-cookie2=value; secure";
+        document.cookie = "__Host-cookie3=value; secure; path=/foo";
+        printCookies("Host cookie prefix");
+    };
+
     const largeValueTest = () => {
         const value = "x".repeat(256);
 
@@ -41,7 +82,7 @@
     };
 
     const overlyLargeValueTest = () => {
-        const value = "x".repeat(4096 - "cookie=".length + 1);
+        const value = "x".repeat(4096 - "cookie".length + 1);
 
         document.cookie = `cookie=${value}`;
         printCookies("Overly large value");
@@ -128,6 +169,15 @@
     asyncTest(done => {
         basicTest();
         multipleCookiesTest();
+
+        namelessCookieTest();
+        valuelessCookieTest();
+        namelessAndValuelessCookieTest();
+
+        invalidControlCharacterTest();
+        nonASCIIDomainTest();
+        secureCookiePrefixTest();
+        hostCookiePrefixTest();
 
         largeValueTest();
         overlyLargeValueTest();
