@@ -31,7 +31,7 @@ struct Cookie {
 
     String name;
     String value;
-    SameSite same_site;
+    SameSite same_site { SameSite::Default };
     UnixDateTime creation_time {};
     UnixDateTime last_access_time {};
     UnixDateTime expiry_time {};
