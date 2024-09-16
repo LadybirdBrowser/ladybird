@@ -1194,7 +1194,7 @@ void Document::update_layout()
         page().client().page_did_layout();
     }
 
-    paintable()->recompute_selection_states();
+    paintable()->update_selection();
 
     m_needs_layout = false;
 
