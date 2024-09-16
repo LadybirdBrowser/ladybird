@@ -216,6 +216,13 @@ bool FlexFormattingContext::is_direction_reverse() const
 void FlexFormattingContext::populate_specified_margins(FlexItem& item, CSS::FlexDirection flex_direction) const
 {
     auto width_of_containing_block = m_flex_container_state.content_width();
+
+    auto& state = m_state.get_mutable(*item.box);
+    state.padding_left = item.box->computed_values().padding().left().to_px(item.box, width_of_containing_block);
+    state.padding_right = item.box->computed_values().padding().right().to_px(item.box, width_of_containing_block);
+    state.padding_top = item.box->computed_values().padding().top().to_px(item.box, width_of_containing_block);
+    state.padding_bottom = item.box->computed_values().padding().bottom().to_px(item.box, width_of_containing_block);
+
     // FIXME: This should also take reverse-ness into account
     if (flex_direction == CSS::FlexDirection::Row || flex_direction == CSS::FlexDirection::RowReverse) {
         item.borders.main_before = item.box->computed_values().border_left().width;
@@ -243,10 +250,10 @@ void FlexFormattingContext::populate_specified_margins(FlexItem& item, CSS::Flex
         item.borders.cross_before = item.box->computed_values().border_left().width;
         item.borders.cross_after = item.box->computed_values().border_right().width;
 
-        item.padding.main_before = item.box->computed_values().padding().top().to_px(item.box, width_of_containing_block);
-        item.padding.main_after = item.box->computed_values().padding().bottom().to_px(item.box, width_of_containing_block);
-        item.padding.cross_before = item.box->computed_values().padding().left().to_px(item.box, width_of_containing_block);
-        item.padding.cross_after = item.box->computed_values().padding().right().to_px(item.box, width_of_containing_block);
+        item.padding.main_before = state.padding_top;
+        item.padding.main_after = state.padding_bottom;
+        item.padding.cross_before = state.padding_left;
+        item.padding.cross_after = state.padding_right;
 
         item.margins.main_before = item.box->computed_values().margin().top().to_px(item.box, width_of_containing_block);
         item.margins.main_after = item.box->computed_values().margin().bottom().to_px(item.box, width_of_containing_block);
@@ -1603,11 +1610,6 @@ void FlexFormattingContext::copy_dimensions_from_flex_items_to_boxes()
 {
     for (auto& item : m_flex_items) {
         auto const& box = item.box;
-
-        item.used_values.padding_left = box->computed_values().padding().left().to_px(box, m_flex_container_state.content_width());
-        item.used_values.padding_right = box->computed_values().padding().right().to_px(box, m_flex_container_state.content_width());
-        item.used_values.padding_top = box->computed_values().padding().top().to_px(box, m_flex_container_state.content_width());
-        item.used_values.padding_bottom = box->computed_values().padding().bottom().to_px(box, m_flex_container_state.content_width());
 
         item.used_values.margin_left = box->computed_values().margin().left().to_px(box, m_flex_container_state.content_width());
         item.used_values.margin_right = box->computed_values().margin().right().to_px(box, m_flex_container_state.content_width());

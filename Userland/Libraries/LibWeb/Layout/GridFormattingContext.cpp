@@ -1923,6 +1923,10 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     box_state.border_right = box.computed_values().border_right().width;
     box_state.border_top = box.computed_values().border_top().width;
     box_state.border_bottom = box.computed_values().border_bottom().width;
+    box_state.padding_left = box.computed_values().padding().left().to_px(grid_container(), grid_area_rect.width());
+    box_state.padding_right = box.computed_values().padding().right().to_px(grid_container(), grid_area_rect.width());
+    box_state.padding_top = box.computed_values().padding().top().to_px(grid_container(), grid_area_rect.width());
+    box_state.padding_bottom = box.computed_values().padding().bottom().to_px(grid_container(), grid_area_rect.width());
 
     compute_width_for_absolutely_positioned_element(box, available_space);
 
