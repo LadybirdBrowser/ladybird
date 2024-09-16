@@ -47,6 +47,7 @@
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWeb/WebDriver/Screenshot.h>
 #include <WebContent/WebDriverConnection.h>
+#include <sys/proc.h>
 
 namespace WebContent {
 
@@ -575,23 +576,30 @@ Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::swit
     dbgln("FIXME: WebDriverConnection::switch_to_parent_frame()");
 
     // FIXME: 1. If session's current browsing context is already the top-level browsing context:
+    if (current_browsing_context().top_level_browsing_context()->is_top_level()) {
 
-    {
         // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
+        if (current_browsing_context().has_navigable_been_destroyed()) {
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "no such window"sv);
+        }
 
         // FIXME: 2. Return success with data null.
+        return JsonValue {};
     }
 
     // FIXME: 2. If session's current parent browsing context is no longer open, return error with error code no such window.
+    if (current_parent_browsing_context().has_navigable_been_destroyed()) {
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "no such window"sv);
+    }
 
     // FIXME: 3. Try to handle any user prompts with session.
+    TRY(handle_any_user_prompts());
 
     // FIXME: 4. If session's current parent browsing context is not null, set the current browsing context with session and current parent browsing context.
 
     // FIXME: 5. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
 
     // FIXME: 6. Return success with data null.
-
     return JsonValue {};
 }
 
