@@ -408,7 +408,7 @@ void BlockFormattingContext::compute_width_for_block_level_replaced_element_in_n
     box_state.padding_right = padding_right;
 }
 
-void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const& available_space)
+void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const& available_space, FormattingContext const* box_formatting_context)
 {
     auto const& computed_values = box.computed_values();
     auto& box_used_values = m_state.get_mutable(box);
@@ -419,7 +419,11 @@ void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const
         height = compute_height_for_replaced_element(box, available_space);
     } else {
         if (should_treat_height_as_auto(box, available_space)) {
-            height = compute_auto_height_for_block_level_element(box, m_state.get(box).available_inner_space_or_constraints_from(available_space));
+            if (box_formatting_context) {
+                height = box_formatting_context->automatic_content_height();
+            } else {
+                height = compute_auto_height_for_block_level_element(box, m_state.get(box).available_inner_space_or_constraints_from(available_space));
+            }
         } else {
             height = calculate_inner_height(box, available_space.height, computed_values.height());
         }
@@ -698,7 +702,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     // Tables already set their height during the independent formatting context run. When multi-line text cells are involved, using different
     // available space here than during the independent formatting context run can result in different line breaks and thus a different height.
     if (!box.display().is_table_inside()) {
-        compute_height(box, available_space);
+        compute_height(box, available_space, independent_formatting_context);
     }
 
     if (independent_formatting_context || !margins_collapse_through(box, m_state)) {
@@ -941,7 +945,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
         compute_height(box, available_space);
 
     auto independent_formatting_context = layout_inside(box, m_layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
-    compute_height(box, available_space);
+    compute_height(box, available_space, independent_formatting_context);
 
     // First we place the box normally (to get the right y coordinate.)
     // If we have a LineBuilder, we're in the middle of inline layout, otherwise this is block layout.
