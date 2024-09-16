@@ -449,15 +449,17 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
     //    Otherwise, return error with error code no such window.
     bool found_matching_context = false;
 
-    current_top_level_browsing_context()->for_each_in_inclusive_subtree([&](Web::HTML::BrowsingContext& context) {
-        if (handle != context.top_level_traversable()->window_handle())
-            return Web::TraversalDecision::Continue;
+    if (auto browsing_context = current_top_level_browsing_context()) {
+        browsing_context->for_each_in_inclusive_subtree([&](Web::HTML::BrowsingContext& context) {
+            if (handle != context.top_level_traversable()->window_handle())
+                return Web::TraversalDecision::Continue;
 
-        m_current_browsing_context = context;
-        found_matching_context = true;
+            m_current_browsing_context = context;
+            found_matching_context = true;
 
-        return Web::TraversalDecision::Break;
-    });
+            return Web::TraversalDecision::Break;
+        });
+    }
 
     if (!found_matching_context)
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found");
