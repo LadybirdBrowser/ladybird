@@ -116,6 +116,20 @@
     return controller;
 }
 
+- (nonnull TabController*)createChildTab:(Optional<URL::URL> const&)url
+                                 fromTab:(nonnull Tab*)tab
+                             activateTab:(Web::HTML::ActivateTab)activate_tab
+                               pageIndex:(u64)page_index
+{
+    auto* controller = [self createChildTab:activate_tab fromTab:tab pageIndex:page_index];
+
+    if (url.has_value()) {
+        [controller loadURL:*url];
+    }
+
+    return controller;
+}
+
 - (void)setActiveTab:(Tab*)tab
 {
     self.active_tab = tab;
@@ -175,6 +189,29 @@
                                fromTab:(nullable Tab*)tab
 {
     auto* controller = [[TabController alloc] init];
+    [self initializeTabController:controller
+                      activateTab:activate_tab
+                          fromTab:tab];
+
+    return controller;
+}
+
+- (nonnull TabController*)createChildTab:(Web::HTML::ActivateTab)activate_tab
+                                 fromTab:(nonnull Tab*)tab
+                               pageIndex:(u64)page_index
+{
+    auto* controller = [[TabController alloc] initAsChild:tab pageIndex:page_index];
+    [self initializeTabController:controller
+                      activateTab:activate_tab
+                          fromTab:tab];
+
+    return controller;
+}
+
+- (void)initializeTabController:(TabController*)controller
+                    activateTab:(Web::HTML::ActivateTab)activate_tab
+                        fromTab:(nullable Tab*)tab
+{
     [controller showWindow:nil];
 
     if (tab) {
@@ -192,7 +229,6 @@
 
     [self.managed_tabs addObject:controller];
     [controller onCreateNewTab];
-    return controller;
 }
 
 - (void)closeCurrentTab:(id)sender

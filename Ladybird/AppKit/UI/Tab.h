@@ -6,11 +6,17 @@
 
 #pragma once
 
+#include <AK/Types.h>
+
 #import <Cocoa/Cocoa.h>
 
 @class LadybirdWebView;
 
 @interface Tab : NSWindow
+
+- (instancetype)init;
+- (instancetype)initAsChild:(Tab*)parent
+                  pageIndex:(u64)page_index;
 
 - (void)tabWillClose;
 

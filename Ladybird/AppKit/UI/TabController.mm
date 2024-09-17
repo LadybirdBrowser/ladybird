@@ -49,6 +49,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
 @interface TabController () <NSToolbarDelegate, NSSearchFieldDelegate>
 {
+    u64 m_page_index;
+
     ByteString m_title;
 
     TabSettings m_settings;
@@ -56,6 +58,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     bool m_can_navigate_back;
     bool m_can_navigate_forward;
 }
+
+@property (nonatomic, strong) Tab* parent;
 
 @property (nonatomic, strong) NSToolbar* toolbar;
 @property (nonatomic, strong) NSArray* toolbar_identifiers;
@@ -92,6 +96,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         [self.toolbar setAllowsUserCustomization:NO];
         [self.toolbar setSizeMode:NSToolbarSizeModeRegular];
 
+        m_page_index = 0;
+
         m_settings = {
             .scripting_enabled = WebView::Application::chrome_options().disable_scripting == WebView::DisableScripting::Yes ? NO : YES,
             .block_popups = WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::Yes ? NO : YES,
@@ -102,6 +108,17 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
         m_can_navigate_back = false;
         m_can_navigate_forward = false;
+    }
+
+    return self;
+}
+
+- (instancetype)initAsChild:(Tab*)parent
+                  pageIndex:(u64)page_index
+{
+    if (self = [self init]) {
+        self.parent = parent;
+        m_page_index = page_index;
     }
 
     return self;
@@ -544,7 +561,10 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
 - (IBAction)showWindow:(id)sender
 {
-    self.window = [[Tab alloc] init];
+    self.window = self.parent
+        ? [[Tab alloc] initAsChild:self.parent pageIndex:m_page_index]
+        : [[Tab alloc] init];
+
     [self.window setDelegate:self];
 
     [self.window setToolbar:self.toolbar];
