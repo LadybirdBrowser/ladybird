@@ -116,11 +116,6 @@ size_t ConnectionFromClient::on_data_received(void* buffer, size_t size, size_t 
 
     request->downloaded_so_far += total_size;
 
-    request->client->async_request_progress(
-        request->request_id,
-        content_length_for_ipc,
-        request->downloaded_so_far);
-
     return total_size;
 }
 

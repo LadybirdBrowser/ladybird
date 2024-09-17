@@ -19,12 +19,6 @@ ErrorOr<NonnullRefPtr<RequestServerRequestAdapter>> RequestServerRequestAdapter:
 RequestServerRequestAdapter::RequestServerRequestAdapter(NonnullRefPtr<Requests::Request> request)
     : m_request(request)
 {
-    request->on_progress = [weak_this = make_weak_ptr()](Optional<u64> total_size, u64 downloaded_size) {
-        if (auto strong_this = weak_this.strong_ref())
-            if (strong_this->on_progress)
-                strong_this->on_progress(total_size, downloaded_size);
-    };
-
     request->on_certificate_requested = [weak_this = make_weak_ptr()]() {
         if (auto strong_this = weak_this.strong_ref()) {
             if (strong_this->on_certificate_requested) {
