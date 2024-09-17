@@ -268,7 +268,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 #pragma mark - LadybirdWebViewObserver
 
-- (String const&)onCreateNewTab:(URL::URL const&)url
+- (String const&)onCreateNewTab:(Optional<URL::URL> const&)url
                     activateTab:(Web::HTML::ActivateTab)activate_tab
 {
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];

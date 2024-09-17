@@ -323,7 +323,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             return String {};
         }
         // FIXME: Create a child tab that re-uses the ConnectionFromClient of the parent tab
-        return [self.observer onCreateNewTab:"about:blank"sv activateTab:activate_tab];
+        return [self.observer onCreateNewTab:{} activateTab:activate_tab];
     };
 
     m_web_view_bridge->on_request_web_content = [weak_self]() {

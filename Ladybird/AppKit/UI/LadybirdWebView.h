@@ -20,7 +20,7 @@
 
 @protocol LadybirdWebViewObserver <NSObject>
 
-- (String const&)onCreateNewTab:(URL::URL const&)url
+- (String const&)onCreateNewTab:(Optional<URL::URL> const&)url
                     activateTab:(Web::HTML::ActivateTab)activate_tab;
 
 - (String const&)onCreateNewTab:(StringView)html
