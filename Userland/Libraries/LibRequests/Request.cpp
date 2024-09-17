@@ -19,7 +19,6 @@ bool Request::stop()
 {
     on_headers_received = nullptr;
     on_finish = nullptr;
-    on_progress = nullptr;
     on_certificate_requested = nullptr;
 
     m_internal_buffered_data = nullptr;
@@ -86,12 +85,6 @@ void Request::did_finish(Badge<RequestClient>, bool success, u64 total_size)
 {
     if (on_finish)
         on_finish(success, total_size);
-}
-
-void Request::did_progress(Badge<RequestClient>, Optional<u64> total_size, u64 downloaded_size)
-{
-    if (on_progress)
-        on_progress(total_size, downloaded_size);
 }
 
 void Request::did_receive_headers(Badge<RequestClient>, HTTP::HeaderMap const& response_headers, Optional<u32> response_code)

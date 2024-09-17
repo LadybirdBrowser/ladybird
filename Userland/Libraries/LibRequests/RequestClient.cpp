@@ -77,13 +77,6 @@ void RequestClient::request_finished(i32 request_id, bool success, u64 total_siz
     m_requests.remove(request_id);
 }
 
-void RequestClient::request_progress(i32 request_id, Optional<u64> const& total_size, u64 downloaded_size)
-{
-    if (auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr))) {
-        request->did_progress({}, total_size, downloaded_size);
-    }
-}
-
 void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap const& response_headers, Optional<u32> const& status_code)
 {
     auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
