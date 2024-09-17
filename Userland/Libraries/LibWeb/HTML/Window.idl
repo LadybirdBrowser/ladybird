@@ -1,4 +1,3 @@
-#import <Crypto/Crypto.idl>
 #import <CSS/MediaQueryList.idl>
 #import <CSS/Screen.idl>
 #import <CSS/VisualViewport.idl>
@@ -107,9 +106,6 @@ interface Window : EventTarget {
 
     // https://w3c.github.io/selection-api/#extensions-to-window-interface
     Selection? getSelection();
-
-    // https://w3c.github.io/webcrypto/#crypto-interface
-    [SameObject] readonly attribute Crypto crypto;
 
     undefined captureEvents();
     undefined releaseEvents();

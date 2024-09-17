@@ -1,3 +1,4 @@
+#import <Crypto/Crypto.idl>
 #import <Fetch/Request.idl>
 #import <Fetch/Response.idl>
 #import <HighResolutionTime/Performance.idl>
@@ -48,4 +49,7 @@ interface mixin WindowOrWorkerGlobalScope {
 
     // https://w3c.github.io/IndexedDB/#factory-interface
     [SameObject] readonly attribute IDBFactory indexedDB;
+
+    // https://w3c.github.io/webcrypto/#crypto-interface
+    [SameObject] readonly attribute Crypto crypto;
 };

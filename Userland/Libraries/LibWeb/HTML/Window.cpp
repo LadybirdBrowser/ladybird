@@ -24,7 +24,6 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
 #include <LibWeb/CSS/Screen.h>
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
@@ -120,7 +119,6 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_current_event);
     visitor.visit(m_screen);
     visitor.visit(m_location);
-    visitor.visit(m_crypto);
     visitor.visit(m_navigator);
     visitor.visit(m_navigation);
     visitor.visit(m_custom_element_registry);
@@ -1551,16 +1549,6 @@ JS::GCPtr<Selection::Selection> Window::get_selection() const
 {
     // The method must invoke and return the result of getSelection() on this's Window.document attribute.
     return associated_document().get_selection();
-}
-
-// https://w3c.github.io/webcrypto/#dom-windoworworkerglobalscope-crypto
-JS::NonnullGCPtr<Crypto::Crypto> Window::crypto()
-{
-    auto& realm = this->realm();
-
-    if (!m_crypto)
-        m_crypto = heap().allocate<Crypto::Crypto>(realm, realm);
-    return JS::NonnullGCPtr { *m_crypto };
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-window-captureevents

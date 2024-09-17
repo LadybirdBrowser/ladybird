@@ -210,8 +210,6 @@ public:
 
     JS::GCPtr<Selection::Selection> get_selection() const;
 
-    [[nodiscard]] JS::NonnullGCPtr<Crypto::Crypto> crypto();
-
     void capture_events();
     void release_events();
 
@@ -270,7 +268,6 @@ private:
     // https://html.spec.whatwg.org/multipage/webappapis.html#import-maps-allowed
     bool m_import_maps_allowed { true };
 
-    JS::GCPtr<Crypto::Crypto> m_crypto;
     JS::GCPtr<CSS::Screen> m_screen;
     JS::GCPtr<Navigator> m_navigator;
     JS::GCPtr<Location> m_location;
