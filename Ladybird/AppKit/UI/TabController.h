@@ -11,6 +11,8 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class Tab;
+
 struct TabSettings {
     BOOL should_show_line_box_borders { NO };
     BOOL scripting_enabled { YES };
@@ -23,6 +25,8 @@ struct TabSettings {
 @interface TabController : NSWindowController <NSWindowDelegate>
 
 - (instancetype)init;
+- (instancetype)initAsChild:(Tab*)parent
+                  pageIndex:(u64)page_index;
 
 - (void)loadURL:(URL::URL const&)url;
 - (void)loadHTML:(StringView)html url:(URL::URL const&)url;

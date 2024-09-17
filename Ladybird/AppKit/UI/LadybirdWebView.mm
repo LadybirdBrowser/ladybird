@@ -89,6 +89,26 @@ struct HideCursor {
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer
 {
+    if (self = [self initWebView:observer]) {
+        m_web_view_bridge->initialize_client();
+    }
+
+    return self;
+}
+
+- (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
+                     parent:(LadybirdWebView*)parent
+                  pageIndex:(u64)page_index
+{
+    if (self = [self initWebView:observer]) {
+        m_web_view_bridge->initialize_client_as_child(*parent->m_web_view_bridge, page_index);
+    }
+
+    return self;
+}
+
+- (instancetype)initWebView:(id<LadybirdWebViewObserver>)observer
+{
     if (self = [super init]) {
         self.observer = observer;
 
@@ -108,8 +128,6 @@ struct HideCursor {
 
         m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, [delegate preferredColorScheme], [delegate preferredContrast], [delegate preferredMotion]));
         [self setWebViewCallbacks];
-
-        m_web_view_bridge->initialize_client();
 
         auto* area = [[NSTrackingArea alloc] initWithRect:[self bounds]
                                                   options:NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect | NSTrackingMouseMoved
@@ -317,12 +335,18 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [self setNeedsDisplay:YES];
     };
 
-    m_web_view_bridge->on_new_web_view = [weak_self](auto activate_tab, auto, auto) {
+    m_web_view_bridge->on_new_web_view = [weak_self](auto activate_tab, auto, auto page_index) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return String {};
         }
-        // FIXME: Create a child tab that re-uses the ConnectionFromClient of the parent tab
+
+        if (page_index.has_value()) {
+            return [self.observer onCreateChildTab:{}
+                                       activateTab:activate_tab
+                                         pageIndex:*page_index];
+        }
+
         return [self.observer onCreateNewTab:{} activateTab:activate_tab];
     };
 
