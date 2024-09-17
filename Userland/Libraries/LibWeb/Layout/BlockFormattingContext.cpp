@@ -306,14 +306,20 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
 
     auto margin_left = computed_values.margin().left().resolved(box, width_of_containing_block);
     auto margin_right = computed_values.margin().right().resolved(box, width_of_containing_block);
-    auto const padding_left = computed_values.padding().left().resolved(box, width_of_containing_block).to_px(box);
-    auto const padding_right = computed_values.padding().right().resolved(box, width_of_containing_block).to_px(box);
 
     // If 'margin-left', or 'margin-right' are computed as 'auto', their used value is '0'.
     if (margin_left.is_auto())
         margin_left = zero_value;
     if (margin_right.is_auto())
         margin_right = zero_value;
+
+    auto& box_state = m_state.get_mutable(box);
+    box_state.padding_left = computed_values.padding().left().resolved(box, width_of_containing_block).to_px(box);
+    box_state.padding_right = computed_values.padding().right().resolved(box, width_of_containing_block).to_px(box);
+    box_state.margin_left = margin_left.to_px(box);
+    box_state.margin_right = margin_right.to_px(box);
+    box_state.border_left = computed_values.border_left().width;
+    box_state.border_right = computed_values.border_right().width;
 
     auto compute_width = [&](auto width) {
         // If 'width' is computed as 'auto', the used value is the "shrink-to-fit" width.
@@ -325,8 +331,8 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
                 // block minus the used values of 'margin-left', 'border-left-width', 'padding-left',
                 // 'padding-right', 'border-right-width', 'margin-right', and the widths of any relevant scroll bars.
                 auto available_width = available_space.width.to_px_or_zero()
-                    - margin_left.to_px(box) - computed_values.border_left().width - padding_left
-                    - padding_right - computed_values.border_right().width - margin_right.to_px(box);
+                    - margin_left.to_px(box) - computed_values.border_left().width - box_state.padding_left
+                    - box_state.padding_right - computed_values.border_right().width - margin_right.to_px(box);
                 // Then the shrink-to-fit width is: min(max(preferred minimum width, available width), preferred width).
                 width = CSS::Length::make_px(min(max(result.preferred_minimum_width, available_width), result.preferred_width));
             } else if (available_space.width.is_indefinite() || available_space.width.is_max_content()) {
@@ -366,14 +372,7 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
             width = compute_width(CSS::Length::make_px(min_width));
     }
 
-    auto& box_state = m_state.get_mutable(box);
     box_state.set_content_width(width.to_px(box));
-    box_state.margin_left = margin_left.to_px(box);
-    box_state.margin_right = margin_right.to_px(box);
-    box_state.border_left = computed_values.border_left().width;
-    box_state.border_right = computed_values.border_right().width;
-    box_state.padding_left = padding_left;
-    box_state.padding_right = padding_right;
 }
 
 void BlockFormattingContext::compute_width_for_block_level_replaced_element_in_normal_flow(Box const& box, AvailableSpace const& available_space)
