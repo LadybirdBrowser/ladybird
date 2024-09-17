@@ -2079,7 +2079,6 @@ bool RoundCalculationNode::contains_percentage() const
 
 CalculatedStyleValue::CalculationResult RoundCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
-    auto resolved_type = m_x->resolved_type().value();
     auto node_a = m_x->resolve(context, percentage_basis);
     auto node_b = m_y->resolve(context, percentage_basis);
 
@@ -2088,6 +2087,8 @@ CalculatedStyleValue::CalculationResult RoundCalculationNode::resolve(Optional<L
 
     auto upper_b = ceil(node_a_value / node_b_value) * node_b_value;
     auto lower_b = floor(node_a_value / node_b_value) * node_b_value;
+
+    auto resolved_type = node_a.resolved_type();
 
     if (m_strategy == RoundingStrategy::Nearest) {
         auto upper_diff = fabs(upper_b - node_a_value);
@@ -2592,6 +2593,19 @@ void CalculatedStyleValue::CalculationResult::invert()
         [&](Percentage const& percentage) {
             m_value = Percentage { 1 / percentage.value() };
         });
+}
+
+CalculatedStyleValue::ResolvedType CalculatedStyleValue::CalculationResult::resolved_type() const
+{
+    return m_value.visit(
+        [](Number const&) { return ResolvedType::Number; },
+        [](Angle const&) { return ResolvedType::Angle; },
+        [](Flex const&) { return ResolvedType::Flex; },
+        [](Frequency const&) { return ResolvedType::Frequency; },
+        [](Length const&) { return ResolvedType::Length; },
+        [](Percentage const&) { return ResolvedType::Percentage; },
+        [](Resolution const&) { return ResolvedType::Resolution; },
+        [](Time const&) { return ResolvedType::Time; });
 }
 
 String CalculatedStyleValue::to_string() const

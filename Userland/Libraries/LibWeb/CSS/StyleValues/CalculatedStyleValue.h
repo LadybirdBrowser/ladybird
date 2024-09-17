@@ -65,6 +65,8 @@ public:
 
         Value const& value() const { return m_value; }
 
+        ResolvedType resolved_type() const;
+
         [[nodiscard]] bool operator==(CalculationResult const&) const = default;
 
     private:
