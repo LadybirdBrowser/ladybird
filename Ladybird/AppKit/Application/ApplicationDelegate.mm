@@ -97,7 +97,10 @@
                    activateTab:(Web::HTML::ActivateTab)activate_tab
 {
     auto* controller = [self createNewTab:activate_tab fromTab:tab];
-    [controller loadURL:url.value_or(WebView::Application::chrome_options().new_tab_page_url)];
+
+    if (url.has_value()) {
+        [controller loadURL:*url];
+    }
 
     return controller;
 }
