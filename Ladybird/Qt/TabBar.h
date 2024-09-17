@@ -28,6 +28,12 @@ public:
 
     virtual QSize tabSizeHint(int index) const override;
     virtual void contextMenuEvent(QContextMenuEvent* event) override;
+
+private:
+    void mousePressEvent(QMouseEvent*) override;
+    void mouseMoveEvent(QMouseEvent*) override;
+
+    int m_x_position_in_selected_tab_while_dragging;
 };
 
 class TabWidget : public QTabWidget {
