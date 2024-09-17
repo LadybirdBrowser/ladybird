@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let work = new Worker("worker-crypto.js");
+        work.onmessage = (evt) => {
+            println(`Type of self.crypto: ${evt.data}`);
+            done();
+        };
+    });
+</script>
