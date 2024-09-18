@@ -116,36 +116,6 @@ if (enable_unicode_database_download) {
     ]
   }
 
-  compiled_action("generate_emoji_sources") {
-    tool = "//Meta/Lagom/Tools/CodeGenerators/LibUnicode:GenerateEmojiData"
-    deps = [ ":emoji_test_download" ]
-    inputs = get_target_outputs(":emoji_test_download")
-    outputs = [
-      "$target_gen_dir/EmojiData.h",
-      "$target_gen_dir/EmojiData.cpp",
-    ]
-    args = [
-      "-h",
-      rebase_path(outputs[0], root_build_dir),
-      "-c",
-      rebase_path(outputs[1], root_build_dir),
-      "-e",
-      rebase_path(inputs[0], root_build_dir),
-      "-s",
-      rebase_path("//Base/home/anon/Documents/emoji-serenity.txt",
-                  root_build_dir),
-      "-f",
-      rebase_path("//Meta/emoji-file-list.txt", root_build_dir),
-      "-r",
-      rebase_path("//Base/res/emoji", root_build_dir),
-    ]
-
-    # FIXME: How to add file/directory dependencies on:
-    #        "//Base/home/anon/Documents/emoji-serenity.txt"
-    #        "//Base/res/emoji"
-    #        "//Meta/emoji-file-list.txt"
-  }
-
   compiled_action("generate_idna_sources") {
     tool = "//Meta/Lagom/Tools/CodeGenerators/LibUnicode:GenerateIDNAData"
     deps = [ ":idna_mapping_table_download" ]
@@ -186,12 +156,10 @@ source_set("LibUnicode") {
 
   if (enable_unicode_database_download) {
     deps += [
-      ":generate_emoji_sources",
       ":generate_idna_sources",
       ":generate_unicode_sources",
     ]
     sources += get_target_outputs(":generate_unicode_sources")
-    sources += get_target_outputs(":generate_emoji_sources")
     sources += get_target_outputs(":generate_idna_sources")
     defines = [ "ENABLE_UNICODE_DATA=1" ]
   } else {
