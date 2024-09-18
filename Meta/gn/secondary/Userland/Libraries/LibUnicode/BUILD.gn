@@ -72,14 +72,21 @@ source_set("LibUnicode") {
   ]
   sources = [
     "CharacterTypes.cpp",
+    "Collator.cpp",
     "CurrencyCode.cpp",
-    "Emoji.cpp",
+    "DateTimeFormat.cpp",
+    "DisplayNames.cpp",
+    "DurationFormat.cpp",
+    "ICU.cpp",
     "IDNA.cpp",
     "Normalize.cpp",
-    "Punycode.cpp",
-    "Segmentation.cpp",
+    "NumberFormat.cpp",
+    "PluralRules.cpp",
+    "RelativeTimeFormat.cpp",
+    "Segmenter.cpp",
     "String.cpp",
-    "UnicodeUtils.cpp",
+    "TimeZone.cpp",
+    "UnicodeKeywords.cpp",
   ]
   deps = [ "//AK" ]
 
