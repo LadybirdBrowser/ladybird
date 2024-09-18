@@ -199,6 +199,24 @@ Gfx::FloatRect PathImplSkia::bounding_box() const
     return { bounds.fLeft, bounds.fTop, bounds.fRight - bounds.fLeft, bounds.fBottom - bounds.fTop };
 }
 
+static SkPathFillType to_skia_path_fill_type(Gfx::WindingRule winding_rule)
+{
+    switch (winding_rule) {
+    case Gfx::WindingRule::Nonzero:
+        return SkPathFillType::kWinding;
+    case Gfx::WindingRule::EvenOdd:
+        return SkPathFillType::kEvenOdd;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+bool PathImplSkia::contains(FloatPoint point, Gfx::WindingRule winding_rule) const
+{
+    SkPath temp_path = *m_path;
+    temp_path.setFillType(to_skia_path_fill_type(winding_rule));
+    return temp_path.contains(point.x(), point.y());
+}
+
 NonnullOwnPtr<PathImpl> PathImplSkia::clone() const
 {
     auto new_path = PathImplSkia::create();
