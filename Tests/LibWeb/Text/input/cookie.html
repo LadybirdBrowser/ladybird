@@ -60,6 +60,16 @@
         printCookies("Non-ASCII domain");
     };
 
+    const defaultPathTest = () => {
+        document.cookie = "cookie1=value; path=";
+        document.cookie = "cookie2=value; path=f";
+
+        printCookies("Default path");
+
+        deleteCookie("cookie1");
+        deleteCookie("cookie2");
+    };
+
     const secureCookiePrefixTest = () => {
         document.cookie = "__Secure-cookie=value";
         printCookies("Secure cookie prefix");
@@ -179,6 +189,7 @@
 
         invalidControlCharacterTest();
         nonASCIIDomainTest();
+        defaultPathTest();
         secureCookiePrefixTest();
         hostCookiePrefixTest();
 

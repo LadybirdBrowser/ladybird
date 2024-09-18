@@ -276,30 +276,6 @@ bool CookieJar::path_matches(StringView request_path, StringView cookie_path)
     return false;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
-String CookieJar::default_path(const URL::URL& url)
-{
-    // 1. Let uri-path be the path portion of the request-uri if such a portion exists (and empty otherwise).
-    auto uri_path = URL::percent_decode(url.serialize_path());
-
-    // 2. If the uri-path is empty or if the first character of the uri-path is not a %x2F ("/") character, output
-    //    %x2F ("/") and skip the remaining steps.
-    if (uri_path.is_empty() || (uri_path[0] != '/'))
-        return "/"_string;
-
-    StringView uri_path_view = uri_path;
-    size_t last_separator = uri_path_view.find_last('/').value();
-
-    // 3. If the uri-path contains no more than one %x2F ("/") character, output %x2F ("/") and skip the remaining step.
-    if (last_separator == 0)
-        return "/"_string;
-
-    // 4. Output the characters of the uri-path from the first character up to, but not including, the right-most
-    //    %x2F ("/").
-    // FIXME: The path might not be valid UTF-8.
-    return MUST(String::from_utf8(uri_path.substring_view(0, last_separator)));
-}
-
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#name-storage-model
 void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, const URL::URL& url, String canonicalized_domain, Web::Cookie::Source source)
 {
@@ -424,7 +400,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
         if (parsed_cookie.path->byte_count() <= 1024)
             cookie.path = parsed_cookie.path.value();
     } else {
-        cookie.path = default_path(url);
+        cookie.path = Web::Cookie::default_path(url);
     }
 
     // 12. If the cookie-attribute-list contains an attribute with an attribute-name of "Secure", set the cookie's

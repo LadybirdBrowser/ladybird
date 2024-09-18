@@ -12,17 +12,18 @@
 #include <AK/Vector.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibURL/URL.h>
 #include <LibWeb/Infra/Strings.h>
 #include <ctype.h>
 
 namespace Web::Cookie {
 
-static void parse_attributes(ParsedCookie& parsed_cookie, StringView unparsed_attributes);
-static void process_attribute(ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value);
+static void parse_attributes(URL::URL const&, ParsedCookie& parsed_cookie, StringView unparsed_attributes);
+static void process_attribute(URL::URL const&, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value);
 static void on_expires_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
 static void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
 static void on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
-static void on_path_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
+static void on_path_attribute(URL::URL const&, ParsedCookie& parsed_cookie, StringView attribute_value);
 static void on_secure_attribute(ParsedCookie& parsed_cookie);
 static void on_http_only_attribute(ParsedCookie& parsed_cookie);
 static void on_same_site_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
@@ -43,7 +44,7 @@ bool cookie_contains_invalid_control_character(StringView cookie_string)
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6-6
-Optional<ParsedCookie> parse_cookie(StringView cookie_string)
+Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_string)
 {
     // 1. If the set-cookie-string contains a %x00-08 / %x0A-1F / %x7F character (CTL characters excluding HTAB):
     //    Abort these steps and ignore the set-cookie-string entirely.
@@ -96,12 +97,12 @@ Optional<ParsedCookie> parse_cookie(StringView cookie_string)
     // 6. The cookie-name is the name string, and the cookie-value is the value string.
     ParsedCookie parsed_cookie { MUST(String::from_utf8(name)), MUST(String::from_utf8(value)) };
 
-    parse_attributes(parsed_cookie, unparsed_attributes);
+    parse_attributes(url, parsed_cookie, unparsed_attributes);
     return parsed_cookie;
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6-8
-void parse_attributes(ParsedCookie& parsed_cookie, StringView unparsed_attributes)
+void parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie, StringView unparsed_attributes)
 {
     // 1. If the unparsed-attributes string is empty, skip the rest of these steps.
     if (unparsed_attributes.is_empty())
@@ -152,19 +153,19 @@ void parse_attributes(ParsedCookie& parsed_cookie, StringView unparsed_attribute
     // 6. If the attribute-value is longer than 1024 octets, ignore the cookie-av string and return to Step 1 of this
     //    algorithm.
     if (attribute_value.length() > 1024) {
-        parse_attributes(parsed_cookie, unparsed_attributes);
+        parse_attributes(url, parsed_cookie, unparsed_attributes);
         return;
     }
 
     // 7. Process the attribute-name and attribute-value according to the requirements in the following subsections.
     //    (Notice that attributes with unrecognized attribute-names are ignored.)
-    process_attribute(parsed_cookie, attribute_name, attribute_value);
+    process_attribute(url, parsed_cookie, attribute_name, attribute_value);
 
     // 8. Return to Step 1 of this algorithm.
-    parse_attributes(parsed_cookie, unparsed_attributes);
+    parse_attributes(url, parsed_cookie, unparsed_attributes);
 }
 
-void process_attribute(ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value)
+void process_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value)
 {
     if (attribute_name.equals_ignoring_ascii_case("Expires"sv)) {
         on_expires_attribute(parsed_cookie, attribute_value);
@@ -173,7 +174,7 @@ void process_attribute(ParsedCookie& parsed_cookie, StringView attribute_name, S
     } else if (attribute_name.equals_ignoring_ascii_case("Domain"sv)) {
         on_domain_attribute(parsed_cookie, attribute_value);
     } else if (attribute_name.equals_ignoring_ascii_case("Path"sv)) {
-        on_path_attribute(parsed_cookie, attribute_value);
+        on_path_attribute(url, parsed_cookie, attribute_value);
     } else if (attribute_name.equals_ignoring_ascii_case("Secure"sv)) {
         on_secure_attribute(parsed_cookie);
     } else if (attribute_name.equals_ignoring_ascii_case("HttpOnly"sv)) {
@@ -278,21 +279,24 @@ void on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.4
-void on_path_attribute(ParsedCookie& parsed_cookie, StringView attribute_value)
+void on_path_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringView attribute_value)
 {
+    String cookie_path;
+
     // 1. If the attribute-value is empty or if the first character of the attribute-value is not %x2F ("/"):
     if (attribute_value.is_empty() || attribute_value[0] != '/') {
-        // Let cookie-path be the default-path.
-        return;
+        // 1. Let cookie-path be the default-path.
+        cookie_path = default_path(url);
     }
-
     // Otherwise:
-    //     1. Let cookie-path be the attribute-value.
-    auto cookie_path = attribute_value;
+    else {
+        // 1. Let cookie-path be the attribute-value.
+        cookie_path = MUST(String::from_utf8(attribute_value));
+    }
 
     // 2. Append an attribute to the cookie-attribute-list with an attribute-name of Path and an attribute-value of
     //    cookie-path.
-    parsed_cookie.path = MUST(String::from_utf8(cookie_path));
+    parsed_cookie.path = move(cookie_path);
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.5
@@ -462,6 +466,30 @@ Optional<UnixDateTime> parse_date_time(StringView date_string)
 
     // 7. Return the parsed-cookie-date as the result of this algorithm.
     return parsed_cookie_date;
+}
+
+// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
+String default_path(URL::URL const& url)
+{
+    // 1. Let uri-path be the path portion of the request-uri if such a portion exists (and empty otherwise).
+    auto uri_path = URL::percent_decode(url.serialize_path());
+
+    // 2. If the uri-path is empty or if the first character of the uri-path is not a %x2F ("/") character, output
+    //    %x2F ("/") and skip the remaining steps.
+    if (uri_path.is_empty() || (uri_path[0] != '/'))
+        return "/"_string;
+
+    StringView uri_path_view = uri_path;
+    size_t last_separator = uri_path_view.find_last('/').value();
+
+    // 3. If the uri-path contains no more than one %x2F ("/") character, output %x2F ("/") and skip the remaining step.
+    if (last_separator == 0)
+        return "/"_string;
+
+    // 4. Output the characters of the uri-path from the first character up to, but not including, the right-most
+    //    %x2F ("/").
+    // FIXME: The path might not be valid UTF-8.
+    return MUST(String::from_utf8(uri_path.substring_view(0, last_separator)));
 }
 
 }
