@@ -104,6 +104,8 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
     result.is_animated = decoder->is_animated();
     result.loop_count = decoder->loop_count();
 
+    Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
+
     if (auto maybe_metadata = decoder->metadata(); maybe_metadata.has_value() && is<Gfx::ExifMetadata>(*maybe_metadata)) {
         auto const& exif = static_cast<Gfx::ExifMetadata const&>(maybe_metadata.value());
         if (exif.x_resolution().has_value() && exif.y_resolution().has_value()) {
@@ -116,10 +118,12 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
         }
     }
 
-    decode_image_to_bitmaps_and_durations_with_decoder(*decoder, move(ideal_size), result.bitmaps, result.durations);
+    decode_image_to_bitmaps_and_durations_with_decoder(*decoder, move(ideal_size), bitmaps, result.durations);
 
-    if (result.bitmaps.is_empty())
+    if (bitmaps.is_empty())
         return Error::from_string_literal("Could not decode image");
+
+    result.bitmaps = Gfx::BitmapSequence { bitmaps };
 
     return result;
 }

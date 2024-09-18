@@ -57,8 +57,9 @@ NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes en
     return promise;
 }
 
-void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> const& bitmaps, Vector<u32> const& durations, Gfx::FloatPoint scale)
+void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence const& bitmap_sequence, Vector<u32> const& durations, Gfx::FloatPoint scale)
 {
+    auto const& bitmaps = bitmap_sequence.bitmaps;
     VERIFY(!bitmaps.is_empty());
 
     auto maybe_promise = m_pending_decoded_images.take(image_id);

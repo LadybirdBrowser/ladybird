@@ -4,6 +4,7 @@ set(SOURCES
     AffineTransform.cpp
     AntiAliasingPainter.cpp
     Bitmap.cpp
+    BitmapSequence.cpp
     CMYKBitmap.cpp
     Color.cpp
     DeltaE.cpp
