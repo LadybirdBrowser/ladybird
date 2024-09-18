@@ -24,7 +24,7 @@ else
     build_dir=$LADYBIRD_SOURCE_DIR/Build/ladybird
 fi
 
-cd "$build_dir" || echo "Couldn’t cd to build directory" >&2 && exit 1
+cd "$build_dir" || { echo "Couldn’t cd to build directory" >&2 && exit 1; }
 
 if [[ -f ./bin/headless-browser ]]; then
     ladybird_headless_binary=./bin/headless-browser
