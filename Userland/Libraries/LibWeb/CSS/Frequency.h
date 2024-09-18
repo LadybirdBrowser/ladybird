@@ -47,7 +47,7 @@ public:
         return 0;
     }
 
-    static Frequency resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Frequency const& reference_value);
+    static Frequency resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&, Frequency const& reference_value);
 
 private:
     Type m_type;

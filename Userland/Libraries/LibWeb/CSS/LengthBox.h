@@ -16,7 +16,7 @@ public:
     LengthBox(LengthPercentage top, LengthPercentage right, LengthPercentage bottom, LengthPercentage left);
     ~LengthBox();
 
-    // Length (and thus LengthPercentage) includes a RefPtr<CalculatedStyleValue> member, but we can't include the header CSSStyleValue.h as it includes
+    // Length (and thus LengthPercentage) includes a RefPtr<CSSMathValue> member, but we can't include the header CSSStyleValue.h as it includes
     // this file already. To break the cyclic dependency, we must initialize these members in the constructor.
     LengthPercentage& top() { return m_top; }
     LengthPercentage& right() { return m_right; }

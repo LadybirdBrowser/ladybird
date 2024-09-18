@@ -17,7 +17,7 @@
 
 namespace Web::CSS {
 
-Angle AngleOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&) const
+Angle AngleOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
 {
     return calculated->resolve_angle().value();
 }
@@ -27,7 +27,7 @@ NonnullRefPtr<CSSStyleValue> AngleOrCalculated::create_style_value() const
     return AngleStyleValue::create(value());
 }
 
-Flex FlexOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&) const
+Flex FlexOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
 {
     return calculated->resolve_flex().value();
 }
@@ -37,7 +37,7 @@ NonnullRefPtr<CSSStyleValue> FlexOrCalculated::create_style_value() const
     return FlexStyleValue::create(value());
 }
 
-Frequency FrequencyOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&) const
+Frequency FrequencyOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
 {
     return calculated->resolve_frequency().value();
 }
@@ -47,7 +47,7 @@ NonnullRefPtr<CSSStyleValue> FrequencyOrCalculated::create_style_value() const
     return FrequencyStyleValue::create(value());
 }
 
-i64 IntegerOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&) const
+i64 IntegerOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
 {
     return calculated->resolve_integer().value();
 }
@@ -57,7 +57,7 @@ NonnullRefPtr<CSSStyleValue> IntegerOrCalculated::create_style_value() const
     return IntegerStyleValue::create(value());
 }
 
-Length LengthOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node) const
+Length LengthOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const& layout_node) const
 {
     return calculated->resolve_length(layout_node).value();
 }
@@ -74,7 +74,7 @@ NonnullRefPtr<CSSStyleValue> LengthOrCalculated::create_style_value() const
     return LengthStyleValue::create(value());
 }
 
-double NumberOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&) const
+double NumberOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
 {
     return calculated->resolve_number().value();
 }
@@ -84,7 +84,7 @@ NonnullRefPtr<CSSStyleValue> NumberOrCalculated::create_style_value() const
     return NumberStyleValue::create(value());
 }
 
-Percentage PercentageOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&) const
+Percentage PercentageOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
 {
     return calculated->resolve_percentage().value();
 }
@@ -94,7 +94,7 @@ NonnullRefPtr<CSSStyleValue> PercentageOrCalculated::create_style_value() const
     return PercentageStyleValue::create(value());
 }
 
-Resolution ResolutionOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&) const
+Resolution ResolutionOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
 {
     return calculated->resolve_resolution().value();
 }
@@ -104,7 +104,7 @@ NonnullRefPtr<CSSStyleValue> ResolutionOrCalculated::create_style_value() const
     return ResolutionStyleValue::create(value());
 }
 
-Time TimeOrCalculated::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&) const
+Time TimeOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
 {
     return calculated->resolve_time().value();
 }

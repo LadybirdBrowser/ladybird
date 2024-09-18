@@ -1038,8 +1038,8 @@ static RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, 
             case CSSStyleValue::Type::Angle:
                 values.append(AngleOrCalculated { value->as_angle().angle() });
                 break;
-            case CSSStyleValue::Type::Calculated:
-                values.append(LengthPercentage { value->as_calculated() });
+            case CSSStyleValue::Type::Math:
+                values.append(LengthPercentage { value->as_math() });
                 break;
             case CSSStyleValue::Type::Length:
                 values.append(LengthPercentage { value->as_length().length() });
@@ -1472,7 +1472,7 @@ static NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& elemen
             values.unchecked_append(to_calculation_node(interpolated_from));
             values.unchecked_append(to_calculation_node(interpolated_to));
             auto calc_node = SumCalculationNode::create(move(values));
-            return CalculatedStyleValue::create(move(calc_node), CSSNumericType { to_base_type_and_default->base_type, 1 });
+            return CSSMathValue::create(move(calc_node), CSSNumericType { to_base_type_and_default->base_type, 1 });
         }
 
         return delta >= 0.5f ? to : from;
@@ -2240,11 +2240,11 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
 
         } else if (font_size.is_length()) {
             maybe_length = font_size.as_length().length();
-        } else if (font_size.is_calculated()) {
-            if (font_size.as_calculated().contains_percentage()) {
-                maybe_length = font_size.as_calculated().resolve_length_percentage(length_resolution_context, Length::make_px(parent_font_size()));
+        } else if (font_size.is_math()) {
+            if (font_size.as_math().contains_percentage()) {
+                maybe_length = font_size.as_math().resolve_length_percentage(length_resolution_context, Length::make_px(parent_font_size()));
             } else {
-                maybe_length = font_size.as_calculated().resolve_length(length_resolution_context);
+                maybe_length = font_size.as_math().resolve_length(length_resolution_context);
             }
         }
         if (maybe_length.has_value()) {
@@ -3097,8 +3097,8 @@ void StyleComputer::compute_math_depth(StyleProperties& style, DOM::Element cons
     auto resolve_integer = [&](CSSStyleValue const& integer_value) {
         if (integer_value.is_integer())
             return integer_value.as_integer().integer();
-        if (integer_value.is_calculated())
-            return integer_value.as_calculated().resolve_integer().value();
+        if (integer_value.is_math())
+            return integer_value.as_math().resolve_integer().value();
         VERIFY_NOT_REACHED();
     };
 
