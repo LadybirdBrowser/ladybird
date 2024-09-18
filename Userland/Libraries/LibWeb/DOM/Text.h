@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibWeb/DOM/CharacterData.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Slottable.h>
 
 namespace Web::DOM {
@@ -47,6 +48,8 @@ public:
 
     bool is_password_input() const { return m_is_password_input; }
     void set_is_password_input(Badge<HTML::HTMLInputElement>, bool b) { m_is_password_input = b; }
+
+    Optional<Element::Directionality> directionality() const;
 
 protected:
     Text(Document&, String const&);
