@@ -6,7 +6,7 @@
 
 #include "Frequency.h"
 #include <LibWeb/CSS/Percentage.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSMathValue.h>
 
 namespace Web::CSS {
 
@@ -63,7 +63,7 @@ Optional<Frequency::Type> Frequency::unit_from_name(StringView name)
     return {};
 }
 
-Frequency Frequency::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&, Frequency const& reference_value)
+Frequency Frequency::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&, Frequency const& reference_value)
 {
     return calculated->resolve_frequency_percentage(reference_value).value();
 }

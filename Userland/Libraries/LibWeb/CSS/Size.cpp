@@ -44,7 +44,7 @@ Size Size::make_percentage(Percentage percentage)
     return Size { Type::Percentage, move(percentage) };
 }
 
-Size Size::make_calculated(NonnullRefPtr<Web::CSS::CalculatedStyleValue> calculated)
+Size Size::make_calculated(NonnullRefPtr<Web::CSS::CSSMathValue> calculated)
 {
     return Size { Type::Calculated, move(calculated) };
 }

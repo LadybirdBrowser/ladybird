@@ -702,8 +702,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (transition_delay_property->is_time()) {
         auto& transition_delay = transition_delay_property->as_time();
         computed_values.set_transition_delay(transition_delay.time());
-    } else if (transition_delay_property->is_calculated()) {
-        auto& transition_delay = transition_delay_property->as_calculated();
+    } else if (transition_delay_property->is_math()) {
+        auto& transition_delay = transition_delay_property->as_math();
         computed_values.set_transition_delay(transition_delay.resolve_time().value());
     }
 
@@ -724,8 +724,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
         } else {
             auto resolve_border_width = [&]() -> CSSPixels {
                 auto value = computed_style.property(width_property);
-                if (value->is_calculated())
-                    return max(CSSPixels { 0 }, value->as_calculated().resolve_length(*this)->to_px(*this));
+                if (value->is_math())
+                    return max(CSSPixels { 0 }, value->as_math().resolve_length(*this)->to_px(*this));
                 if (value->is_length())
                     return value->as_length().length().to_px(*this);
                 if (value->is_keyword()) {
