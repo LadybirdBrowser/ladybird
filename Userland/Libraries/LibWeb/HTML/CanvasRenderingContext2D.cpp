@@ -385,8 +385,9 @@ void CanvasRenderingContext2D::reset_to_default_state()
     auto* bitmap = canvas_element().bitmap();
 
     // 1. Clear canvas's bitmap to transparent black.
-    if (bitmap)
-        bitmap->fill(Gfx::Color::Transparent);
+    if (bitmap) {
+        painter()->clear_rect(bitmap->rect().to_type<float>(), Color::Transparent);
+    }
 
     // 2. Empty the list of subpaths in context's current default path.
     path().clear();
