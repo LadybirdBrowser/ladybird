@@ -2617,8 +2617,8 @@ Optional<Element::Directionality> Element::auto_directionality() const
                     // 1. Assert: child is an Element node.
                     VERIFY(child->is_element());
 
-                    // 2. Set childDirection to the auto directionality of child.
-                    child_direction = static_cast<HTML::HTMLElement const&>(*child).auto_directionality();
+                    // 2. Set childDirection to the contained text auto directionality of child with canExcludeRoot set to true.
+                    child_direction = static_cast<Element const&>(*child).contained_text_auto_directionality(true);
                 }
 
                 // 4. If childDirection is not null, then return childDirection.
@@ -2631,20 +2631,38 @@ Optional<Element::Directionality> Element::auto_directionality() const
         }
     }
 
-    // 3. For each node descendant of element's descendants, in tree order:
+    // 3. Return the contained text auto directionality of element with canExcludeRoot set to false.
+    return contained_text_auto_directionality(false);
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#contained-text-auto-directionality
+Optional<Element::Directionality> Element::contained_text_auto_directionality(bool can_exclude_root) const
+{
+    // To compute the contained text auto directionality of an element element with a boolean canExcludeRoot:
+
+    // 1. For each node descendant of element's descendants, in tree order:
     Optional<Directionality> result;
     for_each_in_subtree([&](auto& descendant) {
-        // 1. If descendant, or any of its ancestor elements that are descendants of element, is one of
-        // - FIXME: a bdi element
-        // - a script element
-        // - a style element
-        // - a textarea element
-        // - an element whose dir attribute is not in the undefined state
-        // then continue.
-        if (is<HTML::HTMLScriptElement>(descendant)
-            || is<HTML::HTMLStyleElement>(descendant)
-            || is<HTML::HTMLTextAreaElement>(descendant)
-            || (is<Element>(descendant) && static_cast<Element const&>(descendant).dir().has_value())) {
+        // 1. If any of
+        //    - descendant
+        //    - any ancestor element of descendant that is a descendant of element
+        //    - if canExcludeRoot is true, element
+        //    is one of
+        //    - FIXME: a bdi element
+        //    - a script element
+        //    - a style element
+        //    - a textarea element
+        //    - an element whose dir attribute is not in the undefined state
+        //    then continue.
+        // NOTE: "any ancestor element of descendant that is a descendant of element" will be iterated already.
+        auto is_one_of_the_filtered_elements = [](auto& descendant) -> bool {
+            return is<HTML::HTMLScriptElement>(descendant)
+                || is<HTML::HTMLStyleElement>(descendant)
+                || is<HTML::HTMLTextAreaElement>(descendant)
+                || (is<Element>(descendant) && static_cast<Element const&>(descendant).dir().has_value());
+        };
+        if (is_one_of_the_filtered_elements(descendant)
+            || (can_exclude_root && is_one_of_the_filtered_elements(*this))) {
             return TraversalDecision::SkipChildrenAndContinue;
         }
 
@@ -2676,7 +2694,7 @@ Optional<Element::Directionality> Element::auto_directionality() const
     if (result.has_value())
         return result;
 
-    // 4. Return null.
+    // 2. Return null.
     return {};
 }
 
