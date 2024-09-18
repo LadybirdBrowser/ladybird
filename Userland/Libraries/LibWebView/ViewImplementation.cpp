@@ -107,7 +107,7 @@ void ViewImplementation::zoom_in()
 {
     if (m_zoom_level >= ZOOM_MAX_LEVEL)
         return;
-    m_zoom_level += ZOOM_STEP;
+    m_zoom_level = round_to<int>((m_zoom_level + ZOOM_STEP) * 100) / 100.0f;
     update_zoom();
 }
 
@@ -115,7 +115,7 @@ void ViewImplementation::zoom_out()
 {
     if (m_zoom_level <= ZOOM_MIN_LEVEL)
         return;
-    m_zoom_level -= ZOOM_STEP;
+    m_zoom_level = round_to<int>((m_zoom_level - ZOOM_STEP) * 100) / 100.0f;
     update_zoom();
 }
 
