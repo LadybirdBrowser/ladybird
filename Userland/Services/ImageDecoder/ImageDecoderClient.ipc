@@ -1,7 +1,7 @@
-#include <LibGfx/ShareableBitmap.h>
+#include <LibGfx/BitmapSequence.h>
 
 endpoint ImageDecoderClient
 {
-    did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps, Vector<u32> durations, Gfx::FloatPoint scale) =|
+    did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmaps, Vector<u32> durations, Gfx::FloatPoint scale) =|
     did_fail_to_decode_image(i64 image_id, String error_message) =|
 }

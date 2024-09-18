@@ -10,6 +10,7 @@
 #include <ImageDecoder/Forward.h>
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
 #include <ImageDecoder/ImageDecoderServerEndpoint.h>
+#include <LibGfx/BitmapSequence.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibThreading/BackgroundAction.h>
 
@@ -28,7 +29,7 @@ public:
         bool is_animated = false;
         u32 loop_count = 0;
         Gfx::FloatPoint scale { 1, 1 };
-        Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
+        Gfx::BitmapSequence bitmaps;
         Vector<u32> durations;
     };
 
