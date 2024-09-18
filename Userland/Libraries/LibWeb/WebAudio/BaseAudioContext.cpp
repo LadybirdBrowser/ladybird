@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/BaseAudioContextPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/WebAudio/AnalyserNode.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/AudioBufferSourceNode.h>
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
@@ -48,6 +49,12 @@ void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)
 WebIDL::CallbackType* BaseAudioContext::onstatechange()
 {
     return event_handler_attribute(HTML::EventNames::statechange);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createanalyser
+WebIDL::ExceptionOr<JS::NonnullGCPtr<AnalyserNode>> BaseAudioContext::create_analyser()
+{
+    return AnalyserNode::create(realm(), *this);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbiquadfilter

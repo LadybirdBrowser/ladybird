@@ -2,6 +2,7 @@ AbortController
 AbortSignal
 AbstractRange
 AggregateError
+AnalyserNode
 Animation
 AnimationEffect
 AnimationEvent
