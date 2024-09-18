@@ -46,6 +46,8 @@ public:
     Function<void()> on_open;
     Function<void(u16 code, ByteString reason, bool was_clean)> on_close;
     Function<void(Message message)> on_message;
+    Function<void(ReadyState)> on_ready_state_change;
+    Function<void(ByteString)> on_subprotocol;
 
     enum class Error {
         CouldNotEstablishConnection,
@@ -96,6 +98,8 @@ private:
     };
 
     InternalState m_state { InternalState::NotStarted };
+
+    void set_state(InternalState);
 
     ByteString m_subprotocol_in_use { ByteString::empty() };
 

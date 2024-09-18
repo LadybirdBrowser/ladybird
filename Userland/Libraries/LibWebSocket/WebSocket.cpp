@@ -42,14 +42,14 @@ void WebSocket::start()
     m_impl->on_connected = [this] {
         if (m_state != WebSocket::InternalState::EstablishingProtocolConnection)
             return;
-        m_state = WebSocket::InternalState::SendingClientHandshake;
+        set_state(WebSocket::InternalState::SendingClientHandshake);
         send_client_handshake();
         drain_read();
     };
     m_impl->on_ready_to_read = [this] {
         drain_read();
     };
-    m_state = WebSocket::InternalState::EstablishingProtocolConnection;
+    set_state(WebSocket::InternalState::EstablishingProtocolConnection);
     m_impl->connect(m_connection);
 }
 
@@ -100,7 +100,7 @@ void WebSocket::close(u16 code, ByteString const& message)
     case InternalState::SendingClientHandshake:
     case InternalState::WaitingForServerHandshake:
         // FIXME: Fail the connection.
-        m_state = InternalState::Closing;
+        set_state(InternalState::Closing);
         break;
     case InternalState::Open: {
         auto message_bytes = message.bytes();
@@ -108,7 +108,7 @@ void WebSocket::close(u16 code, ByteString const& message)
         close_payload.overwrite(0, (u8*)&code, 2);
         close_payload.overwrite(2, message_bytes.data(), message_bytes.size());
         send_frame(WebSocket::OpCode::ConnectionClose, close_payload, true);
-        m_state = InternalState::Closing;
+        set_state(InternalState::Closing);
         break;
     }
     default:
@@ -120,7 +120,7 @@ void WebSocket::drain_read()
 {
     if (m_impl->eof()) {
         // The connection got closed by the server
-        m_state = WebSocket::InternalState::Closed;
+        set_state(WebSocket::InternalState::Closed);
         notify_close(m_last_close_code, m_last_close_message, true);
         discard_connection();
         return;
@@ -218,7 +218,7 @@ void WebSocket::send_client_handshake()
 
     builder.append("\r\n"sv);
 
-    m_state = WebSocket::InternalState::WaitingForServerHandshake;
+    set_state(WebSocket::InternalState::WaitingForServerHandshake);
     auto success = m_impl->send(builder.string_view().bytes());
     VERIFY(success);
 }
@@ -282,7 +282,7 @@ void WebSocket::read_server_handshake()
                 return;
             }
 
-            m_state = WebSocket::InternalState::Open;
+            set_state(WebSocket::InternalState::Open);
             notify_open();
             return;
         }
@@ -400,7 +400,7 @@ void WebSocket::read_frame()
     auto head_bytes = get_buffered_bytes(2);
     if (head_bytes.is_null() || head_bytes.is_empty()) {
         // The connection got closed.
-        m_state = WebSocket::InternalState::Closed;
+        set_state(WebSocket::InternalState::Closed);
         notify_close(m_last_close_code, m_last_close_message, true);
         discard_connection();
         return;
@@ -487,7 +487,7 @@ void WebSocket::read_frame()
             m_last_close_code = (((u16)(payload[0] & 0xff) << 8) | ((u16)(payload[1] & 0xff)));
             m_last_close_message = ByteString(ReadonlyBytes(payload.offset_pointer(2), payload.size() - 2));
         }
-        m_state = WebSocket::InternalState::Closing;
+        set_state(WebSocket::InternalState::Closing);
         return;
     }
     if (op_code == WebSocket::OpCode::Ping) {
@@ -608,7 +608,7 @@ void WebSocket::send_frame(WebSocket::OpCode op_code, ReadonlyBytes payload, boo
 
 void WebSocket::fatal_error(WebSocket::Error error)
 {
-    m_state = WebSocket::InternalState::Errored;
+    set_state(WebSocket::InternalState::Errored);
     notify_error(error);
     discard_connection();
 }
@@ -651,6 +651,19 @@ void WebSocket::notify_message(Message message)
     if (!on_message)
         return;
     on_message(move(message));
+}
+
+void WebSocket::set_state(InternalState state)
+{
+    if (m_state == state)
+        return;
+    auto old_ready_state = ready_state();
+    m_state = state;
+    auto new_ready_state = ready_state();
+    if (old_ready_state != new_ready_state) {
+        if (on_ready_state_change)
+            on_ready_state_change(ready_state());
+    }
 }
 
 }

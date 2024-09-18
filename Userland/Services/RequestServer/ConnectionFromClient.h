@@ -42,12 +42,10 @@ private:
     virtual Messages::RequestServer::SetCertificateResponse set_certificate(i32, ByteString const&, ByteString const&) override;
     virtual void ensure_connection(URL::URL const& url, ::RequestServer::CacheLevel const& cache_level) override;
 
-    virtual Messages::RequestServer::WebsocketConnectResponse websocket_connect(URL::URL const&, ByteString const&, Vector<ByteString> const&, Vector<ByteString> const&, HTTP::HeaderMap const&) override;
-    virtual Messages::RequestServer::WebsocketReadyStateResponse websocket_ready_state(i32) override;
-    virtual Messages::RequestServer::WebsocketSubprotocolInUseResponse websocket_subprotocol_in_use(i32) override;
-    virtual void websocket_send(i32, bool, ByteBuffer const&) override;
-    virtual void websocket_close(i32, u16, ByteString const&) override;
-    virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(i32, ByteString const&, ByteString const&) override;
+    virtual void websocket_connect(i64 websocket_id, URL::URL const&, ByteString const&, Vector<ByteString> const&, Vector<ByteString> const&, HTTP::HeaderMap const&) override;
+    virtual void websocket_send(i64 websocket_id, bool, ByteBuffer const&) override;
+    virtual void websocket_close(i64 websocket_id, u16, ByteString const&) override;
+    virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(i64, ByteString const&, ByteString const&) override;
 
     HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
 
