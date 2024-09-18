@@ -232,8 +232,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::select()
     auto& html_element = form_associated_element_to_html_element();
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
-        // FIXME: implement "or the corresponding control has no selectable text"
-        if (!input_element.select_applies())
+        if (!input_element.select_applies() || !input_element.has_selectable_text())
             return {};
     }
 

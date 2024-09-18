@@ -204,6 +204,7 @@ public:
     bool step_up_or_down_applies() const;
     bool select_applies() const;
     bool selection_or_range_applies() const;
+    bool has_selectable_text() const;
 
     static bool selection_or_range_applies_for_type_state(TypeAttributeState);
 
