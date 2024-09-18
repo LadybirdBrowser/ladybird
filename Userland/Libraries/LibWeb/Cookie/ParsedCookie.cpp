@@ -226,14 +226,20 @@ void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_valu
 
     // 2. If the first character of the attribute-value is neither a DIGIT, nor a "-" character followed by a DIGIT,
     //    ignore the cookie-av.
-    if (!is_ascii_digit(attribute_value[0]) && attribute_value[0] != '-')
+    // 3. If the remainder of attribute-value contains a non-DIGIT character, ignore the cookie-av.
+    auto digits = attribute_value[0] == '-' ? attribute_value.substring_view(1) : attribute_value;
+
+    if (digits.is_empty() || !all_of(digits, is_ascii_digit))
         return;
 
-    // 3. If the remainder of attribute-value contains a non-DIGIT character, ignore the cookie-av.
     // 4. Let delta-seconds be the attribute-value converted to a base 10 integer.
     auto delta_seconds = attribute_value.to_number<i64>();
-    if (!delta_seconds.has_value())
-        return;
+    if (!delta_seconds.has_value()) {
+        // We know the attribute value only contains digits, so if we failed to parse, it is because the result did not
+        // fit in an i64. Set the value to the i64 limits in that case. The positive limit will be further capped below,
+        // and the negative limit will be immediately expired in the cookie jar.
+        delta_seconds = attribute_value[0] == '-' ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
+    }
 
     // 5. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days or less, see Section 5.5).
     auto cookie_age_limit = maximum_cookie_age();
