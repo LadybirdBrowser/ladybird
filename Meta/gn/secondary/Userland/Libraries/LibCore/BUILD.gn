@@ -167,7 +167,6 @@ shared_library("LibCore") {
     ":sources",
     "//Meta/gn/build/libs/crypt",
     "//Meta/gn/build/libs/pthread",
-    "//Userland/Libraries/LibTimeZone",
     "//Userland/Libraries/LibURL",
   ]
 

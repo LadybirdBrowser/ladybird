@@ -351,7 +351,6 @@ shared_library("LibWeb") {
            "//Userland/Libraries/LibIDL",
            "//Userland/Libraries/LibIPC",
            "//Userland/Libraries/LibJS",
-           "//Userland/Libraries/LibLocale",
            "//Userland/Libraries/LibMedia",
            "//Userland/Libraries/LibRegex",
            "//Userland/Libraries/LibSyntax",
@@ -359,7 +358,6 @@ shared_library("LibWeb") {
            "//Userland/Libraries/LibTextCodec",
            "//Userland/Libraries/LibURL",
            "//Userland/Libraries/LibUnicode",
-           "//Userland/Libraries/LibVideo",
            "//Userland/Libraries/LibWasm",
            "//Userland/Libraries/LibXML",
          ] + idl_sources_targets

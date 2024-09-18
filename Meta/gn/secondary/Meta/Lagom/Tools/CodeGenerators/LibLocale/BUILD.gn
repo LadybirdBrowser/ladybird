@@ -4,7 +4,6 @@ lagom_tool("GenerateDateTimeFormatData") {
   sources = [ "GenerateDateTimeFormatData.cpp" ]
   deps = [
     "//Userland/Libraries/LibMain",
-    "//Userland/Libraries/LibTimeZone",
   ]
 }
 
