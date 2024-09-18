@@ -84,7 +84,7 @@ void check_if_access_between_two_browsing_contexts_should_be_reported(
     if (accessed->is_ancestor_of(*accessor.top_level_browsing_context()->opener_browsing_context()))
         accessor_accessed_relationship = AccessorAccessedRelationship::AccessorIsOpener;
 
-    // 12. Queue violation reports for accesses, given accessorAccessedRelationship, accessorTopDocument's cross-origin opener policy, accessedTopDocument's cross-origin opener policy, accessor's active document's URL, accessed's active document's URL, accessor's top-level browsing context's initial URL, accessed's top-level browsing context's initial URL, accessor's active document's origin, accessed's active document's origin, accessor's top-level browsing context's opener origin at creation, accessed's top-level browsing context's opener origin at creation, accessorTopDocument's referrer, accessedTopDocument's referrer, propertyKey, and environment.
+    // 12. Queue violation reports for accesses, given accessorAccessedRelationship, accessorTopDocument's opener policy, accessedTopDocument's opener policy, accessor's active document's URL, accessed's active document's URL, accessor's top-level browsing context's initial URL, accessed's top-level browsing context's initial URL, accessor's active document's origin, accessed's active document's origin, accessor's top-level browsing context's opener origin at creation, accessed's top-level browsing context's opener origin at creation, accessorTopDocument's referrer, accessedTopDocument's referrer, propertyKey, and environment.
     (void)environment;
     (void)accessor_accessed_relationship;
 }

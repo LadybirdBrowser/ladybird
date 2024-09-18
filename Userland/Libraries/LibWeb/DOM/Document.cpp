@@ -141,8 +141,8 @@ JS_DEFINE_ALLOCATOR(Document);
 static JS::NonnullGCPtr<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(
     HTML::BrowsingContext& browsing_context,
     HTML::SandboxingFlagSet sandbox_flags,
-    HTML::CrossOriginOpenerPolicy navigation_coop,
-    HTML::CrossOriginOpenerPolicyEnforcementResult coop_enforcement_result)
+    HTML::OpenerPolicy navigation_coop,
+    HTML::OpenerPolicyEnforcementResult coop_enforcement_result)
 {
     // 1. If browsingContext is not a top-level browsing context, return browsingContext.
     if (!browsing_context.is_top_level())
@@ -167,7 +167,7 @@ static JS::NonnullGCPtr<HTML::BrowsingContext> obtain_a_browsing_context_to_use_
     // 5. If sandboxFlags is not empty, then:
     if (!is_empty(sandbox_flags)) {
         // 1. Assert navigationCOOP's value is "unsafe-none".
-        VERIFY(navigation_coop.value == HTML::CrossOriginOpenerPolicyValue::UnsafeNone);
+        VERIFY(navigation_coop.value == HTML::OpenerPolicyValue::UnsafeNone);
 
         // 2. Assert: newBrowsingContext's popup sandboxing flag set is empty.
 
@@ -185,11 +185,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(
     auto browsing_context = navigation_params.navigable->active_browsing_context();
 
     // 2. Set browsingContext to the result of the obtaining a browsing context to use for a navigation response given browsingContext, navigationParams's final sandboxing flag set,
-    //    navigationParams's cross-origin opener policy, and navigationParams's COOP enforcement result.
+    //    navigationParams's opener policy, and navigationParams's COOP enforcement result.
     browsing_context = obtain_a_browsing_context_to_use_for_a_navigation_response(
         *browsing_context,
         navigation_params.final_sandboxing_flag_set,
-        navigation_params.cross_origin_opener_policy,
+        navigation_params.opener_policy,
         navigation_params.coop_enforcement_result);
 
     // FIXME: 3. Let permissionsPolicy be the result of creating a permissions policy from a response
@@ -287,7 +287,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(
     //     policy container: navigationParams's policy container
     //     FIXME: permissions policy: permissionsPolicy
     //     active sandboxing flag set: navigationParams's final sandboxing flag set
-    //     FIXME: cross-origin opener policy: navigationParams's cross-origin opener policy
+    //     FIXME: opener policy: navigationParams's opener policy
     //     FIXME: load timing info: loadTimingInfo
     //     FIXME: was created via cross-origin redirects: navigationParams's response's has cross-origin redirects
     //     during-loading navigation ID for WebDriver BiDi: navigationParams's id
