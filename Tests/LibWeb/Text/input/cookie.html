@@ -113,16 +113,19 @@
     };
 
     const maxAgeTest1 = () => {
-        document.cookie = "cookie-max-age=value; max-age=1";
+        document.cookie = "cookie-max-age1=value; max-age=1";
+        document.cookie = `cookie-max-age2=value; max-age=${"1".repeat(1024)}`;
         printCookies("Max-Age (before expiration)");
     };
 
     const maxAgeTest2 = () => {
         printCookies("Max-Age (after expiration)");
+        deleteCookie("cookie-max-age2");
     };
 
     const maxAgeInPastTest = () => {
-        document.cookie = "cookie=value; max-age=-1";
+        document.cookie = "cookie1=value; max-age=-1";
+        document.cookie = `cookie2=value; max-age=-${"1".repeat(1023)}`;
         printCookies("Max-Age in past");
     };
 
