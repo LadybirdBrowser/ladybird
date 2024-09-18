@@ -56,11 +56,7 @@ public:
     bool contains_percentage() const
     {
         return m_value.visit(
-            [&](T const& t) {
-                if constexpr (requires { t.is_calculated(); }) {
-                    if (t.is_calculated())
-                        return t.calculated_style_value()->contains_percentage();
-                }
+            [&](T const&) {
                 return false;
             },
             [&](Percentage const&) {
@@ -99,11 +95,6 @@ public:
     {
         return m_value.visit(
             [&](T const& t) {
-                if constexpr (requires { t.is_calculated(); }) {
-                    if (t.is_calculated())
-                        return T::resolve_calculated(t.calculated_style_value(), layout_node, reference_value);
-                }
-
                 return t;
             },
             [&](Percentage const& percentage) {
@@ -118,11 +109,6 @@ public:
     {
         return m_value.visit(
             [&](T const& t) {
-                if constexpr (requires { t.is_calculated(); }) {
-                    if (t.is_calculated())
-                        return T::resolve_calculated(t.calculated_style_value(), layout_node, reference_value);
-                }
-
                 return t;
             },
             [&](Percentage const& percentage) {
