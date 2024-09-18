@@ -7,7 +7,6 @@ set(TEST_SOURCES
     TestImageDecoder.cpp
     TestImageWriter.cpp
     TestMedianCut.cpp
-    TestPainter.cpp
     TestRect.cpp
     TestWOFF.cpp
     TestWOFF2.cpp
