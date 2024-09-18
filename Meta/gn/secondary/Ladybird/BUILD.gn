@@ -1,4 +1,5 @@
 import("//Ladybird/compile_qt_resource_file.gni")
+import("//Ladybird/enable_appkit.gni")
 import("//Ladybird/enable_qt.gni")
 import("//Ladybird/link_qt.gni")
 import("//Ladybird/moc_qt_objects.gni")
@@ -110,7 +111,7 @@ executable("ladybird_executable") {
       ":compile_resource_file",
       ":generate_moc",
     ]
-  } else {
+  } else if (enable_appkit) {
     sources += [
       "AppKit/Application/Application.mm",
       "AppKit/Application/ApplicationBridge.cpp",
