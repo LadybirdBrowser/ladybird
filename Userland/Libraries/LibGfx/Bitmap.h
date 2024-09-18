@@ -130,8 +130,6 @@ public:
         return bpp_for_format(m_format);
     }
 
-    void fill(Color);
-
     [[nodiscard]] bool has_alpha_channel() const { return m_format == BitmapFormat::BGRA8888 || m_format == BitmapFormat::RGBA8888; }
     [[nodiscard]] BitmapFormat format() const { return m_format; }
 

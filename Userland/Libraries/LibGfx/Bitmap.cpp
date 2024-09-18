@@ -237,14 +237,6 @@ void Bitmap::strip_alpha_channel()
     m_format = BitmapFormat::BGRx8888;
 }
 
-void Bitmap::fill(Color color)
-{
-    for (int y = 0; y < height(); ++y) {
-        auto* scanline = this->scanline(y);
-        fast_u32_fill(scanline, color.value(), width());
-    }
-}
-
 Gfx::ShareableBitmap Bitmap::to_shareable_bitmap() const
 {
     auto bitmap_or_error = to_bitmap_backed_by_anonymous_buffer();
