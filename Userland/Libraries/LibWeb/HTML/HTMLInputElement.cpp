@@ -2300,6 +2300,29 @@ bool HTMLInputElement::selection_or_range_applies() const
     return selection_or_range_applies_for_type_state(type_state());
 }
 
+bool HTMLInputElement::has_selectable_text() const
+{
+    // Potential FIXME: Date, Month, Week, Time and LocalDateAndTime are rendered as a basic text input for now,
+    // thus they have selectable text, this need to change when we will have a visual date/time selector.
+
+    switch (type_state()) {
+    case TypeAttributeState::Text:
+    case TypeAttributeState::Search:
+    case TypeAttributeState::Telephone:
+    case TypeAttributeState::URL:
+    case TypeAttributeState::Password:
+    case TypeAttributeState::Date:
+    case TypeAttributeState::Month:
+    case TypeAttributeState::Week:
+    case TypeAttributeState::Time:
+    case TypeAttributeState::LocalDateAndTime:
+    case TypeAttributeState::Number:
+        return true;
+    default:
+        return false;
+    }
+}
+
 bool HTMLInputElement::selection_or_range_applies_for_type_state(TypeAttributeState type_state)
 {
     switch (type_state) {
