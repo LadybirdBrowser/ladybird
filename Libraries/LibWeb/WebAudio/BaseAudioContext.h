@@ -10,6 +10,7 @@
 
 #include <LibWeb/Bindings/BaseAudioContextPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebAudio/AnalyserNode.h>
 #include <LibWeb/WebAudio/AudioListener.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebAudio/ChannelMergerNode.h>
@@ -60,6 +61,7 @@ public:
     static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(JS::Realm&, float sample_rate);
     static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
 
+    WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> create_analyser();
     WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create_biquad_filter();
     WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
     WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create_buffer_source();

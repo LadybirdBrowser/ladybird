@@ -30,7 +30,7 @@ interface BaseAudioContext : EventTarget {
     [FIXME] readonly attribute AudioWorklet audioWorklet;
     attribute EventHandler onstatechange;
 
-    [FIXME] AnalyserNode createAnalyser ();
+    AnalyserNode createAnalyser ();
     BiquadFilterNode createBiquadFilter ();
     AudioBuffer createBuffer(unsigned long numberOfChannels, unsigned long length, float sampleRate);
     AudioBufferSourceNode createBufferSource ();
