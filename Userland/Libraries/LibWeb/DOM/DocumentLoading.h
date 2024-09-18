@@ -25,17 +25,17 @@ JS::NonnullGCPtr<DOM::Document> create_document_for_inline_content(JS::GCPtr<HTM
     // 1. Let origin be a new opaque origin.
     HTML::Origin origin {};
 
-    // 2. Let coop be a new cross-origin opener policy.
-    auto coop = HTML::CrossOriginOpenerPolicy {};
+    // 2. Let coop be a new opener policy.
+    auto coop = HTML::OpenerPolicy {};
 
-    // 3. Let coopEnforcementResult be a new cross-origin opener policy enforcement result with
+    // 3. Let coopEnforcementResult be a new opener policy enforcement result with
     //    url: response's URL
     //    origin: origin
-    //    cross-origin opener policy: coop
-    HTML::CrossOriginOpenerPolicyEnforcementResult coop_enforcement_result {
+    //    opener policy: coop
+    HTML::OpenerPolicyEnforcementResult coop_enforcement_result {
         .url = URL::URL("about:error"), // AD-HOC
         .origin = origin,
-        .cross_origin_opener_policy = coop
+        .opener_policy = coop
     };
 
     // 4. Let navigationParams be a new navigation params with
@@ -50,7 +50,7 @@ JS::NonnullGCPtr<DOM::Document> create_document_for_inline_content(JS::GCPtr<HTM
     //    reserved environment: null
     //    policy container: a new policy container
     //    final sandboxing flag set: an empty set
-    //    cross-origin opener policy: coop
+    //    opener policy: coop
     //    FIXME: navigation timing type: navTimingType
     //    about base URL: null
     auto response = Fetch::Infrastructure::Response::create(vm);
@@ -67,7 +67,7 @@ JS::NonnullGCPtr<DOM::Document> create_document_for_inline_content(JS::GCPtr<HTM
     navigation_params->origin = move(origin);
     navigation_params->policy_container = HTML::PolicyContainer {};
     navigation_params->final_sandboxing_flag_set = HTML::SandboxingFlagSet {};
-    navigation_params->cross_origin_opener_policy = move(coop);
+    navigation_params->opener_policy = move(coop);
     navigation_params->about_base_url = {};
 
     // 5. Let document be the result of creating and initializing a Document object given "html", "text/html", and navigationParams.

@@ -12,8 +12,8 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/CrossOrigin/CrossOriginOpenerPolicy.h>
-#include <LibWeb/HTML/CrossOrigin/CrossOriginOpenerPolicyEnforcementResult.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
 #include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
@@ -43,8 +43,8 @@ struct NavigationParams : JS::Cell {
     // null or an algorithm accepting a Document, once it has been created
     Function<void(DOM::Document&)> commit_early_hints { nullptr };
 
-    // a cross-origin opener policy enforcement result, used for reporting and potentially for causing a browsing context group switch
-    CrossOriginOpenerPolicyEnforcementResult coop_enforcement_result;
+    // an opener policy enforcement result, used for reporting and potentially for causing a browsing context group switch
+    OpenerPolicyEnforcementResult coop_enforcement_result;
 
     // null or an environment reserved for the new Document
     Fetch::Infrastructure::Request::ReservedClientType reserved_environment;
@@ -58,8 +58,8 @@ struct NavigationParams : JS::Cell {
     // a sandboxing flag set to impose on the new Document
     SandboxingFlagSet final_sandboxing_flag_set = {};
 
-    // a cross-origin opener policy to use for the new Document
-    CrossOriginOpenerPolicy cross_origin_opener_policy;
+    // an opener policy to use for the new Document
+    OpenerPolicy opener_policy;
 
     // FIXME: a NavigationTimingType used for creating the navigation timing entry for the new Document
 

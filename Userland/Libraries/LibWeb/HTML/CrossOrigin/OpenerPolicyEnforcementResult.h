@@ -7,13 +7,13 @@
 #pragma once
 
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/CrossOrigin/CrossOriginOpenerPolicy.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/Origin.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/origin.html#coop-enforcement-result
-struct CrossOriginOpenerPolicyEnforcementResult {
+struct OpenerPolicyEnforcementResult {
     // A boolean needs a browsing context group switch, initially false.
     bool needs_a_browsing_context_group_switch { false };
 
@@ -26,8 +26,8 @@ struct CrossOriginOpenerPolicyEnforcementResult {
     // An origin origin.
     Origin origin;
 
-    // A cross-origin opener policy cross-origin opener policy.
-    CrossOriginOpenerPolicy cross_origin_opener_policy;
+    // An opener policy.
+    OpenerPolicy opener_policy;
 
     // A boolean current context is navigation source.
     bool current_context_is_navigation_source { false };

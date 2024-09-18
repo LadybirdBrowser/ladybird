@@ -401,9 +401,9 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             // 2. Let currentDocument be currentNavigable's active document.
             auto current_document = active_document();
 
-            // 3. If currentDocument's cross-origin opener policy's value is "same-origin" or "same-origin-plus-COEP",
+            // 3. If currentDocument's opener policy's value is "same-origin" or "same-origin-plus-COEP",
             //    and currentDocument's origin is not same origin with currentDocument's relevant settings object's top-level origin, then:
-            if ((current_document->cross_origin_opener_policy().value == CrossOriginOpenerPolicyValue::SameOrigin || current_document->cross_origin_opener_policy().value == CrossOriginOpenerPolicyValue::SameOriginPlusCOEP)
+            if ((current_document->opener_policy().value == OpenerPolicyValue::SameOrigin || current_document->opener_policy().value == OpenerPolicyValue::SameOriginPlusCOEP)
                 && !current_document->origin().is_same_origin(relevant_settings_object(*current_document).top_level_origin)) {
 
                 // 1. Set noopener to true.
@@ -415,7 +415,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
                 // 3. Set windowType to "new with no opener".
                 window_type = WindowType::NewWithNoOpener;
             }
-            // NOTE: In the presence of a cross-origin opener policy,
+            // NOTE: In the presence of an opener policy,
             //       nested documents that are cross-origin with their top-level browsing context's active document always set noopener to true.
 
             // 4. Let chosen be null.
@@ -550,11 +550,11 @@ static PolicyContainer determine_navigation_params_policy_container(URL::URL con
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#obtain-coop
-static CrossOriginOpenerPolicy obtain_a_cross_origin_opener_policy(JS::NonnullGCPtr<Fetch::Infrastructure::Response>, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
+static OpenerPolicy obtain_an_opener_policy(JS::NonnullGCPtr<Fetch::Infrastructure::Response>, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
 {
 
-    // 1. Let policy be a new cross-origin opener policy.
-    CrossOriginOpenerPolicy policy = {};
+    // 1. Let policy be a new opener policy.
+    OpenerPolicy policy = {};
 
     // AD-HOC: We don't yet setup environments in all cases
     if (!reserved_client)
@@ -611,17 +611,17 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation
     // 3. Let responseOrigin be the result of determining the origin given response's URL, targetSnapshotParams's sandboxing flags, and entry's document state's origin.
     auto response_origin = determine_the_origin(*response->url(), target_snapshot_params.sandboxing_flags, entry->document_state()->origin());
 
-    // 4. Let coop be a new cross-origin opener policy.
-    CrossOriginOpenerPolicy coop = {};
+    // 4. Let coop be a new opener policy.
+    OpenerPolicy coop = {};
 
-    // 5. Let coopEnforcementResult be a new cross-origin opener policy enforcement result with
+    // 5. Let coopEnforcementResult be a new opener policy enforcement result with
     //    url: response's URL
     //    origin: responseOrigin
-    //    cross-origin opener policy: coop
-    CrossOriginOpenerPolicyEnforcementResult coop_enforcement_result {
+    //    opener policy: coop
+    OpenerPolicyEnforcementResult coop_enforcement_result {
         .url = *response->url(),
         .origin = response_origin,
-        .cross_origin_opener_policy = coop
+        .opener_policy = coop
     };
 
     // 6. Let policyContainer be the result of determining navigation params policy container given response's URL,
@@ -649,7 +649,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation
     //    origin: responseOrigin
     //    policy container: policyContainer
     //    final sandboxing flag set: targetSnapshotParams's sandboxing flags
-    //    cross-origin opener policy: coop
+    //    opener policy: coop
     //    FIXME: navigation timing type: navTimingType
     //    about base URL: entry's document state's about base URL
     auto navigation_params = vm.heap().allocate_without_realm<NavigationParams>();
@@ -660,7 +660,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation
     navigation_params->origin = move(response_origin);
     navigation_params->policy_container = policy_container;
     navigation_params->final_sandboxing_flag_set = target_snapshot_params.sandboxing_flags;
-    navigation_params->cross_origin_opener_policy = move(coop);
+    navigation_params->opener_policy = move(coop);
     navigation_params->about_base_url = entry->document_state()->about_base_url();
 
     return navigation_params;
@@ -784,16 +784,16 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     // 11. Let fetchController be null.
     JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller = nullptr;
 
-    // 12. Let coopEnforcementResult be a new cross-origin opener policy enforcement result, with
+    // 12. Let coopEnforcementResult be a new opener policy enforcement result, with
     // - url: navigable's active document's URL
     // - origin: navigable's active document's origin
-    // - cross-origin opener policy: navigable's active document's cross-origin opener policy
+    // - opener policy: navigable's active document's opener policy
     // - current context is navigation source: true if navigable's active document's origin is same origin with
     //                                         entry's document state's initiator origin otherwise false
-    CrossOriginOpenerPolicyEnforcementResult coop_enforcement_result = {
+    OpenerPolicyEnforcementResult coop_enforcement_result = {
         .url = active_document.url(),
         .origin = active_document.origin(),
-        .cross_origin_opener_policy = active_document.cross_origin_opener_policy(),
+        .opener_policy = active_document.opener_policy(),
         .current_context_is_navigation_source = entry->document_state()->initiator_origin().has_value() && active_document.origin().is_same_origin(*entry->document_state()->initiator_origin())
     };
 
@@ -803,8 +803,8 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     // 14. Let responsePolicyContainer be null.
     Optional<PolicyContainer> response_policy_container = {};
 
-    // 15. Let responseCOOP be a new cross-origin opener policy.
-    CrossOriginOpenerPolicy response_coop = {};
+    // 15. Let responseCOOP be a new opener policy.
+    OpenerPolicy response_coop = {};
 
     // 16. Let locationURL be null.
     ErrorOr<Optional<URL::URL>> location_url { OptionalNone {} };
@@ -884,15 +884,15 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
 
         // 12. If navigable is a top-level traversable, then:
         if (navigable->is_top_level_traversable()) {
-            // 1. Set responseCOOP to the result of obtaining a cross-origin opener policy given response and request's reserved client.
-            response_coop = obtain_a_cross_origin_opener_policy(*response_holder->response(), request->reserved_client());
+            // 1. Set responseCOOP to the result of obtaining an opener policy given response and request's reserved client.
+            response_coop = obtain_an_opener_policy(*response_holder->response(), request->reserved_client());
 
-            // FIXME: 2. Set coopEnforcementResult to the result of enforcing the response's cross-origin opener policy given navigable's active browsing context,
+            // FIXME: 2. Set coopEnforcementResult to the result of enforcing the response's opener policy given navigable's active browsing context,
             //    response's URL, responseOrigin, responseCOOP, coopEnforcementResult and request's referrer.
 
             // FIXME: 3. If finalSandboxFlags is not empty and responseCOOP's value is not "unsafe-none", then set response to an appropriate network error and break.
             // NOTE: This results in a network error as one cannot simultaneously provide a clean slate to a response
-            //       using cross-origin opener policy and sandbox the result of navigating to that response.
+            //       using opener policy and sandbox the result of navigating to that response.
         }
 
         // 13. FIXME If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
@@ -1009,7 +1009,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     //     response: response
     //     fetch controller: fetchController
     //     commit early hints: commitEarlyHints
-    //     cross-origin opener policy: responseCOOP
+    //     opener policy: responseCOOP
     //     reserved environment: request's reserved client
     //     origin: responseOrigin
     //     policy container: resultPolicyContainer
@@ -1029,7 +1029,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     navigation_params->origin = *response_origin;
     navigation_params->policy_container = result_policy_container;
     navigation_params->final_sandboxing_flag_set = final_sandbox_flags;
-    navigation_params->cross_origin_opener_policy = response_coop;
+    navigation_params->opener_policy = response_coop;
     navigation_params->about_base_url = entry->document_state()->about_base_url();
     return navigation_params;
 }
@@ -1591,17 +1591,17 @@ WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> Navigable::evaluate_javascript_url
     // FIXME: 13. Let finalSandboxFlags be policyContainer's CSP list's CSP-derived sandboxing flags.
     auto final_sandbox_flags = SandboxingFlagSet {};
 
-    // 14. Let coop be targetNavigable's active document's cross-origin opener policy.
-    auto const& coop = active_document()->cross_origin_opener_policy();
+    // 14. Let coop be targetNavigable's active document's opener policy.
+    auto const& coop = active_document()->opener_policy();
 
-    // 15. Let coopEnforcementResult be a new cross-origin opener policy enforcement result with
+    // 15. Let coopEnforcementResult be a new opener policy enforcement result with
     //     url: url
     //     origin: newDocumentOrigin
-    //     cross-origin opener policy: coop
-    CrossOriginOpenerPolicyEnforcementResult coop_enforcement_result {
+    //     opener policy: coop
+    OpenerPolicyEnforcementResult coop_enforcement_result {
         .url = url,
         .origin = new_document_origin,
-        .cross_origin_opener_policy = coop,
+        .opener_policy = coop,
     };
 
     // 16. Let navigationParams be a new navigation params, with
@@ -1616,7 +1616,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> Navigable::evaluate_javascript_url
     //     origin: newDocumentOrigin
     //     policy container: policyContainer
     //     final sandboxing flag set: finalSandboxFlags
-    //     cross-origin opener policy: coop
+    //     opener policy: coop
     // FIXME: navigation timing type: "navigate"
     //     about base URL: targetNavigable's active document's about base URL
     auto navigation_params = vm.heap().allocate_without_realm<NavigationParams>();
@@ -1631,7 +1631,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> Navigable::evaluate_javascript_url
     navigation_params->origin = new_document_origin;
     navigation_params->policy_container = policy_container;
     navigation_params->final_sandboxing_flag_set = final_sandbox_flags;
-    navigation_params->cross_origin_opener_policy = coop;
+    navigation_params->opener_policy = coop;
     navigation_params->about_base_url = active_document()->about_base_url();
 
     // 17. Return the result of loading an HTML document given navigationParams.
