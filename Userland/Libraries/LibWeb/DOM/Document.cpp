@@ -2446,7 +2446,7 @@ String Document::cookie(Cookie::Source source)
 
 void Document::set_cookie(StringView cookie_string, Cookie::Source source)
 {
-    auto cookie = Cookie::parse_cookie(cookie_string);
+    auto cookie = Cookie::parse_cookie(url(), cookie_string);
     if (!cookie.has_value())
         return;
 

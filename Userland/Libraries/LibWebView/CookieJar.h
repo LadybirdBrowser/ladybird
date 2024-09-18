@@ -104,7 +104,6 @@ private:
     static Optional<String> canonicalize_domain(const URL::URL& url);
     static bool domain_matches(StringView string, StringView domain_string);
     static bool path_matches(StringView request_path, StringView cookie_path);
-    static String default_path(const URL::URL& url);
 
     enum class MatchingCookiesSpecMode {
         RFC6265,
