@@ -62,77 +62,6 @@ if (enable_unicode_database_download) {
       "auxiliary/SentenceBreakProperty.txt",
     ]
   }
-
-  compiled_action("generate_unicode_sources") {
-    tool = "//Meta/Lagom/Tools/CodeGenerators/LibUnicode:GenerateUnicodeData"
-    deps = [ ":unicode_database_files" ]
-    inputs = get_target_outputs(":unicode_database_files")
-    outputs = [
-      "$target_gen_dir/UnicodeData.h",
-      "$target_gen_dir/UnicodeData.cpp",
-    ]
-
-    args = [
-      "-h",
-      rebase_path(outputs[0], root_build_dir),
-      "-c",
-      rebase_path(outputs[1], root_build_dir),
-      "-u",
-      rebase_path(inputs[0], root_build_dir),
-      "-s",
-      rebase_path(inputs[1], root_build_dir),
-      "-o",
-      rebase_path(inputs[2], root_build_dir),
-      "-g",
-      rebase_path(inputs[3], root_build_dir),
-      "-p",
-      rebase_path(inputs[4], root_build_dir),
-      "-d",
-      rebase_path(inputs[5], root_build_dir),
-      "-b",
-      rebase_path(inputs[6], root_build_dir),
-      "-a",
-      rebase_path(inputs[7], root_build_dir),
-      "-v",
-      rebase_path(inputs[8], root_build_dir),
-      "-r",
-      rebase_path(inputs[9], root_build_dir),
-      "-x",
-      rebase_path(inputs[10], root_build_dir),
-      "-k",
-      rebase_path(inputs[11], root_build_dir),
-      "-e",
-      rebase_path(inputs[12], root_build_dir),
-      "-m",
-      rebase_path(inputs[13], root_build_dir),
-      "-n",
-      rebase_path(inputs[14], root_build_dir),
-      "-f",
-      rebase_path(inputs[15], root_build_dir),
-      "-w",
-      rebase_path(inputs[16], root_build_dir),
-      "-i",
-      rebase_path(inputs[17], root_build_dir),
-    ]
-  }
-
-  compiled_action("generate_idna_sources") {
-    tool = "//Meta/Lagom/Tools/CodeGenerators/LibUnicode:GenerateIDNAData"
-    deps = [ ":idna_mapping_table_download" ]
-    inputs = get_target_outputs(":idna_mapping_table_download")
-    outputs = [
-      "$target_gen_dir/IDNAData.h",
-      "$target_gen_dir/IDNAData.cpp",
-    ]
-    args = [
-      "-h",
-      rebase_path(outputs[0], root_build_dir),
-      "-c",
-      rebase_path(outputs[1], root_build_dir),
-      "-m",
-      rebase_path(inputs[0], root_build_dir),
-    ]
-  }
 }
 
 source_set("LibUnicode") {
@@ -155,12 +84,6 @@ source_set("LibUnicode") {
   deps = [ "//AK" ]
 
   if (enable_unicode_database_download) {
-    deps += [
-      ":generate_idna_sources",
-      ":generate_unicode_sources",
-    ]
-    sources += get_target_outputs(":generate_unicode_sources")
-    sources += get_target_outputs(":generate_idna_sources")
     defines = [ "ENABLE_UNICODE_DATA=1" ]
   } else {
     defines = [ "ENABLE_UNICODE_DATA=0" ]
