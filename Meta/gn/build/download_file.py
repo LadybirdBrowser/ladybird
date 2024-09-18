@@ -70,7 +70,7 @@ def main():
         try:
             with tempfile.NamedTemporaryFile(delete=False, dir=output_file.parent) as out:
                 out.write(f.read())
-                os.rename(out.name, output_file)
+            os.rename(out.name, output_file)
         except IOError:
             os.unlink(out.name)
 
