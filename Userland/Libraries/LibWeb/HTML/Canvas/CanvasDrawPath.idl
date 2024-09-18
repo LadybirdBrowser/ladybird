@@ -18,8 +18,10 @@ interface mixin CanvasDrawPath {
     // FIXME: `DOMString` should be `CanvasFillRule`
     undefined clip(Path2D path, optional DOMString fillRule = "nonzero");
 
-    [FIXME] boolean isPointInPath(unrestricted double x, unrestricted double y, optional CanvasFillRule fillRule = "nonzero");
-    [FIXME] boolean isPointInPath(Path2D path, unrestricted double x, unrestricted double y, optional CanvasFillRule fillRule = "nonzero");
+    // FIXME: `DOMString` should be `CanvasFillRule`
+    boolean isPointInPath(unrestricted double x, unrestricted double y, optional DOMString fillRule = "nonzero");
+    // FIXME: `DOMString` should be `CanvasFillRule`
+    boolean isPointInPath(Path2D path, unrestricted double x, unrestricted double y, optional DOMString fillRule = "nonzero");
     [FIXME] boolean isPointInStroke(unrestricted double x, unrestricted double y);
     [FIXME] boolean isPointInStroke(Path2D path, unrestricted double x, unrestricted double y);
 };

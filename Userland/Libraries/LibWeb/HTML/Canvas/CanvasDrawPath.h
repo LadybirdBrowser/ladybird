@@ -27,6 +27,9 @@ public:
     virtual void clip(StringView fill_rule) = 0;
     virtual void clip(Path2D& path, StringView fill_rule) = 0;
 
+    virtual bool is_point_in_path(double x, double y, StringView fill_rule) = 0;
+    virtual bool is_point_in_path(Path2D const& path, double x, double y, StringView fill_rule) = 0;
+
 protected:
     CanvasDrawPath() = default;
 };

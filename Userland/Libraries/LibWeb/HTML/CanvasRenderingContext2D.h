@@ -87,6 +87,9 @@ public:
     virtual void clip(StringView fill_rule) override;
     virtual void clip(Path2D& path, StringView fill_rule) override;
 
+    virtual bool is_point_in_path(double x, double y, StringView fill_rule) override;
+    virtual bool is_point_in_path(Path2D const& path, double x, double y, StringView fill_rule) override;
+
     virtual bool image_smoothing_enabled() const override;
     virtual void set_image_smoothing_enabled(bool) override;
     virtual Bindings::ImageSmoothingQuality image_smoothing_quality() const override;

@@ -542,6 +542,21 @@ void CanvasRenderingContext2D::clip(Path2D& path, StringView fill_rule)
     clip_internal(path.path(), parse_fill_rule(fill_rule));
 }
 
+static bool is_point_in_path_internal(Gfx::Path path, double x, double y, StringView fill_rule)
+{
+    return path.contains(Gfx::FloatPoint(x, y), parse_fill_rule(fill_rule));
+}
+
+bool CanvasRenderingContext2D::is_point_in_path(double x, double y, StringView fill_rule)
+{
+    return is_point_in_path_internal(path(), x, y, fill_rule);
+}
+
+bool CanvasRenderingContext2D::is_point_in_path(Path2D const& path, double x, double y, StringView fill_rule)
+{
+    return is_point_in_path_internal(path.path(), x, y, fill_rule);
+}
+
 // https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument
 WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const& image)
 {
