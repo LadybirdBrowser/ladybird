@@ -2575,31 +2575,6 @@ bool Element::is_auto_directionality_form_associated_element() const
 // https://html.spec.whatwg.org/multipage/dom.html#auto-directionality
 Optional<Element::Directionality> Element::auto_directionality() const
 {
-    // https://html.spec.whatwg.org/multipage/dom.html#text-node-directionality
-    auto text_node_directionality = [](Text const& text_node) -> Optional<Directionality> {
-        // 1. If text's data does not contain a code point whose bidirectional character type is L, AL, or R, then return null.
-        // 2. Let codePoint be the first code point in text's data whose bidirectional character type is L, AL, or R.
-        Optional<Unicode::BidiClass> found_character_bidi_class;
-        for (auto code_point : Utf8View(text_node.data())) {
-            auto bidi_class = Unicode::bidirectional_class(code_point);
-            if (first_is_one_of(bidi_class, Unicode::BidiClass::LeftToRight, Unicode::BidiClass::RightToLeftArabic, Unicode::BidiClass::RightToLeft)) {
-                found_character_bidi_class = bidi_class;
-                break;
-            }
-        }
-        if (!found_character_bidi_class.has_value())
-            return {};
-
-        // 3. If codePoint is of bidirectional character type AL or R, then return 'rtl'.
-        if (first_is_one_of(*found_character_bidi_class, Unicode::BidiClass::RightToLeftArabic, Unicode::BidiClass::RightToLeft))
-            return Directionality::Rtl;
-
-        // 4. If codePoint is of bidirectional character type L, then return 'ltr'.
-        // NOTE: codePoint should always be of bidirectional character type L by this point, so we can just return 'ltr' here.
-        VERIFY(*found_character_bidi_class == Unicode::BidiClass::LeftToRight);
-        return Directionality::Ltr;
-    };
-
     // 1. If element is an auto-directionality form-associated element:
     if (is_auto_directionality_form_associated_element()) {
         auto const* form_associated_element = dynamic_cast<HTML::FormAssociatedElement const*>(this);
@@ -2635,7 +2610,7 @@ Optional<Element::Directionality> Element::auto_directionality() const
 
                 // 2. If child is a Text node, then set childDirection to the text node directionality of child.
                 if (child->is_text())
-                    child_direction = text_node_directionality(static_cast<Text const&>(*child));
+                    child_direction = static_cast<Text const&>(*child).directionality();
 
                 // 3. Otherwise:
                 else {
@@ -2689,7 +2664,7 @@ Optional<Element::Directionality> Element::auto_directionality() const
             return TraversalDecision::Continue;
 
         // 4. Let result be the text node directionality of descendant.
-        result = text_node_directionality(static_cast<Text const&>(descendant));
+        result = static_cast<Text const&>(descendant).directionality();
 
         // 5. If result is not null, then return result.
         if (result.has_value())
