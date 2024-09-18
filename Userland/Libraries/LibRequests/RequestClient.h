@@ -44,14 +44,18 @@ private:
     virtual void certificate_requested(i32) override;
     virtual void headers_became_available(i32, HTTP::HeaderMap const&, Optional<u32> const&) override;
 
-    virtual void websocket_connected(i32) override;
-    virtual void websocket_received(i32, bool, ByteBuffer const&) override;
-    virtual void websocket_errored(i32, i32) override;
-    virtual void websocket_closed(i32, u16, ByteString const&, bool) override;
-    virtual void websocket_certificate_requested(i32) override;
+    virtual void websocket_connected(i64 websocket_id) override;
+    virtual void websocket_received(i64 websocket_id, bool, ByteBuffer const&) override;
+    virtual void websocket_errored(i64 websocket_id, i32) override;
+    virtual void websocket_closed(i64 websocket_id, u16, ByteString const&, bool) override;
+    virtual void websocket_ready_state_changed(i64 websocket_id, u32 ready_state) override;
+    virtual void websocket_subprotocol(i64 websocket_id, ByteString const& subprotocol) override;
+    virtual void websocket_certificate_requested(i64 websocket_id) override;
 
     HashMap<i32, RefPtr<Request>> m_requests;
-    HashMap<i32, NonnullRefPtr<WebSocket>> m_websockets;
+    HashMap<i64, NonnullRefPtr<WebSocket>> m_websockets;
+
+    i64 m_next_websocket_id { 0 };
 };
 
 }
