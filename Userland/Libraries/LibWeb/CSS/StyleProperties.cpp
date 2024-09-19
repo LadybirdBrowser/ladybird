@@ -40,14 +40,15 @@ namespace Web::CSS {
 NonnullRefPtr<StyleProperties::Data> StyleProperties::Data::clone() const
 {
     auto clone = adopt_ref(*new StyleProperties::Data);
+    clone->m_animation_name_source = m_animation_name_source;
+    clone->m_transition_property_source = m_transition_property_source;
     clone->m_property_values = m_property_values;
-    clone->m_animated_property_values = m_animated_property_values;
     clone->m_property_important = m_property_important;
     clone->m_property_inherited = m_property_inherited;
+    clone->m_animated_property_values = m_animated_property_values;
+    clone->m_math_depth = m_math_depth;
     clone->m_font_list = m_font_list;
     clone->m_line_height = m_line_height;
-    clone->m_animation_name_source = m_animation_name_source;
-    clone->m_math_depth = m_math_depth;
     return clone;
 }
 
