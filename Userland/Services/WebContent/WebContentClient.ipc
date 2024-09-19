@@ -16,6 +16,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ProcessHandle.h>
+#include <LibWebView/PageInfo.h>
 
 endpoint WebContentClient
 {
@@ -61,6 +62,8 @@ endpoint WebContentClient
     did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, String source) =|
 
     did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) =|
+
+    did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, String info) =|
 
     did_change_favicon(u64 page_id, Gfx::ShareableBitmap favicon) =|
     did_request_all_cookies(u64 page_id, URL::URL url) => (Vector<Web::Cookie::Cookie> cookies)

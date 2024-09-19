@@ -11,6 +11,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWebView/Attribute.h>
+#include <LibWebView/PageInfo.h>
 
 endpoint WebContentServer
 {
@@ -62,13 +63,9 @@ endpoint WebContentServer
     take_document_screenshot(u64 page_id) =|
     take_dom_node_screenshot(u64 page_id, i32 node_id) =|
 
-    dump_gc_graph(u64 page_id) => (String json)
+    request_internal_page_info(u64 page_id, WebView::PageInfoType type) =|
 
     run_javascript(u64 page_id, ByteString js_source) =|
-
-    dump_layout_tree(u64 page_id) => (ByteString dump)
-    dump_paint_tree(u64 page_id) => (ByteString dump)
-    dump_text(u64 page_id) => (ByteString dump)
 
     get_selected_text(u64 page_id) => (ByteString selection)
     select_all(u64 page_id) =|

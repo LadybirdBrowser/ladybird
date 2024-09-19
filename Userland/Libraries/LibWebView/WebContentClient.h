@@ -78,6 +78,7 @@ private:
     virtual void did_finish_editing_dom_node(u64 page_id, Optional<i32> const& node_id) override;
     virtual void did_get_dom_node_html(u64 page_id, String const& html) override;
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap const& screenshot) override;
+    virtual void did_get_internal_page_info(u64 page_id, PageInfoType, String const&) override;
     virtual void did_output_js_console_message(u64 page_id, i32 message_index) override;
     virtual void did_get_js_console_messages(u64 page_id, i32 start_index, Vector<ByteString> const& message_types, Vector<ByteString> const& messages) override;
     virtual void did_change_favicon(u64 page_id, Gfx::ShareableBitmap const&) override;

@@ -120,21 +120,6 @@ public:
         m_pending_screenshot->resolve(screenshot.bitmap());
     }
 
-    ErrorOr<String> dump_layout_tree()
-    {
-        return String::from_byte_string(client().dump_layout_tree(0));
-    }
-
-    ErrorOr<String> dump_paint_tree()
-    {
-        return String::from_byte_string(client().dump_paint_tree(0));
-    }
-
-    ErrorOr<String> dump_text()
-    {
-        return String::from_byte_string(client().dump_text(0));
-    }
-
     void clear_content_filters()
     {
         client().async_set_content_filters(0, {});
@@ -256,18 +241,15 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
                 //       It also causes a lot more code to run, which is good for finding bugs. :^)
                 (void)view.take_screenshot();
 
-                StringBuilder builder;
-                builder.append(view.dump_layout_tree().release_value_but_fixme_should_propagate_errors());
-                builder.append("\n"sv);
-                builder.append(view.dump_paint_tree().release_value_but_fixme_should_propagate_errors());
-                result = builder.to_string().release_value_but_fixme_should_propagate_errors();
+                auto promise = view.request_internal_page_info(WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree);
+                result = MUST(promise->await());
 
                 loop.quit(0);
             }
         };
+
         view.on_text_test_finish = {};
     } else if (mode == TestMode::Text) {
-
         view.on_load_finish = [&](auto const& loaded_url) {
             // NOTE: We don't want subframe loads to trigger the test finish.
             if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
@@ -276,8 +258,11 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
             if (did_finish_test)
                 loop.quit(0);
         };
+
         view.on_text_test_finish = [&]() {
-            result = view.dump_text().release_value_but_fixme_should_propagate_errors();
+            auto promise = view.request_internal_page_info(WebView::PageInfoType::Text);
+            result = MUST(promise->await());
+
             did_finish_test = true;
             if (did_finish_loading)
                 loop.quit(0);

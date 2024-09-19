@@ -342,6 +342,12 @@ void WebContentClient::did_take_screenshot(u64 page_id, Gfx::ShareableBitmap con
         view->did_receive_screenshot({}, screenshot);
 }
 
+void WebContentClient::did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, String const& info)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_internal_page_info({}, type, info);
+}
+
 void WebContentClient::did_output_js_console_message(u64 page_id, i32 message_index)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
