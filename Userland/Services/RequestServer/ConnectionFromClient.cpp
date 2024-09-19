@@ -163,6 +163,8 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
 int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user_data)
 {
     auto* client = static_cast<ConnectionFromClient*>(user_data);
+    if (!client->m_timer)
+        return 0;
     if (timeout_ms < 0) {
         client->m_timer->stop();
     } else {
