@@ -200,6 +200,8 @@ Ladybird will be built with one of the following browser chromes (graphical fron
 * [Qt](https://doc.qt.io/qt-6/) - The chrome used on all other platforms.
 * [Android UI](https://developer.android.com/develop/ui) - The native chrome on Android.
 
+To build the AppKit chrome, make sure your version of macOS is >= 14.0.
+
 The Qt chrome is available on platforms where it is not the default as well (except on Android). To build the
 Qt chrome, install the Qt dependencies for your platform, and enable the Qt chrome via CMake:
 
