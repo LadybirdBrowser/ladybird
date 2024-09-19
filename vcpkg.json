@@ -4,7 +4,8 @@
     {
       "name": "curl",
       "features": [
-        "brotli", "http2"
+        "brotli",
+        "http2"
       ]
     },
     {
@@ -67,6 +68,10 @@
     "woff2"
   ],
   "overrides": [
+    {
+      "name": "curl",
+      "version": "8.10.1#0"
+    },
     {
       "name": "fontconfig",
       "version": "2.14.2#1"
