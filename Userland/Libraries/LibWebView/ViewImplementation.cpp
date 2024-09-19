@@ -583,15 +583,40 @@ void ViewImplementation::did_receive_screenshot(Badge<WebContentClient>, Gfx::Sh
     m_pending_screenshot = nullptr;
 }
 
+NonnullRefPtr<Core::Promise<String>> ViewImplementation::request_internal_page_info(PageInfoType type)
+{
+    auto promise = Core::Promise<String>::construct();
+
+    if (m_pending_info_request) {
+        // For simplicitly, only allow one info request at a time for now.
+        promise->reject(Error::from_string_literal("A page info request is already in progress"));
+        return promise;
+    }
+
+    m_pending_info_request = promise;
+    client().async_request_internal_page_info(page_id(), type);
+
+    return promise;
+}
+
+void ViewImplementation::did_receive_internal_page_info(Badge<WebContentClient>, PageInfoType, String const& info)
+{
+    VERIFY(m_pending_info_request);
+
+    m_pending_info_request->resolve(String { info });
+    m_pending_info_request = nullptr;
+}
+
 ErrorOr<LexicalPath> ViewImplementation::dump_gc_graph()
 {
-    auto gc_graph_json = client().dump_gc_graph(page_id());
+    auto promise = request_internal_page_info(PageInfoType::GCGraph);
+    auto gc_graph_json = TRY(promise->await());
 
     LexicalPath path { Core::StandardPaths::tempfile_directory() };
     path = path.append(TRY(Core::DateTime::now().to_string("gc-graph-%Y-%m-%d-%H-%M-%S.json"sv)));
 
-    auto screenshot_file = TRY(Core::File::open(path.string(), Core::File::OpenMode::Write));
-    TRY(screenshot_file->write_until_depleted(gc_graph_json.bytes()));
+    auto dump_file = TRY(Core::File::open(path.string(), Core::File::OpenMode::Write));
+    TRY(dump_file->write_until_depleted(gc_graph_json.bytes()));
 
     return path;
 }

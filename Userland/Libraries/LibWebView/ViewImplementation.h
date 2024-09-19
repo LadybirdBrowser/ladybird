@@ -25,6 +25,7 @@
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PageInfo.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -139,6 +140,9 @@ public:
     NonnullRefPtr<Core::Promise<LexicalPath>> take_screenshot(ScreenshotType);
     NonnullRefPtr<Core::Promise<LexicalPath>> take_dom_node_screenshot(i32);
     virtual void did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const&);
+
+    NonnullRefPtr<Core::Promise<String>> request_internal_page_info(PageInfoType);
+    void did_receive_internal_page_info(Badge<WebContentClient>, PageInfoType, String const&);
 
     ErrorOr<LexicalPath> dump_gc_graph();
 
@@ -286,6 +290,7 @@ protected:
     RefPtr<Core::Timer> m_repeated_crash_timer;
 
     RefPtr<Core::Promise<LexicalPath>> m_pending_screenshot;
+    RefPtr<Core::Promise<String>> m_pending_info_request;
 
     Web::HTML::AudioPlayState m_audio_play_state { Web::HTML::AudioPlayState::Paused };
     size_t m_number_of_elements_playing_audio { 0 };
