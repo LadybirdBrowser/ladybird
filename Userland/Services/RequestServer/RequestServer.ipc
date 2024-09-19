@@ -1,6 +1,7 @@
+#include <LibCore/Proxy.h>
 #include <LibHTTP/HeaderMap.h>
 #include <LibURL/URL.h>
-#include <RequestServer/ConnectionCache.h>
+#include <RequestServer/CacheLevel.h>
 
 endpoint RequestServer
 {
