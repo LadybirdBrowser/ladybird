@@ -823,6 +823,8 @@ void Tab::copy_link_url(URL::URL const& url)
 
 void Tab::location_edit_return_pressed()
 {
+    if (m_location_edit->text().isEmpty())
+        return;
     navigate(m_location_edit->url());
 }
 
