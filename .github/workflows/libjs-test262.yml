@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build unzip gcc-13 g++-13 jq wget curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev
+          sudo apt-get install -y ninja-build unzip gcc-13 g++-13 jq wget curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync
           test -e /opt/wabt-1.0.35 || (
             cd /tmp
             wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
