@@ -798,11 +798,6 @@ bool WebContentView::event(QEvent* event)
     return QAbstractScrollArea::event(event);
 }
 
-ErrorOr<String> WebContentView::dump_layout_tree()
-{
-    return String::from_byte_string(client().dump_layout_tree(m_client_state.page_index));
-}
-
 void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePointEvent const& event)
 {
     Web::DevicePixelPoint position = { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
