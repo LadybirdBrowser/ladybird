@@ -83,7 +83,7 @@ sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl f
 
 ### Fedora or derivatives:
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-devel libavformat-free-devel liberation-sans-fonts libglvnd-devel nasm ninja-build qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-devel libavformat-free-devel liberation-sans-fonts libglvnd-devel nasm ninja-build perl-FindBin perl-IPC-Cmd qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
