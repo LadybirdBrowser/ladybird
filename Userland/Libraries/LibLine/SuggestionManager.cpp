@@ -141,14 +141,14 @@ SuggestionManager::CompletionAttemptResult SuggestionManager::attempt_completion
         if (mode == CompletePrefix) {
             // Only auto-complete *if possible*.
             if (can_complete) {
-                result.insert.append(suggestion.text_view().substring_view(suggestion.invariant_offset, m_largest_common_suggestion_prefix_length - suggestion.invariant_offset));
+                result.insert.append(suggestion.text_view().unicode_substring_view(suggestion.invariant_offset, m_largest_common_suggestion_prefix_length - suggestion.invariant_offset));
                 m_last_shown_suggestion_display_length = m_largest_common_suggestion_prefix_length;
                 // Do not increment the suggestion index, as the first tab should only be a *peek*.
                 if (m_suggestions.size() == 1) {
                     // If there's one suggestion, commit and forget.
                     result.new_completion_mode = DontComplete;
                     // Add in the trivia of the last selected suggestion.
-                    result.insert.append(suggestion.trivia_view());
+                    result.insert.append(suggestion.trailing_trivia.code_points());
                     m_last_shown_suggestion_display_length = 0;
                     result.style_to_apply = suggestion.style;
                     m_last_shown_suggestion_was_complete = true;
@@ -161,9 +161,9 @@ SuggestionManager::CompletionAttemptResult SuggestionManager::attempt_completion
             m_last_shown_suggestion_was_complete = false;
             m_last_shown_suggestion = ByteString::empty();
         } else {
-            result.insert.append(suggestion.text_view().substring_view(suggestion.invariant_offset, suggestion.text_view().length() - suggestion.invariant_offset));
+            result.insert.append(suggestion.text_view().unicode_substring_view(suggestion.invariant_offset, suggestion.text_view().length() - suggestion.invariant_offset));
             // Add in the trivia of the last selected suggestion.
-            result.insert.append(suggestion.trivia_view());
+            result.insert.append(suggestion.trailing_trivia.code_points());
             m_last_shown_suggestion_display_length += suggestion.trivia_view().length();
         }
     } else {
