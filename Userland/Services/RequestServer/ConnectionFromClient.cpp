@@ -273,6 +273,8 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
         return true;
     };
 
+    set_option(CURLOPT_PRIVATE, request.ptr());
+
     if (!g_default_certificate_path.is_empty())
         set_option(CURLOPT_CAINFO, g_default_certificate_path.characters());
 
@@ -317,20 +319,14 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
 
 void ConnectionFromClient::check_active_requests()
 {
-    auto request_from_easy_handle = [this](CURL* easy) -> ActiveRequest* {
-        for (auto& it : m_active_requests) {
-            if (it.value->easy == easy)
-                return it.value.ptr();
-        }
-        return nullptr;
-    };
-
     int msgs_in_queue = 0;
     while (auto* msg = curl_multi_info_read(m_curl_multi, &msgs_in_queue)) {
         if (msg->msg != CURLMSG_DONE)
             continue;
 
-        auto* request = request_from_easy_handle(msg->easy_handle);
+        ActiveRequest* request = nullptr;
+        auto result = curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &request);
+        VERIFY(result == CURLE_OK);
         request->flush_headers_if_needed();
 
         async_request_finished(request->request_id, msg->data.result == CURLE_OK, request->downloaded_so_far);
