@@ -65,6 +65,7 @@ set(SOURCES
     CSS/Frequency.cpp
     CSS/GridTrackPlacement.cpp
     CSS/GridTrackSize.cpp
+    CSS/Interpolation.cpp
     CSS/Length.cpp
     CSS/LengthBox.cpp
     CSS/MediaList.cpp
