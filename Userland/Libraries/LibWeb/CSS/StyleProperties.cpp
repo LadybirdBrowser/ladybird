@@ -112,10 +112,12 @@ void StyleProperties::reset_animated_properties()
     m_data->m_animated_property_values.clear();
 }
 
-NonnullRefPtr<CSSStyleValue const> StyleProperties::property(CSS::PropertyID property_id) const
+NonnullRefPtr<CSSStyleValue const> StyleProperties::property(CSS::PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
-    if (auto animated_value = m_data->m_animated_property_values.get(property_id).value_or(nullptr))
-        return *animated_value;
+    if (return_animated_value == WithAnimationsApplied::Yes) {
+        if (auto animated_value = m_data->m_animated_property_values.get(property_id).value_or(nullptr))
+            return *animated_value;
+    }
 
     // By the time we call this method, all properties have values assigned.
     return *m_data->m_property_values[to_underlying(property_id)];
