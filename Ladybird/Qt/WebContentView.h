@@ -72,8 +72,6 @@ public:
     virtual void focusOutEvent(QFocusEvent*) override;
     virtual bool event(QEvent*) override;
 
-    ErrorOr<String> dump_layout_tree();
-
     void set_viewport_rect(Gfx::IntRect);
     void set_window_size(Gfx::IntSize);
     void set_window_position(Gfx::IntPoint);
