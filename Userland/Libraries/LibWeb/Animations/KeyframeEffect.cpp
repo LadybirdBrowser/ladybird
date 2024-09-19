@@ -1000,7 +1000,7 @@ void KeyframeEffect::update_style_properties()
     if (invalidation.relayout)
         document.set_needs_layout();
     if (invalidation.rebuild_layout_tree)
-        document.invalidate_layout();
+        document.invalidate_layout_tree();
     if (invalidation.repaint)
         document.set_needs_to_resolve_paint_only_properties();
     if (invalidation.rebuild_stacking_context_tree)
