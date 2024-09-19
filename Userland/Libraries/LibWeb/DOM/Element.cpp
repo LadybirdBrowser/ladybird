@@ -826,7 +826,7 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(StringView value)
 
         if (context->is_connected()) {
             // NOTE: Since the DOM has changed, we have to rebuild the layout tree.
-            context->document().invalidate_layout();
+            context->document().invalidate_layout_tree();
         }
     }
 

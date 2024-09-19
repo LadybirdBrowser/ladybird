@@ -1049,7 +1049,7 @@ void Document::set_needs_layout()
     schedule_layout_update();
 }
 
-void Document::invalidate_layout()
+void Document::invalidate_layout_tree()
 {
     tear_down_layout_tree();
     schedule_layout_update();
@@ -1282,7 +1282,7 @@ void Document::update_style()
         invalidate_display_list();
     }
     if (invalidation.rebuild_layout_tree) {
-        invalidate_layout();
+        invalidate_layout_tree();
     } else {
         if (invalidation.relayout)
             set_needs_layout();
@@ -2739,7 +2739,7 @@ void Document::evaluate_media_rules()
     if (any_media_queries_changed_match_state) {
         style_computer().invalidate_rule_cache();
         invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
-        invalidate_layout();
+        invalidate_layout_tree();
     }
 }
 

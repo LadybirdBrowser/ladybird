@@ -45,7 +45,7 @@ void SVGGraphicsElement::attribute_changed(FlyString const& name, Optional<Strin
         if (transform_list.has_value())
             m_transform = transform_from_transform_list(*transform_list);
         // FIXME: This should only invalidate the contents of the SVG.
-        document().invalidate_layout();
+        document().invalidate_layout_tree();
     }
 }
 

@@ -208,7 +208,7 @@ void Node::set_text_content(Optional<String> const& maybe_content)
 
     if (is_connected()) {
         document().invalidate_style(StyleInvalidationReason::NodeSetTextContent);
-        document().invalidate_layout();
+        document().invalidate_layout_tree();
     }
 
     document().bump_dom_tree_version();
@@ -656,7 +656,7 @@ void Node::insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, boo
     if (is_connected()) {
         // FIXME: This will need to become smarter when we implement the :has() selector.
         invalidate_style(StyleInvalidationReason::NodeInsertBefore);
-        document().invalidate_layout();
+        document().invalidate_layout_tree();
     }
 
     document().bump_dom_tree_version();
@@ -855,7 +855,7 @@ void Node::remove(bool suppress_observers)
         // Since the tree structure has changed, we need to invalidate both style and layout.
         // In the future, we should find a way to only invalidate the parts that actually need it.
         document().invalidate_style(StyleInvalidationReason::NodeRemove);
-        document().invalidate_layout();
+        document().invalidate_layout_tree();
     }
 
     document().bump_dom_tree_version();

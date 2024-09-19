@@ -243,7 +243,7 @@ public:
 
     void set_needs_layout();
 
-    void invalidate_layout();
+    void invalidate_layout_tree();
     void invalidate_stacking_context_tree();
 
     virtual bool is_child_allowed(Node const&) const override;
