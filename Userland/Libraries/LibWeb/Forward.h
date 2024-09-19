@@ -791,6 +791,7 @@ class WebSocket;
 }
 
 namespace Web::WebVTT {
+class VTTCue;
 class VTTRegion;
 }
 
