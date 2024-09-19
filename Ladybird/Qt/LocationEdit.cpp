@@ -31,6 +31,9 @@ LocationEdit::LocationEdit(QWidget* parent)
     });
 
     connect(this, &QLineEdit::returnPressed, [&] {
+        if (text().isEmpty())
+            return;
+
         clearFocus();
 
         Optional<StringView> search_engine_url;
