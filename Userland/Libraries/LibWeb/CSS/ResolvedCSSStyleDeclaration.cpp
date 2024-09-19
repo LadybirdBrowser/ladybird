@@ -523,14 +523,14 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // For grid-template-columns and grid-template-rows the resolved value is the used value.
         // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
         if (property_id == PropertyID::GridTemplateColumns) {
-            if (layout_node.paintable()) {
+            if (layout_node.paintable() && layout_node.paintable()->is_paintable_box()) {
                 auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.paintable());
                 if (auto used_values_for_grid_template_columns = paintable_box.used_values_for_grid_template_columns()) {
                     return used_values_for_grid_template_columns;
                 }
             }
         } else if (property_id == PropertyID::GridTemplateRows) {
-            if (layout_node.paintable()) {
+            if (layout_node.paintable() && layout_node.paintable()->is_paintable_box()) {
                 auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.paintable());
                 if (auto used_values_for_grid_template_rows = paintable_box.used_values_for_grid_template_rows()) {
                     return used_values_for_grid_template_rows;
