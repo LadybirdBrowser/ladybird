@@ -71,66 +71,11 @@ private:
 };
 
 #ifdef USE_VULKAN
-class SkiaVulkanBackendContext final : public SkiaBackendContext {
-    AK_MAKE_NONCOPYABLE(SkiaVulkanBackendContext);
-    AK_MAKE_NONMOVABLE(SkiaVulkanBackendContext);
-
-public:
-    SkiaVulkanBackendContext(sk_sp<GrDirectContext> context, NonnullOwnPtr<skgpu::VulkanExtensions> extensions)
-        : m_context(move(context))
-        , m_extensions(move(extensions))
-    {
-    }
-
-    ~SkiaVulkanBackendContext() override {};
-
-    void flush_and_submit() override
-    {
-        m_context->flush();
-        m_context->submit(GrSyncCpu::kYes);
-    }
-
-    sk_sp<SkSurface> create_surface(int width, int height)
-    {
-        auto image_info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-        return SkSurfaces::RenderTarget(m_context.get(), skgpu::Budgeted::kYes, image_info);
-    }
-
-    skgpu::VulkanExtensions const* extensions() const { return m_extensions.ptr(); }
-
-private:
-    sk_sp<GrDirectContext> m_context;
-    NonnullOwnPtr<skgpu::VulkanExtensions> m_extensions;
-};
-
-OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_vulkan_context(Core::VulkanContext& vulkan_context)
-{
-    skgpu::VulkanBackendContext backend_context;
-
-    backend_context.fInstance = vulkan_context.instance;
-    backend_context.fDevice = vulkan_context.logical_device;
-    backend_context.fQueue = vulkan_context.graphics_queue;
-    backend_context.fPhysicalDevice = vulkan_context.physical_device;
-    backend_context.fMaxAPIVersion = vulkan_context.api_version;
-    backend_context.fGetProc = [](char const* proc_name, VkInstance instance, VkDevice device) {
-        if (device != VK_NULL_HANDLE) {
-            return vkGetDeviceProcAddr(device, proc_name);
-        }
-        return vkGetInstanceProcAddr(instance, proc_name);
-    };
-
-    auto extensions = make<skgpu::VulkanExtensions>();
-    backend_context.fVkExtensions = extensions.ptr();
-
-    sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context);
-    VERIFY(ctx);
-    return make<SkiaVulkanBackendContext>(ctx, move(extensions));
-}
-
-DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Gfx::Bitmap& bitmap)
+DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::SkiaBackendContext& context, Gfx::Bitmap& bitmap)
 {
     VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
-    auto surface = static_cast<SkiaVulkanBackendContext&>(context).create_surface(bitmap.width(), bitmap.height());
+    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+    auto surface = SkSurfaces::RenderTarget(context.sk_context(), skgpu::Budgeted::kYes, image_info);
     m_surface = make<SkiaSurface>(surface);
     m_flush_context = [&bitmap, &surface = m_surface, &context] {
         context.flush_and_submit();
@@ -140,50 +85,13 @@ DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Gfx::B
 #endif
 
 #ifdef AK_OS_MACOS
-class SkiaMetalBackendContext final : public SkiaBackendContext {
-    AK_MAKE_NONCOPYABLE(SkiaMetalBackendContext);
-    AK_MAKE_NONMOVABLE(SkiaMetalBackendContext);
-
-public:
-    SkiaMetalBackendContext(sk_sp<GrDirectContext> context)
-        : m_context(move(context))
-    {
-    }
-
-    ~SkiaMetalBackendContext() override {};
-
-    sk_sp<SkSurface> wrap_metal_texture(Core::MetalTexture& metal_texture)
-    {
-        GrMtlTextureInfo mtl_info;
-        mtl_info.fTexture = sk_ret_cfp(metal_texture.texture());
-        auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture.width(), metal_texture.height(), mtl_info);
-        return SkSurfaces::WrapBackendRenderTarget(m_context.get(), backend_render_target, kTopLeft_GrSurfaceOrigin, kBGRA_8888_SkColorType, nullptr, nullptr);
-    }
-
-    void flush_and_submit() override
-    {
-        m_context->flush();
-        m_context->submit(GrSyncCpu::kYes);
-    }
-
-private:
-    sk_sp<GrDirectContext> m_context;
-};
-
-OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_metal_context(Core::MetalContext const& metal_context)
-{
-    GrMtlBackendContext backend_context;
-    backend_context.fDevice.retain((GrMTLHandle)metal_context.device());
-    backend_context.fQueue.retain((GrMTLHandle)metal_context.queue());
-    sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeMetal(backend_context);
-    return make<SkiaMetalBackendContext>(ctx);
-}
-
-DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Core::MetalTexture& metal_texture)
+DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::SkiaBackendContext& context, Core::MetalTexture& metal_texture)
 {
     auto image_info = SkImageInfo::Make(metal_texture.width(), metal_texture.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    VERIFY(is<SkiaMetalBackendContext>(context));
-    auto surface = static_cast<SkiaMetalBackendContext&>(context).wrap_metal_texture(metal_texture);
+    GrMtlTextureInfo mtl_info;
+    mtl_info.fTexture = sk_ret_cfp(metal_texture.texture());
+    auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture.width(), metal_texture.height(), mtl_info);
+    auto surface = SkSurfaces::WrapBackendRenderTarget(context.sk_context(), backend_render_target, kTopLeft_GrSurfaceOrigin, kBGRA_8888_SkColorType, nullptr, nullptr);
     if (!surface) {
         dbgln("Failed to create Skia surface from Metal texture");
         VERIFY_NOT_REACHED();
