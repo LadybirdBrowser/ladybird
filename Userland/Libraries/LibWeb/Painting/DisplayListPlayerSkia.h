@@ -7,42 +7,23 @@
 #pragma once
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
-#ifdef AK_OS_MACOS
-#    include <LibCore/IOSurface.h>
-#    include <LibCore/MetalContext.h>
-#endif
-
-#ifdef USE_VULKAN
-#    include <LibCore/VulkanContext.h>
-#endif
+class GrDirectContext;
 
 namespace Web::Painting {
-
-class SkiaBackendContext {
-    AK_MAKE_NONCOPYABLE(SkiaBackendContext);
-    AK_MAKE_NONMOVABLE(SkiaBackendContext);
-
-public:
-    SkiaBackendContext() {};
-    virtual ~SkiaBackendContext() {};
-
-    virtual void flush_and_submit() {};
-};
 
 class DisplayListPlayerSkia : public DisplayListPlayer {
 public:
     DisplayListPlayerSkia(Gfx::Bitmap&);
 
 #ifdef USE_VULKAN
-    static OwnPtr<SkiaBackendContext> create_vulkan_context(Core::VulkanContext&);
-    DisplayListPlayerSkia(SkiaBackendContext&, Gfx::Bitmap&);
+    DisplayListPlayerSkia(Gfx::SkiaBackendContext&, Gfx::Bitmap&);
 #endif
 
 #ifdef AK_OS_MACOS
-    static OwnPtr<SkiaBackendContext> create_metal_context(Core::MetalContext const&);
-    DisplayListPlayerSkia(SkiaBackendContext&, Core::MetalTexture&);
+    DisplayListPlayerSkia(Gfx::SkiaBackendContext&, Core::MetalTexture&);
 #endif
 
     virtual ~DisplayListPlayerSkia() override;
