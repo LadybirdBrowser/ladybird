@@ -131,10 +131,6 @@ ErrorOr<void> code_point_to_utf16(Utf16Data& string, u32 code_point, Endianness 
 
 size_t utf16_code_unit_length_from_utf8(StringView string)
 {
-    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
-    if (string.is_empty())
-        return 0;
-
     return simdutf::utf16_length_from_utf8(string.characters_without_null_termination(), string.length());
 }
 
@@ -300,10 +296,6 @@ bool Utf16View::starts_with(Utf16View const& needle) const
 
 bool Utf16View::validate() const
 {
-    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
-    if (is_empty())
-        return true;
-
     switch (m_endianness) {
     case Endianness::Host:
         return simdutf::validate_utf16(char_data(), length_in_code_units());
@@ -317,12 +309,6 @@ bool Utf16View::validate() const
 
 bool Utf16View::validate(size_t& valid_code_units) const
 {
-    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
-    if (is_empty()) {
-        valid_code_units = 0;
-        return true;
-    }
-
     auto result = [&]() {
         switch (m_endianness) {
         case Endianness::Host:
@@ -341,10 +327,6 @@ bool Utf16View::validate(size_t& valid_code_units) const
 
 size_t Utf16View::calculate_length_in_code_points() const
 {
-    // FIXME: The CPU-specific implementations behave differently on null inputs. We treat null views as an empty string.
-    if (is_empty())
-        return 0;
-
     // FIXME: simdutf's code point length method assumes valid UTF-16, whereas Utf16View uses U+FFFD as a replacement
     //        for invalid code points. If we change Utf16View to only accept valid encodings as an invariant, we can
     //        remove this branch.
