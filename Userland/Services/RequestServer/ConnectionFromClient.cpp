@@ -9,6 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibWebSocket/ConnectionInfo.h>
