@@ -74,7 +74,11 @@ public:
 
     void set_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     void set_animated_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value);
-    NonnullRefPtr<CSSStyleValue const> property(CSS::PropertyID) const;
+    enum class WithAnimationsApplied {
+        No,
+        Yes,
+    };
+    NonnullRefPtr<CSSStyleValue const> property(CSS::PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     RefPtr<CSSStyleValue const> maybe_null_property(CSS::PropertyID) const;
     void revert_property(CSS::PropertyID, StyleProperties const& style_for_revert);
 
