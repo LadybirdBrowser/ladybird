@@ -714,6 +714,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::append_child(JS::NonnullGCPtr<
 void Node::remove(bool suppress_observers)
 {
     bool was_connected = is_connected();
+    bool had_layout_node = layout_node();
 
     // 1. Let parent be node’s parent
     auto* parent = this->parent();
@@ -855,7 +856,12 @@ void Node::remove(bool suppress_observers)
         // Since the tree structure has changed, we need to invalidate both style and layout.
         // In the future, we should find a way to only invalidate the parts that actually need it.
         document().invalidate_style(StyleInvalidationReason::NodeRemove);
-        document().invalidate_layout_tree();
+
+        // NOTE: If we didn't have a layout node before, rebuilding the layout tree isn't gonna give us one
+        //       after we've been removed from the DOM.
+        if (had_layout_node) {
+            document().invalidate_layout_tree();
+        }
     }
 
     document().bump_dom_tree_version();
