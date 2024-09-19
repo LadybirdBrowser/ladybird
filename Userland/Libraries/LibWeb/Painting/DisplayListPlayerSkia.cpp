@@ -37,13 +37,9 @@
 #endif
 
 #ifdef AK_OS_MACOS
-#    define FixedPoint FixedPointMacOS
-#    define Duration DurationMacOS
 #    include <gpu/GrBackendSurface.h>
 #    include <gpu/ganesh/mtl/GrMtlBackendContext.h>
 #    include <gpu/ganesh/mtl/GrMtlDirectContext.h>
-#    undef FixedPoint
-#    undef Duration
 #endif
 
 namespace Web::Painting {
