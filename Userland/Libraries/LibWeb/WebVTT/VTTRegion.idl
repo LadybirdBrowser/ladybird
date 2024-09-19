@@ -1,0 +1,16 @@
+// https://w3c.github.io/webvtt/#enumdef-scrollsetting
+enum ScrollSetting { "", "up" };
+
+// https://w3c.github.io/webvtt/#vttregion
+[Exposed=Window]
+interface VTTRegion {
+    constructor();
+    attribute DOMString id;
+    attribute double width;
+    attribute unsigned long lines;
+    attribute double regionAnchorX;
+    attribute double regionAnchorY;
+    attribute double viewportAnchorX;
+    attribute double viewportAnchorY;
+    attribute ScrollSetting scroll;
+};
