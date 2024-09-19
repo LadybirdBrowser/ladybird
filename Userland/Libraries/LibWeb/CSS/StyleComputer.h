@@ -174,6 +174,7 @@ private:
     void compute_font(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_math_depth(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_defaulted_values(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
+    void start_needed_transitions(StyleProperties const& old_style, StyleProperties& new_style, DOM::Element&, Optional<Selector::PseudoElement::Type>) const;
     void absolutize_values(StyleProperties&) const;
     void resolve_effective_overflow_values(StyleProperties&) const;
     void transform_box_type_if_needed(StyleProperties&, DOM::Element const&, Optional<CSS::Selector::PseudoElement::Type>) const;

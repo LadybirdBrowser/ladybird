@@ -72,6 +72,22 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
     }
 }
 
+// https://drafts.csswg.org/css-transitions/#transitionable
+bool property_values_are_transitionable(PropertyID property_id, CSSStyleValue const& old_value, CSSStyleValue const& new_value)
+{
+    // When comparing the before-change style and after-change style for a given property,
+    // the property values are transitionable if they have an animation type that is neither not animatable nor discrete.
+
+    auto animation_type = animation_type_from_longhand_property(property_id);
+    if (animation_type == AnimationType::None || animation_type == AnimationType::Discrete)
+        return false;
+
+    // FIXME: Even when a property is transitionable, the two values may not be. The spec uses the example of inset/non-inset shadows.
+    (void)old_value;
+    (void)new_value;
+    return true;
+}
+
 // A null return value means the interpolated matrix was not invertible or otherwise invalid
 RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
 {
