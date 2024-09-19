@@ -755,6 +755,7 @@ set(SOURCES
     WebIDL/Promise.cpp
     WebIDL/Tracing.cpp
     WebSockets/WebSocket.cpp
+    WebVTT/VTTCue.cpp
     WebVTT/VTTRegion.cpp
     XHR/EventNames.cpp
     XHR/FormData.cpp

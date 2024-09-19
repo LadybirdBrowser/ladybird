@@ -1,0 +1,26 @@
+#import <HTML/TextTrackCue.idl>
+#import <WebVTT/VTTRegion.idl>
+
+enum AutoKeyword { "auto" };
+typedef (double or AutoKeyword) LineAndPositionSetting;
+enum DirectionSetting { "", "rl", "lr" };
+enum LineAlignSetting { "start", "center", "end" };
+enum PositionAlignSetting { "line-left", "center", "line-right", "auto" };
+enum AlignSetting { "start", "center", "end", "left", "right" };
+
+// https://w3c.github.io/webvtt/#vttcue
+[Exposed=Window]
+interface VTTCue : TextTrackCue {
+    constructor(double startTime, unrestricted double endTime, DOMString text);
+    attribute VTTRegion? region;
+    attribute DirectionSetting vertical;
+    attribute boolean snapToLines;
+    [FIXME] attribute LineAndPositionSetting line;
+    attribute LineAlignSetting lineAlign;
+    [FIXME] attribute LineAndPositionSetting position;
+    attribute PositionAlignSetting positionAlign;
+    attribute double size;
+    attribute AlignSetting align;
+    attribute DOMString text;
+    [FIXME] DocumentFragment getCueAsHTML();
+};
