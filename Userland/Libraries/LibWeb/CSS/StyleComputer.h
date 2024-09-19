@@ -156,6 +156,8 @@ public:
     };
     void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, JS::NonnullGCPtr<Animations::KeyframeEffect> animation, StyleProperties& style_properties, AnimationRefresh = AnimationRefresh::No) const;
 
+    [[nodiscard]] bool has_has_selectors() const { return m_has_has_selectors; }
+
 private:
     enum class ComputeStyleMode {
         Normal,
@@ -221,12 +223,15 @@ private:
         Vector<MatchingRule> other_rules;
 
         HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
+
+        bool has_has_selectors { false };
     };
 
     NonnullOwnPtr<RuleCache> make_rule_cache_for_cascade_origin(CascadeOrigin);
 
     RuleCache const& rule_cache_for_cascade_origin(CascadeOrigin) const;
 
+    bool m_has_has_selectors { false };
     OwnPtr<RuleCache> m_author_rule_cache;
     OwnPtr<RuleCache> m_user_rule_cache;
     OwnPtr<RuleCache> m_user_agent_rule_cache;

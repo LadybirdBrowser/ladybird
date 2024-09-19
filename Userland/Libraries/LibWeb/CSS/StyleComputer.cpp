@@ -2479,6 +2479,8 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 Optional<CSS::Selector::PseudoElement::Type> pseudo_element;
 
                 for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
+                    if (!rule_cache->has_has_selectors && simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass && simple_selector.pseudo_class().type == CSS::PseudoClass::Has)
+                        rule_cache->has_has_selectors = true;
                     if (!matching_rule.contains_pseudo_element) {
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
                             matching_rule.contains_pseudo_element = true;
@@ -2726,6 +2728,8 @@ void StyleComputer::build_rule_cache()
     m_author_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::Author);
     m_user_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::User);
     m_user_agent_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent);
+
+    m_has_has_selectors = m_author_rule_cache->has_has_selectors || m_user_rule_cache->has_has_selectors || m_user_agent_rule_cache->has_has_selectors;
 }
 
 void StyleComputer::invalidate_rule_cache()
