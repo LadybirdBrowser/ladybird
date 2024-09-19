@@ -94,6 +94,7 @@ static bool is_platform_object(Type const& type)
         "TextMetrics"sv,
         "TextTrack"sv,
         "URLSearchParams"sv,
+        "VTTRegion"sv,
         "VideoTrack"sv,
         "VideoTrackList"sv,
         "WebGLRenderingContext"sv,
@@ -4212,6 +4213,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     using namespace Web::WebAudio;
     using namespace Web::WebGL;
     using namespace Web::WebIDL;
+    using namespace Web::WebVTT;
     using namespace Web::XHR;
 )~~~"sv);
 }

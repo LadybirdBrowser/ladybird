@@ -790,6 +790,10 @@ namespace Web::WebSockets {
 class WebSocket;
 }
 
+namespace Web::WebVTT {
+class VTTRegion;
+}
+
 namespace Web::XHR {
 class FormData;
 class FormDataIterator;

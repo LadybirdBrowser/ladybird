@@ -363,6 +363,7 @@ Uint32Array
 Uint8Array
 Uint8ClampedArray
 UserActivation
+VTTRegion
 ValidityState
 VideoTrack
 VideoTrackList
