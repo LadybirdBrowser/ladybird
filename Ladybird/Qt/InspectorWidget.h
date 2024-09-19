@@ -22,7 +22,7 @@ class InspectorWidget final : public QWidget {
     Q_OBJECT
 
 public:
-    InspectorWidget(QWidget* tab, WebContentView& content_view);
+    InspectorWidget(QWidget* tab, WebContentView& content_view, Qt::WindowType window_type);
     virtual ~InspectorWidget() override;
 
     void inspect();
@@ -30,6 +30,8 @@ public:
 
     void select_hovered_node();
     void select_default_node();
+
+    void setWindowFlag(Qt::WindowType flag, bool on = true);
 
 public slots:
     void device_pixel_ratio_changed(qreal dpi);

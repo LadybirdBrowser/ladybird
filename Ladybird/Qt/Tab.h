@@ -16,6 +16,7 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QPointer>
+#include <QSplitter>
 #include <QToolBar>
 #include <QToolButton>
 #include <QWidget>
@@ -51,6 +52,7 @@ public:
         HoveredElement
     };
     void show_inspector_window(InspectorTarget = InspectorTarget::Document);
+    void show_inspector_pane();
 
     void show_find_in_page();
     void find_previous();
@@ -105,6 +107,7 @@ private:
 
     void close_sub_widgets();
 
+    QSplitter* m_splitter { nullptr };
     QBoxLayout* m_layout { nullptr };
     QToolBar* m_toolbar { nullptr };
     QToolButton* m_hamburger_button { nullptr };
