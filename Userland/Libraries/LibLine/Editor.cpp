@@ -383,7 +383,13 @@ void Editor::insert(ByteString const& string)
 
 void Editor::insert(StringView string_view)
 {
-    for (auto ch : Utf8View { string_view })
+    auto view = Utf8View { string_view };
+    insert(view);
+}
+
+void Editor::insert(Utf8View& view)
+{
+    for (auto ch : view)
         insert(ch);
 }
 
@@ -1205,7 +1211,7 @@ ErrorOr<void> Editor::handle_read_event()
             m_chars_touched_in_the_middle++;
 
             for (auto& view : completion_result.insert)
-                insert(view.as_string());
+                insert(view);
 
             auto stderr_stream = TRY(Core::File::standard_error());
             TRY(reposition_cursor(*stderr_stream));
