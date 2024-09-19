@@ -344,6 +344,7 @@ TextDecoder
 TextEncoder
 TextMetrics
 TextTrack
+TextTrackCue
 TextTrackList
 TimeRanges
 ToggleEvent
