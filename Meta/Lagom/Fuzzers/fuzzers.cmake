@@ -10,7 +10,6 @@ set(FUZZER_TARGETS
     GIFLoader
     GzipDecompression
     GzipRoundtrip
-    HttpRequest
     ICCProfile
     ICOLoader
     JPEGLoader
@@ -64,7 +63,6 @@ set(FUZZER_DEPENDENCIES_FlacLoader LibMedia)
 set(FUZZER_DEPENDENCIES_GIFLoader LibGfx)
 set(FUZZER_DEPENDENCIES_GzipDecompression LibCompress)
 set(FUZZER_DEPENDENCIES_GzipRoundtrip LibCompress)
-set(FUZZER_DEPENDENCIES_HttpRequest LibHTTP)
 set(FUZZER_DEPENDENCIES_ICCProfile LibGfx)
 set(FUZZER_DEPENDENCIES_ICOLoader LibGfx)
 set(FUZZER_DEPENDENCIES_JPEGLoader LibGfx)

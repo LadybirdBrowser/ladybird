@@ -34,7 +34,6 @@ set(SOURCES
     LockFile.cpp
     MappedFile.cpp
     MimeData.cpp
-    NetworkJob.cpp
     Notifier.cpp
     Process.cpp
     ProcessStatisticsReader.cpp
