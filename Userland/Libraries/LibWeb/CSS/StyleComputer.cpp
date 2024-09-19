@@ -904,11 +904,15 @@ void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, CS
                 style.set_property(shorthand_id, *property_in_previous_cascade_origin, StyleProperties::Inherited::No, important);
                 if (shorthand_id == CSS::PropertyID::AnimationName)
                     style.set_animation_name_source(style_for_revert.animation_name_source());
+                if (shorthand_id == CSS::PropertyID::TransitionProperty)
+                    style.set_transition_property_source(style_for_revert.transition_property_source());
             }
         } else {
             style.set_property(shorthand_id, shorthand_value, StyleProperties::Inherited::No, important);
             if (shorthand_id == CSS::PropertyID::AnimationName)
                 style.set_animation_name_source(declaration);
+            if (shorthand_id == CSS::PropertyID::TransitionProperty)
+                style.set_transition_property_source(declaration);
         }
     });
 }
@@ -1208,6 +1212,86 @@ static void apply_dimension_attribute(StyleProperties& style, DOM::Element const
         return;
 
     style.set_property(property_id, parsed_value.release_nonnull());
+}
+
+static void compute_transitioned_properties(StyleProperties const& style, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element)
+{
+    // FIXME: Implement transitioning for pseudo-elements
+    (void)pseudo_element;
+
+    if (auto const source_declaration = style.transition_property_source(); source_declaration && element.computed_css_values()) {
+        if (source_declaration != element.cached_transition_property_source()) {
+            // Reparse this transition property
+            element.clear_transitions();
+            element.set_cached_transition_property_source(*source_declaration);
+
+            auto transition_properties_value = style.property(PropertyID::TransitionProperty);
+            auto transition_properties = transition_properties_value->is_value_list()
+                ? transition_properties_value->as_value_list().values()
+                : StyleValueVector { transition_properties_value };
+
+            auto normalize_transition_length_list = [&](PropertyID property, auto make_default_value) {
+                auto style_value = style.maybe_null_property(property);
+                StyleValueVector list;
+
+                if (!style_value || !style_value->is_value_list() || style_value->as_value_list().size() == 0) {
+                    auto default_value = make_default_value();
+                    for (size_t i = 0; i < transition_properties.size(); i++)
+                        list.append(default_value);
+                    return list;
+                }
+
+                auto const& value_list = style_value->as_value_list();
+                for (size_t i = 0; i < transition_properties.size(); i++)
+                    list.append(value_list.value_at(i, true));
+
+                return list;
+            };
+
+            auto delays = normalize_transition_length_list(
+                PropertyID::TransitionDelay,
+                [] { return TimeStyleValue::create(Time::make_seconds(0.0)); });
+            auto durations = normalize_transition_length_list(
+                PropertyID::TransitionDuration,
+                [] { return TimeStyleValue::create(Time::make_seconds(0.0)); });
+            auto timing_functions = normalize_transition_length_list(
+                PropertyID::TransitionTimingFunction,
+                [] { return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()); });
+
+            Vector<Vector<PropertyID>> properties;
+
+            for (size_t i = 0; i < transition_properties.size(); i++) {
+                auto property_value = transition_properties[i];
+                Vector<PropertyID> properties_for_this_transition;
+
+                if (property_value->is_keyword()) {
+                    auto keyword = property_value->as_keyword().keyword();
+                    if (keyword == Keyword::None)
+                        continue;
+                    if (keyword == Keyword::All) {
+                        for (auto prop = first_property_id; prop != last_property_id; prop = static_cast<PropertyID>(to_underlying(prop) + 1))
+                            properties_for_this_transition.append(prop);
+                    }
+                } else {
+                    auto maybe_property = property_id_from_string(property_value->as_custom_ident().custom_ident());
+                    if (!maybe_property.has_value())
+                        continue;
+
+                    auto transition_property = maybe_property.release_value();
+                    if (property_is_shorthand(transition_property)) {
+                        for (auto const& prop : longhands_for_shorthand(transition_property))
+                            properties_for_this_transition.append(prop);
+                    } else {
+                        properties_for_this_transition.append(transition_property);
+                    }
+                }
+
+                properties.append(move(properties_for_this_transition));
+            }
+
+            element.add_transitioned_properties(move(properties), move(delays), move(durations), move(timing_functions));
+        }
+    }
 }
 
 // https://www.w3.org/TR/css-cascade/#cascading
@@ -2110,6 +2194,9 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
     // 8. Let the element adjust computed style
     element.adjust_computed_style(style);
 
+    // 9. Transition declarations [css-transitions-1]
+    // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
+    compute_transitioned_properties(style, element, pseudo_element);
     return style;
 }
 
