@@ -33,6 +33,7 @@ test("basic functionality", () => {
     expect(Date.parse("Wed Apr 17 23:08:53 2019")).toBe(1555560533000);
     expect(Date.parse("2024-01-26T22:10:11.306+0000")).toBe(1706307011000); // FIXME: support sub-second precision
     expect(Date.parse("1/27/2024, 9:28:30 AM")).toBe(1706369310000);
+    expect(Date.parse("01 February 2013")).toBe(1359698400000);
 
     // FIXME: Create a scoped time zone helper when bytecode supports the `using` declaration.
     setTimeZone(originalTimeZone);
