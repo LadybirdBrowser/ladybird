@@ -181,6 +181,7 @@ static double parse_date_string(VM& vm, ByteString const& date_string)
         "%Y-%m-%eT%T%X%z"sv,                   // "2024-01-26T22:10:11.306+0000"
         "%m/%e/%Y,%t%T%t%p"sv,                 // "1/27/2024, 9:28:30 AM"
         "%Y-%m-%e"sv,                          // "2024-1-15"
+        "%Y-%m-%e%t%T%tGMT%z"sv                // "2024-07-05 00:00:00 GMT-0800"
     };
 
     for (auto const& format : extra_formats) {
