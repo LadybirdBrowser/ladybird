@@ -286,7 +286,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
 
     if (method == "GET"sv) {
         set_option(CURLOPT_HTTPGET, 1L);
-    } else if (method == "POST"sv) {
+    } else if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
         request->body = request_body;
         set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
         set_option(CURLOPT_POSTFIELDS, request->body.data());
