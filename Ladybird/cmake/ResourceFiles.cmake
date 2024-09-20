@@ -1,4 +1,5 @@
 set(FONTS
+    NotoEmoji.ttf
     SerenitySans-Regular.ttf
 )
 list(TRANSFORM FONTS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/fonts/")
