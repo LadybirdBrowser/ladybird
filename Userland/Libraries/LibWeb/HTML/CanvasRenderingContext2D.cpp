@@ -350,18 +350,14 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     auto source_rect_intersected = source_rect.intersected(bitmap.rect());
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
-    // FIXME: Can't use a Gfx::DeprecatedPainter + blit() here as it doesn't support ImageData bitmap's RGBA8888 format.
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
     //       might result in a loss of precision, but is according to spec.
     //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
     ASSERT(bitmap.alpha_type() == Gfx::AlphaType::Premultiplied);
     ASSERT(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
-    for (int target_y = 0; target_y < source_rect_intersected.height(); ++target_y) {
-        for (int target_x = 0; target_x < source_rect_intersected.width(); ++target_x) {
-            auto pixel = bitmap.get_pixel(target_x + x, target_y + y);
-            image_data->bitmap().set_pixel(target_x, target_y, pixel.to_unpremultiplied());
-        }
-    }
+
+    auto painter = Gfx::Painter::create(image_data->bitmap());
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), bitmap, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, drawing_state().global_alpha);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
