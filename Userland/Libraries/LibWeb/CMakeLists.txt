@@ -463,6 +463,7 @@ set(SOURCES
     HTML/TextMetrics.cpp
     HTML/TextTrack.cpp
     HTML/TextTrackCue.cpp
+    HTML/TextTrackCueList.cpp
     HTML/TextTrackList.cpp
     HTML/Timer.cpp
     HTML/TimeRanges.cpp
