@@ -19,6 +19,11 @@ public:
     CSS::CSSStyleSheet* sheet() { return m_associated_css_style_sheet; }
     CSS::CSSStyleSheet const* sheet() const { return m_associated_css_style_sheet; }
 
+    void visit_edges(JS::Cell::Visitor& visitor)
+    {
+        visitor.visit(m_associated_css_style_sheet);
+    }
+
 private:
     // https://www.w3.org/TR/cssom/#associated-css-style-sheet
     JS::GCPtr<CSS::CSSStyleSheet> m_associated_css_style_sheet;
