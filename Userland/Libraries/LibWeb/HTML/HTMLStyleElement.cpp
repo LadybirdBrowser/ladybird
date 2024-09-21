@@ -29,7 +29,7 @@ void HTMLStyleElement::initialize(JS::Realm& realm)
 void HTMLStyleElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_style_element_utils.sheet());
+    m_style_element_utils.visit_edges(visitor);
 }
 
 void HTMLStyleElement::children_changed()
