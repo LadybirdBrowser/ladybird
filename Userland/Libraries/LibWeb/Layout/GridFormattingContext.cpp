@@ -1899,9 +1899,10 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
 void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
 {
-    auto& containing_block_state = m_state.get_mutable(*box.containing_block());
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
+
+    auto is_auto_positioned = is_auto_positioned_track(computed_values.grid_row_start(), computed_values.grid_row_end()) || is_auto_positioned_track(computed_values.grid_column_start(), computed_values.grid_column_end());
 
     auto row_placement_position = resolve_grid_position(box, GridDimension::Row);
     auto column_placement_position = resolve_grid_position(box, GridDimension::Column);
@@ -2000,8 +2001,12 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     used_offset.set_x(grid_area_rect.x() + box_state.inset_left + box_state.margin_box_left());
     used_offset.set_y(grid_area_rect.y() + box_state.inset_top + box_state.margin_box_top());
 
-    // NOTE: Absolutely positioned boxes are relative to the *padding edge* of the containing block.
-    used_offset.translate_by(-containing_block_state.padding_left, -containing_block_state.padding_top);
+    // NOTE: Absolutely positioned boxes with auto-placement are relative to the *padding edge* of the containing block.
+    if (is_auto_positioned) {
+        auto const& containing_block_state = m_state.get_mutable(*box.containing_block());
+        used_offset.translate_by(-containing_block_state.padding_left, -containing_block_state.padding_top);
+    }
+
     box_state.set_content_offset(used_offset);
 
     if (independent_formatting_context)
