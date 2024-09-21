@@ -1246,7 +1246,8 @@ double Element::scroll_top() const
         return 0.0;
 
     // 3. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 4. If window is null, return zero and terminate these steps.
     if (!window)
@@ -1276,6 +1277,7 @@ double Element::scroll_top() const
     return paintable_box()->scroll_offset().y().to_double();
 }
 
+// https://drafts.csswg.org/cssom-view/#dom-element-scrollleft
 double Element::scroll_left() const
 {
     // 1. Let document be the element’s node document.
@@ -1286,7 +1288,8 @@ double Element::scroll_left() const
         return 0.0;
 
     // 3. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 4. If window is null, return zero and terminate these steps.
     if (!window)
@@ -1332,7 +1335,8 @@ void Element::set_scroll_left(double x)
         return;
 
     // 5. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 6. If window is null, terminate these steps.
     if (!window)
@@ -1388,7 +1392,8 @@ void Element::set_scroll_top(double y)
         return;
 
     // 5. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 6. If window is null, terminate these steps.
     if (!window)
@@ -2347,7 +2352,8 @@ void Element::scroll(double x, double y)
         return;
 
     // 5. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 6. If window is null, terminate these steps.
     if (!window)
