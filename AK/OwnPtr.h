@@ -36,6 +36,11 @@ public:
     {
     }
     template<typename U>
+    OwnPtr(AtomicOwnPtr<U>&& other)
+        : m_ptr(other.leak_ptr())
+    {
+    }
+    template<typename U>
     OwnPtr(OwnPtr<U>&& other)
         : m_ptr(other.leak_ptr())
     {
@@ -81,6 +86,14 @@ public:
 
     template<typename U>
     OwnPtr& operator=(OwnPtr<U>&& other)
+    {
+        OwnPtr ptr(move(other));
+        swap(ptr);
+        return *this;
+    }
+
+    template<typename U>
+    OwnPtr& operator=(AtomicOwnPtr<U>&& other)
     {
         OwnPtr ptr(move(other));
         swap(ptr);

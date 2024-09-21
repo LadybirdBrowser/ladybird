@@ -3,6 +3,7 @@ set(AK_TEST_SOURCES
     TestAnyOf.cpp
     TestArray.cpp
     TestAtomic.cpp
+    TestAtomicOwnPtr.cpp
     TestBadge.cpp
     TestBase64.cpp
     TestBinaryHeap.cpp
