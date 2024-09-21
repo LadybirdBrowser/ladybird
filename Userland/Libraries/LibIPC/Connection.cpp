@@ -35,7 +35,7 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Core::LocalS
     m_send_thread = Threading::Thread::construct([this, queue = m_send_queue]() -> intptr_t {
         for (;;) {
             queue->mutex.lock();
-            if (queue->messages.is_empty())
+            while (queue->messages.is_empty() && queue->running)
                 queue->condition.wait();
 
             if (!queue->running) {
