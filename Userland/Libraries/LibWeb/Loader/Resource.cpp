@@ -120,9 +120,11 @@ void Resource::did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderM
     });
 }
 
-void Resource::did_fail(Badge<ResourceLoader>, ByteString const& error, Optional<u32> status_code)
+void Resource::did_fail(Badge<ResourceLoader>, ByteString const& error, ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code)
 {
     m_error = error;
+    m_encoded_data = ByteBuffer::copy(data).release_value_but_fixme_should_propagate_errors();
+    m_response_headers = headers;
     m_status_code = move(status_code);
     m_state = State::Failed;
 
