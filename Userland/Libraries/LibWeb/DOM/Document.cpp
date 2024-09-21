@@ -698,6 +698,22 @@ WebIDL::ExceptionOr<void> Document::close()
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-document-defaultview
+JS::GCPtr<HTML::WindowProxy> Document::default_view()
+{
+    // If this's browsing context is null, then return null.
+    if (!browsing_context())
+        return {};
+
+    // 2. Return this's browsing context's WindowProxy object.
+    return browsing_context()->window_proxy();
+}
+
+JS::GCPtr<HTML::WindowProxy const> Document::default_view() const
+{
+    return const_cast<Document*>(this)->default_view();
+}
+
 HTML::Origin Document::origin() const
 {
     return m_origin;

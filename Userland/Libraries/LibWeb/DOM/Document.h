@@ -370,8 +370,8 @@ public:
     WebIDL::ExceptionOr<JS::GCPtr<HTML::WindowProxy>> open(StringView url, StringView name, StringView features);
     WebIDL::ExceptionOr<void> close();
 
-    HTML::Window* default_view() { return m_window.ptr(); }
-    HTML::Window const* default_view() const { return m_window.ptr(); }
+    JS::GCPtr<HTML::WindowProxy const> default_view() const;
+    JS::GCPtr<HTML::WindowProxy> default_view();
 
     String const& content_type() const { return m_content_type; }
     void set_content_type(String content_type) { m_content_type = move(content_type); }
