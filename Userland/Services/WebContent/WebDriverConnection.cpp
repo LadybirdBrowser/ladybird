@@ -526,10 +526,14 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 
     // -> id is null
     if (id.is_null()) {
-        // FIXME: 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-        // FIXME: 2. Try to handle any user prompts with session.
-        // FIXME: 3. Set the current browsing context with session and session's current top-level browsing context.
-        dbgln("FIXME: WebDriverConnection::switch_to_frame(id=null)");
+        // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
+        TRY(ensure_current_top_level_browsing_context_is_open());
+
+        // 2. Try to handle any user prompts with session.
+        TRY(handle_any_user_prompts());
+
+        // 3. Set the current browsing context with session and session's current top-level browsing context.
+        m_current_browsing_context = current_top_level_browsing_context();
     }
 
     // -> id is a Number object
