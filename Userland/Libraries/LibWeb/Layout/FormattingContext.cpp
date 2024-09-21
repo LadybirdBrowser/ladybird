@@ -1204,6 +1204,7 @@ StaticPositionRect FormattingContext::calculate_static_position_rect(Box const& 
                 }
             }
             if (last_fragment) {
+                x = last_fragment->offset().x() + last_fragment->width();
                 y = last_fragment->offset().y() + last_fragment->height();
             }
         } else {

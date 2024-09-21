@@ -260,6 +260,8 @@ void InlineFormattingContext::generate_line_boxes()
     //       axis, so that we can add it to the first non-whitespace chunk.
     CSSPixels leading_margin_from_collapsible_whitespace = 0;
 
+    Vector<Box const*> absolute_boxes;
+
     for (;;) {
         auto item_opt = iterator.next();
         if (!item_opt.has_value())
@@ -307,8 +309,8 @@ void InlineFormattingContext::generate_line_boxes()
         case InlineLevelIterator::Item::Type::AbsolutelyPositionedElement:
             if (is<Box>(*item.node)) {
                 auto const& box = static_cast<Layout::Box const&>(*item.node);
-                auto& box_state = m_state.get_mutable(box);
-                box_state.set_static_position_rect(calculate_static_position_rect(box));
+                // Calculation of static position for absolute boxes is delayed until trailing whitespaces are removed.
+                absolute_boxes.append(&box);
             }
             break;
 
@@ -409,6 +411,11 @@ void InlineFormattingContext::generate_line_boxes()
             auto is_last_line = i == line_boxes.size() - 1;
             apply_justification_to_fragments(text_justify, line_box, is_last_line);
         }
+    }
+
+    for (auto* box : absolute_boxes) {
+        auto& box_state = m_state.get_mutable(*box);
+        box_state.set_static_position_rect(calculate_static_position_rect(*box));
     }
 }
 
