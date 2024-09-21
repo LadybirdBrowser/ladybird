@@ -18,7 +18,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/GenerateSwiftHeader.cmake)
 
 # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26174
 if (APPLE)
-    set(CMAKE_Swift_COMPILER_TARGET "${CMAKE_SYSTEM_PROCESSOR}-apple-macosx${CMAKE_OSX_DEPLOYMENT_TARGET}")
+    set(CMAKE_Swift_COMPILER_TARGET "${SWIFT_TARGET_TRIPLE}")
 endif()
 
 set(VFS_OVERLAY_DIRECTORY "${CMAKE_BINARY_DIR}/vfs_overlays" CACHE PATH "Directory to put VFS overlays in")
