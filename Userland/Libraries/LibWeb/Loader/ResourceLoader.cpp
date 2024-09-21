@@ -121,8 +121,8 @@ RefPtr<Resource> ResourceLoader::load_resource(Resource::Type type, LoadRequest&
         [=](auto data, auto& headers, auto status_code) {
             const_cast<Resource&>(*resource).did_load({}, data, headers, status_code);
         },
-        [=](auto& error, auto status_code, auto, auto) {
-            const_cast<Resource&>(*resource).did_fail({}, error, status_code);
+        [=](auto& error, auto status_code, auto data, auto& headers) {
+            const_cast<Resource&>(*resource).did_fail({}, error, data, headers, status_code);
         });
 
     return resource;

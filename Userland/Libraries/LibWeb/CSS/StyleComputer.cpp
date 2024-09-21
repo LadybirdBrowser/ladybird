@@ -119,6 +119,26 @@ FontLoader::~FontLoader() = default;
 
 void FontLoader::resource_did_load()
 {
+    resource_did_load_or_fail();
+    if (m_on_load)
+        m_on_load(*this);
+}
+
+void FontLoader::resource_did_fail()
+{
+    resource_did_load_or_fail();
+    if (m_on_fail) {
+        m_on_fail();
+    }
+}
+
+void FontLoader::resource_did_load_or_fail()
+{
+    // NOTE: Even if the resource "failed" to load, we still want to try to parse it as a font.
+    //       This is necessary for https://wpt.live/ to work correctly, as it just drops the connection
+    //       after sending a resource, which looks like an error, but is actually recoverable.
+    // FIXME: It would be nice to solve this in the network layer instead.
+    //        It would also be nice to move font loading to using fetch primitives.
     auto result = try_load_font();
     if (result.is_error()) {
         dbgln("Failed to parse font: {}", result.error());
@@ -127,15 +147,6 @@ void FontLoader::resource_did_load()
     }
     m_vector_font = result.release_value();
     m_style_computer.did_load_font(m_family_name);
-    if (m_on_load)
-        m_on_load(*this);
-}
-
-void FontLoader::resource_did_fail()
-{
-    if (m_on_fail) {
-        m_on_fail();
-    }
 }
 
 RefPtr<Gfx::Font> FontLoader::font_with_point_size(float point_size)

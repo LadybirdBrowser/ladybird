@@ -251,13 +251,16 @@ public:
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     RefPtr<Gfx::Typeface> vector_font() const { return m_vector_font; }
 
-    virtual void resource_did_load() override;
-    virtual void resource_did_fail() override;
-
     RefPtr<Gfx::Font> font_with_point_size(float point_size);
     void start_loading_next_url();
 
 private:
+    // ^ResourceClient
+    virtual void resource_did_load() override;
+    virtual void resource_did_fail() override;
+
+    void resource_did_load_or_fail();
+
     ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_font();
 
     StyleComputer& m_style_computer;
