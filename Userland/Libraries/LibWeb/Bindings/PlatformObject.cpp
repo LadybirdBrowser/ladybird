@@ -452,17 +452,17 @@ WebIDL::ExceptionOr<void> PlatformObject::set_value_of_named_property(String con
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_new_indexed_property(u32, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_new_indexed_property(WebIDL::UnsignedLong, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_existing_indexed_property(u32, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_existing_indexed_property(WebIDL::UnsignedLong, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_indexed_property(u32, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_indexed_property(WebIDL::UnsignedLong, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }

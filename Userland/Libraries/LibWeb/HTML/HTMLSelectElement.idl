@@ -24,7 +24,7 @@ interface HTMLSelectElement : HTMLElement {
     [CEReactions] undefined add((HTMLOptionElement or HTMLOptGroupElement) element, optional (HTMLElement or long)? before = null);
     [CEReactions] undefined remove(); // ChildNode overload
     [CEReactions] undefined remove(long index);
-    [FIXME, CEReactions] setter undefined (unsigned long index, HTMLOptionElement? option);
+    [CEReactions] setter undefined (unsigned long index, HTMLOptionElement? option);
 
     [SameObject] readonly attribute HTMLCollection selectedOptions;
     attribute long selectedIndex;

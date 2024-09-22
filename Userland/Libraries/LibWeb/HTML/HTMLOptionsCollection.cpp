@@ -74,12 +74,11 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_length(WebIDL::UnsignedLong
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmloptionscollection-setter
-WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u32 index, JS::Value unconverted_option)
+WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(WebIDL::UnsignedLong index, JS::Value unconverted_option)
 {
     // The spec doesn't seem to require this, but it's consistent with length handling and other browsers
-    if (index >= 100'000) {
+    if (index >= 100'000)
         return {};
-    }
 
     // 1. If value is null, invoke the steps for the remove method with index as the argument, and return.
     if (unconverted_option.is_null()) {
@@ -87,10 +86,8 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
         return {};
     }
 
-    if (!unconverted_option.is_object() || !is<HTMLOptionElement>(unconverted_option.as_object())) {
+    if (!unconverted_option.is_object() || !is<HTMLOptionElement>(unconverted_option.as_object()))
         return WebIDL::TypeMismatchError::create(realm(), "The value provided is not an HTMLOptionElement"_fly_string);
-    }
-
     auto& option = static_cast<HTMLOptionElement&>(unconverted_option.as_object());
 
     // 2. Let length be the number of nodes represented by the collection.
@@ -103,8 +100,9 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
         auto n = index - length;
 
         // 4. If n is greater than zero, then append a DocumentFragment consisting of n-1 new option elements with no attributes and no child nodes to the select element on which the HTMLOptionsCollection is rooted.
+        // FIXME: This is a spec bug it should be `n` and not `n-1`, this is consistent with other browsers.
         if (n > 0) {
-            for (WebIDL::UnsignedLong i = 0; i < n - 1; i++) {
+            for (WebIDL::UnsignedLong i = 0; i < n; i++) {
                 TRY(root_element->append_child(TRY(DOM::create_element(root_element->document(), HTML::TagNames::option, Namespace::HTML))));
             }
         }

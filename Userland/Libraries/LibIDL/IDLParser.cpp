@@ -565,8 +565,19 @@ void Parser::parse_setter(HashMap<ByteString, ByteString>& extended_attributes, 
         if (interface.indexed_property_setter.has_value())
             report_parsing_error("An interface can only have one indexed property setter."sv, filename, input, lexer.tell());
 
-        if (!interface.indexed_property_getter.has_value())
-            report_parsing_error("An indexed property setter must be accompanied by an indexed property getter."sv, filename, input, lexer.tell());
+        if (!interface.indexed_property_getter.has_value()) {
+            auto found_parent_property_getter = false;
+            if (!interface.parent_name.is_empty()) {
+                for (auto& other_interface : top_level_interfaces()) {
+                    if (other_interface->name == interface.parent_name && other_interface->indexed_property_getter.has_value()) {
+                        found_parent_property_getter = true;
+                        break;
+                    }
+                }
+            }
+            if (!found_parent_property_getter)
+                report_parsing_error("An indexed property setter must be accompanied by an indexed property getter."sv, filename, input, lexer.tell());
+        }
 
         interface.indexed_property_setter = move(function);
     } else {

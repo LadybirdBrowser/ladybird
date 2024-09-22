@@ -1,0 +1,42 @@
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            try {
+                println(`${testCounter}. ${JSON.stringify(part())}`);
+            } catch (e) {
+                println(`${testCounter}. Exception: ${e.name}`);
+            }
+            testCounter++;
+        }
+
+        // 1. Insert select option edge of limit
+        testPart(() => {
+            const select = document.createElement("select");
+            select.options[99999] = new Option("0");
+            return select.options.length;
+        });
+
+        // 2. Insert select option edge of limit
+        testPart(() => {
+            const select = document.createElement("select");
+            select[99999] = new Option("0");
+            return select.options.length;
+        });
+
+        // 3. Insert select option over limit
+        testPart(() => {
+            const select = document.createElement("select");
+            select.options[100000] = new Option("0");
+            return select.options.length;
+        });
+
+        // 4. Insert select option over limit
+        testPart(() => {
+            const select = document.createElement("select");
+            select[100000] = new Option("0");
+            return select.options.length;
+        });
+    });
+</script>

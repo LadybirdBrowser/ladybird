@@ -41,6 +41,8 @@ public:
     WebIDL::ExceptionOr<void> add(HTMLOptionOrOptGroupElement element, Optional<HTMLElementOrElementIndex> before = {});
     void remove();
     void remove(WebIDL::Long);
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(WebIDL::UnsignedLong, JS::Value) override;
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(WebIDL::UnsignedLong, JS::Value) override;
 
     JS::NonnullGCPtr<DOM::HTMLCollection> selected_options();
 

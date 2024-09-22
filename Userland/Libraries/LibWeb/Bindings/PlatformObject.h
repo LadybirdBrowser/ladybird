@@ -9,6 +9,7 @@
 #include <AK/Weakable.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Bindings {
 
@@ -86,12 +87,12 @@ protected:
 
     // NOTE: These will crash if you make has_indexed_property_setter return true but do not override these methods.
     // NOTE: This is only used if indexed_property_setter_has_identifier returns false, otherwise set_value_of_indexed_property is used instead.
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(WebIDL::UnsignedLong, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(WebIDL::UnsignedLong, JS::Value);
 
     // NOTE: These will crash if you make has_named_property_setter return true but do not override these methods.
     // NOTE: This is only used if indexed_property_setter_has_identifier returns true, otherwise set_value_of_{new,existing}_indexed_property is used instead.
-    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(u32, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(WebIDL::UnsignedLong, JS::Value);
 
     enum class DidDeletionFail {
         // If the named property deleter has an identifier, but does not return a boolean.

@@ -34,6 +34,10 @@ JS_DEFINE_ALLOCATOR(HTMLSelectElement);
 HTMLSelectElement::HTMLSelectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
+    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
+        .has_indexed_property_setter = true,
+        .indexed_property_setter_has_identifier = false
+    };
 }
 
 HTMLSelectElement::~HTMLSelectElement() = default;
@@ -159,6 +163,17 @@ void HTMLSelectElement::remove()
 void HTMLSelectElement::remove(WebIDL::Long index)
 {
     const_cast<HTMLOptionsCollection&>(*options()).remove(index);
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-setter
+WebIDL::ExceptionOr<void> HTMLSelectElement::set_value_of_new_indexed_property(WebIDL::UnsignedLong index, JS::Value option)
+{
+    return const_cast<HTMLOptionsCollection&>(*options()).set_value_of_indexed_property(index, option);
+}
+
+WebIDL::ExceptionOr<void> HTMLSelectElement::set_value_of_existing_indexed_property(WebIDL::UnsignedLong index, JS::Value option)
+{
+    return const_cast<HTMLOptionsCollection&>(*options()).set_value_of_indexed_property(index, option);
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-selectedoptions
