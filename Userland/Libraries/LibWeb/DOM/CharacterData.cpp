@@ -157,20 +157,20 @@ WebIDL::ExceptionOr<void> CharacterData::delete_data(size_t offset, size_t count
     return replace_data(offset, count, String {});
 }
 
-Unicode::Segmenter& CharacterData::grapheme_segmenter()
+Unicode::Segmenter& CharacterData::grapheme_segmenter() const
 {
     if (!m_grapheme_segmenter) {
-        m_grapheme_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
+        m_grapheme_segmenter = document().grapheme_segmenter().clone();
         m_grapheme_segmenter->set_segmented_text(m_data);
     }
 
     return *m_grapheme_segmenter;
 }
 
-Unicode::Segmenter& CharacterData::word_segmenter()
+Unicode::Segmenter& CharacterData::word_segmenter() const
 {
     if (!m_word_segmenter) {
-        m_word_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
+        m_word_segmenter = document().word_segmenter().clone();
         m_word_segmenter->set_segmented_text(m_data);
     }
 
