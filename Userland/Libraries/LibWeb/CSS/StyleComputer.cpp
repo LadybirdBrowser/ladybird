@@ -1321,7 +1321,7 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
         bool has_completed_transition = existing_transition && existing_transition->is_finished();
 
         auto start_a_transition = [&](auto start_time, auto end_time, auto start_value, auto end_value, auto reversing_adjusted_start_value, auto reversing_shortening_factor) {
-            dbgln("Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value->to_string(), end_value->to_string());
+            dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value->to_string(), end_value->to_string());
 
             auto transition = CSSTransition::start_a_transition(element, property_id, document().transition_generation(),
                 start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
@@ -1343,7 +1343,7 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
             // - the combined duration is greater than 0s,
             (combined_duration(matching_transition_properties.value()) > 0)) {
 
-            dbgln("Transition step 1.");
+            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 1.");
 
             // then implementations must remove the completed transition (if present) from the set of completed transitions
             if (has_completed_transition)
@@ -1375,7 +1375,7 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
         //    and the end value of the completed transition is different from the after-change style for the property,
         //    then implementations must remove the completed transition from the set of completed transitions.
         else if (has_completed_transition && !existing_transition->transition_end_value()->equals(after_change_value)) {
-            dbgln("Transition step 2.");
+            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 2.");
             element.remove_transition(property_id);
         }
 
@@ -1383,7 +1383,7 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
         //    and there is not a matching transition-property value,
         if (existing_transition && !matching_transition_properties.has_value()) {
             // then implementations must cancel the running transition or remove the completed transition from the set of completed transitions.
-            dbgln("Transition step 3.");
+            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 3.");
             if (has_running_transition)
                 existing_transition->cancel();
             else
@@ -1394,13 +1394,13 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
         //    there is a matching transition-property value,
         //    and the end value of the running transition is not equal to the value of the property in the after-change style, then:
         if (has_running_transition && matching_transition_properties.has_value() && !existing_transition->transition_end_value()->equals(after_change_value)) {
-            dbgln("Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(), after_change_value->to_string());
+            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(), after_change_value->to_string());
             // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
             auto current_value = existing_transition->value_at_time(style_change_event_time);
             if (current_value->equals(after_change_value) || !property_values_are_transitionable(property_id, current_value, after_change_value)) {
-                dbgln("Transition step 4.1");
+                dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.1");
                 existing_transition->cancel();
             }
 
@@ -1409,14 +1409,14 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
             //    then implementations must cancel the running transition.
             else if ((combined_duration(matching_transition_properties.value()) <= 0)
                 || !property_values_are_transitionable(property_id, current_value, after_change_value)) {
-                dbgln("Transition step 4.2");
+                dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.2");
                 existing_transition->cancel();
             }
 
             // 3. Otherwise, if the reversing-adjusted start value of the running transition is the same as the value of the property in the after-change style
             //    (see the section on reversing of transitions for why these case exists),
             else if (existing_transition->reversing_adjusted_start_value()->equals(after_change_value)) {
-                dbgln("Transition step 4.3");
+                dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.3");
                 // implementations must cancel the running transition and start a new transition whose:
                 existing_transition->cancel();
                 // AD-HOC: Remove the cancelled transition, otherwise it breaks the invariant that there is only one
@@ -1456,7 +1456,7 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
 
             // 4. Otherwise,
             else {
-                dbgln("Transition step 4.4");
+                dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4.4");
                 // implementations must cancel the running transition and start a new transition whose:
                 existing_transition->cancel();
                 // AD-HOC: Remove the cancelled transition, otherwise it breaks the invariant that there is only one
