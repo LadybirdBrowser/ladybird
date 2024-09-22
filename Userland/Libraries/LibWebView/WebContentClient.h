@@ -88,11 +88,11 @@ private:
     virtual void did_request_set_prompt_text(u64 page_id, String const& message) override;
     virtual void did_request_accept_dialog(u64 page_id) override;
     virtual void did_request_dismiss_dialog(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestAllCookiesResponse did_request_all_cookies(u64 page_id, URL::URL const&) override;
-    virtual Messages::WebContentClient::DidRequestNamedCookieResponse did_request_named_cookie(u64 page_id, URL::URL const&, String const&) override;
-    virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(u64 page_id, URL::URL const&, Web::Cookie::Source) override;
-    virtual void did_set_cookie(u64 page_id, URL::URL const&, Web::Cookie::ParsedCookie const&, Web::Cookie::Source) override;
-    virtual void did_update_cookie(u64 page_id, Web::Cookie::Cookie const&) override;
+    virtual Messages::WebContentClient::DidRequestAllCookiesResponse did_request_all_cookies(URL::URL const&) override;
+    virtual Messages::WebContentClient::DidRequestNamedCookieResponse did_request_named_cookie(URL::URL const&, String const&) override;
+    virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(URL::URL const&, Web::Cookie::Source) override;
+    virtual void did_set_cookie(URL::URL const&, Web::Cookie::ParsedCookie const&, Web::Cookie::Source) override;
+    virtual void did_update_cookie(Web::Cookie::Cookie const&) override;
     virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab const&, Web::HTML::WebViewHints const&, Optional<u64> const& page_index) override;
     virtual void did_request_activate_tab(u64 page_id) override;
     virtual void did_close_browsing_context(u64 page_id) override;

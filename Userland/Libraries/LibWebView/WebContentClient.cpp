@@ -8,6 +8,7 @@
 #include "Application.h"
 #include "ViewImplementation.h"
 #include <LibWeb/Cookie/ParsedCookie.h>
+#include <LibWebView/CookieJar.h>
 
 namespace WebView {
 
@@ -425,50 +426,29 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap cons
     }
 }
 
-Messages::WebContentClient::DidRequestAllCookiesResponse WebContentClient::did_request_all_cookies(u64 page_id, URL::URL const& url)
+Messages::WebContentClient::DidRequestAllCookiesResponse WebContentClient::did_request_all_cookies(URL::URL const& url)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_get_all_cookies)
-            return view->on_get_all_cookies(url);
-    }
-
-    return Vector<Web::Cookie::Cookie> {};
+    return Application::cookie_jar().get_all_cookies(url);
 }
 
-Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(u64 page_id, URL::URL const& url, String const& name)
+Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL const& url, String const& name)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_get_named_cookie)
-            return view->on_get_named_cookie(url, name);
-    }
-
-    return OptionalNone {};
+    return Application::cookie_jar().get_named_cookie(url, name);
 }
 
-Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(u64 page_id, URL::URL const& url, Web::Cookie::Source source)
+Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_get_cookie)
-            return view->on_get_cookie(url, source);
-    }
-
-    return String {};
+    return Application::cookie_jar().get_cookie(url, source);
 }
 
-void WebContentClient::did_set_cookie(u64 page_id, URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)
+void WebContentClient::did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_set_cookie)
-            view->on_set_cookie(url, cookie, source);
-    }
+    Application::cookie_jar().set_cookie(url, cookie, source);
 }
 
-void WebContentClient::did_update_cookie(u64 page_id, Web::Cookie::Cookie const& cookie)
+void WebContentClient::did_update_cookie(Web::Cookie::Cookie const& cookie)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_update_cookie)
-            view->on_update_cookie(cookie);
-    }
+    Application::cookie_jar().update_cookie(cookie);
 }
 
 Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab const& activate_tab, Web::HTML::WebViewHints const& hints, Optional<u64> const& page_index)

@@ -198,11 +198,6 @@ public:
     Function<void(String const&)> on_received_dom_node_html;
     Function<void(i32 message_id)> on_received_console_message;
     Function<void(i32 start_index, Vector<ByteString> const& message_types, Vector<ByteString> const& messages)> on_received_console_messages;
-    Function<Vector<Web::Cookie::Cookie>(URL::URL const& url)> on_get_all_cookies;
-    Function<Optional<Web::Cookie::Cookie>(URL::URL const& url, String const& name)> on_get_named_cookie;
-    Function<String(URL::URL const& url, Web::Cookie::Source source)> on_get_cookie;
-    Function<void(URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)> on_set_cookie;
-    Function<void(Web::Cookie::Cookie const& cookie)> on_update_cookie;
     Function<void(i32 count_waiting)> on_resource_status_change;
     Function<void()> on_restore_window;
     Function<Gfx::IntPoint(Gfx::IntPoint)> on_reposition_window;

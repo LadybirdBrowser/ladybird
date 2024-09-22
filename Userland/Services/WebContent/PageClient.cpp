@@ -479,17 +479,17 @@ void PageClient::page_did_change_favicon(Gfx::Bitmap const& favicon)
 
 Vector<Web::Cookie::Cookie> PageClient::page_did_request_all_cookies(URL::URL const& url)
 {
-    return client().did_request_all_cookies(m_id, url);
+    return client().did_request_all_cookies(url);
 }
 
 Optional<Web::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::URL const& url, String const& name)
 {
-    return client().did_request_named_cookie(m_id, url, name);
+    return client().did_request_named_cookie(url, name);
 }
 
 String PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(m_id, move(url), source);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(url, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestCookie. Exiting peacefully.");
         exit(0);
@@ -499,7 +499,7 @@ String PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Sou
 
 void PageClient::page_did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(m_id, url, cookie, source);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(url, cookie, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidSetCookie. Exiting peacefully.");
         exit(0);
@@ -508,7 +508,7 @@ void PageClient::page_did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCoo
 
 void PageClient::page_did_update_cookie(Web::Cookie::Cookie cookie)
 {
-    client().async_did_update_cookie(m_id, move(cookie));
+    client().async_did_update_cookie(move(cookie));
 }
 
 void PageClient::page_did_update_resource_count(i32 count_waiting)
