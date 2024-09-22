@@ -682,7 +682,7 @@ void Node::insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, boo
 
     if (is_connected()) {
         // FIXME: This will need to become smarter when we implement the :has() selector.
-        invalidate_style(StyleInvalidationReason::NodeInsertBefore);
+        invalidate_style(StyleInvalidationReason::ParentOfInsertedNode);
         document().invalidate_layout_tree();
     }
 
