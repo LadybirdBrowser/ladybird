@@ -40,6 +40,11 @@ enum class DisableSQLDatabase {
     Yes,
 };
 
+enum class EnableAutoplay {
+    No,
+    Yes,
+};
+
 struct ChromeOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
@@ -108,6 +113,7 @@ struct WebContentOptions {
     ExposeInternalsObject expose_internals_object { ExposeInternalsObject::No };
     ForceCPUPainting force_cpu_painting { ForceCPUPainting::No };
     ForceFontconfig force_fontconfig { ForceFontconfig::No };
+    EnableAutoplay enable_autoplay { EnableAutoplay::No };
 };
 
 }

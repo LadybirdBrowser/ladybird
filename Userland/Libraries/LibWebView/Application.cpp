@@ -69,6 +69,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
     bool enable_http_cache = false;
+    bool enable_autoplay = false;
     bool expose_internals_object = false;
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
@@ -88,6 +89,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
+    args_parser.add_option(enable_autoplay, "Enable multimedia autoplay", "enable-autoplay");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
@@ -145,6 +147,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .expose_internals_object = expose_internals_object ? ExposeInternalsObject::Yes : ExposeInternalsObject::No,
         .force_cpu_painting = force_cpu_painting ? ForceCPUPainting::Yes : ForceCPUPainting::No,
         .force_fontconfig = force_fontconfig ? ForceFontconfig::Yes : ForceFontconfig::No,
+        .enable_autoplay = enable_autoplay ? EnableAutoplay::Yes : EnableAutoplay::No,
     };
 
     create_platform_options(m_chrome_options, m_web_content_options);
