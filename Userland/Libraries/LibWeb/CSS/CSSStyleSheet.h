@@ -18,6 +18,7 @@
 namespace Web::CSS {
 
 class CSSImportRule;
+class FontLoader;
 
 struct CSSStyleSheetInit {
     Optional<String> base_url {};
@@ -84,6 +85,12 @@ public:
     void set_source_text(String);
     Optional<String> source_text(Badge<DOM::Document>) const;
 
+    void add_associated_font_loader(WeakPtr<FontLoader const> font_loader)
+    {
+        m_associated_font_loaders.append(font_loader);
+    }
+    bool has_associated_font_loader(FontLoader& font_loader) const;
+
 private:
     CSSStyleSheet(JS::Realm&, CSSRuleList&, MediaList&, Optional<URL::URL> location);
 
@@ -110,6 +117,8 @@ private:
     bool m_constructed { false };
     bool m_disallow_modification { false };
     Optional<bool> m_did_match;
+
+    Vector<WeakPtr<FontLoader const>> m_associated_font_loaders;
 };
 
 }

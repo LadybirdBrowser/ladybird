@@ -402,4 +402,13 @@ Optional<String> CSSStyleSheet::source_text(Badge<DOM::Document>) const
     return m_source_text;
 }
 
+bool CSSStyleSheet::has_associated_font_loader(FontLoader& font_loader) const
+{
+    for (auto& loader : m_associated_font_loaders) {
+        if (loader.ptr() == &font_loader)
+            return true;
+    }
+    return false;
+}
+
 }
