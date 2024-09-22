@@ -54,6 +54,10 @@
 #    cmakedefine01 CSS_TOKENIZER_DEBUG
 #endif
 
+#ifndef CSS_TRANSITIONS_DEBUG
+#    cmakedefine01 CSS_TRANSITIONS_DEBUG
+#endif
+
 #ifndef EDITOR_DEBUG
 #    cmakedefine01 EDITOR_DEBUG
 #endif
