@@ -19,6 +19,7 @@
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibURL/URL.h>
+#include <LibUnicode/Forward.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/Cookie/Cookie.h>
@@ -720,6 +721,9 @@ public:
 
     void invalidate_display_list();
 
+    Unicode::Segmenter& grapheme_segmenter() const;
+    Unicode::Segmenter& word_segmenter() const;
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -998,6 +1002,9 @@ private:
 
     Optional<PaintConfig> m_cached_display_list_paint_config;
     RefPtr<Painting::DisplayList> m_cached_display_list;
+
+    mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
+    mutable OwnPtr<Unicode::Segmenter> m_word_segmenter;
 };
 
 template<>

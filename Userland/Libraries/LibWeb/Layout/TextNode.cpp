@@ -391,14 +391,23 @@ void TextNode::compute_text_for_rendering()
     m_text_for_rendering = MUST(builder.to_string());
 }
 
-TextNode::ChunkIterator::ChunkIterator(String const& text, bool wrap_lines, bool respect_linebreaks, Gfx::FontCascadeList const& font_cascade_list)
+Unicode::Segmenter& TextNode::grapheme_segmenter() const
+{
+    if (!m_grapheme_segmenter) {
+        m_grapheme_segmenter = document().grapheme_segmenter().clone();
+        m_grapheme_segmenter->set_segmented_text(text_for_rendering());
+    }
+
+    return *m_grapheme_segmenter;
+}
+
+TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, bool wrap_lines, bool respect_linebreaks)
     : m_wrap_lines(wrap_lines)
     , m_respect_linebreaks(respect_linebreaks)
-    , m_utf8_view(text)
-    , m_font_cascade_list(font_cascade_list)
-    , m_segmenter(Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme))
+    , m_utf8_view(text_node.text_for_rendering())
+    , m_font_cascade_list(text_node.computed_values().font_list())
+    , m_grapheme_segmenter(text_node.grapheme_segmenter())
 {
-    m_segmenter->set_segmented_text(text);
 }
 
 static Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
@@ -470,7 +479,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
         return *m_utf8_view.iterator_at_byte_offset_without_validation(m_current_index);
     };
     auto next_grapheme_boundary = [this]() {
-        return m_segmenter->next_boundary(m_current_index).value_or(m_utf8_view.byte_length());
+        return m_grapheme_segmenter.next_boundary(m_current_index).value_or(m_utf8_view.byte_length());
     };
 
     auto code_point = current_code_point();
