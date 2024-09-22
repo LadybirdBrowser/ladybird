@@ -330,18 +330,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         view().request_style_sheet_source(identifier);
     };
 
-    view().on_navigate_back = [this]() {
-        back();
-    };
-
-    view().on_navigate_forward = [this]() {
-        forward();
-    };
-
-    view().on_refresh = [this]() {
-        reload();
-    };
-
     view().on_restore_window = [this]() {
         m_window->showNormal();
     };

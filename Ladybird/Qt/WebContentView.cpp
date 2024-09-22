@@ -431,13 +431,10 @@ void WebContentView::mouseReleaseEvent(QMouseEvent* event)
 {
     enqueue_native_event(Web::MouseEvent::Type::MouseUp, *event);
 
-    if (event->button() == Qt::MouseButton::BackButton) {
-        if (on_navigate_back)
-            on_navigate_back();
-    } else if (event->button() == Qt::MouseButton::ForwardButton) {
-        if (on_navigate_forward)
-            on_navigate_forward();
-    }
+    if (event->button() == Qt::MouseButton::BackButton)
+        traverse_the_history_by_delta(-1);
+    else if (event->button() == Qt::MouseButton::ForwardButton)
+        traverse_the_history_by_delta(1);
 }
 
 void WebContentView::wheelEvent(QWheelEvent* event)

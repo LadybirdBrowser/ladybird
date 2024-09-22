@@ -102,26 +102,20 @@ void WebContentClient::did_find_in_page(u64 page_id, size_t current_match_index,
 
 void WebContentClient::did_request_navigate_back(u64 page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_navigate_back)
-            view->on_navigate_back();
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->traverse_the_history_by_delta(-1);
 }
 
 void WebContentClient::did_request_navigate_forward(u64 page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_navigate_forward)
-            view->on_navigate_forward();
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->traverse_the_history_by_delta(1);
 }
 
 void WebContentClient::did_request_refresh(u64 page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_refresh)
-            view->on_refresh();
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->reload();
 }
 
 void WebContentClient::did_request_cursor_change(u64 page_id, i32 cursor_type)
