@@ -7,10 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <LibCore/SharedCircularQueue.h>
 #include <LibIPC/ConnectionFromClient.h>
-#include <LibThreading/MutexProtected.h>
-#include <LibThreading/ThreadPool.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/Forward.h>
 #include <RequestServer/RequestClientEndpoint.h>
