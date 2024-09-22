@@ -801,26 +801,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
         (void)modifiers;
     };
 
-    tab->view().on_get_all_cookies = [](auto const& url) {
-        return WebView::Application::cookie_jar().get_all_cookies(url);
-    };
-
-    tab->view().on_get_named_cookie = [](auto const& url, auto const& name) {
-        return WebView::Application::cookie_jar().get_named_cookie(url, name);
-    };
-
-    tab->view().on_get_cookie = [](auto& url, auto source) {
-        return WebView::Application::cookie_jar().get_cookie(url, source);
-    };
-
-    tab->view().on_set_cookie = [](auto& url, auto& cookie, auto source) {
-        WebView::Application::cookie_jar().set_cookie(url, cookie, source);
-    };
-
-    tab->view().on_update_cookie = [](auto const& cookie) {
-        WebView::Application::cookie_jar().update_cookie(cookie);
-    };
-
     m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());
     create_close_button_for_tab(tab);
 

@@ -45,13 +45,10 @@
 #include <LibImageDecoderClient/Client.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Cookie/Cookie.h>
-#include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/CookieJar.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -130,14 +127,6 @@ private:
         : m_request_client(move(request_client))
         , m_image_decoder_client(move(image_decoder_client))
     {
-        on_get_cookie = [](auto const& url, auto source) {
-            return WebView::Application::cookie_jar().get_cookie(url, source);
-        };
-
-        on_set_cookie = [](auto const& url, auto const& cookie, auto source) {
-            WebView::Application::cookie_jar().set_cookie(url, cookie, source);
-        };
-
         on_request_worker_agent = [this]() {
             auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), *m_request_client));
             return worker_client->dup_socket();

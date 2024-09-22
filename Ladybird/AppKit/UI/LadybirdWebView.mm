@@ -11,7 +11,6 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/CookieJar.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/URL.h>
@@ -996,26 +995,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         auto device_pixel_ratio = m_web_view_bridge->device_pixel_ratio();
         auto* event = Ladybird::create_context_menu_mouse_event(self, Gfx::IntPoint { content_position.x() / device_pixel_ratio, content_position.y() / device_pixel_ratio });
         [NSMenu popUpContextMenu:self.select_dropdown withEvent:event forView:self];
-    };
-
-    m_web_view_bridge->on_get_all_cookies = [](auto const& url) {
-        return WebView::Application::cookie_jar().get_all_cookies(url);
-    };
-
-    m_web_view_bridge->on_get_named_cookie = [](auto const& url, auto const& name) {
-        return WebView::Application::cookie_jar().get_named_cookie(url, name);
-    };
-
-    m_web_view_bridge->on_get_cookie = [](auto const& url, auto source) {
-        return WebView::Application::cookie_jar().get_cookie(url, source);
-    };
-
-    m_web_view_bridge->on_set_cookie = [](auto const& url, auto const& cookie, auto source) {
-        WebView::Application::cookie_jar().set_cookie(url, cookie, source);
-    };
-
-    m_web_view_bridge->on_update_cookie = [](auto const& cookie) {
-        WebView::Application::cookie_jar().update_cookie(cookie);
     };
 
     m_web_view_bridge->on_restore_window = [weak_self]() {
