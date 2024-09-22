@@ -193,6 +193,15 @@ void ViewImplementation::set_enable_do_not_track(bool enable)
     client().async_set_enable_do_not_track(page_id(), enable);
 }
 
+void ViewImplementation::set_enable_autoplay(bool enable)
+{
+    if (enable) {
+        client().async_set_autoplay_allowed_on_all_websites(page_id());
+    } else {
+        client().async_set_autoplay_allowlist(page_id(), {});
+    }
+}
+
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());

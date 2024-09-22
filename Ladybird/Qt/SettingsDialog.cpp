@@ -9,6 +9,7 @@
 #include "Settings.h"
 #include "StringUtils.h"
 #include <LibURL/URL.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/SearchEngine.h>
 #include <QLabel>
 #include <QMenu>
@@ -65,6 +66,17 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
         Settings::the()->set_enable_do_not_track(state == Qt::Checked);
     });
 
+    m_enable_autoplay = new QCheckBox(this);
+    if (WebView::Application::web_content_options().enable_autoplay == WebView::EnableAutoplay::Yes) {
+        m_enable_autoplay->setChecked(true);
+    } else {
+        m_enable_autoplay->setChecked(Settings::the()->enable_autoplay());
+    }
+
+    QObject::connect(m_enable_autoplay, &QCheckBox::stateChanged, this, [&](int state) {
+        Settings::the()->set_enable_autoplay(state == Qt::Checked);
+    });
+
     setup_search_engines();
 
     m_layout->addRow(new QLabel("Page on New Tab", this), m_new_tab_page);
@@ -74,6 +86,7 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
     m_layout->addRow(new QLabel("Enable Autocomplete", this), m_enable_autocomplete);
     m_layout->addRow(new QLabel("Autocomplete Engine", this), m_autocomplete_engine_dropdown);
     m_layout->addRow(new QLabel("Send web sites a \"Do Not Track\" request", this), m_enable_do_not_track);
+    m_layout->addRow(new QLabel("Enable autoplay on all websites", this), m_enable_autoplay);
 
     setWindowTitle("Settings");
     setLayout(m_layout);

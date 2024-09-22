@@ -561,6 +561,10 @@
 
     [submenu addItem:search_engine_menu_item];
 
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Enable Autoplay"
+                                                action:@selector(toggleAutoplay:)
+                                         keyEquivalent:@""]];
+
     [menu setSubmenu:submenu];
     return menu;
 }
