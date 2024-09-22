@@ -389,6 +389,9 @@ JS::GCPtr<HTML::Navigable> Node::navigable() const
 
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
+    if (is_character_data())
+        return;
+
     if (!needs_style_update() && !document().needs_full_style_update()) {
         dbgln_if(STYLE_INVALIDATION_DEBUG, "Invalidate style ({}): {}", to_string(reason), debug_description());
     }
