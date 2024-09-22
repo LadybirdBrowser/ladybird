@@ -207,7 +207,13 @@ void Node::set_text_content(Optional<String> const& maybe_content)
     // Otherwise, do nothing.
 
     if (is_connected()) {
-        document().invalidate_style(StyleInvalidationReason::NodeSetTextContent);
+        // FIXME: If there are any :has() selectors, we currently invalidate style for the whole document.
+        //        We need to find a way to invalidate less!
+        if (document().style_computer().has_has_selectors()) {
+            document().invalidate_style(StyleInvalidationReason::NodeSetTextContent);
+        } else {
+            invalidate_style(StyleInvalidationReason::NodeSetTextContent);
+        }
         document().invalidate_layout_tree();
     }
 
@@ -882,7 +888,14 @@ void Node::remove(bool suppress_observers)
     if (was_connected) {
         // Since the tree structure has changed, we need to invalidate both style and layout.
         // In the future, we should find a way to only invalidate the parts that actually need it.
-        document().invalidate_style(StyleInvalidationReason::NodeRemove);
+
+        // FIXME: If there are any :has() selectors, we currently invalidate style for the whole document.
+        //        We need to find a way to invalidate less!
+        if (document().style_computer().has_has_selectors()) {
+            document().invalidate_style(StyleInvalidationReason::NodeRemove);
+        } else {
+            invalidate_style(StyleInvalidationReason::NodeRemove);
+        }
 
         // NOTE: If we didn't have a layout node before, rebuilding the layout tree isn't gonna give us one
         //       after we've been removed from the DOM.
