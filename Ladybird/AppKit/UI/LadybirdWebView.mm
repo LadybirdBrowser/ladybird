@@ -554,30 +554,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [self updateViewportRect:Ladybird::WebViewBridge::ForResize::Yes];
     };
 
-    m_web_view_bridge->on_navigate_back = [weak_self]() {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        [self navigateBack];
-    };
-
-    m_web_view_bridge->on_navigate_forward = [weak_self]() {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        [self navigateForward];
-    };
-
-    m_web_view_bridge->on_refresh = [weak_self]() {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        [self reload];
-    };
-
     m_web_view_bridge->on_request_tooltip_override = [weak_self](auto, auto const& tooltip) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {

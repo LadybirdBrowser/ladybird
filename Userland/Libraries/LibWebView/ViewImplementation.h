@@ -171,9 +171,6 @@ public:
     Function<void(URL::URL const&, bool)> on_load_start;
     Function<void(URL::URL const&)> on_load_finish;
     Function<void(ByteString const& path, i32)> on_request_file;
-    Function<void()> on_navigate_back;
-    Function<void()> on_navigate_forward;
-    Function<void()> on_refresh;
     Function<void(Gfx::Bitmap const&)> on_favicon_change;
     Function<void(Gfx::StandardCursor)> on_cursor_change;
     Function<void(Gfx::IntPoint, ByteString const&)> on_request_tooltip_override;
