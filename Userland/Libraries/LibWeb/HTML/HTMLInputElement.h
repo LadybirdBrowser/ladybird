@@ -305,8 +305,9 @@ private:
     JS::GCPtr<DOM::Element> m_file_label;
 
     void update_slider_shadow_tree_elements();
-    JS::GCPtr<DOM::Element> m_slider_thumb;
+    JS::GCPtr<DOM::Element> m_slider_runnable_track;
     JS::GCPtr<DOM::Element> m_slider_progress_element;
+    JS::GCPtr<DOM::Element> m_slider_thumb;
 
     JS::GCPtr<DecodedImageData> image_data() const;
     JS::GCPtr<SharedResourceRequest> m_resource_request;
