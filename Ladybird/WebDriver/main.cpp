@@ -47,6 +47,7 @@ static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool use_qt_
 
     arguments.append("--allow-popups");
     arguments.append("--force-new-process");
+    arguments.append("--enable-autoplay");
     if (use_qt_networking)
         arguments.append("--enable-qt-networking");
     if (force_cpu_painting)
