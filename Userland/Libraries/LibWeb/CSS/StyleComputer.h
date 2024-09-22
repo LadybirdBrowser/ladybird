@@ -144,7 +144,8 @@ public:
 
     Optional<FontLoader&> load_font_face(ParsedFontFace const&, ESCAPING Function<void(FontLoader const&)> on_load = {}, ESCAPING Function<void()> on_fail = {});
 
-    void load_fonts_from_sheet(CSSStyleSheet const&);
+    void load_fonts_from_sheet(CSSStyleSheet&);
+    void unload_fonts_from_sheet(CSSStyleSheet&);
 
     RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth = 0) const;
 

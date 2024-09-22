@@ -2794,12 +2794,24 @@ Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_f
     return loader_ref;
 }
 
-void StyleComputer::load_fonts_from_sheet(CSSStyleSheet const& sheet)
+void StyleComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 {
     for (auto const& rule : sheet.rules()) {
         if (!is<CSSFontFaceRule>(*rule))
             continue;
-        (void)load_font_face(static_cast<CSSFontFaceRule const&>(*rule).font_face());
+        auto font_loader = load_font_face(static_cast<CSSFontFaceRule const&>(*rule).font_face());
+        if (font_loader.has_value()) {
+            sheet.add_associated_font_loader(font_loader.value());
+        }
+    }
+}
+
+void StyleComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
+{
+    for (auto& [_, font_loader_list] : m_loaded_fonts) {
+        font_loader_list.remove_all_matching([&](auto& font_loader) {
+            return sheet.has_associated_font_loader(*font_loader);
+        });
     }
 }
 
