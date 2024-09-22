@@ -150,6 +150,7 @@ void Animatable::remove_transition(CSS::PropertyID property_id)
 
 void Animatable::clear_transitions()
 {
+    m_associated_transitions.clear();
     m_transition_attribute_indices.clear();
     m_transition_attributes.clear();
 }
