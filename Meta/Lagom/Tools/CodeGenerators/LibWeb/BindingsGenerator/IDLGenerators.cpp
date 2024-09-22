@@ -4190,6 +4190,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     using namespace Web::DOMURL;
     using namespace Web::Encoding;
     using namespace Web::EntriesAPI;
+    using namespace Web::EventTiming;
     using namespace Web::Fetch;
     using namespace Web::FileAPI;
     using namespace Web::Geometry;

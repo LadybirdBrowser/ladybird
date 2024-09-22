@@ -243,6 +243,7 @@ PageTransitionEvent
 Path2D
 Performance
 PerformanceEntry
+PerformanceEventTiming
 PerformanceMark
 PerformanceMeasure
 PerformanceNavigation

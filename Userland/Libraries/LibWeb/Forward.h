@@ -307,6 +307,10 @@ namespace Web::EntriesAPI {
 class FileSystemEntry;
 }
 
+namespace Web::EventTiming {
+class PerformanceEventTiming;
+}
+
 namespace Web::Fetch {
 class BodyMixin;
 class Headers;
