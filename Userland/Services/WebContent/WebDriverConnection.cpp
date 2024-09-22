@@ -1523,7 +1523,7 @@ Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_cle
 
     // FIXME: 12. Return success with data null.
 
-    return JsonValue {};
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "element clear not implemented"sv);
 }
 
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
@@ -1749,7 +1749,7 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
 
     // FIXME: 15. Return success with data null.
 
-    return JsonValue {};
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "send keys not implemented"sv);
 }
 
 // 13.1 Get Page Source, https://w3c.github.io/webdriver/#dfn-get-page-source
@@ -2046,8 +2046,8 @@ Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_a
 
     // FIXME: 6. Dispatch actions with input state, actions by tick, current browsing context, and actions options. If this results in an error return that error.
 
-    // 7. Return success with data null.
-    return JsonValue {};
+    // FIXME: 7. Return success with data null.
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "perform actions not implemented"sv);
 }
 
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions
