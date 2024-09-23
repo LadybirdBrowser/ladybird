@@ -20,7 +20,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/Origin.h>
-#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -123,8 +123,9 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL& url_record, V
 {
     // FIXME: Integrate properly with FETCH as per https://fetch.spec.whatwg.org/#websocket-opening-handshake
 
-    auto& window = verify_cast<HTML::Window>(client.global_object());
-    auto origin_string = window.associated_document().origin().serialize();
+    auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&client.global_object());
+    VERIFY(window_or_worker);
+    auto origin_string = MUST(window_or_worker->origin()).to_byte_string();
 
     Vector<ByteString> protcol_byte_strings;
     for (auto const& protocol : protocols)
