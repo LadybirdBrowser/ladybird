@@ -242,10 +242,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
     }
     // 32. Else if kind is normal, perform MakeConstructor(F).
     else if (kind == FunctionKind::Normal) {
-        // FIXME: Implement MakeConstructor
-        prototype = Object::create_prototype(realm, realm.intrinsics().object_prototype());
-        prototype->define_direct_property(vm.names.constructor, function, Attribute::Writable | Attribute::Configurable);
-        function->define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
+        function->make_constructor();
     }
 
     // 33. NOTE: Functions whose kind is async are not constructible and do not have a [[Construct]] internal method or a "prototype" property.
