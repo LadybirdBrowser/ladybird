@@ -16,7 +16,7 @@ project(ladybird
         VERSION 0.1.0
         LANGUAGES C CXX
         DESCRIPTION "Ladybird Web Browser"
-        HOMEPAGE_URL "https://ladybird.dev"
+        HOMEPAGE_URL "https://ladybird.org"
 )
 
 if (ANDROID OR IOS)
