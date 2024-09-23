@@ -1290,7 +1290,9 @@ static void compute_transitioned_properties(StyleProperties const& style, DOM::E
                 properties.append(move(properties_for_this_transition));
             }
 
-            element.add_transitioned_properties(move(properties), move(delays), move(durations), move(timing_functions));
+            if (properties.size() == delays.size() && properties.size() == durations.size() && properties.size() == timing_functions.size()) {
+                element.add_transitioned_properties(move(properties), move(delays), move(durations), move(timing_functions));
+            }
         }
     }
 }
