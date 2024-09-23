@@ -35,6 +35,7 @@ public:
     [[nodiscard]] virtual bool is_empty() const override;
     virtual Gfx::FloatPoint last_point() const override;
     virtual Gfx::FloatRect bounding_box() const override;
+    virtual bool contains(FloatPoint point, Gfx::WindingRule) const override;
 
     virtual NonnullOwnPtr<PathImpl> clone() const override;
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const override;

@@ -25,6 +25,7 @@
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PageInfo.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -140,6 +141,9 @@ public:
     NonnullRefPtr<Core::Promise<LexicalPath>> take_dom_node_screenshot(i32);
     virtual void did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const&);
 
+    NonnullRefPtr<Core::Promise<String>> request_internal_page_info(PageInfoType);
+    void did_receive_internal_page_info(Badge<WebContentClient>, PageInfoType, String const&);
+
     ErrorOr<LexicalPath> dump_gc_graph();
 
     void set_user_style_sheet(String source);
@@ -167,9 +171,6 @@ public:
     Function<void(URL::URL const&, bool)> on_load_start;
     Function<void(URL::URL const&)> on_load_finish;
     Function<void(ByteString const& path, i32)> on_request_file;
-    Function<void()> on_navigate_back;
-    Function<void()> on_navigate_forward;
-    Function<void()> on_refresh;
     Function<void(Gfx::Bitmap const&)> on_favicon_change;
     Function<void(Gfx::StandardCursor)> on_cursor_change;
     Function<void(Gfx::IntPoint, ByteString const&)> on_request_tooltip_override;
@@ -194,11 +195,6 @@ public:
     Function<void(String const&)> on_received_dom_node_html;
     Function<void(i32 message_id)> on_received_console_message;
     Function<void(i32 start_index, Vector<ByteString> const& message_types, Vector<ByteString> const& messages)> on_received_console_messages;
-    Function<Vector<Web::Cookie::Cookie>(URL::URL const& url)> on_get_all_cookies;
-    Function<Optional<Web::Cookie::Cookie>(URL::URL const& url, String const& name)> on_get_named_cookie;
-    Function<String(URL::URL const& url, Web::Cookie::Source source)> on_get_cookie;
-    Function<void(URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)> on_set_cookie;
-    Function<void(Web::Cookie::Cookie const& cookie)> on_update_cookie;
     Function<void(i32 count_waiting)> on_resource_status_change;
     Function<void()> on_restore_window;
     Function<Gfx::IntPoint(Gfx::IntPoint)> on_reposition_window;
@@ -286,6 +282,7 @@ protected:
     RefPtr<Core::Timer> m_repeated_crash_timer;
 
     RefPtr<Core::Promise<LexicalPath>> m_pending_screenshot;
+    RefPtr<Core::Promise<String>> m_pending_info_request;
 
     Web::HTML::AudioPlayState m_audio_play_state { Web::HTML::AudioPlayState::Paused };
     size_t m_number_of_elements_playing_audio { 0 };

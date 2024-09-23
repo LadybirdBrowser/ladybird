@@ -90,7 +90,7 @@ ErrorOr<void> generate_implementation_file(JsonObject& functions_data, Core::Fil
 #include <LibWeb/CSS/MathFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSMathValue.h>
 
 namespace Web::CSS::Parser {
 

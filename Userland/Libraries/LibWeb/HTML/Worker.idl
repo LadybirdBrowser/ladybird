@@ -2,6 +2,7 @@
 #import <DOM/EventHandler.idl>
 #import <HTML/AbstractWorker.idl>
 #import <HTML/MessagePort.idl>
+#import <Fetch/Request.idl>
 
 // https://html.spec.whatwg.org/#worker
 [Exposed=(Window,DedicatedWorker,SharedWorker)]
@@ -18,9 +19,11 @@ interface Worker : EventTarget {
 };
 
 dictionary WorkerOptions {
-    USVString type = "classic";
-    USVString credentials = "same-origin";
+    WorkerType type = "classic";
+    RequestCredentials credentials = "same-origin";
     DOMString name = "";
 };
+
+enum WorkerType { "classic", "module" };
 
 Worker includes AbstractWorker;

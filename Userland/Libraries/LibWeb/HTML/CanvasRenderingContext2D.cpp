@@ -350,18 +350,14 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     auto source_rect_intersected = source_rect.intersected(bitmap.rect());
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
-    // FIXME: Can't use a Gfx::DeprecatedPainter + blit() here as it doesn't support ImageData bitmap's RGBA8888 format.
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
     //       might result in a loss of precision, but is according to spec.
     //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
     ASSERT(bitmap.alpha_type() == Gfx::AlphaType::Premultiplied);
     ASSERT(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
-    for (int target_y = 0; target_y < source_rect_intersected.height(); ++target_y) {
-        for (int target_x = 0; target_x < source_rect_intersected.width(); ++target_x) {
-            auto pixel = bitmap.get_pixel(target_x + x, target_y + y);
-            image_data->bitmap().set_pixel(target_x, target_y, pixel.to_unpremultiplied());
-        }
-    }
+
+    auto painter = Gfx::Painter::create(image_data->bitmap());
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), bitmap, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, drawing_state().global_alpha);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
@@ -385,8 +381,9 @@ void CanvasRenderingContext2D::reset_to_default_state()
     auto* bitmap = canvas_element().bitmap();
 
     // 1. Clear canvas's bitmap to transparent black.
-    if (bitmap)
-        bitmap->fill(Gfx::Color::Transparent);
+    if (bitmap) {
+        painter()->clear_rect(bitmap->rect().to_type<float>(), Color::Transparent);
+    }
 
     // 2. Empty the list of subpaths in context's current default path.
     path().clear();
@@ -513,16 +510,10 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     Gfx::FloatPoint anchor { 0, 0 };
     auto physical_alignment = Gfx::TextAlignment::CenterLeft;
 
-    auto glyph_run = adopt_ref(*new Gfx::GlyphRun({}, *font, Gfx::GlyphRun::TextType::Ltr));
-    float glyph_run_width = 0;
-    Gfx::for_each_glyph_position(
-        anchor, replaced_text.code_points(), *font, [&](Gfx::DrawGlyph const& glyph) {
-            glyph_run->append(glyph);
-        },
-        glyph_run_width);
+    auto glyph_run = Gfx::shape_text(anchor, replaced_text.code_points(), *font, Gfx::GlyphRun::TextType::Ltr);
 
     // 8. Let result be an array constructed by iterating over each glyph in the inline box from left to right (if any), adding to the array, for each glyph, the shape of the glyph as it is in the inline box, positioned on a coordinate space using CSS pixels with its origin is at the anchor point.
-    PreparedText prepared_text { glyph_run, physical_alignment, { 0, 0, static_cast<int>(glyph_run_width), static_cast<int>(height) } };
+    PreparedText prepared_text { glyph_run, physical_alignment, { 0, 0, static_cast<int>(glyph_run->width()), static_cast<int>(height) } };
 
     // 9. Return result, physical alignment, and the inline box.
     return prepared_text;
@@ -546,6 +537,21 @@ void CanvasRenderingContext2D::clip(StringView fill_rule)
 void CanvasRenderingContext2D::clip(Path2D& path, StringView fill_rule)
 {
     clip_internal(path.path(), parse_fill_rule(fill_rule));
+}
+
+static bool is_point_in_path_internal(Gfx::Path path, double x, double y, StringView fill_rule)
+{
+    return path.contains(Gfx::FloatPoint(x, y), parse_fill_rule(fill_rule));
+}
+
+bool CanvasRenderingContext2D::is_point_in_path(double x, double y, StringView fill_rule)
+{
+    return is_point_in_path_internal(path(), x, y, fill_rule);
+}
+
+bool CanvasRenderingContext2D::is_point_in_path(Path2D const& path, double x, double y, StringView fill_rule)
+{
+    return is_point_in_path_internal(path.path(), x, y, fill_rule);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument

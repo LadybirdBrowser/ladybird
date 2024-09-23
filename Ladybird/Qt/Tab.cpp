@@ -330,18 +330,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         view().request_style_sheet_source(identifier);
     };
 
-    view().on_navigate_back = [this]() {
-        back();
-    };
-
-    view().on_navigate_forward = [this]() {
-        forward();
-    };
-
-    view().on_refresh = [this]() {
-        reload();
-    };
-
     view().on_restore_window = [this]() {
         m_window->showNormal();
     };
@@ -554,8 +542,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     });
 
     m_link_context_menu = new QMenu("Link context menu", this);
-    m_link_context_menu->addAction(open_link_action);
     m_link_context_menu->addAction(open_link_in_new_tab_action);
+    m_link_context_menu->addAction(open_link_action);
     m_link_context_menu->addSeparator();
     m_link_context_menu->addAction(m_link_context_menu_copy_url_action);
     m_link_context_menu->addSeparator();
@@ -823,6 +811,8 @@ void Tab::copy_link_url(URL::URL const& url)
 
 void Tab::location_edit_return_pressed()
 {
+    if (m_location_edit->text().isEmpty())
+        return;
     navigate(m_location_edit->url());
 }
 

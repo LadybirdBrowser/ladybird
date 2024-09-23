@@ -54,8 +54,17 @@ class CookieJar {
         template<typename Callback>
         void for_each_cookie(Callback callback)
         {
-            for (auto& it : m_cookies)
-                callback(it.value);
+            using ReturnType = InvokeResult<Callback, Web::Cookie::Cookie&>;
+
+            for (auto& it : m_cookies) {
+                if constexpr (IsSame<ReturnType, IterationDecision>) {
+                    if (callback(it.value) == IterationDecision::Break)
+                        return;
+                } else {
+                    static_assert(IsSame<ReturnType, void>);
+                    callback(it.value);
+                }
+            }
         }
 
     private:
@@ -95,7 +104,6 @@ private:
     static Optional<String> canonicalize_domain(const URL::URL& url);
     static bool domain_matches(StringView string, StringView domain_string);
     static bool path_matches(StringView request_path, StringView cookie_path);
-    static String default_path(const URL::URL& url);
 
     enum class MatchingCookiesSpecMode {
         RFC6265,

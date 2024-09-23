@@ -18,6 +18,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
@@ -698,6 +699,22 @@ WebIDL::ExceptionOr<void> Document::close()
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-document-defaultview
+JS::GCPtr<HTML::WindowProxy> Document::default_view()
+{
+    // If this's browsing context is null, then return null.
+    if (!browsing_context())
+        return {};
+
+    // 2. Return this's browsing context's WindowProxy object.
+    return browsing_context()->window_proxy();
+}
+
+JS::GCPtr<HTML::WindowProxy const> Document::default_view() const
+{
+    return const_cast<Document*>(this)->default_view();
+}
+
 HTML::Origin Document::origin() const
 {
     return m_origin;
@@ -1049,7 +1066,7 @@ void Document::set_needs_layout()
     schedule_layout_update();
 }
 
-void Document::invalidate_layout()
+void Document::invalidate_layout_tree()
 {
     tear_down_layout_tree();
     schedule_layout_update();
@@ -1194,7 +1211,7 @@ void Document::update_layout()
         page().client().page_did_layout();
     }
 
-    paintable()->recompute_selection_states();
+    paintable()->update_selection();
 
     m_needs_layout = false;
 
@@ -1282,7 +1299,7 @@ void Document::update_style()
         invalidate_display_list();
     }
     if (invalidation.rebuild_layout_tree) {
-        invalidate_layout();
+        invalidate_layout_tree();
     } else {
         if (invalidation.relayout)
             set_needs_layout();
@@ -2446,7 +2463,7 @@ String Document::cookie(Cookie::Source source)
 
 void Document::set_cookie(StringView cookie_string, Cookie::Source source)
 {
-    auto cookie = Cookie::parse_cookie(cookie_string);
+    auto cookie = Cookie::parse_cookie(url(), cookie_string);
     if (!cookie.has_value())
         return;
 
@@ -2739,7 +2756,7 @@ void Document::evaluate_media_rules()
     if (any_media_queries_changed_match_state) {
         style_computer().invalidate_rule_cache();
         invalidate_style(StyleInvalidationReason::MediaQueryChangedMatchState);
-        invalidate_layout();
+        invalidate_layout_tree();
     }
 }
 
@@ -5588,6 +5605,20 @@ RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
     m_cached_display_list_paint_config = config;
 
     return display_list;
+}
+
+Unicode::Segmenter& Document::grapheme_segmenter() const
+{
+    if (!m_grapheme_segmenter)
+        m_grapheme_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
+    return *m_grapheme_segmenter;
+}
+
+Unicode::Segmenter& Document::word_segmenter() const
+{
+    if (!m_word_segmenter)
+        m_word_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
+    return *m_word_segmenter;
 }
 
 }

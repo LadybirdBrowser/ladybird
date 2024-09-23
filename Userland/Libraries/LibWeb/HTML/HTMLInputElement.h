@@ -204,6 +204,7 @@ public:
     bool step_up_or_down_applies() const;
     bool select_applies() const;
     bool selection_or_range_applies() const;
+    bool has_selectable_text() const;
 
     static bool selection_or_range_applies_for_type_state(TypeAttributeState);
 
@@ -304,8 +305,9 @@ private:
     JS::GCPtr<DOM::Element> m_file_label;
 
     void update_slider_shadow_tree_elements();
-    JS::GCPtr<DOM::Element> m_slider_thumb;
+    JS::GCPtr<DOM::Element> m_slider_runnable_track;
     JS::GCPtr<DOM::Element> m_slider_progress_element;
+    JS::GCPtr<DOM::Element> m_slider_thumb;
 
     JS::GCPtr<DecodedImageData> image_data() const;
     JS::GCPtr<SharedResourceRequest> m_resource_request;

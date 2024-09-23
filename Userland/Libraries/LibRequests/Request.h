@@ -51,11 +51,9 @@ public:
     // mutually exclusive with `set_buffered_request_finished_callback`.
     void set_unbuffered_request_callbacks(HeadersReceived, DataReceived, RequestFinished);
 
-    Function<void(Optional<u64> total_size, u64 downloaded_size)> on_progress;
     Function<CertificateAndKey()> on_certificate_requested;
 
     void did_finish(Badge<RequestClient>, bool success, u64 total_size);
-    void did_progress(Badge<RequestClient>, Optional<u64> total_size, u64 downloaded_size);
     void did_receive_headers(Badge<RequestClient>, HTTP::HeaderMap const& response_headers, Optional<u32> response_code);
     void did_request_certificates(Badge<RequestClient>);
 

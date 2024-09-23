@@ -19,6 +19,7 @@ interface Internals {
     undefined wheel(double x, double y, double deltaX, double deltaY);
 
     boolean dispatchUserActivatedEvent(EventTarget target, Event event);
+    undefined spoofCurrentURL(USVString url);
 
     InternalAnimationTimeline createInternalAnimationTimeline();
 

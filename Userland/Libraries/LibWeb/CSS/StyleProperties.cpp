@@ -40,14 +40,15 @@ namespace Web::CSS {
 NonnullRefPtr<StyleProperties::Data> StyleProperties::Data::clone() const
 {
     auto clone = adopt_ref(*new StyleProperties::Data);
+    clone->m_animation_name_source = m_animation_name_source;
+    clone->m_transition_property_source = m_transition_property_source;
     clone->m_property_values = m_property_values;
-    clone->m_animated_property_values = m_animated_property_values;
     clone->m_property_important = m_property_important;
     clone->m_property_inherited = m_property_inherited;
+    clone->m_animated_property_values = m_animated_property_values;
+    clone->m_math_depth = m_math_depth;
     clone->m_font_list = m_font_list;
     clone->m_line_height = m_line_height;
-    clone->m_animation_name_source = m_animation_name_source;
-    clone->m_math_depth = m_math_depth;
     return clone;
 }
 
@@ -112,10 +113,12 @@ void StyleProperties::reset_animated_properties()
     m_data->m_animated_property_values.clear();
 }
 
-NonnullRefPtr<CSSStyleValue const> StyleProperties::property(CSS::PropertyID property_id) const
+NonnullRefPtr<CSSStyleValue const> StyleProperties::property(CSS::PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
-    if (auto animated_value = m_data->m_animated_property_values.get(property_id).value_or(nullptr))
-        return *animated_value;
+    if (return_animated_value == WithAnimationsApplied::Yes) {
+        if (auto animated_value = m_data->m_animated_property_values.get(property_id).value_or(nullptr))
+            return *animated_value;
+    }
 
     // By the time we call this method, all properties have values assigned.
     return *m_data->m_property_values[to_underlying(property_id)];
@@ -148,8 +151,8 @@ CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
         }
     }
 
-    if (value->is_calculated())
-        return CSS::Size::make_calculated(const_cast<CalculatedStyleValue&>(value->as_calculated()));
+    if (value->is_math())
+        return CSS::Size::make_calculated(const_cast<CSSMathValue&>(value->as_math()));
 
     if (value->is_percentage())
         return CSS::Size::make_percentage(value->as_percentage().percentage());
@@ -175,8 +178,8 @@ Optional<LengthPercentage> StyleProperties::length_percentage(CSS::PropertyID id
 {
     auto value = property(id);
 
-    if (value->is_calculated())
-        return LengthPercentage { const_cast<CalculatedStyleValue&>(value->as_calculated()) };
+    if (value->is_math())
+        return LengthPercentage { const_cast<CSSMathValue&>(value->as_math()) };
 
     if (value->is_percentage())
         return value->as_percentage().percentage();
@@ -244,19 +247,19 @@ CSSPixels StyleProperties::compute_line_height(CSSPixelRect const& viewport_rect
         return Length(percentage.as_fraction(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
     }
 
-    if (line_height->is_calculated()) {
-        if (line_height->as_calculated().resolves_to_number()) {
-            auto resolved = line_height->as_calculated().resolve_number();
+    if (line_height->is_math()) {
+        if (line_height->as_math().resolves_to_number()) {
+            auto resolved = line_height->as_math().resolve_number();
             if (!resolved.has_value()) {
-                dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height->as_calculated().to_string());
+                dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height->as_math().to_string());
                 return CSSPixels::nearest_value_for(m_data->m_font_list->first().pixel_metrics().line_spacing());
             }
             return Length(resolved.value(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
         }
 
-        auto resolved = line_height->as_calculated().resolve_length(Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics });
+        auto resolved = line_height->as_math().resolve_length(Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics });
         if (!resolved.has_value()) {
-            dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height->as_calculated().to_string());
+            dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height->as_math().to_string());
             return CSSPixels::nearest_value_for(m_data->m_font_list->first().pixel_metrics().line_spacing());
         }
         return resolved->to_px(viewport_rect, font_metrics, root_font_metrics);
@@ -288,16 +291,16 @@ float StyleProperties::resolve_opacity_value(CSSStyleValue const& value)
 
     if (value.is_number()) {
         unclamped_opacity = value.as_number().number();
-    } else if (value.is_calculated()) {
-        auto& calculated = value.as_calculated();
+    } else if (value.is_math()) {
+        auto& calculated = value.as_math();
         if (calculated.resolves_to_percentage()) {
-            auto maybe_percentage = value.as_calculated().resolve_percentage();
+            auto maybe_percentage = value.as_math().resolve_percentage();
             if (maybe_percentage.has_value())
                 unclamped_opacity = maybe_percentage->as_fraction();
             else
                 dbgln("Unable to resolve calc() as opacity (percentage): {}", value.to_string());
         } else if (calculated.resolves_to_number()) {
-            auto maybe_number = const_cast<CalculatedStyleValue&>(value.as_calculated()).resolve_number();
+            auto maybe_number = const_cast<CSSMathValue&>(value.as_math()).resolve_number();
             if (maybe_number.has_value())
                 unclamped_opacity = maybe_number.value();
             else
@@ -469,8 +472,8 @@ Vector<CSS::Transformation> StyleProperties::transformations_for_style_value(CSS
         Vector<TransformValue> values;
         size_t argument_index = 0;
         for (auto& transformation_value : transformation_style_value.values()) {
-            if (transformation_value->is_calculated()) {
-                auto& calculated = transformation_value->as_calculated();
+            if (transformation_value->is_math()) {
+                auto& calculated = transformation_value->as_math();
                 if (calculated.resolves_to_length_percentage()) {
                     values.append(CSS::LengthPercentage { calculated });
                 } else if (calculated.resolves_to_percentage()) {
@@ -903,8 +906,8 @@ Vector<ShadowData> StyleProperties::shadow(PropertyID property_id, Layout::Node 
     auto resolve_to_length = [&layout_node](NonnullRefPtr<CSSStyleValue const> const& value) -> Optional<Length> {
         if (value->is_length())
             return value->as_length().length();
-        if (value->is_calculated())
-            return value->as_calculated().resolve_length(layout_node);
+        if (value->is_math())
+            return value->as_math().resolve_length(layout_node);
         return {};
     };
 
@@ -985,8 +988,8 @@ Variant<CSS::VerticalAlign, CSS::LengthPercentage> StyleProperties::vertical_ali
     if (value->is_percentage())
         return CSS::LengthPercentage(value->as_percentage().percentage());
 
-    if (value->is_calculated())
-        return LengthPercentage { const_cast<CalculatedStyleValue&>(value->as_calculated()) };
+    if (value->is_math())
+        return LengthPercentage { const_cast<CSSMathValue&>(value->as_math()) };
 
     VERIFY_NOT_REACHED();
 }
@@ -1178,8 +1181,8 @@ Vector<CounterData> StyleProperties::counter_data(PropertyID property_id) const
             if (counter.value) {
                 if (counter.value->is_integer()) {
                     data.value = AK::clamp_to<i32>(counter.value->as_integer().integer());
-                } else if (counter.value->is_calculated()) {
-                    auto maybe_int = counter.value->as_calculated().resolve_integer();
+                } else if (counter.value->is_math()) {
+                    auto maybe_int = counter.value->as_math().resolve_integer();
                     if (maybe_int.has_value())
                         data.value = AK::clamp_to<i32>(*maybe_int);
                 } else {

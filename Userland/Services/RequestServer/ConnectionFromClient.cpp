@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,170 +9,197 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
 #include <RequestServer/ConnectionFromClient.h>
-#include <RequestServer/Protocol.h>
-#include <RequestServer/Request.h>
 #include <RequestServer/RequestClientEndpoint.h>
+#include <curl/curl.h>
 #include <netdb.h>
 
 namespace RequestServer {
 
-template<typename Pool>
-struct Looper : public Threading::ThreadPoolLooper<Pool> {
-    IterationDecision next(Pool& pool, bool wait);
-    Core::EventLoop event_loop;
-};
+ByteString g_default_certificate_path;
+static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
+static IDAllocator s_client_ids;
 
-struct ThreadPoolEntry {
-    NonnullRefPtr<ConnectionFromClient> client;
-    ConnectionFromClient::Work work;
-};
-static Threading::ThreadPool<ThreadPoolEntry, Looper> s_thread_pool {
-    [](ThreadPoolEntry entry) {
-        entry.client->worker_do_work(move(entry.work));
+struct ConnectionFromClient::ActiveRequest {
+    CURLM* multi { nullptr };
+    CURL* easy { nullptr };
+    i32 request_id { 0 };
+    RefPtr<Core::Notifier> notifier;
+    WeakPtr<ConnectionFromClient> client;
+    int writer_fd { 0 };
+    HTTP::HeaderMap headers;
+    bool got_all_headers { false };
+    size_t downloaded_so_far { 0 };
+    String url;
+    ByteBuffer body;
+
+    ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, int writer_fd)
+        : multi(multi)
+        , easy(easy)
+        , request_id(request_id)
+        , client(client)
+        , writer_fd(writer_fd)
+    {
+    }
+
+    ~ActiveRequest()
+    {
+        MUST(Core::System::close(writer_fd));
+        auto result = curl_multi_remove_handle(multi, easy);
+        VERIFY(result == CURLM_OK);
+        curl_easy_cleanup(easy);
+    }
+
+    void flush_headers_if_needed()
+    {
+        if (got_all_headers)
+            return;
+        got_all_headers = true;
+        long http_status_code = 0;
+        auto result = curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &http_status_code);
+        VERIFY(result == CURLE_OK);
+        client->async_headers_became_available(request_id, headers, http_status_code);
     }
 };
 
-static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
-static IDAllocator s_client_ids;
+size_t ConnectionFromClient::on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data)
+{
+    auto* request = static_cast<ActiveRequest*>(user_data);
+    size_t total_size = size * nmemb;
+    auto header_line = StringView { static_cast<char const*>(buffer), total_size };
+    if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
+        auto name = header_line.substring_view(0, colon_index.value()).trim_whitespace();
+        auto value = header_line.substring_view(colon_index.value() + 1, header_line.length() - colon_index.value() - 1).trim_whitespace();
+        request->headers.set(name, value);
+    }
+    return total_size;
+}
+
+size_t ConnectionFromClient::on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data)
+{
+    auto* request = static_cast<ActiveRequest*>(user_data);
+    request->flush_headers_if_needed();
+
+    size_t total_size = size * nmemb;
+
+    size_t remaining_length = total_size;
+    u8 const* remaining_data = static_cast<u8 const*>(buffer);
+    while (remaining_length > 0) {
+        auto result = Core::System::write(request->writer_fd, { remaining_data, remaining_length });
+        if (result.is_error()) {
+            if (result.error().code() != EAGAIN) {
+                dbgln("on_data_received: write failed: {}", result.error());
+                VERIFY_NOT_REACHED();
+            }
+            sched_yield();
+            continue;
+        }
+        auto nwritten = result.value();
+        if (nwritten == 0) {
+            dbgln("on_data_received: write returned 0");
+            VERIFY_NOT_REACHED();
+        }
+        remaining_data += nwritten;
+        remaining_length -= nwritten;
+    }
+
+    Optional<u64> content_length_for_ipc;
+    curl_off_t content_length = -1;
+    auto res = curl_easy_getinfo(request->easy, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &content_length);
+    if (res == CURLE_OK && content_length != -1) {
+        content_length_for_ipc = content_length;
+    }
+
+    request->downloaded_so_far += total_size;
+
+    return total_size;
+}
+
+int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* user_data, void*)
+{
+    auto* client = static_cast<ConnectionFromClient*>(user_data);
+
+    if (what == CURL_POLL_REMOVE) {
+        client->m_read_notifiers.remove(sockfd);
+        client->m_write_notifiers.remove(sockfd);
+        return 0;
+    }
+
+    if (what & CURL_POLL_IN) {
+        client->m_read_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
+            auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Read);
+            notifier->on_activation = [client, sockfd, multi] {
+                int still_running = 0;
+                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_IN, &still_running);
+                VERIFY(result == CURLM_OK);
+                client->check_active_requests();
+            };
+            notifier->set_enabled(true);
+            return notifier;
+        });
+    }
+
+    if (what & CURL_POLL_OUT) {
+        client->m_write_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
+            auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Write);
+            notifier->on_activation = [client, sockfd, multi] {
+                int still_running = 0;
+                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_OUT, &still_running);
+                VERIFY(result == CURLM_OK);
+                client->check_active_requests();
+            };
+            notifier->set_enabled(true);
+            return notifier;
+        });
+    }
+
+    return 0;
+}
+
+int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user_data)
+{
+    auto* client = static_cast<ConnectionFromClient*>(user_data);
+    if (!client->m_timer)
+        return 0;
+    if (timeout_ms < 0) {
+        client->m_timer->stop();
+    } else {
+        client->m_timer->restart(timeout_ms);
+    }
+    return 0;
+}
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(socket), s_client_ids.allocate())
 {
     s_connections.set(client_id(), *this);
+
+    m_curl_multi = curl_multi_init();
+
+    auto set_option = [this](auto option, auto value) {
+        auto result = curl_multi_setopt(m_curl_multi, option, value);
+        VERIFY(result == CURLM_OK);
+    };
+    set_option(CURLMOPT_SOCKETFUNCTION, &on_socket_callback);
+    set_option(CURLMOPT_SOCKETDATA, this);
+    set_option(CURLMOPT_TIMERFUNCTION, &on_timeout_callback);
+    set_option(CURLMOPT_TIMERDATA, this);
+
+    m_timer = Core::Timer::create_single_shot(0, [this] {
+        int still_running = 0;
+        auto result = curl_multi_socket_action(m_curl_multi, CURL_SOCKET_TIMEOUT, 0, &still_running);
+        VERIFY(result == CURLM_OK);
+        check_active_requests();
+    });
 }
 
 ConnectionFromClient::~ConnectionFromClient()
 {
-    m_requests.with_locked([](HashMap<i32, OwnPtr<Request>>& map) {
-        for (auto& entry : map)
-            entry.value->cancel();
-    });
-}
-
-class Job : public RefCounted<Job>
-    , public Weakable<Job> {
-public:
-    static NonnullRefPtr<Job> ensure(URL::URL const& url)
-    {
-        RefPtr<Job> job;
-        if (auto it = s_jobs.find(url); it != s_jobs.end())
-            job = it->value.strong_ref();
-        if (job == nullptr) {
-            job = adopt_ref(*new Job(url));
-            s_jobs.set(url, job);
-        }
-        return *job;
-    }
-
-    void start(Core::Socket& socket)
-    {
-        auto is_connected = socket.is_open();
-        VERIFY(is_connected);
-        ConnectionCache::request_did_finish(m_url, &socket);
-    }
-
-    void fail(Core::NetworkJob::Error error)
-    {
-        dbgln("Pre-connect to {} failed: {}", m_url, Core::to_string(error));
-    }
-
-    void will_be_destroyed() const
-    {
-        s_jobs.remove(m_url);
-    }
-
-private:
-    explicit Job(URL::URL url)
-        : m_url(move(url))
-    {
-    }
-
-    URL::URL m_url;
-    inline static HashMap<URL::URL, WeakPtr<Job>> s_jobs {};
-};
-
-template<typename Pool>
-IterationDecision Looper<Pool>::next(Pool& pool, bool wait)
-{
-    bool should_exit = false;
-    auto timer = Core::Timer::create_repeating(100, [&] {
-        if (Threading::ThreadPoolLooper<Pool>::next(pool, false) == IterationDecision::Break) {
-            event_loop.quit(0);
-            should_exit = true;
-        }
-    });
-
-    timer->start();
-    if (!wait) {
-        event_loop.deferred_invoke([&] {
-            event_loop.quit(0);
-        });
-    }
-
-    event_loop.exec();
-
-    if (should_exit)
-        return IterationDecision::Break;
-    return IterationDecision::Continue;
-}
-
-void ConnectionFromClient::worker_do_work(Work work)
-{
-    work.visit(
-        [&](StartRequest& start_request) {
-            auto* protocol = Protocol::find_by_name(start_request.url.scheme().to_byte_string());
-            if (!protocol) {
-                dbgln("StartRequest: No protocol handler for URL: '{}'", start_request.url);
-                auto lock = Threading::MutexLocker(m_ipc_mutex);
-                (void)post_message(Messages::RequestClient::RequestFinished(start_request.request_id, false, 0));
-                return;
-            }
-            auto request = protocol->start_request(start_request.request_id, *this, start_request.method, start_request.url, start_request.request_headers, start_request.request_body, start_request.proxy_data);
-            if (!request) {
-                dbgln("StartRequest: Protocol handler failed to start request: '{}'", start_request.url);
-                auto lock = Threading::MutexLocker(m_ipc_mutex);
-                (void)post_message(Messages::RequestClient::RequestFinished(start_request.request_id, false, 0));
-                return;
-            }
-            auto id = request->id();
-            auto fd = request->request_fd();
-            m_requests.with_locked([&](auto& map) { map.set(id, move(request)); });
-            auto lock = Threading::MutexLocker(m_ipc_mutex);
-            (void)post_message(Messages::RequestClient::RequestStarted(start_request.request_id, IPC::File::adopt_fd(fd)));
-        },
-        [&](EnsureConnection& ensure_connection) {
-            auto& url = ensure_connection.url;
-            auto& cache_level = ensure_connection.cache_level;
-
-            if (cache_level == CacheLevel::ResolveOnly) {
-                Core::deferred_invoke([host = url.serialized_host().release_value_but_fixme_should_propagate_errors().to_byte_string()] {
-                    dbgln("EnsureConnection: DNS-preload for {}", host);
-                    auto resolved_host = Core::Socket::resolve_host(host, Core::Socket::SocketType::Stream);
-                    if (resolved_host.is_error())
-                        dbgln("EnsureConnection: DNS-preload failed for {}", host);
-                });
-                dbgln("EnsureConnection: DNS-preload for {} done", url);
-                return;
-            }
-
-            dbgln("EnsureConnection: Pre-connect to {}", url);
-            auto do_preconnect = [=, job = Job::ensure(url)](auto& cache) {
-                ConnectionCache::ensure_connection(cache, url, move(job));
-            };
-
-            if (url.scheme() == "http"sv)
-                do_preconnect(ConnectionCache::g_tcp_connection_cache);
-            else if (url.scheme() == "https"sv)
-                do_preconnect(ConnectionCache::g_tls_connection_cache);
-            else
-                dbgln("EnsureConnection: Invalid URL scheme: '{}'", url.scheme());
-        },
-        [&](Empty) {});
 }
 
 void ConnectionFromClient::die()
@@ -207,93 +234,144 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
     return IPC::File::adopt_fd(socket_fds[1]);
 }
 
-void ConnectionFromClient::enqueue(Work work)
-{
-    s_thread_pool.submit({ *this, move(work) });
-}
-
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString const& protocol)
 {
-    bool supported = Protocol::find_by_name(protocol.to_lowercase());
-    return supported;
+    return protocol == "http"sv || protocol == "https"sv;
 }
 
 void ConnectionFromClient::start_request(i32 request_id, ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& request_headers, ByteBuffer const& request_body, Core::ProxyData const& proxy_data)
 {
     if (!url.is_valid()) {
         dbgln("StartRequest: Invalid URL requested: '{}'", url);
-        auto lock = Threading::MutexLocker(m_ipc_mutex);
-        (void)post_message(Messages::RequestClient::RequestFinished(request_id, false, 0));
+        async_request_finished(request_id, false, 0);
         return;
     }
 
-    auto headers = request_headers;
-    if (!headers.contains("Accept-Encoding"))
-        headers.set("Accept-Encoding", "gzip, deflate, br");
+    auto* easy = curl_easy_init();
+    if (!easy) {
+        dbgln("StartRequest: Failed to initialize curl easy handle");
+        return;
+    }
 
-    enqueue(StartRequest {
-        .request_id = request_id,
-        .method = method,
-        .url = url,
-        .request_headers = move(headers),
-        .request_body = request_body,
-        .proxy_data = proxy_data,
-    });
+    auto fds_or_error = Core::System::pipe2(O_NONBLOCK);
+    if (fds_or_error.is_error()) {
+        dbgln("StartRequest: Failed to create pipe: {}", fds_or_error.error());
+        return;
+    }
+
+    auto fds = fds_or_error.release_value();
+    auto writer_fd = fds[1];
+    auto reader_fd = fds[0];
+    async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
+
+    auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, writer_fd);
+    request->url = url.to_string().value();
+
+    auto set_option = [easy](auto option, auto value) {
+        auto result = curl_easy_setopt(easy, option, value);
+        if (result != CURLE_OK) {
+            dbgln("StartRequest: Failed to set curl option: {}", curl_easy_strerror(result));
+            return false;
+        }
+        return true;
+    };
+
+    set_option(CURLOPT_PRIVATE, request.ptr());
+
+    if (!g_default_certificate_path.is_empty())
+        set_option(CURLOPT_CAINFO, g_default_certificate_path.characters());
+
+    set_option(CURLOPT_ACCEPT_ENCODING, "gzip, deflate, br");
+    set_option(CURLOPT_URL, url.to_string().value().to_byte_string().characters());
+    set_option(CURLOPT_PORT, url.port_or_default());
+
+    if (method == "GET"sv) {
+        set_option(CURLOPT_HTTPGET, 1L);
+    } else if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
+        request->body = request_body;
+        set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
+        set_option(CURLOPT_POSTFIELDS, request->body.data());
+    } else if (method == "HEAD") {
+        set_option(CURLOPT_NOBODY, 1L);
+    }
+    set_option(CURLOPT_CUSTOMREQUEST, method.characters());
+
+    set_option(CURLOPT_FOLLOWLOCATION, 0);
+
+    struct curl_slist* curl_headers = nullptr;
+    for (auto const& header : request_headers.headers()) {
+        auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
+        curl_headers = curl_slist_append(curl_headers, header_string.characters());
+    }
+    set_option(CURLOPT_HTTPHEADER, curl_headers);
+
+    // FIXME: Set up proxy if applicable
+    (void)proxy_data;
+
+    set_option(CURLOPT_WRITEFUNCTION, &on_data_received);
+    set_option(CURLOPT_WRITEDATA, reinterpret_cast<void*>(request.ptr()));
+
+    set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
+    set_option(CURLOPT_HEADERDATA, reinterpret_cast<void*>(request.ptr()));
+
+    auto result = curl_multi_add_handle(m_curl_multi, easy);
+    VERIFY(result == CURLM_OK);
+
+    m_active_requests.set(request_id, move(request));
+}
+
+void ConnectionFromClient::check_active_requests()
+{
+    int msgs_in_queue = 0;
+    while (auto* msg = curl_multi_info_read(m_curl_multi, &msgs_in_queue)) {
+        if (msg->msg != CURLMSG_DONE)
+            continue;
+
+        ActiveRequest* request = nullptr;
+        auto result = curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &request);
+        VERIFY(result == CURLE_OK);
+        request->flush_headers_if_needed();
+
+        async_request_finished(request->request_id, msg->data.result == CURLE_OK, request->downloaded_so_far);
+
+        m_active_requests.remove(request->request_id);
+    }
 }
 
 Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(i32 request_id)
 {
-    return m_requests.with_locked([&](auto& map) {
-        auto* request = const_cast<Request*>(map.get(request_id).value_or(nullptr));
-        bool success = false;
-        if (request) {
-            request->stop();
-            map.remove(request_id);
-            success = true;
-        }
-        return success;
-    });
-}
-
-void ConnectionFromClient::did_receive_headers(Badge<Request>, Request& request)
-{
-    auto lock = Threading::MutexLocker(m_ipc_mutex);
-    async_headers_became_available(request.id(), request.response_headers(), request.status_code());
-}
-
-void ConnectionFromClient::did_finish_request(Badge<Request>, Request& request, bool success)
-{
-    if (request.total_size().has_value()) {
-        auto lock = Threading::MutexLocker(m_ipc_mutex);
-        async_request_finished(request.id(), success, request.total_size().value());
+    auto request = m_active_requests.take(request_id);
+    if (!request.has_value()) {
+        dbgln("StopRequest: Request ID {} not found", request_id);
+        return false;
     }
 
-    m_requests.with_locked([&](auto& map) { map.remove(request.id()); });
+    return true;
 }
 
-void ConnectionFromClient::did_progress_request(Badge<Request>, Request& request)
+void ConnectionFromClient::did_receive_headers(Badge<Request>, Request&)
 {
-    auto lock = Threading::MutexLocker(m_ipc_mutex);
-    async_request_progress(request.id(), request.total_size(), request.downloaded_size());
 }
 
-void ConnectionFromClient::did_request_certificates(Badge<Request>, Request& request)
+void ConnectionFromClient::did_finish_request(Badge<Request>, Request&, bool)
 {
-    auto lock = Threading::MutexLocker(m_ipc_mutex);
-    async_certificate_requested(request.id());
+}
+
+void ConnectionFromClient::did_progress_request(Badge<Request>, Request&)
+{
+}
+
+void ConnectionFromClient::did_request_certificates(Badge<Request>, Request&)
+{
+    TODO();
 }
 
 Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(i32 request_id, ByteString const& certificate, ByteString const& key)
 {
-    return m_requests.with_locked([&](auto& map) {
-        auto* request = const_cast<Request*>(map.get(request_id).value_or(nullptr));
-        bool success = false;
-        if (request) {
-            request->set_certificate(certificate, key);
-            success = true;
-        }
-        return success;
-    });
+    (void)request_id;
+    (void)certificate;
+    (void)key;
+    TODO();
 }
 
 void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServer::CacheLevel const& cache_level)
@@ -303,18 +381,15 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
         return;
     }
 
-    enqueue(EnsureConnection {
-        .url = url,
-        .cache_level = cache_level,
-    });
+    (void)cache_level;
+    dbgln("FIXME: EnsureConnection: Pre-connect to {}", url);
 }
 
-static i32 s_next_websocket_id = 1;
-Messages::RequestServer::WebsocketConnectResponse ConnectionFromClient::websocket_connect(URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& additional_request_headers)
+void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& additional_request_headers)
 {
     if (!url.is_valid()) {
         dbgln("WebSocket::Connect: Invalid URL requested: '{}'", url);
-        return -1;
+        return;
     }
 
     WebSocket::ConnectionInfo connection_info(url);
@@ -323,70 +398,48 @@ Messages::RequestServer::WebsocketConnectResponse ConnectionFromClient::websocke
     connection_info.set_extensions(extensions);
     connection_info.set_headers(additional_request_headers);
 
-    auto id = ++s_next_websocket_id;
     auto connection = WebSocket::WebSocket::create(move(connection_info));
-    connection->on_open = [this, id]() {
-        auto lock = Threading::MutexLocker(m_ipc_mutex);
-        async_websocket_connected(id);
+    connection->on_open = [this, websocket_id]() {
+        async_websocket_connected(websocket_id);
     };
-    connection->on_message = [this, id](auto message) {
-        auto lock = Threading::MutexLocker(m_ipc_mutex);
-        async_websocket_received(id, message.is_text(), message.data());
+    connection->on_message = [this, websocket_id](auto message) {
+        async_websocket_received(websocket_id, message.is_text(), message.data());
     };
-    connection->on_error = [this, id](auto message) {
-        auto lock = Threading::MutexLocker(m_ipc_mutex);
-        async_websocket_errored(id, (i32)message);
+    connection->on_error = [this, websocket_id](auto message) {
+        async_websocket_errored(websocket_id, (i32)message);
     };
-    connection->on_close = [this, id](u16 code, ByteString reason, bool was_clean) {
-        auto lock = Threading::MutexLocker(m_ipc_mutex);
-        async_websocket_closed(id, code, move(reason), was_clean);
+    connection->on_close = [this, websocket_id](u16 code, ByteString reason, bool was_clean) {
+        async_websocket_closed(websocket_id, code, move(reason), was_clean);
+    };
+    connection->on_ready_state_change = [this, websocket_id](auto state) {
+        async_websocket_ready_state_changed(websocket_id, (u32)state);
     };
 
     connection->start();
-    m_websockets.set(id, move(connection));
-    return id;
+    m_websockets.set(websocket_id, move(connection));
 }
 
-Messages::RequestServer::WebsocketReadyStateResponse ConnectionFromClient::websocket_ready_state(i32 connection_id)
+void ConnectionFromClient::websocket_send(i64 websocket_id, bool is_text, ByteBuffer const& data)
 {
-    if (auto connection = m_websockets.get(connection_id).value_or({}))
-        return (u32)connection->ready_state();
-    return (u32)WebSocket::ReadyState::Closed;
-}
-
-Messages::RequestServer::WebsocketSubprotocolInUseResponse ConnectionFromClient::websocket_subprotocol_in_use(i32 connection_id)
-{
-    if (auto connection = m_websockets.get(connection_id).value_or({}))
-        return connection->subprotocol_in_use();
-    return ByteString::empty();
-}
-
-void ConnectionFromClient::websocket_send(i32 connection_id, bool is_text, ByteBuffer const& data)
-{
-    if (auto connection = m_websockets.get(connection_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
+    if (auto connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
         connection->send(WebSocket::Message { data, is_text });
 }
 
-void ConnectionFromClient::websocket_close(i32 connection_id, u16 code, ByteString const& reason)
+void ConnectionFromClient::websocket_close(i64 websocket_id, u16 code, ByteString const& reason)
 {
-    if (auto connection = m_websockets.get(connection_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
+    if (auto connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
         connection->close(code, reason);
 }
 
-Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(i32 connection_id, ByteString const&, ByteString const&)
+Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString const&, ByteString const&)
 {
     auto success = false;
-    if (auto connection = m_websockets.get(connection_id).value_or({}); connection) {
+    if (auto connection = m_websockets.get(websocket_id).value_or({}); connection) {
         // NO OP here
         // connection->set_certificate(certificate, key);
         success = true;
     }
     return success;
-}
-
-void ConnectionFromClient::dump_connection_info()
-{
-    ConnectionCache::dump_jobs();
 }
 
 }

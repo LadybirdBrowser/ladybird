@@ -25,7 +25,7 @@ endfunction()
 # NOTE: This logic will eventually move to CMake
 function(_setup_swift_paths)
   # If we haven't set the swift library search paths, do that now
-  if(NOT SWIFT_LIBRARY_SEARCH_PATHS OR NOT SWIFT_INCLUDE_PATHS)
+  if(NOT SWIFT_LIBRARY_SEARCH_PATHS OR NOT SWIFT_INCLUDE_PATHS OR (APPLE AND NOT SWIFT_TARGET_TRIPLE))
     if(APPLE)
       set(SDK_FLAGS "-sdk" "${CMAKE_OSX_SYSROOT}")
     endif()
@@ -37,6 +37,17 @@ function(_setup_swift_paths)
       COMMAND ${CMAKE_Swift_COMPILER} ${SDK_FLAGS} -print-target-info
       OUTPUT_VARIABLE SWIFT_TARGET_INFO
     )
+
+    # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26174
+    if (APPLE)
+      if (CMAKE_OSX_DEPLOYMENT_TARGET)
+        set(SWIFT_TARGET_TRIPLE "${CMAKE_SYSTEM_PROCESSOR}-apple-macosx${CMAKE_OSX_DEPLOYMENT_TARGET}" CACHE STRING "Swift target triple")
+      else()
+        string(JSON SWIFT_TARGET_TARGET GET ${SWIFT_TARGET_INFO} "target")
+        string(JSON SWIFT_TARGET_TARGET_TRIPLE GET ${SWIFT_TARGET_TARGET} "triple")
+        set(SWIFT_TARGET_TRIPLE ${SWIFT_TARGET_TARGET_TRIPLE} CACHE STRING "Swift target triple")
+      endif()
+    endif()
 
     # extract search paths from swift driver response
     string(JSON SWIFT_TARGET_PATHS GET ${SWIFT_TARGET_INFO} "paths")
@@ -72,7 +83,7 @@ function(_setup_swift_paths)
     set(SWIFT_TOOLCHAIN_INCLUDE_DIR "${SWIFT_RUNTIME_RESOURCE_PATH}/../../include")
     cmake_path(ABSOLUTE_PATH SWIFT_TOOLCHAIN_INCLUDE_DIR NORMALIZE)
     if (NOT IS_DIRECTORY "${SWIFT_TOOLCHAIN_INCLUDE_DIR}")
-	message(WARNING "Expected toolchain include dir ${SWIFT_TOOLCHAIN_INCLUDE_DIR} does not exist")
+	    message(WARNING "Expected toolchain include dir ${SWIFT_TOOLCHAIN_INCLUDE_DIR} does not exist")
     endif()
     set(SWIFT_INCLUDE_PATHS ${SWIFT_TOOLCHAIN_INCLUDE_DIR} CACHE FILEPATH "Swift interop include paths")
   endif()

@@ -80,8 +80,9 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_file_label);
     visitor.visit(m_legacy_pre_activation_behavior_checked_element_in_group);
     visitor.visit(m_selected_files);
-    visitor.visit(m_slider_thumb);
+    visitor.visit(m_slider_runnable_track);
     visitor.visit(m_slider_progress_element);
+    visitor.visit(m_slider_thumb);
     visitor.visit(m_resource_request);
 }
 
@@ -923,8 +924,8 @@ void HTMLInputElement::create_color_input_shadow_tree()
 
     m_color_well_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     MUST(m_color_well_element->set_attribute(HTML::AttributeNames::style, R"~~~(
-        width: 24px;
-        height: 24px;
+        width: 32px;
+        height: 16px;
         border: 1px solid ButtonBorder;
         box-sizing: border-box;
 )~~~"_string));
@@ -987,7 +988,7 @@ void HTMLInputElement::update_file_input_shadow_tree()
         m_file_label->set_text_content(MUST(String::formatted("No {} selected.", files_label)));
     }
 
-    document().invalidate_layout();
+    document().invalidate_layout_tree();
 }
 
 void HTMLInputElement::create_range_input_shadow_tree()
@@ -995,9 +996,9 @@ void HTMLInputElement::create_range_input_shadow_tree()
     auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
 
-    auto slider_runnable_track = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderRunnableTrack);
-    MUST(shadow_root->append_child(slider_runnable_track));
+    m_slider_runnable_track = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    m_slider_runnable_track->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderRunnableTrack);
+    MUST(shadow_root->append_child(*m_slider_runnable_track));
 
     m_slider_progress_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     MUST(m_slider_progress_element->set_attribute(HTML::AttributeNames::style, R"~~~(
@@ -1005,11 +1006,12 @@ void HTMLInputElement::create_range_input_shadow_tree()
         position: absolute;
         height: 100%;
     )~~~"_string));
-    MUST(slider_runnable_track->append_child(*m_slider_progress_element));
+    MUST(m_slider_runnable_track->append_child(*m_slider_progress_element));
 
     m_slider_thumb = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     m_slider_thumb->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::SliderThumb);
-    MUST(slider_runnable_track->append_child(*m_slider_thumb));
+    MUST(m_slider_runnable_track->append_child(*m_slider_thumb));
+
     update_slider_shadow_tree_elements();
 
     auto keydown_callback_function = JS::NativeFunction::create(
@@ -1035,8 +1037,8 @@ void HTMLInputElement::create_range_input_shadow_tree()
 
     auto wheel_callback_function = JS::NativeFunction::create(
         realm(), [this](JS::VM& vm) {
-            auto deltaY = MUST(vm.argument(0).get(vm, "deltaY")).as_i32();
-            if (deltaY > 0) {
+            auto delta_y = MUST(vm.argument(0).get(vm, "deltaY")).as_i32();
+            if (delta_y > 0) {
                 MUST(step_down());
             } else {
                 MUST(step_up());
@@ -1094,6 +1096,10 @@ void HTMLInputElement::create_range_input_shadow_tree()
 
 void HTMLInputElement::computed_css_values_changed()
 {
+    auto appearance = computed_css_values()->appearance();
+    if (!appearance.has_value() || *appearance == CSS::Appearance::None)
+        return;
+
     auto palette = document().page().palette();
     auto accent_color = palette.color(ColorRole::Accent).to_string();
 
@@ -1131,11 +1137,11 @@ void HTMLInputElement::update_slider_shadow_tree_elements()
     double maximum = *max();
     double position = (value - minimum) / (maximum - minimum) * 100;
 
-    if (m_slider_thumb)
-        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
-
     if (m_slider_progress_element)
         MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
+
+    if (m_slider_thumb)
+        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
 }
 
 void HTMLInputElement::did_receive_focus()
@@ -1315,7 +1321,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
             });
 
             m_load_event_delayer.clear();
-            document().invalidate_layout();
+            document().invalidate_layout_tree();
         },
         [this, &realm]() {
             // 2. Otherwise, if the fetching process fails without a response from the remote server, or completes but the
@@ -2298,6 +2304,29 @@ bool HTMLInputElement::select_applies() const
 bool HTMLInputElement::selection_or_range_applies() const
 {
     return selection_or_range_applies_for_type_state(type_state());
+}
+
+bool HTMLInputElement::has_selectable_text() const
+{
+    // Potential FIXME: Date, Month, Week, Time and LocalDateAndTime are rendered as a basic text input for now,
+    // thus they have selectable text, this need to change when we will have a visual date/time selector.
+
+    switch (type_state()) {
+    case TypeAttributeState::Text:
+    case TypeAttributeState::Search:
+    case TypeAttributeState::Telephone:
+    case TypeAttributeState::URL:
+    case TypeAttributeState::Password:
+    case TypeAttributeState::Date:
+    case TypeAttributeState::Month:
+    case TypeAttributeState::Week:
+    case TypeAttributeState::Time:
+    case TypeAttributeState::LocalDateAndTime:
+    case TypeAttributeState::Number:
+        return true;
+    default:
+        return false;
+    }
 }
 
 bool HTMLInputElement::selection_or_range_applies_for_type_state(TypeAttributeState type_state)

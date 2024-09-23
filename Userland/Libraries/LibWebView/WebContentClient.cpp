@@ -8,6 +8,7 @@
 #include "Application.h"
 #include "ViewImplementation.h"
 #include <LibWeb/Cookie/ParsedCookie.h>
+#include <LibWebView/CookieJar.h>
 
 namespace WebView {
 
@@ -101,26 +102,20 @@ void WebContentClient::did_find_in_page(u64 page_id, size_t current_match_index,
 
 void WebContentClient::did_request_navigate_back(u64 page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_navigate_back)
-            view->on_navigate_back();
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->traverse_the_history_by_delta(-1);
 }
 
 void WebContentClient::did_request_navigate_forward(u64 page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_navigate_forward)
-            view->on_navigate_forward();
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->traverse_the_history_by_delta(1);
 }
 
 void WebContentClient::did_request_refresh(u64 page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_refresh)
-            view->on_refresh();
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->reload();
 }
 
 void WebContentClient::did_request_cursor_change(u64 page_id, i32 cursor_type)
@@ -342,6 +337,12 @@ void WebContentClient::did_take_screenshot(u64 page_id, Gfx::ShareableBitmap con
         view->did_receive_screenshot({}, screenshot);
 }
 
+void WebContentClient::did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, String const& info)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_internal_page_info({}, type, info);
+}
+
 void WebContentClient::did_output_js_console_message(u64 page_id, i32 message_index)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
@@ -419,50 +420,29 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap cons
     }
 }
 
-Messages::WebContentClient::DidRequestAllCookiesResponse WebContentClient::did_request_all_cookies(u64 page_id, URL::URL const& url)
+Messages::WebContentClient::DidRequestAllCookiesResponse WebContentClient::did_request_all_cookies(URL::URL const& url)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_get_all_cookies)
-            return view->on_get_all_cookies(url);
-    }
-
-    return Vector<Web::Cookie::Cookie> {};
+    return Application::cookie_jar().get_all_cookies(url);
 }
 
-Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(u64 page_id, URL::URL const& url, String const& name)
+Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL const& url, String const& name)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_get_named_cookie)
-            return view->on_get_named_cookie(url, name);
-    }
-
-    return OptionalNone {};
+    return Application::cookie_jar().get_named_cookie(url, name);
 }
 
-Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(u64 page_id, URL::URL const& url, Web::Cookie::Source source)
+Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_get_cookie)
-            return view->on_get_cookie(url, source);
-    }
-
-    return String {};
+    return Application::cookie_jar().get_cookie(url, source);
 }
 
-void WebContentClient::did_set_cookie(u64 page_id, URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)
+void WebContentClient::did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_set_cookie)
-            view->on_set_cookie(url, cookie, source);
-    }
+    Application::cookie_jar().set_cookie(url, cookie, source);
 }
 
-void WebContentClient::did_update_cookie(u64 page_id, Web::Cookie::Cookie const& cookie)
+void WebContentClient::did_update_cookie(Web::Cookie::Cookie const& cookie)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_update_cookie)
-            view->on_update_cookie(cookie);
-    }
+    Application::cookie_jar().update_cookie(cookie);
 }
 
 Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab const& activate_tab, Web::HTML::WebViewHints const& hints, Optional<u64> const& page_index)

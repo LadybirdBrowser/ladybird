@@ -20,12 +20,16 @@
 
 @protocol LadybirdWebViewObserver <NSObject>
 
-- (String const&)onCreateNewTab:(URL::URL const&)url
+- (String const&)onCreateNewTab:(Optional<URL::URL> const&)url
                     activateTab:(Web::HTML::ActivateTab)activate_tab;
 
 - (String const&)onCreateNewTab:(StringView)html
                             url:(URL::URL const&)url
                     activateTab:(Web::HTML::ActivateTab)activate_tab;
+
+- (String const&)onCreateChildTab:(Optional<URL::URL> const&)url
+                      activateTab:(Web::HTML::ActivateTab)activate_tab
+                        pageIndex:(u64)page_index;
 
 - (void)loadURL:(URL::URL const&)url;
 - (void)onLoadStart:(URL::URL const&)url isRedirect:(BOOL)is_redirect;
@@ -47,6 +51,9 @@
 @interface LadybirdWebView : NSClipView <NSMenuDelegate>
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer;
+- (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
+                     parent:(LadybirdWebView*)parent
+                  pageIndex:(u64)page_index;
 
 - (void)loadURL:(URL::URL const&)url;
 - (void)loadHTML:(StringView)html;

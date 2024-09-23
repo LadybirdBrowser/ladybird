@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <LibIPC/Forward.h>
+#include <LibURL/Forward.h>
 #include <LibWeb/Cookie/Cookie.h>
 
 namespace Web::Cookie {
@@ -26,7 +27,9 @@ struct ParsedCookie {
     bool http_only_attribute_present { false };
 };
 
-Optional<ParsedCookie> parse_cookie(StringView cookie_string);
+Optional<ParsedCookie> parse_cookie(URL::URL const&, StringView cookie_string);
+bool cookie_contains_invalid_control_character(StringView);
+String default_path(URL::URL const&);
 
 }
 

@@ -31,19 +31,15 @@
 
 #ifdef USE_VULKAN
 #    include <gpu/ganesh/vk/GrVkDirectContext.h>
-#    include <gpu/vk/GrVkBackendContext.h>
 #    include <gpu/vk/VulkanBackendContext.h>
 #    include <gpu/vk/VulkanExtensions.h>
 #endif
 
 #ifdef AK_OS_MACOS
-#    define FixedPoint FixedPointMacOS
-#    define Duration DurationMacOS
 #    include <gpu/GrBackendSurface.h>
 #    include <gpu/ganesh/mtl/GrMtlBackendContext.h>
+#    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
 #    include <gpu/ganesh/mtl/GrMtlDirectContext.h>
-#    undef FixedPoint
-#    undef Duration
 #endif
 
 namespace Web::Painting {
@@ -108,7 +104,7 @@ private:
 
 OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_vulkan_context(Core::VulkanContext& vulkan_context)
 {
-    GrVkBackendContext backend_context;
+    skgpu::VulkanBackendContext backend_context;
 
     backend_context.fInstance = vulkan_context.instance;
     backend_context.fDevice = vulkan_context.logical_device;
@@ -159,7 +155,7 @@ public:
     {
         GrMtlTextureInfo mtl_info;
         mtl_info.fTexture = sk_ret_cfp(metal_texture.texture());
-        auto backend_render_target = GrBackendRenderTarget(metal_texture.width(), metal_texture.height(), mtl_info);
+        auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture.width(), metal_texture.height(), mtl_info);
         return SkSurfaces::WrapBackendRenderTarget(m_context.get(), backend_render_target, kTopLeft_GrSurfaceOrigin, kBGRA_8888_SkColorType, nullptr, nullptr);
     }
 

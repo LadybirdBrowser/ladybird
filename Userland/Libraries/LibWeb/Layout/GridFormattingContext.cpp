@@ -1899,9 +1899,10 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
 void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
 {
-    auto& containing_block_state = m_state.get_mutable(*box.containing_block());
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
+
+    auto is_auto_positioned = is_auto_positioned_track(computed_values.grid_row_start(), computed_values.grid_row_end()) || is_auto_positioned_track(computed_values.grid_column_start(), computed_values.grid_column_end());
 
     auto row_placement_position = resolve_grid_position(box, GridDimension::Row);
     auto column_placement_position = resolve_grid_position(box, GridDimension::Column);
@@ -1912,8 +1913,10 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     auto column_span = column_placement_position.span;
 
     GridItem item { box, row_start, row_span, column_start, column_span };
-
-    auto available_space = get_available_space_for_item(item);
+    auto grid_area_rect = get_grid_area_rect(item);
+    auto available_width = AvailableSize::make_definite(grid_area_rect.width());
+    auto available_height = AvailableSize::make_definite(grid_area_rect.height());
+    AvailableSpace available_space { available_width, available_height };
 
     // The border computed values are not changed by the compute_height & width calculations below.
     // The spec only adjusts and computes sizes, insets and margins.
@@ -1921,6 +1924,10 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     box_state.border_right = box.computed_values().border_right().width;
     box_state.border_top = box.computed_values().border_top().width;
     box_state.border_bottom = box.computed_values().border_bottom().width;
+    box_state.padding_left = box.computed_values().padding().left().to_px(grid_container(), grid_area_rect.width());
+    box_state.padding_right = box.computed_values().padding().right().to_px(grid_container(), grid_area_rect.width());
+    box_state.padding_top = box.computed_values().padding().top().to_px(grid_container(), grid_area_rect.width());
+    box_state.padding_bottom = box.computed_values().padding().bottom().to_px(grid_container(), grid_area_rect.width());
 
     compute_width_for_absolutely_positioned_element(box, available_space);
 
@@ -1934,8 +1941,7 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     compute_height_for_absolutely_positioned_element(box, available_space, BeforeOrAfterInsideLayout::After);
 
     if (computed_values.inset().left().is_auto() && computed_values.inset().right().is_auto()) {
-        auto containing_block_width = containing_block_state.content_width();
-        auto width_left_for_alignment = containing_block_width - box_state.margin_box_width();
+        auto width_left_for_alignment = grid_area_rect.width() - box_state.margin_box_width();
         switch (justification_for_item(box)) {
         case CSS::JustifyItems::Normal:
         case CSS::JustifyItems::Stretch:
@@ -1960,8 +1966,7 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     }
 
     if (computed_values.inset().top().is_auto() && computed_values.inset().bottom().is_auto()) {
-        auto containing_block_height = containing_block_state.content_height();
-        auto height_left_for_alignment = containing_block_height - box_state.margin_box_height();
+        auto height_left_for_alignment = grid_area_rect.height() - box_state.margin_box_height();
         switch (alignment_for_item(box)) {
         case CSS::AlignItems::Baseline:
             // FIXME: Not implemented
@@ -1993,12 +1998,15 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     // The offset properties (top/right/bottom/left) then indicate offsets inwards from the corresponding
     // edges of this containing block, as normal.
     CSSPixelPoint used_offset;
-    auto grid_area_offset = get_grid_area_rect(item);
-    used_offset.set_x(grid_area_offset.x() + box_state.inset_left + box_state.margin_box_left());
-    used_offset.set_y(grid_area_offset.y() + box_state.inset_top + box_state.margin_box_top());
+    used_offset.set_x(grid_area_rect.x() + box_state.inset_left + box_state.margin_box_left());
+    used_offset.set_y(grid_area_rect.y() + box_state.inset_top + box_state.margin_box_top());
 
-    // NOTE: Absolutely positioned boxes are relative to the *padding edge* of the containing block.
-    used_offset.translate_by(-containing_block_state.padding_left, -containing_block_state.padding_top);
+    // NOTE: Absolutely positioned boxes with auto-placement are relative to the *padding edge* of the containing block.
+    if (is_auto_positioned) {
+        auto const& containing_block_state = m_state.get_mutable(*box.containing_block());
+        used_offset.translate_by(-containing_block_state.padding_left, -containing_block_state.padding_top);
+    }
+
     box_state.set_content_offset(used_offset);
 
     if (independent_formatting_context)

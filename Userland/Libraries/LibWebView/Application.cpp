@@ -105,6 +105,11 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     create_platform_arguments(args_parser);
     args_parser.parse(arguments);
 
+    // Our persisted SQL storage assumes it runs in a singleton process. If we have multiple UI processes accessing
+    // the same underlying database, one of them is likely to fail.
+    if (force_new_process)
+        disable_sql_database = true;
+
     Optional<ProcessType> debug_process_type;
     Optional<ProcessType> profile_process_type;
 

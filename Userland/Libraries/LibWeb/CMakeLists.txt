@@ -65,6 +65,7 @@ set(SOURCES
     CSS/Frequency.cpp
     CSS/GridTrackPlacement.cpp
     CSS/GridTrackSize.cpp
+    CSS/Interpolation.cpp
     CSS/Length.cpp
     CSS/LengthBox.cpp
     CSS/MediaList.cpp
@@ -112,7 +113,6 @@ set(SOURCES
     CSS/StyleValues/BackgroundSizeStyleValue.cpp
     CSS/StyleValues/BasicShapeStyleValue.cpp
     CSS/StyleValues/BorderRadiusStyleValue.cpp
-    CSS/StyleValues/CalculatedStyleValue.cpp
     CSS/StyleValues/ConicGradientStyleValue.cpp
     CSS/StyleValues/ContentStyleValue.cpp
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
@@ -121,6 +121,7 @@ set(SOURCES
     CSS/StyleValues/CSSHSL.cpp
     CSS/StyleValues/CSSHWB.cpp
     CSS/StyleValues/CSSKeywordValue.cpp
+    CSS/StyleValues/CSSMathValue.cpp
     CSS/StyleValues/CSSOKLab.cpp
     CSS/StyleValues/CSSOKLCH.cpp
     CSS/StyleValues/CSSRGB.cpp
@@ -447,6 +448,7 @@ set(SOURCES
     HTML/Scripting/SerializedEnvironmentSettingsObject.cpp
     HTML/SelectedFile.cpp
     HTML/SelectItem.cpp
+    HTML/ServiceWorker.cpp
     HTML/ServiceWorkerContainer.cpp
     HTML/ServiceWorkerRegistration.cpp
     HTML/SessionHistoryEntry.cpp
@@ -630,6 +632,7 @@ set(SOURCES
     SecureContexts/AbstractOperations.cpp
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp
+    StorageAPI/StorageKey.cpp
     StorageAPI/StorageManager.cpp
     Streams/AbstractOperations.cpp
     Streams/ByteLengthQueuingStrategy.cpp
@@ -729,6 +732,7 @@ set(SOURCES
     WebDriver/Client.cpp
     WebDriver/Contexts.cpp
     WebDriver/ElementLocationStrategies.cpp
+    WebDriver/ElementReference.cpp
     WebDriver/Error.cpp
     WebDriver/ExecuteScript.cpp
     WebDriver/Response.cpp

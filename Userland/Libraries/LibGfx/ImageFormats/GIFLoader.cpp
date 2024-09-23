@@ -16,6 +16,7 @@
 #include <AK/Try.h>
 #include <LibCompress/Lzw.h>
 #include <LibGfx/ImageFormats/GIFLoader.h>
+#include <LibGfx/Painter.h>
 #include <string.h>
 
 namespace Gfx {
@@ -159,7 +160,8 @@ static ErrorOr<void> decode_frame(GIFLoadingContext& context, size_t frame_index
         auto const previous_image_disposal_method = i > 0 ? context.images.at(i - 1)->disposal_method : GIFImageDescriptor::DisposalMethod::None;
 
         if (i == 0) {
-            context.frame_buffer->fill(Color::Transparent);
+            auto painter = Gfx::Painter::create(*context.frame_buffer);
+            painter->clear_rect(context.frame_buffer->rect().to_type<float>(), Color::Transparent);
         } else if (i > 0 && image->disposal_method == GIFImageDescriptor::DisposalMethod::RestorePrevious
             && previous_image_disposal_method != GIFImageDescriptor::DisposalMethod::RestorePrevious) {
             // This marks the start of a run of frames that once disposed should be restored to the

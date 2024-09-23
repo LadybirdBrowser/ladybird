@@ -23,6 +23,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PageInfo.h>
 #include <WebContent/Forward.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentConsoleClient.h>
@@ -90,9 +91,6 @@ private:
     virtual void remove_dom_node(u64 page_id, i32 node_id) override;
     virtual void get_dom_node_html(u64 page_id, i32 node_id) override;
 
-    virtual Messages::WebContentServer::DumpLayoutTreeResponse dump_layout_tree(u64 page_id) override;
-    virtual Messages::WebContentServer::DumpPaintTreeResponse dump_paint_tree(u64 page_id) override;
-    virtual Messages::WebContentServer::DumpTextResponse dump_text(u64 page_id) override;
     virtual void set_content_filters(u64 page_id, Vector<String> const&) override;
     virtual void set_autoplay_allowed_on_all_websites(u64 page_id) override;
     virtual void set_autoplay_allowlist(u64 page_id, Vector<String> const& allowlist) override;
@@ -135,7 +133,7 @@ private:
     virtual void take_document_screenshot(u64 page_id) override;
     virtual void take_dom_node_screenshot(u64 page_id, i32 node_id) override;
 
-    virtual Messages::WebContentServer::DumpGcGraphResponse dump_gc_graph(u64 page_id) override;
+    virtual void request_internal_page_info(u64 page_id, WebView::PageInfoType) override;
 
     virtual Messages::WebContentServer::GetLocalStorageEntriesResponse get_local_storage_entries(u64 page_id) override;
     virtual Messages::WebContentServer::GetSessionStorageEntriesResponse get_session_storage_entries(u64 page_id) override;

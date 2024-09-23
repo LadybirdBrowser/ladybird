@@ -21,9 +21,9 @@
 
 namespace WebWorker {
 
-DedicatedWorkerHost::DedicatedWorkerHost(URL::URL url, String type, String name)
+DedicatedWorkerHost::DedicatedWorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name)
     : m_url(move(url))
-    , m_type(move(type))
+    , m_type(type)
     , m_name(move(name))
 {
 }
@@ -219,14 +219,14 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
     //               and with onComplete and performFetch as defined below.
     // module:   Fetch a module worker script graph given url, outside settings, destination, the value of the credentials member of options, inside settings,
     //               and with onComplete and performFetch as defined below.
-    if (m_type == "classic"sv) {
+    if (m_type == Web::Bindings::WorkerType::Classic) {
         if (auto err = Web::HTML::fetch_classic_worker_script(m_url, outside_settings, destination, inner_settings, perform_fetch, on_complete); err.is_error()) {
             dbgln("Failed to run worker script");
             // FIXME: Abort the worker properly
             TODO();
         }
     } else {
-        VERIFY(m_type == "module"sv);
+        VERIFY(m_type == Web::Bindings::WorkerType::Module);
         // FIXME: Pass credentials
         if (auto err = Web::HTML::fetch_module_worker_script_graph(m_url, outside_settings, destination, inner_settings, perform_fetch, on_complete); err.is_error()) {
             dbgln("Failed to run worker script");

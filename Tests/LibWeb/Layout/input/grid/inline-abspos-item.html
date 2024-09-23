@@ -1,0 +1,25 @@
+<!-- Reduced from https://wpt.live/css/css-grid/abspos/positioned-grid-descendants-001.html -->
+<!DOCTYPE html>
+<style>
+  .grid {
+    display: grid;
+    grid: 150px 100px/200px 300px;
+    margin: 1px 2px 3px 4px;
+    padding-top: 100px;
+    border-width: 9px 3px 12px 6px;
+    border-style: solid;
+    width: 550px;
+    height: 400px;
+    position: relative;
+  }
+  .abspos {
+    position: absolute;
+    display: inline;
+  }
+</style>
+<div class="grid">
+  <div style="grid-area: 1/1">
+    X<br />XX
+    <div class="abspos" style="grid-area: auto/auto/1/1; inset: auto">XX</div>
+  </div>
+</div>

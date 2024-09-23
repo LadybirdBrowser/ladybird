@@ -29,8 +29,9 @@ private:
 
         NonnullRefPtr<Data> clone() const;
 
-        // FIXME: This needs protection from GC!
+        // FIXME: These need protection from GC!
         JS::GCPtr<CSS::CSSStyleDeclaration const> m_animation_name_source;
+        JS::GCPtr<CSS::CSSStyleDeclaration const> m_transition_property_source;
 
         Array<RefPtr<CSSStyleValue const>, number_of_properties> m_property_values;
         Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
@@ -74,12 +75,19 @@ public:
 
     void set_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     void set_animated_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value);
-    NonnullRefPtr<CSSStyleValue const> property(CSS::PropertyID) const;
+    enum class WithAnimationsApplied {
+        No,
+        Yes,
+    };
+    NonnullRefPtr<CSSStyleValue const> property(CSS::PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     RefPtr<CSSStyleValue const> maybe_null_property(CSS::PropertyID) const;
     void revert_property(CSS::PropertyID, StyleProperties const& style_for_revert);
 
     JS::GCPtr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_data->m_animation_name_source; }
     void set_animation_name_source(JS::GCPtr<CSS::CSSStyleDeclaration const> declaration) { m_data->m_animation_name_source = declaration; }
+
+    JS::GCPtr<CSS::CSSStyleDeclaration const> transition_property_source() const { return m_data->m_transition_property_source; }
+    void set_transition_property_source(JS::GCPtr<CSS::CSSStyleDeclaration const> declaration) { m_data->m_transition_property_source = declaration; }
 
     CSS::Size size_value(CSS::PropertyID) const;
     LengthPercentage length_percentage_or_fallback(CSS::PropertyID, LengthPercentage const& fallback) const;

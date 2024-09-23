@@ -840,10 +840,104 @@ void ConnectionFromClient::take_dom_node_screenshot(u64 page_id, i32 node_id)
     page->queue_screenshot_task(node_id);
 }
 
-Messages::WebContentServer::DumpGcGraphResponse ConnectionFromClient::dump_gc_graph(u64)
+static void append_page_text(Web::Page& page, StringBuilder& builder)
 {
-    auto gc_graph_json = Web::Bindings::main_thread_vm().heap().dump_graph();
-    return MUST(String::from_byte_string(gc_graph_json.to_byte_string()));
+    auto* document = page.top_level_browsing_context().active_document();
+    if (!document) {
+        builder.append("(no DOM tree)"sv);
+        return;
+    }
+
+    auto* body = document->body();
+    if (!body) {
+        builder.append("(no body)"sv);
+        return;
+    }
+
+    builder.append(body->inner_text());
+}
+
+static void append_layout_tree(Web::Page& page, StringBuilder& builder)
+{
+    auto* document = page.top_level_browsing_context().active_document();
+    if (!document) {
+        builder.append("(no DOM tree)"sv);
+        return;
+    }
+
+    document->update_layout();
+
+    auto* layout_root = document->layout_node();
+    if (!layout_root) {
+        builder.append("(no layout tree)"sv);
+        return;
+    }
+
+    Web::dump_tree(builder, *layout_root);
+}
+
+static void append_paint_tree(Web::Page& page, StringBuilder& builder)
+{
+    auto* document = page.top_level_browsing_context().active_document();
+    if (!document) {
+        builder.append("(no DOM tree)"sv);
+        return;
+    }
+
+    document->update_layout();
+
+    auto* layout_root = document->layout_node();
+    if (!layout_root) {
+        builder.append("(no layout tree)"sv);
+        return;
+    }
+    if (!layout_root->paintable()) {
+        builder.append("(no paint tree)"sv);
+        return;
+    }
+
+    Web::dump_tree(builder, *layout_root->paintable());
+}
+
+static void append_gc_graph(StringBuilder& builder)
+{
+    auto gc_graph = Web::Bindings::main_thread_vm().heap().dump_graph();
+    gc_graph.serialize(builder);
+}
+
+void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::PageInfoType type)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_get_internal_page_info(page_id, type, "(no page)"_string);
+        return;
+    }
+
+    StringBuilder builder;
+
+    if (has_flag(type, WebView::PageInfoType::Text)) {
+        append_page_text(page->page(), builder);
+    }
+
+    if (has_flag(type, WebView::PageInfoType::LayoutTree)) {
+        if (!builder.is_empty())
+            builder.append("\n"sv);
+        append_layout_tree(page->page(), builder);
+    }
+
+    if (has_flag(type, WebView::PageInfoType::PaintTree)) {
+        if (!builder.is_empty())
+            builder.append("\n"sv);
+        append_paint_tree(page->page(), builder);
+    }
+
+    if (has_flag(type, WebView::PageInfoType::GCGraph)) {
+        if (!builder.is_empty())
+            builder.append("\n"sv);
+        append_gc_graph(builder);
+    }
+
+    async_did_get_internal_page_info(page_id, type, MUST(builder.to_string()));
 }
 
 Messages::WebContentServer::GetSelectedTextResponse ConnectionFromClient::get_selected_text(u64 page_id)
@@ -893,58 +987,6 @@ void ConnectionFromClient::paste(u64 page_id, String const& text)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().focused_navigable().paste(text);
-}
-
-Messages::WebContentServer::DumpLayoutTreeResponse ConnectionFromClient::dump_layout_tree(u64 page_id)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return ByteString { "(no page)" };
-
-    auto* document = page->page().top_level_browsing_context().active_document();
-    if (!document)
-        return ByteString { "(no DOM tree)" };
-    document->update_layout();
-    auto* layout_root = document->layout_node();
-    if (!layout_root)
-        return ByteString { "(no layout tree)" };
-    StringBuilder builder;
-    Web::dump_tree(builder, *layout_root);
-    return builder.to_byte_string();
-}
-
-Messages::WebContentServer::DumpPaintTreeResponse ConnectionFromClient::dump_paint_tree(u64 page_id)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return ByteString { "(no page)" };
-
-    auto* document = page->page().top_level_browsing_context().active_document();
-    if (!document)
-        return ByteString { "(no DOM tree)" };
-    document->update_layout();
-    auto* layout_root = document->layout_node();
-    if (!layout_root)
-        return ByteString { "(no layout tree)" };
-    if (!layout_root->paintable())
-        return ByteString { "(no paint tree)" };
-    StringBuilder builder;
-    Web::dump_tree(builder, *layout_root->paintable());
-    return builder.to_byte_string();
-}
-
-Messages::WebContentServer::DumpTextResponse ConnectionFromClient::dump_text(u64 page_id)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return ByteString { "(no page)" };
-
-    auto* document = page->page().top_level_browsing_context().active_document();
-    if (!document)
-        return ByteString { "(no DOM tree)" };
-    if (!document->body())
-        return ByteString { "(no body)" };
-    return document->body()->inner_text();
 }
 
 void ConnectionFromClient::set_content_filters(u64, Vector<String> const& filters)

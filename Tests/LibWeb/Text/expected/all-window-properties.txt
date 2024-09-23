@@ -321,6 +321,7 @@ SVGUseElement
 Screen
 ScreenOrientation
 Selection
+ServiceWorker
 ServiceWorkerContainer
 ServiceWorkerRegistration
 Set
@@ -382,12 +383,14 @@ XMLHttpRequest
 XMLHttpRequestEventTarget
 XMLHttpRequestUpload
 XMLSerializer
+__finishTest
 __preventMultipleTestFunctions
 animationFrame
 asyncTest
 printElement
 println
 promiseTest
+spoofCurrentURL
 test
 timeout
 webkitURL

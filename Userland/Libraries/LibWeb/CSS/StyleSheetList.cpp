@@ -123,6 +123,7 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
         return;
     }
 
+    m_document_or_shadow_root->document().style_computer().unload_fonts_from_sheet(sheet);
     m_document_or_shadow_root->document().style_computer().invalidate_rule_cache();
     document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetListRemoveSheet);
 }

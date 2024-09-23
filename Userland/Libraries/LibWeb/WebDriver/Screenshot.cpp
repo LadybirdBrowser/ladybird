@@ -54,24 +54,52 @@ Response capture_element_screenshot(Painter const& painter, Page& page, DOM::Ele
 {
     Optional<Response> encoded_string_or_error;
 
-    (void)element.document().window()->animation_frame_callback_driver().add([&](auto) {
+    // https://w3c.github.io/webdriver/#dfn-draw-a-bounding-box-from-the-framebuffer
+    auto draw_bounding_box_from_the_framebuffer = [&]() -> ErrorOr<JS::NonnullGCPtr<HTML::HTMLCanvasElement>, WebDriver::Error> {
+        // 1. If either the initial viewport's width or height is 0 CSS pixels, return error with error code unable to capture screen.
         auto viewport_rect = page.top_level_traversable()->viewport_rect();
-        rect.intersect(page.enclosing_device_rect(viewport_rect).to_type<int>());
+        if (viewport_rect.is_empty())
+            return Error::from_code(ErrorCode::UnableToCaptureScreen, "Viewport is empty"sv);
 
+        auto viewport_device_rect = page.enclosing_device_rect(viewport_rect).to_type<int>();
+
+        // 2. Let paint width be the initial viewport's width – min(rectangle x coordinate, rectangle x coordinate + rectangle width dimension).
+        auto paint_width = viewport_device_rect.width() - min(rect.x(), rect.x() + rect.width());
+
+        // 3. Let paint height be the initial viewport's height – min(rectangle y coordinate, rectangle y coordinate + rectangle height dimension).
+        auto paint_height = viewport_device_rect.height() - min(rect.y(), rect.y() + rect.height());
+
+        // 4. Let canvas be a new canvas element, and set its width and height to paint width and paint height, respectively.
         auto canvas_element = DOM::create_element(element.document(), HTML::TagNames::canvas, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
         auto& canvas = verify_cast<HTML::HTMLCanvasElement>(*canvas_element);
 
         // FIXME: Handle DevicePixelRatio in HiDPI mode.
-        MUST(canvas.set_width(rect.width()));
-        MUST(canvas.set_height(rect.height()));
+        MUST(canvas.set_width(paint_width));
+        MUST(canvas.set_height(paint_height));
 
-        if (!canvas.create_bitmap(rect.width(), rect.height())) {
-            encoded_string_or_error = Error::from_code(ErrorCode::UnableToCaptureScreen, "Unable to create a screenshot bitmap"sv);
+        // FIXME: 5. Let context, a canvas context mode, be the result of invoking the 2D context creation algorithm given canvas as the target.
+        if (!canvas.create_bitmap(paint_width, paint_height))
+            return Error::from_code(ErrorCode::UnableToCaptureScreen, "Unable to create a screenshot bitmap"sv);
+
+        // 6. Complete implementation specific steps equivalent to drawing the region of the framebuffer specified by the following coordinates onto context:
+        //    - X coordinate: rectangle x coordinate
+        //    - Y coordinate: rectangle y coordinate
+        //    - Width: paint width
+        //    - Height: paint height
+        Gfx::IntRect paint_rect { rect.x(), rect.y(), paint_width, paint_height };
+        painter(paint_rect, *canvas.bitmap());
+
+        // 7. Return success with canvas.
+        return canvas;
+    };
+
+    (void)element.document().window()->animation_frame_callback_driver().add([&](auto) {
+        auto canvas_or_error = draw_bounding_box_from_the_framebuffer();
+        if (canvas_or_error.is_error()) {
+            encoded_string_or_error = canvas_or_error.release_error();
             return;
         }
-
-        painter(rect, *canvas.bitmap());
-        encoded_string_or_error = encode_canvas_element(canvas);
+        encoded_string_or_error = encode_canvas_element(canvas_or_error.release_value());
     });
 
     Platform::EventLoopPlugin::the().spin_until([&]() { return encoded_string_or_error.has_value(); });

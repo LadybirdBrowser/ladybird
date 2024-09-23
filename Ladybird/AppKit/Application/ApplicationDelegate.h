@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/HTML/ActivateTab.h>
+#include <LibWebView/Forward.h>
 
 #import <Cocoa/Cocoa.h>
 
@@ -31,6 +32,11 @@
                                    url:(URL::URL const&)url
                                fromTab:(nullable Tab*)tab
                            activateTab:(Web::HTML::ActivateTab)activate_tab;
+
+- (nonnull TabController*)createChildTab:(Optional<URL::URL> const&)url
+                                 fromTab:(nonnull Tab*)tab
+                             activateTab:(Web::HTML::ActivateTab)activate_tab
+                               pageIndex:(u64)page_index;
 
 - (void)setActiveTab:(nonnull Tab*)tab;
 - (nullable Tab*)activeTab;

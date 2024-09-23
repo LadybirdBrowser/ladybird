@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -19,6 +19,10 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Core::LocalS
     , m_socket(move(socket))
     , m_local_endpoint_magic(local_endpoint_magic)
 {
+    socklen_t socket_buffer_size = 128 * KiB;
+    (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_SNDBUF, &socket_buffer_size, sizeof(socket_buffer_size));
+    (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_RCVBUF, &socket_buffer_size, sizeof(socket_buffer_size));
+
     m_responsiveness_timer = Core::Timer::create_single_shot(3000, [this] { may_have_become_unresponsive(); });
     m_socket->on_ready_to_read = [this] {
         NonnullRefPtr protect = *this;
@@ -26,9 +30,41 @@ ConnectionBase::ConnectionBase(IPC::Stub& local_stub, NonnullOwnPtr<Core::LocalS
         (void)drain_messages_from_peer();
         handle_messages();
     };
+
+    m_send_queue = adopt_ref(*new SendQueue);
+    m_send_thread = Threading::Thread::construct([this, queue = m_send_queue]() -> intptr_t {
+        for (;;) {
+            queue->mutex.lock();
+            while (queue->messages.is_empty() && queue->running)
+                queue->condition.wait();
+
+            if (!queue->running) {
+                queue->mutex.unlock();
+                break;
+            }
+
+            auto message = queue->messages.take_first();
+            queue->mutex.unlock();
+
+            if (auto result = message.transfer_message(*m_socket); result.is_error()) {
+                dbgln("ConnectionBase::send_thread: {}", result.error());
+                continue;
+            }
+        }
+        return 0;
+    });
+    m_send_thread->start();
 }
 
-ConnectionBase::~ConnectionBase() = default;
+ConnectionBase::~ConnectionBase()
+{
+    {
+        Threading::MutexLocker locker(m_send_queue->mutex);
+        m_send_queue->running = false;
+        m_send_queue->condition.signal();
+    }
+    m_send_thread->detach();
+}
 
 bool ConnectionBase::is_open() const
 {
@@ -47,9 +83,10 @@ ErrorOr<void> ConnectionBase::post_message(MessageBuffer buffer)
     if (!m_socket->is_open())
         return Error::from_string_literal("Trying to post_message during IPC shutdown");
 
-    if (auto result = buffer.transfer_message(*m_socket); result.is_error()) {
-        shutdown_with_error(result.error());
-        return result.release_error();
+    {
+        Threading::MutexLocker locker(m_send_queue->mutex);
+        m_send_queue->messages.append(move(buffer));
+        m_send_queue->condition.signal();
     }
 
     m_responsiveness_timer->start();

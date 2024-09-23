@@ -61,6 +61,19 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 - (instancetype)init
 {
+    auto* web_view = [[LadybirdWebView alloc] init:self];
+    return [self initWithWebView:web_view];
+}
+
+- (instancetype)initAsChild:(Tab*)parent
+                  pageIndex:(u64)page_index
+{
+    auto* web_view = [[LadybirdWebView alloc] initAsChild:self parent:[parent web_view] pageIndex:page_index];
+    return [self initWithWebView:web_view];
+}
+
+- (instancetype)initWithWebView:(LadybirdWebView*)web_view
+{
     auto screen_rect = [[NSScreen mainScreen] frame];
     auto position_x = (NSWidth(screen_rect) - WINDOW_WIDTH) / 2;
     auto position_y = (NSHeight(screen_rect) - WINDOW_HEIGHT) / 2;
@@ -77,7 +90,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
         // Remember last window position
         self.frameAutosaveName = @"window";
 
-        self.web_view = [[LadybirdWebView alloc] init:self];
+        self.web_view = web_view;
         [self.web_view setPostsBoundsChangedNotifications:YES];
 
         self.favicon = [Tab defaultFavicon];
@@ -268,7 +281,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 #pragma mark - LadybirdWebViewObserver
 
-- (String const&)onCreateNewTab:(URL::URL const&)url
+- (String const&)onCreateNewTab:(Optional<URL::URL> const&)url
                     activateTab:(Web::HTML::ActivateTab)activate_tab
 {
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
@@ -291,6 +304,21 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
                                           url:url
                                       fromTab:self
                                   activateTab:activate_tab];
+
+    auto* tab = (Tab*)[controller window];
+    return [[tab web_view] handle];
+}
+
+- (String const&)onCreateChildTab:(Optional<URL::URL> const&)url
+                      activateTab:(Web::HTML::ActivateTab)activate_tab
+                        pageIndex:(u64)page_index
+{
+    auto* delegate = (ApplicationDelegate*)[NSApp delegate];
+
+    auto* controller = [delegate createChildTab:url
+                                        fromTab:self
+                                    activateTab:activate_tab
+                                      pageIndex:page_index];
 
     auto* tab = (Tab*)[controller window];
     return [[tab web_view] handle];

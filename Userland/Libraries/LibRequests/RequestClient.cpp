@@ -77,13 +77,6 @@ void RequestClient::request_finished(i32 request_id, bool success, u64 total_siz
     m_requests.remove(request_id);
 }
 
-void RequestClient::request_progress(i32 request_id, Optional<u64> const& total_size, u64 downloaded_size)
-{
-    if (auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr))) {
-        request->did_progress({}, total_size, downloaded_size);
-    }
-}
-
 void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap const& response_headers, Optional<u32> const& status_code)
 {
     auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
@@ -103,52 +96,63 @@ void RequestClient::certificate_requested(i32 request_id)
 
 RefPtr<WebSocket> RequestClient::websocket_connect(const URL::URL& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& request_headers)
 {
-    auto connection_id = IPCProxy::websocket_connect(url, origin, protocols, extensions, request_headers);
-    if (connection_id < 0)
-        return nullptr;
-    auto connection = WebSocket::create_from_id({}, *this, connection_id);
-    m_websockets.set(connection_id, connection);
+    auto websocket_id = m_next_websocket_id++;
+    IPCProxy::async_websocket_connect(websocket_id, url, origin, protocols, extensions, request_headers);
+    auto connection = WebSocket::create_from_id({}, *this, websocket_id);
+    m_websockets.set(websocket_id, connection);
     return connection;
 }
 
-void RequestClient::websocket_connected(i32 connection_id)
+void RequestClient::websocket_connected(i64 websocket_id)
 {
-    auto maybe_connection = m_websockets.get(connection_id);
+    auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
         maybe_connection.value()->did_open({});
 }
 
-void RequestClient::websocket_received(i32 connection_id, bool is_text, ByteBuffer const& data)
+void RequestClient::websocket_received(i64 websocket_id, bool is_text, ByteBuffer const& data)
 {
-    auto maybe_connection = m_websockets.get(connection_id);
+    auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
         maybe_connection.value()->did_receive({}, data, is_text);
 }
 
-void RequestClient::websocket_errored(i32 connection_id, i32 message)
+void RequestClient::websocket_errored(i64 websocket_id, i32 message)
 {
-    auto maybe_connection = m_websockets.get(connection_id);
+    auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
         maybe_connection.value()->did_error({}, message);
 }
 
-void RequestClient::websocket_closed(i32 connection_id, u16 code, ByteString const& reason, bool clean)
+void RequestClient::websocket_closed(i64 websocket_id, u16 code, ByteString const& reason, bool clean)
 {
-    auto maybe_connection = m_websockets.get(connection_id);
+    auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
         maybe_connection.value()->did_close({}, code, reason, clean);
 }
 
-void RequestClient::websocket_certificate_requested(i32 connection_id)
+void RequestClient::websocket_ready_state_changed(i64 websocket_id, u32 ready_state)
 {
-    auto maybe_connection = m_websockets.get(connection_id);
-    if (maybe_connection.has_value())
-        maybe_connection.value()->did_request_certificates({});
+    auto maybe_connection = m_websockets.get(websocket_id);
+    if (maybe_connection.has_value()) {
+        VERIFY(ready_state <= static_cast<u32>(WebSocket::ReadyState::Closed));
+        maybe_connection.value()->set_ready_state(static_cast<WebSocket::ReadyState>(ready_state));
+    }
 }
 
-void RequestClient::dump_connection_info()
+void RequestClient::websocket_subprotocol(i64 websocket_id, ByteString const& subprotocol)
 {
-    async_dump_connection_info();
+    auto maybe_connection = m_websockets.get(websocket_id);
+    if (maybe_connection.has_value()) {
+        maybe_connection.value()->set_subprotocol_in_use(subprotocol);
+    }
+}
+
+void RequestClient::websocket_certificate_requested(i64 websocket_id)
+{
+    auto maybe_connection = m_websockets.get(websocket_id);
+    if (maybe_connection.has_value())
+        maybe_connection.value()->did_request_certificates({});
 }
 
 }

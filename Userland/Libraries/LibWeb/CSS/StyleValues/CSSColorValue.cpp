@@ -10,8 +10,8 @@
 #include "CSSColorValue.h"
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSMathValue.h>
 #include <LibWeb/CSS/StyleValues/CSSRGB.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
@@ -58,8 +58,8 @@ Optional<float> CSSColorValue::resolve_hue(CSSStyleValue const& style_value)
     if (style_value.is_angle())
         return normalized(style_value.as_angle().angle().to_degrees());
 
-    if (style_value.is_calculated() && style_value.as_calculated().resolves_to_angle())
-        return normalized(style_value.as_calculated().resolve_angle().value().to_degrees());
+    if (style_value.is_math() && style_value.as_math().resolves_to_angle())
+        return normalized(style_value.as_math().resolve_angle().value().to_degrees());
 
     if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
         return 0;
@@ -80,8 +80,8 @@ Optional<float> CSSColorValue::resolve_with_reference_value(CSSStyleValue const&
     if (style_value.is_number())
         return style_value.as_number().number();
 
-    if (style_value.is_calculated()) {
-        auto const& calculated = style_value.as_calculated();
+    if (style_value.is_math()) {
+        auto const& calculated = style_value.as_math();
         if (calculated.resolves_to_number())
             return calculated.resolve_number().value();
         if (calculated.resolves_to_percentage())
@@ -107,8 +107,8 @@ Optional<float> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value)
     if (style_value.is_percentage())
         return normalized(style_value.as_percentage().percentage().as_fraction());
 
-    if (style_value.is_calculated()) {
-        auto const& calculated = style_value.as_calculated();
+    if (style_value.is_math()) {
+        auto const& calculated = style_value.as_math();
         if (calculated.resolves_to_number())
             return normalized(calculated.resolve_number().value());
         if (calculated.resolves_to_percentage())

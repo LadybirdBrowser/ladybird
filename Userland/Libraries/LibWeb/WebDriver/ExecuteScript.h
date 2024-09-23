@@ -21,6 +21,7 @@ enum class ExecuteScriptResultType {
     Timeout,
     JavaScriptError,
     BrowsingContextDiscarded,
+    StaleElement,
 };
 
 struct ExecuteScriptResult {
@@ -35,7 +36,7 @@ struct ExecuteScriptResultSerialized {
 
 using OnScriptComplete = JS::HeapFunction<void(ExecuteScriptResultSerialized)>;
 
-void execute_script(Page& page, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
-void execute_async_script(Page& page, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
+void execute_script(HTML::BrowsingContext const&, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
+void execute_async_script(HTML::BrowsingContext const&, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
 
 }

@@ -826,7 +826,7 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(StringView value)
 
         if (context->is_connected()) {
             // NOTE: Since the DOM has changed, we have to rebuild the layout tree.
-            context->document().invalidate_layout();
+            context->document().invalidate_layout_tree();
         }
     }
 
@@ -1246,7 +1246,8 @@ double Element::scroll_top() const
         return 0.0;
 
     // 3. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 4. If window is null, return zero and terminate these steps.
     if (!window)
@@ -1276,6 +1277,7 @@ double Element::scroll_top() const
     return paintable_box()->scroll_offset().y().to_double();
 }
 
+// https://drafts.csswg.org/cssom-view/#dom-element-scrollleft
 double Element::scroll_left() const
 {
     // 1. Let document be the element’s node document.
@@ -1286,7 +1288,8 @@ double Element::scroll_left() const
         return 0.0;
 
     // 3. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 4. If window is null, return zero and terminate these steps.
     if (!window)
@@ -1332,7 +1335,8 @@ void Element::set_scroll_left(double x)
         return;
 
     // 5. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 6. If window is null, terminate these steps.
     if (!window)
@@ -1388,7 +1392,8 @@ void Element::set_scroll_top(double y)
         return;
 
     // 5. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 6. If window is null, terminate these steps.
     if (!window)
@@ -2347,7 +2352,8 @@ void Element::scroll(double x, double y)
         return;
 
     // 5. Let window be the value of document’s defaultView attribute.
-    auto* window = document.default_view();
+    // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
+    auto window = document.window();
 
     // 6. If window is null, terminate these steps.
     if (!window)
@@ -2575,31 +2581,6 @@ bool Element::is_auto_directionality_form_associated_element() const
 // https://html.spec.whatwg.org/multipage/dom.html#auto-directionality
 Optional<Element::Directionality> Element::auto_directionality() const
 {
-    // https://html.spec.whatwg.org/multipage/dom.html#text-node-directionality
-    auto text_node_directionality = [](Text const& text_node) -> Optional<Directionality> {
-        // 1. If text's data does not contain a code point whose bidirectional character type is L, AL, or R, then return null.
-        // 2. Let codePoint be the first code point in text's data whose bidirectional character type is L, AL, or R.
-        Optional<Unicode::BidiClass> found_character_bidi_class;
-        for (auto code_point : Utf8View(text_node.data())) {
-            auto bidi_class = Unicode::bidirectional_class(code_point);
-            if (first_is_one_of(bidi_class, Unicode::BidiClass::LeftToRight, Unicode::BidiClass::RightToLeftArabic, Unicode::BidiClass::RightToLeft)) {
-                found_character_bidi_class = bidi_class;
-                break;
-            }
-        }
-        if (!found_character_bidi_class.has_value())
-            return {};
-
-        // 3. If codePoint is of bidirectional character type AL or R, then return 'rtl'.
-        if (first_is_one_of(*found_character_bidi_class, Unicode::BidiClass::RightToLeftArabic, Unicode::BidiClass::RightToLeft))
-            return Directionality::Rtl;
-
-        // 4. If codePoint is of bidirectional character type L, then return 'ltr'.
-        // NOTE: codePoint should always be of bidirectional character type L by this point, so we can just return 'ltr' here.
-        VERIFY(*found_character_bidi_class == Unicode::BidiClass::LeftToRight);
-        return Directionality::Ltr;
-    };
-
     // 1. If element is an auto-directionality form-associated element:
     if (is_auto_directionality_form_associated_element()) {
         auto const* form_associated_element = dynamic_cast<HTML::FormAssociatedElement const*>(this);
@@ -2635,15 +2616,15 @@ Optional<Element::Directionality> Element::auto_directionality() const
 
                 // 2. If child is a Text node, then set childDirection to the text node directionality of child.
                 if (child->is_text())
-                    child_direction = text_node_directionality(static_cast<Text const&>(*child));
+                    child_direction = static_cast<Text const&>(*child).directionality();
 
                 // 3. Otherwise:
                 else {
                     // 1. Assert: child is an Element node.
                     VERIFY(child->is_element());
 
-                    // 2. Set childDirection to the auto directionality of child.
-                    child_direction = static_cast<HTML::HTMLElement const&>(*child).auto_directionality();
+                    // 2. Set childDirection to the contained text auto directionality of child with canExcludeRoot set to true.
+                    child_direction = static_cast<Element const&>(*child).contained_text_auto_directionality(true);
                 }
 
                 // 4. If childDirection is not null, then return childDirection.
@@ -2656,20 +2637,38 @@ Optional<Element::Directionality> Element::auto_directionality() const
         }
     }
 
-    // 3. For each node descendant of element's descendants, in tree order:
+    // 3. Return the contained text auto directionality of element with canExcludeRoot set to false.
+    return contained_text_auto_directionality(false);
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#contained-text-auto-directionality
+Optional<Element::Directionality> Element::contained_text_auto_directionality(bool can_exclude_root) const
+{
+    // To compute the contained text auto directionality of an element element with a boolean canExcludeRoot:
+
+    // 1. For each node descendant of element's descendants, in tree order:
     Optional<Directionality> result;
     for_each_in_subtree([&](auto& descendant) {
-        // 1. If descendant, or any of its ancestor elements that are descendants of element, is one of
-        // - FIXME: a bdi element
-        // - a script element
-        // - a style element
-        // - a textarea element
-        // - an element whose dir attribute is not in the undefined state
-        // then continue.
-        if (is<HTML::HTMLScriptElement>(descendant)
-            || is<HTML::HTMLStyleElement>(descendant)
-            || is<HTML::HTMLTextAreaElement>(descendant)
-            || (is<Element>(descendant) && static_cast<Element const&>(descendant).dir().has_value())) {
+        // 1. If any of
+        //    - descendant
+        //    - any ancestor element of descendant that is a descendant of element
+        //    - if canExcludeRoot is true, element
+        //    is one of
+        //    - FIXME: a bdi element
+        //    - a script element
+        //    - a style element
+        //    - a textarea element
+        //    - an element whose dir attribute is not in the undefined state
+        //    then continue.
+        // NOTE: "any ancestor element of descendant that is a descendant of element" will be iterated already.
+        auto is_one_of_the_filtered_elements = [](auto& descendant) -> bool {
+            return is<HTML::HTMLScriptElement>(descendant)
+                || is<HTML::HTMLStyleElement>(descendant)
+                || is<HTML::HTMLTextAreaElement>(descendant)
+                || (is<Element>(descendant) && static_cast<Element const&>(descendant).dir().has_value());
+        };
+        if (is_one_of_the_filtered_elements(descendant)
+            || (can_exclude_root && is_one_of_the_filtered_elements(*this))) {
             return TraversalDecision::SkipChildrenAndContinue;
         }
 
@@ -2689,7 +2688,7 @@ Optional<Element::Directionality> Element::auto_directionality() const
             return TraversalDecision::Continue;
 
         // 4. Let result be the text node directionality of descendant.
-        result = text_node_directionality(static_cast<Text const&>(descendant));
+        result = static_cast<Text const&>(descendant).directionality();
 
         // 5. If result is not null, then return result.
         if (result.has_value())
@@ -2701,7 +2700,7 @@ Optional<Element::Directionality> Element::auto_directionality() const
     if (result.has_value())
         return result;
 
-    // 4. Return null.
+    // 2. Return null.
     return {};
 }
 

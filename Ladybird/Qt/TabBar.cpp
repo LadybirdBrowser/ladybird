@@ -45,6 +45,39 @@ void TabBar::contextMenuEvent(QContextMenuEvent* event)
         tab->context_menu()->exec(event->globalPos());
 }
 
+void TabBar::mousePressEvent(QMouseEvent* event)
+{
+    event->ignore();
+
+    auto rect_of_current_tab = tabRect(tabAt(event->pos()));
+    m_x_position_in_selected_tab_while_dragging = event->pos().x() - rect_of_current_tab.x();
+
+    QTabBar::mousePressEvent(event);
+}
+
+void TabBar::mouseMoveEvent(QMouseEvent* event)
+{
+    event->ignore();
+
+    auto rect_of_first_tab = tabRect(0);
+    auto rect_of_last_tab = tabRect(count() - 1);
+
+    auto boundary_limit_for_dragging_tab = QRect(rect_of_first_tab.x() + m_x_position_in_selected_tab_while_dragging, 0,
+        rect_of_last_tab.x() + m_x_position_in_selected_tab_while_dragging, 0);
+
+    if (event->pos().x() >= boundary_limit_for_dragging_tab.x() && event->pos().x() <= boundary_limit_for_dragging_tab.width()) {
+        QTabBar::mouseMoveEvent(event);
+    } else {
+        auto pos = event->pos();
+        if (event->pos().x() > boundary_limit_for_dragging_tab.width())
+            pos.setX(boundary_limit_for_dragging_tab.width());
+        else if (event->pos().x() < boundary_limit_for_dragging_tab.x())
+            pos.setX(boundary_limit_for_dragging_tab.x());
+        QMouseEvent ev(event->type(), pos, event->globalPosition(), event->button(), event->buttons(), event->modifiers());
+        QTabBar::mouseMoveEvent(&ev);
+    }
+}
+
 TabWidget::TabWidget(QWidget* parent)
     : QTabWidget(parent)
 {

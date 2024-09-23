@@ -1358,6 +1358,7 @@ void Animation::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_timeline);
     visitor.visit(m_current_ready_promise);
     visitor.visit(m_current_finished_promise);
+    visitor.visit(m_owning_element);
 }
 
 }

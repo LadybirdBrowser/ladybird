@@ -144,7 +144,8 @@ public:
 
     Optional<FontLoader&> load_font_face(ParsedFontFace const&, ESCAPING Function<void(FontLoader const&)> on_load = {}, ESCAPING Function<void()> on_fail = {});
 
-    void load_fonts_from_sheet(CSSStyleSheet const&);
+    void load_fonts_from_sheet(CSSStyleSheet&);
+    void unload_fonts_from_sheet(CSSStyleSheet&);
 
     RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth = 0) const;
 
@@ -155,6 +156,8 @@ public:
         Yes,
     };
     void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, JS::NonnullGCPtr<Animations::KeyframeEffect> animation, StyleProperties& style_properties, AnimationRefresh = AnimationRefresh::No) const;
+
+    [[nodiscard]] bool has_has_selectors() const { return m_has_has_selectors; }
 
 private:
     enum class ComputeStyleMode {
@@ -174,6 +177,7 @@ private:
     void compute_font(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_math_depth(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_defaulted_values(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
+    void start_needed_transitions(StyleProperties const& old_style, StyleProperties& new_style, DOM::Element&, Optional<Selector::PseudoElement::Type>) const;
     void absolutize_values(StyleProperties&) const;
     void resolve_effective_overflow_values(StyleProperties&) const;
     void transform_box_type_if_needed(StyleProperties&, DOM::Element const&, Optional<CSS::Selector::PseudoElement::Type>) const;
@@ -220,12 +224,15 @@ private:
         Vector<MatchingRule> other_rules;
 
         HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
+
+        bool has_has_selectors { false };
     };
 
     NonnullOwnPtr<RuleCache> make_rule_cache_for_cascade_origin(CascadeOrigin);
 
     RuleCache const& rule_cache_for_cascade_origin(CascadeOrigin) const;
 
+    bool m_has_has_selectors { false };
     OwnPtr<RuleCache> m_author_rule_cache;
     OwnPtr<RuleCache> m_user_rule_cache;
     OwnPtr<RuleCache> m_user_agent_rule_cache;
@@ -251,13 +258,16 @@ public:
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     RefPtr<Gfx::Typeface> vector_font() const { return m_vector_font; }
 
-    virtual void resource_did_load() override;
-    virtual void resource_did_fail() override;
-
     RefPtr<Gfx::Font> font_with_point_size(float point_size);
     void start_loading_next_url();
 
 private:
+    // ^ResourceClient
+    virtual void resource_did_load() override;
+    virtual void resource_did_fail() override;
+
+    void resource_did_load_or_fail();
+
     ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_font();
 
     StyleComputer& m_style_computer;

@@ -140,6 +140,8 @@ private:
         };
     };
 
+    JS::GCPtr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+
     JS::GCPtr<CSS::CSSStyleSheet> m_loaded_style_sheet;
 
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;

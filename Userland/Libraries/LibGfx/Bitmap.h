@@ -73,9 +73,6 @@ public:
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> clone() const;
 
-    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> scaled(int sx, int sy) const;
-    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> scaled(float sx, float sy) const;
-    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> scaled_to_size(Gfx::IntSize) const;
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> cropped(Gfx::IntRect, Optional<BitmapFormat> new_bitmap_format = {}) const;
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap_backed_by_anonymous_buffer() const;
 
@@ -132,8 +129,6 @@ public:
     {
         return bpp_for_format(m_format);
     }
-
-    void fill(Color);
 
     [[nodiscard]] bool has_alpha_channel() const { return m_format == BitmapFormat::BGRA8888 || m_format == BitmapFormat::RGBA8888; }
     [[nodiscard]] BitmapFormat format() const { return m_format; }

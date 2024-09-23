@@ -31,6 +31,57 @@
         deleteCookie("cookie3");
     };
 
+    const namelessCookieTest = () => {
+        document.cookie = "=value";
+        printCookies("Nameless cookie");
+
+        deleteCookie("");
+    };
+
+    const valuelessCookieTest = () => {
+        document.cookie = "cookie=";
+        printCookies("Valueless cookie");
+
+        deleteCookie("cookie");
+    };
+
+    const namelessAndValuelessCookieTest = () => {
+        document.cookie = "=";
+        printCookies("Nameless and valueless cookie");
+    };
+
+    const invalidControlCharacterTest = () => {
+        document.cookie = "cookie=ab\ncd";
+        printCookies("Invalid control character");
+    };
+
+    const nonASCIIDomainTest = () => {
+        document.cookie = "cookie=value; domain=🤓";
+        printCookies("Non-ASCII domain");
+    };
+
+    const defaultPathTest = () => {
+        document.cookie = "cookie1=value; path=";
+        document.cookie = "cookie2=value; path=f";
+
+        printCookies("Default path");
+
+        deleteCookie("cookie1");
+        deleteCookie("cookie2");
+    };
+
+    const secureCookiePrefixTest = () => {
+        document.cookie = "__Secure-cookie=value";
+        printCookies("Secure cookie prefix");
+    };
+
+    const hostCookiePrefixTest = () => {
+        document.cookie = "__Host-cookie1=value";
+        document.cookie = "__Host-cookie2=value; secure";
+        document.cookie = "__Host-cookie3=value; secure; path=/foo";
+        printCookies("Host cookie prefix");
+    };
+
     const largeValueTest = () => {
         const value = "x".repeat(256);
 
@@ -41,7 +92,7 @@
     };
 
     const overlyLargeValueTest = () => {
-        const value = "x".repeat(4096 - "cookie=".length + 1);
+        const value = "x".repeat(4096 - "cookie".length + 1);
 
         document.cookie = `cookie=${value}`;
         printCookies("Overly large value");
@@ -72,16 +123,19 @@
     };
 
     const maxAgeTest1 = () => {
-        document.cookie = "cookie-max-age=value; max-age=1";
+        document.cookie = "cookie-max-age1=value; max-age=1";
+        document.cookie = `cookie-max-age2=value; max-age=${"1".repeat(1024)}`;
         printCookies("Max-Age (before expiration)");
     };
 
     const maxAgeTest2 = () => {
         printCookies("Max-Age (after expiration)");
+        deleteCookie("cookie-max-age2");
     };
 
     const maxAgeInPastTest = () => {
-        document.cookie = "cookie=value; max-age=-1";
+        document.cookie = "cookie1=value; max-age=-1";
+        document.cookie = `cookie2=value; max-age=-${"1".repeat(1023)}`;
         printCookies("Max-Age in past");
     };
 
@@ -128,6 +182,16 @@
     asyncTest(done => {
         basicTest();
         multipleCookiesTest();
+
+        namelessCookieTest();
+        valuelessCookieTest();
+        namelessAndValuelessCookieTest();
+
+        invalidControlCharacterTest();
+        nonASCIIDomainTest();
+        defaultPathTest();
+        secureCookiePrefixTest();
+        hostCookiePrefixTest();
 
         largeValueTest();
         overlyLargeValueTest();

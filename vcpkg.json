@@ -1,6 +1,13 @@
 {
-  "builtin-baseline": "3508985146f1b1d248c67ead13f8f54be5b4f5da",
+  "builtin-baseline": "a39a74405f277773aba08018bb797cb4a6614d0c",
   "dependencies": [
+    {
+      "name": "curl",
+      "features": [
+        "brotli",
+        "http2"
+      ]
+    },
     {
       "name": "fontconfig",
       "platform": "linux | freebsd | openbsd | osx"
@@ -62,6 +69,10 @@
   ],
   "overrides": [
     {
+      "name": "curl",
+      "version": "8.10.1#0"
+    },
+    {
       "name": "fontconfig",
       "version": "2.14.2#1"
     },
@@ -75,7 +86,7 @@
     },
     {
       "name": "libjxl",
-      "version": "0.10.2"
+      "version": "0.11.0"
     },
     {
       "name": "libpng",
@@ -91,15 +102,15 @@
     },
     {
       "name": "simdutf",
-      "version": "5.3.4#0"
+      "version": "5.5.0#0"
     },
     {
       "name": "skia",
-      "version": "124#0"
+      "version": "129#0"
     },
     {
       "name": "sqlite3",
-      "version": "3.45.3"
+      "version": "3.46.1"
     },
     {
       "name": "woff2",

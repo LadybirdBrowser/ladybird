@@ -11,7 +11,6 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/CookieJar.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/URL.h>
@@ -89,6 +88,26 @@ struct HideCursor {
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer
 {
+    if (self = [self initWebView:observer]) {
+        m_web_view_bridge->initialize_client();
+    }
+
+    return self;
+}
+
+- (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
+                     parent:(LadybirdWebView*)parent
+                  pageIndex:(u64)page_index
+{
+    if (self = [self initWebView:observer]) {
+        m_web_view_bridge->initialize_client_as_child(*parent->m_web_view_bridge, page_index);
+    }
+
+    return self;
+}
+
+- (instancetype)initWebView:(id<LadybirdWebViewObserver>)observer
+{
     if (self = [super init]) {
         self.observer = observer;
 
@@ -108,8 +127,6 @@ struct HideCursor {
 
         m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, [delegate preferredColorScheme], [delegate preferredContrast], [delegate preferredMotion]));
         [self setWebViewCallbacks];
-
-        m_web_view_bridge->initialize_client();
 
         auto* area = [[NSTrackingArea alloc] initWithRect:[self bounds]
                                                   options:NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect | NSTrackingMouseMoved
@@ -317,13 +334,19 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [self setNeedsDisplay:YES];
     };
 
-    m_web_view_bridge->on_new_web_view = [weak_self](auto activate_tab, auto, auto) {
+    m_web_view_bridge->on_new_web_view = [weak_self](auto activate_tab, auto, auto page_index) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return String {};
         }
-        // FIXME: Create a child tab that re-uses the ConnectionFromClient of the parent tab
-        return [self.observer onCreateNewTab:"about:blank"sv activateTab:activate_tab];
+
+        if (page_index.has_value()) {
+            return [self.observer onCreateChildTab:{}
+                                       activateTab:activate_tab
+                                         pageIndex:*page_index];
+        }
+
+        return [self.observer onCreateNewTab:{} activateTab:activate_tab];
     };
 
     m_web_view_bridge->on_request_web_content = [weak_self]() {
@@ -529,30 +552,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
             return;
         }
         [self updateViewportRect:Ladybird::WebViewBridge::ForResize::Yes];
-    };
-
-    m_web_view_bridge->on_navigate_back = [weak_self]() {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        [self navigateBack];
-    };
-
-    m_web_view_bridge->on_navigate_forward = [weak_self]() {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        [self navigateForward];
-    };
-
-    m_web_view_bridge->on_refresh = [weak_self]() {
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            return;
-        }
-        [self reload];
     };
 
     m_web_view_bridge->on_request_tooltip_override = [weak_self](auto, auto const& tooltip) {
@@ -972,26 +971,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         auto device_pixel_ratio = m_web_view_bridge->device_pixel_ratio();
         auto* event = Ladybird::create_context_menu_mouse_event(self, Gfx::IntPoint { content_position.x() / device_pixel_ratio, content_position.y() / device_pixel_ratio });
         [NSMenu popUpContextMenu:self.select_dropdown withEvent:event forView:self];
-    };
-
-    m_web_view_bridge->on_get_all_cookies = [](auto const& url) {
-        return WebView::Application::cookie_jar().get_all_cookies(url);
-    };
-
-    m_web_view_bridge->on_get_named_cookie = [](auto const& url, auto const& name) {
-        return WebView::Application::cookie_jar().get_named_cookie(url, name);
-    };
-
-    m_web_view_bridge->on_get_cookie = [](auto const& url, auto source) {
-        return WebView::Application::cookie_jar().get_cookie(url, source);
-    };
-
-    m_web_view_bridge->on_set_cookie = [](auto const& url, auto const& cookie, auto source) {
-        WebView::Application::cookie_jar().set_cookie(url, cookie, source);
-    };
-
-    m_web_view_bridge->on_update_cookie = [](auto const& cookie) {
-        WebView::Application::cookie_jar().update_cookie(cookie);
     };
 
     m_web_view_bridge->on_restore_window = [weak_self]() {

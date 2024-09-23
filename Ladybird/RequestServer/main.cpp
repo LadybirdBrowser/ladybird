@@ -17,12 +17,14 @@
 #include <LibMain/Main.h>
 #include <LibTLS/Certificate.h>
 #include <RequestServer/ConnectionFromClient.h>
-#include <RequestServer/HttpProtocol.h>
-#include <RequestServer/HttpsProtocol.h>
 
 #if defined(AK_OS_MACOS)
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
 #endif
+
+namespace RequestServer {
+extern ByteString g_default_certificate_path;
+}
 
 static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
 {
@@ -54,6 +56,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     // Ensure the certificates are read out here.
     if (certificates.is_empty())
         certificates.append(TRY(find_certificates(serenity_resource_root)));
+    else
+        RequestServer::g_default_certificate_path = certificates.first();
+
     DefaultRootCACertificates::set_default_certificate_paths(certificates.span());
     [[maybe_unused]] auto& certs = DefaultRootCACertificates::the();
 
@@ -63,9 +68,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (!mach_server_name.is_empty())
         Core::Platform::register_with_mach_server(mach_server_name);
 #endif
-
-    RequestServer::HttpProtocol::install();
-    RequestServer::HttpsProtocol::install();
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ConnectionFromClient>());
 

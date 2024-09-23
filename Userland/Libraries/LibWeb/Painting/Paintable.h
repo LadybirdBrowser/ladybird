@@ -61,6 +61,7 @@ public:
     [[nodiscard]] bool is_absolutely_positioned() const { return m_absolutely_positioned; }
     [[nodiscard]] bool is_floating() const { return m_floating; }
     [[nodiscard]] bool is_inline() const { return m_inline; }
+    [[nodiscard]] bool is_selected() const { return m_selected; }
     [[nodiscard]] CSS::Display display() const { return layout_node().display(); }
 
     template<typename U, typename Callback>
@@ -240,6 +241,7 @@ public:
 
     SelectionState selection_state() const { return m_selection_state; }
     void set_selection_state(SelectionState state) { m_selection_state = state; }
+    void set_selected(bool selected) { m_selected = selected; }
 
     Gfx::AffineTransform compute_combined_css_transform() const;
 
@@ -266,6 +268,7 @@ private:
     bool m_absolutely_positioned : 1 { false };
     bool m_floating : 1 { false };
     bool m_inline : 1 { false };
+    bool m_selected : 1 { false };
 };
 
 inline DOM::Node* HitTestResult::dom_node()

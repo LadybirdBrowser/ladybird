@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf8View.h>
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -38,19 +39,22 @@ public:
 
     class ChunkIterator {
     public:
-        ChunkIterator(StringView text, bool wrap_lines, bool respect_linebreaks, Gfx::FontCascadeList const&);
+        ChunkIterator(TextNode const&, bool wrap_lines, bool respect_linebreaks);
+
         Optional<Chunk> next();
         Optional<Chunk> peek(size_t);
 
     private:
         Optional<Chunk> next_without_peek();
-        Optional<Chunk> try_commit_chunk(Utf8View::Iterator const& start, Utf8View::Iterator const& end, bool has_breaking_newline, Gfx::Font const&, Gfx::GlyphRun::TextType) const;
+        Optional<Chunk> try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, Gfx::Font const&, Gfx::GlyphRun::TextType) const;
 
         bool const m_wrap_lines;
         bool const m_respect_linebreaks;
         Utf8View m_utf8_view;
-        Utf8View::Iterator m_iterator;
         Gfx::FontCascadeList const& m_font_cascade_list;
+
+        Unicode::Segmenter& m_grapheme_segmenter;
+        size_t m_current_index { 0 };
 
         Vector<Chunk> m_peek_queue;
     };
@@ -58,12 +62,15 @@ public:
     void invalidate_text_for_rendering();
     void compute_text_for_rendering();
 
+    Unicode::Segmenter& grapheme_segmenter() const;
+
     virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
 
 private:
     virtual bool is_text_node() const final { return true; }
 
     Optional<String> m_text_for_rendering;
+    mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
 };
 
 template<>

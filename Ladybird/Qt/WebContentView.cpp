@@ -431,13 +431,10 @@ void WebContentView::mouseReleaseEvent(QMouseEvent* event)
 {
     enqueue_native_event(Web::MouseEvent::Type::MouseUp, *event);
 
-    if (event->button() == Qt::MouseButton::BackButton) {
-        if (on_navigate_back)
-            on_navigate_back();
-    } else if (event->button() == Qt::MouseButton::ForwardButton) {
-        if (on_navigate_forward)
-            on_navigate_forward();
-    }
+    if (event->button() == Qt::MouseButton::BackButton)
+        traverse_the_history_by_delta(-1);
+    else if (event->button() == Qt::MouseButton::ForwardButton)
+        traverse_the_history_by_delta(1);
 }
 
 void WebContentView::wheelEvent(QWheelEvent* event)
@@ -796,11 +793,6 @@ bool WebContentView::event(QEvent* event)
     }
 
     return QAbstractScrollArea::event(event);
-}
-
-ErrorOr<String> WebContentView::dump_layout_tree()
-{
-    return String::from_byte_string(client().dump_layout_tree(m_client_state.page_index));
 }
 
 void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePointEvent const& event)

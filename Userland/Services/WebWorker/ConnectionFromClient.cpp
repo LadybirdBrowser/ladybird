@@ -63,7 +63,7 @@ Web::Page const& ConnectionFromClient::page() const
     return m_page_host->page();
 }
 
-void ConnectionFromClient::start_dedicated_worker(URL::URL const& url, String const& type, String const&, String const& name, Web::HTML::TransferDataHolder const& implicit_port, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings)
+void ConnectionFromClient::start_dedicated_worker(URL::URL const& url, Web::Bindings::WorkerType const& type, Web::Bindings::RequestCredentials const&, String const& name, Web::HTML::TransferDataHolder const& implicit_port, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings)
 {
     m_worker_host = make_ref_counted<DedicatedWorkerHost>(url, type, name);
     // FIXME: Yikes, const_cast to move? Feels like a LibIPC bug.

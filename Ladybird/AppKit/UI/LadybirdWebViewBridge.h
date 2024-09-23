@@ -25,6 +25,7 @@ public:
     virtual ~WebViewBridge() override;
 
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes) override;
+    void initialize_client_as_child(WebViewBridge const& parent, u64 page_index);
 
     float device_pixel_ratio() const { return m_device_pixel_ratio; }
     void set_device_pixel_ratio(float device_pixel_ratio);

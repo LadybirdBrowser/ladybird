@@ -4,17 +4,18 @@
 endpoint RequestClient
 {
     request_started(i32 request_id, IPC::File fd) =|
-    request_progress(i32 request_id, Optional<u64> total_size, u64 downloaded_size) =|
     request_finished(i32 request_id, bool success, u64 total_size) =|
     headers_became_available(i32 request_id, HTTP::HeaderMap response_headers, Optional<u32> status_code) =|
 
     // Websocket API
     // FIXME: See if this can be merged with the regular APIs
-    websocket_connected(i32 connection_id) =|
-    websocket_received(i32 connection_id, bool is_text, ByteBuffer data) =|
-    websocket_errored(i32 connection_id, i32 message) =|
-    websocket_closed(i32 connection_id, u16 code, ByteString reason, bool clean) =|
-    websocket_certificate_requested(i32 request_id) =|
+    websocket_connected(i64 websocket_id) =|
+    websocket_received(i64 websocket_id, bool is_text, ByteBuffer data) =|
+    websocket_errored(i64 websocket_id, i32 message) =|
+    websocket_closed(i64 websocket_id, u16 code, ByteString reason, bool clean) =|
+    websocket_ready_state_changed(i64 websocket_id, u32 ready_state) =|
+    websocket_subprotocol(i64 websocket_id, ByteString subprotocol) =|
+    websocket_certificate_requested(i64 websocket_id) =|
 
     // Certificate requests
     certificate_requested(i32 request_id) =|

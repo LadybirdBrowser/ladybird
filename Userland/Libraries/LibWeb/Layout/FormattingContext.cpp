@@ -667,13 +667,14 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
     auto width_of_containing_block = available_space.width.to_px_or_zero();
     auto const& computed_values = box.computed_values();
     auto zero_value = CSS::Length::make_px(0);
+    auto& box_state = m_state.get_mutable(box);
 
     auto margin_left = CSS::Length::make_auto();
     auto margin_right = CSS::Length::make_auto();
     auto const border_left = computed_values.border_left().width;
     auto const border_right = computed_values.border_right().width;
-    auto const padding_left = computed_values.padding().left().to_px(box, width_of_containing_block);
-    auto const padding_right = computed_values.padding().right().to_px(box, width_of_containing_block);
+    auto const padding_left = box_state.padding_left;
+    auto const padding_right = box_state.padding_right;
 
     auto computed_left = computed_values.inset().left();
     auto computed_right = computed_values.inset().right();
@@ -835,14 +836,11 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
         }
     }
 
-    auto& box_state = m_state.get_mutable(box);
     box_state.set_content_width(used_width.to_px(box));
     box_state.inset_left = left;
     box_state.inset_right = right;
     box_state.margin_left = margin_left.to_px(box);
     box_state.margin_right = margin_right.to_px(box);
-    box_state.padding_left = padding_left;
-    box_state.padding_right = padding_right;
 }
 
 void FormattingContext::compute_width_for_absolutely_positioned_replaced_element(Box const& box, AvailableSpace const& available_space)
@@ -962,7 +960,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     auto top = box.computed_values().inset().top();
     auto bottom = box.computed_values().inset().bottom();
 
-    auto width_of_containing_block = containing_block_width_for(box);
+    auto width_of_containing_block = available_space.width.to_px_or_zero();
     auto height_of_containing_block = available_space.height.to_px_or_zero();
 
     enum class ClampToZero {
@@ -970,15 +968,16 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
         Yes,
     };
 
+    auto& state = m_state.get(box);
     auto try_compute_height = [&](CSS::Length height) -> CSS::Length {
         auto solve_for = [&](CSS::Length length, ClampToZero clamp_to_zero = ClampToZero::No) {
             auto unclamped_value = height_of_containing_block
                 - top.to_px(box, height_of_containing_block)
                 - margin_top.to_px(box, width_of_containing_block)
                 - box.computed_values().border_top().width
-                - box.computed_values().padding().top().to_px(box, width_of_containing_block)
+                - state.padding_top
                 - apply_min_max_height_constraints(height).to_px(box)
-                - box.computed_values().padding().bottom().to_px(box, width_of_containing_block)
+                - state.padding_bottom
                 - box.computed_values().border_bottom().width
                 - margin_bottom.to_px(box, width_of_containing_block)
                 - bottom.to_px(box, height_of_containing_block)
@@ -1157,8 +1156,6 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     box_state.inset_bottom = bottom.to_px(box, height_of_containing_block);
     box_state.margin_top = margin_top.to_px(box, width_of_containing_block);
     box_state.margin_bottom = margin_bottom.to_px(box, width_of_containing_block);
-    box_state.padding_top = box.computed_values().padding().top().to_px(box, width_of_containing_block);
-    box_state.padding_bottom = box.computed_values().padding().bottom().to_px(box, width_of_containing_block);
 }
 
 // NOTE: This is different from content_box_rect_in_ancestor_coordinate_space() as this does *not* follow the containing block chain up, but rather the parent() chain.
@@ -1207,6 +1204,7 @@ StaticPositionRect FormattingContext::calculate_static_position_rect(Box const& 
                 }
             }
             if (last_fragment) {
+                x = last_fragment->offset().x() + last_fragment->width();
                 y = last_fragment->offset().y() + last_fragment->height();
             }
         } else {
@@ -1225,6 +1223,11 @@ StaticPositionRect FormattingContext::calculate_static_position_rect(Box const& 
 
 void FormattingContext::layout_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
 {
+    if (box.is_svg_box()) {
+        dbgln("FIXME: Implement support for absolutely positioned SVG elements.");
+        return;
+    }
+
     auto& containing_block_state = m_state.get_mutable(*box.containing_block());
 
     // The size of the containing block of an abspos box is always definite from the perspective of the abspos box.
@@ -1240,6 +1243,12 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
     box_state.border_right = box.computed_values().border_right().width;
     box_state.border_top = box.computed_values().border_top().width;
     box_state.border_bottom = box.computed_values().border_bottom().width;
+
+    auto const containing_block_width = available_space.width.to_px_or_zero();
+    box_state.padding_left = box.computed_values().padding().left().to_px(box, containing_block_width);
+    box_state.padding_right = box.computed_values().padding().right().to_px(box, containing_block_width);
+    box_state.padding_top = box.computed_values().padding().top().to_px(box, containing_block_width);
+    box_state.padding_bottom = box.computed_values().padding().bottom().to_px(box, containing_block_width);
 
     compute_width_for_absolutely_positioned_element(box, available_space);
 
@@ -1625,45 +1634,30 @@ CSSPixels FormattingContext::calculate_inner_width(Layout::Box const& box, Avail
 
     auto& computed_values = box.computed_values();
     if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox) {
-        auto const padding_left = computed_values.padding().left().resolved(box, width_of_containing_block);
-        auto const padding_right = computed_values.padding().right().resolved(box, width_of_containing_block);
-
+        auto const& state = m_state.get(box);
         auto inner_width = width.to_px(box, width_of_containing_block)
             - computed_values.border_left().width
-            - padding_left.to_px(box)
+            - state.padding_left
             - computed_values.border_right().width
-            - padding_right.to_px(box);
+            - state.padding_right;
         return max(inner_width, 0);
     }
 
     return width.resolved(box, width_of_containing_block).to_px(box);
 }
 
-CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, AvailableSize const&, CSS::Size const& height) const
+CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, AvailableSize const& available_height, CSS::Size const& height) const
 {
     VERIFY(!height.is_auto());
-
-    auto const* containing_block = box.non_anonymous_containing_block();
-    auto const& containing_block_state = m_state.get(*containing_block);
-    auto height_of_containing_block = containing_block_state.content_height();
-    if (box.computed_values().position() == CSS::Positioning::Absolute) {
-        // https://www.w3.org/TR/css-position-3/#def-cb
-        // If the box has position: absolute, then the containing block is formed by the padding edge of the ancestor
-        height_of_containing_block += containing_block_state.padding_top + containing_block_state.padding_bottom;
-    }
-
+    auto height_of_containing_block = available_height.to_px_or_zero();
     auto& computed_values = box.computed_values();
     if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox) {
-        auto width_of_containing_block = containing_block_width_for(box);
-
-        auto const padding_top = computed_values.padding().top().resolved(box, width_of_containing_block);
-        auto const padding_bottom = computed_values.padding().bottom().resolved(box, width_of_containing_block);
-
+        auto const& state = m_state.get(box);
         auto inner_height = height.to_px(box, height_of_containing_block)
             - computed_values.border_top().width
-            - padding_top.to_px(box)
+            - state.padding_top
             - computed_values.border_bottom().width
-            - padding_bottom.to_px(box);
+            - state.padding_bottom;
         return max(inner_height, 0);
     }
 

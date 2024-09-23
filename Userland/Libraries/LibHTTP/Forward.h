@@ -10,7 +10,5 @@ namespace HTTP {
 
 class HttpRequest;
 class HttpResponse;
-class HttpsJob;
-class Job;
 
 }

@@ -97,7 +97,10 @@
                    activateTab:(Web::HTML::ActivateTab)activate_tab
 {
     auto* controller = [self createNewTab:activate_tab fromTab:tab];
-    [controller loadURL:url.value_or(WebView::Application::chrome_options().new_tab_page_url)];
+
+    if (url.has_value()) {
+        [controller loadURL:*url];
+    }
 
     return controller;
 }
@@ -109,6 +112,20 @@
 {
     auto* controller = [self createNewTab:activate_tab fromTab:tab];
     [controller loadHTML:html url:url];
+
+    return controller;
+}
+
+- (nonnull TabController*)createChildTab:(Optional<URL::URL> const&)url
+                                 fromTab:(nonnull Tab*)tab
+                             activateTab:(Web::HTML::ActivateTab)activate_tab
+                               pageIndex:(u64)page_index
+{
+    auto* controller = [self createChildTab:activate_tab fromTab:tab pageIndex:page_index];
+
+    if (url.has_value()) {
+        [controller loadURL:*url];
+    }
 
     return controller;
 }
@@ -172,6 +189,29 @@
                                fromTab:(nullable Tab*)tab
 {
     auto* controller = [[TabController alloc] init];
+    [self initializeTabController:controller
+                      activateTab:activate_tab
+                          fromTab:tab];
+
+    return controller;
+}
+
+- (nonnull TabController*)createChildTab:(Web::HTML::ActivateTab)activate_tab
+                                 fromTab:(nonnull Tab*)tab
+                               pageIndex:(u64)page_index
+{
+    auto* controller = [[TabController alloc] initAsChild:tab pageIndex:page_index];
+    [self initializeTabController:controller
+                      activateTab:activate_tab
+                          fromTab:tab];
+
+    return controller;
+}
+
+- (void)initializeTabController:(TabController*)controller
+                    activateTab:(Web::HTML::ActivateTab)activate_tab
+                        fromTab:(nullable Tab*)tab
+{
     [controller showWindow:nil];
 
     if (tab) {
@@ -189,7 +229,6 @@
 
     [self.managed_tabs addObject:controller];
     [controller onCreateNewTab];
-    return controller;
 }
 
 - (void)closeCurrentTab:(id)sender
@@ -602,9 +641,6 @@
                                          keyEquivalent:@""]];
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Local Storage"
                                                 action:@selector(dumpLocalStorage:)
-                                         keyEquivalent:@""]];
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Dump Connection Info"
-                                                action:@selector(dumpConnectionInfo:)
                                          keyEquivalent:@""]];
     [submenu addItem:[NSMenuItem separatorItem]];
 

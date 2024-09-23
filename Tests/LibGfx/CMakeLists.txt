@@ -3,14 +3,11 @@ set(TEST_SOURCES
     BenchmarkJPEGLoader.cpp
     TestColor.cpp
     TestDeltaE.cpp
-    TestGfxBitmap.cpp
     TestICCProfile.cpp
     TestImageDecoder.cpp
     TestImageWriter.cpp
     TestMedianCut.cpp
-    TestPainter.cpp
     TestRect.cpp
-    TestScalingFunctions.cpp
     TestWOFF.cpp
     TestWOFF2.cpp
 )

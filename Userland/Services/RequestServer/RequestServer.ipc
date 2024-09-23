@@ -1,6 +1,7 @@
+#include <LibCore/Proxy.h>
 #include <LibHTTP/HeaderMap.h>
 #include <LibURL/URL.h>
-#include <RequestServer/ConnectionCache.h>
+#include <RequestServer/CacheLevel.h>
 
 endpoint RequestServer
 {
@@ -16,12 +17,9 @@ endpoint RequestServer
     ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) =|
 
     // Websocket Connection API
-    websocket_connect(URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, HTTP::HeaderMap additional_request_headers) => (i32 connection_id)
-    websocket_ready_state(i32 connection_id) => (u32 ready_state)
-    websocket_subprotocol_in_use(i32 connection_id) => (ByteString subprotocol_in_use)
-    websocket_send(i32 connection_id, bool is_text, ByteBuffer data) =|
-    websocket_close(i32 connection_id, u16 code, ByteString reason) =|
-    websocket_set_certificate(i32 request_id, ByteString certificate, ByteString key) => (bool success)
+    websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, HTTP::HeaderMap additional_request_headers) =|
+    websocket_send(i64 websocket_id, bool is_text, ByteBuffer data) =|
+    websocket_close(i64 websocket_id, u16 code, ByteString reason) =|
+    websocket_set_certificate(i64 request_id, ByteString certificate, ByteString key) => (bool success)
 
-    dump_connection_info() =|
 }

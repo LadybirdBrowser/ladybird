@@ -431,11 +431,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         debug_request("dump-local-storage");
     });
 
-    auto* dump_connection_info = new QAction("Dump Co&nnection Info", this);
-    dump_connection_info->setIcon(load_icon_from_uri("resource://icons/16x16/network.png"sv));
-    debug_menu->addAction(dump_connection_info);
-    QObject::connect(dump_connection_info, &QAction::triggered, this, &BrowserWindow::dump_connection_info);
-
     debug_menu->addSeparator();
 
     m_show_line_box_borders_action = new QAction("Show Line Box Borders", this);
@@ -804,26 +799,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
     tab->view().on_link_middle_click = [this](auto url, auto target, unsigned modifiers) {
         m_current_tab->view().on_link_click(url, target, Web::UIEvents::Mod_Ctrl);
         (void)modifiers;
-    };
-
-    tab->view().on_get_all_cookies = [](auto const& url) {
-        return WebView::Application::cookie_jar().get_all_cookies(url);
-    };
-
-    tab->view().on_get_named_cookie = [](auto const& url, auto const& name) {
-        return WebView::Application::cookie_jar().get_named_cookie(url, name);
-    };
-
-    tab->view().on_get_cookie = [](auto& url, auto source) {
-        return WebView::Application::cookie_jar().get_cookie(url, source);
-    };
-
-    tab->view().on_set_cookie = [](auto& url, auto& cookie, auto source) {
-        WebView::Application::cookie_jar().set_cookie(url, cookie, source);
-    };
-
-    tab->view().on_update_cookie = [](auto const& cookie) {
-        WebView::Application::cookie_jar().update_cookie(cookie);
     };
 
     m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());
@@ -1237,12 +1212,6 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
     QObject::deleteLater();
 
     QMainWindow::closeEvent(event);
-}
-
-void BrowserWindow::dump_connection_info()
-{
-    if (auto& application = static_cast<Application&>(WebView::Application::the()); application.request_server_client)
-        application.request_server_client->dump_connection_info();
 }
 
 }

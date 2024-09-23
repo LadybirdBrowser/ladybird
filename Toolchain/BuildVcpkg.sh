@@ -21,7 +21,7 @@ if [ "$ci" -eq 0 ]; then
 fi
 
 GIT_REPO="https://github.com/microsoft/vcpkg.git"
-GIT_REV="3508985146f1b1d248c67ead13f8f54be5b4f5da" # 2024.08.23
+GIT_REV="a39a74405f277773aba08018bb797cb4a6614d0c" # 2024.09.19
 PREFIX_DIR="$DIR/Local/vcpkg"
 
 mkdir -p "$DIR/Tarballs"

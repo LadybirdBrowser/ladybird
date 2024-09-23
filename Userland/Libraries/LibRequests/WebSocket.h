@@ -44,16 +44,18 @@ public:
         Closed = 3,
     };
 
-    static NonnullRefPtr<WebSocket> create_from_id(Badge<RequestClient>, RequestClient& client, i32 connection_id)
+    static NonnullRefPtr<WebSocket> create_from_id(Badge<RequestClient>, RequestClient& client, i64 websocket_id)
     {
-        return adopt_ref(*new WebSocket(client, connection_id));
+        return adopt_ref(*new WebSocket(client, websocket_id));
     }
 
-    int id() const { return m_connection_id; }
+    i64 id() const { return m_websocket_id; }
 
     ReadyState ready_state();
+    void set_ready_state(ReadyState);
 
     ByteString subprotocol_in_use();
+    void set_subprotocol_in_use(ByteString);
 
     void send(ByteBuffer binary_or_text_message, bool is_text);
     void send(StringView text_message);
@@ -72,9 +74,11 @@ public:
     void did_request_certificates(Badge<RequestClient>);
 
 private:
-    explicit WebSocket(RequestClient&, i32 connection_id);
+    explicit WebSocket(RequestClient&, i64 websocket_id);
     WeakPtr<RequestClient> m_client;
-    int m_connection_id { -1 };
+    ReadyState m_ready_state { ReadyState::Connecting };
+    ByteString m_subprotocol;
+    i64 m_websocket_id { -1 };
 };
 
 }

@@ -52,7 +52,7 @@ public:
         return 0;
     }
 
-    static Angle resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&, Angle const& reference_value);
+    static Angle resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&, Angle const& reference_value);
 
 private:
     Type m_type;

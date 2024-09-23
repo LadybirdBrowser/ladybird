@@ -9,25 +9,35 @@
 
 namespace Requests {
 
-WebSocket::WebSocket(RequestClient& client, i32 connection_id)
+WebSocket::WebSocket(RequestClient& client, i64 connection_id)
     : m_client(client)
-    , m_connection_id(connection_id)
+    , m_websocket_id(connection_id)
 {
 }
 
 WebSocket::ReadyState WebSocket::ready_state()
 {
-    return static_cast<WebSocket::ReadyState>(m_client->websocket_ready_state(m_connection_id));
+    return m_ready_state;
+}
+
+void WebSocket::set_ready_state(ReadyState ready_state)
+{
+    m_ready_state = ready_state;
 }
 
 ByteString WebSocket::subprotocol_in_use()
 {
-    return m_client->websocket_subprotocol_in_use(m_connection_id);
+    return m_subprotocol;
+}
+
+void WebSocket::set_subprotocol_in_use(ByteString subprotocol)
+{
+    m_subprotocol = move(subprotocol);
 }
 
 void WebSocket::send(ByteBuffer binary_or_text_message, bool is_text)
 {
-    m_client->async_websocket_send(m_connection_id, is_text, move(binary_or_text_message));
+    m_client->async_websocket_send(m_websocket_id, is_text, move(binary_or_text_message));
 }
 
 void WebSocket::send(StringView text_message)
@@ -37,7 +47,7 @@ void WebSocket::send(StringView text_message)
 
 void WebSocket::close(u16 code, ByteString reason)
 {
-    m_client->async_websocket_close(m_connection_id, code, move(reason));
+    m_client->async_websocket_close(m_websocket_id, code, move(reason));
 }
 
 void WebSocket::did_open(Badge<RequestClient>)
@@ -68,7 +78,7 @@ void WebSocket::did_request_certificates(Badge<RequestClient>)
 {
     if (on_certificate_requested) {
         auto result = on_certificate_requested();
-        if (!m_client->websocket_set_certificate(m_connection_id, result.certificate, result.key))
+        if (!m_client->websocket_set_certificate(m_websocket_id, result.certificate, result.key))
             dbgln("WebSocket: set_certificate failed");
     }
 }

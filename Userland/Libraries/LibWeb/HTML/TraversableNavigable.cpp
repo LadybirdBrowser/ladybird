@@ -1031,18 +1031,25 @@ void TraversableNavigable::close_top_level_traversable()
 {
     VERIFY(is_top_level_traversable());
 
-    // 1. Let toUnload be traversable's active document's inclusive descendant navigables.
+    // 1. If traversable's is closing is true, then return.
+    if (is_closing())
+        return;
+
+    // 2. Let toUnload be traversable's active document's inclusive descendant navigables.
     auto to_unload = active_document()->inclusive_descendant_navigables();
 
-    // FIXME: 2. If the result of checking if unloading is user-canceled for toUnload is true, then return.
+    // FIXME: 3. If the result of checking if unloading is canceled for toUnload is true, then return.
 
-    // 3. Unload the active documents of each of toUnload.
-    for (auto navigable : to_unload) {
-        navigable->active_document()->unload();
-    }
+    // 4. Append the following session history traversal steps to traversable:
+    append_session_history_traversal_steps(JS::create_heap_function(heap(), [this] {
+        // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
+        auto after_all_unloads = JS::create_heap_function(heap(), [this] {
+            destroy_top_level_traversable();
+        });
 
-    // 4. Destroy traversable.
-    destroy_top_level_traversable();
+        // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
+        active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-top-level-traversable

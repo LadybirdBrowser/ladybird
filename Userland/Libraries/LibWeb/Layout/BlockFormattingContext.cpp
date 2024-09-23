@@ -135,11 +135,6 @@ bool BlockFormattingContext::box_should_avoid_floats_because_it_establishes_fc(B
 
 void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const& available_space)
 {
-    if (box.is_absolutely_positioned()) {
-        compute_width_for_absolutely_positioned_element(box, available_space);
-        return;
-    }
-
     auto remaining_available_space = available_space;
     if (available_space.width.is_definite() && box_should_avoid_floats_because_it_establishes_fc(box)) {
         // NOTE: Although CSS 2.2 specification says that only block formatting contexts should avoid floats,
@@ -311,14 +306,20 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
 
     auto margin_left = computed_values.margin().left().resolved(box, width_of_containing_block);
     auto margin_right = computed_values.margin().right().resolved(box, width_of_containing_block);
-    auto const padding_left = computed_values.padding().left().resolved(box, width_of_containing_block).to_px(box);
-    auto const padding_right = computed_values.padding().right().resolved(box, width_of_containing_block).to_px(box);
 
     // If 'margin-left', or 'margin-right' are computed as 'auto', their used value is '0'.
     if (margin_left.is_auto())
         margin_left = zero_value;
     if (margin_right.is_auto())
         margin_right = zero_value;
+
+    auto& box_state = m_state.get_mutable(box);
+    box_state.padding_left = computed_values.padding().left().resolved(box, width_of_containing_block).to_px(box);
+    box_state.padding_right = computed_values.padding().right().resolved(box, width_of_containing_block).to_px(box);
+    box_state.margin_left = margin_left.to_px(box);
+    box_state.margin_right = margin_right.to_px(box);
+    box_state.border_left = computed_values.border_left().width;
+    box_state.border_right = computed_values.border_right().width;
 
     auto compute_width = [&](auto width) {
         // If 'width' is computed as 'auto', the used value is the "shrink-to-fit" width.
@@ -330,8 +331,8 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
                 // block minus the used values of 'margin-left', 'border-left-width', 'padding-left',
                 // 'padding-right', 'border-right-width', 'margin-right', and the widths of any relevant scroll bars.
                 auto available_width = available_space.width.to_px_or_zero()
-                    - margin_left.to_px(box) - computed_values.border_left().width - padding_left
-                    - padding_right - computed_values.border_right().width - margin_right.to_px(box);
+                    - margin_left.to_px(box) - computed_values.border_left().width - box_state.padding_left
+                    - box_state.padding_right - computed_values.border_right().width - margin_right.to_px(box);
                 // Then the shrink-to-fit width is: min(max(preferred minimum width, available width), preferred width).
                 width = CSS::Length::make_px(min(max(result.preferred_minimum_width, available_width), result.preferred_width));
             } else if (available_space.width.is_indefinite() || available_space.width.is_max_content()) {
@@ -371,14 +372,7 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
             width = compute_width(CSS::Length::make_px(min_width));
     }
 
-    auto& box_state = m_state.get_mutable(box);
     box_state.set_content_width(width.to_px(box));
-    box_state.margin_left = margin_left.to_px(box);
-    box_state.margin_right = margin_right.to_px(box);
-    box_state.border_left = computed_values.border_left().width;
-    box_state.border_right = computed_values.border_right().width;
-    box_state.padding_left = padding_left;
-    box_state.padding_right = padding_right;
 }
 
 void BlockFormattingContext::compute_width_for_block_level_replaced_element_in_normal_flow(Box const& box, AvailableSpace const& available_space)
@@ -413,7 +407,7 @@ void BlockFormattingContext::compute_width_for_block_level_replaced_element_in_n
     box_state.padding_right = padding_right;
 }
 
-void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const& available_space)
+void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const& available_space, FormattingContext const* box_formatting_context)
 {
     auto const& computed_values = box.computed_values();
     auto& box_used_values = m_state.get_mutable(box);
@@ -424,7 +418,11 @@ void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const
         height = compute_height_for_replaced_element(box, available_space);
     } else {
         if (should_treat_height_as_auto(box, available_space)) {
-            height = compute_auto_height_for_block_level_element(box, m_state.get(box).available_inner_space_or_constraints_from(available_space));
+            if (box_formatting_context) {
+                height = box_formatting_context->automatic_content_height();
+            } else {
+                height = compute_auto_height_for_block_level_element(box, m_state.get(box).available_inner_space_or_constraints_from(available_space));
+            }
         } else {
             height = calculate_inner_height(box, available_space.height, computed_values.height());
         }
@@ -703,7 +701,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     // Tables already set their height during the independent formatting context run. When multi-line text cells are involved, using different
     // available space here than during the independent formatting context run can result in different line breaks and thus a different height.
     if (!box.display().is_table_inside()) {
-        compute_height(box, available_space);
+        compute_height(box, available_space, independent_formatting_context);
     }
 
     if (independent_formatting_context || !margins_collapse_through(box, m_state)) {
@@ -946,7 +944,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
         compute_height(box, available_space);
 
     auto independent_formatting_context = layout_inside(box, m_layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
-    compute_height(box, available_space);
+    compute_height(box, available_space, independent_formatting_context);
 
     // First we place the box normally (to get the right y coordinate.)
     // If we have a LineBuilder, we're in the middle of inline layout, otherwise this is block layout.

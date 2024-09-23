@@ -2,10 +2,11 @@
 #include <LibIPC/File.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
+#include <LibWeb/Bindings/WorkerPrototype.h>
 
 endpoint WebWorkerServer {
 
-    start_dedicated_worker(URL::URL url, String type, String credentials, String name, Web::HTML::TransferDataHolder message_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings) =|
+    start_dedicated_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials credentials, String name, Web::HTML::TransferDataHolder message_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings) =|
 
     close_worker() =|
 
