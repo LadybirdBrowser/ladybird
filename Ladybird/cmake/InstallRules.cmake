@@ -43,19 +43,6 @@ list(REMOVE_DUPLICATES all_required_lagom_libraries)
 # Remove ladybird shlib if it exists
 list(REMOVE_ITEM all_required_lagom_libraries ladybird)
 
-# Install service impl libraries if they exist
-macro(install_service_lib service)
-    if (TARGET ${service})
-      get_target_property(target_type ${service} TYPE)
-      if ("${target_type}" STREQUAL STATIC_LIBRARY)
-          list(APPEND all_required_lagom_libraries ${service})
-      endif()
-    endif()
-endmacro()
-foreach(service IN LISTS webcontent requestserver websocket webworker)
-    install_service_lib(${service})
-endforeach()
-
 if (APPLE)
     # Fixup the app bundle and copy:
     #   - Libraries from lib/ to Ladybird.app/Contents/lib
