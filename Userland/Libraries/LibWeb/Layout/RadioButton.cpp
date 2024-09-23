@@ -6,6 +6,8 @@
  */
 
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/Layout/RadioButton.h>
 #include <LibWeb/Painting/RadioButtonPaintable.h>
 
 namespace Web::Layout {

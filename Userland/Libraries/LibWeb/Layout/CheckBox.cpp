@@ -4,11 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Font/Font.h>
-#include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/Layout/CheckBox.h>
-#include <LibWeb/Layout/Label.h>
 #include <LibWeb/Painting/CheckBoxPaintable.h>
 
 namespace Web::Layout {

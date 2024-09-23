@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Layout/CheckBox.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Painting/LabelablePaintable.h>
 
 namespace Web::Painting {

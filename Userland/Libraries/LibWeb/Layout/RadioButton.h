@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Layout/FormAssociatedLabelableNode.h>
 
 namespace Web::Layout {
