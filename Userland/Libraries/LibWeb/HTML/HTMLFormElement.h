@@ -11,7 +11,6 @@
 #include <AK/Time.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/Navigable.h>
 
 namespace Web::HTML {

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Layout/RadioButton.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Painting/LabelablePaintable.h>
 
 namespace Web::Painting {
