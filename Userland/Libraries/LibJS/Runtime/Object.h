@@ -243,6 +243,7 @@ protected:
     Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 
+    Object* prototype() { return shape().prototype(); }
     // [[Extensible]]
     bool m_is_extensible { true };
 
@@ -255,8 +256,6 @@ protected:
 
 private:
     void set_shape(Shape& shape) { m_shape = &shape; }
-
-    Object* prototype() { return shape().prototype(); }
 
     bool m_may_interfere_with_indexed_property_access { false };
 

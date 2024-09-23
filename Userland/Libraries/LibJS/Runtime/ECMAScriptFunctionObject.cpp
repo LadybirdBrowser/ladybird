@@ -558,6 +558,44 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
         });
 }
 
+// 10.2.5 MakeConstructor ( F [ , writablePrototype [ , prototype ] ] ), https://tc39.es/ecma262/#sec-makeconstructor
+void ECMAScriptFunctionObject::make_constructor(bool writable_prototype, Object* prototype)
+{
+    auto& vm = this->vm();
+
+    // 1. If F is an ECMAScript function object, then
+    // This is implicitly taken care of simply being in this method
+
+    // a. Assert: IsConstructor(F) is false.
+    VERIFY(is_class_constructor() == false);
+
+    // b. Assert: F is an extensible object that does not have a "prototype" own property.
+    // FIXME: implement that does not have a "prototype" own property part
+    VERIFY(MUST(is_extensible()));
+
+    // c. Set F.[[Construct]] to the definition specified in 10.2.2
+    // This is implicitly taken care of by the class ECMAScriptFunctionObject
+
+    // 3. Set F.[[ConstructorKind]] to base.
+    set_constructor_kind(ConstructorKind::Base);
+
+    // 4. If writablePrototype is not present, set writablePrototype to true.
+    // taken care of by default argument value
+
+    // 5. If prototype is not present, then
+    if (prototype == nullptr) {
+        // a. Set prototype to OrdinaryObjectCreate(%Object.prototype%).
+        prototype = Object::create(*m_realm, prototype);
+
+        // b. Perform ! DefinePropertyOrThrow(prototype, "constructor", PropertyDescriptor { [[Value]]: F, [[Writable]]: writablePrototype, [[Enumerable]]: false, [[Configurable]]: true }).
+        MUST(prototype->define_property_or_throw(vm.names.constructor, PropertyDescriptor { .value = this, .writable = writable_prototype, .enumerable = false, .configurable = true }));
+    }
+    // 6. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]: writablePrototype, [[Enumerable]]: false, [[Configurable]]: false }).
+    MUST(define_property_or_throw(vm.names.prototype, PropertyDescriptor { .value = prototype, .writable = writable_prototype, .enumerable = false, .configurable = false }));
+
+    // 7. Return unused.
+}
+
 // 10.2.7 MakeMethod ( F, homeObject ), https://tc39.es/ecma262/#sec-makemethod
 void ECMAScriptFunctionObject::make_method(Object& home_object)
 {
