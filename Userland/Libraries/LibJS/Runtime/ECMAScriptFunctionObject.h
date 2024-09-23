@@ -48,6 +48,7 @@ public:
     virtual ThrowCompletionOr<Value> internal_call(Value this_argument, ReadonlySpan<Value> arguments_list) override;
     virtual ThrowCompletionOr<NonnullGCPtr<Object>> internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target) override;
 
+    void make_constructor(GCPtr<Object> prototype = nullptr);
     void make_method(Object& home_object);
 
     [[nodiscard]] bool is_module_wrapper() const { return m_is_module_wrapper; }
@@ -60,6 +61,7 @@ public:
     void set_name(DeprecatedFlyString const& name);
 
     void set_is_class_constructor() { m_is_class_constructor = true; }
+    bool is_class_constructor() const { return m_is_class_constructor; }
 
     auto& bytecode_executable() const { return m_bytecode_executable; }
 
