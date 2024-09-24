@@ -26,9 +26,6 @@ public:
 protected:
     virtual Vector<MatchingTokenPair> matching_token_pairs_impl() const override;
     virtual bool token_types_equal(u64, u64) const override;
-
-    size_t m_line { 1 };
-    size_t m_column { 0 };
 };
 
 }
