@@ -71,6 +71,32 @@ private:
 String highlight_source(URL::URL const&, StringView);
 
 constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
+    @media (prefers-color-scheme: dark) {
+        /* FIXME: We should be able to remove the HTML style when "color-scheme" is supported */
+        html {
+            background-color: rgb(30, 30, 30);
+            color: white;
+        }
+
+        :root {
+            --comment-color: lightgreen;
+            --keyword-color: orangered;
+            --name-color: orange;
+            --value-color: deepskyblue;
+            --internal-color: darkgrey;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --comment-color: green;
+            --keyword-color: red;
+            --name-color: darkorange;
+            --value-color: blue;
+            --internal-color: dimgrey;
+        }
+    }
+
     .html {
         font-size: 10pt;
         font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -78,47 +104,19 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
 
     .tag {
         font-weight: 600;
+        color: var(--keyword-color);
     }
-
-    @media (prefers-color-scheme: dark) {
-        /* FIXME: We should be able to remove the HTML style when "color-scheme" is supported */
-        html {
-            background-color: rgb(30, 30, 30);
-            color: white;
-        }
-        .comment {
-            color: lightgreen;
-        }
-        .tag {
-            color: orangered;
-        }
-        .attribute-name {
-            color: orange;
-        }
-        .attribute-value {
-            color: deepskyblue;
-        }
-        .internal {
-            color: darkgrey;
-        }
+    .comment {
+        color: var(--comment-color);
     }
-
-    @media (prefers-color-scheme: light) {
-        .comment {
-            color: green;
-        }
-        .tag {
-            color: red;
-        }
-        .attribute-name {
-            color: darkorange;
-        }
-        .attribute-value {
-            color: blue;
-        }
-        .internal {
-            color: dimgray;
-        }
+    .attribute-name {
+        color: var(--name-color);
+    }
+    .attribute-value {
+        color: var(--value-color);
+    }
+    .internal {
+        color: var(--internal-color);
     }
 )~~~"sv;
 
