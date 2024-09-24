@@ -303,14 +303,9 @@ ErrorOr<void, Client::WrappedError> Client::send_success_response(JsonValue resu
     builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
     builder.appendff("Content-Length: {}\r\n", content.length());
     builder.append("\r\n"sv);
+    builder.append(content);
 
-    auto builder_contents = TRY(builder.to_byte_buffer());
-    TRY(m_socket->write_until_depleted(builder_contents));
-
-    while (!content.is_empty()) {
-        auto bytes_sent = TRY(m_socket->write_some(content.bytes()));
-        content = content.substring_view(bytes_sent);
-    }
+    TRY(m_socket->write_until_depleted(builder.string_view()));
 
     if (!keep_alive)
         die();
