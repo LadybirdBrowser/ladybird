@@ -1220,79 +1220,82 @@ static void compute_transitioned_properties(StyleProperties const& style, DOM::E
     // FIXME: Implement transitioning for pseudo-elements
     (void)pseudo_element;
 
-    if (auto const source_declaration = style.transition_property_source(); source_declaration && element.computed_css_values()) {
-        if (source_declaration != element.cached_transition_property_source()) {
-            // Reparse this transition property
-            element.clear_transitions();
-            element.set_cached_transition_property_source(*source_declaration);
+    auto const source_declaration = style.transition_property_source();
+    if (!source_declaration)
+        return;
+    if (!element.computed_css_values())
+        return;
+    if (source_declaration == element.cached_transition_property_source())
+        return;
+    // Reparse this transition property
+    element.clear_transitions();
+    element.set_cached_transition_property_source(*source_declaration);
 
-            auto transition_properties_value = style.property(PropertyID::TransitionProperty);
-            auto transition_properties = transition_properties_value->is_value_list()
-                ? transition_properties_value->as_value_list().values()
-                : StyleValueVector { transition_properties_value };
+    auto transition_properties_value = style.property(PropertyID::TransitionProperty);
+    auto transition_properties = transition_properties_value->is_value_list()
+        ? transition_properties_value->as_value_list().values()
+        : StyleValueVector { transition_properties_value };
 
-            auto normalize_transition_length_list = [&](PropertyID property, auto make_default_value) {
-                auto style_value = style.maybe_null_property(property);
-                StyleValueVector list;
+    Vector<Vector<PropertyID>> properties;
 
-                if (!style_value || !style_value->is_value_list() || style_value->as_value_list().size() == 0) {
-                    auto default_value = make_default_value();
-                    for (size_t i = 0; i < transition_properties.size(); i++)
-                        list.append(default_value);
-                    return list;
-                }
+    for (size_t i = 0; i < transition_properties.size(); i++) {
+        auto property_value = transition_properties[i];
+        Vector<PropertyID> properties_for_this_transition;
 
-                auto const& value_list = style_value->as_value_list();
-                for (size_t i = 0; i < transition_properties.size(); i++)
-                    list.append(value_list.value_at(i, true));
-
-                return list;
-            };
-
-            auto delays = normalize_transition_length_list(
-                PropertyID::TransitionDelay,
-                [] { return TimeStyleValue::create(Time::make_seconds(0.0)); });
-            auto durations = normalize_transition_length_list(
-                PropertyID::TransitionDuration,
-                [] { return TimeStyleValue::create(Time::make_seconds(0.0)); });
-            auto timing_functions = normalize_transition_length_list(
-                PropertyID::TransitionTimingFunction,
-                [] { return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()); });
-
-            Vector<Vector<PropertyID>> properties;
-
-            for (size_t i = 0; i < transition_properties.size(); i++) {
-                auto property_value = transition_properties[i];
-                Vector<PropertyID> properties_for_this_transition;
-
-                if (property_value->is_keyword()) {
-                    auto keyword = property_value->as_keyword().keyword();
-                    if (keyword == Keyword::None)
-                        continue;
-                    if (keyword == Keyword::All) {
-                        for (auto prop = first_property_id; prop != last_property_id; prop = static_cast<PropertyID>(to_underlying(prop) + 1))
-                            properties_for_this_transition.append(prop);
-                    }
-                } else {
-                    auto maybe_property = property_id_from_string(property_value->as_custom_ident().custom_ident());
-                    if (!maybe_property.has_value())
-                        continue;
-
-                    auto transition_property = maybe_property.release_value();
-                    if (property_is_shorthand(transition_property)) {
-                        for (auto const& prop : longhands_for_shorthand(transition_property))
-                            properties_for_this_transition.append(prop);
-                    } else {
-                        properties_for_this_transition.append(transition_property);
-                    }
-                }
-
-                properties.append(move(properties_for_this_transition));
+        if (property_value->is_keyword()) {
+            auto keyword = property_value->as_keyword().keyword();
+            if (keyword == Keyword::None)
+                continue;
+            if (keyword == Keyword::All) {
+                for (auto prop = first_property_id; prop != last_property_id; prop = static_cast<PropertyID>(to_underlying(prop) + 1))
+                    properties_for_this_transition.append(prop);
             }
+        } else {
+            auto maybe_property = property_id_from_string(property_value->as_custom_ident().custom_ident());
+            if (!maybe_property.has_value())
+                continue;
 
-            element.add_transitioned_properties(move(properties), move(delays), move(durations), move(timing_functions));
+            auto transition_property = maybe_property.release_value();
+            if (property_is_shorthand(transition_property)) {
+                for (auto const& prop : longhands_for_shorthand(transition_property))
+                    properties_for_this_transition.append(prop);
+            } else {
+                properties_for_this_transition.append(transition_property);
+            }
         }
+
+        properties.append(move(properties_for_this_transition));
     }
+
+    auto normalize_transition_length_list = [&properties, &style](PropertyID property, auto make_default_value) {
+        auto style_value = style.maybe_null_property(property);
+        StyleValueVector list;
+
+        if (!style_value || !style_value->is_value_list() || style_value->as_value_list().size() == 0) {
+            auto default_value = make_default_value();
+            for (size_t i = 0; i < properties.size(); i++)
+                list.append(default_value);
+            return list;
+        }
+
+        auto const& value_list = style_value->as_value_list();
+        for (size_t i = 0; i < properties.size(); i++)
+            list.append(value_list.value_at(i, true));
+
+        return list;
+    };
+
+    auto delays = normalize_transition_length_list(
+        PropertyID::TransitionDelay,
+        [] { return TimeStyleValue::create(Time::make_seconds(0.0)); });
+    auto durations = normalize_transition_length_list(
+        PropertyID::TransitionDuration,
+        [] { return TimeStyleValue::create(Time::make_seconds(0.0)); });
+    auto timing_functions = normalize_transition_length_list(
+        PropertyID::TransitionTimingFunction,
+        [] { return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease()); });
+
+    element.add_transitioned_properties(move(properties), move(delays), move(durations), move(timing_functions));
 }
 
 // https://drafts.csswg.org/css-transitions/#starting

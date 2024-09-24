@@ -1,0 +1,15 @@
+<style>
+#foo {
+    transition-property: filter;
+    transition-timing-function: linear;
+    transition-duration:.3s;
+}
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        foo.offsetWidth;
+        println("PASS (didn't crash)");
+    });
+</script>
