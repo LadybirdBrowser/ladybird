@@ -10,6 +10,16 @@
 
 namespace Web::HTML {
 
+enum class AugmentedTokenKind : u32 {
+    AttributeName,
+    AttributeValue,
+    OpenTag,
+    CloseTag,
+    Comment,
+    Doctype,
+    __Count,
+};
+
 class SyntaxHighlighter : public Syntax::Highlighter {
 public:
     SyntaxHighlighter() = default;
