@@ -346,7 +346,7 @@ ThrowCompletionOr<Value> Console::trace()
 
     auto& vm = realm().vm();
 
-    // 1. Let trace be some implementation-specific, potentially-interactive representation of the callstack from where this function was called.
+    // 1. Let trace be some implementation-defined, potentially-interactive representation of the callstack from where this function was called.
     Console::Trace trace;
     auto& execution_context_stack = vm.execution_context_stack();
     // NOTE: -2 to skip the console.trace() execution context
