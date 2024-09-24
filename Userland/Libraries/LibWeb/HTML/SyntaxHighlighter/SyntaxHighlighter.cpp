@@ -7,6 +7,7 @@
 
 #include <AK/Debug.h>
 #include <LibJS/SyntaxHighlighter.h>
+#include <LibJS/Token.h>
 #include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTML/SyntaxHighlighter/SyntaxHighlighter.h>
@@ -88,10 +89,11 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
         } else if (token->is_end_tag()) {
             if (token->tag_name().is_one_of("script"sv, "style"sv)) {
                 if (state == State::Javascript) {
+                    VERIFY(static_cast<u64>(AugmentedTokenKind::__Count) + first_free_token_kind_serial_value() < JS_TOKEN_START_VALUE);
                     Syntax::ProxyHighlighterClient proxy_client {
                         *m_client,
                         substring_start_position,
-                        static_cast<u64>(AugmentedTokenKind::__Count) + first_free_token_kind_serial_value(),
+                        JS_TOKEN_START_VALUE,
                         substring_builder.string_view()
                     };
                     {
@@ -106,10 +108,11 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
                     folding_regions.extend(proxy_client.corrected_folding_regions());
                     substring_builder.clear();
                 } else if (state == State::CSS) {
+                    VERIFY(static_cast<u64>(AugmentedTokenKind::__Count) + first_free_token_kind_serial_value() + static_cast<u64>(JS::TokenType::_COUNT_OF_TOKENS) < CSS_TOKEN_START_VALUE);
                     Syntax::ProxyHighlighterClient proxy_client {
                         *m_client,
                         substring_start_position,
-                        static_cast<u64>(AugmentedTokenKind::__Count) + first_free_token_kind_serial_value(),
+                        CSS_TOKEN_START_VALUE,
                         substring_builder.string_view()
                     };
                     {
