@@ -72,6 +72,7 @@ enum class RequestPriority;
 enum class RequestRedirect;
 enum class ResizeObserverBoxOptions;
 enum class ResponseType;
+enum class ScrollRestoration;
 enum class TextTrackKind;
 enum class XMLHttpRequestResponseType;
 }
@@ -521,6 +522,7 @@ class WorkerNavigator;
 enum class AllowMultipleFiles;
 enum class MediaSeekMode;
 enum class SandboxingFlagSet;
+enum class ScrollRestorationMode;
 
 struct CrossOriginOpenerPolicy;
 struct CrossOriginOpenerPolicyEnforcementResult;

@@ -68,6 +68,35 @@ WebIDL::ExceptionOr<u64> History::length() const
     return m_length;
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-history-scroll-restoration
+WebIDL::ExceptionOr<Bindings::ScrollRestoration> History::scroll_restoration() const
+{
+    // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
+    if (!m_associated_document->is_fully_active())
+        return WebIDL::SecurityError::create(realm(), "Cannot perform scrollRestoration on a document that isn't fully active."_fly_string);
+
+    VERIFY(m_associated_document->navigable());
+
+    // 2. Return this's node navigable's active session history entry's scroll restoration mode.
+    auto mode = m_associated_document->navigable()->active_session_history_entry()->scroll_restoration_mode();
+    return mode == ScrollRestorationMode::Auto ? Bindings::ScrollRestoration::Auto : Bindings::ScrollRestoration::Manual;
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-history-scroll-restoration
+WebIDL::ExceptionOr<void> History::set_scroll_restoration(Bindings::ScrollRestoration restoration)
+{
+    // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
+    if (!m_associated_document->is_fully_active())
+        return WebIDL::SecurityError::create(realm(), "Cannot perform scrollRestoration on a document that isn't fully active."_fly_string);
+
+    VERIFY(m_associated_document->navigable());
+
+    // 2. Set this's node navigable's active session history entry's scroll restoration mode to the given value.
+    m_associated_document->navigable()->active_session_history_entry()->set_scroll_restoration_mode(restoration == Bindings::ScrollRestoration::Auto ? ScrollRestorationMode::Auto : ScrollRestorationMode::Manual);
+
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-history-state
 WebIDL::ExceptionOr<JS::Value> History::state() const
 {

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/HistoryPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -22,6 +23,9 @@ public:
     [[nodiscard]] static JS::NonnullGCPtr<History> create(JS::Realm&, DOM::Document&);
 
     virtual ~History() override;
+
+    WebIDL::ExceptionOr<Bindings::ScrollRestoration> scroll_restoration() const;
+    WebIDL::ExceptionOr<void> set_scroll_restoration(Bindings::ScrollRestoration restoration);
 
     WebIDL::ExceptionOr<void> push_state(JS::Value data, String const& unused, Optional<String> const& url = {});
     WebIDL::ExceptionOr<void> replace_state(JS::Value data, String const& unused, Optional<String> const& url = {});
@@ -46,6 +50,7 @@ private:
     WebIDL::ExceptionOr<void> shared_history_push_replace_state(JS::Value data, Optional<String> const& url, HistoryHandlingBehavior);
 
     JS::NonnullGCPtr<DOM::Document> m_associated_document;
+    Bindings::ScrollRestoration m_scroll_restoration { Bindings::ScrollRestoration::Auto };
     JS::Value m_state { JS::js_null() };
 };
 
