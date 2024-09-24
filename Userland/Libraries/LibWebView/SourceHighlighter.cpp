@@ -244,7 +244,7 @@ static String generate_style()
 
     .line {
         counter-increment: line;
-        white-space: nowrap;
+        white-space: pre;
     }
 
     .line::before {
