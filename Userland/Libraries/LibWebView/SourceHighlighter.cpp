@@ -6,7 +6,11 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <LibJS/SyntaxHighlighter.h>
+#include <LibJS/Token.h>
 #include <LibURL/URL.h>
+#include <LibWeb/CSS/Parser/Token.h>
+#include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
 #include <LibWeb/HTML/SyntaxHighlighter/SyntaxHighlighter.h>
 #include <LibWebView/SourceHighlighter.h>
 
@@ -40,8 +44,14 @@ SourceHighlighterClient::SourceHighlighterClient(StringView source, Syntax::Lang
     Gfx::Palette dummy_palette { palette_impl };
 
     switch (language) {
+    case Syntax::Language::CSS:
+        m_highlighter = make<Web::CSS::SyntaxHighlighter>();
+        break;
     case Syntax::Language::HTML:
         m_highlighter = make<Web::HTML::SyntaxHighlighter>();
+        break;
+    case Syntax::Language::JavaScript:
+        m_highlighter = make<JS::SyntaxHighlighter>();
         break;
     default:
         break;
@@ -111,24 +121,115 @@ String highlight_source(URL::URL const& url, StringView source)
 
 StringView SourceHighlighterClient::class_for_token(u64 token_type) const
 {
-    switch (static_cast<Web::HTML::AugmentedTokenKind>(token_type)) {
-    case Web::HTML::AugmentedTokenKind::AttributeName:
-        return "attribute-name"sv;
-    case Web::HTML::AugmentedTokenKind::AttributeValue:
-        return "attribute-value"sv;
-    case Web::HTML::AugmentedTokenKind::OpenTag:
-    case Web::HTML::AugmentedTokenKind::CloseTag:
-        return "tag"sv;
-    case Web::HTML::AugmentedTokenKind::Comment:
-        return "comment"sv;
-    case Web::HTML::AugmentedTokenKind::Doctype:
-        return "doctype"sv;
-    case Web::HTML::AugmentedTokenKind::__Count:
-    default:
-        break;
-    }
+    auto class_for_css_token = [](u64 token_type) {
+        switch (static_cast<Web::CSS::Parser::Token::Type>(token_type)) {
+        case Web::CSS::Parser::Token::Type::Invalid:
+        case Web::CSS::Parser::Token::Type::BadString:
+        case Web::CSS::Parser::Token::Type::BadUrl:
+            return "invalid"sv;
+        case Web::CSS::Parser::Token::Type::Ident:
+            return "identifier"sv;
+        case Web::CSS::Parser::Token::Type::Function:
+            return "function"sv;
+        case Web::CSS::Parser::Token::Type::AtKeyword:
+            return "at-keyword"sv;
+        case Web::CSS::Parser::Token::Type::Hash:
+            return "hash"sv;
+        case Web::CSS::Parser::Token::Type::String:
+            return "string"sv;
+        case Web::CSS::Parser::Token::Type::Url:
+            return "url"sv;
+        case Web::CSS::Parser::Token::Type::Number:
+        case Web::CSS::Parser::Token::Type::Dimension:
+        case Web::CSS::Parser::Token::Type::Percentage:
+            return "number"sv;
+        case Web::CSS::Parser::Token::Type::Whitespace:
+            return "whitespace"sv;
+        case Web::CSS::Parser::Token::Type::Delim:
+        case Web::CSS::Parser::Token::Type::Colon:
+        case Web::CSS::Parser::Token::Type::Semicolon:
+        case Web::CSS::Parser::Token::Type::Comma:
+        case Web::CSS::Parser::Token::Type::OpenSquare:
+        case Web::CSS::Parser::Token::Type::CloseSquare:
+        case Web::CSS::Parser::Token::Type::OpenParen:
+        case Web::CSS::Parser::Token::Type::CloseParen:
+        case Web::CSS::Parser::Token::Type::OpenCurly:
+        case Web::CSS::Parser::Token::Type::CloseCurly:
+            return "delimiter"sv;
+        case Web::CSS::Parser::Token::Type::CDO:
+        case Web::CSS::Parser::Token::Type::CDC:
+            return "comment"sv;
+        case Web::CSS::Parser::Token::Type::EndOfFile:
+        default:
+            break;
+        }
+        return ""sv;
+    };
 
-    return "unknown"sv;
+    auto class_for_js_token = [](u64 token_type) {
+        auto category = JS::Token::category(static_cast<JS::TokenType>(token_type));
+        switch (category) {
+        case JS::TokenCategory::Invalid:
+            return "invalid"sv;
+        case JS::TokenCategory::Number:
+            return "number"sv;
+        case JS::TokenCategory::String:
+            return "string"sv;
+        case JS::TokenCategory::Punctuation:
+            return "punctuation"sv;
+        case JS::TokenCategory::Operator:
+            return "operator"sv;
+        case JS::TokenCategory::Keyword:
+            return "keyword"sv;
+        case JS::TokenCategory::ControlKeyword:
+            return "control-keyword"sv;
+        case JS::TokenCategory::Identifier:
+            return "identifier"sv;
+        default:
+            break;
+        }
+        return ""sv;
+    };
+
+    switch (m_highlighter->language()) {
+    case Syntax::Language::CSS:
+        return class_for_css_token(token_type);
+    case Syntax::Language::JavaScript:
+        return class_for_js_token(token_type);
+    case Syntax::Language::HTML: {
+        // HTML has nested CSS and JS highlighters, so we have to decode their token types.
+
+        // HTML
+        if (token_type < Web::HTML::SyntaxHighlighter::JS_TOKEN_START_VALUE) {
+            switch (static_cast<Web::HTML::AugmentedTokenKind>(token_type)) {
+            case Web::HTML::AugmentedTokenKind::AttributeName:
+                return "attribute-name"sv;
+            case Web::HTML::AugmentedTokenKind::AttributeValue:
+                return "attribute-value"sv;
+            case Web::HTML::AugmentedTokenKind::OpenTag:
+            case Web::HTML::AugmentedTokenKind::CloseTag:
+                return "tag"sv;
+            case Web::HTML::AugmentedTokenKind::Comment:
+                return "comment"sv;
+            case Web::HTML::AugmentedTokenKind::Doctype:
+                return "doctype"sv;
+            case Web::HTML::AugmentedTokenKind::__Count:
+            default:
+                return ""sv;
+            }
+        }
+
+        // JS
+        if (token_type < Web::HTML::SyntaxHighlighter::CSS_TOKEN_START_VALUE) {
+            return class_for_js_token(token_type - Web::HTML::SyntaxHighlighter::JS_TOKEN_START_VALUE);
+        }
+
+        // CSS
+        return class_for_css_token(token_type - Web::HTML::SyntaxHighlighter::CSS_TOKEN_START_VALUE);
+    }
+    default:
+        return "unknown"sv;
+    }
 }
 
 static String generate_style()

@@ -84,6 +84,8 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
             --name-color: orange;
             --value-color: deepskyblue;
             --internal-color: darkgrey;
+            --string-color: goldenrod;
+            --error-color: red;
         }
     }
 
@@ -94,6 +96,8 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
             --name-color: darkorange;
             --value-color: blue;
             --internal-color: dimgrey;
+            --string-color: darkgoldenrod;
+            --error-color: darkred;
         }
     }
 
@@ -117,6 +121,19 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
     }
     .internal {
         color: var(--internal-color);
+    }
+    .invalid {
+        color: var(--error-color);
+        text-decoration: currentColor wavy underline;
+    }
+    .at-keyword, .function, .keyword, .control-keyword, .url {
+        color: var(--keyword-color);
+    }
+    .number, .hash {
+        color: var(--value-color);
+    }
+    .string {
+        color: var(--string-color);
     }
 )~~~"sv;
 
