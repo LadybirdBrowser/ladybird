@@ -48,7 +48,7 @@ set(GENERATED_SOURCES
 )
 
 serenity_lib(LibWebView webview)
-target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL)
+target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax)
 target_compile_definitions(LibWebView PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENABLE_PUBLIC_SUFFIX_DOWNLOAD}>)
 
 # Third-party
