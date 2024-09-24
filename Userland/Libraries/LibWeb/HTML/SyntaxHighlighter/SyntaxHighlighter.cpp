@@ -14,16 +14,6 @@
 
 namespace Web::HTML {
 
-enum class AugmentedTokenKind : u32 {
-    AttributeName,
-    AttributeValue,
-    OpenTag,
-    CloseTag,
-    Comment,
-    Doctype,
-    __Count,
-};
-
 bool SyntaxHighlighter::is_identifier(u64 token) const
 {
     if (!token)
