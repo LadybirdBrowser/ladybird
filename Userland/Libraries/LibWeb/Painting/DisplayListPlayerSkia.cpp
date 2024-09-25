@@ -355,6 +355,17 @@ void DisplayListPlayerSkia::fill_rect(FillRect const& command)
     canvas.drawRect(to_skia_rect(rect), paint);
 }
 
+void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& command)
+{
+    auto src_rect = to_skia_rect(command.src_rect);
+    auto dst_rect = to_skia_rect(command.dst_rect);
+    auto& sk_surface = command.surface->sk_surface();
+    auto& canvas = surface().canvas();
+    auto image = sk_surface.makeImageSnapshot();
+    SkPaint paint;
+    canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
+}
+
 void DisplayListPlayerSkia::draw_scaled_bitmap(DrawScaledBitmap const& command)
 {
     auto src_rect = to_skia_rect(command.src_rect);

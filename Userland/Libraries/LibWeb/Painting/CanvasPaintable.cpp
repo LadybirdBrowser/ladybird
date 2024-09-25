@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/CanvasPaintable.h>
 
 namespace Web::Painting {
@@ -36,11 +37,13 @@ void CanvasPaintable::paint(PaintContext& context, PaintPhase phase) const
         auto canvas_rect = context.rounded_device_rect(absolute_rect());
         ScopedCornerRadiusClip corner_clip { context, canvas_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
-        if (layout_box().dom_node().bitmap()) {
+        if (layout_box().dom_node().surface()) {
+            auto surface = layout_box().dom_node().surface();
+
             // FIXME: Remove this const_cast.
             const_cast<HTML::HTMLCanvasElement&>(layout_box().dom_node()).present();
-            auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), layout_box().dom_node().bitmap()->rect(), canvas_rect.to_type<int>());
-            context.display_list_recorder().draw_scaled_bitmap(canvas_rect.to_type<int>(), *layout_box().dom_node().bitmap(), layout_box().dom_node().bitmap()->rect(), scaling_mode);
+            auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), surface->rect(), canvas_rect.to_type<int>());
+            context.display_list_recorder().draw_painting_surface(canvas_rect.to_type<int>(), *layout_box().dom_node().surface(), surface->rect(), scaling_mode);
         }
     }
 }

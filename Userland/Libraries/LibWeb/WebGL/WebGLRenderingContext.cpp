@@ -39,14 +39,14 @@ JS::ThrowCompletionOr<JS::GCPtr<WebGLRenderingContext>> WebGLRenderingContext::c
     // We should be coming here from getContext being called on a wrapped <canvas> element.
     auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
 
-    bool created_bitmap = canvas_element.create_bitmap(/* minimum_width= */ 1, /* minimum_height= */ 1);
-    if (!created_bitmap) {
+    bool created_surface = canvas_element.allocate_painting_surface(/* minimum_width= */ 1, /* minimum_height= */ 1);
+    if (!created_surface) {
         fire_webgl_context_creation_error(canvas_element);
         return JS::GCPtr<WebGLRenderingContext> { nullptr };
     }
 
-    VERIFY(canvas_element.bitmap());
-    auto context = OpenGLContext::create(*canvas_element.bitmap());
+    VERIFY(canvas_element.surface());
+    auto context = OpenGLContext::create(*canvas_element.surface()->create_snapshot());
 
     if (!context) {
         fire_webgl_context_creation_error(canvas_element);

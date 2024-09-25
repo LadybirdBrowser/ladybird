@@ -9,12 +9,13 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Painter.h>
+#include <LibGfx/PaintingSurface.h>
 
 namespace Gfx {
 
 class PainterSkia final : public Painter {
 public:
-    explicit PainterSkia(NonnullRefPtr<Gfx::Bitmap>);
+    explicit PainterSkia(NonnullRefPtr<Gfx::PaintingSurface>);
     virtual ~PainterSkia() override;
 
     virtual void clear_rect(Gfx::FloatRect const&, Color) override;

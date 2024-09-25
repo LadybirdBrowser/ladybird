@@ -105,6 +105,8 @@ public:
     };
     CheckIfUnloadingIsCanceledResult check_if_unloading_is_canceled(Vector<JS::Handle<Navigable>> navigables_that_need_before_unload);
 
+    RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const { return m_skia_backend_context; }
+
 private:
     TraversableNavigable(JS::NonnullGCPtr<Page>);
 

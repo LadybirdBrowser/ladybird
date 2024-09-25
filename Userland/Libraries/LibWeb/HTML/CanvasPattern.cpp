@@ -127,10 +127,15 @@ WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& r
         return WebIDL::SyntaxError::create(realm, "Repetition value is not valid"_string);
 
     // Note: Bitmap won't be null here, as if it were it would have "bad" usability.
-    auto const& bitmap = *image.visit([](auto const& source) -> Gfx::Bitmap const* { return source->bitmap(); });
+    auto bitmap = image.visit(
+        [](JS::Handle<HTMLImageElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
+        [](JS::Handle<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
+        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::Bitmap> { return source->surface()->create_snapshot(); },
+        [](JS::Handle<HTMLVideoElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
+        [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); });
 
     // 6. Let pattern be a new CanvasPattern object with the image image and the repetition behavior given by repetition.
-    auto pattern = TRY_OR_THROW_OOM(realm.vm(), CanvasPatternPaintStyle::create(bitmap, *repetition_value));
+    auto pattern = TRY_OR_THROW_OOM(realm.vm(), CanvasPatternPaintStyle::create(*bitmap, *repetition_value));
 
     // FIXME: 7. If image is not origin-clean, then mark pattern as not origin-clean.
 

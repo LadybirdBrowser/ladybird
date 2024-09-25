@@ -32,6 +32,15 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
                 source_height = source->video_height();
             }
         },
+        [&source_width, &source_height](JS::Handle<HTMLCanvasElement> const& source) {
+            if (source->surface()) {
+                source_width = source->surface()->size().width();
+                source_height = source->surface()->size().height();
+            } else {
+                source_width = source->width();
+                source_height = source->height();
+            }
+        },
         [&source_width, &source_height](auto const& source) {
             if (source->bitmap()) {
                 source_width = source->bitmap()->width();
@@ -70,5 +79,4 @@ WebIDL::ExceptionOr<void> CanvasDrawImage::draw_image(Web::HTML::CanvasImageSour
 {
     return draw_image_internal(image, source_x, source_y, source_width, source_height, destination_x, destination_y, destination_width, destination_height);
 }
-
 }

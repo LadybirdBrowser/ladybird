@@ -58,21 +58,17 @@ static SkAlphaType to_skia_alpha_type(Gfx::AlphaType alpha_type)
 }
 
 struct PainterSkia::Impl {
-    NonnullRefPtr<Gfx::Bitmap> gfx_bitmap;
-    OwnPtr<SkBitmap> sk_bitmap;
-    OwnPtr<SkCanvas> sk_canvas;
+    RefPtr<Gfx::PaintingSurface> painting_surface;
 
-    Impl(NonnullRefPtr<Gfx::Bitmap> target_bitmap)
-        : gfx_bitmap(move(target_bitmap))
+    Impl(Gfx::PaintingSurface& surface)
+        : painting_surface(surface)
     {
-        sk_bitmap = make<SkBitmap>();
-        SkImageInfo info = SkImageInfo::Make(gfx_bitmap->width(), gfx_bitmap->height(), to_skia_color_type(gfx_bitmap->format()), to_skia_alpha_type(gfx_bitmap->alpha_type()));
-        sk_bitmap->installPixels(info, gfx_bitmap->scanline(0), gfx_bitmap->pitch());
-
-        sk_canvas = make<SkCanvas>(*sk_bitmap);
     }
 
-    SkCanvas* canvas() { return sk_canvas; }
+    SkCanvas* canvas() const
+    {
+        return &painting_surface->canvas();
+    }
 };
 
 static constexpr SkRect to_skia_rect(auto const& rect)
@@ -101,8 +97,8 @@ static SkPathFillType to_skia_path_fill_type(Gfx::WindingRule winding_rule)
     VERIFY_NOT_REACHED();
 }
 
-PainterSkia::PainterSkia(NonnullRefPtr<Gfx::Bitmap> target_bitmap)
-    : m_impl(adopt_own(*new Impl { move(target_bitmap) }))
+PainterSkia::PainterSkia(NonnullRefPtr<Gfx::PaintingSurface> painting_surface)
+    : m_impl(adopt_own(*new Impl { move(painting_surface) }))
 {
 }
 

@@ -42,7 +42,7 @@ ErrorOr<JS::NonnullGCPtr<HTML::HTMLCanvasElement>, WebDriver::Error> draw_boundi
     MUST(canvas.set_height(paint_height));
 
     // FIXME: 5. Let context, a canvas context mode, be the result of invoking the 2D context creation algorithm given canvas as the target.
-    if (!canvas.create_bitmap(paint_width, paint_height))
+    if (!canvas.allocate_painting_surface(paint_width, paint_height))
         return Error::from_code(ErrorCode::UnableToCaptureScreen, "Unable to create a screenshot bitmap"sv);
 
     // 6. Complete implementation specific steps equivalent to drawing the region of the framebuffer specified by the following coordinates onto context:
@@ -52,7 +52,7 @@ ErrorOr<JS::NonnullGCPtr<HTML::HTMLCanvasElement>, WebDriver::Error> draw_boundi
     //    - Height: paint height
     Gfx::IntRect paint_rect { rect.x(), rect.y(), paint_width, paint_height };
 
-    auto backing_store = Web::Painting::BitmapBackingStore(*canvas.bitmap());
+    auto backing_store = Web::Painting::BitmapBackingStore(canvas.surface()->create_snapshot());
     browsing_context.page().client().paint(paint_rect.to_type<Web::DevicePixels>(), backing_store);
 
     // 7. Return success with canvas.
@@ -65,7 +65,7 @@ Response encode_canvas_element(HTML::HTMLCanvasElement& canvas)
     // FIXME: 1. If the canvas element’s bitmap’s origin-clean flag is set to false, return error with error code unable to capture screen.
 
     // 2. If the canvas element’s bitmap has no pixels (i.e. either its horizontal dimension or vertical dimension is zero) then return error with error code unable to capture screen.
-    if (canvas.bitmap()->width() == 0 || canvas.bitmap()->height() == 0)
+    if (canvas.surface()->size().is_empty())
         return Error::from_code(ErrorCode::UnableToCaptureScreen, "Captured screenshot is empty"sv);
 
     // 3. Let file be a serialization of the canvas element’s bitmap as a file, using "image/png" as an argument.

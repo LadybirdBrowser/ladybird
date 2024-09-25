@@ -32,6 +32,7 @@ public:
 private:
     void draw_glyph_run(DrawGlyphRun const&) override;
     void fill_rect(FillRect const&) override;
+    void draw_painting_surface(DrawPaintingSurface const&) override;
     void draw_scaled_bitmap(DrawScaledBitmap const&) override;
     void draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
     void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) override;
