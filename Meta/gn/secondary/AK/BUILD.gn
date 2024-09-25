@@ -11,7 +11,10 @@ shared_library("AK") {
   output_name = "ak"
 
   public_configs = [ ":ak_headers" ]
-  public_deps = [ ":ak_debug_gen" ]
+  public_deps = [
+    ":ak_backtrace_gen",
+    ":ak_debug_gen",
+  ]
 
   # FIXME: Split out non-kernel sources to their own set
   sources = [
@@ -286,4 +289,20 @@ write_cmake_config("ak_debug_gen") {
     "WORKER_THREAD_DEBUG=",
     "XML_PARSER_DEBUG=",
   ]
+}
+
+write_cmake_config("ak_backtrace_gen") {
+  input = "Backtrace.h.in"
+  output = "$root_gen_dir/AK/Backtrace.h"
+  if (current_os == "win") {
+    values = [
+      "Backtrace_FOUND=",
+      "Backtrace_HEADER=",
+    ]
+  } else {
+    values = [
+      "Backtrace_FOUND=1",
+      "Backtrace_HEADER=execinfo.h",
+    ]
+  }
 }
