@@ -287,7 +287,11 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
 
     if (m_binary_type == "blob") {
         // type indicates that the data is Binary and binaryType is "blob"
-        TODO();
+        HTML::MessageEventInit event_init;
+        event_init.data = FileAPI::Blob::create(realm(), message, "text/plain;charset=utf-8"_string);
+        event_init.origin = url().release_value_but_fixme_should_propagate_errors();
+        dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init));
+        return;
     } else if (m_binary_type == "arraybuffer") {
         // type indicates that the data is Binary and binaryType is "arraybuffer"
         HTML::MessageEventInit event_init;
