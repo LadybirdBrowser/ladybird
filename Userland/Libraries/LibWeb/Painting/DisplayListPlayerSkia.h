@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
@@ -23,7 +24,7 @@ public:
 #endif
 
 #ifdef AK_OS_MACOS
-    DisplayListPlayerSkia(Gfx::SkiaBackendContext&, Core::MetalTexture&);
+    DisplayListPlayerSkia(Gfx::SkiaBackendContext&, NonnullRefPtr<Gfx::PaintingSurface>);
 #endif
 
     virtual ~DisplayListPlayerSkia() override;
@@ -67,10 +68,11 @@ private:
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
-    class SkiaSurface;
-    SkiaSurface& surface() const;
+    Gfx::PaintingSurface& surface() const;
 
-    OwnPtr<SkiaSurface> m_surface;
+    RefPtr<Gfx::SkiaBackendContext> m_context {};
+    RefPtr<Gfx::PaintingSurface> m_surface {};
+
     Function<void()> m_flush_context;
 };
 

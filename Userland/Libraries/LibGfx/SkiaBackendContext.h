@@ -18,6 +18,7 @@
 #endif
 
 class GrDirectContext;
+class SkSurface;
 
 namespace Gfx {
 
@@ -37,7 +38,7 @@ public:
     SkiaBackendContext() {};
     virtual ~SkiaBackendContext() {};
 
-    virtual void flush_and_submit() {};
+    virtual void flush_and_submit(SkSurface*) {};
     virtual GrDirectContext* sk_context() const = 0;
 };
 
