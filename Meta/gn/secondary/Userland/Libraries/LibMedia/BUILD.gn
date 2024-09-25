@@ -1,3 +1,4 @@
+import("//Meta/gn/build/libs/ffmpeg/enable.gni")
 import("//Meta/gn/build/libs/pulse/enable.gni")
 
 shared_library("LibMedia") {
@@ -28,12 +29,21 @@ shared_library("LibMedia") {
       "Audio/PulseAudioWrappers.cpp",
     ]
   }
+  if (enable_ffmpeg) {
+    sources += [
+      "Audio/OggLoader.cpp",
+      "FFmpeg/FFmpegVideoDecoder.cpp",
+    ]
+  } else {
+    sources += [ "FFmpeg/FFmpegVideoDecoderStub.cpp" ]
+  }
   if (current_os == "mac") {
     sources += [ "Audio/PlaybackStreamAudioUnit.cpp" ]
     frameworks = [ "AudioUnit.framework" ]
   }
   deps = [
     "//AK",
+    "//Meta/gn/build/libs/ffmpeg",
     "//Meta/gn/build/libs/pulse",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibCrypto",
