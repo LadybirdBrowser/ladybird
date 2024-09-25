@@ -1261,7 +1261,7 @@ inline Value new_function(VM& vm, FunctionNode const& function_node, Optional<Id
         value = function_node.instantiate_ordinary_function_expression(vm, name);
     } else {
         value = ECMAScriptFunctionObject::create(*vm.current_realm(), function_node.name(), function_node.source_text(), function_node.body(), function_node.parameters(), function_node.function_length(), function_node.local_variables_names(), vm.lexical_environment(), vm.running_execution_context().private_environment, function_node.kind(), function_node.is_strict_mode(),
-            function_node.parsing_insights(), function_node.is_arrow_function());
+            function_node.parsing_insights(), false, function_node.is_arrow_function());
     }
 
     if (home_object.has_value()) {
