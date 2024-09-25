@@ -1,3 +1,5 @@
+import("//Meta/gn/build/libs/vulkan/enable.gni")
+
 # These are the minimal set of sources needed to build the code generators. We separate them to allow
 # LibCore to depend on generated sources.
 shared_library("minimal") {
@@ -149,6 +151,51 @@ source_set("filewatcher") {
   }
 }
 
+source_set("timezonewatcher") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TimeZoneWatcher.h" ]
+  deps = [ "//AK" ]
+  frameworks = []
+  if (current_os == "linux") {
+    sources += [ "TimeZoneWatcherLinux.cpp" ]
+  } else if (current_os == "mac") {
+    sources += [ "TimeZoneWatcherMacOS.mm" ]
+    frameworks += [
+      "CoreFoundation.framework",
+      "CoreServices.framework",
+      "Foundation.framework",
+    ]
+  } else {
+    sources += [ "TimeZoneWatcherUnimplemented.cpp" ]
+  }
+}
+
+source_set("metal") {
+  if (current_os == "mac") {
+    include_dirs = [ "//Userland/Libraries" ]
+    deps = [ "//AK" ]
+    sources = [
+      "IOSurface.cpp",
+      "MetalContext.mm",
+    ]
+    frameworks = [
+      "IOSurface.framework",
+      "Metal.framework",
+    ]
+  }
+}
+
+source_set("vulkan") {
+  if (enable_vulkan) {
+    include_dirs = [ "//Userland/Libraries" ]
+    deps = [
+      "//AK",
+      "//Meta/gn/build/libs/vulkan",
+    ]
+    sources = [ "VulkanContext.cpp" ]
+  }
+}
+
 shared_library("LibCore") {
   libs = []
 
@@ -158,12 +205,18 @@ shared_library("LibCore") {
   if (current_os == "linux") {
     libs += [ "rt" ]
   }
+  if (current_os == "android") {
+    libs += [ "log" ]
+  }
 
   output_name = "core"
 
   deps = [
     ":filewatcher",
+    ":metal",
     ":sources",
+    ":timezonewatcher",
+    ":vulkan",
     "//Meta/gn/build/libs/crypt",
     "//Meta/gn/build/libs/pthread",
     "//Userland/Libraries/LibURL",
