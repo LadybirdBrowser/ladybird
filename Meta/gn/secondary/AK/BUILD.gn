@@ -16,7 +16,8 @@ shared_library("AK") {
     ":ak_debug_gen",
   ]
 
-  # FIXME: Split out non-kernel sources to their own set
+  deps = [ "//Meta/gn/build/libs/simdutf" ]
+
   sources = [
     "AllOf.h",
     "AnyOf.h",
@@ -42,6 +43,7 @@ shared_library("AK") {
     "ByteReader.h",
     "ByteString.cpp",
     "ByteString.h",
+    "COWVector.h",
     "CharacterTypes.h",
     "Checked.h",
     "CheckedFormatString.h",
@@ -51,6 +53,7 @@ shared_library("AK") {
     "Concepts.h",
     "ConstrainedStream.cpp",
     "ConstrainedStream.h",
+    "CopyOnWrite.h",
     "CountingStream.cpp",
     "CountingStream.h",
     "DOSPackedTime.cpp",
@@ -66,6 +69,7 @@ shared_library("AK") {
     "DoublyLinkedList.h",
     "Endian.h",
     "EnumBits.h",
+    "Enumerate.h",
     "Error.cpp",
     "Error.h",
     "Find.h",
@@ -111,6 +115,7 @@ shared_library("AK") {
     "LEB128.h",
     "LexicalPath.cpp",
     "LexicalPath.h",
+    "LsanSuppressions.h",
     "Math.h",
     "MaybeOwned.h",
     "MemMem.h",
@@ -130,7 +135,6 @@ shared_library("AK") {
     "Optional.h",
     "OwnPtr.h",
     "Platform.h",
-    "Ptr32.h",
     "Queue.h",
     "QuickSelect.h",
     "QuickSort.h",
@@ -148,6 +152,7 @@ shared_library("AK") {
     "ScopeGuard.h",
     "ScopeLogger.h",
     "ScopedValueRollback.h",
+    "SegmentedVector.h",
     "Singleton.h",
     "SinglyLinkedList.h",
     "SinglyLinkedListSizePolicy.h",
@@ -170,6 +175,7 @@ shared_library("AK") {
     "StringBase.h",
     "StringBuilder.cpp",
     "StringBuilder.h",
+    "StringData.h",
     "StringFloatingPointConversions.cpp",
     "StringFloatingPointConversions.h",
     "StringHash.h",
@@ -179,6 +185,7 @@ shared_library("AK") {
     "StringUtils.h",
     "StringView.cpp",
     "StringView.h",
+    "Swift.h",
     "TemporaryChange.h",
     "Time.cpp",
     "Time.h",
