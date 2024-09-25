@@ -1,0 +1,12 @@
+import("//Meta/gn/build/libs/third_party.gni")
+
+third_party_dependency("webp") {
+  third_party_includes = [ "webp" ]
+  libs = [
+    "webp",
+    "sharpyuv",
+    "webpdecoder",
+    "webpdemux",
+    "webpmux",
+  ]
+}

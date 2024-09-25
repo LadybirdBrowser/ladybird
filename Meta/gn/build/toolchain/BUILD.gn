@@ -155,14 +155,6 @@ template("unix_toolchain") {
   }
 }
 
-declare_args() {
-  # C compiler for native builds
-  host_cc = "cc"
-
-  # C++ compiler for native builds
-  host_cxx = "c++"
-}
-
 unix_toolchain("unix") {
   toolchain_args = {
     current_os = host_os

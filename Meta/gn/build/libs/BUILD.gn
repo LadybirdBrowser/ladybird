@@ -1,0 +1,43 @@
+import("//Meta/gn/build/buildflags.gni")
+import("//Meta/gn/build/toolchain/compiler.gni")
+import("//Meta/gn/build/vcpkg.gni")
+
+action("install_vcpkg_manifest") {
+  script = "//Meta/gn/build/install_vcpkg.py"
+
+  overlay_triplet_root = "//Meta/CMake/vcpkg"
+  config_name = "release"
+  if (is_debug) {
+    config_name = "debug"
+  }
+
+  # FIXME: if (is_sanitizer) vcpkg_config_name = "sanitizer"
+  overlay_triplet_path = "${overlay_triplet_root}/${config_name}-triplets"
+
+  stamp_file = "${vcpkg_install_root}/.vcpkg_installed-${vcpkg_triplet}-${config_name}.stamp"
+
+  sources = [ vcpkg_manifest ]
+  outputs = [ stamp_file ]
+
+  args = [
+    "--cc",
+    "${host_cc}",
+    "--cxx",
+    "${host_cxx}",
+    "--manifest",
+    rebase_path(vcpkg_manifest, root_build_dir),
+    "--vcpkg",
+    rebase_path(vcpkg_binary, root_build_dir),
+    "--vcpkg-root",
+    rebase_path(vcpkg_root, root_build_dir),
+    "--vcpkg-triplet",
+    vcpkg_triplet,
+    "--vcpkg-overlay-triplets",
+    rebase_path(overlay_triplet_path, root_build_dir),
+    "--vcpkg-binary-cache",
+    rebase_path(vcpkg_binary_cache, root_build_dir),
+    "--stamp-file",
+    rebase_path(stamp_file, root_build_dir),
+    rebase_path(vcpkg_install_root, root_build_dir),
+  ]
+}

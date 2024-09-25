@@ -1,0 +1,37 @@
+import("//Meta/gn/build/libs/ffmpeg/enable.gni")
+
+declare_args() {
+  # Select whether to look for ffmpeg in the homebrew installation
+  ffmpeg_homebrew = current_os == "mac"
+
+  # Root directory for the homebrew installation
+  homebrew_prefix = "/opt/homebrew"
+}
+
+declare_args() {
+  # Root directory for the ffmpeg installation, e.g. from brew --prefix ffmpeg
+  ffmpeg_prefix = "/usr"
+  if (ffmpeg_homebrew) {
+    ffmpeg_prefix = "${homebrew_prefix}/opt/ffmpeg"
+  }
+}
+
+# FIXME: We don't build this, we pull it from the user's system
+# So it doesn't follow the usual third_party_dependency pattern
+config("ffmpeg_config") {
+  visibility = [ ":ffmpeg" ]
+  include_dirs = [ "${ffmpeg_prefix}/include" ]
+  lib_dirs = [ "${ffmpeg_prefix}/lib" ]
+  libs = [
+    "avcodec",
+    "avformat",
+    "avutil",
+  ]
+  defines = [ "USE_FFMPEG" ]
+}
+
+group("ffmpeg") {
+  if (enable_ffmpeg) {
+    public_configs = [ ":ffmpeg_config" ]
+  }
+}

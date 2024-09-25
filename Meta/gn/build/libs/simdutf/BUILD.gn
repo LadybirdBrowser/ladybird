@@ -1,0 +1,6 @@
+import("//Meta/gn/build/libs/third_party.gni")
+
+third_party_dependency("simdutf") {
+  libs = [ "simdutf" ]
+  extra_public_configs = [ "//Meta/gn/build:pic" ]
+}
