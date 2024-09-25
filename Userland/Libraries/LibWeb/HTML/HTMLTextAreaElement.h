@@ -122,6 +122,8 @@ public:
 
     void set_dirty_value_flag(Badge<FormAssociatedElement>, bool flag) { m_dirty_value = flag; }
 
+    void set_raw_value(String);
+
 protected:
     void selection_was_changed(size_t selection_start, size_t selection_end) override;
 
@@ -130,8 +132,6 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
-
-    void set_raw_value(String);
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;

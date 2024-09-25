@@ -82,6 +82,7 @@ public:
     WebIDL::ExceptionOr<void> set_relevant_value(String const& value) override { return set_value(value); }
 
     virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
+    virtual void set_dirty_checkedness(bool flag) { m_dirty_checkedness = flag; }
 
     void commit_pending_changes();
 
