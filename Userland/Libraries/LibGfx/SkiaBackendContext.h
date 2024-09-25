@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
+#include <AK/RefCounted.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibCore/MetalContext.h>
@@ -20,17 +21,17 @@ class GrDirectContext;
 
 namespace Gfx {
 
-class SkiaBackendContext {
+class SkiaBackendContext : public RefCounted<SkiaBackendContext> {
     AK_MAKE_NONCOPYABLE(SkiaBackendContext);
     AK_MAKE_NONMOVABLE(SkiaBackendContext);
 
 public:
 #ifdef USE_VULKAN
-    static OwnPtr<SkiaBackendContext> create_vulkan_context(Core::VulkanContext&);
+    static RefPtr<SkiaBackendContext> create_vulkan_context(Core::VulkanContext&);
 #endif
 
 #ifdef AK_OS_MACOS
-    static OwnPtr<Gfx::SkiaBackendContext> create_metal_context(Core::MetalContext const&);
+    static RefPtr<Gfx::SkiaBackendContext> create_metal_context(Core::MetalContext const&);
 #endif
 
     SkiaBackendContext() {};
