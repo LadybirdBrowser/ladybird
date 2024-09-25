@@ -232,48 +232,7 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
     }
 }
 
-static String generate_style()
-{
-    StringBuilder builder;
-
-    builder.append(HTML_HIGHLIGHTER_STYLE);
-    builder.append(R"~~~(
-    .html {
-        counter-reset: line;
-    }
-
-    .line {
-        counter-increment: line;
-        white-space: pre;
-    }
-
-    .line::before {
-        content: counter(line) " ";
-
-        display: inline-block;
-        width: 2.5em;
-
-        padding-right: 0.5em;
-        text-align: right;
-    }
-
-    @media (prefers-color-scheme: dark) {
-        .line::before {
-            color: darkgrey;
-        }
-    }
-
-    @media (prefers-color-scheme: light) {
-        .line::before {
-            color: dimgray;
-        }
-    }
-)~~~"sv);
-
-    return MUST(builder.to_string());
-}
-
-String SourceHighlighterClient::to_html_string(URL::URL const& url) const
+String SourceHighlighterClient::to_html_string(String const& url, HighlightOutputMode mode) const
 {
     StringBuilder builder;
 
@@ -306,9 +265,9 @@ String SourceHighlighterClient::to_html_string(URL::URL const& url) const
 <head>
     <meta name="color-scheme" content="dark light">)~~~"sv);
 
-    builder.appendff("<title>View Source - {}</title>", escape_html_entities(MUST(url.to_string())));
-    builder.appendff("<style type=\"text/css\">{}</style>", generate_style());
-    builder.append(R"~~~(
+        builder.appendff("<title>View Source - {}</title>", escape_html_entities(url));
+        builder.appendff("<style type=\"text/css\">{}</style>", HTML_HIGHLIGHTER_STYLE);
+        builder.append(R"~~~(
 </head>
 <body>
 <pre class="html">)~~~"sv);
