@@ -561,12 +561,12 @@ public:
     void set_previous_document_unload_timing(DocumentUnloadTimingInfo const& previous_document_unload_timing) { m_previous_document_unload_timing = previous_document_unload_timing; }
 
     // https://w3c.github.io/editing/docs/execCommand/
-    bool exec_command(String command_id, bool show_ui, String value);
-    bool query_command_enabled(String command_id);
-    bool query_command_indeterm(String command_id);
-    bool query_command_state(String command_id);
-    bool query_command_supported(String command_id);
-    String query_command_value(String command_id);
+    bool exec_command(String const& command, bool show_ui, String const& value);
+    bool query_command_enabled(String const& command);
+    bool query_command_indeterm(String const& command);
+    bool query_command_state(String const& command);
+    bool query_command_supported(String const& command);
+    String query_command_value(String const& command);
 
     bool is_allowed_to_use_feature(PolicyControlledFeature) const;
 
