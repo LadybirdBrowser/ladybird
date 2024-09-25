@@ -84,7 +84,7 @@ private:
     virtual Messages::WebDriverClient::GetComputedLabelResponse get_computed_label(String const& element_id) override;
     virtual Messages::WebDriverClient::ElementClickResponse element_click(String const& element_id) override;
     virtual Messages::WebDriverClient::ElementClearResponse element_clear(String const& element_id) override;
-    virtual Messages::WebDriverClient::ElementSendKeysResponse element_send_keys(String const& element_id) override;
+    virtual Messages::WebDriverClient::ElementSendKeysResponse element_send_keys(String const& element_id, JsonValue const& payload) override;
     virtual Messages::WebDriverClient::GetSourceResponse get_source() override;
     virtual Messages::WebDriverClient::ExecuteScriptResponse execute_script(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::ExecuteAsyncScriptResponse execute_async_script(JsonValue const& payload) override;
@@ -93,7 +93,7 @@ private:
     virtual Messages::WebDriverClient::AddCookieResponse add_cookie(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::DeleteCookieResponse delete_cookie(String const& name) override;
     virtual Messages::WebDriverClient::DeleteAllCookiesResponse delete_all_cookies() override;
-    virtual Messages::WebDriverClient::PerformActionsResponse perform_actions() override;
+    virtual Messages::WebDriverClient::PerformActionsResponse perform_actions(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::ReleaseActionsResponse release_actions() override;
     virtual Messages::WebDriverClient::DismissAlertResponse dismiss_alert() override;
     virtual Messages::WebDriverClient::AcceptAlertResponse accept_alert() override;
@@ -101,7 +101,7 @@ private:
     virtual Messages::WebDriverClient::SendAlertTextResponse send_alert_text(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::TakeScreenshotResponse take_screenshot() override;
     virtual Messages::WebDriverClient::TakeElementScreenshotResponse take_element_screenshot(String const& element_id) override;
-    virtual Messages::WebDriverClient::PrintPageResponse print_page() override;
+    virtual Messages::WebDriverClient::PrintPageResponse print_page(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse ensure_top_level_browsing_context_is_open() override;
 
     Web::HTML::BrowsingContext& current_browsing_context() { return *m_current_browsing_context; }

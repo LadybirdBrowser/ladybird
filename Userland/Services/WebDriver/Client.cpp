@@ -598,11 +598,11 @@ Web::WebDriver::Response Client::element_clear(Web::WebDriver::Parameters parame
 
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
 // POST /session/{session id}/element/{element id}/value
-Web::WebDriver::Response Client::element_send_keys(Web::WebDriver::Parameters parameters, JsonValue)
+Web::WebDriver::Response Client::element_send_keys(Web::WebDriver::Parameters parameters, JsonValue payload)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/value");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().element_send_keys(move(parameters[1]));
+    return session->web_content_connection().element_send_keys(move(parameters[1]), move(payload));
 }
 
 // 13.1 Get Page Source, https://w3c.github.io/webdriver/#dfn-get-page-source
@@ -679,11 +679,11 @@ Web::WebDriver::Response Client::delete_all_cookies(Web::WebDriver::Parameters p
 
 // 15.7 Perform Actions, https://w3c.github.io/webdriver/#perform-actions
 // POST /session/{session id}/actions
-Web::WebDriver::Response Client::perform_actions(Web::WebDriver::Parameters parameters, JsonValue)
+Web::WebDriver::Response Client::perform_actions(Web::WebDriver::Parameters parameters, JsonValue payload)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/actions");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().perform_actions();
+    return session->web_content_connection().perform_actions(move(payload));
 }
 
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions
@@ -751,11 +751,11 @@ Web::WebDriver::Response Client::take_element_screenshot(Web::WebDriver::Paramet
 
 // 18.1 Print Page, https://w3c.github.io/webdriver/#dfn-print-page
 // POST /session/{session id}/print
-Web::WebDriver::Response Client::print_page(Web::WebDriver::Parameters parameters, JsonValue)
+Web::WebDriver::Response Client::print_page(Web::WebDriver::Parameters parameters, JsonValue payload)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session id>/print");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().print_page();
+    return session->web_content_connection().print_page(move(payload));
 }
 
 }
