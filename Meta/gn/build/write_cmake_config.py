@@ -80,9 +80,9 @@ def main():
             in_line = '#define %s %d\n' % (var, 1 if values[var] else 0)
             unused_values.discard(var)
         elif in_line.startswith('#cmakedefine '):
-            _, var = in_line.split(None, 1)
+            _, var = in_line.rstrip().split(None, 1)
             try:
-                var, val = var.split(None, 1)
+                val = values.get(var, 0)
                 in_line = '#define %s %s' % (var, val)  # val ends in \n.
             except ValueError:
                 var = var.rstrip()
