@@ -129,6 +129,7 @@ config("compiler_defaults") {
       "-Wno-unused-private-field",
       "-Wno-implicit-const-int-float-conversion",
       "-Wno-vla-cxx-extension",
+      "-Wno-unqualified-std-cast-call",
     ]
   } else {
     cflags += [
