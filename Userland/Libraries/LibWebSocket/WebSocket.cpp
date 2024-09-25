@@ -615,6 +615,10 @@ void WebSocket::fatal_error(WebSocket::Error error)
 
 void WebSocket::discard_connection()
 {
+    if (m_discard_connection_requested)
+        return;
+    m_discard_connection_requested = true;
+
     deferred_invoke([this] {
         VERIFY(m_impl);
         m_impl->discard_connection();
