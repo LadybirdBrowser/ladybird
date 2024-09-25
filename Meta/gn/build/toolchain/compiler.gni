@@ -8,4 +8,10 @@ declare_args() {
 
   # Use ccache as a compiler launcher for compile and link jobs
   enable_ccache = true
+
+  # C compiler for native builds
+  host_cc = "cc"
+
+  # C++ compiler for native builds
+  host_cxx = "c++"
 }

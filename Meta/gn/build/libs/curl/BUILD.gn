@@ -1,0 +1,24 @@
+import("//Meta/gn/build/libs/third_party.gni")
+
+third_party_dependency("curl") {
+  libs = [
+    "curl",
+    "z",
+    "brotlidec",
+    "brotlicommon",
+    "nghttp2",
+  ]
+  if (current_os == "mac") {
+    frameworks = [
+      "SystemConfiguration.framework",
+      "Security.framework",
+      "CoreFoundation.framework",
+      "CoreServices.framework",
+    ]
+  } else {
+    libs += [
+      "ssl",
+      "crypto",
+    ]
+  }
+}

@@ -1,0 +1,79 @@
+import("//Meta/gn/build/libs/third_party.gni")
+
+third_party_dependency("skia") {
+  third_party_includes = [ "skia" ]
+  libs = [
+    "skia",
+    "fontconfig",
+    "expat",
+    "turbojpeg",
+    "jpeg",
+    "harfbuzz-subset",
+    "harfbuzz",
+    "freetype",
+    "bz2",
+    "brotlidec",
+    "brotlicommon",
+    "png16",
+    "z",
+    "webpdecoder",
+    "webpdemux",
+    "webpmux",
+    "webp",
+    "sharpyuv",
+  ]
+  if (current_os == "mac") {
+    frameworks = [
+      "ApplicationServices.framework",
+      "OpenGL.framework",
+      "AppKit.framework",
+      "Metal.framework",
+      "Foundation.framework",
+    ]
+  } else {
+    libs += [ "GL" ]
+  }
+
+  defines = [
+    "SK_CODEC_DECODES_BMP",
+    "SK_CODEC_DECODES_WBMP",
+    "SK_ENABLE_PRECOMPILE",
+    "SK_GANESH",
+    "SK_DISABLE_TRACING",
+    "SK_USE_PERFETTO",
+    "SK_GAMMA_APPLY_TO_A8",
+    "SK_ENABLE_AVX512_OPTS",
+    "SK_TYPEFACE_FACTORY_FREETYPE",
+    "SK_FONTMGR_ANDROID_AVAILABLE",
+    "SK_FONTMGR_FREETYPE_DIRECTORY_AVAILABLE",
+    "SK_FONTMGR_FREETYPE_EMBEDDED_AVAILABLE",
+    "SK_FONTMGR_FREETYPE_EMPTY_AVAILABLE",
+    "SK_FONTMGR_FONTCONFIG_AVAILABLE",
+    "SK_GL",
+    "SK_SUPPORT_PDF",
+    "SK_CODEC_DECODES_JPEG",
+    "SK_CODEC_DECODES_ICO",
+    "SK_CODEC_DECODES_PNG",
+    "SK_CODEC_DECODES_RAW",
+    "SK_CODEC_DECODES_WEBP",
+    "SK_HAS_WUFFS_LIBRARY",
+    "SK_CODEC_DECODES_GIF",
+    "SK_XML",
+  ]
+
+  if (current_os == "mac") {
+    defines += [
+      "SK_ASSUME_GL=1",
+      "SK_ENABLE_API_AVAILABLE",
+      "SK_TYPEFACE_FACTORY_CORETEX",
+      "SK_FONTMGR_CORETEXT_AVAILABLE",
+      "SK_METAL",
+    ]
+  } else if (current_os == "linux") {
+    defines += [
+      "SK_R32_SHIFT=16",
+      "SK_USE_VMA",
+      "SK_VULKAN",
+    ]
+  }
+}
