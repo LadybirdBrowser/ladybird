@@ -1551,7 +1551,12 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     previous_layer_style = style.clone();
     cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, previous_origin_style, previous_layer_style);
 
-    // Author presentational hints (NOTE: The spec doesn't say exactly how to prioritize these.)
+    // Author presentational hints
+    // The spec calls this a special "Author presentational hint origin":
+    // "For the purpose of cascading this author presentational hint origin is treated as an independent origin;
+    // however for the purpose of the revert keyword (but not for the revert-layer keyword) it is considered
+    // part of the author origin."
+    // https://drafts.csswg.org/css-cascade-5/#author-presentational-hint-origin
     previous_origin_style = style.clone();
     if (!pseudo_element.has_value()) {
         element.apply_presentational_hints(style);
