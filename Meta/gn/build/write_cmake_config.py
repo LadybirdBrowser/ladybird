@@ -84,7 +84,7 @@ def main():
             try:
                 var, val = var.split(None, 1)
                 in_line = '#define %s %s' % (var, val)  # val ends in \n.
-            except _:
+            except ValueError:
                 var = var.rstrip()
                 in_line = '#define %s\n' % var
             if not values[var]:
