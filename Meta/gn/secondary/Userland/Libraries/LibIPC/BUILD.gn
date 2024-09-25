@@ -22,6 +22,7 @@ shared_library("LibIPC") {
   deps = [
     "//AK",
     "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibThreading",
     "//Userland/Libraries/LibURL",
   ]
 }

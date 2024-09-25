@@ -8,13 +8,19 @@ shared_library("LibMedia") {
     "Audio/Loader.cpp",
     "Audio/MP3Loader.cpp",
     "Audio/Metadata.cpp",
-    "Audio/OggLoader.cpp",
     "Audio/PlaybackStream.cpp",
     "Audio/QOALoader.cpp",
     "Audio/QOATypes.cpp",
     "Audio/SampleFormats.cpp",
     "Audio/VorbisComment.cpp",
     "Audio/WavLoader.cpp",
+    "Color/ColorConverter.cpp",
+    "Color/ColorPrimaries.cpp",
+    "Color/TransferCharacteristics.cpp",
+    "Containers/Matroska/MatroskaDemuxer.cpp",
+    "Containers/Matroska/Reader.cpp",
+    "PlaybackManager.cpp",
+    "VideoFrame.cpp",
   ]
   if (enable_pulseaudio) {
     sources += [
@@ -31,9 +37,11 @@ shared_library("LibMedia") {
     "//Meta/gn/build/libs/pulse",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibCrypto",
+    "//Userland/Libraries/LibGfx",
     "//Userland/Libraries/LibIPC",
     "//Userland/Libraries/LibRIFF",
     "//Userland/Libraries/LibThreading",
+    "//Userland/Libraries/LibUnicode",
   ]
   output_name = "media"
 }

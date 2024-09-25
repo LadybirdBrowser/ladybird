@@ -12,7 +12,7 @@ executable("RequestServer") {
     "//Userland/Libraries/LibHTTP",
     "//Userland/Libraries/LibIPC",
     "//Userland/Libraries/LibMain",
-    "//Userland/Libraries/LibProtocol",
+    "//Userland/Libraries/LibRequests",
     "//Userland/Libraries/LibTLS",
     "//Userland/Libraries/LibThreading",
     "//Userland/Libraries/LibURL",
