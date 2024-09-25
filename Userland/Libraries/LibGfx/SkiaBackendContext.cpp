@@ -7,6 +7,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/Platform.h>
+#include <AK/RefPtr.h>
 #include <LibGfx/SkiaBackendContext.h>
 
 #include <gpu/GrDirectContext.h>
@@ -61,7 +62,7 @@ private:
     NonnullOwnPtr<skgpu::VulkanExtensions> m_extensions;
 };
 
-OwnPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Core::VulkanContext& vulkan_context)
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Core::VulkanContext& vulkan_context)
 {
     skgpu::VulkanBackendContext backend_context;
 
@@ -82,7 +83,7 @@ OwnPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Core::Vulka
 
     sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context);
     VERIFY(ctx);
-    return make<SkiaVulkanBackendContext>(ctx, move(extensions));
+    return adopt_ref(*new SkiaVulkanBackendContext(ctx, move(extensions)));
 }
 #endif
 
@@ -111,15 +112,14 @@ private:
     sk_sp<GrDirectContext> m_context;
 };
 
-OwnPtr<SkiaBackendContext> SkiaBackendContext::create_metal_context(Core::MetalContext const& metal_context)
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_metal_context(Core::MetalContext const& metal_context)
 {
     GrMtlBackendContext backend_context;
     backend_context.fDevice.retain((GrMTLHandle)metal_context.device());
     backend_context.fQueue.retain((GrMTLHandle)metal_context.queue());
     sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeMetal(backend_context);
-    return make<SkiaMetalBackendContext>(ctx);
+    return adopt_ref(*new SkiaMetalBackendContext(ctx));
 }
-
 #endif
 
 }

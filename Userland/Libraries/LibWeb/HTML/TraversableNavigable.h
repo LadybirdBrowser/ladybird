@@ -144,7 +144,7 @@ private:
 
     String m_window_handle;
 
-    OwnPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
+    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
 
 #ifdef AK_OS_MACOS
     OwnPtr<Core::MetalContext> m_metal_context;
