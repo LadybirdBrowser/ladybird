@@ -896,18 +896,25 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     set_longhand_property(property_id, value);
 }
 
-void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, CSS::PropertyID property_id, CSSStyleValue const& value, CSS::CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, Important important)
+void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, PropertyID property_id, CSSStyleValue const& value, CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer, Important important)
 {
+    auto revert_shorthand = [&](PropertyID shorthand_id, StyleProperties const& style_for_revert) {
+        auto previous_value = style_for_revert.m_data->m_property_values[to_underlying(shorthand_id)];
+        if (!previous_value)
+            previous_value = CSSKeywordValue::create(Keyword::Initial);
+
+        style.set_property(shorthand_id, *previous_value, StyleProperties::Inherited::No, important);
+        if (shorthand_id == CSS::PropertyID::AnimationName)
+            style.set_animation_name_source(style_for_revert.animation_name_source());
+        if (shorthand_id == CSS::PropertyID::TransitionProperty)
+            style.set_transition_property_source(style_for_revert.transition_property_source());
+    };
+
     for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
-        if (shorthand_value.is_revert() || shorthand_value.is_revert_layer()) {
-            auto const& property_in_previous_cascade_origin = style_for_revert.m_data->m_property_values[to_underlying(shorthand_id)];
-            if (property_in_previous_cascade_origin) {
-                style.set_property(shorthand_id, *property_in_previous_cascade_origin, StyleProperties::Inherited::No, important);
-                if (shorthand_id == CSS::PropertyID::AnimationName)
-                    style.set_animation_name_source(style_for_revert.animation_name_source());
-                if (shorthand_id == CSS::PropertyID::TransitionProperty)
-                    style.set_transition_property_source(style_for_revert.transition_property_source());
-            }
+        if (shorthand_value.is_revert()) {
+            revert_shorthand(shorthand_id, style_for_revert);
+        } else if (shorthand_value.is_revert_layer()) {
+            revert_shorthand(shorthand_id, style_for_revert_layer);
         } else {
             style.set_property(shorthand_id, shorthand_value, StyleProperties::Inherited::No, important);
             if (shorthand_id == CSS::PropertyID::AnimationName)
@@ -918,13 +925,18 @@ void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, CS
     });
 }
 
-void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, StyleProperties& style, CSSStyleValue const& value, DOM::Document& document, CSS::CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, Important important) const
+void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, StyleProperties& style, CSSStyleValue const& value, DOM::Document& document, CSS::CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer, Important important) const
 {
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = (CSS::PropertyID)i;
 
-        if (value.is_revert() || value.is_revert_layer()) {
+        if (value.is_revert()) {
             style.revert_property(property_id, style_for_revert);
+            continue;
+        }
+
+        if (value.is_revert_layer()) {
+            style.revert_property(property_id, style_for_revert_layer);
             continue;
         }
 
@@ -949,25 +961,23 @@ void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Sele
         if (property_value->is_unresolved())
             property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document }, element, pseudo_element, property_id, property_value->as_unresolved());
         if (!property_value->is_unresolved())
-            set_property_expanding_shorthands(style, property_id, property_value, declaration, style_for_revert);
+            set_property_expanding_shorthands(style, property_id, property_value, declaration, style_for_revert, style_for_revert_layer);
 
         style.set_property_important(property_id, important);
 
-        set_property_expanding_shorthands(style, property_id, value, declaration, style_for_revert, important);
+        set_property_expanding_shorthands(style, property_id, value, declaration, style_for_revert, style_for_revert_layer, important);
     }
 }
 
-void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, Vector<MatchingRule> const& matching_rules, CascadeOrigin cascade_origin, Important important) const
+void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, Vector<MatchingRule> const& matching_rules, CascadeOrigin cascade_origin, Important important, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer) const
 {
-    auto style_for_revert = style.clone();
-
     for (auto const& match : matching_rules) {
         for (auto const& property : match.rule->declaration().properties()) {
             if (important != property.important)
                 continue;
 
             if (property.property_id == CSS::PropertyID::All) {
-                set_all_properties(element, pseudo_element, style, property.value, m_document, &match.rule->declaration(), style_for_revert, important);
+                set_all_properties(element, pseudo_element, style, property.value, m_document, &match.rule->declaration(), style_for_revert, style_for_revert_layer, important);
                 continue;
             }
 
@@ -975,7 +985,7 @@ void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& e
             if (property.value->is_unresolved())
                 property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
             if (!property_value->is_unresolved())
-                set_property_expanding_shorthands(style, property.property_id, property_value, &match.rule->declaration(), style_for_revert, important);
+                set_property_expanding_shorthands(style, property.property_id, property_value, &match.rule->declaration(), style_for_revert, style_for_revert_layer, important);
         }
     }
 
@@ -986,7 +996,7 @@ void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& e
                     continue;
 
                 if (property.property_id == CSS::PropertyID::All) {
-                    set_all_properties(element, pseudo_element, style, property.value, m_document, inline_style, style_for_revert, important);
+                    set_all_properties(element, pseudo_element, style, property.value, m_document, inline_style, style_for_revert, style_for_revert_layer, important);
                     continue;
                 }
 
@@ -994,7 +1004,7 @@ void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& e
                 if (property.value->is_unresolved())
                     property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
                 if (!property_value->is_unresolved())
-                    set_property_expanding_shorthands(style, property.property_id, property_value, inline_style, style_for_revert, important);
+                    set_property_expanding_shorthands(style, property.property_id, property_value, inline_style, style_for_revert, style_for_revert_layer, important);
             }
         }
     }
@@ -1532,12 +1542,17 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     // Then we apply the declarations from the matched rules in cascade order:
 
     // Normal user agent declarations
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No);
+    auto previous_origin_style = style.clone();
+    auto previous_layer_style = style.clone();
+    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, previous_origin_style, previous_layer_style);
 
     // Normal user declarations
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No);
+    previous_origin_style = style.clone();
+    previous_layer_style = style.clone();
+    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, previous_origin_style, previous_layer_style);
 
     // Author presentational hints (NOTE: The spec doesn't say exactly how to prioritize these.)
+    previous_origin_style = style.clone();
     if (!pseudo_element.has_value()) {
         element.apply_presentational_hints(style);
 
@@ -1560,7 +1575,8 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
     for (auto const& layer : matching_rule_set.author_rules) {
-        cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No);
+        previous_layer_style = style.clone();
+        cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No, previous_origin_style, previous_layer_style);
     }
 
     // Animation declarations [css-animations-2]
@@ -1626,15 +1642,21 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     }
 
     // Important author declarations, with un-@layer-ed rules first, followed by each @layer in reverse order.
+    previous_origin_style = style.clone();
     for (auto const& layer : matching_rule_set.author_rules.in_reverse()) {
-        cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes);
+        previous_layer_style = style.clone();
+        cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes, previous_origin_style, previous_layer_style);
     }
 
     // Important user declarations
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes);
+    previous_origin_style = style.clone();
+    previous_layer_style = style.clone();
+    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, previous_origin_style, previous_layer_style);
 
     // Important user agent declarations
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes);
+    previous_origin_style = style.clone();
+    previous_layer_style = style.clone();
+    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, previous_origin_style, previous_layer_style);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
