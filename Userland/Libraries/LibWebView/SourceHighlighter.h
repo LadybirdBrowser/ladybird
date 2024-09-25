@@ -15,6 +15,11 @@
 
 namespace WebView {
 
+enum class HighlightOutputMode {
+    FullDocument, // Include HTML header, title, style sheet, etc
+    SourceOnly,   // Just the highlighted source
+};
+
 class SourceDocument final : public Syntax::Document {
 public:
     static NonnullRefPtr<SourceDocument> create(StringView source)
@@ -45,7 +50,7 @@ public:
     SourceHighlighterClient(StringView source, Syntax::Language);
     virtual ~SourceHighlighterClient() = default;
 
-    String to_html_string(URL::URL const&) const;
+    String to_html_string(String const&, HighlightOutputMode) const;
 
 private:
     // ^ Syntax::HighlighterClient
@@ -68,7 +73,7 @@ private:
     OwnPtr<Syntax::Highlighter> m_highlighter;
 };
 
-String highlight_source(URL::URL const&, StringView);
+String highlight_source(String const&, StringView, Syntax::Language, HighlightOutputMode);
 
 constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
     @media (prefers-color-scheme: dark) {

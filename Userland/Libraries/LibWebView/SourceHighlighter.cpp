@@ -113,10 +113,10 @@ void SourceHighlighterClient::highlighter_did_set_folding_regions(Vector<Syntax:
     document().set_folding_regions(move(folding_regions));
 }
 
-String highlight_source(URL::URL const& url, StringView source)
+String highlight_source(String const& url, StringView source, Syntax::Language language, HighlightOutputMode mode)
 {
-    SourceHighlighterClient highlighter_client { source, Syntax::Language::HTML };
-    return highlighter_client.to_html_string(url);
+    SourceHighlighterClient highlighter_client { source, language };
+    return highlighter_client.to_html_string(url, mode);
 }
 
 StringView SourceHighlighterClient::class_for_token(u64 token_type) const
@@ -259,7 +259,8 @@ String SourceHighlighterClient::to_html_string(String const& url, HighlightOutpu
         builder.append("</span>"sv);
     };
 
-    builder.append(R"~~~(
+    if (mode == HighlightOutputMode::FullDocument) {
+        builder.append(R"~~~(
 <!DOCTYPE html>
 <html>
 <head>
@@ -269,8 +270,9 @@ String SourceHighlighterClient::to_html_string(String const& url, HighlightOutpu
         builder.appendff("<style type=\"text/css\">{}</style>", HTML_HIGHLIGHTER_STYLE);
         builder.append(R"~~~(
 </head>
-<body>
-<pre class="html">)~~~"sv);
+<body>)~~~"sv);
+    }
+    builder.append("<pre class=\"html\">"sv);
 
     size_t span_index = 0;
     for (size_t line_index = 0; line_index < document().line_count(); ++line_index) {
@@ -337,11 +339,13 @@ String SourceHighlighterClient::to_html_string(String const& url, HighlightOutpu
         builder.append("</div>"sv);
     }
 
-    builder.append(R"~~~(
-</pre>
+    builder.append("</pre>"sv);
+    if (mode == HighlightOutputMode::FullDocument) {
+        builder.append(R"~~~(
 </body>
 </html>
 )~~~"sv);
+    }
 
     return builder.to_string_without_validation();
 }
