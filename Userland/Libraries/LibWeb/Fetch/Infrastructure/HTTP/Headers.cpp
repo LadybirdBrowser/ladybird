@@ -133,37 +133,26 @@ Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     auto lexer = GenericLexer { input };
 
-    // 3. Let values be a list of strings, initially empty.
+    // 3. Let values be a list of strings, initially « ».
     Vector<String> values;
 
     // 4. Let temporaryValue be the empty string.
     StringBuilder temporary_value_builder;
 
-    // 5. While position is not past the end of input:
-    while (!lexer.is_eof()) {
+    // 5. While true:
+    while (true) {
         // 1. Append the result of collecting a sequence of code points that are not U+0022 (") or U+002C (,) from input, given position, to temporaryValue.
         // NOTE: The result might be the empty string.
         temporary_value_builder.append(lexer.consume_until(is_any_of("\","sv)));
 
-        // 2. If position is not past the end of input, then:
-        if (!lexer.is_eof()) {
-            // 1. If the code point at position within input is U+0022 ("), then:
-            if (lexer.peek() == '"') {
-                // 1. Append the result of collecting an HTTP quoted string from input, given position, to temporaryValue.
-                temporary_value_builder.append(collect_an_http_quoted_string(lexer));
+        // 2. If position is not past the end of input and the code point at position within input is U+0022 ("):
+        if (!lexer.is_eof() && lexer.peek() == '"') {
+            // 1. Append the result of collecting an HTTP quoted string from input, given position, to temporaryValue.
+            temporary_value_builder.append(collect_an_http_quoted_string(lexer));
 
-                // 2. If position is not past the end of input, then continue.
-                if (!lexer.is_eof())
-                    continue;
-            }
-            // 2. Otherwise:
-            else {
-                // 1. Assert: the code point at position within input is U+002C (,).
-                VERIFY(lexer.peek() == ',');
-
-                // 2. Advance position by 1.
-                lexer.ignore(1);
-            }
+            // 2. If position is not past the end of input, then continue.
+            if (!lexer.is_eof())
+                continue;
         }
 
         // 3. Remove all HTTP tab or space from the start and end of temporaryValue.
@@ -174,10 +163,17 @@ Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
 
         // 5. Set temporaryValue to the empty string.
         temporary_value_builder.clear();
-    }
 
-    // 8. Return values.
-    return values;
+        // 6. If position is past the end of input, then return values.
+        if (lexer.is_eof())
+            return values;
+
+        // 7. Assert: the code point at position within input is U+002C (,).
+        VERIFY(lexer.peek() == ',');
+
+        // 8. Advance position by 1.
+        lexer.ignore(1);
+    }
 }
 
 // https://fetch.spec.whatwg.org/#concept-header-list-append
