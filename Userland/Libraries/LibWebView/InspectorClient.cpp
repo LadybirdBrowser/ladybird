@@ -129,11 +129,10 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
     };
 
     m_content_web_view.on_received_style_sheet_source = [this](Web::CSS::StyleSheetIdentifier const& identifier, String const& source) {
-        // TODO: Highlight it
-        auto escaped_source = escape_html_entities(source.bytes()).replace("\t"sv, "    "sv, ReplaceMode::All);
+        auto html = highlight_source(identifier.url.value_or({}), source, Syntax::Language::CSS, HighlightOutputMode::SourceOnly);
         auto script = MUST(String::formatted("inspector.setStyleSheetSource({}, \"{}\");",
             style_sheet_identifier_to_json(identifier),
-            MUST(encode_base64(escaped_source.bytes()))));
+            MUST(encode_base64(html.bytes()))));
         m_inspector_web_view.run_javascript(script);
     };
 
