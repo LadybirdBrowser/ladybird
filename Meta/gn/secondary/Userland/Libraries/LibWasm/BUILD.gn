@@ -18,6 +18,7 @@ shared_library("LibWasm") {
     "AbstractMachine/Validator.cpp",
     "Parser/Parser.cpp",
     "Printer/Printer.cpp",
+    "WASI/Wasi.cpp",
   ]
   deps = [
     "//AK",
