@@ -7,7 +7,7 @@ shared_library("LibIDL") {
   ]
   deps = [
     "//AK",
-    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibCore:minimal",
     "//Userland/Libraries/LibFileSystem",
   ]
 }
