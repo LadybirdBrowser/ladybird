@@ -17,6 +17,7 @@
 #include <LibGfx/Gradients.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintStyle.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
@@ -60,6 +61,16 @@ struct FillRect {
 struct DrawScaledBitmap {
     Gfx::IntRect dst_rect;
     NonnullRefPtr<Gfx::Bitmap> bitmap;
+    Gfx::IntRect src_rect;
+    Gfx::ScalingMode scaling_mode;
+
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
+    void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
+};
+
+struct DrawPaintingSurface {
+    Gfx::IntRect dst_rect;
+    NonnullRefPtr<Gfx::PaintingSurface> surface;
     Gfx::IntRect src_rect;
     Gfx::ScalingMode scaling_mode;
 
@@ -417,6 +428,7 @@ using Command = Variant<
     DrawGlyphRun,
     FillRect,
     DrawScaledBitmap,
+    DrawPaintingSurface,
     DrawScaledImmutableBitmap,
     DrawRepeatedImmutableBitmap,
     Save,

@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/CanvasBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -115,7 +116,7 @@ void HTMLCanvasElement::reset_context_to_default_state()
 WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(unsigned value)
 {
     TRY(set_attribute(HTML::AttributeNames::width, String::number(value)));
-    m_bitmap = nullptr;
+    m_surface = nullptr;
     reset_context_to_default_state();
     return {};
 }
@@ -123,7 +124,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(unsigned value)
 WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(unsigned value)
 {
     TRY(set_attribute(HTML::AttributeNames::height, String::number(value)));
-    m_bitmap = nullptr;
+    m_surface = nullptr;
     reset_context_to_default_state();
     return {};
 }
@@ -204,20 +205,23 @@ static Gfx::IntSize bitmap_size_for_canvas(HTMLCanvasElement const& canvas, size
     return Gfx::IntSize(width, height);
 }
 
-bool HTMLCanvasElement::create_bitmap(size_t minimum_width, size_t minimum_height)
+bool HTMLCanvasElement::allocate_painting_surface(size_t minimum_width, size_t minimum_height)
 {
+    if (m_surface)
+        return true;
+
+    auto traversable = document().navigable()->traversable_navigable();
+    VERIFY(traversable);
+
     auto size = bitmap_size_for_canvas(*this, minimum_width, minimum_height);
     if (size.is_empty()) {
-        m_bitmap = nullptr;
+        m_surface = nullptr;
         return false;
     }
-    if (!m_bitmap || m_bitmap->size() != size) {
-        auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size);
-        if (bitmap_or_error.is_error())
-            return false;
-        m_bitmap = bitmap_or_error.release_value_but_fixme_should_propagate_errors();
+    if (!m_surface || m_surface->size() != size) {
+        m_surface = Gfx::PaintingSurface::create_with_size(traversable->skia_backend_context(), size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     }
-    return m_bitmap;
+    return m_surface;
 }
 
 struct SerializeBitmapResult {
@@ -252,18 +256,19 @@ static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap
 String HTMLCanvasElement::to_data_url(StringView type, Optional<double> quality)
 {
     // It is possible the the canvas doesn't have a associated bitmap so create one
-    if (!bitmap())
-        create_bitmap();
+    if (!m_surface) {
+        allocate_painting_surface();
+    }
 
     // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
 
     // 2. If this canvas element's bitmap has no pixels (i.e. either its horizontal dimension or its vertical dimension is zero)
     //    then return the string "data:,". (This is the shortest data: URL; it represents the empty string in a text/plain resource.)
-    if (!m_bitmap)
+    if (!m_surface)
         return "data:,"_string;
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
-    auto file = serialize_bitmap(*m_bitmap, type, move(quality));
+    auto file = serialize_bitmap(*m_surface->create_snapshot(), type, move(quality));
 
     // 4. If file is null then return "data:,".
     if (file.is_error()) {
@@ -283,8 +288,9 @@ String HTMLCanvasElement::to_data_url(StringView type, Optional<double> quality)
 WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::CallbackType> callback, StringView type, Optional<double> quality)
 {
     // It is possible the the canvas doesn't have a associated bitmap so create one
-    if (!bitmap())
-        create_bitmap();
+    if (!m_surface) {
+        allocate_painting_surface();
+    }
 
     // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
 
@@ -293,8 +299,9 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::Ca
 
     // 3. If this canvas element's bitmap has pixels (i.e., neither its horizontal dimension nor its vertical dimension is zero),
     //    then set result to a copy of this canvas element's bitmap.
-    if (m_bitmap)
-        bitmap_result = TRY_OR_THROW_OOM(vm(), m_bitmap->clone());
+    if (m_surface) {
+        bitmap_result = m_surface->create_snapshot();
+    }
 
     // 4. Run these steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [this, callback, bitmap_result, type, quality] {
@@ -326,6 +333,10 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::Ca
 
 void HTMLCanvasElement::present()
 {
+    if (m_surface) {
+        m_surface->flush();
+    }
+
     m_context.visit(
         [](JS::NonnullGCPtr<CanvasRenderingContext2D>&) {
             // Do nothing, CRC2D writes directly to the canvas bitmap.

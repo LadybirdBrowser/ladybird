@@ -8,6 +8,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 
@@ -22,9 +23,9 @@ public:
 
     virtual ~HTMLCanvasElement() override;
 
-    Gfx::Bitmap const* bitmap() const { return m_bitmap; }
-    Gfx::Bitmap* bitmap() { return m_bitmap; }
-    bool create_bitmap(size_t minimum_width = 0, size_t minimum_height = 0);
+    bool allocate_painting_surface(size_t minimum_width = 0, size_t minimum_height = 0);
+    RefPtr<Gfx::PaintingSurface> surface() { return m_surface; }
+    RefPtr<Gfx::PaintingSurface const> surface() const { return m_surface; }
 
     JS::ThrowCompletionOr<RenderingContext> get_context(String const& type, JS::Value options);
 
@@ -58,7 +59,7 @@ private:
     JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
     void reset_context_to_default_state();
 
-    RefPtr<Gfx::Bitmap> m_bitmap;
+    RefPtr<Gfx::PaintingSurface> m_surface;
 
     Variant<JS::NonnullGCPtr<HTML::CanvasRenderingContext2D>, JS::NonnullGCPtr<WebGL::WebGLRenderingContext>, Empty> m_context;
 };
