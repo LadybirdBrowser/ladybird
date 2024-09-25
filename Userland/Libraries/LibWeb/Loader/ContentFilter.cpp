@@ -27,7 +27,7 @@ bool ContentFilter::is_filtered(const URL::URL& url) const
     auto url_string = url.to_byte_string();
 
     for (auto& pattern : m_patterns) {
-        if (url_string.matches(pattern.text, CaseSensitivity::CaseSensitive))
+        if (url_string.find(pattern.text).has_value())
             return true;
     }
     return false;
@@ -38,15 +38,7 @@ ErrorOr<void> ContentFilter::set_patterns(ReadonlySpan<String> patterns)
     m_patterns.clear_with_capacity();
 
     for (auto const& pattern : patterns) {
-        StringBuilder builder;
-
-        if (!pattern.starts_with('*'))
-            TRY(builder.try_append('*'));
-        TRY(builder.try_append(pattern));
-        if (!pattern.ends_with('*'))
-            TRY(builder.try_append('*'));
-
-        TRY(m_patterns.try_empend(TRY(builder.to_string())));
+        TRY(m_patterns.try_empend(pattern));
     }
 
     return {};
