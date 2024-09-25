@@ -157,7 +157,6 @@ executable("ladybird_executable") {
     data_deps += [
       ":ladybird_copy_cacert",
       ":ladybird_copy_config_resources",
-      ":ladybird_copy_emoji",
       ":ladybird_copy_fonts",
       ":ladybird_copy_icons_16x16",
       ":ladybird_copy_icons_32x32",
@@ -201,14 +200,10 @@ executable("headless-browser") {
   ]
 }
 
-_emoji = read_file("//Meta/emoji-file-list.txt", "list lines")
-emoji = []
-
-foreach(file, _emoji) {
-  emoji += [ "//Base/res/emoji/" + file ]
-}
-
-fonts = [ "//Base/res/fonts/SerenitySans-Regular.ttf" ]
+fonts = [
+  "//Base/res/fonts/SerenitySans-Regular.ttf",
+  "//Base/res/fonts/NotoEmoji.ttf",
+]
 
 icons_16x16 = [
   "//Base/res/icons/16x16/app-system-monitor.png",
@@ -271,6 +266,7 @@ themes = [
 web_resources = [
   "//Base/res/ladybird/about.html",
   "//Base/res/ladybird/inspector.css",
+  "//Base/res/ladybird/inspector.html",
   "//Base/res/ladybird/inspector.js",
   "//Base/res/ladybird/newtab.html",
 ]
@@ -290,11 +286,6 @@ config_resources = [
 ]
 
 if (current_os != "mac") {
-  copy("ladybird_copy_emoji") {
-    sources = emoji
-    outputs = [ "$root_out_dir/share/Lagom/emoji/{{source_file_part}}" ]
-  }
-
   copy("ladybird_copy_fonts") {
     sources = fonts
     outputs = [ "$root_out_dir/share/Lagom/fonts/{{source_file_part}}" ]
@@ -445,11 +436,6 @@ if (current_os != "mac") {
       "$root_out_dir/lib/liblagom-xml.dylib",
     ]
     outputs = [ "{{bundle_contents_dir}}/lib/{{source_file_part}}" ]
-  }
-
-  bundle_data("ladybird_emoji") {
-    sources = emoji
-    outputs = [ "{{bundle_resources_dir}}/emoji/{{source_file_part}}" ]
   }
 
   bundle_data("ladybird_fonts") {
