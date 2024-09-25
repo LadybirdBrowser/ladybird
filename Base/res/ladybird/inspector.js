@@ -767,33 +767,63 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("keydown", event => {
         const UP_ARROW_KEYCODE = 38;
         const DOWN_ARROW_KEYCODE = 40;
+        const RIGHT_ARROW_KEYCODE = 39;
+        const LEFT_ARROW_KEYCODE = 37;
         const RETURN_KEYCODE = 13;
         const SPACE_KEYCODE = 32;
 
-        if (document.activeElement.tagName !== "INPUT") {
-            if (event.keyCode == UP_ARROW_KEYCODE || event.keyCode == DOWN_ARROW_KEYCODE) {
-                let selectedIndex = visibleDOMNodes.indexOf(selectedDOMNode);
-                if (selectedIndex < 0) {
-                    return;
-                }
+        const navigateUp = () => {
+            let selectedIndex = visibleDOMNodes.indexOf(selectedDOMNode);
+            if (selectedIndex < 0) {
+                return;
+            }
 
-                let newIndex;
+            let newIndex = selectedIndex - 1;
 
-                if (event.keyCode == UP_ARROW_KEYCODE) {
-                    newIndex = selectedIndex - 1;
-                } else if (event.keyCode == DOWN_ARROW_KEYCODE) {
-                    newIndex = selectedIndex + 1;
-                }
+            if (visibleDOMNodes[newIndex]) {
+                inspectDOMNode(visibleDOMNodes[newIndex]);
+            } 
+        }
 
-                if (visibleDOMNodes[newIndex]) {
-                    inspectDOMNode(visibleDOMNodes[newIndex]);
-                }
-            } else if (event.keyCode == RETURN_KEYCODE || event.keyCode == SPACE_KEYCODE) {
-                if (selectedDOMNode.parentNode.tagName === "SUMMARY") {
-                    selectedDOMNode.parentNode.click();
-                }
+        const navigateDown = () => {
+            let selectedIndex = visibleDOMNodes.indexOf(selectedDOMNode);
+            if (selectedIndex < 0) {
+                return;
+            }
+
+            let newIndex = selectedIndex + 1;   
+
+            if (visibleDOMNodes[newIndex]) {
+                inspectDOMNode(visibleDOMNodes[newIndex]);
             }
         }
+
+        if (document.activeElement.tagName !== "INPUT") {
+            const isSummary = selectedDOMNode.parentNode.tagName === "SUMMARY"
+            const isDiv = selectedDOMNode.parentNode.tagName === "DIV"
+
+            if (event.keyCode == UP_ARROW_KEYCODE) {
+                navigateUp();
+            } else if (event.keyCode == DOWN_ARROW_KEYCODE) {
+                navigateDown();
+            } else if (event.keyCode == RETURN_KEYCODE || event.keyCode == SPACE_KEYCODE) {
+                if (isSummary) {
+                    selectedDOMNode.parentNode.click();
+                }
+            } else if (event.keyCode == RIGHT_ARROW_KEYCODE) {
+                if (isSummary && selectedDOMNode.parentNode.parentNode.open === false) {
+                    selectedDOMNode.parentNode.click();
+                } else if (selectedDOMNode.parentNode.parentNode.open === true && !isDiv) {
+                    navigateDown();
+                }
+            } else if (event.keyCode == LEFT_ARROW_KEYCODE) {
+                if (isSummary && selectedDOMNode.parentNode.parentNode.open === true) {
+                    selectedDOMNode.parentNode.click();
+                } else if (selectedDOMNode.parentNode.parentNode.open === false || isDiv) {
+                    navigateUp();
+                }
+            }
+        }g
     });
 
     inspector.inspectorLoaded();
