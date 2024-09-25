@@ -53,6 +53,7 @@ set(SOURCES
     ImageFormats/AVIFLoader.cpp
     ImmutableBitmap.cpp
     MedianCut.cpp
+    PaintingSurface.cpp
     Palette.cpp
     Path.cpp
     PathSkia.cpp

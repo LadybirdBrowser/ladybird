@@ -10,6 +10,7 @@
 #include <AK/RefPtr.h>
 #include <LibGfx/SkiaBackendContext.h>
 
+#include <core/SkSurface.h>
 #include <gpu/GrDirectContext.h>
 
 #ifdef USE_VULKAN
@@ -41,16 +42,11 @@ public:
 
     ~SkiaVulkanBackendContext() override { }
 
-    void flush_and_submit() override
+    void flush_and_submit(SkSurface* surface) override
     {
-        m_context->flush();
+        GrFlushInfo const flush_info {};
+        m_context->flush(surface, SkSurfaces::BackendSurfaceAccess::kPresent, flush_info);
         m_context->submit(GrSyncCpu::kYes);
-    }
-
-    sk_sp<SkSurface> create_surface(int width, int height)
-    {
-        auto image_info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-        return SkSurfaces::RenderTarget(m_context.get(), skgpu::Budgeted::kYes, image_info);
     }
 
     skgpu::VulkanExtensions const* extensions() const { return m_extensions.ptr(); }
@@ -100,9 +96,10 @@ public:
 
     ~SkiaMetalBackendContext() override { }
 
-    void flush_and_submit() override
+    void flush_and_submit(SkSurface* surface) override
     {
-        m_context->flush();
+        GrFlushInfo const flush_info {};
+        m_context->flush(surface, SkSurfaces::BackendSurfaceAccess::kPresent, flush_info);
         m_context->submit(GrSyncCpu::kYes);
     }
 

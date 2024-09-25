@@ -30,92 +30,38 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
-#ifdef USE_VULKAN
-#    include <gpu/ganesh/vk/GrVkDirectContext.h>
-#    include <gpu/vk/VulkanBackendContext.h>
-#    include <gpu/vk/VulkanExtensions.h>
-#endif
-
-#ifdef AK_OS_MACOS
-#    include <gpu/GrBackendSurface.h>
-#    include <gpu/ganesh/mtl/GrMtlBackendContext.h>
-#    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
-#    include <gpu/ganesh/mtl/GrMtlDirectContext.h>
-#endif
-
 namespace Web::Painting {
-
-class DisplayListPlayerSkia::SkiaSurface {
-public:
-    SkCanvas& canvas() const { return *m_surface->getCanvas(); }
-
-    SkiaSurface(sk_sp<SkSurface> surface)
-        : m_surface(move(surface))
-    {
-    }
-
-    void read_into_bitmap(Gfx::Bitmap& bitmap)
-    {
-        auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-        SkPixmap pixmap(image_info, bitmap.begin(), bitmap.pitch());
-        m_surface->readPixels(pixmap, 0, 0);
-    }
-
-    sk_sp<SkSurface> make_surface(int width, int height)
-    {
-        return m_surface->makeSurface(width, height);
-    }
-
-private:
-    sk_sp<SkSurface> m_surface;
-};
 
 #ifdef USE_VULKAN
 DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::SkiaBackendContext& context, Gfx::Bitmap& bitmap)
+    : m_context(context)
 {
-    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
-    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    auto surface = SkSurfaces::RenderTarget(context.sk_context(), skgpu::Budgeted::kYes, image_info);
-    m_surface = make<SkiaSurface>(surface);
-    m_flush_context = [&bitmap, &surface = m_surface, &context] {
-        context.flush_and_submit();
+    m_surface = Gfx::PaintingSurface::create_with_size(m_context, bitmap.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+    m_flush_context = [&bitmap, surface = m_surface] mutable {
         surface->read_into_bitmap(bitmap);
     };
 }
 #endif
 
 #ifdef AK_OS_MACOS
-DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::SkiaBackendContext& context, Core::MetalTexture& metal_texture)
+DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::SkiaBackendContext& context, NonnullRefPtr<Gfx::PaintingSurface> surface)
+    : m_context(context)
+    , m_surface(move(surface))
 {
-    auto image_info = SkImageInfo::Make(metal_texture.width(), metal_texture.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    GrMtlTextureInfo mtl_info;
-    mtl_info.fTexture = sk_ret_cfp(metal_texture.texture());
-    auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture.width(), metal_texture.height(), mtl_info);
-    auto surface = SkSurfaces::WrapBackendRenderTarget(context.sk_context(), backend_render_target, kTopLeft_GrSurfaceOrigin, kBGRA_8888_SkColorType, nullptr, nullptr);
-    if (!surface) {
-        dbgln("Failed to create Skia surface from Metal texture");
-        VERIFY_NOT_REACHED();
-    }
-    m_surface = make<SkiaSurface>(surface);
-    m_flush_context = [&context] mutable {
-        context.flush_and_submit();
-    };
 }
 #endif
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::Bitmap& bitmap)
 {
-    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
-    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch());
-    VERIFY(surface);
-    m_surface = make<SkiaSurface>(surface);
+    m_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
 }
 
 DisplayListPlayerSkia::~DisplayListPlayerSkia()
 {
-    if (m_flush_context)
+    m_surface->flush();
+    if (m_flush_context) {
         m_flush_context();
+    }
 }
 
 static SkPoint to_skia_point(auto const& point)
@@ -357,9 +303,9 @@ static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
     }
 }
 
-DisplayListPlayerSkia::SkiaSurface& DisplayListPlayerSkia::surface() const
+Gfx::PaintingSurface& DisplayListPlayerSkia::surface() const
 {
-    return static_cast<SkiaSurface&>(*m_surface);
+    return *m_surface;
 }
 
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
@@ -1145,16 +1091,16 @@ void DisplayListPlayerSkia::add_mask(AddMask const& command)
     if (rect.is_empty())
         return;
 
-    auto mask_surface = m_surface->make_surface(rect.width(), rect.height());
+    auto mask_surface = Gfx::PaintingSurface::create_with_size(m_context, rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
 
     auto previous_surface = move(m_surface);
-    m_surface = make<SkiaSurface>(mask_surface);
+    m_surface = mask_surface;
     execute(*command.display_list);
     m_surface = move(previous_surface);
 
     SkMatrix mask_matrix;
     mask_matrix.setTranslate(rect.x(), rect.y());
-    auto image = mask_surface->makeImageSnapshot();
+    auto image = mask_surface->sk_surface().makeImageSnapshot();
     auto shader = image->makeShader(SkSamplingOptions(), mask_matrix);
     surface().canvas().clipShader(shader);
 }

@@ -1402,7 +1402,8 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
         if (m_metal_context && m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
             auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
             auto texture = m_metal_context->create_texture_from_iosurface(iosurface_backing_store.iosurface_handle());
-            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, *texture);
+            auto painting_surface = Gfx::PaintingSurface::wrap_metal_surface(*texture, m_skia_backend_context);
+            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, painting_surface);
             player.execute(*display_list);
             return;
         }
