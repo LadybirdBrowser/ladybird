@@ -1,7 +1,0 @@
-declare_args() {
-  # If true, download CLDR and UCD files from unicode.org or the unicode
-  # consortium's github and use it in LibUnicode and LibLocale.
-  # Data will be downloaded to $cache_path/CLDR, $cache_path/UCD
-  # and $cache_path/EMOJI
-  enable_unicode_database_download = true
-}

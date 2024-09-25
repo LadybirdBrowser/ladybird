@@ -1,200 +1,28 @@
-import("//Meta/gn/build/compiled_action.gni")
-import("//Meta/gn/build/download_cache.gni")
-import("//Meta/gn/build/download_file.gni")
-import("//Meta/gn/build/extract_archive_contents.gni")
-import("//Userland/Libraries/LibUnicode/enable_unicode_download.gni")
-
-unicode_cache = cache_path + "UCD/"
-emoji_cache = cache_path + "EMOJI/"
-idna_cache = cache_path + "IDNA/"
-
-unicode_version = "15.1.0"
-emoji_version = "15.1"
-
-if (enable_unicode_database_download) {
-  download_file("unicode_database_download") {
-    version = unicode_version
-    url = "https://www.unicode.org/Public/$version/ucd/UCD.zip"
-    cache = unicode_cache
-    output = "UCD.zip"
-    version_file = "version.txt"
-    sha256 = "cb1c663d053926500cd501229736045752713a066bd75802098598b7a7056177"
-  }
-  download_file("emoji_test_download") {
-    version = emoji_version
-    url = "https://www.unicode.org/Public/emoji/$version/emoji-test.txt"
-    cache = emoji_cache
-    output = "emoji-test.txt"
-    version_file = "emoji-test-version.txt"
-    sha256 = "d876ee249aa28eaa76cfa6dfaa702847a8d13b062aa488d465d0395ee8137ed9"
-  }
-  download_file("idna_mapping_table_download") {
-    version = unicode_version
-    url = "https://www.unicode.org/Public/idna/$version/IdnaMappingTable.txt"
-    cache = idna_cache
-    output = "IdnaMappingTable.txt"
-    version_file = "version.txt"
-    sha256 = "402cbd285f1f952fcd0834b63541d54f69d3d8f1b8f8599bf71a1a14935f82c4"
-  }
-
-  extract_archive_contents("unicode_database_files") {
-    deps = [ ":unicode_database_download" ]
-    archive = get_target_outputs(":unicode_database_download")
-    directory = unicode_cache
-    files = [
-      "UnicodeData.txt",
-      "SpecialCasing.txt",
-      "CaseFolding.txt",
-      "extracted/DerivedGeneralCategory.txt",
-      "PropList.txt",
-      "DerivedCoreProperties.txt",
-      "extracted/DerivedBinaryProperties.txt",
-      "PropertyAliases.txt",
-      "PropertyValueAliases.txt",
-      "Scripts.txt",
-      "ScriptExtensions.txt",
-      "Blocks.txt",
-      "emoji/emoji-data.txt",
-      "NameAliases.txt",
-      "DerivedNormalizationProps.txt",
-      "auxiliary/GraphemeBreakProperty.txt",
-      "auxiliary/WordBreakProperty.txt",
-      "auxiliary/SentenceBreakProperty.txt",
-    ]
-  }
-
-  compiled_action("generate_unicode_sources") {
-    tool = "//Meta/Lagom/Tools/CodeGenerators/LibUnicode:GenerateUnicodeData"
-    deps = [ ":unicode_database_files" ]
-    inputs = get_target_outputs(":unicode_database_files")
-    outputs = [
-      "$target_gen_dir/UnicodeData.h",
-      "$target_gen_dir/UnicodeData.cpp",
-    ]
-
-    args = [
-      "-h",
-      rebase_path(outputs[0], root_build_dir),
-      "-c",
-      rebase_path(outputs[1], root_build_dir),
-      "-u",
-      rebase_path(inputs[0], root_build_dir),
-      "-s",
-      rebase_path(inputs[1], root_build_dir),
-      "-o",
-      rebase_path(inputs[2], root_build_dir),
-      "-g",
-      rebase_path(inputs[3], root_build_dir),
-      "-p",
-      rebase_path(inputs[4], root_build_dir),
-      "-d",
-      rebase_path(inputs[5], root_build_dir),
-      "-b",
-      rebase_path(inputs[6], root_build_dir),
-      "-a",
-      rebase_path(inputs[7], root_build_dir),
-      "-v",
-      rebase_path(inputs[8], root_build_dir),
-      "-r",
-      rebase_path(inputs[9], root_build_dir),
-      "-x",
-      rebase_path(inputs[10], root_build_dir),
-      "-k",
-      rebase_path(inputs[11], root_build_dir),
-      "-e",
-      rebase_path(inputs[12], root_build_dir),
-      "-m",
-      rebase_path(inputs[13], root_build_dir),
-      "-n",
-      rebase_path(inputs[14], root_build_dir),
-      "-f",
-      rebase_path(inputs[15], root_build_dir),
-      "-w",
-      rebase_path(inputs[16], root_build_dir),
-      "-i",
-      rebase_path(inputs[17], root_build_dir),
-    ]
-  }
-
-  compiled_action("generate_emoji_sources") {
-    tool = "//Meta/Lagom/Tools/CodeGenerators/LibUnicode:GenerateEmojiData"
-    deps = [ ":emoji_test_download" ]
-    inputs = get_target_outputs(":emoji_test_download")
-    outputs = [
-      "$target_gen_dir/EmojiData.h",
-      "$target_gen_dir/EmojiData.cpp",
-    ]
-    args = [
-      "-h",
-      rebase_path(outputs[0], root_build_dir),
-      "-c",
-      rebase_path(outputs[1], root_build_dir),
-      "-e",
-      rebase_path(inputs[0], root_build_dir),
-      "-s",
-      rebase_path("//Base/home/anon/Documents/emoji-serenity.txt",
-                  root_build_dir),
-      "-f",
-      rebase_path("//Meta/emoji-file-list.txt", root_build_dir),
-      "-r",
-      rebase_path("//Base/res/emoji", root_build_dir),
-    ]
-
-    # FIXME: How to add file/directory dependencies on:
-    #        "//Base/home/anon/Documents/emoji-serenity.txt"
-    #        "//Base/res/emoji"
-    #        "//Meta/emoji-file-list.txt"
-  }
-
-  compiled_action("generate_idna_sources") {
-    tool = "//Meta/Lagom/Tools/CodeGenerators/LibUnicode:GenerateIDNAData"
-    deps = [ ":idna_mapping_table_download" ]
-    inputs = get_target_outputs(":idna_mapping_table_download")
-    outputs = [
-      "$target_gen_dir/IDNAData.h",
-      "$target_gen_dir/IDNAData.cpp",
-    ]
-    args = [
-      "-h",
-      rebase_path(outputs[0], root_build_dir),
-      "-c",
-      rebase_path(outputs[1], root_build_dir),
-      "-m",
-      rebase_path(inputs[0], root_build_dir),
-    ]
-  }
-}
-
 source_set("LibUnicode") {
   output_name = "unicode"
-  include_dirs = [
-    "//Userland/Libraries",
-    "$target_gen_dir/..",
-  ]
+  include_dirs = [ "//Userland/Libraries" ]
   sources = [
     "CharacterTypes.cpp",
+    "Collator.cpp",
     "CurrencyCode.cpp",
-    "Emoji.cpp",
+    "DateTimeFormat.cpp",
+    "DisplayNames.cpp",
+    "DurationFormat.cpp",
+    "ICU.cpp",
     "IDNA.cpp",
+    "ListFormat.cpp",
+    "Locale.cpp",
     "Normalize.cpp",
-    "Punycode.cpp",
-    "Segmentation.cpp",
+    "NumberFormat.cpp",
+    "PluralRules.cpp",
+    "RelativeTimeFormat.cpp",
+    "Segmenter.cpp",
     "String.cpp",
-    "UnicodeUtils.cpp",
+    "TimeZone.cpp",
+    "UnicodeKeywords.cpp",
   ]
-  deps = [ "//AK" ]
-
-  if (enable_unicode_database_download) {
-    deps += [
-      ":generate_emoji_sources",
-      ":generate_idna_sources",
-      ":generate_unicode_sources",
-    ]
-    sources += get_target_outputs(":generate_unicode_sources")
-    sources += get_target_outputs(":generate_emoji_sources")
-    sources += get_target_outputs(":generate_idna_sources")
-    defines = [ "ENABLE_UNICODE_DATA=1" ]
-  } else {
-    defines = [ "ENABLE_UNICODE_DATA=0" ]
-  }
+  deps = [
+    "//AK",
+    "//Meta/gn/build/libs/icu",
+  ]
 }
