@@ -280,25 +280,28 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         return {};
     }
 
+    bool is_horizontal = direction == ScrollDirection::Horizontal;
+
     auto padding_rect = absolute_padding_box_rect();
     auto scrollable_overflow_rect = this->scrollable_overflow_rect().value();
-    auto scroll_overflow_size = direction == ScrollDirection::Horizontal ? scrollable_overflow_rect.width() : scrollable_overflow_rect.height();
-    auto scrollport_size = direction == ScrollDirection::Horizontal ? padding_rect.width() : padding_rect.height();
+    auto scroll_overflow_size = is_horizontal ? scrollable_overflow_rect.width() : scrollable_overflow_rect.height();
+    auto scrollport_size = is_horizontal ? padding_rect.width() : padding_rect.height();
     if (scroll_overflow_size == 0)
         return {};
 
-    auto min_thumb_length = min(scrollport_size, 24);
-    auto thumb_length = max(scrollport_size * (scrollport_size / scroll_overflow_size), min_thumb_length);
+    auto scrollbar_rect_length = is_horizontal ? scrollport_size - scrollbar_thumb_thickness : scrollport_size;
+
+    auto min_thumb_length = min(scrollbar_rect_length, 24);
+    auto thumb_length = max(scrollbar_rect_length * (scrollport_size / scroll_overflow_size), min_thumb_length);
 
     CSSPixelFraction scroll_size = 0;
     if (scroll_overflow_size > scrollport_size)
-        scroll_size = (scrollport_size - thumb_length) / (scroll_overflow_size - scrollport_size);
+        scroll_size = (scrollbar_rect_length - thumb_length) / (scroll_overflow_size - scrollport_size);
     CSSPixelRect rect;
-    if (direction == ScrollDirection::Vertical) {
+    if (is_horizontal)
+        rect = { padding_rect.left(), padding_rect.bottom() - scrollbar_thumb_thickness, thumb_length, scrollbar_thumb_thickness };
+    else
         rect = { padding_rect.right() - scrollbar_thumb_thickness, padding_rect.top(), scrollbar_thumb_thickness, thumb_length };
-    } else {
-        rect = { padding_rect.left() - scrollbar_thumb_thickness, padding_rect.bottom() - scrollbar_thumb_thickness, thumb_length, scrollbar_thumb_thickness };
-    }
 
     return PaintableBox::ScrollbarData { rect, scroll_size };
 }
