@@ -295,7 +295,6 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(String const& value)
     for (auto const& option_element : list_of_options())
         option_element->set_selected(option_element->value() == value);
     update_inner_text_element();
-    queue_input_and_change_events();
     return {};
 }
 
