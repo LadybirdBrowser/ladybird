@@ -76,6 +76,7 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
         html {
             background-color: rgb(30, 30, 30);
             color: white;
+            counter-reset: line;
         }
 
         :root {
@@ -86,6 +87,7 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
             --internal-color: darkgrey;
             --string-color: goldenrod;
             --error-color: red;
+            --line-number-color: darkgrey;
         }
     }
 
@@ -98,12 +100,30 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
             --internal-color: dimgrey;
             --string-color: darkgoldenrod;
             --error-color: darkred;
+            --line-number-color: dimgrey;
         }
     }
 
     .html {
         font-size: 10pt;
         font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .line {
+        counter-increment: line;
+        white-space: pre;
+    }
+
+    .line::before {
+        content: counter(line) " ";
+
+        display: inline-block;
+        width: 2.5em;
+
+        padding-right: 0.5em;
+        text-align: right;
+
+        color: var(--line-number-color);
     }
 
     .tag {
