@@ -12,10 +12,8 @@ shared_library("LibJS") {
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibCrypto",
     "//Userland/Libraries/LibFileSystem",
-    "//Userland/Libraries/LibLocale",
     "//Userland/Libraries/LibRegex",
     "//Userland/Libraries/LibSyntax",
-    "//Userland/Libraries/LibTimeZone",
     "//Userland/Libraries/LibUnicode",
   ]
 

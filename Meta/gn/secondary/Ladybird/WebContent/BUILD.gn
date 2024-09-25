@@ -46,7 +46,7 @@ executable("WebContent") {
     "//Userland/Libraries/LibImageDecoderClient",
     "//Userland/Libraries/LibJS",
     "//Userland/Libraries/LibMain",
-    "//Userland/Libraries/LibProtocol",
+    "//Userland/Libraries/LibRequests",
     "//Userland/Libraries/LibURL",
     "//Userland/Libraries/LibWeb",
     "//Userland/Libraries/LibWebSocket",

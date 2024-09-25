@@ -22,8 +22,8 @@ compiled_action("RequestServerEndpoint") {
   ]
 }
 
-shared_library("LibProtocol") {
-  output_name = "protocol"
+shared_library("LibRequests") {
+  output_name = "requests"
   include_dirs = [
     "//Userland/Libraries",
     "//Userland/Services",
@@ -34,7 +34,6 @@ shared_library("LibProtocol") {
     "//AK",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibIPC",
-    "//Userland/Libraries/LibURL",
   ]
   sources = [
     "Request.cpp",

@@ -10,6 +10,7 @@ shared_library("LibURL") {
   ]
   deps = [
     "//AK",
+    "//Userland/Libraries/LibTextCodec",
     "//Userland/Libraries/LibUnicode",
   ]
 }
