@@ -109,6 +109,8 @@ private:
     bool m_has_read_server_handshake_connection { false };
     bool m_has_read_server_handshake_accept { false };
 
+    bool m_discard_connection_requested { false };
+
     u16 m_last_close_code { 1005 };
     ByteString m_last_close_message;
 
