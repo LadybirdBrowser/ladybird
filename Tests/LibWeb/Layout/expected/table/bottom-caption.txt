@@ -13,7 +13,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             TextNode <#text>
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text>
-          Box <thead> at (8,8) content-size 95.171875x19 table-header-group children: not-inline
+          Box <thead> at (10,10) content-size 95.171875x19 table-header-group children: not-inline
             BlockContainer <(anonymous)> (not painted) children: inline
               TextNode <#text>
             Box <tr> at (10,10) content-size 95.171875x19 table-row children: not-inline
@@ -29,7 +29,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
               TextNode <#text>
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text>
-          Box <tbody> at (8,27) content-size 95.171875x19 table-row-group children: not-inline
+          Box <tbody> at (10,31) content-size 95.171875x19 table-row-group children: not-inline
             BlockContainer <(anonymous)> (not painted) children: inline
               TextNode <#text>
             Box <tr> at (10,31) content-size 95.171875x19 table-row children: not-inline
@@ -45,7 +45,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
               TextNode <#text>
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text>
-          Box <tfoot> at (8,46) content-size 95.171875x19 table-footer-group children: not-inline
+          Box <tfoot> at (10,52) content-size 95.171875x19 table-footer-group children: not-inline
             BlockContainer <(anonymous)> (not painted) children: inline
               TextNode <#text>
             Box <tr> at (10,52) content-size 95.171875x19 table-row children: not-inline
@@ -72,15 +72,15 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableBox (Box<TABLE>#full-table) [8,8 99.171875x65] overflow: [8,8 99.171875x82]
           PaintableWithLines (BlockContainer<CAPTION>) [8,73 82.734375x17] overflow: [8,73 90.734375x17]
             TextPaintable (TextNode<#text>)
-          PaintableBox (Box<THEAD>) [8,8 95.171875x19] overflow: [8,8 97.171875x21]
+          PaintableBox (Box<THEAD>) [10,10 95.171875x19]
             PaintableBox (Box<TR>) [10,10 95.171875x19]
               PaintableWithLines (BlockContainer<TD>) [10,10 95.171875x19]
                 TextPaintable (TextNode<#text>)
-          PaintableBox (Box<TBODY>) [8,27 95.171875x19] overflow: [8,27 97.171875x23]
+          PaintableBox (Box<TBODY>) [10,31 95.171875x19]
             PaintableBox (Box<TR>) [10,31 95.171875x19]
               PaintableWithLines (BlockContainer<TD>) [10,31 95.171875x19]
                 TextPaintable (TextNode<#text>)
-          PaintableBox (Box<TFOOT>) [8,46 95.171875x19] overflow: [8,46 97.171875x25]
+          PaintableBox (Box<TFOOT>) [10,52 95.171875x19]
             PaintableBox (Box<TR>) [10,52 95.171875x19]
               PaintableWithLines (BlockContainer<TD>) [10,52 95.171875x19]
                 TextPaintable (TextNode<#text>)
