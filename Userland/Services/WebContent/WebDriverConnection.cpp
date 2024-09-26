@@ -550,7 +550,7 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 
     // -> id represents a web element
     else if (id.is_object()) {
-        auto element_id = id.as_object().get_byte_string("value"sv).release_value();
+        auto element_id = Web::WebDriver::extract_web_element_reference(id.as_object());
 
         // 1. If session's current browsing context is no longer open, return error with error code no such window.
         TRY(ensure_current_browsing_context_is_open());
