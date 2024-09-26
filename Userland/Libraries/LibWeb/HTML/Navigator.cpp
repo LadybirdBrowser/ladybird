@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Platform.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -101,8 +102,15 @@ JS::NonnullGCPtr<UserActivation> Navigator::user_activation()
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints
 WebIDL::Long Navigator::max_touch_points()
 {
-    dbgln("FIXME: Unimplemented Navigator.maxTouchPoints");
+#if defined(AK_OS_MACOS)
+    int max_touch_points = 1;
+    return max_touch_points;
+#elif defined(AK_OS_LINUX)
+    int max_touch_points = 20;
+    return max_touch_points;
+#else
     return 0;
+#endif
 }
 
 // https://www.w3.org/TR/tracking-dnt/#dom-navigator-donottrack
