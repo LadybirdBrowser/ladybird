@@ -5451,6 +5451,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
     auto declarations_and_at_rules = parse_a_list_of_declarations(tokens);
 
     Optional<FlyString> font_family;
+    Optional<FlyString> font_named_instance;
     Vector<ParsedFontFace::Source> src;
     Vector<Gfx::UnicodeRange> unicode_range;
     Optional<int> weight;
@@ -5578,6 +5579,27 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
             font_family = String::join(' ', font_family_parts).release_value_but_fixme_should_propagate_errors();
             continue;
         }
+        if (declaration.name().equals_ignoring_ascii_case("font-named-instance"sv)) {
+            // auto | <string>
+            TokenStream token_stream { declaration.values() };
+            token_stream.skip_whitespace();
+            auto& token = token_stream.next_token();
+            token_stream.skip_whitespace();
+            if (token_stream.has_next_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Unexpected trailing tokens in font-named-instance");
+                continue;
+            }
+
+            if (token.is_ident("auto"sv)) {
+                font_named_instance.clear();
+            } else if (token.is(Token::Type::String)) {
+                font_named_instance = token.token().string();
+            } else {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-named-instance from {}", token.to_debug_string());
+            }
+
+            continue;
+        }
         if (declaration.name().equals_ignoring_ascii_case("font-style"sv)) {
             TokenStream token_stream { declaration.values() };
             if (auto value = parse_css_value(CSS::PropertyID::FontStyle, token_stream); !value.is_error()) {
@@ -5630,7 +5652,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
         unicode_range.empend(0x0u, 0x10FFFFu);
     }
 
-    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), weight, slope, move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override), font_display });
+    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), weight, slope, move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override), font_display, move(font_named_instance) });
 }
 
 Vector<ParsedFontFace::Source> Parser::parse_as_font_face_src()
