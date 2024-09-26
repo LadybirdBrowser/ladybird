@@ -19,6 +19,7 @@
 #include <effects/SkDashPathEffect.h>
 #include <effects/SkGradientShader.h>
 #include <effects/SkImageFilters.h>
+#include <effects/SkRuntimeEffect.h>
 #include <gpu/GrDirectContext.h>
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
@@ -426,38 +427,6 @@ void DisplayListPlayerSkia::restore(Restore const&)
     canvas.restore();
 }
 
-template<Gfx::Bitmap::MaskKind mask_kind, Gfx::StorageFormat storage_format>
-[[maybe_unused]] static SkBitmap alpha_mask_from_bitmap_impl(Gfx::Bitmap const& bitmap)
-{
-    SkBitmap alpha_mask;
-    alpha_mask.allocPixels(SkImageInfo::MakeA8(bitmap.width(), bitmap.height()));
-    int width = bitmap.width();
-    int height = bitmap.height();
-    for (int y = 0; y < height; y++) {
-        auto* dst = alpha_mask.getAddr8(0, y);
-        for (int x = 0; x < width; x++, ++dst) {
-            auto color = bitmap.unchecked_get_pixel<storage_format>(x, y);
-            if constexpr (mask_kind == Gfx::Bitmap::MaskKind::Luminance) {
-                *dst = color.alpha() * color.luminosity() / 255;
-            } else if constexpr (mask_kind == Gfx::Bitmap::MaskKind::Alpha) {
-                *dst = color.alpha();
-            }
-        }
-    }
-    return alpha_mask;
-}
-
-[[maybe_unused]] static SkBitmap alpha_mask_from_bitmap(Gfx::Bitmap const& bitmap, Gfx::Bitmap::MaskKind kind)
-{
-    if (bitmap.format() == Gfx::BitmapFormat::BGRA8888) {
-        if (kind == Gfx::Bitmap::MaskKind::Luminance)
-            return alpha_mask_from_bitmap_impl<Gfx::Bitmap::MaskKind::Luminance, Gfx::StorageFormat::BGRA8888>(bitmap);
-        VERIFY(kind == Gfx::Bitmap::MaskKind::Alpha);
-        return alpha_mask_from_bitmap_impl<Gfx::Bitmap::MaskKind::Alpha, Gfx::StorageFormat::BGRA8888>(bitmap);
-    }
-    VERIFY_NOT_REACHED();
-}
-
 void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& command)
 {
     auto& canvas = surface().canvas();
@@ -484,12 +453,44 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
     }
 
     if (command.mask.has_value()) {
-        auto alpha_mask = alpha_mask_from_bitmap(*command.mask.value().mask_bitmap, command.mask.value().mask_kind);
+        auto sk_bitmap = to_skia_bitmap(*command.mask.value().mask_bitmap);
+        auto mask_image = SkImages::RasterFromBitmap(sk_bitmap);
+
+        char const* sksl_shader = nullptr;
+        if (command.mask->mask_kind == Gfx::Bitmap::MaskKind::Luminance) {
+            sksl_shader = R"(
+                uniform shader mask_image;
+                half4 main(float2 coord) {
+                    half4 color = mask_image.eval(coord);
+                    half luminance = 0.2126 * color.b + 0.7152 * color.g + 0.0722 * color.r;
+                    return half4(0.0, 0.0, 0.0, color.a * luminance);
+                }
+            )";
+        } else if (command.mask->mask_kind == Gfx::Bitmap::MaskKind::Alpha) {
+            sksl_shader = R"(
+                uniform shader mask_image;
+                half4 main(float2 coord) {
+                    half4 color = mask_image.eval(coord);
+                    return half4(0.0, 0.0, 0.0, color.a);
+                }
+            )";
+        } else {
+            VERIFY_NOT_REACHED();
+        }
+
+        auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(sksl_shader));
+        if (!effect) {
+            dbgln("SkSL error: {}", error.c_str());
+            VERIFY_NOT_REACHED();
+        }
+
         SkMatrix mask_matrix;
         auto mask_position = command.source_paintable_rect.location();
         mask_matrix.setTranslate(mask_position.x(), mask_position.y());
-        auto shader = alpha_mask.makeShader(SkSamplingOptions(), mask_matrix);
-        canvas.clipShader(shader);
+
+        SkRuntimeShaderBuilder builder(effect);
+        builder.child("mask_image") = mask_image->makeShader(SkSamplingOptions(), mask_matrix);
+        canvas.clipShader(builder.makeShader());
     }
 
     if (command.is_fixed_position) {
