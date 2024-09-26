@@ -59,15 +59,17 @@ bool url_matches_about_srcdoc(URL::URL const& url)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#determining-the-origin
-HTML::Origin determine_the_origin(URL::URL const& url, SandboxingFlagSet sandbox_flags, Optional<HTML::Origin> source_origin)
+HTML::Origin determine_the_origin(Optional<URL::URL> const& url, SandboxingFlagSet sandbox_flags, Optional<HTML::Origin> source_origin)
 {
     // 1. If sandboxFlags has its sandboxed origin browsing context flag set, then return a new opaque origin.
     if (has_flag(sandbox_flags, SandboxingFlagSet::SandboxedOrigin)) {
         return HTML::Origin {};
     }
 
-    // FIXME: 2. If url is null, then return a new opaque origin.
-    // FIXME: There appears to be no way to get a null URL here, so it might be a spec bug.
+    // 2. If url is null, then return a new opaque origin.
+    if (!url.has_value()) {
+        return HTML::Origin {};
+    }
 
     // 3. If url is about:srcdoc, then:
     if (url == "about:srcdoc"sv) {
@@ -79,11 +81,11 @@ HTML::Origin determine_the_origin(URL::URL const& url, SandboxingFlagSet sandbox
     }
 
     // 4. If url matches about:blank and sourceOrigin is non-null, then return sourceOrigin.
-    if (url_matches_about_blank(url) && source_origin.has_value())
+    if (url_matches_about_blank(*url) && source_origin.has_value())
         return source_origin.release_value();
 
     // 5. Return url's origin.
-    return DOMURL::url_origin(url);
+    return DOMURL::url_origin(*url);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-auxiliary-browsing-context
