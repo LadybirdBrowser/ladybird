@@ -58,7 +58,7 @@ private:
     NonnullOwnPtr<skgpu::VulkanExtensions> m_extensions;
 };
 
-RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Core::VulkanContext& vulkan_context)
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Gfx::VulkanContext& vulkan_context)
 {
     skgpu::VulkanBackendContext backend_context;
 

@@ -6,15 +6,13 @@
 
 #pragma once
 
-#if !defined(USE_VULKAN)
-static_assert(false, "This file must only be used when Vulkan is available");
-#endif
+#ifdef USE_VULKAN
 
-#include <AK/Forward.h>
-#include <AK/Function.h>
-#include <vulkan/vulkan.h>
+#    include <AK/Forward.h>
+#    include <AK/Function.h>
+#    include <vulkan/vulkan.h>
 
-namespace Core {
+namespace Gfx {
 
 struct VulkanContext {
     uint32_t api_version { VK_API_VERSION_1_0 };
@@ -27,3 +25,5 @@ struct VulkanContext {
 ErrorOr<VulkanContext> create_vulkan_context();
 
 }
+
+#endif

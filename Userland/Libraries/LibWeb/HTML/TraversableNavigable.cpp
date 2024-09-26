@@ -39,7 +39,7 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
 #ifdef USE_VULKAN
     auto display_list_player_type = page->client().display_list_player_type();
     if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-        auto maybe_vulkan_context = Core::create_vulkan_context();
+        auto maybe_vulkan_context = Gfx::create_vulkan_context();
         if (!maybe_vulkan_context.is_error()) {
             auto vulkan_context = maybe_vulkan_context.release_value();
             m_skia_backend_context = Gfx::SkiaBackendContext::create_vulkan_context(vulkan_context);

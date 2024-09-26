@@ -14,7 +14,7 @@
 #endif
 
 #ifdef USE_VULKAN
-#    include <LibCore/VulkanContext.h>
+#    include <LibGfx/VulkanContext.h>
 #endif
 
 class GrDirectContext;
@@ -28,7 +28,7 @@ class SkiaBackendContext : public RefCounted<SkiaBackendContext> {
 
 public:
 #ifdef USE_VULKAN
-    static RefPtr<SkiaBackendContext> create_vulkan_context(Core::VulkanContext&);
+    static RefPtr<SkiaBackendContext> create_vulkan_context(Gfx::VulkanContext&);
 #endif
 
 #ifdef AK_OS_MACOS
