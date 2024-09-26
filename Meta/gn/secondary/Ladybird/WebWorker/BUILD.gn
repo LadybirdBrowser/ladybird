@@ -6,6 +6,7 @@ executable("WebWorker") {
   ]
   deps = [
     "//AK",
+    "//Meta/gn/build/libs/fontconfig",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibFileSystem",
     "//Userland/Libraries/LibGfx",
@@ -21,6 +22,7 @@ executable("WebWorker") {
     "//Userland/Libraries/LibWebView",
   ]
   sources = [
+    "//Ladybird/FontPlugin.cpp",
     "//Ladybird/HelperProcess.cpp",
     "//Ladybird/Utilities.cpp",
     "//Userland/Services/WebWorker/ConnectionFromClient.cpp",
