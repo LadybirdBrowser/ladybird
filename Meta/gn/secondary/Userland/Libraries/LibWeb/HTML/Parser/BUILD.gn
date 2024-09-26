@@ -7,6 +7,7 @@ source_set("Parser") {
     "HTMLParser.cpp",
     "HTMLToken.cpp",
     "HTMLTokenizer.cpp",
+    "HTMLTokenizerHelpers.cpp",
     "ListOfActiveFormattingElements.cpp",
     "StackOfOpenElements.cpp",
   ]

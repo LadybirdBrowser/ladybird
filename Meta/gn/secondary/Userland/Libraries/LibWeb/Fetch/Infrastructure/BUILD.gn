@@ -9,6 +9,7 @@ source_set("Infrastructure") {
     "FetchAlgorithms.cpp",
     "FetchController.cpp",
     "FetchParams.cpp",
+    "FetchRecord.cpp",
     "FetchTimingInfo.cpp",
     "HTTP.cpp",
     "IncrementalReadLoopReadRequest.cpp",

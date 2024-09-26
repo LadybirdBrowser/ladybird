@@ -3,6 +3,7 @@ source_set("NavigationTiming") {
   deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
   sources = [
     "EntryNames.cpp",
+    "PerformanceNavigation.cpp",
     "PerformanceTiming.cpp",
   ]
 }

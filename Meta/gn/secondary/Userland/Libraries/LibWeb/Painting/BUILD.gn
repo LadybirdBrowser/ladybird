@@ -1,21 +1,25 @@
 source_set("Painting") {
   configs += [ "//Userland/Libraries/LibWeb:configs" ]
-  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
-  include_dirs = [
-    "//Userland/",  # For LibGfx needing LibGUI needing WindowServer types
+  deps = [
+    "//Meta/gn/build/libs/skia",
+    "//Meta/gn/build/libs/vulkan",
+    "//Userland/Libraries/LibWeb:all_generated",
   ]
   sources = [
     "AudioPaintable.cpp",
     "BackgroundPainting.cpp",
+    "BackingStore.cpp",
     "BorderPainting.cpp",
     "BorderRadiiData.cpp",
     "BorderRadiusCornerClipper.cpp",
     "BordersData.cpp",
     "CanvasPaintable.cpp",
     "CheckBoxPaintable.cpp",
+    "ClipFrame.cpp",
     "ClippableAndScrollable.cpp",
     "Command.cpp",
     "DisplayList.cpp",
+    "DisplayListPlayerSkia.cpp",
     "DisplayListRecorder.cpp",
     "GradientPainting.cpp",
     "ImagePaintable.cpp",
@@ -25,6 +29,7 @@ source_set("Painting") {
     "MediaPaintable.cpp",
     "NestedBrowsingContextPaintable.cpp",
     "PaintContext.cpp",
+    "PaintStyle.cpp",
     "Paintable.cpp",
     "PaintableBox.cpp",
     "PaintableFragment.cpp",
