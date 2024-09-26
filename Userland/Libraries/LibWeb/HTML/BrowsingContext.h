@@ -168,7 +168,7 @@ private:
     JS::GCPtr<BrowsingContext> m_previous_sibling;
 };
 
-HTML::Origin determine_the_origin(URL::URL const& url, SandboxingFlagSet sandbox_flags, Optional<HTML::Origin> source_origin);
+HTML::Origin determine_the_origin(Optional<URL::URL> const&, SandboxingFlagSet, Optional<HTML::Origin> source_origin);
 
 SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, JS::GCPtr<DOM::Element> embedder);
 

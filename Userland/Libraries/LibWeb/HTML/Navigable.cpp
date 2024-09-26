@@ -609,7 +609,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation
     response->set_body(TRY(Fetch::Infrastructure::byte_sequence_as_body(realm, document_resource.get<String>().bytes())));
 
     // 3. Let responseOrigin be the result of determining the origin given response's URL, targetSnapshotParams's sandboxing flags, and entry's document state's origin.
-    auto response_origin = determine_the_origin(*response->url(), target_snapshot_params.sandboxing_flags, entry->document_state()->origin());
+    auto response_origin = determine_the_origin(response->url(), target_snapshot_params.sandboxing_flags, entry->document_state()->origin());
 
     // 4. Let coop be a new opener policy.
     OpenerPolicy coop = {};
@@ -880,7 +880,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         // FIXME 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
 
         // 11. Set responseOrigin to the result of determining the origin given response's URL, finalSandboxFlags, and entry's document state's initiator origin.
-        response_origin = determine_the_origin(*response_holder->response()->url(), final_sandbox_flags, entry->document_state()->initiator_origin());
+        response_origin = determine_the_origin(response_holder->response()->url(), final_sandbox_flags, entry->document_state()->initiator_origin());
 
         // 12. If navigable is a top-level traversable, then:
         if (navigable->is_top_level_traversable()) {
