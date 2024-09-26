@@ -694,6 +694,11 @@ void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rul
 
     indent(builder, indent_levels + 1);
     builder.appendff("display: {}\n", CSS::to_string(font_face.font_display()));
+
+    if (font_face.font_named_instance().has_value()) {
+        indent(builder, indent_levels + 1);
+        builder.appendff("named-instance: {}\n", font_face.font_named_instance().value());
+    }
 }
 
 void dump_import_rule(StringBuilder& builder, CSS::CSSImportRule const& rule, int indent_levels)
