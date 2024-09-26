@@ -3,7 +3,7 @@
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -46,6 +46,7 @@
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
+#include <LibWeb/WebDriver/Properties.h>
 #include <LibWeb/WebDriver/Screenshot.h>
 #include <WebContent/WebDriverConnection.h>
 
@@ -113,43 +114,6 @@ static ErrorOr<void> scroll_element_into_view(Web::DOM::Element& element)
     TRY(element.scroll_into_view(options));
 
     return {};
-}
-
-template<typename PropertyType = ByteString>
-static ErrorOr<PropertyType, Web::WebDriver::Error> get_property(JsonValue const& payload, StringView key)
-{
-    if (!payload.is_object())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object");
-
-    auto property = payload.as_object().get(key);
-
-    if (!property.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("No property called '{}' present", key));
-
-    if constexpr (IsSame<PropertyType, ByteString>) {
-        if (!property->is_string())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a String", key));
-        return property->as_string();
-    } else if constexpr (IsSame<PropertyType, bool>) {
-        if (!property->is_bool())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a Boolean", key));
-        return property->as_bool();
-    } else if constexpr (IsSame<PropertyType, u32>) {
-        if (auto maybe_u32 = property->get_u32(); maybe_u32.has_value())
-            return *maybe_u32;
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a Number", key));
-    } else if constexpr (IsSame<PropertyType, JsonArray const*>) {
-        if (!property->is_array())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not an Array", key));
-        return &property->as_array();
-    } else if constexpr (IsSame<PropertyType, JsonObject const*>) {
-        if (!property->is_object())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not an Object", key));
-        return &property->as_object();
-    } else {
-        static_assert(DependentFalse<PropertyType>, "get_property invoked with unknown property type");
-        VERIFY_NOT_REACHED();
-    }
 }
 
 // https://w3c.github.io/webdriver/#dfn-container
@@ -800,7 +764,7 @@ Messages::WebDriverClient::ConsumeUserActivationResponse WebDriverConnection::co
 Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element(JsonValue const& payload)
 {
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
@@ -809,7 +773,7 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -842,7 +806,7 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
 Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elements(JsonValue const& payload)
 {
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
@@ -851,7 +815,7 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -878,7 +842,7 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
 Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::find_element_from_element(JsonValue const& payload, String const& element_id)
 {
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
@@ -887,7 +851,7 @@ Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::f
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -914,7 +878,7 @@ Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::f
 Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::find_elements_from_element(JsonValue const& payload, String const& element_id)
 {
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
@@ -923,7 +887,7 @@ Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -944,7 +908,7 @@ Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::
 Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection::find_element_from_shadow_root(JsonValue const& payload, String const& shadow_id)
 {
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
@@ -953,7 +917,7 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -980,7 +944,7 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
 Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnection::find_elements_from_shadow_root(JsonValue const& payload, String const& shadow_id)
 {
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
@@ -989,7 +953,7 @@ Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnectio
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
     // 5. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
@@ -1819,7 +1783,7 @@ Messages::WebDriverClient::GetNamedCookieResponse WebDriverConnection::get_named
 Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(JsonValue const& payload)
 {
     // 1. Let data be the result of getting a property named cookie from the parameters argument.
-    auto const& data = *TRY(get_property<JsonObject const*>(payload, "cookie"sv));
+    auto const& data = *TRY(Web::WebDriver::get_property<JsonObject const*>(payload, "cookie"sv));
 
     // 2. If data is not a JSON Object with all the required (non-optional) JSON keys listed in the table for cookie conversion, return error with error code invalid argument.
     // NOTE: This validation is performed in subsequent steps.
@@ -1837,13 +1801,13 @@ Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(Jso
 
     // 7. Create a cookie in the cookie store associated with the active document’s address using cookie name name, cookie value value, and an attribute-value list of the following cookie concepts listed in the table for cookie conversion from data:
     Web::Cookie::ParsedCookie cookie {};
-    cookie.name = MUST(String::from_byte_string(TRY(get_property(data, "name"sv))));
-    cookie.value = MUST(String::from_byte_string(TRY(get_property(data, "value"sv))));
+    cookie.name = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "name"sv))));
+    cookie.value = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "value"sv))));
 
     // Cookie path
     //     The value if the entry exists, otherwise "/".
     if (data.has("path"sv))
-        cookie.path = MUST(String::from_byte_string(TRY(get_property(data, "path"sv))));
+        cookie.path = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "path"sv))));
     else
         cookie.path = "/"_string;
 
@@ -1851,30 +1815,30 @@ Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(Jso
     //     The value if the entry exists, otherwise the current browsing context’s active document’s URL domain.
     // NOTE: The otherwise case is handled by the CookieJar
     if (data.has("domain"sv))
-        cookie.domain = MUST(String::from_byte_string(TRY(get_property(data, "domain"sv))));
+        cookie.domain = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "domain"sv))));
 
     // Cookie secure only
     //     The value if the entry exists, otherwise false.
     if (data.has("secure"sv))
-        cookie.secure_attribute_present = TRY(get_property<bool>(data, "secure"sv));
+        cookie.secure_attribute_present = TRY(Web::WebDriver::get_property<bool>(data, "secure"sv));
 
     // Cookie HTTP only
     //     The value if the entry exists, otherwise false.
     if (data.has("httpOnly"sv))
-        cookie.http_only_attribute_present = TRY(get_property<bool>(data, "httpOnly"sv));
+        cookie.http_only_attribute_present = TRY(Web::WebDriver::get_property<bool>(data, "httpOnly"sv));
 
     // Cookie expiry time
     //     The value if the entry exists, otherwise leave unset to indicate that this is a session cookie.
     if (data.has("expiry"sv)) {
         // NOTE: less than 0 or greater than safe integer are handled by the JSON parser
-        auto expiry = TRY(get_property<u32>(data, "expiry"sv));
+        auto expiry = TRY(Web::WebDriver::get_property<u32>(data, "expiry"sv));
         cookie.expiry_time_from_expires_attribute = UnixDateTime::from_seconds_since_epoch(expiry);
     }
 
     // Cookie same site
     //     The value if the entry exists, otherwise leave unset to indicate that no same site policy is defined.
     if (data.has("sameSite"sv)) {
-        auto same_site = TRY(get_property(data, "sameSite"sv));
+        auto same_site = TRY(Web::WebDriver::get_property(data, "sameSite"sv));
         cookie.same_site_attribute = Web::Cookie::same_site_from_string(same_site);
     }
 
@@ -2012,7 +1976,7 @@ Messages::WebDriverClient::SendAlertTextResponse WebDriverConnection::send_alert
 {
     // 1. Let text be the result of getting the property "text" from parameters.
     // 2. If text is not a String, return error with error code invalid argument.
-    auto text = TRY(get_property(payload, "text"sv));
+    auto text = TRY(Web::WebDriver::get_property(payload, "text"sv));
 
     // 3. If the current top-level browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_top_level_browsing_context_is_open());
@@ -2356,11 +2320,11 @@ ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverCo
 
     // 1. Let script be the result of getting a property named script from the parameters.
     // 2. If script is not a String, return error with error code invalid argument.
-    auto script = TRY(get_property(payload, "script"sv));
+    auto script = TRY(Web::WebDriver::get_property(payload, "script"sv));
 
     // 3. Let args be the result of getting a property named args from the parameters.
     // 4. If args is not an Array return error with error code invalid argument.
-    auto const& args = *TRY(get_property<JsonArray const*>(payload, "args"sv));
+    auto const& args = *TRY(Web::WebDriver::get_property<JsonArray const*>(payload, "args"sv));
 
     // 5. Let arguments be the result of calling the JSON deserialize algorithm with arguments args.
     auto arguments = JS::MarkedVector<JS::Value> { vm.heap() };
