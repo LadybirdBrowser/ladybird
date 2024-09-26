@@ -271,19 +271,10 @@ ErrorOr<JsonValue> JsonParser::parse_number()
 
     StringView number_string(number_buffer.data(), number_buffer.size());
 
-    auto to_unsigned_result = number_string.to_number<u64>();
-    if (to_unsigned_result.has_value()) {
-        if (*to_unsigned_result <= NumericLimits<u32>::max())
-            return JsonValue((u32)*to_unsigned_result);
-
-        return JsonValue(*to_unsigned_result);
-    } else if (auto signed_number = number_string.to_number<i64>(); signed_number.has_value()) {
-
-        if (*signed_number <= NumericLimits<i32>::max())
-            return JsonValue((i32)*signed_number);
-
-        return JsonValue(*signed_number);
-    }
+    if (auto number = number_string.to_number<u64>(); number.has_value())
+        return JsonValue(*number);
+    if (auto number = number_string.to_number<i64>(); number.has_value())
+        return JsonValue(*number);
 
     // It's possible the unsigned value is bigger than u64 max
     return fallback_to_double_parse();
