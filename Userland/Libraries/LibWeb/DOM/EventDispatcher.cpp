@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
@@ -91,8 +92,10 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<JS::Handle<DOM::DOMEvent
 
         // If this throws an exception, then:
         if (result.is_error()) {
-            // 1. Report the exception.
-            HTML::report_exception(result, realm);
+            // 1. Report exception for listener’s callback’s corresponding JavaScript object’s associated realm’s global object.
+            auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&global);
+            VERIFY(window_or_worker);
+            window_or_worker->report_an_exception(*result.release_error().value());
 
             // FIXME: 2. Set legacyOutputDidListenersThrowFlag if given. (Only used by IndexedDB currently)
         }

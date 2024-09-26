@@ -77,6 +77,7 @@ public:
     JS::NonnullGCPtr<IndexedDB::IDBFactory> indexed_db();
 
     void report_error(JS::Value e);
+    void report_an_exception(JS::Value const& e);
 
     [[nodiscard]] JS::NonnullGCPtr<Crypto::Crypto> crypto();
 

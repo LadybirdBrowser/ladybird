@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
@@ -126,8 +127,10 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, JS::GCPtr<JS::En
         // 3. Otherwise, rethrow errors is false. Perform the following steps:
         VERIFY(rethrow_errors == RethrowErrors::No);
 
-        // 1. Report the exception given by evaluationStatus.[[Value]] for script.
-        report_exception(evaluation_status, settings_object().realm());
+        // 1. Report an exception given by evaluationStatus.[[Value]] for script's settings object's global object.
+        auto* window_or_worker = dynamic_cast<WindowOrWorkerGlobalScopeMixin*>(&settings.global_object());
+        VERIFY(window_or_worker);
+        window_or_worker->report_an_exception(*evaluation_status.value());
 
         // 2. Clean up after running script with settings.
         settings.clean_up_after_running_script();
