@@ -3,6 +3,7 @@ source_set("StorageAPI") {
   deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
   sources = [
     "NavigatorStorage.cpp",
+    "StorageKey.cpp",
     "StorageManager.cpp",
   ]
 }

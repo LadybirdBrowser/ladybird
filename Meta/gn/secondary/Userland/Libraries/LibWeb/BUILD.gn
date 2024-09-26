@@ -277,6 +277,7 @@ source_set("all_generated") {
 config("configs") {
   include_dirs = [
     "//Userland/Libraries",
+    "//Userland/Services",  # FIXME: BackingStoreManager lives in WebContent
     "$target_gen_dir/..",
   ]
   configs = [ "//AK:ak_headers" ]
@@ -303,6 +304,7 @@ shared_library("LibWeb") {
            "DOMParsing",
            "DOMURL",
            "Encoding",
+           "EntriesAPI",
            "Fetch",
            "FileAPI",
            "Geometry",
@@ -315,6 +317,7 @@ shared_library("LibWeb") {
            "Layout",
            "Loader",
            "MathML",
+           "MediaCapabilitiesAPI",
            "MimeSniff",
            "MixedContent",
            "NavigationTiming",
@@ -330,6 +333,7 @@ shared_library("LibWeb") {
            "SVG",
            "SecureContexts",
            "Selection",
+           "StorageAPI",
            "Streams",
            "UIEvents",
            "UserTiming",
@@ -339,11 +343,14 @@ shared_library("LibWeb") {
            "WebGL",
            "WebIDL",
            "WebSockets",
+           "WebVTT",
            "Worker",
            "XHR",
            "XLink",
            "XML",
            "//AK",
+           "//Meta/gn/build/libs/skia",
+           "//Meta/gn/build/libs/vulkan",
            "//Userland/Libraries/LibCore",
            "//Userland/Libraries/LibCrypto",
            "//Userland/Libraries/LibGfx",

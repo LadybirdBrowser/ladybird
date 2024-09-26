@@ -1,9 +1,8 @@
-source_set("Infra") {
+source_set("WebVTT") {
   configs += [ "//Userland/Libraries/LibWeb:configs" ]
   deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
   sources = [
-    "ByteSequences.cpp",
-    "JSON.cpp",
-    "Strings.cpp",
+    "VTTCue.cpp",
+    "VTTRegion.cpp",
   ]
 }

@@ -4,6 +4,7 @@ source_set("SVG") {
   sources = [
     "AttributeNames.cpp",
     "AttributeParser.cpp",
+    "SVGAElement.cpp",
     "SVGAnimatedLength.cpp",
     "SVGAnimatedNumber.cpp",
     "SVGAnimatedRect.cpp",
@@ -21,6 +22,7 @@ source_set("SVG") {
     "SVGGeometryElement.cpp",
     "SVGGradientElement.cpp",
     "SVGGraphicsElement.cpp",
+    "SVGImageElement.cpp",
     "SVGLength.cpp",
     "SVGLineElement.cpp",
     "SVGLinearGradientElement.cpp",

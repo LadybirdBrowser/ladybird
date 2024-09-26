@@ -6,6 +6,7 @@ source_set("WebDriver") {
     "Client.cpp",
     "Contexts.cpp",
     "ElementLocationStrategies.cpp",
+    "ElementReference.cpp",
     "Error.cpp",
     "ExecuteScript.cpp",
     "Response.cpp",
