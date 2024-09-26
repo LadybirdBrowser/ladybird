@@ -293,13 +293,13 @@ ErrorOr<void, Client::WrappedError> Client::send_success_response(JsonValue resu
     auto content = result.serialized<StringBuilder>();
 
     StringBuilder builder;
-    builder.append("HTTP/1.0 200 OK\r\n"sv);
+    builder.append("HTTP/1.1 200 OK\r\n"sv);
     builder.append("Server: WebDriver (SerenityOS)\r\n"sv);
     builder.append("X-Frame-Options: SAMEORIGIN\r\n"sv);
     builder.append("X-Content-Type-Options: nosniff\r\n"sv);
-    builder.append("Pragma: no-cache\r\n"sv);
     if (keep_alive)
         builder.append("Connection: keep-alive\r\n"sv);
+    builder.append("Cache-Control: no-cache\r\n"sv);
     builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
     builder.appendff("Content-Length: {}\r\n", content.length());
     builder.append("\r\n"sv);
@@ -334,8 +334,9 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(Error const& err
     result.serialize(content_builder);
 
     StringBuilder header_builder;
-    header_builder.appendff("HTTP/1.0 {} {}\r\n", error.http_status, reason);
-    header_builder.append("Content-Type: application/json; charset=UTF-8\r\n"sv);
+    header_builder.appendff("HTTP/1.1 {} {}\r\n", error.http_status, reason);
+    header_builder.append("Cache-Control: no-cache\r\n"sv);
+    header_builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
     header_builder.appendff("Content-Length: {}\r\n", content_builder.length());
     header_builder.append("\r\n"sv);
 
