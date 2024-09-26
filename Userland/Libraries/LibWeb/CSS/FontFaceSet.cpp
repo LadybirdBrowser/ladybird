@@ -61,14 +61,41 @@ void FontFaceSet::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_set_entries);
     visitor.visit(m_ready_promise);
+    visitor.visit(m_loading_fonts);
+    visitor.visit(m_loaded_fonts);
+    visitor.visit(m_failed_fonts);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-add
-JS::NonnullGCPtr<FontFaceSet> FontFaceSet::add(JS::Handle<FontFace> face)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<FontFaceSet>>
+FontFaceSet::add(JS::Handle<FontFace> face)
 {
-    // FIXME: Do the actual spec steps
+    // 1. If font is already in the FontFaceSet’s set entries, skip to the last step of this algorithm immediately.
+    if (m_set_entries->set_has(face))
+        return JS::NonnullGCPtr<FontFaceSet>(*this);
+
+    // 2. If font is CSS-connected, throw an InvalidModificationError exception and exit this algorithm immediately.
+    if (face->is_css_connected()) {
+        return WebIDL::InvalidModificationError::create(realm(), "Cannot add a CSS-connected FontFace to a FontFaceSet"_fly_string);
+    }
+
+    // 3. Add the font argument to the FontFaceSet’s set entries.
     m_set_entries->set_add(face);
-    return *this;
+
+    // 4. If font’s status attribute is "loading"
+    if (face->status() == Bindings::FontFaceLoadStatus::Loading) {
+
+        // 1. If the FontFaceSet’s [[LoadingFonts]] list is empty, switch the FontFaceSet to loading.
+        if (m_loading_fonts.is_empty()) {
+            m_status = Bindings::FontFaceSetLoadStatus::Loading;
+        }
+
+        // 2. Append font to the FontFaceSet’s [[LoadingFonts]] list.
+        m_loading_fonts.append(*face);
+    }
+
+    // 5. Return the FontFaceSet.
+    return JS::NonnullGCPtr<FontFaceSet>(*this);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-delete
