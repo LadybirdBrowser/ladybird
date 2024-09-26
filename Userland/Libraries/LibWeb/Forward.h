@@ -786,6 +786,11 @@ class ExceptionOr;
 using Promise = JS::PromiseCapability;
 }
 
+namespace Web::WebDriver {
+struct ActionObject;
+struct InputState;
+};
+
 namespace Web::WebSockets {
 class WebSocket;
 }
