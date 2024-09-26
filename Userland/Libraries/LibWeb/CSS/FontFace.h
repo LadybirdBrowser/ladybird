@@ -70,6 +70,8 @@ public:
     String line_gap_override() const { return m_line_gap_override; }
     WebIDL::ExceptionOr<void> set_line_gap_override(String const&);
 
+    bool is_css_connected() const { return m_is_css_connected; }
+
     Bindings::FontFaceLoadStatus status() const { return m_status; }
 
     JS::NonnullGCPtr<JS::Promise> load();

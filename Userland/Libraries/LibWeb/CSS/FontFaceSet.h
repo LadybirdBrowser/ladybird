@@ -27,7 +27,7 @@ public:
 
     JS::NonnullGCPtr<JS::Set> set_entries() const { return m_set_entries; }
 
-    JS::NonnullGCPtr<FontFaceSet> add(JS::Handle<FontFace>);
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<FontFaceSet>> add(JS::Handle<FontFace>);
     bool delete_(JS::Handle<FontFace>);
     void clear();
 
@@ -51,6 +51,10 @@ private:
 
     JS::NonnullGCPtr<JS::Set> m_set_entries;
     JS::GCPtr<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
+
+    Vector<JS::NonnullGCPtr<FontFace>> m_loading_fonts {}; // [[LoadingFonts]]
+    Vector<JS::NonnullGCPtr<FontFace>> m_loaded_fonts {};  // [[LoadedFonts]]
+    Vector<JS::NonnullGCPtr<FontFace>> m_failed_fonts {};  // [[FailedFonts]]
 
     Bindings::FontFaceSetLoadStatus m_status { Bindings::FontFaceSetLoadStatus::Loading };
 };
