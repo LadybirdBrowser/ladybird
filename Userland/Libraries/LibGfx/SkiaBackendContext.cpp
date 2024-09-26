@@ -109,7 +109,7 @@ private:
     sk_sp<GrDirectContext> m_context;
 };
 
-RefPtr<SkiaBackendContext> SkiaBackendContext::create_metal_context(Core::MetalContext const& metal_context)
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_metal_context(Gfx::MetalContext const& metal_context)
 {
     GrMtlBackendContext backend_context;
     backend_context.fDevice.retain((GrMTLHandle)metal_context.device());

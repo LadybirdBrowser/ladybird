@@ -5,11 +5,11 @@
  */
 
 #include <AK/OwnPtr.h>
-#include <LibCore/MetalContext.h>
+#include <LibGfx/MetalContext.h>
 
 #import <Metal/Metal.h>
 
-namespace Core {
+namespace Gfx {
 
 class MetalTextureImpl final : public MetalTexture {
 public:
@@ -42,7 +42,7 @@ public:
     void const* device() const override { return m_device; }
     void const* queue() const override { return m_queue; }
 
-    OwnPtr<MetalTexture> create_texture_from_iosurface(IOSurfaceHandle const& iosurface) override
+    OwnPtr<MetalTexture> create_texture_from_iosurface(Core::IOSurfaceHandle const& iosurface) override
     {
         auto* const descriptor = [[MTLTextureDescriptor alloc] init];
         descriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;

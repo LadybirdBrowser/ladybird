@@ -31,7 +31,7 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
 #ifdef AK_OS_MACOS
     auto display_list_player_type = page->client().display_list_player_type();
     if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-        m_metal_context = Core::get_metal_context();
+        m_metal_context = Gfx::get_metal_context();
         m_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*m_metal_context);
     }
 #endif
