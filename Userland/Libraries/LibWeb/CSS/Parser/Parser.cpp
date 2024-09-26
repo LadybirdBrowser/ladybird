@@ -5455,6 +5455,41 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
     Vector<Gfx::UnicodeRange> unicode_range;
     Optional<int> weight;
     Optional<int> slope;
+    Optional<Percentage> ascent_override;
+    Optional<Percentage> descent_override;
+    Optional<Percentage> line_gap_override;
+
+    // "normal" is returned as nullptr
+    auto parse_as_percentage_or_normal = [&](Vector<ComponentValue> const& values) -> ErrorOr<Optional<Percentage>> {
+        // normal | <percentage [0,∞]>
+        TokenStream tokens { values };
+        if (auto percentage_value = parse_percentage_value(tokens)) {
+            tokens.skip_whitespace();
+            if (tokens.has_next_token())
+                return Error::from_string_literal("Unexpected trailing tokens");
+
+            if (percentage_value->is_percentage() && percentage_value->as_percentage().percentage().value() >= 0)
+                return percentage_value->as_percentage().percentage();
+
+            // TODO: Once we implement calc-simplification in the parser, we should no longer see math values here,
+            //       unless they're impossible to resolve and thus invalid.
+            if (percentage_value->is_math()) {
+                if (auto result = percentage_value->as_math().resolve_percentage(); result.has_value())
+                    return result.value();
+            }
+
+            return Error::from_string_literal("Invalid percentage");
+        }
+
+        tokens.skip_whitespace();
+        if (!tokens.next_token().is_ident("normal"sv))
+            return Error::from_string_literal("Expected `normal | <percentage [0,∞]>`");
+        tokens.skip_whitespace();
+        if (tokens.has_next_token())
+            return Error::from_string_literal("Unexpected trailing tokens");
+
+        return OptionalNone {};
+    };
 
     for (auto& declaration_or_at_rule : declarations_and_at_rules) {
         if (declaration_or_at_rule.is_at_rule()) {
@@ -5463,17 +5498,21 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
         }
 
         auto const& declaration = declaration_or_at_rule.declaration();
-        if (declaration.name().equals_ignoring_ascii_case("font-weight"sv)) {
-            TokenStream token_stream { declaration.values() };
-            if (auto value = parse_css_value(CSS::PropertyID::FontWeight, token_stream); !value.is_error()) {
-                weight = value.value()->to_font_weight();
+        if (declaration.name().equals_ignoring_ascii_case("ascent-override"sv)) {
+            auto value = parse_as_percentage_or_normal(declaration.values());
+            if (value.is_error()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse @font-face ascent-override: {}", value.error());
+            } else {
+                ascent_override = value.release_value();
             }
             continue;
         }
-        if (declaration.name().equals_ignoring_ascii_case("font-style"sv)) {
-            TokenStream token_stream { declaration.values() };
-            if (auto value = parse_css_value(CSS::PropertyID::FontStyle, token_stream); !value.is_error()) {
-                slope = value.value()->to_font_slope();
+        if (declaration.name().equals_ignoring_ascii_case("descent-override"sv)) {
+            auto value = parse_as_percentage_or_normal(declaration.values());
+            if (value.is_error()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse @font-face descent-override: {}", value.error());
+            } else {
+                descent_override = value.release_value();
             }
             continue;
         }
@@ -5521,6 +5560,29 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
             font_family = String::join(' ', font_family_parts).release_value_but_fixme_should_propagate_errors();
             continue;
         }
+        if (declaration.name().equals_ignoring_ascii_case("font-style"sv)) {
+            TokenStream token_stream { declaration.values() };
+            if (auto value = parse_css_value(CSS::PropertyID::FontStyle, token_stream); !value.is_error()) {
+                slope = value.value()->to_font_slope();
+            }
+            continue;
+        }
+        if (declaration.name().equals_ignoring_ascii_case("font-weight"sv)) {
+            TokenStream token_stream { declaration.values() };
+            if (auto value = parse_css_value(CSS::PropertyID::FontWeight, token_stream); !value.is_error()) {
+                weight = value.value()->to_font_weight();
+            }
+            continue;
+        }
+        if (declaration.name().equals_ignoring_ascii_case("line-gap-override"sv)) {
+            auto value = parse_as_percentage_or_normal(declaration.values());
+            if (value.is_error()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse @font-face line-gap-override: {}", value.error());
+            } else {
+                line_gap_override = value.release_value();
+            }
+            continue;
+        }
         if (declaration.name().equals_ignoring_ascii_case("src"sv)) {
             TokenStream token_stream { declaration.values() };
             Vector<ParsedFontFace::Source> supported_sources = parse_font_face_src(token_stream);
@@ -5550,7 +5612,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
         unicode_range.empend(0x0u, 0x10FFFFu);
     }
 
-    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), weight, slope, move(src), move(unicode_range) });
+    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), weight, slope, move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override) });
 }
 
 Vector<ParsedFontFace::Source> Parser::parse_as_font_face_src()
