@@ -20,7 +20,7 @@
 #endif
 
 #ifdef USE_VULKAN
-#    include <LibCore/VulkanContext.h>
+#    include <LibGfx/VulkanContext.h>
 #endif
 
 namespace Web::HTML {

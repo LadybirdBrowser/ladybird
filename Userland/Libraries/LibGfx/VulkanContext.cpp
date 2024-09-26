@@ -6,9 +6,9 @@
 
 #include <AK/Format.h>
 #include <AK/Vector.h>
-#include <LibCore/VulkanContext.h>
+#include <LibGfx/VulkanContext.h>
 
-namespace Core {
+namespace Gfx {
 
 static ErrorOr<VkInstance> create_instance(uint32_t api_version)
 {
