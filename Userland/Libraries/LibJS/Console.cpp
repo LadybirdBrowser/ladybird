@@ -818,7 +818,7 @@ ThrowCompletionOr<MarkedVector<Value>> ConsoleClient::formatter(MarkedVector<Val
     auto find_specifier = [](StringView target) -> Optional<StringView> {
         size_t start_index = 0;
         while (start_index < target.length()) {
-            auto maybe_index = target.find('%');
+            auto maybe_index = target.find('%', start_index);
             if (!maybe_index.has_value())
                 return {};
 
