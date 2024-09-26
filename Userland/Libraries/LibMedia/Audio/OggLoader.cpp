@@ -9,6 +9,10 @@
 #include <AK/ScopeGuard.h>
 #include <LibCore/System.h>
 
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(59, 24, 100)
+#    define USE_FFMPEG_CH_LAYOUT
+#endif
+
 namespace Audio {
 
 OggLoaderPlugin::OggLoaderPlugin(NonnullOwnPtr<SeekableStream> stream)
