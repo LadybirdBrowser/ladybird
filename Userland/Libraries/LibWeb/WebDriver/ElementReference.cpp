@@ -40,9 +40,13 @@ JsonObject web_element_reference_object(Web::DOM::Node const& element)
 
     // 3. Return a JSON Object initialized with a property with name identifier and value reference.
     JsonObject object;
-    object.set("name"sv, identifier);
-    object.set("value"sv, reference);
+    object.set(identifier, reference);
     return object;
+}
+
+ByteString extract_web_element_reference(JsonObject const& object)
+{
+    return object.get_byte_string(web_element_identifier).release_value();
 }
 
 // https://w3c.github.io/webdriver/#dfn-represents-a-web-element
@@ -51,12 +55,7 @@ bool represents_a_web_element(JsonValue const& value)
     // An ECMAScript Object represents a web element if it has a web element identifier own property.
     if (!value.is_object())
         return false;
-
-    auto const& object = value.as_object();
-    if (!object.has_string("name"sv) || !object.has_string("value"sv))
-        return false;
-
-    return object.get_byte_string("name"sv) == web_element_identifier;
+    return value.as_object().has_string(web_element_identifier);
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-known-connected-element
@@ -105,8 +104,7 @@ JsonObject shadow_root_reference_object(Web::DOM::ShadowRoot const& shadow_root)
 
     // 3. Return a JSON Object initialized with a property with name identifier and value reference.
     JsonObject object;
-    object.set("name"sv, identifier);
-    object.set("value"sv, reference);
+    object.set(identifier, reference);
     return object;
 }
 
