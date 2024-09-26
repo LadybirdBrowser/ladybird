@@ -691,6 +691,9 @@ void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rul
         indent(builder, indent_levels + 1);
         builder.appendff("line-gap-override: {}\n", font_face.line_gap_override().value());
     }
+
+    indent(builder, indent_levels + 1);
+    builder.appendff("display: {}\n", CSS::to_string(font_face.font_display()));
 }
 
 void dump_import_rule(StringBuilder& builder, CSS::CSSImportRule const& rule, int indent_levels)

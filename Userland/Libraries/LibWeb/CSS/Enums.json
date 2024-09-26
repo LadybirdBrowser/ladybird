@@ -212,6 +212,13 @@
     "inline-start",
     "inline-end"
   ],
+  "font-display": [
+    "auto",
+    "block",
+    "swap",
+    "fallback",
+    "optional"
+  ],
   "font-variant": [
     "normal",
     "small-caps"

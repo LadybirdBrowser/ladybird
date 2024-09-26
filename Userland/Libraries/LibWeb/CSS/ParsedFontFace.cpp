@@ -9,7 +9,7 @@
 
 namespace Web::CSS {
 
-ParsedFontFace::ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override)
+ParsedFontFace::ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display)
     : m_font_family(move(font_family))
     , m_weight(weight)
     , m_slope(slope)
@@ -18,6 +18,7 @@ ParsedFontFace::ParsedFontFace(FlyString font_family, Optional<int> weight, Opti
     , m_ascent_override(move(ascent_override))
     , m_descent_override(move(descent_override))
     , m_line_gap_override(move(line_gap_override))
+    , m_font_display(font_display)
 {
 }
 

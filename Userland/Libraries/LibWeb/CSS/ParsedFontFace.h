@@ -10,6 +10,7 @@
 #include <AK/FlyString.h>
 #include <LibGfx/Font/UnicodeRange.h>
 #include <LibURL/URL.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Percentage.h>
 
 namespace Web::CSS {
@@ -22,11 +23,12 @@ public:
         Optional<FlyString> format;
     };
 
-    ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override);
+    ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display);
     ~ParsedFontFace() = default;
 
     Optional<Percentage> ascent_override() const { return m_ascent_override; }
     Optional<Percentage> descent_override() const { return m_descent_override; }
+    FontDisplay font_display() const { return m_font_display; }
     FlyString font_family() const { return m_font_family; }
     Optional<int> slope() const { return m_slope; }
     Optional<int> weight() const { return m_weight; }
@@ -43,6 +45,7 @@ private:
     Optional<Percentage> m_ascent_override;
     Optional<Percentage> m_descent_override;
     Optional<Percentage> m_line_gap_override;
+    FontDisplay m_font_display;
 };
 
 }
