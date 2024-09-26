@@ -5458,6 +5458,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
     Optional<Percentage> ascent_override;
     Optional<Percentage> descent_override;
     Optional<Percentage> line_gap_override;
+    FontDisplay font_display = FontDisplay::Auto;
 
     // "normal" is returned as nullptr
     auto parse_as_percentage_or_normal = [&](Vector<ComponentValue> const& values) -> ErrorOr<Optional<Percentage>> {
@@ -5513,6 +5514,23 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
                 dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse @font-face descent-override: {}", value.error());
             } else {
                 descent_override = value.release_value();
+            }
+            continue;
+        }
+        if (declaration.name().equals_ignoring_ascii_case("font-display"sv)) {
+            TokenStream token_stream { declaration.values() };
+            if (auto keyword_value = parse_keyword_value(token_stream)) {
+                token_stream.skip_whitespace();
+                if (token_stream.has_next_token()) {
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Unexpected trailing tokens in font-display");
+                } else {
+                    auto value = keyword_to_font_display(keyword_value->to_keyword());
+                    if (value.has_value()) {
+                        font_display = *value;
+                    } else {
+                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: `{}` is not a valid value for font-display", keyword_value->to_string());
+                    }
+                }
             }
             continue;
         }
@@ -5612,7 +5630,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
         unicode_range.empend(0x0u, 0x10FFFFu);
     }
 
-    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), weight, slope, move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override) });
+    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), weight, slope, move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override), font_display });
 }
 
 Vector<ParsedFontFace::Source> Parser::parse_as_font_face_src()
