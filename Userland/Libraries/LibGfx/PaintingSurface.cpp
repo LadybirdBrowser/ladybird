@@ -72,7 +72,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
 }
 
 #ifdef AK_OS_MACOS
-NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_metal_surface(Core::MetalTexture& metal_texture, RefPtr<SkiaBackendContext> context)
+NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_metal_surface(Gfx::MetalTexture& metal_texture, RefPtr<SkiaBackendContext> context)
 {
     IntSize const size { metal_texture.width(), metal_texture.height() };
     auto image_info = SkImageInfo::Make(size.width(), size.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);

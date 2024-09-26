@@ -10,7 +10,7 @@
 #include <AK/RefCounted.h>
 
 #ifdef AK_OS_MACOS
-#    include <LibCore/MetalContext.h>
+#    include <LibGfx/MetalContext.h>
 #endif
 
 #ifdef USE_VULKAN
@@ -32,7 +32,7 @@ public:
 #endif
 
 #ifdef AK_OS_MACOS
-    static RefPtr<Gfx::SkiaBackendContext> create_metal_context(Core::MetalContext const&);
+    static RefPtr<Gfx::SkiaBackendContext> create_metal_context(Gfx::MetalContext const&);
 #endif
 
     SkiaBackendContext() {};

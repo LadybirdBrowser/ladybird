@@ -16,7 +16,7 @@
 #include <WebContent/BackingStoreManager.h>
 
 #ifdef AK_OS_MACOS
-#    include <LibCore/MetalContext.h>
+#    include <LibGfx/MetalContext.h>
 #endif
 
 #ifdef USE_VULKAN
@@ -147,7 +147,7 @@ private:
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
 
 #ifdef AK_OS_MACOS
-    OwnPtr<Core::MetalContext> m_metal_context;
+    OwnPtr<Gfx::MetalContext> m_metal_context;
 #endif
 };
 

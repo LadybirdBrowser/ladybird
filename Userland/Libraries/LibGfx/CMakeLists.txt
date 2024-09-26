@@ -70,6 +70,10 @@ set(SOURCES
     SkiaBackendContext.cpp
 )
 
+if (APPLE)
+    list(APPEND SOURCES MetalContext.mm)
+endif()
+
 serenity_lib(LibGfx gfx)
 
 target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibRIFF LibTextCodec LibIPC LibUnicode LibURL)
@@ -128,4 +132,8 @@ if (ENABLE_SWIFT)
     )
     target_link_libraries(LibGfx PRIVATE AK)
     add_swift_target_properties(LibGfx LAGOM_LIBRARIES AK)
+endif()
+
+if (APPLE)
+    target_link_libraries(LibCore PUBLIC "-framework Metal")
 endif()

@@ -14,7 +14,7 @@
 #include <LibGfx/SkiaBackendContext.h>
 
 #ifdef AK_OS_MACOS
-#    include <LibCore/MetalContext.h>
+#    include <LibGfx/MetalContext.h>
 #endif
 
 class SkCanvas;
@@ -28,7 +28,7 @@ public:
     static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&);
 
 #ifdef AK_OS_MACOS
-    static NonnullRefPtr<PaintingSurface> wrap_metal_surface(Core::MetalTexture&, RefPtr<SkiaBackendContext>);
+    static NonnullRefPtr<PaintingSurface> wrap_metal_surface(Gfx::MetalTexture&, RefPtr<SkiaBackendContext>);
 #endif
 
     RefPtr<Bitmap> create_snapshot() const;
