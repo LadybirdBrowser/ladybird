@@ -114,7 +114,6 @@ executable("ladybird_executable") {
   } else if (enable_appkit) {
     sources += [
       "AppKit/Application/Application.mm",
-      "AppKit/Application/ApplicationBridge.cpp",
       "AppKit/Application/ApplicationDelegate.mm",
       "AppKit/Application/EventLoopImplementation.mm",
       "AppKit/UI/Event.mm",
@@ -158,8 +157,10 @@ executable("ladybird_executable") {
       ":ladybird_copy_cacert",
       ":ladybird_copy_config_resources",
       ":ladybird_copy_fonts",
+      ":ladybird_copy_icons_128x128",
       ":ladybird_copy_icons_16x16",
       ":ladybird_copy_icons_32x32",
+      ":ladybird_copy_icons_48x48",
       ":ladybird_copy_icons_browser",
       ":ladybird_copy_themes",
       ":ladybird_copy_web_resources",
@@ -397,7 +398,6 @@ if (current_os != "mac") {
       "//Userland/Libraries/LibTextCodec",
       "//Userland/Libraries/LibThreading",
       "//Userland/Libraries/LibURL",
-      "//Userland/Libraries/LibVideo",
       "//Userland/Libraries/LibWasm",
       "//Userland/Libraries/LibWeb",
       "//Userland/Libraries/LibWebSocket",
@@ -450,6 +450,16 @@ if (current_os != "mac") {
   bundle_data("ladybird_icons_32x32") {
     sources = icons_32x32
     outputs = [ "{{bundle_resources_dir}}/icons/32x32/{{source_file_part}}" ]
+  }
+
+  bundle_data("ladybird_icons_48x48") {
+    sources = icons_48x48
+    outputs = [ "{{bundle_resources_dir}}/icons/48x48/{{source_file_part}}" ]
+  }
+
+  bundle_data("ladybird_icons_128x128") {
+    sources = icons_128x128
+    outputs = [ "{{bundle_resources_dir}}/icons/128x128/{{source_file_part}}" ]
   }
 
   bundle_data("ladybird_icons_browser") {
@@ -532,11 +542,12 @@ if (current_os != "mac") {
       ":ladybird_bundle_libs",
       ":ladybird_cacert",
       ":ladybird_config_resources",
-      ":ladybird_emoji",
       ":ladybird_fonts",
       ":ladybird_icon",
+      ":ladybird_icons_128x128",
       ":ladybird_icons_16x16",
       ":ladybird_icons_32x32",
+      ":ladybird_icons_48x48",
       ":ladybird_icons_browser",
       ":ladybird_themes",
       ":ladybird_web_resources",

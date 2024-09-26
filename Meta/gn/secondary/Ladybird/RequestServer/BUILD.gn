@@ -6,27 +6,21 @@ executable("RequestServer") {
   ]
   deps = [
     "//AK",
+    "//Meta/gn/build/libs/curl",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibCrypto",
     "//Userland/Libraries/LibFileSystem",
-    "//Userland/Libraries/LibHTTP",
     "//Userland/Libraries/LibIPC",
     "//Userland/Libraries/LibMain",
-    "//Userland/Libraries/LibRequests",
+    "//Userland/Libraries/LibRequests:RequestClientEndpoint",
+    "//Userland/Libraries/LibRequests:RequestServerEndpoint",
     "//Userland/Libraries/LibTLS",
     "//Userland/Libraries/LibThreading",
     "//Userland/Libraries/LibURL",
     "//Userland/Libraries/LibWebSocket",
   ]
   sources = [
-    "//Userland/Services/RequestServer/ConnectionCache.cpp",
     "//Userland/Services/RequestServer/ConnectionFromClient.cpp",
-    "//Userland/Services/RequestServer/HttpProtocol.cpp",
-    "//Userland/Services/RequestServer/HttpRequest.cpp",
-    "//Userland/Services/RequestServer/HttpsProtocol.cpp",
-    "//Userland/Services/RequestServer/HttpsRequest.cpp",
-    "//Userland/Services/RequestServer/Protocol.cpp",
-    "//Userland/Services/RequestServer/Request.cpp",
     "main.cpp",
   ]
   output_dir = "$root_out_dir/libexec"

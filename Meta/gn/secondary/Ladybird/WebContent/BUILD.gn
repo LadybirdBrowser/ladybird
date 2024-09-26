@@ -38,6 +38,7 @@ executable("WebContent") {
   ]
   deps = [
     "//AK",
+    "//Meta/gn/build/libs/fontconfig",
     "//Meta/gn/build/libs/pulse",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibFileSystem",
@@ -61,6 +62,7 @@ executable("WebContent") {
     "//Ladybird/HelperProcess.cpp",
     "//Ladybird/ImageCodecPlugin.cpp",
     "//Ladybird/Utilities.cpp",
+    "//Userland/Services/WebContent/BackingStoreManager.cpp",
     "//Userland/Services/WebContent/ConnectionFromClient.cpp",
     "//Userland/Services/WebContent/ConsoleGlobalEnvironmentExtensions.cpp",
     "//Userland/Services/WebContent/PageClient.cpp",
