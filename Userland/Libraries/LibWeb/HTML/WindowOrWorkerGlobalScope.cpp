@@ -747,6 +747,13 @@ JS::NonnullGCPtr<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_typ
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-reporterror
 void WindowOrWorkerGlobalScopeMixin::report_error(JS::Value e)
 {
+    // The reportError(e) method steps are to report an exception e for this.
+    report_an_exception(e);
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
+void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value const& e)
+{
     auto& target = static_cast<DOM::EventTarget&>(this_impl());
     auto& realm = relevant_realm(target);
     auto& vm = realm.vm();
