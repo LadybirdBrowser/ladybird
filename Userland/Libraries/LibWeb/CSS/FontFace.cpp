@@ -388,7 +388,7 @@ void FontFace::load_font_source()
             auto& style_computer = const_cast<StyleComputer&>(window.document()->style_computer());
 
             // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
-            ParsedFontFace parsed_font_face { font->m_family, font->m_weight.to_number<int>(), 0 /* FIXME: slope */, font->m_urls, font->m_unicode_ranges };
+            ParsedFontFace parsed_font_face { font->m_family, font->m_weight.to_number<int>(), 0 /* FIXME: slope */, font->m_urls, font->m_unicode_ranges, /* FIXME: ascent_override */ {}, /* FIXME: descent_override */ {}, /* FIXME: line_gap_override */ {} };
             if (auto loader = style_computer.load_font_face(parsed_font_face, move(on_load), move(on_error)); loader.has_value())
                 loader->start_loading_next_url();
         } else {
