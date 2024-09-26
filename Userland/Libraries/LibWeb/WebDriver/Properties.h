@@ -10,6 +10,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/WebDriver/Error.h>
 
 namespace Web::WebDriver {
@@ -22,6 +23,20 @@ static ErrorOr<PropertyType, WebDriver::Error> get_property(JsonObject const& pa
     if (!property.has_value())
         return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("No property called '{}' present", key));
 
+    auto is_safe_number = []<typename T>(T value) {
+        if constexpr (sizeof(T) >= 8) {
+            if (value > static_cast<T>(JS::MAX_ARRAY_LIKE_INDEX))
+                return false;
+
+            if constexpr (IsSigned<T>) {
+                if (value < -static_cast<T>(JS::MAX_ARRAY_LIKE_INDEX))
+                    return false;
+            }
+        }
+
+        return true;
+    };
+
     if constexpr (IsSame<PropertyType, ByteString>) {
         if (!property->is_string())
             return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a String", key));
@@ -31,11 +46,11 @@ static ErrorOr<PropertyType, WebDriver::Error> get_property(JsonObject const& pa
             return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a Boolean", key));
         return property->as_bool();
     } else if constexpr (IsIntegral<PropertyType>) {
-        if (auto maybe_number = property->get_integer<PropertyType>(); maybe_number.has_value())
+        if (auto maybe_number = property->get_integer<PropertyType>(); maybe_number.has_value() && is_safe_number(*maybe_number))
             return *maybe_number;
         return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not an Integer", key));
     } else if constexpr (IsSame<PropertyType, double>) {
-        if (auto maybe_number = property->get_double_with_precision_loss(); maybe_number.has_value())
+        if (auto maybe_number = property->get_double_with_precision_loss(); maybe_number.has_value() && is_safe_number(*maybe_number))
             return *maybe_number;
         return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a Number", key));
     } else if constexpr (IsSame<PropertyType, JsonArray const*>) {
