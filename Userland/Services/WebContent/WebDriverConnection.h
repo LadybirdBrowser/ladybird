@@ -128,7 +128,7 @@ private:
         ByteString script;
         JS::MarkedVector<JS::Value> arguments;
     };
-    static ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
+    ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
     void delete_cookies(Optional<StringView> const& name = {});
 
     // https://w3c.github.io/webdriver/#dfn-page-load-strategy
