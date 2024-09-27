@@ -495,13 +495,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
                 auto const& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
 
                 // 1. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
-                // NOTE: Special case if the function is a default export of an anonymous function
-                //       it has name "*default*" but internally should have name "default".
-                DeprecatedFlyString function_name = function_declaration.name();
-                if (function_name == ExportStatement::local_name_for_default)
-                    function_name = "default"sv;
-                auto function = ECMAScriptFunctionObject::create(realm(), function_name, function_declaration.source_text(), function_declaration.body(), function_declaration.parameters(), function_declaration.function_length(), function_declaration.local_variables_names(), environment, private_environment, function_declaration.kind(), function_declaration.is_strict_mode(),
-                    function_declaration.parsing_insights());
+                auto function = ECMAScriptFunctionObject::instantiate_function_object(realm(), environment, private_environment, function_declaration);
 
                 // 2. Perform ! env.InitializeBinding(dn, fo, normal).
                 MUST(environment->initialize_binding(vm, name, function, Environment::InitializeBindingHint::Normal));

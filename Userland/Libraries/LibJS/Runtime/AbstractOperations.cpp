@@ -972,8 +972,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
     for (auto& declaration : functions_to_initialize.in_reverse()) {
         // a. Let fn be the sole element of the BoundNames of f.
         // b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
-        auto function = ECMAScriptFunctionObject::create(realm, declaration.name(), declaration.source_text(), declaration.body(), declaration.parameters(), declaration.function_length(), declaration.local_variables_names(), lexical_environment, private_environment, declaration.kind(), declaration.is_strict_mode(),
-            declaration.parsing_insights());
+        auto function = ECMAScriptFunctionObject::instantiate_function_object(realm, lexical_environment, private_environment, declaration);
 
         // c. If varEnv is a global Environment Record, then
         if (global_var_environment) {
