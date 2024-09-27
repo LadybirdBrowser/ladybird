@@ -5507,6 +5507,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
     Optional<Percentage> descent_override;
     Optional<Percentage> line_gap_override;
     FontDisplay font_display = FontDisplay::Auto;
+    Optional<FlyString> language_override;
 
     // "normal" is returned as nullptr
     auto parse_as_percentage_or_normal = [&](Vector<ComponentValue> const& values) -> ErrorOr<Optional<Percentage>> {
@@ -5626,6 +5627,18 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
             font_family = String::join(' ', font_family_parts).release_value_but_fixme_should_propagate_errors();
             continue;
         }
+        if (declaration.name().equals_ignoring_ascii_case("font-language-override"sv)) {
+            TokenStream token_stream { declaration.values() };
+            if (auto maybe_value = parse_css_value(CSS::PropertyID::FontLanguageOverride, token_stream); !maybe_value.is_error()) {
+                auto& value = maybe_value.value();
+                if (value->is_string()) {
+                    language_override = value->as_string().string_value();
+                } else {
+                    language_override.clear();
+                }
+            }
+            continue;
+        }
         if (declaration.name().equals_ignoring_ascii_case("font-named-instance"sv)) {
             // auto | <string>
             TokenStream token_stream { declaration.values() };
@@ -5707,7 +5720,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
         unicode_range.empend(0x0u, 0x10FFFFu);
     }
 
-    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), move(weight), move(slope), move(width), move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override), font_display, move(font_named_instance) });
+    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), move(weight), move(slope), move(width), move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override), font_display, move(font_named_instance), move(language_override) });
 }
 
 Vector<ParsedFontFace::Source> Parser::parse_as_font_face_src()
