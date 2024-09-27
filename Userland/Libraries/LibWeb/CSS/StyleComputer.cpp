@@ -1791,7 +1791,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
-    auto width = font_stretch.to_font_stretch_width();
+    auto width = font_stretch.to_font_width();
 
     auto weight = font_weight.to_font_weight();
     bool bold = weight > Gfx::FontWeight::Regular;
@@ -2043,7 +2043,7 @@ void StyleComputer::compute_font(StyleProperties& style, DOM::Element const* ele
     // FIXME: This should be more sophisticated.
     compute_defaulted_property_value(style, element, CSS::PropertyID::FontFamily, pseudo_element);
     compute_defaulted_property_value(style, element, CSS::PropertyID::FontSize, pseudo_element);
-    compute_defaulted_property_value(style, element, CSS::PropertyID::FontStretch, pseudo_element);
+    compute_defaulted_property_value(style, element, CSS::PropertyID::FontWidth, pseudo_element);
     compute_defaulted_property_value(style, element, CSS::PropertyID::FontStyle, pseudo_element);
     compute_defaulted_property_value(style, element, CSS::PropertyID::FontWeight, pseudo_element);
     compute_defaulted_property_value(style, element, CSS::PropertyID::LineHeight, pseudo_element);
@@ -2052,9 +2052,9 @@ void StyleComputer::compute_font(StyleProperties& style, DOM::Element const* ele
     auto font_size = style.property(CSS::PropertyID::FontSize);
     auto font_style = style.property(CSS::PropertyID::FontStyle);
     auto font_weight = style.property(CSS::PropertyID::FontWeight);
-    auto font_stretch = style.property(CSS::PropertyID::FontStretch);
+    auto font_width = style.property(CSS::PropertyID::FontWidth);
 
-    auto font_list = compute_font_for_style_values(element, pseudo_element, font_family, font_size, font_style, font_weight, font_stretch, style.math_depth());
+    auto font_list = compute_font_for_style_values(element, pseudo_element, font_family, font_size, font_style, font_weight, font_width, style.math_depth());
     VERIFY(font_list);
     VERIFY(!font_list->is_empty());
 

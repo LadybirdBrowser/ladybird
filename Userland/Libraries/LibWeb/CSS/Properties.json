@@ -1148,7 +1148,7 @@
     "longhands": [
       "font-family",
       "font-size",
-      "font-stretch",
+      "font-width",
       "font-style",
       "font-variant",
       "font-weight",
@@ -1191,23 +1191,7 @@
     ]
   },
   "font-stretch": {
-    "animation-type": "custom",
-    "inherited": true,
-    "initial": "normal",
-    "valid-types": [
-      "percentage [0,∞]"
-    ],
-    "valid-identifiers": [
-      "normal",
-      "ultra-condensed",
-      "extra-condensed",
-      "condensed",
-      "semi-condensed",
-      "semi-expanded",
-      "expanded",
-      "extra-expanded",
-      "ultra-expanded"
-    ]
+    "legacy-alias-for": "font-width"
   },
   "font-style": {
     "animation-type": "custom",
@@ -1239,6 +1223,15 @@
       "bolder",
       "lighter",
       "normal"
+    ]
+  },
+  "font-width": {
+    "animation-type": "by-computed-value",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "percentage [0,∞]",
+      "font-width"
     ]
   },
   "gap": {

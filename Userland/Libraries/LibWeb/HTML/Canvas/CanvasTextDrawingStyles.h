@@ -58,10 +58,10 @@ public:
         auto& canvas_element = reinterpret_cast<IncludingClass&>(*this).canvas_element();
         auto& font_style = *font_style_value.longhand(CSS::PropertyID::FontStyle);
         auto& font_weight = *font_style_value.longhand(CSS::PropertyID::FontWeight);
-        auto& font_stretch = *font_style_value.longhand(CSS::PropertyID::FontStretch);
+        auto& font_width = *font_style_value.longhand(CSS::PropertyID::FontWidth);
         auto& font_size = *font_style_value.longhand(CSS::PropertyID::FontSize);
         auto& font_family = *font_style_value.longhand(CSS::PropertyID::FontFamily);
-        auto font_list = canvas_element.document().style_computer().compute_font_for_style_values(&canvas_element, {}, font_family, font_size, font_style, font_weight, font_stretch);
+        auto font_list = canvas_element.document().style_computer().compute_font_for_style_values(&canvas_element, {}, font_family, font_size, font_style, font_weight, font_width);
         my_drawing_state().current_font = font_list->first();
     }
 
