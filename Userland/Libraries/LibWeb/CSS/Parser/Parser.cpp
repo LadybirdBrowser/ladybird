@@ -5457,6 +5457,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
     Vector<Gfx::UnicodeRange> unicode_range;
     Optional<int> weight;
     Optional<int> slope;
+    Optional<int> width;
     Optional<Percentage> ascent_override;
     Optional<Percentage> descent_override;
     Optional<Percentage> line_gap_override;
@@ -5615,6 +5616,14 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
             }
             continue;
         }
+        if (declaration.name().equals_ignoring_ascii_case("font-width"sv)
+            || declaration.name().equals_ignoring_ascii_case("font-stretch"sv)) {
+            TokenStream token_stream { declaration.values() };
+            if (auto value = parse_css_value(CSS::PropertyID::FontWidth, token_stream); !value.is_error()) {
+                width = value.value()->to_font_width();
+            }
+            continue;
+        }
         if (declaration.name().equals_ignoring_ascii_case("line-gap-override"sv)) {
             auto value = parse_as_percentage_or_normal(declaration.values());
             if (value.is_error()) {
@@ -5653,7 +5662,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
         unicode_range.empend(0x0u, 0x10FFFFu);
     }
 
-    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), weight, slope, move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override), font_display, move(font_named_instance) });
+    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), move(weight), move(slope), move(width), move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override), font_display, move(font_named_instance) });
 }
 
 Vector<ParsedFontFace::Source> Parser::parse_as_font_face_src()
