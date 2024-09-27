@@ -53,6 +53,7 @@ public:
     Web::WebDriver::Response close_window();
     Web::WebDriver::Response switch_to_window(StringView);
     Web::WebDriver::Response get_window_handles() const;
+    ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
 
     enum class ScriptMode {
         Sync,

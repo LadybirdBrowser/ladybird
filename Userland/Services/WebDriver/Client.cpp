@@ -37,14 +37,18 @@ Client::Client(NonnullOwnPtr<Core::BufferedTCPSocket> socket, LaunchBrowserCallb
 
 Client::~Client() = default;
 
-ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Client::find_session_with_id(StringView session_id)
+ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Client::find_session_with_id(StringView session_id, AllowInvalidWindowHandle allow_invalid_window_handle)
 {
     auto session_id_or_error = session_id.to_number<unsigned>();
     if (!session_id_or_error.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id");
 
-    if (auto session = s_sessions.get(*session_id_or_error); session.has_value())
+    if (auto session = s_sessions.get(*session_id_or_error); session.has_value()) {
+        if (allow_invalid_window_handle == AllowInvalidWindowHandle::No)
+            TRY(session.value()->ensure_current_window_handle_is_valid());
+
         return *session.release_value();
+    }
 
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id");
 }
@@ -311,7 +315,7 @@ Web::WebDriver::Response Client::close_window(Web::WebDriver::Parameters paramet
 Web::WebDriver::Response Client::switch_to_window(Web::WebDriver::Parameters parameters, AK::JsonValue payload)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window");
-    auto session = TRY(find_session_with_id(parameters[0]));
+    auto session = TRY(find_session_with_id(parameters[0], AllowInvalidWindowHandle::Yes));
 
     if (!payload.is_object())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object");
@@ -331,7 +335,7 @@ Web::WebDriver::Response Client::switch_to_window(Web::WebDriver::Parameters par
 Web::WebDriver::Response Client::get_window_handles(Web::WebDriver::Parameters parameters, JsonValue)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/window/handles");
-    auto session = TRY(find_session_with_id(parameters[0]));
+    auto session = TRY(find_session_with_id(parameters[0], AllowInvalidWindowHandle::Yes));
     return session->get_window_handles();
 }
 

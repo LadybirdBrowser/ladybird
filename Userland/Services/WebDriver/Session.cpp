@@ -169,6 +169,13 @@ Web::WebDriver::Response Session::get_window_handles() const
     return JsonValue { move(handles) };
 }
 
+ErrorOr<void, Web::WebDriver::Error> Session::ensure_current_window_handle_is_valid() const
+{
+    if (auto current_window = m_windows.get(m_current_window_handle); current_window.has_value())
+        return {};
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
+}
+
 Web::WebDriver::Response Session::execute_script(JsonValue payload, ScriptMode mode) const
 {
     ScopeGuard guard { [&]() { web_content_connection().on_script_executed = nullptr; } };
