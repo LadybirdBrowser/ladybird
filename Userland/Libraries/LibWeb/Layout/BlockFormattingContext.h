@@ -37,7 +37,8 @@ public:
 
     virtual void parent_context_did_dimension_child_root_box() override;
 
-    void compute_height(Box const&, AvailableSpace const&, FormattingContext const* box_formatting_context = nullptr);
+    void resolve_used_height_if_not_treated_as_auto(Box const&, AvailableSpace const&);
+    void resolve_used_height_if_treated_as_auto(Box const&, AvailableSpace const&, FormattingContext const* box_formatting_context = nullptr);
 
     SpaceUsedAndContainingMarginForFloats space_used_and_containing_margin_for_floats(CSSPixels y) const;
     [[nodiscard]] SpaceUsedByFloats intrusion_by_floats_into_box(Box const&, CSSPixels y_in_box) const;
