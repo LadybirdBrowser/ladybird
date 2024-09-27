@@ -23,7 +23,7 @@ public:
         Optional<FlyString> format;
     };
 
-    ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance);
+    ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance);
     ~ParsedFontFace() = default;
 
     Optional<Percentage> ascent_override() const { return m_ascent_override; }
@@ -33,6 +33,7 @@ public:
     Optional<FlyString> font_named_instance() const { return m_font_named_instance; }
     Optional<int> slope() const { return m_slope; }
     Optional<int> weight() const { return m_weight; }
+    Optional<int> width() const { return m_width; }
     Optional<Percentage> line_gap_override() const { return m_line_gap_override; }
     Vector<Source> const& sources() const { return m_sources; }
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
@@ -40,8 +41,9 @@ public:
 private:
     FlyString m_font_family;
     Optional<FlyString> m_font_named_instance;
-    Optional<int> m_weight { 0 };
-    Optional<int> m_slope { 0 };
+    Optional<int> m_weight;
+    Optional<int> m_slope;
+    Optional<int> m_width;
     Vector<Source> m_sources;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
     Optional<Percentage> m_ascent_override;

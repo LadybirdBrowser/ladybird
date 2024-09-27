@@ -392,7 +392,8 @@ void FontFace::load_font_source()
             ParsedFontFace parsed_font_face {
                 font->m_family,
                 font->m_weight.to_number<int>(),
-                0, // FIXME: slope
+                0,                      // FIXME: slope
+                Gfx::FontWidth::Normal, // FIXME: width
                 font->m_urls,
                 font->m_unicode_ranges,
                 {},                // FIXME: ascent_override
