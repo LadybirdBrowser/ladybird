@@ -330,18 +330,17 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(Error const& err
     JsonObject result;
     result.set("value", move(error_response));
 
-    StringBuilder content_builder;
-    result.serialize(content_builder);
+    auto content = result.serialized<StringBuilder>();
 
-    StringBuilder header_builder;
-    header_builder.appendff("HTTP/1.1 {} {}\r\n", error.http_status, reason);
-    header_builder.append("Cache-Control: no-cache\r\n"sv);
-    header_builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
-    header_builder.appendff("Content-Length: {}\r\n", content_builder.length());
-    header_builder.append("\r\n"sv);
+    StringBuilder builder;
+    builder.appendff("HTTP/1.1 {} {}\r\n", error.http_status, reason);
+    builder.append("Cache-Control: no-cache\r\n"sv);
+    builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
+    builder.appendff("Content-Length: {}\r\n", content.length());
+    builder.append("\r\n"sv);
+    builder.append(content);
 
-    TRY(m_socket->write_until_depleted(TRY(header_builder.to_byte_buffer())));
-    TRY(m_socket->write_until_depleted(TRY(content_builder.to_byte_buffer())));
+    TRY(m_socket->write_until_depleted(builder.string_view()));
 
     log_response(error.http_status);
     return {};
