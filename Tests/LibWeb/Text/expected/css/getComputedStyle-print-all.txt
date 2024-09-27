@@ -41,40 +41,6 @@ visibility: visible
 white-space: normal
 word-spacing: normal
 word-wrap: normal
--webkit-align-content: normal
--webkit-align-items: normal
--webkit-align-self: auto
--webkit-animation-delay: 0s
--webkit-animation-direction: normal
--webkit-animation-duration: auto
--webkit-animation-fill-mode: none
--webkit-animation-iteration-count: 1
--webkit-animation-name: none
--webkit-animation-play-state: running
--webkit-animation-timing-function: ease
--webkit-appearance: auto
--webkit-background-clip: border-box
--webkit-background-origin: padding-box
--webkit-border-bottom-left-radius: 0px
--webkit-border-bottom-right-radius: 0px
--webkit-border-top-left-radius: 0px
--webkit-border-top-right-radius: 0px
--webkit-box-shadow: none
--webkit-box-sizing: content-box
--webkit-flex-basis: auto
--webkit-flex-direction: row
--webkit-flex-grow: 0
--webkit-flex-shrink: 1
--webkit-flex-wrap: nowrap
--webkit-justify-content: normal
--webkit-mask: none
--webkit-order: 0
--webkit-transform: none
--webkit-transform-origin: 50% 50%
--webkit-transition-delay: 0s
--webkit-transition-duration: 0s
--webkit-transition-property: all
--webkit-transition-timing-function: ease
 align-content: normal
 align-items: normal
 align-self: auto
@@ -150,7 +116,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2584px
+height: 2006px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

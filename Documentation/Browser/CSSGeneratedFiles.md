@@ -17,6 +17,8 @@ Most of this data is found in the information box for that property in the relev
 The file is organized as a single JSON object, with keys being property names, and the values being the data for that property.
 Each property will have some set of these fields on it:
 
+(Note that required fields are not required on properties with `legacy-alias-for` or `logical-alias-for` set.)
+
 | Field                      | Required | Default | Description                                                                                                                               | Generated functions                                                           |
 |----------------------------|----------|---------|-------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
 | `affects-layout`           | No       | `true`  | Boolean. Whether changing this property will invalidate the element's layout.                                                             | `bool property_affects_layout(PropertyID)`                                    |
@@ -24,7 +26,8 @@ Each property will have some set of these fields on it:
 | `animation-type`           | Yes      |         | String. How the property should be animated. Defined by the spec. See below.                                                              | `AnimationType animation_type_from_longhand_property(PropertyID)`             |
 | `inherited`                | Yes      |         | Boolean. Whether the property is inherited by its child elements.                                                                         | `bool is_inherited_property(PropertyID)`                                      |
 | `initial`                  | Yes      |         | String. The property's initial value if it is not specified.                                                                              | `NonnullRefPtr<CSSStyleValue> property_initial_value(JS::Realm&, PropertyID)` |
-| `logical-alias-for`        | No       | Nothing | String. The name of a property this is an alias for.                                                                                      |                                                                               |
+| `legacy-alias-for`         | No       | Nothing | String. The name of a property this is an alias for. See below.                                                                           |                                                                               |
+| `logical-alias-for`        | No       | Nothing | Array of strings. The name of a property this is an alias for. See below.                                                                 |                                                                               |
 | `longhands`                | No       | `[]`    | Array of strings. If this is a shorthand, these are the property names that it expands out into.                                          | `Vector<PropertyID> longhands_for_shorthand(PropertyID)`                      |
 | `max-values`               | No       | `1`     | Integer. How many values can be parsed for this property. eg, `margin` can have up to 4 values.                                           | `size_t property_maximum_value_count(PropertyID)`                             |
 | `percentages-resolve-to`   | No       | Nothing | String. What type percentages get resolved to. eg, for `width` percentages are resolved to `length` values.                               | `Optional<ValueType> property_resolves_percentages_relative_to(PropertyID)`   |
@@ -43,6 +46,16 @@ The [Web Animations spec](https://www.w3.org/TR/web-animations/#animation-type) 
 | by computed value | `by-computed-value` |
 | repeatable list   | `repeatable-list`   |
 | (See prose)       | `custom`            |
+
+### `legacy-alias-for` and `logical-alias-for`
+
+These are two separate concepts, with unfortunately similar names:
+- [Legacy name aliases](https://drafts.csswg.org/css-cascade-5/#legacy-name-alias) are properties whose spec names have changed,
+  but the syntax has not, so setting the old one is defined as setting the new one directly.
+  For example, `font-stretch` was renamed to `font-width`, so `font-stretch` is now a legacy name alias for `font-width`.
+- Logical aliases are properties like `margin-block-start`, which may assign a value to one of several other properties
+  (`margin-top`, `margin-bottom`, `margin-left`, or `margin-right`) depending on the element they are applied to.
+  List all the properties that they can alias.
 
 ### `quirks`
 
