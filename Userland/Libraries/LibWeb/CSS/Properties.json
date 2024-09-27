@@ -1,164 +1,102 @@
 {
   "-webkit-align-content": {
-    "logical-alias-for": [
-      "align-content"
-    ]
+    "legacy-alias-for": "align-content"
   },
   "-webkit-align-items": {
-    "logical-alias-for": [
-      "align-items"
-    ]
+    "legacy-alias-for": "align-items"
   },
   "-webkit-align-self": {
-    "logical-alias-for": [
-      "align-self"
-    ]
+    "legacy-alias-for": "align-self"
   },
   "-webkit-animation": {
-    "logical-alias-for": [
-      "animation"
-    ]
+    "legacy-alias-for": "animation"
   },
   "-webkit-animation-delay": {
-    "logical-alias-for": [
-      "animation-delay"
-    ]
+    "legacy-alias-for": "animation-delay"
   },
   "-webkit-animation-direction": {
-    "logical-alias-for": [
-      "animation-direction"
-    ]
+    "legacy-alias-for": "animation-direction"
   },
   "-webkit-animation-duration": {
-    "logical-alias-for": [
-      "animation-duration"
-    ]
+    "legacy-alias-for": "animation-duration"
   },
   "-webkit-animation-fill-mode": {
-    "logical-alias-for": [
-      "animation-fill-mode"
-    ]
+    "legacy-alias-for": "animation-fill-mode"
   },
   "-webkit-animation-iteration-count": {
-    "logical-alias-for": [
-      "animation-iteration-count"
-    ]
+    "legacy-alias-for": "animation-iteration-count"
   },
   "-webkit-animation-name": {
-    "logical-alias-for": [
-      "animation-name"
-    ]
+    "legacy-alias-for": "animation-name"
   },
   "-webkit-animation-play-state": {
-    "logical-alias-for": [
-      "animation-play-state"
-    ]
+    "legacy-alias-for": "animation-play-state"
   },
   "-webkit-animation-timing-function": {
-    "logical-alias-for": [
-      "animation-timing-function"
-    ]
+    "legacy-alias-for": "animation-timing-function"
   },
   "-webkit-appearance": {
-    "logical-alias-for": [
-      "appearance"
-    ],
-    "max-values": 1
+    "legacy-alias-for": "appearance"
   },
   "-webkit-background-clip": {
-    "logical-alias-for": [
-      "background-clip"
-    ]
+    "legacy-alias-for": "background-clip"
   },
   "-webkit-background-origin": {
-    "logical-alias-for": [
-      "background-origin"
-    ]
+    "legacy-alias-for": "background-origin"
+  },
+  "-webkit-background-size": {
+    "legacy-alias-for": "background-size"
   },
   "-webkit-border-bottom-left-radius": {
-    "logical-alias-for": [
-      "border-bottom-left-radius"
-    ]
+    "legacy-alias-for": "border-bottom-left-radius"
   },
   "-webkit-border-bottom-right-radius": {
-    "logical-alias-for": [
-      "border-bottom-right-radius"
-    ]
+    "legacy-alias-for": "border-bottom-right-radius"
   },
   "-webkit-border-radius": {
-    "logical-alias-for": [
-      "border-radius"
-    ]
+    "legacy-alias-for": "border-radius"
   },
   "-webkit-border-top-left-radius": {
-    "logical-alias-for": [
-      "border-top-left-radius"
-    ]
+    "legacy-alias-for": "border-top-left-radius"
   },
   "-webkit-border-top-right-radius": {
-    "logical-alias-for": [
-      "border-top-right-radius"
-    ]
+    "legacy-alias-for": "border-top-right-radius"
   },
   "-webkit-box-shadow": {
-    "logical-alias-for": [
-      "box-shadow"
-    ]
+    "legacy-alias-for": "box-shadow"
   },
   "-webkit-box-sizing": {
-    "logical-alias-for": [
-      "box-sizing"
-    ]
+    "legacy-alias-for": "box-sizing"
   },
   "-webkit-flex": {
-    "logical-alias-for": [
-      "flex"
-    ]
+    "legacy-alias-for": "flex"
   },
   "-webkit-flex-basis": {
-    "logical-alias-for": [
-      "flex-basis"
-    ]
+    "legacy-alias-for": "flex-basis"
   },
   "-webkit-flex-direction": {
-    "logical-alias-for": [
-      "flex-direction"
-    ]
+    "legacy-alias-for": "flex-direction"
   },
   "-webkit-flex-flow": {
-    "logical-alias-for": [
-      "flex-flow"
-    ]
+    "legacy-alias-for": "flex-flow"
   },
   "-webkit-flex-grow": {
-    "logical-alias-for": [
-      "flex-grow"
-    ]
+    "legacy-alias-for": "flex-grow"
   },
   "-webkit-flex-shrink": {
-    "logical-alias-for": [
-      "flex-shrink"
-    ]
+    "legacy-alias-for": "flex-shrink"
   },
   "-webkit-flex-wrap": {
-    "logical-alias-for": [
-      "flex-wrap"
-    ]
+    "legacy-alias-for": "flex-wrap"
   },
   "-webkit-justify-content": {
-    "logical-alias-for": [
-      "justify-content"
-    ]
+    "legacy-alias-for": "justify-content"
   },
   "-webkit-mask": {
-    "logical-alias-for": [
-      "mask"
-    ]
+    "legacy-alias-for": "mask"
   },
   "-webkit-order": {
-    "logical-alias-for": [
-      "order"
-    ]
+    "legacy-alias-for": "order"
   },
   "-webkit-text-fill-color": {
     "animation-type": "by-computed-value",
@@ -169,39 +107,25 @@
     ]
   },
   "-webkit-transform": {
-    "logical-alias-for": [
-      "transform"
-    ]
+    "legacy-alias-for": "transform"
   },
   "-webkit-transform-origin": {
-    "logical-alias-for": [
-      "transform-origin"
-    ]
+    "legacy-alias-for": "transform-origin"
   },
   "-webkit-transition": {
-    "logical-alias-for": [
-      "transition"
-    ]
+    "legacy-alias-for": "transition"
   },
   "-webkit-transition-delay": {
-    "logical-alias-for": [
-      "transition-delay"
-    ]
+    "legacy-alias-for": "transition-delay"
   },
   "-webkit-transition-duration": {
-    "logical-alias-for": [
-      "transition-duration"
-    ]
+    "legacy-alias-for": "transition-duration"
   },
   "-webkit-transition-property": {
-    "logical-alias-for": [
-      "transition-property"
-    ]
+    "legacy-alias-for": "transition-property"
   },
   "-webkit-transition-timing-function": {
-    "logical-alias-for": [
-      "transition-timing-function"
-    ]
+    "legacy-alias-for": "transition-timing-function"
   },
   "accent-color": {
     "animation-type": "by-computed-value",
