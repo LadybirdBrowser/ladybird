@@ -58,20 +58,30 @@ bool represents_a_web_element(JsonValue const& value)
     return value.as_object().has_string(web_element_identifier);
 }
 
-// https://w3c.github.io/webdriver/#dfn-get-a-known-connected-element
+// https://w3c.github.io/webdriver/#dfn-get-a-known-element
 ErrorOr<Web::DOM::Element*, Web::WebDriver::Error> get_known_connected_element(StringView element_id)
 {
     // NOTE: The whole concept of "connected elements" is not implemented yet. See get_or_create_a_web_element_reference().
     //       For now the element is only represented by its ID.
+
+    // 1. If not node reference is known with session, session's current browsing context, and reference return error
+    //    with error code no such element.
     auto element = element_id.to_number<int>();
     if (!element.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Element ID is not an integer");
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "Element ID is not an integer");
 
+    // 2. Let node be the result of get a node with session, session's current browsing context, and reference.
     auto* node = Web::DOM::Node::from_unique_id(*element);
 
-    if (!node || !node->is_element())
+    // 3. If node is not null and node does not implement Element return error with error code no such element.
+    if (node && !node->is_element())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find element with ID: {}", element_id));
 
+    // 4. If node is null or node is stale return error with error code stale element reference.
+    if (!node || is_element_stale(*node))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, ByteString::formatted("Element with ID: {} is stale", element_id));
+
+    // 5. Return success with data node.
     return static_cast<Web::DOM::Element*>(node);
 }
 
