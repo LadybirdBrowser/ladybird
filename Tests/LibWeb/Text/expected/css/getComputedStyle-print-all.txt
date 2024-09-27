@@ -12,10 +12,10 @@ fill-opacity: 1
 fill-rule: nonzero
 font-family: serif
 font-size: 16px
-font-stretch: normal
 font-style: normal
 font-variant: normal
 font-weight: 400
+font-width: normal
 image-rendering: auto
 letter-spacing: normal
 line-height: normal

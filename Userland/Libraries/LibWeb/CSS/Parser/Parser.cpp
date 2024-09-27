@@ -5261,7 +5261,7 @@ static bool is_generic_font_family(Keyword keyword)
 
 RefPtr<CSSStyleValue> Parser::parse_font_value(TokenStream<ComponentValue>& tokens)
 {
-    RefPtr<CSSStyleValue> font_stretch;
+    RefPtr<CSSStyleValue> font_width;
     RefPtr<CSSStyleValue> font_style;
     RefPtr<CSSStyleValue> font_weight;
     RefPtr<CSSStyleValue> font_size;
@@ -5275,7 +5275,9 @@ RefPtr<CSSStyleValue> Parser::parse_font_value(TokenStream<ComponentValue>& toke
     // So, we have to handle that separately.
     int normal_count = 0;
 
-    auto remaining_longhands = Vector { PropertyID::FontSize, PropertyID::FontStretch, PropertyID::FontStyle, PropertyID::FontVariant, PropertyID::FontWeight };
+    // FIXME: `font-variant` allows a lot of different values which aren't allowed in the `font` shorthand.
+    // FIXME: `font-width` allows <percentage> values, which aren't allowed in the `font` shorthand.
+    auto remaining_longhands = Vector { PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontVariant, PropertyID::FontWeight, PropertyID::FontWidth };
     auto transaction = tokens.begin_transaction();
 
     while (tokens.has_next_token()) {
@@ -5314,13 +5316,12 @@ RefPtr<CSSStyleValue> Parser::parse_font_value(TokenStream<ComponentValue>& toke
             font_families = maybe_font_families.release_nonnull();
             continue;
         }
-        case PropertyID::FontStretch: {
-            VERIFY(!font_stretch);
-            font_stretch = value.release_nonnull();
+        case PropertyID::FontWidth: {
+            VERIFY(!font_width);
+            font_width = value.release_nonnull();
             continue;
         }
         case PropertyID::FontStyle: {
-            // FIXME: Handle angle parameter to `oblique`: https://www.w3.org/TR/css-fonts-4/#font-style-prop
             VERIFY(!font_style);
             font_style = value.release_nonnull();
             continue;
@@ -5345,7 +5346,7 @@ RefPtr<CSSStyleValue> Parser::parse_font_value(TokenStream<ComponentValue>& toke
     // Since normal is the default value for all the properties that can have it, we don't have to actually
     // set anything to normal here. It'll be set when we create the ShorthandStyleValue below.
     // We just need to make sure we were not given more normals than will fit.
-    int unset_value_count = (font_style ? 0 : 1) + (font_weight ? 0 : 1) + (font_variant ? 0 : 1) + (font_stretch ? 0 : 1);
+    int unset_value_count = (font_style ? 0 : 1) + (font_weight ? 0 : 1) + (font_variant ? 0 : 1) + (font_width ? 0 : 1);
     if (unset_value_count < normal_count)
         return nullptr;
 
@@ -5358,15 +5359,15 @@ RefPtr<CSSStyleValue> Parser::parse_font_value(TokenStream<ComponentValue>& toke
         font_variant = property_initial_value(m_context.realm(), PropertyID::FontVariant);
     if (!font_weight)
         font_weight = property_initial_value(m_context.realm(), PropertyID::FontWeight);
-    if (!font_stretch)
-        font_stretch = property_initial_value(m_context.realm(), PropertyID::FontStretch);
+    if (!font_width)
+        font_width = property_initial_value(m_context.realm(), PropertyID::FontWidth);
     if (!line_height)
         line_height = property_initial_value(m_context.realm(), PropertyID::LineHeight);
 
     transaction.commit();
     return ShorthandStyleValue::create(PropertyID::Font,
-        { PropertyID::FontStyle, PropertyID::FontVariant, PropertyID::FontWeight, PropertyID::FontStretch, PropertyID::FontSize, PropertyID::LineHeight, PropertyID::FontFamily },
-        { font_style.release_nonnull(), font_variant.release_nonnull(), font_weight.release_nonnull(), font_stretch.release_nonnull(), font_size.release_nonnull(), line_height.release_nonnull(), font_families.release_nonnull() });
+        { PropertyID::FontStyle, PropertyID::FontVariant, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontSize, PropertyID::LineHeight, PropertyID::FontFamily },
+        { font_style.release_nonnull(), font_variant.release_nonnull(), font_weight.release_nonnull(), font_width.release_nonnull(), font_size.release_nonnull(), line_height.release_nonnull(), font_families.release_nonnull() });
 }
 
 RefPtr<CSSStyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue>& tokens)

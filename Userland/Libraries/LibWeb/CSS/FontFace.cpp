@@ -261,12 +261,13 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-stretch
 WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
 {
-    auto property = parse_property_string<CSS::PropertyID::FontStretch>(realm(), string);
+    // NOTE: font-stretch is now an alias for font-width
+    auto property = parse_property_string<CSS::PropertyID::FontWidth>(realm(), string);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.stretch setter: Invalid font descriptor"_fly_string);
 
     if (m_is_css_connected) {
-        // FIXME: Propagate to the CSSFontFaceRule and update the font-stretch property
+        // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
     m_stretch = property->to_string();

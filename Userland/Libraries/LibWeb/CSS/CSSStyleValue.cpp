@@ -407,7 +407,7 @@ int CSSStyleValue::to_font_slope() const
     return normal_slope;
 }
 
-int CSSStyleValue::to_font_stretch_width() const
+int CSSStyleValue::to_font_width() const
 {
     int width = Gfx::FontWidth::Normal;
     if (is_keyword()) {
