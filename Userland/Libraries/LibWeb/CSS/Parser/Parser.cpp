@@ -5447,6 +5447,51 @@ RefPtr<CSSStyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue
     return StyleValueList::create(move(font_families), StyleValueList::Separator::Comma);
 }
 
+RefPtr<CSSStyleValue> Parser::parse_font_language_override_value(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.csswg.org/css-fonts/#propdef-font-language-override
+    // This is `normal | <string>` but with the constraint that the string has to be 4 characters long:
+    // Shorter strings are right-padded with spaces, and longer strings are invalid.
+
+    {
+        auto transaction = tokens.begin_transaction();
+        tokens.skip_whitespace();
+        if (auto keyword = parse_keyword_value(tokens); keyword->to_keyword() == Keyword::Normal) {
+            tokens.skip_whitespace();
+            if (tokens.has_next_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: unexpected trailing tokens");
+                return nullptr;
+            }
+            transaction.commit();
+            return keyword;
+        }
+    }
+
+    {
+        auto transaction = tokens.begin_transaction();
+        tokens.skip_whitespace();
+        if (auto string = parse_string_value(tokens)) {
+            auto string_value = string->as_string().string_value();
+            tokens.skip_whitespace();
+            if (tokens.has_next_token()) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: unexpected trailing tokens");
+                return nullptr;
+            }
+            auto length = string_value.code_points().length();
+            if (length > 4) {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: <string> value \"{}\" is too long", string_value);
+                return nullptr;
+            }
+            transaction.commit();
+            if (length < 4)
+                return StringStyleValue::create(MUST(String::formatted("{<4}", string_value)));
+            return string;
+        }
+    }
+
+    return nullptr;
+}
+
 JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentValue>& tokens)
 {
     auto declarations_and_at_rules = parse_a_list_of_declarations(tokens);
@@ -7526,6 +7571,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         return ParseError::SyntaxError;
     case PropertyID::FontFamily:
         if (auto parsed_value = parse_font_family_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::FontLanguageOverride:
+        if (auto parsed_value = parse_font_language_override_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::GridArea:

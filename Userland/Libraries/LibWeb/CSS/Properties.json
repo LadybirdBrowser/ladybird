@@ -1145,6 +1145,7 @@
   "font": {
     "inherited": true,
     "initial": "normal medium serif",
+    "__comment": "FIXME: Handle properties that are reset implicitly. https://drafts.csswg.org/css-fonts/#reset-implicitly",
     "longhands": [
       "font-family",
       "font-size",
@@ -1162,6 +1163,17 @@
     "valid-types": [
       "custom-ident",
       "string"
+    ]
+  },
+  "font-language-override": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "string"
+    ],
+    "valid-identifiers": [
+      "normal"
     ]
   },
   "font-size": {
