@@ -123,25 +123,6 @@ void MouseEvent::init_mouse_event(String const& type, bool bubbles, bool cancela
     m_related_target = related_target;
 }
 
-// https://www.w3.org/TR/uievents/#dom-mouseevent-button
-static i16 determine_button(unsigned mouse_button)
-{
-    switch (mouse_button) {
-    case MouseButton::Primary:
-        return 0;
-    case MouseButton::Middle:
-        return 1;
-    case MouseButton::Secondary:
-        return 2;
-    case MouseButton::Backward:
-        return 3;
-    case MouseButton::Forward:
-        return 4;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 JS::NonnullGCPtr<MouseEvent> MouseEvent::create(JS::Realm& realm, FlyString const& event_name, MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
 {
     return realm.heap().allocate<MouseEvent>(realm, realm, event_name, event_init, page_x, page_y, offset_x, offset_y);
@@ -167,7 +148,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<MouseEvent>> MouseEvent::create_from_platfo
         event_init.movement_x = movement.value().x().to_double();
         event_init.movement_y = movement.value().y().to_double();
     }
-    event_init.button = determine_button(button);
+    event_init.button = mouse_button_to_button_code(static_cast<MouseButton>(button));
     event_init.buttons = buttons;
     auto event = MouseEvent::create(realm, event_name, event_init, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double());
     event->set_is_trusted(true);
