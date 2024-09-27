@@ -469,8 +469,9 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
 
     if (auto maybe_font_variant = computed_style.font_variant(); maybe_font_variant.has_value())
         computed_values.set_font_variant(maybe_font_variant.release_value());
+    if (auto maybe_font_language_override = computed_style.font_language_override(); maybe_font_language_override.has_value())
+        computed_values.set_font_language_override(maybe_font_language_override.release_value());
 
-    // FIXME: BorderXRadius properties are now BorderRadiusStyleValues, so make use of that.
     auto border_bottom_left_radius = computed_style.property(CSS::PropertyID::BorderBottomLeftRadius);
     if (border_bottom_left_radius->is_border_radius()) {
         computed_values.set_border_bottom_left_radius(

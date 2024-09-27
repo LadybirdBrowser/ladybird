@@ -1000,6 +1000,14 @@ Optional<CSS::FontVariant> StyleProperties::font_variant() const
     return keyword_to_font_variant(value->to_keyword());
 }
 
+Optional<FlyString> StyleProperties::font_language_override() const
+{
+    auto value = property(CSS::PropertyID::FontLanguageOverride);
+    if (value->is_string())
+        return value->as_string().string_value();
+    return {};
+}
+
 CSS::GridTrackSizeList StyleProperties::grid_auto_columns() const
 {
     auto value = property(CSS::PropertyID::GridAutoColumns);
