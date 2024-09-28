@@ -297,7 +297,6 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
 {
     append(PushStackingContext {
         .opacity = params.opacity,
-        .is_fixed_position = params.is_fixed_position,
         .source_paintable_rect = params.source_paintable_rect,
         // No translations apply to fixed-position stacking contexts.
         .post_transform_translation = params.is_fixed_position

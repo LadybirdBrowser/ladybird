@@ -493,10 +493,6 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
         canvas.clipShader(builder.makeShader());
     }
 
-    if (command.is_fixed_position) {
-        // FIXME: Resetting matrix is not correct when element is nested in a transformed stacking context
-        canvas.resetMatrix();
-    }
     canvas.concat(matrix);
 }
 
