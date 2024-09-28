@@ -36,7 +36,9 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
+#include <LibWeb/HTML/HTMLOutputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -46,6 +48,7 @@
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWeb/WebDriver/Screenshot.h>
+#include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <WebContent/WebDriverConnection.h>
 
 namespace WebContent {
@@ -1432,66 +1435,214 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Click not implemented"sv);
 }
 
+// https://w3c.github.io/webdriver/#dfn-clear-algorithm
+static void invoke_the_clear_algorithm_for_element(Web::DOM::Element* element)
+{
+    using namespace Web::HTML;
+    // Some resettable elements define their own clear algorithm. Unlike their associated reset algorithms,
+    // changes made to form controls as part of these algorithms do count as changes caused by the user
+    // (and thus, e.g. do cause input events to fire). When the clear algorithm is invoked for an element
+    // that does not define its own clear algorithm, its reset algorithm must be invoked instead.
+
+    // The clear algorithm for input elements is to
+    if (is<HTMLInputElement>(*element)) {
+        auto& input = static_cast<HTMLInputElement&>(*element);
+        // set the dirty value flag and dirty checkedness flag back to false,
+        input.set_dirty_value_flag(false);
+        input.set_dirty_checkedness(false);
+        // set the value of the element to an empty string,
+        (void)input.set_value({});
+        // set the checkedness of the element to true if the element has a checked content attribute and false if it does not,
+        // FIXME: check the if^
+        input.set_checked(true);
+        // empty the list of selected files,
+        input.set_files({});
+
+        // and then invoke the value sanitization algorithm iff the type attribute's current state defines one.
+        // FIXME: this is currently private
+        //        it could make sense to define a public overload taking no parameters so we can
+        //        simply "invoke the value sanitization algorithm"
+        // input.value_sanitization_algorithm({});
+        return;
+    }
+
+    // The clear algorithm for textarea elements is to set the dirty value flag back to false,
+    // and set the raw value of element to an empty string.
+    if (is<HTMLTextAreaElement>(*element)) {
+        auto& input = static_cast<HTMLTextAreaElement&>(*element);
+        input.set_dirty_value_flag(false);
+        input.set_raw_value({});
+        return;
+    }
+
+    // The clear algorithm for output elements is set the element's value mode flag to default and then
+    // to set the element's textContent IDL attribute to an empty string (thus clearing the element's child nodes).
+    if (is<HTMLOutputElement>(*element)) {
+        auto& input = static_cast<HTMLOutputElement&>(*element);
+        // FIXME: Mode flag?
+        input.set_text_content({});
+        return;
+    }
+
+    // FIXME: From first paragraph in this function:
+    // "When the clear algorithm is invoked for an element
+    // that does not define its own clear algorithm, its reset algorithm must be invoked instead."
+    // Resettable elements listed here: https://html.spec.whatwg.org/#category-reset
+    // select and form-associated custom elements not accounted for above
+
+    if (is<HTMLSelectElement>(*element))
+        verify_cast<HTMLSelectElement>(*element).reset_algorithm();
+
+    // FIXME: https://html.spec.whatwg.org/#autonomous-custom-element
+    // autonomous elements don't seem to have much infrastructure yet
+    // at some point along the line want to check that element's
+    // m_custom_element_definition.m_form_associated == true
+    // but not clear if you'd want to do that from a generic DOM::Element
+}
+
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
 Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const& element_id)
 {
-    dbgln("FIXME: WebDriverConnection::element_clear({})", element_id);
+    dbgln("FIXME: WebDriverConnection::element_clear()");
 
     // To clear a content editable element:
-    {
-        // FIXME: 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
-        // FIXME: 2. Run the focusing steps for element.
-        // FIXME: 3. Set element's innerHTML IDL attribute to an empty string.
-        // FIXME: 4. Run the unfocusing steps for the element.
-    }
+    auto clear_a_content_editable_element = [](Web::DOM::Element* element) {
+        // 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
+        if (element->inner_html().value() == "")
+            return;
+
+        // 2. Run the focusing steps for element.
+        Web::HTML::run_focusing_steps(element);
+
+        // 3. Set element's innerHTML IDL attribute to an empty string.
+        (void)element->set_inner_html(""sv);
+
+        // 4. Run the unfocusing steps for the element.
+        Web::HTML::run_unfocusing_steps(element);
+    };
 
     // To clear a resettable element:
-    {
-        // FIXME: 1. Let empty be the result of the first matching condition:
-        {
-            // -> element is an input element whose type attribute is in the File Upload state
-            {
-                // True if the list of selected files has a length of 0, and false otherwise.
-            }
-            // -> otherwise
-            {
-                // True if its value IDL attribute is an empty string, and false otherwise.
-            }
-        }
-        // FIXME: 2. If element is a candidate for constraint validation it satisfies its constraints, and empty is true, abort these substeps.
-        // FIXME: 3. Invoke the focusing steps for element.
-        // FIXME: 4. Invoke the clear algorithm for element.
-        // FIXME: 5. Invoke the unfocusing steps for the element.
-    }
+    auto clear_a_resettable_element = [](Web::DOM::Element* element) {
+        // 1. Let empty be the result of the first matching condition:
+        bool empty {};
 
-    // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
-    // FIXME: 2. Try to handle any user prompts with session.
-    // FIXME: 3. Let element be the result of trying to get a known element with session and element id.
+        // -> element is an input element whose type attribute is in the File Upload state
+        if (is<Web::HTML::HTMLInputElement>(*element)) {
+
+            auto& input = static_cast<Web::HTML::HTMLInputElement&>(*element);
+
+            if (input.type_state() == Web::HTML::HTMLInputElement::TypeAttributeState::FileUpload)
+                // True if the list of selected files has a length of 0, and false otherwise.
+                empty = (input.files()->length() == 0);
+        }
+        // -> otherwise
+        else
+            // True if its value IDL attribute is an empty string, and false otherwise.
+            empty = (element->node_value() == "");
+
+        // FIXME: 2. If element is a candidate for constraint validation, it satisfies its constraints, and empty is true, abort these substeps.
+        //
+        // Candidate for constraint violation:
+        // https://html.spec.whatwg.org/#candidate-for-constraint-validation
+        //
+        // Candidate for constraint validation depends on element_is_barred_from_constraint_validation:
+        // https://html.spec.whatwg.org/#barred-from-constraint-validation
+        // conditions defined throughout this link ^
+        // ctrl-f looks like the best way to search through them all
+        //
+        auto element_is_barred_from_constraint_validation = [&]() {
+            using namespace Web::HTML;
+            if (is<HTMLInputElement>(*element)) {
+                auto const& input = verify_cast<HTMLInputElement>(*element);
+                auto const type_state = input.type_state();
+
+                if (type_state == HTMLInputElement::TypeAttributeState::Hidden         // If an input element's type attribute is in the Hidden state, it is barred from constraint validation.
+                    || type_state == HTMLInputElement::TypeAttributeState::ResetButton // 4.10.5.1.20 Reset Button state (type=reset) : The element is barred from constraint validation.
+                    || type_state == HTMLInputElement::TypeAttributeState::Button      // 4.10.5.1.20 Reset Button state (type=reset): The element is barred from constraint validation.
+                                                                                       // FIXME: If the readonly attribute is specified on an input element, the element is barred from constraint validation.
+                                                                                       // FIXME: If an element has a datalist element ancestor...
+                                                                                       // FIXME: If the readonly attribute is specified on a textarea element...
+                                                                                       // FIXME: If an element is disabled...
+                                                                                       // FIXME: If the readonly attribute is specified on a form-associated custom element...
+                )
+
+                    return true;
+            }
+
+            return false;
+        };
+
+        // https://html.spec.whatwg.org/#concept-fv-valid
+        // FIXME: implement element_satisfies_its_constraints
+        auto element_satisfies_its_constraints = []() { return false; };
+
+        // https://html.spec.whatwg.org/#barred-from-constraint-validation
+        auto element_is_a_candidate_for_constraint_violation = [&]() {
+            // FIXME: multiple inheritance heirarchy here makes casting from an element ptr
+            //        to a FormAssociatedElement, which defines is_submittable(), hard
+            if (is<Web::HTML::FormAssociatedElement>(*element)) {
+                // auto& input = verify_cast<Web::HTML::FormAssociatedElement>(*element);
+                return (/*input.is_submittable() &&*/ element_is_barred_from_constraint_validation());
+            }
+            return false;
+        };
+
+        if (element_is_a_candidate_for_constraint_violation() && element_satisfies_its_constraints() && empty)
+            return;
+
+        // 3. Invoke the focusing steps for element.
+        Web::HTML::run_focusing_steps(element);
+
+        // 4. Invoke the clear algorithm for element.
+        invoke_the_clear_algorithm_for_element(element);
+
+        // 5. Invoke the unfocusing steps for the element.
+        Web::HTML::run_unfocusing_steps(element);
+    };
+
+    // The remote end steps, given session, URL variables and parameters are:
+
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
+
+    // 2. Try to handle any user prompts with session.
+    TRY(handle_any_user_prompts());
+
+    // 3. Let element be the result of trying to get a known element with session and element id.
+    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+
     // FIXME: 4. If element is not editable, return an error with error code invalid element state.
-    // FIXME: 5. Scroll into view the element.
-    // FIXME: 6. Let timeout be session's session timeouts' implicit wait timeout.
+    if (!element->is_editable()) { }
+
+    // 5. Scroll into view the element.
+    (void)scroll_element_into_view(*element);
+
+    // 6. Let timeout be session's session timeouts' implicit wait timeout.
+    auto timeout = m_timeouts_configuration.implicit_wait_timeout;
+
     // FIXME: 7. Let timer be a new timer.
-    // FIXME: 8. If timeout is not null:
-    {
+    // might want this to be a one shot
+    auto timer = Core::Timer::create();
+
+    // 8. If timeout is not null:
+    if (timeout != 0u) {
         // FIXME: 1. Start the timer with timer and timeout.
+        timer->start();
     }
     // FIXME: 9. Wait for element to become interactable, or timer's timeout fired flag to be set, whichever occurs first.
     // FIXME: 10. If element is not interactable, return error with error code element not interactable.
     // FIXME: 11. Run the substeps of the first matching statement:
-    {
-        // -> element is a mutable form control element
-        {
-            // Invoke the steps to clear a resettable element.
-        }
-        // -> element is a mutable element
-        {
-            // Invoke the steps to clear a content editable element.
-        }
-        // -> otherwise
-        {
-            // Return error with error code invalid element state.
-        }
-    }
+    if (true)
+        // Invoke the steps to clear a resettable element.
+        clear_a_resettable_element(element);
+    // -> element is a mutable element
+    else if (false)
+        // Invoke the steps to clear a content editable element.
+        clear_a_content_editable_element(element);
+    // -> otherwise
+    else
+        // Return error with error code invalid element state.
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidElementState, "element clear: element not matching statement"sv);
     // FIXME: 12. Return success with data null.
 
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "element clear not implemented"sv);
