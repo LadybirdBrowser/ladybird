@@ -19,6 +19,10 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 
+#ifdef AK_OS_LINUX
+#    include <fstream>
+#endif
+
 namespace Web::HTML {
 
 JS_DEFINE_ALLOCATOR(Navigator);
@@ -102,15 +106,19 @@ JS::NonnullGCPtr<UserActivation> Navigator::user_activation()
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints
 WebIDL::Long Navigator::max_touch_points()
 {
-#if defined(AK_OS_MACOS)
-    int max_touch_points = 1;
-    return max_touch_points;
-#elif defined(AK_OS_LINUX)
-    int max_touch_points = 20;
-    return max_touch_points;
-#else
-    return 0;
+    int max_touch_points = 0;
+
+#if defined(AK_OS_LINUX)
+    std::ifstream file("/proc/bus/input/devices");
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.find("ABS_MT_SLOT") != std::string::npos) {
+            max_touch_points++;
+        }
+    }
 #endif
+
+    return max_touch_points;
 }
 
 // https://www.w3.org/TR/tracking-dnt/#dom-navigator-donottrack
