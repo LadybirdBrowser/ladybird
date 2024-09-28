@@ -112,7 +112,6 @@ struct StackingContextMask {
 
 struct PushStackingContext {
     float opacity;
-    bool is_fixed_position;
     // The bounding box of the source paintable (pre-transform).
     Gfx::IntRect source_paintable_rect;
     // A translation to be applied after the stacking context has been transformed.
