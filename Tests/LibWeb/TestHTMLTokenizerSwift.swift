@@ -76,7 +76,7 @@ struct TestHTMLTokenizerSwift {
         #expect(token2 == nil)
     }
 
-    @Test func dataStateTagOpen() {
+    @Test func tagOpenOnly() {
         guard let tokenizer = HTMLTokenizer(input: "<") else {
             Issue.record("Failed to create tokenizer for '<'")
             return
@@ -84,11 +84,14 @@ struct TestHTMLTokenizerSwift {
         #expect(tokenizer.state == HTMLTokenizer.State.Data)  // initial state
 
         let token = tokenizer.nextToken()
-        #expect(token?.type == .EndOfFile)
-        #expect(tokenizer.state == HTMLTokenizer.State.TagOpen)
+        #expect(token?.type == .Character(codePoint: "<"))
 
         let token2 = tokenizer.nextToken()
-        #expect(token2 == nil)
+        #expect(token2?.type == .EndOfFile)
+        #expect(tokenizer.state == HTMLTokenizer.State.TagOpen)
+
+        let token3 = tokenizer.nextToken()
+        #expect(token3 == nil)
     }
 
     @Test func dataStateNulChar() {
@@ -111,5 +114,142 @@ struct TestHTMLTokenizerSwift {
         #expect(token4?.type == .EndOfFile)
 
         #expect(tokenizer.state == HTMLTokenizer.State.Data)
+    }
+
+    @Test func scriptTagWithAttributes() {
+        guard let tokenizer = HTMLTokenizer(input: "<script type=\"text/javascript\">") else {
+            Issue.record("Failed to create tokenizer for '<script type=\"text/javascript\">'")
+            return
+        }
+        #expect(tokenizer.state == HTMLTokenizer.State.Data)  // initial state
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .StartTag(tagName: "script", attributes: [HTMLToken.Attribute(localName: "type", value: "text/javascript")]))
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .EndOfFile)
+
+        #expect(tokenizer.state == HTMLTokenizer.State.Data)
+    }
+
+    @Test func scriptWithContent() {
+        guard let tokenizer = HTMLTokenizer(input: "<script>var x = 1;</script>") else {
+            Issue.record("Failed to create tokenizer for '<script>var x = 1;</script>'")
+            return
+        }
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .StartTag(tagName: "script", attributes: []))
+
+        for codePoint in "var x = 1;" {
+            let token = tokenizer.nextToken()
+            #expect(token?.type == .Character(codePoint: codePoint))
+        }
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .EndTag(tagName: "script"))
+
+        let token3 = tokenizer.nextToken()
+        #expect(token3?.type == .EndOfFile)
+    }
+
+    @Test func simpleDivWithContent() {
+        guard let tokenizer = HTMLTokenizer(input: "<div>hi</div>") else {
+            Issue.record("Failed to create tokenizer for '<div>hi</div>'")
+            return
+        }
+        #expect(tokenizer.state == HTMLTokenizer.State.Data)  // initial state
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .StartTag(tagName: "div", attributes: []))
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .Character(codePoint: "h"))
+
+        let token3 = tokenizer.nextToken()
+        #expect(token3?.type == .Character(codePoint: "i"))
+
+        let token4 = tokenizer.nextToken()
+        #expect(token4?.type == .EndTag(tagName: "div"))
+
+        let token5 = tokenizer.nextToken()
+        #expect(token5?.type == .EndOfFile)
+    }
+
+    @Test func simpleDivWithContentAndAttributes() {
+        guard let tokenizer = HTMLTokenizer(input: "<div class=\"foo\">hi</div>") else {
+            Issue.record("Failed to create tokenizer for '<div class=\"foo\">hi</div>'")
+            return
+        }
+        #expect(tokenizer.state == HTMLTokenizer.State.Data)  // initial state
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .StartTag(tagName: "div", attributes: [HTMLToken.Attribute(localName: "class", value: "foo")]))
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .Character(codePoint: "h"))
+
+        let token3 = tokenizer.nextToken()
+        #expect(token3?.type == .Character(codePoint: "i"))
+
+        let token4 = tokenizer.nextToken()
+        #expect(token4?.type == .EndTag(tagName: "div"))
+
+        let token5 = tokenizer.nextToken()
+        #expect(token5?.type == .EndOfFile)
+    }
+
+    @Test func severalDivsWithAttributesAndContent() {
+        // Explicitly use unquoted and single quotes for attribute values
+        guard let tokenizer = HTMLTokenizer(input: "<div class=foo>hi</div><div class='bar'>bye</div>") else {
+            Issue.record("Failed to create tokenizer for '<div class=\"foo\">hi</div><div class=\"bar\">bye</div>'")
+            return
+        }
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .StartTag(tagName: "div", attributes: [HTMLToken.Attribute(localName: "class", value: "foo")]))
+
+        for codePoint in "hi" {
+            let token = tokenizer.nextToken()
+            #expect(token?.type == .Character(codePoint: codePoint))
+        }
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .EndTag(tagName: "div"))
+
+        let token3 = tokenizer.nextToken()
+        #expect(token3?.type == .StartTag(tagName: "div", attributes: [HTMLToken.Attribute(localName: "class", value: "bar")]))
+
+        for codePoint in "bye" {
+            let token = tokenizer.nextToken()
+            #expect(token?.type == .Character(codePoint: codePoint))
+        }
+
+        let token4 = tokenizer.nextToken()
+        #expect(token4?.type == .EndTag(tagName: "div"))
+
+        let token5 = tokenizer.nextToken()
+        #expect(token5?.type == .EndOfFile)
+    }
+
+    @Test func startTagWithMultipleAttributes() {
+        guard let tokenizer = HTMLTokenizer(input: "<div class=\"foo\" id=\"bar\">hi</div attr=endTagAttributeWhee>") else {
+            Issue.record("Failed to create tokenizer for '<div class=\"foo\" id=\"bar\">hi</div>'")
+            return
+        }
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .StartTag(tagName: "div", attributes: [HTMLToken.Attribute(localName: "class", value: "foo"), HTMLToken.Attribute(localName: "id", value: "bar")]))
+
+        for codePoint in "hi" {
+            let token = tokenizer.nextToken()
+            #expect(token?.type == .Character(codePoint: codePoint))
+        }
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .EndTag(tagName: "div", attributes: [HTMLToken.Attribute(localName: "attr", value: "endTagAttributeWhee")]))
+
+        let token3 = tokenizer.nextToken()
+        #expect(token3?.type == .EndOfFile)
     }
 }

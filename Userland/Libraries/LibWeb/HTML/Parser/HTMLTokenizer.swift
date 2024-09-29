@@ -18,6 +18,12 @@ extension Swift.String {
             return nil
         }
     }
+
+    public mutating func takeString() -> Swift.String {
+        let result = self
+        self = ""
+        return result
+    }
 }
 
 public class HTMLTokenizer {
@@ -115,8 +121,23 @@ public class HTMLTokenizer {
     private var currentToken = HTMLToken()
     private var queuedTokens = Deque<HTMLToken>()
 
+    private var currentBuilder = Swift.String()
+    private var temporaryBuffer = Swift.String()
+    private var lastStartTagName: Swift.String? = nil
+    private var currentTokensAttributes: [HTMLToken.Attribute]? = nil
+    private var currentAttribute: HTMLToken.Attribute? = nil
+
     private var aborted = false
     private var hasEmittedEOF = false
+
+    // https://infra.spec.whatwg.org/#ascii-upper-alpha
+    static private var asciiUpperAlpha = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+    // https://infra.spec.whatwg.org/#ascii-lower-alpha
+    static private var asciiLowerAlpha = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz")
+
+    // https://infra.spec.whatwg.org/#ascii-upper-alpha
+    static private var asciiAlpha = asciiUpperAlpha.union(asciiLowerAlpha)
 
     public init() {
         self.cursor = self.input.startIndex
@@ -181,7 +202,29 @@ public class HTMLTokenizer {
 
     func createNewToken(_ token: HTMLToken) {
         self.currentToken = token
+        if self.currentToken.isTag() {
+            self.currentTokensAttributes = []
+        }
         // FIXME: Assign Position
+    }
+
+    enum AttributeStringBehavior {
+        case SetName
+        case SetValue
+        case IgnoreString
+    }
+    func finalizeCurrentAttribute(_ behavior: AttributeStringBehavior) {
+        precondition(self.currentAttribute != nil && self.currentTokensAttributes != nil)
+        switch behavior {
+        case .SetName:
+            self.currentAttribute!.localName = self.currentBuilder.takeString()
+        case .SetValue:
+            self.currentAttribute!.value = self.currentBuilder.takeString()
+        case .IgnoreString:
+            _ = self.currentBuilder.takeString()
+        }
+        self.currentTokensAttributes!.append(self.currentAttribute!)
+        self.currentAttribute = nil
     }
 
     enum NextTokenState {
@@ -189,6 +232,7 @@ public class HTMLTokenizer {
         case SwitchTo
         case Reconsume(inputCharacter: Character?)
         case ReprocessQueue
+        case Continue
     }
 
     public func nextToken(stopAtInsertionPoint: Bool = false) -> HTMLToken? {
@@ -210,7 +254,7 @@ public class HTMLTokenizer {
             switch nextTokenImpl(nextInputCharacter) {
             case .Emit(let token):
                 return token
-            case .SwitchTo:
+            case .SwitchTo, .Continue:
                 nextInputCharacter = nil
                 break
             case .Reconsume(let character):
@@ -226,12 +270,16 @@ public class HTMLTokenizer {
         }
     }
 
+    func continueInCurrentState() -> NextTokenState {
+        return .Continue
+    }
+
     func switchTo(_ state: State) -> NextTokenState {
         self.state = state
         return .SwitchTo
     }
 
-    func reconsume(_ character: Character, `in` state: State) -> NextTokenState {
+    func reconsume(_ character: Character?, `in` state: State) -> NextTokenState {
         self.state = state
         return .Reconsume(inputCharacter: character)
     }
@@ -251,6 +299,10 @@ public class HTMLTokenizer {
 
     func switchToAndEmitCurrentToken(_ state: State) -> NextTokenState {
         self.state = state
+        if self.currentToken.isTag() {
+            self.currentToken.attributes = self.currentTokensAttributes ?? []
+            self.currentTokensAttributes = nil
+        }
         self.queuedTokens.append(self.currentToken)
         self.currentToken = HTMLToken()
         return .Emit(token: self.queuedTokens.popFirst()!)
@@ -280,6 +332,10 @@ public class HTMLTokenizer {
 
     func emitCurrentTokenFollowedByEOF() -> NextTokenState {
         precondition(!self.hasEmittedEOF)
+        if self.currentToken.isTag() {
+            self.currentToken.attributes = self.currentTokensAttributes ?? []
+            self.currentTokensAttributes = nil
+        }
         self.queuedTokens.append(self.currentToken)
         self.currentToken = HTMLToken()
         return emitEOF()
@@ -292,13 +348,36 @@ public class HTMLTokenizer {
         return .Emit(token: self.queuedTokens.popFirst()!)
     }
 
+    func flushCodepointsConsumedAsACharacterReference() {
+        if consumedAsPartOfAnAttribute() {
+            self.currentBuilder += self.temporaryBuffer.takeString()
+        } else {
+            for codePoint in self.temporaryBuffer.takeString() {
+                self.queuedTokens.append(HTMLToken(type: .Character(codePoint: codePoint)))
+            }
+        }
+    }
+
+    func consumedAsPartOfAnAttribute() -> Bool {
+        return self.returnState == .AttributeValueDoubleQuoted || self.returnState == .AttributeValueSingleQuoted || self.returnState == .AttributeValueUnquoted
+    }
+
+    func isAppropriateEndTagToken(_ token: HTMLToken) -> Bool {
+        guard case let .EndTag(endTagName, _, _, _) = token.type else {
+            preconditionFailure("isAppropriateEndTagToken called with non-end-tag token")
+        }
+        if let startTagName = self.lastStartTagName {
+            return startTagName == endTagName
+        } else {
+            return false
+        }
+    }
+
     func nextTokenImpl(_ nextInputCharacter: Character? = nil) -> NextTokenState {
         let dontConsumeNextInputCharacter = {
             self.restoreCursorToPrevious()
         }
         let _ = dontConsumeNextInputCharacter
-
-        // FIXME: flushCodepointsConsumedAsACharacterReference needs currentBuilder
 
         // Handle reconsume by passing the character around in the state enum
         let currentInputCharacter = nextInputCharacter ?? nextCodePoint()
@@ -306,6 +385,7 @@ public class HTMLTokenizer {
         switch self.state {
         // 13.2.5.1 Data state, https://html.spec.whatwg.org/multipage/parsing.html#data-state
         case .Data:
+            precondition(currentTokensAttributes == nil)
             switch currentInputCharacter {
             case "&":
                 self.returnState = .Data
@@ -319,6 +399,637 @@ public class HTMLTokenizer {
                 return emitEOF()
             default:
                 return emitCharacter(currentInputCharacter!)
+            }
+
+        // 13.2.5.2 RCDATA state, https://html.spec.whatwg.org/multipage/parsing.html#rcdata-state
+        case .RCDATA:
+            switch currentInputCharacter {
+            case "&":
+                self.returnState = .RCDATA
+                return switchTo(.CharacterReference)
+            case "<":
+                return switchTo(.RCDATALessThanSign)
+            case "\0":
+                // FIXME: log_parse_error()
+                return emitCharacter("\u{FFFD}")
+            case nil:
+                return emitEOF()
+            default:
+                return emitCharacter(currentInputCharacter!)
+            }
+
+        // 13.2.5.3. RAWTEXT state, https://html.spec.whatwg.org/multipage/parsing.html#rawtext-state
+        case .RAWTEXT:
+            switch currentInputCharacter {
+            case "<":
+                return switchTo(.RAWTEXTLessThanSign)
+            case "\0":
+                // FIXME: log_parse_error()
+                return emitCharacter("\u{FFFD}")
+            case nil:
+                return emitEOF()
+            default:
+                return emitCharacter(currentInputCharacter!)
+            }
+        // 13.2.5.4 Script data state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-state
+        case .ScriptData:
+            switch currentInputCharacter {
+            case "<":
+                return switchTo(.ScriptDataLessThanSign)
+            case "\0":
+                // FIXME: log_parse_error()
+                return emitCharacter("\u{FFFD}")
+            case nil:
+                return emitEOF()
+            default:
+                return emitCharacter(currentInputCharacter!)
+            }
+        // 13.2.5.5 PLAINTEXT state, https://html.spec.whatwg.org/multipage/parsing.html#plaintext-state
+        case .PLAINTEXT:
+            switch currentInputCharacter {
+            case "\0":
+                // FIXME: log_parse_error()
+                return emitCharacter("\u{FFFD}")
+            case nil:
+                return emitEOF()
+            default:
+                return emitCharacter(currentInputCharacter!)
+            }
+        // 13.2.5.6 Tag open state https://html.spec.whatwg.org/multipage/parsing.html#tag-open-state
+        case .TagOpen:
+            switch currentInputCharacter {
+            case "!":
+                return switchTo(.MarkupDeclarationOpen)
+            case "/":
+                return switchTo(.EndTagOpen)
+            case let c? where HTMLTokenizer.asciiAlpha.contains(c.unicodeScalars.first!):
+                createNewToken(HTMLToken(type: .StartTag(tagName: "")))
+                return reconsume(currentInputCharacter!, in: .TagName)
+            case "?":
+                // FIXME: log_parse_error()
+                createNewToken(HTMLToken(type: .Comment(data: "")))
+                return reconsume(currentInputCharacter!, in: .BogusComment)
+            case nil:
+                // FIXME: log_parse_error()
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+                return emitEOF()
+            default:
+                // FIXME: log_parse_error()
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+                return reconsume(currentInputCharacter!, in: .Data)
+            }
+        // 13.2.5.7 End tag open state, https://html.spec.whatwg.org/multipage/parsing.html#end-tag-open-state
+        case .EndTagOpen:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiAlpha.contains(c.unicodeScalars.first!):
+                createNewToken(HTMLToken(type: .EndTag(tagName: "")))
+                return reconsume(currentInputCharacter!, in: .TagName)
+            default:
+                return emitEOF()
+            }
+        // 13.2.5.8 Tag name state, https://html.spec.whatwg.org/multipage/parsing.html#tag-name-state
+        case .TagName:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                self.currentToken.tagName = self.currentBuilder.takeString()
+                return switchTo(.BeforeAttributeName)
+            case "/":
+                self.currentToken.tagName = self.currentBuilder.takeString()
+                return switchTo(.SelfClosingStartTag)
+            case ">":
+                self.currentToken.tagName = self.currentBuilder.takeString()
+                return switchToAndEmitCurrentToken(.Data)
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                currentBuilder.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                return continueInCurrentState()
+            case "\0":
+                // FIXME: log_parse_error()
+                currentBuilder += "\u{FFFD}"
+                return continueInCurrentState()
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.9 RCDATA less-than sign state, https://html.spec.whatwg.org/multipage/parsing.html#rcdata-less-than-sign-state
+        case .RCDATALessThanSign:
+            switch currentInputCharacter {
+            case "/":
+                self.temporaryBuffer = ""
+                return switchTo(.RCDATAEndTagOpen)
+            default:
+                return emitCharacterAndReconsume("<", in: .RCDATA, currentInputCharacter: currentInputCharacter)
+            }
+        // 13.2.5.10 RCDATA end tag open state, https://html.spec.whatwg.org/multipage/parsing.html#rcdata-end-tag-open-state
+        case .RCDATAEndTagOpen:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiAlpha.contains(c.unicodeScalars.first!):
+                createNewToken(HTMLToken(type: .EndTag(tagName: "")))
+                return reconsume(currentInputCharacter!, in: .RCDATAEndTagName)
+            default:
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "/")))
+                return reconsume(currentInputCharacter, in: .RCDATA)
+            }
+        // 13.2.5.11 RCDATA end tag name state, https://html.spec.whatwg.org/multipage/parsing.html#rcdata-end-tag-name-state
+        case .RCDATAEndTagName:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchTo(.BeforeAttributeName)
+                }
+                break
+            case "/":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchTo(.SelfClosingStartTag)
+                }
+                break
+            case ">":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchToAndEmitCurrentToken(.Data)
+                }
+                break
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                self.temporaryBuffer.append(c)
+                return continueInCurrentState()
+            case let c? where HTMLTokenizer.asciiLowerAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(c)
+                self.temporaryBuffer.append(c)
+                return continueInCurrentState()
+            default:
+                break
+            }
+
+            // First three steps fall through to the "anything else" block
+            self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+            self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "/")))
+            // NOTE: The spec doesn't mention this, but it seems that m_current_token (an end tag) is just dropped in this case.
+            self.currentBuilder = ""
+            for codePoint in self.temporaryBuffer {
+                self.queuedTokens.append(HTMLToken(type: .Character(codePoint: codePoint)))
+            }
+            return reconsume(currentInputCharacter, in: .RCDATA)
+        // 13.2.5.15 Script data less-than sign state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-less-than-sign-state
+        case .ScriptDataLessThanSign:
+            switch currentInputCharacter {
+            case "/":
+                self.temporaryBuffer = ""
+                return switchTo(.ScriptDataEndTagOpen)
+            case "!":
+                self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+                self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "!")))
+                return switchTo(.ScriptDataEscapeStart)
+            default:
+                return emitCharacterAndReconsume("<", in: .ScriptData, currentInputCharacter: currentInputCharacter)
+            }
+        // 13.2.5.16 Script data end tag open state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-end-tag-open-state
+        case .ScriptDataEndTagOpen:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiAlpha.contains(c.unicodeScalars.first!):
+                createNewToken(HTMLToken(type: .EndTag(tagName: "")))
+                return reconsume(currentInputCharacter!, in: .ScriptDataEndTagName)
+            default:
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "/")))
+                return reconsume(currentInputCharacter, in: .ScriptData)
+            }
+        // 13.2.5.17 Script data end tag name state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-end-tag-name-state
+        case .ScriptDataEndTagName:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchTo(.BeforeAttributeName)
+                }
+                break
+            case "/":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchTo(.SelfClosingStartTag)
+                }
+                break
+            case ">":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchToAndEmitCurrentToken(.Data)
+                }
+                break
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                self.temporaryBuffer.append(c)
+                return continueInCurrentState()
+            case let c? where HTMLTokenizer.asciiLowerAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(c)
+                self.temporaryBuffer.append(c)
+                return continueInCurrentState()
+            default:
+                break
+            }
+
+            // First three steps fall through to the "anything else" block
+            self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+            self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "/")))
+            // NOTE: The spec doesn't mention this, but it seems that m_current_token (an end tag) is just dropped in this case.
+            self.currentBuilder = ""
+            for codePoint in self.temporaryBuffer {
+                self.queuedTokens.append(HTMLToken(type: .Character(codePoint: codePoint)))
+            }
+            return reconsume(currentInputCharacter, in: .ScriptData)
+        // 13.2.5.18 Script data escape start state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-escape-start-state
+        case .ScriptDataEscapeStart:
+            switch currentInputCharacter {
+            case "-":
+                return switchToAndEmitCharacter(.ScriptDataEscapeStartDash, character: "-")
+            default:
+                return reconsume(currentInputCharacter, in: .ScriptData)
+            }
+        // 13.2.5.19 Script data escape start dash state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-escape-start-dash-state
+        case .ScriptDataEscapeStartDash:
+            switch currentInputCharacter {
+            case "-":
+                return switchToAndEmitCharacter(.ScriptDataEscapedDashDash, character: "-")
+            default:
+                return reconsume(currentInputCharacter, in: .ScriptData)
+            }
+        // 13.2.5.20 Script data escaped state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-escaped-state
+        case .ScriptDataEscaped:
+            switch currentInputCharacter {
+            case "-":
+                return switchToAndEmitCharacter(.ScriptDataEscapedDash, character: "-")
+            case "<":
+                return switchTo(.ScriptDataEscapedLessThanSign)
+            case "\0":
+                // FIXME: log_parse_error()
+                return emitCharacter("\u{FFFD}")
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                return emitCharacter(currentInputCharacter!)
+            }
+        // 13.2.5.21 Script data escaped dash state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-escaped-dash-state
+        case .ScriptDataEscapedDash:
+            switch currentInputCharacter {
+            case "-":
+                return switchToAndEmitCharacter(.ScriptDataEscapedDashDash, character: "-")
+            case "<":
+                return switchTo(.ScriptDataEscapedLessThanSign)
+            case "\0":
+                // FIXME: log_parse_error()
+                return switchToAndEmitCharacter(.ScriptDataEscaped, character: "\u{FFFD}")
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                return switchToAndEmitCharacter(.ScriptDataEscaped, character: currentInputCharacter!)
+            }
+        // 13.2.5.22 Script data escaped dash dash state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-escaped-dash-dash-state
+        case .ScriptDataEscapedDashDash:
+            switch currentInputCharacter {
+            case "-":
+                return emitCharacter("-")
+            case "<":
+                return switchTo(.ScriptDataEscapedLessThanSign)
+            case ">":
+                return switchToAndEmitCharacter(.ScriptData, character: ">")
+            case "\0":
+                // FIXME: log_parse_error()
+                return switchToAndEmitCharacter(.ScriptDataEscaped, character: "\u{FFFD}")
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                return switchToAndEmitCharacter(.ScriptDataEscaped, character: currentInputCharacter!)
+            }
+        // 13.2.5.23 Script data escaped less-than sign state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-escaped-less-than-sign-state
+        case .ScriptDataEscapedLessThanSign:
+            switch currentInputCharacter {
+            case "/":
+                self.temporaryBuffer = ""
+                return switchTo(.ScriptDataEscapedEndTagOpen)
+            case let c? where HTMLTokenizer.asciiAlpha.contains(c.unicodeScalars.first!):
+                self.temporaryBuffer = ""
+                self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+                return reconsume(currentInputCharacter!, in: .ScriptDataDoubleEscapeStart)
+            default:
+                return emitCharacterAndReconsume("<", in: .ScriptDataEscaped, currentInputCharacter: currentInputCharacter)
+            }
+        // 13.2.5.24 Script data escaped end tag open state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-escaped-end-tag-open-state
+        case .ScriptDataEscapedEndTagOpen:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiAlpha.contains(c.unicodeScalars.first!):
+                createNewToken(HTMLToken(type: .EndTag(tagName: "")))
+                return reconsume(currentInputCharacter!, in: .ScriptDataEscapedEndTagName)
+            default:
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "/")))
+                return reconsume(currentInputCharacter, in: .ScriptDataEscaped)
+            }
+        // 13.2.5.25 Script data escaped end tag name state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-escaped-end-tag-name-state
+        case .ScriptDataEscapedEndTagName:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchTo(.BeforeAttributeName)
+                }
+                break
+            case "/":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchTo(.SelfClosingStartTag)
+                }
+                break
+            case ">":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchToAndEmitCurrentToken(.Data)
+                }
+                break
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                self.temporaryBuffer.append(c)
+                return continueInCurrentState()
+            case let c? where HTMLTokenizer.asciiLowerAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(c)
+                self.temporaryBuffer.append(c)
+                return continueInCurrentState()
+            default:
+                break
+            }
+
+            // First three steps fall through to the "anything else" block
+            self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+            self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "/")))
+            // NOTE: The spec doesn't mention this, but it seems that m_current_token (an end tag) is just dropped in this case.
+            self.currentBuilder = ""
+            for codePoint in self.temporaryBuffer {
+                self.queuedTokens.append(HTMLToken(type: .Character(codePoint: codePoint)))
+            }
+            return reconsume(currentInputCharacter, in: .ScriptDataEscaped)
+        // 13.2.5.26 Script data double escape start state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-double-escape-start-state
+        case .ScriptDataDoubleEscapeStart:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ", "/", ">":
+                if self.temporaryBuffer == "script" {
+                    return switchToAndEmitCharacter(.ScriptDataDoubleEscaped, character: currentInputCharacter!)
+                } else {
+                    return switchToAndEmitCharacter(.ScriptDataEscaped, character: currentInputCharacter!)
+                }
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                self.temporaryBuffer.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                return emitCharacter(currentInputCharacter!)
+            case let c? where HTMLTokenizer.asciiLowerAlpha.contains(c.unicodeScalars.first!):
+                self.temporaryBuffer.append(c)
+                return emitCharacter(currentInputCharacter!)
+            default:
+                return reconsume(currentInputCharacter, in: .ScriptDataEscaped)
+            }
+        // 13.2.5.27 Script data double escaped state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-double-escaped-state
+        case .ScriptDataDoubleEscaped:
+            switch currentInputCharacter {
+            case "-":
+                return switchToAndEmitCharacter(.ScriptDataDoubleEscapedDash, character: "-")
+            case "<":
+                return switchTo(.ScriptDataDoubleEscapedLessThanSign)
+            case "\0":
+                // FIXME: log_parse_error()
+                return emitCharacter("\u{FFFD}")
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                return emitCharacter(currentInputCharacter!)
+            }
+        // 13.2.5.28 Script data double escaped dash state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-double-escaped-dash-state
+        case .ScriptDataDoubleEscapedDash:
+            switch currentInputCharacter {
+            case "-":
+                return switchToAndEmitCharacter(.ScriptDataDoubleEscapedDashDash, character: "-")
+            case "<":
+                return switchTo(.ScriptDataDoubleEscapedLessThanSign)
+            case "\0":
+                // FIXME: log_parse_error()
+                return switchToAndEmitCharacter(.ScriptDataDoubleEscaped, character: "\u{FFFD}")
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                return switchToAndEmitCharacter(.ScriptDataDoubleEscaped, character: currentInputCharacter!)
+            }
+        // 13.2.5.29 Script data double escaped dash dash state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-double-escaped-dash-dash-state
+        case .ScriptDataDoubleEscapedDashDash:
+            switch currentInputCharacter {
+            case "-":
+                return emitCharacter("-")
+            case "<":
+                return switchToAndEmitCharacter(.ScriptDataDoubleEscapedLessThanSign, character: "<")
+            case ">":
+                return switchToAndEmitCharacter(.ScriptData, character: ">")
+            case "\0":
+                // FIXME: log_parse_error()
+                return switchToAndEmitCharacter(.ScriptDataDoubleEscaped, character: "\u{FFFD}")
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                return switchToAndEmitCharacter(.ScriptDataDoubleEscaped, character: currentInputCharacter!)
+            }
+        // 13.2.5.30 Script data double escaped less-than sign state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-double-escaped-less-than-sign-state
+        case .ScriptDataDoubleEscapedLessThanSign:
+            switch currentInputCharacter {
+            case "/":
+                self.temporaryBuffer = ""
+                return switchToAndEmitCharacter(.ScriptDataDoubleEscapeEnd, character: "/")
+            default:
+                return reconsume(currentInputCharacter, in: .ScriptDataDoubleEscaped)
+            }
+        // 13.2.5.31 Script data double escape end state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-double-escape-end-state
+        case .ScriptDataDoubleEscapeEnd:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ", "/", ">":
+                if self.temporaryBuffer == "script" {
+                    return switchToAndEmitCharacter(.ScriptDataEscaped, character: currentInputCharacter!)
+                } else {
+                    return switchToAndEmitCharacter(.ScriptDataDoubleEscaped, character: currentInputCharacter!)
+                }
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                self.temporaryBuffer.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                return emitCharacter(currentInputCharacter!)
+            case let c? where HTMLTokenizer.asciiLowerAlpha.contains(c.unicodeScalars.first!):
+                self.temporaryBuffer.append(c)
+                return emitCharacter(currentInputCharacter!)
+            default:
+                return reconsume(currentInputCharacter, in: .ScriptDataDoubleEscaped)
+            }
+        // 13.2.5.32 Before attribute name state, https://html.spec.whatwg.org/multipage/parsing.html#before-attribute-name-state
+        case .BeforeAttributeName:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return continueInCurrentState()
+            case "/", ">", nil:
+                return reconsume(currentInputCharacter, in: .AfterAttributeName)
+            case "=":
+                // FIXME: log_parse_error()
+                self.currentBuilder = Swift.String(currentInputCharacter!)
+                self.currentAttribute = HTMLToken.Attribute(localName: "", value: "")
+                return switchTo(.AttributeName)
+            default:
+                self.currentAttribute = HTMLToken.Attribute(localName: "", value: "")
+                return reconsume(currentInputCharacter!, in: .AttributeName)
+            }
+        // 13.2.5.33 Attribute name state, https://html.spec.whatwg.org/multipage/parsing.html#attribute-name-state
+        case .AttributeName:
+            // FIXME: When the user agent leaves the attribute name state (and before emitting the tag token, if appropriate),
+            //        the complete attribute's name must be compared to the other attributes on the same token;
+            //        if there is already an attribute on the token with the exact same name, then this is a duplicate-attribute
+            //        parse error and the new attribute must be removed from the token.
+            // NOTE:  If an attribute is so removed from a token, it, and the value that gets associated with it, if any,
+            //        are never subsequently used by the parser, and are therefore effectively discarded. Removing the attribute
+            //        in this way does not change its status as the "current attribute" for the purposes of the tokenizer, however.
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ", "/", ">", nil:
+                // FIXME: set name position
+                self.currentAttribute!.localName = self.currentBuilder.takeString()
+                return reconsume(currentInputCharacter, in: .AfterAttributeName)
+            case "=":
+                // FIXME: set name position
+                self.currentAttribute!.localName = self.currentBuilder.takeString()
+                return switchTo(.BeforeAttributeValue)
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                return continueInCurrentState()
+            case "\0":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.34 After attribute name state, https://html.spec.whatwg.org/multipage/parsing.html#after-attribute-name-state
+        case .AfterAttributeName:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return continueInCurrentState()
+            case "/":
+                self.finalizeCurrentAttribute(.SetName)
+                return switchTo(.SelfClosingStartTag)
+            case "=":
+                self.finalizeCurrentAttribute(.SetName)
+                return switchTo(.BeforeAttributeValue)
+            case ">":
+                self.finalizeCurrentAttribute(.SetName)
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.finalizeCurrentAttribute(.IgnoreString)
+                return emitEOF()
+            default:
+                self.finalizeCurrentAttribute(.SetName)
+                self.currentAttribute = HTMLToken.Attribute(localName: "", value: "")
+                return reconsume(currentInputCharacter!, in: .AttributeName)
+            }
+        // 13.2.5.35 Before attribute value state, https://html.spec.whatwg.org/multipage/parsing.html#before-attribute-value-state
+        case .BeforeAttributeValue:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return continueInCurrentState()
+            case "\"":
+                return switchTo(.AttributeValueDoubleQuoted)
+            case "'":
+                return switchTo(.AttributeValueSingleQuoted)
+            case ">":
+                // FIXME: log_parse_error()
+                self.finalizeCurrentAttribute(.IgnoreString)
+                return switchToAndEmitCurrentToken(.Data)
+            default:
+                return reconsume(currentInputCharacter, in: .AttributeValueUnquoted)
+            }
+        // 13.2.5.36 Attribute value (double-quoted) state, https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-double-quoted-state
+        case .AttributeValueDoubleQuoted:
+            switch currentInputCharacter {
+            case "\"":
+                return switchTo(.AfterAttributeValueQuoted)
+            case "&":
+                self.returnState = .AttributeValueDoubleQuoted
+                return switchTo(.CharacterReference)
+            case "\0":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            case nil:
+                // FIXME: log_parse_error()
+                self.finalizeCurrentAttribute(.IgnoreString)
+                return emitEOF()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.37 Attribute value (single-quoted) state, https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-single-quoted-state
+        case .AttributeValueSingleQuoted:
+            switch currentInputCharacter {
+            case "'":
+                return switchTo(.AfterAttributeValueQuoted)
+            case "&":
+                self.returnState = .AttributeValueSingleQuoted
+                return switchTo(.CharacterReference)
+            case "\0":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.38 Attribute value (unquoted) state, https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-unquoted-state
+        case .AttributeValueUnquoted:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                self.finalizeCurrentAttribute(.SetValue)
+                return switchTo(.BeforeAttributeName)
+            case "&":
+                self.returnState = .AttributeValueUnquoted
+                return switchTo(.CharacterReference)
+            case ">":
+                self.finalizeCurrentAttribute(.SetValue)
+                return switchToAndEmitCurrentToken(.Data)
+            case "\0":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            case "\"", "'", "<", "=", "`":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            case nil:
+                // FIXME: log_parse_error()
+                self.finalizeCurrentAttribute(.IgnoreString)
+                return emitEOF()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.39 After attribute value (quoted) state, https://html.spec.whatwg.org/multipage/parsing.html#after-attribute-value-quoted-state
+        case .AfterAttributeValueQuoted:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                self.finalizeCurrentAttribute(.SetValue)
+                return switchTo(.BeforeAttributeName)
+            case "/":
+                self.finalizeCurrentAttribute(.SetValue)
+                return switchTo(.SelfClosingStartTag)
+            case ">":
+                self.finalizeCurrentAttribute(.SetValue)
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.finalizeCurrentAttribute(.IgnoreString)
+                return emitEOF()
+            default:
+                // FIXME: log_parse_error()
+                self.finalizeCurrentAttribute(.SetValue)
+                return reconsume(currentInputCharacter!, in: .BeforeAttributeName)
             }
         default:
             print("TODO: In state \(self.state) with input \(Swift.String(describing: currentInputCharacter))")

@@ -14,14 +14,19 @@ public class HTMLToken {
     }
 
     public struct Attribute: Equatable {
-        var prefix: Swift.String?
-        var localName: Swift.String
-        var namespace_: Swift.String?
-        var value: Swift.String
-        var nameStartPosition: Position
-        var nameEndPosition: Position
-        var valueStartPosition: Position
-        var valueEndPosition: Position
+        public var prefix: Swift.String? = nil
+        public var localName: Swift.String
+        public var namespace_: Swift.String? = nil
+        public var value: Swift.String
+        public var nameStartPosition = Position()
+        public var nameEndPosition = Position()
+        public var valueStartPosition = Position()
+        public var valueEndPosition = Position()
+
+        public init(localName: Swift.String, value: Swift.String) {
+            self.localName = localName
+            self.value = value
+        }
     }
 
     public enum TokenType: Equatable {
@@ -33,14 +38,14 @@ public class HTMLToken {
             forceQuirksMode: Bool)
         case StartTag(
             tagName: Swift.String,
-            selfClosing: Bool,
-            selfClosingAcknowledged: Bool,
-            attributes: [Attribute])
+            selfClosing: Bool = false,
+            selfClosingAcknowledged: Bool = false,
+            attributes: [Attribute] = [])
         case EndTag(
             tagName: Swift.String,
-            selfClosing: Bool,
-            selfClosingAcknowledged: Bool,
-            attributes: [Attribute])
+            selfClosing: Bool = false,
+            selfClosingAcknowledged: Bool = false,
+            attributes: [Attribute] = [])
         case Comment(data: Swift.String)
         case Character(codePoint: Character)
         case EndOfFile
@@ -51,6 +56,24 @@ public class HTMLToken {
             return true
         }
         return false
+    }
+
+    public func isEndTag() -> Bool {
+        if case .EndTag(_, _, _, _) = self.type {
+            return true
+        }
+        return false
+    }
+
+    public func isStartTag() -> Bool {
+        if case .StartTag(_, _, _, _) = self.type {
+            return true
+        }
+        return false
+    }
+
+    public func isTag() -> Bool {
+        return isStartTag() || isEndTag()
     }
 
     public func isParserWhitespace() -> Bool {
@@ -72,6 +95,52 @@ public class HTMLToken {
     public var type = TokenType.Invalid
     public var startPosition = Position()
     public var endPosition = Position()
+
+    // Is in-place mutating enums a thing? Seems not https://forums.swift.org/t/in-place-mutation-of-an-enum-associated-value/11747
+    public var attributes: [Attribute] {
+        get {
+            switch self.type {
+            case .StartTag(_, _, _, let attributes):
+                return attributes
+            case .EndTag(_, _, _, let attributes):
+                return attributes
+            default:
+                preconditionFailure("attributes called on non-tag token")
+            }
+        }
+        set {
+            switch self.type {
+            case .StartTag(let tagName, let selfClosing, let selfClosingAcknowledged, attributes: _):
+                self.type = .StartTag(tagName: tagName, selfClosing: selfClosing, selfClosingAcknowledged: selfClosingAcknowledged, attributes: newValue)
+            case .EndTag(let tagName, let selfClosing, let selfClosingAcknowledged, attributes: _):
+                self.type = .EndTag(tagName: tagName, selfClosing: selfClosing, selfClosingAcknowledged: selfClosingAcknowledged, attributes: newValue)
+            default:
+                preconditionFailure("attributes= called on non-tag token")
+            }
+        }
+    }
+    public var tagName: Swift.String {
+        get {
+            switch self.type {
+            case .StartTag(let tagName, _, _, _):
+                return tagName
+            case .EndTag(let tagName, _, _, _):
+                return tagName
+            default:
+                preconditionFailure("tagName called on non-tag token")
+            }
+        }
+        set {
+            switch self.type {
+            case .StartTag(tagName: _, let selfClosing, let selfClosingAcknowledged, let attributes):
+                self.type = .StartTag(tagName: newValue, selfClosing: selfClosing, selfClosingAcknowledged: selfClosingAcknowledged, attributes: attributes)
+            case .EndTag(tagName: _, let selfClosing, let selfClosingAcknowledged, let attributes):
+                self.type = .EndTag(tagName: newValue, selfClosing: selfClosing, selfClosingAcknowledged: selfClosingAcknowledged, attributes: attributes)
+            default:
+                preconditionFailure("tagName= called on non-tag token")
+            }
+        }
+    }
 
     public init() {}
     public init(type: TokenType) {
