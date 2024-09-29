@@ -2863,4 +2863,16 @@ void StyleComputer::pop_ancestor(DOM::Element const& element)
     });
 }
 
+size_t StyleComputer::number_of_css_font_faces_with_loading_in_progress() const
+{
+    size_t count = 0;
+    for (auto const& [_, loaders] : m_loaded_fonts) {
+        for (auto const& loader : loaders) {
+            if (loader->is_loading())
+                ++count;
+        }
+    }
+    return count;
+}
+
 }
