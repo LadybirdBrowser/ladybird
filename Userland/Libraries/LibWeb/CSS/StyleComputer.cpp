@@ -2177,8 +2177,16 @@ void StyleComputer::transform_box_type_if_needed(StyleProperties& style, DOM::El
     // (This has no effect on display types that generate no box at all, such as none or contents.)
 
     auto display = style.display();
-    if (display.is_none() || display.is_contents())
+
+    if (display.is_none() || (display.is_contents() && !element.is_document_element()))
         return;
+
+    // https://drafts.csswg.org/css-display/#root
+    // The root element’s display type is always blockified, and its principal box always establishes an independent formatting context.
+    if (element.is_document_element() && !display.is_block_outside()) {
+        style.set_property(CSS::PropertyID::Display, DisplayStyleValue::create(Display::from_short(CSS::Display::Short::Block)));
+        return;
+    }
 
     auto new_display = display;
 
