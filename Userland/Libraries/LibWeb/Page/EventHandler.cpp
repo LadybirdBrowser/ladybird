@@ -565,7 +565,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
 
             m_mousemove_previous_screen_position = screen_position;
 
-            bool continue_ = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousemove, screen_position, page_offset, client_offset, offset, movement, 1, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+            bool continue_ = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousemove, screen_position, page_offset, client_offset, offset, movement, UIEvents::MouseButton::Primary, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
             if (!continue_)
                 return EventResult::Cancelled;
 
