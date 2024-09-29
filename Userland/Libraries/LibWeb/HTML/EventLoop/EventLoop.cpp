@@ -177,6 +177,17 @@ void EventLoop::process()
     // 8. Microtasks: Perform a microtask checkpoint.
     perform_a_microtask_checkpoint();
 
+    if (m_is_running_reflow_steps) {
+        // NOTE: If we entered style-layout-repaint steps, then we need to wait for them to finish before doing next iteration.
+        schedule();
+        return;
+    }
+
+    m_is_running_reflow_steps = true;
+    ScopeGuard const guard = [this] {
+        m_is_running_reflow_steps = false;
+    };
+
     // 9. Let hasARenderingOpportunity be false.
     [[maybe_unused]] bool has_a_rendering_opportunity = false;
 
