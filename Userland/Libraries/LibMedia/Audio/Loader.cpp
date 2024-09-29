@@ -8,7 +8,9 @@
 #include "Loader.h"
 #include "FlacLoader.h"
 #include "MP3Loader.h"
-#include "OggLoader.h"
+#ifdef USE_FFMPEG
+#    include "OggLoader.h"
+#endif
 #include "QOALoader.h"
 #include "WavLoader.h"
 #include <AK/TypedTransfer.h>
