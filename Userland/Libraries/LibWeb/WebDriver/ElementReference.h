@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +9,7 @@
 #include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/JsonObject.h>
+#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebDriver/Error.h>
 
@@ -16,6 +17,7 @@ namespace Web::WebDriver {
 
 ByteString get_or_create_a_web_element_reference(Web::DOM::Node const& element);
 JsonObject web_element_reference_object(Web::DOM::Node const& element);
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(JsonObject const&);
 ByteString extract_web_element_reference(JsonObject const&);
 bool represents_a_web_element(JsonValue const& value);
 ErrorOr<Web::DOM::Element*, Web::WebDriver::Error> get_known_connected_element(StringView element_id);
