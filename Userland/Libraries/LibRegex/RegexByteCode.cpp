@@ -8,6 +8,7 @@
 #include "RegexDebug.h"
 #include <AK/BinarySearch.h>
 #include <AK/CharacterTypes.h>
+#include <AK/Format.h>
 #include <AK/StringBuilder.h>
 #include <LibUnicode/CharacterTypes.h>
 
@@ -266,15 +267,16 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBegin::execute(MatchInput const& input
 
         return false;
     }();
+
     if (is_at_line_boundary && (input.regex_options & AllFlags::MatchNotBeginOfLine))
-        return ExecutionResult::Failed_ExecuteLowPrioForks;
+        return ExecutionResult::Failed;
 
     if ((is_at_line_boundary && !(input.regex_options & AllFlags::MatchNotBeginOfLine))
         || (!is_at_line_boundary && (input.regex_options & AllFlags::MatchNotBeginOfLine))
         || (is_at_line_boundary && (input.regex_options & AllFlags::Global)))
         return ExecutionResult::Continue;
 
-    return ExecutionResult::Failed_ExecuteLowPrioForks;
+    return ExecutionResult::Failed;
 }
 
 ALWAYS_INLINE ExecutionResult OpCode_CheckBoundary::execute(MatchInput const& input, MatchState& state) const
@@ -295,12 +297,12 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBoundary::execute(MatchInput const& in
     case BoundaryCheckType::Word: {
         if (is_word_boundary())
             return ExecutionResult::Continue;
-        return ExecutionResult::Failed_ExecuteLowPrioForks;
+        return ExecutionResult::Failed;
     }
     case BoundaryCheckType::NonWord: {
         if (!is_word_boundary())
             return ExecutionResult::Continue;
-        return ExecutionResult::Failed_ExecuteLowPrioForks;
+        return ExecutionResult::Failed;
     }
     }
     VERIFY_NOT_REACHED();
