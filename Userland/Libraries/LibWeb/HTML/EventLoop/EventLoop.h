@@ -113,6 +113,8 @@ private:
     bool m_execution_paused { false };
 
     bool m_skip_event_loop_processing_steps { false };
+
+    bool m_is_running_reflow_steps { false };
 };
 
 EventLoop& main_thread_event_loop();
