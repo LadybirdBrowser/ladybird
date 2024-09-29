@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -42,6 +42,23 @@ JsonObject web_element_reference_object(Web::DOM::Node const& element)
     JsonObject object;
     object.set(identifier, reference);
     return object;
+}
+
+// https://w3c.github.io/webdriver/#dfn-deserialize-a-web-element
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(JsonObject const& object)
+{
+    // 1. If object has no own property web element identifier, return error with error code invalid argument.
+    if (!object.has_string(web_element_identifier))
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element");
+
+    // 2. Let reference be the result of getting the web element identifier property from object.
+    auto reference = extract_web_element_reference(object);
+
+    // 3. Let element be the result of trying to get a known element with session and reference.
+    auto* element = TRY(get_known_connected_element(reference));
+
+    // 4. Return success with data element.
+    return *element;
 }
 
 ByteString extract_web_element_reference(JsonObject const& object)
