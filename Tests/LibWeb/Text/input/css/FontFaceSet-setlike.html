@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        const fontFaceSet = new FontFaceSet([]);
+        const fontFaceSet = document.fonts;
         const fontFace = new FontFace("Hash Sans", 'url(../../../../Ref/assets/HashSans.woff)');
 
         println("-- Empty FontFaceSet --");
