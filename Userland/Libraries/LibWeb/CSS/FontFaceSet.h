@@ -43,6 +43,8 @@ public:
     JS::NonnullGCPtr<JS::Promise> ready() const;
     Bindings::FontFaceSetLoadStatus status() const { return m_status; }
 
+    void resolve_ready_promise();
+
 private:
     FontFaceSet(JS::Realm&, JS::NonnullGCPtr<WebIDL::Promise> ready_promise, JS::NonnullGCPtr<JS::Set> set_entries);
 
