@@ -11,6 +11,7 @@
 #include <AK/JsonObject.h>
 #include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebDriver/Error.h>
 
 namespace Web::WebDriver {
@@ -26,5 +27,7 @@ bool is_element_stale(Web::DOM::Node const& element);
 ByteString get_or_create_a_shadow_root_reference(Web::DOM::ShadowRoot const& shadow_root);
 JsonObject shadow_root_reference_object(Web::DOM::ShadowRoot const& shadow_root);
 ErrorOr<Web::DOM::ShadowRoot*, Web::WebDriver::Error> get_known_shadow_root(StringView shadow_id);
+
+CSSPixelPoint in_view_center_point(DOM::Element const& element, CSSPixelRect viewport);
 
 }

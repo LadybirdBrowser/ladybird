@@ -8,6 +8,8 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/Geometry/DOMRect.h>
+#include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 
 namespace Web::WebDriver {
@@ -150,6 +152,35 @@ ErrorOr<Web::DOM::ShadowRoot*, Web::WebDriver::Error> get_known_shadow_root(Stri
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find shadow root with ID: {}", shadow_id));
 
     return static_cast<Web::DOM::ShadowRoot*>(node);
+}
+
+// https://w3c.github.io/webdriver/#dfn-center-point
+CSSPixelPoint in_view_center_point(DOM::Element const& element, CSSPixelRect viewport)
+{
+    // 1. Let rectangle be the first element of the DOMRect sequence returned by calling getClientRects() on element.
+    auto const* rectangle = element.get_client_rects()->item(0);
+    VERIFY(rectangle);
+
+    // 2. Let left be max(0, min(x coordinate, x coordinate + width dimension)).
+    auto left = max(0.0, min(rectangle->x(), rectangle->x() + rectangle->width()));
+
+    // 3. Let right be min(innerWidth, max(x coordinate, x coordinate + width dimension)).
+    auto right = min(viewport.width().to_double(), max(rectangle->x(), rectangle->x() + rectangle->width()));
+
+    // 4. Let top be max(0, min(y coordinate, y coordinate + height dimension)).
+    auto top = max(0.0, min(rectangle->y(), rectangle->y() + rectangle->height()));
+
+    // 5. Let bottom be min(innerHeight, max(y coordinate, y coordinate + height dimension)).
+    auto bottom = min(viewport.height().to_double(), max(rectangle->y(), rectangle->y() + rectangle->height()));
+
+    // 6. Let x be floor((left + right) ÷ 2.0).
+    auto x = floor((left + right) / 2.0);
+
+    // 7. Let y be floor((top + bottom) ÷ 2.0).
+    auto y = floor((top + bottom) / 2.0);
+
+    // 8. Return the pair of (x, y).
+    return { x, y };
 }
 
 }
