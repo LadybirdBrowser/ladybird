@@ -77,6 +77,18 @@ bool represents_a_web_element(JsonValue const& value)
     return value.as_object().has_string(web_element_identifier);
 }
 
+// https://w3c.github.io/webdriver/#dfn-get-a-webelement-origin
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(StringView origin)
+{
+    // 1. Assert: browsing context is the current browsing context.
+
+    // 2. Let element be equal to the result of trying to get a known element with session and origin.
+    auto* element = TRY(get_known_connected_element(origin));
+
+    // 3. Return success with data element.
+    return *element;
+}
+
 // https://w3c.github.io/webdriver/#dfn-get-a-known-element
 ErrorOr<Web::DOM::Element*, Web::WebDriver::Error> get_known_connected_element(StringView element_id)
 {

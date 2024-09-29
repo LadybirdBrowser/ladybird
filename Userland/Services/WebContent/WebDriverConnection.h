@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -145,6 +145,8 @@ private:
 
     // https://w3c.github.io/webdriver/#dfn-current-browsing-context
     JS::Handle<Web::HTML::BrowsingContext> m_current_browsing_context;
+
+    JS::Handle<JS::Cell> m_action_executor;
 };
 
 }

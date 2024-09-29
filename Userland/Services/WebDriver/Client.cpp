@@ -3,7 +3,7 @@
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -687,7 +687,7 @@ Web::WebDriver::Response Client::perform_actions(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/actions");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().perform_actions(move(payload));
+    return session->perform_actions(move(payload));
 }
 
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions

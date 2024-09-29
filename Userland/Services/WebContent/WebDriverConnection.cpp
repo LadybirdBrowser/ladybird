@@ -44,8 +44,10 @@
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/WebDriver/Actions.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
+#include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebDriver/Properties.h>
 #include <LibWeb/WebDriver/Screenshot.h>
 #include <WebContent/WebDriverConnection.h>
@@ -1887,17 +1889,38 @@ Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_
 // 15.7 Perform Actions, https://w3c.github.io/webdriver/#perform-actions
 Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_actions(JsonValue const& payload)
 {
-    dbgln("FIXME: WebDriverConnection::perform_actions({})", payload);
+    // 4. If session's current browsing context is no longer open, return error with error code no such window.
+    // NOTE: We do this first so we can assume the current top-level browsing context below is non-null.
+    TRY(ensure_current_browsing_context_is_open());
 
-    // FIXME: 1. Let input state be the result of get the input state with session and session's current top-level browsing context.
-    // FIXME: 2. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
-    // FIXME: 3. Let actions by tick be the result of trying to extract an action sequence with input state, parameters, and actions options.
-    // FIXME: 4. If session's current browsing context is no longer open, return error with error code no such window.
-    // FIXME: 5. Try to handle any user prompts with session.
-    // FIXME: 6. Dispatch actions with input state, actions by tick, current browsing context, and actions options. If this results in an error return that error.
-    // FIXME: 7. Return success with data null.
+    // 1. Let input state be the result of get the input state with session and session's current top-level browsing context.
+    auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
 
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "perform actions not implemented"sv);
+    // 2. Let actions options be a new actions options with the is element origin steps set to represents a web element,
+    //    and the get element origin steps set to get a WebElement origin.
+    Web::WebDriver::ActionsOptions actions_options {
+        .is_element_origin = &Web::WebDriver::represents_a_web_element,
+        .get_element_origin = &Web::WebDriver::get_web_element_origin,
+    };
+
+    // 3. Let actions by tick be the result of trying to extract an action sequence with input state, parameters, and
+    //    actions options.
+    auto actions_by_tick = TRY(Web::WebDriver::extract_an_action_sequence(input_state, payload, actions_options));
+
+    // 5. Try to handle any user prompts with session.
+    TRY(handle_any_user_prompts());
+
+    // 6. Dispatch actions with input state, actions by tick, current browsing context, and actions options. If this
+    //    results in an error return that error.
+    auto on_complete = JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        m_action_executor = nullptr;
+        async_actions_performed(move(result));
+    });
+
+    m_action_executor = Web::WebDriver::dispatch_actions(input_state, move(actions_by_tick), current_browsing_context(), move(actions_options), on_complete);
+
+    // 7. Return success with data null.
+    return JsonValue {};
 }
 
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions
