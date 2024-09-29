@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -60,6 +60,8 @@ public:
         Async,
     };
     Web::WebDriver::Response execute_script(JsonValue, ScriptMode) const;
+
+    Web::WebDriver::Response perform_actions(JsonValue) const;
 
 private:
     using ServerPromise = Core::Promise<ErrorOr<void>>;
