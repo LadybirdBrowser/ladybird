@@ -1926,16 +1926,28 @@ Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_a
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions
 Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_actions()
 {
-    dbgln("FIXME: WebDriverConnection::release_actions()");
-
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // FIXME: 2. Let input state be the result of get the input state with current session and current top-level browsing context.
-    // FIXME: 3. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
-    // FIXME: 4. Let undo actions be input state’s input cancel list in reverse order.
-    // FIXME: 5. Try to dispatch tick actions with arguments undo actions, 0, current browsing context, and actions options.
-    // FIXME: 6. Reset the input state with current session and current top-level browsing context.
+    // 2. Let input state be the result of get the input state with current session and current top-level browsing context.
+    auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
+
+    // 3. Let actions options be a new actions options with the is element origin steps set to represents a web element,
+    //    and the get element origin steps set to get a WebElement origin.
+    Web::WebDriver::ActionsOptions actions_options {
+        .is_element_origin = &Web::WebDriver::represents_a_web_element,
+        .get_element_origin = &Web::WebDriver::get_web_element_origin,
+    };
+
+    // 4. Let undo actions be input state’s input cancel list in reverse order.
+    auto undo_actions = input_state.input_cancel_list;
+    undo_actions.reverse();
+
+    // 5. Try to dispatch tick actions with arguments undo actions, 0, current browsing context, and actions options.
+    TRY(Web::WebDriver::dispatch_tick_actions(input_state, undo_actions, AK::Duration::zero(), current_browsing_context(), actions_options));
+
+    // 6. Reset the input state with current session and current top-level browsing context.
+    Web::WebDriver::reset_input_state(*current_top_level_browsing_context());
 
     // 7. Return success with data null.
     return JsonValue {};
