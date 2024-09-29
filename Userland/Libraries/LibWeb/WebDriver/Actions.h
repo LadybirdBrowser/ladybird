@@ -13,11 +13,13 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibJS/Heap/GCPtr.h>
+#include <LibJS/Heap/HeapFunction.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/InputSource.h>
+#include <LibWeb/WebDriver/Response.h>
 
 namespace Web::WebDriver {
 
@@ -120,6 +122,11 @@ struct ActionsOptions {
     Function<ErrorOr<JS::NonnullGCPtr<DOM::Element>, WebDriver::Error>(StringView)> get_element_origin;
 };
 
+using OnActionsComplete = JS::NonnullGCPtr<JS::HeapFunction<void(Web::WebDriver::Response)>>;
+
 ErrorOr<Vector<Vector<ActionObject>>, WebDriver::Error> extract_an_action_sequence(InputState&, JsonValue const&, ActionsOptions const&);
+
+JS::NonnullGCPtr<JS::Cell> dispatch_actions(InputState&, Vector<Vector<ActionObject>>, HTML::BrowsingContext&, ActionsOptions, OnActionsComplete);
+ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState&, ReadonlySpan<ActionObject>, AK::Duration, HTML::BrowsingContext&, ActionsOptions const&);
 
 }

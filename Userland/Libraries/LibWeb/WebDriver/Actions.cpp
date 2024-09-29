@@ -11,6 +11,11 @@
 #include <AK/JsonValue.h>
 #include <AK/Math.h>
 #include <AK/Utf8View.h>
+#include <LibWeb/Crypto/Crypto.h>
+#include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/WebDriver/Actions.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/InputState.h>
@@ -101,6 +106,46 @@ static Optional<ActionObject::Origin> determine_origin(ActionsOptions const& act
     }
 
     return {};
+}
+
+// https://w3c.github.io/webdriver/#dfn-get-coordinates-relative-to-an-origin
+static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_origin(PointerInputSource const& source, CSSPixelPoint offset, CSSPixelRect viewport, ActionObject::Origin const& origin, ActionsOptions const& actions_options)
+{
+    // 1. Run the substeps of the first matching value of origin
+    auto coordinates = TRY(origin.visit(
+        [&](ActionObject::OriginType origin) -> ErrorOr<CSSPixelPoint, WebDriver::Error> {
+            switch (origin) {
+            // "viewport"
+            case ActionObject::OriginType::Viewport:
+                // 1. Let x equal x offset and y equal y offset.
+                return offset;
+
+            // "pointer"
+            case ActionObject::OriginType::Pointer:
+                // 1. Let start x be equal to the x property of source.
+                // 2. Let start y be equal to the y property of source.
+                // 3. Let x equal start x + x offset and y equal start y + y offset.
+                return source.position.translated(offset);
+            }
+
+            VERIFY_NOT_REACHED();
+        },
+        [&](String const& origin) -> ErrorOr<CSSPixelPoint, WebDriver::Error> {
+            // Otherwise
+            // 1. Let element be the result of trying to run actions options' get element origin steps with origin and
+            //    browsing context.
+            // 2. If element is null, return error with error code no such element.
+            auto element = TRY(actions_options.get_element_origin(origin));
+
+            // 3. Let x element and y element be the result of calculating the in-view center point of element.
+            auto position = in_view_center_point(element, viewport);
+
+            // 4. Let x equal x element + x offset, and y equal y element + y offset.
+            return position.translated(offset);
+        }));
+
+    // 2. Return (x, y)
+    return coordinates;
 }
 
 // https://w3c.github.io/webdriver/#dfn-process-pointer-parameters
@@ -544,6 +589,429 @@ ErrorOr<Vector<Vector<ActionObject>>, WebDriver::Error> extract_an_action_sequen
 
     // 5. Return success with data actions by tick.
     return actions_by_tick;
+}
+
+// https://w3c.github.io/webdriver/#dfn-computing-the-tick-duration
+static AK::Duration compute_tick_duration(ReadonlySpan<ActionObject> tick_actions)
+{
+    // 1. Let max duration be 0.
+    auto max_duration = AK::Duration::zero();
+
+    // 2. For each action object in tick actions:
+    for (auto const& action_object : tick_actions) {
+        // 1. let duration be undefined.
+        Optional<AK::Duration> duration;
+
+        // 2. If action object has subtype property set to "pause" or action object has type property set to "pointer"
+        //    and subtype property set to "pointerMove", or action object has type property set to "wheel" and subtype
+        //    property set to "scroll", let duration be equal to the duration property of action object.
+        action_object.fields.visit(
+            [&](OneOf<ActionObject::PauseFields, ActionObject::PointerMoveFields, ActionObject::ScrollFields> auto const& fields) {
+                duration = fields.duration;
+            },
+            [](auto const&) {});
+
+        // 3. If duration is not undefined, and duration is greater than max duration, let max duration be equal to duration.
+        if (duration.has_value())
+            max_duration = max(max_duration, *duration);
+    }
+
+    // 3. Return max duration.
+    return max_duration;
+}
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-a-pause-action
+static void dispatch_pause_action()
+{
+    // 1. Return success with data null.
+}
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-a-pointerdown-action
+static ErrorOr<void, WebDriver::Error> dispatch_pointer_down_action(ActionObject::PointerUpDownFields const& action_object, PointerInputSource& source, GlobalKeyState const& global_key_state, HTML::BrowsingContext& browsing_context)
+{
+    // 1. Let pointerType be equal to action object's pointerType property.
+    auto pointer_type = action_object.pointer_type;
+
+    // 2. Let button be equal to action object's button property.
+    auto button = action_object.button;
+
+    // 3. If the source's pressed property contains button return success with data null.
+    if (has_flag(source.pressed, button))
+        return {};
+
+    // 4. Let x be equal to source's x property.
+    // 5. Let y be equal to source's y property.
+    auto position = browsing_context.page().css_to_device_point(source.position);
+
+    // 6. Add button to the set corresponding to source's pressed property, and let buttons be the resulting value of
+    //    that property.
+    auto buttons = (source.pressed |= button);
+
+    // 7. Let width be equal to action object's width property.
+    // 8. Let height be equal to action object's height property.
+    // 9. Let pressure be equal to action object's pressure property.
+    // 10. Let tangentialPressure be equal to action object's tangentialPressure property.
+    // 11. Let tiltX be equal to action object's tiltX property.
+    // 12. Let tiltY be equal to action object's tiltY property.
+    // 13. Let twist be equal to action object's twist property.
+    // 14. Let altitudeAngle be equal to action object's altitudeAngle property.
+    // 15. Let azimuthAngle be equal to action object's azimuthAngle property.
+
+    // 16. Perform implementation-specific action dispatch steps on browsing context equivalent to pressing the button
+    //     numbered button on the pointer with pointerId equal to source's pointerId, having type pointerType at viewport
+    //     x coordinate x, viewport y coordinate y, width, height, pressure, tangentialPressure, tiltX, tiltY, twist,
+    //     altitudeAngle, azimuthAngle, with buttons buttons depressed in accordance with the requirements of [UI-EVENTS]
+    //     and [POINTER-EVENTS]. set ctrlKey, shiftKey, altKey, and metaKey equal to the corresponding items in global
+    //     key state. Type specific properties for the pointer that are not exposed through the webdriver API must be
+    //     set to the default value specified for hardware that doesn't support that property.
+    switch (pointer_type) {
+    case PointerInputSource::Subtype::Mouse:
+        browsing_context.page().handle_mousedown(position, position, button, buttons, global_key_state.modifiers());
+        break;
+    case PointerInputSource::Subtype::Pen:
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"sv);
+    case PointerInputSource::Subtype::Touch:
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Touch events not implemented"sv);
+    }
+
+    // 17. Return success with data null.
+    return {};
+}
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-a-pointerup-action
+static ErrorOr<void, WebDriver::Error> dispatch_pointer_up_action(ActionObject::PointerUpDownFields const& action_object, PointerInputSource& source, GlobalKeyState const& global_key_state, HTML::BrowsingContext& browsing_context)
+{
+    // 1. Let pointerType be equal to action object's pointerType property.
+    auto pointer_type = action_object.pointer_type;
+
+    // 2. Let button be equal to action object's button property.
+    auto button = action_object.button;
+
+    // 3. If the source's pressed property does not contain button, return success with data null.
+    if (!has_flag(source.pressed, button))
+        return {};
+
+    // 4. Let x be equal to source's x property.
+    // 5. Let y be equal to source's y property.
+    auto position = browsing_context.page().css_to_device_point(source.position);
+
+    // 6. Remove button from the set corresponding to source's pressed property, and let buttons be the resulting value
+    //    of that property.
+    auto buttons = (source.pressed &= ~button);
+
+    // 7. Perform implementation-specific action dispatch steps on browsing context equivalent to releasing the button
+    //    numbered button on the pointer with pointerId equal to input source's pointerId, having type pointerType at
+    //    viewport x coordinate x, viewport y coordinate y, with buttons buttons depressed, in accordance with the
+    //    requirements of [UI-EVENTS] and [POINTER-EVENTS]. The generated events must set ctrlKey, shiftKey, altKey,
+    //    and metaKey equal to the corresponding items in global key state. Type specific properties for the pointer
+    //    that are not exposed through the webdriver API must be set to the default value specified for hardware that
+    //    doesn't support that property.
+    switch (pointer_type) {
+    case PointerInputSource::Subtype::Mouse:
+        browsing_context.page().handle_mouseup(position, position, button, buttons, global_key_state.modifiers());
+        break;
+    case PointerInputSource::Subtype::Pen:
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"sv);
+    case PointerInputSource::Subtype::Touch:
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Touch events not implemented"sv);
+    }
+
+    // 8. Return success with data null.
+    return {};
+}
+
+// https://w3c.github.io/webdriver/#dfn-perform-a-pointer-move
+static ErrorOr<void, WebDriver::Error> perform_pointer_move(ActionObject::PointerMoveFields const& action_object, PointerInputSource& source, GlobalKeyState const& global_key_state, HTML::BrowsingContext& browsing_context, AK::Duration, CSSPixelPoint coordinates)
+{
+    // FIXME: 1. Let time delta be the time since the beginning of the current tick, measured in milliseconds on a monotonic clock.
+    // FIXME: 2. Let duration ratio be the ratio of time delta and duration, if duration is greater than 0, or 1 otherwise.
+    // FIXME: 3. If duration ratio is 1, or close enough to 1 that the implementation will not further subdivide the move action,
+    //           let last be true. Otherwise let last be false.
+    // FIXME: 4. If last is true, let x equal target x and y equal target y.
+    // FIXME: 5. Otherwise let x equal an approximation to duration ratio × (target x - start x) + start x, and y equal an
+    //           approximation to duration ratio × (target y - start y) + start y.
+
+    // 6. Let current x equal the x property of input state.
+    // 7. Let current y equal the y property of input state.
+    auto current = source.position;
+
+    // 8. If x is not equal to current x or y is not equal to current y, run the following steps:
+    if (current != coordinates) {
+        // 1. Let buttons be equal to input state's buttons property.
+        auto buttons = source.pressed;
+
+        // 2. Perform implementation-specific action dispatch steps on browsing context equivalent to moving the pointer
+        //    with pointerId equal to input source's pointerId, having type pointerType from viewport x coordinate current
+        //    x, viewport y coordinate current y to viewport x coordinate x and viewport y coordinate y, width, height,
+        //    pressure, tangentialPressure, tiltX, tiltY, twist, altitudeAngle, azimuthAngle, with buttons buttons
+        //    depressed, in accordance with the requirements of [UI-EVENTS] and [POINTER-EVENTS]. The generated events
+        //    must set ctrlKey, shiftKey, altKey, and metaKey equal to the corresponding items in global key state. Type
+        //    specific properties for the pointer that are not exposed through the WebDriver API must be set to the
+        //    default value specified for hardware that doesn't support that property. In the case where the pointerType
+        //    is "pen" or "touch", and buttons is empty, this may be a no-op. For a pointer of type "mouse" this will
+        //    always produce events including at least a pointerMove event.
+        auto position = browsing_context.page().css_to_device_point(coordinates);
+
+        switch (action_object.pointer_type) {
+        case PointerInputSource::Subtype::Mouse:
+            browsing_context.page().handle_mousemove(position, position, buttons, global_key_state.modifiers());
+            break;
+        case PointerInputSource::Subtype::Pen:
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"sv);
+        case PointerInputSource::Subtype::Touch:
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Touch events not implemented"sv);
+        }
+
+        // 3. Let input state's x property equal x and y property equal y.
+        source.position = coordinates;
+    }
+
+    // FIXME: 9. If last is true, return.
+    // FIXME: 10. Run the following substeps in parallel:
+    {
+        // FIXME: 1. Asynchronously wait for an implementation defined amount of time to pass.
+        // FIXME: 2. Perform a pointer move with arguments input state, duration, start x, start y, target x, target y.
+    }
+
+    return {};
+}
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-a-pointermove-action
+static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject::PointerMoveFields const& action_object, PointerInputSource& source, GlobalKeyState const& global_key_state, AK::Duration tick_duration, HTML::BrowsingContext& browsing_context, ActionsOptions const& actions_options)
+{
+    auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
+
+    // 1. Let x offset be equal to the x property of action object.
+    // 2. Let y offset be equal to the y property of action object.
+    // 3. Let origin be equal to the origin property of action object.
+    // 4. Let (x, y) be the result of trying to get coordinates relative to an origin with source, x offset, y offset,
+    //    origin, browsing context, and actions options.
+    auto coordinates = TRY(get_coordinates_relative_to_origin(source, action_object.position, viewport, action_object.origin, actions_options));
+
+    // 5. If x is less than 0 or greater than the width of the viewport in CSS pixels, then return error with error code move target out of bounds.
+    if (coordinates.x() < 0 || coordinates.x() > viewport.width())
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::MoveTargetOutOfBounds, ByteString::formatted("Coordinates {} are out of bounds", coordinates));
+
+    // 6. If y is less than 0 or greater than the height of the viewport in CSS pixels, then return error with error code move target out of bounds.
+    if (coordinates.y() < 0 || coordinates.y() > viewport.height())
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::MoveTargetOutOfBounds, ByteString::formatted("Coordinates {} are out of bounds", coordinates));
+
+    // 7. Let duration be equal to action object's duration property if it is not undefined, or tick duration otherwise.
+    [[maybe_unused]] auto duration = action_object.duration.value_or(tick_duration);
+
+    // FIXME: 8. If duration is greater than 0 and inside any implementation-defined bounds, asynchronously wait for an
+    //           implementation defined amount of time to pass.
+
+    // 9. Let width be equal to action object's width property.
+    // 10. Let height be equal to action object's height property.
+    // 11. Let pressure be equal to action object's pressure property.
+    // 12. Let tangentialPressure be equal to action object's tangentialPressure property.
+    // 13. Let tiltX be equal to action object's tiltX property.
+    // 14. Let tiltY be equal to action object's tiltY property.
+    // 15. Let twist be equal to action object's twist property.
+    // 16. Let altitudeAngle be equal to action object's altitudeAngle property.
+    // 17. Let azimuthAngle be equal to action object's azimuthAngle property.
+
+    // 18. Perform a pointer move with arguments source, global key state, duration, start x, start y, x, y, width,
+    //     height, pressure, tangentialPressure, tiltX, tiltY, twist, altitudeAngle, azimuthAngle.
+    TRY(perform_pointer_move(action_object, source, global_key_state, browsing_context, duration, coordinates));
+
+    // 19. Return success with data null.
+    return {};
+}
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-actions-inner
+class ActionExecutor final : public JS::Cell {
+    JS_CELL(ActionExecutor, JS::Cell);
+    JS_DECLARE_ALLOCATOR(ActionExecutor);
+
+public:
+    ActionExecutor(InputState& input_state, Vector<Vector<ActionObject>> actions_by_tick, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
+        : m_browsing_context(browsing_context)
+        , m_input_state(input_state)
+        , m_actions_options(move(actions_options))
+        , m_actions_by_tick(move(actions_by_tick))
+        , m_on_complete(on_complete)
+    {
+    }
+
+    // 1. For each item tick actions in actions by tick:
+    void process_next_tick()
+    {
+        if (m_current_tick >= m_actions_by_tick.size()) {
+            m_on_complete->function()(JsonValue {});
+            return;
+        }
+
+        auto const& tick_actions = m_actions_by_tick[m_current_tick++];
+
+        // 1. Let tick duration be the result of computing the tick duration with argument tick actions.
+        auto tick_duration = compute_tick_duration(tick_actions);
+
+        // 2. Try to dispatch tick actions with input state, tick actions, tick duration, browsing context, and actions options.
+        if (auto result = dispatch_tick_actions(m_input_state, tick_actions, tick_duration, m_browsing_context, m_actions_options); result.is_error()) {
+            m_on_complete->function()(result.release_error());
+            return;
+        }
+
+        // 3. Wait until the following conditions are all met:
+        //     * There are no pending asynchronous waits arising from the last invocation of the dispatch tick actions
+        //       steps.
+        //     * The user agent event loop has spun enough times to process the DOM events generated by the last
+        //       invocation of the dispatch tick actions steps.
+        //     * At least tick duration milliseconds have passed.
+
+        // FIXME: We currently do not implement any asynchronous waits. And we assume that Page will generally fire the
+        //        events of interest synchronously. So we simply wait for the tick duration to pass, and then let the
+        //        event loop spin a single time.
+        m_timer = Core::Timer::create_single_shot(static_cast<int>(tick_duration.to_milliseconds()), [this]() {
+            m_timer = nullptr;
+
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(heap(), [this]() {
+                process_next_tick();
+            }));
+        });
+        m_timer->start();
+    }
+
+private:
+    virtual void visit_edges(Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_browsing_context);
+        visitor.visit(m_on_complete);
+    }
+
+    JS::NonnullGCPtr<HTML::BrowsingContext> m_browsing_context;
+
+    InputState& m_input_state;
+    ActionsOptions m_actions_options;
+
+    Vector<Vector<ActionObject>> m_actions_by_tick;
+    size_t m_current_tick { 0 };
+
+    OnActionsComplete m_on_complete;
+
+    RefPtr<Core::Timer> m_timer;
+};
+
+JS_DEFINE_ALLOCATOR(ActionExecutor);
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-actions
+JS::NonnullGCPtr<JS::Cell> dispatch_actions(InputState& input_state, Vector<Vector<ActionObject>> actions_by_tick, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
+{
+    // 1. Let token be a new unique identifier.
+    auto token = MUST(Crypto::generate_random_uuid());
+
+    // 2. Enqueue token in input state's actions queue.
+    input_state.actions_queue.append(token);
+
+    // 3. Wait for token to be the first item in input state's actions queue.
+    // FIXME: We should probably do this, but our WebDriver currently blocks until a given action is complete anyways,
+    //        so we should never arrive here with an ongoing action (which we verify for now).
+    VERIFY(input_state.actions_queue.size() == 1);
+
+    // 4. Let actions result be the result of dispatch actions inner with input state, actions by tick, browsing
+    //    context, and actions options.
+    auto action_executor = browsing_context.heap().allocate_without_realm<ActionExecutor>(input_state, move(actions_by_tick), browsing_context, move(actions_options), on_complete);
+    action_executor->process_next_tick();
+
+    // 5. Dequeue input state's actions queue.
+    auto executed_token = input_state.actions_queue.take_first();
+
+    // 6. Assert: this returns token
+    VERIFY(executed_token == token);
+
+    // 7. Return actions result.
+    return action_executor;
+}
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-tick-actions
+ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState& input_state, ReadonlySpan<ActionObject> tick_actions, AK::Duration tick_duration, HTML::BrowsingContext& browsing_context, ActionsOptions const& actions_options)
+{
+    // 1. For each action object in tick actions:
+    for (auto const& action_object : tick_actions) {
+        // 1. Let input id be equal to the value of action object's id property.
+        auto const& input_id = action_object.id;
+
+        // 2. Let source type be equal to the value of action object's type property.
+        // NOTE: We don't actually need this, we can determine the event to fire based on the subtype.
+
+        // 3. Let source be the result of get an input source given input state and input id.
+        auto source = get_input_source(input_state, input_id);
+
+        // 4. Assert: source is not undefined.
+        VERIFY(source.has_value());
+
+        // 5. Let global key state be the result of get the global key state with input state.
+        auto global_key_state = get_global_key_state(input_state);
+
+        // 6. Let subtype be action object's subtype.
+        auto subtype = action_object.subtype;
+
+        // 7. Let algorithm be the value of the column dispatch action algorithm from the following table where the
+        //    source type column is source type and the subtype column is equal to subtype.
+        //
+        // source type | subtype         | Dispatch action algorithm
+        // ---------------------------------------------------------------
+        // "none"      | "pause"         | Dispatch a pause action
+        // "key"       | "pause"         | Dispatch a pause action
+        // "key"       | "keyDown"       | Dispatch a keyDown action
+        // "key"       | "keyUp"         | Dispatch a keyUp action
+        // "pointer"   | "pause"         | Dispatch a pause action
+        // "pointer"   | "pointerDown"   | Dispatch a pointerDown action
+        // "pointer"   | "pointerUp"     | Dispatch a pointerUp action
+        // "pointer"   | "pointerMove"   | Dispatch a pointerMove action
+        // "pointer"   | "pointerCancel" | Dispatch a pointerCancel action
+        // "wheel"     | "pause"         | Dispatch a pause action
+        // "wheel"     | "scroll"        | Dispatch a scroll action
+
+        // 8. Try to run algorithm with arguments action object, source, global key state, tick duration, browsing
+        //    context, and actions options.
+        switch (subtype) {
+        case ActionObject::Subtype::Pause:
+            dispatch_pause_action();
+            break;
+        case ActionObject::Subtype::KeyDown:
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Key down events not implemented"sv);
+        case ActionObject::Subtype::KeyUp:
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Key up events not implemented"sv);
+        case ActionObject::Subtype::PointerDown:
+            TRY(dispatch_pointer_down_action(action_object.pointer_up_down_fields(), source->get<PointerInputSource>(), global_key_state, browsing_context));
+            break;
+        case ActionObject::Subtype::PointerUp:
+            TRY(dispatch_pointer_up_action(action_object.pointer_up_down_fields(), source->get<PointerInputSource>(), global_key_state, browsing_context));
+            break;
+        case ActionObject::Subtype::PointerMove:
+            TRY(dispatch_pointer_move_action(action_object.pointer_move_fields(), source->get<PointerInputSource>(), global_key_state, tick_duration, browsing_context, actions_options));
+            break;
+        case ActionObject::Subtype::PointerCancel:
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pointer cancel events not implemented"sv);
+        case ActionObject::Subtype::Scroll:
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Scroll events not implemented"sv);
+        }
+
+        // 9. If subtype is "keyDown", append a copy of action object with the subtype property changed to "keyUp" to
+        //    input state's input cancel list.
+        if (subtype == ActionObject::Subtype::KeyDown) {
+            auto action_copy = action_object;
+            action_copy.subtype = ActionObject::Subtype::KeyUp;
+
+            input_state.input_cancel_list.append(move(action_copy));
+        }
+
+        // 10. If subtype is "pointerDown", append a copy of action object with the subtype property changed to
+        //    "pointerUp" to input state's input cancel list.
+        if (subtype == ActionObject::Subtype::PointerDown) {
+            auto action_copy = action_object;
+            action_copy.subtype = ActionObject::Subtype::PointerUp;
+
+            input_state.input_cancel_list.append(move(action_copy));
+        }
+    }
+
+    // 2. Return success with data null.
+    return {};
 }
 
 }
