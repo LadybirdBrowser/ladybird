@@ -34,17 +34,26 @@ function handleMouseEnter(e) {
 function handleMouseLeave(e) {
     println(`mouseleave target.id=(${e.target.id}) currentTarget.id=(${e.currentTarget.id}), relatedTarget.id=(${e.relatedTarget.id})`);
 }
-
+function handleClick(e) {
+    println(`click target.id=(${e.target.id}) currentTarget.id=(${e.currentTarget.id}), button=${e.button}`);
+}
+function handleAuxClick(e) {
+    println(`auxclick target.id=(${e.target.id}) currentTarget.id=(${e.currentTarget.id}), button=${e.button}`);
+}
 
 outer.onmouseover = handleMouseOver;
 outer.onmouseout = handleMouseOut;
 outer.onmouseenter = handleMouseEnter;
 outer.onmouseleave = handleMouseLeave;
+outer.onclick = handleClick;
+outer.onauxclick = handleAuxClick;
 
 inner.onmouseover = handleMouseOver;
 inner.onmouseout = handleMouseOut;
 inner.onmouseenter = handleMouseEnter;
 inner.onmouseleave = handleMouseLeave;
+inner.onclick = handleClick;
+inner.onauxclick = handleAuxClick;
 
 const clickOnBody = () => {
     return new Promise(resolve => {
@@ -53,6 +62,21 @@ const clickOnBody = () => {
     });
 }
 
+const clickOnOuterBox = (button) => {
+    return new Promise((resolve, reject) => {
+        if (button == 0) {
+            document.body.onclick = () => { resolve(); };
+            internals.click(80, 80);
+        } else if (button == 1) {
+            document.body.onauxclick = () => { resolve(); };
+            internals.middleClick(80, 80);
+        } else {
+            println(`Unimplemented button click: ${button}`);
+            reject();
+        }
+    });
+};
+
 asyncTest(async done => {
     // First move the mouse outside #outer to populate the MouseEvent.relatedTarget property
     internals.movePointerTo(150, 150);
@@ -60,6 +84,10 @@ asyncTest(async done => {
     internals.movePointerTo(10, 10);
     println("> move pointer over #outer");
     internals.movePointerTo(60, 60);
+    println("> click #outer");
+    await clickOnOuterBox(0);
+    println("> auxclick #outer");
+    await clickOnOuterBox(1);
     println("> click document.body");
     await clickOnBody();
     done();
