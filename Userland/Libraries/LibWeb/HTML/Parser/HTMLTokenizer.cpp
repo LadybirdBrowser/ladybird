@@ -2863,6 +2863,9 @@ void HTMLTokenizer::will_emit(HTMLToken& token)
 
     auto is_start_or_end_tag = token.type() == HTMLToken::Type::StartTag || token.type() == HTMLToken::Type::EndTag;
     token.set_end_position({}, nth_last_position(is_start_or_end_tag ? 1 : 0));
+
+    if (is_start_or_end_tag)
+        token.normalize_attributes();
 }
 
 bool HTMLTokenizer::current_end_tag_token_is_appropriate() const
