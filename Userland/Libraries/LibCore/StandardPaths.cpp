@@ -152,6 +152,16 @@ ByteString StandardPaths::user_data_directory()
     return LexicalPath::canonicalized_path(builder.to_byte_string());
 }
 
+Vector<ByteString> StandardPaths::system_data_directories()
+{
+    auto data_directories = get_environment_if_not_empty("XDG_DATA_DIRS"sv).value_or("/usr/local/share:/usr/share"sv);
+    Vector<ByteString> paths;
+    data_directories.for_each_split_view(':', SplitBehavior::Nothing, [&paths](auto data_directory) {
+        paths.append(LexicalPath::canonicalized_path(data_directory));
+    });
+    return paths;
+}
+
 ErrorOr<ByteString> StandardPaths::runtime_directory()
 {
     if (auto data_directory = get_environment_if_not_empty("XDG_RUNTIME_DIR"sv); data_directory.has_value())
@@ -225,12 +235,11 @@ ErrorOr<Vector<String>> StandardPaths::font_directories()
 #    endif
     } };
 #    if !(defined(AK_OS_SERENITY) || defined(AK_OS_MACOS))
-    auto data_directories = get_environment_if_not_empty("XDG_DATA_DIRS"sv).value_or("/usr/local/share:/usr/share"sv);
-    TRY(data_directories.for_each_split_view(':', SplitBehavior::Nothing, [&paths](auto data_directory) -> ErrorOr<void> {
+    auto data_directories = system_data_directories();
+    for (auto& data_directory : data_directories) {
         paths.append(TRY(String::formatted("{}/fonts"sv, data_directory)));
         paths.append(TRY(String::formatted("{}/X11/fonts"sv, data_directory)));
-        return {};
-    }));
+    }
 #    endif
     return paths;
 #endif
