@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,6 +26,14 @@
 
 namespace Core {
 
+static Optional<StringView> get_environment_if_not_empty(StringView name)
+{
+    auto maybe_value = Core::Environment::get(name);
+    if (maybe_value.has_value() && maybe_value->trim_whitespace().is_empty())
+        return {};
+    return maybe_value;
+}
+
 ByteString StandardPaths::home_directory()
 {
     if (auto* home_env = getenv("HOME"))
@@ -38,8 +47,8 @@ ByteString StandardPaths::home_directory()
 
 ByteString StandardPaths::desktop_directory()
 {
-    if (auto* desktop_directory = getenv("XDG_DESKTOP_DIR"))
-        return LexicalPath::canonicalized_path(desktop_directory);
+    if (auto desktop_directory = get_environment_if_not_empty("XDG_DESKTOP_DIR"sv); desktop_directory.has_value())
+        return LexicalPath::canonicalized_path(*desktop_directory);
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -49,8 +58,8 @@ ByteString StandardPaths::desktop_directory()
 
 ByteString StandardPaths::documents_directory()
 {
-    if (auto* documents_directory = getenv("XDG_DOCUMENTS_DIR"))
-        return LexicalPath::canonicalized_path(documents_directory);
+    if (auto documents_directory = get_environment_if_not_empty("XDG_DOCUMENTS_DIR"sv); documents_directory.has_value())
+        return LexicalPath::canonicalized_path(*documents_directory);
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -60,8 +69,8 @@ ByteString StandardPaths::documents_directory()
 
 ByteString StandardPaths::downloads_directory()
 {
-    if (auto* downloads_directory = getenv("XDG_DOWNLOAD_DIR"))
-        return LexicalPath::canonicalized_path(downloads_directory);
+    if (auto downloads_directory = get_environment_if_not_empty("XDG_DOWNLOAD_DIR"sv); downloads_directory.has_value())
+        return LexicalPath::canonicalized_path(*downloads_directory);
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -71,8 +80,8 @@ ByteString StandardPaths::downloads_directory()
 
 ByteString StandardPaths::music_directory()
 {
-    if (auto* music_directory = getenv("XDG_MUSIC_DIR"))
-        return LexicalPath::canonicalized_path(music_directory);
+    if (auto music_directory = get_environment_if_not_empty("XDG_MUSIC_DIR"sv); music_directory.has_value())
+        return LexicalPath::canonicalized_path(*music_directory);
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -82,8 +91,8 @@ ByteString StandardPaths::music_directory()
 
 ByteString StandardPaths::pictures_directory()
 {
-    if (auto* pictures_directory = getenv("XDG_PICTURES_DIR"))
-        return LexicalPath::canonicalized_path(pictures_directory);
+    if (auto pictures_directory = get_environment_if_not_empty("XDG_PICTURES_DIR"sv); pictures_directory.has_value())
+        return LexicalPath::canonicalized_path(*pictures_directory);
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -93,8 +102,8 @@ ByteString StandardPaths::pictures_directory()
 
 ByteString StandardPaths::videos_directory()
 {
-    if (auto* videos_directory = getenv("XDG_VIDEOS_DIR"))
-        return LexicalPath::canonicalized_path(videos_directory);
+    if (auto videos_directory = get_environment_if_not_empty("XDG_VIDEOS_DIR"sv); videos_directory.has_value())
+        return LexicalPath::canonicalized_path(*videos_directory);
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -108,8 +117,8 @@ ByteString StandardPaths::videos_directory()
 
 ByteString StandardPaths::config_directory()
 {
-    if (auto* config_directory = getenv("XDG_CONFIG_HOME"))
-        return LexicalPath::canonicalized_path(config_directory);
+    if (auto config_directory = get_environment_if_not_empty("XDG_CONFIG_HOME"sv); config_directory.has_value())
+        return LexicalPath::canonicalized_path(*config_directory);
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -125,8 +134,8 @@ ByteString StandardPaths::config_directory()
 
 ByteString StandardPaths::data_directory()
 {
-    if (auto* data_directory = getenv("XDG_DATA_HOME"))
-        return LexicalPath::canonicalized_path(data_directory);
+    if (auto data_directory = get_environment_if_not_empty("XDG_DATA_HOME"sv); data_directory.has_value())
+        return LexicalPath::canonicalized_path(*data_directory);
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -145,8 +154,8 @@ ByteString StandardPaths::data_directory()
 
 ErrorOr<ByteString> StandardPaths::runtime_directory()
 {
-    if (auto* data_directory = getenv("XDG_RUNTIME_DIR"))
-        return LexicalPath::canonicalized_path(data_directory);
+    if (auto data_directory = get_environment_if_not_empty("XDG_RUNTIME_DIR"sv); data_directory.has_value())
+        return LexicalPath::canonicalized_path(*data_directory);
 
     StringBuilder builder;
 
@@ -216,7 +225,7 @@ ErrorOr<Vector<String>> StandardPaths::font_directories()
 #    endif
     } };
 #    if !(defined(AK_OS_SERENITY) || defined(AK_OS_MACOS))
-    auto data_directories = Core::Environment::get("XDG_DATA_DIRS"sv).value_or("/usr/local/share:/usr/share"sv);
+    auto data_directories = get_environment_if_not_empty("XDG_DATA_DIRS"sv).value_or("/usr/local/share:/usr/share"sv);
     TRY(data_directories.for_each_split_view(':', SplitBehavior::Nothing, [&paths](auto data_directory) -> ErrorOr<void> {
         paths.append(TRY(String::formatted("{}/fonts"sv, data_directory)));
         paths.append(TRY(String::formatted("{}/X11/fonts"sv, data_directory)));
