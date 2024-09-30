@@ -15,7 +15,7 @@ class ImageDecoderService : LadybirdServiceBase("ImageDecoderService") {
 
     companion object {
         init {
-            System.loadLibrary("imagedecoder")
+            System.loadLibrary("imagedecoderservice")
         }
     }
 }

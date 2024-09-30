@@ -15,7 +15,7 @@ class RequestServerService : LadybirdServiceBase("RequestServerService") {
 
     companion object {
         init {
-            System.loadLibrary("requestserver")
+            System.loadLibrary("requestserverservice")
         }
     }
 }
