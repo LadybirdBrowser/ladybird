@@ -42,8 +42,9 @@ Optional<CSSNumericType::BaseType> CSSNumericType::base_type_from_value_type(Val
     case ValueType::FilterValueList:
     case ValueType::Image:
     case ValueType::Integer:
-    case ValueType::Paint:
     case ValueType::Number:
+    case ValueType::OpenTypeTag:
+    case ValueType::Paint:
     case ValueType::Position:
     case ValueType::Ratio:
     case ValueType::Rect:
