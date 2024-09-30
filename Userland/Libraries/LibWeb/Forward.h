@@ -178,6 +178,7 @@ class MediaQueryListEvent;
 class Number;
 class NumberOrCalculated;
 class NumberStyleValue;
+class OpenTypeTaggedStyleValue;
 class ParsedFontFace;
 class Percentage;
 class PercentageOrCalculated;

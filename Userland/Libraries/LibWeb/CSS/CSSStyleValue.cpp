@@ -40,6 +40,7 @@
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
@@ -242,6 +243,12 @@ NumberStyleValue const& CSSStyleValue::as_number() const
 {
     VERIFY(is_number());
     return static_cast<NumberStyleValue const&>(*this);
+}
+
+OpenTypeTaggedStyleValue const& CSSStyleValue::as_open_type_tagged() const
+{
+    VERIFY(is_open_type_tagged());
+    return static_cast<OpenTypeTaggedStyleValue const&>(*this);
 }
 
 PercentageStyleValue const& CSSStyleValue::as_percentage() const
