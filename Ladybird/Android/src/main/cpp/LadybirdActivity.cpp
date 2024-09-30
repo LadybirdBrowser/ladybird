@@ -21,6 +21,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibWebView/Application.h>
 #include <jni.h>
+#include <stdlib.h>
 
 static ErrorOr<void> extract_tar_archive(String archive_file, ByteString output_directory);
 
@@ -53,6 +54,7 @@ Java_org_serenityos_ladybird_LadybirdActivity_initNativeCode(JNIEnv* env, jobjec
     env->ReleaseStringUTFChars(tag_name, raw_tag_name);
 
     dbgln("Set resource dir to {}", s_ladybird_resource_root);
+    setenv("XDG_DATA_HOME", s_ladybird_resource_root.characters(), 1);
 
     auto file_or_error = Core::System::open(MUST(String::formatted("{}/res/icons/48x48/app-browser.png", s_ladybird_resource_root)), O_RDONLY);
     if (file_or_error.is_error()) {
