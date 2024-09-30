@@ -4,7 +4,6 @@ on: [push]
 
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
-  VCPKG_ROOT: ${{ github.workspace }}/Toolchain/Tarballs/vcpkg
 
 jobs:
   run_and_update_results:

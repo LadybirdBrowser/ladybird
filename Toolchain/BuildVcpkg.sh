@@ -17,15 +17,16 @@ if [[ "$1" == "--ci" ]]; then
 fi
 
 if [ "$ci" -eq 0 ]; then
-    exit_if_running_as_root "Do not run BuildVcpkg.sh as root, parts of your Toolchain directory will become root-owned"
+    exit_if_running_as_root "Do not run BuildVcpkg.sh as root, parts of your Build directory will become root-owned"
 fi
 
 GIT_REPO="https://github.com/microsoft/vcpkg.git"
 GIT_REV="a39a74405f277773aba08018bb797cb4a6614d0c" # 2024.09.19
-PREFIX_DIR="$DIR/Local/vcpkg"
 
-mkdir -p "$DIR/Tarballs"
-pushd "$DIR/Tarballs"
+BUILD_DIR="${DIR}/../Build"
+mkdir -p "${BUILD_DIR}"
+
+pushd "${BUILD_DIR}"
     if [[ ! -d vcpkg ]]; then
         git clone "${GIT_REPO}"
     else
@@ -43,7 +44,4 @@ pushd "$DIR/Tarballs"
     git checkout $GIT_REV
 
     ./bootstrap-vcpkg.sh -disableMetrics
-
-    mkdir -p "$PREFIX_DIR/bin"
-    cp vcpkg "$PREFIX_DIR/bin"
 popd
