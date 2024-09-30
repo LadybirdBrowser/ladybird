@@ -7899,6 +7899,11 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         }
     }
 
+    if (auto property = any_property_accepts_type(property_ids, ValueType::OpenTypeTag); property.has_value()) {
+        if (auto maybe_rect = parse_opentype_tag_value(tokens))
+            return PropertyAndValue { *property, maybe_rect };
+    }
+
     if (peek_token.is(Token::Type::Percentage)) {
         auto percentage = Percentage(peek_token.token().percentage());
         if (auto property = any_property_accepts_type(property_ids, ValueType::Percentage); property.has_value() && property_accepts_percentage(*property, percentage)) {
@@ -8862,6 +8867,31 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
 
     // 3. Otherwise, the property containing the attr() function is invalid at computed-value time.
     return false;
+}
+
+// https://drafts.csswg.org/css-fonts/#typedef-opentype-tag
+RefPtr<StringStyleValue> Parser::parse_opentype_tag_value(TokenStream<ComponentValue>& tokens)
+{
+    // <opentype-tag> = <string>
+    // The <opentype-tag> is a case-sensitive OpenType feature tag.
+    // As specified in the OpenType specification [OPENTYPE], feature tags contain four ASCII characters.
+    // Tag strings longer or shorter than four characters, or containing characters outside the U+20–7E codepoint range are invalid.
+
+    auto transaction = tokens.begin_transaction();
+    auto string_value = parse_string_value(tokens);
+    if (string_value == nullptr)
+        return nullptr;
+
+    auto string = string_value->string_value().bytes_as_string_view();
+    if (string.length() != 4)
+        return nullptr;
+    for (char c : string) {
+        if (c < 0x20 || c > 0x7E)
+            return nullptr;
+    }
+
+    transaction.commit();
+    return string_value;
 }
 
 }
