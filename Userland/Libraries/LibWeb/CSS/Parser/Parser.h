@@ -256,7 +256,7 @@ private:
     RefPtr<CSSStyleValue> parse_counter_definitions_value(TokenStream<ComponentValue>&, AllowReversed, i32 default_value_if_not_reversed);
     RefPtr<CSSStyleValue> parse_rect_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_ratio_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_string_value(TokenStream<ComponentValue>&);
+    RefPtr<StringStyleValue> parse_string_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_image_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_paint_value(TokenStream<ComponentValue>&);
     enum class PositionParsingMode {
