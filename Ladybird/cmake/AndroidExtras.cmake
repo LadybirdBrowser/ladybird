@@ -20,7 +20,6 @@ copy_res_folder(ladybird)
 copy_res_folder(html)
 copy_res_folder(fonts)
 copy_res_folder(icons)
-copy_res_folder(emoji)
 copy_res_folder(themes)
 add_custom_target(copy-certs
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
