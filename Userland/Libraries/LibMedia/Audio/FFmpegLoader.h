@@ -7,18 +7,34 @@
 #pragma once
 
 #include "Loader.h"
+#include <AK/Error.h>
+#include <AK/NonnullOwnPtr.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/samplefmt.h>
 }
 
 namespace Audio {
 
-class OggLoaderPlugin : public LoaderPlugin {
+class FFmpegIOContext {
 public:
-    explicit OggLoaderPlugin(NonnullOwnPtr<SeekableStream> stream);
-    virtual ~OggLoaderPlugin();
+    explicit FFmpegIOContext(AVIOContext*);
+    ~FFmpegIOContext();
+
+    static ErrorOr<NonnullOwnPtr<FFmpegIOContext>, LoaderError> create(AK::SeekableStream& stream);
+
+    AVIOContext* avio_context() const { return m_avio_context; }
+
+private:
+    AVIOContext* m_avio_context { nullptr };
+};
+
+class FFmpegLoaderPlugin : public LoaderPlugin {
+public:
+    explicit FFmpegLoaderPlugin(NonnullOwnPtr<SeekableStream>, NonnullOwnPtr<FFmpegIOContext>);
+    virtual ~FFmpegLoaderPlugin();
 
     static bool sniff(SeekableStream& stream);
     static ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> create(NonnullOwnPtr<SeekableStream>);
@@ -33,21 +49,19 @@ public:
     virtual u32 sample_rate() override;
     virtual u16 num_channels() override;
     virtual PcmSampleFormat pcm_format() override;
-    virtual ByteString format_name() override { return "Ogg Vorbis (.ogg)"; }
+    virtual ByteString format_name() override;
 
 private:
     MaybeLoaderError initialize();
     double time_base() const;
 
-    void* m_avio_buffer { nullptr };
-    AVIOContext* m_avio_context { nullptr };
+    AVStream* m_audio_stream;
     AVCodecContext* m_codec_context { nullptr };
     AVFormatContext* m_format_context { nullptr };
-    AVStream* m_audio_stream;
-    AVFrame* m_frame;
-    AVPacket* m_packet;
-
+    AVFrame* m_frame { nullptr };
+    NonnullOwnPtr<FFmpegIOContext> m_io_context;
     int m_loaded_samples { 0 };
+    AVPacket* m_packet { nullptr };
     int m_total_samples { 0 };
 };
 

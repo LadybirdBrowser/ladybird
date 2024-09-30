@@ -10,8 +10,8 @@
 
 static void run_test(StringView file_name, int const num_samples, int const channels, u32 const rate)
 {
-    constexpr auto format = "RIFF WAVE (.wav)";
-    constexpr int bits = 16;
+    constexpr auto format = "wav";
+    constexpr int bits = 32;
 
     ByteString in_path = ByteString::formatted("WAV/{}", file_name);
 

@@ -9,7 +9,7 @@
 
 static void run_test(StringView file_name, int const num_samples, int const channels, u32 const rate)
 {
-    constexpr auto format = "Ogg Vorbis (.ogg)";
+    constexpr auto format = "ogg";
     constexpr int bits = 32;
 
     ByteString in_path = ByteString::formatted("vorbis/{}", file_name);

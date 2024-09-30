@@ -30,7 +30,7 @@ endif()
 
 if (HAS_FFMPEG)
     list(APPEND SOURCES
-        Audio/OggLoader.cpp
+        Audio/FFmpegLoader.cpp
         FFmpeg/FFmpegVideoDecoder.cpp
     )
 else()
@@ -41,7 +41,7 @@ serenity_lib(LibMedia media)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibRIFF LibIPC LibGfx LibThreading LibUnicode)
 
 if (HAS_FFMPEG)
-    target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT)
+    target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT PkgConfig::AVUTIL)
 endif()
 
 if (HAVE_PULSEAUDIO)
