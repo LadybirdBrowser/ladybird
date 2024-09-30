@@ -10,7 +10,7 @@ env:
   # github.workspace = /home/runner/work/ladybird/ladybird
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
-  VCPKG_ROOT:  ${{ github.workspace }}/Toolchain/Tarballs/vcpkg
+  VCPKG_ROOT:  ${{ github.workspace }}/Build/vcpkg
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
 concurrency:

@@ -37,10 +37,10 @@ cmake -S "${LADYBIRD_SOURCE_DIR}/Meta/Lagom" -B "$BUILD_DIR/lagom-tools" \
     -DSERENITY_CACHE_DIR="$CACHE_DIR" \
     -DLAGOM_TOOLS_ONLY=ON \
     -DINSTALL_LAGOM_TOOLS=ON \
-    -DCMAKE_TOOLCHAIN_FILE="$LADYBIRD_SOURCE_DIR/Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+    -DCMAKE_TOOLCHAIN_FILE="$LADYBIRD_SOURCE_DIR/Build/vcpkg/scripts/buildsystems/vcpkg.cmake" \
     -DVCPKG_INSTALL_OPTIONS="--no-print-usage" \
     -DVCPKG_OVERLAY_TRIPLETS="$LADYBIRD_SOURCE_DIR/Meta/CMake/vcpkg/release-triplets" \
-    -DVCPKG_ROOT="$LADYBIRD_SOURCE_DIR/Toolchain/Tarballs/vcpkg" \
+    -DVCPKG_ROOT="$LADYBIRD_SOURCE_DIR/Build/vcpkg" \
     -DVCPKG_MANIFEST_DIR="$LADYBIRD_SOURCE_DIR"
 
 ninja -C "$BUILD_DIR/lagom-tools" install
