@@ -254,17 +254,17 @@ Elapsed time to handle skia:x64-linux: 1.6 s
 -- Running vcpkg install - failed
 CMake Error at Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake:899 (message):
   vcpkg install failed.  See logs for more information:
-  Build/ladybird/vcpkg-manifest-install.log
+  Build/release/vcpkg-manifest-install.log
 Call Stack (most recent call first):
   /usr/share/cmake-3.30/Modules/CMakeDetermineSystem.cmake:146 (include)
   CMakeLists.txt:15 (project)
 
 CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
 -- Configuring incomplete, errors occurred!  See logs for more information:
-  Build/ladybird/vcpkg-manifest-install.log
+  Build/release/vcpkg-manifest-install.log
 ```
 
-If the error is not immediately clear from the terminal output, be sure to check `Build/ladybird/vcpkg-manifest-install.log`
+If the error is not immediately clear from the terminal output, be sure to check the specified `vcpkg-manifest-install.log`.
 for more information.
 
 ### Resource files
@@ -278,7 +278,7 @@ to CMAKE_INSTALL_PREFIX. If it is not, things will break.
 ### Custom CMake build directory
 
 The script Meta/ladybird.sh and the default preset in CMakePresets.json both define a build directory of
-`Build/ladybird`. For distribution purposes, or when building multiple configurations, it may be useful to create a custom
+`Build/release`. For distribution purposes, or when building multiple configurations, it may be useful to create a custom
 CMake build directory.
 
 The install rules in Ladybird/cmake/InstallRules.cmake define which binaries and libraries will be
@@ -302,20 +302,20 @@ If you don't want to use the ladybird.sh script to run the application, you can 
 
 To automatically run in gdb:
 ```
-ninja -C Build/ladybird debug-ladybird
+ninja -C Build/release debug-ladybird
 ```
 
 To run without ninja rule on non-macOS systems:
 ```
-./Build/ladybird/bin/Ladybird
+./Build/release/bin/Ladybird
 ```
 
 To run without ninja rule on macOS:
 ```
-open -W --stdout $(tty) --stderr $(tty) ./Build/ladybird/bin/Ladybird.app
+open -W --stdout $(tty) --stderr $(tty) ./Build/release/bin/Ladybird.app
 
 # Or to launch with arguments:
-open -W --stdout $(tty) --stderr $(tty) ./Build/ladybird/bin/Ladybird.app --args https://ladybird.dev
+open -W --stdout $(tty) --stderr $(tty) ./Build/release/bin/Ladybird.app --args https://ladybird.dev
 ```
 
 ### Experimental GN build
@@ -344,9 +344,9 @@ Simply run the `ladybird.sh` script as normal, and then make sure to codesign th
 
 ```
 ./Meta/ladybird.sh build
- ninja -C build/ladybird apply-debug-entitlements
+ ninja -C Build/release apply-debug-entitlements
  # or
- codesign -s - -v -f --entitlements Meta/debug.plist Build/ladybird/bin/Ladybird.app
+ codesign -s - -v -f --entitlements Meta/debug.plist Build/release/bin/Ladybird.app
 ```
 
 Now you can open the Instruments app and point it to the Ladybird app bundle.
@@ -355,7 +355,7 @@ If you want to use Xcode itself for debugging, you will need to generate an Xcod
 The `ladybird.sh` build script does not know how to generate Xcode projects, so creating the project must be done manually.
 
 ```
-cmake -GXcode -B Build/ladybird
+cmake -GXcode -B Build/release
 ```
 
 After generating an Xcode project into the specified build directory, you can open `ladybird.xcodeproj` in Xcode. The project has a ton of targets, many of which are generated code.
@@ -373,7 +373,7 @@ When running Ladybird, make sure that XDG_RUNTIME_DIR is set, or it will immedia
 doesn't find a writable directory for its sockets.
 
 ```
-CMAKE_PREFIX_PATH=/usr/lib/qt/6.2/lib/amd64/cmake cmake -GNinja -B Build/ladybird -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
-cmake --build Build/ladybird
-XDG_RUNTIME_DIR=/var/tmp ninja -C Build/ladybird run
+CMAKE_PREFIX_PATH=/usr/lib/qt/6.2/lib/amd64/cmake cmake -GNinja -B Build/release -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+cmake --build Build/release
+XDG_RUNTIME_DIR=/var/tmp ninja -C Build/release run
 ```

@@ -8,7 +8,7 @@ Tests of internal C++ code go in their own `TestFoo.cpp` file in `Tests/LibWeb`.
 
 ## Running Tests
 
-> [!NOTE]  
+> [!NOTE]
 > To reproduce a CI failure, see the section on [Running with Sanitizers](#running-with-sanitizers).
 
 The easiest way to run tests is to use the `ladybird.sh` script. The LibWeb tests are registered with CMake as a test in
@@ -91,7 +91,7 @@ Enabling the Qt chrome is recommended when running the Web Platform Tests on Mac
 following command:
 
 ```sh
-cmake -GNinja Build/ladybird -DENABLE_QT=ON
+cmake -GNinja Build/release -DENABLE_QT=ON
 ```
 
 Example usage:
@@ -107,7 +107,7 @@ git checkout my-css-change
 # Pull the latest changes from the upstream WPT repository
 ./Meta/WPT.sh update
 # Run all of the Web Platform Tests, outputting the results to results.log
-./Meta/WPT.sh run --log results.log 
+./Meta/WPT.sh run --log results.log
 ```
 
 ### Importing Web Platform Tests
