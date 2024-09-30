@@ -2298,6 +2298,8 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
         return style;
     }
 
+    ScopeGuard guard { [&element]() { element.set_needs_style_update(false); } };
+
     auto style = StyleProperties::create();
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;

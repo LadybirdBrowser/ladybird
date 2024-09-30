@@ -533,7 +533,6 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
 
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
 {
-    set_needs_style_update(false);
     VERIFY(parent());
 
     auto& style_computer = document().style_computer();
