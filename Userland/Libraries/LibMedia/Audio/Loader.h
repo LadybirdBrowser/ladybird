@@ -6,9 +6,7 @@
 
 #pragma once
 
-#include "GenericTypes.h"
 #include "LoaderError.h"
-#include "Metadata.h"
 #include "Sample.h"
 #include "SampleFormats.h"
 #include <AK/Error.h>
@@ -16,11 +14,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
-#include <AK/RefPtr.h>
-#include <AK/Span.h>
 #include <AK/Stream.h>
 #include <AK/StringView.h>
-#include <AK/Try.h>
+#include <AK/Vector.h>
 
 namespace Audio {
 
@@ -73,14 +69,8 @@ public:
     virtual ByteString format_name() = 0;
     virtual PcmSampleFormat pcm_format() = 0;
 
-    Metadata const& metadata() const { return m_metadata; }
-    Vector<PictureData> const& pictures() const { return m_pictures; }
-
 protected:
     NonnullOwnPtr<SeekableStream> m_stream;
-
-    Vector<PictureData> m_pictures;
-    Metadata m_metadata;
 };
 
 class Loader : public RefCounted<Loader> {
@@ -110,8 +100,6 @@ public:
     ByteString format_name() const { return m_plugin->format_name(); }
     u16 bits_per_sample() const { return pcm_bits_per_sample(m_plugin->pcm_format()); }
     PcmSampleFormat pcm_format() const { return m_plugin->pcm_format(); }
-    Metadata const& metadata() const { return m_plugin->metadata(); }
-    Vector<PictureData> const& pictures() const { return m_plugin->pictures(); }
 
 private:
     static ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> create_plugin(NonnullOwnPtr<SeekableStream> stream);

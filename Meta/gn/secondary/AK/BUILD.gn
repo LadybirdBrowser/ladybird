@@ -220,8 +220,6 @@ write_cmake_config("ak_debug_gen") {
   output = "$root_gen_dir/AK/Debug.h"
   values = [
     "AUDIO_DEBUG=",
-    "AWAVLOADER_DEBUG=",
-    "AFLACLOADER_DEBUG=",
     "BINDINGS_GENERATOR_DEBUG=",
     "BMP_DEBUG=",
     "CACHE_DEBUG=",
