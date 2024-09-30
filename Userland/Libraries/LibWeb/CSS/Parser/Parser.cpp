@@ -3352,7 +3352,7 @@ RefPtr<CSSStyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& t
 
         TokenStream string_tokens { function_values[1] };
         string_tokens.skip_whitespace();
-        RefPtr<CSSStyleValue> join_string = parse_string_value(string_tokens);
+        auto join_string = parse_string_value(string_tokens);
         string_tokens.skip_whitespace();
         if (!join_string || string_tokens.has_next_token())
             return nullptr;
@@ -3369,7 +3369,7 @@ RefPtr<CSSStyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& t
         }
 
         transaction.commit();
-        return CounterStyleValue::create_counters(counter_name.release_value(), join_string->as_string().string_value(), counter_style.release_nonnull());
+        return CounterStyleValue::create_counters(counter_name.release_value(), join_string->string_value(), counter_style.release_nonnull());
     }
 
     return nullptr;
@@ -3439,7 +3439,7 @@ RefPtr<CSSStyleValue> Parser::parse_ratio_value(TokenStream<ComponentValue>& tok
     return nullptr;
 }
 
-RefPtr<CSSStyleValue> Parser::parse_string_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StringStyleValue> Parser::parse_string_value(TokenStream<ComponentValue>& tokens)
 {
     auto peek = tokens.peek_token();
     if (peek.is(Token::Type::String)) {
@@ -5471,7 +5471,7 @@ RefPtr<CSSStyleValue> Parser::parse_font_language_override_value(TokenStream<Com
         auto transaction = tokens.begin_transaction();
         tokens.skip_whitespace();
         if (auto string = parse_string_value(tokens)) {
-            auto string_value = string->as_string().string_value();
+            auto string_value = string->string_value();
             tokens.skip_whitespace();
             if (tokens.has_next_token()) {
                 dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-language-override: unexpected trailing tokens");
