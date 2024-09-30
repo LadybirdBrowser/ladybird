@@ -1182,16 +1182,16 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                 // 6. Fire an event named navigatesuccess at navigation.
                 dispatch_event(DOM::Event::create(realm, EventNames::navigatesuccess));
 
-                // 7. If navigation's transition is not null, then resolve navigation's transition's finished promise with undefined.
+                // 7. If apiMethodTracker is non-null, then resolve the finished promise for apiMethodTracker.
+                if (api_method_tracker != nullptr)
+                    resolve_the_finished_promise(*api_method_tracker);
+
+                // 8. If navigation's transition is not null, then resolve navigation's transition's finished promise with undefined.
                 if (m_transition != nullptr)
                     m_transition->finished()->fulfill(JS::js_undefined());
 
-                // 8. Set navigation's transition to null.
-                m_transition = nullptr;
-
-                // 9. If apiMethodTracker is non-null, then resolve the finished promise for apiMethodTracker.
-                if (api_method_tracker != nullptr)
-                    resolve_the_finished_promise(*api_method_tracker); },
+                // 9. Set navigation's transition to null.
+                m_transition = nullptr; },
             // and the following failure steps given reason rejectionReason:
             [event, this, api_method_tracker](JS::Value rejection_reason) -> void {
                 // FIXME: Spec issue: Event's relevant global objects' *associated document*
@@ -1214,9 +1214,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                 // 5. Finish event given false.
                 event->finish(false);
 
-                // 6. Fire an event named navigateerror at navigation using ErrorEvent, with error initialized to rejectionReason, and message,
-                //    filename, lineno, and colno initialized to appropriate values that can be extracted from rejectionReason in the same
-                //    underspecified way that the report the exception algorithm does.
+                // 6. Let errorInfo be the result of extracting error information from rejectionReason.
                 ErrorEventInit event_init = {};
                 event_init.error = rejection_reason;
                 // FIXME: Extract information from the exception and the JS context in the wishy-washy way the spec says here.
@@ -1225,18 +1223,19 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                 event_init.lineno = 0;
                 event_init.message = String {};
 
+                // 7. Fire an event named navigateerror at navigation using ErrorEvent,with additional attributes initialized according to errorInfo.
                 dispatch_event(ErrorEvent::create(realm, EventNames::navigateerror, event_init));
 
-                // 7. If navigation's transition is not null, then reject navigation's transition's finished promise with rejectionReason.
+                // 8. If apiMethodTracker is non-null, then reject the finished promise for apiMethodTracker with rejectionReason.
+                if (api_method_tracker != nullptr)
+                    reject_the_finished_promise(*api_method_tracker, rejection_reason);
+
+                // 9. If navigation's transition is not null, then reject navigation's transition's finished promise with rejectionReason.
                 if (m_transition)
                     m_transition->finished()->reject(rejection_reason);
 
-                // 8. Set navigation's transition to null.
+                // 10. Set navigation's transition to null.
                 m_transition = nullptr;
-
-                // 9. If apiMethodTracker is non-null, then reject the finished promise for apiMethodTracker with rejectionReason.
-                if (api_method_tracker != nullptr)
-                    reject_the_finished_promise(*api_method_tracker, rejection_reason);
             });
     }
 
