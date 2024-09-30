@@ -28,7 +28,7 @@ Clangd has the best support for modern compilers, especially if configured as no
 
 The official clangd extension can be used for C++ comprehension. It is recommended in general, as it is most likely to work on all platforms.
 
-clangd uses ``compile_commands.json`` files to understand the project. CMake will generate these in Build/ladybird.
+clangd uses ``compile_commands.json`` files to understand the project. CMake will generate these in Build/release.
 
 Run ``./Meta/ladybird.sh run ladybird`` at least once to generate the ``compile_commands.json`` file.
 
@@ -58,10 +58,10 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "name": "ladybird-gcc",
             "includePath": [
                 "${workspaceFolder}",
-                "${workspaceFolder}/Build/ladybird/",
-                "${workspaceFolder}/Build/ladybird/Userland",
-                "${workspaceFolder}/Build/ladybird/Userland/Libraries",
-                "${workspaceFolder}/Build/ladybird/Userland/Services",
+                "${workspaceFolder}/Build/release/",
+                "${workspaceFolder}/Build/release/Userland",
+                "${workspaceFolder}/Build/release/Userland/Libraries",
+                "${workspaceFolder}/Build/release/Userland/Services",
                 "${workspaceFolder}/Userland",
                 "${workspaceFolder}/Userland/Libraries",
                 "${workspaceFolder}/Userland/Services"
@@ -72,7 +72,7 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "cStandard": "c17",
             "cppStandard": "c++23",
             "intelliSenseMode": "linux-gcc-x86",
-            "compileCommands": "Build/ladybird/compile_commands.json",
+            "compileCommands": "Build/release/compile_commands.json",
             "compilerArgs": [
                 "-Wall",
                 "-Wextra",
@@ -81,16 +81,16 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "browse": {
                 "path": [
                     "${workspaceFolder}",
-                    "${workspaceFolder}/Build/ladybird/",
-                    "${workspaceFolder}/Build/ladybird/Userland",
-                    "${workspaceFolder}/Build/ladybird/Userland/Libraries",
-                    "${workspaceFolder}/Build/ladybird/Userland/Services",
+                    "${workspaceFolder}/Build/release/",
+                    "${workspaceFolder}/Build/release/Userland",
+                    "${workspaceFolder}/Build/release/Userland/Libraries",
+                    "${workspaceFolder}/Build/release/Userland/Services",
                     "${workspaceFolder}/Userland",
                     "${workspaceFolder}/Userland/Libraries",
                     "${workspaceFolder}/Userland/Services"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
-                "databaseFilename": "${workspaceFolder}/Build/ladybird/"
+                "databaseFilename": "${workspaceFolder}/Build/release/"
             }
         }
     ],
@@ -165,7 +165,7 @@ The following three example tasks should suffice in most situations, and allow y
                     "base": "$gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ]
                 }
             ],
@@ -199,14 +199,14 @@ The following three example tasks should suffice in most situations, and allow y
                     "base": "$gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ]
                 },
                 {
                     "source": "gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ],
                     "pattern": [
                         {
@@ -241,14 +241,14 @@ The following three example tasks should suffice in most situations, and allow y
                     "base": "$gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ]
                 },
                 {
                     "source": "gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ],
                     "pattern": [
                         {
@@ -275,7 +275,7 @@ The following three example tasks should suffice in most situations, and allow y
                     ],
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ]
                 }
             ]

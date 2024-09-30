@@ -7,7 +7,7 @@ Emacs can be configured with `lsp-mode` and `clangd` to work well.
 The official clangd extension can be used for C++ comprehension.
 
 Run cmake (`Meta/ladybird.sh run ladybird` or similar) at least once for clangd
-to work, as doing so will generate the `Build/ladybird/compile_commands.json`
+to work, as doing so will generate the `Build/release/compile_commands.json`
 that is needed by `clangd`.
 
 ### lsp-mode

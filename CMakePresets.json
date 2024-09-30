@@ -10,7 +10,7 @@
       "hidden": true,
       "name": "default_base",
       "displayName": "Default Config",
-      "binaryDir": "${fileDir}/Build/ladybird",
+      "binaryDir": "${fileDir}/Build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "SERENITY_CACHE_DIR": "${fileDir}/Build/caches",
@@ -92,7 +92,7 @@
       "inherits": "default",
       "displayName": "Debug Config",
       "description": "Debug build using Ninja generator",
-      "binaryDir": "${fileDir}/Build/ladybird-debug",
+      "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
@@ -103,7 +103,7 @@
       "inherits": "default",
       "displayName": "Sanitizer Config",
       "description": "Sanitizer build using Ninja generator",
-      "binaryDir": "${fileDir}/Build/ladybird-sanitizers",
+      "binaryDir": "${fileDir}/Build/sanitizers",
       "cacheVariables": {
         "ENABLE_UNDEFINED_SANITIZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON",
@@ -145,7 +145,7 @@
       ],
       "displayName": "Fuzzers Config",
       "description": "Fuzzers build with GitHub Actions cache",
-      "binaryDir": "${fileDir}/Build/ladybird-fuzzers",
+      "binaryDir": "${fileDir}/Build/fuzzers",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "",
         "ENABLE_QT": "OFF",
