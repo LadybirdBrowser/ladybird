@@ -328,6 +328,8 @@ public:
     void set_start_position(Badge<HTMLTokenizer>, Position start_position) { m_start_position = start_position; }
     void set_end_position(Badge<HTMLTokenizer>, Position end_position) { m_end_position = end_position; }
 
+    void normalize_attributes();
+
 private:
     Vector<Attribute> const* tag_attributes() const
     {

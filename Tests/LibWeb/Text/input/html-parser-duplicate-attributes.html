@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="fred"id="barney" class="math"></div>
+<div class class=1"foo" id="spaghetti" id></div>
+<div grape="foo" grape grape="bar" grape grape grape=baz></div>
+<script>
+    test(() => {
+        let divs = document.getElementsByTagName("div");
+
+        // Per the HTML spec, the first attribute wins.
+        println(`divs[0].id: ${divs[0].id}`);
+        println(`divs[0].className: ${divs[0].className}`);
+        println(`divs[1].id: ${divs[1].id}`);
+        println(`divs[1].className: ${divs[1].className}`);
+        println(`divs[2].getAttribute("grape"): ${divs[2].getAttribute("grape")}`);
+
+        println(`divs[0].numAttributes: ${divs[0].attributes.length}`); // 2
+        println(`divs[1].numAttributes: ${divs[1].attributes.length}`); // 2
+        println(`divs[2].numAttributes: ${divs[2].attributes.length}`); // 1
+    });
+</script>
