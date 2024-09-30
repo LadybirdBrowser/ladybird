@@ -184,6 +184,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
         continue_search = false;
 
     auto single_match_only = input.regex_options.has_flag_set(AllFlags::SingleMatch);
+    auto only_start_of_line = m_pattern->parser_result.optimization_data.only_start_of_line && !input.regex_options.has_flag_set(AllFlags::Multiline);
 
     for (auto const& view : views) {
         if (lines_to_skip != 0) {
@@ -294,7 +295,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
                 break;
             }
 
-            if (!continue_search)
+            if (!continue_search || only_start_of_line)
                 break;
         }
 

@@ -998,6 +998,15 @@ BENCHMARK_CASE(fork_performance)
     EXPECT_EQ(result.success, true);
 }
 
+BENCHMARK_CASE(anchor_performance)
+{
+    Regex<ECMA262> re("^b");
+    for (auto i = 0; i < 100'000; i++) {
+        auto result = re.match(g_lots_of_a_s);
+        EXPECT_EQ(result.success, false);
+    }
+}
+
 TEST_CASE(optimizer_atomic_groups)
 {
     Array tests {
@@ -1075,6 +1084,21 @@ TEST_CASE(optimizer_alternation)
         auto result = re.match(test.get<1>());
         EXPECT(result.success);
         EXPECT_EQ(result.matches.first().view.length(), test.get<2>());
+    }
+}
+
+TEST_CASE(start_anchor)
+{
+    // Ensure that a circumflex at the start only matches the start of the line.
+    {
+        Regex<PosixBasic> re("^abc");
+        EXPECT_EQ(re.match("123abcdef"sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("abc123"sv, PosixFlags::Global).success, true);
+        EXPECT_EQ(re.match("123^abcdef"sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("^abc123"sv, PosixFlags::Global).success, false);
+
+        // Multiple lines
+        EXPECT_EQ(re.match("123\nabc"sv, PosixFlags::Multiline).success, true);
     }
 }
 

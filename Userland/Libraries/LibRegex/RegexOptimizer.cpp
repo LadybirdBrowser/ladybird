@@ -36,6 +36,12 @@ void Regex<Parser>::run_optimization_passes()
     // e.g. a*b -> (ATOMIC a*)b
     attempt_rewrite_loops_as_atomic_groups(blocks);
 
+    // FIXME: "There are a few more conditions this can be true in (e.g. within an arbitrarily nested capture group)"
+    MatchState state;
+    auto& opcode = parser_result.bytecode.get_opcode(state);
+    if (opcode.opcode_id() == OpCodeId::CheckBegin)
+        parser_result.optimization_data.only_start_of_line = true;
+
     parser_result.bytecode.flatten();
 }
 
