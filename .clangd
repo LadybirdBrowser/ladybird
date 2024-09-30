@@ -1,5 +1,5 @@
 CompileFlags:
-  CompilationDatabase: Build/ladybird
+  CompilationDatabase: Build/release
 
 Diagnostics:
   UnusedIncludes: None

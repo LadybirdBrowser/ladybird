@@ -25,10 +25,10 @@ First, make sure you have a working toolchain and can build and run Ladybird. Go
     Userland/
     Userland/Libraries/
     Userland/Services/
-    Build/ladybird/
-    Build/ladybird/Userland/
-    Build/ladybird/Userland/Libraries/
-    Build/ladybird/Userland/Services/
+    Build/release/
+    Build/release/Userland/
+    Build/release/Userland/Libraries/
+    Build/release/Userland/Services/
     AK/
     ```
 

@@ -13,9 +13,9 @@ WPT_REPOSITORY_URL=${WPT_REPOSITORY_URL:-"https://github.com/web-platform-tests/
 
 default_binary_path() {
     if [ "$(uname -s)" = "Darwin" ]; then
-        echo "${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin/Ladybird.app/Contents/MacOS/"
+        echo "${LADYBIRD_SOURCE_DIR}/Build/release/bin/Ladybird.app/Contents/MacOS/"
     else
-        echo "${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin/"
+        echo "${LADYBIRD_SOURCE_DIR}/Build/release/bin/"
     fi
 }
 LADYBIRD_BINARY=${LADYBIRD_BINARY:-"$(default_binary_path)/Ladybird"}
@@ -23,7 +23,7 @@ WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/WebDriver"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
   "tools/certs/cacert.pem"
-  "${LADYBIRD_SOURCE_DIR}/Build/ladybird/Lagom/cacert.pem"
+  "${LADYBIRD_SOURCE_DIR}/Build/release/Lagom/cacert.pem"
 )
 WPT_ARGS=( "--binary=${LADYBIRD_BINARY}"
            "--webdriver-binary=${WEBDRIVER_BINARY}"
