@@ -4,17 +4,9 @@ import("//Meta/gn/build/libs/pulse/enable.gni")
 shared_library("LibMedia") {
   include_dirs = [ "//Userland/Libraries" ]
   sources = [
-    "Audio/FlacLoader.cpp",
-    "Audio/GenericTypes.cpp",
     "Audio/Loader.cpp",
-    "Audio/MP3Loader.cpp",
-    "Audio/Metadata.cpp",
     "Audio/PlaybackStream.cpp",
-    "Audio/QOALoader.cpp",
-    "Audio/QOATypes.cpp",
     "Audio/SampleFormats.cpp",
-    "Audio/VorbisComment.cpp",
-    "Audio/WavLoader.cpp",
     "Color/ColorConverter.cpp",
     "Color/ColorPrimaries.cpp",
     "Color/TransferCharacteristics.cpp",

@@ -195,19 +195,16 @@ Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) con
     }
 
     if (mime_type.has_value() && mime_type->type() == "audio"sv) {
+        if (mime_type->subtype() == "flac"sv)
+            return Bindings::CanPlayTypeResult::Probably;
+        if (mime_type->subtype() == "mp3"sv)
+            return Bindings::CanPlayTypeResult::Probably;
         // "Maybe" because we support mp3, but "mpeg" can also refer to MP1 and MP2.
         if (mime_type->subtype() == "mpeg"sv)
             return Bindings::CanPlayTypeResult::Maybe;
-        if (mime_type->subtype() == "mp3"sv)
+        if (mime_type->subtype() == "ogg"sv)
             return Bindings::CanPlayTypeResult::Probably;
         if (mime_type->subtype() == "wav"sv)
-            return Bindings::CanPlayTypeResult::Probably;
-        if (mime_type->subtype() == "flac"sv)
-            return Bindings::CanPlayTypeResult::Probably;
-        // "Maybe" because we support Ogg Vorbis, but "ogg" can contain other codecs
-        if (mime_type->subtype() == "ogg"sv)
-            return Bindings::CanPlayTypeResult::Maybe;
-        if (mime_type->subtype() == "qoa"sv)
             return Bindings::CanPlayTypeResult::Probably;
         return Bindings::CanPlayTypeResult::Maybe;
     }

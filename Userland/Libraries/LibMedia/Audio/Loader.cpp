@@ -7,10 +7,6 @@
 
 #include "Loader.h"
 #include "FFmpegLoader.h"
-#include "FlacLoader.h"
-#include "MP3Loader.h"
-#include "QOALoader.h"
-#include "WavLoader.h"
 #include <AK/TypedTransfer.h>
 #include <LibCore/MappedFile.h>
 
@@ -32,13 +28,9 @@ struct LoaderPluginInitializer {
 };
 
 static constexpr LoaderPluginInitializer s_initializers[] = {
-    { FlacLoaderPlugin::sniff, FlacLoaderPlugin::create },
-    { QOALoaderPlugin::sniff, QOALoaderPlugin::create },
 #ifdef USE_FFMPEG
     { FFmpegLoaderPlugin::sniff, FFmpegLoaderPlugin::create },
 #endif
-    { WavLoaderPlugin::sniff, WavLoaderPlugin::create },
-    { MP3LoaderPlugin::sniff, MP3LoaderPlugin::create },
 };
 
 ErrorOr<NonnullRefPtr<Loader>, LoaderError> Loader::create(StringView path)

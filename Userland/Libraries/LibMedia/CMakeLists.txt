@@ -1,17 +1,9 @@
 include(ffmpeg)
 
 set(SOURCES
-    Audio/GenericTypes.cpp
-    Audio/SampleFormats.cpp
     Audio/Loader.cpp
-    Audio/WavLoader.cpp
-    Audio/FlacLoader.cpp
-    Audio/Metadata.cpp
-    Audio/MP3Loader.cpp
     Audio/PlaybackStream.cpp
-    Audio/QOALoader.cpp
-    Audio/QOATypes.cpp
-    Audio/VorbisComment.cpp
+    Audio/SampleFormats.cpp
     Color/ColorConverter.cpp
     Color/ColorPrimaries.cpp
     Color/TransferCharacteristics.cpp

@@ -10,12 +10,7 @@ namespace Audio {
 
 class ConnectionToServer;
 class Loader;
-struct Person;
-struct Metadata;
 class PlaybackStream;
 struct Sample;
-
-template<typename SampleType>
-class ResampleHelper;
 
 }
