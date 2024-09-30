@@ -17,8 +17,10 @@
 #include <LibIPC/SingleServer.h>
 #include <LibTLS/Certificate.h>
 #include <RequestServer/ConnectionFromClient.h>
-#include <RequestServer/HttpProtocol.h>
-#include <RequestServer/HttpsProtocol.h>
+
+namespace RequestServer {
+extern ByteString g_default_certificate_path;
+}
 
 // FIXME: Share b/w RequestServer and WebSocket
 static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
@@ -32,13 +34,12 @@ static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
 ErrorOr<int> service_main(int ipc_socket)
 {
     // Ensure the certificates are read out here.
-    DefaultRootCACertificates::set_default_certificate_paths(Vector { TRY(find_certificates(s_ladybird_resource_root)) });
+    Vector<ByteString> certificates = { TRY(find_certificates(s_ladybird_resource_root)) };
+    DefaultRootCACertificates::set_default_certificate_paths(certificates.span());
+    RequestServer::g_default_certificate_path = certificates.first();
     [[maybe_unused]] auto& certs = DefaultRootCACertificates::the();
 
     Core::EventLoop event_loop;
-
-    RequestServer::HttpProtocol::install();
-    RequestServer::HttpsProtocol::install();
 
     auto socket = TRY(Core::LocalSocket::adopt_fd(ipc_socket));
     auto client = TRY(RequestServer::ConnectionFromClient::try_create(move(socket)));
