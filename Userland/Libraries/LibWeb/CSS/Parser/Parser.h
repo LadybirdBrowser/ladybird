@@ -286,7 +286,7 @@ private:
     template<typename ParseFunction>
     RefPtr<CSSStyleValue> parse_comma_separated_value_list(TokenStream<ComponentValue>&, ParseFunction);
     RefPtr<CSSStyleValue> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_all_as_single_none_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_all_as_single_keyword_value(TokenStream<ComponentValue>&, Keyword);
 
     RefPtr<CSSStyleValue> parse_aspect_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_background_value(TokenStream<ComponentValue>&);
