@@ -42,7 +42,7 @@ static constexpr StringView sql_error(int error_code)
 ErrorOr<NonnullRefPtr<Database>> Database::create()
 {
     // FIXME: Move this to a generic "Ladybird data directory" helper.
-    auto database_path = ByteString::formatted("{}/Ladybird", Core::StandardPaths::data_directory());
+    auto database_path = ByteString::formatted("{}/Ladybird", Core::StandardPaths::user_data_directory());
     TRY(Core::Directory::create(database_path, Core::Directory::CreateDirectories::Yes));
 
     auto database_file = ByteString::formatted("{}/Ladybird.db", database_path);

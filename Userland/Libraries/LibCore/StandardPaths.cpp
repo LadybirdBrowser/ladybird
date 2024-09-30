@@ -132,7 +132,7 @@ ByteString StandardPaths::config_directory()
     return LexicalPath::canonicalized_path(builder.to_byte_string());
 }
 
-ByteString StandardPaths::data_directory()
+ByteString StandardPaths::user_data_directory()
 {
     if (auto data_directory = get_environment_if_not_empty("XDG_DATA_HOME"sv); data_directory.has_value())
         return LexicalPath::canonicalized_path(*data_directory);
@@ -220,8 +220,8 @@ ErrorOr<Vector<String>> StandardPaths::font_directories()
         // There is no guarantee that this will continue to exist on future versions of Android.
         "/system/fonts"_string,
 #    else
-        TRY(String::formatted("{}/fonts"sv, data_directory())),
-        TRY(String::formatted("{}/X11/fonts"sv, data_directory())),
+        TRY(String::formatted("{}/fonts"sv, user_data_directory())),
+        TRY(String::formatted("{}/X11/fonts"sv, user_data_directory())),
 #    endif
     } };
 #    if !(defined(AK_OS_SERENITY) || defined(AK_OS_MACOS))
