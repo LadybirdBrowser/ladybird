@@ -189,8 +189,8 @@ ErrorOr<NonnullRefPtr<WebDriverConnection>> WebDriverConnection::connect(Web::Pa
 
 WebDriverConnection::WebDriverConnection(NonnullOwnPtr<Core::LocalSocket> socket, Web::PageClient& page_client)
     : IPC::ConnectionToServer<WebDriverClientEndpoint, WebDriverServerEndpoint>(*this, move(socket))
-    , m_current_browsing_context(page_client.page().top_level_browsing_context())
 {
+    set_current_top_level_browsing_context(page_client.page().top_level_browsing_context());
 }
 
 // https://w3c.github.io/webdriver/#dfn-close-the-session
@@ -283,7 +283,7 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
     }
 
     // 9. Set the current browsing context with the current top-level browsing context.
-    m_current_browsing_context = *current_top_level_browsing_context();
+    set_current_browsing_context(*current_top_level_browsing_context());
 
     // FIXME: 10. If the current top-level browsing context contains a refresh state pragma directive of time 1 second or less, wait until the refresh timeout has elapsed, a new navigate has begun, and return to the first step of this algorithm.
 
@@ -364,7 +364,7 @@ Messages::WebDriverClient::RefreshResponse WebDriverConnection::refresh()
     // FIXME:     2. Try to run the post-navigation checks.
 
     // 5. Set the current browsing context with current top-level browsing context.
-    m_current_browsing_context = *current_top_level_browsing_context();
+    set_current_browsing_context(*current_top_level_browsing_context());
 
     // 6. Return success with data null.
     return JsonValue {};
@@ -422,7 +422,7 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
             continue;
 
         if (handle == traversable->window_handle()) {
-            m_current_browsing_context = traversable->active_browsing_context();
+            set_current_top_level_browsing_context(*traversable->active_browsing_context());
             found_matching_context = true;
             break;
         }
@@ -500,7 +500,7 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
         TRY(handle_any_user_prompts());
 
         // 3. Set the current browsing context with session and session's current top-level browsing context.
-        m_current_browsing_context = current_top_level_browsing_context();
+        set_current_browsing_context(*current_top_level_browsing_context());
     }
 
     // -> id is a Number object
@@ -538,10 +538,10 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
         // 5. Set the current browsing context with session and element's content navigable's active browsing context.
         if (is_frame) {
             // FIXME: Should HTMLFrameElement also be a NavigableContainer?
-            m_current_browsing_context = *element->navigable()->active_browsing_context();
+            set_current_browsing_context(*element->navigable()->active_browsing_context());
         } else {
             auto& navigable_container = static_cast<Web::HTML::NavigableContainer&>(*element);
-            m_current_browsing_context = navigable_container.content_navigable()->active_browsing_context();
+            set_current_browsing_context(*navigable_container.content_navigable()->active_browsing_context());
         }
     }
 
@@ -574,7 +574,7 @@ Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::swit
     // 4. If session's current parent browsing context is not null, set the current browsing context with session and
     //    current parent browsing context.
     if (parent_browsing_context)
-        m_current_browsing_context = *parent_browsing_context;
+        set_current_browsing_context(*current_parent_browsing_context());
 
     // FIXME: 5. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
 
@@ -2118,26 +2118,37 @@ Messages::WebDriverClient::PrintPageResponse WebDriverConnection::print_page(Jso
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Print not implemented"sv);
 }
 
+// https://w3c.github.io/webdriver/#dfn-set-the-current-browsing-context
+void WebDriverConnection::set_current_browsing_context(Web::HTML::BrowsingContext& browsing_context)
+{
+    // 1. Set session's current browsing context to context.
+    m_current_browsing_context = browsing_context;
+
+    // 2. Set the session's current parent browsing context to the parent browsing context of context, if that context
+    //    exists, or null otherwise.
+    if (auto navigable = browsing_context.active_document()->navigable(); navigable && navigable->parent())
+        m_current_parent_browsing_context = navigable->parent()->active_browsing_context();
+    else
+        m_current_parent_browsing_context = nullptr;
+}
+
+// https://w3c.github.io/webdriver/#dfn-set-the-current-browsing-context
+void WebDriverConnection::set_current_top_level_browsing_context(Web::HTML::BrowsingContext& browsing_context)
+{
+    // 1. Assert: context is a top-level browsing context.
+    VERIFY(browsing_context.is_top_level());
+
+    // 2. Set session's current top-level browsing context to context.
+    m_current_top_level_browsing_context = browsing_context;
+
+    // 3. Set the current browsing context with session and context.
+    set_current_browsing_context(browsing_context);
+}
+
 Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse WebDriverConnection::ensure_top_level_browsing_context_is_open()
 {
     TRY(ensure_current_top_level_browsing_context_is_open());
     return JsonValue {};
-}
-
-// https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
-JS::GCPtr<Web::HTML::BrowsingContext> WebDriverConnection::current_parent_browsing_context()
-{
-    auto current_navigable = current_browsing_context().active_document()->navigable();
-    if (!current_navigable || !current_navigable->parent())
-        return {};
-
-    return current_navigable->parent()->active_browsing_context();
-}
-
-// https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
-JS::GCPtr<Web::HTML::BrowsingContext> WebDriverConnection::current_top_level_browsing_context()
-{
-    return current_browsing_context().top_level_browsing_context();
 }
 
 ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_browsing_context_is_open()
