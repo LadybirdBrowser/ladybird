@@ -5480,6 +5480,79 @@ RefPtr<CSSStyleValue> Parser::parse_font_language_override_value(TokenStream<Com
     return nullptr;
 }
 
+RefPtr<CSSStyleValue> Parser::parse_font_feature_settings_value(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.csswg.org/css-fonts/#propdef-font-feature-settings
+    // normal | <feature-tag-value>#
+
+    // normal
+    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return normal;
+
+    // <feature-tag-value>#
+    auto transaction = tokens.begin_transaction();
+    auto tag_values = parse_a_comma_separated_list_of_component_values(tokens);
+
+    // "The computed value of font-feature-settings is a map, so any duplicates in the specified value must not be preserved.
+    // If the same feature tag appears more than once, the value associated with the last appearance supersedes any previous
+    // value for that axis."
+    // So, we deduplicate them here using a HashSet.
+
+    OrderedHashMap<FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue>> feature_tags_map;
+    for (auto const& values : tag_values) {
+        // <feature-tag-value> = <opentype-tag> [ <integer [0,∞]> | on | off ]?
+        TokenStream tag_tokens { values };
+        tag_tokens.skip_whitespace();
+        auto opentype_tag = parse_opentype_tag_value(tag_tokens);
+        tag_tokens.skip_whitespace();
+        RefPtr<CSSStyleValue> value;
+        if (tag_tokens.has_next_token()) {
+            if (auto integer = parse_integer_value(tag_tokens)) {
+                if (integer->is_integer() && integer->as_integer().value() < 0)
+                    return nullptr;
+                value = integer;
+            } else {
+                // A value of on is synonymous with 1 and off is synonymous with 0.
+                auto keyword = parse_keyword_value(tag_tokens);
+                if (!keyword)
+                    return nullptr;
+                switch (keyword->to_keyword()) {
+                case Keyword::On:
+                    value = IntegerStyleValue::create(1);
+                    break;
+                case Keyword::Off:
+                    value = IntegerStyleValue::create(0);
+                    break;
+                default:
+                    return nullptr;
+                }
+            }
+            tag_tokens.skip_whitespace();
+        } else {
+            // "If the value is omitted, a value of 1 is assumed."
+            value = IntegerStyleValue::create(1);
+        }
+
+        if (!opentype_tag || !value || tag_tokens.has_next_token())
+            return nullptr;
+
+        feature_tags_map.set(opentype_tag->string_value(), OpenTypeTaggedStyleValue::create(opentype_tag->string_value(), value.release_nonnull()));
+    }
+
+    // "The computed value contains the de-duplicated feature tags, sorted in ascending order by code unit."
+    StyleValueVector feature_tags;
+    feature_tags.ensure_capacity(feature_tags_map.size());
+    for (auto const& [key, feature_tag] : feature_tags_map)
+        feature_tags.append(feature_tag);
+
+    quick_sort(feature_tags, [](auto& a, auto& b) {
+        return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
+    });
+
+    transaction.commit();
+    return StyleValueList::create(move(feature_tags), StyleValueList::Separator::Comma);
+}
+
 RefPtr<CSSStyleValue> Parser::parse_font_variation_settings_value(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-fonts/#propdef-font-variation-settings
@@ -7618,6 +7691,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         return ParseError::SyntaxError;
     case PropertyID::FontFamily:
         if (auto parsed_value = parse_font_family_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::FontFeatureSettings:
+        if (auto parsed_value = parse_font_feature_settings_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::FontLanguageOverride:

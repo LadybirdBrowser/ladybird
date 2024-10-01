@@ -149,6 +149,7 @@ public:
     Variant<CSS::VerticalAlign, CSS::LengthPercentage> vertical_align() const;
     Optional<CSS::FontVariant> font_variant() const;
     Optional<FlyString> font_language_override() const;
+    Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const;
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const;
     CSS::GridTrackSizeList grid_auto_columns() const;
     CSS::GridTrackSizeList grid_auto_rows() const;

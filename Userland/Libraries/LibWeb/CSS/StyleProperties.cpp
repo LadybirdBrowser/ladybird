@@ -1028,6 +1028,33 @@ Optional<FlyString> StyleProperties::font_language_override() const
     return {};
 }
 
+Optional<HashMap<FlyString, IntegerOrCalculated>> StyleProperties::font_feature_settings() const
+{
+    auto value = property(PropertyID::FontFeatureSettings);
+
+    if (value->is_keyword())
+        return {}; // normal
+
+    if (value->is_value_list()) {
+        auto const& feature_tags = value->as_value_list().values();
+        HashMap<FlyString, IntegerOrCalculated> result;
+        result.ensure_capacity(feature_tags.size());
+        for (auto const& tag_value : feature_tags) {
+            auto const& feature_tag = tag_value->as_open_type_tagged();
+
+            if (feature_tag.value()->is_integer()) {
+                result.set(feature_tag.tag(), feature_tag.value()->as_integer().value());
+            } else {
+                VERIFY(feature_tag.value()->is_math());
+                result.set(feature_tag.tag(), IntegerOrCalculated { feature_tag.value()->as_math() });
+            }
+        }
+        return result;
+    }
+
+    return {};
+}
+
 Optional<HashMap<FlyString, NumberOrCalculated>> StyleProperties::font_variation_settings() const
 {
     auto value = property(CSS::PropertyID::FontVariationSettings);

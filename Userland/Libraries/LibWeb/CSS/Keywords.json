@@ -265,6 +265,8 @@
   "nw-resize",
   "nwse-resize",
   "oblique",
+  "off",
+  "on",
   "opaque",
   "open-quote",
   "optimizequality",
