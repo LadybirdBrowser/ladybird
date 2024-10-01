@@ -666,6 +666,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         if (!app->test_dry_run)
             view = TRY(HeadlessWebContentView::create(move(theme), window_size, app->resources_folder));
 
+        auto absolute_test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
+        app->test_root_path = absolute_test_root_path;
         auto test_glob = ByteString::formatted("*{}*", app->test_glob);
         return run_tests(view, app->test_root_path, test_glob, app->dump_failed_ref_tests, app->dump_gc_graph, app->test_dry_run);
     }
