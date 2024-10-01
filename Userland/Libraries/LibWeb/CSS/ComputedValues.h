@@ -104,6 +104,7 @@ public:
     static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
     static CSS::Cursor cursor() { return CSS::Cursor::Auto; }
     static CSS::WhiteSpace white_space() { return CSS::WhiteSpace::Normal; }
+    static Variant<LengthOrCalculated, NumberOrCalculated> tab_size() { return NumberOrCalculated(8.0f); }
     static CSS::TextAlign text_align() { return CSS::TextAlign::Start; }
     static CSS::TextJustify text_justify() { return CSS::TextJustify::Auto; }
     static CSS::Positioning position() { return CSS::Positioning::Static; }
@@ -370,6 +371,7 @@ public:
     CSS::PointerEvents pointer_events() const { return m_inherited.pointer_events; }
     CSS::Display display() const { return m_noninherited.display; }
     Optional<int> const& z_index() const { return m_noninherited.z_index; }
+    Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const { return m_inherited.tab_size; }
     CSS::TextAlign text_align() const { return m_inherited.text_align; }
     CSS::TextJustify text_justify() const { return m_inherited.text_justify; }
     CSS::LengthPercentage const& text_indent() const { return m_inherited.text_indent; }
@@ -530,6 +532,7 @@ protected:
         CSS::Cursor cursor { InitialValues::cursor() };
         CSS::ImageRendering image_rendering { InitialValues::image_rendering() };
         CSS::PointerEvents pointer_events { InitialValues::pointer_events() };
+        Variant<LengthOrCalculated, NumberOrCalculated> tab_size { InitialValues::tab_size() };
         CSS::TextAlign text_align { InitialValues::text_align() };
         CSS::TextJustify text_justify { InitialValues::text_justify() };
         CSS::TextTransform text_transform { InitialValues::text_transform() };
@@ -691,6 +694,7 @@ public:
     void set_float(CSS::Float value) { m_noninherited.float_ = value; }
     void set_clear(CSS::Clear value) { m_noninherited.clear = value; }
     void set_z_index(Optional<int> value) { m_noninherited.z_index = value; }
+    void set_tab_size(Variant<LengthOrCalculated, NumberOrCalculated> value) { m_inherited.tab_size = value; }
     void set_text_align(CSS::TextAlign text_align) { m_inherited.text_align = text_align; }
     void set_text_justify(CSS::TextJustify text_justify) { m_inherited.text_justify = text_justify; }
     void set_text_decoration_line(Vector<CSS::TextDecorationLine> value) { m_noninherited.text_decoration_line = move(value); }

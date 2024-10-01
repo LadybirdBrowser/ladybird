@@ -113,6 +113,7 @@ public:
     ContentDataAndQuoteNestingLevel content(DOM::Element&, u32 initial_quote_nesting_level) const;
     Optional<CSS::ContentVisibility> content_visibility() const;
     Optional<CSS::Cursor> cursor() const;
+    Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
     Optional<CSS::WhiteSpace> white_space() const;
     Optional<CSS::LineStyle> line_style(CSS::PropertyID) const;
     Optional<CSS::OutlineStyle> outline_style() const;
