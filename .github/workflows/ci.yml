@@ -14,14 +14,14 @@ jobs:
       fail-fast: false
       matrix:
         os_name: ['Linux']
-        os: [ubuntu-22.04]
+        os: [ubuntu-24.04]
         fuzzer: ['NO_FUZZ']
         toolchain: ['GNU']
         clang_plugins: [false]
 
         include:
           - os_name: 'Linux'
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             fuzzer: 'NO_FUZZ'
             toolchain: 'Clang'
             clang_plugins: true
@@ -33,7 +33,7 @@ jobs:
             clang_plugins: false
 
           - os_name: 'Linux'
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             fuzzer: 'FUZZ'
             toolchain: 'Clang'
             clang_plugins: false
