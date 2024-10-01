@@ -471,6 +471,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
         computed_values.set_font_variant(maybe_font_variant.release_value());
     if (auto maybe_font_language_override = computed_style.font_language_override(); maybe_font_language_override.has_value())
         computed_values.set_font_language_override(maybe_font_language_override.release_value());
+    if (auto maybe_font_feature_settings = computed_style.font_feature_settings(); maybe_font_feature_settings.has_value())
+        computed_values.set_font_feature_settings(maybe_font_feature_settings.release_value());
     if (auto maybe_font_variation_settings = computed_style.font_variation_settings(); maybe_font_variation_settings.has_value())
         computed_values.set_font_variation_settings(maybe_font_variation_settings.release_value());
 

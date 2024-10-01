@@ -11,6 +11,7 @@ fill: rgb(0, 0, 0)
 fill-opacity: 1
 fill-rule: nonzero
 font-family: serif
+font-feature-settings: normal
 font-language-override: normal
 font-size: 16px
 font-style: normal
@@ -119,7 +120,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2057px
+height: 2074px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

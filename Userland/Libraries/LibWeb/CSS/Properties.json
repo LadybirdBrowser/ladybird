@@ -1165,6 +1165,20 @@
       "string"
     ]
   },
+  "font-feature-settings": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "integer [0,∞]",
+      "opentype-tag"
+    ],
+    "valid-identifiers": [
+      "normal",
+      "on",
+      "off"
+    ]
+  },
   "font-language-override": {
     "animation-type": "discrete",
     "inherited": true,
