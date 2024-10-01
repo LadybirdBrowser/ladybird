@@ -18,6 +18,7 @@
 
 namespace Ladybird {
 
+class EventLoopImplementationQt;
 class EventLoopImplementationQtEventTarget;
 
 class EventLoopManagerQt final : public Core::EventLoopManager {
@@ -37,6 +38,8 @@ public:
 
     virtual int register_signal(int, Function<void(int)>) override;
     virtual void unregister_signal(int) override;
+
+    void set_main_loop_signal_notifiers(Badge<EventLoopImplementationQt>);
 
 private:
     static void handle_signal(int);
@@ -77,7 +80,7 @@ public:
     virtual bool was_exit_requested() const override { return false; }
     virtual void notify_forked_and_in_child() override { }
 
-    void set_main_loop() { m_main_loop = true; }
+    void set_main_loop();
 
 private:
     friend class EventLoopManagerQt;
