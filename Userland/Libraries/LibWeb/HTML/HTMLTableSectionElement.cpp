@@ -7,10 +7,15 @@
 
 #include <LibWeb/Bindings/HTMLTableSectionElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/HTML/HTMLTableRowElement.h>
 #include <LibWeb/HTML/HTMLTableSectionElement.h>
+#include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
@@ -93,6 +98,22 @@ WebIDL::ExceptionOr<void> HTMLTableSectionElement::delete_row(WebIDL::Long index
         rows_collection->item(index)->remove();
     }
     return {};
+}
+
+void HTMLTableSectionElement::apply_presentational_hints(CSS::StyleProperties& style) const
+{
+    for_each_attribute([&](auto& name, auto& value) {
+        // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
+        if (name == HTML::AttributeNames::background) {
+            if (auto parsed_value = document().parse_url(value); parsed_value.is_valid())
+                style.set_property(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
+        }
+        // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:rules-for-parsing-a-legacy-colour-value
+        else if (name == HTML::AttributeNames::bgcolor) {
+            if (auto color = parse_legacy_color_value(value); color.has_value())
+                style.set_property(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
+        }
+    });
 }
 
 }

@@ -6,8 +6,10 @@
 
 #include <LibWeb/Bindings/HTMLTableColElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Parser/HTMLParser.h>
 
 namespace Web::HTML {
 
@@ -40,6 +42,18 @@ unsigned int HTMLTableColElement::span() const
 WebIDL::ExceptionOr<void> HTMLTableColElement::set_span(unsigned int value)
 {
     return set_attribute(HTML::AttributeNames::span, MUST(String::number(value)));
+}
+
+void HTMLTableColElement::apply_presentational_hints(CSS::StyleProperties& style) const
+{
+    for_each_attribute([&](auto& name, auto& value) {
+        // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:maps-to-the-dimension-property-2
+        if (name == HTML::AttributeNames::width) {
+            if (auto parsed_value = parse_dimension_value(value)) {
+                style.set_property(CSS::PropertyID::Width, *parsed_value);
+            }
+        }
+    });
 }
 
 }

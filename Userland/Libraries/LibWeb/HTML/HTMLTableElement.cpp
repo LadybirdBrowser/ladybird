@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -59,7 +60,7 @@ void HTMLTableElement::apply_presentational_hints(CSS::StyleProperties& style) c
             return;
         }
         if (name == HTML::AttributeNames::height) {
-            if (auto parsed_value = parse_nonzero_dimension_value(value))
+            if (auto parsed_value = parse_dimension_value(value))
                 style.set_property(CSS::PropertyID::Height, parsed_value.release_nonnull());
             return;
         }
@@ -70,6 +71,11 @@ void HTMLTableElement::apply_presentational_hints(CSS::StyleProperties& style) c
             } else if (auto parsed_value = parse_css_value(CSS::Parser::ParsingContext { document() }, value, CSS::PropertyID::Float)) {
                 style.set_property(CSS::PropertyID::Float, parsed_value.release_nonnull());
             }
+            return;
+        }
+        if (name == HTML::AttributeNames::background) {
+            if (auto parsed_value = document().parse_url(value); parsed_value.is_valid())
+                style.set_property(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
             return;
         }
         if (name == HTML::AttributeNames::bgcolor) {
