@@ -1,0 +1,3 @@
+Test hr.width = "100" maps to width: 100px
+Test hr.width = " 00110 " maps to width: 110px
+Test hr.width = "120." maps to width: 120px
