@@ -672,6 +672,25 @@ Optional<CSS::PointerEvents> StyleProperties::pointer_events() const
     return keyword_to_pointer_events(value->to_keyword());
 }
 
+Variant<LengthOrCalculated, NumberOrCalculated> StyleProperties::tab_size() const
+{
+    auto value = property(CSS::PropertyID::TabSize);
+    if (value->is_math()) {
+        auto& math_value = value->as_math();
+        if (math_value.resolves_to_length()) {
+            return LengthOrCalculated { math_value };
+        }
+        if (math_value.resolves_to_number()) {
+            return NumberOrCalculated { math_value };
+        }
+    }
+
+    if (value->is_length())
+        return LengthOrCalculated { value->as_length().length() };
+
+    return NumberOrCalculated { value->as_number().number() };
+}
+
 Optional<CSS::WhiteSpace> StyleProperties::white_space() const
 {
     auto value = property(CSS::PropertyID::WhiteSpace);

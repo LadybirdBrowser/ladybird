@@ -598,6 +598,9 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto text_overflow = computed_style.text_overflow(); text_overflow.has_value())
         computed_values.set_text_overflow(text_overflow.release_value());
 
+    auto tab_size = computed_style.tab_size();
+    computed_values.set_tab_size(tab_size);
+
     auto white_space = computed_style.white_space();
     if (white_space.has_value())
         computed_values.set_white_space(white_space.value());

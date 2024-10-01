@@ -31,6 +31,7 @@ quotes: auto
 stroke: none
 stroke-opacity: 1
 stroke-width: 1px
+tab-size: 8
 text-align: start
 text-anchor: start
 text-decoration-line: none
@@ -117,7 +118,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2023px
+height: 2040px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto
