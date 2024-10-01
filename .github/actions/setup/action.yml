@@ -46,11 +46,11 @@ runs:
         python3 -m pip install --upgrade pip
         pip3 install requests six
 
-    - name: 'Switch to latest Xcode beta'
+    - name: 'Select latest Xcode'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: latest
+        xcode-version: latest-stable
 
     - name: 'Install Dependencies'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
