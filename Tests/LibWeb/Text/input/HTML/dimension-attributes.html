@@ -4,6 +4,12 @@
     test(() => {
         const tests = [
             { elementName: "hr", attribute: "width", mappedProperty: "width" },
+            { elementName: "marquee", attribute: "hspace", mappedProperty: "marginLeft" },
+            { elementName: "marquee", attribute: "hspace", mappedProperty: "marginRight" },
+            { elementName: "marquee", attribute: "vspace", mappedProperty: "marginTop" },
+            { elementName: "marquee", attribute: "vspace", mappedProperty: "marginBottom" },
+            { elementName: "marquee", attribute: "width", mappedProperty: "width" },
+            { elementName: "marquee", attribute: "height", mappedProperty: "height" },
         ];
         const values = ["100", " 00110 ", "120."];
 
