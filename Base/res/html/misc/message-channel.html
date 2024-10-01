@@ -1,7 +1,0 @@
-<script>
-var channel = new MessageChannel();
-channel.port2.onmessage = function(event) {
-    console.log("Port2 received '" + event.data + "'");
-}
-channel.port1.postMessage("HELLO FRIEND");
-</script>
