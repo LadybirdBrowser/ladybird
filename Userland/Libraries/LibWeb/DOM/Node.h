@@ -54,7 +54,6 @@ enum class FragmentSerializationMode {
 
 #define ENUMERATE_STYLE_INVALIDATION_REASONS(X)     \
     X(AdoptedStyleSheetsList)                       \
-    X(AnimationEffectSetAssociatedAnimation)        \
     X(CSSFontLoaded)                                \
     X(CSSImportRule)                                \
     X(DidLoseFocus)                                 \
