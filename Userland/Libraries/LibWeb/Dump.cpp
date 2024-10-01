@@ -709,6 +709,26 @@ void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rul
         indent(builder, indent_levels + 1);
         builder.appendff("language-override: {}\n", font_face.font_language_override().value());
     }
+
+    if (font_face.font_feature_settings().has_value()) {
+        indent(builder, indent_levels + 1);
+        builder.append("feature-settings:"sv);
+        auto const& entries = font_face.font_feature_settings().value();
+        for (auto const& [name, value] : entries) {
+            builder.appendff(" {}={}", name, value);
+        }
+        builder.append("\n"sv);
+    }
+
+    if (font_face.font_variation_settings().has_value()) {
+        indent(builder, indent_levels + 1);
+        builder.append("variation-settings:"sv);
+        auto const& entries = font_face.font_variation_settings().value();
+        for (auto const& [name, value] : entries) {
+            builder.appendff(" {}={}", name, value);
+        }
+        builder.append("\n"sv);
+    }
 }
 
 void dump_import_rule(StringBuilder& builder, CSS::CSSImportRule const& rule, int indent_levels)

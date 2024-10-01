@@ -9,7 +9,7 @@
 
 namespace Web::CSS {
 
-ParsedFontFace::ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override)
+ParsedFontFace::ParsedFontFace(FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
     : m_font_family(move(font_family))
     , m_font_named_instance(move(font_named_instance))
     , m_weight(weight)
@@ -22,6 +22,8 @@ ParsedFontFace::ParsedFontFace(FlyString font_family, Optional<int> weight, Opti
     , m_line_gap_override(move(line_gap_override))
     , m_font_display(font_display)
     , m_font_language_override(font_language_override)
+    , m_font_feature_settings(move(font_feature_settings))
+    , m_font_variation_settings(move(font_variation_settings))
 {
 }
 
