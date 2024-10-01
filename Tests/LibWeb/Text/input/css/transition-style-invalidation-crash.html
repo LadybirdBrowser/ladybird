@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .foo {
+        opacity: 0;
+        transition: opacity 200ms;
+    }
+</style>
+<ul>
+    <li class="foo"></li>
+    <li></li>
+</ul>
+<video src=""></video>
+<script>
+    test(() => {
+        println("PASS (didn't crash)");
+    });
+</script>
