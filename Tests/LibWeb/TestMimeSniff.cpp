@@ -6,6 +6,7 @@
  */
 
 #include <LibTest/TestCase.h>
+#include <LibWeb/MimeSniff/MimeType.h>
 
 #include <LibWeb/MimeSniff/Resource.h>
 
@@ -28,10 +29,10 @@ TEST_CASE(determine_computed_mime_type_given_no_sniff_is_set)
 
 TEST_CASE(determine_computed_mime_type_given_no_sniff_is_unset)
 {
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "html"_string));
+    auto supplied_type = MUST(Web::MimeSniff::MimeType::create("application"_string, "x-this-is-a-test"_string));
     auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = supplied_type }));
 
-    EXPECT_EQ("application/octet-stream"sv, MUST(computed_mime_type.serialized()));
+    EXPECT_EQ("application/x-this-is-a-test"sv, MUST(computed_mime_type.serialized()));
 }
 
 TEST_CASE(determine_computed_mime_type_given_xml_mime_type_as_supplied_type)
@@ -108,6 +109,19 @@ TEST_CASE(determine_computed_mime_type_given_supplied_type_that_is_an_apache_bug
             EXPECT_EQ(mime_type, MUST(computed_mime_type.serialized()));
         }
     }
+}
+
+TEST_CASE(determine_computed_mime_type_given_xml_or_html_supplied_type)
+{
+    // With HTML supplied type.
+    auto config = Web::MimeSniff::SniffingConfiguration { .supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "html"_string)) };
+    auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), config));
+    EXPECT_EQ("text/html"sv, MUST(computed_mime_type.serialized()));
+
+    // With XML supplied type.
+    config = Web::MimeSniff::SniffingConfiguration { .supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "xml"_string)) };
+    computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), config));
+    EXPECT_EQ("text/xml"sv, MUST(computed_mime_type.serialized()));
 }
 
 TEST_CASE(determine_computed_mime_type_in_both_none_and_browsing_sniffing_context)

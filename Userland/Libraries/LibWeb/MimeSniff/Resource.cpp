@@ -550,7 +550,14 @@ void Resource::read_the_resource_header(ReadonlyBytes data)
 // https://mimesniff.spec.whatwg.org/#mime-type-sniffing-algorithm
 ErrorOr<void> Resource::mime_type_sniffing_algorithm()
 {
-    // 1. If the supplied MIME type is undefined or if the supplied MIME type’s essence
+    // 1. If the supplied MIME type is an XML MIME type or HTML MIME type, the computed MIME type is the supplied MIME type.
+    //    Abort these steps.
+    if (m_supplied_mime_type.has_value() && (m_supplied_mime_type->is_xml() || m_supplied_mime_type->is_html())) {
+        m_computed_mime_type = m_supplied_mime_type.value();
+        return {};
+    }
+
+    // 2. If the supplied MIME type is undefined or if the supplied MIME type’s essence
     //    is "unknown/unknown", "application/unknown", or "*/*", execute the rules for
     //    identifying an unknown MIME type with the sniff-scriptable flag equal to the
     //    inverse of the no-sniff flag and abort these steps.
@@ -559,58 +566,44 @@ ErrorOr<void> Resource::mime_type_sniffing_algorithm()
         return {};
     }
 
-    // 2. If the no-sniff flag is set, the computed MIME type is the supplied MIME type.
+    // 3. If the no-sniff flag is set, the computed MIME type is the supplied MIME type.
     //    Abort these steps.
     if (m_no_sniff) {
         m_computed_mime_type = m_supplied_mime_type.value();
         return {};
     }
 
-    // 3. If the check-for-apache-bug flag is set, execute the rules for distinguishing
+    // 4. If the check-for-apache-bug flag is set, execute the rules for distinguishing
     //    if a resource is text or binary and abort these steps.
     if (m_check_for_apache_bug_flag) {
         TRY(rules_for_distinguishing_if_a_resource_is_text_or_binary());
         return {};
     }
 
-    // 4. If the supplied MIME type is an XML MIME type, the computed MIME type is the supplied MIME type.
-    //    Abort these steps.
-    if (m_supplied_mime_type->is_xml()) {
-        m_computed_mime_type = m_supplied_mime_type.value();
-        return {};
-    }
-
-    // 5. If the supplied MIME type’s essence is "text/html", execute the rules for distinguishing if a
-    //    resource is a feed or HTML and abort these steps.
-    if (m_supplied_mime_type->essence() == "text/html") {
-        // FIXME: Execute the rules for distinguishing if a resource is a feed or HTML and abort these steps.
-        return {};
-    }
-
-    // FIXME: 6. If the supplied MIME type is an image MIME type supported by the user agent, let matched-type be
+    // FIXME: 5. If the supplied MIME type is an image MIME type supported by the user agent, let matched-type be
     //    the result of executing the image type pattern matching algorithm with the resource header as
     //    the byte sequence to be matched.
     Optional<MimeType> matched_type;
 
-    // 7. If matched-type is not undefined, the computed MIME type is matched-type.
+    // 6. If matched-type is not undefined, the computed MIME type is matched-type.
     //    Abort these steps.
     if (matched_type.has_value()) {
         m_computed_mime_type = matched_type.release_value();
         return {};
     }
 
-    // FIXME: 8. If the supplied MIME type is an audio or video MIME type supported by the user agent, let matched-type be
+    // FIXME: 7. If the supplied MIME type is an audio or video MIME type supported by the user agent, let matched-type be
     //    the result of executing the audio or video type pattern matching algorithm with the resource header as
     //    the byte sequence to be matched.
 
-    // 9. If matched-type is not undefined, the computed MIME type is matched-type.
+    // 8. If matched-type is not undefined, the computed MIME type is matched-type.
     //    Abort these steps.
     if (matched_type.has_value()) {
         m_computed_mime_type = matched_type.release_value();
         return {};
     }
 
-    // 10. The computed MIME type is the supplied MIME type.
+    // 9. The computed MIME type is the supplied MIME type.
     m_computed_mime_type = m_supplied_mime_type.value();
 
     return {};
