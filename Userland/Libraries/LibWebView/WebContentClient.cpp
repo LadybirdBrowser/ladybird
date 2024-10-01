@@ -625,6 +625,14 @@ void WebContentClient::inspector_did_select_dom_node(u64 page_id, i32 node_id, O
     }
 }
 
+void WebContentClient::inspector_did_set_dom_node_as_global_variable(u64 page_id, i32 node_id, String const& variable_name)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_inspector_did_set_dom_node_as_global_variable)
+            view->on_inspector_did_set_dom_node_as_global_variable(node_id, variable_name);
+    }
+}
+
 void WebContentClient::inspector_did_set_dom_node_text(u64 page_id, i32 node_id, String const& text)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

@@ -95,6 +95,7 @@ public:
     void set_dom_node_tag(i32 node_id, String name);
     void add_dom_node_attributes(i32 node_id, Vector<Attribute> attributes);
     void replace_dom_node_attribute(i32 node_id, String name, Vector<Attribute> replacement_attributes);
+    void set_dom_node_as_global_variable(i32 node_id, String variable_name);
     void create_child_element(i32 node_id);
     void create_child_text_node(i32 node_id);
     void clone_dom_node(i32 node_id);
@@ -219,6 +220,7 @@ public:
     Function<void(i32, Optional<Web::CSS::Selector::PseudoElement::Type> const&)> on_inspector_selected_dom_node;
     Function<void(i32, String const&)> on_inspector_set_dom_node_text;
     Function<void(i32, String const&)> on_inspector_set_dom_node_tag;
+    Function<void(i32, String const&)> on_inspector_did_set_dom_node_as_global_variable;
     Function<void(i32, Vector<Attribute> const&)> on_inspector_added_dom_node_attributes;
     Function<void(i32, size_t, Vector<Attribute> const&)> on_inspector_replaced_dom_node_attribute;
     Function<void(i32, Gfx::IntPoint, String const&, Optional<String> const&, Optional<size_t> const&)> on_inspector_requested_dom_tree_context_menu;

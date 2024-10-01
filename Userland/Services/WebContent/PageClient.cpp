@@ -618,6 +618,11 @@ void PageClient::inspector_did_select_dom_node(i32 node_id, Optional<Web::CSS::S
     client().async_inspector_did_select_dom_node(m_id, node_id, pseudo_element);
 }
 
+void PageClient::inspector_did_set_dom_node_as_global_variable(i32 node_id, String const& variable_name)
+{
+    client().async_inspector_did_set_dom_node_as_global_variable(m_id, node_id, variable_name);
+}
+
 void PageClient::inspector_did_set_dom_node_text(i32 node_id, String const& text)
 {
     client().async_inspector_did_set_dom_node_text(m_id, node_id, text);

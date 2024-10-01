@@ -49,6 +49,11 @@ void Inspector::inspect_dom_node(i32 node_id, Optional<i32> const& pseudo_elemen
     }));
 }
 
+void Inspector::set_dom_node_as_global_variable(i32 node_id, String const& variable_name)
+{
+    inspector_page_client().inspector_did_set_dom_node_as_global_variable(node_id, variable_name);
+}
+
 void Inspector::set_dom_node_text(i32 node_id, String const& text)
 {
     inspector_page_client().inspector_did_set_dom_node_text(node_id, text);

@@ -51,6 +51,7 @@ private:
 
     QAction* m_edit_node_action { nullptr };
     QAction* m_copy_node_action { nullptr };
+    QAction* m_store_node_global_variable { nullptr };
     QAction* m_screenshot_node_action { nullptr };
     QAction* m_create_child_element_action { nullptr };
     QAction* m_create_child_text_node_action { nullptr };

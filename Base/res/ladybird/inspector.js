@@ -189,6 +189,16 @@ inspector.clearInspectedDOMNode = () => {
     }
 };
 
+inspector.setGlobalVariable = nodeID => {
+    if (nodeID === null) {
+        return;
+    }
+
+    let domNode = document.querySelector(`[data-id="${nodeID}"]`);
+
+    storeDOMNodeAsGlobalVariable(domNode);
+};
+
 inspector.editDOMNodeID = nodeID => {
     if (pendingEditDOMNode === null) {
         return;
@@ -483,6 +493,18 @@ const parseDOMAttributes = value => {
     element.innerHTML = `<div ${value}></div>`;
 
     return element.children[0].attributes;
+};
+
+let totalGlobalVariables = 0;
+const storeDOMNodeAsGlobalVariable = domNode => {
+    if (domNode === null) {
+        return;
+    }
+
+    const domNodeID = domNode.dataset.id;
+
+    inspector.inspectDOMNodeID(domNodeID);
+    inspector.setDOMNodeAsGlobalVariable(domNodeID, "temp" + ++totalGlobalVariables);
 };
 
 const editDOMNode = (domNode, textToSelect) => {

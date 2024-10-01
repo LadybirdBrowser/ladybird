@@ -280,6 +280,11 @@ void ViewImplementation::set_dom_node_tag(i32 node_id, String name)
     client().async_set_dom_node_tag(page_id(), node_id, move(name));
 }
 
+void ViewImplementation::set_dom_node_as_global_variable(i32 node_id, String variable_name)
+{
+    client().async_set_dom_node_as_global_variable(page_id(), node_id, move(variable_name));
+}
+
 void ViewImplementation::add_dom_node_attributes(i32 node_id, Vector<Attribute> attributes)
 {
     client().async_add_dom_node_attributes(page_id(), node_id, move(attributes));

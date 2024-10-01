@@ -163,6 +163,7 @@ private:
     virtual void page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) override;
     virtual IPC::File request_worker_agent() override;
     virtual void inspector_did_load() override;
+    virtual void inspector_did_set_dom_node_as_global_variable(i32 node_id, String const& variable_name) override;
     virtual void inspector_did_select_dom_node(i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
     virtual void inspector_did_set_dom_node_text(i32 node_id, String const& text) override;
     virtual void inspector_did_set_dom_node_tag(i32 node_id, String const& tag) override;
