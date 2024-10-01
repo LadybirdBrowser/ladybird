@@ -2,7 +2,7 @@
  * Copyright (c) 2022, Dex♪ <dexes.ttp@gmail.com>
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
  * Copyright (c) 2023, Andreas Kling <kling@serenityos.org>
- * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -357,8 +357,8 @@ static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL c
         auto mkdir_result = Core::System::mkdir("test-dumps"sv, 0755);
         if (mkdir_result.is_error() && mkdir_result.error().code() != EEXIST)
             return mkdir_result.release_error();
-        TRY(dump_screenshot(*actual_screenshot, TRY(String::formatted("test-dumps/{}.png", title))));
-        TRY(dump_screenshot(*expectation_screenshot, TRY(String::formatted("test-dumps/{}-ref.png", title))));
+        TRY(dump_screenshot(*actual_screenshot, ByteString::formatted("test-dumps/{}.png", title)));
+        TRY(dump_screenshot(*expectation_screenshot, ByteString::formatted("test-dumps/{}-ref.png", title)));
     }
 
     return TestResult::Fail;
@@ -433,8 +433,8 @@ static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView inp
 }
 
 struct Test {
-    String input_path;
-    String expectation_path;
+    ByteString input_path;
+    ByteString expectation_path;
     TestMode mode;
     Optional<TestResult> result;
 };
@@ -468,21 +468,20 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
 
 static ErrorOr<void> collect_dump_tests(Vector<Test>& tests, StringView path, StringView trail, TestMode mode)
 {
-    Core::DirIterator it(TRY(String::formatted("{}/input/{}", path, trail)).to_byte_string(), Core::DirIterator::Flags::SkipDots);
+    Core::DirIterator it(ByteString::formatted("{}/input/{}", path, trail), Core::DirIterator::Flags::SkipDots);
     while (it.has_next()) {
         auto name = it.next_path();
-        auto input_path = TRY(FileSystem::real_path(TRY(String::formatted("{}/input/{}/{}", path, trail, name))));
+        auto input_path = TRY(FileSystem::real_path(ByteString::formatted("{}/input/{}/{}", path, trail, name)));
         if (FileSystem::is_directory(input_path)) {
-            TRY(collect_dump_tests(tests, path, TRY(String::formatted("{}/{}", trail, name)), mode));
+            TRY(collect_dump_tests(tests, path, ByteString::formatted("{}/{}", trail, name), mode));
             continue;
         }
         if (!name.ends_with(".html"sv) && !name.ends_with(".svg"sv))
             continue;
         auto basename = LexicalPath::title(name);
-        auto expectation_path = TRY(String::formatted("{}/expected/{}/{}.txt", path, trail, basename));
+        auto expectation_path = ByteString::formatted("{}/expected/{}/{}.txt", path, trail, basename);
 
-        // FIXME: Test paths should be ByteString
-        tests.append({ TRY(String::from_byte_string(input_path)), move(expectation_path), mode, {} });
+        tests.append({ input_path, move(expectation_path), mode, {} });
     }
     return {};
 }
@@ -492,9 +491,8 @@ static ErrorOr<void> collect_ref_tests(Vector<Test>& tests, StringView path)
     TRY(Core::Directory::for_each_entry(path, Core::DirIterator::SkipDots, [&](Core::DirectoryEntry const& entry, Core::Directory const&) -> ErrorOr<IterationDecision> {
         if (entry.type == Core::DirectoryEntry::Type::Directory)
             return IterationDecision::Continue;
-        auto input_path = TRY(FileSystem::real_path(TRY(String::formatted("{}/{}", path, entry.name))));
-        // FIXME: Test paths should be ByteString
-        tests.append({ TRY(String::from_byte_string(input_path)), {}, TestMode::Ref, {} });
+        auto input_path = TRY(FileSystem::real_path(ByteString::formatted("{}/{}", path, entry.name)));
+        tests.append({ input_path, {}, TestMode::Ref, {} });
         return IterationDecision::Continue;
     }));
 
@@ -509,15 +507,15 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root
     TRY(load_test_config(test_root_path));
 
     Vector<Test> tests;
-    TRY(collect_dump_tests(tests, TRY(String::formatted("{}/Layout", test_root_path)), "."sv, TestMode::Layout));
-    TRY(collect_dump_tests(tests, TRY(String::formatted("{}/Text", test_root_path)), "."sv, TestMode::Text));
-    TRY(collect_ref_tests(tests, TRY(String::formatted("{}/Ref", test_root_path))));
+    TRY(collect_dump_tests(tests, ByteString::formatted("{}/Layout", test_root_path), "."sv, TestMode::Layout));
+    TRY(collect_dump_tests(tests, ByteString::formatted("{}/Text", test_root_path), "."sv, TestMode::Text));
+    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Ref", test_root_path)));
 #ifndef AK_OS_MACOS
-    TRY(collect_ref_tests(tests, TRY(String::formatted("{}/Screenshot", test_root_path))));
+    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Screenshot", test_root_path)));
 #endif
 
     tests.remove_all_matching([&](auto const& test) {
-        return !test.input_path.bytes_as_string_view().matches(test_glob, CaseSensitivity::CaseSensitive);
+        return !test.input_path.matches(test_glob, CaseSensitivity::CaseSensitive);
     });
 
     size_t pass_count = 0;
@@ -552,7 +550,7 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root
         else
             outln("");
 
-        if (s_skipped_tests.contains_slow(test.input_path.bytes_as_string_view())) {
+        if (s_skipped_tests.contains_slow(test.input_path)) {
             test.result = TestResult::Skipped;
             ++skipped_count;
             continue;
