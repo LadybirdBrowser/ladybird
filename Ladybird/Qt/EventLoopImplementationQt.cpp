@@ -209,6 +209,14 @@ void EventLoopImplementationQt::post_event(Core::EventReceiver& receiver, Nonnul
         wake();
 }
 
+void EventLoopImplementationQt::set_main_loop()
+{
+    m_main_loop = true;
+
+    auto& event_loop_manager = static_cast<EventLoopManagerQt&>(Core::EventLoopManager::the());
+    event_loop_manager.set_main_loop_signal_notifiers({});
+}
+
 static void qt_timer_fired(Core::TimerShouldFireWhenNotVisible should_fire_when_not_visible, Core::EventReceiver& object)
 {
     if (should_fire_when_not_visible == Core::TimerShouldFireWhenNotVisible::No) {
@@ -330,6 +338,10 @@ bool EventLoopManagerQt::event_target_received_event(Badge<EventLoopImplementati
 
 EventLoopManagerQt::EventLoopManagerQt()
     : m_main_thread_event_target(make<EventLoopImplementationQtEventTarget>())
+{
+}
+
+void EventLoopManagerQt::set_main_loop_signal_notifiers(Badge<EventLoopImplementationQt>)
 {
     MUST(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, m_signal_socket_fds));
     m_signal_socket_notifier = new QSocketNotifier(m_signal_socket_fds[0], QSocketNotifier::Read);
