@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/ScalingMode.h>
@@ -488,6 +489,7 @@ public:
     int font_weight() const { return m_inherited.font_weight; }
     CSS::FontVariant font_variant() const { return m_inherited.font_variant; }
     Optional<FlyString> font_language_override() const { return m_inherited.font_language_override; }
+    Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const { return m_inherited.font_variation_settings; }
     CSSPixels line_height() const { return m_inherited.line_height; }
     CSS::Time transition_delay() const { return m_noninherited.transition_delay; }
 
@@ -520,6 +522,7 @@ protected:
         int font_weight { InitialValues::font_weight() };
         CSS::FontVariant font_variant { InitialValues::font_variant() };
         Optional<FlyString> font_language_override;
+        Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings;
         CSSPixels line_height { InitialValues::line_height() };
         CSS::BorderCollapse border_collapse { InitialValues::border_collapse() };
         CSS::Length border_spacing_horizontal { InitialValues::border_spacing() };
@@ -678,6 +681,7 @@ public:
     void set_font_weight(int font_weight) { m_inherited.font_weight = font_weight; }
     void set_font_variant(CSS::FontVariant font_variant) { m_inherited.font_variant = font_variant; }
     void set_font_language_override(Optional<FlyString> font_language_override) { m_inherited.font_language_override = font_language_override; }
+    void set_font_variation_settings(Optional<HashMap<FlyString, NumberOrCalculated>> value) { m_inherited.font_variation_settings = move(value); }
     void set_line_height(CSSPixels line_height) { m_inherited.line_height = line_height; }
     void set_border_spacing_horizontal(CSS::Length border_spacing_horizontal) { m_inherited.border_spacing_horizontal = border_spacing_horizontal; }
     void set_border_spacing_vertical(CSS::Length border_spacing_vertical) { m_inherited.border_spacing_vertical = border_spacing_vertical; }
