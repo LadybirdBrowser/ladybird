@@ -201,6 +201,24 @@ Web::WebDriver::Response Session::execute_script(JsonValue payload, ScriptMode m
     return response.release_value();
 }
 
+Web::WebDriver::Response Session::element_click(String element_id) const
+{
+    ScopeGuard guard { [&]() { web_content_connection().on_actions_performed = nullptr; } };
+
+    Optional<Web::WebDriver::Response> response;
+    web_content_connection().on_actions_performed = [&](auto result) {
+        response = move(result);
+    };
+
+    TRY(web_content_connection().element_click(move(element_id)));
+
+    Core::EventLoop::current().spin_until([&]() {
+        return response.has_value();
+    });
+
+    return response.release_value();
+}
+
 Web::WebDriver::Response Session::perform_actions(JsonValue payload) const
 {
     ScopeGuard guard { [&]() { web_content_connection().on_actions_performed = nullptr; } };

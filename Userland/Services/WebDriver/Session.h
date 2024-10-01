@@ -61,6 +61,7 @@ public:
     };
     Web::WebDriver::Response execute_script(JsonValue, ScriptMode) const;
 
+    Web::WebDriver::Response element_click(String) const;
     Web::WebDriver::Response perform_actions(JsonValue) const;
 
 private:

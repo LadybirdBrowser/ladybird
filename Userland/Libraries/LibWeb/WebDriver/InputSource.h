@@ -77,6 +77,8 @@ Optional<InputSourceType> input_source_type_from_string(StringView);
 Optional<PointerInputSource::Subtype> pointer_input_source_subtype_from_string(StringView);
 
 InputSource create_input_source(InputState const&, InputSourceType, Optional<PointerInputSource::Subtype>);
+void add_input_source(InputState&, String id, InputSource);
+void remove_input_source(InputState&, StringView id);
 Optional<InputSource&> get_input_source(InputState&, StringView id);
 ErrorOr<InputSource*, WebDriver::Error> get_or_create_input_source(InputState&, InputSourceType, StringView id, Optional<PointerInputSource::Subtype>);
 

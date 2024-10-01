@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/WebDriver/Actions.h>
 #include <LibWeb/WebDriver/InputSource.h>
 #include <LibWeb/WebDriver/InputState.h>
 
@@ -126,6 +127,32 @@ InputSource create_input_source(InputState const& input_state, InputSourceType t
     // NOTE: We know this cannot be reached because the only caller will have already thrown an invalid argument error
     //       if the `type` parameter was not valid.
     VERIFY_NOT_REACHED();
+}
+
+// https://w3c.github.io/webdriver/#dfn-remove-an-input-source
+void add_input_source(InputState& input_state, String id, InputSource source)
+{
+    // 1. Let input state map be input state's input state map.
+    // 2. Set input state map[input id] to source.
+    input_state.input_state_map.set(move(id), move(source));
+}
+
+// https://w3c.github.io/webdriver/#dfn-remove-an-input-source
+void remove_input_source(InputState& input_state, StringView id)
+{
+    // 1. Assert: None of the items in input state's input cancel list has id equal to input id.
+    // FIXME: Spec issue: This assertion cannot be correct. For example, when Element Click is executed, the initial
+    //        pointer down action will append a pointer up action to the input cancel list, and the input cancel list
+    //        is never subsequently cleared. So instead of performing this assertion, we remove any action from the
+    //        input cancel list with the provided input ID.
+    //        https://github.com/w3c/webdriver/issues/1809
+    input_state.input_cancel_list.remove_all_matching([&](ActionObject const& action) {
+        return action.id == id;
+    });
+
+    // 2. Let input state map be input state's input state map.
+    // 3. Remove input state map[input id].
+    input_state.input_state_map.remove(id);
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-an-input-source
