@@ -10,9 +10,6 @@
 #include <AK/Badge.h>
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
-#include <AK/Function.h>
-#include <AK/JsonObject.h>
-#include <AK/JsonParser.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Platform.h>
@@ -36,20 +33,15 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/Point.h>
-#include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
-#include <LibGfx/StandardCursor.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibIPC/File.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/SelectedFile.h>
-#include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 
