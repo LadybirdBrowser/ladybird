@@ -20,12 +20,10 @@ runs:
         set -e
 
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main'
+        sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main'
 
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-
-        sudo apt-get update
-        sudo apt-get install autoconf autoconf-archive automake build-essential ccache clang-18 clang++-18 cmake curl fonts-liberation2 \
+        sudo apt-get update -y
+        sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache clang-18 clang++-18 cmake curl fonts-liberation2 \
             gcc-13 g++-13 libavcodec-dev libavformat-dev libavutil-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
             libstdc++-13-dev lld-18 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
 
@@ -43,8 +41,8 @@ runs:
       if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
-        python3 -m pip install --upgrade pip
-        pip3 install requests six
+        python3 -m pip install --break-system-packages --upgrade pip
+        pip3 install --break-system-packages requests six
 
     - name: 'Select latest Xcode'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
