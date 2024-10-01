@@ -1530,6 +1530,55 @@ void HTMLInputElement::form_associated_element_was_removed(DOM::Node*)
     set_shadow_root(nullptr);
 }
 
+void HTMLInputElement::apply_presentational_hints(CSS::StyleProperties& style) const
+{
+    if (type_state() != TypeAttributeState::ImageButton)
+        return;
+
+    for_each_attribute([&](auto& name, auto& value) {
+        if (name == HTML::AttributeNames::align) {
+            if (value.equals_ignoring_ascii_case("center"sv))
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
+            else if (value.equals_ignoring_ascii_case("middle"sv))
+                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
+        } else if (name == HTML::AttributeNames::border) {
+            if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value() && *parsed_value > 0) {
+                auto width_style_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
+                style.set_property(CSS::PropertyID::BorderTopWidth, width_style_value);
+                style.set_property(CSS::PropertyID::BorderRightWidth, width_style_value);
+                style.set_property(CSS::PropertyID::BorderBottomWidth, width_style_value);
+                style.set_property(CSS::PropertyID::BorderLeftWidth, width_style_value);
+
+                auto border_style_value = CSS::CSSKeywordValue::create(CSS::Keyword::Solid);
+                style.set_property(CSS::PropertyID::BorderTopStyle, border_style_value);
+                style.set_property(CSS::PropertyID::BorderRightStyle, border_style_value);
+                style.set_property(CSS::PropertyID::BorderBottomStyle, border_style_value);
+                style.set_property(CSS::PropertyID::BorderLeftStyle, border_style_value);
+            }
+        } else if (name == HTML::AttributeNames::height) {
+            if (auto parsed_value = parse_dimension_value(value)) {
+                style.set_property(CSS::PropertyID::Height, *parsed_value);
+            }
+        }
+        // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images:maps-to-the-dimension-property
+        else if (name == HTML::AttributeNames::hspace) {
+            if (auto parsed_value = parse_dimension_value(value)) {
+                style.set_property(CSS::PropertyID::MarginLeft, *parsed_value);
+                style.set_property(CSS::PropertyID::MarginRight, *parsed_value);
+            }
+        } else if (name == HTML::AttributeNames::vspace) {
+            if (auto parsed_value = parse_dimension_value(value)) {
+                style.set_property(CSS::PropertyID::MarginTop, *parsed_value);
+                style.set_property(CSS::PropertyID::MarginBottom, *parsed_value);
+            }
+        } else if (name == HTML::AttributeNames::width) {
+            if (auto parsed_value = parse_dimension_value(value)) {
+                style.set_property(CSS::PropertyID::Width, *parsed_value);
+            }
+        }
+    });
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element%3Aconcept-node-clone-ext
 WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool)
 {

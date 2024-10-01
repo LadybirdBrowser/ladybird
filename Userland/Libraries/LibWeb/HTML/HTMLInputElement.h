@@ -216,6 +216,8 @@ private:
 
     void type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state);
 
+    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
+
     // ^DOM::Node
     virtual bool is_html_input_element() const final { return true; }
 
