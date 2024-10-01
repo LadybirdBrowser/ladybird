@@ -71,6 +71,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
@@ -5479,6 +5480,52 @@ RefPtr<CSSStyleValue> Parser::parse_font_language_override_value(TokenStream<Com
     return nullptr;
 }
 
+RefPtr<CSSStyleValue> Parser::parse_font_variation_settings_value(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.csswg.org/css-fonts/#propdef-font-variation-settings
+    // normal | [ <opentype-tag> <number>]#
+
+    // normal
+    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return normal;
+
+    // [ <opentype-tag> <number>]#
+    auto transaction = tokens.begin_transaction();
+    auto tag_values = parse_a_comma_separated_list_of_component_values(tokens);
+
+    // "If the same axis name appears more than once, the value associated with the last appearance supersedes any
+    // previous value for that axis. This deduplication is observable by accessing the computed value of this property."
+    // So, we deduplicate them here using a HashSet.
+
+    OrderedHashMap<FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue>> axis_tags_map;
+    for (auto const& values : tag_values) {
+        TokenStream tag_tokens { values };
+        tag_tokens.skip_whitespace();
+        auto opentype_tag = parse_opentype_tag_value(tag_tokens);
+        tag_tokens.skip_whitespace();
+        auto number = parse_number_value(tag_tokens);
+        tag_tokens.skip_whitespace();
+
+        if (!opentype_tag || !number || tag_tokens.has_next_token())
+            return nullptr;
+
+        axis_tags_map.set(opentype_tag->string_value(), OpenTypeTaggedStyleValue::create(opentype_tag->string_value(), number.release_nonnull()));
+    }
+
+    // "The computed value contains the de-duplicated axis names, sorted in ascending order by code unit."
+    StyleValueVector axis_tags;
+    axis_tags.ensure_capacity(axis_tags_map.size());
+    for (auto const& [key, axis_tag] : axis_tags_map)
+        axis_tags.append(axis_tag);
+
+    quick_sort(axis_tags, [](auto& a, auto& b) {
+        return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
+    });
+
+    transaction.commit();
+    return StyleValueList::create(move(axis_tags), StyleValueList::Separator::Comma);
+}
+
 JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentValue>& tokens)
 {
     auto declarations_and_at_rules = parse_a_list_of_declarations(tokens);
@@ -7575,6 +7622,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         return ParseError::SyntaxError;
     case PropertyID::FontLanguageOverride:
         if (auto parsed_value = parse_font_language_override_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::FontVariationSettings:
+        if (auto parsed_value = parse_font_variation_settings_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::GridArea:

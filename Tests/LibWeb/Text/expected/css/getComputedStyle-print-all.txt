@@ -15,6 +15,7 @@ font-language-override: normal
 font-size: 16px
 font-style: normal
 font-variant: normal
+font-variation-settings: normal
 font-weight: 400
 font-width: normal
 image-rendering: auto
@@ -118,7 +119,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2040px
+height: 2057px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto
