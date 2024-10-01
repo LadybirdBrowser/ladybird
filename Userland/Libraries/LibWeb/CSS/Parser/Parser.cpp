@@ -5615,6 +5615,8 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
     Optional<Percentage> line_gap_override;
     FontDisplay font_display = FontDisplay::Auto;
     Optional<FlyString> language_override;
+    Optional<OrderedHashMap<FlyString, i64>> font_feature_settings;
+    Optional<OrderedHashMap<FlyString, double>> font_variation_settings;
 
     // "normal" is returned as nullptr
     auto parse_as_percentage_or_normal = [&](Vector<ComponentValue> const& values) -> ErrorOr<Optional<Percentage>> {
@@ -5734,6 +5736,40 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
             font_family = String::join(' ', font_family_parts).release_value_but_fixme_should_propagate_errors();
             continue;
         }
+        if (declaration.name().equals_ignoring_ascii_case("font-feature-settings"sv)) {
+            TokenStream token_stream { declaration.values() };
+            if (auto value = parse_css_value(CSS::PropertyID::FontFeatureSettings, token_stream); !value.is_error()) {
+                if (value.value()->to_keyword() == Keyword::Normal) {
+                    font_feature_settings.clear();
+                } else if (value.value()->is_value_list()) {
+                    auto const& feature_tags = value.value()->as_value_list().values();
+                    OrderedHashMap<FlyString, i64> settings;
+                    settings.ensure_capacity(feature_tags.size());
+                    for (auto const& feature_tag : feature_tags) {
+                        if (!feature_tag->is_open_type_tagged()) {
+                            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Value in font-feature-settings descriptor is not an OpenTypeTaggedStyleValue; skipping");
+                            continue;
+                        }
+                        auto const& setting_value = feature_tag->as_open_type_tagged().value();
+                        if (setting_value->is_integer()) {
+                            settings.set(feature_tag->as_open_type_tagged().tag(), setting_value->as_integer().integer());
+                        } else if (setting_value->is_math() && setting_value->as_math().resolves_to_number()) {
+                            if (auto integer = setting_value->as_math().resolve_integer(); integer.has_value()) {
+                                settings.set(feature_tag->as_open_type_tagged().tag(), *integer);
+                            } else {
+                                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Calculated value in font-feature-settings descriptor cannot be resolved at parse time; skipping");
+                            }
+                        } else {
+                            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Value in font-feature-settings descriptor is not an OpenTypeTaggedStyleValue holding a <integer>; skipping");
+                        }
+                    }
+                    font_feature_settings = move(settings);
+                } else {
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-feature-settings descriptor, not compatible with value returned from parsing font-feature-settings property: {}", value.value()->to_string());
+                }
+            }
+            continue;
+        }
         if (declaration.name().equals_ignoring_ascii_case("font-language-override"sv)) {
             TokenStream token_stream { declaration.values() };
             if (auto maybe_value = parse_css_value(CSS::PropertyID::FontLanguageOverride, token_stream); !maybe_value.is_error()) {
@@ -5771,6 +5807,40 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
             TokenStream token_stream { declaration.values() };
             if (auto value = parse_css_value(CSS::PropertyID::FontStyle, token_stream); !value.is_error()) {
                 slope = value.value()->to_font_slope();
+            }
+            continue;
+        }
+        if (declaration.name().equals_ignoring_ascii_case("font-variation-settings"sv)) {
+            TokenStream token_stream { declaration.values() };
+            if (auto value = parse_css_value(CSS::PropertyID::FontVariationSettings, token_stream); !value.is_error()) {
+                if (value.value()->to_keyword() == Keyword::Normal) {
+                    font_variation_settings.clear();
+                } else if (value.value()->is_value_list()) {
+                    auto const& variation_tags = value.value()->as_value_list().values();
+                    OrderedHashMap<FlyString, double> settings;
+                    settings.ensure_capacity(variation_tags.size());
+                    for (auto const& variation_tag : variation_tags) {
+                        if (!variation_tag->is_open_type_tagged()) {
+                            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Value in font-variation-settings descriptor is not an OpenTypeTaggedStyleValue; skipping");
+                            continue;
+                        }
+                        auto const& setting_value = variation_tag->as_open_type_tagged().value();
+                        if (setting_value->is_number()) {
+                            settings.set(variation_tag->as_open_type_tagged().tag(), setting_value->as_number().number());
+                        } else if (setting_value->is_math() && setting_value->as_math().resolves_to_number()) {
+                            if (auto number = setting_value->as_math().resolve_number(); number.has_value()) {
+                                settings.set(variation_tag->as_open_type_tagged().tag(), *number);
+                            } else {
+                                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Calculated value in font-variation-settings descriptor cannot be resolved at parse time; skipping");
+                            }
+                        } else {
+                            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Value in font-variation-settings descriptor is not an OpenTypeTaggedStyleValue holding a <number>; skipping");
+                        }
+                    }
+                    font_variation_settings = move(settings);
+                } else {
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-variation-settings descriptor, not compatible with value returned from parsing font-variation-settings property: {}", value.value()->to_string());
+                }
             }
             continue;
         }
@@ -5827,7 +5897,7 @@ JS::GCPtr<CSSFontFaceRule> Parser::parse_font_face_rule(TokenStream<ComponentVal
         unicode_range.empend(0x0u, 0x10FFFFu);
     }
 
-    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), move(weight), move(slope), move(width), move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override), font_display, move(font_named_instance), move(language_override) });
+    return CSSFontFaceRule::create(m_context.realm(), ParsedFontFace { font_family.release_value(), move(weight), move(slope), move(width), move(src), move(unicode_range), move(ascent_override), move(descent_override), move(line_gap_override), font_display, move(font_named_instance), move(language_override), move(font_feature_settings), move(font_variation_settings) });
 }
 
 Vector<ParsedFontFace::Source> Parser::parse_as_font_face_src()
