@@ -2219,6 +2219,10 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::wait_for_navigation_to
     if (ensure_browsing_context_is_open(current_browsing_context()).is_error())
         return {};
 
+    auto navigable = current_browsing_context().active_document()->navigable();
+    if (!navigable || navigable->ongoing_navigation().has<Empty>())
+        return {};
+
     // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout in milliseconds, return an error with error code timeout.
     auto page_load_timeout_fired = false;
     auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
@@ -2228,7 +2232,7 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::wait_for_navigation_to
 
     // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for navigation to mature.
     Web::Platform::EventLoopPlugin::the().spin_until([&] {
-        return page_load_timeout_fired || current_browsing_context().top_level_traversable()->ongoing_navigation() == Empty {};
+        return page_load_timeout_fired || navigable->ongoing_navigation().has<Empty>();
     });
 
     // 5. Let readiness target be the document readiness state associated with the current session’s page loading strategy, which can be found in the table of page load strategies.
@@ -2246,7 +2250,7 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::wait_for_navigation_to
     // 6. Wait for the current browsing context’s document readiness state to reach readiness target,
     //    or for the session page load timeout to pass, whichever occurs sooner.
     Web::Platform::EventLoopPlugin::the().spin_until([&]() {
-        return page_load_timeout_fired || page_load_timeout_fired || current_browsing_context().active_document()->readiness() == readiness_target;
+        return page_load_timeout_fired || current_browsing_context().active_document()->readiness() == readiness_target;
     });
 
     // 7. If the previous step completed by the session page load timeout being reached and the browser does not have an active user prompt, return error with error code timeout.
