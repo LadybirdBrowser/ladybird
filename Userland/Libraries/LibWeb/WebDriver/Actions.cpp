@@ -1014,4 +1014,16 @@ ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState& input_state, R
     return {};
 }
 
+// https://w3c.github.io/webdriver/#dfn-dispatch-a-list-of-actions
+JS::NonnullGCPtr<JS::Cell> dispatch_list_of_actions(InputState& input_state, Vector<ActionObject> actions, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
+{
+    // 1. Let tick actions be the list «actions»
+    // 2. Let actions by tick be the list «tick actions».
+    Vector<Vector<ActionObject>> actions_by_tick;
+    actions_by_tick.append(move(actions));
+
+    // 3. Return the result of dispatch actions with input state, actions by tick, browsing context, and actions options.
+    return dispatch_actions(input_state, move(actions_by_tick), browsing_context, move(actions_options), on_complete);
+}
+
 }

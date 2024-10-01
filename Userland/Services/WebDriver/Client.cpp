@@ -588,7 +588,7 @@ Web::WebDriver::Response Client::element_click(Web::WebDriver::Parameters parame
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/click");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().element_click(move(parameters[1]));
+    return session->element_click(move(parameters[1]));
 }
 
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear

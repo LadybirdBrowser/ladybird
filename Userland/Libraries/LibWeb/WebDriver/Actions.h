@@ -128,5 +128,6 @@ ErrorOr<Vector<Vector<ActionObject>>, WebDriver::Error> extract_an_action_sequen
 
 JS::NonnullGCPtr<JS::Cell> dispatch_actions(InputState&, Vector<Vector<ActionObject>>, HTML::BrowsingContext&, ActionsOptions, OnActionsComplete);
 ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState&, ReadonlySpan<ActionObject>, AK::Duration, HTML::BrowsingContext&, ActionsOptions const&);
+JS::NonnullGCPtr<JS::Cell> dispatch_list_of_actions(InputState&, Vector<ActionObject>, HTML::BrowsingContext&, ActionsOptions, OnActionsComplete);
 
 }
