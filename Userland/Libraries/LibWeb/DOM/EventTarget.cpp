@@ -16,6 +16,7 @@
 #include <LibWeb/Bindings/EventTargetPrototype.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/AbortSignal.h>
+#include <LibWeb/DOM/BeforeUnloadEvent.h>
 #include <LibWeb/DOM/DOMEventListener.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -690,10 +691,20 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
     // FIXME: Ideally, invoke_callback would convert JS::Value to the appropriate return type for us as per the spec, but it doesn't currently.
     auto return_value = *return_value_or_error.value();
 
-    // FIXME: If event is a BeforeUnloadEvent object and event's type is beforeunload
-    //          If return value is not null, then: (NOTE: When implementing, if we still return a JS::Value from invoke_callback, use is_nullish instead of is_null, as "null" refers to IDL null, which is JS null or undefined)
-    //              1. Set event's canceled flag.
-    //              2. If event's returnValue attribute's value is the empty string, then set event's returnValue attribute's value to return value.
+    // 5. Process return value as follows:
+    if (is<BeforeUnloadEvent>(event) && event.type() == "beforeunload") {
+        // ->  If event is a BeforeUnloadEvent object and event's type is "beforeunload"
+        //         If return value is not null, then:
+        if (!return_value.is_nullish()) {
+            // 1. Set event's canceled flag.
+            event.set_cancelled(true);
+
+            // 2. If event's returnValue attribute's value is the empty string, then set event's returnValue attribute's value to return value.
+            auto& before_unload_event = static_cast<BeforeUnloadEvent&>(event);
+            if (before_unload_event.return_value().is_empty())
+                before_unload_event.set_return_value(TRY(return_value.to_string(vm())));
+        }
+    }
 
     if (special_error_event_handling) {
         // -> If special error event handling is true

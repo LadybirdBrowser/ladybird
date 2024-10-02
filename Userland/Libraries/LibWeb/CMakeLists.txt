@@ -163,6 +163,7 @@ set(SOURCES
     DOM/AccessibilityTreeNode.cpp
     DOM/AdoptedStyleSheets.cpp
     DOM/Attr.cpp
+    DOM/BeforeUnloadEvent.cpp
     DOM/CDATASection.cpp
     DOM/CharacterData.cpp
     DOM/Comment.cpp
