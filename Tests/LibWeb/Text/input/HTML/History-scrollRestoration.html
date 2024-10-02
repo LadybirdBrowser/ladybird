@@ -1,0 +1,12 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(history.scrollRestoration);
+        history.scrollRestoration = 'bad value';
+        println(history.scrollRestoration);
+        history.scrollRestoration = 'manual';
+        println(history.scrollRestoration);
+        history.scrollRestoration = 'auto';
+        println(history.scrollRestoration);
+    });
+</script>
