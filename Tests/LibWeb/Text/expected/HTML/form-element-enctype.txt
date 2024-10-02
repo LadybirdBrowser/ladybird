@@ -1,4 +1,4 @@
-   enctype  | application/x-www-form-urlencoded
+enctype  | application/x-www-form-urlencoded
 encoding | application/x-www-form-urlencoded
 
 enctype  | text/plain

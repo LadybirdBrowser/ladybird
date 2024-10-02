@@ -1,2 +1,2 @@
-  height: 4px
+height: 4px
 width: 5px

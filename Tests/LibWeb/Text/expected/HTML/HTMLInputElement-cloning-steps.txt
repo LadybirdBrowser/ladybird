@@ -1,2 +1,2 @@
-  Cloned checkbox checked: true
+Cloned checkbox checked: true
 Cloned text input value: PASS

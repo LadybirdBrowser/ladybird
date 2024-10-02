@@ -361,7 +361,7 @@ public:
     virtual void page_did_request_file_picker([[maybe_unused]] HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles) { }
     virtual void page_did_request_select_dropdown([[maybe_unused]] Web::CSSPixelPoint content_position, [[maybe_unused]] Web::CSSPixels minimum_width, [[maybe_unused]] Vector<Web::HTML::SelectItem> items) { }
 
-    virtual void page_did_finish_text_test() { }
+    virtual void page_did_finish_text_test([[maybe_unused]] String const& text) { }
 
     virtual void page_did_change_theme_color(Gfx::Color) { }
 

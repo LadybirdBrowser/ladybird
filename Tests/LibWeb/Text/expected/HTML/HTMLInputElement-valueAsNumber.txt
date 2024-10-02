@@ -1,4 +1,4 @@
-   valueAsNumber getter:
+valueAsNumber getter:
 number: 100
 range: 100
 hidden: NaN

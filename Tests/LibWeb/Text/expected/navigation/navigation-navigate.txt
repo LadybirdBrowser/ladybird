@@ -1,4 +1,4 @@
-  Initial history length is 1
+Initial history length is 1
 NavigateEvent for Push navigation-navigate-iframe.html#1 (Same document? true) with info: 42
 currententrychange for change to navigation-navigate-iframe.html#1 of type Push from navigation-navigate-iframe.html
 Committed to navigation to navigation-navigate-iframe.html#1

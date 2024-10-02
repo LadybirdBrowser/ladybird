@@ -1,4 +1,4 @@
-     HTMLCollection
+HTMLCollection
 anchor1
 anchor2
 anchor3

@@ -1,4 +1,4 @@
-Select files...4 files selected.   input1:
+input1:
 file1: text/plain: Contents for file1
 file2: text/plain: Contents for file2
 file3: text/plain: Contents for file3

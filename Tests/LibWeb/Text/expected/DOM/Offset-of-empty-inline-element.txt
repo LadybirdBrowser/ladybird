@@ -1,2 +1,2 @@
-  Top: 16
+Top: 16
 Left: 8

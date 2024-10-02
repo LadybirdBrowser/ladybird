@@ -1,2 +1,2 @@
- inline   {"x":8,"y":500,"width":784,"height":150,"top":500,"right":792,"bottom":650,"left":8}
+{"x":8,"y":500,"width":784,"height":150,"top":500,"right":792,"bottom":650,"left":8}
 {"x":8,"y":650,"width":41.296875,"height":17,"top":650,"right":49.296875,"bottom":667,"left":8}

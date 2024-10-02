@@ -84,11 +84,11 @@ void WebContentClient::did_finish_loading(u64 page_id, URL::URL const& url)
     }
 }
 
-void WebContentClient::did_finish_text_test(u64 page_id)
+void WebContentClient::did_finish_text_test(u64 page_id, String const& text)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_text_test_finish)
-            view->on_text_test_finish();
+            view->on_text_test_finish(text);
     }
 }
 

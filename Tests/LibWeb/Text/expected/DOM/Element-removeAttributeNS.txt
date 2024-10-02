@@ -1,4 +1,4 @@
-     Original values
+Original values
 xlink:href getAttributeNS = 'test'
 href getAttribute = 'test'
 Non-matching namespace

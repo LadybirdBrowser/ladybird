@@ -1,4 +1,4 @@
-    originError instanceof DOMException: true
+originError instanceof DOMException: true
 originError.name: SyntaxError
 originError.message: Invalid URL for targetOrigin: 'aaaa'
 originError.constructor === window.DOMException: true

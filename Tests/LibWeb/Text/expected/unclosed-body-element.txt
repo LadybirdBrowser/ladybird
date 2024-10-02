@@ -1,1 +1,1 @@
-   Body element has '<pre' attribute: true
+Body element has '<pre' attribute: true

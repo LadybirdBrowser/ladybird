@@ -1,4 +1,4 @@
-   Calling cancel() aborts the ready promise with an error of type AbortError: true
+Calling cancel() aborts the ready promise with an error of type AbortError: true
 Calling cancel() aborts the finished promise with an error of type AbortError: true
 Calling cancel() recreates the ready promise: true
 Calling cancel() recreates the finished promise: true

@@ -1,4 +1,4 @@
-   Animation's startTime is initially null: true
+Animation's startTime is initially null: true
 Animation's startTime is 100 after setting the value: true
 Animation's startTime is non-null after ready promise resolved: true
 Animation's startTime is null after calling cancel(): true

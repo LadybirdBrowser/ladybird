@@ -1,4 +1,4 @@
-   Simple drag and drop:
+Simple drag and drop:
 dragenter
     types: Files
 dragover

@@ -47,9 +47,9 @@ Page& Internals::internals_page() const
     return internals_window().page();
 }
 
-void Internals::signal_text_test_is_done()
+void Internals::signal_text_test_is_done(String const& text)
 {
-    internals_page().client().page_did_finish_text_test();
+    internals_page().client().page_did_finish_text_test(text);
 }
 
 void Internals::gc()

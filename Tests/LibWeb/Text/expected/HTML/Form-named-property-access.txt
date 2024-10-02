@@ -1,4 +1,4 @@
-                                                              == Elements and Names ==
+== Elements and Names ==
 formy.length: 12
 elements.length: 12
 elements[0] === form.foo

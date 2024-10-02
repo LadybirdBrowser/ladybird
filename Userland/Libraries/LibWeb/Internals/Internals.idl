@@ -5,7 +5,7 @@
 [Exposed=Nobody]
 interface Internals {
 
-    undefined signalTextTestIsDone();
+    undefined signalTextTestIsDone(DOMString text);
     undefined gc();
     object hitTest(double x, double y);
 

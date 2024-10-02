@@ -1,4 +1,4 @@
-    divs[0].id: fred
+divs[0].id: fred
 divs[0].className: math
 divs[1].id: spaghetti
 divs[1].className: 

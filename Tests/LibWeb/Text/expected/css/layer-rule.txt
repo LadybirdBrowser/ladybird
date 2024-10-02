@@ -1,4 +1,4 @@
-    PASS: A1 Anonymous layers (first target)
+PASS: A1 Anonymous layers (first target)
 PASS: A1 Anonymous layers (second target)
 PASS: A2 Anonymous layers (first target)
 PASS: A2 Anonymous layers (second target)

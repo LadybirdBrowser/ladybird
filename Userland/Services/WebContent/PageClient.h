@@ -156,7 +156,7 @@ private:
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles) override;
     virtual void page_did_request_select_dropdown(Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items) override;
-    virtual void page_did_finish_text_test() override;
+    virtual void page_did_finish_text_test(String const& text) override;
     virtual void page_did_change_theme_color(Gfx::Color color) override;
     virtual void page_did_insert_clipboard_entry(String data, String presentation_style, String mime_type) override;
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;

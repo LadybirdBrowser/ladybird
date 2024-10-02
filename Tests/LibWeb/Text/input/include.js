@@ -19,7 +19,7 @@ function __finishTest() {
     if (__originalURL) {
         internals.spoofCurrentURL(__originalURL);
     }
-    internals.signalTextTestIsDone();
+    internals.signalTextTestIsDone(__outputElement.innerText);
 }
 
 function spoofCurrentURL(url) {

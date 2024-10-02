@@ -1,7 +1,6 @@
 <script src="../include.js"></script>
 <script>
-    test(() => {
-        document.write("PASS");
-        document.close();
-    });
+    document.write("PASS");
+    document.close();
+    internals.signalTextTestIsDone(document.body.innerText);
 </script>

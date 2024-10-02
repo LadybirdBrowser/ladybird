@@ -1,4 +1,4 @@
-              Form for #label-no-for is null
+Form for #label-no-for is null
 Control for #label-no-for is null: true
 Form for #parent-of-input2: #form2
 label.form is the same as label.control.form for #parent-of-input2: true

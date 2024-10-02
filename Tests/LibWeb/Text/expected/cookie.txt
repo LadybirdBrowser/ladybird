@@ -1,4 +1,4 @@
-   Basic test: "cookie=value"
+Basic test: "cookie=value"
 Multiple cookies: "cookie1=value1; cookie2=value2; cookie3=value3"
 Nameless cookie: "value"
 Valueless cookie: "cookie="
