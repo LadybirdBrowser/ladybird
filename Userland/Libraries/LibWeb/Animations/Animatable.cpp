@@ -61,6 +61,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Animation>> Animatable::animate(Optional<JS
 // https://www.w3.org/TR/web-animations-1/#dom-animatable-getanimations
 Vector<JS::NonnullGCPtr<Animation>> Animatable::get_animations(GetAnimationsOptions options)
 {
+    verify_cast<DOM::Element>(*this).document().update_style();
+    return get_animations_internal(options);
+}
+
+Vector<JS::NonnullGCPtr<Animation>> Animatable::get_animations_internal(GetAnimationsOptions options)
+{
     // Returns the set of relevant animations for this object, or, if an options parameter is passed with subtree set to
     // true, returns the set of relevant animations for a subtree for this object.
 
