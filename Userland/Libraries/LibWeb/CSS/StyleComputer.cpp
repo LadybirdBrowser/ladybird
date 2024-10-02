@@ -1563,7 +1563,7 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
         }
     }
 
-    auto animations = element.get_animations({ .subtree = false });
+    auto animations = element.get_animations_internal({ .subtree = false });
     for (auto& animation : animations) {
         if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
             auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
