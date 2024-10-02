@@ -927,6 +927,19 @@ TEST_CASE(test_webp_extended_lossless_animated)
     }
 }
 
+TEST_CASE(test_webp_unpremultiplied_alpha)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/semi-transparent-pixel.webp"sv)));
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 1 }));
+
+    // Webp decodes with unpremultiplied color data, so {R,G,B} can be >A (unlike with premultiplied colors).
+    EXPECT_EQ(frame.image->alpha_type(), Gfx::AlphaType::Unpremultiplied);
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(255, 255, 255, 128));
+}
+
 TEST_CASE(test_tvg)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tvg/yak.tvg"sv)));
