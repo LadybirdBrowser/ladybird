@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/Forward.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
@@ -11,7 +12,6 @@
 #include <LibGfx/Size.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibIPC/File.h>
 
 namespace Gfx {
 
@@ -80,12 +80,13 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapSequence const& bitmap_sequenc
     // collate all of the bitmap data into one contiguous buffer
     auto collated_buffer = TRY(Core::AnonymousBuffer::create_with_size(total_buffer_size));
 
-    auto* write_pointer = collated_buffer.data<u8>();
+    Bytes buffer_bytes = { collated_buffer.data<u8>(), collated_buffer.size() };
+    size_t write_offset = 0;
     for (auto const& bitmap_option : bitmaps) {
         if (bitmap_option.has_value()) {
             auto const& bitmap = bitmap_option.value();
-            memcpy(write_pointer, bitmap->scanline(0), bitmap->size_in_bytes());
-            write_pointer += bitmap->size_in_bytes();
+            buffer_bytes.overwrite(write_offset, bitmap->scanline(0), bitmap->size_in_bytes());
+            write_offset += bitmap->size_in_bytes();
         }
     }
 
@@ -97,38 +98,43 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapSequence const& bitmap_sequenc
 template<>
 ErrorOr<Gfx::BitmapSequence> decode(Decoder& decoder)
 {
-    auto metadata = TRY(decoder.decode<Vector<Optional<Gfx::BitmapMetadata>>>());
+    auto metadata_list = TRY(decoder.decode<Vector<Optional<Gfx::BitmapMetadata>>>());
     auto collated_buffer = TRY(decoder.decode<Core::AnonymousBuffer>());
 
-    Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
-    bitmaps.ensure_capacity(metadata.size());
+    Gfx::BitmapSequence result = {};
+    auto& bitmaps = result.bitmaps;
+    TRY(bitmaps.try_ensure_capacity(metadata_list.size()));
 
     ReadonlyBytes bytes = ReadonlyBytes(collated_buffer.data<u8>(), collated_buffer.size());
     size_t bytes_read = 0;
 
     // sequentially read each valid bitmap's data from the collated buffer
-    for (auto const& metadata_option : metadata) {
+    for (auto const& metadata_option : metadata_list) {
         Optional<NonnullRefPtr<Gfx::Bitmap>> bitmap = {};
 
         if (metadata_option.has_value()) {
             auto metadata = metadata_option.value();
             size_t size_in_bytes = metadata.size_in_bytes;
 
-            if (bytes_read + size_in_bytes > bytes.size())
+            Checked<size_t> size_check = bytes_read;
+            size_check += size_in_bytes;
+            if (size_check.has_overflow() || size_check.value() > bytes.size())
                 return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence buffer data");
 
             auto buffer = TRY(Core::AnonymousBuffer::create_with_size(size_in_bytes));
+            auto buffer_bytes = Bytes { buffer.data<u8>(), buffer.size() };
 
-            memcpy(buffer.data<u8>(), bytes.slice(bytes_read, size_in_bytes).data(), size_in_bytes);
+            bytes.slice(bytes_read, size_in_bytes).copy_to(buffer_bytes);
+
             bytes_read += size_in_bytes;
 
             bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(metadata.format, metadata.alpha_type, move(buffer), metadata.size));
         }
 
-        bitmaps.append(bitmap);
+        bitmaps.append(move(bitmap));
     }
 
-    return Gfx::BitmapSequence { bitmaps };
+    return result;
 }
 
 }
