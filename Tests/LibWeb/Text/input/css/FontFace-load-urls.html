@@ -17,7 +17,7 @@
             println("FAILED");
         });
 
-        let notExistFont = new FontFace("NotExist", "url(https://example.com/not-exist.woff)");
+        let notExistFont = new FontFace("NotExist", "url(https://something.invalid/not-exist.woff)");
         await notExistFont.load().then(() => {
             println("FAILED");
         }, (reason) => {
