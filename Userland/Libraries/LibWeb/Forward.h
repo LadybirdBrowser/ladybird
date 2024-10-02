@@ -244,6 +244,7 @@ class AbortSignal;
 class AbstractRange;
 class AccessibilityTreeNode;
 class Attr;
+class BeforeUnloadEvent;
 class CDATASection;
 class CharacterData;
 class Comment;

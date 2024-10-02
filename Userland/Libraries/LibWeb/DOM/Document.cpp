@@ -38,6 +38,7 @@
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Attr.h>
+#include <LibWeb/DOM/BeforeUnloadEvent.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/CustomEvent.h>
@@ -1746,7 +1747,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> Document::create_event(StringView i
     // 2. If interface is an ASCII case-insensitive match for any of the strings in the first column in the following table,
     //      then set constructor to the interface in the second column on the same row as the matching string:
     if (Infra::is_ascii_case_insensitive_match(interface, "beforeunloadevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create BeforeUnloadEvent
+        event = BeforeUnloadEvent::create(realm, FlyString {});
     } else if (Infra::is_ascii_case_insensitive_match(interface, "compositionevent"sv)) {
         event = Event::create(realm, FlyString {}); // FIXME: Create CompositionEvent
     } else if (Infra::is_ascii_case_insensitive_match(interface, "customevent"sv)) {
