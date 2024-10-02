@@ -8,7 +8,7 @@ env:
 
 jobs:
   run_and_update_results:
-    runs-on: self-hosted
+    runs-on: test262-runner
     if: always() && github.repository == 'LadybirdBrowser/ladybird' && github.ref == 'refs/heads/master'
 
     concurrency: libjs-test262
