@@ -6,9 +6,10 @@
     <body>
         <script src="include.js"></script>
         <script>
-            test(() => {
+            asyncTest(done => {
                 window.onload = function () {
                     println("document background: " + getComputedStyle(document.body).backgroundColor);
+                    done();
                 };
             });
         </script>

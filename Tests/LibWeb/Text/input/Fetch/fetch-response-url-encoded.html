@@ -1,6 +1,6 @@
 <script src="../include.js"></script>
 <script>
-    test(() => {
+    asyncTest(done => {
         const data = "param-a=value-a&param-b=value-b&param-c=value-c1&param-c=value-c2";
         const response = new Response(data, {
             headers: {
@@ -12,6 +12,7 @@
             println(formData.get("param-a"));
             println(formData.get("param-b"));
             println(formData.getAll("param-c"));
+            done();
         });
     });
 </script>
