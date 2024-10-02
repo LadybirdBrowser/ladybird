@@ -11,8 +11,13 @@
                     return new Promise((resolve) => {
                         const textDecoder = new TextDecoder("utf-8");
                         println(textDecoder.decode(new Uint8Array(chunk)));
+
                         resolve();
                     });
+                },
+
+                close() {
+                    done();
                 }
             }
         );
@@ -40,8 +45,6 @@
             cancel() {},
         });
 
-        stream.pipeTo(writableStream).then(() => {
-            done();
-        });
+        stream.pipeTo(writableStream);
     });
 </script>
