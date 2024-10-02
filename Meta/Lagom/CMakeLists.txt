@@ -132,8 +132,6 @@ if (ENABLE_FUZZERS)
     add_cxx_compile_options(-fno-omit-frame-pointer)
 endif()
 
-CHECK_INCLUDE_FILE(pulse/pulseaudio.h HAVE_PULSEAUDIO)
-
 add_library(JSClangPlugin INTERFACE)
 add_library(GenericClangPlugin INTERFACE)
 

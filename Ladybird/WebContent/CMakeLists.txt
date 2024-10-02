@@ -1,4 +1,5 @@
 include(fontconfig)
+include(pulseaudio)
 
 set(WEBCONTENT_SOURCE_DIR ${LADYBIRD_SOURCE_DIR}/Userland/Services/WebContent/)
 
@@ -35,10 +36,6 @@ target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/..>)
 
 target_link_libraries(webcontentservice PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient)
-
-if (HAVE_PULSEAUDIO)
-    target_compile_definitions(webcontentservice PUBLIC HAVE_PULSEAUDIO=1)
-endif()
 
 if (HAS_FONTCONFIG)
     target_link_libraries(webcontentservice PRIVATE Fontconfig::Fontconfig)
