@@ -725,6 +725,12 @@ public:
     Unicode::Segmenter& grapheme_segmenter() const;
     Unicode::Segmenter& word_segmenter() const;
 
+    struct StepsToFireBeforeunloadResult {
+        bool unload_prompt_shown { false };
+        bool unload_prompt_canceled { false };
+    };
+    StepsToFireBeforeunloadResult steps_to_fire_beforeunload(bool unload_prompt_shown);
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

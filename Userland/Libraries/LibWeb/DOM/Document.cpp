@@ -5610,4 +5610,54 @@ Unicode::Segmenter& Document::word_segmenter() const
     return *m_word_segmenter;
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#steps-to-fire-beforeunload
+Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(bool unload_prompt_shown)
+{
+    // 1. Let unloadPromptCanceled be false.
+    auto unload_prompt_canceled = false;
+
+    // 2. Increase the document's unload counter by 1.
+    m_unload_counter++;
+
+    // 3. Increase document's relevant agent's event loop's termination nesting level by 1.
+    auto& event_loop = *verify_cast<Bindings::WebEngineCustomData>(*HTML::relevant_agent(*this).custom_data()).event_loop;
+    event_loop.increment_termination_nesting_level();
+
+    // 4. Let eventFiringResult be the result of firing an event named beforeunload at document's relevant global object,
+    //    using BeforeUnloadEvent, with the cancelable attribute initialized to true.
+    auto& global_object = HTML::relevant_global_object(*this);
+    auto& window = verify_cast<HTML::Window>(global_object);
+    auto beforeunload_event = BeforeUnloadEvent::create(realm(), HTML::EventNames::beforeunload);
+    beforeunload_event->set_cancelable(true);
+    auto event_firing_result = window.dispatch_event(*beforeunload_event);
+
+    // 5. Decrease document's relevant agent's event loop's termination nesting level by 1.
+    event_loop.decrement_termination_nesting_level();
+
+    // FIXME: 6. If all of the following are true:
+    if (false &&
+        //    - unloadPromptShown is false;
+        !unload_prompt_shown
+        //    - document's active sandboxing flag set does not have its sandboxed modals flag set;
+        && !has_flag(document().active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedModals)
+        //    - document's relevant global object has sticky activation;
+        && window.has_sticky_activation()
+        //    - eventFiringResult is false, or the returnValue attribute of event is not the empty string; and
+        && (!event_firing_result || !beforeunload_event->return_value().is_empty())
+        //    - FIXME: showing an unload prompt is unlikely to be annoying, deceptive, or pointless
+    ) {
+        // FIXME: 1. Set unloadPromptShown to true.
+        // FIXME: 2. Invoke WebDriver BiDi user prompt opened with document's relevant global object, "beforeunload", and "".
+        // FIXME: 3. Ask the user to confirm that they wish to unload the document, and pause while waiting for the user's response.
+        // FIXME: 4. If the user did not confirm the page navigation, set unloadPromptCanceled to true.
+        // FIXME: 5. Invoke WebDriver BiDi user prompt closed with document's relevant global object and true if unloadPromptCanceled is false or false otherwise.
+    }
+
+    // 7. Decrease document's unload counter by 1.
+    m_unload_counter--;
+
+    // 8. Return (unloadPromptShown, unloadPromptCanceled).
+    return { unload_prompt_shown, unload_prompt_canceled };
+}
+
 }
