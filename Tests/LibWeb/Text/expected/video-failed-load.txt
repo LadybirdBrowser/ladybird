@@ -1,3 +1,3 @@
 failed to load: "data:"
 failed to load: "file:///i-do-no-exist-i-swear"
-failed to load: "https://i-do-no-exist-i-swear.net.uk/"
+failed to load: "https://something.invalid/"
