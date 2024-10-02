@@ -229,4 +229,43 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value d
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-history-scroll-restoration
+WebIDL::ExceptionOr<Bindings::ScrollRestoration> History::scroll_restoration() const
+{
+    // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
+    if (!m_associated_document->is_fully_active())
+        return WebIDL::SecurityError::create(realm(), "Cannot obtain scroll restoration mode for a document that isn't fully active."_fly_string);
+
+    // 2. Return this's node navigable's active session history entry's scroll restoration mode.
+    auto scroll_restoration_mode = m_associated_document->navigable()->active_session_history_entry()->scroll_restoration_mode();
+    switch (scroll_restoration_mode) {
+    case ScrollRestorationMode::Auto:
+        return Bindings::ScrollRestoration::Auto;
+    case ScrollRestorationMode::Manual:
+        return Bindings::ScrollRestoration::Manual;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-history-scroll-restoration
+WebIDL::ExceptionOr<void> History::set_scroll_restoration(Bindings::ScrollRestoration scroll_restoration)
+{
+    // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
+    if (!m_associated_document->is_fully_active())
+        return WebIDL::SecurityError::create(realm(), "Cannot set scroll restoration mode for a document that isn't fully active."_fly_string);
+
+    // 2. Set this's node navigable's active session history entry's scroll restoration mode to the given value.
+    auto active_session_history_entry = m_associated_document->navigable()->active_session_history_entry();
+    switch (scroll_restoration) {
+    case Bindings::ScrollRestoration::Auto:
+        active_session_history_entry->set_scroll_restoration_mode(ScrollRestorationMode::Auto);
+        break;
+    case Bindings::ScrollRestoration::Manual:
+        active_session_history_entry->set_scroll_restoration_mode(ScrollRestorationMode::Manual);
+        break;
+    }
+
+    return {};
+}
+
 }

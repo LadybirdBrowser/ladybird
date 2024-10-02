@@ -5,7 +5,7 @@ enum ScrollRestoration { "auto", "manual" };
 [Exposed=Window]
 interface History {
     readonly attribute unsigned long length;
-    [FIXME] attribute ScrollRestoration scrollRestoration;
+    attribute ScrollRestoration scrollRestoration;
     readonly attribute any state;
     undefined go(optional long delta = 0);
     undefined back();
