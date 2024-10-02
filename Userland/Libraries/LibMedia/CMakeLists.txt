@@ -1,4 +1,5 @@
 include(ffmpeg)
+include(pulseaudio)
 
 set(SOURCES
     Audio/Loader.cpp
@@ -33,8 +34,8 @@ if (HAVE_PULSEAUDIO)
         Audio/PlaybackStreamPulseAudio.cpp
         Audio/PulseAudioWrappers.cpp
     )
-    target_link_libraries(LibMedia PRIVATE pulse)
-    target_compile_definitions(LibMedia PRIVATE HAVE_PULSEAUDIO=1)
+    target_link_libraries(LibMedia PRIVATE PkgConfig::PULSEAUDIO)
+    target_compile_definitions(LibMedia PUBLIC HAVE_PULSEAUDIO=1)
 elseif (APPLE AND NOT IOS)
     target_sources(LibMedia PRIVATE Audio/PlaybackStreamAudioUnit.cpp)
 
