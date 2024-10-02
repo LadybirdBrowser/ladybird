@@ -1,5 +1,11 @@
-<body><script>
-    window.scrollTo(200, 200);
-    if (window.internals !== undefined)
-        window.internals.signalTextTestIsDone();
-</script>PASS (didn't crash)
+<body>
+    <script>
+        window.scrollTo(200, 200);
+    </script>
+    <script src="include.js"></script>
+    <script>
+        test(() => {
+            println("PASS (didn't crash)");
+        });
+    </script>
+</body>
