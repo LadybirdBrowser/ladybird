@@ -97,6 +97,13 @@ public:
 
     void paint(Web::DevicePixelRect const&, Painting::BackingStore&, Web::PaintOptions);
 
+    enum class CheckIfUnloadingIsCanceledResult {
+        CanceledByBeforeUnload,
+        CanceledByNavigate,
+        Continue,
+    };
+    CheckIfUnloadingIsCanceledResult check_if_unloading_is_canceled(Vector<JS::Handle<Navigable>> navigables_that_need_before_unload);
+
 private:
     TraversableNavigable(JS::NonnullGCPtr<Page>);
 
@@ -111,6 +118,8 @@ private:
         Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation);
+
+    CheckIfUnloadingIsCanceledResult check_if_unloading_is_canceled(Vector<JS::Handle<Navigable>> navigables_that_need_before_unload, JS::GCPtr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events);
 
     Vector<JS::NonnullGCPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(JS::NonnullGCPtr<Navigable>, int);
 

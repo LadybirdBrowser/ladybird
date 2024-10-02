@@ -1,0 +1,14 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        iframe.contentWindow.addEventListener("beforeunload", e => {
+            println("Before unload event fired");
+            e.preventDefault();
+            println(`Default prevented: ${e.defaultPrevented}`);
+            done();
+        });
+        iframe.src = "about:blank";
+    });
+</script>

@@ -455,11 +455,17 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     }
 
     // 4. Let navigablesCrossingDocuments be the result of getting all navigables that might experience a cross-document traversal given traversable and targetStep.
-    [[maybe_unused]] auto navigables_crossing_documents = get_all_navigables_that_might_experience_a_cross_document_traversal(target_step);
+    auto navigables_crossing_documents = get_all_navigables_that_might_experience_a_cross_document_traversal(target_step);
 
-    // 5. FIXME: If checkForCancelation is true, and the result of checking if unloading is canceled given navigablesCrossingDocuments, traversable, targetStep,
-    //           and userInvolvementForNavigateEvents is not "continue", then return that result.
-    (void)check_for_cancelation;
+    // 5. If checkForCancelation is true, and the result of checking if unloading is canceled given navigablesCrossingDocuments, traversable, targetStep,
+    //    and userInvolvementForNavigateEvents is not "continue", then return that result.
+    if (check_for_cancelation) {
+        auto result = check_if_unloading_is_canceled(navigables_crossing_documents, *this, target_step, user_involvement_for_navigate_events);
+        if (result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload)
+            return HistoryStepResult::CanceledByBeforeUnload;
+        if (result == CheckIfUnloadingIsCanceledResult::CanceledByNavigate)
+            return HistoryStepResult::CanceledByNavigate;
+    }
 
     // 6. Let changingNavigables be the result of get all navigables whose current session history entry will change or reload given traversable and targetStep.
     auto changing_navigables = move(change_or_reload_navigables);
@@ -825,6 +831,139 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     return HistoryStepResult::Applied;
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
+TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::check_if_unloading_is_canceled(
+    Vector<JS::Handle<Navigable>> navigables_that_need_before_unload,
+    JS::GCPtr<TraversableNavigable> traversable,
+    Optional<int> target_step,
+    Optional<UserNavigationInvolvement> user_involvement_for_navigate_events)
+{
+    // 1. Let documentsToFireBeforeunload be the active document of each item in navigablesThatNeedBeforeUnload.
+    Vector<JS::Handle<DOM::Document>> documents_to_fire_beforeunload;
+    for (auto& navigable : navigables_that_need_before_unload)
+        documents_to_fire_beforeunload.append(navigable->active_document());
+
+    // 2. Let unloadPromptShown be false.
+    auto unload_prompt_shown = false;
+
+    // 3. Let finalStatus be "continue".
+    auto final_status = CheckIfUnloadingIsCanceledResult::Continue;
+
+    // 4. If traversable was given, then:
+    if (traversable) {
+        // 1. Assert: targetStep and userInvolvementForNavigateEvent were given.
+        // NOTE: This assertion is enforced by the caller.
+
+        // 2. Let targetEntry be the result of getting the target history entry given traversable and targetStep.
+        auto target_entry = traversable->get_the_target_history_entry(target_step.value());
+
+        // 3. If targetEntry is not traversable's current session history entry, and targetEntry's document state's origin is the same as
+        //    traversable's current session history entry's document state's origin, then:
+        if (target_entry != traversable->current_session_history_entry() && target_entry->document_state()->origin() != traversable->current_session_history_entry()->document_state()->origin()) {
+            // 1. Assert: userInvolvementForNavigateEvent is not null.
+            VERIFY(user_involvement_for_navigate_events.has_value());
+
+            // 2. Let eventsFired be false.
+            auto events_fired = false;
+
+            // 3. Let needsBeforeunload be true if navigablesThatNeedBeforeUnload contains traversable; otherwise false.
+            auto it = navigables_that_need_before_unload.find_if([&traversable](JS::Handle<Navigable> navigable) {
+                return navigable.ptr() == traversable.ptr();
+            });
+            auto needs_beforeunload = it != navigables_that_need_before_unload.end();
+
+            // 4. If needsBeforeunload is true, then remove traversable's active document from documentsToFireBeforeunload.
+            if (needs_beforeunload) {
+                documents_to_fire_beforeunload.remove_first_matching([&](auto& document) {
+                    return document.ptr() == traversable->active_document().ptr();
+                });
+            }
+
+            // 5. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:
+            queue_global_task(Task::Source::NavigationAndTraversal, *traversable->active_window(), JS::create_heap_function(heap(), [&] {
+                // 1. if needsBeforeunload is true, then:
+                if (needs_beforeunload) {
+                    // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given traversable's active document and false.
+                    auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = traversable->active_document()->steps_to_fire_beforeunload(false);
+
+                    // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
+                    if (unload_prompt_shown_for_this_document)
+                        unload_prompt_shown = true;
+
+                    // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
+                    if (unload_prompt_canceled_by_this_document)
+                        final_status = CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload;
+                }
+
+                // 2. If finalStatus is "canceled-by-beforeunload", then abort these steps.
+                if (final_status == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload)
+                    return;
+
+                // 3. Let navigation be traversable's active window's navigation API.
+                auto navigation = traversable->active_window()->navigation();
+
+                // 4. Let navigateEventResult be the result of firing a traverse navigate event at navigation given targetEntry and userInvolvementForNavigateEvent.
+                VERIFY(target_entry);
+                auto navigate_event_result = navigation->fire_a_traverse_navigate_event(*target_entry, *user_involvement_for_navigate_events);
+
+                // 5. If navigateEventResult is false, then set finalStatus to "canceled-by-navigate".
+                if (!navigate_event_result)
+                    final_status = CheckIfUnloadingIsCanceledResult::CanceledByNavigate;
+
+                // 6. Set eventsFired to true.
+                events_fired = true;
+            }));
+
+            // 6. Wait for eventsFired to be true.
+            main_thread_event_loop().spin_until([&] {
+                return events_fired;
+            });
+
+            // 7. If finalStatus is not "continue", then return finalStatus.
+            if (final_status != CheckIfUnloadingIsCanceledResult::Continue)
+                return final_status;
+        }
+    }
+
+    // 5. Let totalTasks be the size of documentsThatNeedBeforeunload.
+    auto total_tasks = documents_to_fire_beforeunload.size();
+
+    // 6. Let completedTasks be 0.
+    size_t completed_tasks = 0;
+
+    // 7. For each document of documents, queue a global task on the navigation and traversal task source given document's relevant global object to run the steps:
+    for (auto& document : documents_to_fire_beforeunload) {
+        queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*document), JS::create_heap_function(heap(), [&] {
+            // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given document and unloadPromptShown.
+            auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = document->steps_to_fire_beforeunload(unload_prompt_shown);
+
+            // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
+            if (unload_prompt_shown_for_this_document)
+                unload_prompt_shown = true;
+
+            // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
+            if (unload_prompt_canceled_by_this_document)
+                final_status = CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload;
+
+            // 4. Increment completedTasks.
+            completed_tasks++;
+        }));
+    }
+
+    // 8. Wait for completedTasks to be totalTasks.
+    main_thread_event_loop().spin_until([&] {
+        return completed_tasks == total_tasks;
+    });
+
+    // 9. Return finalStatus.
+    return final_status;
+}
+
+TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::check_if_unloading_is_canceled(Vector<JS::Handle<Navigable>> navigables_that_need_before_unload)
+{
+    return check_if_unloading_is_canceled(navigables_that_need_before_unload, {}, {}, {});
+}
+
 Vector<JS::NonnullGCPtr<SessionHistoryEntry>> TraversableNavigable::get_session_history_entries_for_the_navigation_api(JS::NonnullGCPtr<Navigable> navigable, int target_step)
 {
     // 1. Let rawEntries be the result of getting session history entries for navigable.
@@ -1038,7 +1177,9 @@ void TraversableNavigable::close_top_level_traversable()
     // 2. Let toUnload be traversable's active document's inclusive descendant navigables.
     auto to_unload = active_document()->inclusive_descendant_navigables();
 
-    // FIXME: 3. If the result of checking if unloading is canceled for toUnload is true, then return.
+    // If the result of checking if unloading is canceled for toUnload is true, then return.
+    if (check_if_unloading_is_canceled(to_unload) != CheckIfUnloadingIsCanceledResult::Continue)
+        return;
 
     // 4. Append the following session history traversal steps to traversable:
     append_session_history_traversal_steps(JS::create_heap_function(heap(), [this] {
