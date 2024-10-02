@@ -27,7 +27,6 @@ config("ffmpeg_config") {
     "avformat",
     "avutil",
   ]
-  defines = [ "USE_FFMPEG" ]
 }
 
 group("ffmpeg") {
