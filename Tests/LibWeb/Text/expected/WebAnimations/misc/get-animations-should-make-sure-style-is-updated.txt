@@ -1,1 +1,1 @@
-This is a animated div  animation count: 1
+animation count: 1

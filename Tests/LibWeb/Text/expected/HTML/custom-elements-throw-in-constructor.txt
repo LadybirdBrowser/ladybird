@@ -1,2 +1,2 @@
-   Entered TestElement constructor, throwing.
+Entered TestElement constructor, throwing.
 PASS! (Didn't crash)

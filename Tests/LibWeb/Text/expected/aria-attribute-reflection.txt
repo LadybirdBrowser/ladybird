@@ -1,4 +1,4 @@
-                                             Element Reflection for ARIA properties
+Element Reflection for ARIA properties
 Testing: role attribute reflects.
     ✅ PASS: button is equal to button as expected.
     ✅ PASS: checkbox is equal to checkbox as expected.

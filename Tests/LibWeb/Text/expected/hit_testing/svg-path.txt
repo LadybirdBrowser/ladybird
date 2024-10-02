@@ -1,1 +1,1 @@
-     <rect> clicked
+<rect> clicked

@@ -1,4 +1,4 @@
-   > move pointer over #inner
+> move pointer over #inner
 mouseover target.id=(inner) currentTarget.id=(inner), relatedTarget.id=(body)
 mouseover target.id=(inner) currentTarget.id=(outer), relatedTarget.id=(body)
 mouseenter target.id=(inner) currentTarget.id=(inner), relatedTarget.id=(body)

@@ -1,2 +1,2 @@
-    animationstart
+animationstart
 animationend

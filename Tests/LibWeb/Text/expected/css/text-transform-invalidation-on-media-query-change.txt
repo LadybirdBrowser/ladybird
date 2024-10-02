@@ -1,2 +1,2 @@
-  TRANSFORMED TEXT
+TRANSFORMED TEXT
 transformed text

@@ -1,4 +1,4 @@
-   At time 400:
+At time 400:
   accent-color: rgb(78, 88, 99)
   align-content: flex-start
   animation-duration: auto
@@ -21,3 +21,4 @@ At time 750:
   box-shadow: rgb(81, 71, 210) 75px 150px 227.5px 0px, rgba(0, 0, 174, 0.749) 37.5px 7.5px 15px 22.5px
   color: rgb(81, 71, 210)
   transform: matrix(1, 0, 0, 1, 75, 75)
+

@@ -1,5 +1,4 @@
-Well hello friends  some
-text   text-input selectionStart: 0 selectionEnd: 0 selectionDirection: none
+text-input selectionStart: 0 selectionEnd: 0 selectionDirection: none
 date-input selectionStart: null selectionEnd: null selectionDirection: null
 textarea selectionStart: 0 selectionEnd: 0 selectionDirection: none
 text-input selectionStart: 18 selectionEnd: 18 selectionDirection: none

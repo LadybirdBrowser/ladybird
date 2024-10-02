@@ -1,4 +1,4 @@
-      HTMLAllCollection
+HTMLAllCollection
 typeof document.all = undefined
 equal to undefined = true
 equal to null = true

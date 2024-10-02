@@ -1,4 +1,4 @@
-            
+
   <ol reversed="" xml:myattribute=""></ol>
   <ol xmlns:somename=""></ol>
   <svg xmlns="http://www.w3.org/2000/svg">

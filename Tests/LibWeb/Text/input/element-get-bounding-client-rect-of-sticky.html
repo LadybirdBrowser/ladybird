@@ -43,5 +43,7 @@
         const result = document.createElement("p");
         result.textContent = `Bounding Client Rect: top=${boundingRect.top}, left=${boundingRect.left}, width=${boundingRect.width}, height=${boundingRect.height}`;
         document.body.appendChild(result);
+
+        println(document.body.innerText);
     });
 </script>

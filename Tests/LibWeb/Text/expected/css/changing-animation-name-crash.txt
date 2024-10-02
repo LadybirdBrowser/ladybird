@@ -1,2 +1,2 @@
-   before: rule1
+before: rule1
 after: rule2

@@ -1,4 +1,4 @@
-  1   2    <DIV id="aa" >
+<DIV id="aa" >
 <DIV id="a" >
 <DIV id="bb" >
 <DIV id="b" >

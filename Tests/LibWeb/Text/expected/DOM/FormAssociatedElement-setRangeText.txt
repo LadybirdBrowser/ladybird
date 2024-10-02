@@ -1,4 +1,4 @@
-   Calling setRangeText() on an element where setRangeText doesn't apply throws: InvalidStateError
+Calling setRangeText() on an element where setRangeText doesn't apply throws: InvalidStateError
 setRangeText("foo") on: textarea - Value: foo
 setRangeText("foo", 1, 3) on: textarea - Value: tfoot
 setRangeText("foo") on: password - Value: footest

@@ -1,4 +1,4 @@
-Hello, world!I'm totally bold rn  execCommand("bold") returned false
+execCommand("bold") returned false
 Hello, world!<b>I'm totally bold rn</b>
 queryCommandEnabled("bold") returned false
 queryCommandIndeterm("bold") returned false

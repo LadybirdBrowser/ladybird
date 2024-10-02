@@ -1,4 +1,4 @@
-hello     <DIV id="c" >
+<DIV id="c" >
 <DIV id="b" >
 <DIV id="a" >
 <HTML >

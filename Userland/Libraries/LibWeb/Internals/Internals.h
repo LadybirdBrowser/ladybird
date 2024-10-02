@@ -19,7 +19,7 @@ class Internals final : public Bindings::PlatformObject {
 public:
     virtual ~Internals() override;
 
-    void signal_text_test_is_done();
+    void signal_text_test_is_done(String const& text);
 
     void gc();
     JS::Object* hit_test(double x, double y);

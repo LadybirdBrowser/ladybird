@@ -1,1 +1,1 @@
-Button  Clicked!
+Clicked!

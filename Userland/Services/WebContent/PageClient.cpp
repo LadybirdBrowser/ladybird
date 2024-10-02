@@ -366,9 +366,9 @@ void PageClient::page_did_finish_loading(URL::URL const& url)
     client().async_did_finish_loading(m_id, url);
 }
 
-void PageClient::page_did_finish_text_test()
+void PageClient::page_did_finish_text_test(String const& text)
 {
-    client().async_did_finish_text_test(m_id);
+    client().async_did_finish_text_test(m_id, text);
 }
 
 void PageClient::page_did_request_context_menu(Web::CSSPixelPoint content_position)

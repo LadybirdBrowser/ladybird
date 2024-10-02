@@ -1,2 +1,2 @@
- x   [object DOMRectList]
+[object DOMRectList]
 [object DOMRect]

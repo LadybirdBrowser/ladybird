@@ -1,4 +1,4 @@
-open closed open open open   [object ShadowRoot]
+[object ShadowRoot]
 0
 null
 0

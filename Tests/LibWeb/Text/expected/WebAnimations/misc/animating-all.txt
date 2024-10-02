@@ -1,1 +1,1 @@
-  opacity value: 0.5
+opacity value: 0.5
