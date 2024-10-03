@@ -2678,6 +2678,14 @@
       "easing-function"
     ]
   },
+  "unicode-bidi": {
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "unicode-bidi"
+    ]
+  },
   "user-select": {
     "affects-layout": false,
     "animation-type": "discrete",

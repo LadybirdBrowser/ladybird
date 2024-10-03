@@ -187,6 +187,7 @@ transition-delay: 0s
 transition-duration: 0s
 transition-property: all
 transition-timing-function: ease
+unicode-bidi: normal
 user-select: auto
 vertical-align: baseline
 width: 784px

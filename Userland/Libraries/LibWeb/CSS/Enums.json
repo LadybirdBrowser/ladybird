@@ -463,6 +463,14 @@
     "stroke-box",
     "view-box "
   ],
+  "unicode-bidi": [
+    "bidi-override",
+    "embed",
+    "isolate",
+    "isolate-override",
+    "normal",
+    "plaintext"
+  ],
   "vertical-align": [
     "baseline",
     "bottom",

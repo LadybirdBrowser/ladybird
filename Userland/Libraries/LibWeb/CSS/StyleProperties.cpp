@@ -1189,6 +1189,12 @@ Optional<CSS::Direction> StyleProperties::direction() const
     return keyword_to_direction(value->to_keyword());
 }
 
+Optional<CSS::UnicodeBidi> StyleProperties::unicode_bidi() const
+{
+    auto value = property(CSS::PropertyID::UnicodeBidi);
+    return keyword_to_unicode_bidi(value->to_keyword());
+}
+
 Optional<CSS::MaskType> StyleProperties::mask_type() const
 {
     auto value = property(CSS::PropertyID::MaskType);
