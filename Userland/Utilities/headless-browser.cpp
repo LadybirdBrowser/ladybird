@@ -198,7 +198,7 @@ static StringView test_result_to_string(TestResult result)
     VERIFY_NOT_REACHED();
 }
 
-static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL const& url, StringView expectation_path, TestMode mode, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
+static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL const& url, StringView expectation_path, TestMode mode, bool rebaseline = false, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
 {
     Core::EventLoop loop;
     bool did_timeout = false;
@@ -262,13 +262,18 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
         return TestResult::Skipped;
     }
 
-    auto expectation_file_or_error = Core::File::open(expectation_path, Core::File::OpenMode::Read);
+    auto expectation_file_or_error = Core::File::open(expectation_path, rebaseline ? Core::File::OpenMode::Write : Core::File::OpenMode::Read);
     if (expectation_file_or_error.is_error()) {
         warnln("Failed opening '{}': {}", expectation_path, expectation_file_or_error.error());
         return expectation_file_or_error.release_error();
     }
 
     auto expectation_file = expectation_file_or_error.release_value();
+
+    if (rebaseline) {
+        TRY(expectation_file->write_until_depleted(result));
+        return TestResult::Pass;
+    }
 
     auto expectation = TRY(String::from_utf8(StringView(TRY(expectation_file->read_until_eof()).bytes())));
 
@@ -355,7 +360,7 @@ static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL c
     return TestResult::Fail;
 }
 
-static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView input_path, StringView expectation_path, TestMode mode, bool dump_failed_ref_tests)
+static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView input_path, StringView expectation_path, TestMode mode, bool dump_failed_ref_tests, bool rebaseline)
 {
     // Clear the current document.
     // FIXME: Implement a debug-request to do this more thoroughly.
@@ -415,7 +420,7 @@ static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView inp
     switch (mode) {
     case TestMode::Text:
     case TestMode::Layout:
-        return run_dump_test(view, url, expectation_path, mode);
+        return run_dump_test(view, url, expectation_path, mode, rebaseline);
     case TestMode::Ref:
         return run_ref_test(view, url, dump_failed_ref_tests);
     default:
@@ -490,7 +495,7 @@ static ErrorOr<void> collect_ref_tests(Vector<Test>& tests, StringView path)
     return {};
 }
 
-static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root_path, StringView test_glob, bool dump_failed_ref_tests, bool dump_gc_graph, bool dry_run)
+static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root_path, StringView test_glob, bool dump_failed_ref_tests, bool dump_gc_graph, bool dry_run, bool rebaseline)
 {
     if (view)
         view->clear_content_filters();
@@ -547,7 +552,7 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root
             continue;
         }
 
-        test.result = TRY(run_test(*view, test.input_path, test.expectation_path, test.mode, dump_failed_ref_tests));
+        test.result = TRY(run_test(*view, test.input_path, test.expectation_path, test.mode, dump_failed_ref_tests, rebaseline));
         switch (*test.result) {
         case TestResult::Pass:
             ++pass_count;
@@ -608,6 +613,7 @@ struct Application : public WebView::Application {
         args_parser.add_option(dump_gc_graph, "Dump GC graph", "dump-gc-graph", 'G');
         args_parser.add_option(resources_folder, "Path of the base resources folder (defaults to /res)", "resources", 'r', "resources-root-path");
         args_parser.add_option(is_layout_test_mode, "Enable layout test mode", "layout-test-mode");
+        args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
     }
 
     virtual void create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions& web_content_options) override
@@ -630,6 +636,7 @@ struct Application : public WebView::Application {
     StringView test_root_path;
     ByteString test_glob;
     bool test_dry_run { false };
+    bool rebaseline { false };
 };
 
 Application::Application(Badge<WebView::Application>, Main::Arguments&)
@@ -658,7 +665,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         auto absolute_test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
         app->test_root_path = absolute_test_root_path;
         auto test_glob = ByteString::formatted("*{}*", app->test_glob);
-        return run_tests(view, app->test_root_path, test_glob, app->dump_failed_ref_tests, app->dump_gc_graph, app->test_dry_run);
+        return run_tests(view, app->test_root_path, test_glob, app->dump_failed_ref_tests, app->dump_gc_graph, app->test_dry_run, app->rebaseline);
     }
 
     auto view = TRY(HeadlessWebContentView::create(move(theme), window_size, app->resources_folder));
