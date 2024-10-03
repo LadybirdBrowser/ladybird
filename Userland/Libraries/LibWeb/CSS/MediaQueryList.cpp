@@ -51,10 +51,14 @@ String MediaQueryList::media() const
 // https://drafts.csswg.org/cssom-view/#dom-mediaquerylist-matches
 bool MediaQueryList::matches() const
 {
+    if (m_media.is_empty())
+        return true;
+
     for (auto& media : m_media) {
         if (media->matches())
             return true;
     }
+
     return false;
 }
 
@@ -63,6 +67,9 @@ bool MediaQueryList::evaluate()
     auto window = m_document->window();
     if (!window)
         return false;
+
+    if (m_media.is_empty())
+        return true;
 
     bool now_matches = false;
     for (auto& media : m_media) {
