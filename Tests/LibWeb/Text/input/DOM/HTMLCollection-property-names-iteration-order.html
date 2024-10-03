@@ -1,0 +1,10 @@
+<a name="foo"></a>
+<a name="bar"></a>
+<a name="baz"></a>
+
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(Object.getOwnPropertyNames(document.anchors));
+    });
+</script>
