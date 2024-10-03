@@ -409,7 +409,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         return { "type"sv };
     };
 
-    // 8.1.6.5.3 HostLoadImportedModule(referrer, moduleRequest, loadState, payload), https://html.spec.whatwg.org/multipage/webappapis.html#hostloadimportedmodule
+    // 8.1.6.7.3 HostLoadImportedModule(referrer, moduleRequest, loadState, payload), https://html.spec.whatwg.org/multipage/webappapis.html#hostloadimportedmodule
     s_main_thread_vm->host_load_imported_module = [](JS::ImportedModuleReferrer referrer, JS::ModuleRequest const& module_request, JS::GCPtr<JS::GraphLoadingState::HostDefined> load_state, JS::ImportedModulePayload payload) -> void {
         auto& vm = *s_main_thread_vm;
         auto& realm = *vm.current_realm();
@@ -428,7 +428,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         // 5. Let fetchReferrer be "client".
         Fetch::Infrastructure::Request::ReferrerType fetch_referrer = Fetch::Infrastructure::Request::Referrer::Client;
 
-        // 6. If referrer is a Script Record or a Module Record, then:
+        // 6. If referrer is a Script Record or a Cyclic Module Record, then:
         if (referrer.has<JS::NonnullGCPtr<JS::Script>>() || referrer.has<JS::NonnullGCPtr<JS::CyclicModule>>()) {
             // 1. Set referencingScript to referrer.[[HostDefined]].
             referencing_script = verify_cast<HTML::Script>(referrer.has<JS::NonnullGCPtr<JS::Script>>() ? *referrer.get<JS::NonnullGCPtr<JS::Script>>()->host_defined() : *referrer.get<JS::NonnullGCPtr<JS::CyclicModule>>()->host_defined());
@@ -442,14 +442,16 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             // FIXME: 4. Set originalFetchOptions to referencingScript's fetch options.
         }
 
-        // 7. Disallow further import maps given settingsObject.
+        // FIXME: 7. If referrer is a Cyclic Module Record and moduleRequest is equal to the first element of referrer.[[RequestedModules]], then:
+
+        // 8. Disallow further import maps given settingsObject.
         settings_object->disallow_further_import_maps();
 
-        // 8. Let url be the result of resolving a module specifier given referencingScript and moduleRequest.[[Specifier]],
+        // 9. Let url be the result of resolving a module specifier given referencingScript and moduleRequest.[[Specifier]],
         //    catching any exceptions. If they throw an exception, let resolutionError be the thrown exception.
         auto url = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier);
 
-        // 9. If the previous step threw an exception, then:
+        // 10. If the previous step threw an exception, then:
         if (url.is_exception()) {
             // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: resolutionError, [[Target]]: empty }.
             auto completion = dom_exception_to_throw_completion(main_thread_vm(), url.exception());
@@ -462,16 +464,16 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             return;
         }
 
-        // 10. Let fetchOptions be the result of getting the descendant script fetch options given originalFetchOptions, url, and settingsObject.
+        // 11. Let fetchOptions be the result of getting the descendant script fetch options given originalFetchOptions, url, and settingsObject.
         auto fetch_options = MUST(HTML::get_descendant_script_fetch_options(original_fetch_options, url.value(), *settings_object));
 
-        // 11. Let destination be "script".
+        // 12. Let destination be "script".
         auto destination = Fetch::Infrastructure::Request::Destination::Script;
 
-        // 12. Let fetchClient be settingsObject.
+        // 13. Let fetchClient be settingsObject.
         JS::NonnullGCPtr fetch_client { *settings_object };
 
-        // 13. If loadState is not undefined, then:
+        // 14. If loadState is not undefined, then:
         HTML::PerformTheFetchHook perform_fetch;
         if (load_state) {
             auto& fetch_context = static_cast<HTML::FetchContext&>(*load_state);
@@ -479,7 +481,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             // 1. Set destination to loadState.[[Destination]].
             destination = fetch_context.destination;
 
-            // 2. Set fetchClient loadState.[[FetchClient]].
+            // 2. Set fetchClient to loadState.[[FetchClient]].
             fetch_client = fetch_context.fetch_client;
 
             // For step 13
@@ -518,7 +520,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
                     return completion;
                 }
-                // 4. Otherwise, set completion to Completion Record { [[Type]]: normal, [[Value]]: result's record, [[Target]]: empty }.
+                // 4. Otherwise, set completion to Completion Record { [[Type]]: normal, [[Value]]: moduleScript's record, [[Target]]: empty }.
                 else {
                     module = static_cast<HTML::JavaScriptModuleScript&>(*module_script).record();
                     return JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Module>>(*module);
@@ -539,7 +541,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             vm.pop_execution_context();
         });
 
-        // 14. Fetch a single imported module script given url, fetchClient, destination, fetchOptions, settingsObject, fetchReferrer,
+        // 15. Fetch a single imported module script given url, fetchClient, destination, fetchOptions, settingsObject, fetchReferrer,
         //     moduleRequest, and onSingleFetchComplete as defined below.
         //     If loadState is not undefined and loadState.[[PerformFetch]] is not null, pass loadState.[[PerformFetch]] along as well.
         HTML::fetch_single_imported_module_script(realm, url.release_value(), *fetch_client, destination, fetch_options, *settings_object, fetch_referrer, module_request, perform_fetch, on_single_fetch_complete);
