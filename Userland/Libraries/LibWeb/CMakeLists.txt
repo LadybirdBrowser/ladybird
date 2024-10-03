@@ -808,6 +808,11 @@ serenity_lib(LibWeb web)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests skia)
 
+if(APPLE)
+    target_link_libraries(LibWeb PUBLIC "-framework IOKit")
+endif()
+
+
 generate_js_bindings(LibWeb)
 
 if (ENABLE_SWIFT)
