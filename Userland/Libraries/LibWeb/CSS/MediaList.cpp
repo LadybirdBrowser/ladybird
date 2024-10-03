@@ -100,9 +100,8 @@ bool MediaList::evaluate(HTML::Window const& window)
 
 bool MediaList::matches() const
 {
-    if (m_media.is_empty()) {
+    if (m_media.is_empty())
         return true;
-    }
 
     for (auto& media : m_media) {
         if (media->matches())
