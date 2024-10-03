@@ -52,17 +52,16 @@ PageClient::PageClient(PageHost& owner, u64 id)
     , m_backing_store_manager(*this)
 {
     setup_palette();
+
+    int refresh_interval = 1000 / 60; // FIXME: Account for the actual refresh rate of the display
+    m_paint_refresh_timer = Core::Timer::create_repeating(refresh_interval, [] {
+        Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
+    });
+
+    m_paint_refresh_timer->start();
 }
 
 PageClient::~PageClient() = default;
-
-void PageClient::schedule_repaint()
-{
-    if (m_paint_state != PaintState::Ready) {
-        m_paint_state = PaintState::PaintWhenReady;
-        return;
-    }
-}
 
 bool PageClient::is_ready_to_paint() const
 {
@@ -71,13 +70,7 @@ bool PageClient::is_ready_to_paint() const
 
 void PageClient::ready_to_paint()
 {
-    auto old_paint_state = exchange(m_paint_state, PaintState::Ready);
-
-    if (old_paint_state == PaintState::PaintWhenReady) {
-        // NOTE: Repainting always has to be scheduled from HTML event loop processing steps
-        //       to make sure style and layout are up-to-date.
-        Web::HTML::main_thread_event_loop().schedule();
-    }
+    m_paint_state = PaintState::Ready;
 }
 
 void PageClient::visit_edges(JS::Cell::Visitor& visitor)
@@ -196,8 +189,6 @@ void PageClient::process_screenshot_requests()
 
 void PageClient::paint_next_frame()
 {
-    process_screenshot_requests();
-
     auto back_store = m_backing_store_manager.back_store();
     if (!back_store)
         return;

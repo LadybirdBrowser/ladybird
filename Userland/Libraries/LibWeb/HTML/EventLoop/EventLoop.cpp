@@ -147,23 +147,23 @@ void EventLoop::process()
     if (m_skip_event_loop_processing_steps)
         return;
 
-    // An event loop must continually run through the following steps for as long as it exists:
-
-    // 1. Let oldestTask be null.
+    // 1. Let oldestTask and taskStartTime be null.
     JS::GCPtr<Task> oldest_task;
+    [[maybe_unused]] double task_start_time = 0;
 
-    // 2. Set taskStartTime to the unsafe shared current time.
-    double task_start_time = HighResolutionTime::unsafe_shared_current_time();
+    // 2. If the event loop has a task queue with at least one runnable task, then:
+    if (m_task_queue->has_runnable_tasks()) {
+        // 1. Let taskQueue be one such task queue, chosen in an implementation-defined manner.
+        auto task_queue = m_task_queue;
 
-    // 3. Let taskQueue be one of the event loop's task queues, chosen in an implementation-defined manner,
-    //    with the constraint that the chosen task queue must contain at least one runnable task.
-    //    If there is no such task queue, then jump to the microtasks step below.
-    auto& task_queue = *m_task_queue;
+        // 2. Set taskStartTime to the unsafe shared current time.
+        task_start_time = HighResolutionTime::unsafe_shared_current_time();
 
-    // 4. Set oldestTask to the first runnable task in taskQueue, and remove it from taskQueue.
-    oldest_task = task_queue.take_first_runnable();
+        // 3. Set oldestTask to the first runnable task in taskQueue, and remove it from taskQueue.
+        oldest_task = task_queue->take_first_runnable();
 
-    if (oldest_task) {
+        // FIXME: 4. If oldestTask's document is not null, then record task start time given taskStartTime and oldestTask's document.
+
         // 5. Set the event loop's currently running task to oldestTask.
         m_currently_running_task = oldest_task.ptr();
 
@@ -172,237 +172,221 @@ void EventLoop::process()
 
         // 7. Set the event loop's currently running task back to null.
         m_currently_running_task = nullptr;
+
+        // 8. Perform a microtask checkpoint.
+        perform_a_microtask_checkpoint();
     }
 
-    // 8. Microtasks: Perform a microtask checkpoint.
-    perform_a_microtask_checkpoint();
+    // 3. Let taskEndTime be the unsafe shared current time. [HRT]
+    [[maybe_unused]] auto task_end_time = HighResolutionTime::unsafe_shared_current_time();
 
-    if (m_is_running_reflow_steps) {
-        // NOTE: If we entered style-layout-repaint steps, then we need to wait for them to finish before doing next iteration.
-        schedule();
-        return;
+    // 4. If oldestTask is not null, then:
+    if (oldest_task) {
+        // FIXME: 1. Let top-level browsing contexts be an empty set.
+        // FIXME: 2. For each environment settings object settings of oldestTask's script evaluation environment settings object set:
+        // FIXME: 2.1. Let global be settings's global object.
+        // FIXME: 2.2. If global is not a Window object, then continue.
+        // FIXME: 2.3. If global's browsing context is null, then continue.
+        // FIXME: 2.4. Let tlbc be global's browsing context's top-level browsing context.
+        // FIXME: 2.5. If tlbc is not null, then append it to top-level browsing contexts.
+        // FIXME: 3. Report long tasks, passing in taskStartTime, taskEndTime, top-level browsing contexts, and oldestTask.
+        // FIXME: 4. If oldestTask's document is not null, then record task end time given taskEndTime and oldestTask's document.
     }
 
-    m_is_running_reflow_steps = true;
-    ScopeGuard const guard = [this] {
-        m_is_running_reflow_steps = false;
-    };
-
-    // 9. Let hasARenderingOpportunity be false.
-    [[maybe_unused]] bool has_a_rendering_opportunity = false;
-
-    // FIXME: 10. Let now be the current high resolution time. [HRT]
-
-    // FIXME: 11. If oldestTask is not null, then:
-
-    // FIXME:     1. Let top-level browsing contexts be an empty set.
-
-    // FIXME:     2. For each environment settings object settings of oldestTask's script evaluation environment settings object set, append setting's top-level browsing context to top-level browsing contexts.
-
-    // FIXME:     3. Report long tasks, passing in taskStartTime, now (the end time of the task), top-level browsing contexts, and oldestTask.
-
-    // FIXME: 12. Update the rendering: if this is a window event loop, then:
-
-    // FIXME:     1. Let docs be all Document objects whose relevant agent's event loop is this event loop, sorted arbitrarily except that the following conditions must be met:
-    //               - Any Document B whose browsing context's container document is A must be listed after A in the list.
-    //               - If there are two documents A and B whose browsing contexts are both child browsing contexts whose container documents are another Document C, then the order of A and B in the list must match the shadow-including tree order of their respective browsing context containers in C's node tree.
-    // FIXME: NOTE: The sort order specified above is missing here!
-    Vector<JS::Handle<DOM::Document>> docs = documents_in_this_event_loop();
-
-    auto for_each_fully_active_document_in_docs = [&](auto&& callback) {
-        for (auto& document : docs) {
-            if (document->is_fully_active())
-                callback(*document);
-        }
-    };
-
-    // AD-HOC: Since event loop processing steps do not constantly running in parallel, and
-    //         something must trigger them, we need to manually schedule a repaint for all
-    //         navigables that do not have a rendering opportunity at this event loop iteration.
-    //         Otherwise their repaint will be delayed until something else will trigger event
-    //         loop processing.
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        auto navigable = document.navigable();
-        if (navigable && !navigable->has_a_rendering_opportunity() && document.needs_repaint())
-            schedule();
-        if (navigable && navigable->has_a_rendering_opportunity())
-            return;
-        auto* browsing_context = document.browsing_context();
-        if (!browsing_context)
-            return;
-        auto& page = browsing_context->page();
-        page.client().schedule_repaint();
-    });
-
-    // 2. Rendering opportunities: Remove from docs all Document objects whose node navigables do not have a rendering opportunity.
-    docs.remove_all_matching([&](auto& document) {
-        auto navigable = document->navigable();
-        return navigable && !navigable->has_a_rendering_opportunity();
-    });
-
-    // 3. If docs is not empty, then set hasARenderingOpportunity to true
-    //    and set this event loop's last render opportunity time to taskStartTime.
-    if (!docs.is_empty()) {
-        has_a_rendering_opportunity = true;
-        m_last_render_opportunity_time = task_start_time;
-    }
-
-    // FIXME:     4. Unnecessary rendering: Remove from docs all Document objects which meet both of the following conditions:
-    //               - The user agent believes that updating the rendering of the Document's browsing context would have no visible effect, and
-    //               - The Document's map of animation frame callbacks is empty.
-    //            https://www.w3.org/TR/intersection-observer/#pending-initial-observation
-    //            In the HTML Event Loops Processing Model, under the "Update the rendering" step, the "Unnecessary rendering" step should be
-    //            modified to add an additional requirement for skipping the rendering update:
-    //              - The document does not have pending initial IntersectionObserver targets.
-
-    // FIXME:     5. Remove from docs all Document objects for which the user agent believes that it's preferable to skip updating the rendering for other reasons.
-
-    // FIXME:     6. For each fully active Document in docs, flush autofocus candidates for that Document if its browsing context is a top-level browsing context.
-
-    // 7. For each fully active Document in docs, run the resize steps for that Document, passing in now as the timestamp. [CSSOMVIEW]
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        document.run_the_resize_steps();
-    });
-
-    // 8. For each fully active Document in docs, run the scroll steps for that Document, passing in now as the timestamp. [CSSOMVIEW]
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        document.run_the_scroll_steps();
-    });
-
-    // 9. For each fully active Document in docs, evaluate media queries and report changes for that Document, passing in now as the timestamp. [CSSOMVIEW]
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        document.evaluate_media_queries_and_report_changes();
-    });
-
-    // 10. For each fully active Document in docs, update animations and send events for that Document, passing in now as the timestamp. [WEBANIMATIONS]
-    // Note: This is handled by the document's animation timer, however, if a document has any requestAnimationFrame callbacks, we need
-    //       to dispatch events before that happens below. Not dispatching here would be observable.
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        if (document.window()->animation_frame_callback_driver().has_callbacks()) {
-            document.update_animations_and_send_events(document.window()->performance()->now());
-        }
-    });
-
-    // FIXME:     11. For each fully active Document in docs, run the fullscreen steps for that Document, passing in now as the timestamp. [FULLSCREEN]
-
-    // FIXME:     12. For each fully active Document in docs, if the user agent detects that the backing storage associated with a CanvasRenderingContext2D or an OffscreenCanvasRenderingContext2D, context, has been lost, then it must run the context lost steps for each such context:
-
-    // FIXME:     13. For each fully active Document in docs, run the animation frame callbacks for that Document, passing in now as the timestamp.
-    auto now = HighResolutionTime::unsafe_shared_current_time();
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        run_animation_frame_callbacks(document, now);
-    });
-
-    // FIXME: This step is implemented following the latest specification, while the rest of this method uses an outdated spec.
-    // NOTE: Gathering and broadcasting of resize observations need to happen after evaluating media queries but before
-    //       updating intersection observations steps.
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        // 1. Let resizeObserverDepth be 0.
-        size_t resize_observer_depth = 0;
-
-        // 2. While true:
-        while (true) {
-            // 1. Recalculate styles and update layout for doc.
-            // NOTE: Recalculation of styles is handled by update_layout()
-            document.update_layout();
-
-            // FIXME: 2. Let hadInitialVisibleContentVisibilityDetermination be false.
-            // FIXME: 3. For each element element with 'auto' used value of 'content-visibility':
-            // FIXME: 4. If hadInitialVisibleContentVisibilityDetermination is true, then continue.
-
-            // 5. Gather active resize observations at depth resizeObserverDepth for doc.
-            document.gather_active_observations_at_depth(resize_observer_depth);
-
-            // 6. If doc has active resize observations:
-            if (document.has_active_resize_observations()) {
-                // 1. Set resizeObserverDepth to the result of broadcasting active resize observations given doc.
-                resize_observer_depth = document.broadcast_active_resize_observations();
-
-                // 2. Continue.
-                continue;
-            }
-
-            // 7. Otherwise, break.
-            break;
-        }
-
-        // 3. If doc has skipped resize observations, then deliver resize loop error given doc.
-        if (document.has_skipped_resize_observations()) {
-            // FIXME: Deliver resize loop error.
-        }
-    });
-
-    // 14. For each fully active Document in docs, run the update intersection observations steps for that Document, passing in now as the timestamp. [INTERSECTIONOBSERVER]
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        document.run_the_update_intersection_observations_steps(now);
-    });
-
-    // FIXME:     15. Invoke the mark paint timing algorithm for each Document object in docs.
-
-    // 16. For each fully active Document in docs, update the rendering or user interface of that Document and its browsing context to reflect the current state.
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        auto navigable = document.navigable();
-        if (navigable && document.needs_repaint()) {
-            auto* browsing_context = document.browsing_context();
-            auto& page = browsing_context->page();
-            if (navigable->is_traversable()) {
-                VERIFY(page.client().is_ready_to_paint());
-                page.client().paint_next_frame();
-            }
-        }
-    });
-
-    // FIXME: Not in the spec: If there is a screenshot request queued, process it now.
-    //        This prevents tests deadlocking on screenshot requests on macOS.
-    for (auto& document : docs) {
-        if (document->needs_repaint())
-            document->page().client().process_screenshot_requests();
-    }
-
-    // 13. If all of the following are true
-    // - this is a window event loop
-    // - there is no task in this event loop's task queues whose document is fully active
-    // - this event loop's microtask queue is empty
-    // - hasARenderingOpportunity is false
-    // FIXME: has_a_rendering_opportunity is always true
-    if (m_type == Type::Window && !task_queue.has_runnable_tasks() && m_microtask_queue->is_empty() /*&& !has_a_rendering_opportunity*/) {
+    // 5. If this is a window event loop that has no runnable task in this event loop's task queues, then:
+    if (m_type == Type::Window && !m_task_queue->has_runnable_tasks()) {
         // 1. Set this event loop's last idle period start time to the unsafe shared current time.
         m_last_idle_period_start_time = HighResolutionTime::unsafe_shared_current_time();
 
         // 2. Let computeDeadline be the following steps:
-        // NOTE: instead of passing around a function we use this event loop, which has compute_deadline()
+        // Implemented in EventLoop::compute_deadline()
 
-        // 3. For each win of the same-loop windows for this event loop,
-        //    perform the start an idle period algorithm for win with computeDeadline. [REQUESTIDLECALLBACK]
-        for (auto& win : same_loop_windows())
+        // 3. For each win of the same-loop windows for this event loop, perform the start an idle period algorithm for win with the following step: return the result of calling computeDeadline, coarsened given win's relevant settings object's cross-origin isolated capability. [REQUESTIDLECALLBACK]
+        for (auto& win : same_loop_windows()) {
             win->start_an_idle_period();
+        }
     }
 
-    // FIXME: 14. If this is a worker event loop, then:
-
-    // FIXME:     1. If this event loop's agent's single realm's global object is a supported DedicatedWorkerGlobalScope and the user agent believes that it would benefit from having its rendering updated at this time, then:
-    // FIXME:        1. Let now be the current high resolution time. [HRT]
-    // FIXME:        2. Run the animation frame callbacks for that DedicatedWorkerGlobalScope, passing in now as the timestamp.
-    // FIXME:        3. Update the rendering of that dedicated worker to reflect the current state.
-
-    // FIXME:     2. If there are no tasks in the event loop's task queues and the WorkerGlobalScope object's closing flag is true, then destroy the event loop, aborting these steps, resuming the run a worker steps described in the Web workers section below.
-
     // If there are eligible tasks in the queue, schedule a new round of processing. :^)
-    if (m_task_queue->has_runnable_tasks() || (!m_microtask_queue->is_empty() && !m_performing_a_microtask_checkpoint))
+    if (m_task_queue->has_runnable_tasks() || (!m_microtask_queue->is_empty() && !m_performing_a_microtask_checkpoint)) {
         schedule();
+    }
+}
 
-    // For each doc of docs, process top layer removals given doc.
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        document.process_top_layer_removals();
-    });
+// https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
+void EventLoop::queue_task_to_update_the_rendering()
+{
+    // FIXME: 1. Wait until at least one navigable whose active document's relevant agent's event loop is eventLoop might have a rendering opportunity.
 
-    // Not in the spec:
-    for_each_fully_active_document_in_docs([&](DOM::Document& document) {
-        if (document.readiness() == HTML::DocumentReadyState::Complete && document.style_computer().number_of_css_font_faces_with_loading_in_progress() == 0) {
-            HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(document), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            document.fonts()->resolve_ready_promise();
-        }
-    });
+    // 2. Set eventLoop's last render opportunity time to the unsafe shared current time.
+    m_last_render_opportunity_time = HighResolutionTime::unsafe_shared_current_time();
+
+    // 3. For each navigable that has a rendering opportunity, queue a global task on the rendering task source given navigable's active window to update the rendering:
+    for (auto& navigable : all_navigables()) {
+        if (!navigable->is_traversable())
+            continue;
+        if (!navigable->has_a_rendering_opportunity())
+            continue;
+
+        auto document = navigable->active_document();
+        if (!document)
+            continue;
+        if (document->is_decoded_svg())
+            continue;
+
+        queue_global_task(Task::Source::Rendering, *navigable->active_window(), JS::create_heap_function(navigable->heap(), [this] mutable {
+            VERIFY(!m_is_running_rendering_task);
+            m_is_running_rendering_task = true;
+            ScopeGuard const guard = [this] {
+                m_is_running_rendering_task = false;
+            };
+
+            // FIXME: 1. Let frameTimestamp be eventLoop's last render opportunity time.
+
+            // FIXME: 2. Let docs be all fully active Document objects whose relevant agent's event loop is eventLoop, sorted arbitrarily except that the following conditions must be met:
+            auto docs = documents_in_this_event_loop();
+            docs.remove_all_matching([&](auto& document) {
+                return !document->is_fully_active();
+            });
+
+            // 3. Filter non-renderable documents: Remove from docs any Document object doc for which any of the following are true:
+            docs.remove_all_matching([&](auto const& document) {
+                auto navigable = document->navigable();
+                if (!navigable)
+                    return true;
+
+                // FIXME: doc is render-blocked;
+
+                // doc's visibility state is "hidden";
+                if (document->visibility_state() == "hidden"sv)
+                    return true;
+
+                // FIXME: doc's rendering is suppressed for view transitions; or
+
+                // doc's node navigable doesn't currently have a rendering opportunity.
+                if (!navigable->has_a_rendering_opportunity())
+                    return true;
+
+                return false;
+            });
+
+            // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
+
+            // FIXME: 5. Remove from docs all Document objects for which the user agent believes that it's preferable to skip updating the rendering for other reasons.
+
+            // FIXME: 6. For each doc of docs, reveal doc.
+
+            // FIXME: 7. For each doc of docs, flush autofocus candidates for doc if its node navigable is a top-level traversable.
+
+            // 8. For each doc of docs, run the resize steps for doc. [CSSOMVIEW]
+            for (auto& document : docs) {
+                document->run_the_resize_steps();
+            }
+
+            // 9. For each doc of docs, run the scroll steps for doc. [CSSOMVIEW]
+            for (auto& document : docs) {
+                document->run_the_scroll_steps();
+            }
+
+            // 10. For each doc of docs, evaluate media queries and report changes for doc. [CSSOMVIEW]
+            for (auto& document : docs) {
+                document->evaluate_media_queries_and_report_changes();
+            }
+
+            // 11. For each doc of docs, update animations and send events for doc, passing in relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp [WEBANIMATIONS]
+            for (auto& document : docs) {
+                document->update_animations_and_send_events(document->window()->performance()->now());
+            };
+
+            // FIXME: 12. For each doc of docs, run the fullscreen steps for doc. [FULLSCREEN]
+
+            // FIXME: 13. For each doc of docs, if the user agent detects that the backing storage associated with a CanvasRenderingContext2D or an OffscreenCanvasRenderingContext2D, context, has been lost, then it must run the context lost steps for each such context:
+
+            // 14. For each doc of docs, run the animation frame callbacks for doc, passing in the relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp.
+            auto now = HighResolutionTime::unsafe_shared_current_time();
+            for (auto& document : docs) {
+                run_animation_frame_callbacks(*document, now);
+            }
+
+            // FIXME: 15. Let unsafeStyleAndLayoutStartTime be the unsafe shared current time.
+
+            // 16. For each doc of docs:
+            for (auto& document : docs) {
+                // 1. Let resizeObserverDepth be 0.
+                size_t resize_observer_depth = 0;
+
+                // 2. While true:
+                while (true) {
+                    // 1. Recalculate styles and update layout for doc.
+                    // NOTE: Recalculation of styles is handled by update_layout()
+                    document->update_layout();
+
+                    // FIXME: 2. Let hadInitialVisibleContentVisibilityDetermination be false.
+                    // FIXME: 3. For each element element with 'auto' used value of 'content-visibility':
+                    // FIXME: 4. If hadInitialVisibleContentVisibilityDetermination is true, then continue.
+
+                    // 5. Gather active resize observations at depth resizeObserverDepth for doc.
+                    document->gather_active_observations_at_depth(resize_observer_depth);
+
+                    // 6. If doc has active resize observations:
+                    if (document->has_active_resize_observations()) {
+                        // 1. Set resizeObserverDepth to the result of broadcasting active resize observations given doc.
+                        resize_observer_depth = document->broadcast_active_resize_observations();
+
+                        // 2. Continue.
+                        continue;
+                    }
+
+                    // 7. Otherwise, break.
+                    break;
+                }
+
+                // 3. If doc has skipped resize observations, then deliver resize loop error given doc.
+                if (document->has_skipped_resize_observations()) {
+                    // FIXME: Deliver resize loop error.
+                }
+            }
+
+            // FIXME: 17. For each doc of docs, if the focused area of doc is not a focusable area, then run the focusing steps for doc's viewport, and set doc's relevant global object's navigation API's focus changed during ongoing navigation to false.
+
+            // FIXME: 18. For each doc of docs, perform pending transition operations for doc. [CSSVIEWTRANSITIONS]
+
+            // 19. For each doc of docs, run the update intersection observations steps for doc, passing in the relative high resolution time given now and doc's relevant global object as the timestamp. [INTERSECTIONOBSERVER]
+            for (auto& document : docs) {
+                document->run_the_update_intersection_observations_steps(now);
+            }
+
+            // FIXME: 20. For each doc of docs, record rendering time for doc given unsafeStyleAndLayoutStartTime.
+
+            // FIXME: 21. For each doc of docs, mark paint timing for doc.
+
+            // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
+            for (auto& document : docs) {
+                document->page().client().process_screenshot_requests();
+                auto navigable = document->navigable();
+                if (navigable && document->needs_repaint()) {
+                    auto* browsing_context = document->browsing_context();
+                    auto& page = browsing_context->page();
+                    if (navigable->is_traversable()) {
+                        VERIFY(page.client().is_ready_to_paint());
+                        page.client().paint_next_frame();
+                    }
+                }
+            }
+
+            // 23. For each doc of docs, process top layer removals given doc.
+            for (auto& document : docs) {
+                document->process_top_layer_removals();
+            }
+
+            for (auto& document : docs) {
+                if (document->readiness() == HTML::DocumentReadyState::Complete && document->style_computer().number_of_css_font_faces_with_loading_in_progress() == 0) {
+                    HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*document), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                    document->fonts()->resolve_ready_promise();
+                }
+            }
+        }));
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-task

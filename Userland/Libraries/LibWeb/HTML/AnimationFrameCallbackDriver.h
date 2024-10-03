@@ -18,19 +18,10 @@ namespace Web::HTML {
 struct AnimationFrameCallbackDriver {
     using Callback = Function<void(double)>;
 
-    AnimationFrameCallbackDriver()
-    {
-        m_timer = Core::Timer::create_single_shot(16, [] {
-            HTML::main_thread_event_loop().schedule();
-        });
-    }
-
     [[nodiscard]] WebIDL::UnsignedLong add(Callback handler)
     {
         auto id = ++m_animation_frame_callback_identifier;
         m_callbacks.set(id, move(handler));
-        if (!m_timer->is_active())
-            m_timer->start();
         return id;
     }
 
@@ -60,7 +51,6 @@ private:
     WebIDL::UnsignedLong m_animation_frame_callback_identifier { 0 };
 
     OrderedHashMap<WebIDL::UnsignedLong, Callback> m_callbacks;
-    RefPtr<Core::Timer> m_timer;
 };
 
 }

@@ -42,6 +42,7 @@ public:
     void spin_until(JS::SafeFunction<bool()> goal_condition);
     void spin_processing_tasks_with_source_until(Task::Source, JS::SafeFunction<bool()> goal_condition);
     void process();
+    void queue_task_to_update_the_rendering();
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t termination_nesting_level() const { return m_termination_nesting_level; }
@@ -114,7 +115,7 @@ private:
 
     bool m_skip_event_loop_processing_steps { false };
 
-    bool m_is_running_reflow_steps { false };
+    bool m_is_running_rendering_task { false };
 };
 
 EventLoop& main_thread_event_loop();

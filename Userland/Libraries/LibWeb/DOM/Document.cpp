@@ -4568,31 +4568,6 @@ void Document::remove_replaced_animations()
     }
 }
 
-void Document::ensure_animation_timer()
-{
-    constexpr static auto timer_delay_ms = 1000 / 60;
-    if (!m_animation_driver_timer) {
-        m_animation_driver_timer = Core::Timer::create_repeating(timer_delay_ms, [this] {
-            bool has_animations = false;
-            for (auto& timeline : m_associated_animation_timelines) {
-                if (!timeline->associated_animations().is_empty()) {
-                    has_animations = true;
-                    break;
-                }
-            }
-            if (!has_animations) {
-                m_animation_driver_timer->stop();
-                return;
-            }
-            auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&realm().global_object());
-            VERIFY(window_or_worker);
-            update_animations_and_send_events(window_or_worker->performance()->now());
-        });
-    }
-
-    m_animation_driver_timer->start();
-}
-
 Vector<JS::NonnullGCPtr<Animations::Animation>> Document::get_animations()
 {
     Vector<JS::NonnullGCPtr<Animations::Animation>> relevant_animations;

@@ -63,6 +63,9 @@ public:
         // https://html.spec.whatwg.org/multipage/server-sent-events.html#remote-event-task-source
         RemoteEvent,
 
+        // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-task-source
+        Rendering,
+
         // !!! IMPORTANT: Keep this field last!
         // This serves as the base value of all unique task sources.
         // Some elements, such as the HTMLMediaElement, must have a unique task source per instance.
