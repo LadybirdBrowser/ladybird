@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::FileAPI {
 
@@ -46,7 +47,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<File>> File::create(JS::Realm& realm, Vecto
     auto& vm = realm.vm();
 
     // 1. Let bytes be the result of processing blob parts given fileBits and options.
-    auto bytes = TRY_OR_THROW_OOM(realm.vm(), process_blob_parts(file_bits, options.has_value() ? static_cast<BlobPropertyBag const&>(*options) : Optional<BlobPropertyBag> {}));
+    auto bytes = TRY_OR_THROW_OOM(vm, process_blob_parts(file_bits, options.has_value() ? static_cast<BlobPropertyBag const&>(*options) : Optional<BlobPropertyBag> {}));
 
     // 2. Let n be the fileName argument to the constructor.
     //    NOTE: Underlying OS filesystems use differing conventions for file name; with constructed files, mandating UTF-16 lessens ambiquity when file names are converted to byte sequences.
@@ -56,17 +57,15 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<File>> File::create(JS::Realm& realm, Vecto
     i64 last_modified = 0;
     // 3. Process FilePropertyBag dictionary argument by running the following substeps:
     if (options.has_value()) {
-        // 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
+        // FIXME: 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
         //    If t contains any characters outside the range U+0020 to U+007E, then set t to the empty string and return from these substeps.
-        //    NOTE: t is set to empty string at declaration.
-        if (!options->type.is_empty()) {
-            if (is_basic_latin(options->type))
-                type = options->type;
-        }
+        // FIXME: 2. Convert every character in t to ASCII lowercase.
 
-        // 2. Convert every character in t to ASCII lowercase.
-        if (!type.is_empty())
-            type = TRY_OR_THROW_OOM(vm, Infra::to_ascii_lowercase(type));
+        // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
+        auto maybe_parsed_type = MUST(Web::MimeSniff::MimeType::parse(options->type));
+
+        if (maybe_parsed_type.has_value())
+            type = MUST(maybe_parsed_type->serialized());
 
         // 3. If the lastModified member is provided, let d be set to the lastModified dictionary member. If it is not provided, set d to the current date and time represented as the number of milliseconds since the Unix Epoch (which is the equivalent of Date.now() [ECMA-262]).
         //    Note: Since ECMA-262 Date objects convert to long long values representing the number of milliseconds since the Unix Epoch, the lastModified member could be a Date object [ECMA-262].
