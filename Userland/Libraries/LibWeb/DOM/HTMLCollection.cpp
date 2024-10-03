@@ -57,7 +57,7 @@ void HTMLCollection::update_name_to_element_mappings_if_needed() const
     update_cache_if_needed();
     if (m_cached_name_to_element_mappings)
         return;
-    m_cached_name_to_element_mappings = make<HashMap<FlyString, JS::NonnullGCPtr<Element>>>();
+    m_cached_name_to_element_mappings = make<OrderedHashMap<FlyString, JS::NonnullGCPtr<Element>>>();
     for (auto const& element : m_cached_elements) {
         // 1. If element has an ID which is not in result, append element’s ID to result.
         if (auto const& id = element->id(); id.has_value()) {
