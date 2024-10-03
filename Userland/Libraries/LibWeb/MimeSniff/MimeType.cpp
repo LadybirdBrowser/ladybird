@@ -11,6 +11,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf8View.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MimeSniff/MimeType.h>
@@ -33,9 +34,8 @@ static bool contains_only_http_quoted_string_token_code_points(StringView string
     // https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
     // An HTTP quoted-string token code point is U+0009 TAB, a code point in the range U+0020 SPACE to U+007E (~), inclusive,
     // or a code point in the range U+0080 through U+00FF (ÿ), inclusive.
-    for (char ch : string) {
-        // NOTE: This doesn't check for ch <= 0xFF, as ch is 8-bits and so that condition will always be true.
-        if (!(ch == '\t' || (ch >= 0x20 && ch <= 0x7E) || (u8)ch >= 0x80))
+    for (auto ch : Utf8View(string)) {
+        if (!(ch == '\t' || (ch >= 0x20 && ch <= 0x7E) || (ch >= 0x80 && ch <= 0xFF)))
             return false;
     }
     return true;
