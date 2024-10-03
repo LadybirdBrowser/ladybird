@@ -40,7 +40,7 @@ android {
                     "-DLagomTools_DIR=$buildDir/lagom-tools-install/share/LagomTools",
                     "-DANDROID_STL=c++_shared",
                     "-DSERENITY_CACHE_DIR=$cacheDir",
-                    "-DVCPKG_ROOT=$sourceDir/Toolchain/Tarballs/vcpkg",
+                    "-DVCPKG_ROOT=$sourceDir/Build/vcpkg",
                     "-DVCPKG_TARGET_ANDROID=ON"
                 )
             }

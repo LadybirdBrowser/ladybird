@@ -26,8 +26,6 @@ env:
   # github.workspace = /home/runner/work/ladybird/ladybird
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
-  VCPKG_ROOT:  ${{ github.workspace }}/Toolchain/Tarballs/vcpkg
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
   # Use the compiler version for the ccache compiler hash. Otherwise, if plugins are enabled, the plugin .so files
   # are included in the hash. This results in clean builds on every run as the .so files are rebuilt.

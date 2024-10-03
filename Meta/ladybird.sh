@@ -105,20 +105,20 @@ cmd_with_target() {
     # Note: Keep in sync with buildDir defaults in CMakePresets.json
     case "${BUILD_PRESET}" in
         "default")
-            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird"
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/release"
             ;;
         "Debug")
-            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird-debug"
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/debug"
             ;;
         "Sanitizer")
-            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird-sanitizers"
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/sanitizers"
             ;;
     esac
 
     CMAKE_ARGS+=("-DCMAKE_INSTALL_PREFIX=$LADYBIRD_SOURCE_DIR/Build/ladybird-install-${BUILD_PRESET}")
 
-    export PATH="$LADYBIRD_SOURCE_DIR/Toolchain/Local/cmake/bin:$LADYBIRD_SOURCE_DIR/Toolchain/Local/vcpkg/bin:$PATH"
-    export VCPKG_ROOT="$LADYBIRD_SOURCE_DIR/Toolchain/Tarballs/vcpkg"
+    export VCPKG_ROOT="${LADYBIRD_SOURCE_DIR}/Build/vcpkg"
+    export PATH="${LADYBIRD_SOURCE_DIR}/Toolchain/Local/cmake/bin:${VCPKG_ROOT}:${PATH}"
 }
 
 ensure_target() {

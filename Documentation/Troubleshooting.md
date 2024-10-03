@@ -42,6 +42,6 @@ When building with the Qt chrome on macOS, you may encounter the following messa
 
 …followed by 14-line stack trace, the top of which is this:
 
-> Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake:859 (_find_package)
+> Build/vcpkg/scripts/buildsystems/vcpkg.cmake:859 (_find_package)
 
 …and all of it shown in bright yellow, making you think it must be important and something must need to be fixed. But that’s not the case. Instead, despite that, you’ll be able to build successfully with the Qt chrome.

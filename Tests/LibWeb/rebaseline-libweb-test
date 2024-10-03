@@ -17,11 +17,11 @@ expected_dir=$(echo $input_dir | sed s/input/expected/)
 test_name=$(basename $t .html)
 
 if [[ "$BUILD_PRESET" == "Sanitizer" ]]; then
-    build_dir=$LADYBIRD_SOURCE_DIR/Build/ladybird-sanitizers
+    build_dir=$LADYBIRD_SOURCE_DIR/Build/sanitizers
 elif [[ "$BUILD_PRESET" == "Debug" ]]; then
-    build_dir=$LADYBIRD_SOURCE_DIR/Build/ladybird-debug
+    build_dir=$LADYBIRD_SOURCE_DIR/Build/debug
 else
-    build_dir=$LADYBIRD_SOURCE_DIR/Build/ladybird
+    build_dir=$LADYBIRD_SOURCE_DIR/Build/release
 fi
 
 cd "$build_dir" || { echo "Couldn’t cd to build directory" >&2 && exit 1; }

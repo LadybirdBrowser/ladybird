@@ -11,18 +11,18 @@
       "displayName": "Default Config",
       "description": "Default build using Ninja generator",
       "generator": "Ninja",
-      "binaryDir": "${fileDir}/Build/ladybird",
+      "binaryDir": "${fileDir}/Build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "SERENITY_CACHE_DIR": "${fileDir}/Build/caches",
-        "CMAKE_TOOLCHAIN_FILE": "${fileDir}/Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_TOOLCHAIN_FILE": "${fileDir}/Build/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALL_OPTIONS": "--no-print-usage",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/release-triplets"
       },
       "environment": {
         "LADYBIRD_SOURCE_DIR": "${fileDir}",
-        "VCPKG_ROOT": "${fileDir}/Toolchain/Tarballs/vcpkg",
-        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Toolchain/Build/vcpkg-binary-cache,readwrite"
+        "VCPKG_ROOT": "${fileDir}/Build/vcpkg",
+        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Build/caches/vcpkg-binary-cache,readwrite"
       },
       "vendor": {
         "jetbrains.com/clion": {
@@ -35,7 +35,7 @@
       "inherits": "default",
       "displayName": "Debug Config",
       "description": "Debug build using Ninja generator",
-      "binaryDir": "${fileDir}/Build/ladybird-debug",
+      "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
@@ -46,7 +46,7 @@
       "inherits": "Debug",
       "displayName": "Sanitizer Config",
       "description": "Debug build using Sanitizers",
-      "binaryDir": "${fileDir}/Build/ladybird-sanitizers",
+      "binaryDir": "${fileDir}/Build/sanitizers",
       "cacheVariables": {
         "ENABLE_UNDEFINED_SANITIZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON",
@@ -56,10 +56,7 @@
     {
       "hidden": true,
       "name": "vcpkg_ci",
-      "description": "Use the GitHub Actions vcpkg cache",
-      "environment": {
-        "VCPKG_BINARY_SOURCES": "clear;x-gha,readwrite"
-      }
+      "description": "Use the GitHub Actions vcpkg cache"
     },
     {
       "name": "CI",
@@ -79,7 +76,7 @@
       "inherits": ["vcpkg_ci", "default" ],
       "displayName": "Fuzzers Config",
       "description": "Fuzzers build with GitHub Actions cache",
-      "binaryDir": "${fileDir}/Build/ladybird-fuzzers",
+      "binaryDir": "${fileDir}/Build/fuzzers",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "",
         "ENABLE_QT": "OFF",
