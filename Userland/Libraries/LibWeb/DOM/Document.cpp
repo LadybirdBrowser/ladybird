@@ -5337,11 +5337,11 @@ void Document::set_needs_to_refresh_scroll_state(bool b)
 
 Vector<JS::Handle<DOM::Range>> Document::find_matching_text(String const& query, CaseSensitivity case_sensitivity)
 {
-    if (!layout_node())
-        return {};
-
     // Ensure the layout tree exists before searching for text matches.
     update_layout();
+
+    if (!layout_node())
+        return {};
 
     auto const& text_blocks = layout_node()->text_blocks();
     if (text_blocks.is_empty())
