@@ -97,8 +97,26 @@ FontFaceSet::add(JS::Handle<FontFace> face)
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-delete
 bool FontFaceSet::delete_(JS::Handle<FontFace> face)
 {
-    // FIXME: Do the actual spec steps
-    return m_set_entries->set_remove(face);
+    // 1. If font is CSS-connected, return false and exit this algorithm immediately.
+    if (face->is_css_connected()) {
+        return false;
+    }
+
+    // 2. Let deleted be the result of removing font from the FontFaceSet’s set entries.
+    bool deleted = m_set_entries->set_remove(face);
+
+    // 3. If font is present in the FontFaceSet’s [[LoadedFonts]], or [[FailedFonts]] lists, remove it.
+    m_loaded_fonts.remove_all_matching([face](auto const& entry) { return entry == face; });
+    m_failed_fonts.remove_all_matching([face](auto const& entry) { return entry == face; });
+
+    // 4. If font is present in the FontFaceSet’s [[LoadingFonts]] list, remove it. If font was the last item in that list (and so the list is now empty), switch the FontFaceSet to loaded.
+    m_loading_fonts.remove_all_matching([face](auto const& entry) { return entry == face; });
+
+    if (m_loading_fonts.is_empty()) {
+        m_status = Bindings::FontFaceSetLoadStatus::Loaded;
+    }
+
+    return deleted;
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-clear
