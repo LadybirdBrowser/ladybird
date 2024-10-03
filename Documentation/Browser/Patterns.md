@@ -157,7 +157,7 @@ Running `Tests/LibWeb/add_libweb_test.py your-new-test-name` will create a new t
 a corresponding expectations file in `Tests/LibWeb/Text/expected/your-new-test-name.txt`.
 
 After you update/replace the generated boilerplate in your `your-new-test-name.html` test file with your actual test,
-running `./Tests/LibWeb/rebaseline-libweb-test file:///opt/ladybird/Tests/LibWeb/Text/input/foobar.html` will
+running `headless-browser --run-tests "${LADYBIRD_SOURCE_DIR}/Tests/LibWeb" --rebaseline -f Text/input/foobar.html` will
 regenerate the corresponding expectations file — to match the actual output from your updated test (where
 `/opt/ladybird` should be replaced with the absolute path your ladybird clone in your local environment).
 
