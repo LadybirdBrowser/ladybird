@@ -844,8 +844,6 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return EventResult::Dropped;
 
     JS::NonnullGCPtr<DOM::Document> document = *m_navigable->active_document();
-    if (!document->layout_node())
-        return EventResult::Dropped;
 
     if (key == UIEvents::KeyCode::Key_Tab) {
         if (modifiers & UIEvents::KeyModifier::Mod_Shift)
