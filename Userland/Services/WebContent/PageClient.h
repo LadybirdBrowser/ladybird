@@ -34,7 +34,6 @@ public:
     };
     static void set_use_skia_painter(UseSkiaPainter);
 
-    virtual void schedule_repaint() override;
     virtual bool is_ready_to_paint() const override;
 
     virtual Web::Page& page() override { return *m_page; }
@@ -191,7 +190,6 @@ private:
     enum class PaintState {
         Ready,
         WaitingForClient,
-        PaintWhenReady,
     };
 
     PaintState m_paint_state { PaintState::Ready };
@@ -212,6 +210,8 @@ private:
     WeakPtr<WebContentConsoleClient> m_top_level_document_console_client;
 
     JS::Handle<JS::GlobalObject> m_console_global_object;
+
+    RefPtr<Core::Timer> m_paint_refresh_timer;
 };
 
 }

@@ -559,9 +559,6 @@ WebIDL::ExceptionOr<void> Animation::play()
 // https://www.w3.org/TR/web-animations-1/#play-an-animation
 WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
 {
-    if (auto document = document_for_timing())
-        document->ensure_animation_timer();
-
     // 1. Let aborted pause be a boolean flag that is true if animation has a pending pause task, and false otherwise.
     auto aborted_pause = m_pending_pause_task == TaskState::Scheduled;
 

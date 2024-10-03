@@ -79,7 +79,6 @@ public:
     virtual void paint_next_frame() override { }
     virtual void process_screenshot_requests() override { }
     virtual void paint(DevicePixelRect const&, Painting::BackingStore&, Web::PaintOptions = {}) override { }
-    virtual void schedule_repaint() override { }
     virtual bool is_ready_to_paint() const override { return true; }
 
     virtual DisplayListPlayerType display_list_player_type() const override { return m_host_page->client().display_list_player_type(); }
