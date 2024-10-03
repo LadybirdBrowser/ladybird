@@ -1330,9 +1330,13 @@ JS::NonnullGCPtr<WebIDL::Promise> Animation::current_finished_promise() const
 
 void Animation::invalidate_effect()
 {
-    if (m_effect) {
-        if (auto target = m_effect->target(); target && target->paintable()) {
-            target->document().set_needs_animated_style_update();
+    if (!m_effect) {
+        return;
+    }
+
+    if (auto* target = m_effect->target(); target) {
+        target->document().set_needs_animated_style_update();
+        if (target->paintable()) {
             target->paintable()->set_needs_display();
         }
     }
