@@ -42,9 +42,9 @@ PerformTheFetchHook create_perform_the_fetch_hook(JS::Heap& heap, Function<WebID
     return JS::create_heap_function(heap, move(function));
 }
 
-ScriptFetchOptions default_classic_script_fetch_options()
+ScriptFetchOptions default_script_fetch_options()
 {
-    // The default classic script fetch options are a script fetch options whose cryptographic nonce is the empty string,
+    // The default script fetch options are a script fetch options whose cryptographic nonce is the empty string,
     // integrity metadata is the empty string, parser metadata is "not-parser-inserted", credentials mode is "same-origin",
     // referrer policy is the empty string, and fetch priority is "auto".
     return ScriptFetchOptions {

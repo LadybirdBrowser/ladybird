@@ -51,8 +51,8 @@ struct ScriptFetchOptions {
     Fetch::Infrastructure::Request::Priority fetch_priority {};
 };
 
-// https://html.spec.whatwg.org/multipage/webappapis.html#default-classic-script-fetch-options
-ScriptFetchOptions default_classic_script_fetch_options();
+// https://html.spec.whatwg.org/multipage/webappapis.html#default-script-fetch-options
+ScriptFetchOptions default_script_fetch_options();
 
 class FetchContext : public JS::GraphLoadingState::HostDefined {
     JS_CELL(FetchContext, JS::GraphLoadingState::HostDefined);

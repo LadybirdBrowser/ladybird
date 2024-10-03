@@ -422,8 +422,8 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         // 3. Let referencingScript be null.
         Optional<HTML::Script&> referencing_script;
 
-        // 4. Let originalFetchOptions be the default classic script fetch options.
-        auto original_fetch_options = HTML::default_classic_script_fetch_options();
+        // 4. Let originalFetchOptions be the default script fetch options.
+        auto original_fetch_options = HTML::default_script_fetch_options();
 
         // 5. Let fetchReferrer be "client".
         Fetch::Infrastructure::Request::ReferrerType fetch_referrer = Fetch::Infrastructure::Request::Referrer::Client;
