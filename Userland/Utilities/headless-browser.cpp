@@ -26,6 +26,7 @@
 #include <LibCore/File.h>
 #include <LibCore/Promise.h>
 #include <LibCore/ResourceImplementationFile.h>
+#include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibDiff/Format.h>
 #include <LibDiff/Generator.h>
@@ -78,10 +79,24 @@ static constexpr StringView test_result_to_string(TestResult result)
 
 struct Test {
     TestMode mode;
-    ByteString input_path;
-    ByteString expectation_path;
-    Optional<TestResult> result;
+
+    ByteString input_path {};
+    ByteString expectation_path {};
+
+    String text {};
+    bool did_finish_test { false };
+    bool did_finish_loading { false };
+
+    RefPtr<Gfx::Bitmap> actual_screenshot {};
+    RefPtr<Gfx::Bitmap> expectation_screenshot {};
 };
+
+struct TestCompletion {
+    Test& test;
+    TestResult result;
+};
+
+using TestPromise = Core::Promise<TestCompletion>;
 
 class HeadlessWebContentView;
 
@@ -99,6 +114,7 @@ public:
         args_parser.add_option(screenshot_timeout, "Take a screenshot after [n] seconds (default: 1)", "screenshot", 's', "n");
         args_parser.add_option(dump_layout_tree, "Dump layout tree and exit", "dump-layout-tree", 'd');
         args_parser.add_option(dump_text, "Dump text and exit", "dump-text", 'T');
+        args_parser.add_option(test_concurrency, "Maximum number of tests to run at once", "test-concurrency", 'j', "jobs");
         args_parser.add_option(test_root_path, "Run tests in path", "run-tests", 'R', "test-root-path");
         args_parser.add_option(test_glob, "Only run tests matching the given glob", "filter", 'f', "glob");
         args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
@@ -121,6 +137,11 @@ public:
             chrome_options.allow_popups = WebView::AllowPopups::Yes;
         }
 
+        if (dump_gc_graph) {
+            // Force all tests to run in serial if we are interested in the GC graph.
+            test_concurrency = 1;
+        }
+
         web_content_options.is_layout_test_mode = is_layout_test_mode ? WebView::IsLayoutTestMode::Yes : WebView::IsLayoutTestMode::No;
     }
 
@@ -139,6 +160,14 @@ public:
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
     ErrorOr<HeadlessWebContentView*> create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size);
+    void destroy_web_views();
+
+    template<typename Callback>
+    void for_each_web_view(Callback&& callback)
+    {
+        for (auto& web_view : m_web_views)
+            callback(*web_view);
+    }
 
     int screenshot_timeout { 1 };
     ByteString resources_folder { s_ladybird_resource_root };
@@ -147,6 +176,7 @@ public:
     bool dump_text { false };
     bool dump_gc_graph { false };
     bool is_layout_test_mode { false };
+    size_t test_concurrency { Core::System::hardware_concurrency() };
     ByteString test_root_path;
     ByteString test_glob;
     bool test_dry_run { false };
@@ -156,7 +186,7 @@ private:
     RefPtr<Requests::RequestClient> m_request_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
 
-    OwnPtr<HeadlessWebContentView> m_web_view;
+    Vector<NonnullOwnPtr<HeadlessWebContentView>> m_web_views;
 };
 
 Application::Application(Badge<WebView::Application>, Main::Arguments&)
@@ -209,9 +239,17 @@ public:
         client().async_set_content_filters(0, {});
     }
 
+    TestPromise& test_promise() { return *m_test_promise; }
+
+    void on_test_complete(TestCompletion completion)
+    {
+        m_test_promise->resolve(move(completion));
+    }
+
 private:
     HeadlessWebContentView(Gfx::IntSize viewport_size)
         : m_viewport_size(viewport_size)
+        , m_test_promise(TestPromise::construct())
     {
         on_request_worker_agent = []() {
             auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), Application::request_client()));
@@ -236,12 +274,21 @@ private:
 
     Gfx::IntSize m_viewport_size;
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap>>> m_pending_screenshot;
+
+    NonnullRefPtr<TestPromise> m_test_promise;
 };
 
 ErrorOr<HeadlessWebContentView*> Application::create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size)
 {
-    m_web_view = TRY(HeadlessWebContentView::create(move(theme), window_size));
-    return m_web_view.ptr();
+    auto web_view = TRY(HeadlessWebContentView::create(move(theme), window_size));
+    m_web_views.append(move(web_view));
+
+    return m_web_views.last().ptr();
+}
+
+void Application::destroy_web_views()
+{
+    m_web_views.clear();
 }
 
 static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebContentView& view, URL::URL const& url, int screenshot_timeout)
@@ -277,49 +324,40 @@ static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Cor
     return timer;
 }
 
-static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL const& url, StringView expectation_path, TestMode mode, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
+static void run_dump_test(HeadlessWebContentView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
 {
-    Core::EventLoop loop;
-    bool did_timeout = false;
+    auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
+        view.on_load_finish = {};
+        view.on_text_test_finish = {};
 
-    auto timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&] {
-        did_timeout = true;
-        loop.quit(0);
+        view.on_test_complete({ test, TestResult::Timeout });
     });
 
-    String result;
-    auto did_finish_test = false;
-    auto did_finish_loading = false;
-
-    auto handle_completed_test = [&]() -> ErrorOr<TestResult> {
-        if (did_timeout)
-            return TestResult::Timeout;
-
-        if (expectation_path.is_empty()) {
-            out("{}", result);
-            return TestResult::Skipped;
+    auto handle_completed_test = [&test, url]() -> ErrorOr<TestResult> {
+        if (test.expectation_path.is_empty()) {
+            outln("{}", test.text);
+            return TestResult::Pass;
         }
 
-        auto expectation_file_or_error = Core::File::open(expectation_path, Application::the().rebaseline ? Core::File::OpenMode::Write : Core::File::OpenMode::Read);
+        auto expectation_file_or_error = Core::File::open(test.expectation_path, Application::the().rebaseline ? Core::File::OpenMode::Write : Core::File::OpenMode::Read);
         if (expectation_file_or_error.is_error()) {
-            warnln("Failed opening '{}': {}", expectation_path, expectation_file_or_error.error());
+            warnln("Failed opening '{}': {}", test.expectation_path, expectation_file_or_error.error());
             return expectation_file_or_error.release_error();
         }
 
         auto expectation_file = expectation_file_or_error.release_value();
 
         if (Application::the().rebaseline) {
-            TRY(expectation_file->write_until_depleted(result));
+            TRY(expectation_file->write_until_depleted(test.text));
             return TestResult::Pass;
         }
 
-        auto expectation = TRY(String::from_utf8(StringView(TRY(expectation_file->read_until_eof()).bytes())));
+        auto expectation = TRY(expectation_file->read_until_eof());
 
-        auto actual = result;
-        auto actual_trimmed = TRY(actual.trim("\n"sv, TrimMode::Right));
-        auto expectation_trimmed = TRY(expectation.trim("\n"sv, TrimMode::Right));
+        auto result_trimmed = StringView { test.text }.trim("\n"sv, TrimMode::Right);
+        auto expectation_trimmed = StringView { expectation }.trim("\n"sv, TrimMode::Right);
 
-        if (actual_trimmed == expectation_trimmed)
+        if (result_trimmed == expectation_trimmed)
             return TestResult::Pass;
 
         auto const color_output = isatty(STDOUT_FILENO) ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
@@ -329,81 +367,89 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
         else
             outln("\nTest failed: {}", url);
 
-        auto hunks = TRY(Diff::from_text(expectation, actual, 3));
+        auto hunks = TRY(Diff::from_text(expectation, test.text, 3));
         auto out = TRY(Core::File::standard_output());
 
-        TRY(Diff::write_unified_header(expectation_path, expectation_path, *out));
+        TRY(Diff::write_unified_header(test.expectation_path, test.expectation_path, *out));
         for (auto const& hunk : hunks)
             TRY(Diff::write_unified(hunk, *out, color_output));
 
         return TestResult::Fail;
     };
 
-    if (mode == TestMode::Layout) {
-        view.on_load_finish = [&](auto const& loaded_url) {
-            // This callback will be called for 'about:blank' first, then for the URL we actually want to dump
-            VERIFY(url.equals(loaded_url, URL::ExcludeFragment::Yes) || loaded_url.equals(URL::URL("about:blank")));
+    auto on_test_complete = [&view, &test, timer, handle_completed_test]() {
+        timer->stop();
 
-            if (url.equals(loaded_url, URL::ExcludeFragment::Yes)) {
-                // NOTE: We take a screenshot here to force the lazy layout of SVG-as-image documents to happen.
-                //       It also causes a lot more code to run, which is good for finding bugs. :^)
-                view.take_screenshot()->when_resolved([&](auto) {
-                    auto promise = view.request_internal_page_info(WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree);
-                    result = MUST(promise->await());
+        view.on_load_finish = {};
+        view.on_text_test_finish = {};
 
-                    loop.quit(0);
+        if (auto result = handle_completed_test(); result.is_error())
+            view.on_test_complete({ test, TestResult::Fail });
+        else
+            view.on_test_complete({ test, result.value() });
+    };
+
+    if (test.mode == TestMode::Layout) {
+        view.on_load_finish = [&view, &test, url, on_test_complete = move(on_test_complete)](auto const& loaded_url) {
+            // We don't want subframe loads to trigger the test finish.
+            if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
+                return;
+
+            // NOTE: We take a screenshot here to force the lazy layout of SVG-as-image documents to happen.
+            //       It also causes a lot more code to run, which is good for finding bugs. :^)
+            view.take_screenshot()->when_resolved([&view, &test, on_test_complete = move(on_test_complete)](auto) {
+                auto promise = view.request_internal_page_info(WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree);
+
+                promise->when_resolved([&test, on_test_complete = move(on_test_complete)](auto const& text) {
+                    test.text = text;
+                    on_test_complete();
                 });
+            });
+        };
+    } else if (test.mode == TestMode::Text) {
+        view.on_load_finish = [&view, &test, on_test_complete, url](auto const& loaded_url) {
+            // We don't want subframe loads to trigger the test finish.
+            if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
+                return;
+
+            test.did_finish_loading = true;
+
+            if (test.expectation_path.is_empty()) {
+                auto promise = view.request_internal_page_info(WebView::PageInfoType::Text);
+
+                promise->when_resolved([&test, on_test_complete = move(on_test_complete)](auto const& text) {
+                    test.text = text;
+                    on_test_complete();
+                });
+            } else if (test.did_finish_test) {
+                on_test_complete();
             }
         };
 
-        view.on_text_test_finish = {};
-    } else if (mode == TestMode::Text) {
-        view.on_load_finish = [&](auto const& loaded_url) {
-            // NOTE: We don't want subframe loads to trigger the test finish.
-            if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
-                return;
-            did_finish_loading = true;
-            if (did_finish_test)
-                loop.quit(0);
-        };
+        view.on_text_test_finish = [&test, on_test_complete](auto const& text) {
+            test.text = text;
+            test.did_finish_test = true;
 
-        view.on_text_test_finish = [&](auto const& text) {
-            result = text;
-
-            did_finish_test = true;
-            if (did_finish_loading)
-                loop.quit(0);
+            if (test.did_finish_loading)
+                on_test_complete();
         };
     }
 
     view.load(url);
-
-    timeout_timer->start();
-    loop.exec();
-
-    return handle_completed_test();
+    timer->start();
 }
 
-static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL const& url, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
+static void run_ref_test(HeadlessWebContentView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
 {
-    Core::EventLoop loop;
-    bool did_timeout = false;
+    auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
+        view.on_load_finish = {};
+        view.on_text_test_finish = {};
 
-    auto timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&] {
-        did_timeout = true;
-        loop.quit(0);
+        view.on_test_complete({ test, TestResult::Timeout });
     });
 
-    RefPtr<Gfx::Bitmap> actual_screenshot, expectation_screenshot;
-
-    auto handle_completed_test = [&]() -> ErrorOr<TestResult> {
-        if (did_timeout)
-            return TestResult::Timeout;
-
-        VERIFY(actual_screenshot);
-        VERIFY(expectation_screenshot);
-
-        if (actual_screenshot->visually_equals(*expectation_screenshot))
+    auto handle_completed_test = [&test, url]() -> ErrorOr<TestResult> {
+        if (test.actual_screenshot->visually_equals(*test.expectation_screenshot))
             return TestResult::Pass;
 
         if (Application::the().dump_failed_ref_tests) {
@@ -420,46 +466,63 @@ static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL c
             auto mkdir_result = Core::System::mkdir("test-dumps"sv, 0755);
             if (mkdir_result.is_error() && mkdir_result.error().code() != EEXIST)
                 return mkdir_result.release_error();
-            TRY(dump_screenshot(*actual_screenshot, ByteString::formatted("test-dumps/{}.png", title)));
-            TRY(dump_screenshot(*expectation_screenshot, ByteString::formatted("test-dumps/{}-ref.png", title)));
+
+            TRY(dump_screenshot(*test.actual_screenshot, ByteString::formatted("test-dumps/{}.png", title)));
+            TRY(dump_screenshot(*test.expectation_screenshot, ByteString::formatted("test-dumps/{}-ref.png", title)));
         }
 
         return TestResult::Fail;
     };
 
-    view.on_load_finish = [&](auto const&) {
-        if (actual_screenshot) {
-            view.take_screenshot()->when_resolved([&](auto screenshot) {
-                expectation_screenshot = move(screenshot);
-                loop.quit(0);
+    auto on_test_complete = [&view, &test, timer, handle_completed_test]() {
+        timer->stop();
+
+        view.on_load_finish = {};
+        view.on_text_test_finish = {};
+
+        if (auto result = handle_completed_test(); result.is_error())
+            view.on_test_complete({ test, TestResult::Fail });
+        else
+            view.on_test_complete({ test, result.value() });
+    };
+
+    view.on_load_finish = [&view, &test, on_test_complete = move(on_test_complete)](auto const&) {
+        if (test.actual_screenshot) {
+            view.take_screenshot()->when_resolved([&test, on_test_complete = move(on_test_complete)](RefPtr<Gfx::Bitmap> screenshot) {
+                test.expectation_screenshot = move(screenshot);
+                on_test_complete();
             });
         } else {
-            view.take_screenshot()->when_resolved([&](auto screenshot) {
-                actual_screenshot = move(screenshot);
+            view.take_screenshot()->when_resolved([&view, &test](RefPtr<Gfx::Bitmap> screenshot) {
+                test.actual_screenshot = move(screenshot);
                 view.debug_request("load-reference-page");
             });
         }
     };
+
     view.on_text_test_finish = [&](auto const&) {
         dbgln("Unexpected text test finished during ref test for {}", url);
     };
 
     view.load(url);
-
-    timeout_timer->start();
-    loop.exec();
-
-    return handle_completed_test();
+    timer->start();
 }
 
-static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView input_path, StringView expectation_path, TestMode mode)
+static void run_test(HeadlessWebContentView& view, Test& test)
 {
     // Clear the current document.
     // FIXME: Implement a debug-request to do this more thoroughly.
     auto promise = Core::Promise<Empty>::construct();
-    view.on_load_finish = [&](auto) {
-        promise->resolve({});
+
+    view.on_load_finish = [promise](auto const& url) {
+        if (!url.equals("about:blank"sv))
+            return;
+
+        Core::deferred_invoke([promise]() {
+            promise->resolve({});
+        });
     };
+
     view.on_text_test_finish = {};
 
     view.on_request_file_picker = [&](auto const& accepted_file_types, auto allow_multiple_files) {
@@ -503,20 +566,23 @@ static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView inp
         view.file_picker_closed(move(selected_files));
     };
 
-    view.load(URL::URL("about:blank"sv));
-    MUST(promise->await());
+    promise->when_resolved([&view, &test](auto) {
+        auto url = URL::create_with_file_scheme(MUST(FileSystem::real_path(test.input_path)));
 
-    auto url = URL::create_with_file_scheme(TRY(FileSystem::real_path(input_path)));
+        switch (test.mode) {
+        case TestMode::Text:
+        case TestMode::Layout:
+            run_dump_test(view, test, url);
+            return;
+        case TestMode::Ref:
+            run_ref_test(view, test, url);
+            return;
+        }
 
-    switch (mode) {
-    case TestMode::Text:
-    case TestMode::Layout:
-        return run_dump_test(view, url, expectation_path, mode);
-    case TestMode::Ref:
-        return run_ref_test(view, url);
-    default:
         VERIFY_NOT_REACHED();
-    }
+    });
+
+    view.load("about:blank"sv);
 }
 
 static Vector<ByteString> s_skipped_tests;
@@ -607,8 +673,19 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize w
         return 0;
     }
 
-    auto& view = *TRY(app.create_web_view(theme, window_size));
-    view.clear_content_filters();
+    auto concurrency = min(app.test_concurrency, tests.size());
+    size_t loaded_web_views = 0;
+
+    for (size_t i = 0; i < concurrency; ++i) {
+        auto& view = *TRY(app.create_web_view(theme, window_size));
+        view.on_load_finish = [&](auto const&) { ++loaded_web_views; };
+    }
+
+    // We need to wait for the initial about:blank load to complete before starting the tests, otherwise we may load the
+    // test URL before the about:blank load completes. WebContent currently cannot handle this, and will drop the test URL.
+    Core::EventLoop::current().spin_until([&]() {
+        return loaded_web_views == concurrency;
+    });
 
     size_t pass_count = 0;
     size_t fail_count = 0;
@@ -618,43 +695,72 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize w
     bool is_tty = isatty(STDOUT_FILENO);
     outln("Running {} tests...", tests.size());
 
-    for (size_t i = 0; i < tests.size(); ++i) {
-        auto& test = tests[i];
+    auto all_tests_complete = Core::Promise<Empty>::construct();
+    auto tests_remaining = tests.size();
+    auto current_test = 0uz;
 
-        if (is_tty) {
-            // Keep clearing and reusing the same line if stdout is a TTY.
-            out("\33[2K\r");
-        }
+    Vector<TestCompletion> non_passing_tests;
 
-        out("{}/{}: {}", i + 1, tests.size(), LexicalPath::relative_path(test.input_path, app.test_root_path));
+    app.for_each_web_view([&](auto& view) {
+        view.clear_content_filters();
 
-        if (is_tty)
-            fflush(stdout);
-        else
-            outln("");
+        auto run_next_test = [&]() {
+            auto index = current_test++;
+            if (index >= tests.size())
+                return;
+            auto& test = tests[index];
 
-        if (s_skipped_tests.contains_slow(test.input_path)) {
-            test.result = TestResult::Skipped;
-            ++skipped_count;
-            continue;
-        }
+            if (is_tty) {
+                // Keep clearing and reusing the same line if stdout is a TTY.
+                out("\33[2K\r");
+            }
 
-        test.result = TRY(run_test(view, test.input_path, test.expectation_path, test.mode));
-        switch (*test.result) {
-        case TestResult::Pass:
-            ++pass_count;
-            break;
-        case TestResult::Fail:
-            ++fail_count;
-            break;
-        case TestResult::Timeout:
-            ++timeout_count;
-            break;
-        case TestResult::Skipped:
-            VERIFY_NOT_REACHED();
-            break;
-        }
-    }
+            out("{}/{}: {}", index + 1, tests.size(), LexicalPath::relative_path(test.input_path, app.test_root_path));
+
+            if (is_tty)
+                fflush(stdout);
+            else
+                outln("");
+
+            Core::deferred_invoke([&]() mutable {
+                if (s_skipped_tests.contains_slow(test.input_path))
+                    view.on_test_complete({ test, TestResult::Skipped });
+                else
+                    run_test(view, test);
+            });
+        };
+
+        view.test_promise().when_resolved([&, run_next_test](auto result) {
+            switch (result.result) {
+            case TestResult::Pass:
+                ++pass_count;
+                break;
+            case TestResult::Fail:
+                ++fail_count;
+                break;
+            case TestResult::Timeout:
+                ++timeout_count;
+                break;
+            case TestResult::Skipped:
+                ++skipped_count;
+                break;
+            }
+
+            if (result.result != TestResult::Pass)
+                non_passing_tests.append(move(result));
+
+            if (--tests_remaining == 0)
+                all_tests_complete->resolve({});
+            else
+                run_next_test();
+        });
+
+        Core::deferred_invoke([run_next_test]() {
+            run_next_test();
+        });
+    });
+
+    MUST(all_tests_complete->await());
 
     if (is_tty)
         outln("\33[2K\rDone!");
@@ -662,20 +768,20 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize w
     outln("==================================================");
     outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}", pass_count, fail_count, skipped_count, timeout_count);
     outln("==================================================");
-    for (auto& test : tests) {
-        if (*test.result == TestResult::Pass)
-            continue;
-        outln("{}: {}", test_result_to_string(*test.result), test.input_path);
-    }
+
+    for (auto const& non_passing_test : non_passing_tests)
+        outln("{}: {}", test_result_to_string(non_passing_test.result), non_passing_test.test.input_path);
 
     if (app.dump_gc_graph) {
-        auto path = view.dump_gc_graph();
-        if (path.is_error()) {
-            warnln("Failed to dump GC graph: {}", path.error());
-        } else {
-            outln("GC graph dumped to {}", path.value());
-        }
+        app.for_each_web_view([&](auto& view) {
+            if (auto path = view.dump_gc_graph(); path.is_error())
+                warnln("Failed to dump GC graph: {}", path.error());
+            else
+                outln("GC graph dumped to {}", path.value());
+        });
     }
+
+    app.destroy_web_views();
 
     if (timeout_count == 0 && fail_count == 0)
         return 0;
@@ -711,14 +817,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         return Error::from_string_literal("Invalid URL");
     }
 
-    if (app->dump_layout_tree) {
-        TRY(run_dump_test(view, url, ""sv, TestMode::Layout));
-        return 0;
-    }
+    if (app->dump_layout_tree || app->dump_text) {
+        Test test { app->dump_layout_tree ? TestMode::Layout : TestMode::Text };
+        run_dump_test(view, test, url);
 
-    if (app->dump_text) {
-        TRY(run_dump_test(view, url, ""sv, TestMode::Text));
-        return 0;
+        auto completion = MUST(view.test_promise().await());
+        return completion.result == TestResult::Pass ? 0 : 1;
     }
 
     if (!WebView::Application::chrome_options().webdriver_content_ipc_path.has_value()) {
