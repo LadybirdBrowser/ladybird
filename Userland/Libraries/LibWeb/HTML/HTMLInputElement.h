@@ -204,9 +204,12 @@ public:
     bool step_up_or_down_applies() const;
     bool select_applies() const;
     bool selection_or_range_applies() const;
+    bool selection_direction_applies() const;
     bool has_selectable_text() const;
 
     static bool selection_or_range_applies_for_type_state(TypeAttributeState);
+
+    Optional<String> selection_direction_binding() { return selection_direction(); }
 
 protected:
     void selection_was_changed(size_t selection_start, size_t selection_end) override;

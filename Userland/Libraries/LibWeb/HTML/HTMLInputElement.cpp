@@ -2359,6 +2359,21 @@ bool HTMLInputElement::selection_or_range_applies() const
     return selection_or_range_applies_for_type_state(type_state());
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#do-not-apply
+bool HTMLInputElement::selection_direction_applies() const
+{
+    switch (type_state()) {
+    case TypeAttributeState::Text:
+    case TypeAttributeState::Search:
+    case TypeAttributeState::Telephone:
+    case TypeAttributeState::URL:
+    case TypeAttributeState::Password:
+        return true;
+    default:
+        return false;
+    }
+}
+
 bool HTMLInputElement::has_selectable_text() const
 {
     // Potential FIXME: Date, Month, Week, Time and LocalDateAndTime are rendered as a basic text input for now,

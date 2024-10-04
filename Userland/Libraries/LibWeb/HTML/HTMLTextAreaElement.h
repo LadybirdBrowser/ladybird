@@ -118,7 +118,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
     String selection_direction_binding() const;
-    void set_selection_direction_binding(String direction);
+    void set_selection_direction_binding(String const& direction);
 
     void set_dirty_value_flag(Badge<FormAssociatedElement>, bool flag) { m_dirty_value = flag; }
 

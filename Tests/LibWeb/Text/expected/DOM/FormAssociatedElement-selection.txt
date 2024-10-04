@@ -15,4 +15,5 @@ select event fired: 6 6
 text-input selectionStart: 6 selectionEnd: 6 selectionDirection: forward
 select event fired: 6 6
 text-input selectionStart: 6 selectionEnd: 6 selectionDirection: backward
+select event fired: 6 6
 textarea selectionStart: 0 selectionEnd: 9 selectionDirection: none
