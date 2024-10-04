@@ -6,20 +6,32 @@
 
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/ImageBitmap.h>
+#include <LibWeb/SVG/SVGImageElement.h>
 
 namespace Web::HTML {
 
 static void default_source_size(CanvasImageSource const& image, float& source_width, float& source_height)
 {
-    image.visit([&source_width, &source_height](auto const& source) {
-        if (source->bitmap()) {
-            source_width = source->bitmap()->width();
-            source_height = source->bitmap()->height();
-        } else {
-            source_width = source->width();
-            source_height = source->height();
-        }
-    });
+    image.visit(
+        [&source_width, &source_height](JS::Handle<SVG::SVGImageElement> const& source) {
+            if (source->bitmap()) {
+                source_width = source->bitmap()->width();
+                source_height = source->bitmap()->height();
+            } else {
+                // FIXME: This is very janky and not correct.
+                source_width = source->width()->anim_val()->value();
+                source_height = source->height()->anim_val()->value();
+            }
+        },
+        [&source_width, &source_height](auto const& source) {
+            if (source->bitmap()) {
+                source_width = source->bitmap()->width();
+                source_height = source->bitmap()->height();
+            } else {
+                source_width = source->width();
+                source_height = source->height();
+            }
+        });
 }
 
 WebIDL::ExceptionOr<void> CanvasDrawImage::draw_image(Web::HTML::CanvasImageSource const& image, float destination_x, float destination_y)

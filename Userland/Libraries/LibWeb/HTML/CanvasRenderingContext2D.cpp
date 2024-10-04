@@ -24,6 +24,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
@@ -572,6 +573,19 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
                 return { CanvasImageSourceUsability::Bad };
             return Optional<CanvasImageSourceUsability> {};
         },
+        // FIXME: Don't duplicate this for HTMLImageElement and SVGImageElement.
+        [](JS::Handle<SVG::SVGImageElement> const& image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
+
+            // If image is not fully decodable, then return bad.
+            if (!image_element->bitmap())
+                return { CanvasImageSourceUsability::Bad };
+
+            // If image has an intrinsic width or intrinsic height (or both) equal to zero, then return bad.
+            if (image_element->bitmap()->width() == 0 || image_element->bitmap()->height() == 0)
+                return { CanvasImageSourceUsability::Bad };
+            return Optional<CanvasImageSourceUsability> {};
+        },
 
         // FIXME: HTMLVideoElement
         // If image's readyState attribute is either HAVE_NOTHING or HAVE_METADATA, then return bad.
@@ -606,6 +620,10 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
     return image.visit(
         // HTMLOrSVGImageElement
         [](JS::Handle<HTMLImageElement> const&) {
+            // FIXME: image's current request's image data is CORS-cross-origin.
+            return false;
+        },
+        [](JS::Handle<SVG::SVGImageElement> const&) {
             // FIXME: image's current request's image data is CORS-cross-origin.
             return false;
         },

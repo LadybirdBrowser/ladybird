@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/CanvasPattern.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/ImageBitmap.h>
+#include <LibWeb/SVG/SVGImageElement.h>
 
 namespace Web::HTML {
 
