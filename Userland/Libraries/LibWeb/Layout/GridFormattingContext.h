@@ -49,8 +49,8 @@ struct GridItem {
         return box_state.margin_box_top() + content_size + box_state.margin_box_bottom();
     }
 
-    [[nodiscard]] int gap_adjusted_row(Box const& grid_box) const;
-    [[nodiscard]] int gap_adjusted_column(Box const& grid_box) const;
+    [[nodiscard]] int gap_adjusted_row() const;
+    [[nodiscard]] int gap_adjusted_column() const;
 };
 
 enum class FoundUnoccupiedPlace {
@@ -65,7 +65,7 @@ public:
         m_max_column_index = max(0, columns_count - 1);
         m_max_row_index = max(0, rows_count - 1);
     }
-    OccupationGrid() {};
+    OccupationGrid() { }
 
     void set_occupied(int column_start, int column_end, int row_start, int row_end);
 
@@ -243,6 +243,8 @@ private:
 
     void resolve_grid_item_widths();
     void resolve_grid_item_heights();
+
+    void resolve_track_spacing(GridDimension const dimension);
 
     AvailableSize get_free_space(AvailableSpace const&, GridDimension const) const;
 
