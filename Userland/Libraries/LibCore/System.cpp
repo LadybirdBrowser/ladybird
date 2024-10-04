@@ -528,9 +528,9 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
         return Error::from_errno(saved_errno);
     }
 #elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_EMSCRIPTEN) || defined(AK_OS_HAIKU)
-    struct timespec time;
-    clock_gettime(CLOCK_REALTIME, &time);
-    auto name = ByteString::formatted("/shm-{}{}", (unsigned long)time.tv_sec, (unsigned long)time.tv_nsec);
+    static size_t shared_memory_id = 0;
+
+    auto name = ByteString::formatted("/shm-{}-{}", getpid(), shared_memory_id++);
     fd = shm_open(name.characters(), O_RDWR | O_CREAT | options, 0600);
 
     if (shm_unlink(name.characters()) == -1) {
