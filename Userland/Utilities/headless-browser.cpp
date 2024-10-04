@@ -291,6 +291,54 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
     auto did_finish_test = false;
     auto did_finish_loading = false;
 
+    auto handle_completed_test = [&]() -> ErrorOr<TestResult> {
+        if (did_timeout)
+            return TestResult::Timeout;
+
+        if (expectation_path.is_empty()) {
+            out("{}", result);
+            return TestResult::Skipped;
+        }
+
+        auto expectation_file_or_error = Core::File::open(expectation_path, Application::the().rebaseline ? Core::File::OpenMode::Write : Core::File::OpenMode::Read);
+        if (expectation_file_or_error.is_error()) {
+            warnln("Failed opening '{}': {}", expectation_path, expectation_file_or_error.error());
+            return expectation_file_or_error.release_error();
+        }
+
+        auto expectation_file = expectation_file_or_error.release_value();
+
+        if (Application::the().rebaseline) {
+            TRY(expectation_file->write_until_depleted(result));
+            return TestResult::Pass;
+        }
+
+        auto expectation = TRY(String::from_utf8(StringView(TRY(expectation_file->read_until_eof()).bytes())));
+
+        auto actual = result;
+        auto actual_trimmed = TRY(actual.trim("\n"sv, TrimMode::Right));
+        auto expectation_trimmed = TRY(expectation.trim("\n"sv, TrimMode::Right));
+
+        if (actual_trimmed == expectation_trimmed)
+            return TestResult::Pass;
+
+        auto const color_output = isatty(STDOUT_FILENO) ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
+
+        if (color_output == Diff::ColorOutput::Yes)
+            outln("\n\033[33;1mTest failed\033[0m: {}", url);
+        else
+            outln("\nTest failed: {}", url);
+
+        auto hunks = TRY(Diff::from_text(expectation, actual, 3));
+        auto out = TRY(Core::File::standard_output());
+
+        TRY(Diff::write_unified_header(expectation_path, expectation_path, *out));
+        for (auto const& hunk : hunks)
+            TRY(Diff::write_unified(hunk, *out, color_output));
+
+        return TestResult::Fail;
+    };
+
     if (mode == TestMode::Layout) {
         view.on_load_finish = [&](auto const& loaded_url) {
             // This callback will be called for 'about:blank' first, then for the URL we actually want to dump
@@ -333,51 +381,7 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
     timeout_timer->start();
     loop.exec();
 
-    if (did_timeout)
-        return TestResult::Timeout;
-
-    if (expectation_path.is_empty()) {
-        out("{}", result);
-        return TestResult::Skipped;
-    }
-
-    auto expectation_file_or_error = Core::File::open(expectation_path, Application::the().rebaseline ? Core::File::OpenMode::Write : Core::File::OpenMode::Read);
-    if (expectation_file_or_error.is_error()) {
-        warnln("Failed opening '{}': {}", expectation_path, expectation_file_or_error.error());
-        return expectation_file_or_error.release_error();
-    }
-
-    auto expectation_file = expectation_file_or_error.release_value();
-
-    if (Application::the().rebaseline) {
-        TRY(expectation_file->write_until_depleted(result));
-        return TestResult::Pass;
-    }
-
-    auto expectation = TRY(String::from_utf8(StringView(TRY(expectation_file->read_until_eof()).bytes())));
-
-    auto actual = result;
-    auto actual_trimmed = TRY(actual.trim("\n"sv, TrimMode::Right));
-    auto expectation_trimmed = TRY(expectation.trim("\n"sv, TrimMode::Right));
-
-    if (actual_trimmed == expectation_trimmed)
-        return TestResult::Pass;
-
-    auto const color_output = isatty(STDOUT_FILENO) ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
-
-    if (color_output == Diff::ColorOutput::Yes)
-        outln("\n\033[33;1mTest failed\033[0m: {}", url);
-    else
-        outln("\nTest failed: {}", url);
-
-    auto hunks = TRY(Diff::from_text(expectation, actual, 3));
-    auto out = TRY(Core::File::standard_output());
-
-    TRY(Diff::write_unified_header(expectation_path, expectation_path, *out));
-    for (auto const& hunk : hunks)
-        TRY(Diff::write_unified(hunk, *out, color_output));
-
-    return TestResult::Fail;
+    return handle_completed_test();
 }
 
 static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL const& url, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
@@ -391,6 +395,38 @@ static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL c
     });
 
     RefPtr<Gfx::Bitmap> actual_screenshot, expectation_screenshot;
+
+    auto handle_completed_test = [&]() -> ErrorOr<TestResult> {
+        if (did_timeout)
+            return TestResult::Timeout;
+
+        VERIFY(actual_screenshot);
+        VERIFY(expectation_screenshot);
+
+        if (actual_screenshot->visually_equals(*expectation_screenshot))
+            return TestResult::Pass;
+
+        if (Application::the().dump_failed_ref_tests) {
+            warnln("\033[33;1mRef test {} failed; dumping screenshots\033[0m", url);
+            auto title = LexicalPath::title(URL::percent_decode(url.serialize_path()));
+            auto dump_screenshot = [&](Gfx::Bitmap& bitmap, StringView path) -> ErrorOr<void> {
+                auto screenshot_file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
+                auto encoded_data = TRY(Gfx::PNGWriter::encode(bitmap));
+                TRY(screenshot_file->write_until_depleted(encoded_data));
+                warnln("\033[33;1mDumped {}\033[0m", TRY(FileSystem::real_path(path)));
+                return {};
+            };
+
+            auto mkdir_result = Core::System::mkdir("test-dumps"sv, 0755);
+            if (mkdir_result.is_error() && mkdir_result.error().code() != EEXIST)
+                return mkdir_result.release_error();
+            TRY(dump_screenshot(*actual_screenshot, ByteString::formatted("test-dumps/{}.png", title)));
+            TRY(dump_screenshot(*expectation_screenshot, ByteString::formatted("test-dumps/{}-ref.png", title)));
+        }
+
+        return TestResult::Fail;
+    };
+
     view.on_load_finish = [&](auto const&) {
         if (actual_screenshot) {
             view.take_screenshot()->when_resolved([&](auto screenshot) {
@@ -413,34 +449,7 @@ static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL c
     timeout_timer->start();
     loop.exec();
 
-    if (did_timeout)
-        return TestResult::Timeout;
-
-    VERIFY(actual_screenshot);
-    VERIFY(expectation_screenshot);
-
-    if (actual_screenshot->visually_equals(*expectation_screenshot))
-        return TestResult::Pass;
-
-    if (Application::the().dump_failed_ref_tests) {
-        warnln("\033[33;1mRef test {} failed; dumping screenshots\033[0m", url);
-        auto title = LexicalPath::title(URL::percent_decode(url.serialize_path()));
-        auto dump_screenshot = [&](Gfx::Bitmap& bitmap, StringView path) -> ErrorOr<void> {
-            auto screenshot_file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
-            auto encoded_data = TRY(Gfx::PNGWriter::encode(bitmap));
-            TRY(screenshot_file->write_until_depleted(encoded_data));
-            warnln("\033[33;1mDumped {}\033[0m", TRY(FileSystem::real_path(path)));
-            return {};
-        };
-
-        auto mkdir_result = Core::System::mkdir("test-dumps"sv, 0755);
-        if (mkdir_result.is_error() && mkdir_result.error().code() != EEXIST)
-            return mkdir_result.release_error();
-        TRY(dump_screenshot(*actual_screenshot, ByteString::formatted("test-dumps/{}.png", title)));
-        TRY(dump_screenshot(*expectation_screenshot, ByteString::formatted("test-dumps/{}-ref.png", title)));
-    }
-
-    return TestResult::Fail;
+    return handle_completed_test();
 }
 
 static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView input_path, StringView expectation_path, TestMode mode)
