@@ -31,33 +31,21 @@ set(SOURCES
     EventLoopImplementation.cpp
     EventLoopImplementationUnix.cpp
     EventReceiver.cpp
-    LockFile.cpp
     MappedFile.cpp
     MimeData.cpp
     Notifier.cpp
     Process.cpp
-    ProcessStatisticsReader.cpp
     Resource.cpp
     ResourceImplementation.cpp
     ResourceImplementationFile.cpp
-    SecretString.cpp
     SessionManagement.cpp
     Socket.cpp
-    SOCKSProxyClient.cpp
     SystemServerTakeover.cpp
     TCPServer.cpp
     ThreadEventQueue.cpp
     Timer.cpp
     UDPServer.cpp
 )
-if (NOT ANDROID AND NOT WIN32 AND NOT EMSCRIPTEN)
-    list(APPEND SOURCES
-        Account.cpp
-        FilePermissionsMask.cpp
-        GetPassword.cpp
-        Group.cpp
-    )
-endif()
 if (NOT WIN32 AND NOT EMSCRIPTEN)
     list(APPEND SOURCES LocalServer.cpp)
 endif()
