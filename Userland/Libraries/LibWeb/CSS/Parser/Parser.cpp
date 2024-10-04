@@ -2848,6 +2848,9 @@ RefPtr<CSSStyleValue> Parser::parse_rgb_color_value(TokenStream<ComponentValue>&
 
             alpha = parse_number_percentage_value(inner_tokens);
 
+            if (!alpha)
+                return {};
+
             inner_tokens.skip_whitespace();
 
             if (inner_tokens.has_next_token())
