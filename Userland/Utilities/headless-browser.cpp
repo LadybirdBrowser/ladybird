@@ -10,6 +10,7 @@
 #include <AK/Badge.h>
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/Enumerate.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Platform.h>
@@ -48,6 +49,61 @@
 constexpr int DEFAULT_TIMEOUT_MS = 30000; // 30sec
 
 static StringView s_current_test_path;
+
+struct Application : public WebView::Application {
+    WEB_VIEW_APPLICATION(Application)
+
+    static Application& the()
+    {
+        return static_cast<Application&>(WebView::Application::the());
+    }
+
+    virtual void create_platform_arguments(Core::ArgsParser& args_parser) override
+    {
+        args_parser.add_option(screenshot_timeout, "Take a screenshot after [n] seconds (default: 1)", "screenshot", 's', "n");
+        args_parser.add_option(dump_layout_tree, "Dump layout tree and exit", "dump-layout-tree", 'd');
+        args_parser.add_option(dump_text, "Dump text and exit", "dump-text", 'T');
+        args_parser.add_option(test_root_path, "Run tests in path", "run-tests", 'R', "test-root-path");
+        args_parser.add_option(test_glob, "Only run tests matching the given glob", "filter", 'f', "glob");
+        args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
+        args_parser.add_option(dump_failed_ref_tests, "Dump screenshots of failing ref tests", "dump-failed-ref-tests", 'D');
+        args_parser.add_option(dump_gc_graph, "Dump GC graph", "dump-gc-graph", 'G');
+        args_parser.add_option(resources_folder, "Path of the base resources folder (defaults to /res)", "resources", 'r', "resources-root-path");
+        args_parser.add_option(is_layout_test_mode, "Enable layout test mode", "layout-test-mode");
+        args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
+    }
+
+    virtual void create_platform_options(WebView::ChromeOptions& chrome_options, WebView::WebContentOptions& web_content_options) override
+    {
+        if (!test_root_path.is_empty()) {
+            // --run-tests implies --layout-test-mode.
+            is_layout_test_mode = true;
+        }
+
+        if (is_layout_test_mode) {
+            // Allow window.open() to succeed for tests.
+            chrome_options.allow_popups = WebView::AllowPopups::Yes;
+        }
+
+        web_content_options.is_layout_test_mode = is_layout_test_mode ? WebView::IsLayoutTestMode::Yes : WebView::IsLayoutTestMode::No;
+    }
+
+    int screenshot_timeout { 1 };
+    ByteString resources_folder { s_ladybird_resource_root };
+    bool dump_failed_ref_tests { false };
+    bool dump_layout_tree { false };
+    bool dump_text { false };
+    bool dump_gc_graph { false };
+    bool is_layout_test_mode { false };
+    ByteString test_root_path;
+    ByteString test_glob;
+    bool test_dry_run { false };
+    bool rebaseline { false };
+};
+
+Application::Application(Badge<WebView::Application>, Main::Arguments&)
+{
+}
 
 class HeadlessWebContentView final : public WebView::ViewImplementation {
 public:
@@ -201,7 +257,7 @@ static StringView test_result_to_string(TestResult result)
     VERIFY_NOT_REACHED();
 }
 
-static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL const& url, StringView expectation_path, TestMode mode, bool rebaseline = false, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
+static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL const& url, StringView expectation_path, TestMode mode, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
 {
     Core::EventLoop loop;
     bool did_timeout = false;
@@ -265,7 +321,7 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
         return TestResult::Skipped;
     }
 
-    auto expectation_file_or_error = Core::File::open(expectation_path, rebaseline ? Core::File::OpenMode::Write : Core::File::OpenMode::Read);
+    auto expectation_file_or_error = Core::File::open(expectation_path, Application::the().rebaseline ? Core::File::OpenMode::Write : Core::File::OpenMode::Read);
     if (expectation_file_or_error.is_error()) {
         warnln("Failed opening '{}': {}", expectation_path, expectation_file_or_error.error());
         return expectation_file_or_error.release_error();
@@ -273,7 +329,7 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
 
     auto expectation_file = expectation_file_or_error.release_value();
 
-    if (rebaseline) {
+    if (Application::the().rebaseline) {
         TRY(expectation_file->write_until_depleted(result));
         return TestResult::Pass;
     }
@@ -304,7 +360,7 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
     return TestResult::Fail;
 }
 
-static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL const& url, bool dump_failed_ref_tests, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
+static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL const& url, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
 {
     Core::EventLoop loop;
     bool did_timeout = false;
@@ -342,7 +398,7 @@ static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL c
     if (actual_screenshot->visually_equals(*expectation_screenshot))
         return TestResult::Pass;
 
-    if (dump_failed_ref_tests) {
+    if (Application::the().dump_failed_ref_tests) {
         warnln("\033[33;1mRef test {} failed; dumping screenshots\033[0m", url);
         auto title = LexicalPath::title(URL::percent_decode(url.serialize_path()));
         auto dump_screenshot = [&](Gfx::Bitmap& bitmap, StringView path) -> ErrorOr<void> {
@@ -363,7 +419,7 @@ static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL c
     return TestResult::Fail;
 }
 
-static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView input_path, StringView expectation_path, TestMode mode, bool dump_failed_ref_tests, bool rebaseline)
+static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView input_path, StringView expectation_path, TestMode mode)
 {
     // Clear the current document.
     // FIXME: Implement a debug-request to do this more thoroughly.
@@ -423,9 +479,9 @@ static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView inp
     switch (mode) {
     case TestMode::Text:
     case TestMode::Layout:
-        return run_dump_test(view, url, expectation_path, mode, rebaseline);
+        return run_dump_test(view, url, expectation_path, mode);
     case TestMode::Ref:
-        return run_ref_test(view, url, dump_failed_ref_tests);
+        return run_ref_test(view, url);
     default:
         VERIFY_NOT_REACHED();
     }
@@ -498,24 +554,36 @@ static ErrorOr<void> collect_ref_tests(Vector<Test>& tests, StringView path)
     return {};
 }
 
-static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root_path, StringView test_glob, bool dump_failed_ref_tests, bool dump_gc_graph, bool dry_run, bool rebaseline)
+static ErrorOr<int> run_tests(HeadlessWebContentView* view)
 {
     if (view)
         view->clear_content_filters();
 
-    TRY(load_test_config(test_root_path));
+    auto& app = Application::the();
+    TRY(load_test_config(app.test_root_path));
 
     Vector<Test> tests;
-    TRY(collect_dump_tests(tests, ByteString::formatted("{}/Layout", test_root_path), "."sv, TestMode::Layout));
-    TRY(collect_dump_tests(tests, ByteString::formatted("{}/Text", test_root_path), "."sv, TestMode::Text));
-    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Ref", test_root_path)));
+    auto test_glob = ByteString::formatted("*{}*", app.test_glob);
+
+    TRY(collect_dump_tests(tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
+    TRY(collect_dump_tests(tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
+    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Ref", app.test_root_path)));
 #ifndef AK_OS_MACOS
-    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Screenshot", test_root_path)));
+    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Screenshot", app.test_root_path)));
 #endif
 
     tests.remove_all_matching([&](auto const& test) {
         return !test.input_path.matches(test_glob, CaseSensitivity::CaseSensitive);
     });
+
+    if (app.test_dry_run) {
+        outln("Found {} tests...", tests.size());
+
+        for (auto const& [i, test] : enumerate(tests))
+            outln("{}/{}: {}", i + 1, tests.size(), LexicalPath::relative_path(test.input_path, app.test_root_path));
+
+        return 0;
+    }
 
     size_t pass_count = 0;
     size_t fail_count = 0;
@@ -523,26 +591,17 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root
     size_t skipped_count = 0;
 
     bool is_tty = isatty(STDOUT_FILENO);
-
-    if (dry_run)
-        outln("Found {} tests...", tests.size());
-    else
-        outln("Running {} tests...", tests.size());
+    outln("Running {} tests...", tests.size());
 
     for (size_t i = 0; i < tests.size(); ++i) {
         auto& test = tests[i];
 
-        if (is_tty && !dry_run) {
+        if (is_tty) {
             // Keep clearing and reusing the same line if stdout is a TTY.
             out("\33[2K\r");
         }
 
-        out("{}/{}: {}", i + 1, tests.size(), LexicalPath::relative_path(test.input_path, test_root_path));
-
-        if (dry_run) {
-            outln("");
-            continue;
-        }
+        out("{}/{}: {}", i + 1, tests.size(), LexicalPath::relative_path(test.input_path, app.test_root_path));
 
         if (is_tty)
             fflush(stdout);
@@ -555,7 +614,7 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root
             continue;
         }
 
-        test.result = TRY(run_test(*view, test.input_path, test.expectation_path, test.mode, dump_failed_ref_tests, rebaseline));
+        test.result = TRY(run_test(*view, test.input_path, test.expectation_path, test.mode));
         switch (*test.result) {
         case TestResult::Pass:
             ++pass_count;
@@ -572,9 +631,6 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root
         }
     }
 
-    if (dry_run)
-        return 0;
-
     if (is_tty)
         outln("\33[2K\rDone!");
 
@@ -587,7 +643,7 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root
         outln("{}: {}", test_result_to_string(*test.result), test.input_path);
     }
 
-    if (dump_gc_graph) {
+    if (app.dump_gc_graph) {
         auto path = view->dump_gc_graph();
         if (path.is_error()) {
             warnln("Failed to dump GC graph: {}", path.error());
@@ -599,56 +655,6 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view, StringView test_root
     if (timeout_count == 0 && fail_count == 0)
         return 0;
     return 1;
-}
-
-struct Application : public WebView::Application {
-    WEB_VIEW_APPLICATION(Application)
-
-    virtual void create_platform_arguments(Core::ArgsParser& args_parser) override
-    {
-        args_parser.add_option(screenshot_timeout, "Take a screenshot after [n] seconds (default: 1)", "screenshot", 's', "n");
-        args_parser.add_option(dump_layout_tree, "Dump layout tree and exit", "dump-layout-tree", 'd');
-        args_parser.add_option(dump_text, "Dump text and exit", "dump-text", 'T');
-        args_parser.add_option(test_root_path, "Run tests in path", "run-tests", 'R', "test-root-path");
-        args_parser.add_option(test_glob, "Only run tests matching the given glob", "filter", 'f', "glob");
-        args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
-        args_parser.add_option(dump_failed_ref_tests, "Dump screenshots of failing ref tests", "dump-failed-ref-tests", 'D');
-        args_parser.add_option(dump_gc_graph, "Dump GC graph", "dump-gc-graph", 'G');
-        args_parser.add_option(resources_folder, "Path of the base resources folder (defaults to /res)", "resources", 'r', "resources-root-path");
-        args_parser.add_option(is_layout_test_mode, "Enable layout test mode", "layout-test-mode");
-        args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
-    }
-
-    virtual void create_platform_options(WebView::ChromeOptions& chrome_options, WebView::WebContentOptions& web_content_options) override
-    {
-        if (!test_root_path.is_empty()) {
-            // --run-tests implies --layout-test-mode.
-            is_layout_test_mode = true;
-        }
-
-        if (is_layout_test_mode) {
-            // Allow window.open() to succeed for tests.
-            chrome_options.allow_popups = WebView::AllowPopups::Yes;
-        }
-
-        web_content_options.is_layout_test_mode = is_layout_test_mode ? WebView::IsLayoutTestMode::Yes : WebView::IsLayoutTestMode::No;
-    }
-
-    int screenshot_timeout { 1 };
-    ByteString resources_folder { s_ladybird_resource_root };
-    bool dump_failed_ref_tests { false };
-    bool dump_layout_tree { false };
-    bool dump_text { false };
-    bool dump_gc_graph { false };
-    bool is_layout_test_mode { false };
-    StringView test_root_path;
-    ByteString test_glob;
-    bool test_dry_run { false };
-    bool rebaseline { false };
-};
-
-Application::Application(Badge<WebView::Application>, Main::Arguments&)
-{
 }
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
@@ -672,8 +678,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
         auto absolute_test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
         app->test_root_path = absolute_test_root_path;
-        auto test_glob = ByteString::formatted("*{}*", app->test_glob);
-        return run_tests(view, app->test_root_path, test_glob, app->dump_failed_ref_tests, app->dump_gc_graph, app->test_dry_run, app->rebaseline);
+
+        return run_tests(view);
     }
 
     auto view = TRY(HeadlessWebContentView::create(move(theme), window_size, app->resources_folder));
