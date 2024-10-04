@@ -8,6 +8,7 @@
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/RegexTable.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibJS/SourceCode.h>
 
 namespace JS::Bytecode {

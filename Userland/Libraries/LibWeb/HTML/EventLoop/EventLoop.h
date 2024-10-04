@@ -10,7 +10,7 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibJS/SafeFunction.h>
+#include <LibJS/Heap/SafeFunction.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 
 namespace Web::HTML {

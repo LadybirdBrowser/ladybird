@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStreamDefaultControllerPrototype.h>
 #include <LibWeb/Streams/AbstractOperations.h>

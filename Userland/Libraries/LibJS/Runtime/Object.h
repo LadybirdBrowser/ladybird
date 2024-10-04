@@ -22,7 +22,6 @@
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibJS/SafeFunction.h>
 
 namespace JS {
 

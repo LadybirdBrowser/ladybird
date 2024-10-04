@@ -13,7 +13,6 @@
 #include <AK/Variant.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Heap/MarkedVector.h>
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventLoop/Task.h>

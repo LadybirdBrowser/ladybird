@@ -7,10 +7,12 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/StackInfo.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
@@ -22,9 +24,7 @@
 #include <LibJS/Heap/HeapRoot.h>
 #include <LibJS/Heap/Internals.h>
 #include <LibJS/Heap/MarkedVector.h>
-#include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/ExecutionContext.h>
-#include <LibJS/Runtime/WeakContainer.h>
+#include <LibJS/Heap/WeakContainer.h>
 
 namespace JS {
 
@@ -33,7 +33,7 @@ class Heap : public HeapBase {
     AK_MAKE_NONMOVABLE(Heap);
 
 public:
-    explicit Heap(VM&);
+    explicit Heap(VM&, Function<void(HashMap<Cell*, JS::HeapRoot>&)> gather_embedder_roots);
     ~Heap();
 
     template<typename T, typename... Args>
@@ -80,9 +80,6 @@ public:
 
     void did_create_weak_container(Badge<WeakContainer>, WeakContainer&);
     void did_destroy_weak_container(Badge<WeakContainer>, WeakContainer&);
-
-    void did_create_execution_context(Badge<ExecutionContext>, ExecutionContext&);
-    void did_destroy_execution_context(Badge<ExecutionContext>, ExecutionContext&);
 
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);
 
@@ -160,6 +157,8 @@ private:
     bool m_should_gc_when_deferral_ends { false };
 
     bool m_collecting_garbage { false };
+    StackInfo m_stack_info;
+    Function<void(HashMap<Cell*, JS::HeapRoot>&)> m_gather_embedder_roots;
 };
 
 inline void Heap::did_create_handle(Badge<HandleImpl>, HandleImpl& impl)

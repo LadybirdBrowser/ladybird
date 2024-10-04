@@ -14,14 +14,12 @@
 #include <AK/StackInfo.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/ElapsedTimer.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Heap/CellAllocator.h>
 #include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Heap/HeapBlock.h>
-#include <LibJS/Runtime/Object.h>
-#include <LibJS/Runtime/WeakContainer.h>
-#include <LibJS/SafeFunction.h>
+#include <LibJS/Heap/SafeFunction.h>
+#include <LibJS/Runtime/Value.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -34,8 +32,9 @@ namespace JS {
 static __thread HashMap<FlatPtr*, size_t>* s_custom_ranges_for_conservative_scan = nullptr;
 static __thread HashMap<FlatPtr*, SourceLocation*>* s_safe_function_locations = nullptr;
 
-Heap::Heap(VM& vm)
+Heap::Heap(VM& vm, Function<void(HashMap<Cell*, JS::HeapRoot>&)> gather_embedder_roots)
     : HeapBase(vm)
+    , m_gather_embedder_roots(move(gather_embedder_roots))
 {
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
     m_size_based_cell_allocators.append(make<CellAllocator>(64));
@@ -49,8 +48,6 @@ Heap::Heap(VM& vm)
 
 Heap::~Heap()
 {
-    vm().string_cache().clear();
-    vm().byte_string_cache().clear();
     collect_garbage(CollectionType::CollectEverything);
 }
 
@@ -270,7 +267,9 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 
 void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
 {
-    vm().gather_roots(roots);
+    if (m_gather_embedder_roots)
+        m_gather_embedder_roots(roots);
+
     gather_conservative_roots(roots);
 
     for (auto& handle : m_handles)
@@ -328,9 +327,8 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
         add_possible_value(possible_pointers, raw_jmp_buf[i], HeapRoot { .type = HeapRoot::Type::RegisterPointer }, min_block_address, max_block_address);
 
     auto stack_reference = bit_cast<FlatPtr>(&dummy);
-    auto& stack_info = m_vm.stack_info();
 
-    for (FlatPtr stack_address = stack_reference; stack_address < stack_info.top(); stack_address += sizeof(FlatPtr)) {
+    for (FlatPtr stack_address = stack_reference; stack_address < m_stack_info.top(); stack_address += sizeof(FlatPtr)) {
         auto data = *reinterpret_cast<FlatPtr*>(stack_address);
         add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer }, min_block_address, max_block_address);
         gather_asan_fake_stack_roots(possible_pointers, data, min_block_address, max_block_address);
