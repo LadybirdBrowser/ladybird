@@ -2,6 +2,9 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(done => {
+
+        removeTestErrorHandler()
+
         window.addEventListener("error", (event) => {
             println(`onerror event fired: ${event.error}`);
             done();
