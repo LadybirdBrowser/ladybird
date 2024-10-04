@@ -23,9 +23,29 @@
 
 namespace Gfx {
 
-String Color::to_string() const
+String Color::to_string(HTMLCompatibleSerialization html_compatible_serialization) const
 {
-    return MUST(String::formatted("#{:02x}{:02x}{:02x}{:02x}", red(), green(), blue(), alpha()));
+    // If the following conditions are all true:
+
+    // 1. The color space is sRGB
+    // NOTE: This is currently always true for Gfx::Color.
+
+    // 2. The alpha is 1
+    // NOTE: An alpha value of 1 will be stored as 255 currently.
+
+    // 3. The RGB component values are internally represented as integers between 0 and 255 inclusive (i.e. 8-bit unsigned integer)
+    // NOTE: This is currently always true for Gfx::Color.
+
+    // 4. HTML-compatible serialization is requested
+    if (alpha() == 255
+        && html_compatible_serialization == HTMLCompatibleSerialization::Yes) {
+        return MUST(String::formatted("#{:02x}{:02x}{:02x}", red(), green(), blue()));
+    }
+
+    // Otherwise, for sRGB the CSS serialization of sRGB values is used and for other color spaces, the relevant serialization of the <color> value.
+    if (alpha() < 255)
+        return MUST(String::formatted("rgba({}, {}, {}, {})", red(), green(), blue(), alpha() / 255.0));
+    return MUST(String::formatted("rgb({}, {}, {})", red(), green(), blue()));
 }
 
 String Color::to_string_without_alpha() const

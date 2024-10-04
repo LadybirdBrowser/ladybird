@@ -63,7 +63,7 @@ public:
         {
             return m_fill_or_stroke_style.visit(
                 [&](Gfx::Color color) -> JsFillOrStrokeStyle {
-                    return color.to_string();
+                    return color.to_string(Gfx::Color::HTMLCompatibleSerialization::Yes);
                 },
                 [&](auto handle) -> JsFillOrStrokeStyle {
                     return handle;
