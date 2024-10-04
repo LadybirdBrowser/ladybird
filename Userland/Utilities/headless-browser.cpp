@@ -159,23 +159,14 @@ public:
         return view;
     }
 
-    RefPtr<Gfx::Bitmap> take_screenshot()
+    NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap>>> take_screenshot()
     {
         VERIFY(!m_pending_screenshot);
 
         m_pending_screenshot = Core::Promise<RefPtr<Gfx::Bitmap>>::construct();
         client().async_take_document_screenshot(0);
 
-        auto screenshot = MUST(m_pending_screenshot->await());
-        m_pending_screenshot = nullptr;
-
-        return screenshot;
-    }
-
-    virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override
-    {
-        VERIFY(m_pending_screenshot);
-        m_pending_screenshot->resolve(screenshot.bitmap());
+        return *m_pending_screenshot;
     }
 
     void clear_content_filters()
@@ -195,6 +186,14 @@ private:
 
     void update_zoom() override { }
     void initialize_client(CreateNewClient) override { }
+
+    virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override
+    {
+        VERIFY(m_pending_screenshot);
+
+        auto pending_screenshot = move(m_pending_screenshot);
+        pending_screenshot->resolve(screenshot.bitmap());
+    }
 
     virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size.to_type<Web::DevicePixels>(); }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }
@@ -223,7 +222,9 @@ static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Cor
     auto timer = Core::Timer::create_single_shot(
         screenshot_timeout * 1000,
         [&]() {
-            if (auto screenshot = view.take_screenshot()) {
+            auto promise = view.take_screenshot();
+
+            if (auto screenshot = MUST(promise->await())) {
                 outln("Saving screenshot to {}", output_file_path);
 
                 auto output_file = MUST(Core::File::open(output_file_path, Core::File::OpenMode::Write));
@@ -291,12 +292,12 @@ static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL 
             if (url.equals(loaded_url, URL::ExcludeFragment::Yes)) {
                 // NOTE: We take a screenshot here to force the lazy layout of SVG-as-image documents to happen.
                 //       It also causes a lot more code to run, which is good for finding bugs. :^)
-                (void)view.take_screenshot();
+                view.take_screenshot()->when_resolved([&](auto) {
+                    auto promise = view.request_internal_page_info(WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree);
+                    result = MUST(promise->await());
 
-                auto promise = view.request_internal_page_info(WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree);
-                result = MUST(promise->await());
-
-                loop.quit(0);
+                    loop.quit(0);
+                });
             }
         };
 
@@ -385,11 +386,15 @@ static ErrorOr<TestResult> run_ref_test(HeadlessWebContentView& view, URL::URL c
     RefPtr<Gfx::Bitmap> actual_screenshot, expectation_screenshot;
     view.on_load_finish = [&](auto const&) {
         if (actual_screenshot) {
-            expectation_screenshot = view.take_screenshot();
-            loop.quit(0);
+            view.take_screenshot()->when_resolved([&](auto screenshot) {
+                expectation_screenshot = move(screenshot);
+                loop.quit(0);
+            });
         } else {
-            actual_screenshot = view.take_screenshot();
-            view.debug_request("load-reference-page");
+            view.take_screenshot()->when_resolved([&](auto screenshot) {
+                actual_screenshot = move(screenshot);
+                view.debug_request("load-reference-page");
+            });
         }
     };
     view.on_text_test_finish = [&](auto const&) {
