@@ -366,6 +366,22 @@ void FormAssociatedTextControlElement::set_selection_direction(Optional<String> 
     m_selection_direction = string_to_selection_direction(direction);
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direction_binding(Optional<String> direction)
+{
+    // 1. If this element is an input element, and selectionDirection does not apply to this element,
+    //    throw an "InvalidStateError" DOMException.
+    auto const& html_element = form_associated_element_to_html_element();
+    if (is<HTMLInputElement>(html_element)) {
+        auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
+        if (!input_element.selection_direction_applies())
+            return WebIDL::InvalidStateError::create(input_element.realm(), "selectionDirection does not apply to element"_fly_string);
+    }
+
+    set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(direction));
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
 WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(String const& replacement)
 {

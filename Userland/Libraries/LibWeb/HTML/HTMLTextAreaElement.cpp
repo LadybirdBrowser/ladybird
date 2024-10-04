@@ -329,9 +329,10 @@ String HTMLTextAreaElement::selection_direction_binding() const
     return selection_direction().value();
 }
 
-void HTMLTextAreaElement::set_selection_direction_binding(String direction)
+void HTMLTextAreaElement::set_selection_direction_binding(String const& direction)
 {
-    set_selection_direction(direction);
+    // NOTE: The selectionDirection setter never returns an error for textarea elements.
+    MUST(static_cast<FormAssociatedTextControlElement&>(*this).set_selection_direction_binding(direction));
 }
 
 void HTMLTextAreaElement::create_shadow_tree_if_needed()

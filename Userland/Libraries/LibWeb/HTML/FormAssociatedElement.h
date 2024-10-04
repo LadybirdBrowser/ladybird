@@ -149,6 +149,7 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
     Optional<String> selection_direction() const;
     void set_selection_direction(Optional<String> direction);
+    WebIDL::ExceptionOr<void> set_selection_direction_binding(Optional<String> direction);
     SelectionDirection selection_direction_state() const { return m_selection_direction; }
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext

@@ -60,7 +60,7 @@ interface HTMLInputElement : HTMLElement {
     undefined select();
     attribute unsigned long? selectionStart;
     attribute unsigned long? selectionEnd;
-    attribute DOMString? selectionDirection;
+    [ImplementedAs=selection_direction_binding] attribute DOMString? selectionDirection;
     undefined setRangeText(DOMString replacement);
     undefined setRangeText(DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
     undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
