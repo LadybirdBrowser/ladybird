@@ -52,6 +52,20 @@ function timeout(ms) {
     return promise;
 }
 
+const __testErrorHandlerController = new AbortController();
+window.addEventListener(
+    "error",
+    event => {
+        println(`Uncaught Error In Test: ${event.message}`);
+        __finishTest();
+    },
+    { signal: __testErrorHandlerController.signal }
+);
+
+function removeTestErrorHandler() {
+    __testErrorHandlerController.abort();
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     __outputElement = document.createElement("pre");
     __outputElement.setAttribute("id", "out");

@@ -394,6 +394,7 @@ asyncTest
 printElement
 println
 promiseTest
+removeTestErrorHandler
 spoofCurrentURL
 test
 timeout
