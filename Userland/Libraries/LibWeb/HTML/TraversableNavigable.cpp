@@ -5,6 +5,7 @@
  */
 
 #include <AK/QuickSort.h>
+#include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
@@ -30,18 +31,18 @@ TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
 #ifdef AK_OS_MACOS
     auto display_list_player_type = page->client().display_list_player_type();
     if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-        m_metal_context = Core::get_metal_context();
-        m_skia_backend_context = Painting::DisplayListPlayerSkia::create_metal_context(*m_metal_context);
+        m_metal_context = Gfx::get_metal_context();
+        m_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*m_metal_context);
     }
 #endif
 
 #ifdef USE_VULKAN
     auto display_list_player_type = page->client().display_list_player_type();
     if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-        auto maybe_vulkan_context = Core::create_vulkan_context();
+        auto maybe_vulkan_context = Gfx::create_vulkan_context();
         if (!maybe_vulkan_context.is_error()) {
             auto vulkan_context = maybe_vulkan_context.release_value();
-            m_skia_backend_context = Painting::DisplayListPlayerSkia::create_vulkan_context(vulkan_context);
+            m_skia_backend_context = Gfx::SkiaBackendContext::create_vulkan_context(vulkan_context);
         } else {
             dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
         }
@@ -1223,7 +1224,8 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
         if (m_metal_context && m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
             auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
             auto texture = m_metal_context->create_texture_from_iosurface(iosurface_backing_store.iosurface_handle());
-            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, *texture);
+            auto painting_surface = Gfx::PaintingSurface::wrap_metal_surface(*texture, m_skia_backend_context);
+            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, painting_surface);
             player.execute(*display_list);
             return;
         }

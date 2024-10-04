@@ -21,14 +21,20 @@ set(CMAKE_Swift_MODULE_DIRECTORY  "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}swift")
 
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+
+set(VCPKG_LIB_DIR "")
+if (NOT "${VCPKG_INSTALLED_DIR}" STREQUAL "")
+    set(VCPKG_LIB_DIR ";${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+endif()
+
 # See slide 100 of the following ppt :^)
 # https://crascit.com/wp-content/uploads/2019/09/Deep-CMake-For-Library-Authors-Craig-Scott-CppCon-2019.pdf
 if (APPLE)
     set(CMAKE_MACOSX_RPATH TRUE)
     set(CMAKE_INSTALL_NAME_DIR "@rpath")
-    set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
+    set(CMAKE_INSTALL_RPATH "@executable_path/../lib${VCPKG_LIB_DIR}")
 else()
-    set(CMAKE_INSTALL_RPATH "$ORIGIN:$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+    set(CMAKE_INSTALL_RPATH "$ORIGIN:$ORIGIN/../${CMAKE_INSTALL_LIBDIR}${VCPKG_LIB_DIR}")
 endif()
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 

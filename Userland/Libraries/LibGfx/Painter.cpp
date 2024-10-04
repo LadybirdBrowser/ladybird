@@ -6,6 +6,7 @@
 
 #include <LibGfx/Painter.h>
 #include <LibGfx/PainterSkia.h>
+#include <LibGfx/PaintingSurface.h>
 
 namespace Gfx {
 
@@ -13,7 +14,8 @@ Painter::~Painter() = default;
 
 NonnullOwnPtr<Painter> Painter::create(NonnullRefPtr<Gfx::Bitmap> target_bitmap)
 {
-    return make<PainterSkia>(move(target_bitmap));
+    auto painting_surface = PaintingSurface::wrap_bitmap(target_bitmap);
+    return make<PainterSkia>(painting_surface);
 }
 
 }

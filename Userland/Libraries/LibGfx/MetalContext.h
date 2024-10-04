@@ -13,7 +13,7 @@ static_assert(false, "This file must only be used for macOS");
 #include <AK/Forward.h>
 #include <LibCore/IOSurface.h>
 
-namespace Core {
+namespace Gfx {
 
 class MetalTexture {
 public:
@@ -29,7 +29,7 @@ public:
     virtual void const* device() const = 0;
     virtual void const* queue() const = 0;
 
-    virtual OwnPtr<MetalTexture> create_texture_from_iosurface(IOSurfaceHandle const&) = 0;
+    virtual OwnPtr<MetalTexture> create_texture_from_iosurface(Core::IOSurfaceHandle const&) = 0;
 
     virtual ~MetalContext() {};
 };

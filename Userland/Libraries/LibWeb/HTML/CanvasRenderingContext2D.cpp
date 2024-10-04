@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <LibGfx/DeprecatedPainter.h>
+#include <LibGfx/PainterSkia.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/Rect.h>
 #include <LibUnicode/Segmenter.h>
@@ -120,7 +121,11 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     if (usability == CanvasImageSourceUsability::Bad)
         return {};
 
-    auto const* bitmap = image.visit([](auto const& source) -> Gfx::Bitmap const* { return source->bitmap(); });
+    auto const bitmap = image.visit(
+        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::Bitmap const> { return source->surface()->create_snapshot(); },
+        [](JS::Handle<HTMLImageElement> const& source) -> RefPtr<Gfx::Bitmap const> { return source->bitmap(); },
+        [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::Bitmap const> { return source->bitmap(); },
+        [](JS::Handle<ImageData> const& source) -> RefPtr<Gfx::Bitmap const> { return source->bitmap(); });
     if (!bitmap)
         return {};
 
@@ -179,11 +184,11 @@ void CanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
 
 Gfx::Painter* CanvasRenderingContext2D::painter()
 {
-    if (!canvas_element().bitmap()) {
-        if (!canvas_element().create_bitmap())
+    if (!canvas_element().surface()) {
+        if (!canvas_element().allocate_painting_surface())
             return nullptr;
         canvas_element().document().invalidate_display_list();
-        m_painter = Gfx::Painter::create(*canvas_element().bitmap());
+        m_painter = make<Gfx::PainterSkia>(*canvas_element().surface());
     }
     return m_painter.ptr();
 }
@@ -341,23 +346,23 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     auto image_data = TRY(ImageData::create(realm(), width, height, settings));
 
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
-    if (!canvas_element().bitmap())
+    if (!canvas_element().surface())
         return image_data;
-    auto const& bitmap = *canvas_element().bitmap();
+    auto const bitmap = canvas_element().surface()->create_snapshot();
 
     // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
     auto source_rect = Gfx::Rect { x, y, width, height };
-    auto source_rect_intersected = source_rect.intersected(bitmap.rect());
+    auto source_rect_intersected = source_rect.intersected(bitmap->rect());
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
     //       might result in a loss of precision, but is according to spec.
     //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
-    ASSERT(bitmap.alpha_type() == Gfx::AlphaType::Premultiplied);
+    ASSERT(bitmap->alpha_type() == Gfx::AlphaType::Premultiplied);
     ASSERT(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
 
     auto painter = Gfx::Painter::create(image_data->bitmap());
-    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), bitmap, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, drawing_state().global_alpha);
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *bitmap, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, drawing_state().global_alpha);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
@@ -378,11 +383,11 @@ void CanvasRenderingContext2D::put_image_data(ImageData const& image_data, float
 // https://html.spec.whatwg.org/multipage/canvas.html#reset-the-rendering-context-to-its-default-state
 void CanvasRenderingContext2D::reset_to_default_state()
 {
-    auto* bitmap = canvas_element().bitmap();
+    auto surface = canvas_element().surface();
 
     // 1. Clear canvas's bitmap to transparent black.
-    if (bitmap) {
-        painter()->clear_rect(bitmap->rect().to_type<float>(), Color::Transparent);
+    if (surface) {
+        painter()->clear_rect(surface->rect().to_type<float>(), Color::Transparent);
     }
 
     // 2. Empty the list of subpaths in context's current default path.
@@ -394,8 +399,8 @@ void CanvasRenderingContext2D::reset_to_default_state()
     // 4. Reset everything that drawing state consists of to their initial values.
     reset_drawing_state();
 
-    if (bitmap)
-        did_draw(bitmap->rect().to_type<float>());
+    if (surface)
+        did_draw(surface->rect().to_type<float>());
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-measuretext

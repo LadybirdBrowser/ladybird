@@ -30,184 +30,38 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
-#ifdef USE_VULKAN
-#    include <gpu/ganesh/vk/GrVkDirectContext.h>
-#    include <gpu/vk/VulkanBackendContext.h>
-#    include <gpu/vk/VulkanExtensions.h>
-#endif
-
-#ifdef AK_OS_MACOS
-#    include <gpu/GrBackendSurface.h>
-#    include <gpu/ganesh/mtl/GrMtlBackendContext.h>
-#    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
-#    include <gpu/ganesh/mtl/GrMtlDirectContext.h>
-#endif
-
 namespace Web::Painting {
 
-class DisplayListPlayerSkia::SkiaSurface {
-public:
-    SkCanvas& canvas() const { return *m_surface->getCanvas(); }
-
-    SkiaSurface(sk_sp<SkSurface> surface)
-        : m_surface(move(surface))
-    {
-    }
-
-    void read_into_bitmap(Gfx::Bitmap& bitmap)
-    {
-        auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-        SkPixmap pixmap(image_info, bitmap.begin(), bitmap.pitch());
-        m_surface->readPixels(pixmap, 0, 0);
-    }
-
-    sk_sp<SkSurface> make_surface(int width, int height)
-    {
-        return m_surface->makeSurface(width, height);
-    }
-
-private:
-    sk_sp<SkSurface> m_surface;
-};
-
 #ifdef USE_VULKAN
-class SkiaVulkanBackendContext final : public SkiaBackendContext {
-    AK_MAKE_NONCOPYABLE(SkiaVulkanBackendContext);
-    AK_MAKE_NONMOVABLE(SkiaVulkanBackendContext);
-
-public:
-    SkiaVulkanBackendContext(sk_sp<GrDirectContext> context, NonnullOwnPtr<skgpu::VulkanExtensions> extensions)
-        : m_context(move(context))
-        , m_extensions(move(extensions))
-    {
-    }
-
-    ~SkiaVulkanBackendContext() override {};
-
-    void flush_and_submit() override
-    {
-        m_context->flush();
-        m_context->submit(GrSyncCpu::kYes);
-    }
-
-    sk_sp<SkSurface> create_surface(int width, int height)
-    {
-        auto image_info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-        return SkSurfaces::RenderTarget(m_context.get(), skgpu::Budgeted::kYes, image_info);
-    }
-
-    skgpu::VulkanExtensions const* extensions() const { return m_extensions.ptr(); }
-
-private:
-    sk_sp<GrDirectContext> m_context;
-    NonnullOwnPtr<skgpu::VulkanExtensions> m_extensions;
-};
-
-OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_vulkan_context(Core::VulkanContext& vulkan_context)
+DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::SkiaBackendContext& context, Gfx::Bitmap& bitmap)
+    : m_context(context)
 {
-    skgpu::VulkanBackendContext backend_context;
-
-    backend_context.fInstance = vulkan_context.instance;
-    backend_context.fDevice = vulkan_context.logical_device;
-    backend_context.fQueue = vulkan_context.graphics_queue;
-    backend_context.fPhysicalDevice = vulkan_context.physical_device;
-    backend_context.fMaxAPIVersion = vulkan_context.api_version;
-    backend_context.fGetProc = [](char const* proc_name, VkInstance instance, VkDevice device) {
-        if (device != VK_NULL_HANDLE) {
-            return vkGetDeviceProcAddr(device, proc_name);
-        }
-        return vkGetInstanceProcAddr(instance, proc_name);
-    };
-
-    auto extensions = make<skgpu::VulkanExtensions>();
-    backend_context.fVkExtensions = extensions.ptr();
-
-    sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context);
-    VERIFY(ctx);
-    return make<SkiaVulkanBackendContext>(ctx, move(extensions));
-}
-
-DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Gfx::Bitmap& bitmap)
-{
-    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
-    auto surface = static_cast<SkiaVulkanBackendContext&>(context).create_surface(bitmap.width(), bitmap.height());
-    m_surface = make<SkiaSurface>(surface);
-    m_flush_context = [&bitmap, &surface = m_surface, &context] {
-        context.flush_and_submit();
+    m_surface = Gfx::PaintingSurface::create_with_size(m_context, bitmap.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+    m_flush_context = [&bitmap, surface = m_surface] mutable {
         surface->read_into_bitmap(bitmap);
     };
 }
 #endif
 
 #ifdef AK_OS_MACOS
-class SkiaMetalBackendContext final : public SkiaBackendContext {
-    AK_MAKE_NONCOPYABLE(SkiaMetalBackendContext);
-    AK_MAKE_NONMOVABLE(SkiaMetalBackendContext);
-
-public:
-    SkiaMetalBackendContext(sk_sp<GrDirectContext> context)
-        : m_context(move(context))
-    {
-    }
-
-    ~SkiaMetalBackendContext() override {};
-
-    sk_sp<SkSurface> wrap_metal_texture(Core::MetalTexture& metal_texture)
-    {
-        GrMtlTextureInfo mtl_info;
-        mtl_info.fTexture = sk_ret_cfp(metal_texture.texture());
-        auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture.width(), metal_texture.height(), mtl_info);
-        return SkSurfaces::WrapBackendRenderTarget(m_context.get(), backend_render_target, kTopLeft_GrSurfaceOrigin, kBGRA_8888_SkColorType, nullptr, nullptr);
-    }
-
-    void flush_and_submit() override
-    {
-        m_context->flush();
-        m_context->submit(GrSyncCpu::kYes);
-    }
-
-private:
-    sk_sp<GrDirectContext> m_context;
-};
-
-OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_metal_context(Core::MetalContext const& metal_context)
+DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::SkiaBackendContext& context, NonnullRefPtr<Gfx::PaintingSurface> surface)
+    : m_context(context)
+    , m_surface(move(surface))
 {
-    GrMtlBackendContext backend_context;
-    backend_context.fDevice.retain((GrMTLHandle)metal_context.device());
-    backend_context.fQueue.retain((GrMTLHandle)metal_context.queue());
-    sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeMetal(backend_context);
-    return make<SkiaMetalBackendContext>(ctx);
-}
-
-DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Core::MetalTexture& metal_texture)
-{
-    auto image_info = SkImageInfo::Make(metal_texture.width(), metal_texture.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    VERIFY(is<SkiaMetalBackendContext>(context));
-    auto surface = static_cast<SkiaMetalBackendContext&>(context).wrap_metal_texture(metal_texture);
-    if (!surface) {
-        dbgln("Failed to create Skia surface from Metal texture");
-        VERIFY_NOT_REACHED();
-    }
-    m_surface = make<SkiaSurface>(surface);
-    m_flush_context = [&context] mutable {
-        context.flush_and_submit();
-    };
 }
 #endif
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::Bitmap& bitmap)
 {
-    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
-    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch());
-    VERIFY(surface);
-    m_surface = make<SkiaSurface>(surface);
+    m_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
 }
 
 DisplayListPlayerSkia::~DisplayListPlayerSkia()
 {
-    if (m_flush_context)
+    m_surface->flush();
+    if (m_flush_context) {
         m_flush_context();
+    }
 }
 
 static SkPoint to_skia_point(auto const& point)
@@ -325,9 +179,9 @@ static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
     }
 }
 
-DisplayListPlayerSkia::SkiaSurface& DisplayListPlayerSkia::surface() const
+Gfx::PaintingSurface& DisplayListPlayerSkia::surface() const
 {
-    return static_cast<SkiaSurface&>(*m_surface);
+    return *m_surface;
 }
 
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
@@ -362,6 +216,17 @@ void DisplayListPlayerSkia::fill_rect(FillRect const& command)
     SkPaint paint;
     paint.setColor(to_skia_color(command.color));
     canvas.drawRect(to_skia_rect(rect), paint);
+}
+
+void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& command)
+{
+    auto src_rect = to_skia_rect(command.src_rect);
+    auto dst_rect = to_skia_rect(command.dst_rect);
+    auto& sk_surface = command.surface->sk_surface();
+    auto& canvas = surface().canvas();
+    auto image = sk_surface.makeImageSnapshot();
+    SkPaint paint;
+    canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
 void DisplayListPlayerSkia::draw_scaled_bitmap(DrawScaledBitmap const& command)
@@ -1240,16 +1105,16 @@ void DisplayListPlayerSkia::add_mask(AddMask const& command)
     if (rect.is_empty())
         return;
 
-    auto mask_surface = m_surface->make_surface(rect.width(), rect.height());
+    auto mask_surface = Gfx::PaintingSurface::create_with_size(m_context, rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
 
     auto previous_surface = move(m_surface);
-    m_surface = make<SkiaSurface>(mask_surface);
+    m_surface = mask_surface;
     execute(*command.display_list);
     m_surface = move(previous_surface);
 
     SkMatrix mask_matrix;
     mask_matrix.setTranslate(rect.x(), rect.y());
-    auto image = mask_surface->makeImageSnapshot();
+    auto image = mask_surface->sk_surface().makeImageSnapshot();
     auto shader = image->makeShader(SkSamplingOptions(), mask_matrix);
     surface().canvas().save();
     surface().canvas().clipShader(shader);

@@ -7,42 +7,24 @@
 #pragma once
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/PaintingSurface.h>
+#include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
-#ifdef AK_OS_MACOS
-#    include <LibCore/IOSurface.h>
-#    include <LibCore/MetalContext.h>
-#endif
-
-#ifdef USE_VULKAN
-#    include <LibCore/VulkanContext.h>
-#endif
+class GrDirectContext;
 
 namespace Web::Painting {
-
-class SkiaBackendContext {
-    AK_MAKE_NONCOPYABLE(SkiaBackendContext);
-    AK_MAKE_NONMOVABLE(SkiaBackendContext);
-
-public:
-    SkiaBackendContext() {};
-    virtual ~SkiaBackendContext() {};
-
-    virtual void flush_and_submit() {};
-};
 
 class DisplayListPlayerSkia : public DisplayListPlayer {
 public:
     DisplayListPlayerSkia(Gfx::Bitmap&);
 
 #ifdef USE_VULKAN
-    static OwnPtr<SkiaBackendContext> create_vulkan_context(Core::VulkanContext&);
-    DisplayListPlayerSkia(SkiaBackendContext&, Gfx::Bitmap&);
+    DisplayListPlayerSkia(Gfx::SkiaBackendContext&, Gfx::Bitmap&);
 #endif
 
 #ifdef AK_OS_MACOS
-    static OwnPtr<SkiaBackendContext> create_metal_context(Core::MetalContext const&);
-    DisplayListPlayerSkia(SkiaBackendContext&, Core::MetalTexture&);
+    DisplayListPlayerSkia(Gfx::SkiaBackendContext&, NonnullRefPtr<Gfx::PaintingSurface>);
 #endif
 
     virtual ~DisplayListPlayerSkia() override;
@@ -50,6 +32,7 @@ public:
 private:
     void draw_glyph_run(DrawGlyphRun const&) override;
     void fill_rect(FillRect const&) override;
+    void draw_painting_surface(DrawPaintingSurface const&) override;
     void draw_scaled_bitmap(DrawScaledBitmap const&) override;
     void draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
     void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) override;
@@ -82,10 +65,11 @@ private:
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
-    class SkiaSurface;
-    SkiaSurface& surface() const;
+    Gfx::PaintingSurface& surface() const;
 
-    OwnPtr<SkiaSurface> m_surface;
+    RefPtr<Gfx::SkiaBackendContext> m_context {};
+    RefPtr<Gfx::PaintingSurface> m_surface {};
+
     Function<void()> m_flush_context;
 };
 

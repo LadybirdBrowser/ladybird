@@ -11,15 +11,25 @@ namespace Web::HTML {
 
 static void default_source_size(CanvasImageSource const& image, float& source_width, float& source_height)
 {
-    image.visit([&source_width, &source_height](auto const& source) {
-        if (source->bitmap()) {
-            source_width = source->bitmap()->width();
-            source_height = source->bitmap()->height();
-        } else {
-            source_width = source->width();
-            source_height = source->height();
-        }
-    });
+    image.visit(
+        [&source_width, &source_height](JS::Handle<HTMLCanvasElement> const& source) {
+            if (source->surface()) {
+                source_width = source->surface()->size().width();
+                source_height = source->surface()->size().height();
+            } else {
+                source_width = source->width();
+                source_height = source->height();
+            }
+        },
+        [&source_width, &source_height](auto const& source) {
+            if (source->bitmap()) {
+                source_width = source->bitmap()->width();
+                source_height = source->bitmap()->height();
+            } else {
+                source_width = source->width();
+                source_height = source->height();
+            }
+        });
 }
 
 WebIDL::ExceptionOr<void> CanvasDrawImage::draw_image(Web::HTML::CanvasImageSource const& image, float destination_x, float destination_y)

@@ -16,11 +16,11 @@
 #include <WebContent/BackingStoreManager.h>
 
 #ifdef AK_OS_MACOS
-#    include <LibCore/MetalContext.h>
+#    include <LibGfx/MetalContext.h>
 #endif
 
 #ifdef USE_VULKAN
-#    include <LibCore/VulkanContext.h>
+#    include <LibGfx/VulkanContext.h>
 #endif
 
 namespace Web::HTML {
@@ -97,6 +97,8 @@ public:
 
     void paint(Web::DevicePixelRect const&, Painting::BackingStore&, Web::PaintOptions);
 
+    RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const { return m_skia_backend_context; }
+
 private:
     TraversableNavigable(JS::NonnullGCPtr<Page>);
 
@@ -134,10 +136,10 @@ private:
 
     String m_window_handle;
 
-    OwnPtr<Web::Painting::SkiaBackendContext> m_skia_backend_context;
+    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
 
 #ifdef AK_OS_MACOS
-    OwnPtr<Core::MetalContext> m_metal_context;
+    OwnPtr<Gfx::MetalContext> m_metal_context;
 #endif
 };
 

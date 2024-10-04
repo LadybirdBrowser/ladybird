@@ -1,4 +1,5 @@
 include(skia)
+include(vulkan)
 
 set(SOURCES
     AffineTransform.cpp
@@ -51,6 +52,7 @@ set(SOURCES
     ImageFormats/AVIFLoader.cpp
     ImmutableBitmap.cpp
     MedianCut.cpp
+    PaintingSurface.cpp
     Palette.cpp
     Path.cpp
     PathSkia.cpp
@@ -64,7 +66,16 @@ set(SOURCES
     TextLayout.cpp
     Triangle.cpp
     VectorGraphic.cpp
+    SkiaBackendContext.cpp
 )
+
+if (APPLE)
+    list(APPEND SOURCES MetalContext.mm)
+endif()
+
+if (HAS_VULKAN)
+    list(APPEND SOURCES VulkanContext.cpp)
+endif()
 
 serenity_lib(LibGfx gfx)
 
@@ -124,4 +135,12 @@ if (ENABLE_SWIFT)
     )
     target_link_libraries(LibGfx PRIVATE AK)
     add_swift_target_properties(LibGfx LAGOM_LIBRARIES AK)
+endif()
+
+if (APPLE)
+    target_link_libraries(LibCore PUBLIC "-framework Metal")
+endif()
+
+if (HAS_VULKAN)
+    target_link_libraries(LibCore PUBLIC Vulkan::Vulkan Vulkan::Headers)
 endif()
