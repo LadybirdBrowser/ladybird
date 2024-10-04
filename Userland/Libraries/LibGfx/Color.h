@@ -446,7 +446,12 @@ public:
         return m_value == other.m_value;
     }
 
-    String to_string() const;
+    enum class HTMLCompatibleSerialization {
+        No,
+        Yes,
+    };
+
+    [[nodiscard]] String to_string(HTMLCompatibleSerialization = HTMLCompatibleSerialization::No) const;
     String to_string_without_alpha() const;
 
     ByteString to_byte_string() const;
