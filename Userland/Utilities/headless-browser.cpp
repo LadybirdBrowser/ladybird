@@ -50,9 +50,12 @@ constexpr int DEFAULT_TIMEOUT_MS = 30000; // 30sec
 
 static StringView s_current_test_path;
 
-struct Application : public WebView::Application {
+class HeadlessWebContentView;
+
+class Application : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
 
+public:
     static Application& the()
     {
         return static_cast<Application&>(WebView::Application::the());
@@ -88,6 +91,22 @@ struct Application : public WebView::Application {
         web_content_options.is_layout_test_mode = is_layout_test_mode ? WebView::IsLayoutTestMode::Yes : WebView::IsLayoutTestMode::No;
     }
 
+    ErrorOr<void> launch_services()
+    {
+        auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
+        m_request_client = TRY(launch_request_server_process(request_server_paths, resources_folder));
+
+        auto image_decoder_paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
+        m_image_decoder_client = TRY(launch_image_decoder_process(image_decoder_paths));
+
+        return {};
+    }
+
+    static Requests::RequestClient& request_client() { return *the().m_request_client; }
+    static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
+
+    ErrorOr<HeadlessWebContentView*> create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size);
+
     int screenshot_timeout { 1 };
     ByteString resources_folder { s_ladybird_resource_root };
     bool dump_failed_ref_tests { false };
@@ -99,6 +118,12 @@ struct Application : public WebView::Application {
     ByteString test_glob;
     bool test_dry_run { false };
     bool rebaseline { false };
+
+private:
+    RefPtr<Requests::RequestClient> m_request_client;
+    RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
+
+    OwnPtr<HeadlessWebContentView> m_web_view;
 };
 
 Application::Application(Badge<WebView::Application>, Main::Arguments&)
@@ -107,30 +132,19 @@ Application::Application(Badge<WebView::Application>, Main::Arguments&)
 
 class HeadlessWebContentView final : public WebView::ViewImplementation {
 public:
-    static ErrorOr<NonnullOwnPtr<HeadlessWebContentView>> create(Core::AnonymousBuffer theme, Gfx::IntSize const& window_size, StringView resources_folder)
+    static ErrorOr<NonnullOwnPtr<HeadlessWebContentView>> create(Core::AnonymousBuffer theme, Gfx::IntSize window_size)
     {
-        RefPtr<Requests::RequestClient> request_client;
-        RefPtr<ImageDecoderClient::Client> image_decoder_client;
+        auto view = TRY(adopt_nonnull_own_or_enomem(new (nothrow) HeadlessWebContentView(window_size)));
 
-        auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
-        request_client = TRY(launch_request_server_process(request_server_paths, resources_folder));
-
-        auto image_decoder_paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
-        image_decoder_client = TRY(launch_image_decoder_process(image_decoder_paths));
-
-        auto view = TRY(adopt_nonnull_own_or_enomem(new (nothrow) HeadlessWebContentView(image_decoder_client, request_client)));
-
-        auto request_server_socket = TRY(connect_new_request_server_client(*request_client));
-        auto image_decoder_socket = TRY(connect_new_image_decoder_client(*image_decoder_client));
+        auto request_server_socket = TRY(connect_new_request_server_client(Application::request_client()));
+        auto image_decoder_socket = TRY(connect_new_image_decoder_client(Application::image_decoder_client()));
 
         auto candidate_web_content_paths = TRY(get_paths_for_helper_process("WebContent"sv));
         view->m_client_state.client = TRY(launch_web_content_process(*view, candidate_web_content_paths, move(image_decoder_socket), move(request_server_socket)));
 
         view->client().async_update_system_theme(0, move(theme));
-
-        view->m_viewport_size = window_size;
-        view->client().async_set_viewport_size(0, view->m_viewport_size.to_type<Web::DevicePixels>());
-        view->client().async_set_window_size(0, window_size.to_type<Web::DevicePixels>());
+        view->client().async_set_viewport_size(0, view->viewport_size());
+        view->client().async_set_window_size(0, view->viewport_size());
 
         if (WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::Yes)
             view->client().async_debug_request(0, "block-pop-ups"sv, "off"sv);
@@ -174,12 +188,11 @@ public:
     }
 
 private:
-    HeadlessWebContentView(RefPtr<ImageDecoderClient::Client> image_decoder_client, RefPtr<Requests::RequestClient> request_client)
-        : m_request_client(move(request_client))
-        , m_image_decoder_client(move(image_decoder_client))
+    HeadlessWebContentView(Gfx::IntSize viewport_size)
+        : m_viewport_size(viewport_size)
     {
-        on_request_worker_agent = [this]() {
-            auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), *m_request_client));
+        on_request_worker_agent = []() {
+            auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), Application::request_client()));
             return worker_client->dup_socket();
         };
     }
@@ -193,10 +206,13 @@ private:
 
     Gfx::IntSize m_viewport_size;
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap>>> m_pending_screenshot;
-
-    RefPtr<Requests::RequestClient> m_request_client;
-    RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
 };
+
+ErrorOr<HeadlessWebContentView*> Application::create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size)
+{
+    m_web_view = TRY(HeadlessWebContentView::create(move(theme), window_size));
+    return m_web_view.ptr();
+}
 
 static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebContentView& view, URL::URL const& url, int screenshot_timeout)
 {
@@ -554,11 +570,8 @@ static ErrorOr<void> collect_ref_tests(Vector<Test>& tests, StringView path)
     return {};
 }
 
-static ErrorOr<int> run_tests(HeadlessWebContentView* view)
+static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_size)
 {
-    if (view)
-        view->clear_content_filters();
-
     auto& app = Application::the();
     TRY(load_test_config(app.test_root_path));
 
@@ -584,6 +597,9 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view)
 
         return 0;
     }
+
+    auto& view = *TRY(app.create_web_view(theme, window_size));
+    view.clear_content_filters();
 
     size_t pass_count = 0;
     size_t fail_count = 0;
@@ -614,7 +630,7 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view)
             continue;
         }
 
-        test.result = TRY(run_test(*view, test.input_path, test.expectation_path, test.mode));
+        test.result = TRY(run_test(view, test.input_path, test.expectation_path, test.mode));
         switch (*test.result) {
         case TestResult::Pass:
             ++pass_count;
@@ -644,7 +660,7 @@ static ErrorOr<int> run_tests(HeadlessWebContentView* view)
     }
 
     if (app.dump_gc_graph) {
-        auto path = view->dump_gc_graph();
+        auto path = view.dump_gc_graph();
         if (path.is_error()) {
             warnln("Failed to dump GC graph: {}", path.error());
         } else {
@@ -662,6 +678,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     platform_init();
 
     auto app = Application::create(arguments, "about:newtab"sv);
+    TRY(app->launch_services());
 
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_byte_string(app->resources_folder))));
 
@@ -672,17 +689,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     static constexpr Gfx::IntSize window_size { 800, 600 };
 
     if (!app->test_root_path.is_empty()) {
-        OwnPtr<HeadlessWebContentView> view;
-        if (!app->test_dry_run)
-            view = TRY(HeadlessWebContentView::create(move(theme), window_size, app->resources_folder));
-
-        auto absolute_test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
-        app->test_root_path = absolute_test_root_path;
-
-        return run_tests(view);
+        app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
+        return run_tests(theme, window_size);
     }
 
-    auto view = TRY(HeadlessWebContentView::create(move(theme), window_size, app->resources_folder));
+    auto& view = *TRY(app->create_web_view(move(theme), window_size));
 
     VERIFY(!WebView::Application::chrome_options().urls.is_empty());
     auto const& url = WebView::Application::chrome_options().urls.first();
@@ -692,17 +703,17 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     }
 
     if (app->dump_layout_tree) {
-        TRY(run_dump_test(*view, url, ""sv, TestMode::Layout));
+        TRY(run_dump_test(view, url, ""sv, TestMode::Layout));
         return 0;
     }
 
     if (app->dump_text) {
-        TRY(run_dump_test(*view, url, ""sv, TestMode::Text));
+        TRY(run_dump_test(view, url, ""sv, TestMode::Text));
         return 0;
     }
 
     if (!WebView::Application::chrome_options().webdriver_content_ipc_path.has_value()) {
-        auto timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), *view, url, app->screenshot_timeout));
+        auto timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), view, url, app->screenshot_timeout));
         return app->execute();
     }
 
