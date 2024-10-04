@@ -1,0 +1,12 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let canvas = document.createElement("canvas");
+        let ctx = canvas.getContext("2d");
+        let img = document.createElement("img");
+        println(ctx.createPattern(img, 'repeat'));
+        img = document.createElementNS("http://www.w3.org/2000/svg", "image");
+        println(ctx.createPattern(img, 'repeat'));
+        println("PASS (didn't throw!)");
+    });
+</script>
