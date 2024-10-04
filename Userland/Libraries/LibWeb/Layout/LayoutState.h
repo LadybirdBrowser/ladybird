@@ -200,6 +200,9 @@ struct LayoutState {
         CSSPixels m_content_width { 0 };
         CSSPixels m_content_height { 0 };
 
+        CSSPixels max_width { 10000 };
+        CSSPixels max_height { 10000 };
+
         bool m_has_definite_width { false };
         bool m_has_definite_height { false };
 

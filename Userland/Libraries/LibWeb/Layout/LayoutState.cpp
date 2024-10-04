@@ -6,6 +6,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Format.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/AvailableSpace.h>
 #include <LibWeb/Layout/BlockContainer.h>
@@ -570,6 +571,8 @@ void LayoutState::UsedValues::set_node(NodeWithStyle& node, UsedValues const* co
 
 void LayoutState::UsedValues::set_content_width(CSSPixels width)
 {
+    if (width > max_width)
+        width = max_width;
     VERIFY(!width.might_be_saturated());
     if (width < 0) {
         // Negative widths are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
@@ -584,6 +587,8 @@ void LayoutState::UsedValues::set_content_width(CSSPixels width)
 
 void LayoutState::UsedValues::set_content_height(CSSPixels height)
 {
+    if (height > max_height)
+        height = max_height;
     VERIFY(!height.might_be_saturated());
     if (height < 0) {
         // Negative heights are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
