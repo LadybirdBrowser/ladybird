@@ -2,19 +2,22 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(done => {
+        setTimeout(() => {
+            // We need to do this spoofing later in the event loop so that we don't end up
+            // telling the test runner the wrong URL in page_did_finish_loading.
+            spoofCurrentURL("https://example.com/service-worker-register.html");
 
-        spoofCurrentURL("https://example.com/service-worker-register.html");
+            let swPromise = navigator.serviceWorker.register("service-worker.js");
 
-        let swPromise = navigator.serviceWorker.register("service-worker.js");
-
-        swPromise
-            .then(registration => {
-                println(`ServiceWorker registration successful with scope: ${registration.scope}`);
-                done();
-            })
-            .catch(err => {
-                println(`ServiceWorker registration failed: ${err}`);
-                done();
-            });
+            swPromise
+                .then(registration => {
+                    println(`ServiceWorker registration successful with scope: ${registration.scope}`);
+                    done();
+                })
+                .catch(err => {
+                    println(`ServiceWorker registration failed: ${err}`);
+                    done();
+                });
+        }, 0);
     });
 </script>

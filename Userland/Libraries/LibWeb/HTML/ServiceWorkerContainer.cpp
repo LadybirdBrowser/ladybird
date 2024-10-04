@@ -11,6 +11,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/ServiceWorkerContainer.h>
+#include <LibWeb/ServiceWorker/Job.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::HTML {
@@ -79,7 +80,7 @@ JS::NonnullGCPtr<JS::Promise> ServiceWorkerContainer::register_(String script_ur
 }
 
 // https://w3c.github.io/ServiceWorker/#start-register-algorithm
-void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::URL script_url, JS::NonnullGCPtr<WebIDL::Promise> promise, EnvironmentSettingsObject& client, URL::URL, Bindings::WorkerType, Bindings::ServiceWorkerUpdateViaCache)
+void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::URL script_url, JS::NonnullGCPtr<WebIDL::Promise> promise, EnvironmentSettingsObject& client, URL::URL referrer, Bindings::WorkerType worker_type, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -153,14 +154,20 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::U
         return;
     }
 
-    // FIXME: Schedule the job
     // 11. Let job be the result of running Create Job with register, storage key, scopeURL, scriptURL, promise, and client.
-    // 12. Set job’s worker type to workerType.
-    // 13. Set job’s update via cache to updateViaCache.
-    // 14. Set job’s referrer to referrer.
-    // 15. Invoke Schedule Job with job.
+    auto job = ServiceWorker::Job::create(vm, ServiceWorker::Job::Type::Register, storage_key.value(), scope_url.value(), script_url, promise, client);
 
-    WebIDL::reject_promise(realm, promise, *vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "ServiceWorkerContainer::start_register"sv).value());
+    // 12. Set job’s worker type to workerType.
+    job->worker_type = worker_type;
+
+    // 13. Set job’s update via cache to updateViaCache.
+    job->update_via_cache = update_via_cache;
+
+    // 14. Set job’s referrer to referrer.
+    job->referrer = move(referrer);
+
+    // 15. Invoke Schedule Job with job.
+    ServiceWorker::schedule_job(vm, job);
 }
 
 #undef __ENUMERATE
