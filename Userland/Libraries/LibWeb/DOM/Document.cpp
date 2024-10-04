@@ -339,7 +339,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(
     // FIXME: 15. Create the navigation timing entry for document, with navigationParams's response's timing info, redirectCount, navigationParams's navigation timing type, and
     //            navigationParams's response's service worker timing info.
 
-    // FIXME: 16. If navigationParams's response has a `Refresh` header, then:
+    // 16. If navigationParams's response has a `Refresh` header, then:
+    if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv.bytes()); maybe_refresh.has_value()) {
+        // 1. Let value be the isomorphic decoding of the value of the header.
+        auto const& value = maybe_refresh.value();
+
+        // 2. Run the shared declarative refresh steps with document and value.
+        document->shared_declarative_refresh_steps(value, nullptr);
+    }
 
     // FIXME: 17. If navigationParams's commit early hints is not null, then call navigationParams's commit early hints with document.
 
