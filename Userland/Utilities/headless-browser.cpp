@@ -48,6 +48,41 @@
 
 constexpr int DEFAULT_TIMEOUT_MS = 30000; // 30sec
 
+enum class TestMode {
+    Layout,
+    Text,
+    Ref,
+};
+
+enum class TestResult {
+    Pass,
+    Fail,
+    Skipped,
+    Timeout,
+};
+
+static constexpr StringView test_result_to_string(TestResult result)
+{
+    switch (result) {
+    case TestResult::Pass:
+        return "Pass"sv;
+    case TestResult::Fail:
+        return "Fail"sv;
+    case TestResult::Skipped:
+        return "Skipped"sv;
+    case TestResult::Timeout:
+        return "Timeout"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+struct Test {
+    TestMode mode;
+    ByteString input_path;
+    ByteString expectation_path;
+    Optional<TestResult> result;
+};
+
 class HeadlessWebContentView;
 
 class Application : public WebView::Application {
@@ -240,34 +275,6 @@ static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Cor
     view.load(url);
     timer->start();
     return timer;
-}
-
-enum class TestMode {
-    Layout,
-    Text,
-    Ref,
-};
-
-enum class TestResult {
-    Pass,
-    Fail,
-    Skipped,
-    Timeout,
-};
-
-static StringView test_result_to_string(TestResult result)
-{
-    switch (result) {
-    case TestResult::Pass:
-        return "Pass"sv;
-    case TestResult::Fail:
-        return "Fail"sv;
-    case TestResult::Skipped:
-        return "Skipped"sv;
-    case TestResult::Timeout:
-        return "Timeout"sv;
-    }
-    VERIFY_NOT_REACHED();
 }
 
 static ErrorOr<TestResult> run_dump_test(HeadlessWebContentView& view, URL::URL const& url, StringView expectation_path, TestMode mode, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
@@ -503,13 +510,6 @@ static ErrorOr<TestResult> run_test(HeadlessWebContentView& view, StringView inp
     }
 }
 
-struct Test {
-    ByteString input_path;
-    ByteString expectation_path;
-    TestMode mode;
-    Optional<TestResult> result;
-};
-
 static Vector<ByteString> s_skipped_tests;
 
 static ErrorOr<void> load_test_config(StringView test_root_path)
@@ -552,7 +552,7 @@ static ErrorOr<void> collect_dump_tests(Vector<Test>& tests, StringView path, St
         auto basename = LexicalPath::title(name);
         auto expectation_path = ByteString::formatted("{}/expected/{}/{}.txt", path, trail, basename);
 
-        tests.append({ input_path, move(expectation_path), mode, {} });
+        tests.append({ mode, input_path, move(expectation_path), {} });
     }
     return {};
 }
@@ -563,7 +563,7 @@ static ErrorOr<void> collect_ref_tests(Vector<Test>& tests, StringView path)
         if (entry.type == Core::DirectoryEntry::Type::Directory)
             return IterationDecision::Continue;
         auto input_path = TRY(FileSystem::real_path(ByteString::formatted("{}/{}", path, entry.name)));
-        tests.append({ input_path, {}, TestMode::Ref, {} });
+        tests.append({ TestMode::Ref, input_path, {}, {} });
         return IterationDecision::Continue;
     }));
 
