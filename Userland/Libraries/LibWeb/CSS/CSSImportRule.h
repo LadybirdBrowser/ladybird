@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */

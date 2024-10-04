@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Dex♪ <dexes.ttp@gmail.com>
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
- * Copyright (c) 2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause

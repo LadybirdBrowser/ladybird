@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011-2019 Apple Inc. All rights reserved.
- * Copyright (c) 2020-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

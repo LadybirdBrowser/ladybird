@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2016 Apple Inc. All rights reserved.
  * Copyright (c) 2021, Gunnar Beutner <gbeutner@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */

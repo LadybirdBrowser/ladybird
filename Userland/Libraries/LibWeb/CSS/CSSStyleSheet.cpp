@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2019-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
  *

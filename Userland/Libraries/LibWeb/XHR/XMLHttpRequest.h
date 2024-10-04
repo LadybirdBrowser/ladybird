@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Kenneth Myhra <kennethmyhra@serenityos.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  *
