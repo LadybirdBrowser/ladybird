@@ -92,7 +92,6 @@ private:
     JS::NonnullGCPtr<URLSearchParams> m_query;
 };
 
-URL::Origin url_origin(URL::URL const&);
 bool host_is_domain(URL::Host const&);
 
 // https://url.spec.whatwg.org/#potentially-strip-trailing-spaces-from-an-opaque-path

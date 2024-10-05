@@ -70,7 +70,7 @@ bool tao_check(Infrastructure::Request const& request, Infrastructure::Response 
     //       information, but the container document would not.
     if (request.mode() == Infrastructure::Request::Mode::Navigate
         && request.origin().has<URL::Origin>()
-        && !DOMURL::url_origin(request.current_url()).is_same_origin(request.origin().get<URL::Origin>())) {
+        && !request.current_url().origin().is_same_origin(request.origin().get<URL::Origin>())) {
         return false;
     }
 

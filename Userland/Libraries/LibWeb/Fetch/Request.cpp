@@ -309,7 +309,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Request>> Request::construct_impl(JS::Realm
             // - parsedReferrer’s scheme is "about" and path is the string "client"
             // - parsedReferrer’s origin is not same origin with origin
             // then set request’s referrer to "client".
-            auto parsed_referrer_origin = DOMURL::url_origin(parsed_referrer);
+            auto parsed_referrer_origin = parsed_referrer.origin();
             if ((parsed_referrer.scheme() == "about"sv && parsed_referrer.paths().size() == 1 && parsed_referrer.paths()[0] == "client"sv)
                 || !parsed_referrer_origin.is_same_origin(origin)) {
                 request->set_referrer(Infrastructure::Request::Referrer::Client);

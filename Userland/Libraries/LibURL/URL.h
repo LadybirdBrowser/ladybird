@@ -122,8 +122,7 @@ public:
     ByteString to_byte_string() const { return serialize(); }
     ErrorOr<String> to_string() const;
 
-    // HTML origin
-    ByteString serialize_origin() const;
+    Origin origin() const;
 
     bool equals(URL const& other, ExcludeFragment = ExcludeFragment::No) const;
 

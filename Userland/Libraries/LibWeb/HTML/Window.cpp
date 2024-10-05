@@ -1033,7 +1033,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
             return WebIDL::SyntaxError::create(target_realm, MUST(String::formatted("Invalid URL for targetOrigin: '{}'", options.target_origin)));
 
         // 3. Set targetOrigin to parsedURL's origin.
-        target_origin = DOMURL::url_origin(parsed_url);
+        target_origin = parsed_url.origin();
     }
 
     // 6. Let transfer be options["transfer"].

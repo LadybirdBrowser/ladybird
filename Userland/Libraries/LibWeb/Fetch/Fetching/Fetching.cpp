@@ -353,7 +353,7 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
         // -> request’s current URL’s scheme is "data"
         // -> request’s mode is "navigate" or "websocket"
         else if (
-            (request->origin().has<URL::Origin>() && DOMURL::url_origin(request->current_url()).is_same_origin(request->origin().get<URL::Origin>()) && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
+            (request->origin().has<URL::Origin>() && request->current_url().origin().is_same_origin(request->origin().get<URL::Origin>()) && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
             || request->current_url().scheme() == "data"sv
             || (request->mode() == Infrastructure::Request::Mode::Navigate || request->mode() == Infrastructure::Request::Mode::WebSocket)) {
             // 1. Set request’s response tainting to "basic".
@@ -1201,7 +1201,7 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     if (request->mode() == Infrastructure::Request::Mode::CORS
         && location_url.includes_credentials()
         && request->origin().has<URL::Origin>()
-        && !request->origin().get<URL::Origin>().is_same_origin(DOMURL::url_origin(location_url))) {
+        && !request->origin().get<URL::Origin>().is_same_origin(location_url.origin())) {
         return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"sv));
     }
 
@@ -1244,7 +1244,7 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     // 13. If request’s current URL’s origin is not same origin with locationURL’s origin, then for each headerName of
     //     CORS non-wildcard request-header name, delete headerName from request’s header list.
     // NOTE: I.e., the moment another origin is seen after the initial request, the `Authorization` header is removed.
-    if (!DOMURL::url_origin(request->current_url()).is_same_origin(DOMURL::url_origin(location_url))) {
+    if (!request->current_url().origin().is_same_origin(location_url.origin())) {
         static constexpr Array cors_non_wildcard_request_header_names {
             "Authorization"sv
         };
@@ -2578,7 +2578,7 @@ void set_sec_fetch_site_header(Infrastructure::Request& request)
     if (!header_value.equals_ignoring_ascii_case("none"sv)) {
         for (auto& url : request.url_list()) {
             // 1. If url is same origin with r’s origin, continue.
-            if (DOMURL::url_origin(url).is_same_origin(DOMURL::url_origin(request.current_url())))
+            if (url.origin().is_same_origin(request.current_url().origin()))
                 continue;
 
             // 2. Set header’s value to cross-site.

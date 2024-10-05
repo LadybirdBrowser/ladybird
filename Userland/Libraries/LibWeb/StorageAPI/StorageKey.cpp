@@ -36,7 +36,7 @@ StorageKey obtain_a_storage_key_for_non_storage_purposes(HTML::Environment const
         auto& mutable_settings = const_cast<HTML::EnvironmentSettingsObject&>(settings);
         return { mutable_settings.origin() };
     }
-    return { DOMURL::url_origin(environment.creation_url) };
+    return { environment.creation_url.origin() };
 }
 
 }

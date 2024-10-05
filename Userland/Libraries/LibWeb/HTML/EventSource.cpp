@@ -449,7 +449,7 @@ void EventSource::dispatch_the_event()
     //    the value of the event type buffer.
     MessageEventInit init {};
     init.data = JS::PrimitiveString::create(vm(), data_buffer);
-    init.origin = MUST(String::from_byte_string(m_url.serialize_origin()));
+    init.origin = MUST(String::from_byte_string(m_url.origin().serialize()));
     init.last_event_id = last_event_id;
 
     auto type = m_event_type.is_empty() ? HTML::EventNames::message : m_event_type;

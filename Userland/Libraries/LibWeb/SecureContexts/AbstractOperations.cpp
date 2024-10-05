@@ -80,7 +80,7 @@ Trustworthiness is_url_potentially_trustworthy(URL::URL const& url)
         return Trustworthiness::PotentiallyTrustworthy;
 
     // 3. Return the result of executing § 3.1 Is origin potentially trustworthy? on url’s origin.
-    return is_origin_potentially_trustworthy(DOMURL::url_origin(url));
+    return is_origin_potentially_trustworthy(url.origin());
 }
 
 }
