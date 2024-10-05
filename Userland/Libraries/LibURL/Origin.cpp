@@ -27,9 +27,9 @@ ByteString Origin::serialize() const
     result.append(Parser::serialize_host(host()).release_value_but_fixme_should_propagate_errors().to_byte_string());
 
     // 5. If origin's port is non-null, append a U+003A COLON character (:), and origin's port, serialized, to result.
-    if (port() != 0) {
+    if (port().has_value()) {
         result.append(':');
-        result.append(ByteString::number(port()));
+        result.append(ByteString::number(*port()));
     }
     // 6. Return result
     return result.to_byte_string();
@@ -41,10 +41,15 @@ namespace AK {
 
 unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
 {
-    auto hash_without_host = pair_int_hash(origin.scheme().hash(), origin.port());
-    if (origin.host().has<Empty>())
-        return hash_without_host;
-    return pair_int_hash(hash_without_host, URL::Parser::serialize_host(origin.host()).release_value_but_fixme_should_propagate_errors().hash());
+    unsigned hash = origin.scheme().hash();
+
+    if (origin.port().has_value())
+        hash = pair_int_hash(hash, *origin.port());
+
+    if (!origin.host().has<Empty>())
+        hash = pair_int_hash(hash, URL::Parser::serialize_host(origin.host()).release_value_but_fixme_should_propagate_errors().hash());
+
+    return hash;
 }
 
 } // namespace AK

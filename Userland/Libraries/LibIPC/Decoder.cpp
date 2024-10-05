@@ -102,7 +102,7 @@ ErrorOr<URL::Origin> decode(Decoder& decoder)
 {
     auto scheme = TRY(decoder.decode<ByteString>());
     auto host = TRY(decoder.decode<URL::Host>());
-    u16 port = TRY(decoder.decode<u16>());
+    auto port = TRY(decoder.decode<Optional<u16>>());
 
     return URL::Origin { move(scheme), move(host), port };
 }
