@@ -390,7 +390,11 @@ Messages::WebDriverClient::GetTitleResponse WebDriverConnection::get_title()
 // 11.1 Get Window Handle, https://w3c.github.io/webdriver/#get-window-handle
 Messages::WebDriverClient::GetWindowHandleResponse WebDriverConnection::get_window_handle()
 {
-    return current_top_level_browsing_context()->top_level_traversable()->window_handle();
+    // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_top_level_browsing_context_is_open());
+
+    // 2. Return success with data being the window handle associated with session's current top-level browsing context.
+    return JsonValue { current_top_level_browsing_context()->top_level_traversable()->window_handle() };
 }
 
 // 11.2 Close Window, https://w3c.github.io/webdriver/#dfn-close-window
