@@ -382,7 +382,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
     else {
         // --> If current's active window does not have transient activation and the user agent has been configured to
         //     not show popups (i.e., the user agent has a "popup blocker" enabled)
-        if (!active_window()->has_transient_activation() && traversable_navigable()->page().should_block_pop_ups()) {
+        if (active_window() && !active_window()->has_transient_activation() && traversable_navigable()->page().should_block_pop_ups()) {
             // FIXME: The user agent may inform the user that a popup has been blocked.
             dbgln("Pop-up blocked!");
         }
@@ -590,6 +590,7 @@ static JS::GCPtr<DOM::Document> attempt_to_create_a_non_fetch_scheme_document(No
 static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation_params_from_a_srcdoc_resource(JS::GCPtr<SessionHistoryEntry> entry, JS::GCPtr<Navigable> navigable, TargetSnapshotParams const& target_snapshot_params, Optional<String> navigation_id)
 {
     auto& vm = navigable->vm();
+    VERIFY(navigable->active_window());
     auto& realm = navigable->active_window()->realm();
 
     // 1. Let documentResource be entry's document state's resource.
@@ -670,6 +671,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation
 static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation_params_by_fetching(JS::GCPtr<SessionHistoryEntry> entry, JS::GCPtr<Navigable> navigable, SourceSnapshotParams const& source_snapshot_params, TargetSnapshotParams const& target_snapshot_params, CSPNavigationType csp_navigation_type, Optional<String> navigation_id)
 {
     auto& vm = navigable->vm();
+    VERIFY(navigable->active_window());
     auto& realm = navigable->active_window()->realm();
     auto& active_document = *navigable->active_document();
 
@@ -1045,6 +1047,10 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     bool allow_POST,
     JS::GCPtr<JS::HeapFunction<void()>> completion_steps)
 {
+    // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+    if (!active_window())
+        return {};
+
     // FIXME: 1. Assert: this is running in parallel.
 
     // 2. Assert: if navigationParams is non-null, then navigationParams's response is non-null.
@@ -1093,8 +1099,8 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         }
     }
 
-    // NOTE: Not in the spec but queuing task on the next step will fail because active_window() does not exist for destroyed navigable.
-    if (has_been_destroyed())
+    // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+    if (!active_window())
         return {};
 
     // 6. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
@@ -1206,6 +1212,10 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 {
+    // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+    if (!active_window())
+        return {};
+
     auto const& url = params.url;
     auto source_document = params.source_document;
     auto const& document_resource = params.document_resource;
@@ -1318,6 +1328,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     // 18. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, initiatorOriginSnapshot, and cspNavigationType.
+        VERIFY(active_window());
         queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), JS::create_heap_function(heap(), [this, url, history_handling, initiator_origin_snapshot, csp_navigation_type, navigation_id] {
             (void)navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), initiator_origin_snapshot, csp_navigation_type, navigation_id);
         }));
@@ -1334,6 +1345,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     //     then:
     if (user_involvement != UserNavigationInvolvement::BrowserUI && active_document.origin().is_same_origin_domain(source_document->origin()) && !active_document.is_initial_about_blank() && Fetch::Infrastructure::is_fetch_scheme(url.scheme())) {
         // 1. Let navigation be navigable's active window's navigation API.
+        VERIFY(active_window());
         auto navigation = active_window()->navigation();
 
         // 2. Let entryListForFiring be formDataEntryList if documentResource is a POST resource; otherwise, null.
@@ -1363,8 +1375,8 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 
     // 20. In parallel, run these steps:
     Platform::EventLoopPlugin::the().deferred_invoke([this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot] {
-        // NOTE: Not in the spec but subsequent steps will fail because destroyed navigable does not have active document.
-        if (has_been_destroyed()) {
+        // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+        if (!active_window()) {
             set_delaying_load_events(false);
             return;
         }
@@ -1377,6 +1389,12 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
             // FIXME: 1. Invoke WebDriver BiDi navigation failed with targetBrowsingContext and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
 
             // 2. Abort these steps.
+            set_delaying_load_events(false);
+            return;
+        }
+
+        // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+        if (!active_window()) {
             set_delaying_load_events(false);
             return;
         }
@@ -1455,6 +1473,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
     (void)navigation_id;
 
     // 1. Let navigation be navigable's active window's navigation API.
+    VERIFY(active_window());
     auto navigation = active_window()->navigation();
 
     // 2. Let destinationNavigationAPIState be navigable's active session history entry's navigation API state.
@@ -1540,6 +1559,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
 WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> Navigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, String navigation_id)
 {
     auto& vm = this->vm();
+    VERIFY(active_window());
     auto& realm = active_window()->realm();
 
     // 1. Let urlString be the result of running the URL serializer on url.
@@ -2058,8 +2078,13 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
     // FIXME: 1. If this algorithm is running on navigable's active window's relevant agent's event loop, then continue on to the following steps.
     // Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to run the following steps.
 
+    // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+    if (!active_window())
+        return;
+
     queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), JS::create_heap_function(heap(), [this] {
         // 2. Let navigation be navigable's active window's navigation API.
+        VERIFY(active_window());
         auto navigation = active_window()->navigation();
 
         // 3. If navigation's ongoing navigate event is null, then return.

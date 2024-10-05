@@ -497,6 +497,8 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
 
     // 12. For each navigable of changingNavigables, queue a global task on the navigation and traversal task source of navigable's active window to run the steps:
     for (auto& navigable : changing_navigables) {
+        if (!navigable->active_window())
+            continue;
         queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), JS::create_heap_function(heap(), [&] {
             // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
             if (navigable->has_been_destroyed()) {
@@ -627,6 +629,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
                 //    navigable's active window to run afterDocumentPopulated.
                 Platform::EventLoopPlugin::the().deferred_invoke([populated_target_entry, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, after_document_populated = JS::create_heap_function(this->heap(), move(after_document_populated))] {
                     navigable->populate_session_history_entry_document(populated_target_entry, *potentially_target_specific_source_snapshot_params, target_snapshot_params, {}, Empty {}, CSPNavigationType::Other, allow_POST, JS::create_heap_function(this->heap(), [this, after_document_populated, populated_target_entry]() mutable {
+                                 VERIFY(active_window());
                                  queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), JS::create_heap_function(this->heap(), [after_document_populated, populated_target_entry]() mutable {
                                      after_document_populated->function()(true, populated_target_entry);
                                  }));
@@ -753,6 +756,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
             navigable->set_ongoing_navigation({});
 
             // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
+            VERIFY(navigable->active_window());
             queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), after_potential_unload);
         }
         // 11. Otherwise:
@@ -787,6 +791,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
             continue;
         }
 
+        VERIFY(navigable->active_window());
         queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), JS::create_heap_function(heap(), [&] {
             // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
             if (navigable->has_been_destroyed()) {
@@ -880,6 +885,7 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
             }
 
             // 5. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:
+            VERIFY(traversable->active_window());
             queue_global_task(Task::Source::NavigationAndTraversal, *traversable->active_window(), JS::create_heap_function(heap(), [&] {
                 // 1. if needsBeforeunload is true, then:
                 if (needs_beforeunload) {
@@ -900,6 +906,7 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
                     return;
 
                 // 3. Let navigation be traversable's active window's navigation API.
+                VERIFY(traversable->active_window());
                 auto navigation = traversable->active_window()->navigation();
 
                 // 4. Let navigateEventResult be the result of firing a traverse navigate event at navigation given targetEntry and userInvolvementForNavigateEvent.
