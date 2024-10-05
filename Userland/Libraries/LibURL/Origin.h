@@ -9,7 +9,6 @@
 
 #include <AK/ByteString.h>
 #include <LibURL/Host.h>
-#include <LibURL/Parser.h>
 
 namespace URL {
 
@@ -72,30 +71,7 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
-    ByteString serialize() const
-    {
-        // 1. If origin is an opaque origin, then return "null"
-        if (is_opaque())
-            return "null";
-
-        // 2. Otherwise, let result be origin's scheme.
-        StringBuilder result;
-        result.append(scheme());
-
-        // 3. Append "://" to result.
-        result.append("://"sv);
-
-        // 4. Append origin's host, serialized, to result.
-        result.append(Parser::serialize_host(host()).release_value_but_fixme_should_propagate_errors().to_byte_string());
-
-        // 5. If origin's port is non-null, append a U+003A COLON character (:), and origin's port, serialized, to result.
-        if (port() != 0) {
-            result.append(':');
-            result.append(ByteString::number(port()));
-        }
-        // 6. Return result
-        return result.to_byte_string();
-    }
+    ByteString serialize() const;
 
     // https://html.spec.whatwg.org/multipage/origin.html#concept-origin-effective-domain
     Optional<Host> effective_domain() const
@@ -121,14 +97,10 @@ private:
 }
 
 namespace AK {
+
 template<>
 struct Traits<URL::Origin> : public DefaultTraits<URL::Origin> {
-    static unsigned hash(URL::Origin const& origin)
-    {
-        auto hash_without_host = pair_int_hash(origin.scheme().hash(), origin.port());
-        if (origin.host().has<Empty>())
-            return hash_without_host;
-        return pair_int_hash(hash_without_host, URL::Parser::serialize_host(origin.host()).release_value_but_fixme_should_propagate_errors().hash());
-    }
+    static unsigned hash(URL::Origin const& origin);
 };
+
 } // namespace AK
