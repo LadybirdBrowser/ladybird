@@ -1,0 +1,4 @@
+writable: true
+configurable: true
+enumerable: true
+value (the function itself): function canParse() { [native code] }

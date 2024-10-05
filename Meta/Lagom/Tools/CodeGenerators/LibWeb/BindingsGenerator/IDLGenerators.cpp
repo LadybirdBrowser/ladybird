@@ -4415,8 +4415,14 @@ static void define_the_operations(SourceGenerator& generator, HashMap<ByteString
         function_generator.set("function.name:snakecase", make_input_acceptable_cpp(operation.key.to_snakecase()));
         function_generator.set("function.length", ByteString::number(get_shortest_function_length(operation.value)));
 
+        // NOTE: This assumes that every function in the overload set has the same attribute set.
+        if (operation.value[0].extended_attributes.contains("LegacyUnforgable"sv))
+            function_generator.set("function.attributes", "JS::Attribute::Enumerable");
+        else
+            function_generator.set("function.attributes", "JS::Attribute::Writable | JS::Attribute::Enumerable | JS::Attribute::Configurable");
+
         function_generator.append(R"~~~(
-    define_native_function(realm, "@function.name@", @function.name:snakecase@, @function.length@, default_attributes);
+    define_native_function(realm, "@function.name@", @function.name:snakecase@, @function.length@, @function.attributes@);
 )~~~");
     }
 }
