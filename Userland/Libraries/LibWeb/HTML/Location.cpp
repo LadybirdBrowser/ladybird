@@ -109,7 +109,7 @@ WebIDL::ExceptionOr<String> Location::href() const
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface:dom-location-href-2
 WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
 {
-    auto& vm = this->vm();
+    auto& realm = this->realm();
     auto& window = verify_cast<HTML::Window>(HTML::current_global_object());
 
     // 1. If this's relevant Document is null, then return.
@@ -117,12 +117,14 @@ WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
     if (!relevant_document)
         return {};
 
-    // 2. Parse the given value relative to the entry settings object. If that failed, throw a TypeError exception.
+    // FIXME: 2. Let url be the result of encoding-parsing a URL given the given value, relative to the entry settings object.
     auto href_url = window.associated_document().parse_url(new_href.to_byte_string());
-    if (!href_url.is_valid())
-        return vm.throw_completion<JS::URIError>(TRY_OR_THROW_OOM(vm, String::formatted("Invalid URL '{}'", new_href)));
 
-    // 3. Location-object navigate given the resulting URL record.
+    // 3. If url is failure, then throw a "SyntaxError" DOMException.
+    if (!href_url.is_valid())
+        return WebIDL::SyntaxError::create(realm, MUST(String::formatted("Invalid URL '{}'", new_href)));
+
+    // 4. Location-object navigate this to url.
     TRY(navigate(href_url));
 
     return {};

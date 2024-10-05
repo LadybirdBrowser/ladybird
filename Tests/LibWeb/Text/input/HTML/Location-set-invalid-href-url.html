@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            location.href = 'http://@:www.invalid-url.com';
+        } catch (e) {
+            println(`Error setting href: ${e}`);
+        }
+    });
+</script>
