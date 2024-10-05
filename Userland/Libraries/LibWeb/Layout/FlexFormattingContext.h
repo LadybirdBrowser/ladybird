@@ -24,7 +24,7 @@ public:
 
     Box const& flex_container() const { return context_box(); }
 
-    virtual StaticPositionRect calculate_static_position_rect(Box const&) const override;
+    StaticPositionRect calculate_static_position_rect(Box const&) const;
 
 private:
     [[nodiscard]] bool should_treat_main_size_as_auto(Box const&) const;

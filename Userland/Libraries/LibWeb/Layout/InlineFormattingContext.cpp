@@ -463,4 +463,42 @@ void InlineFormattingContext::set_vertical_float_clearance(CSSPixels vertical_fl
 {
     m_vertical_float_clearance = vertical_float_clearance;
 }
+
+StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box const& box) const
+{
+    CSSPixels x = 0;
+    CSSPixels y = 0;
+
+    VERIFY(box.parent());
+    VERIFY(box.parent()->children_are_inline());
+    // We're an abspos box with inline siblings. This is gonna get messy!
+    if (auto const* sibling = box.previous_sibling()) {
+        // Hard case: there's a previous sibling. This means there's already inline content
+        // preceding the hypothetical static position of `box` within its containing block.
+        // If we had been position:static, that inline content would have been wrapped in
+        // anonymous block box, so now we get to imagine what the world might have looked like
+        // in that scenario..
+        // Basically, we find its last associated line box fragment and place `box` under it.
+        // FIXME: I'm 100% sure this can be smarter, better and faster.
+        LineBoxFragment const* last_fragment = nullptr;
+        auto const& cb_state = m_state.get(*sibling->containing_block());
+        for (auto const& line_box : cb_state.line_boxes) {
+            for (auto const& fragment : line_box.fragments()) {
+                if (&fragment.layout_node() == sibling)
+                    last_fragment = &fragment;
+            }
+        }
+        if (last_fragment) {
+            x = last_fragment->offset().x() + last_fragment->width();
+            y = last_fragment->offset().y() + last_fragment->height();
+        }
+    } else {
+        // Easy case: no previous sibling, we're at the top of the containing block.
+    }
+    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
+    StaticPositionRect static_position_rect;
+    static_position_rect.rect = { offset_to_static_parent.location().translated(x, y), { 0, 0 } };
+    return static_position_rect;
+}
+
 }
