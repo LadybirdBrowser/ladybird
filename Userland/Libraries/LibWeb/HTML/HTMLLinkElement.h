@@ -86,7 +86,7 @@ private:
         URL::URL base_url;
         // origin
         //      An origin
-        HTML::Origin origin;
+        URL::Origin origin;
         // environment
         //      An environment
         JS::GCPtr<HTML::EnvironmentSettingsObject> environment;

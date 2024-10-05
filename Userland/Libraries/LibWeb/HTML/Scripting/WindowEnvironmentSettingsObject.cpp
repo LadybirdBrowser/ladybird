@@ -29,7 +29,7 @@ void WindowEnvironmentSettingsObject::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#set-up-a-window-environment-settings-object
-void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation_url, NonnullOwnPtr<JS::ExecutionContext> execution_context, JS::GCPtr<Environment> reserved_environment, URL::URL top_level_creation_url, Origin top_level_origin)
+void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation_url, NonnullOwnPtr<JS::ExecutionContext> execution_context, JS::GCPtr<Environment> reserved_environment, URL::URL top_level_creation_url, URL::Origin top_level_origin)
 {
     // 1. Let realm be the value of execution context's Realm component.
     auto realm = execution_context->realm;
@@ -104,7 +104,7 @@ URL::URL WindowEnvironmentSettingsObject::api_base_url()
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-origin
-Origin WindowEnvironmentSettingsObject::origin()
+URL::Origin WindowEnvironmentSettingsObject::origin()
 {
     // Return the origin of window's associated Document.
     return m_window->associated_document().origin();

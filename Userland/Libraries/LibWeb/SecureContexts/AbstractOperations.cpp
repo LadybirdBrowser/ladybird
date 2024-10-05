@@ -6,15 +6,15 @@
 
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOMURL/DOMURL.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
 
 namespace Web::SecureContexts {
 
 // https://w3c.github.io/webappsec-secure-contexts/#is-origin-trustworthy
-Trustworthiness is_origin_potentially_trustworthy(HTML::Origin const& origin)
+Trustworthiness is_origin_potentially_trustworthy(URL::Origin const& origin)
 {
     // 1. If origin is an opaque origin, return "Not Trustworthy".
     if (origin.is_opaque())

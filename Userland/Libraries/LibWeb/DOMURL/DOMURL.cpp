@@ -479,7 +479,7 @@ void DOMURL::set_hash(String const& hash)
 }
 
 // https://url.spec.whatwg.org/#concept-url-origin
-HTML::Origin url_origin(URL::URL const& url)
+URL::Origin url_origin(URL::URL const& url)
 {
     // FIXME: We should probably have an extended version of URL::URL for LibWeb instead of standalone functions like this.
 
@@ -497,14 +497,14 @@ HTML::Origin url_origin(URL::URL const& url)
 
         // 3. If pathURL is failure, then return a new opaque origin.
         if (!path_url.is_valid())
-            return HTML::Origin {};
+            return URL::Origin {};
 
         // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
         if (path_url.scheme().is_one_of("http"sv, "https"sv, "file"sv))
             return url_origin(path_url);
 
         // 5. Return a new opaque origin.
-        return HTML::Origin {};
+        return URL::Origin {};
     }
 
     // -> "ftp"
@@ -514,7 +514,7 @@ HTML::Origin url_origin(URL::URL const& url)
     // -> "wss"
     if (url.scheme().is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
         // Return the tuple origin (url’s scheme, url’s host, url’s port, null).
-        return HTML::Origin(url.scheme().to_byte_string(), url.host(), url.port().value_or(0));
+        return URL::Origin(url.scheme().to_byte_string(), url.host(), url.port().value_or(0));
     }
 
     // -> "file"
@@ -522,12 +522,12 @@ HTML::Origin url_origin(URL::URL const& url)
     if (url.scheme() == "file"sv || url.scheme() == "resource"sv) {
         // Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.
         // Note: We must return an origin with the `file://' protocol for `file://' iframes to work from `file://' pages.
-        return HTML::Origin(url.scheme().to_byte_string(), String {}, 0);
+        return URL::Origin(url.scheme().to_byte_string(), String {}, 0);
     }
 
     // -> Otherwise
     // Return a new opaque origin.
-    return HTML::Origin {};
+    return URL::Origin {};
 }
 
 // https://url.spec.whatwg.org/#concept-domain

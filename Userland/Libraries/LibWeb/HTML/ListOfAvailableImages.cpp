@@ -26,7 +26,7 @@ u32 ListOfAvailableImages::Key::hash() const
         u32 mode_hash = static_cast<u32>(mode);
         u32 origin_hash = 0;
         if (origin.has_value())
-            origin_hash = Traits<HTML::Origin>::hash(origin.value());
+            origin_hash = Traits<URL::Origin>::hash(origin.value());
         cached_hash = pair_int_hash(url_hash, pair_int_hash(mode_hash, origin_hash));
     }
     return cached_hash.value();

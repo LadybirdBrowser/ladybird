@@ -17,6 +17,7 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibURL/Origin.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/Bindings/WindowPrototype.h>
@@ -45,7 +46,6 @@
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Navigator.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/PageTransitionEvent.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -415,7 +415,7 @@ void Window::fire_a_page_transition_event(FlyString const& event_name, bool pers
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Storage>> Window::local_storage()
 {
     // FIXME: Implement according to spec.
-    static HashMap<Origin, JS::Handle<Storage>> local_storage_per_origin;
+    static HashMap<URL::Origin, JS::Handle<Storage>> local_storage_per_origin;
     auto storage = local_storage_per_origin.ensure(associated_document().origin(), [this]() -> JS::Handle<Storage> {
         return Storage::create(realm());
     });
@@ -426,7 +426,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Storage>> Window::local_storage()
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Storage>> Window::session_storage()
 {
     // FIXME: Implement according to spec.
-    static HashMap<Origin, JS::Handle<Storage>> session_storage_per_origin;
+    static HashMap<URL::Origin, JS::Handle<Storage>> session_storage_per_origin;
     auto storage = session_storage_per_origin.ensure(associated_document().origin(), [this]() -> JS::Handle<Storage> {
         return Storage::create(realm());
     });
@@ -1017,7 +1017,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
     auto& incumbent_settings = incumbent_settings_object();
 
     // 3. Let targetOrigin be options["targetOrigin"].
-    Variant<String, Origin> target_origin = options.target_origin;
+    Variant<String, URL::Origin> target_origin = options.target_origin;
 
     // 4. If targetOrigin is a single U+002F SOLIDUS character (/), then set targetOrigin to incumbentSettings's origin.
     if (options.target_origin == "/"sv) {
@@ -1048,7 +1048,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
         //    associated Document's origin is not same origin with targetOrigin, then return.
         // NOTE: Due to step 4 and 5 above, the only time it's not '*' is if target_origin contains an Origin.
         if (!target_origin.has<String>()) {
-            auto const& actual_target_origin = target_origin.get<Origin>();
+            auto const& actual_target_origin = target_origin.get<URL::Origin>();
             if (!document()->origin().is_same_origin(actual_target_origin))
                 return;
         }

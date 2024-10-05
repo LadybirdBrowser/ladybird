@@ -483,7 +483,6 @@ class NavigationDestination;
 class NavigationHistoryEntry;
 class NavigationTransition;
 class Navigator;
-class Origin;
 class PageTransitionEvent;
 class Path2D;
 class Plugin;

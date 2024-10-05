@@ -97,6 +97,16 @@ ErrorOr<URL::URL> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<URL::Origin> decode(Decoder& decoder)
+{
+    auto scheme = TRY(decoder.decode<ByteString>());
+    auto host = TRY(decoder.decode<URL::Host>());
+    u16 port = TRY(decoder.decode<u16>());
+
+    return URL::Origin { move(scheme), move(host), port };
+}
+
+template<>
 ErrorOr<File> decode(Decoder& decoder)
 {
     auto file = TRY(decoder.files().try_dequeue());

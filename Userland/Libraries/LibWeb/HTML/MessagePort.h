@@ -10,6 +10,7 @@
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
 #include <LibCore/Socket.h>
+#include <LibIPC/File.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>

@@ -9,12 +9,12 @@
 #include <AK/Optional.h>
 #include <LibJS/Heap/CellAllocator.h>
 #include <LibJS/Heap/GCPtr.h>
+#include <LibURL/Origin.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 
@@ -50,7 +50,7 @@ struct NavigationParams : JS::Cell {
     Fetch::Infrastructure::Request::ReservedClientType reserved_environment;
 
     // an origin to use for the new Document
-    Origin origin;
+    URL::Origin origin;
 
     // a policy container to use for the new Document
     PolicyContainer policy_container;
@@ -90,7 +90,7 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
     bool source_snapshot_has_transient_activation = { false };
 
     // an origin possibly for use in a user-facing prompt to confirm the invocation of an external software package
-    Origin initiator_origin;
+    URL::Origin initiator_origin;
 
     // FIXME: a NavigationTimingType used for creating the navigation timing entry for the new Document
 

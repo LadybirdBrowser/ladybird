@@ -59,16 +59,16 @@ bool url_matches_about_srcdoc(URL::URL const& url)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#determining-the-origin
-HTML::Origin determine_the_origin(Optional<URL::URL> const& url, SandboxingFlagSet sandbox_flags, Optional<HTML::Origin> source_origin)
+URL::Origin determine_the_origin(Optional<URL::URL> const& url, SandboxingFlagSet sandbox_flags, Optional<URL::Origin> source_origin)
 {
     // 1. If sandboxFlags has its sandboxed origin browsing context flag set, then return a new opaque origin.
     if (has_flag(sandbox_flags, SandboxingFlagSet::SandboxedOrigin)) {
-        return HTML::Origin {};
+        return URL::Origin {};
     }
 
     // 2. If url is null, then return a new opaque origin.
     if (!url.has_value()) {
-        return HTML::Origin {};
+        return URL::Origin {};
     }
 
     // 3. If url is about:srcdoc, then:
@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     [[maybe_unused]] auto unsafe_context_creation_time = HighResolutionTime::unsafe_shared_current_time();
 
     // 3. Let creatorOrigin be null.
-    Optional<Origin> creator_origin = {};
+    Optional<URL::Origin> creator_origin = {};
 
     // 4. Let creatorBaseURL be null.
     Optional<URL::URL> creator_base_url = {};

@@ -7,11 +7,11 @@
 #include <AK/Assertions.h>
 #include <AK/Vector.h>
 #include <LibJS/Runtime/PropertyKey.h>
+#include <LibURL/Origin.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/CrossOrigin/Reporting.h>
-#include <LibWeb/HTML/Origin.h>
 
 namespace Web::HTML {
 
@@ -38,7 +38,7 @@ void check_if_access_between_two_browsing_contexts_should_be_reported(
     auto* accessor_top_document = accessor.top_level_browsing_context()->active_document();
 
     // 4. Let accessorInclusiveAncestorOrigins be the list obtained by taking the origin of the active document of each of accessor's active document's inclusive ancestor navigables.
-    Vector<Origin> accessor_inclusive_ancestor_origins = {};
+    Vector<URL::Origin> accessor_inclusive_ancestor_origins = {};
     auto accessor_inclusive_ancestors = accessor.active_document()->ancestor_navigables();
     accessor_inclusive_ancestor_origins.ensure_capacity(accessor_inclusive_ancestors.size());
     for (auto const& ancestor : accessor_inclusive_ancestors) {
@@ -52,7 +52,7 @@ void check_if_access_between_two_browsing_contexts_should_be_reported(
     auto* accessed_top_document = accessed->top_level_browsing_context()->active_document();
 
     // 6. Let accessedInclusiveAncestorOrigins be the list obtained by taking the origin of the active document of each of accessed's active document's inclusive ancestor navigables.
-    Vector<Origin> accessed_inclusive_ancestor_origins = {};
+    Vector<URL::Origin> accessed_inclusive_ancestor_origins = {};
     auto accessed_inclusive_ancestors = accessed->active_document()->ancestor_navigables();
     accessed_inclusive_ancestor_origins.ensure_capacity(accessed_inclusive_ancestors.size());
     for (auto const& ancestor : accessed_inclusive_ancestors) {
