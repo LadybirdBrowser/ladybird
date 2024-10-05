@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const descriptor = Object.getOwnPropertyDescriptor(URL, "canParse");
+        println(`writable: ${descriptor.writable}`);
+        println(`configurable: ${descriptor.configurable}`);
+        println(`enumerable: ${descriptor.enumerable}`);
+        println(`value (the function itself): ${descriptor.value}`);
+    });
+</script>
