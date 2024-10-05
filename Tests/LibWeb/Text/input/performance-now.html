@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let before = performance.now();
+        let event = new MouseEvent('test');
+        let after = performance.now();
+
+        if (event.timeStamp < before || event.timeStamp > after) {
+            println('Event.timeStamp should be in between performance.now() calls, but was ' + event.timeStamp);
+            return;
+        }
+
+        let timestamp = performance.now();
+        let date = Date.now();
+        let allowedDifference = 300;
+
+        if (timestamp <= date - allowedDifference || timestamp >= date + allowedDifference) {
+            println('performance.now() should be close to Date.now(), but was ' + (timestamp - date));
+            return;
+        }
+
+        println('PASS');
+    });
+</script>
