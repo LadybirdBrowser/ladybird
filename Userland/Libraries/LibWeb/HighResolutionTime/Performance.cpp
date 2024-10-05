@@ -65,9 +65,18 @@ JS::GCPtr<NavigationTiming::PerformanceNavigation> Performance::navigation()
     return m_navigation;
 }
 
+// https://w3c.github.io/hr-time/#timeorigin-attribute
 double Performance::time_origin() const
 {
+    // FIXME: The timeOrigin attribute MUST return the number of milliseconds in the duration returned by get time origin timestamp for the relevant global object of this.
     return static_cast<double>(m_timer.origin_time().nanoseconds()) / 1e6;
+}
+
+// https://w3c.github.io/hr-time/#now-method
+double Performance::now() const
+{
+    // The now() method MUST return the number of milliseconds in the current high resolution time given this's relevant global object (a duration).
+    return current_high_resolution_time(HTML::relevant_global_object(*this));
 }
 
 // https://w3c.github.io/user-timing/#mark-method
@@ -232,8 +241,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<UserTiming::PerformanceMeasure>> Performanc
     }
     // 4. Otherwise, let end time be the value that would be returned by the Performance object's now() method.
     else {
-        // FIXME: Performance#now doesn't currently use TimeOrigin's functions, update this and Performance#now to match Performance#now's specification.
-        end_time = HighResolutionTime::unsafe_shared_current_time();
+        end_time = now();
     }
 
     // 3. Compute start time as follows:
