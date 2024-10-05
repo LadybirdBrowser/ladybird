@@ -4406,6 +4406,21 @@ private:
 )~~~");
 }
 
+// https://webidl.spec.whatwg.org/#define-the-operations
+static void define_the_operations(SourceGenerator& generator, HashMap<ByteString, Vector<Function&>> const& operations)
+{
+    for (auto const& operation : operations) {
+        auto function_generator = generator.fork();
+        function_generator.set("function.name", operation.key);
+        function_generator.set("function.name:snakecase", make_input_acceptable_cpp(operation.key.to_snakecase()));
+        function_generator.set("function.length", ByteString::number(get_shortest_function_length(operation.value)));
+
+        function_generator.append(R"~~~(
+    define_native_function(realm, "@function.name@", @function.name:snakecase@, @function.length@, default_attributes);
+)~~~");
+    }
+}
+
 void generate_constructor_implementation(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
@@ -4520,17 +4535,7 @@ void @constructor_class@::initialize(JS::Realm& realm)
 )~~~");
     }
 
-    // https://webidl.spec.whatwg.org/#es-operations
-    for (auto const& overload_set : interface.static_overload_sets) {
-        auto function_generator = generator.fork();
-        function_generator.set("function.name", overload_set.key);
-        function_generator.set("function.name:snakecase", make_input_acceptable_cpp(overload_set.key.to_snakecase()));
-        function_generator.set("function.length", ByteString::number(get_shortest_function_length(overload_set.value)));
-
-        function_generator.append(R"~~~(
-    define_native_function(realm, "@function.name@", @function.name:snakecase@, @function.length@, default_attributes);
-)~~~");
-    }
+    define_the_operations(generator, interface.static_overload_sets);
 
     generator.append(R"~~~(
 }
