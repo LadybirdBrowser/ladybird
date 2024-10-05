@@ -538,6 +538,9 @@ void PageClient::page_did_close_top_level_traversable()
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);
 
+    if (m_webdriver)
+        m_webdriver->async_window_closed();
+
     // NOTE: This only removes the strong reference the PageHost has for this PageClient.
     //       It will be GC'd 'later'.
     m_owner.remove_page({}, m_id);
