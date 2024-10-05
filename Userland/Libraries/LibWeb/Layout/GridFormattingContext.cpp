@@ -2508,6 +2508,18 @@ CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& 
     return calculate_min_content_contribution(item, dimension);
 }
 
+StaticPositionRect GridFormattingContext::calculate_static_position_rect(Box const& box) const
+{
+    // Result of this function is only used when containing block is not a grid container.
+    // If the containing block is a grid container then static position is a grid area rect and
+    // layout_absolutely_positioned_element() defined for GFC knows how to handle this case.
+    StaticPositionRect static_position;
+    auto const& box_state = m_state.get(box);
+    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
+    static_position.rect = { offset_to_static_parent.location().translated(0, 0), { box_state.content_width(), box_state.content_height() } };
+    return static_position;
+}
+
 }
 
 namespace AK {

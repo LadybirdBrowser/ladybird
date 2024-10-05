@@ -107,7 +107,6 @@ public:
     [[nodiscard]] CSSPixels calculate_stretch_fit_width(Box const&, AvailableSize const&) const;
     [[nodiscard]] CSSPixels calculate_stretch_fit_height(Box const&, AvailableSize const&) const;
 
-    virtual StaticPositionRect calculate_static_position_rect(Box const&) const;
     bool can_skip_is_anonymous_text_run(Box&);
 
     void compute_inset(NodeWithStyleAndBoxModelMetrics const&);

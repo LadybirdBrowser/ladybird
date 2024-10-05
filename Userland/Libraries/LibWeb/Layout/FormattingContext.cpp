@@ -1174,53 +1174,6 @@ CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coo
     VERIFY_NOT_REACHED();
 }
 
-// https://www.w3.org/TR/css-position-3/#staticpos-rect
-StaticPositionRect FormattingContext::calculate_static_position_rect(Box const& box) const
-{
-    // NOTE: This is very ad-hoc.
-    // The purpose of this function is to calculate the approximate position that `box`
-    // would have had if it were position:static.
-
-    CSSPixels x = 0;
-    CSSPixels y = 0;
-
-    VERIFY(box.parent());
-    if (box.parent()->children_are_inline()) {
-        // We're an abspos box with inline siblings. This is gonna get messy!
-        if (auto* sibling = box.previous_sibling()) {
-            // Hard case: there's a previous sibling. This means there's already inline content
-            // preceding the hypothetical static position of `box` within its containing block.
-            // If we had been position:static, that inline content would have been wrapped in
-            // anonymous block box, so now we get to imagine what the world might have looked like
-            // in that scenario..
-            // Basically, we find its last associated line box fragment and place `box` under it.
-            // FIXME: I'm 100% sure this can be smarter, better and faster.
-            LineBoxFragment const* last_fragment = nullptr;
-            auto& cb_state = m_state.get(*sibling->containing_block());
-            for (auto& line_box : cb_state.line_boxes) {
-                for (auto& fragment : line_box.fragments()) {
-                    if (&fragment.layout_node() == sibling)
-                        last_fragment = &fragment;
-                }
-            }
-            if (last_fragment) {
-                x = last_fragment->offset().x() + last_fragment->width();
-                y = last_fragment->offset().y() + last_fragment->height();
-            }
-        } else {
-            // Easy case: no previous sibling, we're at the top of the containing block.
-        }
-    } else {
-        auto const& box_state = m_state.get(box);
-        // We're among block siblings, Y can be calculated easily.
-        y = box_state.vertical_offset_of_parent_block_container;
-    }
-    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
-    StaticPositionRect static_position_rect;
-    static_position_rect.rect = { offset_to_static_parent.location().translated(x, y), { 0, 0 } };
-    return static_position_rect;
-}
-
 void FormattingContext::layout_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
 {
     if (box.is_svg_box()) {

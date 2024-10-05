@@ -26,6 +26,7 @@ public:
     virtual void run(AvailableSpace const&) override;
     virtual CSSPixels automatic_content_height() const override;
     virtual CSSPixels automatic_content_width() const override;
+    StaticPositionRect calculate_static_position_rect(Box const&) const;
 
     void dimension_box_on_line(Box const&, LayoutMode);
 
