@@ -1178,8 +1178,9 @@ void TraversableNavigable::close_top_level_traversable()
     VERIFY(is_top_level_traversable());
 
     // 1. If traversable's is closing is true, then return.
-    if (is_closing())
-        return;
+    // FIXME: Spec-issue: The only place in the spec that sets the `is closing` flag to true is `window.close`, and it
+    //        does so immediately before invoking this method. So it does not make sense to return early here.
+    //        https://github.com/whatwg/html/issues/10678
 
     // 2. Let toUnload be traversable's active document's inclusive descendant navigables.
     auto to_unload = active_document()->inclusive_descendant_navigables();
