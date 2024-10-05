@@ -336,6 +336,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/UIEvents/KeyboardEvent.idl",
   "//Userland/Libraries/LibWeb/UIEvents/MouseEvent.idl",
   "//Userland/Libraries/LibWeb/UIEvents/PointerEvent.idl",
+  "//Userland/Libraries/LibWeb/UIEvents/TextEvent.idl",
   "//Userland/Libraries/LibWeb/UIEvents/UIEvent.idl",
   "//Userland/Libraries/LibWeb/UIEvents/WheelEvent.idl",
   "//Userland/Libraries/LibWeb/UserTiming/PerformanceMark.idl",

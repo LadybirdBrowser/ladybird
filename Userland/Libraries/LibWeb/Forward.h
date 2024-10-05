@@ -727,6 +727,7 @@ class InputEvent;
 class KeyboardEvent;
 class MouseEvent;
 class PointerEvent;
+class TextEvent;
 class UIEvent;
 }
 
