@@ -19,6 +19,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibURL/Origin.h>
+#include <LibURL/Parser.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
