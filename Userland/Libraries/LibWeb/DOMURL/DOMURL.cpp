@@ -489,8 +489,8 @@ URL::Origin url_origin(URL::URL const& url)
         auto url_string = url.to_string().release_value_but_fixme_should_propagate_errors();
 
         // 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
-        if (auto blob_url_entry = FileAPI::blob_url_store().get(url_string); blob_url_entry.has_value())
-            return blob_url_entry->environment->origin();
+        if (url.blob_url_entry().has_value())
+            return url.blob_url_entry()->environment_origin;
 
         // 2. Let pathURL be the result of parsing the result of URL path serializing url.
         auto path_url = parse(url.serialize_path());
@@ -582,6 +582,7 @@ URL::URL parse(StringView input, Optional<URL::URL> const& base_url, Optional<St
         url.set_blob_url_entry(URL::BlobURLEntry {
             .type = blob_url_entry->object->type(),
             .byte_buffer = MUST(ByteBuffer::copy(blob_url_entry->object->raw_bytes())),
+            .environment_origin = blob_url_entry->environment->origin(),
         });
     }
 

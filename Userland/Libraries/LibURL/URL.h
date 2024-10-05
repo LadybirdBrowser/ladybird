@@ -14,6 +14,7 @@
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibURL/Host.h>
+#include <LibURL/Origin.h>
 
 // On Linux distros that use mlibc `basename` is defined as a macro that expands to `__mlibc_gnu_basename` or `__mlibc_gnu_basename_c`, so we undefine it.
 #if defined(AK_OS_LINUX) && defined(basename)
@@ -44,6 +45,7 @@ enum class ExcludeFragment {
 struct BlobURLEntry {
     String type;
     ByteBuffer byte_buffer;
+    Origin environment_origin;
 };
 
 void append_percent_encoded_if_necessary(StringBuilder&, u32 code_point, PercentEncodeSet set = PercentEncodeSet::Userinfo);
