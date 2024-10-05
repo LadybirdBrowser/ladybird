@@ -12,6 +12,7 @@ source_set("UIEvents") {
     "KeyboardEvent.cpp",
     "MouseEvent.cpp",
     "PointerEvent.cpp",
+    "TextEvent.cpp",
     "UIEvent.cpp",
     "WheelEvent.cpp",
   ]
