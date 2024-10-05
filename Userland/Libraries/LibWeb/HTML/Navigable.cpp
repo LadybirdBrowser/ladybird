@@ -128,6 +128,21 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     m_event_handler.visit_edges(visitor);
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
+bool Navigable::is_script_closable()
+{
+    // A navigable is script-closable if its active browsing context is an auxiliary browsing context that was created
+    // by a script (as opposed to by an action of the user), or if it is a top-level traversable whose session history
+    // entries's size is 1.
+    if (auto browsing_context = active_browsing_context(); browsing_context && browsing_context->is_auxiliary())
+        return true;
+
+    if (is_top_level_traversable())
+        return get_session_history_entries().size() == 1;
+
+    return false;
+}
+
 void Navigable::set_delaying_load_events(bool value)
 {
     if (value) {

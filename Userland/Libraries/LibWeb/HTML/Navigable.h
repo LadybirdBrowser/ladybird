@@ -69,6 +69,7 @@ public:
 
     bool is_closing() const { return m_closing; }
     void set_closing(bool value) { m_closing = value; }
+    bool is_script_closable();
 
     void set_delaying_load_events(bool value);
     bool is_delaying_load_events() const { return m_delaying_the_load_event.has_value(); }

@@ -96,6 +96,7 @@ public:
     }
 
     bool is_top_level() const;
+    bool is_auxiliary() const { return m_is_auxiliary; }
 
     DOM::Document const* active_document() const;
     DOM::Document* active_document();

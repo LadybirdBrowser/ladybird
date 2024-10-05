@@ -787,15 +787,59 @@ String Window::status() const
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-close
 void Window::close()
 {
-    // FIXME: Implement this properly
-    dbgln("(STUBBED) Window::close()");
+    // 1. Let thisTraversable be this's navigable.
+    auto traversable = navigable();
+
+    // 2. If thisTraversable is not a top-level traversable, then return.
+    if (!traversable || !traversable->is_top_level_traversable())
+        return;
+
+    // 3. If thisTraversable's is closing is true, then return.
+    if (traversable->is_closing())
+        return;
+
+    // 4. Let browsingContext be thisTraversable's active browsing context.
+    auto browsing_context = traversable->active_browsing_context();
+
+    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
+    auto source_snapshot_params = traversable->active_document()->snapshot_source_snapshot_params();
+
+    auto& incumbent_global_object = verify_cast<HTML::Window>(HTML::incumbent_global_object());
+
+    // 6. If all the following are true:
+    if (
+        // thisTraversable is script-closable;
+        traversable->is_script_closable()
+
+        // the incumbent global object's browsing context is familiar with browsingContext; and
+        && incumbent_global_object.browsing_context()->is_familiar_with(*browsing_context)
+
+        // the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
+        && incumbent_global_object.navigable()->allowed_by_sandboxing_to_navigate(*traversable, source_snapshot_params))
+    // then:
+    {
+        // 1. Set thisTraversable's is closing to true.
+        traversable->set_closing(true);
+
+        // 2. Queue a task on the DOM manipulation task source to close thisTraversable.
+        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, incumbent_global_object, JS::create_heap_function(heap(), [traversable] {
+            verify_cast<TraversableNavigable>(*traversable).close_top_level_traversable();
+        }));
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-closed
 bool Window::closed() const
 {
-    // FIXME: Implement this properly
-    dbgln("(STUBBED) Window::closed");
+    // The closed getter steps are to return true if this's browsing context is null or its is closing is true;
+    // otherwise false.
+    if (!browsing_context())
+        return true;
+
+    // FIXME: The spec seems a bit out of date. The `is closing` flag is on the navigable, not the browsing context.
+    if (auto navigable = this->navigable(); !navigable || navigable->is_closing())
+        return true;
+
     return false;
 }
 
