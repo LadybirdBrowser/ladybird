@@ -76,6 +76,9 @@ public:
         view->client().async_set_viewport_size(0, view->m_viewport_size.to_type<Web::DevicePixels>());
         view->client().async_set_window_size(0, window_size.to_type<Web::DevicePixels>());
 
+        if (WebView::Application::chrome_options().allow_popups == WebView::AllowPopups::Yes)
+            view->client().async_debug_request(0, "block-pop-ups"sv, "off"sv);
+
         if (auto web_driver_ipc_path = WebView::Application::chrome_options().webdriver_content_ipc_path; web_driver_ipc_path.has_value())
             view->client().async_connect_to_webdriver(0, *web_driver_ipc_path);
 
@@ -616,11 +619,16 @@ struct Application : public WebView::Application {
         args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
     }
 
-    virtual void create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions& web_content_options) override
+    virtual void create_platform_options(WebView::ChromeOptions& chrome_options, WebView::WebContentOptions& web_content_options) override
     {
         if (!test_root_path.is_empty()) {
             // --run-tests implies --layout-test-mode.
             is_layout_test_mode = true;
+        }
+
+        if (is_layout_test_mode) {
+            // Allow window.open() to succeed for tests.
+            chrome_options.allow_popups = WebView::AllowPopups::Yes;
         }
 
         web_content_options.is_layout_test_mode = is_layout_test_mode ? WebView::IsLayoutTestMode::Yes : WebView::IsLayoutTestMode::No;
