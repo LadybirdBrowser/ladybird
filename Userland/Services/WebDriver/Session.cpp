@@ -73,7 +73,14 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
         dbgln("WebDriver is connected to WebContent socket");
         auto web_content_connection = maybe_connection.release_value();
 
-        auto window_handle = web_content_connection->get_window_handle();
+        auto maybe_window_handle = web_content_connection->get_window_handle();
+        if (maybe_window_handle.is_error()) {
+            promise->reject(Error::from_string_literal("Window was closed immediately"));
+            return;
+        }
+
+        auto window_handle = MUST(String::from_byte_string(maybe_window_handle.value().as_string()));
+
         web_content_connection->on_close = [this, window_handle]() {
             dbgln_if(WEBDRIVER_DEBUG, "Window {} was closed remotely.", window_handle);
             m_windows.remove(window_handle);
