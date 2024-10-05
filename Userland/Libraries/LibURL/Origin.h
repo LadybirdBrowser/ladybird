@@ -15,7 +15,7 @@ namespace URL {
 class Origin {
 public:
     Origin() = default;
-    Origin(Optional<ByteString> const& scheme, Host const& host, u16 port)
+    Origin(Optional<ByteString> const& scheme, Host const& host, Optional<u16> port)
         : m_scheme(scheme)
         , m_host(host)
         , m_port(port)
@@ -23,14 +23,14 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/origin.html#concept-origin-opaque
-    bool is_opaque() const { return !m_scheme.has_value() && m_host.has<Empty>() && m_port == 0; }
+    bool is_opaque() const { return !m_scheme.has_value() && m_host.has<Empty>() && !m_port.has_value(); }
 
     StringView scheme() const
     {
         return m_scheme.map([](auto& str) { return str.view(); }).value_or(StringView {});
     }
     Host const& host() const { return m_host; }
-    u16 port() const { return m_port; }
+    Optional<u16> port() const { return m_port; }
 
     // https://html.spec.whatwg.org/multipage/origin.html#same-origin
     bool is_same_origin(Origin const& other) const
@@ -91,7 +91,7 @@ public:
 private:
     Optional<ByteString> m_scheme;
     Host m_host;
-    u16 m_port { 0 };
+    Optional<u16> m_port;
 };
 
 }
