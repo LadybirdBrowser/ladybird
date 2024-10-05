@@ -111,6 +111,7 @@ ErrorOr<void> encode(Encoder& encoder, URL::URL const& value)
 
     TRY(encoder.encode(blob.type));
     TRY(encoder.encode(blob.byte_buffer));
+    TRY(encoder.encode(blob.environment_origin));
 
     return {};
 }
