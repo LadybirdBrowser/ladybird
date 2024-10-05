@@ -143,7 +143,7 @@ void Internals::spoof_current_url(String const& url_string)
 
     VERIFY(url.is_valid());
 
-    auto origin = DOMURL::url_origin(url);
+    auto origin = url.origin();
 
     auto& window = internals_window();
     window.associated_document().set_url(url);

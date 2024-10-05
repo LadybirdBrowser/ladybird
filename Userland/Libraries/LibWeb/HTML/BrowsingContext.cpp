@@ -85,7 +85,7 @@ URL::Origin determine_the_origin(Optional<URL::URL> const& url, SandboxingFlagSe
         return source_origin.release_value();
 
     // 5. Return url's origin.
-    return DOMURL::url_origin(*url);
+    return url->origin();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-auxiliary-browsing-context

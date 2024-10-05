@@ -352,32 +352,54 @@ ErrorOr<String> URL::to_string() const
     return String::from_byte_string(serialize());
 }
 
-// https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
 // https://url.spec.whatwg.org/#concept-url-origin
-ByteString URL::serialize_origin() const
+Origin URL::origin() const
 {
-    VERIFY(m_data->valid);
+    // The origin of a URL url is the origin returned by running these steps, switching on url’s scheme:
+    // -> "blob"
+    if (scheme() == "blob"sv) {
+        auto url_string = to_string().release_value_but_fixme_should_propagate_errors();
 
-    if (m_data->scheme == "blob"sv) {
-        // TODO: 1. If URL’s blob URL entry is non-null, then return URL’s blob URL entry’s environment’s origin.
-        // 2. Let url be the result of parsing URL’s path[0].
-        VERIFY(!m_data->paths.is_empty());
-        URL url = m_data->paths[0];
-        // 3. Return a new opaque origin, if url is failure, and url’s origin otherwise.
-        if (!url.is_valid())
-            return "null";
-        return url.serialize_origin();
-    } else if (!m_data->scheme.is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) { // file: "Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin."
-        return "null";
+        // 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
+        if (blob_url_entry().has_value())
+            return blob_url_entry()->environment_origin;
+
+        // 2. Let pathURL be the result of parsing the result of URL path serializing url.
+        auto path_url = Parser::basic_parse(serialize_path());
+
+        // 3. If pathURL is failure, then return a new opaque origin.
+        if (!path_url.is_valid())
+            return Origin {};
+
+        // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
+        if (path_url.scheme().is_one_of("http"sv, "https"sv, "file"sv))
+            return path_url.origin();
+
+        // 5. Return a new opaque origin.
+        return Origin {};
     }
 
-    StringBuilder builder;
-    builder.append(m_data->scheme);
-    builder.append("://"sv);
-    builder.append(serialized_host().release_value_but_fixme_should_propagate_errors());
-    if (m_data->port.has_value())
-        builder.appendff(":{}", *m_data->port);
-    return builder.to_byte_string();
+    // -> "ftp"
+    // -> "http"
+    // -> "https"
+    // -> "ws"
+    // -> "wss"
+    if (scheme().is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
+        // Return the tuple origin (url’s scheme, url’s host, url’s port, null).
+        return Origin(scheme().to_byte_string(), host(), port().value_or(0));
+    }
+
+    // -> "file"
+    // AD-HOC: Our resource:// is basically an alias to file://
+    if (scheme() == "file"sv || scheme() == "resource"sv) {
+        // Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.
+        // Note: We must return an origin with the `file://' protocol for `file://' iframes to work from `file://' pages.
+        return Origin(scheme().to_byte_string(), String {}, 0);
+    }
+
+    // -> Otherwise
+    // Return a new opaque origin.
+    return Origin {};
 }
 
 bool URL::equals(URL const& other, ExcludeFragment exclude_fragments) const

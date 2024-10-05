@@ -139,7 +139,7 @@ WebIDL::ExceptionOr<String> Location::origin() const
         return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
 
     // 2. Return the serialization of this's url's origin.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(url().serialize_origin()));
+    return TRY_OR_THROW_OOM(vm, String::from_byte_string(url().origin().serialize()));
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-protocol

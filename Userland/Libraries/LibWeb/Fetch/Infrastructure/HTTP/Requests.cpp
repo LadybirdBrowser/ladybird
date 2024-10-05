@@ -173,8 +173,8 @@ bool Request::has_redirect_tainted_origin() const
 
         // 2. If url’s origin is not same origin with lastURL’s origin and request’s origin is not same origin with lastURL’s origin, then return true.
         auto const* request_origin = m_origin.get_pointer<URL::Origin>();
-        if (!DOMURL::url_origin(url).is_same_origin(DOMURL::url_origin(*last_url))
-            && (request_origin == nullptr || !request_origin->is_same_origin(DOMURL::url_origin(*last_url)))) {
+        if (!url.origin().is_same_origin(last_url->origin())
+            && (request_origin == nullptr || !request_origin->is_same_origin(last_url->origin()))) {
             return true;
         }
 
@@ -328,7 +328,7 @@ void Request::add_origin_header()
             case ReferrerPolicy::ReferrerPolicy::SameOrigin:
                 // If request’s origin is not same origin with request’s current URL’s origin, then set serializedOrigin
                 // to `null`.
-                if (m_origin.has<URL::Origin>() && !m_origin.get<URL::Origin>().is_same_origin(DOMURL::url_origin(current_url())))
+                if (m_origin.has<URL::Origin>() && !m_origin.get<URL::Origin>().is_same_origin(current_url().origin()))
                     serialized_origin = MUST(ByteBuffer::copy("null"sv.bytes()));
                 break;
             // -> Otherwise
@@ -368,7 +368,7 @@ bool Request::cross_origin_embedder_policy_allows_credentials() const
     if (request_origin == nullptr)
         return false;
 
-    return request_origin->is_same_origin(DOMURL::url_origin(current_url())) && !has_redirect_tainted_origin();
+    return request_origin->is_same_origin(current_url().origin()) && !has_redirect_tainted_origin();
 }
 
 StringView request_destination_to_string(Request::Destination destination)
