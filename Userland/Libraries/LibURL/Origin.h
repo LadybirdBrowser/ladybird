@@ -8,8 +8,8 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <LibURL/Host.h>
 #include <LibURL/Parser.h>
-#include <LibURL/URL.h>
 
 namespace URL {
 
