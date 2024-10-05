@@ -587,8 +587,13 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             return Optional<CanvasImageSourceUsability> {};
         },
 
-        // FIXME: HTMLVideoElement
-        // If image's readyState attribute is either HAVE_NOTHING or HAVE_METADATA, then return bad.
+        [](JS::Handle<HTML::HTMLVideoElement> const& video_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+            // If image's readyState attribute is either HAVE_NOTHING or HAVE_METADATA, then return bad.
+            if (video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveNothing || video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveMetadata) {
+                return { CanvasImageSourceUsability::Bad };
+            }
+            return Optional<CanvasImageSourceUsability> {};
+        },
 
         // HTMLCanvasElement
         // FIXME: OffscreenCanvas
@@ -627,10 +632,10 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
             // FIXME: image's current request's image data is CORS-cross-origin.
             return false;
         },
-
-        // FIXME: HTMLVideoElement
-        // image's media data is CORS-cross-origin.
-
+        [](JS::Handle<HTML::HTMLVideoElement> const&) {
+            // FIXME: image's media data is CORS-cross-origin.
+            return false;
+        },
         // HTMLCanvasElement
         [](OneOf<JS::Handle<HTMLCanvasElement>, JS::Handle<ImageBitmap>> auto const&) {
             // FIXME: image's bitmap's origin-clean flag is false.

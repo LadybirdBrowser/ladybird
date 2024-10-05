@@ -23,6 +23,15 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
                 source_height = source->height()->anim_val()->value();
             }
         },
+        [&source_width, &source_height](JS::Handle<HTML::HTMLVideoElement> const& source) {
+            if (auto const bitmap = source->bitmap(); bitmap) {
+                source_width = bitmap->width();
+                source_height = bitmap->height();
+            } else {
+                source_width = source->video_width();
+                source_height = source->video_height();
+            }
+        },
         [&source_width, &source_height](auto const& source) {
             if (source->bitmap()) {
                 source_width = source->bitmap()->width();
