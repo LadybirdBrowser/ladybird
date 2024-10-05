@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibURL/Origin.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Origin.h>
 
 namespace Web::StorageAPI {
 
@@ -17,7 +17,7 @@ struct StorageKey {
 
     // A storage key is a tuple consisting of an origin (an origin). [HTML]
     // NOTE: This is expected to change; see Client-Side Storage Partitioning https://privacycg.github.io/storage-partitioning/.
-    HTML::Origin origin;
+    URL::Origin origin;
 
     friend bool operator==(StorageKey const& a, StorageKey const& b)
     {

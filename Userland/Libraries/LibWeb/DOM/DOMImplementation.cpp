@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Origin.h>
 #include <LibWeb/Bindings/DOMImplementationPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -14,7 +15,6 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/HTMLDocument.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::DOM {

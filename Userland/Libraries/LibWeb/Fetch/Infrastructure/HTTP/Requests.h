@@ -17,10 +17,10 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/GCPtr.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 
@@ -170,7 +170,7 @@ public:
     struct InternalPriority { };
 
     using BodyType = Variant<Empty, ByteBuffer, JS::NonnullGCPtr<Body>>;
-    using OriginType = Variant<Origin, HTML::Origin>;
+    using OriginType = Variant<Origin, URL::Origin>;
     using PolicyContainerType = Variant<PolicyContainer, HTML::PolicyContainer>;
     using ReferrerType = Variant<Referrer, URL::URL>;
     using ReservedClientType = JS::GCPtr<HTML::Environment>;

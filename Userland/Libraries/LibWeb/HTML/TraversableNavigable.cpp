@@ -99,7 +99,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<TraversableNavigable>> TraversableNavigable
     document_state->set_document(document);
 
     // initiator origin: null if opener is null; otherwise, document's origin
-    document_state->set_initiator_origin(opener ? Optional<Origin> {} : document->origin());
+    document_state->set_initiator_origin(opener ? Optional<URL::Origin> {} : document->origin());
 
     // origin: document's origin
     document_state->set_origin(document->origin());

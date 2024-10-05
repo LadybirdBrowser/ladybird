@@ -8,10 +8,10 @@
 #pragma once
 
 #include <LibJS/Heap/Cell.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
@@ -49,11 +49,11 @@ public:
     [[nodiscard]] ReferrerPolicy::ReferrerPolicy request_referrer_policy() const { return m_request_referrer_policy; }
     void set_request_referrer_policy(ReferrerPolicy::ReferrerPolicy request_referrer_policy) { m_request_referrer_policy = move(request_referrer_policy); }
 
-    [[nodiscard]] Optional<HTML::Origin> initiator_origin() const { return m_initiator_origin; }
-    void set_initiator_origin(Optional<HTML::Origin> initiator_origin) { m_initiator_origin = move(initiator_origin); }
+    [[nodiscard]] Optional<URL::Origin> initiator_origin() const { return m_initiator_origin; }
+    void set_initiator_origin(Optional<URL::Origin> initiator_origin) { m_initiator_origin = move(initiator_origin); }
 
-    [[nodiscard]] Optional<HTML::Origin> origin() const { return m_origin; }
-    void set_origin(Optional<HTML::Origin> origin) { m_origin = move(origin); }
+    [[nodiscard]] Optional<URL::Origin> origin() const { return m_origin; }
+    void set_origin(Optional<URL::Origin> origin) { m_origin = move(origin); }
 
     [[nodiscard]] Optional<URL::URL> const& about_base_url() const { return m_about_base_url; }
     void set_about_base_url(Optional<URL::URL> url) { m_about_base_url = move(url); }
@@ -91,10 +91,10 @@ private:
     ReferrerPolicy::ReferrerPolicy m_request_referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-initiator-origin
-    Optional<HTML::Origin> m_initiator_origin;
+    Optional<URL::Origin> m_initiator_origin;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-origin
-    Optional<HTML::Origin> m_origin;
+    Optional<URL::Origin> m_origin;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-about-base-url
     Optional<URL::URL> m_about_base_url = {};

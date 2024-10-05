@@ -69,8 +69,8 @@ bool tao_check(Infrastructure::Request const& request, Infrastructure::Response 
     //       validates the results of the TAO check, the nested document would still have access to the full timing
     //       information, but the container document would not.
     if (request.mode() == Infrastructure::Request::Mode::Navigate
-        && request.origin().has<HTML::Origin>()
-        && !DOMURL::url_origin(request.current_url()).is_same_origin(request.origin().get<HTML::Origin>())) {
+        && request.origin().has<URL::Origin>()
+        && !DOMURL::url_origin(request.current_url()).is_same_origin(request.origin().get<URL::Origin>())) {
         return false;
     }
 

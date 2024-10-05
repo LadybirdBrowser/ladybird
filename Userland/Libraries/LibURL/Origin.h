@@ -8,17 +8,15 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 
-namespace Web::HTML {
+namespace URL {
 
 class Origin {
 public:
     Origin() = default;
-    Origin(Optional<ByteString> const& scheme, URL::Host const& host, u16 port)
+    Origin(Optional<ByteString> const& scheme, Host const& host, u16 port)
         : m_scheme(scheme)
         , m_host(host)
         , m_port(port)
@@ -32,7 +30,7 @@ public:
     {
         return m_scheme.map([](auto& str) { return str.view(); }).value_or(StringView {});
     }
-    URL::Host const& host() const { return m_host; }
+    Host const& host() const { return m_host; }
     u16 port() const { return m_port; }
 
     // https://html.spec.whatwg.org/multipage/origin.html#same-origin
@@ -88,7 +86,7 @@ public:
         result.append("://"sv);
 
         // 4. Append origin's host, serialized, to result.
-        result.append(URL::Parser::serialize_host(host()).release_value_but_fixme_should_propagate_errors().to_byte_string());
+        result.append(Parser::serialize_host(host()).release_value_but_fixme_should_propagate_errors().to_byte_string());
 
         // 5. If origin's port is non-null, append a U+003A COLON character (:), and origin's port, serialized, to result.
         if (port() != 0) {
@@ -100,7 +98,7 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/origin.html#concept-origin-effective-domain
-    Optional<URL::Host> effective_domain() const
+    Optional<Host> effective_domain() const
     {
         // 1. If origin is an opaque origin, then return null.
         if (is_opaque())
@@ -116,7 +114,7 @@ public:
 
 private:
     Optional<ByteString> m_scheme;
-    URL::Host m_host;
+    Host m_host;
     u16 m_port { 0 };
 };
 
@@ -124,8 +122,8 @@ private:
 
 namespace AK {
 template<>
-struct Traits<Web::HTML::Origin> : public DefaultTraits<Web::HTML::Origin> {
-    static unsigned hash(Web::HTML::Origin const& origin)
+struct Traits<URL::Origin> : public DefaultTraits<URL::Origin> {
+    static unsigned hash(URL::Origin const& origin)
     {
         auto hash_without_host = pair_int_hash(origin.scheme().hash(), origin.port());
         if (origin.host().has<Empty>())
@@ -134,11 +132,3 @@ struct Traits<Web::HTML::Origin> : public DefaultTraits<Web::HTML::Origin> {
     }
 };
 } // namespace AK
-
-namespace IPC {
-template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::Origin const&);
-
-template<>
-ErrorOr<Web::HTML::Origin> decode(Decoder&);
-}

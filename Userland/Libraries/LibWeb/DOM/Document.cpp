@@ -18,6 +18,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibURL/Origin.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
@@ -98,7 +99,6 @@
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Numbers.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PopStateEvent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -723,12 +723,12 @@ JS::GCPtr<HTML::WindowProxy const> Document::default_view() const
     return const_cast<Document*>(this)->default_view();
 }
 
-HTML::Origin Document::origin() const
+URL::Origin Document::origin() const
 {
     return m_origin;
 }
 
-void Document::set_origin(HTML::Origin const& origin)
+void Document::set_origin(URL::Origin const& origin)
 {
     m_origin = origin;
 }

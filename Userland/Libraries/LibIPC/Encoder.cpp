@@ -20,6 +20,7 @@
 #include <LibCore/System.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 
 namespace IPC {
@@ -110,6 +111,16 @@ ErrorOr<void> encode(Encoder& encoder, URL::URL const& value)
 
     TRY(encoder.encode(blob.type));
     TRY(encoder.encode(blob.byte_buffer));
+
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, URL::Origin const& origin)
+{
+    TRY(encoder.encode<ByteString>(origin.scheme()));
+    TRY(encoder.encode(origin.host()));
+    TRY(encoder.encode(origin.port()));
 
     return {};
 }

@@ -38,7 +38,7 @@ ErrorOr<JS::NonnullGCPtr<SVGDecodedImageData>> SVGDecodedImageData::create(JS::R
     auto navigation_params = navigable->heap().allocate_without_realm<HTML::NavigationParams>();
     navigation_params->navigable = navigable;
     navigation_params->response = response;
-    navigation_params->origin = HTML::Origin {};
+    navigation_params->origin = URL::Origin {};
     navigation_params->policy_container = HTML::PolicyContainer {};
     navigation_params->final_sandboxing_flag_set = HTML::SandboxingFlagSet {};
     navigation_params->opener_policy = HTML::OpenerPolicy {};

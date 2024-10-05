@@ -18,6 +18,7 @@
 #include <LibCore/Forward.h>
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibUnicode/Forward.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -32,7 +33,6 @@
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/LazyLoadingElement.h>
 #include <LibWeb/HTML/NavigationType.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/VisibilityState.h>
@@ -148,8 +148,8 @@ public:
     String url_string() const { return MUST(m_url.to_string()); }
     String document_uri() const { return url_string(); }
 
-    HTML::Origin origin() const;
-    void set_origin(HTML::Origin const& origin);
+    URL::Origin origin() const;
+    void set_origin(URL::Origin const& origin);
 
     HTML::OpenerPolicy const& opener_policy() const { return m_opener_policy; }
     void set_opener_policy(HTML::OpenerPolicy policy) { m_opener_policy = move(policy); }
@@ -877,7 +877,7 @@ private:
     String m_referrer;
 
     // https://dom.spec.whatwg.org/#concept-document-origin
-    HTML::Origin m_origin;
+    URL::Origin m_origin;
 
     JS::GCPtr<HTMLCollection> m_applets;
     JS::GCPtr<HTMLCollection> m_anchors;

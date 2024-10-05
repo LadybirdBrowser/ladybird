@@ -23,7 +23,7 @@ JS::NonnullGCPtr<DOM::Document> create_document_for_inline_content(JS::GCPtr<HTM
     auto& vm = navigable->vm();
 
     // 1. Let origin be a new opaque origin.
-    HTML::Origin origin {};
+    URL::Origin origin {};
 
     // 2. Let coop be a new opener policy.
     auto coop = HTML::OpenerPolicy {};

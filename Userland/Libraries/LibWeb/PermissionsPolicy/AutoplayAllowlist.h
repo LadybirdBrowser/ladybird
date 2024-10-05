@@ -18,7 +18,7 @@ class AutoplayAllowlist {
 public:
     static AutoplayAllowlist& the();
 
-    Decision is_allowed_for_origin(DOM::Document const&, HTML::Origin const&) const;
+    Decision is_allowed_for_origin(DOM::Document const&, URL::Origin const&) const;
 
     void enable_globally();
     ErrorOr<void> enable_for_origins(ReadonlySpan<String>);
@@ -27,7 +27,7 @@ private:
     AutoplayAllowlist();
     ~AutoplayAllowlist();
 
-    using Patterns = Vector<HTML::Origin>;
+    using Patterns = Vector<URL::Origin>;
     struct Global { };
 
     Optional<Variant<Patterns, Global>> m_allowlist;

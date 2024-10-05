@@ -418,7 +418,6 @@ set(SOURCES
     HTML/NavigatorBeacon.cpp
     HTML/NavigatorID.cpp
     HTML/Numbers.cpp
-    HTML/Origin.cpp
     HTML/PageTransitionEvent.cpp
     HTML/PolicyContainers.cpp
     HTML/PopStateEvent.cpp

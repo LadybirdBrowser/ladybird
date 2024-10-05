@@ -8,10 +8,10 @@
 #pragma once
 
 #include <LibJS/Forward.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/Scripting/ModuleMap.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
@@ -34,7 +34,7 @@ public:
     URL::URL top_level_creation_url;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-origin
-    Origin top_level_origin;
+    URL::Origin top_level_origin;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
     JS::GCPtr<BrowsingContext> target_browsing_context;
@@ -77,7 +77,7 @@ public:
     virtual URL::URL api_base_url() = 0;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
-    virtual Origin origin() = 0;
+    virtual URL::Origin origin() = 0;
 
     // A policy container https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-policy-container
     virtual PolicyContainer policy_container() = 0;
