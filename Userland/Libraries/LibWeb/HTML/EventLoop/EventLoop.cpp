@@ -221,6 +221,11 @@ void EventLoop::queue_task_to_update_the_rendering()
     // 2. Set eventLoop's last render opportunity time to the unsafe shared current time.
     m_last_render_opportunity_time = HighResolutionTime::unsafe_shared_current_time();
 
+    // OPTIMIZATION: If there are already rendering tasks in the queue, we don't need to queue another one.
+    if (m_task_queue->has_rendering_tasks()) {
+        return;
+    }
+
     // 3. For each navigable that has a rendering opportunity, queue a global task on the rendering task source given navigable's active window to update the rendering:
     for (auto& navigable : all_navigables()) {
         if (!navigable->is_traversable())

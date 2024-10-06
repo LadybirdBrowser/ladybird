@@ -23,6 +23,7 @@ public:
     bool is_empty() const { return m_tasks.is_empty(); }
 
     bool has_runnable_tasks() const;
+    bool has_rendering_tasks() const;
 
     void add(JS::NonnullGCPtr<HTML::Task>);
     JS::GCPtr<HTML::Task> take_first_runnable();
