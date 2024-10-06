@@ -25,7 +25,6 @@ public:
     virtual void run(AvailableSpace const&) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
-    StaticPositionRect calculate_static_position_rect(Box const&) const;
 
     auto const& left_side_floats() const { return m_left_floats; }
     auto const& right_side_floats() const { return m_right_floats; }
