@@ -68,8 +68,9 @@ void WorkerGlobalScope::set_internal_port(JS::NonnullGCPtr<MessagePort> port)
 void WorkerGlobalScope::close_a_worker()
 {
     // 1. Discard any tasks that have been added to workerGlobal's relevant agent's event loop's task queues.
-    relevant_settings_object(*this).responsible_event_loop().task_queue().remove_tasks_matching([](HTML::Task const&) {
-        return true;
+    relevant_settings_object(*this).responsible_event_loop().task_queue().remove_tasks_matching([](HTML::Task const& task) {
+        // NOTE: We don't discard tasks with the PostedMessage source, as the spec expects PostMessage() to act as if it is invoked immediately
+        return task.source() != HTML::Task::Source::PostedMessage;
     });
 
     // 2. Set workerGlobal's closing flag to true. (This prevents any further tasks from being queued.)
