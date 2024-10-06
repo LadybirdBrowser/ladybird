@@ -1600,7 +1600,7 @@ CSSPixels FormattingContext::calculate_inner_width(Layout::Box const& box, Avail
         return max(inner_width, 0);
     }
 
-    return width.resolved(box, width_of_containing_block).to_px(box);
+    return width.to_px(box, width_of_containing_block);
 }
 
 CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, AvailableSize const& available_height, CSS::Size const& height) const
@@ -1618,7 +1618,7 @@ CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, Avai
         return max(inner_height, 0);
     }
 
-    return height.resolved(box, height_of_containing_block).to_px(box);
+    return height.to_px(box, height_of_containing_block);
 }
 
 CSSPixels FormattingContext::containing_block_width_for(NodeWithStyleAndBoxModelMetrics const& node) const
