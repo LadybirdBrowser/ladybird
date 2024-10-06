@@ -640,8 +640,10 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     auto& box_state = m_state.get_mutable(box);
 
     if (box.is_absolutely_positioned()) {
-        box_state.vertical_offset_of_parent_block_container = m_y_offset_of_current_block_container.value();
-        box_state.set_static_position_rect(calculate_static_position_rect(box));
+        StaticPositionRect static_position;
+        auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
+        static_position.rect = { offset_to_static_parent.location().translated(0, m_y_offset_of_current_block_container.value()), { 0, 0 } };
+        box_state.set_static_position_rect(static_position);
         return;
     }
 
@@ -1327,15 +1329,6 @@ CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
         });
     }
     return max_width;
-}
-
-StaticPositionRect BlockFormattingContext::calculate_static_position_rect(Box const& box) const
-{
-    StaticPositionRect static_position;
-    auto const& box_state = m_state.get(box);
-    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
-    static_position.rect = { offset_to_static_parent.location().translated(0, box_state.vertical_offset_of_parent_block_container), { 0, 0 } };
-    return static_position;
 }
 
 }
