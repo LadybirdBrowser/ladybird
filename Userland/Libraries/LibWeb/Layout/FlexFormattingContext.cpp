@@ -587,6 +587,13 @@ void FlexFormattingContext::determine_flex_base_size_and_hypothetical_main_size(
             return get_pixel_height(child_box, size);
         }
 
+        // AD-HOC: If we're sizing the flex container under a min-content constraint in the main axis,
+        //         flex items resolve percentages in the main axis to 0.
+        if (m_available_space_for_items->main.is_min_content()
+            && computed_main_size(item.box).contains_percentage()) {
+            return CSSPixels(0);
+        }
+
         // B. If the flex item has ...
         //    - an intrinsic aspect ratio,
         //    - a used flex basis of content, and
