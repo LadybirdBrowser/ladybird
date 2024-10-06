@@ -25,16 +25,12 @@ String NavigatorIDMixin::app_version() const
 
     // If the navigator compatibility mode is Chrome or WebKit
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Chrome || navigator_compatibility_mode == NavigatorCompatibilityMode::WebKit) {
-        dbgln("Call to NavigatorIDMixin::app_version, using Chrome or WebKit compatibility mode");
-
         // Return trail.
         return trail;
     }
 
     // If the navigator compatibility mode is Gecko
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Gecko) {
-        dbgln("Call to NavigatorIDMixin::app_version, using Gecko compatibility mode");
-
         // If trail starts with "5.0 (Windows", then return "5.0 (Windows)".
         if (trail.starts_with_bytes("5.0 (Windows"sv, CaseSensitivity::CaseSensitive))
             return "5.0 (Windows)"_string;
@@ -73,16 +69,12 @@ String NavigatorIDMixin::product_sub() const
 
     // If the navigator compatibility mode is Chrome or WebKit
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Chrome || navigator_compatibility_mode == NavigatorCompatibilityMode::WebKit) {
-        dbgln("Call to NavigatorIDMixin::product_sub, using Chrome or WebKit compatibility mode");
-
         // The string "20030107".
         return "20030107"_string;
     }
 
     // If the navigator compatibility mode is Gecko
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Gecko) {
-        dbgln("Call to NavigatorIDMixin::product_sub, using Gecko compatibility mode");
-
         // The string "20100101".
         return "20100101"_string;
     }
@@ -106,24 +98,18 @@ String NavigatorIDMixin::vendor() const
 
     // If the navigator compatibility mode is Chrome
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Chrome) {
-        dbgln("Call to NavigatorIDMixin::vendor, using Chrome compatibility mode");
-
         // The string "Google Inc.".
         return "Google Inc."_string;
     }
 
     // If the navigator compatibility mode is Gecko
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Gecko) {
-        dbgln("Call to NavigatorIDMixin::vendor, using Gecko compatibility mode");
-
         // The empty string.
         return ""_string;
     }
 
     // If the navigator compatibility mode is WebKit
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::WebKit) {
-        dbgln("Call to NavigatorIDMixin::vendor, using WebKit compatibility mode");
-
         // The string "Apple Computer, Inc.".
         return "Apple Computer, Inc."_string;
     }
