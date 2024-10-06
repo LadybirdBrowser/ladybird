@@ -19,11 +19,6 @@ CSSPixels Size::to_px(Layout::Node const& node, CSSPixels reference_value) const
     return m_length_percentage.resolved(node, reference_value).to_px(node);
 }
 
-CSS::Length Size::resolved(Layout::Node const& node, CSSPixels reference_value) const
-{
-    return m_length_percentage.resolved(node, reference_value);
-}
-
 Size Size::make_auto()
 {
     return Size { Type::Auto, Length::make_auto() };

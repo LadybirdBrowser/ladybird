@@ -45,9 +45,6 @@ public:
     bool is_fit_content() const { return m_type == Type::FitContent; }
     bool is_none() const { return m_type == Type::None; }
 
-    // FIXME: This is a stopgap API that will go away once all layout code is aware of CSS::Size.
-    CSS::Length resolved(Layout::Node const&, CSSPixels reference_value) const;
-
     [[nodiscard]] CSSPixels to_px(Layout::Node const&, CSSPixels reference_value) const;
 
     bool contains_percentage() const;
