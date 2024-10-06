@@ -38,11 +38,10 @@ runs:
         echo "${{ github.workspace }}/wabt-1.0.35/bin" >> $GITHUB_PATH
 
     - name: 'Install Python dependencies'
-      if: ${{ inputs.os == 'Linux' }}
       shell: bash
       run: |
         python3 -m pip install --break-system-packages --upgrade pip
-        pip3 install --break-system-packages requests six
+        pip3 install --break-system-packages pyyaml requests six
 
     - name: 'Select latest Xcode'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
@@ -56,7 +55,7 @@ runs:
       run: |
         set -e
         brew update
-        brew install autoconf autoconf-archive automake bash ccache coreutils ffmpeg llvm@18 nasm ninja qt unzip wabt pyyaml
+        brew install autoconf autoconf-archive automake bash ccache coreutils ffmpeg llvm@18 nasm ninja qt unzip wabt
 
     - name: 'Install vcpkg'
       shell: bash
