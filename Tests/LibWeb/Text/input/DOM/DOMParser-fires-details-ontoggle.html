@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        new DOMParser().parseFromString("<details open>", "text/html").querySelector("details").ontoggle = function(e) {
+            println(`DOMParser toggle event is ${e.target.open}`);
+            done();
+        };
+    });
+</script>
