@@ -1238,7 +1238,8 @@ static void compute_transitioned_properties(StyleProperties const& style, DOM::E
 void StyleComputer::start_needed_transitions(StyleProperties const& previous_style, StyleProperties& new_style, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element) const
 {
     // FIXME: Implement transitions for pseudo-elements
-    (void)pseudo_element;
+    if (pseudo_element.has_value())
+        return;
 
     // https://drafts.csswg.org/css-transitions/#transition-combined-duration
     auto combined_duration = [](Animations::Animatable::TransitionAttributes const& transition_attributes) {
