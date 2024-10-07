@@ -606,7 +606,14 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         tab.focus_location_editor();
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [] {
-        (void)static_cast<Ladybird::Application*>(QApplication::instance())->new_window({});
+        auto& window = static_cast<Ladybird::Application*>(QApplication::instance())->new_window({});
+        auto& tab = window.new_tab_from_url(ak_url_from_qstring(Settings::the()->new_tab_page()), Web::HTML::ActivateTab::Yes);
+        tab.set_url_is_hidden(true);
+        tab.focus_location_editor();
+        if (Ladybird::Settings::the()->is_maximized())
+            window.showMaximized();
+        else
+            window.resize(Ladybird::Settings::the()->last_size());
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
     QObject::connect(settings_action, &QAction::triggered, this, [this] {
