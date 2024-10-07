@@ -32,9 +32,7 @@ void SVGSVGPaintable::before_children_paint(PaintContext& context, PaintPhase ph
     if (phase != PaintPhase::Foreground)
         return;
     context.display_list_recorder().save();
-    auto clip_rect = absolute_rect();
     context.display_list_recorder().set_scroll_frame_id(scroll_frame_id());
-    context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(clip_rect).to_type<int>());
 }
 
 void SVGSVGPaintable::after_children_paint(PaintContext& context, PaintPhase phase) const
