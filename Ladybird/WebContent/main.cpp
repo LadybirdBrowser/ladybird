@@ -35,7 +35,6 @@
 
 #if defined(HAVE_QT)
 #    include <Ladybird/Qt/EventLoopImplementationQt.h>
-#    include <Ladybird/Qt/RequestManagerQt.h>
 #    include <QCoreApplication>
 
 #    if defined(HAVE_QT_MULTIMEDIA)
@@ -100,7 +99,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     int image_decoder_socket { -1 };
     bool is_layout_test_mode = false;
     bool expose_internals_object = false;
-    bool use_lagom_networking = false;
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
@@ -116,7 +114,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(image_decoder_socket, "File descriptor of the socket for the ImageDecoder connection", "image-decoder-socket", 'i', "image_decoder_socket");
     args_parser.add_option(is_layout_test_mode, "Is layout test mode", "layout-test-mode");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
-    args_parser.add_option(use_lagom_networking, "Enable Lagom servers for networking", "use-lagom-networking");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
@@ -166,13 +163,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     }
 #endif
 
-#if defined(HAVE_QT)
-    if (!use_lagom_networking)
-        Web::ResourceLoader::initialize(Ladybird::RequestManagerQt::create(certificates));
-    else
-#endif
-        TRY(initialize_lagom_networking(request_server_socket));
-
+    TRY(initialize_lagom_networking(request_server_socket));
     TRY(initialize_image_decoder(image_decoder_socket));
 
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);

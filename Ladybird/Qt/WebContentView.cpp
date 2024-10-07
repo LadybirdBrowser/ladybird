@@ -135,11 +135,8 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     };
 
     on_request_worker_agent = [&]() {
-        RefPtr<Requests::RequestClient> request_server_client {};
-        if (WebView::Application::web_content_options().use_lagom_networking == WebView::UseLagomNetworking::Yes)
-            request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
-
-        auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), request_server_client));
+        auto& request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
+        auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), *request_server_client));
         return worker_client->dup_socket();
     };
 
@@ -647,14 +644,10 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
     if (create_new_client == CreateNewClient::Yes) {
         m_client_state = {};
 
-        Optional<IPC::File> request_server_socket;
-        if (WebView::Application::web_content_options().use_lagom_networking == WebView::UseLagomNetworking::Yes) {
-            auto& protocol = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
+        auto& request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
 
-            // FIXME: Fail to open the tab, rather than crashing the whole application if this fails
-            auto socket = connect_new_request_server_client(*protocol).release_value_but_fixme_should_propagate_errors();
-            request_server_socket = AK::move(socket);
-        }
+        // FIXME: Fail to open the tab, rather than crashing the whole application if this fails
+        auto request_server_socket = connect_new_request_server_client(*request_server_client).release_value_but_fixme_should_propagate_errors();
 
         auto image_decoder = static_cast<Ladybird::Application*>(QApplication::instance())->image_decoder_client();
         auto image_decoder_socket = connect_new_image_decoder_client(*image_decoder).release_value_but_fixme_should_propagate_errors();

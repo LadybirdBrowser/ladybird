@@ -43,12 +43,9 @@ public:
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
 
 private:
-    virtual void create_platform_arguments(Core::ArgsParser&) override;
     virtual void create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions&) override;
 
     virtual Optional<ByteString> ask_user_for_download_folder() const override;
-
-    bool m_enable_qt_networking { false };
 
     TaskManagerWindow* m_task_manager_window { nullptr };
     BrowserWindow* m_active_window { nullptr };

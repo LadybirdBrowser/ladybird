@@ -45,10 +45,7 @@ if (ENABLE_QT)
     qt_add_executable(WebContent
         ../Qt/EventLoopImplementationQt.cpp
         ../Qt/EventLoopImplementationQtEventTarget.cpp
-        ../Qt/RequestManagerQt.cpp
         ../Qt/StringUtils.cpp
-        ../Qt/WebSocketQt.cpp
-        ../Qt/WebSocketImplQt.cpp
         main.cpp
     )
     target_link_libraries(WebContent PRIVATE Qt::Core Qt::Network)

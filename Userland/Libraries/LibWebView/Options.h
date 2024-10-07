@@ -65,11 +65,6 @@ enum class IsLayoutTestMode {
     Yes,
 };
 
-enum class UseLagomNetworking {
-    No,
-    Yes,
-};
-
 enum class LogAllJSExceptions {
     No,
     Yes,
@@ -106,7 +101,6 @@ struct WebContentOptions {
     Optional<ByteString> config_path {};
     Optional<StringView> user_agent_preset {};
     IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
-    UseLagomNetworking use_lagom_networking { UseLagomNetworking::Yes };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
     EnableIDLTracing enable_idl_tracing { EnableIDLTracing::No };
     EnableHTTPCache enable_http_cache { EnableHTTPCache::No };
