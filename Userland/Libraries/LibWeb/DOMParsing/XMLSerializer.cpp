@@ -839,7 +839,7 @@ static WebIDL::ExceptionOr<String> serialize_document_type(DOM::DocumentType con
     }
 
     // 8. If the node's systemId is not the empty string and the node's publicId is set to the empty string, then append the following, in the order listed, to markup:
-    if (!document_type.system_id().is_empty() && !document_type.public_id().is_empty()) {
+    if (!document_type.system_id().is_empty() && document_type.public_id().is_empty()) {
         // 1. " " (U+0020 SPACE);
         // 2. The string "SYSTEM".
         markup.append(" SYSTEM"sv);
