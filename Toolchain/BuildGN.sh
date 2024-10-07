@@ -3,7 +3,7 @@
 # This script builds the GN meta-build system
 set -e
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$( CDPATH='' cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shellcheck source=/dev/null
 . "${DIR}/../Meta/shell_include.sh"
@@ -23,7 +23,7 @@ pushd "$DIR"/Tarballs
 
 [ ! -d gn ] && git clone $GIT_REPO
 
-cd gn
+CDPATH='' cd gn
 git fetch origin
 git checkout $GIT_REV
 

@@ -36,9 +36,9 @@ while [ -h "$PRG" ] ; do
     fi
 done
 SAVED="`pwd`"
-cd "`dirname \"$PRG\"`/" >/dev/null
+CDPATH='' cd "`dirname \"$PRG\"`/" >/dev/null
 APP_HOME="`pwd -P`"
-cd "$SAVED" >/dev/null
+CDPATH='' cd "$SAVED" >/dev/null
 
 APP_NAME="Gradle"
 APP_BASE_NAME=`basename "$0"`

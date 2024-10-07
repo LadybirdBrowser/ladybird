@@ -136,7 +136,7 @@ template("unix_toolchain") {
     if (current_os == "ios" || current_os == "mac") {
       tool("copy_bundle_data") {
         # https://github.com/nico/hack/blob/master/notes/copydir.md
-        _copydir = "cd {{source}} && " +
+        _copydir = "CDPATH='' cd {{source}} && " +
                    "find . | cpio -pdl \"\$OLDPWD\"/{{output}} 2>/dev/null"
         command = "rm -rf {{output}} && if [[ -d {{source}} ]]; then " +
                   _copydir + "; else " + unix_copy_command + "; fi"
