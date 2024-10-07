@@ -8,6 +8,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibCore/TimeZoneWatcher.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibImageDecoderClient/Client.h>
@@ -55,6 +56,10 @@ Application::~Application()
 
 void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url)
 {
+    // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
+    if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
+        warnln("Unable to increase open file limit: {}", result.error());
+
     Vector<ByteString> raw_urls;
     Vector<ByteString> certificates;
     bool new_window = false;
