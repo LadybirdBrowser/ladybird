@@ -1,7 +1,6 @@
 #include <LibWeb/WebDriver/Response.h>
 
 endpoint WebDriverServer {
-    window_closed() =|
     script_executed(Web::WebDriver::Response response) =|
     actions_performed(Web::WebDriver::Response response) =|
 }

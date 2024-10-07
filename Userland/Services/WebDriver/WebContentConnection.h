@@ -27,7 +27,6 @@ public:
 private:
     virtual void die() override;
 
-    virtual void window_closed() override;
     virtual void script_executed(Web::WebDriver::Response const&) override;
     virtual void actions_performed(Web::WebDriver::Response const&) override;
 };
