@@ -77,12 +77,6 @@ void HTMLIFrameElement::process_the_iframe_attributes(bool initial_insertion)
     if (!content_navigable())
         return;
 
-    // Make sure applying of history step caused by potential sync navigation to "about:blank"
-    // is finished. Otherwise, it might interrupt navigation caused by changing src or srcdoc.
-    if (!initial_insertion && !content_navigable_initialized()) {
-        main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, [this] { return content_navigable_initialized(); });
-    }
-
     // 1. If element's srcdoc attribute is specified, then:
     if (has_attribute(HTML::AttributeNames::srcdoc)) {
         // 1. Set element's current navigation was lazy loaded boolean to false.
