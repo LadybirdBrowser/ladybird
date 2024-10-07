@@ -10,14 +10,12 @@ set(SOURCES
     ProcessHandle.cpp
     Process.cpp
     ProcessManager.cpp
-    RequestServerAdapter.cpp
     SearchEngine.cpp
     SourceHighlighter.cpp
     URL.cpp
     UserAgent.cpp
     ViewImplementation.cpp
     WebContentClient.cpp
-    WebSocketClientAdapter.cpp
     ${PUBLIC_SUFFIX_SOURCES}
 )
 

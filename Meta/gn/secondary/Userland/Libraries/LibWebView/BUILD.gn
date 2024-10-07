@@ -152,14 +152,12 @@ shared_library("LibWebView") {
     "Process.cpp",
     "ProcessHandle.cpp",
     "ProcessManager.cpp",
-    "RequestServerAdapter.cpp",
     "SearchEngine.cpp",
     "SourceHighlighter.cpp",
     "URL.cpp",
     "UserAgent.cpp",
     "ViewImplementation.cpp",
     "WebContentClient.cpp",
-    "WebSocketClientAdapter.cpp",
   ]
   sources += get_target_outputs(":WebContentClientEndpoint") +
              get_target_outputs(":WebContentServerEndpoint") +
