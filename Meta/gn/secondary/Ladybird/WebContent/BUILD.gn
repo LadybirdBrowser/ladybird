@@ -8,7 +8,6 @@ enable_qt_multimedia = !enable_pulseaudio && current_os != "mac"
 moc_qt_objects("generate_moc") {
   sources = [
     "//Ladybird/Qt/EventLoopImplementationQtEventTarget.h",
-    "//Ladybird/Qt/RequestManagerQt.h",
   ]
 
   if (enable_qt_multimedia) {
@@ -78,10 +77,7 @@ executable("WebContent") {
     sources += [
       "//Ladybird/Qt/EventLoopImplementationQt.cpp",
       "//Ladybird/Qt/EventLoopImplementationQtEventTarget.cpp",
-      "//Ladybird/Qt/RequestManagerQt.cpp",
       "//Ladybird/Qt/StringUtils.cpp",
-      "//Ladybird/Qt/WebSocketImplQt.cpp",
-      "//Ladybird/Qt/WebSocketQt.cpp",
     ]
 
     if (enable_qt_multimedia) {
