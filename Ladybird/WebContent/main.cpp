@@ -28,7 +28,6 @@
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
-#include <LibWebView/RequestServerAdapter.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebDriverConnection.h>
@@ -48,7 +47,7 @@
 
 static ErrorOr<void> load_content_filters(StringView config_path);
 static ErrorOr<void> load_autoplay_allowlist(StringView config_path);
-static ErrorOr<void> initialize_lagom_networking(int request_server_socket);
+static ErrorOr<void> initialize_resource_loader(int request_server_socket);
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
 
@@ -163,7 +162,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     }
 #endif
 
-    TRY(initialize_lagom_networking(request_server_socket));
+    TRY(initialize_resource_loader(request_server_socket));
     TRY(initialize_image_decoder(image_decoder_socket));
 
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
@@ -248,14 +247,14 @@ static ErrorOr<void> load_autoplay_allowlist(StringView config_path)
     return {};
 }
 
-ErrorOr<void> initialize_lagom_networking(int request_server_socket)
+ErrorOr<void> initialize_resource_loader(int request_server_socket)
 {
     auto socket = TRY(Core::LocalSocket::adopt_fd(request_server_socket));
     TRY(socket->set_blocking(true));
 
-    auto new_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(socket)));
+    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(socket)));
+    Web::ResourceLoader::initialize(move(request_client));
 
-    Web::ResourceLoader::initialize(TRY(WebView::RequestServerAdapter::try_create(move(new_client))));
     return {};
 }
 

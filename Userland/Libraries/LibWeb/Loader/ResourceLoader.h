@@ -9,66 +9,20 @@
 
 #include <AK/ByteString.h>
 #include <AK/Function.h>
-#include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <LibCore/EventReceiver.h>
-#include <LibCore/Proxy.h>
 #include <LibJS/SafeFunction.h>
-#include <LibRequests/Request.h>
+#include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Loader/Resource.h>
 #include <LibWeb/Loader/UserAgent.h>
-#include <LibWeb/Page/Page.h>
 
 namespace Web {
-
-namespace WebSockets {
-class WebSocketClientSocket;
-}
-
-class ResourceLoaderConnectorRequest : public RefCounted<ResourceLoaderConnectorRequest> {
-public:
-    virtual ~ResourceLoaderConnectorRequest();
-
-    struct CertificateAndKey {
-        ByteString certificate;
-        ByteString key;
-    };
-
-    // Configure the request such that the entirety of the response data is buffered. The callback receives that data and
-    // the response headers all at once. Using this method is mutually exclusive with `set_unbuffered_data_received_callback`.
-    virtual void set_buffered_request_finished_callback(Requests::Request::BufferedRequestFinished) = 0;
-
-    // Configure the request such that the response data is provided unbuffered as it is received. Using this method is
-    // mutually exclusive with `set_buffered_request_finished_callback`.
-    virtual void set_unbuffered_request_callbacks(Requests::Request::HeadersReceived, Requests::Request::DataReceived, Requests::Request::RequestFinished) = 0;
-
-    virtual bool stop() = 0;
-
-    Function<void(Optional<u64> total_size, u64 downloaded_size)> on_progress;
-    Function<CertificateAndKey()> on_certificate_requested;
-
-protected:
-    explicit ResourceLoaderConnectorRequest();
-};
-
-class ResourceLoaderConnector : public RefCounted<ResourceLoaderConnector> {
-public:
-    virtual ~ResourceLoaderConnector();
-
-    virtual void prefetch_dns(URL::URL const&) = 0;
-    virtual void preconnect(URL::URL const&) = 0;
-
-    virtual RefPtr<ResourceLoaderConnectorRequest> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {}) = 0;
-    virtual RefPtr<Web::WebSockets::WebSocketClientSocket> websocket_connect(const URL::URL&, ByteString const& origin, Vector<ByteString> const& protocols) = 0;
-
-protected:
-    explicit ResourceLoaderConnector();
-};
 
 class ResourceLoader : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ResourceLoader)
 public:
-    static void initialize(RefPtr<ResourceLoaderConnector>);
+    static void initialize(NonnullRefPtr<Requests::RequestClient>);
     static ResourceLoader& the();
 
     RefPtr<Resource> load_resource(Resource::Type, LoadRequest&);
@@ -85,7 +39,7 @@ public:
 
     void load_unbuffered(LoadRequest&, OnHeadersReceived, OnDataReceived, OnComplete);
 
-    ResourceLoaderConnector& connector() { return *m_connector; }
+    Requests::RequestClient& request_client() { return *m_request_client; }
 
     void prefetch_dns(URL::URL const&);
     void preconnect(URL::URL const&);
@@ -121,17 +75,17 @@ public:
     void evict_from_cache(LoadRequest const&);
 
 private:
-    ResourceLoader(NonnullRefPtr<ResourceLoaderConnector>);
-    static ErrorOr<NonnullRefPtr<ResourceLoader>> try_create(NonnullRefPtr<ResourceLoaderConnector>);
+    explicit ResourceLoader(NonnullRefPtr<Requests::RequestClient>);
 
-    RefPtr<ResourceLoaderConnectorRequest> start_network_request(LoadRequest const&);
+    RefPtr<Requests::Request> start_network_request(LoadRequest const&);
     void handle_network_response_headers(LoadRequest const&, HTTP::HeaderMap const&);
-    void finish_network_request(NonnullRefPtr<ResourceLoaderConnectorRequest> const&);
+    void finish_network_request(NonnullRefPtr<Requests::Request> const&);
 
     int m_pending_loads { 0 };
 
-    HashTable<NonnullRefPtr<ResourceLoaderConnectorRequest>> m_active_requests;
-    NonnullRefPtr<ResourceLoaderConnector> m_connector;
+    NonnullRefPtr<Requests::RequestClient> m_request_client;
+    HashTable<NonnullRefPtr<Requests::Request>> m_active_requests;
+
     String m_user_agent;
     String m_platform;
     Vector<String> m_preferred_languages = { "en"_string };

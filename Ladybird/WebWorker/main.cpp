@@ -22,8 +22,6 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
 #include <LibWeb/WebSockets/WebSocket.h>
-#include <LibWebView/RequestServerAdapter.h>
-#include <LibWebView/WebSocketClientAdapter.h>
 #include <WebWorker/ConnectionFromClient.h>
 
 #if defined(HAVE_QT)
@@ -31,7 +29,7 @@
 #    include <QCoreApplication>
 #endif
 
-static ErrorOr<void> initialize_lagom_networking(int request_server_socket);
+static ErrorOr<void> initialize_resource_loader(int request_server_socket);
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
@@ -64,7 +62,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(false));
 
-    TRY(initialize_lagom_networking(request_server_socket));
+    TRY(initialize_resource_loader(request_server_socket));
 
     TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Worker));
 
@@ -73,14 +71,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     return event_loop.exec();
 }
 
-static ErrorOr<void> initialize_lagom_networking(int request_server_socket)
+static ErrorOr<void> initialize_resource_loader(int request_server_socket)
 {
     auto socket = TRY(Core::LocalSocket::adopt_fd(request_server_socket));
     TRY(socket->set_blocking(true));
 
-    auto new_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(socket)));
-
-    Web::ResourceLoader::initialize(TRY(WebView::RequestServerAdapter::try_create(move(new_client))));
+    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(socket)));
+    Web::ResourceLoader::initialize(move(request_client));
 
     return {};
 }
