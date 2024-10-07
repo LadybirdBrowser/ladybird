@@ -180,6 +180,42 @@ struct LayoutState {
             return m_static_position_rect->aligned_position_for_box_with_size(size);
         }
 
+        // Let margins be sum of the used values of the margin-left and margin-right properties of element
+        // if element has a vertical writing mode, otherwise let margins be the sum of the used values of
+        // the margin-top and margin-bottom properties of element.
+        CSSPixels get_block_margin_start(CSS::WritingMode writing_mode) const
+        {
+            if (writing_mode == CSS::WritingMode::HorizontalTb)
+                return margin_left;
+
+            return margin_top;
+        }
+
+        CSSPixels get_inline_margin_end(CSS::WritingMode writing_mode) const
+        {
+            if (writing_mode == CSS::WritingMode::HorizontalTb)
+                return margin_right;
+
+            return margin_bottom;
+        }
+
+        CSSPixels size_in_block_flow_direction(CSS::WritingMode writing_mode) const
+        {
+            auto const* const used_values = containing_block_used_values();
+
+            // From writing-mode spec: https://www.w3.org/TR/css-writing-modes-3/#block-flow
+            //  horizontal-tb is a top to bottom block flow direction
+            //  vertical-rl is a right to left block flow direction
+            //  vertical-lr is a lr to right block flow direction
+            //
+            // horizontal-tb probably wants height here, the verticals want width
+
+            if (writing_mode == CSS::WritingMode::HorizontalTb)
+                return used_values->content_height();
+
+            return used_values->content_width();
+        }
+
     private:
         AvailableSize available_width_inside() const;
         AvailableSize available_height_inside() const;

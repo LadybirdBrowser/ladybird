@@ -1,0 +1,15 @@
+<!-- Quirks mode -->
+<html>
+    <style>
+.not-bfc{
+    writing-mode: vertical-rl,
+    width: 600px
+}
+.bfc{
+    width: auto,
+    margin-left: 50px,
+    margin-right: 50px
+}
+    </style>
+    <div class="not-bfc"><div class="bfc"></div></div>
+</html>
