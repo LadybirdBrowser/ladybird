@@ -144,6 +144,20 @@ WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> Window::open_impl(StringView url, St
     if (main_thread_event_loop().termination_nesting_level() != 0)
         return nullptr;
 
+    // FIXME: Spec-issue: https://github.com/whatwg/html/issues/10681
+    // We need to check for an invalid URL before running the 'rules for choosing a navigable' otherwise
+    // and invalid URL will result in a window being created before an exception is thrown.
+    //
+    // 12.3. Let urlRecord be the URL record about:blank.
+    auto url_record = URL::URL("about:blank"sv);
+    // 12.4. If url is not the empty string, then set urlRecord to the result of encoding-parsing a URL given url, relative to the entry settings object.
+    if (!url.is_empty()) {
+        url_record = entry_settings_object().parse_url(url);
+        // 12.5. If urlRecord is failure, then throw a "SyntaxError" DOMException.
+        if (!url_record.is_valid())
+            return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Invalid URL '{}'", url)));
+    }
+
     // 2. Let sourceDocument be the entry global object's associated Document.
     auto& source_document = verify_cast<Window>(entry_global_object()).associated_document();
 
@@ -201,16 +215,10 @@ WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> Window::open_impl(StringView url, St
         // 2. Set up browsing context features for target browsing context given tokenizedFeatures. [CSSOMVIEW]
         // NOTE: This is implemented in choose_a_navigable when creating the top level traversable.
 
+        // NOTE: See spec issue above
         // 3. Let urlRecord be the URL record about:blank.
-        auto url_record = URL::URL("about:blank"sv);
-
         // 4. If url is not the empty string, then set urlRecord to the result of encoding-parsing a URL given url, relative to the entry settings object.
-        if (!url.is_empty()) {
-            url_record = entry_settings_object().parse_url(url);
-            // 5. If urlRecord is failure, then throw a "SyntaxError" DOMException.
-            if (!url_record.is_valid())
-                return WebIDL::SyntaxError::create(realm(), "URL is not valid"_fly_string);
-        }
+        // 5. If urlRecord is failure, then throw a "SyntaxError" DOMException.
 
         // 6. If urlRecord matches about:blank, then perform the URL and history update steps given targetNavigable's active document and urlRecord.
         if (url_matches_about_blank(url_record)) {
@@ -231,12 +239,9 @@ WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> Window::open_impl(StringView url, St
     else {
         // 1. If url is not the empty string, then:
         if (!url.is_empty()) {
+            // NOTE: See spec issue above
             // 1. Let urlRecord be the result of encoding-parsing a URL url, relative to the entry settings object.
-            auto url_record = entry_settings_object().parse_url(url);
-
             // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
-            if (!url_record.is_valid())
-                return WebIDL::SyntaxError::create(realm(), "URL is not valid"_fly_string);
 
             // 3. Navigate targetNavigable to urlRecord using sourceDocument, with referrerPolicy set to referrerPolicy and exceptionsEnabled set to true.
             TRY(target_navigable->navigate({ .url = url_record, .source_document = source_document, .exceptions_enabled = true, .referrer_policy = referrer_policy }));
