@@ -73,7 +73,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     platform_init();
 
-    auto chrome_process = TRY(WebView::ChromeProcess::create());
+    WebView::ChromeProcess chrome_process;
 
     if (app->chrome_options().force_new_process == WebView::ForceNewProcess::No) {
         auto disposition = TRY(chrome_process.connect(app->chrome_options().raw_urls, app->chrome_options().new_window));

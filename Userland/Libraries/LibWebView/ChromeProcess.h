@@ -49,7 +49,7 @@ public:
         ExitProcess,
     };
 
-    static ErrorOr<ChromeProcess> create();
+    ChromeProcess() = default;
     ~ChromeProcess();
 
     ErrorOr<ProcessDisposition> connect(Vector<ByteString> const& raw_urls, NewWindow new_window);
@@ -58,8 +58,6 @@ public:
     Function<void(Vector<URL::URL> const&)> on_new_window;
 
 private:
-    ChromeProcess() = default;
-
     ErrorOr<void> connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window);
     ErrorOr<void> connect_as_server(ByteString const& socket_path);
 
