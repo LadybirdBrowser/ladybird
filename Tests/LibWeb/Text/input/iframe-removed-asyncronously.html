@@ -1,0 +1,20 @@
+<body>
+</body>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        let frame = document.body.appendChild(document.createElement("iframe"));
+
+        setTimeout(() => {
+            frame.remove();
+
+            setTimeout(() => {
+                println("PASS! (Didn't crash)");
+                done();
+            }, 0);
+
+          }, 0);
+
+        frame.src = `../data/iframe-with-border-radius-svg.html`;
+    })
+</script>
