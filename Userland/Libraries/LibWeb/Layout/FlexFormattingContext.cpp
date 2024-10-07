@@ -1547,9 +1547,11 @@ void FlexFormattingContext::align_all_flex_lines()
         CSSPixels gap_size = 0;
         switch (flex_container().computed_values().align_content()) {
         case CSS::AlignContent::FlexStart:
+        case CSS::AlignContent::Start:
             start_of_current_line = 0;
             break;
         case CSS::AlignContent::FlexEnd:
+        case CSS::AlignContent::End:
             start_of_current_line = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
             break;
         case CSS::AlignContent::Center:

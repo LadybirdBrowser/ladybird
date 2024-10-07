@@ -1,7 +1,9 @@
 {
   "align-content": [
     "normal",
+    "start",
     "flex-start",
+    "end",
     "flex-end",
     "center",
     "space-between",
