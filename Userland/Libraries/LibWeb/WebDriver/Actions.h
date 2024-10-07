@@ -47,7 +47,7 @@ struct ActionObject {
     };
 
     struct KeyFields {
-        String value;
+        u32 value { 0 };
     };
 
     struct PointerFields {
