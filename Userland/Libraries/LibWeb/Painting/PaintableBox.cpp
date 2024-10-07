@@ -240,7 +240,7 @@ bool PaintableBox::is_scrollable(ScrollDirection direction) const
     auto overflow = direction == ScrollDirection::Horizontal ? computed_values().overflow_x() : computed_values().overflow_y();
     auto scrollable_overflow_size = direction == ScrollDirection::Horizontal ? scrollable_overflow_rect()->width() : scrollable_overflow_rect()->height();
     auto scrollport_size = direction == ScrollDirection::Horizontal ? absolute_padding_box_rect().width() : absolute_padding_box_rect().height();
-    if (is_viewport() || overflow == CSS::Overflow::Auto)
+    if ((is_viewport() && overflow != CSS::Overflow::Hidden) || overflow == CSS::Overflow::Auto)
         return scrollable_overflow_size > scrollport_size;
     return overflow == CSS::Overflow::Scroll;
 }
