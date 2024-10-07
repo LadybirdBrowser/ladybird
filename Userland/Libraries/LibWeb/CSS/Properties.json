@@ -2774,6 +2774,14 @@
       "normal"
     ]
   },
+  "writing-mode": {
+    "animation-type": "none",
+    "initial": "horizontal-tb",
+    "inherited": true,
+    "valid-types": [
+      "writing-mode"
+    ]
+  },
   "x": {
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#X.",
     "animation-type": "by-computed-value",

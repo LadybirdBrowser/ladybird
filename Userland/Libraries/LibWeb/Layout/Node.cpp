@@ -899,6 +899,9 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto unicode_bidi = computed_style.unicode_bidi(); unicode_bidi.has_value())
         computed_values.set_unicode_bidi(unicode_bidi.value());
 
+    if (auto writing_mode = computed_style.writing_mode(); writing_mode.has_value())
+        computed_values.set_writing_mode(writing_mode.value());
+
     if (auto scrollbar_width = computed_style.scrollbar_width(); scrollbar_width.has_value())
         computed_values.set_scrollbar_width(scrollbar_width.value());
 

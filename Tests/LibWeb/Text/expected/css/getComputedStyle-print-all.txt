@@ -45,6 +45,7 @@ visibility: visible
 white-space: normal
 word-spacing: normal
 word-wrap: normal
+writing-mode: horizontal-tb
 align-content: normal
 align-items: normal
 align-self: auto
@@ -120,7 +121,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2074px
+height: 2091px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto
