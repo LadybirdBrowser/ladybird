@@ -60,12 +60,6 @@ bool Box::is_scroll_container() const
         || overflow_value_makes_box_a_scroll_container(computed_values().overflow_y());
 }
 
-bool Box::is_user_scrollable() const
-{
-    // FIXME: Support horizontal scroll as well (overflow-x)
-    return computed_values().overflow_y() == CSS::Overflow::Scroll || computed_values().overflow_y() == CSS::Overflow::Auto;
-}
-
 bool Box::is_body() const
 {
     return dom_node() && dom_node() == document().body();

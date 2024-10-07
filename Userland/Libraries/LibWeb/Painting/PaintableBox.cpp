@@ -775,12 +775,9 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHan
 
 bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y)
 {
-    if (!layout_box().is_user_scrollable())
+    if (!is_scrollable()) {
         return false;
-
-    // TODO: Vertical and horizontal scroll overflow should be handled seperately.
-    if (!has_scrollable_overflow())
-        return false;
+    }
 
     scroll_by(wheel_delta_x, wheel_delta_y);
     return true;
