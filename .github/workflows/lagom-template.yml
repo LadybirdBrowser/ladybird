@@ -113,6 +113,7 @@ jobs:
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
             ${{ steps.build-parameters.outputs.cmake_options }} \
+            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
@@ -126,6 +127,7 @@ jobs:
             -DLAGOM_TOOLS_ONLY=ON \
             -DINSTALL_LAGOM_TOOLS=ON \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/Build/tools-install \
+            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=gcc-13 \
             -DCMAKE_CXX_COMPILER=g++-13 \
             -Dpackage=LagomTools
@@ -133,6 +135,7 @@ jobs:
           ninja -C ${{ github.workspace }}/Build/tools-build install
 
           cmake --preset Fuzzers_CI -B Build \
+            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
             -DCMAKE_PREFIX_PATH=${{ github.workspace }}/Build/tools-install
