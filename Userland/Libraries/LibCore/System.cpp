@@ -1751,6 +1751,11 @@ unsigned hardware_concurrency()
     return sysconf(_SC_NPROCESSORS_ONLN);
 }
 
+u64 physical_memory_bytes()
+{
+    return sysconf(_SC_PHYS_PAGES) * PAGE_SIZE;
+}
+
 ErrorOr<String> resolve_executable_from_environment(StringView filename, int flags)
 {
     if (filename.is_empty())
