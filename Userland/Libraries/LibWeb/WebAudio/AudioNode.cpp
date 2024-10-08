@@ -98,20 +98,6 @@ void AudioNode::disconnect(JS::NonnullGCPtr<AudioParam> destination_param, WebID
     dbgln("FIXME: Implement AudioNode::disconnect(destination_param, output)");
 }
 
-// https://webaudio.github.io/web-audio-api/#dom-audionode-numberofinputs
-WebIDL::UnsignedLong AudioNode::number_of_inputs()
-{
-    dbgln("FIXME: Implement AudioNode::number_of_inputs()");
-    return 0;
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-audionode-numberofoutputs
-WebIDL::UnsignedLong AudioNode::number_of_outputs()
-{
-    dbgln("FIXME: Implement AudioNode::number_of_outputs()");
-    return 0;
-}
-
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcount
 WebIDL::ExceptionOr<void> AudioNode::set_channel_count(WebIDL::UnsignedLong channel_count)
 {

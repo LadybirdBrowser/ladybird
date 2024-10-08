@@ -34,6 +34,8 @@ public:
     WebIDL::ExceptionOr<void> set_type(Bindings::OscillatorType);
 
     JS::NonnullGCPtr<AudioParam const> frequency() const { return m_frequency; }
+    WebIDL::UnsignedLong number_of_inputs() override { return 0; }
+    WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
 protected:
     OscillatorNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, OscillatorOptions const& = {});
