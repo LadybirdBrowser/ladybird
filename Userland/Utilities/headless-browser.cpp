@@ -339,26 +339,32 @@ static void run_dump_test(HeadlessWebContentView& view, Test& test, URL::URL con
             return TestResult::Pass;
         }
 
-        auto expectation_file_or_error = Core::File::open(test.expectation_path, Application::the().rebaseline ? Core::File::OpenMode::Write : Core::File::OpenMode::Read);
-        if (expectation_file_or_error.is_error()) {
-            warnln("Failed opening '{}': {}", test.expectation_path, expectation_file_or_error.error());
-            return expectation_file_or_error.release_error();
-        }
+        auto open_expectation_file = [&](auto mode) {
+            auto expectation_file_or_error = Core::File::open(test.expectation_path, mode);
+            if (expectation_file_or_error.is_error())
+                warnln("Failed opening '{}': {}", test.expectation_path, expectation_file_or_error.error());
 
-        auto expectation_file = expectation_file_or_error.release_value();
+            return expectation_file_or_error;
+        };
+
+        ByteBuffer expectation;
+        {
+            auto expectation_file = TRY(open_expectation_file(Core::File::OpenMode::Read));
+            expectation = TRY(expectation_file->read_until_eof());
+
+            auto result_trimmed = StringView { test.text }.trim("\n"sv, TrimMode::Right);
+            auto expectation_trimmed = StringView { expectation }.trim("\n"sv, TrimMode::Right);
+
+            if (result_trimmed == expectation_trimmed)
+                return TestResult::Pass;
+        }
 
         if (Application::the().rebaseline) {
+            auto expectation_file = TRY(open_expectation_file(Core::File::OpenMode::Write));
             TRY(expectation_file->write_until_depleted(test.text));
+
             return TestResult::Pass;
         }
-
-        auto expectation = TRY(expectation_file->read_until_eof());
-
-        auto result_trimmed = StringView { test.text }.trim("\n"sv, TrimMode::Right);
-        auto expectation_trimmed = StringView { expectation }.trim("\n"sv, TrimMode::Right);
-
-        if (result_trimmed == expectation_trimmed)
-            return TestResult::Pass;
 
         auto const color_output = isatty(STDOUT_FILENO) ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
 
