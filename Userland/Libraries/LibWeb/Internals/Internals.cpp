@@ -148,6 +148,7 @@ void Internals::spoof_current_url(String const& url_string)
     auto& window = internals_window();
     window.associated_document().set_url(url);
     window.associated_document().set_origin(origin);
+    HTML::relevant_settings_object(window.associated_document()).creation_url = url;
 }
 
 JS::NonnullGCPtr<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
