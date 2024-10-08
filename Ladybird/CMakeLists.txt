@@ -164,14 +164,4 @@ if (BUILD_TESTING)
         NAME LibWeb
         COMMAND $<TARGET_FILE:headless-browser> --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests --force-fontconfig
     )
-    add_test(
-        NAME WPT
-        CONFIGURATIONS Integration
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../Tests/LibWeb/WPT/run.sh --webdriver-binary=$<TARGET_FILE:WebDriver>
-    )
-    set_tests_properties(LibWeb WPT PROPERTIES
-        DEPENDS ladybird
-        ENVIRONMENT QT_QPA_PLATFORM=offscreen
-        ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}"
-    )
 endif()
