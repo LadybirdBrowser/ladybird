@@ -705,6 +705,8 @@ TEST_CASE(ECMA262_match)
         { "a$"sv, "a\r\n"sv, true, global_multiline.value() }, // $ should accept all LineTerminators in ECMA262 mode with Multiline.
         { "^a"sv, "\ra"sv, true, global_multiline.value() },
         { "^(.*?):[ \\t]*([^\\r\\n]*)$"sv, "content-length: 488\r\ncontent-type: application/json; charset=utf-8\r\n"sv, true, global_multiline.value() },
+        { "^\\?((&?category=[0-9]+)?(&?shippable=1)?(&?ad_type=demand)?(&?page=[0-9]+)?(&?locations=(r|d)_[0-9]+)?)+$"sv,
+            "?category=54&shippable=1&baby_age=p,0,1,3"sv, false }, // ladybird#968, ?+ should not loop forever.
     };
     // clang-format on
 
@@ -981,6 +983,7 @@ TEST_CASE(theoretically_infinite_loop)
         "(a*?)*"sv, // Infinitely matching empty substrings, the outer loop should short-circuit.
         "(a*)*?"sv, // Should match exactly nothing.
         "(?:)*?"sv, // Should not generate an infinite fork loop.
+        "(a?)+$"sv, // Infinitely matching empty strings, but with '+' instead of '*'.
     };
     for (auto& pattern : patterns) {
         Regex<ECMA262> re(pattern);
