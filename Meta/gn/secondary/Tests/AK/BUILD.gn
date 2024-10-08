@@ -28,7 +28,6 @@ tests = [
   "TestFind",
   "TestFixedArray",
   "TestFixedPoint",
-  "TestFloatingPoint",
   "TestFloatingPointParsing",
   "TestFlyString",
   "TestFormat",
