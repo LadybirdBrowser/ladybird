@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<script>
+    let readyStates = []
+    document.onreadystatechange = function() {
+        readyStates.push(document.readyState);
+    }
+    test(() => {
+        println(readyStates);
+    });
+</script>

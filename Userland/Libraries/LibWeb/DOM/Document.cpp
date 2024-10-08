@@ -5666,4 +5666,14 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
     return { unload_prompt_shown, unload_prompt_canceled };
 }
 
+WebIDL::CallbackType* Document::onreadystatechange()
+{
+    return event_handler_attribute(HTML::EventNames::readystatechange);
+}
+
+void Document::set_onreadystatechange(WebIDL::CallbackType* value)
+{
+    set_event_handler_attribute(HTML::EventNames::readystatechange, value);
+}
+
 }
