@@ -624,10 +624,8 @@ void HTMLInputElement::update_placeholder_visibility()
         return;
     if (this->placeholder_value().has_value()) {
         MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"sv));
     } else {
         MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"sv));
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
     }
 }
 
@@ -815,7 +813,6 @@ void HTMLInputElement::create_text_input_shadow_tree()
     // https://www.w3.org/TR/css-ui-4/#input-rules
     MUST(m_placeholder_element->set_attribute(HTML::AttributeNames::style, R"~~~(
         width: 100%;
-        height: 1lh;
         align-items: center;
         text-overflow: clip;
         white-space: nowrap;
