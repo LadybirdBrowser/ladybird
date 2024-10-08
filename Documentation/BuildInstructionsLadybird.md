@@ -216,17 +216,29 @@ The section lists out some particular error messages you may run into, and expla
 
 #### Unable to find a build program corresponding to "Ninja"
 
-Solution to try: If you do in fact already have Ninja installed, then first try reinstalling Ninja.
-
-Details: If you see the message *“Unable to find a build program corresponding to "Ninja"”*, it’s likely not an indication that the build tooling can’t actually find Ninja, but instead an indication that the tooling found Ninja but it failed to run successfully.
-
-So, when you do run into that error message, the way to start figuring out what’s actually wrong is to try invoking Ninja manually, like this:
+This error message is a red herring. We use vcpkg to manage our third-party dependencies, and this error is logged when
+something went wrong building those dependencies. The output in your terminal will vary depending on what exactly went
+wrong, but it should look something like:
 
 ```
-ninja -C Build/ladybird
+error: building skia:x64-linux failed with: BUILD_FAILED
+Elapsed time to handle skia:x64-linux: 1.6 s
+
+-- Running vcpkg install - failed
+CMake Error at Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake:899 (message):
+  vcpkg install failed.  See logs for more information:
+  Build/ladybird/vcpkg-manifest-install.log
+Call Stack (most recent call first):
+  /usr/share/cmake-3.30/Modules/CMakeDetermineSystem.cmake:146 (include)
+  CMakeLists.txt:15 (project)
+
+CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
+-- Configuring incomplete, errors occurred!  See logs for more information:
+  Build/ladybird/vcpkg-manifest-install.log
 ```
 
-Then, based on what output you get from that, you can troubleshoot the *actual* problem you’re running into — which may involve uninstalling your current Ninja install, and then re-installing it.
+If the error is not immediately clear from the terminal output, be sure to check `Build/ladybird/vcpkg-manifest-install.log`
+for more information.
 
 ### Resource files
 
