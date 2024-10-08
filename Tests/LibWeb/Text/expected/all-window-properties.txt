@@ -58,6 +58,7 @@ ClipboardEvent
 CloseEvent
 CloseWatcher
 Comment
+CompressionStream
 CountQueuingStrategy
 Crypto
 CryptoKey
@@ -82,6 +83,7 @@ DataTransferItem
 DataTransferItemList
 DataView
 Date
+DecompressionStream
 DisposableStack
 Document
 DocumentFragment

@@ -1,0 +1,18 @@
+// https://streams.spec.whatwg.org/#generictransformstream
+interface mixin GenericTransformStream {
+    readonly attribute ReadableStream readable;
+    readonly attribute WritableStream writable;
+};
+
+// https://compression.spec.whatwg.org/#compression-stream
+enum CompressionFormat { "deflate", "deflate-raw", "gzip" };
+
+[Exposed=*]
+interface CompressionStream {
+    constructor(CompressionFormat format);
+
+    // Non-standard
+    static Uint8Array compress(CompressionFormat format, BufferSource data);
+
+};
+CompressionStream includes GenericTransformStream;

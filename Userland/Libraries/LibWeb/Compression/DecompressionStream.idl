@@ -1,0 +1,11 @@
+#import <Compression/CompressionStream.idl>
+
+// https://compression.spec.whatwg.org/#decompression-stream
+[Exposed=*]
+interface DecompressionStream {
+    constructor(CompressionFormat format);
+
+    // Non-standard
+    static Uint8Array decompress(CompressionFormat format, BufferSource data);
+};
+DecompressionStream includes GenericTransformStream;
