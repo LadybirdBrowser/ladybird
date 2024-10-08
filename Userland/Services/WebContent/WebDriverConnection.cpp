@@ -1108,6 +1108,8 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
     Optional<ByteString> result;
 
     // 4. Let property be the result of calling the Object.[[GetProperty]](name) on element.
+    Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->relevant_settings_object() };
+
     if (auto property_or_error = element->get(name.to_byte_string()); !property_or_error.is_throw_completion()) {
         auto property = property_or_error.release_value();
 
