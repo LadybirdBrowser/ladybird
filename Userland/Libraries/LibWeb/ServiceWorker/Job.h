@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Andrew Kaster <akaster@ladybird.org>
+ * Copyright (c) 2024, Andrew Kaster <andrew@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -73,7 +73,7 @@ private:
     Job(Type, StorageAPI::StorageKey, URL::URL scope_url, URL::URL script_url, JS::GCPtr<WebIDL::Promise>, JS::GCPtr<HTML::EnvironmentSettingsObject> client);
 };
 
-// https://w3c.github.io/ServiceWorker/#schedule-job
+// https://w3c.github.io/ServiceWorker/#schedule-job-algorithm
 void schedule_job(JS::VM&, JS::NonnullGCPtr<Job>);
 
 }
