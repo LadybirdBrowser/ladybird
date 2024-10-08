@@ -149,6 +149,10 @@ interface Document : Node {
     boolean queryCommandState(DOMString commandId);
     boolean queryCommandSupported(DOMString commandId);
     DOMString queryCommandValue(DOMString commandId);
+
+    // special event handler IDL attributes that only apply to Document objects
+    [LegacyLenientThis] attribute EventHandler onreadystatechange;
+    [FIXME] attribute EventHandler onvisibilitychange;
 };
 
 dictionary ElementCreationOptions {
