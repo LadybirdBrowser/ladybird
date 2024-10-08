@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
@@ -836,6 +837,18 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
     return target->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
 }
 
+// https://w3c.github.io/uievents/#unicode-character-categories
+static bool produces_character_value(u32 code_point)
+{
+    // A subset of the General Category values that are defined for each Unicode code point. This subset contains all
+    // the Letter (Ll, Lm, Lo, Lt, Lu), Number (Nd, Nl, No), Punctuation (Pc, Pd, Pe, Pf, Pi, Po, Ps) and Symbol (Sc,
+    // Sk, Sm, So) category values.
+    return Unicode::code_point_has_letter_general_category(code_point)
+        || Unicode::code_point_has_number_general_category(code_point)
+        || Unicode::code_point_has_punctuation_general_category(code_point)
+        || Unicode::code_point_has_symbol_general_category(code_point);
+}
+
 EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point)
 {
     if (!m_navigable->active_document())
@@ -847,10 +860,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     if (dispatch_result != EventResult::Accepted)
         return dispatch_result;
 
-    // FIXME: Work out and implement the difference between this and keydown.
-    dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point);
-    if (dispatch_result != EventResult::Accepted)
-        return dispatch_result;
+    // https://w3c.github.io/uievents/#event-type-keypress
+    // If supported by a user agent, this event MUST be dispatched when a key is pressed down, if and only if that key
+    // normally produces a character value.
+    if (produces_character_value(code_point)) {
+        dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point);
+        if (dispatch_result != EventResult::Accepted)
+            return dispatch_result;
+    }
 
     JS::NonnullGCPtr<DOM::Document> document = *m_navigable->active_document();
 

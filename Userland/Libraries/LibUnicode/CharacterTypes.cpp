@@ -113,6 +113,16 @@ bool code_point_has_control_general_category(u32 code_point)
     return code_point_has_general_category(code_point, U_CONTROL_CHAR);
 }
 
+bool code_point_has_letter_general_category(u32 code_point)
+{
+    return code_point_has_general_category(code_point, GENERAL_CATEGORY_LETTER);
+}
+
+bool code_point_has_number_general_category(u32 code_point)
+{
+    return code_point_has_general_category(code_point, GENERAL_CATEGORY_NUMBER);
+}
+
 bool code_point_has_punctuation_general_category(u32 code_point)
 {
     return code_point_has_general_category(code_point, GENERAL_CATEGORY_PUNCTUATION);
@@ -126,6 +136,11 @@ bool code_point_has_separator_general_category(u32 code_point)
 bool code_point_has_space_separator_general_category(u32 code_point)
 {
     return code_point_has_general_category(code_point, U_SPACE_SEPARATOR);
+}
+
+bool code_point_has_symbol_general_category(u32 code_point)
+{
+    return code_point_has_general_category(code_point, GENERAL_CATEGORY_SYMBOL);
 }
 
 static constexpr Property PROPERTY_ANY = UCHAR_BINARY_LIMIT + 1;

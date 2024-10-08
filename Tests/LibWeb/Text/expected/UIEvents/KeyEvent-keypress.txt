@@ -1,0 +1,5 @@
+keydown A
+keypress A
+keydown Shift
+keydown B
+keypress B

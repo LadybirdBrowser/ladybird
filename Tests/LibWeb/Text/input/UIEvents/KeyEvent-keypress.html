@@ -1,0 +1,18 @@
+<input id="input" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let input = document.getElementById("input");
+
+        input.addEventListener("keydown", e => {
+            println(`keydown ${e.key}`);
+        });
+        input.addEventListener("keypress", e => {
+            println(`keypress ${e.key}`);
+        });
+
+        internals.sendText(input, "A");
+        internals.sendKey(input, "LeftShift");
+        internals.sendText(input, "B");
+    });
+</script>
