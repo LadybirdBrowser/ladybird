@@ -32,7 +32,7 @@ if (ENABLE_QT)
             ../Qt/StringUtils.cpp
             main.cpp
     )
-    target_link_libraries(WebWorker PRIVATE Qt::Core Qt::Network)
+    target_link_libraries(WebWorker PRIVATE Qt::Core)
     target_link_libraries(WebWorker PRIVATE webworkerservice LibWebSocket)
     target_compile_definitions(WebWorker PRIVATE HAVE_QT=1)
 
