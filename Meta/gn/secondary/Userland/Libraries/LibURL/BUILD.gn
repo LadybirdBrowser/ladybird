@@ -3,6 +3,9 @@ shared_library("LibURL") {
   include_dirs = [ "//Userland/Libraries" ]
   sources = [
     "Forward.h",
+    "Host.h",
+    "Origin.cpp",
+    "Origin.h",
     "Parser.cpp",
     "Parser.h",
     "URL.cpp",

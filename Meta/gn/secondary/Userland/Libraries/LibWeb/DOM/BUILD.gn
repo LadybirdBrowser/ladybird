@@ -8,6 +8,7 @@ source_set("DOM") {
     "AccessibilityTreeNode.cpp",
     "AdoptedStyleSheets.cpp",
     "Attr.cpp",
+    "BeforeUnloadEvent.cpp",
     "CDATASection.cpp",
     "CharacterData.cpp",
     "Comment.cpp",

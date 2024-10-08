@@ -2,6 +2,7 @@ source_set("WebDriver") {
   configs += [ "//Userland/Libraries/LibWeb:configs" ]
   deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
   sources = [
+    "Actions.cpp",
     "Capabilities.cpp",
     "Client.cpp",
     "Contexts.cpp",
@@ -9,6 +10,8 @@ source_set("WebDriver") {
     "ElementReference.cpp",
     "Error.cpp",
     "ExecuteScript.cpp",
+    "InputSource.cpp",
+    "InputState.cpp",
     "Response.cpp",
     "Screenshot.cpp",
     "TimeoutsConfiguration.cpp",

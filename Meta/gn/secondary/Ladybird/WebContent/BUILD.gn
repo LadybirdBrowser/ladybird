@@ -6,9 +6,7 @@ import("//Meta/gn/build/libs/pulse/enable.gni")
 enable_qt_multimedia = !enable_pulseaudio && current_os != "mac"
 
 moc_qt_objects("generate_moc") {
-  sources = [
-    "//Ladybird/Qt/EventLoopImplementationQtEventTarget.h",
-  ]
+  sources = [ "//Ladybird/Qt/EventLoopImplementationQtEventTarget.h" ]
 
   if (enable_qt_multimedia) {
     sources += [
@@ -19,10 +17,7 @@ moc_qt_objects("generate_moc") {
 }
 
 link_qt("WebContent_qt") {
-  qt_components = [
-    "Core",
-    "Network",
-  ]
+  qt_components = [ "Core" ]
 
   if (enable_qt_multimedia) {
     qt_components += [ "Multimedia" ]

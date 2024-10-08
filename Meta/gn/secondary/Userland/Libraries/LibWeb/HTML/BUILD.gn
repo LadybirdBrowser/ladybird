@@ -154,7 +154,6 @@ source_set("HTML") {
     "NavigatorBeacon.cpp",
     "NavigatorID.cpp",
     "Numbers.cpp",
-    "Origin.cpp",
     "PageTransitionEvent.cpp",
     "Path2D.cpp",
     "Plugin.cpp",
