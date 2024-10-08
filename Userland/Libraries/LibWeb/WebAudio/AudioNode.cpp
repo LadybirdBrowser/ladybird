@@ -101,15 +101,13 @@ void AudioNode::disconnect(JS::NonnullGCPtr<AudioParam> destination_param, WebID
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcount
 WebIDL::ExceptionOr<void> AudioNode::set_channel_count(WebIDL::UnsignedLong channel_count)
 {
-    (void)channel_count;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioNode::set_channel_count(channel_count)"_fly_string);
-}
+    // If this value is set to zero or to a value greater than the implementation’s maximum number
+    // of channels the implementation MUST throw a NotSupportedError exception.
+    if (channel_count == 0 || channel_count > BaseAudioContext::MAX_NUMBER_OF_CHANNELS)
+        return WebIDL::NotSupportedError::create(realm(), "Invalid channel count"_fly_string);
 
-// https://webaudio.github.io/web-audio-api/#dom-audionode-channelcount
-WebIDL::UnsignedLong AudioNode::channel_count()
-{
-    dbgln("FIXME: Implement AudioNode::channel_count()");
-    return 2;
+    m_channel_count = channel_count;
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcountmode
