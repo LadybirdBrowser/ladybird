@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/MimeTypeArray.h>
 #include <LibWeb/HTML/NavigatorBeacon.h>
 #include <LibWeb/HTML/NavigatorConcurrentHardware.h>
+#include <LibWeb/HTML/NavigatorDeviceMemory.h>
 #include <LibWeb/HTML/NavigatorID.h>
 #include <LibWeb/HTML/NavigatorLanguage.h>
 #include <LibWeb/HTML/NavigatorOnLine.h>
@@ -23,6 +24,7 @@ namespace Web::HTML {
 class Navigator : public Bindings::PlatformObject
     , public NavigatorBeaconMixin
     , public NavigatorConcurrentHardwareMixin
+    , public NavigatorDeviceMemoryMixin
     , public NavigatorIDMixin
     , public NavigatorLanguageMixin
     , public NavigatorOnLineMixin
