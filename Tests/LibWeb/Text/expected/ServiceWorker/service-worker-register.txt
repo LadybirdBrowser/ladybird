@@ -1,1 +1,1 @@
-ServiceWorker registration failed: InternalError: TODO(Service Worker registration is not implemented in LibJS)
+ServiceWorker registration failed: InternalError: TODO(Service Worker update is not implemented in LibJS)

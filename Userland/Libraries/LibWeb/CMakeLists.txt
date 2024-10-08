@@ -635,6 +635,8 @@ set(SOURCES
     ResizeObserver/ResizeObserverSize.cpp
     SecureContexts/AbstractOperations.cpp
     ServiceWorker/Job.cpp
+    ServiceWorker/Registration.cpp
+    ServiceWorker/ServiceWorker.cpp
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp
     StorageAPI/StorageKey.cpp
