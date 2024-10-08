@@ -37,12 +37,17 @@ public:
     virtual FlyString const& entry_type() const override;
 
 private:
-    PerformanceEventTiming(JS::Realm& realm, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration,
-        DOM::Event const& event, HighResolutionTime::DOMHighResTimeStamp processing_start, unsigned long long interaction_id);
+    PerformanceEventTiming(
+        JS::Realm& realm, String const& name,
+        HighResolutionTime::DOMHighResTimeStamp start_time,
+        HighResolutionTime::DOMHighResTimeStamp duration, DOM::Event const& event,
+        HighResolutionTime::DOMHighResTimeStamp processing_start,
+        unsigned long long interaction_id);
 
     // m_entry_type defined here for both "event"s and "first-input"s
-    // this is the only PerformanceEntry that has two event types it could represent
-    // That complicates implementing the registry functions if they remain static
+    // this is the only PerformanceEntry that has two event types it could
+    // represent That complicates implementing the registry functions if they
+    // remain static
     FlyString m_entry_type;
     JS::GCPtr<DOM::EventTarget> m_event_target;
     HighResolutionTime::DOMHighResTimeStamp m_start_time;
@@ -53,7 +58,7 @@ private:
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<PerformanceEventTiming>> construct_impl(DOM::Event const&, HighResolutionTime::DOMHighResTimeStamp, unsigned long long);
     virtual void initialize(JS::Realm&) override;
 
-    PerformanceTimeline::ShouldAddEntry should_add_performance_event_timing() const;
+    PerformanceTimeline::ShouldAddEntry should_add_performance_event_timing(Optional<PerformanceTimeline::PerformanceObserverInit const&> = {}) const;
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
@@ -63,4 +68,4 @@ private:
     // https://www.w3.org/TR/event-timing/#sec-fin-event-timing
     // https://www.w3.org/TR/event-timing/#sec-dispatch-pending
 };
-}
+} // namespace Web::EventTiming

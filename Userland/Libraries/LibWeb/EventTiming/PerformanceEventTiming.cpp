@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/EventTiming/PerformanceEventTiming.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
+#include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
 
 namespace Web::EventTiming {
 
@@ -64,7 +65,7 @@ unsigned long long PerformanceEventTiming::interaction_id()
 }
 
 // https://www.w3.org/TR/event-timing/#sec-should-add-performanceeventtiming
-PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_performance_event_timing() const
+PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_performance_event_timing(Optional<PerformanceTimeline::PerformanceObserverInit const&> options) const
 {
     dbgln("FIXME: Implement PeformanceEventTiming should_add_performance_event_timing()");
     // 1. If entry’s entryType attribute value equals to "first-input", return true.
@@ -74,11 +75,19 @@ PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_performan
     // 2. Assert that entry’s entryType attribute value equals "event".
     VERIFY(entry_type() == "event");
 
-    // FIXME: 3. Let minDuration be computed as follows:
-    // FIXME: 3.1. If options is not present or if options’s durationThreshold is not present, let minDuration be 104.
-    // FIXME: 3.2. Otherwise, let minDuration be the maximum between 16 and options’s durationThreshold value.
+    // 3. Let minDuration be computed as follows:
+    HighResolutionTime::DOMHighResTimeStamp min_duration;
 
-    // FIXME: 4. If entry’s duration attribute value is greater than or equal to minDuration, return true.
+    // 3.1. If options is not present or if options’s durationThreshold is not present, let minDuration be 104.
+    if (!options.has_value() || options.value().duration_threshold.has_value())
+        min_duration = 104.0;
+    // 3.2. Otherwise, let minDuration be the maximum between 16 and options’s durationThreshold value.
+    else
+        min_duration = max(16.0, options.value().duration_threshold.value());
+
+    // 4. If entry’s duration attribute value is greater than or equal to minDuration, return true.
+    if (duration() >= min_duration)
+        return PerformanceTimeline::ShouldAddEntry::Yes;
 
     // 5. Otherwise, return false.
     return PerformanceTimeline::ShouldAddEntry::No;
