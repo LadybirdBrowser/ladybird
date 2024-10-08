@@ -283,6 +283,7 @@ ErrorOr<void> posix_fallocate(int fd, off_t offset, off_t length);
 #endif
 
 unsigned hardware_concurrency();
+u64 physical_memory_bytes();
 
 ErrorOr<String> resolve_executable_from_environment(StringView filename, int flags = 0);
 
