@@ -138,6 +138,7 @@ shared_library("LibWebView") {
     "//Userland/Libraries/LibImageDecoderClient",
     "//Userland/Libraries/LibJS",
     "//Userland/Libraries/LibRequests",
+    "//Userland/Libraries/LibSyntax",
     "//Userland/Libraries/LibURL",
     "//Userland/Libraries/LibUnicode",
     "//Userland/Libraries/LibWeb",

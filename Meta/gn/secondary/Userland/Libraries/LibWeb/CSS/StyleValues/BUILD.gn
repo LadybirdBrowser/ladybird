@@ -33,6 +33,7 @@ source_set("StyleValues") {
     "LinearGradientStyleValue.cpp",
     "MathDepthStyleValue.cpp",
     "NumberStyleValue.cpp",
+    "OpenTypeTaggedStyleValue.cpp",
     "PositionStyleValue.cpp",
     "RadialGradientStyleValue.cpp",
     "RectStyleValue.cpp",
