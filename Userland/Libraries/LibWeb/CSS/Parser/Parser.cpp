@@ -1358,7 +1358,10 @@ JS::GCPtr<CSSRule> Parser::convert_to_rule(NonnullRefPtr<Rule> rule)
         return {};
     }
 
-    return CSSStyleRule::create(m_context.realm(), move(selectors.value()), *declaration);
+    // TODO: Implement this properly
+    JS::MarkedVector<CSSRule*> child_rules(m_context.realm().heap());
+    auto nested_rules = CSSRuleList::create(m_context.realm(), move(child_rules));
+    return CSSStyleRule::create(m_context.realm(), move(selectors.value()), *declaration, *nested_rules);
 }
 
 JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(Rule& rule)

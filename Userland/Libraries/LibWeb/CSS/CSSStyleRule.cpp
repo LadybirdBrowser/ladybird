@@ -1,27 +1,28 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibWeb/Bindings/CSSStyleRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
 JS_DEFINE_ALLOCATOR(CSSStyleRule);
 
-JS::NonnullGCPtr<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, Vector<NonnullRefPtr<Web::CSS::Selector>>&& selectors, PropertyOwningCSSStyleDeclaration& declaration)
+JS::NonnullGCPtr<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, Vector<NonnullRefPtr<Web::CSS::Selector>>&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
 {
-    return realm.heap().allocate<CSSStyleRule>(realm, realm, move(selectors), declaration);
+    return realm.heap().allocate<CSSStyleRule>(realm, realm, move(selectors), declaration, nested_rules);
 }
 
-CSSStyleRule::CSSStyleRule(JS::Realm& realm, Vector<NonnullRefPtr<Selector>>&& selectors, PropertyOwningCSSStyleDeclaration& declaration)
-    : CSSRule(realm)
+CSSStyleRule::CSSStyleRule(JS::Realm& realm, Vector<NonnullRefPtr<Selector>>&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
+    : CSSGroupingRule(realm, nested_rules)
     , m_selectors(move(selectors))
     , m_declaration(declaration)
 {
@@ -40,13 +41,13 @@ void CSSStyleRule::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_declaration);
 }
 
-// https://www.w3.org/TR/cssom/#dom-cssstylerule-style
+// https://drafts.csswg.org/cssom-1/#dom-cssstylerule-style
 CSSStyleDeclaration* CSSStyleRule::style()
 {
     return m_declaration;
 }
 
-// https://www.w3.org/TR/cssom/#serialize-a-css-rule
+// https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
 String CSSStyleRule::serialized() const
 {
     StringBuilder builder;
@@ -56,48 +57,64 @@ String CSSStyleRule::serialized() const
     builder.append(serialize_a_group_of_selectors(selectors()));
     builder.append(" {"sv);
 
-    // 2. Let decls be the result of performing serialize a CSS declaration block on the rule’s associated declarations, or null if there are no such declarations.
+    // 2. Let decls be the result of performing serialize a CSS declaration block on the rule’s associated declarations,
+    //    or null if there are no such declarations.
     auto decls = declaration().length() > 0 ? declaration().serialized() : Optional<String>();
 
-    // FIXME: 3. Let rules be the result of performing serialize a CSS rule on each rule in the rule’s cssRules list, or null if there are no such rules.
-    Optional<String> rules;
+    // 3. Let rules be the result of performing serialize a CSS rule on each rule in the rule’s cssRules list,
+    //    or null if there are no such rules.
+    Vector<String> rules;
+    for (auto& rule : css_rules()) {
+        rules.append(rule->serialized());
+    }
 
     // 4. If decls and rules are both null, append " }" to s (i.e. a single SPACE (U+0020) followed by RIGHT CURLY BRACKET (U+007D)) and return s.
-    if (!decls.has_value() && !rules.has_value()) {
+    if (!decls.has_value() && rules.is_empty()) {
         builder.append(" }"sv);
-        return MUST(builder.to_string());
+        return builder.to_string_without_validation();
     }
 
     // 5. If rules is null:
-    if (!rules.has_value()) {
-        //    1. Append a single SPACE (U+0020) to s
+    if (rules.is_empty()) {
+        // 1. Append a single SPACE (U+0020) to s
         builder.append(' ');
-        //    2. Append decls to s
+        // 2. Append decls to s
         builder.append(*decls);
-        //    3. Append " }" to s (i.e. a single SPACE (U+0020) followed by RIGHT CURLY BRACKET (U+007D)).
+        // 3. Append " }" to s (i.e. a single SPACE (U+0020) followed by RIGHT CURLY BRACKET (U+007D)).
         builder.append(" }"sv);
-        //    4. Return s.
-        return MUST(builder.to_string());
+        // 4. Return s.
+        return builder.to_string_without_validation();
     }
 
-    // FIXME: 6. Otherwise:
-    // FIXME:    1. If decls is not null, prepend it to rules.
-    // FIXME:    2. For each rule in rules:
-    // FIXME:       1. Append a newline followed by two spaces to s.
-    // FIXME:       2. Append rule to s.
-    // FIXME:    3. Append a newline followed by RIGHT CURLY BRACKET (U+007D) to s.
-    // FIXME:    4. Return s.
-    TODO();
+    // 6. Otherwise:
+    else {
+        // 1. If decls is not null, prepend it to rules.
+        if (decls.has_value())
+            rules.prepend(decls.value());
+
+        // 2. For each rule in rules:
+        for (auto& rule : rules) {
+            // 1. Append a newline followed by two spaces to s.
+            // 2. Append rule to s.
+            builder.appendff("\n  {}", rule);
+        }
+
+        // 3. Append a newline followed by RIGHT CURLY BRACKET (U+007D) to s.
+        builder.append("\n}"sv);
+
+        // 4. Return s.
+        return builder.to_string_without_validation();
+    }
 }
 
-// https://www.w3.org/TR/cssom/#dom-cssstylerule-selectortext
+// https://drafts.csswg.org/cssom-1/#dom-cssstylerule-selectortext
 String CSSStyleRule::selector_text() const
 {
     // The selectorText attribute, on getting, must return the result of serializing the associated group of selectors.
     return serialize_a_group_of_selectors(selectors());
 }
 
-// https://www.w3.org/TR/cssom/#dom-cssstylerule-selectortext
+// https://drafts.csswg.org/cssom-1/#dom-cssstylerule-selectortext
 void CSSStyleRule::set_selector_text(StringView selector_text)
 {
     // 1. Run the parse a group of selectors algorithm on the given value.
