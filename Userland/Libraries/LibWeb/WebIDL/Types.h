@@ -42,4 +42,9 @@ using LongLong = i64;
 // The unsigned long long type is an unsigned integer type that has values in the range [0, 18446744073709551615].
 using UnsignedLongLong = u64;
 
+// https://webidl.spec.whatwg.org/#idl-double
+// The double type is a floating point numeric type that corresponds to the set of finite
+// double-precision 64-bit IEEE 754 floating point numbers. [IEEE-754]
+using Double = f64;
+
 }
