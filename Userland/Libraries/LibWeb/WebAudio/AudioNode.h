@@ -48,8 +48,11 @@ public:
         return m_context;
     }
 
-    WebIDL::UnsignedLong number_of_inputs();
-    WebIDL::UnsignedLong number_of_outputs();
+    // https://webaudio.github.io/web-audio-api/#dom-audionode-numberofinputs
+    virtual WebIDL::UnsignedLong number_of_inputs() = 0;
+    // https://webaudio.github.io/web-audio-api/#dom-audionode-numberofoutputs
+    virtual WebIDL::UnsignedLong number_of_outputs() = 0;
+
     WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong);
     WebIDL::UnsignedLong channel_count();
     WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
