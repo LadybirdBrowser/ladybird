@@ -105,11 +105,13 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
                 return IterationDecision::Continue;
 
             auto child_border_box = child.paintable_box()->absolute_border_box_rect();
+
             // NOTE: Here we check that the child is not wholly in the negative scrollable overflow region.
-            if (child_border_box.bottom() > 0 && child_border_box.right() > 0) {
-                scrollable_overflow_rect = scrollable_overflow_rect.united(child_border_box);
-                content_overflow_rect = content_overflow_rect.united(child_border_box);
-            }
+            if (child_border_box.bottom() < 0 || child_border_box.right() < 0)
+                return IterationDecision::Continue;
+
+            scrollable_overflow_rect = scrollable_overflow_rect.united(child_border_box);
+            content_overflow_rect = content_overflow_rect.united(child_border_box);
 
             // - The scrollable overflow areas of all of the above boxes
             //   (including zero-area boxes and accounting for transforms as described above),
